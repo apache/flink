@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
@@ -114,10 +115,11 @@ public class PartitionRequestClient {
 			public void operationComplete(ChannelFuture future) throws Exception {
 				if (!future.isSuccess()) {
 					clientHandler.removeInputChannel(inputChannel);
+					SocketAddress remoteAddr = future.channel().remoteAddress();
 					inputChannel.onError(
 							new LocalTransportException(
-									"Sending the partition request failed.",
-									future.channel().localAddress(), future.cause()
+								String.format("Sending the partition request to '%s' failed.", remoteAddr),
+								future.channel().localAddress(), future.cause()
 							));
 				}
 			}
@@ -158,9 +160,10 @@ public class PartitionRequestClient {
 							@Override
 							public void operationComplete(ChannelFuture future) throws Exception {
 								if (!future.isSuccess()) {
+									SocketAddress remoteAddr = future.channel().remoteAddress();
 									inputChannel.onError(new LocalTransportException(
-											"Sending the task event failed.",
-											future.channel().localAddress(), future.cause()
+										String.format("Sending the task event to '%s' failed.", remoteAddr),
+										future.channel().localAddress(), future.cause()
 									));
 								}
 							}
@@ -168,10 +171,7 @@ public class PartitionRequestClient {
 	}
 
 	public void notifyCreditAvailable(RemoteInputChannel inputChannel) {
-		// We should skip the notification if the client is already closed.
-		if (!closeReferenceCounter.isDisposed()) {
-			clientHandler.notifyCreditAvailable(inputChannel);
-		}
+		clientHandler.notifyCreditAvailable(inputChannel);
 	}
 
 	public void close(RemoteInputChannel inputChannel) throws IOException {
@@ -193,7 +193,9 @@ public class PartitionRequestClient {
 
 	private void checkNotClosed() throws IOException {
 		if (closeReferenceCounter.isDisposed()) {
-			throw new LocalTransportException("Channel closed.", tcpChannel.localAddress());
+			final SocketAddress localAddr = tcpChannel.localAddress();
+			final SocketAddress remoteAddr = tcpChannel.remoteAddress();
+			throw new LocalTransportException(String.format("Channel to '%s' closed.", remoteAddr), localAddr);
 		}
 	}
 }

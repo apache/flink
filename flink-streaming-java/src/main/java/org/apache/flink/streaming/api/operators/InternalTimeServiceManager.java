@@ -37,7 +37,7 @@ import java.util.Map;
 /**
  * An entity keeping all the time-related services available to all operators extending the
  * {@link AbstractStreamOperator}. Right now, this is only a
- * {@link HeapInternalTimerService timer services}.
+ * {@link InternalTimerServiceImpl timer services}.
  *
  * <b>NOTE:</b> These services are only available to keyed operators.
  *
@@ -46,28 +46,34 @@ import java.util.Map;
 @Internal
 public class InternalTimeServiceManager<K> {
 
-	private final int totalKeyGroups;
+	@VisibleForTesting
+	static final String TIMER_STATE_PREFIX = "_timer_state";
+	@VisibleForTesting
+	static final String PROCESSING_TIMER_PREFIX = TIMER_STATE_PREFIX + "/processing_";
+	@VisibleForTesting
+	static final String EVENT_TIMER_PREFIX = TIMER_STATE_PREFIX + "/event_";
+
 	private final KeyGroupRange localKeyGroupRange;
 	private final KeyContext keyContext;
 
 	private final PriorityQueueSetFactory priorityQueueSetFactory;
 	private final ProcessingTimeService processingTimeService;
 
-	private final Map<String, HeapInternalTimerService<K, ?>> timerServices;
+	private final Map<String, InternalTimerServiceImpl<K, ?>> timerServices;
+
+	private final boolean useLegacySynchronousSnapshots;
 
 	InternalTimeServiceManager(
-			int totalKeyGroups,
-			KeyGroupRange localKeyGroupRange,
-			KeyContext keyContext,
-			PriorityQueueSetFactory priorityQueueSetFactory,
-			ProcessingTimeService processingTimeService) {
+		KeyGroupRange localKeyGroupRange,
+		KeyContext keyContext,
+		PriorityQueueSetFactory priorityQueueSetFactory,
+		ProcessingTimeService processingTimeService, boolean useLegacySynchronousSnapshots) {
 
-		Preconditions.checkArgument(totalKeyGroups > 0);
-		this.totalKeyGroups = totalKeyGroups;
 		this.localKeyGroupRange = Preconditions.checkNotNull(localKeyGroupRange);
 		this.priorityQueueSetFactory = Preconditions.checkNotNull(priorityQueueSetFactory);
 		this.keyContext = Preconditions.checkNotNull(keyContext);
 		this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
+		this.useLegacySynchronousSnapshots = useLegacySynchronousSnapshots;
 
 		this.timerServices = new HashMap<>();
 	}
@@ -78,7 +84,7 @@ public class InternalTimeServiceManager<K> {
 		TimerSerializer<K, N> timerSerializer,
 		Triggerable<K, N> triggerable) {
 
-		HeapInternalTimerService<K, N> timerService = registerOrGetTimerService(name, timerSerializer);
+		InternalTimerServiceImpl<K, N> timerService = registerOrGetTimerService(name, timerSerializer);
 
 		timerService.startTimerService(
 			timerSerializer.getKeySerializer(),
@@ -89,23 +95,23 @@ public class InternalTimeServiceManager<K> {
 	}
 
 	@SuppressWarnings("unchecked")
-	<N> HeapInternalTimerService<K, N> registerOrGetTimerService(String name, TimerSerializer<K, N> timerSerializer) {
-		HeapInternalTimerService<K, N> timerService = (HeapInternalTimerService<K, N>) timerServices.get(name);
+	<N> InternalTimerServiceImpl<K, N> registerOrGetTimerService(String name, TimerSerializer<K, N> timerSerializer) {
+		InternalTimerServiceImpl<K, N> timerService = (InternalTimerServiceImpl<K, N>) timerServices.get(name);
 		if (timerService == null) {
 
-			timerService = new HeapInternalTimerService<>(
+			timerService = new InternalTimerServiceImpl<>(
 				localKeyGroupRange,
 				keyContext,
 				processingTimeService,
-				createTimerPriorityQueue("__ts_" + name + "/processing_timers", timerSerializer),
-				createTimerPriorityQueue("__ts_" + name + "/event_timers", timerSerializer));
+				createTimerPriorityQueue(PROCESSING_TIMER_PREFIX + name, timerSerializer),
+				createTimerPriorityQueue(EVENT_TIMER_PREFIX + name, timerSerializer));
 
 			timerServices.put(name, timerService);
 		}
 		return timerService;
 	}
 
-	Map<String, HeapInternalTimerService<K, ?>> getRegisteredTimerServices() {
+	Map<String, InternalTimerServiceImpl<K, ?>> getRegisteredTimerServices() {
 		return Collections.unmodifiableMap(timerServices);
 	}
 
@@ -114,13 +120,11 @@ public class InternalTimeServiceManager<K> {
 		TimerSerializer<K, N> timerSerializer) {
 		return priorityQueueSetFactory.create(
 			name,
-			timerSerializer,
-			InternalTimer.getTimerComparator(),
-			InternalTimer.getKeyExtractorFunction());
+			timerSerializer);
 	}
 
 	public void advanceWatermark(Watermark watermark) throws Exception {
-		for (HeapInternalTimerService<?, ?> service : timerServices.values()) {
+		for (InternalTimerServiceImpl<?, ?> service : timerServices.values()) {
 			service.advanceWatermark(watermark.getTimestamp());
 		}
 	}
@@ -128,6 +132,7 @@ public class InternalTimeServiceManager<K> {
 	//////////////////				Fault Tolerance Methods				///////////////////
 
 	public void snapshotStateForKeyGroup(DataOutputView stream, int keyGroupIdx) throws IOException {
+		Preconditions.checkState(useLegacySynchronousSnapshots);
 		InternalTimerServiceSerializationProxy<K> serializationProxy =
 			new InternalTimerServiceSerializationProxy<>(this, keyGroupIdx);
 
@@ -153,7 +158,7 @@ public class InternalTimeServiceManager<K> {
 	@VisibleForTesting
 	public int numProcessingTimeTimers() {
 		int count = 0;
-		for (HeapInternalTimerService<?, ?> timerService : timerServices.values()) {
+		for (InternalTimerServiceImpl<?, ?> timerService : timerServices.values()) {
 			count += timerService.numProcessingTimeTimers();
 		}
 		return count;
@@ -162,7 +167,7 @@ public class InternalTimeServiceManager<K> {
 	@VisibleForTesting
 	public int numEventTimeTimers() {
 		int count = 0;
-		for (HeapInternalTimerService<?, ?> timerService : timerServices.values()) {
+		for (InternalTimerServiceImpl<?, ?> timerService : timerServices.values()) {
 			count += timerService.numEventTimeTimers();
 		}
 		return count;

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.ttl;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 
@@ -35,7 +36,7 @@ class TtlValueState<K, N, T>
 	implements InternalValueState<K, N, T> {
 	TtlValueState(
 		InternalValueState<K, N, TtlValue<T>> originalState,
-		TtlConfig config,
+		StateTtlConfig config,
 		TtlTimeProvider timeProvider,
 		TypeSerializer<T> valueSerializer) {
 		super(originalState, config, timeProvider, valueSerializer);

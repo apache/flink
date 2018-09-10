@@ -37,6 +37,9 @@ import org.junit.Test;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import scala.concurrent.Await;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -55,10 +58,10 @@ public class AkkaJobManagerRetrieverTest extends TestLogger {
 	}
 
 	@AfterClass
-	public static void teardown() {
+	public static void teardown() throws InterruptedException, TimeoutException {
 		if (actorSystem != null) {
-			actorSystem.shutdown();
-			actorSystem.awaitTermination(FutureUtils.toFiniteDuration(timeout));
+			actorSystem.terminate();
+			Await.ready(actorSystem.whenTerminated(), FutureUtils.toFiniteDuration(timeout));
 
 			actorSystem = null;
 		}

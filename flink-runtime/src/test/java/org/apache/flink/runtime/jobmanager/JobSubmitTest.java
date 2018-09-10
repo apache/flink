@@ -117,7 +117,7 @@ public class JobSubmitTest {
 	@AfterClass
 	public static void teardownJobmanager() throws Exception {
 		if (jobManagerSystem != null) {
-			jobManagerSystem.shutdown();
+			jobManagerSystem.terminate();
 		}
 
 		if (highAvailabilityServices != null) {

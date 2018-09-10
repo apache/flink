@@ -53,9 +53,14 @@
             <td>File system path (URI) where Flink persists metadata in high-availability setups.</td>
         </tr>
         <tr>
-            <td><h5>security.ssl.enabled</h5></td>
+            <td><h5>security.ssl.internal.enabled</h5></td>
             <td style="word-wrap: break-word;">false</td>
-            <td>Turns on SSL for internal network communication. This can be optionally overridden by flags defined in different transport modules.</td>
+            <td>Turns on SSL for internal network communication. Optionally, specific components may override this through their own settings (rpc, data transport, REST, etc).</td>
+        </tr>
+        <tr>
+            <td><h5>security.ssl.rest.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Turns on SSL for external communication via the REST endpoints.</td>
         </tr>
     </tbody>
 </table>

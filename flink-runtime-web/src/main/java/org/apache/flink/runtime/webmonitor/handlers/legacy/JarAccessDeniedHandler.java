@@ -31,7 +31,7 @@ import java.util.concurrent.Executor;
 public class JarAccessDeniedHandler extends AbstractJsonRequestHandler {
 
 	private static final String ERROR_MESSAGE = "{\"error\": \"Web submission interface is not " +
-			"available for this cluster. To enable it, set the configuration key ' jobmanager.web.submit.enable.'\"}";
+			"available for this cluster. To enable it, set the configuration key ' web.submit.enable.'\"}";
 
 	public JarAccessDeniedHandler(Executor executor) {
 		super(executor);

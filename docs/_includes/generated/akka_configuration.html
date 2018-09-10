@@ -13,9 +13,39 @@
             <td>Timeout used for all futures and blocking Akka calls. If Flink fails due to timeouts then you should try to increase this value. Timeouts can be caused by slow machines or a congested network. The timeout value requires a time-unit specifier (ms/s/min/h/d).</td>
         </tr>
         <tr>
+            <td><h5>akka.client-socket-worker-pool.pool-size-factor</h5></td>
+            <td style="word-wrap: break-word;">1.0</td>
+            <td>The pool size factor is used to determine thread pool size using the following formula: ceil(available processors * factor). Resulting size is then bounded by the pool-size-min and pool-size-max values.</td>
+        </tr>
+        <tr>
+            <td><h5>akka.client-socket-worker-pool.pool-size-max</h5></td>
+            <td style="word-wrap: break-word;">2</td>
+            <td>Max number of threads to cap factor-based number to.</td>
+        </tr>
+        <tr>
+            <td><h5>akka.client-socket-worker-pool.pool-size-min</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Min number of threads to cap factor-based number to.</td>
+        </tr>
+        <tr>
             <td><h5>akka.client.timeout</h5></td>
             <td style="word-wrap: break-word;">"60 s"</td>
             <td>Timeout for all blocking calls on the client side.</td>
+        </tr>
+        <tr>
+            <td><h5>akka.fork-join-executor.parallelism-factor</h5></td>
+            <td style="word-wrap: break-word;">2.0</td>
+            <td>The parallelism factor is used to determine thread pool size using the following formula: ceil(available processors * factor). Resulting size is then bounded by the parallelism-min and parallelism-max values.</td>
+        </tr>
+        <tr>
+            <td><h5>akka.fork-join-executor.parallelism-max</h5></td>
+            <td style="word-wrap: break-word;">64</td>
+            <td>Max number of threads to cap factor-based parallelism number to.</td>
+        </tr>
+        <tr>
+            <td><h5>akka.fork-join-executor.parallelism-min</h5></td>
+            <td style="word-wrap: break-word;">8</td>
+            <td>Min number of threads to cap factor-based parallelism number to.</td>
         </tr>
         <tr>
             <td><h5>akka.framesize</h5></td>
@@ -41,6 +71,21 @@
             <td><h5>akka.retry-gate-closed-for</h5></td>
             <td style="word-wrap: break-word;">50</td>
             <td>Milliseconds a gate should be closed for after a remote connection was disconnected.</td>
+        </tr>
+        <tr>
+            <td><h5>akka.server-socket-worker-pool.pool-size-factor</h5></td>
+            <td style="word-wrap: break-word;">1.0</td>
+            <td>The pool size factor is used to determine thread pool size using the following formula: ceil(available processors * factor). Resulting size is then bounded by the pool-size-min and pool-size-max values.</td>
+        </tr>
+        <tr>
+            <td><h5>akka.server-socket-worker-pool.pool-size-max</h5></td>
+            <td style="word-wrap: break-word;">2</td>
+            <td>Max number of threads to cap factor-based number to.</td>
+        </tr>
+        <tr>
+            <td><h5>akka.server-socket-worker-pool.pool-size-min</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Min number of threads to cap factor-based number to.</td>
         </tr>
         <tr>
             <td><h5>akka.ssl.enabled</h5></td>
@@ -80,17 +125,17 @@
         <tr>
             <td><h5>akka.watch.heartbeat.interval</h5></td>
             <td style="word-wrap: break-word;">"10 s"</td>
-            <td>Heartbeat interval for Akka’s DeathWatch mechanism to detect dead TaskManagers. If TaskManagers are wrongly marked dead because of lost or delayed heartbeat messages, then you should decrease this value or increase akka.watch.heartbeat.pause. A thorough description of Akka’s DeathWatch can be found &#60;a href="http://doc.akka.io/docs/akka/snapshot/scala/remoting.html#failure-detector"&#62;here&#60;/a&#62;.</td>
+            <td>Heartbeat interval for Akka’s DeathWatch mechanism to detect dead TaskManagers. If TaskManagers are wrongly marked dead because of lost or delayed heartbeat messages, then you should decrease this value or increase akka.watch.heartbeat.pause. A thorough description of Akka’s DeathWatch can be found <a href="http://doc.akka.io/docs/akka/snapshot/scala/remoting.html#failure-detector">here</a></td>
         </tr>
         <tr>
             <td><h5>akka.watch.heartbeat.pause</h5></td>
             <td style="word-wrap: break-word;">"60 s"</td>
-            <td>Acceptable heartbeat pause for Akka’s DeathWatch mechanism. A low value does not allow an irregular heartbeat. If TaskManagers are wrongly marked dead because of lost or delayed heartbeat messages, then you should increase this value or decrease akka.watch.heartbeat.interval. Higher value increases the time to detect a dead TaskManager. A thorough description of Akka’s DeathWatch can be found &#60;a href="http://doc.akka.io/docs/akka/snapshot/scala/remoting.html#failure-detector"&#62;here&#60;/a&#62;.</td>
+            <td>Acceptable heartbeat pause for Akka’s DeathWatch mechanism. A low value does not allow an irregular heartbeat. If TaskManagers are wrongly marked dead because of lost or delayed heartbeat messages, then you should increase this value or decrease akka.watch.heartbeat.interval. Higher value increases the time to detect a dead TaskManager. A thorough description of Akka’s DeathWatch can be found <a href="http://doc.akka.io/docs/akka/snapshot/scala/remoting.html#failure-detector">here</a></td>
         </tr>
         <tr>
             <td><h5>akka.watch.threshold</h5></td>
             <td style="word-wrap: break-word;">12</td>
-            <td>Threshold for the DeathWatch failure detector. A low value is prone to false positives whereas a high value increases the time to detect a dead TaskManager. A thorough description of Akka’s DeathWatch can be found &#60;a href="http://doc.akka.io/docs/akka/snapshot/scala/remoting.html#failure-detector"&#62;here&#60;/a&#62;.</td>
+            <td>Threshold for the DeathWatch failure detector. A low value is prone to false positives whereas a high value increases the time to detect a dead TaskManager. A thorough description of Akka’s DeathWatch can be found <a href="http://doc.akka.io/docs/akka/snapshot/scala/remoting.html#failure-detector">here</a></td>
         </tr>
     </tbody>
 </table>

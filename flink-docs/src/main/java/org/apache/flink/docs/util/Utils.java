@@ -33,8 +33,8 @@ public enum Utils {
 	public static String escapeCharacters(String value) {
 		return value
 			.replaceAll("<wbr>", TEMPORARY_PLACEHOLDER)
-			.replaceAll("<", "&#60;")
-			.replaceAll(">", "&#62;")
+			.replaceAll("<", "&lt;")
+			.replaceAll(">", "&gt;")
 			.replaceAll(TEMPORARY_PLACEHOLDER, "<wbr>");
 	}
 }

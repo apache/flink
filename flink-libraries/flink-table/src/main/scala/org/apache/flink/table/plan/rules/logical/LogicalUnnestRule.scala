@@ -50,8 +50,16 @@ class LogicalUnnestRule(
       case filter: LogicalFilter =>
         filter.getInput.asInstanceOf[RelSubset].getOriginal match {
           case u: Uncollect => !u.withOrdinality
+          case p: LogicalProject => p.getInput.asInstanceOf[RelSubset].getOriginal match {
+            case u: Uncollect => !u.withOrdinality
+            case _ => false
+          }
           case _ => false
         }
+      case p: LogicalProject => p.getInput.asInstanceOf[RelSubset].getOriginal match {
+        case u: Uncollect => !u.withOrdinality
+        case _ => false
+      }
       case u: Uncollect => !u.withOrdinality
       case _ => false
     }
@@ -67,6 +75,11 @@ class LogicalUnnestRule(
       relNode match {
         case rs: RelSubset =>
           convert(rs.getRelList.get(0))
+
+        case p: LogicalProject =>
+          p.copy(
+            p.getTraitSet,
+            ImmutableList.of(convert(p.getInput.asInstanceOf[RelSubset].getOriginal)))
 
         case f: LogicalFilter =>
           f.copy(

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.rest;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ConfigurationException;
@@ -91,12 +90,11 @@ public final class RestClientConfiguration {
 		Preconditions.checkNotNull(config);
 
 		final SSLEngineFactory sslEngineFactory;
-		final boolean enableSSL = config.getBoolean(SecurityOptions.SSL_ENABLED);
-		if (enableSSL) {
+		if (SSLUtils.isRestSSLEnabled(config)) {
 			try {
-				sslEngineFactory = SSLUtils.createClientSSLEngineFactory(config);
+				sslEngineFactory = SSLUtils.createRestClientSSLEngineFactory(config);
 			} catch (Exception e) {
-				throw new ConfigurationException("Failed to initialize SSLContext for the web frontend", e);
+				throw new ConfigurationException("Failed to initialize SSLContext for the REST client", e);
 			}
 		} else {
 			sslEngineFactory = null;

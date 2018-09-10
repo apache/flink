@@ -19,6 +19,7 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.table.descriptors.DescriptorProperties
+import org.apache.flink.table.factories.TableFactory
 
 /**
   * Exception for all errors occurring during expression parsing.
@@ -142,41 +143,80 @@ case class CatalogAlreadyExistException(
 }
 
 /**
-  * Exception for not finding a [[org.apache.flink.table.sources.TableSourceFactory]] for the
-  * given properties.
+  * Exception for not finding a [[TableFactory]] for the given properties.
   *
-  * @param properties properties that describe the table source
+  * @param message message that indicates the current matching step
+  * @param factoryClass required factory class
+  * @param factories all found factories
+  * @param properties properties that describe the configuration
   * @param cause the cause
   */
-case class NoMatchingTableSourceException(
-    properties: Map[String, String],
-    cause: Throwable)
+case class NoMatchingTableFactoryException(
+      message: String,
+      factoryClass: Class[_],
+      factories: Seq[TableFactory],
+      properties: Map[String, String],
+      cause: Throwable)
     extends RuntimeException(
-      s"Could not find a table source factory in the classpath satisfying the " +
-        s"following properties: \n" +
-        s"${DescriptorProperties.toString(properties)}",
+      s"""Could not find a suitable table factory for '${factoryClass.getName}' in
+        |the classpath.
+        |
+        |Reason: $message
+        |
+        |The following properties are requested:
+        |${DescriptorProperties.toString(properties)}
+        |
+        |The following factories have been considered:
+        |${factories.map(_.getClass.getName).mkString("\n")}
+        |""".stripMargin,
       cause) {
 
-  def this(properties: Map[String, String]) = this(properties, null)
+  def this(
+      message: String,
+      factoryClass: Class[_],
+      factories: Seq[TableFactory],
+      properties: Map[String, String]) = {
+    this(message, factoryClass, factories, properties, null)
+  }
 }
 
 /**
-  * Exception for finding more than one [[org.apache.flink.table.sources.TableSourceFactory]] for
-  * the given properties.
+  * Exception for finding more than one [[TableFactory]] for the given properties.
   *
-  * @param properties properties that describe the table source
+  * @param matchingFactories factories that match the properties
+  * @param factoryClass required factory class
+  * @param factories all found factories
+  * @param properties properties that describe the configuration
   * @param cause the cause
   */
-case class AmbiguousTableSourceException(
-    properties: Map[String, String],
-    cause: Throwable)
+case class AmbiguousTableFactoryException(
+      matchingFactories: Seq[TableFactory],
+      factoryClass: Class[_],
+      factories: Seq[TableFactory],
+      properties: Map[String, String],
+      cause: Throwable)
     extends RuntimeException(
-      s"More than one table source factory in the classpath satisfying the " +
-        s"following properties: \n" +
-        s"${DescriptorProperties.toString(properties)}",
+      s"""More than one suitable table factory for '${factoryClass.getName}' could
+        |be found in the classpath.
+        |
+        |The following factories match:
+        |${matchingFactories.map(_.getClass.getName).mkString("\n")}
+        |
+        |The following properties are requested:
+        |${DescriptorProperties.toString(properties)}
+        |
+        |The following factories have been considered:
+        |${factories.map(_.getClass.getName).mkString("\n")}
+        |""".stripMargin,
       cause) {
 
-  def this(properties: Map[String, String]) = this(properties, null)
+  def this(
+      matchingFactories: Seq[TableFactory],
+      factoryClass: Class[_],
+      factories: Seq[TableFactory],
+      properties: Map[String, String]) = {
+    this(matchingFactories, factoryClass, factories, properties, null)
+  }
 }
 
 /**

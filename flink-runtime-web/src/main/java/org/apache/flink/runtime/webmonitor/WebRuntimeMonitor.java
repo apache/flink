@@ -26,6 +26,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.rest.handler.WebHandler;
 import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointStatsCache;
@@ -92,8 +93,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
@@ -129,8 +128,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	/** Service which retrieves the currently leading JobManager and opens a JobManagerGateway. */
 	private final LeaderGatewayRetriever<JobManagerGateway> retriever;
-
-	private final SSLContext serverSSLContext;
 
 	private final CompletableFuture<String> localRestAddress = new CompletableFuture<>();
 
@@ -234,17 +231,17 @@ public class WebRuntimeMonitor implements WebMonitor {
 		// --------------------------------------------------------------------
 
 		// Config to enable https access to the web-ui
-		boolean enableSSL = config.getBoolean(WebOptions.SSL_ENABLED) && SSLUtils.getSSLEnabled(config);
-
+		final SSLEngineFactory sslFactory;
+		final boolean enableSSL = SSLUtils.isRestSSLEnabled(config) && config.getBoolean(WebOptions.SSL_ENABLED);
 		if (enableSSL) {
 			LOG.info("Enabling ssl for the web frontend");
 			try {
-				serverSSLContext = SSLUtils.createSSLServerContext(config);
+				sslFactory = SSLUtils.createRestServerSSLEngineFactory(config);
 			} catch (Exception e) {
 				throw new IOException("Failed to initialize SSLContext for the web frontend", e);
 			}
 		} else {
-			serverSSLContext = null;
+			sslFactory = null;
 		}
 		metricFetcher = new MetricFetcher(retriever, queryServiceRetriever, scheduledExecutor, timeout);
 
@@ -385,7 +382,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		// add shutdown hook for deleting the directories and remaining temp files on shutdown
 		ShutdownHookUtil.addShutdownHook(this::cleanup, getClass().getSimpleName(), LOG);
 
-		this.netty = new WebFrontendBootstrap(router, LOG, uploadDir, serverSSLContext, configuredAddress, configuredPort, config);
+		this.netty = new WebFrontendBootstrap(router, LOG, uploadDir, sslFactory, configuredAddress, configuredPort, config);
 
 		localRestAddress.complete(netty.getRestAddress());
 	}

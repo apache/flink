@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -157,7 +158,9 @@ public class HighAvailabilityOptions {
 			key("high-availability.zookeeper.path.mesos-workers")
 			.defaultValue("/mesos-workers")
 			.withDeprecatedKeys("recovery.zookeeper.path.mesos-workers")
-			.withDescription("ZooKeeper root path (ZNode) for Mesos workers.");
+			.withDescription(Description.builder()
+				.text("The ZooKeeper root path for persisting the Mesos worker information.")
+				.build());
 
 	// ------------------------------------------------------------------------
 	//  ZooKeeper Client Settings

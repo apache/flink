@@ -19,8 +19,12 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.MathUtils;
@@ -28,11 +32,12 @@ import org.apache.flink.util.MathUtils;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Objects;
 
 /**
- * A serializer for {@link TimerHeapInternalTimer} objects that produces a serialization format that is aligned with
- * {@link InternalTimer#getTimerComparator()}.
+ * A serializer for {@link TimerHeapInternalTimer} objects that produces a serialization format that is
+ * lexicographically aligned the priority of the timers.
  *
  * @param <K> type of the timer key.
  * @param <N> type of the timer namespace.
@@ -40,6 +45,9 @@ import java.util.Objects;
 public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer<K, N>> {
 
 	private static final long serialVersionUID = 1L;
+
+	private static final int KEY_SERIALIZER_SNAPSHOT_INDEX = 0;
+	private static final int NAMESPACE_SERIALIZER_SNAPSHOT_INDEX = 1;
 
 	/** Serializer for the key. */
 	@Nonnull
@@ -201,13 +209,41 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 
 	@Override
 	public TypeSerializerConfigSnapshot snapshotConfiguration() {
-		throw new UnsupportedOperationException("This serializer is currently not used to write state.");
+		return new TimerSerializerConfigSnapshot<>(keySerializer, namespaceSerializer);
 	}
 
 	@Override
 	public CompatibilityResult<TimerHeapInternalTimer<K, N>> ensureCompatibility(
 		TypeSerializerConfigSnapshot configSnapshot) {
-		throw new UnsupportedOperationException("This serializer is currently not used to write state.");
+
+		if (configSnapshot instanceof TimerSerializerConfigSnapshot) {
+			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs =
+				((TimerSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
+
+			if (previousSerializersAndConfigs.size() == 2) {
+				Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> keySerializerAndSnapshot =
+					previousSerializersAndConfigs.get(KEY_SERIALIZER_SNAPSHOT_INDEX);
+				Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> namespaceSerializerAndSnapshot =
+					previousSerializersAndConfigs.get(NAMESPACE_SERIALIZER_SNAPSHOT_INDEX);
+				CompatibilityResult<K> keyCompatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
+					keySerializerAndSnapshot.f0,
+					UnloadableDummyTypeSerializer.class,
+					keySerializerAndSnapshot.f1,
+					keySerializer);
+
+				CompatibilityResult<N> namespaceCompatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
+					namespaceSerializerAndSnapshot.f0,
+					UnloadableDummyTypeSerializer.class,
+					namespaceSerializerAndSnapshot.f1,
+					namespaceSerializer);
+
+				if (!keyCompatibilityResult.isRequiresMigration()
+					&& !namespaceCompatibilityResult.isRequiresMigration()) {
+					return CompatibilityResult.compatible();
+				}
+			}
+		}
+		return CompatibilityResult.requiresMigration();
 	}
 
 	@Nonnull
@@ -218,5 +254,39 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 	@Nonnull
 	public TypeSerializer<N> getNamespaceSerializer() {
 		return namespaceSerializer;
+	}
+
+	/**
+	 * Snaphot of a {@link TimerSerializer}.
+	 *
+	 * @param <K> type of key.
+	 * @param <N> type of namespace.
+	 */
+	public static class TimerSerializerConfigSnapshot<K, N> extends CompositeTypeSerializerConfigSnapshot {
+
+		private static final int VERSION = 1;
+
+		public TimerSerializerConfigSnapshot() {
+		}
+
+		public TimerSerializerConfigSnapshot(
+			@Nonnull TypeSerializer<K> keySerializer,
+			@Nonnull TypeSerializer<N> namespaceSerializer) {
+			super(init(keySerializer, namespaceSerializer));
+		}
+
+		private static TypeSerializer<?>[] init(
+			@Nonnull TypeSerializer<?> keySerializer,
+			@Nonnull TypeSerializer<?> namespaceSerializer) {
+			TypeSerializer<?>[] timerSerializers = new TypeSerializer[2];
+			timerSerializers[KEY_SERIALIZER_SNAPSHOT_INDEX] = keySerializer;
+			timerSerializers[NAMESPACE_SERIALIZER_SNAPSHOT_INDEX] = namespaceSerializer;
+			return timerSerializers;
+		}
+
+		@Override
+		public int getVersion() {
+			return VERSION;
+		}
 	}
 }

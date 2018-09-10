@@ -18,3 +18,4 @@
 #==============================================================================
 
 org.apache.flink.table.client.gateway.utils.TestTableSourceFactory
+org.apache.flink.table.client.gateway.utils.TestTableSinkFactory

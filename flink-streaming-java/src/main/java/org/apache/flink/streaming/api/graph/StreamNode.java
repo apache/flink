@@ -28,6 +28,8 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,6 +56,7 @@ public class StreamNode implements Serializable {
 	private Long bufferTimeout = null;
 	private final String operatorName;
 	private String slotSharingGroup;
+	private @Nullable String coLocationGroup;
 	private KeySelector<?, ?> statePartitioner1;
 	private KeySelector<?, ?> statePartitioner2;
 	private TypeSerializer<?> stateKeySerializer;
@@ -77,10 +80,12 @@ public class StreamNode implements Serializable {
 	public StreamNode(StreamExecutionEnvironment env,
 		Integer id,
 		String slotSharingGroup,
+		@Nullable String coLocationGroup,
 		StreamOperator<?> operator,
 		String operatorName,
 		List<OutputSelector<?>> outputSelector,
 		Class<? extends AbstractInvokable> jobVertexClass) {
+
 		this.env = env;
 		this.id = id;
 		this.operatorName = operatorName;
@@ -88,6 +93,7 @@ public class StreamNode implements Serializable {
 		this.outputSelectors = outputSelector;
 		this.jobVertexClass = jobVertexClass;
 		this.slotSharingGroup = slotSharingGroup;
+		this.coLocationGroup = coLocationGroup;
 	}
 
 	public void addInEdge(StreamEdge inEdge) {
@@ -251,6 +257,14 @@ public class StreamNode implements Serializable {
 
 	public String getSlotSharingGroup() {
 		return slotSharingGroup;
+	}
+
+	public void setCoLocationGroup(@Nullable String coLocationGroup) {
+		this.coLocationGroup = coLocationGroup;
+	}
+
+	public @Nullable String getCoLocationGroup() {
+		return coLocationGroup;
 	}
 
 	public boolean isSameSlotSharingGroup(StreamNode downstreamVertex) {

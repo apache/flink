@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.common.state.AggregatingState;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
 
@@ -36,7 +37,7 @@ class TtlFoldingState<K, N, T, ACC>
 	implements InternalFoldingState<K, N, T, ACC> {
 	TtlFoldingState(
 		InternalFoldingState<K, N, T, TtlValue<ACC>> originalState,
-		TtlConfig config,
+		StateTtlConfig config,
 		TtlTimeProvider timeProvider,
 		TypeSerializer<ACC> valueSerializer) {
 		super(originalState, config, timeProvider, valueSerializer);

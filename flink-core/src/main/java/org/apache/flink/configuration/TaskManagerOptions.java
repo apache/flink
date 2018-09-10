@@ -116,7 +116,7 @@ public class TaskManagerOptions {
 		key("taskmanager.data.ssl.enabled")
 			.defaultValue(true)
 			.withDescription("Enable SSL support for the taskmanager data transport. This is applicable only when the" +
-				" global ssl flag " + SecurityOptions.SSL_ENABLED.key() + " is set to true");
+				" global flag for internal SSL (" + SecurityOptions.SSL_INTERNAL_ENABLED.key() + ") is set to true");
 
 	/**
 	 * The initial registration backoff between two consecutive registration attempts. The backoff
@@ -190,11 +190,11 @@ public class TaskManagerOptions {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Size of memory buffers used by the network stack and the memory manager (in bytes).
+	 * Size of memory buffers used by the network stack and the memory manager.
 	 */
 	public static final ConfigOption<String> MEMORY_SEGMENT_SIZE =
 			key("taskmanager.memory.segment-size")
-			.defaultValue("32768")
+			.defaultValue("32kb")
 			.withDescription("Size of memory buffers used by the network stack and the memory manager.");
 
 	/**
@@ -268,19 +268,19 @@ public class TaskManagerOptions {
 				"` and \"taskmanager.network.memory.max\" may override this fraction.");
 
 	/**
-	 * Minimum memory size for network buffers (in bytes).
+	 * Minimum memory size for network buffers.
 	 */
 	public static final ConfigOption<String> NETWORK_BUFFERS_MEMORY_MIN =
 			key("taskmanager.network.memory.min")
-			.defaultValue(String.valueOf(64L << 20)) // 64 MB
+			.defaultValue("64mb")
 			.withDescription("Minimum memory size for network buffers.");
 
 	/**
-	 * Maximum memory size for network buffers (in bytes).
+	 * Maximum memory size for network buffers.
 	 */
 	public static final ConfigOption<String> NETWORK_BUFFERS_MEMORY_MAX =
 			key("taskmanager.network.memory.max")
-			.defaultValue(String.valueOf(1024L << 20)) // 1 GB
+			.defaultValue("1gb")
 			.withDescription("Maximum memory size for network buffers.");
 
 	/**

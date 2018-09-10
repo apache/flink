@@ -44,12 +44,13 @@ import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.clusterframework.{BootstrapTools, FlinkResourceManager}
+import org.apache.flink.runtime.concurrent.Executors.directExecutionContext
 import org.apache.flink.runtime.concurrent.{FutureUtils, ScheduledExecutorServiceAdapter}
 import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders.ResolveOrder
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.executiongraph._
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
+import org.apache.flink.runtime.executiongraph.restart.{RestartStrategyFactory, RestartStrategyResolving}
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
 import org.apache.flink.runtime.highavailability.{HighAvailabilityServices, HighAvailabilityServicesUtils}
 import org.apache.flink.runtime.instance.{AkkaActorGateway, InstanceID, InstanceManager}
@@ -1250,15 +1251,15 @@ class JobManager(
           throw new JobSubmissionException(jobId, "The given job is empty")
         }
 
-        val restartStrategy =
-          Option(jobGraph.getSerializedExecutionConfig()
-            .deserializeValue(userCodeLoader)
-            .getRestartStrategy())
-            .map(RestartStrategyFactory.createRestartStrategy)
-            .filter(p => p != null) match {
-            case Some(strategy) => strategy
-            case None => restartStrategyFactory.createRestartStrategy()
-          }
+        val restartStrategyConfiguration = jobGraph
+          .getSerializedExecutionConfig
+          .deserializeValue(userCodeLoader)
+          .getRestartStrategy
+
+        val restartStrategy = RestartStrategyResolving
+          .resolve(restartStrategyConfiguration,
+            restartStrategyFactory,
+            jobGraph.isCheckpointingEnabled)
 
         log.info(s"Using restart strategy $restartStrategy for $jobId.")
 
@@ -1725,20 +1726,31 @@ class JobManager(
    */
   private def removeJob(jobID: JobID, removeJobFromStateBackend: Boolean): Option[Future[Unit]] = {
     // Don't remove the job yet...
-    val futureOption = currentJobs.get(jobID) match {
+    val futureOption = currentJobs.remove(jobID) match {
       case Some((eg, _)) =>
-        val result = if (removeJobFromStateBackend) {
-          val futureOption = Some(future {
+        val cleanUpFuture: Future[Unit] = Future {
+          val cleanupHABlobs = if (removeJobFromStateBackend) {
             try {
               // ...otherwise, we can have lingering resources when there is a  concurrent shutdown
               // and the ZooKeeper client is closed. Not removing the job immediately allow the
               // shutdown to release all resources.
               submittedJobGraphs.removeJobGraph(jobID)
+              true
             } catch {
-              case t: Throwable => log.warn(s"Could not remove submitted job graph $jobID.", t)
+              case t: Throwable => {
+                log.warn(s"Could not remove submitted job graph $jobID.", t)
+                false
+              }
             }
-          }(context.dispatcher))
+          } else {
+            false
+          }
 
+          blobServer.cleanupJob(jobID, cleanupHABlobs)
+          ()
+        }(context.dispatcher)
+
+        if (removeJobFromStateBackend) {
           try {
             archive ! decorateMessage(
               ArchiveExecutionGraph(
@@ -1747,22 +1759,13 @@ class JobManager(
           } catch {
             case t: Throwable => log.warn(s"Could not archive the execution graph $eg.", t)
           }
-
-          futureOption
-        } else {
-          None
         }
 
-        currentJobs.remove(jobID)
-
-        result
+        Option(cleanUpFuture)
       case None => None
     }
 
-    // remove all job-related BLOBs from local and HA store
     libraryCacheManager.unregisterJob(jobID)
-    blobServer.cleanupJob(jobID, removeJobFromStateBackend)
-
     jobManagerMetricGroup.removeJob(jobID)
 
     futureOption
@@ -1865,7 +1868,10 @@ class JobManager(
       FiniteDuration(10, SECONDS)).start()
 
     // Shutdown and discard all queued messages
-    context.system.shutdown()
+    context.system.terminate().onComplete {
+      case scala.util.Success(_) =>
+      case scala.util.Failure(t) => log.warn("Could not cleanly shut down actor system", t)
+    }(directExecutionContext())
   }
 
   private def instantiateMetrics(jobManagerMetricGroup: MetricGroup) : Unit = {
@@ -2044,7 +2050,7 @@ object JobManager {
     }
 
     // block until everything is shut down
-    jobManagerSystem.awaitTermination()
+    Await.ready(jobManagerSystem.whenTerminated, Duration.Inf)
 
     webMonitorOption.foreach{
       webMonitor =>
@@ -2137,7 +2143,6 @@ object JobManager {
       configuration: Configuration,
       externalHostname: String,
       port: Int): ActorSystem = {
-
     // Bring up the job manager actor system first, bind it to the given address.
     val jobManagerSystem = BootstrapTools.startActorSystem(
       configuration,
@@ -2286,11 +2291,10 @@ object JobManager {
     catch {
       case t: Throwable =>
         LOG.error("Error while starting up JobManager", t)
-        try {
-          jobManagerSystem.shutdown()
-        } catch {
-          case tt: Throwable => LOG.warn("Could not cleanly shut down actor system", tt)
-        }
+        jobManagerSystem.terminate().onComplete {
+          case scala.util.Success(_) =>
+          case scala.util.Failure(tt) => LOG.warn("Could not cleanly shut down actor system", tt)
+        }(directExecutionContext())
         throw t
     }
   }
@@ -2517,7 +2521,8 @@ object JobManager {
 
     val jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(
       metricRegistry,
-      configuration.getString(JobManagerOptions.ADDRESS))
+      configuration.getString(JobManagerOptions.ADDRESS),
+      ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration))
 
     (instanceManager,
       scheduler,

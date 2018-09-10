@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import java.io.IOException;
 
@@ -117,6 +118,37 @@ public interface StateBackend extends java.io.Serializable {
 
 	/**
 	 * Creates a new {@link AbstractKeyedStateBackend} that is responsible for holding <b>keyed state</b>
+	 * and checkpointing it. Uses default TTL time provider.
+	 *
+	 * <p><i>Keyed State</i> is state where each value is bound to a key.
+	 *
+	 * @param <K> The type of the keys by which the state is organized.
+	 *
+	 * @return The Keyed State Backend for the given job, operator, and key group range.
+	 *
+	 * @throws Exception This method may forward all exceptions that occur while instantiating the backend.
+	 */
+	default <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
+			Environment env,
+			JobID jobID,
+			String operatorIdentifier,
+			TypeSerializer<K> keySerializer,
+			int numberOfKeyGroups,
+			KeyGroupRange keyGroupRange,
+			TaskKvStateRegistry kvStateRegistry) throws Exception {
+		return createKeyedStateBackend(
+			env,
+			jobID,
+			operatorIdentifier,
+			keySerializer,
+			numberOfKeyGroups,
+			keyGroupRange,
+			kvStateRegistry,
+			TtlTimeProvider.DEFAULT);
+	}
+
+	/**
+	 * Creates a new {@link AbstractKeyedStateBackend} that is responsible for holding <b>keyed state</b>
 	 * and checkpointing it.
 	 *
 	 * <p><i>Keyed State</i> is state where each value is bound to a key.
@@ -128,13 +160,14 @@ public interface StateBackend extends java.io.Serializable {
 	 * @throws Exception This method may forward all exceptions that occur while instantiating the backend.
 	 */
 	<K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) throws Exception;
+		Environment env,
+		JobID jobID,
+		String operatorIdentifier,
+		TypeSerializer<K> keySerializer,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		TaskKvStateRegistry kvStateRegistry,
+		TtlTimeProvider ttlTimeProvider) throws Exception;
 	
 	/**
 	 * Creates a new {@link OperatorStateBackend} that can be used for storing operator state.

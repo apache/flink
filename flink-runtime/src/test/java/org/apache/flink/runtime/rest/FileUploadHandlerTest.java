@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest;
 
+import org.apache.flink.runtime.io.network.netty.NettyLeakDetectionResource;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -49,6 +50,9 @@ public class FileUploadHandlerTest extends TestLogger {
 	public static final MultipartUploadResource MULTIPART_UPLOAD_RESOURCE = new MultipartUploadResource();
 
 	private static final ObjectMapper OBJECT_MAPPER = RestMapperUtils.getStrictObjectMapper();
+
+	@ClassRule
+	public static final NettyLeakDetectionResource LEAK_DETECTION = new NettyLeakDetectionResource();
 
 	@After
 	public void reset() {

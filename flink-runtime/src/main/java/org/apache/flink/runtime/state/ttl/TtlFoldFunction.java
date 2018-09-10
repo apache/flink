@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.state.StateTtlConfig;
 
 /**
  * This class wraps folding function with TTL logic.
@@ -35,7 +36,7 @@ class TtlFoldFunction<T, ACC>
 	private final ACC defaultAccumulator;
 
 	TtlFoldFunction(
-		FoldFunction<T, ACC> original, TtlConfig config, TtlTimeProvider timeProvider, ACC defaultAccumulator) {
+		FoldFunction<T, ACC> original, StateTtlConfig config, TtlTimeProvider timeProvider, ACC defaultAccumulator) {
 		super(original, config, timeProvider);
 		this.defaultAccumulator = defaultAccumulator;
 	}

@@ -25,10 +25,10 @@ import org.apache.flink.metrics.Gauge;
  */
 public class WatermarkGauge implements Gauge<Long> {
 
-	private long currentWatermark = Long.MIN_VALUE;
+	private volatile long currentWatermark = Long.MIN_VALUE;
 
 	public void setCurrentWatermark(long watermark) {
-		this.currentWatermark = watermark;
+		currentWatermark = watermark;
 	}
 
 	@Override

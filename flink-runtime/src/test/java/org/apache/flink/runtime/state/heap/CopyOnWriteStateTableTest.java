@@ -31,7 +31,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.util.TestLogger;
@@ -53,17 +53,17 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	 */
 	@Test
 	public void testPutGetRemoveContainsTransform() throws Exception {
-		RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-				new RegisteredKeyedBackendStateMetaInfo<>(
-						StateDescriptor.Type.UNKNOWN,
-						"test",
-						IntSerializer.INSTANCE,
-						new ArrayListSerializer<>(IntSerializer.INSTANCE)); // we use mutable state objects.
+		RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+			new RegisteredKeyValueStateBackendMetaInfo<>(
+				StateDescriptor.Type.UNKNOWN,
+				"test",
+				IntSerializer.INSTANCE,
+				new ArrayListSerializer<>(IntSerializer.INSTANCE)); // we use mutable state objects.
 
 		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>(IntSerializer.INSTANCE);
 
 		final CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> stateTable =
-				new CopyOnWriteStateTable<>(keyContext, metaInfo);
+			new CopyOnWriteStateTable<>(keyContext, metaInfo);
 
 		ArrayList<Integer> state_1_1 = new ArrayList<>();
 		state_1_1.add(41);
@@ -106,13 +106,13 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		Assert.assertEquals(1, stateTable.size());
 
 		StateTransformationFunction<ArrayList<Integer>, Integer> function =
-				new StateTransformationFunction<ArrayList<Integer>, Integer>() {
-					@Override
-					public ArrayList<Integer> apply(ArrayList<Integer> previousState, Integer value) throws Exception {
-						previousState.add(value);
-						return previousState;
-					}
-				};
+			new StateTransformationFunction<ArrayList<Integer>, Integer>() {
+				@Override
+				public ArrayList<Integer> apply(ArrayList<Integer> previousState, Integer value) throws Exception {
+					previousState.add(value);
+					return previousState;
+				}
+			};
 
 		final int value = 4711;
 		stateTable.transform(1, 1, value, function);
@@ -125,17 +125,17 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	 */
 	@Test
 	public void testIncrementalRehash() {
-		RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-				new RegisteredKeyedBackendStateMetaInfo<>(
-						StateDescriptor.Type.UNKNOWN,
-						"test",
-						IntSerializer.INSTANCE,
-						new ArrayListSerializer<>(IntSerializer.INSTANCE)); // we use mutable state objects.
+		RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+			new RegisteredKeyValueStateBackendMetaInfo<>(
+				StateDescriptor.Type.UNKNOWN,
+				"test",
+				IntSerializer.INSTANCE,
+				new ArrayListSerializer<>(IntSerializer.INSTANCE)); // we use mutable state objects.
 
 		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>(IntSerializer.INSTANCE);
 
 		final CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> stateTable =
-				new CopyOnWriteStateTable<>(keyContext, metaInfo);
+			new CopyOnWriteStateTable<>(keyContext, metaInfo);
 
 		int insert = 0;
 		int remove = 0;
@@ -170,17 +170,17 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	@Test
 	public void testRandomModificationsAndCopyOnWriteIsolation() throws Exception {
 
-		final RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-				new RegisteredKeyedBackendStateMetaInfo<>(
-						StateDescriptor.Type.UNKNOWN,
-						"test",
-						IntSerializer.INSTANCE,
-						new ArrayListSerializer<>(IntSerializer.INSTANCE)); // we use mutable state objects.
+		final RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+			new RegisteredKeyValueStateBackendMetaInfo<>(
+				StateDescriptor.Type.UNKNOWN,
+				"test",
+				IntSerializer.INSTANCE,
+				new ArrayListSerializer<>(IntSerializer.INSTANCE)); // we use mutable state objects.
 
 		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>(IntSerializer.INSTANCE);
 
 		final CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> stateTable =
-				new CopyOnWriteStateTable<>(keyContext, metaInfo);
+			new CopyOnWriteStateTable<>(keyContext, metaInfo);
 
 		final HashMap<Tuple2<Integer, Integer>, ArrayList<Integer>> referenceMap = new HashMap<>();
 
@@ -200,17 +200,17 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		int referencedSnapshotId = 0;
 
 		final StateTransformationFunction<ArrayList<Integer>, Integer> transformationFunction =
-				new StateTransformationFunction<ArrayList<Integer>, Integer>() {
-					@Override
-					public ArrayList<Integer> apply(ArrayList<Integer> previousState, Integer value) throws Exception {
-						if (previousState == null) {
-							previousState = new ArrayList<>();
-						}
-						previousState.add(value);
-						// we give back the original, attempting to spot errors in to copy-on-write
-						return previousState;
+			new StateTransformationFunction<ArrayList<Integer>, Integer>() {
+				@Override
+				public ArrayList<Integer> apply(ArrayList<Integer> previousState, Integer value) throws Exception {
+					if (previousState == null) {
+						previousState = new ArrayList<>();
 					}
-				};
+					previousState.add(value);
+					// we give back the original, attempting to spot errors in to copy-on-write
+					return previousState;
+				}
+			};
 
 		// the main loop for modifications
 		for (int i = 0; i < 10_000_000; ++i) {
@@ -261,7 +261,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 					final int updateValue = random.nextInt(1000);
 					stateTable.transform(key, namespace, updateValue, transformationFunction);
 					referenceMap.put(compositeKey, transformationFunction.apply(
-							referenceMap.remove(compositeKey), updateValue));
+						referenceMap.remove(compositeKey), updateValue));
 					break;
 				}
 				default: {
@@ -325,17 +325,17 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	 */
 	@Test
 	public void testCopyOnWriteContracts() {
-		RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-				new RegisteredKeyedBackendStateMetaInfo<>(
-						StateDescriptor.Type.UNKNOWN,
-						"test",
-						IntSerializer.INSTANCE,
-						new ArrayListSerializer<>(IntSerializer.INSTANCE)); // we use mutable state objects.
+		RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+			new RegisteredKeyValueStateBackendMetaInfo<>(
+				StateDescriptor.Type.UNKNOWN,
+				"test",
+				IntSerializer.INSTANCE,
+				new ArrayListSerializer<>(IntSerializer.INSTANCE)); // we use mutable state objects.
 
 		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>(IntSerializer.INSTANCE);
 
 		final CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> stateTable =
-				new CopyOnWriteStateTable<>(keyContext, metaInfo);
+			new CopyOnWriteStateTable<>(keyContext, metaInfo);
 
 		ArrayList<Integer> originalState1 = new ArrayList<>(1);
 		ArrayList<Integer> originalState2 = new ArrayList<>(1);
@@ -356,7 +356,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 
 		// no snapshot taken, we get the original back
 		Assert.assertTrue(stateTable.get(1, 1) == originalState1);
-		CopyOnWriteStateTableSnapshot<Integer, Integer, ArrayList<Integer>> snapshot1 = stateTable.createSnapshot();
+		CopyOnWriteStateTableSnapshot<Integer, Integer, ArrayList<Integer>> snapshot1 = stateTable.stateSnapshot();
 		// after snapshot1 is taken, we get a copy...
 		final ArrayList<Integer> copyState = stateTable.get(1, 1);
 		Assert.assertFalse(copyState == originalState1);
@@ -370,7 +370,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		Assert.assertTrue(copyState == stateTable.get(1, 1));
 
 		// we take snapshot2
-		CopyOnWriteStateTableSnapshot<Integer, Integer, ArrayList<Integer>> snapshot2 = stateTable.createSnapshot();
+		CopyOnWriteStateTableSnapshot<Integer, Integer, ArrayList<Integer>> snapshot2 = stateTable.stateSnapshot();
 		// after the second snapshot, copy-on-write is active again for old entries
 		Assert.assertFalse(copyState == stateTable.get(1, 1));
 		// and equality still holds
@@ -400,8 +400,8 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		final TestDuplicateSerializer stateSerializer = new TestDuplicateSerializer();
 		final TestDuplicateSerializer keySerializer = new TestDuplicateSerializer();
 
-		RegisteredKeyedBackendStateMetaInfo<Integer, Integer> metaInfo =
-			new RegisteredKeyedBackendStateMetaInfo<>(
+		RegisteredKeyValueStateBackendMetaInfo<Integer, Integer> metaInfo =
+			new RegisteredKeyValueStateBackendMetaInfo<>(
 				StateDescriptor.Type.VALUE,
 				"test",
 				namespaceSerializer,
@@ -443,15 +443,15 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		table.put(2, 0, 1, 2);
 
 
-		final CopyOnWriteStateTableSnapshot<Integer, Integer, Integer> snapshot = table.createSnapshot();
+		final CopyOnWriteStateTableSnapshot<Integer, Integer, Integer> snapshot = table.stateSnapshot();
 
 		try {
-			final StateSnapshot.KeyGroupPartitionedSnapshot partitionedSnapshot = snapshot.partitionByKeyGroup();
+			final StateSnapshot.StateKeyGroupWriter partitionedSnapshot = snapshot.getKeyGroupWriter();
 			namespaceSerializer.disable();
 			keySerializer.disable();
 			stateSerializer.disable();
 
-			partitionedSnapshot.writeMappingsInKeyGroup(
+			partitionedSnapshot.writeStateInKeyGroup(
 				new DataOutputViewStreamWrapper(
 					new ByteArrayOutputStreamWithPos(1024)), 0);
 
@@ -477,8 +477,8 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 
 	@SuppressWarnings("unchecked")
 	private Tuple3<Integer, Integer, ArrayList<Integer>>[] manualDeepDump(
-			HashMap<Tuple2<Integer, Integer>,
-					ArrayList<Integer>> map) {
+		HashMap<Tuple2<Integer, Integer>,
+			ArrayList<Integer>> map) {
 
 		Tuple3<Integer, Integer, ArrayList<Integer>>[] result = new Tuple3[map.size()];
 		int pos = 0;
@@ -491,8 +491,8 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	}
 
 	private void deepCheck(
-			Tuple3<Integer, Integer, ArrayList<Integer>>[] a,
-			Tuple3<Integer, Integer, ArrayList<Integer>>[] b) {
+		Tuple3<Integer, Integer, ArrayList<Integer>>[] a,
+		Tuple3<Integer, Integer, ArrayList<Integer>>[] b) {
 
 		if (a == b) {
 			return;
@@ -501,14 +501,14 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		Assert.assertEquals(a.length, b.length);
 
 		Comparator<Tuple3<Integer, Integer, ArrayList<Integer>>> comparator =
-				new Comparator<Tuple3<Integer, Integer, ArrayList<Integer>>>() {
+			new Comparator<Tuple3<Integer, Integer, ArrayList<Integer>>>() {
 
-					@Override
-					public int compare(Tuple3<Integer, Integer, ArrayList<Integer>> o1, Tuple3<Integer, Integer, ArrayList<Integer>> o2) {
-						int namespaceDiff = o1.f1 - o2.f1;
-						return namespaceDiff != 0 ? namespaceDiff : o1.f0 - o2.f0;
-					}
-				};
+				@Override
+				public int compare(Tuple3<Integer, Integer, ArrayList<Integer>> o1, Tuple3<Integer, Integer, ArrayList<Integer>> o2) {
+					int namespaceDiff = o1.f1 - o2.f1;
+					return namespaceDiff != 0 ? namespaceDiff : o1.f0 - o2.f0;
+				}
+			};
 
 		Arrays.sort(a, comparator);
 		Arrays.sort(b, comparator);

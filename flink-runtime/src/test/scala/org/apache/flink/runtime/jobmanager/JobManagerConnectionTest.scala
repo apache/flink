@@ -77,7 +77,7 @@ class JobManagerConnectionTest {
         fail(e.getMessage)
     }
     finally {
-      actorSystem.shutdown()
+      actorSystem.terminate()
     }
   }
 
@@ -116,7 +116,7 @@ class JobManagerConnectionTest {
         fail(e.getMessage)
     }
     finally {
-      actorSystem.shutdown()
+      actorSystem.terminate()
     }
   }
 

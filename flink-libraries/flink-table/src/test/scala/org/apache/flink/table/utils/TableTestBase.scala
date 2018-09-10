@@ -122,6 +122,13 @@ object TableTestUtil {
        |""".stripMargin.stripLineEnd
   }
 
+  def naryNode(node: String, inputs: List[AnyRef], term: String*): String = {
+    val strInputs = inputs.mkString("\n")
+    s"""$node(${term.mkString(", ")})
+       |$strInputs
+       |""".stripMargin.stripLineEnd
+  }
+
   def values(node: String, term: String*): String = {
     s"$node(${term.mkString(", ")})"
   }

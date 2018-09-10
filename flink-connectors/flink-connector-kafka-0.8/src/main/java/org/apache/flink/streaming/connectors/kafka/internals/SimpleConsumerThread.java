@@ -94,6 +94,7 @@ class SimpleConsumerThread<T> extends Thread {
 	private final int fetchSize;
 	private final int bufferSize;
 	private final int reconnectLimit;
+	private final String clientId;
 
 	// exceptions are thrown locally
 	public SimpleConsumerThread(
@@ -123,6 +124,8 @@ class SimpleConsumerThread<T> extends Thread {
 		this.fetchSize = getInt(config, "fetch.message.max.bytes", 1048576);
 		this.bufferSize = getInt(config, "socket.receive.buffer.bytes", 65536);
 		this.reconnectLimit = getInt(config, "flink.simple-consumer-reconnectLimit", 3);
+		String groupId = config.getProperty("group.id", "flink-kafka-consumer-legacy-" + broker.id());
+		this.clientId = config.getProperty("client.id", groupId);
 	}
 
 	public ClosableBlockingQueue<KafkaTopicPartitionState<TopicAndPartition>> getNewPartitionsQueue() {
@@ -138,8 +141,6 @@ class SimpleConsumerThread<T> extends Thread {
 		LOG.info("Starting to fetch from {}", this.partitions);
 
 		// set up the config values
-		final String clientId = "flink-kafka-consumer-legacy-" + broker.id();
-
 		try {
 			// create the Kafka consumer that we actually use for fetching
 			consumer = new SimpleConsumer(broker.host(), broker.port(), soTimeout, bufferSize, clientId);

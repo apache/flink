@@ -18,22 +18,10 @@
 
 package org.apache.flink.runtime.state.heap;
 
-import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.PriorityComparator;
-import org.apache.flink.util.CloseableIterator;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
-
-import static org.apache.flink.util.CollectionUtil.MAX_ARRAY_SIZE;
 
 /**
  * Basic heap-based priority queue for {@link HeapPriorityQueueElement} objects. This heap supports fast deletes
@@ -50,7 +38,8 @@ import static org.apache.flink.util.CollectionUtil.MAX_ARRAY_SIZE;
  *
  * @param <T> type of the contained elements.
  */
-public class HeapPriorityQueue<T extends HeapPriorityQueueElement> implements InternalPriorityQueue<T> {
+public class HeapPriorityQueue<T extends HeapPriorityQueueElement>
+	extends AbstractHeapPriorityQueue<T> {
 
 	/**
 	 * The index of the head element in the array that represents the heap.
@@ -60,17 +49,8 @@ public class HeapPriorityQueue<T extends HeapPriorityQueueElement> implements In
 	/**
 	 * Comparator for the priority of contained elements.
 	 */
-	private final PriorityComparator<T> elementPriorityComparator;
-
-	/**
-	 * The array that represents the heap-organized priority queue.
-	 */
-	private T[] queue;
-
-	/**
-	 * The current size of the priority queue.
-	 */
-	private int size;
+	@Nonnull
+	protected final PriorityComparator<T> elementPriorityComparator;
 
 	/**
 	 * Creates an empty {@link HeapPriorityQueue} with the requested initial capacity.
@@ -82,124 +62,31 @@ public class HeapPriorityQueue<T extends HeapPriorityQueueElement> implements In
 	public HeapPriorityQueue(
 		@Nonnull PriorityComparator<T> elementPriorityComparator,
 		@Nonnegative int minimumCapacity) {
-
+		super(minimumCapacity);
 		this.elementPriorityComparator = elementPriorityComparator;
-		this.queue = (T[]) new HeapPriorityQueueElement[QUEUE_HEAD_INDEX + minimumCapacity];
 	}
 
-	@Override
-	public void bulkPoll(@Nonnull Predicate<T> canConsume, @Nonnull Consumer<T> consumer) {
-		T element;
-		while ((element = peek()) != null && canConsume.test(element)) {
-			poll();
-			consumer.accept(element);
+	public void adjustModifiedElement(@Nonnull T element) {
+		final int elementIndex = element.getInternalIndex();
+		if (element == queue[elementIndex]) {
+			adjustElementAtIndex(element, elementIndex);
 		}
 	}
 
 	@Override
-	@Nullable
-	public T poll() {
-		return size() > 0 ? removeElementAtIndex(QUEUE_HEAD_INDEX) : null;
+	protected int getHeadElementIndex() {
+		return QUEUE_HEAD_INDEX;
 	}
 
 	@Override
-	@Nullable
-	public T peek() {
-		return size() > 0 ? queue[QUEUE_HEAD_INDEX] : null;
-	}
-
-	/**
-	 * Adds the element to add to the heap. This element should not be managed by any other {@link HeapPriorityQueue}.
-	 *
-	 * @return <code>true</code> if the operation changed the head element or if is it unclear if the head element changed.
-	 * Only returns <code>false</code> iff the head element was not changed by this operation.
-	 */
-	@Override
-	public boolean add(@Nonnull T toAdd) {
-		return addInternal(toAdd);
-	}
-
-	/**
-	 * This remove is based on object identity, not the result of equals. We use the objects managed index to find
-	 * the instance in the queue array.
-	 *
-	 * @return <code>true</code> if the operation changed the head element or if is it unclear if the head element changed.
-	 * Only returns <code>false</code> iff the head element was not changed by this operation.
-	 */
-	@Override
-	public boolean remove(@Nonnull T toRemove) {
-		return removeInternal(toRemove);
-	}
-
-	@Override
-	public boolean isEmpty() {
-		return size() == 0;
-	}
-
-	@Override
-	@Nonnegative
-	public int size() {
-		return size;
-	}
-
-	public void clear() {
-		size = 0;
-		Arrays.fill(queue, null);
-	}
-
-	@SuppressWarnings({"unchecked"})
-	@Nonnull
-	public <O> O[] toArray(O[] out) {
-		if (out.length < size) {
-			return (O[]) Arrays.copyOfRange(queue, QUEUE_HEAD_INDEX, QUEUE_HEAD_INDEX + size, out.getClass());
-		} else {
-			System.arraycopy(queue, QUEUE_HEAD_INDEX, out, 0, size);
-			if (out.length > size) {
-				out[size] = null;
-			}
-			return out;
-		}
-	}
-
-	/**
-	 * Returns an iterator over the elements in this queue. The iterator
-	 * does not return the elements in any particular order.
-	 *
-	 * @return an iterator over the elements in this queue.
-	 */
-	@Nonnull
-	public CloseableIterator<T> iterator() {
-		return new HeapIterator();
-	}
-
-	@Override
-	public void addAll(@Nullable Collection<? extends T> restoredElements) {
-
-		if (restoredElements == null) {
-			return;
-		}
-
-		resizeForBulkLoad(restoredElements.size());
-
-		for (T element : restoredElements) {
-			add(element);
-		}
-	}
-
-	private boolean addInternal(@Nonnull T element) {
+	protected void addInternal(@Nonnull T element) {
 		final int newSize = increaseSizeByOne();
 		moveElementToIdx(element, newSize);
 		siftUp(newSize);
-		return element.getInternalIndex() == QUEUE_HEAD_INDEX;
 	}
 
-	private boolean removeInternal(@Nonnull T elementToRemove) {
-		final int elementIndex = elementToRemove.getInternalIndex();
-		removeElementAtIndex(elementIndex);
-		return elementIndex == QUEUE_HEAD_INDEX;
-	}
-
-	private T removeElementAtIndex(int removeIdx) {
+	@Override
+	protected T removeInternal(int removeIdx) {
 		T[] heap = this.queue;
 		T removedValue = heap[removeIdx];
 
@@ -217,13 +104,6 @@ public class HeapPriorityQueue<T extends HeapPriorityQueueElement> implements In
 
 		--size;
 		return removedValue;
-	}
-
-	public void adjustModifiedElement(@Nonnull T element) {
-		final int elementIndex = element.getInternalIndex();
-		if (element == queue[elementIndex]) {
-			adjustElementAtIndex(element, elementIndex);
-		}
 	}
 
 	private void adjustElementAtIndex(T element, int index) {
@@ -284,11 +164,6 @@ public class HeapPriorityQueue<T extends HeapPriorityQueueElement> implements In
 		return elementPriorityComparator.comparePriority(a, b) < 0;
 	}
 
-	private void moveElementToIdx(T element, int idx) {
-		queue[idx] = element;
-		element.setInternalIndex(idx);
-	}
-
 	private int increaseSizeByOne() {
 		final int oldArraySize = queue.length;
 		final int minRequiredNewSize = ++size;
@@ -298,57 +173,5 @@ public class HeapPriorityQueue<T extends HeapPriorityQueueElement> implements In
 		}
 		// TODO implement shrinking as well?
 		return minRequiredNewSize;
-	}
-
-	private void resizeForBulkLoad(int totalSize) {
-		if (totalSize > queue.length) {
-			int desiredSize = totalSize + (totalSize >>> 3);
-			resizeQueueArray(desiredSize, totalSize);
-		}
-	}
-
-	private void resizeQueueArray(int desiredSize, int minRequiredSize) {
-		if (isValidArraySize(desiredSize)) {
-			queue = Arrays.copyOf(queue, desiredSize);
-		} else if (isValidArraySize(minRequiredSize)) {
-			queue = Arrays.copyOf(queue, MAX_ARRAY_SIZE);
-		} else {
-			throw new OutOfMemoryError("Required minimum heap size " + minRequiredSize +
-				" exceeds maximum size of " + MAX_ARRAY_SIZE + ".");
-		}
-	}
-
-	private static boolean isValidArraySize(int size) {
-		return size >= 0 && size <= MAX_ARRAY_SIZE;
-	}
-
-	/**
-	 * {@link Iterator} implementation for {@link HeapPriorityQueue}.
-	 * {@link Iterator#remove()} is not supported.
-	 */
-	private class HeapIterator implements CloseableIterator<T> {
-
-		private int iterationIdx;
-
-		HeapIterator() {
-			this.iterationIdx = QUEUE_HEAD_INDEX - 1;
-		}
-
-		@Override
-		public boolean hasNext() {
-			return iterationIdx < size;
-		}
-
-		@Override
-		public T next() {
-			if (iterationIdx >= size) {
-				throw new NoSuchElementException("Iterator has no next element.");
-			}
-			return queue[++iterationIdx];
-		}
-
-		@Override
-		public void close() {
-		}
 	}
 }

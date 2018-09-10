@@ -206,5 +206,9 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
 			throw groupingException;
 		}
 
+		@Override
+		public <KEY> ConnectedStreams<I, F> keyBy(KeySelector<I, KEY> keySelector1, KeySelector<F, KEY> keySelector2, TypeInformation<KEY> keyType) {
+			throw groupingException;
+		}
 	}
 }

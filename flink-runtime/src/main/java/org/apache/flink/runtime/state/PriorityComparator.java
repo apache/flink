@@ -30,6 +30,8 @@ package org.apache.flink.runtime.state;
 @FunctionalInterface
 public interface PriorityComparator<T> {
 
+	PriorityComparator<? extends PriorityComparable<Object>> FOR_PRIORITY_COMPARABLE_OBJECTS = PriorityComparable::comparePriorityTo;
+
 	/**
 	 * Compares two objects for priority. Returns a negative integer, zero, or a positive integer as the first
 	 * argument has lower, equal to, or higher priority than the second.
@@ -39,4 +41,9 @@ public interface PriorityComparator<T> {
 	 * priority than the second.
 	 */
 	int comparePriority(T left, T right);
+
+	@SuppressWarnings("unchecked")
+	static <T extends PriorityComparable<?>> PriorityComparator<T> forPriorityComparableObjects() {
+		return (PriorityComparator<T>) FOR_PRIORITY_COMPARABLE_OBJECTS;
+	}
 }

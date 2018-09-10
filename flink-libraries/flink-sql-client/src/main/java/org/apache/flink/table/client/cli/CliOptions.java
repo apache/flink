@@ -33,14 +33,23 @@ public class CliOptions {
 	private final URL defaults;
 	private final List<URL> jars;
 	private final List<URL> libraryDirs;
+	private final String updateStatement;
 
-	public CliOptions(boolean isPrintHelp, String sessionId, URL environment, URL defaults, List<URL> jars, List<URL> libraryDirs) {
+	public CliOptions(
+			boolean isPrintHelp,
+			String sessionId,
+			URL environment,
+			URL defaults,
+			List<URL> jars,
+			List<URL> libraryDirs,
+			String updateStatement) {
 		this.isPrintHelp = isPrintHelp;
 		this.sessionId = sessionId;
 		this.environment = environment;
 		this.defaults = defaults;
 		this.jars = jars;
 		this.libraryDirs = libraryDirs;
+		this.updateStatement = updateStatement;
 	}
 
 	public boolean isPrintHelp() {
@@ -65,5 +74,9 @@ public class CliOptions {
 
 	public List<URL> getLibraryDirs() {
 		return libraryDirs;
+	}
+
+	public String getUpdateStatement() {
+		return updateStatement;
 	}
 }

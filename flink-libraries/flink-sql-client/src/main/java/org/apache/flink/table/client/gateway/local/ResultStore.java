@@ -29,6 +29,10 @@ import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Deployment;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.gateway.local.result.ChangelogCollectStreamResult;
+import org.apache.flink.table.client.gateway.local.result.DynamicResult;
+import org.apache.flink.table.client.gateway.local.result.MaterializedCollectBatchResult;
+import org.apache.flink.table.client.gateway.local.result.MaterializedCollectStreamResult;
 import org.apache.flink.types.Row;
 
 import java.net.InetAddress;
@@ -67,7 +71,12 @@ public class ResultStore {
 			if (env.getExecution().isChangelogMode()) {
 				return new ChangelogCollectStreamResult<>(outputType, config, gatewayAddress, gatewayPort);
 			} else {
-				return new MaterializedCollectStreamResult<>(outputType, config, gatewayAddress, gatewayPort);
+				return new MaterializedCollectStreamResult<>(
+					outputType,
+					config,
+					gatewayAddress,
+					gatewayPort,
+					env.getExecution().getMaxTableResultRows());
 			}
 
 		} else {

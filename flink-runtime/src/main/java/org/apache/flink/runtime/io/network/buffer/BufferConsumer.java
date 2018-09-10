@@ -90,11 +90,12 @@ public class BufferConsumer implements Closeable {
 	}
 
 	/**
-	 * @return a retained copy of self with separate indexes - it allows two read from the same {@link MemorySegment}
-	 * twice.
+	 * Returns a retained copy with separate indexes. This allows to read from the same {@link MemorySegment} twice.
 	 *
 	 * <p>WARNING: newly returned {@link BufferConsumer} will have reader index copied from the original buffer. In
 	 * other words, data already consumed before copying will not be visible to the returned copies.
+	 *
+	 * @return a retained copy of self with separate indexes
 	 */
 	public BufferConsumer copy() {
 		return new BufferConsumer(buffer.retainBuffer(), writerPosition.positionMarker, currentReaderPosition);

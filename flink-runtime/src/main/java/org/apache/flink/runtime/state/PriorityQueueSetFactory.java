@@ -38,9 +38,7 @@ public interface PriorityQueueSetFactory {
 	 * @return the queue with the specified unique name.
 	 */
 	@Nonnull
-	<T extends HeapPriorityQueueElement> KeyGroupedInternalPriorityQueue<T> create(
+	<T extends HeapPriorityQueueElement & PriorityComparable & Keyed> KeyGroupedInternalPriorityQueue<T> create(
 		@Nonnull String stateName,
-		@Nonnull TypeSerializer<T> byteOrderedElementSerializer,
-		@Nonnull PriorityComparator<T> elementPriorityComparator,
-		@Nonnull KeyExtractorFunction<T> keyExtractor);
+		@Nonnull TypeSerializer<T> byteOrderedElementSerializer);
 }

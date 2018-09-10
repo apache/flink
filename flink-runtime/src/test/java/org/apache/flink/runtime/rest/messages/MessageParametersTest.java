@@ -92,6 +92,11 @@ public class MessageParametersTest extends TestLogger {
 		protected String convertToString(JobID value) {
 			return value.toString();
 		}
+
+		@Override
+		public String getDescription() {
+			return "path parameter";
+		}
 	}
 
 	private static class TestQueryParameter extends MessageQueryParameter<JobID> {
@@ -108,6 +113,11 @@ public class MessageParametersTest extends TestLogger {
 		@Override
 		public String convertValueToString(JobID value) {
 			return value.toString();
+		}
+
+		@Override
+		public String getDescription() {
+			return "query parameter";
 		}
 	}
 }

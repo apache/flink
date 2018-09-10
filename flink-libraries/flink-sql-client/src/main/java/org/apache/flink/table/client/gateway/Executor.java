@@ -62,7 +62,7 @@ public interface Executor {
 	String explainStatement(SessionContext session, String statement) throws SqlExecutionException;
 
 	/**
-	 * Submits a Flink job (detached) and returns the result descriptor.
+	 * Submits a Flink SQL query job (detached) and returns the result descriptor.
 	 */
 	ResultDescriptor executeQuery(SessionContext session, String query) throws SqlExecutionException;
 
@@ -83,9 +83,24 @@ public interface Executor {
 	List<Row> retrieveResultPage(String resultId, int page) throws SqlExecutionException;
 
 	/**
-	 * Cancels a table program and stops the result retrieval.
+	 * Cancels a table program and stops the result retrieval. Blocking until cancellation command has
+	 * been sent to cluster.
 	 */
 	void cancelQuery(SessionContext session, String resultId) throws SqlExecutionException;
+
+	/**
+	 * Submits a Flink SQL update statement such as INSERT INTO.
+	 *
+	 * @param session context in with the statement is executed
+	 * @param statement SQL update statement (currently only INSERT INTO is supported)
+	 * @return information about the target of the submitted Flink job
+	 */
+	ProgramTargetDescriptor executeUpdate(SessionContext session, String statement) throws SqlExecutionException;
+
+	/**
+	 * Validates the current session. For example, it checks whether all views are still valid.
+	 */
+	void validateSession(SessionContext session) throws SqlExecutionException;
 
 	/**
 	 * Stops the executor.

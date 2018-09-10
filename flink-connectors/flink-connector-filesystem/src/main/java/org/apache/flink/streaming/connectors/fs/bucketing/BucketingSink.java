@@ -631,12 +631,9 @@ public class BucketingSink<T>
 			}
 
 			// verify that truncate actually works
-			FSDataOutputStream outputStream;
-			Path testPath = new Path(UUID.randomUUID().toString());
-			try {
-				outputStream = fs.create(testPath);
+			Path testPath = new Path(basePath, UUID.randomUUID().toString());
+			try (FSDataOutputStream outputStream = fs.create(testPath)) {
 				outputStream.writeUTF("hello");
-				outputStream.close();
 			} catch (IOException e) {
 				LOG.error("Could not create file for checking if truncate works.", e);
 				throw new RuntimeException("Could not create file for checking if truncate works. " +
@@ -880,9 +877,9 @@ public class BucketingSink<T>
 					Path validLengthFilePath = getValidLengthPathFor(partPath);
 					if (!fs.exists(validLengthFilePath) && fs.exists(partPath)) {
 						LOG.debug("Writing valid-length file for {} to specify valid length {}", partPath, validLength);
-						FSDataOutputStream lengthFileOut = fs.create(validLengthFilePath);
-						lengthFileOut.writeUTF(Long.toString(validLength));
-						lengthFileOut.close();
+						try (FSDataOutputStream lengthFileOut = fs.create(validLengthFilePath)) {
+							lengthFileOut.writeUTF(Long.toString(validLength));
+						}
 					}
 				}
 
@@ -1004,7 +1001,7 @@ public class BucketingSink<T>
 	}
 
 	/**
-	 * Sets the suffix of in-progress part files. The default is {@code "in-progress"}.
+	 * Sets the suffix of in-progress part files. The default is {@code ".in-progress"}.
 	 */
 	public BucketingSink<T> setInProgressSuffix(String inProgressSuffix) {
 		this.inProgressSuffix = inProgressSuffix;
@@ -1052,7 +1049,7 @@ public class BucketingSink<T>
 	}
 
 	/**
-	 * Sets the prefix of part files.  The default is no suffix.
+	 * Sets the suffix of part files.  The default is no suffix.
 	 */
 	public BucketingSink<T> setPartSuffix(String partSuffix) {
 		this.partSuffix = partSuffix;

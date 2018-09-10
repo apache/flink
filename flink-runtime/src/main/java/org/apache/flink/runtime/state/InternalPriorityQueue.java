@@ -26,8 +26,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
 
 /**
  * Interface for collection that gives in order access to elements w.r.t their priority.
@@ -36,16 +34,6 @@ import java.util.function.Predicate;
  */
 @Internal
 public interface InternalPriorityQueue<T> {
-
-	/**
-	 * Polls from the top of the queue as long as the the queue is not empty and passes the elements to
-	 * {@link Consumer} until a {@link Predicate} rejects an offered element. The rejected element is not
-	 * removed from the queue and becomes the new head.
-	 *
-	 * @param canConsume bulk polling ends once this returns false. The rejected element is nor removed and not consumed.
-	 * @param consumer consumer function for elements accepted by canConsume.
-	 */
-	void bulkPoll(@Nonnull Predicate<T> canConsume, @Nonnull Consumer<T> consumer);
 
 	/**
 	 * Retrieves and removes the first element (w.r.t. the order) of this set,

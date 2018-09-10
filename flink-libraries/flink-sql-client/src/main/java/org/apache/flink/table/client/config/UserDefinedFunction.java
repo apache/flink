@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.client.config;
 
-import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FunctionDescriptor;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.apache.flink.table.client.config.ConfigUtil.extractEarlyStringProperty;
 
 /**
  * Descriptor for user-defined functions.
@@ -33,7 +34,7 @@ public class UserDefinedFunction extends FunctionDescriptor {
 	private String name;
 	private Map<String, String> properties;
 
-	private static final String NAME = "name";
+	private static final String FUNCTION_NAME = "name";
 
 	private UserDefinedFunction(String name, Map<String, String> properties) {
 		this.name = name;
@@ -52,16 +53,10 @@ public class UserDefinedFunction extends FunctionDescriptor {
 	 * Creates a user-defined function descriptor with the given config.
 	 */
 	public static UserDefinedFunction create(Map<String, Object> config) {
-		if (!config.containsKey(NAME)) {
-			throw new SqlClientException("The 'name' attribute of a function is missing.");
-		}
-		final Object name = config.get(NAME);
-		if (name == null || !(name instanceof String) || ((String) name).trim().length() <= 0) {
-			throw new SqlClientException("Invalid function name '" + name + "'.");
-		}
+		final String name = extractEarlyStringProperty(config, FUNCTION_NAME, "function");
 		final Map<String, Object> properties = new HashMap<>(config);
-		properties.remove(NAME);
-		return new UserDefinedFunction((String) name, ConfigUtil.normalizeYaml(properties));
+		properties.remove(FUNCTION_NAME);
+		return new UserDefinedFunction(name, ConfigUtil.normalizeYaml(properties));
 	}
 
 	// --------------------------------------------------------------------------------------------

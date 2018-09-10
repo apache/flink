@@ -29,6 +29,8 @@ import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -150,6 +152,9 @@ public abstract class StreamTransformation<T> {
 	protected long bufferTimeout = -1;
 
 	private String slotSharingGroup;
+
+	@Nullable
+	private String coLocationGroupKey;
 
 	/**
 	 * Creates a new {@code StreamTransformation} with the given name, output type and parallelism.
@@ -342,6 +347,35 @@ public abstract class StreamTransformation<T> {
 	 */
 	public void setSlotSharingGroup(String slotSharingGroup) {
 		this.slotSharingGroup = slotSharingGroup;
+	}
+
+	/**
+	 * <b>NOTE:</b> This is an internal undocumented feature for now. It is not
+	 * clear whether this will be supported and stable in the long term.
+	 *
+	 * <p>Sets the key that identifies the co-location group.
+	 * Operators with the same co-location key will have their corresponding subtasks
+	 * placed into the same slot by the scheduler.
+	 *
+	 * <p>Setting this to null means there is no co-location constraint.
+	 */
+	public void setCoLocationGroupKey(@Nullable String coLocationGroupKey) {
+		this.coLocationGroupKey = coLocationGroupKey;
+	}
+
+	/**
+	 * <b>NOTE:</b> This is an internal undocumented feature for now. It is not
+	 * clear whether this will be supported and stable in the long term.
+	 *
+	 * <p>Gets the key that identifies the co-location group.
+	 * Operators with the same co-location key will have their corresponding subtasks
+	 * placed into the same slot by the scheduler.
+	 *
+	 * <p>If this is null (which is the default), it means there is no co-location constraint.
+	 */
+	@Nullable
+	public String getCoLocationGroupKey() {
+		return coLocationGroupKey;
 	}
 
 	/**

@@ -52,7 +52,7 @@ public class VoidNamespaceTypeInfo extends TypeInformation<VoidNamespace> {
 
 	@Override
 	public int getTotalFields() {
-		return 0;
+		return 1;
 	}
 
 	@Override

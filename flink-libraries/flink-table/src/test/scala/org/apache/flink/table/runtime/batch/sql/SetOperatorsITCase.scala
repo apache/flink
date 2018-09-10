@@ -123,6 +123,22 @@ class SetOperatorsITCase(
   }
 
   @Test
+  def testValuesWithCast(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "VALUES (1, cast(1 as BIGINT) )," +
+      "(2, cast(2 as BIGINT))," +
+      "(3, cast(3 as BIGINT))"
+
+    val result = tEnv.sqlQuery(sqlQuery)
+    val results = result.toDataSet[Row].collect()
+
+    val expected = "1,1\n2,2\n3,3"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
   def testExcept(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment

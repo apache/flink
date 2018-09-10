@@ -254,7 +254,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 		String headName =  getEnvironment().getTaskInfo().getTaskName().split("->")[0].trim();
 		this.metrics = getEnvironment().getMetricGroup()
-			.addOperator(headName.startsWith("CHAIN") ? headName.substring(6) : headName);
+			.getOrAddOperator(headName.startsWith("CHAIN") ? headName.substring(6) : headName);
 		this.metrics.getIOMetricGroup().reuseInputMetricsForTask();
 		if (config.getNumberOfChainedStubs() == 0) {
 			this.metrics.getIOMetricGroup().reuseOutputMetricsForTask();

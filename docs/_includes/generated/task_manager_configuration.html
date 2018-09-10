@@ -35,7 +35,7 @@
         <tr>
             <td><h5>taskmanager.data.ssl.enabled</h5></td>
             <td style="word-wrap: break-word;">true</td>
-            <td>Enable SSL support for the taskmanager data transport. This is applicable only when the global ssl flag security.ssl.enabled is set to true</td>
+            <td>Enable SSL support for the taskmanager data transport. This is applicable only when the global flag for internal SSL (security.ssl.internal.enabled) is set to true</td>
         </tr>
         <tr>
             <td><h5>taskmanager.debug.memory.log</h5></td>
@@ -84,7 +84,7 @@
         </tr>
         <tr>
             <td><h5>taskmanager.memory.segment-size</h5></td>
-            <td style="word-wrap: break-word;">"32768"</td>
+            <td style="word-wrap: break-word;">"32kb"</td>
             <td>Size of memory buffers used by the network stack and the memory manager.</td>
         </tr>
         <tr>
@@ -114,12 +114,12 @@
         </tr>
         <tr>
             <td><h5>taskmanager.network.memory.max</h5></td>
-            <td style="word-wrap: break-word;">"1073741824"</td>
+            <td style="word-wrap: break-word;">"1gb"</td>
             <td>Maximum memory size for network buffers.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.memory.min</h5></td>
-            <td style="word-wrap: break-word;">"67108864"</td>
+            <td style="word-wrap: break-word;">"64mb"</td>
             <td>Minimum memory size for network buffers.</td>
         </tr>
         <tr>

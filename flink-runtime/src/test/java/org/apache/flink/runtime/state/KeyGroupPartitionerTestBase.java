@@ -85,11 +85,11 @@ public abstract class KeyGroupPartitionerTestBase<T> extends TestLogger {
 			new ValidatingElementWriterDummy<>(keyExtractorFunction, numberOfKeyGroups, allElementsIdentitySet);
 
 		final KeyGroupPartitioner<T> testInstance = createPartitioner(data, testSize, range, numberOfKeyGroups, validatingElementWriter);
-		final StateSnapshot.KeyGroupPartitionedSnapshot result = testInstance.partitionByKeyGroup();
+		final StateSnapshot.StateKeyGroupWriter result = testInstance.partitionByKeyGroup();
 
 		for (int keyGroup = 0; keyGroup < numberOfKeyGroups; ++keyGroup) {
 			validatingElementWriter.setCurrentKeyGroup(keyGroup);
-			result.writeMappingsInKeyGroup(DUMMY_OUT_VIEW, keyGroup);
+			result.writeStateInKeyGroup(DUMMY_OUT_VIEW, keyGroup);
 		}
 
 		validatingElementWriter.validateAllElementsSeen();

@@ -59,7 +59,7 @@ import java.util.Map;
  * @param <T> Type of the elements handled by this sink
  */
 @PublicEvolving
-public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T> {
+public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, TransportClient> {
 
 	private static final long serialVersionUID = 1L;
 

@@ -30,6 +30,7 @@ import org.apache.flink.types.Row;
 
 import org.junit.Test;
 
+import java.util.Optional;
 import java.util.Properties;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -44,7 +45,11 @@ import static org.mockito.Mockito.when;
 
 /**
  * Abstract test base for all Kafka table sink tests.
+ *
+ * @deprecated Ensures backwards compatibility with Flink 1.5. Can be removed once we
+ *             drop support for format-specific table sinks.
  */
+@Deprecated
 public abstract class KafkaTableSinkTestBase {
 
 	private static final String TOPIC = "testTopic";
@@ -55,7 +60,7 @@ public abstract class KafkaTableSinkTestBase {
 
 	@SuppressWarnings("unchecked")
 	@Test
-	public void testKafkaTableSink() throws Exception {
+	public void testKafkaTableSink() {
 		DataStream dataStream = mock(DataStream.class);
 		when(dataStream.addSink(any(SinkFunction.class))).thenReturn(mock(DataStreamSink.class));
 
@@ -70,7 +75,7 @@ public abstract class KafkaTableSinkTestBase {
 			eq(TOPIC),
 			eq(PROPERTIES),
 			any(getSerializationSchemaClass()),
-			eq(PARTITIONER));
+			eq(Optional.of(PARTITIONER)));
 	}
 
 	@Test
@@ -94,7 +99,8 @@ public abstract class KafkaTableSinkTestBase {
 	protected abstract Class<? extends FlinkKafkaProducerBase> getProducerClass();
 
 	private KafkaTableSink createTableSink() {
-		return createTableSink(TOPIC, PROPERTIES, PARTITIONER);
+		KafkaTableSink sink = createTableSink(TOPIC, PROPERTIES, PARTITIONER);
+		return sink.configure(FIELD_NAMES, FIELD_TYPES);
 	}
 
 	private static Properties createSinkProperties() {

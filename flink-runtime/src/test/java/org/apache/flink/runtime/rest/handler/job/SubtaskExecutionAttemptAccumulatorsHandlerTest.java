@@ -99,6 +99,7 @@ public class SubtaskExecutionAttemptAccumulatorsHandlerTest extends TestLogger {
 			ExecutionState.FINISHED,
 			null,
 			null,
+			null,
 			subtaskIndex,
 			new long[ExecutionState.values().length]);
 

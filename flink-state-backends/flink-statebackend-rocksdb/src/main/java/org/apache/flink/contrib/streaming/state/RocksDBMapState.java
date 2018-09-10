@@ -24,13 +24,12 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
-import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -44,9 +43,11 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -121,14 +122,14 @@ class RocksDBMapState<K, N, UK, UV>
 		byte[] rawKeyBytes = serializeUserKeyWithCurrentKeyAndNamespace(userKey);
 		byte[] rawValueBytes = backend.db.get(columnFamily, rawKeyBytes);
 
-		return (rawValueBytes == null ? null : deserializeUserValue(rawValueBytes));
+		return (rawValueBytes == null ? null : deserializeUserValue(dataInputView, rawValueBytes, userValueSerializer));
 	}
 
 	@Override
 	public void put(UK userKey, UV userValue) throws IOException, RocksDBException {
 
 		byte[] rawKeyBytes = serializeUserKeyWithCurrentKeyAndNamespace(userKey);
-		byte[] rawValueBytes = serializeUserValue(userValue);
+		byte[] rawValueBytes = serializeUserValue(userValue, userValueSerializer, dataOutputView);
 
 		backend.db.put(columnFamily, writeOptions, rawKeyBytes, rawValueBytes);
 	}
@@ -142,7 +143,7 @@ class RocksDBMapState<K, N, UK, UV>
 		try (RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(backend.db, writeOptions)) {
 			for (Map.Entry<UK, UV> entry : map.entrySet()) {
 				byte[] rawKeyBytes = serializeUserKeyWithCurrentKeyAndNamespace(entry.getKey());
-				byte[] rawValueBytes = serializeUserValue(entry.getValue());
+				byte[] rawValueBytes = serializeUserValue(entry.getValue(), userValueSerializer, dataOutputView);
 				writeBatchWrapper.put(columnFamily, rawKeyBytes, rawValueBytes);
 			}
 		}
@@ -179,7 +180,7 @@ class RocksDBMapState<K, N, UK, UV>
 	public Iterable<UK> keys() throws IOException {
 		final byte[] prefixBytes = serializeCurrentKeyAndNamespace();
 
-		return () -> new RocksDBMapIterator<UK>(backend.db, prefixBytes, userKeySerializer, userValueSerializer) {
+		return () -> new RocksDBMapIterator<UK>(backend.db, prefixBytes, userKeySerializer, userValueSerializer, dataInputView) {
 			@Override
 			public UK next() {
 				RocksDBMapEntry entry = nextEntry();
@@ -192,7 +193,7 @@ class RocksDBMapState<K, N, UK, UV>
 	public Iterable<UV> values() throws IOException {
 		final byte[] prefixBytes = serializeCurrentKeyAndNamespace();
 
-		return () -> new RocksDBMapIterator<UV>(backend.db, prefixBytes, userKeySerializer, userValueSerializer) {
+		return () -> new RocksDBMapIterator<UV>(backend.db, prefixBytes, userKeySerializer, userValueSerializer, dataInputView) {
 			@Override
 			public UV next() {
 				RocksDBMapEntry entry = nextEntry();
@@ -205,7 +206,7 @@ class RocksDBMapState<K, N, UK, UV>
 	public Iterator<Map.Entry<UK, UV>> iterator() throws IOException {
 		final byte[] prefixBytes = serializeCurrentKeyAndNamespace();
 
-		return new RocksDBMapIterator<Map.Entry<UK, UV>>(backend.db, prefixBytes, userKeySerializer, userValueSerializer) {
+		return new RocksDBMapIterator<Map.Entry<UK, UV>>(backend.db, prefixBytes, userKeySerializer, userValueSerializer, dataInputView) {
 			@Override
 			public Map.Entry<UK, UV> next() {
 				return nextEntry();
@@ -258,8 +259,8 @@ class RocksDBMapState<K, N, UK, UV>
 
 		int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(keyAndNamespace.f0, backend.getNumberOfKeyGroups());
 
-		ByteArrayOutputStreamWithPos outputStream = new ByteArrayOutputStreamWithPos(128);
-		DataOutputViewStreamWrapper outputView = new DataOutputViewStreamWrapper(outputStream);
+		DataOutputSerializer outputView = new DataOutputSerializer(128);
+		DataInputDeserializer inputView = new DataInputDeserializer();
 
 		writeKeyWithGroupAndNamespace(
 				keyGroup,
@@ -267,10 +268,9 @@ class RocksDBMapState<K, N, UK, UV>
 				safeKeySerializer,
 				keyAndNamespace.f1,
 				safeNamespaceSerializer,
-				outputStream,
 				outputView);
 
-		final byte[] keyPrefixBytes = outputStream.toByteArray();
+		final byte[] keyPrefixBytes = outputView.getCopyOfBuffer();
 
 		final MapSerializer<UK, UV> serializer = (MapSerializer<UK, UV>) safeValueSerializer;
 
@@ -281,7 +281,8 @@ class RocksDBMapState<K, N, UK, UV>
 				backend.db,
 				keyPrefixBytes,
 				dupUserKeySerializer,
-				dupUserValueSerializer) {
+				dupUserValueSerializer,
+				inputView) {
 
 			@Override
 			public Map.Entry<UK, UV> next() {
@@ -304,53 +305,52 @@ class RocksDBMapState<K, N, UK, UV>
 	private byte[] serializeCurrentKeyAndNamespace() throws IOException {
 		writeCurrentKeyWithGroupAndNamespace();
 
-		return keySerializationStream.toByteArray();
+		return dataOutputView.getCopyOfBuffer();
 	}
 
 	private byte[] serializeUserKeyWithCurrentKeyAndNamespace(UK userKey) throws IOException {
 		serializeCurrentKeyAndNamespace();
-		userKeySerializer.serialize(userKey, keySerializationDataOutputView);
+		userKeySerializer.serialize(userKey, dataOutputView);
 
-		return keySerializationStream.toByteArray();
+		return dataOutputView.getCopyOfBuffer();
 	}
 
-	private byte[] serializeUserValue(UV userValue) throws IOException {
-		return serializeUserValue(userValue, userValueSerializer);
-	}
+	private static <UV> byte[] serializeUserValue(
+		UV userValue,
+		TypeSerializer<UV> valueSerializer,
+		DataOutputSerializer dataOutputView) throws IOException {
 
-	private UV deserializeUserValue(byte[] rawValueBytes) throws IOException {
-		return deserializeUserValue(rawValueBytes, userValueSerializer);
-	}
-
-	private byte[] serializeUserValue(UV userValue, TypeSerializer<UV> valueSerializer) throws IOException {
-		keySerializationStream.reset();
+		dataOutputView.clear();
 
 		if (userValue == null) {
-			keySerializationDataOutputView.writeBoolean(true);
+			dataOutputView.writeBoolean(true);
 		} else {
-			keySerializationDataOutputView.writeBoolean(false);
-			valueSerializer.serialize(userValue, keySerializationDataOutputView);
+			dataOutputView.writeBoolean(false);
+			valueSerializer.serialize(userValue, dataOutputView);
 		}
 
-		return keySerializationStream.toByteArray();
+		return dataOutputView.getCopyOfBuffer();
 	}
 
-	private UK deserializeUserKey(int userKeyOffset, byte[] rawKeyBytes, TypeSerializer<UK> keySerializer) throws IOException {
-		ByteArrayInputStreamWithPos bais = new ByteArrayInputStreamWithPos(rawKeyBytes);
-		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
-
-		in.skipBytes(userKeyOffset);
-
-		return keySerializer.deserialize(in);
+	private static <UK> UK deserializeUserKey(
+		DataInputDeserializer dataInputView,
+		int userKeyOffset,
+		byte[] rawKeyBytes,
+		TypeSerializer<UK> keySerializer) throws IOException {
+		dataInputView.setBuffer(rawKeyBytes, userKeyOffset, rawKeyBytes.length - userKeyOffset);
+		return keySerializer.deserialize(dataInputView);
 	}
 
-	private UV deserializeUserValue(byte[] rawValueBytes, TypeSerializer<UV> valueSerializer) throws IOException {
-		ByteArrayInputStreamWithPos bais = new ByteArrayInputStreamWithPos(rawValueBytes);
-		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
+	private static <UV> UV deserializeUserValue(
+		DataInputDeserializer dataInputView,
+		byte[] rawValueBytes,
+		TypeSerializer<UV> valueSerializer) throws IOException {
 
-		boolean isNull = in.readBoolean();
+		dataInputView.setBuffer(rawValueBytes);
 
-		return isNull ? null : valueSerializer.deserialize(in);
+		boolean isNull = dataInputView.readBoolean();
+
+		return isNull ? null : valueSerializer.deserialize(dataInputView);
 	}
 
 	private boolean startWithKeyPrefix(byte[] keyPrefixBytes, byte[] rawKeyBytes) {
@@ -394,9 +394,12 @@ class RocksDBMapState<K, N, UK, UV>
 		/** The offset of User Key offset in raw key bytes. */
 		private final int userKeyOffset;
 
-		private TypeSerializer<UK> keySerializer;
+		private final TypeSerializer<UK> keySerializer;
 
-		private TypeSerializer<UV> valueSerializer;
+		private final TypeSerializer<UV> valueSerializer;
+
+		private final DataInputDeserializer dataInputView;
+		private final DataOutputSerializer dataOutputView;
 
 		RocksDBMapEntry(
 				@Nonnull final RocksDB db,
@@ -404,7 +407,9 @@ class RocksDBMapState<K, N, UK, UV>
 				@Nonnull final byte[] rawKeyBytes,
 				@Nonnull final byte[] rawValueBytes,
 				@Nonnull final TypeSerializer<UK> keySerializer,
-				@Nonnull final TypeSerializer<UV> valueSerializer) {
+				@Nonnull final TypeSerializer<UV> valueSerializer,
+				@Nonnull DataInputDeserializer dataInputView,
+				@Nonnull DataOutputSerializer dataOutputView) {
 			this.db = db;
 
 			this.userKeyOffset = userKeyOffset;
@@ -414,6 +419,8 @@ class RocksDBMapState<K, N, UK, UV>
 			this.rawKeyBytes = rawKeyBytes;
 			this.rawValueBytes = rawValueBytes;
 			this.deleted = false;
+			this.dataInputView = dataInputView;
+			this.dataOutputView = dataOutputView;
 		}
 
 		public void remove() {
@@ -431,7 +438,7 @@ class RocksDBMapState<K, N, UK, UV>
 		public UK getKey() {
 			if (userKey == null) {
 				try {
-					userKey = deserializeUserKey(userKeyOffset, rawKeyBytes, keySerializer);
+					userKey = deserializeUserKey(dataInputView, userKeyOffset, rawKeyBytes, keySerializer);
 				} catch (IOException e) {
 					throw new FlinkRuntimeException("Error while deserializing the user key.", e);
 				}
@@ -447,7 +454,7 @@ class RocksDBMapState<K, N, UK, UV>
 			} else {
 				if (userValue == null) {
 					try {
-						userValue = deserializeUserValue(rawValueBytes, valueSerializer);
+						userValue = deserializeUserValue(dataInputView, rawValueBytes, valueSerializer);
 					} catch (IOException e) {
 						throw new FlinkRuntimeException("Error while deserializing the user value.", e);
 					}
@@ -467,7 +474,7 @@ class RocksDBMapState<K, N, UK, UV>
 
 			try {
 				userValue = value;
-				rawValueBytes = serializeUserValue(value, valueSerializer);
+				rawValueBytes = serializeUserValue(value, valueSerializer, dataOutputView);
 
 				db.put(columnFamily, writeOptions, rawKeyBytes, rawValueBytes);
 			} catch (IOException | RocksDBException e) {
@@ -505,17 +512,20 @@ class RocksDBMapState<K, N, UK, UV>
 
 		private final TypeSerializer<UK> keySerializer;
 		private final TypeSerializer<UV> valueSerializer;
+		private final DataInputDeserializer dataInputView;
 
 		RocksDBMapIterator(
-				final RocksDB db,
-				final byte[] keyPrefixBytes,
-				final TypeSerializer<UK> keySerializer,
-				final TypeSerializer<UV> valueSerializer) {
+			final RocksDB db,
+			final byte[] keyPrefixBytes,
+			final TypeSerializer<UK> keySerializer,
+			final TypeSerializer<UV> valueSerializer,
+			DataInputDeserializer dataInputView) {
 
 			this.db = db;
 			this.keyPrefixBytes = keyPrefixBytes;
 			this.keySerializer = keySerializer;
 			this.valueSerializer = valueSerializer;
+			this.dataInputView = dataInputView;
 		}
 
 		@Override
@@ -603,7 +613,9 @@ class RocksDBMapState<K, N, UK, UV>
 						iterator.key(),
 						iterator.value(),
 						keySerializer,
-						valueSerializer);
+						valueSerializer,
+						dataInputView,
+						dataOutputView);
 
 					cacheEntries.add(entry);
 
@@ -616,7 +628,7 @@ class RocksDBMapState<K, N, UK, UV>
 	@SuppressWarnings("unchecked")
 	static <UK, UV, K, N, SV, S extends State, IS extends S> IS create(
 		StateDescriptor<S, SV> stateDesc,
-		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, SV>> registerResult,
+		Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> registerResult,
 		RocksDBKeyedStateBackend<K> backend) {
 		return (IS) new RocksDBMapState<>(
 			registerResult.f0,
@@ -624,5 +636,75 @@ class RocksDBMapState<K, N, UK, UV>
 			(TypeSerializer<Map<UK, UV>>) registerResult.f1.getStateSerializer(),
 			(Map<UK, UV>) stateDesc.getDefaultValue(),
 			backend);
+	}
+
+	/**
+	 * RocksDB map state specific byte value transformer wrapper.
+	 *
+	 * <p>This specific transformer wrapper checks the first byte to detect null user value entries
+	 * and if not null forward the rest of byte array to the original byte value transformer.
+	 */
+	static class StateSnapshotTransformerWrapper implements StateSnapshotTransformer<byte[]> {
+		private static final byte[] NULL_VALUE;
+		private static final byte NON_NULL_VALUE_PREFIX;
+		static {
+			DataOutputSerializer dov = new DataOutputSerializer(1);
+			try {
+				dov.writeBoolean(true);
+				NULL_VALUE = dov.getCopyOfBuffer();
+				dov.clear();
+				dov.writeBoolean(false);
+				NON_NULL_VALUE_PREFIX = dov.getSharedBuffer()[0];
+			} catch (IOException e) {
+				throw new FlinkRuntimeException("Failed to serialize boolean flag of map user null value", e);
+			}
+		}
+
+		private final StateSnapshotTransformer<byte[]> elementTransformer;
+		private final DataInputDeserializer div;
+
+		StateSnapshotTransformerWrapper(StateSnapshotTransformer<byte[]> originalTransformer) {
+			this.elementTransformer = originalTransformer;
+			this.div = new DataInputDeserializer();
+		}
+
+		@Override
+		@Nullable
+		public byte[] filterOrTransform(@Nullable byte[] value) {
+			if (value == null || isNull(value)) {
+				return NULL_VALUE;
+			} else {
+				// we have to skip the first byte indicating null user value
+				// TODO: optimization here could be to work with slices and not byte arrays
+				// and copy slice sub-array only when needed
+				byte[] woNullByte = Arrays.copyOfRange(value, 1, value.length);
+				byte[] filteredValue = elementTransformer.filterOrTransform(woNullByte);
+				if (filteredValue == null) {
+					filteredValue = NULL_VALUE;
+				} else if (filteredValue != woNullByte) {
+					filteredValue = prependWithNonNullByte(filteredValue, value);
+				} else {
+					filteredValue = value;
+				}
+				return filteredValue;
+			}
+		}
+
+		private boolean isNull(byte[] value) {
+			try {
+				div.setBuffer(value, 0, 1);
+				return div.readBoolean();
+			} catch (IOException e) {
+				throw new FlinkRuntimeException("Failed to deserialize boolean flag of map user null value", e);
+			}
+		}
+
+		private static byte[] prependWithNonNullByte(byte[] value, byte[] reuse) {
+			int len = 1 + value.length;
+			byte[] result = reuse.length == len ? reuse : new byte[len];
+			result[0] = NON_NULL_VALUE_PREFIX;
+			System.arraycopy(value, 0, result, 1, value.length);
+			return result;
+		}
 	}
 }

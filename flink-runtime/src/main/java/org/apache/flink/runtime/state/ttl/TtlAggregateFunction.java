@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.common.functions.AggregateFunction;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -37,7 +38,7 @@ class TtlAggregateFunction<IN, ACC, OUT>
 	ThrowingRunnable<Exception> stateClear;
 	ThrowingConsumer<TtlValue<ACC>, Exception> updater;
 
-	TtlAggregateFunction(AggregateFunction<IN, ACC, OUT> aggFunction, TtlConfig config, TtlTimeProvider timeProvider) {
+	TtlAggregateFunction(AggregateFunction<IN, ACC, OUT> aggFunction, StateTtlConfig config, TtlTimeProvider timeProvider) {
 		super(aggFunction, config, timeProvider);
 	}
 

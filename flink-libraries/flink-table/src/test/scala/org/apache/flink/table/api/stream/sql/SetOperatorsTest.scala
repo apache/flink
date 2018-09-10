@@ -170,4 +170,34 @@ class SetOperatorsTest extends TableTestBase {
 
     streamUtil.verifySql(sqlQuery, expected)
   }
+
+  @Test
+  def testValuesWithCast(): Unit = {
+    val util = streamTestUtil()
+
+    val expected = naryNode(
+      "DataStreamUnion",
+      List(
+        unaryNode("DataStreamCalc",
+          values("DataStreamValues",
+            tuples(List("0"))),
+          term("select", "1 AS EXPR$0, 1 AS EXPR$1")),
+        unaryNode("DataStreamCalc",
+          values("DataStreamValues",
+            tuples(List("0"))),
+          term("select", "2 AS EXPR$0, 2 AS EXPR$1")),
+        unaryNode("DataStreamCalc",
+          values("DataStreamValues",
+            tuples(List("0"))),
+          term("select", "3 AS EXPR$0, 3 AS EXPR$1"))
+      ),
+      term("all", "true"),
+      term("union all", "EXPR$0, EXPR$1")
+    )
+
+    util.verifySql(
+      "VALUES (1, cast(1 as BIGINT) ),(2, cast(2 as BIGINT)),(3, cast(3 as BIGINT))",
+      expected
+    )
+  }
 }

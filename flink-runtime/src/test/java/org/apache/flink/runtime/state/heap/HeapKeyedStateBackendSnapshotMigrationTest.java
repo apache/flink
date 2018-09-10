@@ -73,7 +73,7 @@ public class HeapKeyedStateBackendSnapshotMigrationTest extends HeapStateBackend
 
 			keyedBackend.restore(StateObjectCollection.singleton(stateHandles.getJobManagerOwnedSnapshot()));
 
-			InternalMapState<String, Integer, Long, Long> state = keyedBackend.createState(IntSerializer.INSTANCE, stateDescr);
+			InternalMapState<String, Integer, Long, Long> state = keyedBackend.createInternalState(IntSerializer.INSTANCE, stateDescr);
 
 			keyedBackend.setCurrentKey("abc");
 			state.setCurrentNamespace(namespace1);
@@ -233,9 +233,9 @@ public class HeapKeyedStateBackendSnapshotMigrationTest extends HeapStateBackend
 			final ListStateDescriptor<Long> stateDescr = new ListStateDescriptor<>("my-state", Long.class);
 			stateDescr.initializeSerializerUnlessSet(new ExecutionConfig());
 
-			InternalListState<String, Integer, Long> state = keyedBackend.createState(IntSerializer.INSTANCE, stateDescr);
+			InternalListState<String, Integer, Long> state = keyedBackend.createInternalState(IntSerializer.INSTANCE, stateDescr);
 
-			assertEquals(7, keyedBackend.numStateEntries());
+			assertEquals(7, keyedBackend.numKeyValueStateEntries());
 
 			keyedBackend.setCurrentKey("abc");
 			state.setCurrentNamespace(namespace1);

@@ -90,6 +90,7 @@ import java.util.concurrent.TimeUnit;
 import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
@@ -249,8 +250,8 @@ public abstract class ClusterClient<T> {
 		@Override
 		public void close() throws Exception {
 			if (isLoaded()) {
-				actorSystem.shutdown();
-				actorSystem.awaitTermination();
+				actorSystem.terminate();
+				Await.ready(actorSystem.whenTerminated(), Duration.Inf());
 				actorSystem = null;
 			}
 		}
@@ -670,7 +671,7 @@ public abstract class ClusterClient<T> {
 	 * @param jobId the job id
 	 * @param savepointDirectory directory the savepoint should be written to
 	 * @return path where the savepoint is located
-	 * @throws Exception In case an error cocurred.
+	 * @throws Exception In case an error occurred.
 	 */
 	public String cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory) throws Exception {
 		final ActorGateway jobManager = getJobManagerGateway();

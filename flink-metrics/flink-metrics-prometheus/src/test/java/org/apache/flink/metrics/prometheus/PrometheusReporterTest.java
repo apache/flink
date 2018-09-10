@@ -202,7 +202,7 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@Test
 	public void doubleGaugeIsConvertedCorrectly() {
-		assertThat(PrometheusReporter.gaugeFrom(new Gauge<Double>() {
+		assertThat(reporter.gaugeFrom(new Gauge<Double>() {
 			@Override
 			public Double getValue() {
 				return 3.14;
@@ -212,7 +212,7 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@Test
 	public void shortGaugeIsConvertedCorrectly() {
-		assertThat(PrometheusReporter.gaugeFrom(new Gauge<Short>() {
+		assertThat(reporter.gaugeFrom(new Gauge<Short>() {
 			@Override
 			public Short getValue() {
 				return 13;
@@ -222,7 +222,7 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@Test
 	public void booleanGaugeIsConvertedCorrectly() {
-		assertThat(PrometheusReporter.gaugeFrom(new Gauge<Boolean>() {
+		assertThat(reporter.gaugeFrom(new Gauge<Boolean>() {
 			@Override
 			public Boolean getValue() {
 				return true;
@@ -235,7 +235,7 @@ public class PrometheusReporterTest extends TestLogger {
 	 */
 	@Test
 	public void stringGaugeCannotBeConverted() {
-		assertThat(PrometheusReporter.gaugeFrom(new Gauge<String>() {
+		assertThat(reporter.gaugeFrom(new Gauge<String>() {
 			@Override
 			public String getValue() {
 				return "I am not a number";

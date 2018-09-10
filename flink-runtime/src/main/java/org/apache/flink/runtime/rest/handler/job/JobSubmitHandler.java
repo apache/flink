@@ -62,15 +62,18 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 	private static final String FILE_TYPE_ARTIFACT = "Artifact";
 
 	private final Executor executor;
+	private final Configuration configuration;
 
 	public JobSubmitHandler(
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> headers,
-			Executor executor) {
+			Executor executor,
+			Configuration configuration) {
 		super(localRestAddress, leaderRetriever, timeout, headers, JobSubmitHeaders.getInstance());
 		this.executor = executor;
+		this.configuration = configuration;
 	}
 
 	@Override
@@ -93,13 +96,20 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 
 		final JobSubmitRequestBody requestBody = request.getRequestBody();
 
+		if (requestBody.jobGraphFileName == null) {
+			throw new RestHandlerException(
+				String.format("The %s field must not be omitted or be null.",
+					JobSubmitRequestBody.FIELD_NAME_JOB_GRAPH),
+				HttpResponseStatus.BAD_REQUEST);
+		}
+
 		CompletableFuture<JobGraph> jobGraphFuture = loadJobGraph(requestBody, nameToFile);
 
 		Collection<Path> jarFiles = getJarFilesToUpload(requestBody.jarFileNames, nameToFile);
 
 		Collection<Tuple2<String, Path>> artifacts = getArtifactFilesToUpload(requestBody.artifactFileNames, nameToFile);
 
-		CompletableFuture<JobGraph> finalizedJobGraphFuture = uploadJobGraphFiles(gateway, jobGraphFuture, jarFiles, artifacts);
+		CompletableFuture<JobGraph> finalizedJobGraphFuture = uploadJobGraphFiles(gateway, jobGraphFuture, jarFiles, artifacts, configuration);
 
 		CompletableFuture<Acknowledge> jobSubmissionFuture = finalizedJobGraphFuture.thenCompose(jobGraph -> gateway.submitJob(jobGraph, timeout));
 
@@ -151,13 +161,14 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 			DispatcherGateway gateway,
 			CompletableFuture<JobGraph> jobGraphFuture,
 			Collection<Path> jarFiles,
-			Collection<Tuple2<String, Path>> artifacts) {
+			Collection<Tuple2<String, Path>> artifacts,
+			Configuration configuration) {
 		CompletableFuture<Integer> blobServerPortFuture = gateway.getBlobServerPort(timeout);
 
 		return jobGraphFuture.thenCombine(blobServerPortFuture, (JobGraph jobGraph, Integer blobServerPort) -> {
 			final InetSocketAddress address = new InetSocketAddress(gateway.getHostname(), blobServerPort);
 			try {
-				ClientUtils.uploadJobGraphFiles(jobGraph, jarFiles, artifacts, () -> new BlobClient(address, new Configuration()));
+				ClientUtils.uploadJobGraphFiles(jobGraph, jarFiles, artifacts, () -> new BlobClient(address, configuration));
 			} catch (FlinkException e) {
 				throw new CompletionException(new RestHandlerException(
 					"Could not upload job files.",

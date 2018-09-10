@@ -18,17 +18,20 @@
 
 package org.apache.flink.runtime.state.ttl;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.FlinkRuntimeException;
+
+import javax.annotation.Nonnull;
 
 import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
+import java.util.NoSuchElementException;
+import java.util.function.Function;
 
 /**
  * This class wraps map state with TTL logic.
@@ -43,7 +46,7 @@ class TtlMapState<K, N, UK, UV>
 	implements InternalMapState<K, N, UK, UV> {
 	TtlMapState(
 		InternalMapState<K, N, UK, TtlValue<UV>> original,
-		TtlConfig config,
+		StateTtlConfig config,
 		TtlTimeProvider timeProvider,
 		TypeSerializer<Map<UK, UV>> valueSerializer) {
 		super(original, config, timeProvider, valueSerializer);
@@ -65,8 +68,9 @@ class TtlMapState<K, N, UK, UV>
 			return;
 		}
 		Map<UK, TtlValue<UV>> ttlMap = new HashMap<>(map.size());
-		for (UK key : map.keySet()) {
-			ttlMap.put(key, wrapWithTs(map.get(key)));
+		for (Map.Entry<UK, UV> entry : map.entrySet()) {
+			UK key = entry.getKey();
+			ttlMap.put(key, wrapWithTs(entry.getValue()));
 		}
 		original.putAll(ttlMap);
 	}
@@ -83,52 +87,89 @@ class TtlMapState<K, N, UK, UV>
 
 	@Override
 	public Iterable<Map.Entry<UK, UV>> entries() throws Exception {
-		return entriesStream()::iterator;
+		return entries(e -> e);
 	}
 
-	private Stream<Map.Entry<UK, UV>> entriesStream() throws Exception {
+	private <R> Iterable<R> entries(
+		Function<Map.Entry<UK, UV>, R> resultMapper) throws Exception {
 		Iterable<Map.Entry<UK, TtlValue<UV>>> withTs = original.entries();
-		withTs = withTs == null ? Collections.emptyList() : withTs;
-		return StreamSupport
-			.stream(withTs.spliterator(), false)
-			.filter(this::unexpiredAndUpdateOrCleanup)
-			.map(TtlMapState::unwrapWithoutTs);
-	}
-
-	private boolean unexpiredAndUpdateOrCleanup(Map.Entry<UK, TtlValue<UV>> e) {
-		UV unexpiredValue;
-		try {
-			unexpiredValue = getWithTtlCheckAndUpdate(
-				e::getValue,
-				v -> original.put(e.getKey(), v),
-				() -> original.remove(e.getKey()));
-		} catch (Exception ex) {
-			throw new FlinkRuntimeException(ex);
-		}
-		return unexpiredValue != null;
-	}
-
-	private static <UK, UV> Map.Entry<UK, UV> unwrapWithoutTs(Map.Entry<UK, TtlValue<UV>> e) {
-		return new AbstractMap.SimpleEntry<>(e.getKey(), e.getValue().getUserValue());
+		return () -> new EntriesIterator<>(withTs == null ? Collections.emptyList() : withTs, resultMapper);
 	}
 
 	@Override
 	public Iterable<UK> keys() throws Exception {
-		return entriesStream().map(Map.Entry::getKey)::iterator;
+		return entries(Map.Entry::getKey);
 	}
 
 	@Override
 	public Iterable<UV> values() throws Exception {
-		return entriesStream().map(Map.Entry::getValue)::iterator;
+		return entries(Map.Entry::getValue);
 	}
 
 	@Override
 	public Iterator<Map.Entry<UK, UV>> iterator() throws Exception {
-		return entriesStream().iterator();
+		return entries().iterator();
 	}
 
 	@Override
 	public void clear() {
 		original.clear();
+	}
+
+	private class EntriesIterator<R> implements Iterator<R> {
+		private final Iterator<Map.Entry<UK, TtlValue<UV>>> originalIterator;
+		private final Function<Map.Entry<UK, UV>, R> resultMapper;
+		private Map.Entry<UK, UV> nextUnexpired = null;
+		private boolean rightAfterNextIsCalled = false;
+
+		private EntriesIterator(
+			@Nonnull Iterable<Map.Entry<UK, TtlValue<UV>>> withTs,
+			@Nonnull Function<Map.Entry<UK, UV>, R> resultMapper) {
+			this.originalIterator = withTs.iterator();
+			this.resultMapper = resultMapper;
+		}
+
+		@Override
+		public boolean hasNext() {
+			rightAfterNextIsCalled = false;
+			while (nextUnexpired == null && originalIterator.hasNext()) {
+				nextUnexpired = getUnexpiredAndUpdateOrCleanup(originalIterator.next());
+			}
+			return nextUnexpired != null;
+		}
+
+		@Override
+		public R next() {
+			if (hasNext()) {
+				rightAfterNextIsCalled = true;
+				R result = resultMapper.apply(nextUnexpired);
+				nextUnexpired = null;
+				return result;
+			}
+			throw new NoSuchElementException();
+		}
+
+		@Override
+		public void remove() {
+			if (rightAfterNextIsCalled) {
+				originalIterator.remove();
+			} else {
+				throw new IllegalStateException("next() has not been called or hasNext() has been called afterwards," +
+					" remove() is supported only right after calling next()");
+			}
+		}
+
+		private Map.Entry<UK, UV> getUnexpiredAndUpdateOrCleanup(Map.Entry<UK, TtlValue<UV>> e) {
+			UV unexpiredValue;
+			try {
+				unexpiredValue = getWithTtlCheckAndUpdate(
+					e::getValue,
+					v -> original.put(e.getKey(), v),
+					originalIterator::remove);
+			} catch (Exception ex) {
+				throw new FlinkRuntimeException(ex);
+			}
+			return unexpiredValue == null ? null : new AbstractMap.SimpleEntry<>(e.getKey(), unexpiredValue);
+		}
 	}
 }
