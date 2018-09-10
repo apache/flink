@@ -60,7 +60,7 @@ public class StreamNetworkThroughputBenchmark {
 	}
 
 	public void setUp(int recordWriters, int channels, int flushTimeout, boolean localMode) throws Exception {
-		setUp(recordWriters, channels, flushTimeout, false, -1, -1);
+		setUp(recordWriters, channels, flushTimeout, localMode, -1, -1);
 	}
 
 	/**
