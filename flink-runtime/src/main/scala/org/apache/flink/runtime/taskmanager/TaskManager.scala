@@ -1830,7 +1830,7 @@ object TaskManager {
       taskManagerClass: Class[_ <: TaskManager])
     : Unit = {
 
-    LOG.info("Starting TaskManager")
+    LOG.info(s"Starting TaskManager with ResourceID: $resourceID")
 
     // Bring up the TaskManager actor system first, bind it to the given address.
 

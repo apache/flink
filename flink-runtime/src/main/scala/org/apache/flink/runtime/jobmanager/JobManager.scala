@@ -349,7 +349,7 @@ class JobManager(
           hardwareInformation,
           numberOfSlots) =>
       // we are being informed by the ResourceManager that a new task manager is available
-      log.debug(s"RegisterTaskManager: $msg")
+      log.info(s"RegisterTaskManager: $msg")
 
       val taskManager = sender()
 
