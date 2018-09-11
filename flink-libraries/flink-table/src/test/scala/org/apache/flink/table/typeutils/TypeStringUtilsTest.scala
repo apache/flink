@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.typeutils
 
-import java.util
-
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{PrimitiveArrayTypeInfo, BasicArrayTypeInfo, BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, TypeExtractor}
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.runtime.utils.CommonTestData.{NonPojo, Person}
 import org.junit.Assert.{assertEquals, assertTrue}
-import org.junit.{Assert, Test}
+import org.junit.{Test}
 
 /**
   * Tests for string-based representation of [[TypeInformation]].
@@ -49,7 +47,7 @@ class TypeStringUtilsTest {
 
     // unsupported type information
     testReadAndWrite(
-      "ANY(java.lang.Void, " +
+      "ANY<java.lang.Void, " +
         "rO0ABXNyADJvcmcuYXBhY2hlLmZsaW5rLmFwaS5jb21tb24udHlwZWluZm8uQmFzaWNUeXBlSW5mb_oE8IKl" +
         "ad0GAgAETAAFY2xhenp0ABFMamF2YS9sYW5nL0NsYXNzO0wAD2NvbXBhcmF0b3JDbGFzc3EAfgABWwAXcG9z" +
         "c2libGVDYXN0VGFyZ2V0VHlwZXN0ABJbTGphdmEvbGFuZy9DbGFzcztMAApzZXJpYWxpemVydAA2TG9yZy9h" +
@@ -59,31 +57,62 @@ class TypeStringUtilsTest {
         "cgA5b3JnLmFwYWNoZS5mbGluay5hcGkuY29tbW9uLnR5cGV1dGlscy5iYXNlLlZvaWRTZXJpYWxpemVyAAAA" +
         "AAAAAAECAAB4cgBCb3JnLmFwYWNoZS5mbGluay5hcGkuY29tbW9uLnR5cGV1dGlscy5iYXNlLlR5cGVTZXJp" +
         "YWxpemVyU2luZ2xldG9ueamHqscud0UCAAB4cgA0b3JnLmFwYWNoZS5mbGluay5hcGkuY29tbW9uLnR5cGV1" +
-        "dGlscy5UeXBlU2VyaWFsaXplcgAAAAAAAAABAgAAeHA)",
+        "dGlscy5UeXBlU2VyaWFsaXplcgAAAAAAAAABAgAAeHA>",
       BasicTypeInfo.VOID_TYPE_INFO)
   }
 
   @Test
   def testWriteComplexTypes(): Unit = {
     testReadAndWrite(
-      "ROW(f0 DECIMAL, f1 TINYINT)",
+      "ROW<f0 DECIMAL, f1 TINYINT>",
       Types.ROW(Types.DECIMAL, Types.BYTE))
 
     testReadAndWrite(
-      "ROW(hello DECIMAL, world TINYINT)",
+      "ROW<hello DECIMAL, world TINYINT>",
       Types.ROW(
         Array[String]("hello", "world"),
         Array[TypeInformation[_]](Types.DECIMAL, Types.BYTE)))
 
     testReadAndWrite(
-      "POJO(org.apache.flink.table.runtime.utils.CommonTestData$Person)",
+      "POJO<org.apache.flink.table.runtime.utils.CommonTestData$Person>",
       TypeExtractor.createTypeInfo(classOf[Person]))
 
     testReadAndWrite(
-      "ANY(org.apache.flink.table.runtime.utils.CommonTestData$NonPojo)",
+      "ANY<org.apache.flink.table.runtime.utils.CommonTestData$NonPojo>",
       TypeExtractor.createTypeInfo(classOf[NonPojo]))
 
+    testReadAndWrite(
+      "MAP<VARCHAR, ROW<f0 DECIMAL, f1 TINYINT>>",
+      Types.MAP(Types.STRING, Types.ROW(Types.DECIMAL, Types.BYTE))
+    )
+
+    testReadAndWrite(
+      "MULTISET<ROW<f0 DECIMAL, f1 TINYINT>>",
+      Types.MULTISET(Types.ROW(Types.DECIMAL, Types.BYTE))
+    )
+
+    testReadAndWrite(
+      "PRIMITIVE_ARRAY<TINYINT>",
+      PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO
+    )
+
+    testReadAndWrite(
+      "BASIC_ARRAY<INT>",
+      BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO
+    )
+
+    testReadAndWrite(
+      "OBJECT_ARRAY<POJO<org.apache.flink.table.runtime.utils.CommonTestData$Person>>",
+      Types.OBJECT_ARRAY(TypeExtractor.createTypeInfo(classOf[Person]))
+    )
+
     // test escaping
+    assertTrue(
+      TypeStringUtils.readTypeInfo("ROW<\"he         \\nllo\" DECIMAL, world TINYINT>")
+        .asInstanceOf[RowTypeInfo].getFieldNames
+        .sameElements(Array[String]("he         \nllo", "world")))
+
+    // test backward compatibility with brackets ()
     assertTrue(
       TypeStringUtils.readTypeInfo("ROW(\"he         \\nllo\" DECIMAL, world TINYINT)")
         .asInstanceOf[RowTypeInfo].getFieldNames
