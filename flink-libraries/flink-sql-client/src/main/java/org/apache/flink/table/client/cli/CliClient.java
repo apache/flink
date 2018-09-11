@@ -32,7 +32,6 @@ import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.MaskingCallback;
 import org.jline.reader.UserInterruptException;
-import org.jline.reader.impl.DefaultParser;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.jline.utils.AttributedString;
@@ -94,13 +93,14 @@ public class CliClient {
 		}
 
 		// initialize line lineReader
-		final DefaultParser parser = new DefaultParser();
-		parser.setEofOnEscapedNewLine(true); // allows for multi-line commands
 		lineReader = LineReaderBuilder.builder()
 			.terminal(terminal)
 			.appName(CliStrings.CLI_NAME)
-			.parser(parser)
+			.parser(new SqlMultiLineParser())
 			.build();
+		// this option is disabled for now for correct backslash escaping
+		// a "SELECT '\'" query should return a string with a backslash
+		lineReader.option(LineReader.Option.DISABLE_EVENT_EXPANSION, true);
 
 		// create prompt
 		prompt = new AttributedStringBuilder()
@@ -168,16 +168,19 @@ public class CliClient {
 			terminal.writer().append("\n");
 			terminal.flush();
 
-			String line;
+			final String line;
 			try {
 				line = lineReader.readLine(prompt, null, (MaskingCallback) null, null);
-			} catch (UserInterruptException | EndOfFileException | IOError e) {
-				// user cancelled application with Ctrl+C or kill
+			} catch (UserInterruptException e) {
+				// user cancelled line with Ctrl+C
+				continue;
+			} catch (EndOfFileException | IOError e) {
+				// user cancelled application with Ctrl+D or kill
 				break;
 			} catch (Throwable t) {
 				throw new SqlClientException("Could not read from command line.", t);
 			}
-			if (line == null || line.equals("")) {
+			if (line == null) {
 				continue;
 			}
 			final Optional<SqlCommandCall> cmdCall = parseCommand(line);
