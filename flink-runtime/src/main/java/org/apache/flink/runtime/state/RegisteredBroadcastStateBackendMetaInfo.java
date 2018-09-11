@@ -72,9 +72,9 @@ public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredSta
 			OperatorStateHandle.Mode.valueOf(
 				snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE)),
 			(TypeSerializer<K>) Preconditions.checkNotNull(
-				snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER)),
+				snapshot.restoreTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER)),
 			(TypeSerializer<V>) Preconditions.checkNotNull(
-				snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER)));
+				snapshot.restoreTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER)));
 		Preconditions.checkState(StateMetaInfoSnapshot.BackendStateType.BROADCAST == snapshot.getBackendStateType());
 	}
 
@@ -151,7 +151,7 @@ public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredSta
 			StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE.toString(),
 			assignmentMode.toString());
 		Map<String, TypeSerializer<?>> serializerMap = new HashMap<>(2);
-		Map<String, TypeSerializerConfigSnapshot> serializerConfigSnapshotsMap = new HashMap<>(2);
+		Map<String, TypeSerializerConfigSnapshot<?>> serializerConfigSnapshotsMap = new HashMap<>(2);
 		String keySerializerKey = StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.toString();
 		String valueSerializerKey = StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString();
 		serializerMap.put(keySerializerKey, keySerializer.duplicate());

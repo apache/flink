@@ -48,7 +48,7 @@ public class RegisteredPriorityQueueStateBackendMetaInfo<T> extends RegisteredSt
 	public RegisteredPriorityQueueStateBackendMetaInfo(StateMetaInfoSnapshot snapshot) {
 		this(snapshot.getName(),
 			(TypeSerializer<T>) Preconditions.checkNotNull(
-				snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER)));
+				snapshot.restoreTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER)));
 		Preconditions.checkState(StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE == snapshot.getBackendStateType());
 	}
 
@@ -68,7 +68,7 @@ public class RegisteredPriorityQueueStateBackendMetaInfo<T> extends RegisteredSt
 			Collections.singletonMap(
 				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
 				elementSerializer.duplicate());
-		Map<String, TypeSerializerConfigSnapshot> serializerSnapshotMap =
+		Map<String, TypeSerializerConfigSnapshot<?>> serializerSnapshotMap =
 			Collections.singletonMap(
 				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
 				elementSerializer.snapshotConfiguration());

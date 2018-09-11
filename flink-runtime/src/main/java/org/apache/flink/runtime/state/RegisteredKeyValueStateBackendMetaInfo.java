@@ -82,9 +82,9 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 			StateDescriptor.Type.valueOf(snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE)),
 			snapshot.getName(),
 			(TypeSerializer<N>) Preconditions.checkNotNull(
-				snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER)),
+				snapshot.restoreTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER)),
 			(TypeSerializer<S>) Preconditions.checkNotNull(
-				snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER)), null);
+				snapshot.restoreTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER)), null);
 		Preconditions.checkState(StateMetaInfoSnapshot.BackendStateType.KEY_VALUE == snapshot.getBackendStateType());
 	}
 
@@ -192,7 +192,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 
 		// check compatibility results to determine if state migration is required
 		CompatibilityResult<N> namespaceCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-			restoredStateMetaInfoSnapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER),
+			restoredStateMetaInfoSnapshot.restoreTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER),
 			null,
 			restoredStateMetaInfoSnapshot.getTypeSerializerConfigSnapshot(
 				StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER),
@@ -200,7 +200,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 
 		TypeSerializer<S> newStateSerializer = newStateDescriptor.getSerializer();
 		CompatibilityResult<S> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-			restoredStateMetaInfoSnapshot.getTypeSerializer(
+			restoredStateMetaInfoSnapshot.restoreTypeSerializer(
 				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER),
 			UnloadableDummyTypeSerializer.class,
 			restoredStateMetaInfoSnapshot.getTypeSerializerConfigSnapshot(
@@ -232,7 +232,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 			StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE.toString(),
 			stateType.toString());
 		Map<String, TypeSerializer<?>> serializerMap = new HashMap<>(2);
-		Map<String, TypeSerializerConfigSnapshot> serializerConfigSnapshotsMap = new HashMap<>(2);
+		Map<String, TypeSerializerConfigSnapshot<?>> serializerConfigSnapshotsMap = new HashMap<>(2);
 		String namespaceSerializerKey = StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString();
 		String valueSerializerKey = StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString();
 		serializerMap.put(namespaceSerializerKey, namespaceSerializer.duplicate());
