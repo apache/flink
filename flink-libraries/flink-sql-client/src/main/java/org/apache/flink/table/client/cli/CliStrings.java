@@ -58,7 +58,7 @@ public final class CliStrings {
 		.style(AttributedStyle.DEFAULT.underline())
 		.append("\nHint")
 		.style(AttributedStyle.DEFAULT)
-		.append(": Make sure that a statement ends with ';' for multi-line support.")
+		.append(": Make sure that a statement ends with ';' for finalizing (multi-line) statements.")
 		.toAttributedString();
 
 	public static final String MESSAGE_WELCOME;

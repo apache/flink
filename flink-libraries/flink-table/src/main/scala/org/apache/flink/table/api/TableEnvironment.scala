@@ -210,8 +210,7 @@ abstract class TableEnvironment(val config: TableConfig) {
         // and cases are preserved
         SqlParser
           .configBuilder()
-          .setConformance(SqlConformanceEnum.BABEL)
-            .setLex(Lex.JAVA)
+          .setLex(Lex.JAVA)
           .build()
 
       case Some(sqlParserConfig) =>
