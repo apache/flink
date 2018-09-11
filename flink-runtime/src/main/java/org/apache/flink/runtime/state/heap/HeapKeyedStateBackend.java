@@ -207,7 +207,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER;
 
 			CompatibilityResult<T> compatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
-				restoredMetaInfoSnapshot.getTypeSerializer(serializerKey),
+				restoredMetaInfoSnapshot.restoreTypeSerializer(serializerKey),
 				null,
 				restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(serializerKey),
 				byteOrderedElementSerializer);
@@ -416,7 +416,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					// check for key serializer compatibility; this also reconfigures the
 					// key serializer to be compatible, if it is required and is possible
 					if (CompatibilityUtil.resolveCompatibilityResult(
-							serializationProxy.getKeySerializer(),
+							serializationProxy.restoreKeySerializer(),
 							UnloadableDummyTypeSerializer.class,
 							serializationProxy.getKeySerializerConfigSnapshot(),
 							keySerializer)

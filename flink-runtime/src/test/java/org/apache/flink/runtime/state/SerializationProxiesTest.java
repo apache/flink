@@ -79,7 +79,7 @@ public class SerializationProxiesTest {
 		}
 
 		Assert.assertTrue(serializationProxy.isUsingKeyGroupCompression());
-		Assert.assertEquals(keySerializer, serializationProxy.getKeySerializer());
+		Assert.assertEquals(keySerializer, serializationProxy.restoreKeySerializer());
 		Assert.assertEquals(keySerializer.snapshotConfiguration(), serializationProxy.getKeySerializerConfigSnapshot());
 		assertEqualStateMetaInfoSnapshotsLists(stateMetaInfoList, serializationProxy.getStateMetaInfoSnapshots());
 	}
@@ -128,7 +128,7 @@ public class SerializationProxiesTest {
 		}
 
 		Assert.assertEquals(true, serializationProxy.isUsingKeyGroupCompression());
-		Assert.assertTrue(serializationProxy.getKeySerializer() instanceof UnloadableDummyTypeSerializer);
+		Assert.assertTrue(serializationProxy.restoreKeySerializer() instanceof UnloadableDummyTypeSerializer);
 		Assert.assertEquals(keySerializer.snapshotConfiguration(), serializationProxy.getKeySerializerConfigSnapshot());
 
 		for (StateMetaInfoSnapshot snapshot : serializationProxy.getStateMetaInfoSnapshots()) {
@@ -435,7 +435,6 @@ public class SerializationProxiesTest {
 		Assert.assertEquals(expected.getName(), actual.getName());
 		Assert.assertEquals(expected.getBackendStateType(), actual.getBackendStateType());
 		Assert.assertEquals(expected.getOptionsImmutable(), actual.getOptionsImmutable());
-		Assert.assertEquals(expected.getSerializersImmutable(), actual.getSerializersImmutable());
 		Assert.assertEquals(
 			expected.getSerializerConfigSnapshotsImmutable(),
 			actual.getSerializerConfigSnapshotsImmutable());

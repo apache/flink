@@ -56,6 +56,7 @@ class StateTableByKeyGroupReaders {
 			case 3:
 			case 4:
 			case 5:
+			case 6:
 				return createV2PlusReader(stateTable);
 			default:
 				throw new IllegalArgumentException("Unknown version: " + version);

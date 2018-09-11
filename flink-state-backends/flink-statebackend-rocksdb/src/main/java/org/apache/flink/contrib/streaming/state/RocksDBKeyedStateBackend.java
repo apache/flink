@@ -695,7 +695,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			// check for key serializer compatibility; this also reconfigures the
 			// key serializer to be compatible, if it is required and is possible
 			if (CompatibilityUtil.resolveCompatibilityResult(
-				serializationProxy.getKeySerializer(),
+				serializationProxy.restoreKeySerializer(),
 				UnloadableDummyTypeSerializer.class,
 				serializationProxy.getKeySerializerConfigSnapshot(),
 				rocksDBKeyedStateBackend.keySerializer)
@@ -1246,7 +1246,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				// check for key serializer compatibility; this also reconfigures the
 				// key serializer to be compatible, if it is required and is possible
 				if (CompatibilityUtil.resolveCompatibilityResult(
-					serializationProxy.getKeySerializer(),
+					serializationProxy.restoreKeySerializer(),
 					UnloadableDummyTypeSerializer.class,
 					serializationProxy.getKeySerializerConfigSnapshot(),
 					stateBackend.keySerializer)
@@ -1582,7 +1582,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			StateMetaInfoSnapshot.CommonSerializerKeys serializerKey =
 				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER;
 
-			TypeSerializer<?> metaInfoTypeSerializer = restoredMetaInfoSnapshot.getTypeSerializer(serializerKey);
+			TypeSerializer<?> metaInfoTypeSerializer = restoredMetaInfoSnapshot.restoreTypeSerializer(serializerKey);
 
 			if (metaInfoTypeSerializer != byteOrderedElementSerializer) {
 				CompatibilityResult<T> compatibilityResult = CompatibilityUtil.resolveCompatibilityResult(

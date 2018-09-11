@@ -28,7 +28,9 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReadersWriters.CURRENT_STATE_META_INFO_SNAPSHOT_VERSION;
 
@@ -38,7 +40,16 @@ import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReade
  */
 public class OperatorBackendSerializationProxy extends VersionedIOReadableWritable {
 
-	public static final int VERSION = 4;
+	public static final int VERSION = 5;
+
+	private static final Map<Integer, Integer> META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER = new HashMap<>();
+	static {
+		META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(1, 1);
+		META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(2, 2);
+		META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(3, 3);
+		META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(4, 5);
+		META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(5, CURRENT_STATE_META_INFO_SNAPSHOT_VERSION);
+	}
 
 	private List<StateMetaInfoSnapshot> operatorStateMetaInfoSnapshots;
 	private List<StateMetaInfoSnapshot> broadcastStateMetaInfoSnapshots;
@@ -67,7 +78,7 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 
 	@Override
 	public int[] getCompatibleVersions() {
-		return new int[] {VERSION, 3, 2, 1};
+		return new int[] {VERSION, 4, 3, 2, 1};
 	}
 
 	@Override
@@ -91,11 +102,14 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 		super.read(in);
 
 		final int proxyReadVersion = getReadVersion();
-		final int metaInfoReadVersion = proxyReadVersion > 3 ?
-			CURRENT_STATE_META_INFO_SNAPSHOT_VERSION : proxyReadVersion;
+		final Integer metaInfoSnapshotVersion = META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.get(proxyReadVersion);
+		if (metaInfoSnapshotVersion == null) {
+			// this should not happen; guard for the future
+			throw new IOException("Cannot determine corresponding meta info snapshot version for operator backend serialization readVersion=" + proxyReadVersion);
+		}
 
 		final StateMetaInfoReader stateMetaInfoReader = StateMetaInfoSnapshotReadersWriters.getReader(
-			metaInfoReadVersion,
+			metaInfoSnapshotVersion,
 			StateMetaInfoSnapshotReadersWriters.StateTypeHint.OPERATOR_STATE);
 
 		int numOperatorStates = in.readShort();
