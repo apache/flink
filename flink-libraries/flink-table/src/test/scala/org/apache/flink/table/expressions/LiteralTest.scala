@@ -90,28 +90,31 @@ class LiteralTest extends ExpressionTestBase {
 
   @Test
   def testStringLiterals(): Unit = {
+
+    // these tests use Java/Scala escaping for non-quoting unicode characters
+
     testAllApis(
-      ">\n<", // for Table API we rely on Java/Scala escape sequences
+      ">\n<",
       "'>\n<'",
-      "'>\\n<'", // however, the SQL parser can parse escaped sequences
+      "'>\n<'",
       ">\n<")
 
     testAllApis(
       ">\u263A<",
       "'>\u263A<'",
-      "'>\\u263A<'",
+      "'>\u263A<'",
       ">\u263A<")
 
     testAllApis(
       ">\u263A<",
       "'>\u263A<'",
-      "'>\\u263A<'",
+      "'>\u263A<'",
       ">\u263A<")
 
     testAllApis(
       ">\\<",
       "'>\\<'",
-      "'>\\\\<'",
+      "'>\\<'",
       ">\\<")
 
     testAllApis(
@@ -135,16 +138,18 @@ class LiteralTest extends ExpressionTestBase {
     testAllApis(
       ">foo([\\w]+)<",
       "'>foo([\\w]+)<'",
-      "'>foo([\\\\w]+)<'",
+      "'>foo([\\w]+)<'",
       ">foo([\\w]+)<")
 
-    testTableApi(
+    testAllApis(
       ">\\'\n<",
       "\">\\'\n<\"",
+      "'>\\''\n<'",
       ">\\'\n<")
 
-    testTableApi(
+    testAllApis(
       "It's me.",
+      "'It''s me.'",
       "'It''s me.'",
       "It's me.")
 
@@ -152,6 +157,20 @@ class LiteralTest extends ExpressionTestBase {
       """I "like" dogs.""",
       """"I ""like"" dogs."""",
       """I "like" dogs.""")
+
+    // these test use SQL for describing unicode characters
+
+    testSqlApi(
+      "U&'>\\263A<'", // default escape backslash
+      ">\u263A<")
+
+    testSqlApi(
+      "U&'>#263A<' UESCAPE '#'", // custom escape '#'
+      ">\u263A<")
+
+    testSqlApi(
+      """'>\\<'""",
+      ">\\\\<")
   }
 
   def testData: Any = {

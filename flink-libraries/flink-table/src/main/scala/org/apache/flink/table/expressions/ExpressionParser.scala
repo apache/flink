@@ -186,14 +186,14 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       }
 
   // string with single quotes such as 'It''s me.'
-  lazy val singleQuoteStringLiteral: Parser[Expression] = "'((?:''|[^'])*)'".r ^^ {
+  lazy val singleQuoteStringLiteral: Parser[Expression] = "'(?:''|[^'])*'".r ^^ {
     str =>
       val escaped = str.substring(1, str.length - 1).replace("''", "'")
       Literal(escaped)
   }
 
   // string with double quotes such as "I ""like"" dogs."
-  lazy val doubleQuoteStringLiteral: PackratParser[Expression] = "\"((?:\"\"|[^\"])*)\"".r ^^ {
+  lazy val doubleQuoteStringLiteral: PackratParser[Expression] = "\"(?:\"\"|[^\"])*\"".r ^^ {
     str =>
       val escaped = str.substring(1, str.length - 1).replace("\"\"", "\"")
       Literal(escaped)
