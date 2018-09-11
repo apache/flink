@@ -71,12 +71,7 @@ public class MetricQueryService extends UntypedActor {
 	private final Map<Counter, Tuple2<QueryScopeInfo, String>> counters = new HashMap<>();
 	private final Map<Histogram, Tuple2<QueryScopeInfo, String>> histograms = new HashMap<>();
 	private final Map<Meter, Tuple2<QueryScopeInfo, String>> meters = new HashMap<>();
-	private ExecutorService threadpool;
-
-	@Override public void preStart() throws Exception {
-		super.preStart();
-		threadpool = Executors.newSingleThreadExecutor();
-	}
+	private final ExecutorService threadpool = Executors.newSingleThreadExecutor();
 
 	@Override
 	public void postStop() {
@@ -256,11 +251,11 @@ public class MetricQueryService extends UntypedActor {
 					MetricDumpSerialization.MetricSerializationResult dump = serializer.serialize(counters, gauges, histograms, meters);
 					sender.tell(dump, self);
 				} else {
-					LOG.warn("MetricQueryServiceActor received an invalid message. " + message.toString());
-					sender.tell(new Status.Failure(new IOException("MetricQueryServiceActor received an invalid message. " + message.toString())), self);
+					LOG.warn("MetricQueryServiceActor received an invalid message: {}.", message.toString());
+					sender.tell(new Status.Failure(new IOException("MetricQueryServiceActor received an invalid message: " + message.toString() + ".")), self);
 				}
 			} catch (Exception e) {
-				LOG.warn("An exception occurred while processing a message.", e);
+				LOG.warn("An exception occurred while processing a Metric related message.", e);
 			}
 		}
 	}
