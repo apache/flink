@@ -1054,9 +1054,6 @@ public class JobMasterTest extends TestLogger {
 			}
 
 			assertThat(savepointFutureHighTimeout.isDone(), is(equalTo(false)));
-		} finally {
-			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
-		}
 	}
 
 	private JobGraph producerConsumerJobGraph() {
