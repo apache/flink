@@ -18,33 +18,15 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import javax.annotation.Nullable;
+class TtlMapStatePerNullElementTestContext extends TtlMapStatePerElementTestContext {
+	@Override
+	void initTestValues() {
+		updateEmpty = null;
+		updateUnexpired = null;
+		updateExpired = null;
 
-import java.io.Serializable;
-
-/**
- * This class wraps user value of state with TTL.
- *
- * @param <T> Type of the user value of state with TTL
- */
-class TtlValue<T> implements Serializable {
-	private static final long serialVersionUID = 5221129704201125020L;
-
-	@Nullable
-	private final T userValue;
-	private final long lastAccessTimestamp;
-
-	TtlValue(@Nullable T userValue, long lastAccessTimestamp) {
-		this.userValue = userValue;
-		this.lastAccessTimestamp = lastAccessTimestamp;
-	}
-
-	@Nullable
-	T getUserValue() {
-		return userValue;
-	}
-
-	long getLastAccessTimestamp() {
-		return lastAccessTimestamp;
+		getUpdateEmpty = null;
+		getUnexpired = null;
+		getUpdateExpired = null;
 	}
 }
