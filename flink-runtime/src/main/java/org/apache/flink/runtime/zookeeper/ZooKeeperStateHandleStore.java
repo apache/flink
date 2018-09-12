@@ -24,7 +24,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.utils.ZKPaths;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
@@ -314,68 +313,6 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 
 				// Check for concurrent modifications
 				success = initialCVersion == finalCVersion;
-			}
-		}
-
-		return stateHandles;
-	}
-
-
-	/**
-	 * Gets all available state handles from ZooKeeper sorted by name (ascending) and locks the
-	 * respective state nodes. The result tuples contain the retrieved state and the path to the
-	 * node in ZooKeeper.
-	 *
-	 * <p>If there is a concurrent modification, the operation is retried until it succeeds.
-	 *
-	 * @return All state handles in ZooKeeper.
-	 * @throws Exception If a ZooKeeper or state handle operation fails
-	 */
-	@SuppressWarnings("unchecked")
-	public List<Tuple2<RetrievableStateHandle<T>, String>> getAllSortedByNameAndLock() throws Exception {
-		final List<Tuple2<RetrievableStateHandle<T>, String>> stateHandles = new ArrayList<>();
-
-		boolean success = false;
-
-		retry:
-		while (!success) {
-			stateHandles.clear();
-
-			Stat stat = client.checkExists().forPath("/");
-			if (stat == null) {
-				break; // Node does not exist, done.
-			} else {
-				// Initial cVersion (number of changes to the children of this node)
-				int initialCVersion = stat.getCversion();
-
-				List<String> children = ZKPaths.getSortedChildren(
-						client.getZookeeperClient().getZooKeeper(),
-						ZKPaths.fixForNamespace(client.getNamespace(), "/"));
-
-				for (String path : children) {
-					path = "/" + path;
-
-					try {
-						final RetrievableStateHandle<T> stateHandle = getAndLock(path);
-						stateHandles.add(new Tuple2<>(stateHandle, path));
-					} catch (KeeperException.NoNodeException ignored) {
-						// Concurrent deletion, retry
-						continue retry;
-					} catch (IOException ioException) {
-						LOG.warn("Could not get all ZooKeeper children. Node {} contained " +
-							"corrupted data. Releasing and trying to remove this node.", path, ioException);
-
-						releaseAndTryRemove(path);
-					}
-				}
-
-				int finalCVersion = client.checkExists().forPath("/").getCversion();
-
-				// Check for concurrent modifications
-				success = initialCVersion == finalCVersion;
-
-				// we don't have to release all locked nodes in case of a concurrent modification, because we
-				// will retrieve them in the next iteration again.
 			}
 		}
 

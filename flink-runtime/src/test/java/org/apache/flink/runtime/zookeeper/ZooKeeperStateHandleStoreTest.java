@@ -36,6 +36,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -365,11 +367,12 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 			store.addAndLock(pathInZooKeeper, val);
 		}
 
-		List<Tuple2<RetrievableStateHandle<Long>, String>> actual = store.getAllSortedByNameAndLock();
+		List<Tuple2<RetrievableStateHandle<Long>, String>> actual = store.getAllAndLock();
 		assertEquals(expected.length, actual.size());
 
 		// bring the elements in sort order
 		Arrays.sort(expected);
+		Collections.sort(actual, Comparator.comparing(o -> o.f1));
 
 		for (int i = 0; i < expected.length; i++) {
 			assertEquals(expected[i], actual.get(i).f0.retrieveState());
@@ -468,22 +471,6 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 		}
 
 		assertEquals(expected, actual);
-
-		// check the same for the all sorted by name call
-		allEntries = store.getAllSortedByNameAndLock();
-
-		actual.clear();
-
-		for (Tuple2<RetrievableStateHandle<Long>, String> entry : allEntries) {
-			actual.add(entry.f0.retrieveState());
-		}
-
-		assertEquals(expected, actual);
-
-		Stat stat = ZOOKEEPER.getClient().checkExists().forPath("/" + 2);
-
-		// check that the corrupted node no longer exists
-		assertNull("The corrupted node should no longer exist.", stat);
 	}
 
 	/**
