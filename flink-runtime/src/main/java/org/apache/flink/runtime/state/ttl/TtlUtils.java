@@ -44,6 +44,6 @@ class TtlUtils {
 	}
 
 	static <V> TtlValue<V> wrapWithTs(V value, long ts) {
-		return value == null ? null : new TtlValue<>(value, ts);
+		return new TtlValue<>(value, ts);
 	}
 }
