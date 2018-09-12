@@ -20,6 +20,7 @@ package org.apache.flink.formats.parquet.utils;
 
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
@@ -73,22 +74,87 @@ public class ParquetSchemaConverter {
 	private static TypeInformation<?> convertField(final Type fieldType) {
 		TypeInformation<?> typeInfo = null;
 		if (fieldType.isPrimitive()) {
+			OriginalType originalType = fieldType.getOriginalType();
 			PrimitiveType primitiveType = fieldType.asPrimitiveType();
 			switch (primitiveType.getPrimitiveTypeName()) {
 				case BINARY:
-					typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
+					if (originalType != null) {
+						switch (originalType) {
+							case DECIMAL:
+								typeInfo = BasicTypeInfo.BIG_DEC_TYPE_INFO;
+								break;
+							case UTF8:
+							case ENUM:
+							case JSON:
+							case BSON:
+								typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
+								break;
+							default:
+								throw new UnsupportedOperationException("Unsupported original type : " + originalType.name()
+									+ " for primitive type BINARY");
+						}
+					} else {
+						typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
+					}
 					break;
 				case BOOLEAN:
 					typeInfo = BasicTypeInfo.BOOLEAN_TYPE_INFO;
 					break;
 				case INT32:
-					typeInfo = BasicTypeInfo.INT_TYPE_INFO;
+					if (originalType != null) {
+						switch (originalType) {
+							case TIME_MICROS:
+							case TIME_MILLIS:
+								typeInfo = SqlTimeTypeInfo.TIME;
+								break;
+							case TIMESTAMP_MICROS:
+							case TIMESTAMP_MILLIS:
+								typeInfo = SqlTimeTypeInfo.TIMESTAMP;
+								break;
+							case DATE:
+								typeInfo = SqlTimeTypeInfo.DATE;
+								break;
+							case UINT_8:
+							case UINT_16:
+							case UINT_32:
+							case INT_8:
+							case INT_16:
+							case INT_32:
+								typeInfo = BasicTypeInfo.INT_TYPE_INFO;
+								break;
+							default:
+								throw new UnsupportedOperationException("Unsupported original type : " + originalType.name()
+									+ " for primitive type INT32");
+						}
+					} else {
+						typeInfo = BasicTypeInfo.INT_TYPE_INFO;
+					}
 					break;
 				case INT64:
-					typeInfo = BasicTypeInfo.LONG_TYPE_INFO;
+					if (originalType != null) {
+						switch (originalType) {
+							case TIME_MICROS:
+								typeInfo = SqlTimeTypeInfo.TIME;
+								break;
+							case TIMESTAMP_MICROS:
+							case TIMESTAMP_MILLIS:
+								typeInfo = SqlTimeTypeInfo.TIMESTAMP;
+								break;
+							case INT_64:
+							case DECIMAL:
+								typeInfo = BasicTypeInfo.LONG_TYPE_INFO;
+								break;
+							default:
+								throw new UnsupportedOperationException("Unsupported original type : " + originalType.name()
+									+ " for primitive type INT64");
+						}
+					} else {
+						typeInfo = BasicTypeInfo.LONG_TYPE_INFO;
+					}
 					break;
 				case INT96:
-					typeInfo = BasicTypeInfo.BIG_INT_TYPE_INFO;
+					// It stores a timestamp type data, we read it as millisecond
+					typeInfo = SqlTimeTypeInfo.TIMESTAMP;
 					break;
 				case FLOAT:
 					typeInfo = BasicTypeInfo.FLOAT_TYPE_INFO;
@@ -97,7 +163,18 @@ public class ParquetSchemaConverter {
 					typeInfo = BasicTypeInfo.DOUBLE_TYPE_INFO;
 					break;
 				case FIXED_LEN_BYTE_ARRAY:
-					typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
+					if (originalType != null) {
+						switch (originalType) {
+							case DECIMAL:
+								typeInfo = BasicTypeInfo.BIG_DEC_TYPE_INFO;
+								break;
+							default:
+								throw new UnsupportedOperationException("Unsupported original type : " + originalType.name()
+									+ " for primitive type FIXED_LEN_BYTE_ARRAY");
+						}
+					} else {
+						typeInfo = BasicTypeInfo.BIG_DEC_TYPE_INFO;
+					}
 					break;
 				default:
 					throw new UnsupportedOperationException("Unsupported schema: " + fieldType);
