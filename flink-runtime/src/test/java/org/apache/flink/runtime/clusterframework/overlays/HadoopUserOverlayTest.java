@@ -60,7 +60,8 @@ public class HadoopUserOverlayTest extends ContainerOverlayTestBase {
 			@Override
 			public Object run() {
 				try {
-					HadoopUserOverlay.Builder builder = HadoopUserOverlay.newBuilder().fromEnvironment(conf);
+					HadoopUserOverlay.HadoopUserOverlayBuilder builder =
+						(HadoopUserOverlay.HadoopUserOverlayBuilder) HadoopUserOverlay.newBuilder().fromEnvironment(conf);
 					assertEquals(ugi, builder.ugi);
 					return null;
 				}

@@ -57,24 +57,58 @@ public class HadoopUserOverlay implements ContainerOverlay {
 	}
 
 	public static Builder newBuilder() {
-		return new Builder();
+		// First check if we have Hadoop in the ClassPath. If not, we simply don't do anything.
+		try {
+			Class.forName(
+				"org.apache.hadoop.security.UserGroupInformation",
+				false,
+				HadoopUserOverlay.class.getClassLoader());
+		} catch (ClassNotFoundException e) {
+			LOG.info("Cannot create Hadoop User Overlay because Hadoop cannot be found in the Classpath.");
+			return new NoOpHadoopUserOverlayBuilder();
+		}
+
+		return new HadoopUserOverlayBuilder();
 	}
 
 	/**
 	 * A builder for the {@link HadoopUserOverlay}.
 	 */
-	public static class Builder {
+	public interface Builder {
+		/**
+		 * Configures the overlay using the current Hadoop user information (from {@link UserGroupInformation}).
+		 */
+		Builder fromEnvironment(Configuration globalConfiguration) throws IOException;
+
+		HadoopUserOverlay build();
+	}
+
+	/**
+	 * A builder for {@link HadoopUserOverlay} for when hadoop doesn't exist on the classpath
+	 */
+	public static class NoOpHadoopUserOverlayBuilder implements Builder {
+		@Override
+		public Builder fromEnvironment(Configuration globalConfiguration) throws IOException {
+			return this;
+		}
+
+		@Override
+		public HadoopUserOverlay build() {
+			return new HadoopUserOverlay(null);
+		}
+	}
+
+	public static class HadoopUserOverlayBuilder implements Builder {
 
 		UserGroupInformation ugi;
 
-		/**
-		 * Configures the overlay using the current Hadoop user information (from {@link UserGroupInformation}).
-         */
+		@Override
 		public Builder fromEnvironment(Configuration globalConfiguration) throws IOException {
 			ugi = UserGroupInformation.getCurrentUser();
 			return this;
 		}
 
+		@Override
 		public HadoopUserOverlay build() {
 			return new HadoopUserOverlay(ugi);
 		}
