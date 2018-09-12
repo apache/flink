@@ -16,25 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.legacy.files;
+package org.apache.flink.runtime.rest.messages.taskmanager;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogListHandler;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 
 /**
- * Rest handler specification for the stdout file of the main cluster component.
+ * Headers for the {@link TaskManagerLogListHandler}.
  */
-public class StdoutFileHandlerSpecification implements RestHandlerSpecification {
-	private static final String URL = "/jobmanager/stdout";
-	private static final String URL_WITH_RANGE = "/jobmanager/stdout/:range";
+public class TaskManagerLogListHeaders implements UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerMessageParameters> {
+	private static final String URL = String.format("/taskmanagers/:%s/loglist", TaskManagerIdPathParameter.KEY);
+	public static final TaskManagerLogListHeaders INSTANCE = new TaskManagerLogListHeaders();
 
-	private static final StdoutFileHandlerSpecification INSTANCE = new StdoutFileHandlerSpecification(URL);
-	private static final StdoutFileHandlerSpecification INSTANCE_WITH_RANGE = new StdoutFileHandlerSpecification(URL_WITH_RANGE);
+	private TaskManagerLogListHeaders() {}
 
-	private final String url;
+	@Override
+	public Class<EmptyRequestBody> getRequestClass() {
+		return EmptyRequestBody.class;
+	}
 
-	private StdoutFileHandlerSpecification(String url) {
-		this.url = url;
+	@Override
+	public TaskManagerMessageParameters getUnresolvedMessageParameters() {
+		return new TaskManagerMessageParameters();
 	}
 
 	@Override
@@ -44,14 +49,10 @@ public class StdoutFileHandlerSpecification implements RestHandlerSpecification 
 
 	@Override
 	public String getTargetRestEndpointURL() {
-		return url;
+		return URL;
 	}
 
-	public static StdoutFileHandlerSpecification getInstance() {
+	public static TaskManagerLogListHeaders getInstance() {
 		return INSTANCE;
-	}
-
-	public static StdoutFileHandlerSpecification getInstanceWithRange() {
-		return INSTANCE_WITH_RANGE;
 	}
 }

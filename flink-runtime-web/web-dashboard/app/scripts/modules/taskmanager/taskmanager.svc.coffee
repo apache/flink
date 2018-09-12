@@ -40,19 +40,39 @@ angular.module('flinkApp')
 
     deferred.promise
 
-  @loadLogs = (taskmanagerid) ->
+  @loadLogs = (taskmanagerid, start, end) ->
     deferred = $q.defer()
 
-    $http.get(flinkConfig.jobServer + "taskmanagers/" + taskmanagerid + "/log")
+    $http.get(flinkConfig.jobServer + "taskmanagers/" + taskmanagerid + "/log/" + start + "-" + end)
     .success (data, status, headers, config) ->
       deferred.resolve(data)
 
     deferred.promise
 
-  @loadStdout = (taskmanagerid) ->
+  @loadOtherLogs = (taskmanagerid, filename, start, end) ->
     deferred = $q.defer()
 
-    $http.get(flinkConfig.jobServer + "taskmanagers/" + taskmanagerid + "/stdout")
+    $http.get(flinkConfig.jobServer + "taskmanagers/" + taskmanagerid + "/logs/" + filename + "/" + start + "-" + end)
+      .success (data, status, headers, config) ->
+        logs = data
+        deferred.resolve(data)
+
+    deferred.promise
+
+  @loadLogList = (taskmanagerid) ->
+    deferred = $q.defer()
+
+    $http.get(flinkConfig.jobServer + "taskmanagers/" + taskmanagerid + "/loglist")
+      .success (data, status, headers, config) ->
+        logs = data
+        deferred.resolve(data)
+
+    deferred.promise
+
+  @loadStdout = (taskmanagerid, start, end) ->
+    deferred = $q.defer()
+
+    $http.get(flinkConfig.jobServer + "taskmanagers/" + taskmanagerid + "/stdout/" + start + "-" + end)
     .success (data, status, headers, config) ->
       deferred.resolve(data)
 

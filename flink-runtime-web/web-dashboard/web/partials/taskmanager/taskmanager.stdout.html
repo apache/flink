@@ -22,7 +22,16 @@ limitations under the License.
     <tr>
       <th colspan="2">
         <div class="row">
-          <div class="col-xs-10">Task Manager Output</div>
+          <div class="col-xs-6">Task Manager Output</div>
+          <div class="col-xs-3 text-right">
+             
+            range: 
+            <input type="text" ng-model="start" ng-init="start=0" size="3"/> - 
+            <input type="text" ng-model="end" ng-init="end=100" size="3"/> kb
+          </div>
+          <div class="col-xs-1 text-right"> 
+            <button ng-click="searchStdout()" ng-model="searchLogs" class="btn btn-default btn-xs">search  </button>
+          </div>
           <div class="col-xs-1 text-right"><a ng-click="reloadData()" class="show-pointer"><i class="fa fa-refresh"></i></a></div>
           <div class="col-xs-1 text-left"><a href="taskmanagers/{{taskmanagerid}}/stdout"><i class="fa fa-download"></i></a></div>
         </div>

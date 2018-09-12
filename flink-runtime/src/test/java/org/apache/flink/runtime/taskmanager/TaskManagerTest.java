@@ -65,6 +65,7 @@ import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
 import org.apache.flink.runtime.messages.TaskMessages.StopTask;
 import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
+import org.apache.flink.runtime.rest.handler.legacy.files.FileOffsetRange;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
@@ -1196,7 +1197,7 @@ public class TaskManagerTest extends TestLogger {
 				new Within(d) {
 					@Override
 					protected void run() {
-						Future<Object> logFuture = tm.ask(TaskManagerMessages.getRequestTaskManagerLog(), timeout);
+						Future<Object> logFuture = tm.ask(TaskManagerMessages.getRequestTaskManagerLog(null, FileOffsetRange.MAX_FILE_OFFSET_RANGE), timeout);
 						try {
 							Await.result(logFuture, timeout);
 							Assert.fail();

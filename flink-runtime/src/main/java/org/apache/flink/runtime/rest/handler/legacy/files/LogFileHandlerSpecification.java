@@ -25,12 +25,18 @@ import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
  * Rest handler specification for the log file of the main cluster component.
  */
 public class LogFileHandlerSpecification implements RestHandlerSpecification {
-
-	private static final LogFileHandlerSpecification INSTANCE = new LogFileHandlerSpecification();
-
 	private static final String URL = "/jobmanager/log";
+	private static final String URL_WITH_RANGE = "/jobmanager/log/:range";
+	private static final String URL_WITH_FILENAME_AND_RANGE = "/jobmanager/logs/:filename/:range";
 
-	private LogFileHandlerSpecification() {}
+	private static final LogFileHandlerSpecification INSTANCE = new LogFileHandlerSpecification(URL);
+	private static final LogFileHandlerSpecification INSTANCE_WITH_RANGE = new LogFileHandlerSpecification(URL_WITH_RANGE);
+	private static final LogFileHandlerSpecification INSTANCE_WITH_FILENAME_AND_RANGE = new LogFileHandlerSpecification(URL_WITH_FILENAME_AND_RANGE);
+	private final String url;
+
+	private LogFileHandlerSpecification(String url) {
+		this.url = url;
+	}
 
 	@Override
 	public HttpMethodWrapper getHttpMethod() {
@@ -39,10 +45,18 @@ public class LogFileHandlerSpecification implements RestHandlerSpecification {
 
 	@Override
 	public String getTargetRestEndpointURL() {
-		return URL;
+		return url;
 	}
 
 	public static LogFileHandlerSpecification getInstance() {
 		return INSTANCE;
+	}
+
+	public static LogFileHandlerSpecification getInstanceWithRange() {
+		return INSTANCE_WITH_RANGE;
+	}
+
+	public static LogFileHandlerSpecification getInstanceWithFilenameAndRange() {
+		return INSTANCE_WITH_FILENAME_AND_RANGE;
 	}
 }

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.messages
 import java.util.UUID
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.instance.InstanceID
+import org.apache.flink.runtime.rest.handler.legacy.files.FileOffsetRange
 
 /**
  * Miscellaneous actor messages exchanged with the TaskManager.
@@ -115,11 +116,13 @@ object TaskManagerMessages {
   /** Trait do differentiate which log file is requested */
   sealed trait LogTypeRequest
 
-  /** Indicates a request for the .log file */
-  case object LogFileRequest extends LogTypeRequest
+  /** Indicates a request for the log file */
+  case class LogFileRequest(filename : String, range: FileOffsetRange) extends LogTypeRequest
 
   /** Indicates a request for the .out file */
-  case object StdOutFileRequest extends LogTypeRequest
+  case class StdOutFileRequest(range: FileOffsetRange) extends LogTypeRequest
+
+  case object LogListRequest
 
   /** Requests the TaskManager to upload either his log/stdout file to the Blob store 
     * param requestType LogTypeRequest indicating which file is requested
@@ -153,16 +156,24 @@ object TaskManagerMessages {
     * Accessor for the case object instance, to simplify Java interoperability.
     * @return The RequestTaskManagerLog case object instance.
     */
-  def getRequestTaskManagerLog(): AnyRef = {
-    RequestTaskManagerLog(LogFileRequest)
+  def getRequestTaskManagerLog(filename : String, range: FileOffsetRange): AnyRef = {
+    RequestTaskManagerLog(LogFileRequest(filename, range))
   }
 
   /**
     * Accessor for the case object instance, to simplify Java interoperability.
     * @return The RequestTaskManagerStdout case object instance.
     */
-  def getRequestTaskManagerStdout(): AnyRef = {
-    RequestTaskManagerLog(StdOutFileRequest)
+  def getRequestTaskManagerStdout(range: FileOffsetRange): AnyRef = {
+    RequestTaskManagerLog(StdOutFileRequest(range))
+  }
+
+  /**
+    * Accessor for the case object instance, to simplify Java interoperability.
+    * @return The LogListRequest case object instance.
+    */
+  def getRequestTaskManagerLogList(): AnyRef = {
+    LogListRequest
   }
 
   /**

@@ -33,9 +33,19 @@ public class TaskManagerMessageParameters extends MessageParameters {
 
 	public TaskManagerIdPathParameter taskManagerIdParameter = new TaskManagerIdPathParameter();
 
+	private final Collection<MessagePathParameter<?>> parameters;
+
+	public TaskManagerMessageParameters() {
+		this(Collections.singleton(new TaskManagerIdPathParameter()));
+	}
+
+	public TaskManagerMessageParameters(Collection<MessagePathParameter<?>> parameters) {
+		this.parameters = parameters;
+	}
+
 	@Override
 	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singleton(taskManagerIdParameter);
+		return parameters;
 	}
 
 	@Override

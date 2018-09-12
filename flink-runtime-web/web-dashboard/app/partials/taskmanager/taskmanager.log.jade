@@ -20,8 +20,18 @@ table.table.table-properties
     tr
       th(colspan="2")
         .row
-          .col-xs-10
+          .col-xs-2
             | Task Manager Logs
+          .col-xs-4.text-right
+            select(ng-model="filename" ng-options="log for log in taskmanager.loglist" ng-change="loadLogList()")
+          .col-xs-3.text-right
+            | range: 
+            input(type="text" ng-model="start" ng-init="start=0" size="3")
+            |  - 
+            input(type="text" ng-model="end" ng-init="end=100" size="3")
+            |  kb
+          .col-xs-1.text-right  
+            button(ng-click="searchLog()" ng-model="searchLogs" class="btn btn-default btn-xs") search
           .col-xs-1.text-right
             a(ng-click="reloadData()" class="show-pointer")
               i.fa.fa-refresh

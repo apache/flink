@@ -73,12 +73,15 @@ import org.apache.flink.runtime.rest.handler.job.savepoints.SavepointHandlers;
 import org.apache.flink.runtime.rest.handler.legacy.ConstantTextHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.files.LogFileHandlerSpecification;
+import org.apache.flink.runtime.rest.handler.legacy.files.LogListHandler;
+import org.apache.flink.runtime.rest.handler.legacy.files.LogListHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
 import org.apache.flink.runtime.rest.handler.legacy.files.StdoutFileHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.files.WebContentHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerDetailsHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogFileHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogListHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerStdoutFileHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagersHandler;
 import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoHeaders;
@@ -110,7 +113,10 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskCurrentAttemptDetailsHe
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerDetailsHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerHistoricalLogFileHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogFileHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogFileWithRangeHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogListHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerStdoutFileHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -596,9 +602,21 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			timeout,
 			logFileLocation.stdOutFile);
 
-		handlers.add(Tuple2.of(LogFileHandlerSpecification.getInstance(), logFileHandler));
-		handlers.add(Tuple2.of(StdoutFileHandlerSpecification.getInstance(), stdoutFileHandler));
+		final ChannelInboundHandler historicalLogFileHandler = createStaticFileHandler(
+			restAddressFuture,
+			timeout,
+			logFileLocation.logFile == null ? null : logFileLocation.logFile.getParentFile());
 
+		final ChannelInboundHandler logListHandler = logFileLocation.logFile == null ? new ConstantTextHandler("") :
+			new LogListHandler(restAddressFuture, leaderRetriever, timeout, logFileLocation.logFile.getParentFile());
+
+		handlers.add(Tuple2.of(LogFileHandlerSpecification.getInstance(), logFileHandler));
+		handlers.add(Tuple2.of(LogFileHandlerSpecification.getInstanceWithRange(), logFileHandler));
+		handlers.add(Tuple2.of(LogFileHandlerSpecification.getInstanceWithFilenameAndRange(), historicalLogFileHandler));
+		handlers.add(Tuple2.of(StdoutFileHandlerSpecification.getInstance(), stdoutFileHandler));
+		handlers.add(Tuple2.of(StdoutFileHandlerSpecification.getInstanceWithRange(), stdoutFileHandler));
+
+		handlers.add(Tuple2.of(LogListHandlerSpecification.getInstance(), logListHandler));
 		// TaskManager log and stdout file handler
 
 		final Time cacheEntryDuration = Time.milliseconds(restConfiguration.getRefreshInterval());
@@ -612,6 +630,26 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			transientBlobService,
 			cacheEntryDuration);
 
+		final TaskManagerLogFileHandler taskManagerLogFileWithRangeHandler = new TaskManagerLogFileHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			TaskManagerLogFileWithRangeHeaders.getInstance(),
+			resourceManagerRetriever,
+			transientBlobService,
+			cacheEntryDuration);
+
+		final TaskManagerLogFileHandler taskManagerHistoricalLogFileHandler = new TaskManagerLogFileHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			TaskManagerHistoricalLogFileHeaders.getInstance(),
+			resourceManagerRetriever,
+			transientBlobService,
+			cacheEntryDuration);
+
 		final TaskManagerStdoutFileHandler taskManagerStdoutFileHandler = new TaskManagerStdoutFileHandler(
 			leaderRetriever,
 			timeout,
@@ -621,9 +659,31 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			transientBlobService,
 			cacheEntryDuration);
 
-		handlers.add(Tuple2.of(TaskManagerLogFileHeaders.getInstance(), taskManagerLogFileHandler));
-		handlers.add(Tuple2.of(TaskManagerStdoutFileHeaders.getInstance(), taskManagerStdoutFileHandler));
+		final TaskManagerStdoutFileHandler taskManagerStdoutFileWithRangeHandler = new TaskManagerStdoutFileHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			TaskManagerStdoutFileHeaders.getInstanceWithRange(),
+			resourceManagerRetriever,
+			transientBlobService,
+			cacheEntryDuration);
 
+		final TaskManagerLogListHandler taskManagerLogListHandler = new TaskManagerLogListHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			TaskManagerLogListHeaders.getInstance(),
+			resourceManagerRetriever);
+
+		handlers.add(Tuple2.of(TaskManagerLogFileHeaders.getInstance(), taskManagerLogFileHandler));
+		handlers.add(Tuple2.of(TaskManagerLogFileWithRangeHeaders.getInstance(), taskManagerLogFileWithRangeHandler));
+		handlers.add(Tuple2.of(TaskManagerHistoricalLogFileHeaders.getInstance(), taskManagerHistoricalLogFileHandler));
+		handlers.add(Tuple2.of(TaskManagerStdoutFileHeaders.getInstance(), taskManagerStdoutFileHandler));
+		handlers.add(Tuple2.of(TaskManagerStdoutFileHeaders.getInstanceWithRange(), taskManagerStdoutFileWithRangeHandler));
+
+		handlers.add(Tuple2.of(TaskManagerLogListHeaders.getInstance(), taskManagerLogListHandler));
 		handlers.stream()
 			.map(tuple -> tuple.f1)
 			.filter(handler -> handler instanceof JsonArchivist)

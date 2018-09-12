@@ -374,6 +374,54 @@ public final class BlobClient implements Closeable {
 	}
 
 	/**
+	 * Uploads a given size of data from the given input stream to the BLOB server.
+	 *
+	 * @param jobId
+	 * 		the ID of the job the BLOB belongs to (or <tt>null</tt> if job-unrelated)
+	 * @param inputStream
+	 * 		the input stream to read the data from
+	 * @param blobType
+	 * 		whether the BLOB should become permanent or transient
+	 * @return the computed BLOB key of the uploaded BLOB
+	 *
+	 * @param count the size of data to upload
+	 *
+	 * @return the computed BLOB key of the uploaded BLOB
+	 *
+	 * @throws IOException
+	 * 		thrown if an I/O error occurs while uploading the data to the BLOB server
+	 */
+	BlobKey putInputStream (@Nullable JobID jobId, InputStream inputStream, BlobKey.BlobType blobType, long count)
+		throws IOException {
+		if (this.socket.isClosed()) {
+			throw new IllegalStateException("BLOB Client is not connected. " +
+				"Client has been shut down or encountered an error before.");
+		}
+		checkNotNull(inputStream);
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("PUT BLOB stream to {}.", socket.getLocalSocketAddress());
+		}
+
+		try (BlobOutputStream out = new BlobOutputStream(jobId, blobType, socket)) {
+			byte[] buf = new byte[BUFFER_SIZE];
+			long remaining = count;
+			while (remaining > BUFFER_SIZE) {
+				int bytesRead = inputStream.read(buf);
+				remaining -= bytesRead;
+				out.write(buf, 0, bytesRead);
+			}
+			buf = new byte[Math.toIntExact(remaining)];
+			int bytesRead = inputStream.read(buf);
+			out.write(buf, 0, bytesRead);
+			return out.finish();
+		} catch (Throwable t) {
+			BlobUtils.closeSilently(socket, LOG);
+			throw new IOException("PUT operation failed: " + t.getMessage(), t);
+		}
+	}
+
+	/**
 	 * Uploads the JAR files to the {@link PermanentBlobService} of the {@link BlobServer} at the
 	 * given address with HA as configured.
 	 *

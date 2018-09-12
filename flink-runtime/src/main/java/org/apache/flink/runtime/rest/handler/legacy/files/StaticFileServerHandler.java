@@ -69,6 +69,8 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CACHE_CONTROL;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
@@ -103,6 +105,8 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 	/** Be default, we allow files to be cached for 5 minutes. */
 	private static final int HTTP_CACHE_SECONDS = 300;
 
+	private static final Pattern currentLogPattern = Pattern.compile("^/jobmanager/(log|stdout)(/([^/]*))?$");
+	private static final Pattern historicalLogPattern = Pattern.compile("^/jobmanager/logs/([^/]*)/([^/]*)$");
 	// ------------------------------------------------------------------------
 
 	/** The path in which the static documents are. */
@@ -126,30 +130,39 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 	protected void respondAsLeader(ChannelHandlerContext channelHandlerContext, RoutedRequest routedRequest, T gateway) throws Exception {
 		final HttpRequest request = routedRequest.getRequest();
 		final String requestPath;
+		final FileOffsetRange range;
 
 		// make sure we request the "index.html" in case there is a directory request
 		if (routedRequest.getPath().endsWith("/")) {
 			requestPath = routedRequest.getPath() + "index.html";
+			range = FileOffsetRange.MAX_FILE_OFFSET_RANGE;
+		} else if (historicalLogPattern.matcher(routedRequest.getPath()).find()) {
+			Matcher m = historicalLogPattern.matcher(routedRequest.getPath());
+			m.find();
+			requestPath = m.group(1);
+			range = FileOffsetRange.generateRange(m.group(2));
 		}
 		// in case the files being accessed are logs or stdout files, find appropriate paths.
-		else if (routedRequest.getPath().equals("/jobmanager/log") || routedRequest.getPath().equals("/jobmanager/stdout")) {
+		else if (currentLogPattern.matcher(routedRequest.getPath()).find()) {
 			requestPath = "";
+			Matcher m = currentLogPattern.matcher(routedRequest.getPath());
+			m.find();
+			range = FileOffsetRange.generateRange(m.group(3));
 		} else {
 			requestPath = routedRequest.getPath();
+			range = FileOffsetRange.MAX_FILE_OFFSET_RANGE;
 		}
-
-		respondToRequest(channelHandlerContext, request, requestPath);
+		respondToRequest(channelHandlerContext, request, requestPath, range);
 	}
 
 	/**
 	 * Response when running with leading JobManager.
 	 */
-	private void respondToRequest(ChannelHandlerContext ctx, HttpRequest request, String requestPath)
+	private void respondToRequest(ChannelHandlerContext ctx, HttpRequest request, String requestPath, FileOffsetRange range)
 			throws IOException, ParseException, URISyntaxException {
 
 		// convert to absolute path
 		final File file = new File(rootPath, requestPath);
-
 		if (!file.exists()) {
 			// file does not exist. Try to load it with the classloader
 			ClassLoader cl = StaticFileServerHandler.class.getClassLoader();
@@ -254,8 +267,8 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 		}
 
 		try {
-			long fileLength = raf.length();
-
+			long startOffset = range.getStartOffsetForFile(file);
+			long endOffset = range.getEndOffsetForFile(file);
 			HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
 			setContentTypeHeader(response, file);
 
@@ -266,7 +279,7 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 			if (HttpHeaders.isKeepAlive(request)) {
 				response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
 			}
-			HttpHeaders.setContentLength(response, fileLength);
+			HttpHeaders.setContentLength(response, endOffset - startOffset);
 
 			// write the initial line and the header.
 			ctx.write(response);
@@ -274,10 +287,10 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 			// write the content.
 			ChannelFuture lastContentFuture;
 			if (ctx.pipeline().get(SslHandler.class) == null) {
-				ctx.write(new DefaultFileRegion(raf.getChannel(), 0, fileLength), ctx.newProgressivePromise());
+				ctx.write(new DefaultFileRegion(raf.getChannel(), startOffset, endOffset - startOffset), ctx.newProgressivePromise());
 				lastContentFuture = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
 			} else {
-				lastContentFuture = ctx.writeAndFlush(new HttpChunkedInput(new ChunkedFile(raf, 0, fileLength, 8192)),
+				lastContentFuture = ctx.writeAndFlush(new HttpChunkedInput(new ChunkedFile(raf, startOffset, endOffset - startOffset, 8192)),
 					ctx.newProgressivePromise());
 				// HttpChunkedInput will write the end marker (LastHttpContent) for us.
 			}

@@ -70,6 +70,7 @@ import org.apache.flink.runtime.query.KvStateServer;
 import org.apache.flink.runtime.registration.RegistrationConnectionListener;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.rest.handler.legacy.files.FileOffsetRange;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -110,9 +111,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.File;
-import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.RandomAccessFile;
 import java.net.InetSocketAddress;
+import java.nio.channels.Channels;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -814,14 +818,18 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	}
 
 	@Override
-	public CompletableFuture<TransientBlobKey> requestFileUpload(FileType fileType, Time timeout) {
+	public CompletableFuture<TransientBlobKey> requestFileUpload(FileType fileType, Time timeout, String filename, FileOffsetRange range) {
 		log.debug("Request file {} upload.", fileType);
 
 		final String filePath;
 
 		switch (fileType) {
 			case LOG:
-				filePath = taskManagerConfiguration.getTaskManagerLogPath();
+				if(filename != null && !filename.equals("")) {
+					filePath = new File(taskManagerConfiguration.getTaskManagerLogPath()).getParent().concat("/" + filename);
+				} else {
+					filePath = taskManagerConfiguration.getTaskManagerLogPath();
+				}
 				break;
 			case STDOUT:
 				filePath = taskManagerConfiguration.getTaskManagerStdoutPath();
@@ -834,10 +842,20 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			final File file = new File(filePath);
 
 			if (file.exists()) {
+				final RandomAccessFile raf;
+				try {
+				 raf = new RandomAccessFile(file, "r");
+				}catch (FileNotFoundException e) {
+					log.debug("Could not find file {}.", file, e);
+					return FutureUtils.completedExceptionally(new FlinkException("Could not find file " + file + '.', e));
+				}
 				final TransientBlobCache transientBlobService = blobCacheService.getTransientBlobService();
 				final TransientBlobKey transientBlobKey;
-				try (FileInputStream fileInputStream = new FileInputStream(file)) {
-					transientBlobKey = transientBlobService.putTransient(fileInputStream);
+				try {
+					InputStream inputStream = Channels.newInputStream(
+						raf.getChannel()
+							.position(range.getStartOffsetForFile(file)));
+					transientBlobKey = transientBlobService.putTransient(inputStream, range.getLengthForFile(file));
 				} catch (IOException e) {
 					log.debug("Could not upload file {}.", fileType, e);
 					return FutureUtils.completedExceptionally(new FlinkException("Could not upload file " + fileType + '.', e));
@@ -851,6 +869,18 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		} else {
 			log.debug("The file {} is unavailable on the TaskExecutor {}.", fileType, getResourceID());
 			return FutureUtils.completedExceptionally(new FlinkException("The file " + fileType + " is not available on the TaskExecutor."));
+		}
+	}
+	
+	@Override
+	public CompletableFuture<String[]> requestLogList(Time timeout) {
+		final String filePath = taskManagerConfiguration.getTaskManagerLogPath();
+		if (filePath != null) {
+			File parent = new File(filePath).getParentFile();
+			String[] logs = parent.list((dir, name) -> !(name.endsWith(".out") || name.endsWith(".err")));
+			return CompletableFuture.completedFuture(logs);
+		} else {
+			return FutureUtils.completedExceptionally(new FlinkException("The log files are not available on the TaskExecutor."));
 		}
 	}
 

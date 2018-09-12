@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.taskmanager
 
-import java.io.{File, FileInputStream, IOException}
+import java.io.{File, FilenameFilter, InputStream, IOException, RandomAccessFile}
 import java.lang.management.ManagementFactory
 import java.net.{BindException, InetAddress, InetSocketAddress, ServerSocket}
+import java.nio.channels.Channels
 import java.util
 import java.util.concurrent.{Callable, TimeUnit, TimeoutException}
 import java.util.{Collections, UUID}
@@ -66,6 +67,7 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
 import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistryImpl, MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.process.ProcessReaper
+import org.apache.flink.runtime.rest.handler.legacy.files.FileOffsetRange
 import org.apache.flink.runtime.security.{SecurityConfiguration, SecurityUtils}
 import org.apache.flink.runtime.state.{TaskExecutorLocalStateStoresManager, TaskStateManagerImpl}
 import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
@@ -337,6 +339,9 @@ class TaskManager(
           sender() ! akka.actor.Status.Failure(new IOException("BlobCache not " +
             "available. Cannot upload TaskManager logs."))
       }
+
+    case LogListRequest =>
+      handleRequestTaskManagerLogList(sender())
 
     case RequestBroadcastVariablesWithReferences =>
       sender ! decorateMessage(
@@ -816,6 +821,24 @@ class TaskManager(
     }
   }
 
+  private def handleRequestTaskManagerLogList(sender: ActorRef) : Unit = {
+    val logFilePathOption = Option(config.getConfiguration().getString(
+      ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, System.getProperty("log.file")))
+    logFilePathOption match {
+      case None => sender ! akka.actor.Status.Failure(
+        new IOException("TaskManager log files are unavailable. " +
+          "Log file location not found in environment variable log.file or configuration key "
+          + ConfigConstants.TASK_MANAGER_LOG_PATH_KEY + "."))
+      case Some(logFilePath) =>
+        val file: File = new File(logFilePath)
+        sender ! file.getParentFile.list(
+          new FilenameFilter {
+            override def accept(dir: File, name: String): Boolean =
+              !(name.endsWith(".out") || name.endsWith(".err"))
+          })
+    }
+  }
+
   private def handleRequestTaskManagerLog(
       sender: ActorRef,
       requestType: LogTypeRequest,
@@ -829,23 +852,32 @@ class TaskManager(
         "Log file location not found in environment variable log.file or configuration key "
         + ConfigConstants.TASK_MANAGER_LOG_PATH_KEY + "."))
       case Some(logFilePath) =>
-        val file: File = requestType match {
-          case LogFileRequest => new File(logFilePath);
-          case StdOutFileRequest =>
-            new File(logFilePath.substring(0, logFilePath.length - 4) + ".out");
+        val (file: File, range: FileOffsetRange) = requestType match {
+          case LogFileRequest(filename, range) =>
+            if(filename == null) {
+              (new File(logFilePath), range);
+            } else {
+              (new File(new File(logFilePath).getParent.concat("/" + filename)), range);
+            }
+          case StdOutFileRequest(range) =>
+            (new File(logFilePath.substring(0, logFilePath.length - 4) + ".out"), range);
         }
         if (file.exists()) {
-          val fis = new FileInputStream(file);
+          val raf = new RandomAccessFile(file, "r")
+          val inputStream: InputStream = Channels.newInputStream(
+            raf.getChannel
+              .position(range.getStartOffsetForFile(file)))
           Future {
-            blobCache.get.getTransientBlobService.putTransient(fis)
+            blobCache.get.getTransientBlobService
+              .putTransient(inputStream, range.getLengthForFile(file))
           }(context.dispatcher)
             .onComplete {
               case Success(value) =>
                 sender ! value
-                fis.close()
+                inputStream.close()
               case Failure(e) =>
                 sender ! akka.actor.Status.Failure(e)
-                fis.close()
+                inputStream.close()
             }(context.dispatcher)
         } else {
           sender ! akka.actor.Status.Failure(

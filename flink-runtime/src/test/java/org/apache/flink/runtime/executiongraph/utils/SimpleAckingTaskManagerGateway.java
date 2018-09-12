@@ -33,6 +33,7 @@ import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTrace;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
+import org.apache.flink.runtime.rest.handler.legacy.files.FileOffsetRange;
 
 import javax.annotation.Nonnull;
 
@@ -151,12 +152,17 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 			CheckpointOptions checkpointOptions) {}
 
 	@Override
-	public CompletableFuture<TransientBlobKey> requestTaskManagerLog(Time timeout) {
+	public CompletableFuture<TransientBlobKey> requestTaskManagerLog(Time timeout, String filename, FileOffsetRange range) {
 		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	}
 
 	@Override
-	public CompletableFuture<TransientBlobKey> requestTaskManagerStdout(Time timeout) {
+	public CompletableFuture<TransientBlobKey> requestTaskManagerStdout(Time timeout, FileOffsetRange range) {
+		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
+	}
+
+	@Override
+	public CompletableFuture<String[]> requestTaskManagerLogList(final Time timeout) {
 		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	}
 

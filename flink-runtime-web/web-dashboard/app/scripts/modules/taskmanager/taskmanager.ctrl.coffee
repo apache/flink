@@ -46,19 +46,37 @@ angular.module('flinkApp')
 .controller 'SingleTaskManagerLogsController', ($scope, $stateParams, SingleTaskManagerService, $interval, flinkConfig) ->
   $scope.log = {}
   $scope.taskmanagerid = $stateParams.taskmanagerid
-  SingleTaskManagerService.loadLogs($stateParams.taskmanagerid).then (data) ->
+  SingleTaskManagerService.loadLogs($stateParams.taskmanagerid, 0, 100 * 1024).then (data) ->
     $scope.log = data
 
+  $scope.searchLog = () ->
+    SingleTaskManagerService.loadOtherLogs($stateParams.taskmanagerid, $scope.filename, $scope.start * 1024, $scope.end * 1024).then (data) ->
+      $scope.log = data
+
+  SingleTaskManagerService.loadLogList($stateParams.taskmanagerid).then (data) ->
+    if !$scope.taskmanager?
+      $scope.taskmanager = {}
+    $scope.taskmanager['loglist'] = data
+    $scope.filename = $scope.taskmanager['loglist'][0]
+
+  $scope.loadLogList = () ->
+    SingleTaskManagerService.loadLogList($stateParams.taskmanagerid).then (data) ->
+      $scope.taskmanager['loglist'] = data
+
   $scope.reloadData = () ->
-    SingleTaskManagerService.loadLogs($stateParams.taskmanagerid).then (data) ->
+    SingleTaskManagerService.loadLogs($stateParams.taskmanagerid, $scope.start * 1024, $scope.end * 1024).then (data) ->
       $scope.log = data
 
 .controller 'SingleTaskManagerStdoutController', ($scope, $stateParams, SingleTaskManagerService, $interval, flinkConfig) ->
   $scope.stdout = {}
   $scope.taskmanagerid = $stateParams.taskmanagerid
-  SingleTaskManagerService.loadStdout($stateParams.taskmanagerid).then (data) ->
+  SingleTaskManagerService.loadStdout($stateParams.taskmanagerid, 0, 100 * 1024).then (data) ->
     $scope.stdout = data
 
   $scope.reloadData = () ->
-    SingleTaskManagerService.loadStdout($stateParams.taskmanagerid).then (data) ->
+    SingleTaskManagerService.loadStdout($stateParams.taskmanagerid, $scope.start * 1024, $scope.end * 1024).then (data) ->
+      $scope.stdout = data
+
+  $scope.searchStdout = () ->
+    SingleTaskManagerService.loadStdout($stateParams.taskmanagerid, $scope.start * 1024, $scope.end * 1024).then (data) ->
       $scope.stdout = data

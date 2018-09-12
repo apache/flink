@@ -36,13 +36,33 @@ angular.module('flinkApp')
 .service 'JobManagerLogsService', ($http, flinkConfig, $q) ->
   logs = {}
 
-  @loadLogs = ->
+  @loadLogs = (start, end) ->
     deferred = $q.defer()
 
-    $http.get(flinkConfig.jobServer + "jobmanager/log")
+    $http.get(flinkConfig.jobServer + "jobmanager/log/" + start + "-" + end)
     .success (data, status, headers, config) ->
       logs = data
       deferred.resolve(data)
+  
+    deferred.promise
+
+  @loadOtherLogs = (filename, start, end) ->
+    deferred = $q.defer()
+
+    $http.get(flinkConfig.jobServer + "jobmanager/logs/" + filename + "/" + start  + "-" + end)
+      .success (data, status, headers, config) ->
+        logs = data
+        deferred.resolve(data)
+
+    deferred.promise
+
+  @loadLogList = () ->
+    deferred = $q.defer()
+
+    $http.get(flinkConfig.jobServer + "jobmanager/loglist")
+      .success (data, status, headers, config) ->
+        logs = data
+        deferred.resolve(data)
 
     deferred.promise
 
@@ -51,10 +71,10 @@ angular.module('flinkApp')
 .service 'JobManagerStdoutService', ($http, flinkConfig, $q) ->
   stdout = {}
 
-  @loadStdout = ->
+  @loadStdout = (start, end) ->
     deferred = $q.defer()
 
-    $http.get(flinkConfig.jobServer + "jobmanager/stdout")
+    $http.get(flinkConfig.jobServer + "jobmanager/stdout/" + start + "-" + end)
     .success (data, status, headers, config) ->
       stdout = data
       deferred.resolve(data)
