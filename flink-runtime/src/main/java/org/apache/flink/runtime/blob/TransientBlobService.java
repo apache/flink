@@ -124,6 +124,21 @@ public interface TransientBlobService extends Closeable {
 	TransientBlobKey putTransient(InputStream inputStream) throws IOException;
 
 	/**
+	 * Uploads a give size of (job-unrelated) data from the given input stream to the BLOB server.
+	 *
+	 * @param inputStream
+	 * 		the input stream to read the data from
+	 * @param count the size of data to upload to blob server
+	 *
+	 * @return the computed BLOB key identifying the BLOB on the server
+	 *
+	 * @throws IOException
+	 * 		thrown if an I/O error occurs while reading the data from the input stream or uploading the
+	 * 		data to the BLOB server
+	 */
+	TransientBlobKey putTransient(InputStream inputStream, long count) throws IOException;
+
+	/**
 	 * Uploads the data from the given input stream for the given job to the BLOB server.
 	 *
 	 * @param jobId

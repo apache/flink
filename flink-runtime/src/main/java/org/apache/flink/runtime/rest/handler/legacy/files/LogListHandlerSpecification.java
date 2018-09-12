@@ -22,20 +22,14 @@ import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 
 /**
- * Rest handler specification for the stdout file of the main cluster component.
+ * LogListHandlerSpecification is used to get the historical log filenames.
  */
-public class StdoutFileHandlerSpecification implements RestHandlerSpecification {
-	private static final String URL = "/jobmanager/stdout";
-	private static final String URL_WITH_RANGE = "/jobmanager/stdout/:range";
+public class LogListHandlerSpecification implements RestHandlerSpecification {
+	private static final String URL = "/jobmanager/loglist";
 
-	private static final StdoutFileHandlerSpecification INSTANCE = new StdoutFileHandlerSpecification(URL);
-	private static final StdoutFileHandlerSpecification INSTANCE_WITH_RANGE = new StdoutFileHandlerSpecification(URL_WITH_RANGE);
+	private static final LogListHandlerSpecification INSTANCE = new LogListHandlerSpecification();
 
-	private final String url;
-
-	private StdoutFileHandlerSpecification(String url) {
-		this.url = url;
-	}
+	public LogListHandlerSpecification() {}
 
 	@Override
 	public HttpMethodWrapper getHttpMethod() {
@@ -44,14 +38,10 @@ public class StdoutFileHandlerSpecification implements RestHandlerSpecification 
 
 	@Override
 	public String getTargetRestEndpointURL() {
-		return url;
+		return URL;
 	}
 
-	public static StdoutFileHandlerSpecification getInstance() {
+	public static LogListHandlerSpecification getInstance() {
 		return INSTANCE;
-	}
-
-	public static StdoutFileHandlerSpecification getInstanceWithRange() {
-		return INSTANCE_WITH_RANGE;
 	}
 }

@@ -40,7 +40,9 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.rest.handler.legacy.files.FileOffsetRange;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
+import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
@@ -307,7 +309,12 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUpload(ResourceID taskManagerId, FileType fileType, Time timeout) {
+	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUpload(
+		ResourceID taskManagerId,
+		FileType fileType,
+		Time timeout,
+		String filename,
+		FileOffsetRange range) {
 		final Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> function = requestTaskManagerFileUploadFunction;
 
 		if (function != null) {
@@ -315,6 +322,11 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		} else {
 			return CompletableFuture.completedFuture(new TransientBlobKey());
 		}
+	}
+
+	@Override
+	public CompletableFuture<String[]> requestTaskManagerLogList(ResourceID taskManagerId, @RpcTimeout Time timeout) {
+		return CompletableFuture.completedFuture(new String[]{});
 	}
 
 	@Override

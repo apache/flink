@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerStdoutFileHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogFileHandler;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.RangePathParameter;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
@@ -27,28 +27,15 @@ import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import java.util.Arrays;
 
 /**
- * Headers for the {@link TaskManagerStdoutFileHandler}.
+ * Headers for the {@link TaskManagerLogFileHandler}.
  */
-public class TaskManagerStdoutFileHeaders implements UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerMessageParameters> {
-	private static final String URL = String.format("/taskmanagers/:%s/stdout", TaskManagerIdPathParameter.KEY);
-	private static final String URL_WITH_RANGE = String.format("/taskmanagers/:%s/stdout/:%s",
-		TaskManagerIdPathParameter.KEY, RangePathParameter.KEY);
+public class TaskManagerLogFileWithRangeHeaders implements UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerMessageParameters> {
 
-	private static final TaskManagerStdoutFileHeaders INSTANCE = new TaskManagerStdoutFileHeaders();
-	private static final TaskManagerStdoutFileHeaders INSTANCE_WITH_RANGE = new TaskManagerStdoutFileHeaders() {
-		@Override
-		public TaskManagerMessageParameters getUnresolvedMessageParameters() {
-			return new TaskManagerMessageParameters(Arrays.asList(new TaskManagerIdPathParameter(), new RangePathParameter()));
-		}
+	private static final TaskManagerLogFileWithRangeHeaders INSTANCE = new TaskManagerLogFileWithRangeHeaders();
 
-		@Override
-		public String getTargetRestEndpointURL() {
-			return URL_WITH_RANGE;
-		}
-	};
+	private static final String URL = String.format("/taskmanagers/:%s/log/:%s", TaskManagerIdPathParameter.KEY, RangePathParameter.KEY);
 
-	private TaskManagerStdoutFileHeaders() {
-	}
+	private TaskManagerLogFileWithRangeHeaders() {}
 
 	@Override
 	public Class<EmptyRequestBody> getRequestClass() {
@@ -57,7 +44,8 @@ public class TaskManagerStdoutFileHeaders implements UntypedResponseMessageHeade
 
 	@Override
 	public TaskManagerMessageParameters getUnresolvedMessageParameters() {
-		return new TaskManagerMessageParameters();
+		return new TaskManagerMessageParameters(
+			Arrays.asList(new TaskManagerIdPathParameter(), new RangePathParameter()));
 	}
 
 	@Override
@@ -70,11 +58,7 @@ public class TaskManagerStdoutFileHeaders implements UntypedResponseMessageHeade
 		return URL;
 	}
 
-	public static TaskManagerStdoutFileHeaders getInstance() {
+	public static TaskManagerLogFileWithRangeHeaders getInstance() {
 		return INSTANCE;
-	}
-
-	public static TaskManagerStdoutFileHeaders getInstanceWithRange() {
-		return INSTANCE_WITH_RANGE;
 	}
 }

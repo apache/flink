@@ -40,6 +40,7 @@ import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
+import org.apache.flink.runtime.rest.handler.legacy.files.FileOffsetRange;
 import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.CompletableFuture;
@@ -210,13 +211,24 @@ public class ActorTaskManagerGateway implements TaskManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<TransientBlobKey> requestTaskManagerLog(Time timeout) {
-		return requestTaskManagerLog((TaskManagerMessages.RequestTaskManagerLog) TaskManagerMessages.getRequestTaskManagerLog(), timeout);
+	public CompletableFuture<TransientBlobKey> requestTaskManagerLog(Time timeout, String filename, FileOffsetRange range) {
+		return requestTaskManagerLog(
+			(TaskManagerMessages.RequestTaskManagerLog) TaskManagerMessages.getRequestTaskManagerLog(filename, range), timeout);
 	}
 
 	@Override
-	public CompletableFuture<TransientBlobKey> requestTaskManagerStdout(Time timeout) {
-		return requestTaskManagerLog((TaskManagerMessages.RequestTaskManagerLog) TaskManagerMessages.getRequestTaskManagerStdout(), timeout);
+	public CompletableFuture<TransientBlobKey> requestTaskManagerStdout(Time timeout, FileOffsetRange range) {
+		return requestTaskManagerLog(
+			(TaskManagerMessages.RequestTaskManagerLog) TaskManagerMessages.getRequestTaskManagerStdout(range), timeout);
+	}
+
+	@Override
+	public CompletableFuture<String[]> requestTaskManagerLogList(final Time timeout) {
+		scala.concurrent.Future<String[]> filenames = actorGateway.ask(
+			TaskManagerMessages.getRequestTaskManagerLogList(),
+			new FiniteDuration(timeout.getSize(), timeout.getUnit()))
+			.mapTo(ClassTag$.MODULE$.apply(String[].class));
+		return FutureUtils.toJava(filenames);
 	}
 
 	@Override

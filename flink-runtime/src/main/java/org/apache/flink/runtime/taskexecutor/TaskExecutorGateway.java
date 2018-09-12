@@ -33,6 +33,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.rest.handler.legacy.files.FileOffsetRange;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -193,9 +194,10 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 *
 	 * @param fileType to upload
 	 * @param timeout for the asynchronous operation
+	 * @param filename for historical log file, could be null 
 	 * @return Future which is completed with the {@link TransientBlobKey} of the uploaded file.
 	 */
-	CompletableFuture<TransientBlobKey> requestFileUpload(FileType fileType, @RpcTimeout Time timeout);
+	CompletableFuture<TransientBlobKey> requestFileUpload(FileType fileType, @RpcTimeout Time timeout, String filename, FileOffsetRange range);
 
 	/**
 	 * Returns the fully qualified address of Metric Query Service on the TaskManager.
@@ -203,4 +205,11 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * @return Future String with Fully qualified (RPC) address of Metric Query Service on the TaskManager.
 	 */
 	CompletableFuture<SerializableOptional<String>> requestMetricQueryServiceAddress(@RpcTimeout Time timeout);
+
+	/**
+	 * Requests for the historical log file names on the TaskManager.
+	 *
+	 * @return A String Array with all historical log file names
+	 */
+	CompletableFuture<String[]> requestLogList(@RpcTimeout Time timeout);
 }
