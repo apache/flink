@@ -35,6 +35,7 @@ import javax.annotation.Nonnull;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -57,9 +58,11 @@ public class ZooKeeperSubmittedJobGraphStoreTest extends TestLogger {
 	/**
 	 * Tests that we fail with an exception if the job cannot be removed from the
 	 * ZooKeeperSubmittedJobGraphStore.
+	 *
+	 * <p>Tests that a close ZooKeeperSubmittedJobGraphStore no longer holds any locks.
 	 */
 	@Test
-	public void testJobGraphRemovalFailure() throws Exception {
+	public void testJobGraphRemovalFailureAndLockRelease() throws Exception {
 		try (final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration)) {
 			final TestingRetrievableStateStorageHelper<SubmittedJobGraph> stateStorage = new TestingRetrievableStateStorageHelper<>();
 			final ZooKeeperSubmittedJobGraphStore submittedJobGraphStore = createSubmittedJobGraphStore(client, stateStorage);
@@ -80,6 +83,13 @@ public class ZooKeeperSubmittedJobGraphStoreTest extends TestLogger {
 			} catch (Exception ignored) {
 				// expected
 			}
+
+			submittedJobGraphStore.stop();
+
+			// now we should be able to delete the job graph
+			otherSubmittedJobGraphStore.removeJobGraph(recoveredJobGraph.getJobId());
+
+			assertThat(otherSubmittedJobGraphStore.recoverJobGraph(recoveredJobGraph.getJobId()), is(nullValue()));
 
 			otherSubmittedJobGraphStore.stop();
 		}
