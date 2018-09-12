@@ -44,7 +44,7 @@ public class Kafka010JsonProducer {
 	private static final String TABLE_NAME = "producerTable";
 
 	private static final String[] FIELD_NAMES = new String[] {
-		Kafka010JsonConsumer.WORD_COL, Kafka010JsonConsumer.FREQUENCY_COL, Kafka010JsonConsumer.TIMESTAMP_COL
+		Kafka010JsonExample.WORD_COL, Kafka010JsonExample.FREQUENCY_COL, Kafka010JsonExample.TIMESTAMP_COL
 	};
 	private static final TypeInformation[] FIELD_TYPES = new TypeInformation[] {
 		Types.STRING(), Types.INT(), Types.SQL_TIMESTAMP()
@@ -62,25 +62,25 @@ public class Kafka010JsonProducer {
 			return;
 		}
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment tEnv = StreamTableEnvironment.getTableEnvironment(env);
+		StreamExecutionEnvironment environment = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tableEnvironment = StreamTableEnvironment.getTableEnvironment(environment);
 
 		long time = System.currentTimeMillis();
-		DataStreamSource<Row> source = env.fromCollection(Arrays.asList(
+		DataStreamSource<Row> source = environment.fromCollection(Arrays.asList(
 			Row.of("hello", 1, new Timestamp(time)),
 			Row.of("world", 1, new Timestamp(time + 1)),
 			Row.of("world", 1, new Timestamp(time + 2)),
 			Row.of("hello", 1, new Timestamp(time + 3)),
 			Row.of("hello", 1, new Timestamp(time + 4))
 		), ROW_TYPE);
-		tEnv.registerDataStreamInternal(TABLE_NAME, source);
+		tableEnvironment.registerDataStreamInternal(TABLE_NAME, source);
 
 		KafkaTableSink sink = new Kafka010JsonTableSink(
 				parameterTool.getRequired("output-topic"),
 				parameterTool.getProperties());
 
-		tEnv.scan(TABLE_NAME).writeToSink(sink);
+		tableEnvironment.scan(TABLE_NAME).writeToSink(sink);
 
-		env.execute();
+		environment.execute();
 	}
 }

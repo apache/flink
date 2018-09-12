@@ -22,10 +22,12 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.Kafka010JsonTableSink;
-import org.apache.flink.streaming.connectors.kafka.Kafka010JsonTableSource;
+import org.apache.flink.streaming.connectors.kafka.KafkaTableSink;
 import org.apache.flink.table.api.StreamTableEnvironment;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.descriptors.Json;
+import org.apache.flink.table.descriptors.Kafka;
+import org.apache.flink.table.descriptors.Schema;
 
 /**
  * An example that shows how to read from and write to Kafka table rows as JSON-encoded records.
@@ -38,7 +40,7 @@ import org.apache.flink.table.api.TableSchema;
  * Run Consumer with the following arguments:
  * 	--input-topic consumer-input --output-topic consumer-output --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181 --group.id myconsumer
  */
-public class Kafka010JsonConsumer {
+public class Kafka010JsonExample {
 	private static final String TABLE_NAME = "tableName";
 
 	static final String WORD_COL = "word";
@@ -56,33 +58,41 @@ public class Kafka010JsonConsumer {
 			return;
 		}
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment tEnv = StreamTableEnvironment.getTableEnvironment(env);
+		StreamExecutionEnvironment environment = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tableEnvironment = StreamTableEnvironment.getTableEnvironment(environment);
 
-		Kafka010JsonTableSource sensorSource = Kafka010JsonTableSource.builder()
-			.withKafkaProperties(parameterTool.getProperties())
-			.forTopic(parameterTool.getRequired("input-topic"))
-			.withSchema(TableSchema.builder()
+		tableEnvironment
+			.connect(
+				new Kafka()
+					.version("0.10")
+					.topic(parameterTool.getRequired("input-topic"))
+					.properties(parameterTool.getProperties())
+			)
+			.withFormat(
+				new Json()
+					.deriveSchema()
+			)
+			.withSchema(new Schema()
 				.field(WORD_COL, Types.STRING)
 				.field(FREQUENCY_COL, Types.INT)
 				.field(TIMESTAMP_COL, Types.SQL_TIMESTAMP)
-				.build())
-			.withProctimeAttribute(TIMESTAMP_COL)
-			.build();
-		tEnv.registerTableSource(TABLE_NAME, sensorSource);
+					.proctime()
+			)
+			.inAppendMode()
+			.registerTableSource(TABLE_NAME);
 
 		// run a SQL query on the Table and retrieve the result as a new Table
-		Table table = tEnv.sqlQuery("" +
+		Table table = tableEnvironment.sqlQuery("" +
 			"SELECT " + WORD_COL + ", SUM(" + FREQUENCY_COL + ") as " + FREQUENCY_COL + " " +
 			"FROM " + TABLE_NAME + " " +
 			"GROUP BY TUMBLE(" + TIMESTAMP_COL + ", INTERVAL '30' second), " + WORD_COL);
 
-		Kafka010JsonTableSink sink = new Kafka010JsonTableSink(
+		KafkaTableSink sink = new Kafka010JsonTableSink(
 			parameterTool.getRequired("output-topic"),
 			parameterTool.getProperties());
 
 		table.writeToSink(sink);
 
-		env.execute();
+		environment.execute();
 	}
 }
