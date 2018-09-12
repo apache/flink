@@ -23,13 +23,12 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 /**
  * This class wraps list state with TTL logic.
@@ -73,11 +72,14 @@ class TtlListState<K, N, T> extends
 		return () -> new IteratorWithCleanup(finalResult.iterator());
 	}
 
-	private void updateTs(List<TtlValue<T>> ttlValue) throws Exception {
-		List<TtlValue<T>> unexpiredWithUpdatedTs = ttlValue.stream()
-			.filter(v -> !expired(v))
-			.map(this::rewrapWithNewTs)
-			.collect(Collectors.toList());
+	private void updateTs(List<TtlValue<T>> ttlValues) throws Exception {
+		List<TtlValue<T>> unexpiredWithUpdatedTs = new ArrayList<>(ttlValues.size());
+		long currentTimestamp = timeProvider.currentTimestamp();
+		for (TtlValue<T> ttlValue : ttlValues) {
+			if (!TtlUtils.expired(ttlValue, ttl, currentTimestamp)) {
+				unexpiredWithUpdatedTs.add(TtlUtils.wrapWithTs(ttlValue.getUserValue(), currentTimestamp));
+			}
+		}
 		if (!unexpiredWithUpdatedTs.isEmpty()) {
 			original.update(unexpiredWithUpdatedTs);
 		}
@@ -105,8 +107,15 @@ class TtlListState<K, N, T> extends
 	}
 
 	private <E> List<E> collect(Iterable<E> iterable) {
-		return iterable instanceof List ? (List<E>) iterable :
-			StreamSupport.stream(iterable.spliterator(), false).collect(Collectors.toList());
+		if (iterable instanceof List) {
+			return (List<E>) iterable;
+		} else {
+			List<E> list = new ArrayList<>();
+			for (E element : iterable) {
+				list.add(element);
+			}
+			return list;
+		}
 	}
 
 	@Override
@@ -116,7 +125,12 @@ class TtlListState<K, N, T> extends
 	}
 
 	private List<TtlValue<T>> withTs(List<T> values) {
-		return values.stream().map(this::wrapWithTs).collect(Collectors.toList());
+		List<TtlValue<T>> withTs = new ArrayList<>(values.size());
+		for (T value : values) {
+			Preconditions.checkNotNull(value, "You cannot have null element in a ListState.");
+			withTs.add(wrapWithTs(value));
+		}
+		return withTs;
 	}
 
 	private class IteratorWithCleanup implements Iterator<T> {
