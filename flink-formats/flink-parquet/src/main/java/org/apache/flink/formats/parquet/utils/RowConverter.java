@@ -269,7 +269,7 @@ public class RowConverter extends GroupConverter implements ParentDataHolder {
 						break;
 					case INT_64:
 					case DECIMAL:
-						// long is more efficient in terms of memory.
+						// long is more efficient then BigDecimal in terms of memory.
 						parentDataHolder.add(pos, value);
 						break;
 					default:
