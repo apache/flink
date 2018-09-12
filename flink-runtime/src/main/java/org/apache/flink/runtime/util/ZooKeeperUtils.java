@@ -33,6 +33,7 @@ import org.apache.flink.runtime.jobmanager.ZooKeeperSubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
+import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.runtime.zookeeper.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.util.Preconditions;
 
@@ -41,6 +42,7 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.api.ACLProvider;
 import org.apache.curator.framework.imps.DefaultACLProvider;
+import org.apache.curator.framework.recipes.cache.PathChildrenCache;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.data.ACL;
@@ -244,10 +246,23 @@ public class ZooKeeperUtils {
 		// ZooKeeper submitted jobs root dir
 		String zooKeeperSubmittedJobsPath = configuration.getString(HighAvailabilityOptions.HA_ZOOKEEPER_JOBGRAPHS_PATH);
 
+		// Ensure that the job graphs path exists
+		client.newNamespaceAwareEnsurePath(zooKeeperSubmittedJobsPath)
+			.ensure(client.getZookeeperClient());
+
+		// All operations will have the path as root
+		CuratorFramework facade = client.usingNamespace(client.getNamespace() + zooKeeperSubmittedJobsPath);
+
+		final String zooKeeperFullSubmittedJobsPath = client.getNamespace() + zooKeeperSubmittedJobsPath;
+
+		final ZooKeeperStateHandleStore<SubmittedJobGraph> zooKeeperStateHandleStore = new ZooKeeperStateHandleStore<>(facade, stateStorage);
+
+		final PathChildrenCache pathCache = new PathChildrenCache(facade, "/", false);
+
 		return new ZooKeeperSubmittedJobGraphStore(
-			client,
-			zooKeeperSubmittedJobsPath,
-			stateStorage);
+			zooKeeperFullSubmittedJobsPath,
+			zooKeeperStateHandleStore,
+			pathCache);
 	}
 
 	/**
