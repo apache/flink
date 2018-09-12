@@ -619,7 +619,7 @@ public class SingleInputGate implements InputGate {
 	}
 
 	void triggerPartitionStateCheck(ResultPartitionID partitionId) {
-		taskActions.triggerPartitionProducerStateCheck(jobId, consumedResultId, partitionId);
+		taskActions.triggerPartitionProducerStateCheck(consumedResultId, partitionId);
 	}
 
 	private void queueChannel(InputChannel channel) {

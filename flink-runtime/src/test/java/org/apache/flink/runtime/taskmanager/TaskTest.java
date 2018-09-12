@@ -50,7 +50,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.messages.TaskMessages;
@@ -584,54 +583,11 @@ public class TaskTest extends TestLogger {
 		assertTrue(task.getFailureCause().getMessage().contains("external"));
 	}
 
-	@Test
-	public void testOnPartitionStateUpdate() throws Exception {
-		IntermediateDataSetID resultId = new IntermediateDataSetID();
-		ResultPartitionID partitionId = new ResultPartitionID();
-
-		SingleInputGate inputGate = mock(SingleInputGate.class);
-		when(inputGate.getConsumedResultId()).thenReturn(resultId);
-
-		final Task task = createTask(InvokableBlockingInInvoke.class);
-
-		// Set the mock input gate
-		setInputGate(task, inputGate);
-
-		// Expected task state for each producer state
-		final Map<ExecutionState, ExecutionState> expected = new HashMap<>(ExecutionState.values().length);
-
-		// Fail the task for unexpected states
-		for (ExecutionState state : ExecutionState.values()) {
-			expected.put(state, ExecutionState.FAILED);
-		}
-
-		expected.put(ExecutionState.RUNNING, ExecutionState.RUNNING);
-		expected.put(ExecutionState.SCHEDULED, ExecutionState.RUNNING);
-		expected.put(ExecutionState.DEPLOYING, ExecutionState.RUNNING);
-		expected.put(ExecutionState.FINISHED, ExecutionState.RUNNING);
-
-		expected.put(ExecutionState.CANCELED, ExecutionState.CANCELING);
-		expected.put(ExecutionState.CANCELING, ExecutionState.CANCELING);
-		expected.put(ExecutionState.FAILED, ExecutionState.CANCELING);
-
-		for (ExecutionState state : ExecutionState.values()) {
-			setState(task, ExecutionState.RUNNING);
-
-			task.onPartitionStateUpdate(resultId, partitionId, state);
-
-			ExecutionState newTaskState = task.getExecutionState();
-
-			assertEquals(expected.get(state), newTaskState);
-		}
-
-		verify(inputGate, times(4)).retriggerPartitionRequest(eq(partitionId.getPartitionId()));
-	}
-
 	/**
 	 * Tests the trigger partition state update future completions.
 	 */
 	@Test
-	public void testTriggerPartitionStateUpdate() throws Exception {
+	public void testReTriggerRequestPartition() throws Exception {
 		IntermediateDataSetID resultId = new IntermediateDataSetID();
 		ResultPartitionID partitionId = new ResultPartitionID();
 
@@ -658,70 +614,6 @@ public class TaskTest extends TestLogger {
 			// Reset latches
 			createQueuesAndActors();
 
-			// PartitionProducerDisposedException
-			Task task = createTask(InvokableBlockingInInvoke.class, blobService, libCache, network, consumableNotifier, partitionChecker, Executors.directExecutor());
-
-			CompletableFuture<ExecutionState> promise = new CompletableFuture<>();
-			when(partitionChecker.requestPartitionProducerState(eq(task.getJobID()), eq(resultId), eq(partitionId))).thenReturn(promise);
-
-			task.triggerPartitionProducerStateCheck(task.getJobID(), resultId, partitionId);
-
-			promise.completeExceptionally(new PartitionProducerDisposedException(partitionId));
-			assertEquals(ExecutionState.CANCELING, task.getExecutionState());
-		}
-
-		{
-			// Reset latches
-			createQueuesAndActors();
-
-			// Any other exception
-			Task task = createTask(InvokableBlockingInInvoke.class, blobService, libCache, network, consumableNotifier, partitionChecker, Executors.directExecutor());
-
-			CompletableFuture<ExecutionState> promise = new CompletableFuture<>();
-			when(partitionChecker.requestPartitionProducerState(eq(task.getJobID()), eq(resultId), eq(partitionId))).thenReturn(promise);
-
-			task.triggerPartitionProducerStateCheck(task.getJobID(), resultId, partitionId);
-
-			promise.completeExceptionally(new RuntimeException("Any other exception"));
-
-			assertEquals(ExecutionState.FAILED, task.getExecutionState());
-		}
-
-		{
-			// Reset latches
-			createQueuesAndActors();
-
-			// TimeoutException handled special => retry
-			Task task = createTask(InvokableBlockingInInvoke.class, blobService, libCache, network, consumableNotifier, partitionChecker, Executors.directExecutor());
-			SingleInputGate inputGate = mock(SingleInputGate.class);
-			when(inputGate.getConsumedResultId()).thenReturn(resultId);
-
-			try {
-				task.startTaskThread();
-				awaitLatch.await();
-
-				setInputGate(task, inputGate);
-
-				CompletableFuture<ExecutionState> promise = new CompletableFuture<>();
-				when(partitionChecker.requestPartitionProducerState(eq(task.getJobID()), eq(resultId), eq(partitionId))).thenReturn(promise);
-
-				task.triggerPartitionProducerStateCheck(task.getJobID(), resultId, partitionId);
-
-				promise.completeExceptionally(new TimeoutException());
-
-				assertEquals(ExecutionState.RUNNING, task.getExecutionState());
-
-				verify(inputGate, times(1)).retriggerPartitionRequest(eq(partitionId.getPartitionId()));
-			} finally {
-				task.getExecutingThread().interrupt();
-				task.getExecutingThread().join();
-			}
-		}
-
-		{
-			// Reset latches
-			createQueuesAndActors();
-
 			// Success
 			Task task = createTask(InvokableBlockingInInvoke.class, blobService, libCache, network, consumableNotifier, partitionChecker, Executors.directExecutor());
 			SingleInputGate inputGate = mock(SingleInputGate.class);
@@ -736,7 +628,7 @@ public class TaskTest extends TestLogger {
 				CompletableFuture<ExecutionState> promise = new CompletableFuture<>();
 				when(partitionChecker.requestPartitionProducerState(eq(task.getJobID()), eq(resultId), eq(partitionId))).thenReturn(promise);
 
-				task.triggerPartitionProducerStateCheck(task.getJobID(), resultId, partitionId);
+				task.triggerPartitionProducerStateCheck(resultId, partitionId);
 
 				promise.complete(ExecutionState.RUNNING);
 

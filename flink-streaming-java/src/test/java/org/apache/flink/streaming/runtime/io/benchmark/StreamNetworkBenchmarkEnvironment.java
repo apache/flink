@@ -281,7 +281,6 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 
 		@Override
 		public void triggerPartitionProducerStateCheck(
-			JobID jobId,
 			IntermediateDataSetID intermediateDataSetId,
 			ResultPartitionID resultPartitionId) {}
 
