@@ -43,6 +43,28 @@ under the License.
 		<module>flink-swift-fs-hadoop</module>
 	</modules>
 
+	<!-- Common dependency setup for all filesystems -->
+	<dependencies>
+
+		<!-- The filesystems are extensions that can assume logger and JSR to be already provided -->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.google.code.findbugs</groupId>
+			<artifactId>jsr305</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Base testing tools -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils-junit</artifactId>
+		</dependency>
+	</dependencies>
+
 	<build>
 		<plugins>
 			<plugin>
@@ -62,12 +84,5 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
-
-	<dependencies>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils-junit</artifactId>
-		</dependency>
-	</dependencies>
 
 </project>

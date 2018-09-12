@@ -161,20 +161,6 @@ under the License.
 			<artifactId>aws-java-sdk-s3</artifactId>
 		</dependency>
 
-		<!-- make sure that also logger and JSR is provided -->
-
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>com.google.code.findbugs</groupId>
-			<artifactId>jsr305</artifactId>
-			<scope>provided</scope>
-		</dependency>
-
 		<!-- for the behavior test suite -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
