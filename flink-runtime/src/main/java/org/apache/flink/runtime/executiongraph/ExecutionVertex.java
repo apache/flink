@@ -23,6 +23,7 @@ import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
@@ -103,6 +104,9 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	/** The current or latest execution attempt of this vertex's task. */
 	private volatile Execution currentExecution;	// this field must never be null
+
+	/** input split*/
+	private ArrayList<InputSplit> inputSplits;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -185,6 +189,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		getExecutionGraph().registerExecution(currentExecution);
 
 		this.timeout = timeout;
+		this.inputSplits = new ArrayList<>();
 	}
 
 
@@ -247,6 +252,19 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	public CoLocationConstraint getLocationConstraint() {
 		return locationConstraint;
+	}
+
+	public InputSplit getNextInputSplit(int index, String host) {
+		final int taskId = this.getParallelSubtaskIndex();
+		synchronized (this.inputSplits) {
+			if (index < this.inputSplits.size()) {
+				return this.inputSplits.get(index);
+			} else {
+				final InputSplit nextInputSplit = this.jobVertex.getSplitAssigner().getNextInputSplit(host, taskId);
+				this.inputSplits.add(nextInputSplit);
+				return nextInputSplit;
+			}
+		}
 	}
 
 	@Override
