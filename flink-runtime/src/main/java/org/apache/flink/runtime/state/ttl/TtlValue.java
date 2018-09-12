@@ -28,6 +28,8 @@ import java.io.Serializable;
  * @param <T> Type of the user value of state with TTL
  */
 class TtlValue<T> implements Serializable {
+	private static final long serialVersionUID = 5221129704201125020L;
+
 	private final T userValue;
 	private final long lastAccessTimestamp;
 
