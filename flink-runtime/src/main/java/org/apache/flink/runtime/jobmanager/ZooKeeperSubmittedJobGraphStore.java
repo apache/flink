@@ -264,9 +264,11 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 
 		synchronized (cacheLock) {
 			if (addedJobGraphs.contains(jobId)) {
-				jobGraphsInZooKeeper.releaseAndTryRemove(path);
-
-				addedJobGraphs.remove(jobId);
+				if (jobGraphsInZooKeeper.releaseAndTryRemove(path)) {
+					addedJobGraphs.remove(jobId);
+				} else {
+					throw new FlinkException(String.format("Could not remove job graph with job id %s from ZooKeeper.", jobId));
+				}
 			}
 		}
 

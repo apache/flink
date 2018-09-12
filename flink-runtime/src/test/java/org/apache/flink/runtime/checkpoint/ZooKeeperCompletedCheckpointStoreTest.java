@@ -22,10 +22,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
-import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.util.TestLogger;
 
@@ -36,8 +34,6 @@ import org.junit.Test;
 
 import javax.annotation.Nonnull;
 
-import java.io.IOException;
-import java.io.Serializable;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -129,36 +125,4 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 			Executors.directExecutor());
 	}
 
-	private static final class TestingRetrievableStateStorageHelper<T extends Serializable> implements RetrievableStateStorageHelper<T> {
-		@Override
-		public RetrievableStateHandle<T> store(T state) {
-			return new TestingRetrievableStateHandle<>(state);
-		}
-
-		private static class TestingRetrievableStateHandle<T extends Serializable> implements RetrievableStateHandle<T> {
-
-			private static final long serialVersionUID = 137053380713794300L;
-
-			private final T state;
-
-			private TestingRetrievableStateHandle(T state) {
-				this.state = state;
-			}
-
-			@Override
-			public T retrieveState() throws IOException, ClassNotFoundException {
-				return state;
-			}
-
-			@Override
-			public void discardState() throws Exception {
-				// no op
-			}
-
-			@Override
-			public long getStateSize() {
-				return 0;
-			}
-		}
-	}
 }
