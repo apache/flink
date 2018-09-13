@@ -1482,7 +1482,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				jobVertex.setMaxParallelism(executionJobVertex.getMaxParallelism());
 			}
 
-			rescalingBehaviour.acceptWithException(jobVertex, newParallelism);
+			rescalingBehaviour.accept(jobVertex, newParallelism);
 		}
 	}
 
