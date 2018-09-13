@@ -207,6 +207,8 @@ public abstract class SubpartitionTestBase extends TestLogger {
 			assertEquals("backlog", expectedBuffersInBacklog, bufferAndBacklog.buffersInBacklog());
 			assertEquals("next is event", expectedNextBufferIsEvent,
 				bufferAndBacklog.nextBufferIsEvent());
+			assertEquals("next is event", expectedNextBufferIsEvent,
+				readView.nextBufferIsEvent());
 
 			assertFalse("not recycled", bufferAndBacklog.buffer().isRecycled());
 		} finally {
