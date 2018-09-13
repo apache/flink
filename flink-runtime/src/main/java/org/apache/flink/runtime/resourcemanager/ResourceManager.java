@@ -716,7 +716,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			WorkerRegistration<WorkerType> registration =
 				new WorkerRegistration<>(taskExecutorGateway, newWorker, dataPort, hardwareDescription);
 
-			log.info("Registering TaskManager {} ({}) at ResourceManager", taskExecutorResourceId, taskExecutorAddress);
+			log.info("Registering TaskManager with ResourceID {} ({}) at ResourceManager", taskExecutorResourceId, taskExecutorAddress);
 			taskExecutors.put(taskExecutorResourceId, registration);
 
 			taskManagerHeartbeatManager.monitorTarget(taskExecutorResourceId, new HeartbeatTarget<Void>() {
