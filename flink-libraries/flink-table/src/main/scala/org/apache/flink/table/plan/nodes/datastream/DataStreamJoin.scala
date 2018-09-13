@@ -109,7 +109,7 @@ class DataStreamJoin(
     val joinTranslator = createTranslator(tableEnv)
 
     val joinOpName = joinToString(getRowType, joinCondition, joinType, getExpressionString)
-    val coProcessFunction = joinTranslator.getCoProcessFunction(
+    val joinOperator = joinTranslator.getJoinOperator(
       joinType,
       schema.fieldNames,
       ruleDescription,
@@ -118,9 +118,10 @@ class DataStreamJoin(
       .keyBy(
         joinTranslator.getLeftKeySelector(),
         joinTranslator.getRightKeySelector())
-      .process(coProcessFunction)
-      .name(joinOpName)
-      .returns(CRowTypeInfo(schema.typeInfo))
+      .transform(
+        joinOpName,
+        CRowTypeInfo(schema.typeInfo),
+        joinOperator)
   }
 
   private def validateKeyTypes(): Unit = {
