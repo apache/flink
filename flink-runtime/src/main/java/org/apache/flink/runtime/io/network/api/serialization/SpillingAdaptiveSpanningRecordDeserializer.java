@@ -485,7 +485,7 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 			}
 			else {
 				// collect in memory
-				ensureBufferCapacity(numBytesChunk);
+				ensureBufferCapacity(nextRecordLength);
 				partial.segment.get(partial.position, buffer, 0, numBytesChunk);
 			}
 
@@ -515,6 +515,8 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 					segmentRemaining -= toPut;
 					if (this.recordLength > THRESHOLD_FOR_SPILLING) {
 						this.spillingChannel = createSpillingChannel();
+					} else {
+						ensureBufferCapacity(this.recordLength);
 					}
 				}
 			}
@@ -527,9 +529,7 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 				// spill to file
 				ByteBuffer toWrite = segment.wrap(segmentPosition, toCopy);
 				this.spillingChannel.write(toWrite);
-			}
-			else {
-				ensureBufferCapacity(accumulatedRecordBytes + toCopy);
+			} else {
 				segment.get(segmentPosition, buffer, this.accumulatedRecordBytes, toCopy);
 			}
 
