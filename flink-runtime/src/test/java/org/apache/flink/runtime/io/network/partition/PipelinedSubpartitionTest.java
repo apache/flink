@@ -59,10 +59,13 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link PipelinedSubpartition}.
+ */
 public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
-	/** Executor service for concurrent produce/consume tests */
-	private final static ExecutorService executorService = Executors.newCachedThreadPool();
+	/** Executor service for concurrent produce/consume tests. */
+	private static final ExecutorService executorService = Executors.newCachedThreadPool();
 
 	@AfterClass
 	public static void shutdownExecutorService() throws Exception {

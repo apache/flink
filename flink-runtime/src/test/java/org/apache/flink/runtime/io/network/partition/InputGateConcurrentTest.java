@@ -46,6 +46,9 @@ import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
 
+/**
+ * Concurrency tests for input gates.
+ */
 public class InputGateConcurrentTest {
 
 	@Test
@@ -192,8 +195,8 @@ public class InputGateConcurrentTest {
 	//  testing threads
 	// ------------------------------------------------------------------------
 
-	private static abstract class Source {
-	
+	private abstract static class Source {
+
 		abstract void addBufferConsumer(BufferConsumer bufferConsumer) throws Exception;
 	}
 
