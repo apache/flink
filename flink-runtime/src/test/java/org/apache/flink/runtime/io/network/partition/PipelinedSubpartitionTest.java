@@ -47,6 +47,8 @@ import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.BUFFER_SIZE;
 import static org.apache.flink.util.FutureUtil.waitForAll;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -160,7 +162,11 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 			subpartition.add(createFilledBufferConsumer(1025)); // finished
 			subpartition.add(createFilledBufferBuilder(1024).createBufferConsumer()); // not finished
 
+			assertThat(availablityListener.getNumNotifications(), greaterThan(0L));
 			assertNextBuffer(readView, 1025, false, 1, false, true);
+			// not notified, but we could still access the unfinished buffer
+			assertNextBuffer(readView, 1024, false, 1, false, false);
+			assertNoNextBuffer(readView);
 		} finally {
 			subpartition.release();
 		}
@@ -179,10 +185,49 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		try {
 			subpartition.add(createFilledBufferConsumer(1025)); // finished
 			subpartition.add(createFilledBufferBuilder(1024).createBufferConsumer()); // not finished
+			long oldNumNotifications = availablityListener.getNumNotifications();
 			subpartition.flush();
+			// buffer queue is > 1, should already be notified, no further notification necessary
+			assertThat(oldNumNotifications, greaterThan(0L));
+			assertEquals(oldNumNotifications, availablityListener.getNumNotifications());
 
 			assertNextBuffer(readView, 1025, true, 1, false, true);
 			assertNextBuffer(readView, 1024, false, 1, false, false);
+			assertNoNextBuffer(readView);
+		} finally {
+			subpartition.release();
+		}
+	}
+
+	/**
+	 * A flush call with a buffer size of 1 should always notify consumers (unless already flushed).
+	 */
+	@Test
+	public void testFlushWithUnfinishedBufferBehindFinished2() throws Exception {
+		final ResultSubpartition subpartition = createSubpartition();
+		AwaitableBufferAvailablityListener availablityListener = new AwaitableBufferAvailablityListener();
+		ResultSubpartitionView readView = subpartition.createReadView(availablityListener);
+
+		try {
+			// no buffers -> no notification or any other effects
+			subpartition.flush();
+			assertEquals(0, availablityListener.getNumNotifications());
+
+			subpartition.add(createFilledBufferConsumer(1025)); // finished
+			subpartition.add(createFilledBufferBuilder(1024).createBufferConsumer()); // not finished
+
+			assertNextBuffer(readView, 1025, false, 1, false, true);
+
+			long oldNumNotifications = availablityListener.getNumNotifications();
+			subpartition.flush();
+			// buffer queue is 1 again -> need to flush
+			assertEquals(oldNumNotifications + 1, availablityListener.getNumNotifications());
+			subpartition.flush();
+			// calling again should not flush again
+			assertEquals(oldNumNotifications + 1, availablityListener.getNumNotifications());
+
+			assertNextBuffer(readView, 1024, false, 1, false, false);
+			assertNoNextBuffer(readView);
 		} finally {
 			subpartition.release();
 		}
