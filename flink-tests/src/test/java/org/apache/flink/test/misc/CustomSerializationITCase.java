@@ -21,7 +21,6 @@ package org.apache.flink.test.misc;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.DataInputView;
@@ -32,13 +31,17 @@ import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Matchers;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.isA;
+import static org.hamcrest.Matchers.hasProperty;
 
 /**
  * Test for proper error messages in case user-defined serialization is broken
@@ -48,6 +51,9 @@ import static org.junit.Assert.fail;
 public class CustomSerializationITCase extends TestLogger {
 
 	private static final int PARLLELISM = 5;
+
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
 
 	@ClassRule
 	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
@@ -64,127 +70,42 @@ public class CustomSerializationITCase extends TestLogger {
 	}
 
 	@Test
-	public void testIncorrectSerializer1() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(PARLLELISM);
-			env.getConfig().disableSysoutLogging();
-
-			env
-				.generateSequence(1, 10 * PARLLELISM)
-				.map(new MapFunction<Long, ConsumesTooMuch>() {
-					@Override
-					public ConsumesTooMuch map(Long value) throws Exception {
-						return new ConsumesTooMuch();
-					}
-				})
-				.rebalance()
-				.output(new DiscardingOutputFormat<ConsumesTooMuch>());
-
-			env.execute();
-		}
-		catch (JobExecutionException e) {
-			Throwable rootCause = e.getCause();
-			assertTrue(rootCause instanceof IOException);
-			assertTrue(rootCause.getMessage().contains("broken serialization"));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+	public void testIncorrectSerializer1() throws Exception {
+		testIncorrectSerializer(value -> new ConsumesTooMuch());
 	}
 
 	@Test
-	public void testIncorrectSerializer2() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(PARLLELISM);
-			env.getConfig().disableSysoutLogging();
-
-			env
-					.generateSequence(1, 10 * PARLLELISM)
-					.map(new MapFunction<Long, ConsumesTooMuchSpanning>() {
-						@Override
-						public ConsumesTooMuchSpanning map(Long value) throws Exception {
-							return new ConsumesTooMuchSpanning();
-						}
-					})
-					.rebalance()
-					.output(new DiscardingOutputFormat<ConsumesTooMuchSpanning>());
-
-			env.execute();
-		}
-		catch (JobExecutionException e) {
-			Throwable rootCause = e.getCause();
-			assertTrue(rootCause instanceof IOException);
-			assertTrue(rootCause.getMessage().contains("broken serialization"));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+	public void testIncorrectSerializer2() throws Exception {
+		testIncorrectSerializer(value -> new ConsumesTooMuchSpanning());
 	}
 
 	@Test
-	public void testIncorrectSerializer3() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(PARLLELISM);
-			env.getConfig().disableSysoutLogging();
-
-			env
-					.generateSequence(1, 10 * PARLLELISM)
-					.map(new MapFunction<Long, ConsumesTooLittle>() {
-						@Override
-						public ConsumesTooLittle map(Long value) throws Exception {
-							return new ConsumesTooLittle();
-						}
-					})
-					.rebalance()
-					.output(new DiscardingOutputFormat<ConsumesTooLittle>());
-
-			env.execute();
-		}
-		catch (JobExecutionException e) {
-			Throwable rootCause = e.getCause();
-			assertTrue(rootCause instanceof IOException);
-			assertTrue(rootCause.getMessage().contains("broken serialization"));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+	public void testIncorrectSerializer3() throws Exception {
+		testIncorrectSerializer(value -> new ConsumesTooLittle());
 	}
 
 	@Test
-	public void testIncorrectSerializer4() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(PARLLELISM);
-			env.getConfig().disableSysoutLogging();
+	public void testIncorrectSerializer4() throws Exception {
+		testIncorrectSerializer(value -> new ConsumesTooLittleSpanning());
+	}
 
-			env
-					.generateSequence(1, 10 * PARLLELISM)
-					.map(new MapFunction<Long, ConsumesTooLittleSpanning>() {
-						@Override
-						public ConsumesTooLittleSpanning map(Long value) throws Exception {
-							return new ConsumesTooLittleSpanning();
-						}
-					})
-					.rebalance()
-					.output(new DiscardingOutputFormat<ConsumesTooLittleSpanning>());
+	private <T> void testIncorrectSerializer(MapFunction<Long, T> mapper) throws Exception {
+		expectedException.expect(JobExecutionException.class);
+		expectedException.expectCause(
+			Matchers.both(isA(IOException.class))
+				.and(hasProperty("message", containsString("broken serialization"))));
 
-			env.execute();
-		}
-		catch (ProgramInvocationException e) {
-			Throwable rootCause = e.getCause().getCause();
-			assertTrue(rootCause instanceof IOException);
-			assertTrue(rootCause.getMessage().contains("broken serialization"));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(PARLLELISM);
+		env.getConfig().disableSysoutLogging();
+
+		env
+			.generateSequence(1, 10 * PARLLELISM)
+			.map(mapper)
+			.rebalance()
+			.output(new DiscardingOutputFormat<>());
+
+		env.execute();
 	}
 
 	// ------------------------------------------------------------------------

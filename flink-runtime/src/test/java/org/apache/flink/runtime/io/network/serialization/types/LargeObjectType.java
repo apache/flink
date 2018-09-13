@@ -30,9 +30,9 @@ import java.util.Random;
  */
 public class LargeObjectType implements SerializationTestType {
 
-	private static final int MIN_LEN = 12 * 1000 * 1000;
+	public static final int MIN_LEN = 12 * 1000 * 1000;
 
-	private static final int MAX_LEN = 40 * 1000 * 1000;
+	public static final int MAX_LEN = 40 * 1000 * 1000;
 
 	private int len;
 

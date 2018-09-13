@@ -51,12 +51,16 @@ public final class Util {
 			@Override
 			protected SerializationTestType getRecord() {
 				// select random test type factory
-				SerializationTestTypeFactory[] types = SerializationTestTypeFactory.values();
-				int i = Util.random.nextInt(types.length);
-
-				return types[i].factory().getRandom(Util.random);
+				return getRandomSerializationTestType().getRandom(Util.random);
 			}
 		};
+	}
+
+	public static SerializationTestType getRandomSerializationTestType() {
+		SerializationTestTypeFactory[] types = SerializationTestTypeFactory.values();
+		int i = Util.random.nextInt(types.length);
+
+		return types[i].factory();
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------
