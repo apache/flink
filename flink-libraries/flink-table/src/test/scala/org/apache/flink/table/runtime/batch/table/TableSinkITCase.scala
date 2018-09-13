@@ -51,7 +51,7 @@ class TableSinkITCase(
     val input = CollectionDataSets.get3TupleDataSet(env)
       .map(x => x).setParallelism(4) // increase DOP to 4
 
-    val results = input.toTable(tEnv, 'a, 'b, 'c)
+    input.toTable(tEnv, 'a, 'b, 'c)
       .where('a < 5 || 'a > 17)
       .select('c, 'b)
       .writeToSink(new CsvTableSink(path, fieldDelim = "|"))

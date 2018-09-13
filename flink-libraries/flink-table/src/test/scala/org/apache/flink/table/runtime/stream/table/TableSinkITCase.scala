@@ -21,10 +21,12 @@ package org.apache.flink.table.runtime.stream.table
 import java.io.File
 import java.lang.{Boolean => JBool}
 
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -54,7 +56,7 @@ class TableSinkITCase extends AbstractTestBase {
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    MemoryTableSourceSinkUtil.clear
+    MemoryTableSourceSinkUtil.clear()
 
     val input = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(r => r._2)
@@ -560,8 +562,7 @@ private[flink] class TestAppendSink extends AppendStreamTableSink[Row] {
   var fTypes: Array[TypeInformation[_]] = _
 
   override def emitDataStream(s: DataStream[Row]): Unit = {
-    s.map(
-      new MapFunction[Row, JTuple2[JBool, Row]] {
+    s.map(new MapFunction[Row, JTuple2[JBool, Row]] {
         override def map(value: Row): JTuple2[JBool, Row] = new JTuple2(true, value)
       })
       .addSink(new RowSink)
@@ -661,12 +662,11 @@ object RowCollector {
     new mutable.ArrayBuffer[JTuple2[JBool, Row]]()
 
   def addValue(value: JTuple2[JBool, Row]): Unit = {
+    // make a deep copy
+    val copy = new JTuple2[JBool, Row](value.f0,
+      new KryoSerializer(classOf[Row], new ExecutionConfig()).copy(value.f1))
 
-    // make a copy
-    val copy = new JTuple2[JBool, Row](value.f0, Row.copy(value.f1))
-    sink.synchronized {
-      sink += copy
-    }
+    sink.synchronized { sink += copy }
   }
 
   def getAndClearValues: List[JTuple2[JBool, Row]] = {

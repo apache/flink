@@ -36,6 +36,7 @@ import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
+import org.apache.flink.runtime.plugable.ReusingDeserializationDelegate;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -109,6 +110,8 @@ public class StreamInputProcessor<IN> {
 
 	private boolean isFinished;
 
+	private IN reusedObject;
+
 	@SuppressWarnings("unchecked")
 	public StreamInputProcessor(
 			InputGate[] inputGates,
@@ -121,7 +124,8 @@ public class StreamInputProcessor<IN> {
 			StreamStatusMaintainer streamStatusMaintainer,
 			OneInputStreamOperator<IN, ?> streamOperator,
 			TaskIOMetricGroup metrics,
-			WatermarkGauge watermarkGauge) throws IOException {
+			WatermarkGauge watermarkGauge,
+			boolean objectReuse) throws IOException {
 
 		InputGate inputGate = InputGateUtil.createInputGate(inputGates);
 
@@ -131,7 +135,10 @@ public class StreamInputProcessor<IN> {
 		this.lock = checkNotNull(lock);
 
 		StreamElementSerializer<IN> ser = new StreamElementSerializer<>(inputSerializer);
-		this.deserializationDelegate = new NonReusingDeserializationDelegate<>(ser);
+		this.deserializationDelegate = objectReuse ?
+			new ReusingDeserializationDelegate<>(ser) :
+			new NonReusingDeserializationDelegate<>(ser);
+		this.reusedObject = objectReuse ? inputSerializer.createInstance() : null;
 
 		// Initialize one deserializer per input channel
 		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
@@ -169,6 +176,10 @@ public class StreamInputProcessor<IN> {
 
 		while (true) {
 			if (currentRecordDeserializer != null) {
+				if (reusedObject != null){
+					deserializationDelegate.setInstance(new StreamRecord<>(reusedObject));
+				}
+
 				DeserializationResult result = currentRecordDeserializer.getNextRecord(deserializationDelegate);
 
 				if (result.isBufferConsumed()) {
@@ -194,6 +205,8 @@ public class StreamInputProcessor<IN> {
 						}
 						continue;
 					} else {
+						reusedObject = ((StreamRecord<IN>) recordOrMark).getValue();
+
 						// now we can do the actual processing
 						StreamRecord<IN> record = recordOrMark.asRecord();
 						synchronized (lock) {

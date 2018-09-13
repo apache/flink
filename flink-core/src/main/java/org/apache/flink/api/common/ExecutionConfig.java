@@ -608,8 +608,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	/**
 	 * Enables reusing objects that Flink internally uses for deserialization and passing
-	 * data to user-code functions. Keep in mind that this can lead to bugs when the
-	 * user-code function of an operation is not aware of this behaviour.
+	 * data to user-defined functions. Keep in mind that this can lead to bugs when the
+	 * user-defined function of an operation is not aware of this behaviour.
 	 */
 	public ExecutionConfig enableObjectReuse() {
 		objectReuse = true;
@@ -618,7 +618,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	/**
 	 * Disables reusing objects that Flink internally uses for deserialization and passing
-	 * data to user-code functions. @see #enableObjectReuse()
+	 * data to user-defined functions. @see #enableObjectReuse()
 	 */
 	public ExecutionConfig disableObjectReuse() {
 		objectReuse = false;
