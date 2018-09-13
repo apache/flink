@@ -20,6 +20,7 @@ package org.apache.flink.util.function;
 
 import org.apache.flink.util.ExceptionUtils;
 
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -47,6 +48,24 @@ public class FunctionUtils {
 				ExceptionUtils.rethrow(t);
 				// we need this to appease the compiler :-(
 				return null;
+			}
+		};
+	}
+
+	/**
+	 * Converts a {@link ThrowingConsumer} into a {@link Consumer} which throws checked exceptions
+	 * as unchecked.
+	 *
+	 * @param throwingConsumer to convert into a {@link Consumer}
+	 * @param <A> input type
+	 * @return {@link Consumer} which throws all checked exceptions as unchecked
+	 */
+	public static <A> Consumer<A> uncheckedConsumer(ThrowingConsumer<A, ?> throwingConsumer) {
+		return (A value) -> {
+			try {
+				throwingConsumer.accept(value);
+			} catch (Throwable t) {
+				ExceptionUtils.rethrow(t);
 			}
 		};
 	}
