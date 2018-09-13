@@ -188,17 +188,17 @@ class PipelinedSubpartition extends ResultSubpartition {
 				buffer,
 				isAvailableUnsafe(),
 				getBuffersInBacklog(),
-				_nextBufferIsEvent());
+				nextBufferIsEventUnsafe());
 		}
 	}
 
 	boolean nextBufferIsEvent() {
 		synchronized (buffers) {
-			return _nextBufferIsEvent();
+			return nextBufferIsEventUnsafe();
 		}
 	}
 
-	private boolean _nextBufferIsEvent() {
+	private boolean nextBufferIsEventUnsafe() {
 		assert Thread.holdsLock(buffers);
 
 		return !buffers.isEmpty() && !buffers.peekFirst().isBuffer();

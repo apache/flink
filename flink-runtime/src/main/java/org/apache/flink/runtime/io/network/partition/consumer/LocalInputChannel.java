@@ -57,7 +57,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	/** Task event dispatcher for backwards events. */
 	private final TaskEventDispatcher taskEventDispatcher;
 
-	/** The consumed subpartition */
+	/** The consumed subpartition. */
 	private volatile ResultSubpartitionView subpartitionView;
 
 	private volatile boolean isReleased;
@@ -245,7 +245,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	}
 
 	/**
-	 * Releases the partition reader
+	 * Releases the partition reader.
 	 */
 	@Override
 	void releaseAllResources() throws IOException {
