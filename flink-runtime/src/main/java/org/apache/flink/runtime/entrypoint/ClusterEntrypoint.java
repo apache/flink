@@ -708,6 +708,12 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			configuration.setInteger(RestOptions.PORT, restPort);
 		}
 
+		final String hostname = entrypointClusterConfiguration.getHostname();
+
+		if (hostname != null) {
+			configuration.setString(JobManagerOptions.ADDRESS, hostname);
+		}
+
 		return configuration;
 	}
 

@@ -46,7 +46,7 @@ public class EntrypointClusterConfigurationParserFactoryTest extends TestLogger 
 		final String value = "value";
 		final String arg1 = "arg1";
 		final String arg2 = "arg2";
-		final String[] args = {"--configDir", configDir, "-r", String.valueOf(restPort), String.format("-D%s=%s", key, value), arg1, arg2};
+		final String[] args = {"--configDir", configDir, "--executionMode", "cluster", "--host", "localhost",  "-r", String.valueOf(restPort), String.format("-D%s=%s", key, value), arg1, arg2};
 
 		final EntrypointClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
 
