@@ -702,7 +702,10 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			restPort = -1;
 		}
 
-		return new ClusterConfiguration(configDir, restPort);
+		final String hostKey = "host";
+		final String hostname = parameterTool.get(hostKey);
+
+		return new ClusterConfiguration(configDir, hostname, restPort);
 	}
 
 	protected static Configuration loadConfiguration(ClusterConfiguration clusterConfiguration) {
@@ -712,6 +715,12 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 
 		if (restPort >= 0) {
 			configuration.setInteger(RestOptions.PORT, restPort);
+		}
+
+		final String hostname = clusterConfiguration.getHostname();
+
+		if (hostname != null) {
+			configuration.setString(JobManagerOptions.ADDRESS, hostname);
 		}
 
 		return configuration;

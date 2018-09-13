@@ -20,6 +20,8 @@ package org.apache.flink.runtime.entrypoint;
 
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 /**
  * Configuration class which contains the parsed command line arguments for
  * the {@link ClusterEntrypoint}.
@@ -29,13 +31,22 @@ public class ClusterConfiguration {
 
 	private final int restPort;
 
-	public ClusterConfiguration(String configDir, int restPort) {
+	@Nullable
+	private final String hostname;
+
+	public ClusterConfiguration(String configDir, @Nullable String hostname, int restPort) {
 		this.configDir = Preconditions.checkNotNull(configDir);
+		this.hostname = hostname;
 		this.restPort = restPort;
 	}
 
 	public String getConfigDir() {
 		return configDir;
+	}
+
+	@Nullable
+	public String getHostname() {
+		return hostname;
 	}
 
 	public int getRestPort() {
