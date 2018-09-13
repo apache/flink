@@ -22,7 +22,7 @@ import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rex._
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.streaming.api.functions.co.CoProcessFunction
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator
 import org.apache.flink.table.api.{StreamQueryConfig, TableConfig, TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory._
 import org.apache.flink.table.codegen.GeneratedFunction
@@ -30,7 +30,7 @@ import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin
 import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin._
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.util.RexDefaultVisitor
-import org.apache.flink.table.runtime.join.TemporalJoin
+import org.apache.flink.table.runtime.join.TemporalProcessTimeJoin
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 import org.apache.flink.util.Preconditions.checkState
@@ -57,11 +57,11 @@ class DataStreamTemporalJoinToCoProcessTranslator private (
 
   override val nonEquiJoinPredicates: Option[RexNode] = Some(remainingNonEquiJoinPredicates)
 
-  override protected def createCoProcessFunction(
+  override protected def createJoinOperator(
       joinType: JoinRelType,
       queryConfig: StreamQueryConfig,
       joinFunction: GeneratedFunction[FlatJoinFunction[Row, Row, Row], Row])
-    : CoProcessFunction[CRow, CRow, CRow] = {
+    : TwoInputStreamOperator[CRow, CRow, CRow] = {
 
     if (rightTimeAttribute.isDefined) {
       throw new ValidationException(
@@ -70,7 +70,7 @@ class DataStreamTemporalJoinToCoProcessTranslator private (
 
     joinType match {
       case JoinRelType.INNER =>
-        new TemporalJoin(
+        new TemporalProcessTimeJoin(
           leftSchema.typeInfo,
           rightSchema.typeInfo,
           joinFunction.name,

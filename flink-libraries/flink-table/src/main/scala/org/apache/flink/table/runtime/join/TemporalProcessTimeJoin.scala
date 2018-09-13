@@ -20,8 +20,8 @@ package org.apache.flink.table.runtime.join
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.co.CoProcessFunction
+import org.apache.flink.streaming.api.operators.{AbstractStreamOperator, TimestampedCollector, TwoInputStreamOperator}
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.table.runtime.CRowWrappingCollector
@@ -29,15 +29,15 @@ import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
-import org.apache.flink.util.Collector
 
-class TemporalJoin(
+class TemporalProcessTimeJoin(
     leftType: TypeInformation[Row],
     rightType: TypeInformation[Row],
     genJoinFuncName: String,
     genJoinFuncCode: String,
     queryConfig: StreamQueryConfig)
-  extends CoProcessFunction[CRow, CRow, CRow]
+  extends AbstractStreamOperator[CRow]
+  with TwoInputStreamOperator[CRow, CRow, CRow]
   with Compiler[FlatJoinFunction[Row, Row, Row]]
   with Logging {
 
@@ -46,10 +46,11 @@ class TemporalJoin(
 
   protected var rightState: ValueState[Row] = _
   protected var cRowWrapper: CRowWrappingCollector = _
+  protected var collector: TimestampedCollector[CRow] = _
 
   protected var joinFunction: FlatJoinFunction[Row, Row, Row] = _
 
-  override def open(parameters: Configuration): Unit = {
+  override def open(): Unit = {
     val clazz = compile(
       getRuntimeContext.getUserCodeClassLoader,
       genJoinFuncName,
@@ -60,32 +61,27 @@ class TemporalJoin(
     val rightStateDescriptor = new ValueStateDescriptor[Row]("right", rightType)
     rightState = getRuntimeContext.getState(rightStateDescriptor)
 
+    collector = new TimestampedCollector[CRow](output)
     cRowWrapper = new CRowWrappingCollector()
+    cRowWrapper.out = collector
   }
 
-  override def processElement1(
-      value: CRow,
-      ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
-      out: Collector[CRow]): Unit = {
+  override def processElement1(element: StreamRecord[CRow]): Unit = {
 
     if (rightState.value() == null) {
       return
     }
 
-    cRowWrapper.out = out
-    cRowWrapper.setChange(value.change)
+    cRowWrapper.setChange(element.getValue.change)
 
     val rightSideRow = rightState.value()
-    joinFunction.join(value.row, rightSideRow, cRowWrapper)
+    joinFunction.join(element.getValue.row, rightSideRow, cRowWrapper)
   }
 
-  override def processElement2(
-      value: CRow,
-      ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
-      out: Collector[CRow]): Unit = {
+  override def processElement2(element: StreamRecord[CRow]): Unit = {
 
-    if (value.change) {
-      rightState.update(value.row)
+    if (element.getValue.change) {
+      rightState.update(element.getValue.row)
     } else {
       rightState.clear()
     }

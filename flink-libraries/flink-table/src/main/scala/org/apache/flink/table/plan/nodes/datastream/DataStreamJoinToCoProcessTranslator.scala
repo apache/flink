@@ -22,7 +22,8 @@ import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.streaming.api.functions.co.CoProcessFunction
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator
+import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator
 import org.apache.flink.table.api.{StreamQueryConfig, TableConfig}
 import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.plan.schema.RowSchema
@@ -58,11 +59,11 @@ class DataStreamJoinToCoProcessTranslator(
       rightSchema.projectedTypeInfo(joinInfo.rightKeys.toIntArray))
   }
 
-  def getCoProcessFunction(
+  def getJoinOperator(
       joinType: JoinRelType,
       returnFieldNames: Seq[String],
       ruleDescription: String,
-      queryConfig: StreamQueryConfig): CoProcessFunction[CRow, CRow, CRow] = {
+      queryConfig: StreamQueryConfig): TwoInputStreamOperator[CRow, CRow, CRow] = {
     // input must not be nullable, because the runtime join function will make sure
     // the code-generated function won't process null inputs
     val generator = new FunctionCodeGenerator(
@@ -97,16 +98,16 @@ class DataStreamJoinToCoProcessTranslator(
       body,
       returnType)
 
-    createCoProcessFunction(joinType, queryConfig, genFunction)
+    createJoinOperator(joinType, queryConfig, genFunction)
   }
 
-  protected def createCoProcessFunction(
+  protected def createJoinOperator(
     joinType: JoinRelType,
     queryConfig: StreamQueryConfig,
     genFunction: GeneratedFunction[FlatJoinFunction[Row, Row, Row], Row])
-    : CoProcessFunction[CRow, CRow, CRow] = {
+    : TwoInputStreamOperator[CRow, CRow, CRow] = {
 
-    joinType match {
+    val joinFunction = joinType match {
       case JoinRelType.INNER =>
         new NonWindowInnerJoin(
           leftSchema.typeInfo,
@@ -145,5 +146,6 @@ class DataStreamJoinToCoProcessTranslator(
           genFunction.code,
           queryConfig)
     }
+    new KeyedCoProcessOperator(joinFunction)
   }
 }

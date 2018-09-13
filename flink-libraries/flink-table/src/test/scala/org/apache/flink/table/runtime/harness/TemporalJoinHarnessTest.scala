@@ -27,8 +27,7 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.streaming.api.functions.co.CoProcessFunction
-import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness
 import org.apache.flink.table.api.{TableConfig, Types, ValidationException}
@@ -324,14 +323,11 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
   def createTestHarness(temporalJoinInfo: TemporalJoinInfo)
     : KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow] = {
 
-    val (leftKeySelector, rightKeySelector, joinCoProcessFunction) =
+    val (leftKeySelector, rightKeySelector, joinOperator) =
       translateJoin(temporalJoinInfo)
 
-    val operator: KeyedCoProcessOperator[String, CRow, CRow, CRow] =
-      new KeyedCoProcessOperator[String, CRow, CRow, CRow](joinCoProcessFunction)
-
     new KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow](
-      operator,
+      joinOperator,
       leftKeySelector.asInstanceOf[KeySelector[CRow, String]],
       rightKeySelector.asInstanceOf[KeySelector[CRow, String]],
       BasicTypeInfo.STRING_TYPE_INFO,
@@ -341,7 +337,7 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
   }
 
   def translateJoin(joinInfo: TemporalJoinInfo, joinRelType: JoinRelType = JoinRelType.INNER)
-    : (CRowKeySelector, CRowKeySelector, CoProcessFunction[CRow, CRow, CRow]) = {
+    : (CRowKeySelector, CRowKeySelector, TwoInputStreamOperator[CRow, CRow, CRow]) = {
 
     val leftType = joinInfo.leftRowType
     val rightType = joinInfo.rightRowType
@@ -358,7 +354,7 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
       joinInfo,
       rexBuilder)
 
-    val joinCoProcessFunction = joinTranslator.getCoProcessFunction(
+    val joinOperator = joinTranslator.getJoinOperator(
       joinRelType,
       joinType.getFieldNames,
       "TemporalJoin",
@@ -366,7 +362,7 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
 
     (joinTranslator.getLeftKeySelector(),
       joinTranslator.getRightKeySelector(),
-      joinCoProcessFunction)
+      joinOperator)
   }
 
   abstract class TemporalJoinInfo(
