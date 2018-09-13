@@ -75,12 +75,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the {@link LocalInputChannel}.
+ */
 public class LocalInputChannelTest {
 
 	/**
 	 * Tests the consumption of multiple subpartitions via local input channels.
 	 *
-	 * <p> Multiple producer tasks produce pipelined partitions, which are consumed by multiple
+	 * <p>Multiple producer tasks produce pipelined partitions, which are consumed by multiple
 	 * tasks via local input channels.
 	 */
 	@Test
@@ -266,20 +269,22 @@ public class LocalInputChannelTest {
 	 * Verifies that concurrent release via the SingleInputGate and re-triggering
 	 * of a partition request works smoothly.
 	 *
-	 * - SingleInputGate acquires its request lock and tries to release all
+	 * <ul>
+	 * <li>SingleInputGate acquires its request lock and tries to release all
 	 * registered channels. When releasing a channel, it needs to acquire
-	 * the channel's shared request-release lock.
-	 * - If a LocalInputChannel concurrently retriggers a partition request via
+	 * the channel's shared request-release lock.</li>
+	 * <li>If a LocalInputChannel concurrently retriggers a partition request via
 	 * a Timer Thread it acquires the channel's request-release lock and calls
 	 * the retrigger callback on the SingleInputGate, which again tries to
-	 * acquire the gate's request lock.
+	 * acquire the gate's request lock.</li>
+	 * </ul>
 	 *
-	 * For certain timings this obviously leads to a deadlock. This test reliably
+	 * <p>For certain timings this obviously leads to a deadlock. This test reliably
 	 * reproduced such a timing (reported in FLINK-5228). This test is pretty much
 	 * testing the buggy implementation and has not much more general value. If it
 	 * becomes obsolete at some point (future greatness ;)), feel free to remove it.
 	 *
-	 * The fix in the end was to to not acquire the channels lock when releasing it
+	 * <p>The fix in the end was to to not acquire the channels lock when releasing it
 	 * and/or not doing any input gate callbacks while holding the channel's lock.
 	 * I decided to do both.
 	 */
