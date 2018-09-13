@@ -22,12 +22,12 @@ import java.sql.{Date, Time, Timestamp}
 
 import org.apache.calcite.avatica.util.DateTimeUtils._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.table.api.{TableException, CurrentRow, CurrentRange, UnboundedRow, UnboundedRange}
+import org.apache.flink.table.api.{CurrentRange, CurrentRow, TableException, UnboundedRange, UnboundedRow}
 import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
 import org.apache.flink.table.api.Table
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.{AggregateFunction, DistinctAggregateFunction}
 
 import scala.language.implicitConversions
 
@@ -214,7 +214,7 @@ trait ImplicitExpressionOperations {
   def varSamp = VarSamp(expr)
 
   /**
-    *  Returns multiset aggregate of a given expression.
+    * Returns multiset aggregate of a given expression.
     */
   def collect = Collect(expr)
 
@@ -998,6 +998,10 @@ trait ImplicitExpressionConversions {
   implicit def array2ArrayConstructor(array: Array[_]): Expression = convertArray(array)
   implicit def userDefinedAggFunctionConstructor[T: TypeInformation, ACC: TypeInformation]
       (udagg: AggregateFunction[T, ACC]): UDAGGExpression[T, ACC] = UDAGGExpression(udagg)
+  implicit def toDistinct(agg: Aggregation): DistinctAgg = DistinctAgg(agg)
+  implicit def toDistinct[T: TypeInformation, ACC: TypeInformation]
+      (agg: AggregateFunction[T, ACC]): DistinctAggregateFunction[T, ACC] =
+    DistinctAggregateFunction(agg)
 }
 
 // ------------------------------------------------------------------------------------------------
