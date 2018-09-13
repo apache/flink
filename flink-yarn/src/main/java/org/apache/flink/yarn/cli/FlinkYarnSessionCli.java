@@ -530,17 +530,14 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	private boolean isYarnPropertiesFileMode(CommandLine commandLine) {
 		boolean canApplyYarnProperties = !commandLine.hasOption(addressOption.getOpt());
 
-		// if canApplyYarnProperties is false,return quickly !
-		if (!canApplyYarnProperties) {
-			return canApplyYarnProperties;
-		}
-
-		for (Option option : commandLine.getOptions()) {
-			if (allOptions.hasOption(option.getOpt())) {
-				if (!isDetachedOption(option)) {
-					// don't resume from properties file if yarn options have been specified
-					canApplyYarnProperties = false;
-					break;
+		if (canApplyYarnProperties) {
+			for (Option option : commandLine.getOptions()) {
+				if (allOptions.hasOption(option.getOpt())) {
+					if (!isDetachedOption(option)) {
+						// don't resume from properties file if yarn options have been specified
+						canApplyYarnProperties = false;
+						break;
+					}
 				}
 			}
 		}
