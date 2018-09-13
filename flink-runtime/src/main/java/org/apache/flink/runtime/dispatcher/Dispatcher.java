@@ -64,8 +64,9 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.BiFunctionWithException;
-import org.apache.flink.util.function.ConsumerWithException;
 import org.apache.flink.util.function.FunctionUtils;
+import org.apache.flink.util.function.ThrowingConsumer;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -849,7 +850,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		}
 	}
 
-	private CompletableFuture<Void> waitForTerminatingJobManager(JobID jobId, JobGraph jobGraph, ConsumerWithException<JobGraph, ?> action) {
+	private CompletableFuture<Void> waitForTerminatingJobManager(JobID jobId, JobGraph jobGraph, ThrowingConsumer<JobGraph, ?> action) {
 		final CompletableFuture<Void> jobManagerTerminationFuture = getJobTerminationFuture(jobId)
 			.exceptionally((Throwable throwable) -> {
 				throw new CompletionException(
@@ -858,10 +859,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 						throwable)); });
 
 		return jobManagerTerminationFuture.thenRunAsync(
-			() -> {
+			ThrowingRunnable.unchecked(() -> {
 				jobManagerTerminationFutures.remove(jobId);
 				action.accept(jobGraph);
-			},
+			}),
 			getMainThreadExecutor());
 	}
 
@@ -934,11 +935,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 					final CompletableFuture<Void> submissionFuture = recoveredJob.thenComposeAsync(
 						(Optional<JobGraph> jobGraphOptional) -> jobGraphOptional.map(
 							FunctionUtils.uncheckedFunction(jobGraph -> tryRunRecoveredJobGraph(jobGraph, dispatcherId).thenAcceptAsync(
-								(ConsumerWithException<Boolean, Exception>) (Boolean isRecoveredJobRunning) -> {
+								FunctionUtils.uncheckedConsumer((Boolean isRecoveredJobRunning) -> {
 										if (!isRecoveredJobRunning) {
 											submittedJobGraphStore.releaseJobGraph(jobId);
 										}
-									},
+									}),
 									getRpcService().getExecutor())))
 							.orElse(CompletableFuture.completedFuture(null)),
 						getUnfencedMainThreadExecutor());
