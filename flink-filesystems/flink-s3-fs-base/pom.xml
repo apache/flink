@@ -155,6 +155,12 @@ under the License.
 									<pattern>com.google</pattern>
 									<shadedPattern>org.apache.flink.fs.s3base.shaded.com.google</shadedPattern>
 								</relocation>
+
+								<!-- shade Flink's Hadoop FS adapter classes  -->
+								<relocation>
+									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
+									<shadedPattern>org.apache.flink.fs.s3.common.hadoop</shadedPattern>
+								</relocation>
 							</relocations>
 							<filters>
 								<filter>

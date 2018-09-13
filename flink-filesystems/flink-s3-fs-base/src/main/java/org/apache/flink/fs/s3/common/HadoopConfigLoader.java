@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.fs.hdfs;
+package org.apache.flink.fs.s3.common;
 
 import org.apache.flink.configuration.Configuration;
 
@@ -27,8 +27,11 @@ import javax.annotation.Nonnull;
 
 import java.util.Set;
 
-/** This class lazily loads hadoop configuration from resettable Flink's configuration. */
+/**
+ * This class lazily loads hadoop configuration from resettable Flink's configuration.
+ */
 public class HadoopConfigLoader {
+
 	private static final Logger LOG = LoggerFactory.getLogger(HadoopConfigLoader.class);
 
 	/** The prefixes that Flink adds to the Hadoop fs config. */
@@ -80,7 +83,7 @@ public class HadoopConfigLoader {
 			}
 			else {
 				LOG.warn("Flink configuration is not set prior to loading this configuration."
-					+ " Using Hadoop configuration from the classpath.");
+					+ " Cannot forward configuration keys from Flink configuration.");
 				hadoopConfig = new org.apache.hadoop.conf.Configuration();
 			}
 		}

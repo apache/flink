@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.fs.hdfs;
+package org.apache.flink.fs.s3.common;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
@@ -29,15 +29,16 @@ import java.io.IOException;
 import java.net.URI;
 
 /** Base class for Hadoop file system factories. */
-public abstract class AbstractFileSystemFactory implements FileSystemFactory {
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractFileSystemFactory.class);
+public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
+
+	private static final Logger LOG = LoggerFactory.getLogger(AbstractS3FileSystemFactory.class);
 
 	/** Name of this factory for logging. */
 	private final String name;
 
 	private final HadoopConfigLoader hadoopConfigLoader;
 
-	protected AbstractFileSystemFactory(String name, HadoopConfigLoader hadoopConfigLoader) {
+	protected AbstractS3FileSystemFactory(String name, HadoopConfigLoader hadoopConfigLoader) {
 		this.name = name;
 		this.hadoopConfigLoader = hadoopConfigLoader;
 	}
@@ -49,13 +50,14 @@ public abstract class AbstractFileSystemFactory implements FileSystemFactory {
 
 	@Override
 	public FileSystem create(URI fsUri) throws IOException {
-		LOG.debug("Creating Hadoop file system (backed by " + name + ")");
-		LOG.debug("Loading Hadoop configuration for " + name);
+		LOG.debug("Creating S3 file system backed by {}", name);
+		LOG.debug("Loading Hadoop configuration for {}", name);
+
 		try {
 			org.apache.hadoop.conf.Configuration hadoopConfig = hadoopConfigLoader.getOrLoadHadoopConfig();
 			org.apache.hadoop.fs.FileSystem fs = createHadoopFileSystem();
 			fs.initialize(getInitURI(fsUri, hadoopConfig), hadoopConfig);
-			return new HadoopFileSystem(fs);
+			return new FlinkS3FileSystem(fs);
 		} catch (IOException ioe) {
 			throw ioe;
 		} catch (Exception e) {
