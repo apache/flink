@@ -28,7 +28,6 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -37,11 +36,9 @@ import java.util.Set;
 public class S3FileSystemFactory extends AbstractFileSystemFactory {
 	private static final Logger LOG = LoggerFactory.getLogger(S3FileSystemFactory.class);
 
-	private static final Set<String> PACKAGE_PREFIXES_TO_SHADE =
-		new HashSet<>(Collections.singletonList("com.amazonaws."));
+	private static final Set<String> PACKAGE_PREFIXES_TO_SHADE = Collections.singleton("com.amazonaws.");
 
-	private static final Set<String> CONFIG_KEYS_TO_SHADE =
-		Collections.unmodifiableSet(new HashSet<>(Collections.singleton("fs.s3a.aws.credentials.provider")));
+	private static final Set<String> CONFIG_KEYS_TO_SHADE = Collections.singleton("fs.s3a.aws.credentials.provider");
 
 	private static final String FLINK_SHADING_PREFIX = "org.apache.flink.fs.s3hadoop.shaded.";
 
