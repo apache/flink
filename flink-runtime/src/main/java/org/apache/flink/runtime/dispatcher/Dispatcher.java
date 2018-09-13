@@ -805,7 +805,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 				final CompletableFuture<Void> confirmationFuture = fencingTokenFuture.thenCombineAsync(
 					recoveredJobsFuture,
-					(BiFunctionWithException<Boolean, Collection<JobGraph>, Void, Exception>) (Boolean confirmLeadership, Collection<JobGraph> recoveredJobs) -> {
+					BiFunctionWithException.unchecked((Boolean confirmLeadership, Collection<JobGraph> recoveredJobs) -> {
 						if (confirmLeadership) {
 							leaderElectionService.confirmLeaderSessionID(newLeaderSessionID);
 						} else {
@@ -814,7 +814,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 							}
 						}
 						return null;
-					},
+					}),
 					getRpcService().getExecutor());
 
 				confirmationFuture.whenComplete(

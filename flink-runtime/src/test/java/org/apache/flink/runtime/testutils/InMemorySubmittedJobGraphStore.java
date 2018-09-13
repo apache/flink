@@ -76,7 +76,7 @@ public class InMemorySubmittedJobGraphStore implements SubmittedJobGraphStore {
 		verifyIsStarted();
 
 		if (recoverJobGraphFunction != null) {
-			return recoverJobGraphFunction.applyWithException(jobId, storedJobs);
+			return recoverJobGraphFunction.apply(jobId, storedJobs);
 		} else {
 			return requireNonNull(
 				storedJobs.get(jobId),
