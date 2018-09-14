@@ -154,7 +154,7 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 
 			final TestingDispatcher dispatcher = createDispatcher(
 				testingHighAvailabilityServices,
-				new TestingJobManagerRunnerFactory(new CompletableFuture<>(), new CompletableFuture<>()));
+				new TestingJobManagerRunnerFactory(new CompletableFuture<>(), new CompletableFuture<>(), CompletableFuture.completedFuture(null)));
 
 			dispatcher.start();
 
@@ -223,11 +223,11 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 			final CompletableFuture<ArchivedExecutionGraph> resultFuture = new CompletableFuture<>();
 			final TestingDispatcher dispatcher1 = createDispatcher(
 				haServices1,
-				new TestingJobManagerRunnerFactory(jobGraphFuture, resultFuture));
+				new TestingJobManagerRunnerFactory(jobGraphFuture, resultFuture, CompletableFuture.completedFuture(null)));
 
 			final TestingDispatcher dispatcher2 = createDispatcher(
 				haServices2,
-				new TestingJobManagerRunnerFactory(new CompletableFuture<>(), new CompletableFuture<>()));
+				new TestingJobManagerRunnerFactory(new CompletableFuture<>(), new CompletableFuture<>(), CompletableFuture.completedFuture(null)));
 
 			try {
 				dispatcher1.start();
@@ -285,11 +285,11 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 				final CompletableFuture<JobGraph> jobGraphFuture1 = new CompletableFuture<>();
 				dispatcher1 = createDispatcher(
 					haServices,
-					new TestingJobManagerRunnerFactory(jobGraphFuture1, new CompletableFuture<>()));
+					new TestingJobManagerRunnerFactory(jobGraphFuture1, new CompletableFuture<>(), CompletableFuture.completedFuture(null)));
 				final CompletableFuture<JobGraph> jobGraphFuture2 = new CompletableFuture<>();
 				dispatcher2 = createDispatcher(
 					haServices,
-					new TestingJobManagerRunnerFactory(jobGraphFuture2, new CompletableFuture<>()));
+					new TestingJobManagerRunnerFactory(jobGraphFuture2, new CompletableFuture<>(), CompletableFuture.completedFuture(null)));
 
 				dispatcher1.start();
 				dispatcher2.start();
