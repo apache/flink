@@ -2519,4 +2519,42 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f21 IS NOT FALSE",
       "true")
   }
+  @Test
+  def testCosh(): Unit = {
+    testAllApis(
+      'f2.cosh(),
+      "f2.cosh()",
+      "COSH(f2)",
+      math.cosh(42.toByte).toString)
+
+    testAllApis(
+      'f3.cosh(),
+      "f3.cosh()",
+      "COSH(f3)",
+      math.cosh(43.toShort).toString)
+
+    testAllApis(
+      'f4.cosh(),
+      "f4.cosh()",
+      "COSH(f4)",
+      math.cosh(44.toLong).toString)
+
+    testAllApis(
+      'f5.cosh(),
+      "f5.cosh()",
+      "COSH(f5)",
+      math.cosh(4.5.toFloat).toString)
+
+    testAllApis(
+      'f6.cosh(),
+      "f6.cosh()",
+      "COSH(f6)",
+      math.cosh(4.6).toString)
+
+    testAllApis(
+      'f15.cosh(),
+      "cosh(f15)",
+      "COSH(f15)",
+      math.cosh(-1231.1231231321321321111).toString)
+  }
 }

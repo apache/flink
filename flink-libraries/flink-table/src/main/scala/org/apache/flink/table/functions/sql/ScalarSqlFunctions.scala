@@ -230,4 +230,11 @@ object ScalarSqlFunctions {
     OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
     SqlFunctionCategory.STRING)
 
+  val COSH = new SqlFunction(
+    "COSH",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.DOUBLE_NULLABLE,
+    null,
+    OperandTypes.NUMERIC,
+    SqlFunctionCategory.NUMERIC)
 }

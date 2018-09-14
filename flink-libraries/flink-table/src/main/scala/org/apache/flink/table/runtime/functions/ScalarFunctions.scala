@@ -238,4 +238,10 @@ object ScalarFunctions {
     */
   def repeat(base: String, n: Int): String = StringUtils.repeat(base, n)
 
+  /**
+    * Returns the hyperbolic cosine "x".
+    */
+  def cosh(x: JBigDecimal): Double = {
+    Math.cosh(x.doubleValue())
+  }
 }
