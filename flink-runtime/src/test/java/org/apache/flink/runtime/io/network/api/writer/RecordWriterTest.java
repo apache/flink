@@ -426,7 +426,9 @@ public class RecordWriterTest {
 
 		final TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(Integer.MAX_VALUE, bufferSize);
 		final ResultPartitionWriter partitionWriter = new CollectingPartitionWriter(queues, bufferProvider);
-		final RecordWriter<SerializationTestType> writer = new RecordWriter<>(partitionWriter, new Broadcast<>());
+		final RecordWriter<SerializationTestType> writer = isBroadcastEmit ?
+			new RecordWriter<>(partitionWriter) :
+			new RecordWriter<>(partitionWriter, new Broadcast<>());
 		final RecordDeserializer<SerializationTestType> deserializer = new SpillingAdaptiveSpanningRecordDeserializer<>(
 			new String[]{ tempFolder.getRoot().getAbsolutePath() });
 

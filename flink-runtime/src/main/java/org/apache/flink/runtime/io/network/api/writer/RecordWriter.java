@@ -149,14 +149,15 @@ public class RecordWriter<T extends IOReadableWritable> {
 		BufferBuilder bufferBuilder = getBufferBuilder(targetChannel);
 		SerializationResult result = serializer.copyToBufferBuilder(bufferBuilder);
 		while (result.isFullBuffer()) {
-			tryFinishCurrentBufferBuilder(targetChannel);
+			numBytesOut.inc(bufferBuilder.finish());
+			numBuffersOut.inc();
 
-			// If this was a full record, we are done. Not breaking
-			// out of the loop at this point will lead to another
-			// buffer request before breaking out (that would not be
-			// a problem per se, but it can lead to stalls in the pipeline).
+			// If this was a full record, we are done. Not breaking out of the loop at this point
+			// will lead to another buffer request before breaking out (that would not be a
+			// problem per se, but it can lead to stalls in the pipeline).
 			if (result.isFullRecord()) {
 				pruneTriggered = true;
+				bufferBuilders[targetChannel] = Optional.empty();
 				break;
 			}
 
@@ -230,7 +231,8 @@ public class RecordWriter<T extends IOReadableWritable> {
 	}
 
 	private BufferBuilder requestNewBufferBuilder(int targetChannel) throws IOException, InterruptedException {
-		checkState(!bufferBuilders[targetChannel].isPresent());
+		checkState(!bufferBuilders[targetChannel].isPresent() || bufferBuilders[targetChannel].get().isFinished());
+
 		BufferBuilder bufferBuilder = targetPartition.getBufferProvider().requestBufferBuilderBlocking();
 		bufferBuilders[targetChannel] = Optional.of(bufferBuilder);
 		targetPartition.addBufferConsumer(bufferBuilder.createBufferConsumer(), targetChannel);
