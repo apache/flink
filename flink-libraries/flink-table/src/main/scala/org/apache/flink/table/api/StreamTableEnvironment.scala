@@ -126,7 +126,7 @@ abstract class StreamTableEnvironment(
         }
 
         // register
-        Option(getTable(name)) match {
+        getTable(name) match {
 
           // check if a table (source or sink) is registered
           case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
@@ -273,7 +273,7 @@ abstract class StreamTableEnvironment(
       case _: StreamTableSink[_] =>
 
         // check if a table (source or sink) is registered
-        Option(getTable(name)) match {
+        getTable(name) match {
 
           // table source and/or sink is registered
           case Some(table: TableSourceSinkTable[_, _]) => table.tableSinkTable match {

@@ -129,16 +129,39 @@ object CommonTestData {
       externalTableBuilder2.inAppendMode()
     }
 
+    val tempFilePath3 = writeToTempFile("", "csv-test3", "tmp")
+    val connDesc3 = FileSystem().path(tempFilePath3)
+    val formatDesc3 = Csv()
+      .field("x", Types.INT)
+      .field("y", Types.LONG)
+      .field("z", Types.STRING)
+      .fieldDelimiter("#")
+    val schemaDesc3 = Schema()
+      .field("x", Types.INT)
+      .field("y", Types.LONG)
+      .field("z", Types.STRING)
+    val externalTableBuilder3 = ExternalCatalogTable.builder(connDesc3)
+      .withFormat(formatDesc3)
+      .withSchema(schemaDesc3)
+
+    if (isStreaming) {
+      externalTableBuilder3.inAppendMode()
+    }
+
     val catalog = new InMemoryExternalCatalog("test")
     val db1 = new InMemoryExternalCatalog("db1")
     val db2 = new InMemoryExternalCatalog("db2")
+    val db3 = new InMemoryExternalCatalog("db3")
     catalog.createSubCatalog("db1", db1, ignoreIfExists = false)
     catalog.createSubCatalog("db2", db2, ignoreIfExists = false)
+    catalog.createSubCatalog("db3", db3, ignoreIfExists = false)
 
     // Register the table with both catalogs
     catalog.createTable("tb1", externalTableBuilder1.asTableSource(), ignoreIfExists = false)
+    catalog.createTable("tb3", externalTableBuilder3.asTableSink(), ignoreIfExists = false)
     db1.createTable("tb1", externalTableBuilder1.asTableSource(), ignoreIfExists = false)
     db2.createTable("tb2", externalTableBuilder2.asTableSource(), ignoreIfExists = false)
+    db3.createTable("tb3", externalTableBuilder3.asTableSink(), ignoreIfExists = false)
     catalog
   }
 

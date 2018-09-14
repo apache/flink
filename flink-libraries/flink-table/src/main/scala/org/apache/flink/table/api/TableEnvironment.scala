@@ -28,7 +28,6 @@ import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
 import org.apache.calcite.plan.{RelOptPlanner, RelOptUtil, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql._
@@ -749,42 +748,42 @@ abstract class TableEnvironment(val config: TableConfig) {
     // check that sink table exists
     if (null == sinkTableName) throw TableException("Name of TableSink must not be null.")
     if (sinkTableName.isEmpty) throw TableException("Name of TableSink must not be empty.")
-    if (!isRegistered(sinkTableName)) {
-      throw TableException(s"No table was registered under the name $sinkTableName.")
-    }
 
     getTable(sinkTableName) match {
 
-      // check for registered table that wraps a sink
-      case s: TableSourceSinkTable[_, _] if s.tableSinkTable.isDefined =>
+      case None =>
+        throw TableException(s"No table was registered under the name $sinkTableName.")
+
+      case Some(s: TableSourceSinkTable[_, _]) if s.tableSinkTable.isDefined =>
         val tableSink = s.tableSinkTable.get.tableSink
         // validate schema of source table and table sink
         val srcFieldTypes = table.getSchema.getTypes
         val sinkFieldTypes = tableSink.getFieldTypes
 
         if (srcFieldTypes.length != sinkFieldTypes.length ||
-          srcFieldTypes.zip(sinkFieldTypes).exists{case (srcF, snkF) => srcF != snkF}) {
+          srcFieldTypes.zip(sinkFieldTypes).exists { case (srcF, snkF) => srcF != snkF }) {
 
           val srcFieldNames = table.getSchema.getColumnNames
           val sinkFieldNames = tableSink.getFieldNames
 
           // format table and table sink schema strings
           val srcSchema = srcFieldNames.zip(srcFieldTypes)
-            .map{case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}"}
+            .map { case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}" }
             .mkString("[", ", ", "]")
           val sinkSchema = sinkFieldNames.zip(sinkFieldTypes)
-            .map{case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}"}
+            .map { case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}" }
             .mkString("[", ", ", "]")
 
           throw ValidationException(
-            s"Field types of query result and registered TableSink $sinkTableName do not match.\n" +
+            s"Field types of query result and registered TableSink " +
+              s"$sinkTableName do not match.\n" +
               s"Query result schema: $srcSchema\n" +
               s"TableSink schema:    $sinkSchema")
         }
-
         // emit the table to the configured table sink
         writeToSink(table, tableSink, conf)
-      case _ =>
+
+      case Some(_) =>
         throw TableException(s"The table registered as $sinkTableName is not a TableSink. " +
           s"You can only emit query results to a registered TableSink.")
     }
@@ -828,12 +827,39 @@ abstract class TableEnvironment(val config: TableConfig) {
     rootSchema.getTableNames.contains(name)
   }
 
-  protected def getTable(name: String): org.apache.calcite.schema.Table = {
-    rootSchema.getTable(name)
-  }
+  /**
+    * Get a table from either internal or external catalogs.
+    *
+    * @param name The name of the table.
+    * @return The table registered either internally or externally, None otherwise.
+    */
+  protected def getTable(name: String): Option[org.apache.calcite.schema.Table] = {
 
-  protected def getRowType(name: String): RelDataType = {
-    rootSchema.getTable(name).getRowType(typeFactory)
+    // recursively fetches a table from a schema.
+    def getTableFromSchema(
+        schema: SchemaPlus,
+        path: List[String]): Option[org.apache.calcite.schema.Table] = {
+
+      path match {
+        case tableName :: Nil =>
+          // look up table
+          Option(schema.getTable(tableName))
+        case subschemaName :: remain =>
+          // look up subschema
+          val subschema = Option(schema.getSubSchema(subschemaName))
+          subschema match {
+            case Some(s) =>
+              // search for table in subschema
+              getTableFromSchema(s, remain)
+            case None =>
+              // subschema does not exist
+              None
+          }
+      }
+    }
+
+    val pathNames = name.split('.').toList
+    getTableFromSchema(rootSchema, pathNames)
   }
 
   /** Returns a unique temporary attribute name. */
