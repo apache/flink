@@ -258,17 +258,18 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 			return persistAndRunFuture.exceptionally(
 				(Throwable throwable) -> {
-					log.error("Failed to submit job {}.", jobId, throwable);
+					final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
+					log.error("Failed to submit job {}.", jobId, strippedThrowable);
 					throw new CompletionException(
-						new JobSubmissionException(jobId, "Failed to submit job.", throwable));
+						new JobSubmissionException(jobId, "Failed to submit job.", strippedThrowable));
 				});
 		}
 	}
 
-	private CompletableFuture<?> persistAndRunJob(JobGraph jobGraph) throws Exception {
+	private CompletableFuture<Void> persistAndRunJob(JobGraph jobGraph) throws Exception {
 		submittedJobGraphStore.putJobGraph(new SubmittedJobGraph(jobGraph, null));
 
-		final CompletableFuture<?> runJobFuture = runJob(jobGraph);
+		final CompletableFuture<Void> runJobFuture = runJob(jobGraph);
 
 		return runJobFuture.whenComplete(BiConsumerWithException.unchecked((Object ignored, Throwable throwable) -> {
 			if (throwable != null) {
@@ -277,18 +278,22 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		}));
 	}
 
-	private CompletableFuture<?> runJob(JobGraph jobGraph) {
+	private CompletableFuture<Void> runJob(JobGraph jobGraph) {
 		Preconditions.checkState(!jobManagerRunnerFutures.containsKey(jobGraph.getJobID()));
 
 		final CompletableFuture<JobManagerRunner> jobManagerRunnerFuture = createJobManagerRunner(jobGraph);
 
 		jobManagerRunnerFutures.put(jobGraph.getJobID(), jobManagerRunnerFuture);
 
-		return jobManagerRunnerFuture.whenCompleteAsync((ignored, throwable) -> {
-			if (throwable != null) {
-				jobManagerRunnerFutures.remove(jobGraph.getJobID());
-			}
-		}, getMainThreadExecutor());
+		return jobManagerRunnerFuture
+			.thenApply(FunctionUtils.nullFn())
+			.whenCompleteAsync(
+				(ignored, throwable) -> {
+					if (throwable != null) {
+						jobManagerRunnerFutures.remove(jobGraph.getJobID());
+					}
+				},
+				getMainThreadExecutor());
 	}
 
 	private CompletableFuture<JobManagerRunner> createJobManagerRunner(JobGraph jobGraph) {
@@ -862,7 +867,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		}
 	}
 
-	private CompletableFuture<?> waitForTerminatingJobManager(JobID jobId, JobGraph jobGraph, FunctionWithException<JobGraph, CompletableFuture<?>, ?> action) {
+	private CompletableFuture<Void> waitForTerminatingJobManager(JobID jobId, JobGraph jobGraph, FunctionWithException<JobGraph, CompletableFuture<Void>, ?> action) {
 		final CompletableFuture<Void> jobManagerTerminationFuture = getJobTerminationFuture(jobId)
 			.exceptionally((Throwable throwable) -> {
 				throw new CompletionException(
