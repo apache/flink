@@ -74,6 +74,7 @@ import java.util.Set;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.collection.IsIn.isIn;
 import static org.hamcrest.collection.IsMapContaining.hasKey;
 import static org.hamcrest.core.IsNot.not;
@@ -465,6 +466,101 @@ public class FlinkKafkaConsumerBaseTest {
 	}
 
 	@Test
+	public void testTopicChangeAfterRestore() throws Exception {
+
+		int parallelism = 2;
+		int numPartitions = 5;
+		String initialTopicName = "initial-topic";
+		String newTopicName = "new-topic";
+
+		// -----------------------------------------------------------------------------------------
+		// initial kafka consumer
+
+		List<KafkaTopicPartition> mockFetchedPartitionsOnStartup = new ArrayList<>();
+		for (int i = 0; i < numPartitions; i++) {
+			mockFetchedPartitionsOnStartup.add(new KafkaTopicPartition(initialTopicName, i));
+		}
+
+		DummyFlinkKafkaConsumer<String>[] consumers = new DummyFlinkKafkaConsumer[parallelism];
+		AbstractStreamOperatorTestHarness<String>[] testHarnesses = new AbstractStreamOperatorTestHarness[parallelism];
+
+		//create consumers and emulate partitions discovering
+		for (int i = 0; i < parallelism; i++) {
+			TestPartitionDiscoverer partitionDiscoverer = new TestPartitionDiscoverer(
+				new KafkaTopicsDescriptor(Collections.singletonList(initialTopicName), null),
+				i,
+				parallelism,
+				TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList(initialTopicName)),
+				TestPartitionDiscoverer.createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(mockFetchedPartitionsOnStartup));
+
+			consumers[i] = new DummyFlinkKafkaConsumer<>(mock(AbstractFetcher.class), partitionDiscoverer, false);
+			testHarnesses[i] = createTestHarness(consumers[i], parallelism, i);
+
+			// initializeState() is always called, null signals that we didn't restore
+			testHarnesses[i].initializeState(null);
+			testHarnesses[i].open();
+		}
+
+		//gather operators state
+		OperatorSubtaskState[] state = new OperatorSubtaskState[parallelism];
+		for (int i = 0; i < parallelism; i++) {
+			state[i] = testHarnesses[i].snapshot(0, 0);
+		}
+
+		OperatorSubtaskState mergedState = AbstractStreamOperatorTestHarness.repackageState(state);
+
+		// -----------------------------------------------------------------------------------------
+		// restore
+
+		List<KafkaTopicPartition> mockFetchedPartitionsAfterRestore = new ArrayList<>();
+		for (int i = 0; i < numPartitions; i++) {
+			//change topic name after restore
+			mockFetchedPartitionsAfterRestore.add(new KafkaTopicPartition(newTopicName, i));
+		}
+
+		DummyFlinkKafkaConsumer<String>[] restoredConsumers =
+			new DummyFlinkKafkaConsumer[parallelism];
+
+		AbstractStreamOperatorTestHarness<String>[] restoredTestHarnesses =
+			new AbstractStreamOperatorTestHarness[parallelism];
+
+		// run discovery with new topic name
+		for (int i = 0; i < parallelism; i++) {
+			TestPartitionDiscoverer partitionDiscoverer = new TestPartitionDiscoverer(
+				new KafkaTopicsDescriptor(Collections.singletonList(newTopicName), null),
+				i,
+				parallelism,
+				TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList(newTopicName)),
+				TestPartitionDiscoverer.createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(mockFetchedPartitionsAfterRestore));
+
+			restoredConsumers[i] = new DummyFlinkKafkaConsumer<>(mock(AbstractFetcher.class), partitionDiscoverer, false);
+			restoredTestHarnesses[i] = createTestHarness(restoredConsumers[i], parallelism, i);
+
+			restoredTestHarnesses[i].initializeState(mergedState);
+			restoredTestHarnesses[i].open();
+		}
+
+		Map<KafkaTopicPartition, Long> restoredGlobalSubscribedPartitions = new HashMap<>();
+		Set<String> topicNames = new HashSet<>();
+
+		for (DummyFlinkKafkaConsumer<String> restoredConsumer: restoredConsumers) {
+			Map<KafkaTopicPartition, Long> subscribedPartitions =
+				restoredConsumer.getSubscribedPartitionsToStartOffsets();
+
+			// make sure that no one else is subscribed to these partitions
+			for (KafkaTopicPartition partition : subscribedPartitions.keySet()) {
+				assertThat(restoredGlobalSubscribedPartitions, not(hasKey(partition)));
+				topicNames.add(partition.getTopic());
+			}
+			restoredGlobalSubscribedPartitions.putAll(subscribedPartitions);
+		}
+
+		assertThat(restoredGlobalSubscribedPartitions.values(), hasSize(2 * numPartitions));
+		assertThat(topicNames, hasSize(2));
+		assertThat(topicNames, containsInAnyOrder(initialTopicName, newTopicName));
+	}
+
+	@Test
 	public void testScaleUp() throws Exception {
 		testRescaling(5, 2, 8, 30);
 	}
@@ -568,7 +664,6 @@ public class FlinkKafkaConsumerBaseTest {
 			restoredConsumers[i] = new DummyFlinkKafkaConsumer<>(mock(AbstractFetcher.class), partitionDiscoverer, false);
 			restoredTestHarnesses[i] = createTestHarness(restoredConsumers[i], restoredParallelism, i);
 
-			// initializeState() is always called, null signals that we didn't restore
 			restoredTestHarnesses[i].initializeState(mergedState);
 			restoredTestHarnesses[i].open();
 		}
