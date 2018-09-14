@@ -820,20 +820,59 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   /**
     * Checks if a table is registered under the given name.
+    * Internal and external catalogs are both checked.
     *
     * @param name The table name to check.
     * @return true, if a table is registered under the name, false otherwise.
     */
   protected[flink] def isRegistered(name: String): Boolean = {
-    rootSchema.getTableNames.contains(name)
+    var isRegistered = rootSchema.getTableNames.contains(name)
+
+    // check if the table exists in external catalogs
+    if (!isRegistered) {
+      val (externalSchema, externalTableName) = resolveExternalTable(name)
+      if (externalSchema != null) {
+        isRegistered = externalSchema.getTableNames.contains(externalTableName)
+      }
+    }
+
+    return isRegistered
   }
 
   protected def getTable(name: String): org.apache.calcite.schema.Table = {
-    rootSchema.getTable(name)
+    var table = rootSchema.getTable(name)
+
+    // check if the table exists in external catalogs
+    if (table == null) {
+      val (externalSchema, externalTableName) = resolveExternalTable(name)
+      if (externalSchema != null) {
+        table = externalSchema.getTable(externalTableName)
+      }
+    }
+
+    return table
   }
 
   protected def getRowType(name: String): RelDataType = {
-    rootSchema.getTable(name).getRowType(typeFactory)
+    val table = getTable(name)
+    if (table != null) {
+      table.getRowType(typeFactory)
+    }
+
+    return null
+  }
+
+  protected def resolveExternalTable(name: String): (SchemaPlus, String) = {
+    var externalSchema = rootSchema
+    var externalTableName = name
+
+    while (externalTableName.contains(".")) {
+      val Array(subcatalog, table) = externalTableName.split("\\.", 2)
+      externalSchema = externalSchema.getSubSchema(subcatalog)
+      externalTableName = table
+    }
+
+    return (externalSchema, externalTableName)
   }
 
   /** Returns a unique temporary attribute name. */
