@@ -29,9 +29,9 @@ import java.util.concurrent.TimeUnit;
  * <a href="https://github.com/dataArtisans/flink-benchmarks">flink-benchmarks</a> project.
  */
 public class StreamNetworkThroughputBenchmark {
-	private StreamNetworkBenchmarkEnvironment<LongValue> environment;
-	private ReceiverThread receiver;
-	private LongRecordWriterThread[] writerThreads;
+	protected StreamNetworkBenchmarkEnvironment<LongValue> environment;
+	protected ReceiverThread receiver;
+	protected LongRecordWriterThread[] writerThreads;
 
 	public void executeBenchmark(long records) throws Exception {
 		executeBenchmark(records, Long.MAX_VALUE);
@@ -75,6 +75,7 @@ public class StreamNetworkThroughputBenchmark {
 			recordWriters,
 			channels,
 			flushTimeout,
+			false,
 			localMode,
 			senderBufferPoolSize,
 			receiverBufferPoolSize,
@@ -95,16 +96,26 @@ public class StreamNetworkThroughputBenchmark {
 			int recordWriters,
 			int channels,
 			int flushTimeout,
+			boolean broadcastMode,
 			boolean localMode,
 			int senderBufferPoolSize,
 			int receiverBufferPoolSize,
 			Configuration config) throws Exception {
 		environment = new StreamNetworkBenchmarkEnvironment<>();
-		environment.setUp(recordWriters, channels, localMode, senderBufferPoolSize, receiverBufferPoolSize, config);
+		environment.setUp(
+			recordWriters,
+			channels,
+			broadcastMode,
+			localMode,
+			senderBufferPoolSize,
+			receiverBufferPoolSize,
+			config);
 		receiver = environment.createReceiver();
 		writerThreads = new LongRecordWriterThread[recordWriters];
 		for (int writer = 0; writer < recordWriters; writer++) {
-			writerThreads[writer] = new LongRecordWriterThread(environment.createRecordWriter(writer, flushTimeout));
+			writerThreads[writer] = new LongRecordWriterThread(
+				environment.createRecordWriter(writer, flushTimeout),
+				broadcastMode);
 			writerThreads[writer].start();
 		}
 	}
