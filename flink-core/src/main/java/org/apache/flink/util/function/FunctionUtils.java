@@ -32,6 +32,19 @@ public class FunctionUtils {
 		throw new UnsupportedOperationException("This class should never be instantiated.");
 	}
 
+	private static final Function<Object, Void> NULL_FN = ignored -> null;
+
+	/**
+	 * Function which returns {@code null} (type: Void).
+	 *
+	 * @param <T> input type
+	 * @return Function which returns {@code null}.
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T> Function<T, Void> nullFn() {
+		return (Function<T, Void>) NULL_FN;
+	}
+
 	/**
 	 * Convert at {@link FunctionWithException} into a {@link Function}.
 	 *
