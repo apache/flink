@@ -40,7 +40,7 @@ import static org.mockito.Mockito.when;
  * {@link org.apache.flink.runtime.dispatcher.Dispatcher.JobManagerRunnerFactory} implementation for
  * testing purposes.
  */
-final class TestingJobManagerRunnerFactory implements Dispatcher.JobManagerRunnerFactory {
+class TestingJobManagerRunnerFactory implements Dispatcher.JobManagerRunnerFactory {
 
 	private final CompletableFuture<JobGraph> jobGraphFuture;
 	private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
@@ -63,12 +63,13 @@ final class TestingJobManagerRunnerFactory implements Dispatcher.JobManagerRunne
 			BlobServer blobServer,
 			JobManagerSharedServices jobManagerSharedServices,
 			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-			FatalErrorHandler fatalErrorHandler) {
+			FatalErrorHandler fatalErrorHandler) throws Exception {
 		jobGraphFuture.complete(jobGraph);
 
 		final JobManagerRunner mock = mock(JobManagerRunner.class);
 		when(mock.getResultFuture()).thenReturn(resultFuture);
 		when(mock.closeAsync()).thenReturn(terminationFuture);
+		when(mock.getJobGraph()).thenReturn(jobGraph);
 
 		return mock;
 	}
