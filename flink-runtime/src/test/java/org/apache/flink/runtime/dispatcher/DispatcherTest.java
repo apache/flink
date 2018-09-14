@@ -319,13 +319,13 @@ public class DispatcherTest extends TestLogger {
 		runningJobsRegistry.setJobFinished(TEST_JOB_ID);
 		dispatcher.onAddedJobGraph(TEST_JOB_ID);
 
-		final CompletableFuture<Throwable> errorFuture = fatalErrorHandler.getErrorFuture();
+		// wait until the recovery is over
+		dispatcher.getRecoverOperationFuture(TIMEOUT).get();
 
-		final Throwable throwable = errorFuture.get();
+		final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
-		assertThat(throwable, instanceOf(DispatcherException.class));
-
-		fatalErrorHandler.clearError();
+		// check that we did not start executing the added JobGraph
+		assertThat(dispatcherGateway.listJobs(TIMEOUT).get(), is(empty()));
 	}
 
 	/**

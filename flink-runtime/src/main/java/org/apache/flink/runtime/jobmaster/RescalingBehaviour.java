@@ -29,7 +29,7 @@ public enum RescalingBehaviour implements BiConsumerWithException<JobVertex, Int
 	// rescaling is only executed if the operator can be set to the given parallelism
 	STRICT {
 		@Override
-		public void acceptWithException(JobVertex jobVertex, Integer newParallelism) throws FlinkException {
+		public void accept(JobVertex jobVertex, Integer newParallelism) throws FlinkException {
 			if (jobVertex.getMaxParallelism() < newParallelism) {
 				throw new FlinkException("Cannot rescale vertex " + jobVertex.getName() +
 					" because its maximum parallelism " + jobVertex.getMaxParallelism() +
@@ -42,7 +42,7 @@ public enum RescalingBehaviour implements BiConsumerWithException<JobVertex, Int
 	// the new parallelism will be the minimum of the given parallelism and the maximum parallelism
 	RELAXED {
 		@Override
-		public void acceptWithException(JobVertex jobVertex, Integer newParallelism) {
+		public void accept(JobVertex jobVertex, Integer newParallelism) {
 			jobVertex.setParallelism(Math.min(jobVertex.getMaxParallelism(), newParallelism));
 		}
 	}

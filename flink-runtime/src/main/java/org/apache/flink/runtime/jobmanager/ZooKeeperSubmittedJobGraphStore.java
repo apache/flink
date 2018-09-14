@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.curator.framework.CuratorFramework;
@@ -146,9 +147,23 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 				jobGraphListener = null;
 
 				try {
-					pathCache.close();
-				} catch (Exception e) {
-					throw new Exception("Could not properly stop the ZooKeeperSubmittedJobGraphStore.", e);
+					Exception exception = null;
+
+					try {
+						jobGraphsInZooKeeper.releaseAll();
+					} catch (Exception e) {
+						exception = e;
+					}
+
+					try {
+						pathCache.close();
+					} catch (Exception e) {
+						exception = ExceptionUtils.firstOrSuppressed(e, exception);
+					}
+
+					if (exception != null) {
+						throw new FlinkException("Could not properly stop the ZooKeeperSubmittedJobGraphStore.", exception);
+					}
 				} finally {
 					isRunning = false;
 				}
@@ -264,9 +279,11 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 
 		synchronized (cacheLock) {
 			if (addedJobGraphs.contains(jobId)) {
-				jobGraphsInZooKeeper.releaseAndTryRemove(path);
-
-				addedJobGraphs.remove(jobId);
+				if (jobGraphsInZooKeeper.releaseAndTryRemove(path)) {
+					addedJobGraphs.remove(jobId);
+				} else {
+					throw new FlinkException(String.format("Could not remove job graph with job id %s from ZooKeeper.", jobId));
+				}
 			}
 		}
 
