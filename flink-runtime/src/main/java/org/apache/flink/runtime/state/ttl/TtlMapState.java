@@ -68,9 +68,10 @@ class TtlMapState<K, N, UK, UV>
 			return;
 		}
 		Map<UK, TtlValue<UV>> ttlMap = new HashMap<>(map.size());
+		long currentTimestamp = timeProvider.currentTimestamp();
 		for (Map.Entry<UK, UV> entry : map.entrySet()) {
 			UK key = entry.getKey();
-			ttlMap.put(key, wrapWithTs(entry.getValue()));
+			ttlMap.put(key, TtlUtils.wrapWithTs(entry.getValue(), currentTimestamp));
 		}
 		original.putAll(ttlMap);
 	}
