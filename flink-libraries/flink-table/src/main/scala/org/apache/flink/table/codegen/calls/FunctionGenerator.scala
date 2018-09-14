@@ -283,6 +283,18 @@ object FunctionGenerator {
     BuiltInMethods.COS_DEC)
 
   addSqlFunctionMethod(
+    COSH,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.COSH)
+
+  addSqlFunctionMethod(
+    COSH,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.COSH_DEC)
+
+  addSqlFunctionMethod(
     TAN,
     Seq(DOUBLE_TYPE_INFO),
     DOUBLE_TYPE_INFO,

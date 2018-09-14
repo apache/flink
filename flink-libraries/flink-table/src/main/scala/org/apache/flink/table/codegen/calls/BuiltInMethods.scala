@@ -69,6 +69,9 @@ object BuiltInMethods {
   val COS = Types.lookupMethod(classOf[Math], "cos", classOf[Double])
   val COS_DEC = Types.lookupMethod(classOf[SqlFunctions], "cos", classOf[JBigDecimal])
 
+  val COSH = Types.lookupMethod(classOf[Math], "cosh", classOf[Double])
+  val COSH_DEC = Types.lookupMethod(classOf[ScalarFunctions], "cosh", classOf[JBigDecimal])
+
   val TAN = Types.lookupMethod(classOf[Math], "tan", classOf[Double])
   val TAN_DEC = Types.lookupMethod(classOf[SqlFunctions], "tan", classOf[JBigDecimal])
 

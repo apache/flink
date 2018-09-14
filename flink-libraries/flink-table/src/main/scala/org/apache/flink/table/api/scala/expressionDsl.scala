@@ -367,6 +367,11 @@ trait ImplicitExpressionOperations {
   def cos() = Cos(expr)
 
   /**
+    * Calculates the hyperbolic cosine of a given number.
+    */
+  def cosh() = Cosh(expr)
+
+  /**
     * Calculates the tangent of a given number.
     */
   def tan() = Tan(expr)
