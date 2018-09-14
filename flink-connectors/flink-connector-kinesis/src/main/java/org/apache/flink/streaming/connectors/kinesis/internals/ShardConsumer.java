@@ -17,12 +17,13 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.metrics.ShardMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
-import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 
@@ -49,9 +50,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Thread that does the actual data pulling from AWS Kinesis shards. Each thread is in charge of one Kinesis shard only.
  */
+@Internal
 public class ShardConsumer<T> implements Runnable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ShardConsumer.class);
+
+	// AWS Kinesis has a read limit of 2 Mb/sec
+	// https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html
+	private static final long KINESIS_SHARD_BYTES_PER_SECOND_LIMIT = 2 * 1024L * 1024L;
 
 	private final KinesisDeserializationSchema<T> deserializer;
 
@@ -63,8 +69,11 @@ public class ShardConsumer<T> implements Runnable {
 
 	private final StreamShardHandle subscribedShard;
 
-	private final int maxNumberOfRecordsPerFetch;
+	private int maxNumberOfRecordsPerFetch;
 	private final long fetchIntervalMillis;
+	private final boolean useAdaptiveReads;
+
+	private final ShardMetricsReporter shardMetricsReporter;
 
 	private SequenceNumber lastSequenceNum;
 
@@ -77,28 +86,22 @@ public class ShardConsumer<T> implements Runnable {
 	 * @param subscribedShardStateIndex the state index of the shard this consumer is subscribed to
 	 * @param subscribedShard the shard this consumer is subscribed to
 	 * @param lastSequenceNum the sequence number in the shard to start consuming
+	 * @param kinesis the proxy instance to interact with Kinesis
+	 * @param shardMetricsReporter the reporter to report metrics to
 	 */
 	public ShardConsumer(KinesisDataFetcher<T> fetcherRef,
 						Integer subscribedShardStateIndex,
 						StreamShardHandle subscribedShard,
-						SequenceNumber lastSequenceNum) {
-		this(fetcherRef,
-			subscribedShardStateIndex,
-			subscribedShard,
-			lastSequenceNum,
-			KinesisProxy.create(fetcherRef.getConsumerConfiguration()));
-	}
-
-	/** This constructor is exposed for testing purposes. */
-	protected ShardConsumer(KinesisDataFetcher<T> fetcherRef,
-							Integer subscribedShardStateIndex,
-							StreamShardHandle subscribedShard,
-							SequenceNumber lastSequenceNum,
-							KinesisProxyInterface kinesis) {
+						SequenceNumber lastSequenceNum,
+						KinesisProxyInterface kinesis,
+						ShardMetricsReporter shardMetricsReporter) {
 		this.fetcherRef = checkNotNull(fetcherRef);
 		this.subscribedShardStateIndex = checkNotNull(subscribedShardStateIndex);
 		this.subscribedShard = checkNotNull(subscribedShard);
 		this.lastSequenceNum = checkNotNull(lastSequenceNum);
+
+		this.shardMetricsReporter = checkNotNull(shardMetricsReporter);
+
 		checkArgument(
 			!lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get()),
 			"Should not start a ShardConsumer if the shard has already been completely read.");
@@ -113,6 +116,9 @@ public class ShardConsumer<T> implements Runnable {
 		this.fetchIntervalMillis = Long.valueOf(consumerConfig.getProperty(
 			ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS,
 			Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_INTERVAL_MILLIS)));
+		this.useAdaptiveReads = Boolean.valueOf(consumerConfig.getProperty(
+			ConsumerConfigConstants.SHARD_USE_ADAPTIVE_READS,
+			Boolean.toString(ConsumerConfigConstants.DEFAULT_SHARD_USE_ADAPTIVE_READS)));
 
 		if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get())) {
 			String timestamp = consumerConfig.getProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP);
@@ -132,60 +138,72 @@ public class ShardConsumer<T> implements Runnable {
 		}
 	}
 
+	/**
+	 * Find the initial shard iterator to start getting records from.
+	 * @return shard iterator
+	 * @throws Exception
+	 */
+	protected String getInitialShardIterator() throws Exception {
+		String nextShardItr;
+
+		// before infinitely looping, we set the initial nextShardItr appropriately
+
+		if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM.get())) {
+			// if the shard is already closed, there will be no latest next record to get for this shard
+			if (subscribedShard.isClosed()) {
+				nextShardItr = null;
+			} else {
+				nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.LATEST.toString(), null);
+			}
+		} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get())) {
+			nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.TRIM_HORIZON.toString(), null);
+		} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get())) {
+			nextShardItr = null;
+		} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get())) {
+			nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AT_TIMESTAMP.toString(), initTimestamp);
+		} else {
+			// we will be starting from an actual sequence number (due to restore from failure).
+			// if the last sequence number refers to an aggregated record, we need to clean up any dangling sub-records
+			// from the last aggregated record; otherwise, we can simply start iterating from the record right after.
+
+			if (lastSequenceNum.isAggregated()) {
+				String itrForLastAggregatedRecord =
+					kinesis.getShardIterator(subscribedShard, ShardIteratorType.AT_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
+
+				// get only the last aggregated record
+				GetRecordsResult getRecordsResult = getRecords(itrForLastAggregatedRecord, 1);
+
+				List<UserRecord> fetchedRecords = deaggregateRecords(
+					getRecordsResult.getRecords(),
+					subscribedShard.getShard().getHashKeyRange().getStartingHashKey(),
+					subscribedShard.getShard().getHashKeyRange().getEndingHashKey());
+
+				long lastSubSequenceNum = lastSequenceNum.getSubSequenceNumber();
+				for (UserRecord record : fetchedRecords) {
+					// we have found a dangling sub-record if it has a larger subsequence number
+					// than our last sequence number; if so, collect the record and update state
+					if (record.getSubSequenceNumber() > lastSubSequenceNum) {
+						deserializeRecordForCollectionAndUpdateState(record);
+					}
+				}
+
+				// set the nextShardItr so we can continue iterating in the next while loop
+				nextShardItr = getRecordsResult.getNextShardIterator();
+			} else {
+				// the last record was non-aggregated, so we can simply start from the next record
+				nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
+			}
+		}
+		return nextShardItr;
+	}
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public void run() {
-		String nextShardItr;
-
 		try {
-			// before infinitely looping, we set the initial nextShardItr appropriately
+			String nextShardItr = getInitialShardIterator();
 
-			if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM.get())) {
-				// if the shard is already closed, there will be no latest next record to get for this shard
-				if (subscribedShard.isClosed()) {
-					nextShardItr = null;
-				} else {
-					nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.LATEST.toString(), null);
-				}
-			} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get())) {
-				nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.TRIM_HORIZON.toString(), null);
-			} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get())) {
-				nextShardItr = null;
-			} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get())) {
-				nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AT_TIMESTAMP.toString(), initTimestamp);
-			} else {
-				// we will be starting from an actual sequence number (due to restore from failure).
-				// if the last sequence number refers to an aggregated record, we need to clean up any dangling sub-records
-				// from the last aggregated record; otherwise, we can simply start iterating from the record right after.
-
-				if (lastSequenceNum.isAggregated()) {
-					String itrForLastAggregatedRecord =
-						kinesis.getShardIterator(subscribedShard, ShardIteratorType.AT_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
-
-					// get only the last aggregated record
-					GetRecordsResult getRecordsResult = getRecords(itrForLastAggregatedRecord, 1);
-
-					List<UserRecord> fetchedRecords = deaggregateRecords(
-						getRecordsResult.getRecords(),
-						subscribedShard.getShard().getHashKeyRange().getStartingHashKey(),
-						subscribedShard.getShard().getHashKeyRange().getEndingHashKey());
-
-					long lastSubSequenceNum = lastSequenceNum.getSubSequenceNumber();
-					for (UserRecord record : fetchedRecords) {
-						// we have found a dangling sub-record if it has a larger subsequence number
-						// than our last sequence number; if so, collect the record and update state
-						if (record.getSubSequenceNumber() > lastSubSequenceNum) {
-							deserializeRecordForCollectionAndUpdateState(record);
-						}
-					}
-
-					// set the nextShardItr so we can continue iterating in the next while loop
-					nextShardItr = getRecordsResult.getNextShardIterator();
-				} else {
-					// the last record was non-aggregated, so we can simply start from the next record
-					nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
-				}
-			}
+			long processingStartTimeNanos = System.nanoTime();
 
 			while (isRunning()) {
 				if (nextShardItr == null) {
@@ -194,28 +212,90 @@ public class ShardConsumer<T> implements Runnable {
 					// we can close this consumer thread once we've reached the end of the subscribed shard
 					break;
 				} else {
-					if (fetchIntervalMillis != 0) {
-						Thread.sleep(fetchIntervalMillis);
-					}
-
+					shardMetricsReporter.setMaxNumberOfRecordsPerFetch(maxNumberOfRecordsPerFetch);
 					GetRecordsResult getRecordsResult = getRecords(nextShardItr, maxNumberOfRecordsPerFetch);
+
+					List<Record> aggregatedRecords = getRecordsResult.getRecords();
+					int numberOfAggregatedRecords = aggregatedRecords.size();
+					shardMetricsReporter.setNumberOfAggregatedRecords(numberOfAggregatedRecords);
 
 					// each of the Kinesis records may be aggregated, so we must deaggregate them before proceeding
 					List<UserRecord> fetchedRecords = deaggregateRecords(
-						getRecordsResult.getRecords(),
+						aggregatedRecords,
 						subscribedShard.getShard().getHashKeyRange().getStartingHashKey(),
 						subscribedShard.getShard().getHashKeyRange().getEndingHashKey());
 
+					long recordBatchSizeBytes = 0L;
 					for (UserRecord record : fetchedRecords) {
+						recordBatchSizeBytes += record.getData().remaining();
 						deserializeRecordForCollectionAndUpdateState(record);
 					}
 
+					int numberOfDeaggregatedRecords = fetchedRecords.size();
+					shardMetricsReporter.setNumberOfDeaggregatedRecords(numberOfDeaggregatedRecords);
+
 					nextShardItr = getRecordsResult.getNextShardIterator();
+
+					long adjustmentEndTimeNanos = adjustRunLoopFrequency(processingStartTimeNanos, System.nanoTime());
+					long runLoopTimeNanos = adjustmentEndTimeNanos - processingStartTimeNanos;
+					maxNumberOfRecordsPerFetch = adaptRecordsToRead(runLoopTimeNanos, fetchedRecords.size(), recordBatchSizeBytes, maxNumberOfRecordsPerFetch);
+					shardMetricsReporter.setRunLoopTimeNanos(runLoopTimeNanos);
+					processingStartTimeNanos = adjustmentEndTimeNanos; // for next time through the loop
 				}
 			}
 		} catch (Throwable t) {
 			fetcherRef.stopWithError(t);
 		}
+	}
+
+	/**
+	 * Adjusts loop timing to match target frequency if specified.
+	 * @param processingStartTimeNanos The start time of the run loop "work"
+	 * @param processingEndTimeNanos The end time of the run loop "work"
+	 * @return The System.nanoTime() after the sleep (if any)
+	 * @throws InterruptedException
+	 */
+	protected long adjustRunLoopFrequency(long processingStartTimeNanos, long processingEndTimeNanos)
+		throws InterruptedException {
+		long endTimeNanos = processingEndTimeNanos;
+		if (fetchIntervalMillis != 0) {
+			long processingTimeNanos = processingEndTimeNanos - processingStartTimeNanos;
+			long sleepTimeMillis = fetchIntervalMillis - (processingTimeNanos / 1_000_000);
+			if (sleepTimeMillis > 0) {
+				Thread.sleep(sleepTimeMillis);
+				endTimeNanos = System.nanoTime();
+				shardMetricsReporter.setSleepTimeMillis(sleepTimeMillis);
+			}
+		}
+		return endTimeNanos;
+	}
+
+	/**
+	 * Calculates how many records to read each time through the loop based on a target throughput
+	 * and the measured frequenecy of the loop.
+	 * @param runLoopTimeNanos The total time of one pass through the loop
+	 * @param numRecords The number of records of the last read operation
+	 * @param recordBatchSizeBytes The total batch size of the last read operation
+	 * @param maxNumberOfRecordsPerFetch The current maxNumberOfRecordsPerFetch
+	 */
+	private int adaptRecordsToRead(long runLoopTimeNanos, int numRecords, long recordBatchSizeBytes,
+			int maxNumberOfRecordsPerFetch) {
+		if (useAdaptiveReads && numRecords != 0 && runLoopTimeNanos != 0) {
+			long averageRecordSizeBytes = recordBatchSizeBytes / numRecords;
+			// Adjust number of records to fetch from the shard depending on current average record size
+			// to optimize 2 Mb / sec read limits
+			double loopFrequencyHz = 1000000000.0d / runLoopTimeNanos;
+			double bytesPerRead = KINESIS_SHARD_BYTES_PER_SECOND_LIMIT / loopFrequencyHz;
+			maxNumberOfRecordsPerFetch = (int) (bytesPerRead / averageRecordSizeBytes);
+			// Ensure the value is greater than 0 and not more than 10000L
+			maxNumberOfRecordsPerFetch = Math.max(1, Math.min(maxNumberOfRecordsPerFetch, ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_MAX));
+
+			// Set metrics
+			shardMetricsReporter.setAverageRecordSizeBytes(averageRecordSizeBytes);
+			shardMetricsReporter.setLoopFrequencyHz(loopFrequencyHz);
+			shardMetricsReporter.setBytesPerRead(bytesPerRead);
+		}
+		return maxNumberOfRecordsPerFetch;
 	}
 
 	/**
@@ -291,6 +371,9 @@ public class ShardConsumer<T> implements Runnable {
 		while (getRecordsResult == null) {
 			try {
 				getRecordsResult = kinesis.getRecords(shardItr, maxNumberOfRecords);
+
+				// Update millis behind latest so it gets reported by the millisBehindLatest gauge
+				shardMetricsReporter.setMillisBehindLatest(getRecordsResult.getMillisBehindLatest());
 			} catch (ExpiredIteratorException eiEx) {
 				LOG.warn("Encountered an unexpected expired iterator {} for shard {};" +
 					" refreshing the iterator ...", shardItr, subscribedShard);

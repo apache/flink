@@ -21,7 +21,7 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Aggregator that can handle Integer types
+ * Aggregator that can handle Integer types.
  */
 @Internal
 public class IntegerSummaryAggregator extends NumericSummaryAggregator<Integer> {
@@ -30,7 +30,10 @@ public class IntegerSummaryAggregator extends NumericSummaryAggregator<Integer> 
 
 	// Nested classes are only "public static" for Kryo serialization, otherwise they'd be private
 
-	public static class MinIntegerAggregator implements Aggregator<Integer,Integer> {
+	/**
+	 * Aggregator for min operation.
+	 */
+	public static class MinIntegerAggregator implements Aggregator<Integer, Integer> {
 
 		private int min = Integer.MAX_VALUE;
 
@@ -41,7 +44,7 @@ public class IntegerSummaryAggregator extends NumericSummaryAggregator<Integer> 
 
 		@Override
 		public void combine(Aggregator<Integer, Integer> other) {
-			min = Math.min(min,((MinIntegerAggregator)other).min);
+			min = Math.min(min, ((MinIntegerAggregator) other).min);
 		}
 
 		@Override
@@ -50,7 +53,10 @@ public class IntegerSummaryAggregator extends NumericSummaryAggregator<Integer> 
 		}
 	}
 
-	public static class MaxIntegerAggregator implements Aggregator<Integer,Integer> {
+	/**
+	 * Aggregator for max operation.
+	 */
+	public static class MaxIntegerAggregator implements Aggregator<Integer, Integer> {
 
 		private int max = Integer.MIN_VALUE;
 
@@ -70,7 +76,10 @@ public class IntegerSummaryAggregator extends NumericSummaryAggregator<Integer> 
 		}
 	}
 
-	public static class SumIntegerAggregator implements Aggregator<Integer,Integer> {
+	/**
+	 * Aggregator for sum operation.
+	 */
+	public static class SumIntegerAggregator implements Aggregator<Integer, Integer> {
 
 		private int sum = 0;
 
@@ -81,7 +90,7 @@ public class IntegerSummaryAggregator extends NumericSummaryAggregator<Integer> 
 
 		@Override
 		public void combine(Aggregator<Integer, Integer> other) {
-			sum += ((SumIntegerAggregator)other).sum;
+			sum += ((SumIntegerAggregator) other).sum;
 		}
 
 		@Override

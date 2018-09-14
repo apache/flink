@@ -19,11 +19,15 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.runtime.checkpoint.savepoint.CheckpointTestUtils;
+
 import org.junit.Test;
 
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.spy;
@@ -57,8 +61,6 @@ public class IncrementalKeyedStateHandleTest {
 	 */
 	@Test
 	public void testSharedStateDeRegistration() throws Exception {
-
-		Random rnd = new Random(42);
 
 		SharedStateRegistry registry = spy(new SharedStateRegistry());
 
@@ -185,9 +187,79 @@ public class IncrementalKeyedStateHandleTest {
 		verify(stateHandle2.getMetaStateHandle(), times(1)).discardState();
 	}
 
+	/**
+	 * This tests that re-registration of shared state with another registry works as expected. This simulates a
+	 * recovery from a checkpoint, when the checkpoint coordinator creates a new shared state registry and re-registers
+	 * all live checkpoint states.
+	 */
+	@Test
+	public void testSharedStateReRegistration() throws Exception {
+
+		SharedStateRegistry stateRegistryA = spy(new SharedStateRegistry());
+
+		IncrementalKeyedStateHandle stateHandleX = create(new Random(1));
+		IncrementalKeyedStateHandle stateHandleY = create(new Random(2));
+		IncrementalKeyedStateHandle stateHandleZ = create(new Random(3));
+
+		// Now we register first time ...
+		stateHandleX.registerSharedStates(stateRegistryA);
+		stateHandleY.registerSharedStates(stateRegistryA);
+		stateHandleZ.registerSharedStates(stateRegistryA);
+
+		try {
+			// Second attempt should fail
+			stateHandleX.registerSharedStates(stateRegistryA);
+			fail("Should not be able to register twice with the same registry.");
+		} catch (IllegalStateException ignore) {
+		}
+
+		// Everything should be discarded for this handle
+		stateHandleZ.discardState();
+		verify(stateHandleZ.getMetaStateHandle(), times(1)).discardState();
+		for (StreamStateHandle stateHandle : stateHandleZ.getSharedState().values()) {
+			verify(stateHandle, times(1)).discardState();
+		}
+
+		// Close the first registry
+		stateRegistryA.close();
+
+		// Attempt to register to closed registry should trigger exception
+		try {
+			create(new Random(4)).registerSharedStates(stateRegistryA);
+			fail("Should not be able to register new state to closed registry.");
+		} catch (IllegalStateException ignore) {
+		}
+
+		// All state should still get discarded
+		stateHandleY.discardState();
+		verify(stateHandleY.getMetaStateHandle(), times(1)).discardState();
+		for (StreamStateHandle stateHandle : stateHandleY.getSharedState().values()) {
+			verify(stateHandle, times(1)).discardState();
+		}
+
+		// This should still be unaffected
+		verify(stateHandleX.getMetaStateHandle(), never()).discardState();
+		for (StreamStateHandle stateHandle : stateHandleX.getSharedState().values()) {
+			verify(stateHandle, never()).discardState();
+		}
+
+		// We re-register the handle with a new registry
+		SharedStateRegistry sharedStateRegistryB = spy(new SharedStateRegistry());
+		stateHandleX.registerSharedStates(sharedStateRegistryB);
+		stateHandleX.discardState();
+
+		// Should be completely discarded because it is tracked through the new registry
+		verify(stateHandleX.getMetaStateHandle(), times(1)).discardState();
+		for (StreamStateHandle stateHandle : stateHandleX.getSharedState().values()) {
+			verify(stateHandle, times(1)).discardState();
+		}
+
+		sharedStateRegistryB.close();
+	}
+
 	private static IncrementalKeyedStateHandle create(Random rnd) {
 		return new IncrementalKeyedStateHandle(
-			"test",
+			UUID.nameUUIDFromBytes("test".getBytes()),
 			KeyGroupRange.of(0, 0),
 			1L,
 			placeSpies(CheckpointTestUtils.createRandomStateHandleMap(rnd)),

@@ -31,8 +31,7 @@ import org.junit.runners.Parameterized;
  * Tests for {@link JaccardIndex}.
  */
 @RunWith(Parameterized.class)
-public class JaccardIndexITCase
-extends CopyableValueDriverBaseITCase {
+public class JaccardIndexITCase extends CopyableValueDriverBaseITCase {
 
 	public JaccardIndexITCase(String idType, TestExecutionMode mode) {
 		super(idType, mode);
@@ -58,67 +57,23 @@ extends CopyableValueDriverBaseITCase {
 	}
 
 	@Test
-	public void testHashWithSmallRMatGraph() throws Exception {
-		long checksum;
-		switch (idType) {
-			case "byte":
-			case "short":
-			case "char":
-			case "integer":
-				checksum = 0x0000164757052eebL;
-				break;
-
-			case "long":
-				checksum = 0x000016337a6a7270L;
-				break;
-
-			case "string":
-				checksum = 0x00001622a522a290L;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
-		expectedChecksum(parameters(7, "hash"), 11388, checksum);
+	public void testHashWithRMatGraph() throws Exception {
+		expectedChecksum(parameters(8, "hash"), 39276, 0x00004caba2e663d5L);
 	}
 
 	@Test
-	public void testHashWithLargeRMatGraph() throws Exception {
-		// computation is too large for collection mode
-		Assume.assumeFalse(mode == TestExecutionMode.COLLECTION);
-
-		long checksum;
-		switch (idType) {
-			case "byte":
-				return;
-
-			case "short":
-			case "char":
-			case "integer":
-				checksum = 0x0021ce158d811c4eL;
-				break;
-
-			case "long":
-				checksum = 0x0021d20fb3904720L;
-				break;
-
-			case "string":
-				checksum = 0x0021cd8fafec1524L;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
-		expectedChecksum(parameters(12, "hash"), 4432058, checksum);
-	}
-
-	@Test
-	public void testPrintWithSmallRMatGraph() throws Exception {
+	public void testPrintWithRMatGraph() throws Exception {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutputChecksum(parameters(7, "print"), new Checksum(11388, 0x0000163b17088256L));
+		expectedOutputChecksum(parameters(8, "print"), new Checksum(39276, 0x00004c5a726220c0L));
+	}
+
+	@Test
+	public void testParallelism() throws Exception {
+		TestUtils.verifyParallelism(parameters(8, "print"),
+			"FlatMap \\(Mirror results\\)",
+			"GroupReduce \\(Compute scores\\)",
+			"GroupReduce \\(Generate group pairs\\)");
 	}
 }

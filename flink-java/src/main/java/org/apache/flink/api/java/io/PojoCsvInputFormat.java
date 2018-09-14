@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.io;
 
 import org.apache.flink.annotation.Internal;
@@ -29,6 +30,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Input format that reads csv into POJOs.
+ * @param <OUT> resulting POJO type
+ */
 @Internal
 public class PojoCsvInputFormat<OUT> extends CsvInputFormat<OUT> {
 

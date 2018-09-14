@@ -18,12 +18,9 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
@@ -32,21 +29,27 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
 import org.junit.Test;
-import scala.Some;
-import scala.Tuple2;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
 import java.util.concurrent.TimeUnit;
+
+import scala.Option;
+import scala.Some;
+import scala.Tuple2;
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClasspath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
@@ -119,6 +122,8 @@ public abstract class TaskManagerProcessReapingTestBase extends TestLogger {
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
 				highAvailabilityServices,
+				NoOpMetricRegistry.INSTANCE,
+				Option.empty(),
 				JobManager.class,
 				MemoryArchivist.class)._1;
 
@@ -213,7 +218,7 @@ public abstract class TaskManagerProcessReapingTestBase extends TestLogger {
 				taskManagerProcess.destroy();
 			}
 			if (jmActorSystem != null) {
-				jmActorSystem.shutdown();
+				jmActorSystem.terminate();
 			}
 			if (highAvailabilityServices != null) {
 				highAvailabilityServices.closeAndCleanupAllData();
@@ -242,7 +247,7 @@ public abstract class TaskManagerProcessReapingTestBase extends TestLogger {
 			Configuration cfg = new Configuration();
 			cfg.setString(JobManagerOptions.ADDRESS, "localhost");
 			cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
-			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
+			cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
 			cfg.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 256);
 
 			final HighAvailabilityServices highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(

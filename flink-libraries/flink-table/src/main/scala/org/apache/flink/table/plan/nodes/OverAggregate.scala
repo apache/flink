@@ -19,11 +19,10 @@
 package org.apache.flink.table.plan.nodes
 
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.rel.core.Window.Group
+import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.rel.{RelFieldCollation, RelNode}
-import org.apache.calcite.rex.RexInputRef
-import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.calcite.rex.{RexInputRef, RexLiteral}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil._
 
 import scala.collection.JavaConverters._
@@ -36,8 +35,8 @@ trait OverAggregate {
   }
 
   private[flink] def orderingToString(
-    inputType: RelDataType,
-    orderFields: java.util.List[RelFieldCollation]): String = {
+      inputType: RelDataType,
+      orderFields: java.util.List[RelFieldCollation]): String = {
 
     val inFields = inputType.getFieldList.asScala
 
@@ -49,9 +48,9 @@ trait OverAggregate {
   }
 
   private[flink] def windowRange(
-    logicWindow: Window,
-    overWindow: Group,
-    input: RelNode): String = {
+      logicWindow: Window,
+      overWindow: Group,
+      input: RelNode): String = {
     if (overWindow.lowerBound.isPreceding && !overWindow.lowerBound.isUnbounded) {
       s"BETWEEN ${getLowerBoundary(logicWindow, overWindow, input)} PRECEDING " +
           s"AND ${overWindow.upperBound}"
@@ -61,20 +60,35 @@ trait OverAggregate {
   }
 
   private[flink] def aggregationToString(
-    inputType: RelDataType,
-    rowType: RelDataType,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]]): String = {
+      inputType: RelDataType,
+      constants: Seq[RexLiteral],
+      rowType: RelDataType,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]]): String = {
 
     val inFields = inputType.getFieldNames.asScala
     val outFields = rowType.getFieldNames.asScala
 
     val aggStrings = namedAggregates.map(_.getKey).map(
       a => s"${a.getAggregation}(${
-        if (a.getArgList.size() > 0) {
-          a.getArgList.asScala.map(inFields(_)).mkString(", ")
+        val prefix = if (a.isDistinct) {
+          "DISTINCT "
+        } else {
+          ""
+        }
+        prefix + (if (a.getArgList.size() > 0) {
+          a.getArgList.asScala.map { arg =>
+            // index to constant
+            if (arg >= inputType.getFieldCount) {
+              constants(arg - inputType.getFieldCount)
+            }
+            // index to input field
+            else {
+              inFields(arg)
+            }
+          }.mkString(", ")
         } else {
           "*"
-        }
+        })
       })")
 
     (inFields ++ aggStrings).zip(outFields).map {
@@ -87,12 +101,12 @@ trait OverAggregate {
   }
 
   private[flink] def getLowerBoundary(
-    logicWindow: Window,
-    overWindow: Group,
-    input: RelNode): Long = {
+      logicWindow: Window,
+      overWindow: Group,
+      input: RelNode): Long = {
 
     val ref: RexInputRef = overWindow.lowerBound.getOffset.asInstanceOf[RexInputRef]
-    val lowerBoundIndex = input.getRowType.getFieldCount - ref.getIndex
+    val lowerBoundIndex = ref.getIndex - input.getRowType.getFieldCount
     val lowerBound = logicWindow.constants.get(lowerBoundIndex).getValue2
     lowerBound match {
       case x: java.math.BigDecimal => x.asInstanceOf[java.math.BigDecimal].longValue()

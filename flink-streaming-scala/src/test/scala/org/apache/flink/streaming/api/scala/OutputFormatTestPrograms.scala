@@ -18,8 +18,8 @@
 package org.apache.flink.streaming.api.scala
 
 
+import org.apache.flink.api.common.serialization.SimpleStringSchema
 import org.apache.flink.core.fs.FileSystem
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema
 
 import scala.language.existentials
 

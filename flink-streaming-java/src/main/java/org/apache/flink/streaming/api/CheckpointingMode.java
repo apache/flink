@@ -28,7 +28,7 @@ import org.apache.flink.annotation.Public;
  * processing are repeated. For stateful operations and functions, the checkpointing mode defines
  * whether the system draws checkpoints such that a recovery behaves as if the operators/functions
  * see each record "exactly once" ({@link #EXACTLY_ONCE}), or whether the checkpoints are drawn
- * in a simpler fashion that typically encounteres some duplicates upon recovery
+ * in a simpler fashion that typically encounters some duplicates upon recovery
  * ({@link #AT_LEAST_ONCE})</p>
  */
 @Public

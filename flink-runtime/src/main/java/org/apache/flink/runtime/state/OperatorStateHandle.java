@@ -27,106 +27,39 @@ import java.util.Arrays;
 import java.util.Map;
 
 /**
- * State handle for partitionable operator state. Besides being a {@link StreamStateHandle}, this also provides a
- * map that contains the offsets to the partitions of named states in the stream.
+ * Interface of a state handle for operator state.
  */
-public class OperatorStateHandle implements StreamStateHandle {
+public interface OperatorStateHandle extends StreamStateHandle {
 
 	/**
-	 * The modes that determine how an {@link OperatorStateHandle} is assigned to tasks during restore.
+	 * Returns a map of meta data for all contained states by their name.
 	 */
-	public enum Mode {
-		SPLIT_DISTRIBUTE, // The operator state partitions in the state handle are split and distributed to one task each.
-		BROADCAST // The operator state partitions are broadcasted to all task.
-	}
-
-	private static final long serialVersionUID = 35876522969227335L;
+	Map<String, StateMetaInfo> getStateNameToPartitionOffsets();
 
 	/**
-	 * unique state name -> offsets for available partitions in the handle stream
+	 * Returns an input stream to read the operator state information.
 	 */
-	private final Map<String, StateMetaInfo> stateNameToPartitionOffsets;
-	private final StreamStateHandle delegateStateHandle;
-
-	public OperatorStateHandle(
-			Map<String, StateMetaInfo> stateNameToPartitionOffsets,
-			StreamStateHandle delegateStateHandle) {
-
-		this.delegateStateHandle = Preconditions.checkNotNull(delegateStateHandle);
-		this.stateNameToPartitionOffsets = Preconditions.checkNotNull(stateNameToPartitionOffsets);
-	}
-
-	public Map<String, StateMetaInfo> getStateNameToPartitionOffsets() {
-		return stateNameToPartitionOffsets;
-	}
-
 	@Override
-	public void discardState() throws Exception {
-		delegateStateHandle.discardState();
+	FSDataInputStream openInputStream() throws IOException;
+
+	/**
+	 * Returns the underlying stream state handle that points to the state data.
+	 */
+	StreamStateHandle getDelegateStateHandle();
+
+	/**
+	 * The modes that determine how an {@link OperatorStreamStateHandle} is assigned to tasks during restore.
+	 */
+	enum Mode {
+		SPLIT_DISTRIBUTE,	// The operator state partitions in the state handle are split and distributed to one task each.
+		UNION,				// The operator state partitions are UNION-ed upon restoring and sent to all tasks.
+		BROADCAST			// The operator states are identical, as the state is produced from a broadcast stream.
 	}
 
-	@Override
-	public long getStateSize() {
-		return delegateStateHandle.getStateSize();
-	}
-
-	@Override
-	public FSDataInputStream openInputStream() throws IOException {
-		return delegateStateHandle.openInputStream();
-	}
-
-	public StreamStateHandle getDelegateStateHandle() {
-		return delegateStateHandle;
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-
-		if (!(o instanceof OperatorStateHandle)) {
-			return false;
-		}
-
-		OperatorStateHandle that = (OperatorStateHandle) o;
-
-		if (stateNameToPartitionOffsets.size() != that.stateNameToPartitionOffsets.size()) {
-			return false;
-		}
-
-		for (Map.Entry<String, StateMetaInfo> entry : stateNameToPartitionOffsets.entrySet()) {
-			if (!entry.getValue().equals(that.stateNameToPartitionOffsets.get(entry.getKey()))) {
-				return false;
-			}
-		}
-
-		return delegateStateHandle.equals(that.delegateStateHandle);
-	}
-
-	@Override
-	public int hashCode() {
-		int result = delegateStateHandle.hashCode();
-		for (Map.Entry<String, StateMetaInfo> entry : stateNameToPartitionOffsets.entrySet()) {
-
-			int entryHash = entry.getKey().hashCode();
-			if (entry.getValue() != null) {
-				entryHash += entry.getValue().hashCode();
-			}
-			result = 31 * result + entryHash;
-		}
-		return result;
-	}
-
-	@Override
-	public String toString() {
-		return "OperatorStateHandle{" +
-				"stateNameToPartitionOffsets=" + stateNameToPartitionOffsets +
-				", delegateStateHandle=" + delegateStateHandle +
-				'}';
-	}
-
-	public static class StateMetaInfo implements Serializable {
+	/**
+	 * Meta information about the operator state handle.
+	 */
+	class StateMetaInfo implements Serializable {
 
 		private static final long serialVersionUID = 3593817615858941166L;
 
@@ -157,10 +90,8 @@ public class OperatorStateHandle implements StreamStateHandle {
 
 			StateMetaInfo that = (StateMetaInfo) o;
 
-			if (!Arrays.equals(getOffsets(), that.getOffsets())) {
-				return false;
-			}
-			return getDistributionMode() == that.getDistributionMode();
+			return Arrays.equals(getOffsets(), that.getOffsets())
+				&& getDistributionMode() == that.getDistributionMode();
 		}
 
 		@Override

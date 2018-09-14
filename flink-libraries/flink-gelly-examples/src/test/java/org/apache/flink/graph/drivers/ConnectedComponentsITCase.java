@@ -30,8 +30,7 @@ import org.junit.runners.Parameterized;
  * Tests for {@link ConnectedComponents}.
  */
 @RunWith(Parameterized.class)
-public class ConnectedComponentsITCase
-extends DriverBaseITCase {
+public class ConnectedComponentsITCase extends NonTransformableDriverBaseITCase {
 
 	public ConnectedComponentsITCase(String idType, TestExecutionMode mode) {
 		super(idType, mode);
@@ -56,101 +55,15 @@ extends DriverBaseITCase {
 	}
 
 	@Test
-	public void testHashWithSmallRMatGraph() throws Exception {
-		long checksum;
-		switch (idType) {
-			case "byte":
-			case "nativeByte":
-			case "short":
-			case "nativeShort":
-			case "char":
-			case "nativeChar":
-			case "integer":
-			case "nativeInteger":
-			case "nativeLong":
-				checksum = 0x0000000000033e88L;
-				break;
-
-			case "long":
-				checksum = 0x0000000000057848L;
-				break;
-
-			case "string":
-			case "nativeString":
-				checksum = 0x000000000254a4c3L;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
-		expectedChecksum(parameters(7, "hash"), 106, checksum);
+	public void testHashWithRMatGraph() throws Exception {
+		expectedChecksum(parameters(7, "hash"), 106, 0x0000000000033e88L);
 	}
 
 	@Test
-	public void testHashWithLargeRMatGraph() throws Exception {
-		// computation is too large for collection mode
-		Assume.assumeFalse(mode == TestExecutionMode.COLLECTION);
-
-		long checksum;
-		switch (idType) {
-			case "byte":
-			case "nativeByte":
-				return;
-
-			case "short":
-			case "nativeShort":
-			case "char":
-			case "nativeChar":
-			case "integer":
-			case "nativeInteger":
-			case "nativeLong":
-				checksum = 0x00000003094ffba2L;
-				break;
-
-			case "long":
-				checksum = 0x000000030b68e522L;
-				break;
-
-			case "string":
-			case "nativeString":
-				checksum = 0x00001839ad14edb1L;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
-		expectedChecksum(parameters(15, "hash"), 25572, checksum);
-	}
-
-	@Test
-	public void testPrintWithSmallRMatGraph() throws Exception {
+	public void testPrintWithRMatGraph() throws Exception {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		long checksum;
-		switch (idType) {
-			case "byte":
-			case "nativeByte":
-			case "short":
-			case "nativeShort":
-			case "integer":
-			case "nativeInteger":
-			case "long":
-			case "nativeLong":
-				checksum = 0x00000024edd0568dL;
-				break;
-
-			case "string":
-			case "nativeString":
-				checksum = 0x000000232d8bf58dL;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
-		expectedOutputChecksum(parameters(7, "print"), new Checksum(106, checksum));
+		expectedOutputChecksum(parameters(7, "print"), new Checksum(106, 0x00000024edd0568dL));
 	}
 }

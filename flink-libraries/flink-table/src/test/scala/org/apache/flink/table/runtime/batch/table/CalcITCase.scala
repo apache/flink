@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.batch.table
 
+import java.math.MathContext
 import java.sql.{Date, Time, Timestamp}
 import java.util
 
@@ -27,14 +28,14 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.Types._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.Literal
-import org.apache.flink.table.expressions.utils.{Func13, RichFunc1, RichFunc2, RichFunc3}
+import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.runtime.utils.{TableProgramsCollectionTestBase, TableProgramsTestBase}
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.table.runtime.utils.UserDefinedFunctionTestUtils
+import org.apache.flink.table.runtime.utils.{TableProgramsCollectionTestBase, TableProgramsTestBase, UserDefinedFunctionTestUtils}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.test.util.TestBaseUtils.compareResultAsText
 import org.apache.flink.types.Row
+import org.junit.Assert.assertEquals
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -118,14 +119,10 @@ class CalcITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c).select('*)
+    val t = CollectionDataSets.getSmallNestedTupleDataSet(env).toTable(tEnv, 'a, 'b).select('*)
 
-    val expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
-      "4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" +
-      "7,4,Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" +
-      "11,5,Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" +
-      "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" +
-      "19,6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
+    val expected =
+      "(1,1),one\n" + "(2,2),two\n" + "(3,3),three\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -334,6 +331,7 @@ class CalcITCase(
   def testAdvancedDataTypes(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    tEnv.getConfig.setDecimalContext(new MathContext(30))
 
     val t = env
       .fromElements((
@@ -345,10 +343,11 @@ class CalcITCase(
       .toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
       .select('a, 'b, 'c, 'd, 'e, BigDecimal("11.2"), BigDecimal("11.2").bigDecimal,
         Date.valueOf("1984-07-12"), Time.valueOf("14:34:24"),
-        Timestamp.valueOf("1984-07-12 14:34:24"))
+        Timestamp.valueOf("1984-07-12 14:34:24"),
+        BigDecimal("1").toExpr / BigDecimal("3"))
 
     val expected = "78.454654654654654,4E+9999,1984-07-12,14:34:24,1984-07-12 14:34:24.0," +
-      "11.2,11.2,1984-07-12,14:34:24,1984-07-12 14:34:24.0"
+      "11.2,11.2,1984-07-12,14:34:24,1984-07-12 14:34:24.0,0.333333333333333333333333333333"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -446,7 +445,7 @@ class CalcITCase(
 
     val sqlQuery = "SELECT c FROM t1 where RichFunc2(c)='ABC#Hello'"
 
-    val result = tEnv.sql(sqlQuery)
+    val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = "Hello"
     val results = result.toDataSet[Row].collect()
@@ -467,11 +466,39 @@ class CalcITCase(
 
     val sqlQuery = "SELECT c FROM t1 where RichFunc3(c)=true"
 
-    val result = tEnv.sql(sqlQuery)
+    val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = "Hello"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testValueConstructor(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val rowValue = ("foo", 12, Timestamp.valueOf("1984-07-12 14:34:24"))
+
+    val table = env.fromElements(rowValue).toTable(tEnv, 'a, 'b, 'c)
+
+    val result = table.select(
+      row('a, 'b, 'c),
+      array(12, 'b),
+      map('a, 'c),
+      map('a, 'c).at('a) === 'c
+    )
+
+    val expected = "foo,12,1984-07-12 14:34:24.0,[12, 12],{foo=1984-07-12 14:34:24.0},true"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+
+    // Compare actual object to avoid undetected Calcite flattening
+    val resultRow = results.asJava.get(0)
+    assertEquals(rowValue._1, resultRow.getField(0).asInstanceOf[Row].getField(0))
+    assertEquals(rowValue._2, resultRow.getField(1).asInstanceOf[Array[Integer]](1))
+    assertEquals(rowValue._3,
+      resultRow.getField(2).asInstanceOf[util.Map[String, Timestamp]].get(rowValue._1))
   }
 
   @Test
@@ -488,7 +515,7 @@ class CalcITCase(
     val sqlQuery = "SELECT c FROM t1 where " +
       "RichFunc2(c)='Abc#Hello' or RichFunc1(a)=3 and b=2"
 
-    val result = tEnv.sql(sqlQuery)
+    val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = "Hello\nHello world"
     val results = result.toDataSet[Row].collect()
@@ -519,6 +546,36 @@ class CalcITCase(
       "default-Jack#22,Sunny-Jack#22,kevin2-Jack#22\n" +
       "default-John#19,Sunny-John#19,kevin2-John#19\n" +
       "default-nosharp,Sunny-nosharp,kevin2-nosharp"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testFunctionWithUnicodeParameters(): Unit = {
+    val data = List(
+      ("a\u0001b", "c\"d", "e\\\"\u0004f"), // uses Java/Scala escaping
+      ("x\u0001y", "y\"z", "z\\\"\u0004z")
+    )
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val splitUDF0 = new SplitUDF(deterministic = true)
+    val splitUDF1 = new SplitUDF(deterministic = false)
+
+     // uses Java/Scala escaping
+    val ds = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+      .select(
+        splitUDF0('a, "\u0001", 0) as 'a0,
+        splitUDF1('a, "\u0001", 0) as 'a1,
+        splitUDF0('b, "\"", 1) as 'b0,
+        splitUDF1('b, "\"", 1) as 'b1,
+        splitUDF0('c, "\\\"\u0004", 0) as 'c0,
+        splitUDF1('c, "\\\"\u0004", 0) as 'c1)
+
+    val results = ds.collect()
+
+    val expected = List("a,a,d,d,e,e", "x,x,z,z,z,z").mkString("\n")
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 }

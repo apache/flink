@@ -26,6 +26,8 @@ import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.typeutils.TypeCheckUtils
 
+import scala.collection.mutable
+
 /**
   * Generates a call to user-defined [[ScalarFunction]].
   *
@@ -44,21 +46,26 @@ class ScalarFunctionCallGen(
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
     // determine function method and result class
-    val matchingMethod = getUserDefinedMethod(scalarFunction, "eval", typeInfoToClass(signature))
+    val matchingSignature = getEvalMethodSignature(scalarFunction, signature)
       .getOrElse(throw new CodeGenException("No matching signature found."))
-    val matchingSignature = matchingMethod.getParameterTypes
     val resultClass = getResultTypeClassOfScalarFunction(scalarFunction, matchingSignature)
 
-    // zip for variable signatures
-    var paramToOperands = matchingSignature.zip(operands)
-    if (operands.length > matchingSignature.length) {
-      operands.drop(matchingSignature.length).foreach(op =>
-        paramToOperands = paramToOperands :+ (matchingSignature.last.getComponentType, op)
-      )
+    // get the expanded parameter types
+    var paramClasses = new mutable.ArrayBuffer[Class[_]]
+    for (i <- operands.indices) {
+      if (i < matchingSignature.length - 1) {
+        paramClasses += matchingSignature(i)
+      } else if (matchingSignature.last.isArray) {
+        // last argument is an array type
+        paramClasses += matchingSignature.last.getComponentType
+      } else {
+        // last argument is not an array type
+        paramClasses += matchingSignature.last
+      }
     }
 
     // convert parameters for function (output boxing)
-    val parameters = paramToOperands.map { case (paramClass, operandExpr) =>
+    val parameters = paramClasses.zip(operands).map { case (paramClass, operandExpr) =>
           if (paramClass.isPrimitive) {
             operandExpr
           } else if (ClassUtils.isPrimitiveWrapper(paramClass)
@@ -100,7 +107,7 @@ class ScalarFunctionCallGen(
 
     // convert result of function to internal representation (input unboxing)
     val resultUnboxing = if (resultClass.isPrimitive) {
-      codeGenerator.generateNonNullLiteral(returnType, resultTerm)
+      codeGenerator.generateTerm(returnType, resultTerm)
     } else {
       codeGenerator.generateInputFieldUnboxing(returnType, resultTerm)
     }

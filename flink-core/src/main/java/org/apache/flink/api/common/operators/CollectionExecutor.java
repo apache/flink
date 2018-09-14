@@ -50,6 +50,7 @@ import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.types.Value;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Visitor;
 
 import java.util.ArrayList;
@@ -115,7 +116,7 @@ public class CollectionExecutor {
 		}
 		
 		long endTime = System.currentTimeMillis();
-		Map<String, Object> accumulatorResults = AccumulatorHelper.toResultMap(accumulators);
+		Map<String, OptionalFailure<Object>> accumulatorResults = AccumulatorHelper.toResultMap(accumulators);
 		return new JobExecutionResult(null, endTime - startTime, accumulatorResults);
 	}
 

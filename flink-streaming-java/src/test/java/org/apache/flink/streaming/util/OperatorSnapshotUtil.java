@@ -18,11 +18,11 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointV1Serializer;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -35,7 +35,7 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Util for writing/reading {@link org.apache.flink.streaming.runtime.tasks.OperatorStateHandles},
+ * Util for writing/reading {@link OperatorSubtaskState},
  * for use in tests.
  */
 public class OperatorSnapshotUtil {
@@ -46,14 +46,16 @@ public class OperatorSnapshotUtil {
 		return resource.getFile();
 	}
 
-	public static void writeStateHandle(OperatorStateHandles state, String path) throws IOException {
+	public static void writeStateHandle(OperatorSubtaskState state, String path) throws IOException {
 		FileOutputStream out = new FileOutputStream(path);
 
 		try (DataOutputStream dos = new DataOutputStream(out)) {
 
-			dos.writeInt(state.getOperatorChainIndex());
+			// required for backwards compatibility.
+			dos.writeInt(0);
 
-			SavepointV1Serializer.serializeStreamStateHandle(state.getLegacyOperatorState(), dos);
+			// still required for compatibility
+			SavepointV1Serializer.serializeStreamStateHandle(null, dos);
 
 			Collection<OperatorStateHandle> rawOperatorState = state.getRawOperatorState();
 			if (rawOperatorState != null) {
@@ -103,12 +105,15 @@ public class OperatorSnapshotUtil {
 		}
 	}
 
-	public static OperatorStateHandles readStateHandle(String path) throws IOException, ClassNotFoundException {
+	public static OperatorSubtaskState readStateHandle(String path) throws IOException, ClassNotFoundException {
 		FileInputStream in = new FileInputStream(path);
 		try (DataInputStream dis = new DataInputStream(in)) {
-			int index = dis.readInt();
 
-			StreamStateHandle legacyState = SavepointV1Serializer.deserializeStreamStateHandle(dis);
+			// required for backwards compatibility.
+			dis.readInt();
+
+			// still required for compatibility to consume the bytes.
+			SavepointV1Serializer.deserializeStreamStateHandle(dis);
 
 			List<OperatorStateHandle> rawOperatorState = null;
 			int numRawOperatorStates = dis.readInt();
@@ -154,7 +159,11 @@ public class OperatorSnapshotUtil {
 				}
 			}
 
-			return new OperatorStateHandles(index, legacyState, managedKeyedState, rawKeyedState, managedOperatorState, rawOperatorState);
+			return new OperatorSubtaskState(
+				new StateObjectCollection<>(managedOperatorState),
+				new StateObjectCollection<>(rawOperatorState),
+				new StateObjectCollection<>(managedKeyedState),
+				new StateObjectCollection<>(rawKeyedState));
 		}
 	}
 }

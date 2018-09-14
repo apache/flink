@@ -20,10 +20,12 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * The handle to states of an incremental snapshot.
@@ -57,32 +59,33 @@ public class IncrementalKeyedStateHandle implements KeyedStateHandle {
 	private static final long serialVersionUID = -8328808513197388231L;
 
 	/**
-	 * The operator instance identifier for this handle
+	 * UUID to identify the backend which created this state handle. This is in creating the key for the
+	 * {@link SharedStateRegistry}.
 	 */
-	private final String operatorIdentifier;
+	private final UUID backendIdentifier;
 
 	/**
-	 * The key-group range covered by this state handle
+	 * The key-group range covered by this state handle.
 	 */
 	private final KeyGroupRange keyGroupRange;
 
 	/**
-	 * The checkpoint Id
+	 * The checkpoint Id.
 	 */
 	private final long checkpointId;
 
 	/**
-	 * Shared state in the incremental checkpoint. This i
+	 * Shared state in the incremental checkpoint.
 	 */
 	private final Map<StateHandleID, StreamStateHandle> sharedState;
 
 	/**
-	 * Private state in the incremental checkpoint
+	 * Private state in the incremental checkpoint.
 	 */
 	private final Map<StateHandleID, StreamStateHandle> privateState;
 
 	/**
-	 * Primary meta data state of the incremental checkpoint
+	 * Primary meta data state of the incremental checkpoint.
 	 */
 	private final StreamStateHandle metaStateHandle;
 
@@ -97,14 +100,14 @@ public class IncrementalKeyedStateHandle implements KeyedStateHandle {
 	private transient SharedStateRegistry sharedStateRegistry;
 
 	public IncrementalKeyedStateHandle(
-		String operatorIdentifier,
+		UUID backendIdentifier,
 		KeyGroupRange keyGroupRange,
 		long checkpointId,
 		Map<StateHandleID, StreamStateHandle> sharedState,
 		Map<StateHandleID, StreamStateHandle> privateState,
 		StreamStateHandle metaStateHandle) {
 
-		this.operatorIdentifier = Preconditions.checkNotNull(operatorIdentifier);
+		this.backendIdentifier = Preconditions.checkNotNull(backendIdentifier);
 		this.keyGroupRange = Preconditions.checkNotNull(keyGroupRange);
 		this.checkpointId = checkpointId;
 		this.sharedState = Preconditions.checkNotNull(sharedState);
@@ -134,21 +137,30 @@ public class IncrementalKeyedStateHandle implements KeyedStateHandle {
 		return metaStateHandle;
 	}
 
-	public String getOperatorIdentifier() {
-		return operatorIdentifier;
+	public UUID getBackendIdentifier() {
+		return backendIdentifier;
+	}
+
+	public SharedStateRegistry getSharedStateRegistry() {
+		return sharedStateRegistry;
 	}
 
 	@Override
 	public KeyedStateHandle getIntersection(KeyGroupRange keyGroupRange) {
-		if (this.keyGroupRange.getIntersection(keyGroupRange) != KeyGroupRange.EMPTY_KEY_GROUP_RANGE) {
-			return this;
-		} else {
-			return null;
-		}
+		return KeyGroupRange.EMPTY_KEY_GROUP_RANGE.equals(this.keyGroupRange.getIntersection(keyGroupRange)) ?
+			null : this;
 	}
 
 	@Override
 	public void discardState() throws Exception {
+
+		SharedStateRegistry registry = this.sharedStateRegistry;
+		final boolean isRegistered = (registry != null);
+
+		LOG.trace("Discarding IncrementalKeyedStateHandle (registered = {}) for checkpoint {} from backend with id {}.",
+			isRegistered,
+			checkpointId,
+			backendIdentifier);
 
 		try {
 			metaStateHandle.discardState();
@@ -165,18 +177,19 @@ public class IncrementalKeyedStateHandle implements KeyedStateHandle {
 		// If this was not registered, we can delete the shared state. We can simply apply this
 		// to all handles, because all handles that have not been created for the first time for this
 		// are only placeholders at this point (disposing them is a NOP).
-		if (sharedStateRegistry == null) {
+		if (isRegistered) {
+			// If this was registered, we only unregister all our referenced shared states
+			// from the registry.
+			for (StateHandleID stateHandleID : sharedState.keySet()) {
+				registry.unregisterReference(
+					createSharedStateRegistryKeyFromFileName(stateHandleID));
+			}
+		} else {
+			// Otherwise, we assume to own those handles and dispose them directly.
 			try {
 				StateUtil.bestEffortDiscardAllStateObjects(sharedState.values());
 			} catch (Exception e) {
 				LOG.warn("Could not properly discard new sst file states.", e);
-			}
-		} else {
-			// If this was registered, we only unregister all our referenced shared states
-			// from the registry.
-			for (StateHandleID stateHandleID : sharedState.keySet()) {
-				sharedStateRegistry.unregisterReference(
-					createSharedStateRegistryKeyFromFileName(stateHandleID));
 			}
 		}
 	}
@@ -199,9 +212,20 @@ public class IncrementalKeyedStateHandle implements KeyedStateHandle {
 	@Override
 	public void registerSharedStates(SharedStateRegistry stateRegistry) {
 
-		Preconditions.checkState(sharedStateRegistry == null, "The state handle has already registered its shared states.");
+		// This is a quick check to avoid that we register twice with the same registry. However, the code allows to
+		// register again with a different registry. The implication is that ownership is transferred to this new
+		// registry. This should only happen in case of a restart, when the CheckpointCoordinator creates a new
+		// SharedStateRegistry for the current attempt and the old registry becomes meaningless. We also assume that
+		// an old registry object from a previous run is due to be GCed and will never be used for registration again.
+		Preconditions.checkState(
+			sharedStateRegistry != stateRegistry,
+			"The state handle has already registered its shared states to the given registry.");
 
 		sharedStateRegistry = Preconditions.checkNotNull(stateRegistry);
+
+		LOG.trace("Registering IncrementalKeyedStateHandle for checkpoint {} from backend with id {}.",
+			checkpointId,
+			backendIdentifier);
 
 		for (Map.Entry<StateHandleID, StreamStateHandle> sharedStateHandle : sharedState.entrySet()) {
 			SharedStateRegistryKey registryKey =
@@ -231,7 +255,7 @@ public class IncrementalKeyedStateHandle implements KeyedStateHandle {
 	 */
 	@VisibleForTesting
 	public SharedStateRegistryKey createSharedStateRegistryKeyFromFileName(StateHandleID shId) {
-		return new SharedStateRegistryKey(operatorIdentifier + '-' + keyGroupRange, shId);
+		return new SharedStateRegistryKey(String.valueOf(backendIdentifier) + '-' + keyGroupRange, shId);
 	}
 
 	/**
@@ -252,7 +276,7 @@ public class IncrementalKeyedStateHandle implements KeyedStateHandle {
 		if (getCheckpointId() != that.getCheckpointId()) {
 			return false;
 		}
-		if (!getOperatorIdentifier().equals(that.getOperatorIdentifier())) {
+		if (!getBackendIdentifier().equals(that.getBackendIdentifier())) {
 			return false;
 		}
 		if (!getKeyGroupRange().equals(that.getKeyGroupRange())) {
@@ -273,13 +297,26 @@ public class IncrementalKeyedStateHandle implements KeyedStateHandle {
 	@VisibleForTesting
 	@Override
 	public int hashCode() {
-		int result = getOperatorIdentifier().hashCode();
+		int result = getBackendIdentifier().hashCode();
 		result = 31 * result + getKeyGroupRange().hashCode();
 		result = 31 * result + (int) (getCheckpointId() ^ (getCheckpointId() >>> 32));
 		result = 31 * result + getSharedState().hashCode();
 		result = 31 * result + getPrivateState().hashCode();
 		result = 31 * result + getMetaStateHandle().hashCode();
 		return result;
+	}
+
+	@Override
+	public String toString() {
+		return "IncrementalKeyedStateHandle{" +
+			"backendIdentifier=" + backendIdentifier +
+			", keyGroupRange=" + keyGroupRange +
+			", checkpointId=" + checkpointId +
+			", sharedState=" + sharedState +
+			", privateState=" + privateState +
+			", metaStateHandle=" + metaStateHandle +
+			", registered=" + (sharedStateRegistry != null) +
+			'}';
 	}
 }
 

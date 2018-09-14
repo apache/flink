@@ -98,55 +98,46 @@ class QueryDecorrelationTest extends TableTestBase {
 
     val expectedQuery = unaryNode(
       "DataSetAggregate",
-      binaryNode(
-        "DataSetUnion",
-        values(
-          "DataSetValues",
-          tuples(List(null)),
-          term("values", "empno")
-        ),
-        unaryNode(
-          "DataSetCalc",
-          binaryNode(
-            "DataSetJoin",
-            unaryNode(
-              "DataSetCalc",
-              binaryNode(
-                "DataSetJoin",
-                unaryNode(
-                  "DataSetCalc",
-                  batchTableNode(0),
-                  term("select", "empno", "salary", "deptno")
-                ),
-                unaryNode(
-                  "DataSetCalc",
-                  batchTableNode(1),
-                  term("select", "deptno")
-                ),
-                term("where", "=(deptno, deptno0)"),
-                term("join", "empno", "salary", "deptno", "deptno0"),
-                term("joinType", "InnerJoin")
-              ),
-              term("select", "empno", "salary", "deptno0")
-            ),
-            unaryNode(
-              "DataSetAggregate",
+      unaryNode(
+        "DataSetCalc",
+        binaryNode(
+          "DataSetJoin",
+          unaryNode(
+            "DataSetCalc",
+            binaryNode(
+              "DataSetJoin",
               unaryNode(
                 "DataSetCalc",
                 batchTableNode(0),
-                term("select", "salary", "deptno"),
-                term("where", "IS NOT NULL(deptno)")
+                term("select", "empno", "salary", "deptno")
               ),
-              term("groupBy", "deptno"),
-              term("select", "deptno", "AVG(salary) AS EXPR$0")
+              unaryNode(
+                "DataSetCalc",
+                batchTableNode(1),
+                term("select", "deptno")
+              ),
+              term("where", "=(deptno, deptno0)"),
+              term("join", "empno", "salary", "deptno", "deptno0"),
+              term("joinType", "InnerJoin")
             ),
-            term("where", "AND(=(deptno0, deptno), >(salary, EXPR$0))"),
-            term("join", "empno", "salary", "deptno0", "deptno", "EXPR$0"),
-            term("joinType", "InnerJoin")
+            term("select", "empno", "salary", "deptno0")
           ),
-          term("select", "empno")
+          unaryNode(
+            "DataSetAggregate",
+            unaryNode(
+              "DataSetCalc",
+              batchTableNode(0),
+              term("select", "salary", "deptno"),
+              term("where", "IS NOT NULL(deptno)")
+            ),
+            term("groupBy", "deptno"),
+            term("select", "deptno", "AVG(salary) AS EXPR$0")
+          ),
+          term("where", "AND(=(deptno0, deptno), >(salary, EXPR$0))"),
+          term("join", "empno", "salary", "deptno0", "deptno", "EXPR$0"),
+          term("joinType", "InnerJoin")
         ),
-        term("union", "empno")
+        term("select", "empno")
       ),
       term("select", "SUM(empno) AS EXPR$0")
     )

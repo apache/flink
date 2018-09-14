@@ -21,7 +21,7 @@ package org.apache.flink.runtime.messages.checkpoint;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
-import org.apache.flink.runtime.checkpoint.SubtaskState;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
 /**
@@ -36,7 +36,7 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 
 	private static final long serialVersionUID = -7606214777192401493L;
 
-	private final SubtaskState subtaskState;
+	private final TaskStateSnapshot subtaskState;
 
 	private final CheckpointMetrics checkpointMetrics;
 
@@ -47,7 +47,7 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 			ExecutionAttemptID taskExecutionId,
 			long checkpointId,
 			CheckpointMetrics checkpointMetrics,
-			SubtaskState subtaskState) {
+			TaskStateSnapshot subtaskState) {
 
 		super(job, taskExecutionId, checkpointId);
 
@@ -64,7 +64,7 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 	//  properties
 	// ------------------------------------------------------------------------
 
-	public SubtaskState getSubtaskState() {
+	public TaskStateSnapshot getSubtaskState() {
 		return subtaskState;
 	}
 

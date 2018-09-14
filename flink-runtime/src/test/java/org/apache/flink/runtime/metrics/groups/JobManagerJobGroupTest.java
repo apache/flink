@@ -21,8 +21,8 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.TestLogger;
@@ -38,8 +38,8 @@ import static org.junit.Assert.assertEquals;
 public class JobManagerJobGroupTest extends TestLogger {
 
 	@Test
-	public void testGenerateScopeDefault() {
-		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+	public void testGenerateScopeDefault() throws Exception {
+		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 
 		JobManagerMetricGroup tmGroup = new JobManagerMetricGroup(registry, "theHostName");
 		JobMetricGroup jmGroup = new JobManagerJobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
@@ -52,15 +52,15 @@ public class JobManagerJobGroupTest extends TestLogger {
 				"theHostName.jobmanager.myJobName.name",
 				jmGroup.getMetricIdentifier("name"));
 
-		registry.shutdown();
+		registry.shutdown().get();
 	}
 
 	@Test
-	public void testGenerateScopeCustom() {
+	public void testGenerateScopeCustom() throws Exception {
 		Configuration cfg = new Configuration();
 		cfg.setString(MetricOptions.SCOPE_NAMING_JM, "abc");
 		cfg.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "some-constant.<job_name>");
-		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(cfg));
+		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(cfg));
 
 		JobID jid = new JobID();
 
@@ -75,15 +75,15 @@ public class JobManagerJobGroupTest extends TestLogger {
 				"some-constant.myJobName.name",
 				jmGroup.getMetricIdentifier("name"));
 
-		registry.shutdown();
+		registry.shutdown().get();
 	}
 
 	@Test
-	public void testGenerateScopeCustomWildcard() {
+	public void testGenerateScopeCustomWildcard() throws Exception {
 		Configuration cfg = new Configuration();
 		cfg.setString(MetricOptions.SCOPE_NAMING_JM, "peter");
 		cfg.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "*.some-constant.<job_id>");
-		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(cfg));
+		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(cfg));
 
 		JobID jid = new JobID();
 
@@ -98,13 +98,13 @@ public class JobManagerJobGroupTest extends TestLogger {
 				"peter.some-constant." + jid + ".name",
 				jmGroup.getMetricIdentifier("name"));
 
-		registry.shutdown();
+		registry.shutdown().get();
 	}
 
 	@Test
 	public void testCreateQueryServiceMetricInfo() {
 		JobID jid = new JobID();
-		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 		JobManagerMetricGroup jm = new JobManagerMetricGroup(registry, "host");
 		JobManagerJobMetricGroup jmj = new JobManagerJobMetricGroup(registry, jm, jid, "jobname");
 

@@ -52,16 +52,16 @@ public class PageRankData {
 
 	public static final DataSet<Edge<Long, Double>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
 
-		List<Edge<Long, Double>> edges = new ArrayList<Edge<Long, Double>>();
-		edges.add(new Edge<Long, Double>(2L, 1L, 1.0));
-		edges.add(new Edge<Long, Double>(5L, 2L, 1.0));
-		edges.add(new Edge<Long, Double>(5L, 4L, 1.0));
-		edges.add(new Edge<Long, Double>(4L, 3L, 1.0));
-		edges.add(new Edge<Long, Double>(4L, 2L, 1.0));
-		edges.add(new Edge<Long, Double>(1L, 4L, 1.0));
-		edges.add(new Edge<Long, Double>(1L, 2L, 1.0));
-		edges.add(new Edge<Long, Double>(1L, 3L, 1.0));
-		edges.add(new Edge<Long, Double>(3L, 5L, 1.0));
+		List<Edge<Long, Double>> edges = new ArrayList<>();
+		edges.add(new Edge<>(2L, 1L, 1.0));
+		edges.add(new Edge<>(5L, 2L, 1.0));
+		edges.add(new Edge<>(5L, 4L, 1.0));
+		edges.add(new Edge<>(4L, 3L, 1.0));
+		edges.add(new Edge<>(4L, 2L, 1.0));
+		edges.add(new Edge<>(1L, 4L, 1.0));
+		edges.add(new Edge<>(1L, 2L, 1.0));
+		edges.add(new Edge<>(1L, 3L, 1.0));
+		edges.add(new Edge<>(3L, 5L, 1.0));
 
 		return env.fromCollection(edges);
 	}

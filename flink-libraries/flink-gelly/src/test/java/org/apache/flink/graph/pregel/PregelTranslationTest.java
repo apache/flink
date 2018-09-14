@@ -88,7 +88,7 @@ public class PregelTranslationTest {
 		result = graph.runVertexCentricIteration(new MyCompute(), null,
 			NUM_ITERATIONS, parameters).getVertices();
 
-		result.output(new DiscardingOutputFormat<Vertex<String, Double>>());
+		result.output(new DiscardingOutputFormat<>());
 
 		// ------------- validate the java program ----------------
 

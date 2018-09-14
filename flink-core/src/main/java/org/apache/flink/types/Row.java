@@ -106,12 +106,12 @@ public class Row implements Serializable{
 
 		Row row = (Row) o;
 
-		return Arrays.equals(fields, row.fields);
+		return Arrays.deepEquals(fields, row.fields);
 	}
 
 	@Override
 	public int hashCode() {
-		return Arrays.hashCode(fields);
+		return Arrays.deepHashCode(fields);
 	}
 
 	/**
@@ -142,15 +142,29 @@ public class Row implements Serializable{
 
 	/**
 	 * Creates a new Row which copied from another row.
+	 * This method does not perform a deep copy.
 	 *
 	 * @param row The row being copied.
 	 * @return The cloned new Row
 	 */
 	public static Row copy(Row row) {
-		Row ret = new Row(row.getArity());
-		for (int i = 0; i < row.getArity(); ++i) {
-			ret.setField(i, row.getField(i));
+		final Row newRow = new Row(row.fields.length);
+		System.arraycopy(row.fields, 0, newRow.fields, 0, row.fields.length);
+		return newRow;
+	}
+
+	/**
+	 * Creates a new Row with projected fields from another row.
+	 * This method does not perform a deep copy.
+	 *
+	 * @param fields fields to be projected
+	 * @return the new projected Row
+	 */
+	public static Row project(Row row, int[] fields) {
+		final Row newRow = new Row(fields.length);
+		for (int i = 0; i < fields.length; i++) {
+			newRow.fields[i] = row.fields[fields[i]];
 		}
-		return ret;
+		return newRow;
 	}
 }

@@ -355,7 +355,7 @@ public class RMQConnectionConfig implements Serializable {
 		/**
 		 * Convenience method for setting the fields in an AMQP URI: host,
 		 * port, username, password and virtual host.  If any part of the
-		 * URI is ommited, the ConnectionFactory's corresponding variable
+		 * URI is omitted, the ConnectionFactory's corresponding variable
 		 * is left unchanged.
 		 * @param uri is the AMQP URI containing the data
 		 * @return the Builder

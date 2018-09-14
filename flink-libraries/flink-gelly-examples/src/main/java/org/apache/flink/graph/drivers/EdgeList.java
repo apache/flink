@@ -54,7 +54,7 @@ extends DriverBase<K, VV, EV> {
 
 		if (hasNullValueEdges(edges)) {
 			return edges
-				.map(new EdgeToTuple2Map<K, EV>())
+				.map(new EdgeToTuple2Map<>())
 				.name("Edge to Tuple2")
 				.setParallelism(parallelism.getValue().intValue());
 		} else {

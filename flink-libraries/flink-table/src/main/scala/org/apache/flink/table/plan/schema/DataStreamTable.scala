@@ -18,27 +18,12 @@
 
 package org.apache.flink.table.plan.schema
 
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
 
 class DataStreamTable[T](
     val dataStream: DataStream[T],
     override val fieldIndexes: Array[Int],
     override val fieldNames: Array[String],
-    val rowtime: Option[(Int, String)],
-    val proctime: Option[(Int, String)],
     override val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
-  extends FlinkTable[T](dataStream.getType, fieldIndexes, fieldNames, statistic) {
-
-  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
-    val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
-
-    flinkTypeFactory.buildLogicalRowType(
-      fieldNames,
-      fieldTypes,
-      rowtime,
-      proctime)
-  }
-}
+  extends InlineTable[T](dataStream.getType, fieldIndexes, fieldNames, statistic)

@@ -20,6 +20,7 @@ package org.apache.flink.graph.drivers;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.drivers.parameter.BooleanParameter;
 import org.apache.flink.graph.drivers.parameter.DoubleParameter;
 import org.apache.flink.types.CopyableValue;
 
@@ -39,6 +40,8 @@ extends DriverBase<K, VV, EV> {
 	private DoubleParameter minScore = new DoubleParameter(this, "minimum_score")
 		.setDefaultValue(0.0)
 		.setMinimumValue(0.0, true);
+
+	private BooleanParameter mirrorResults = new BooleanParameter(this, "mirror_results");
 
 	@Override
 	public String getShortDescription() {
@@ -62,6 +65,7 @@ extends DriverBase<K, VV, EV> {
 			.run(new org.apache.flink.graph.library.similarity.AdamicAdar<K, VV, EV>()
 				.setMinimumRatio(minRatio.getValue().floatValue())
 				.setMinimumScore(minScore.getValue().floatValue())
+				.setMirrorResults(mirrorResults.getValue())
 				.setParallelism(parallelism.getValue().intValue()));
 	}
 }

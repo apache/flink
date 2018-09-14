@@ -22,21 +22,28 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
+import org.apache.flink.util.Preconditions;
 
 import org.junit.Assert;
 
@@ -45,6 +52,9 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Function;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Test harness for testing a {@link StreamTask}.
@@ -56,15 +66,14 @@ import java.util.concurrent.LinkedBlockingQueue;
  * <p>After setting up everything the Task can be invoked using {@link #invoke()}. This will start
  * a new Thread to execute the Task. Use {@link #waitForTaskCompletion()} to wait for the Task
  * thread to finish.
- *
- * <p>When using this you need to add the following line to your test class to setup Powermock:
- * {@code {@literal @}PrepareForTest({ResultPartitionWriter.class})}
  */
 public class StreamTaskTestHarness<OUT> {
 
-	public  static final int DEFAULT_MEMORY_MANAGER_SIZE = 1024 * 1024;
+	public static final int DEFAULT_MEMORY_MANAGER_SIZE = 1024 * 1024;
 
 	public static final int DEFAULT_NETWORK_BUFFER_SIZE = 1024;
+
+	private final Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory;
 
 	public long memorySize = 0;
 	public int bufferSize = 0;
@@ -75,7 +84,9 @@ public class StreamTaskTestHarness<OUT> {
 	public Configuration taskConfig;
 	protected StreamConfig streamConfig;
 
-	private AbstractInvokable task;
+	protected TestTaskStateManager taskStateManager;
+
+	private StreamTask<OUT, ?> task;
 
 	private TypeSerializer<OUT> outputSerializer;
 	private TypeSerializer<StreamElement> outputStreamRecordSerializer;
@@ -90,11 +101,16 @@ public class StreamTaskTestHarness<OUT> {
 	protected int numInputGates;
 	protected int numInputChannelsPerGate;
 
+	private boolean setupCalled = false;
+
 	@SuppressWarnings("rawtypes")
 	protected StreamTestSingleInputGate[] inputGates;
 
-	public StreamTaskTestHarness(AbstractInvokable task, TypeInformation<OUT> outputType) {
-		this.task = task;
+	public StreamTaskTestHarness(
+			Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
+			TypeInformation<OUT> outputType) {
+
+		this.taskFactory = checkNotNull(taskFactory);
 		this.memorySize = DEFAULT_MEMORY_MANAGER_SIZE;
 		this.bufferSize = DEFAULT_NETWORK_BUFFER_SIZE;
 
@@ -106,19 +122,28 @@ public class StreamTaskTestHarness<OUT> {
 
 		outputSerializer = outputType.createSerializer(executionConfig);
 		outputStreamRecordSerializer = new StreamElementSerializer<OUT>(outputSerializer);
+
+		this.taskStateManager = new TestTaskStateManager();
 	}
 
 	public ProcessingTimeService getProcessingTimeService() {
-		if (!(task instanceof StreamTask)) {
-			throw new UnsupportedOperationException("getProcessingTimeService() only supported on StreamTasks.");
-		}
-		return ((StreamTask<?, ?>) task).getProcessingTimeService();
+		return task.getProcessingTimeService();
 	}
 
 	/**
 	 * This must be overwritten for OneInputStreamTask or TwoInputStreamTask test harnesses.
 	 */
 	protected void initializeInputs() throws IOException, InterruptedException {}
+
+	public TestTaskStateManager getTaskStateManager() {
+		return taskStateManager;
+	}
+
+	public void setTaskStateSnapshot(long checkpointId, TaskStateSnapshot taskStateSnapshot) {
+		taskStateManager.setReportedCheckpointId(checkpointId);
+		taskStateManager.setJobManagerTaskStateSnapshotsByCheckpointId(
+			Collections.singletonMap(checkpointId, taskStateSnapshot));
+	}
 
 	@SuppressWarnings("unchecked")
 	private void initializeOutput() {
@@ -135,6 +160,8 @@ public class StreamTaskTestHarness<OUT> {
 	 * please manually configure the stream config.
 	 */
 	public void setupOutputForSingletonOperatorChain() {
+		Preconditions.checkState(!setupCalled, "This harness was already setup.");
+		setupCalled = true;
 		streamConfig.setChainStart();
 		streamConfig.setBufferTimeout(0);
 		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -142,14 +169,15 @@ public class StreamTaskTestHarness<OUT> {
 		streamConfig.setNumberOfOutputs(1);
 		streamConfig.setTypeSerializerOut(outputSerializer);
 		streamConfig.setVertexID(0);
+		streamConfig.setOperatorID(new OperatorID(4711L, 123L));
 
 		StreamOperator<OUT> dummyOperator = new AbstractStreamOperator<OUT>() {
 			private static final long serialVersionUID = 1L;
 		};
 
 		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
-		StreamNode sourceVertexDummy = new StreamNode(null, 0, "group", dummyOperator, "source dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
-		StreamNode targetVertexDummy = new StreamNode(null, 1, "group", dummyOperator, "target dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
+		StreamNode sourceVertexDummy = new StreamNode(null, 0, "group", null, dummyOperator, "source dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
+		StreamNode targetVertexDummy = new StreamNode(null, 1, "group", null, dummyOperator, "target dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
 
 		outEdgesInOrder.add(new StreamEdge(sourceVertexDummy, targetVertexDummy, 0, new LinkedList<String>(), new BroadcastPartitioner<Object>(), null /* output tag */));
 
@@ -159,13 +187,20 @@ public class StreamTaskTestHarness<OUT> {
 
 	public StreamMockEnvironment createEnvironment() {
 		return new StreamMockEnvironment(
-				jobConfig, taskConfig, executionConfig, memorySize, new MockInputSplitProvider(), bufferSize);
+			jobConfig,
+			taskConfig,
+			executionConfig,
+			memorySize,
+			new MockInputSplitProvider(),
+			bufferSize,
+			taskStateManager);
 	}
 
 	/**
 	 * Invoke the Task. This resets the output of any previous invocation. This will start a new
 	 * Thread to execute the Task in. Use {@link #waitForTaskCompletion()} to wait for the
 	 * Task thread to finish running.
+	 *
 	 */
 	public void invoke() throws Exception {
 		invoke(createEnvironment());
@@ -176,15 +211,14 @@ public class StreamTaskTestHarness<OUT> {
 	 * Thread to execute the Task in. Use {@link #waitForTaskCompletion()} to wait for the
 	 * Task thread to finish running.
 	 *
-	 * <p>Variant for providing a custom environment.
 	 */
 	public void invoke(StreamMockEnvironment mockEnv) throws Exception {
-		this.mockEnv = mockEnv;
-
-		task.setEnvironment(mockEnv);
+		this.mockEnv = checkNotNull(mockEnv);
 
 		initializeInputs();
 		initializeOutput();
+
+		this.task = taskFactory.apply(mockEnv);
 
 		taskThread = new TaskThread(task);
 		taskThread.start();
@@ -255,6 +289,10 @@ public class StreamTaskTestHarness<OUT> {
 				throw new IllegalStateException("Not a StreamTask");
 			}
 		}
+	}
+
+	public StreamTask<OUT, ?> getTask() {
+		return task;
 	}
 
 	/**
@@ -366,6 +404,18 @@ public class StreamTaskTestHarness<OUT> {
 		for (int i = 0; i < numInputGates; i++) {
 			inputGates[i].endInput();
 		}
+	}
+
+	public StreamConfigChainer setupOperatorChain(OperatorID headOperatorId, OneInputStreamOperator<?, ?> headOperator) {
+		Preconditions.checkState(!setupCalled, "This harness was already setup.");
+		setupCalled = true;
+		return new StreamConfigChainer(headOperatorId, headOperator, getStreamConfig());
+	}
+
+	public StreamConfigChainer setupOperatorChain(OperatorID headOperatorId, TwoInputStreamOperator<?, ?, ?> headOperator) {
+		Preconditions.checkState(!setupCalled, "This harness was already setup.");
+		setupCalled = true;
+		return new StreamConfigChainer(headOperatorId, headOperator, getStreamConfig());
 	}
 
 	// ------------------------------------------------------------------------

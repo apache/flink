@@ -32,10 +32,10 @@ div(ng-if="metrics.id")
         td {{ metrics.dataPort }}
         td {{ metrics.slotsNumber }}
         td {{ metrics.freeSlots }}
-        td {{ metrics.cpuCores }}
-        td {{ metrics.physicalMemory | humanizeBytes }}
-        td {{ metrics.freeMemory | humanizeBytes }}
-        td {{ metrics.managedMemory | humanizeBytes }}
+        td {{ metrics.hardware.cpuCores }}
+        td {{ metrics.hardware.physicalMemory | humanizeBytes }}
+        td {{ metrics.hardware.freeMemory | humanizeBytes }}
+        td {{ metrics.hardware.managedMemory | humanizeBytes }}
 
   h1 Memory
 
@@ -60,9 +60,9 @@ div(ng-if="metrics.id")
         td {{ metrics.metrics.nonHeapMax | humanizeBytes }}
       tr
         td Total
-        td {{ metrics.metrics.totalCommitted | humanizeBytes }}
-        td {{ metrics.metrics.totalUsed | humanizeBytes }}
-        td {{ metrics.metrics.totalMax | humanizeBytes }}
+        td {{ metrics.metrics.heapCommitted + metrics.metrics.nonHeapCommitted | humanizeBytes }}
+        td {{ metrics.metrics.heapUsed + metrics.metrics.nonHeapUsed | humanizeBytes }}
+        td {{ metrics.metrics.heapMax + metrics.metrics.nonHeapMax | humanizeBytes }}
 
   h2 Outside JVM
   table.table.table-properties

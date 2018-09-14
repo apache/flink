@@ -25,8 +25,8 @@ import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
-import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 
@@ -44,8 +44,8 @@ public class AbstractMetricGroupTest {
 	 * called and the parent is null.
 	 */
 	@Test
-	public void testGetAllVariables() {
-		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+	public void testGetAllVariables() throws Exception {
+		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 
 		AbstractMetricGroup group = new AbstractMetricGroup<AbstractMetricGroup<?>>(registry, new String[0], null) {
 			@Override
@@ -60,7 +60,7 @@ public class AbstractMetricGroupTest {
 		};
 		assertTrue(group.getAllVariables().isEmpty());
 
-		registry.shutdown();
+		registry.shutdown().get();
 	}
 
 	// ========================================================================
@@ -84,13 +84,12 @@ public class AbstractMetricGroupTest {
 	public void testScopeCachingForMultipleReporters() throws Exception {
 		Configuration config = new Configuration();
 		config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
-		config.setString(MetricOptions.REPORTERS_LIST, "test1,test2");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "-");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter2.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "!");
 
-		MetricRegistry testRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+		MetricRegistryImpl testRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
 		try {
 			MetricGroup tmGroup = new TaskManagerMetricGroup(testRegistry, "host", "id");
 			tmGroup.counter("1");
@@ -102,7 +101,7 @@ public class AbstractMetricGroupTest {
 				}
 			}
 		} finally {
-			testRegistry.shutdown();
+			testRegistry.shutdown().get();
 		}
 	}
 
@@ -177,10 +176,10 @@ public class AbstractMetricGroupTest {
 	}
 
 	@Test
-	public void testScopeGenerationWithoutReporters() {
+	public void testScopeGenerationWithoutReporters() throws Exception {
 		Configuration config = new Configuration();
 		config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
-		MetricRegistry testRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+		MetricRegistryImpl testRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
 
 		try {
 			TaskManagerMetricGroup group = new TaskManagerMetricGroup(testRegistry, "host", "id");
@@ -194,7 +193,7 @@ public class AbstractMetricGroupTest {
 			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, -1));
 			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, 2));
 		} finally {
-			testRegistry.shutdown();
+			testRegistry.shutdown().get();
 		}
 	}
 }

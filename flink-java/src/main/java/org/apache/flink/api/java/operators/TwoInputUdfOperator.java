@@ -18,15 +18,8 @@
 
 package org.apache.flink.api.java.operators;
 
-import java.lang.annotation.Annotation;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
@@ -36,8 +29,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
+
+import java.lang.annotation.Annotation;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -46,8 +44,8 @@ import static java.util.Objects.requireNonNull;
  * user-defined functions (UDFs). The UDFs encapsulated by this operator are naturally UDFs that
  * have two inputs (such as {@link org.apache.flink.api.common.functions.RichJoinFunction} or
  * {@link org.apache.flink.api.common.functions.RichCoGroupFunction}).
- * <p>
- * This class encapsulates utilities for the UDFs, such as broadcast variables, parameterization
+ *
+ * <p>This class encapsulates utilities for the UDFs, such as broadcast variables, parameterization
  * through configuration objects, and semantic properties.
  *
  * @param <IN1> The data type of the first input data set.
@@ -56,8 +54,7 @@ import static java.util.Objects.requireNonNull;
  */
 @Public
 public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOperator<IN1, IN2, OUT, O>>
-	extends TwoInputOperator<IN1, IN2, OUT, O> implements UdfOperator<O>
-{
+	extends TwoInputOperator<IN1, IN2, OUT, O> implements UdfOperator<O> {
 	private Configuration parameters;
 
 	private Map<String, DataSet<?>> broadcastVariables;
@@ -104,7 +101,7 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 		if (name == null) {
 			throw new IllegalArgumentException("Broadcast variable name must not be null.");
 		}
-		
+
 		if (this.broadcastVariables == null) {
 			this.broadcastVariables = new HashMap<String, DataSet<?>>();
 		}
@@ -117,46 +114,34 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	}
 
 	/**
-	 * <p>
 	 * Adds semantic information about forwarded fields of the first input of the user-defined function.
 	 * The forwarded fields information declares fields which are never modified by the function and
 	 * which are forwarded at the same position to the output or unchanged copied to another position in the output.
-	 * </p>
 	 *
-	 * <p>
-	 * Fields that are forwarded at the same position are specified by their position.
+	 * <p>Fields that are forwarded at the same position are specified by their position.
 	 * The specified position must be valid for the input and output data type and have the same type.
 	 * For example <code>withForwardedFieldsFirst("f2")</code> declares that the third field of a Java input tuple
 	 * from the first input is copied to the third field of an output tuple.
-	 * </p>
 	 *
-	 * <p>
-	 * Fields which are unchanged copied from the first input to another position in the output are declared
+	 * <p>Fields which are unchanged copied from the first input to another position in the output are declared
 	 * by specifying the source field reference in the first input and the target field reference in the output.
 	 * {@code withForwardedFieldsFirst("f0->f2")} denotes that the first field of the first input Java tuple is
 	 * unchanged copied to the third field of the Java output tuple. When using a wildcard ("*") ensure that
 	 * the number of declared fields and their types in first input and output type match.
-	 * </p>
 	 *
-	 * <p>
-	 * Multiple forwarded fields can be annotated in one ({@code withForwardedFieldsFirst("f2; f3->f0; f4")})
+	 * <p>Multiple forwarded fields can be annotated in one ({@code withForwardedFieldsFirst("f2; f3->f0; f4")})
 	 * or separate Strings ({@code withForwardedFieldsFirst("f2", "f3->f0", "f4")}).
 	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
 	 * details on field references such as nested fields and wildcard.
-	 * </p>
 	 *
-	 * <p>
-	 * It is not possible to override existing semantic information about forwarded fields of the first input which was
+	 * <p>It is not possible to override existing semantic information about forwarded fields of the first input which was
 	 * for example added by a {@link org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst} class annotation.
-	 * </p>
 	 *
-	 * <p>
-	 * <b>NOTE: Adding semantic information for functions is optional!
+	 * <p><b>NOTE: Adding semantic information for functions is optional!
 	 * If used correctly, semantic information can help the Flink optimizer to generate more efficient execution plans.
 	 * However, incorrect semantic information can cause the optimizer to generate incorrect execution plans which compute wrong results!
 	 * So be careful when adding semantic information.
 	 * </b>
-	 * </p>
 	 *
 	 * @param forwardedFieldsFirst A list of forwarded field expressions for the first input of the function.
 	 * @return This operator with annotated forwarded field information.
@@ -171,12 +156,12 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 			setSemanticProperties(extractSemanticAnnotationsFromUdf(getFunction().getClass()));
 		}
 
-		if(this.udfSemantics == null || this.analyzedUdfSemantics) {
+		if (this.udfSemantics == null || this.analyzedUdfSemantics) {
 			setSemanticProperties(new DualInputSemanticProperties());
 			SemanticPropUtil.getSemanticPropsDualFromString(this.udfSemantics, forwardedFieldsFirst, null,
 					null, null, null, null, getInput1Type(), getInput2Type(), getResultType());
 		} else {
-			if(this.udfWithForwardedFieldsFirstAnnotation(getFunction().getClass())) {
+			if (this.udfWithForwardedFieldsFirstAnnotation(getFunction().getClass())) {
 				// refuse semantic information as it would override the function annotation
 				throw new SemanticProperties.InvalidSemanticAnnotationException("Forwarded field information " +
 						"has already been added by a function annotation for the first input of this operator. " +
@@ -192,46 +177,34 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	}
 
 	/**
-	 * <p>
 	 * Adds semantic information about forwarded fields of the second input of the user-defined function.
 	 * The forwarded fields information declares fields which are never modified by the function and
 	 * which are forwarded at the same position to the output or unchanged copied to another position in the output.
-	 * </p>
 	 *
-	 * <p>
-	 * Fields that are forwarded at the same position are specified by their position.
+	 * <p>Fields that are forwarded at the same position are specified by their position.
 	 * The specified position must be valid for the input and output data type and have the same type.
 	 * For example <code>withForwardedFieldsSecond("f2")</code> declares that the third field of a Java input tuple
 	 * from the second input is copied to the third field of an output tuple.
-	 * </p>
 	 *
-	 * <p>
-	 * Fields which are unchanged copied from the second input to another position in the output are declared
+	 * <p>Fields which are unchanged copied from the second input to another position in the output are declared
 	 * by specifying the source field reference in the second input and the target field reference in the output.
 	 * {@code withForwardedFieldsSecond("f0->f2")} denotes that the first field of the second input Java tuple is
 	 * unchanged copied to the third field of the Java output tuple. When using a wildcard ("*") ensure that
 	 * the number of declared fields and their types in second input and output type match.
-	 * </p>
 	 *
-	 * <p>
-	 * Multiple forwarded fields can be annotated in one ({@code withForwardedFieldsSecond("f2; f3->f0; f4")})
+	 * <p>Multiple forwarded fields can be annotated in one ({@code withForwardedFieldsSecond("f2; f3->f0; f4")})
 	 * or separate Strings ({@code withForwardedFieldsSecond("f2", "f3->f0", "f4")}).
 	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
 	 * details on field references such as nested fields and wildcard.
-	 * </p>
 	 *
-	 * <p>
-	 * It is not possible to override existing semantic information about forwarded fields of the second input which was
+	 * <p>It is not possible to override existing semantic information about forwarded fields of the second input which was
 	 * for example added by a {@link org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond} class annotation.
-	 * </p>
 	 *
-	 * <p>
-	 * <b>NOTE: Adding semantic information for functions is optional!
+	 * <p><b>NOTE: Adding semantic information for functions is optional!
 	 * If used correctly, semantic information can help the Flink optimizer to generate more efficient execution plans.
 	 * However, incorrect semantic information can cause the optimizer to generate incorrect execution plans which compute wrong results!
 	 * So be careful when adding semantic information.
 	 * </b>
-	 * </p>
 	 *
 	 * @param forwardedFieldsSecond A list of forwarded field expressions for the second input of the function.
 	 * @return This operator with annotated forwarded field information.
@@ -246,12 +219,12 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 			setSemanticProperties(extractSemanticAnnotationsFromUdf(getFunction().getClass()));
 		}
 
-		if(this.udfSemantics == null || this.analyzedUdfSemantics) {
+		if (this.udfSemantics == null || this.analyzedUdfSemantics) {
 			setSemanticProperties(new DualInputSemanticProperties());
 			SemanticPropUtil.getSemanticPropsDualFromString(this.udfSemantics, null, forwardedFieldsSecond,
 					null, null, null, null, getInput1Type(), getInput2Type(), getResultType());
 		} else {
-			if(udfWithForwardedFieldsSecondAnnotation(getFunction().getClass())) {
+			if (udfWithForwardedFieldsSecondAnnotation(getFunction().getClass())) {
 				// refuse semantic information as it would override the function annotation
 				throw new SemanticProperties.InvalidSemanticAnnotationException("Forwarded field information " +
 						"has already been added by a function annotation for the second input of this operator. " +
@@ -282,7 +255,7 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	 *
 	 * <p>Use this method the following way:
 	 * <pre>{@code
-	 *     DataSet<String[]> result = 
+	 *     DataSet<String[]> result =
 	 *         data1.join(data2).where("id").equalTo("fieldX")
 	 *              .with(new JoinFunctionWithNonInferrableReturnType())
 	 *              .returns(String[].class);
@@ -312,7 +285,7 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	 *
 	 * <p>Use this method the following way:
 	 * <pre>{@code
-	 *     DataSet<Tuple2<String, Double>> result = 
+	 *     DataSet<Tuple2<String, Double>> result =
 	 *         data1.join(data2).where("id").equalTo("fieldX")
 	 *              .with(new JoinFunctionWithNonInferrableReturnType())
 	 *              .returns(new TypeHint<Tuple2<String, Double>>(){});
@@ -352,52 +325,6 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 		@SuppressWarnings("unchecked")
 		O returnType = (O) this;
 		return returnType;
-	}
-
-	/**
-	 * Adds a type information hint about the return type of this operator. 
-	 *
-	 * <p>
-	 * Type hints are important in cases where the Java compiler
-	 * throws away generic type information necessary for efficient execution.
-	 *
-	 * <p>
-	 * This method takes a type information string that will be parsed. A type information string can contain the following
-	 * types:
-	 *
-	 * <ul>
-	 * <li>Basic types such as <code>Integer</code>, <code>String</code>, etc.
-	 * <li>Basic type arrays such as <code>Integer[]</code>,
-	 * <code>String[]</code>, etc.
-	 * <li>Tuple types such as <code>Tuple1&lt;TYPE0&gt;</code>,
-	 * <code>Tuple2&lt;TYPE0, TYPE1&gt;</code>, etc.</li>
-	 * <li>Pojo types such as <code>org.my.MyPojo&lt;myFieldName=TYPE0,myFieldName2=TYPE1&gt;</code>, etc.</li>
-	 * <li>Generic types such as <code>java.lang.Class</code>, etc.
-	 * <li>Custom type arrays such as <code>org.my.CustomClass[]</code>,
-	 * <code>org.my.CustomClass$StaticInnerClass[]</code>, etc.
-	 * <li>Value types such as <code>DoubleValue</code>,
-	 * <code>StringValue</code>, <code>IntegerValue</code>, etc.</li>
-	 * <li>Tuple array types such as <code>Tuple2&lt;TYPE0,TYPE1&gt;[], etc.</code></li>
-	 * <li>Writable types such as <code>Writable&lt;org.my.CustomWritable&gt;</code></li>
-	 * <li>Enum types such as <code>Enum&lt;org.my.CustomEnum&gt;</code></li>
-	 * </ul>
-	 *
-	 * Example:
-	 * <code>"Tuple2&lt;String,Tuple2&lt;Integer,org.my.MyJob$Pojo&lt;word=String&gt;&gt;&gt;"</code>
-	 *
-	 * @param typeInfoString
-	 *            type information string to be parsed
-	 * @return This operator with a given return type hint.
-	 *
-	 * @deprecated Please use {@link #returns(Class)} or {@link #returns(TypeHint)} instead.
-	 */
-	@Deprecated
-	@PublicEvolving
-	public O returns(String typeInfoString) {
-		if (typeInfoString == null) {
-			throw new IllegalArgumentException("Type information string must not be null.");
-		}
-		return returns(TypeInfoParser.<OUT>parse(typeInfoString));
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -35,7 +35,7 @@ public class FractionalTypeInfo<T> extends NumericTypeInfo<T> {
 
 	private static final long serialVersionUID = 554334260950199994L;
 
-	private static final HashSet<Class<?>> fractionalTypes = new HashSet<Class<?>>(
+	private static final HashSet<Class<?>> fractionalTypes = new HashSet<>(
 			Arrays.asList(
 				Double.class,
 				Float.class));
@@ -43,7 +43,7 @@ public class FractionalTypeInfo<T> extends NumericTypeInfo<T> {
 	protected FractionalTypeInfo(Class<T> clazz, Class<?>[] possibleCastTargetTypes, TypeSerializer<T> serializer, Class<? extends TypeComparator<T>> comparatorClass) {
 		super(clazz, possibleCastTargetTypes, serializer, comparatorClass);
 
-		checkArgument(fractionalTypes.contains(clazz), 
+		checkArgument(fractionalTypes.contains(clazz),
 				"The given class %s is not a fractional type.", clazz.getSimpleName());
 	}
 }

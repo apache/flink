@@ -27,11 +27,14 @@ import org.apache.calcite.rex.RexProgram
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
-import org.apache.flink.table.codegen.CodeGenerator
+import org.apache.flink.table.calcite.RelTimeIndicatorConverter
+import org.apache.flink.table.codegen.FunctionCodeGenerator
 import org.apache.flink.table.plan.nodes.CommonCalc
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.CRowProcessRunner
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+
+import scala.collection.JavaConverters._
 
 /**
   * Flink RelNode which matches along with FlatMapOperator.
@@ -49,7 +52,7 @@ class DataStreamCalc(
   with CommonCalc
   with DataStreamRel {
 
-  override def deriveRowType(): RelDataType = schema.logicalType
+  override def deriveRowType(): RelDataType = schema.relDataType
 
   override def copy(traitSet: RelTraitSet, child: RelNode, program: RexProgram): Calc = {
     new DataStreamCalc(
@@ -93,14 +96,30 @@ class DataStreamCalc(
     val inputDataStream =
       getInput.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
 
-    val generator = new CodeGenerator(config, false, inputSchema.physicalTypeInfo)
+    // materialize time attributes in condition
+    val condition = if (calcProgram.getCondition != null) {
+      val materializedCondition = RelTimeIndicatorConverter.convertExpression(
+        calcProgram.expandLocalRef(calcProgram.getCondition),
+        inputSchema.relDataType,
+        cluster.getRexBuilder)
+      Some(materializedCondition)
+    } else {
+      None
+    }
+
+    // filter out time attributes
+    val projection = calcProgram.getProjectList.asScala
+      .map(calcProgram.expandLocalRef)
+
+    val generator = new FunctionCodeGenerator(config, false, inputSchema.typeInfo)
 
     val genFunction = generateFunction(
       generator,
       ruleDescription,
       inputSchema,
       schema,
-      calcProgram,
+      projection,
+      condition,
       config,
       classOf[ProcessFunction[CRow, CRow]])
 
@@ -109,7 +128,7 @@ class DataStreamCalc(
     val processFunc = new CRowProcessRunner(
       genFunction.name,
       genFunction.code,
-      CRowTypeInfo(schema.physicalTypeInfo))
+      CRowTypeInfo(schema.typeInfo))
 
     inputDataStream
       .process(processFunc)

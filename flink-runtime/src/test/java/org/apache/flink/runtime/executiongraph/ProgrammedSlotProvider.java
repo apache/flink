@@ -18,14 +18,24 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.instance.SlotProvider;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.messages.Acknowledge;
 
+import javax.annotation.Nullable;
+
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -36,7 +46,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 class ProgrammedSlotProvider implements SlotProvider {
 
-	private final Map<JobVertexID, Future<SimpleSlot>[]> slotFutures = new HashMap<>();
+	private final Map<JobVertexID, CompletableFuture<LogicalSlot>[]> slotFutures = new HashMap<>();
+
+	private final Map<JobVertexID, CompletableFuture<Boolean>[]> slotFutureRequested = new HashMap<>();
+
+	private final Set<SlotRequestId> slotRequests = new HashSet<>();
+
+	private final Set<SlotRequestId> canceledSlotRequests = new HashSet<>();
 
 	private final int parallelism;
 
@@ -45,43 +61,83 @@ class ProgrammedSlotProvider implements SlotProvider {
 		this.parallelism = parallelism;
 	}
 
-	public void addSlot(JobVertexID vertex, int subtaskIndex, Future<SimpleSlot> future) {
+	public void addSlot(JobVertexID vertex, int subtaskIndex, CompletableFuture<LogicalSlot> future) {
 		checkNotNull(vertex);
 		checkNotNull(future);
 		checkArgument(subtaskIndex >= 0 && subtaskIndex < parallelism);
 
-		Future<SimpleSlot>[] futures = slotFutures.get(vertex);
+		CompletableFuture<LogicalSlot>[] futures = slotFutures.get(vertex);
+		CompletableFuture<Boolean>[] requestedFutures = slotFutureRequested.get(vertex);
+
 		if (futures == null) {
 			@SuppressWarnings("unchecked")
-			Future<SimpleSlot>[] newArray = (Future<SimpleSlot>[]) new Future<?>[parallelism];
+			CompletableFuture<LogicalSlot>[] newArray = (CompletableFuture<LogicalSlot>[]) new CompletableFuture<?>[parallelism];
 			futures = newArray;
 			slotFutures.put(vertex, futures);
+
+			requestedFutures = new CompletableFuture[parallelism];
+			slotFutureRequested.put(vertex, requestedFutures);
 		}
 
 		futures[subtaskIndex] = future;
+		requestedFutures[subtaskIndex] = new CompletableFuture<>();
 	}
 
-	public void addSlots(JobVertexID vertex, Future<SimpleSlot>[] futures) {
+	public void addSlots(JobVertexID vertex, CompletableFuture<LogicalSlot>[] futures) {
 		checkNotNull(vertex);
 		checkNotNull(futures);
 		checkArgument(futures.length == parallelism);
 
 		slotFutures.put(vertex, futures);
+
+		CompletableFuture<Boolean>[] requestedFutures = new CompletableFuture[futures.length];
+
+		for (int i = 0; i < futures.length; i++) {
+			requestedFutures[i] = new CompletableFuture<>();
+		}
+
+		slotFutureRequested.put(vertex, requestedFutures);
+	}
+
+	public CompletableFuture<Boolean> getSlotRequestedFuture(JobVertexID jobVertexId, int subtaskIndex) {
+		return slotFutureRequested.get(jobVertexId)[subtaskIndex];
+	}
+
+	public Set<SlotRequestId> getSlotRequests() {
+		return Collections.unmodifiableSet(slotRequests);
+	}
+
+	public Set<SlotRequestId> getCanceledSlotRequests() {
+		return Collections.unmodifiableSet(canceledSlotRequests);
 	}
 
 	@Override
-	public Future<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) {
+	public CompletableFuture<LogicalSlot> allocateSlot(
+			SlotRequestId slotRequestId,
+			ScheduledUnit task,
+			boolean allowQueued,
+			SlotProfile slotProfile,
+			Time allocationTimeout) {
 		JobVertexID vertexId = task.getTaskToExecute().getVertex().getJobvertexId();
 		int subtask = task.getTaskToExecute().getParallelSubtaskIndex();
 
-		Future<SimpleSlot>[] forTask = slotFutures.get(vertexId);
+		CompletableFuture<LogicalSlot>[] forTask = slotFutures.get(vertexId);
 		if (forTask != null) {
-			Future<SimpleSlot> future = forTask[subtask];
+			CompletableFuture<LogicalSlot> future = forTask[subtask];
 			if (future != null) {
+				slotFutureRequested.get(vertexId)[subtask].complete(true);
+				slotRequests.add(slotRequestId);
+
 				return future;
 			}
 		}
 
 		throw new IllegalArgumentException("No registered slot future for task " + vertexId + " (" + subtask + ')');
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
+		canceledSlotRequests.add(slotRequestId);
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 }

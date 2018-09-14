@@ -24,12 +24,13 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{ListTypeInfo, RowTypeInfo}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
-import org.slf4j.LoggerFactory
 
 /**
  * Process Function for RANGE clause event-time bounded OVER window
@@ -44,9 +45,11 @@ class RowTimeBoundedRangeOver(
     aggregationStateType: RowTypeInfo,
     inputRowType: CRowTypeInfo,
     precedingOffset: Long,
+    rowTimeIdx: Int,
     queryConfig: StreamQueryConfig)
   extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
-    with Compiler[GeneratedAggregations] {
+    with Compiler[GeneratedAggregations]
+    with Logging {
   Preconditions.checkNotNull(aggregationStateType)
   Preconditions.checkNotNull(precedingOffset)
 
@@ -64,7 +67,6 @@ class RowTimeBoundedRangeOver(
   // to this time stamp.
   private var dataState: MapState[Long, JList[Row]] = _
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
@@ -76,6 +78,7 @@ class RowTimeBoundedRangeOver(
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
+    function.open(getRuntimeContext)
 
     output = new CRow(function.createOutputRow(), true)
 
@@ -114,7 +117,7 @@ class RowTimeBoundedRangeOver(
     registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
 
     // triggering timestamp for trigger calculation
-    val triggeringTs = ctx.timestamp
+    val triggeringTs = input.getField(rowTimeIdx).asInstanceOf[Long]
 
     val lastTriggeringTs = lastTriggeringTsState.value
 
@@ -156,6 +159,7 @@ class RowTimeBoundedRangeOver(
         if (noRecordsToProcess) {
           // we clean the state
           cleanupState(dataState, accumulatorState, lastTriggeringTsState)
+          function.cleanup()
         } else {
           // There are records left to process because a watermark has not been received yet.
           // This would only happen if the input stream has stopped. So we don't need to clean up.
@@ -165,6 +169,9 @@ class RowTimeBoundedRangeOver(
       }
       return
     }
+
+    // remove timestamp set outside of ProcessFunction.
+    out.asInstanceOf[TimestampedCollector[_]].eraseTimestamp()
 
     // gets all window data from state for the calculation
     val inputs: JList[Row] = dataState.get(timestamp)
@@ -185,12 +192,13 @@ class RowTimeBoundedRangeOver(
       val retractTsList: JList[Long] = new JArrayList[Long]
 
       // do retraction
-      val dataTimestampIt = dataState.keys.iterator
-      while (dataTimestampIt.hasNext) {
-        val dataTs: Long = dataTimestampIt.next()
+      val iter = dataState.iterator()
+      while (iter.hasNext) {
+        val entry = iter.next()
+        val dataTs: Long = entry.getKey
         val offset = timestamp - dataTs
         if (offset > precedingOffset) {
-          val retractDataList = dataState.get(dataTs)
+          val retractDataList = entry.getValue
           dataListIndex = 0
           while (dataListIndex < retractDataList.size()) {
             val retractRow = retractDataList.get(dataListIndex)
@@ -236,6 +244,10 @@ class RowTimeBoundedRangeOver(
 
     // update cleanup timer
     registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+  }
+
+  override def close(): Unit = {
+    function.close()
   }
 }
 

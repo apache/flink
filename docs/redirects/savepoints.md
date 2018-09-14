@@ -1,7 +1,7 @@
 ---
 title: "Savepoints"
 layout: redirect
-redirect: /setup/savepoints.html
+redirect: /ops/state/savepoints.html
 permalink: /apis/streaming/savepoints.html
 ---
 <!--

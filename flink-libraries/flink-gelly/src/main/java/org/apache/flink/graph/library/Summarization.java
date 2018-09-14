@@ -102,11 +102,11 @@ public class Summarization<K, VV, EV>
 		// group vertices by value and create vertex group items
 		DataSet<VertexGroupItem<K, VV>> vertexGroupItems = input.getVertices()
 				.groupBy(1)
-				.reduceGroup(new VertexGroupReducer<K, VV>());
+				.reduceGroup(new VertexGroupReducer<>());
 		// create super vertices
 		DataSet<Vertex<K, VertexValue<VV>>> summarizedVertices = vertexGroupItems
-				.filter(new VertexGroupItemToSummarizedVertexFilter<K, VV>())
-				.map(new VertexGroupItemToSummarizedVertexMapper<K, VV>());
+				.filter(new VertexGroupItemToSummarizedVertexFilter<>())
+				.map(new VertexGroupItemToSummarizedVertexMapper<>());
 
 		// -------------------------
 		// build super edges
@@ -114,22 +114,22 @@ public class Summarization<K, VV, EV>
 
 		// create mapping between vertices and their representative
 		DataSet<VertexWithRepresentative<K>> vertexToRepresentativeMap = vertexGroupItems
-			.filter(new VertexGroupItemToRepresentativeFilter<K, VV>())
-			.map(new VertexGroupItemToVertexWithRepresentativeMapper<K, VV>());
+			.filter(new VertexGroupItemToRepresentativeFilter<>())
+			.map(new VertexGroupItemToVertexWithRepresentativeMapper<>());
 		// join edges with vertex representatives and update source and target identifiers
 		DataSet<Edge<K, EV>> edgesForGrouping = input.getEdges()
 				.join(vertexToRepresentativeMap)
 				.where(0) 	// source vertex id
 				.equalTo(0) // vertex id
-				.with(new SourceVertexJoinFunction<K, EV>())
+				.with(new SourceVertexJoinFunction<>())
 				.join(vertexToRepresentativeMap)
 				.where(1) 	// target vertex id
 				.equalTo(0) // vertex id
-				.with(new TargetVertexJoinFunction<K, EV>());
+				.with(new TargetVertexJoinFunction<>());
 		// create super edges
 		DataSet<Edge<K, EdgeValue<EV>>> summarizedEdges = edgesForGrouping
 				.groupBy(0, 1, 2) // group by source id (0), target id (1) and edge value (2)
-				.reduceGroup(new EdgeGroupReducer<K, EV>());
+				.reduceGroup(new EdgeGroupReducer<>());
 
 		return Graph.fromDataSet(summarizedVertices, summarizedEdges, input.getContext());
 	}

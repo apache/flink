@@ -18,10 +18,11 @@
 
 package org.apache.flink.api.common.typeinfo;
 
-import java.lang.reflect.Type;
-import java.util.Map;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+
+import java.lang.reflect.Type;
+import java.util.Map;
 
 /**
  * Base class for implementing a type information factory. A type information factory allows for

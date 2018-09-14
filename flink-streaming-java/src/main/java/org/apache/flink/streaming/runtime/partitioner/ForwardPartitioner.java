@@ -30,7 +30,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 public class ForwardPartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	private int[] returnArray = new int[] {0};
+	private final int[] returnArray = new int[] {0};
 
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record, int numberOfOutputChannels) {

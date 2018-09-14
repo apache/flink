@@ -26,16 +26,16 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.4-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-connector-kinesis_${scala.binary.version}</artifactId>
 	<name>flink-connector-kinesis</name>
 	<properties>
-		<aws.sdk.version>1.10.71</aws.sdk.version>
-		<aws.kinesis-kcl.version>1.6.2</aws.kinesis-kcl.version>
-		<aws.kinesis-kpl.version>0.10.2</aws.kinesis-kpl.version>
+		<aws.sdk.version>1.11.319</aws.sdk.version>
+		<aws.kinesis-kcl.version>1.9.0</aws.kinesis-kcl.version>
+		<aws.kinesis-kpl.version>0.12.9</aws.kinesis-kpl.version>
 	</properties>
 
 	<packaging>jar</packaging>
@@ -98,6 +98,12 @@ under the License.
 
 		<dependency>
 			<groupId>com.amazonaws</groupId>
+			<artifactId>aws-java-sdk-sts</artifactId>
+			<version>${aws.sdk.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.amazonaws</groupId>
 			<artifactId>amazon-kinesis-producer</artifactId>
 			<version>${aws.kinesis-kpl.version}</version>
 		</dependency>
@@ -154,14 +160,11 @@ under the License.
 								<includes>
 									<include>com.amazonaws:*</include>
 									<include>com.google.protobuf:*</include>
+									<include>org.apache.httpcomponents:*</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="override">
 								<!-- DO NOT RELOCATE GUAVA IN THIS PACKAGE -->
-								<relocation>
-									<pattern>org.objectweb.asm</pattern>
-									<shadedPattern>org.apache.flink.shaded.org.objectweb.asm</shadedPattern>
-								</relocation>
 								<relocation>
 									<pattern>com.google.protobuf</pattern>
 									<shadedPattern>org.apache.flink.kinesis.shaded.com.google.protobuf</shadedPattern>
@@ -169,6 +172,10 @@ under the License.
 								<relocation>
 									<pattern>com.amazonaws</pattern>
 									<shadedPattern>org.apache.flink.kinesis.shaded.com.amazonaws</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.http</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.org.apache.http</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

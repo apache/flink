@@ -64,7 +64,7 @@ derived from these by transforming them using API methods such as `map`, `filter
 Anatomy of a Flink Program
 --------------------------
 
-Flink program programs look like regular programs that transform collections of data.
+Flink programs look like regular programs that transform collections of data.
 Each program consists of the same basic parts:
 
 1. Obtain an `execution environment`,
@@ -100,7 +100,7 @@ will do the right thing depending on the context: if you are executing
 your program inside an IDE or as a regular Java program it will create
 a local environment that will execute your program on your local machine. If
 you created a JAR file from your program, and invoke it through the
-[command line]({{ site.baseurl }}/setup/cli.html), the Flink cluster manager
+[command line]({{ site.baseurl }}/ops/cli.html), the Flink cluster manager
 will execute your main method and `getExecutionEnvironment()` will return
 an execution environment for executing your program on a cluster.
 
@@ -169,7 +169,7 @@ will do the right thing depending on the context: if you are executing
 your program inside an IDE or as a regular Java program it will create
 a local environment that will execute your program on your local machine. If
 you created a JAR file from your program, and invoke it through the
-[command line]({{ site.baseurl }}/apis/cli.html), the Flink cluster manager
+[command line]({{ site.baseurl }}/ops/cli.html), the Flink cluster manager
 will execute your main method and `getExecutionEnvironment()` will return
 an execution environment for executing your program on a cluster.
 
@@ -450,7 +450,7 @@ These are valid field expressions for the example code above:
 {:.no_toc}
 
 An additional way to define keys are "key selector" functions. A key selector function
-takes a single element as input and returns the key for the element. The key can be of any type and be derived from arbitrary computations.
+takes a single element as input and returns the key for the element. The key can be of any type and be derived from deterministic computations.
 
 The following example shows a key selector function that simply returns the field of an object:
 
@@ -460,7 +460,7 @@ The following example shows a key selector function that simply returns the fiel
 // some ordinary POJO
 public class WC {public String word; public int count;}
 DataStream<WC> words = // [...]
-KeyedStream<WC> kyed = words
+KeyedStream<WC> keyed = words
   .keyBy(new KeySelector<WC, String>() {
      public String getKey(WC wc) { return wc.word; }
    });
@@ -495,7 +495,7 @@ The most basic way is to implement one of the provided interfaces:
 {% highlight java %}
 class MyMapFunction implements MapFunction<String, Integer> {
   public Integer map(String value) { return Integer.parseInt(value); }
-});
+};
 data.map(new MyMapFunction());
 {% endhighlight %}
 
@@ -510,7 +510,7 @@ data.map(new MapFunction<String, Integer> () {
 
 #### Java 8 Lambdas
 
-Flink also supports Java 8 Lambdas in the Java API. Please see the full [Java 8 Guide]({{ site.baseurl }}/dev/java8.html).
+Flink also supports Java 8 Lambdas in the Java API.
 
 {% highlight java %}
 data.filter(s -> s.startsWith("http://"));
@@ -528,7 +528,7 @@ instead take as argument a *rich* function. For example, instead of
 {% highlight java %}
 class MyMapFunction implements MapFunction<String, Integer> {
   public Integer map(String value) { return Integer.parseInt(value); }
-});
+};
 {% endhighlight %}
 
 you can write
@@ -536,7 +536,7 @@ you can write
 {% highlight java %}
 class MyMapFunction extends RichMapFunction<String, Integer> {
   public Integer map(String value) { return Integer.parseInt(value); }
-});
+};
 {% endhighlight %}
 
 and pass the function as usual to a `map` transformation:
@@ -586,7 +586,7 @@ you can write
 {% highlight scala %}
 class MyMapFunction extends RichMapFunction[String, Int] {
   def map(in: String):Int = { in.toInt }
-})
+};
 {% endhighlight %}
 
 and pass the function to a `map` transformation:
@@ -895,4 +895,3 @@ result type ```R``` for the final result. E.g. for a histogram, ```V``` is a num
  a histogram. ```SimpleAccumulator``` is for the cases where both types are the same, e.g. for counters.
 
 {% top %}
-

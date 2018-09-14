@@ -27,6 +27,8 @@ import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.typeutils.TypeCheckUtils
 
+import scala.collection.mutable
+
 /**
   * Generates a call to user-defined [[TableFunction]].
   *
@@ -45,20 +47,25 @@ class TableFunctionCallGen(
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
     // determine function method
-    val matchingMethod = getUserDefinedMethod(tableFunction, "eval", typeInfoToClass(signature))
+    val matchingSignature = getEvalMethodSignature(tableFunction, signature)
       .getOrElse(throw new CodeGenException("No matching signature found."))
-    val matchingSignature = matchingMethod.getParameterTypes
 
-    // zip for variable signatures
-    var paramToOperands = matchingSignature.zip(operands)
-    if (operands.length > matchingSignature.length) {
-      operands.drop(matchingSignature.length).foreach(op =>
-        paramToOperands = paramToOperands :+ (matchingSignature.last.getComponentType, op)
-      )
+    // get the expanded parameter types
+    var paramClasses = new mutable.ArrayBuffer[Class[_]]
+    for (i <- operands.indices) {
+      if (i < matchingSignature.length - 1) {
+        paramClasses += matchingSignature(i)
+      } else if (matchingSignature.last.isArray) {
+        // last argument is an array type
+        paramClasses += matchingSignature.last.getComponentType
+      } else {
+        // last argument is not an array type
+        paramClasses += matchingSignature.last
+      }
     }
 
     // convert parameters for function (output boxing)
-    val parameters = paramToOperands.map { case (paramClass, operandExpr) =>
+    val parameters = paramClasses.zip(operands).map { case (paramClass, operandExpr) =>
           if (paramClass.isPrimitive) {
             operandExpr
           } else if (ClassUtils.isPrimitiveWrapper(paramClass)

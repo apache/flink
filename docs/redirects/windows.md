@@ -1,8 +1,8 @@
 ---
-title: "Windows"
+title: "Running Flink on Windows"
 layout: redirect
-redirect: /dev/windows.html
-permalink: /apis/streaming/windows.html
+redirect: /tutorials/flink_on_windows.html
+permalink: /start/flink_on_windows.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -110,16 +110,10 @@ public class CheckpointMetrics implements Serializable {
 
 		CheckpointMetrics that = (CheckpointMetrics) o;
 
-		if (bytesBufferedInAlignment != that.bytesBufferedInAlignment) {
-			return false;
-		}
-		if (alignmentDurationNanos != that.alignmentDurationNanos) {
-			return false;
-		}
-		if (syncDurationMillis != that.syncDurationMillis) {
-			return false;
-		}
-		return asyncDurationMillis == that.asyncDurationMillis;
+		return bytesBufferedInAlignment == that.bytesBufferedInAlignment && 
+				alignmentDurationNanos == that.alignmentDurationNanos && 
+				syncDurationMillis == that.syncDurationMillis && 
+				asyncDurationMillis == that.asyncDurationMillis;
 
 	}
 

@@ -68,14 +68,14 @@ The checkpoint history keeps statistics about recently triggered checkpoints, in
 
 You can configure the number of recent checkpoints that are remembered for the history via the following configuration key. The default is `10`.
 
-```sh
+{% highlight yaml %}
 # Number of recent checkpoints that are remembered
-jobmanager.web.checkpoints.history: 15
-```
+web.checkpoints.history: 15
+{% endhighlight %}
 
 ### Summary Tab
 
-The summary computes a simple min/average/maximum statitics over all completed checkpoints for the End to End Duration, State Size, and Bytes Buffered During Alignment (see [History](#history) for details about what these mean).
+The summary computes a simple min/average/maximum statistics over all completed checkpoints for the End to End Duration, State Size, and Bytes Buffered During Alignment (see [History](#history) for details about what these mean).
 
 <center>
   <img src="{{ site.baseurl }}/fig/checkpoint_monitoring-summary.png" width="700px" alt="Checkpoint Monitoring: Summary">
@@ -96,7 +96,7 @@ The configuration list your streaming configuration:
 
 ### Checkpoint Details
 
-When you click on a *More details* link for a checkpoint, you get a Minumum/Average/Maximum summary over all its operators and also the detailed numbers per single subtask. 
+When you click on a *More details* link for a checkpoint, you get a Minimum/Average/Maximum summary over all its operators and also the detailed numbers per single subtask.
 
 <center>
   <img src="{{ site.baseurl }}/fig/checkpoint_monitoring-details.png" width="700px" alt="Checkpoint Monitoring: Details">
@@ -113,3 +113,5 @@ When you click on a *More details* link for a checkpoint, you get a Minumum/Aver
 <center>
   <img src="{{ site.baseurl }}/fig/checkpoint_monitoring-details_subtasks.png" width="700px" alt="Checkpoint Monitoring: Subtasks">
 </center>
+
+{% top %}

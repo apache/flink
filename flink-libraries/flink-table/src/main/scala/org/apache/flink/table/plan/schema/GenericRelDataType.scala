@@ -18,22 +18,26 @@
 
 package org.apache.flink.table.plan.schema
 
+import org.apache.calcite.rel.`type`.RelDataTypeSystem
 import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.calcite.FlinkTypeSystem
 
 /**
   * Generic type for encapsulating Flink's [[TypeInformation]].
   *
   * @param typeInfo TypeInformation to encapsulate
+  * @param nullable flag if type can be nullable
   * @param typeSystem Flink's type system
   */
 class GenericRelDataType(
     val typeInfo: TypeInformation[_],
-    typeSystem: FlinkTypeSystem)
+    val nullable: Boolean,
+    typeSystem: RelDataTypeSystem)
   extends BasicSqlType(
     typeSystem,
     SqlTypeName.ANY) {
+
+  isNullable = nullable
 
   override def toString = s"ANY($typeInfo)"
 
@@ -43,7 +47,8 @@ class GenericRelDataType(
     case that: GenericRelDataType =>
       super.equals(that) &&
         (that canEqual this) &&
-        typeInfo == that.typeInfo
+        typeInfo == that.typeInfo &&
+        nullable == that.nullable
     case _ => false
   }
 

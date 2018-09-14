@@ -33,7 +33,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -50,7 +50,7 @@ import java.util.concurrent.TimeUnit;
  * work for windows, because FoldWindowFunction is OutputTypeConfigurable.
  */
 @SuppressWarnings("serial")
-public class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
+public class WindowFoldITCase extends AbstractTestBase {
 
 	private static List<String> testResults;
 

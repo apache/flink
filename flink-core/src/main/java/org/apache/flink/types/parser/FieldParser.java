@@ -210,15 +210,15 @@ public abstract class FieldParser<T> {
 
 		while (endPos < limit) {
 			if (endPos < delimLimit && delimiterNext(bytes, endPos, delimiter)) {
-				if (endPos == startPos) {
-					setErrorState(ParseErrorState.EMPTY_COLUMN);
-					return -1;
-				}
 				break;
 			}
 			endPos++;
 		}
 
+		if (endPos == startPos) {
+			setErrorState(ParseErrorState.EMPTY_COLUMN);
+			return -1;
+		}
 		return endPos;
 	}
 

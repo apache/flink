@@ -27,7 +27,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.runtime.AvroSerializer;
 import org.apache.flink.api.java.typeutils.runtime.PojoComparator;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
@@ -269,7 +268,6 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 		return new PojoTypeComparatorBuilder();
 	}
 
-	// used for testing. Maybe use mockito here
 	@PublicEvolving
 	public PojoField getPojoFieldAt(int pos) {
 		if (pos < 0 || pos >= this.fields.length) {
@@ -300,15 +298,21 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 
 	@Override
 	@PublicEvolving
+	@SuppressWarnings("unchecked")
 	public TypeSerializer<T> createSerializer(ExecutionConfig config) {
-		if(config.isForceKryoEnabled()) {
-			return new KryoSerializer<T>(getTypeClass(), config);
-		}
-		if(config.isForceAvroEnabled()) {
-			return new AvroSerializer<T>(getTypeClass());
+		if (config.isForceKryoEnabled()) {
+			return new KryoSerializer<>(getTypeClass(), config);
 		}
 
-		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[fields.length ];
+		if (config.isForceAvroEnabled()) {
+			return AvroUtils.getAvroUtils().createAvroSerializer(getTypeClass());
+		}
+
+		return createPojoSerializer(config);
+	}
+
+	public PojoSerializer<T> createPojoSerializer(ExecutionConfig config) {
+		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[fields.length];
 		Field[] reflectiveFields = new Field[fields.length];
 
 		for (int i = 0; i < fields.length; i++) {
@@ -318,7 +322,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 
 		return new PojoSerializer<T>(getTypeClass(), fieldSerializers, reflectiveFields, config);
 	}
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof PojoTypeInfo) {

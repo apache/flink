@@ -30,6 +30,7 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -37,6 +38,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for {@link DataSet#sortPartition(int, Order)}.
+ */
 public class SortPartitionTest {
 
 	// TUPLE DATA
@@ -68,7 +72,6 @@ public class SortPartitionTest {
 	private final List<Tuple4<Integer, Long, CustomType, Long[]>> tupleWithCustomData =
 			new ArrayList<Tuple4<Integer, Long, CustomType, Long[]>>();
 
-
 	@Test
 	public void testSortPartitionPositionKeys1() {
 
@@ -78,7 +81,7 @@ public class SortPartitionTest {
 		// should work
 		try {
 			tupleDs.sortPartition(0, Order.ASCENDING);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Assert.fail();
 		}
 	}
@@ -94,7 +97,7 @@ public class SortPartitionTest {
 			tupleDs
 					.sortPartition(0, Order.ASCENDING)
 					.sortPartition(3, Order.DESCENDING);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Assert.fail();
 		}
 	}
@@ -128,7 +131,7 @@ public class SortPartitionTest {
 		// should work
 		try {
 			tupleDs.sortPartition("f1", Order.ASCENDING);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Assert.fail();
 		}
 	}
@@ -144,7 +147,7 @@ public class SortPartitionTest {
 			tupleDs
 					.sortPartition("f0", Order.ASCENDING)
 					.sortPartition("f2.nested.myInt", Order.DESCENDING);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Assert.fail();
 		}
 	}
@@ -224,7 +227,7 @@ public class SortPartitionTest {
 
 		// should work
 		try {
-			tupleDs.sortPartition(new KeySelector<Tuple4<Integer,Long,CustomType,Long[]>, Tuple2<Integer, Long>>() {
+			tupleDs.sortPartition(new KeySelector<Tuple4<Integer, Long, CustomType, Long[]>, Tuple2<Integer, Long>>() {
 				@Override
 				public Tuple2<Integer, Long> getKey(Tuple4<Integer, Long, CustomType, Long[]> value) throws Exception {
 					return new Tuple2<>(value.f0, value.f1);
@@ -251,18 +254,25 @@ public class SortPartitionTest {
 			.sortPartition("f1", Order.ASCENDING);
 	}
 
+	/**
+	 * Custom data type, for testing purposes.
+	 */
 	public static class CustomType implements Serializable {
-		
+
+		/**
+		 * Custom nested data type, for testing purposes.
+		 */
 		public static class Nest {
 			public int myInt;
 		}
+
 		private static final long serialVersionUID = 1L;
-		
+
 		public int myInt;
 		public long myLong;
 		public String myString;
 		public Nest nested;
-		
+
 		public CustomType() {}
 
 		public CustomType(int i, long l, String s) {
@@ -270,17 +280,11 @@ public class SortPartitionTest {
 			myLong = l;
 			myString = s;
 		}
-		
+
 		@Override
 		public String toString() {
-			return myInt+","+myLong+","+myString;
+			return myInt + "," + myLong + "," + myString;
 		}
 	}
 
-	public static class CustomType2 implements Serializable {
-
-		public int myInt;
-		public int[] myIntArray;
-
-	}
 }

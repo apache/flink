@@ -24,6 +24,7 @@ import org.apache.calcite.adapter.java.JavaTypeFactory
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeSystem}
 import org.apache.calcite.rex.{RexBuilder, RexProgram, RexProgramBuilder}
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 
@@ -76,4 +77,7 @@ abstract class RexProgramTestBase {
     builder.getProgram
   }
 
+  protected def makeTypes(fieldTypes: SqlTypeName*): java.util.List[RelDataType] = {
+    fieldTypes.toList.map(typeFactory.createSqlType).asJava
+  }
 }

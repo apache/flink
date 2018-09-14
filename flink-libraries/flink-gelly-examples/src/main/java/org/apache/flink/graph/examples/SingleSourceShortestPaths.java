@@ -188,7 +188,7 @@ public class SingleSourceShortestPaths implements ProgramDescription {
 					.lineDelimiter("\n")
 					.fieldDelimiter("\t")
 					.types(Long.class, Long.class, Double.class)
-					.map(new Tuple3ToEdgeMap<Long, Double>());
+					.map(new Tuple3ToEdgeMap<>());
 		} else {
 			return SingleSourceShortestPathsData.getDefaultEdgeDataSet(env);
 		}

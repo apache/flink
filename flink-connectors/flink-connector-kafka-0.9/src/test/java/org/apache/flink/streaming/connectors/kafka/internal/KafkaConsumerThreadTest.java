@@ -20,8 +20,9 @@ package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.streaming.connectors.kafka.internals.ClosableBlockingQueue;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
@@ -60,6 +61,36 @@ import static org.mockito.Mockito.when;
  * Unit tests for the {@link KafkaConsumerThread}.
  */
 public class KafkaConsumerThreadTest {
+
+	@Test(timeout = 10000)
+	public void testCloseWithoutAssignedPartitions() throws Exception {
+		// no initial assignment
+		final KafkaConsumer<byte[], byte[]> mockConsumer = createMockConsumer(
+			new LinkedHashMap<TopicPartition, Long>(),
+			Collections.<TopicPartition, Long>emptyMap(),
+			false,
+			null,
+			null);
+
+		// setup latch so the test waits until testThread is blocked on getBatchBlocking method
+		final MultiShotLatch getBatchBlockingInvoked = new MultiShotLatch();
+		final ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue =
+			new ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>>() {
+				@Override
+				public List<KafkaTopicPartitionState<TopicPartition>> getBatchBlocking() throws InterruptedException {
+					getBatchBlockingInvoked.trigger();
+					return super.getBatchBlocking();
+				}
+			};
+
+		final TestKafkaConsumerThread testThread =
+			new TestKafkaConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover());
+
+		testThread.start();
+		getBatchBlockingInvoked.await();
+		testThread.shutdown();
+		testThread.join();
+	}
 
 	/**
 	 * Tests reassignment works correctly in the case when:
@@ -462,7 +493,7 @@ public class KafkaConsumerThreadTest {
 		// pause just before the reassignment so we can inject the wakeup
 		testThread.waitPartitionReassignmentInvoked();
 
-		testThread.setOffsetsToCommit(new HashMap<TopicPartition, OffsetAndMetadata>());
+		testThread.setOffsetsToCommit(new HashMap<TopicPartition, OffsetAndMetadata>(), mock(KafkaCommitCallback.class));
 		verify(mockConsumer, times(1)).wakeup();
 
 		testThread.startPartitionReassignment();
@@ -548,7 +579,7 @@ public class KafkaConsumerThreadTest {
 		// pause just before the reassignment so we can inject the wakeup
 		testThread.waitPartitionReassignmentInvoked();
 
-		testThread.setOffsetsToCommit(new HashMap<TopicPartition, OffsetAndMetadata>());
+		testThread.setOffsetsToCommit(new HashMap<TopicPartition, OffsetAndMetadata>(), mock(KafkaCommitCallback.class));
 
 		// make sure the consumer was actually woken up
 		verify(mockConsumer, times(1)).wakeup();
@@ -634,7 +665,7 @@ public class KafkaConsumerThreadTest {
 		// wait until the reassignment has started
 		midAssignmentLatch.await();
 
-		testThread.setOffsetsToCommit(new HashMap<TopicPartition, OffsetAndMetadata>());
+		testThread.setOffsetsToCommit(new HashMap<TopicPartition, OffsetAndMetadata>(), mock(KafkaCommitCallback.class));
 
 		// the wakeup in the setOffsetsToCommit() call should have been buffered, and not called on the consumer
 		verify(mockConsumer, never()).wakeup();
@@ -685,11 +716,12 @@ public class KafkaConsumerThreadTest {
 					handover,
 					new Properties(),
 					unassignedPartitionsQueue,
-					mock(MetricGroup.class),
 					new KafkaConsumerCallBridge(),
 					"test-kafka-consumer-thread",
 					0,
-					false);
+					false,
+					new UnregisteredMetricsGroup(),
+					new UnregisteredMetricsGroup());
 
 			this.mockConsumer = mockConsumer;
 		}
@@ -744,6 +776,7 @@ public class KafkaConsumerThreadTest {
 			final OneShotLatch continueAssignmentLatch) {
 
 		final KafkaConsumer<byte[], byte[]> mockConsumer = mock(KafkaConsumer.class);
+
 		when(mockConsumer.assignment()).thenAnswer(new Answer<Object>() {
 			@Override
 			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
@@ -754,7 +787,6 @@ public class KafkaConsumerThreadTest {
 				if (continueAssignmentLatch != null) {
 					continueAssignmentLatch.await();
 				}
-
 				return mockConsumerAssignmentAndPosition.keySet();
 			}
 		});

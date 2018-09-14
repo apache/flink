@@ -18,13 +18,9 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.{ExpressionTestBase, ScalarOperatorsTestBase, ShouldNotExecuteFunc}
-import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.types.Row
+import org.apache.flink.table.expressions.utils.{ScalarOperatorsTestBase, ShouldNotExecuteFunc}
 import org.junit.Test
 
 class ScalarOperatorsTest extends ScalarOperatorsTestBase {
@@ -80,12 +76,117 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
 
   @Test
   def testArithmetic(): Unit = {
-    // math arthmetic
-    testTableApi('f8 - 5, "f8 - 5", "0")
-    testTableApi('f8 + 5, "f8 + 5", "10")
-    testTableApi('f8 / 2, "f8 / 2", "2")
-    testTableApi('f8 * 2, "f8 * 2", "10")
-    testTableApi('f8 % 2, "f8 % 2", "1")
+
+    // math arithmetic
+
+    // test addition
+    testAllApis(
+      1514356320000L + 6000,
+      "1514356320000L + 6000",
+      "1514356320000 + 6000",
+      "1514356326000")
+
+    testAllApis(
+      'f20 + 6,
+      "f20 + 6",
+      "f20 + 6",
+      "1514356320006")
+
+    testAllApis(
+      'f20 + 'f20,
+      "f20 + f20",
+      "f20 + f20",
+      "3028712640000")
+
+    // test subtraction
+    testAllApis(
+      1514356320000L - 6000,
+      "1514356320000L - 6000",
+      "1514356320000 - 6000",
+      "1514356314000")
+
+    testAllApis(
+      'f20 - 6,
+      "f20 - 6",
+      "f20 - 6",
+      "1514356319994")
+
+    testAllApis(
+      'f20 - 'f20,
+      "f20 - f20",
+      "f20 - f20",
+      "0")
+
+    // test multiplication
+    testAllApis(
+      1514356320000L * 60000,
+      "1514356320000L * 60000",
+      "1514356320000 * 60000",
+      "90861379200000000")
+
+    testAllApis(
+      'f20 * 6,
+      "f20 * 6",
+      "f20 * 6",
+      "9086137920000")
+
+    testAllApis(
+      'f20 * 'f20,
+      "f20 * f20",
+      "f20 * f20",
+      "2293275063923942400000000")
+
+    // test division
+    testAllApis(
+      1514356320000L / 60000,
+      "1514356320000L / 60000",
+      "1514356320000 / 60000",
+      "25239272")
+
+    testAllApis(
+      'f20 / 6,
+      "f20 / 6",
+      "f20 / 6",
+      "252392720000")
+
+    testAllApis(
+      'f20 / 'f20,
+      "f20 / f20",
+      "f20 / f20",
+      "1")
+
+    // test modulo
+    testAllApis(
+      1514356320000L % 60000,
+      "1514356320000L % 60000",
+      "mod(1514356320000,60000)",
+      "0")
+
+    testAllApis(
+      'f20.mod('f20),
+      "f20.mod(f20)",
+      "mod(f20,f20)",
+      "0")
+
+    testAllApis(
+      'f20.mod(6),
+      "f20.mod(6)",
+      "mod(f20,6)",
+      "0")
+
+    testAllApis(
+      'f3.mod('f2),
+      "f3.mod(f2)",
+      "MOD(f3, f2)",
+      "0")
+
+    testAllApis(
+      'f3.mod(3),
+      "mod(f3, 3)",
+      "MOD(f3, 3)",
+      "1")
+
+    // other math arithmetic
     testTableApi(-'f8, "-f8", "-5")
     testTableApi( +'f8, "+f8", "5") // additional space before "+" required because of checkstyle
     testTableApi(3.toExpr + 'f8, "3 + f8", "8")
@@ -137,7 +238,98 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
   }
 
   @Test
+  def testIn(): Unit = {
+    testAllApis(
+      'f2.in(1, 2, 42),
+      "f2.in(1, 2, 42)",
+      "f2 IN (1, 2, 42)",
+      "true"
+    )
+
+    testAllApis(
+      'f0.in(BigDecimal(42.0), BigDecimal(2.00), BigDecimal(3.01), BigDecimal(1.000000)),
+      "f0.in(42.0p, 2.00p, 3.01p, 1.000000p)",
+      "CAST(f0 AS DECIMAL) IN (42.0, 2.00, 3.01, 1.000000)", // SQL would downcast otherwise
+      "true"
+    )
+
+    testAllApis(
+      'f10.in("This is a test String.", "String", "Hello world", "Comment#1"),
+      "f10.in('This is a test String.', 'String', 'Hello world', 'Comment#1')",
+      "f10 IN ('This is a test String.', 'String', 'Hello world', 'Comment#1')",
+      "true"
+    )
+
+    testAllApis(
+      'f14.in("This is a test String.", "Hello world"),
+      "f14.in('This is a test String.', 'Hello world')",
+      "f14 IN ('This is a test String.', 'String', 'Hello world')",
+      "null"
+    )
+
+    testAllApis(
+      'f15.in("1996-11-10".toDate),
+      "f15.in('1996-11-10'.toDate)",
+      "f15 IN (DATE '1996-11-10')",
+      "true"
+    )
+
+    testAllApis(
+      'f15.in("1996-11-10".toDate, "1996-11-11".toDate),
+      "f15.in('1996-11-10'.toDate, '1996-11-11'.toDate)",
+      "f15 IN (DATE '1996-11-10', DATE '1996-11-11')",
+      "true"
+    )
+
+    testAllApis(
+      'f7.in('f16, 'f17),
+      "f7.in(f16, f17)",
+      "f7 IN (f16, f17)",
+      "true"
+    )
+
+    // we do not test SQL here as this expression would be converted into values + join operations
+    testTableApi(
+      'f7.in(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21),
+      "f7.in(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21)",
+      "false"
+    )
+
+    testTableApi(
+      'f10.in("This is a test String.", "String", "Hello world", "Comment#1", Null(Types.STRING)),
+      "f10.in('This is a test String.', 'String', 'Hello world', 'Comment#1', Null(STRING))",
+      "true"
+    )
+
+    testTableApi(
+      'f10.in("FAIL", "FAIL"),
+      "f10.in('FAIL', 'FAIL')",
+      "false"
+    )
+
+    testTableApi(
+      'f10.in("FAIL", "FAIL", Null(Types.STRING)),
+      "f10.in('FAIL', 'FAIL', Null(STRING))",
+      "null"
+    )
+  }
+
+  @Test
   def testOtherExpressions(): Unit = {
+    // nested field null type
+    testSqlApi("CASE WHEN f13.f1 IS NULL THEN 'a' ELSE 'b' END", "a")
+    testSqlApi("CASE WHEN f13.f1 IS NOT NULL THEN 'a' ELSE 'b' END", "b")
+    testAllApis('f13.isNull, "f13.isNull", "f13 IS NULL", "false")
+    testAllApis('f13.isNotNull, "f13.isNotNull", "f13 IS NOT NULL", "true")
+    testAllApis('f13.get("f0").isNull, "f13.get('f0').isNull", "f13.f0 IS NULL", "false")
+    testAllApis('f13.get("f0").isNotNull, "f13.get('f0').isNotNull", "f13.f0 IS NOT NULL", "true")
+    testAllApis('f13.get("f1").isNull, "f13.get('f1').isNull", "f13.f1 IS NULL", "true")
+    testAllApis('f13.get("f1").isNotNull, "f13.get('f1').isNotNull", "f13.f1 IS NOT NULL", "false")
+
+    // array element access test
+    testSqlApi("CASE WHEN f18 IS NOT NULL THEN f18[1] ELSE NULL END", "1")
+    testSqlApi("CASE WHEN f19 IS NOT NULL THEN f19[1] ELSE NULL END", "(1,a)")
+
     // boolean literals
     testAllApis(
       true,
@@ -214,5 +406,138 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "((((true) === true) || false).cast(STRING) + 'X ').trim",
       "trueX")
     testTableApi(12.isNull, "12.isNull", "false")
+  }
+
+  @Test
+  def testBetween(): Unit = {
+    // between
+    testAllApis(
+      4.between(Null(Types.INT), 3),
+      "4.between(Null(INT), 3)",
+      "4 BETWEEN NULL AND 3",
+      "false"
+    )
+    testAllApis(
+      4.between(Null(Types.INT), 12),
+      "4.between(Null(INT), 12)",
+      "4 BETWEEN NULL AND 12",
+      "null"
+    )
+    testAllApis(
+      4.between(Null(Types.INT), 3),
+      "4.between(Null(INT), 3)",
+      "4 BETWEEN 5 AND NULL",
+      "false"
+    )
+    testAllApis(
+      4.between(Null(Types.INT), 12),
+      "4.between(Null(INT), 12)",
+      "4 BETWEEN 0 AND NULL",
+      "null"
+    )
+    testAllApis(
+      4.between(1, 3),
+      "4.between(1, 3)",
+      "4 BETWEEN 1 AND 3",
+      "false"
+    )
+    testAllApis(
+      2.between(1, 3),
+      "2.between(1, 3)",
+      "2 BETWEEN 1 AND 3",
+      "true"
+    )
+    testAllApis(
+      2.between(2, 2),
+      "2.between(2, 2)",
+      "2 BETWEEN 2 AND 2",
+      "true"
+    )
+    testAllApis(
+      2.1.between(2.0, 3.0),
+      "2.1.between(2.0, 3.0)",
+      "2.1 BETWEEN 2.0 AND 3.0",
+      "true"
+    )
+    testAllApis(
+      2.1.between(2.1, 2.1),
+      "2.1.between(2.1, 2.1)",
+      "2.1 BETWEEN 2.1 AND 2.1",
+      "true"
+    )
+    testAllApis(
+      "b".between("a", "c"),
+      "'b'.between('a', 'c')",
+      "'b' BETWEEN 'a' AND 'c'",
+      "true"
+    )
+    testAllApis(
+      "b".between("b", "c"),
+      "'b'.between('b', 'c')",
+      "'b' BETWEEN 'b' AND 'c'",
+      "true"
+    )
+    testAllApis(
+      "2018-05-05".toDate.between("2018-05-01".toDate, "2018-05-10".toDate),
+      "'2018-05-05'.toDate.between('2018-05-01'.toDate, '2018-05-10'.toDate)",
+      "DATE '2018-05-05' BETWEEN DATE '2018-05-01' AND DATE '2018-05-10'",
+      "true"
+    )
+
+    // not between
+    testAllApis(
+      2.notBetween(Null(Types.INT), 3),
+      "2.notBetween(Null(INT), 3)",
+      "2 NOT BETWEEN NULL AND 3",
+      "null"
+    )
+    testAllApis(
+      2.notBetween(0, 1),
+      "2.notBetween(0, 1)",
+      "2 NOT BETWEEN 0 AND 1",
+      "true"
+    )
+    testAllApis(
+      2.notBetween(1, 3),
+      "2.notBetween(1, 3)",
+      "2 NOT BETWEEN 1 AND 3",
+      "false"
+    )
+    testAllApis(
+      2.notBetween(2, 2),
+      "2.notBetween(2, 2)",
+      "2 NOT BETWEEN 2 AND 2",
+      "false"
+    )
+    testAllApis(
+      2.1.notBetween(2.0, 3.0),
+      "2.1.notBetween(2.0, 3.0)",
+      "2.1 NOT BETWEEN 2.0 AND 3.0",
+      "false"
+    )
+    testAllApis(
+      2.1.notBetween(2.1, 2.1),
+      "2.1.notBetween(2.1, 2.1)",
+      "2.1 NOT BETWEEN 2.1 AND 2.1",
+      "false"
+    )
+    testAllApis(
+      "b".notBetween("a", "c"),
+      "'b'.notBetween('a', 'c')",
+      "'b' NOT BETWEEN 'a' AND 'c'",
+      "false"
+    )
+    testAllApis(
+      "b".notBetween("b", "c"),
+      "'b'.notBetween('b', 'c')",
+      "'b' NOT BETWEEN 'b' AND 'c'",
+      "false"
+    )
+    testAllApis(
+      "2018-05-05".toDate.notBetween("2018-05-01".toDate, "2018-05-10".toDate),
+      "'2018-05-05'.toDate.notBetween('2018-05-01'.toDate, '2018-05-10'.toDate)",
+      "DATE '2018-05-05' NOT BETWEEN DATE '2018-05-01' AND DATE '2018-05-10'",
+      "false"
+    )
   }
 }

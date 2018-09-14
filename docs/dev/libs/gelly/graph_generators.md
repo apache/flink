@@ -555,10 +555,10 @@ val graph = new RMatGraph(env.getJavaEnv, rnd, vertexCount, edgeCount).generate(
 </div>
 </div>
 
-The default RMat contants can be overridden as shown in the following example.
-The contants define the interdependence of bits from each generated edge's source
+The default RMat constants can be overridden as shown in the following example.
+The constants define the interdependence of bits from each generated edge's source
 and target labels. The RMat noise can be enabled and progressively perturbs the
-contants while generating each edge.
+constants while generating each edge.
 
 The RMat generator can be configured to produce a simple graph by removing self-loops
 and duplicate edges. Symmetrization is performed either by a "clip-and-flip" throwing away

@@ -101,8 +101,8 @@ public class TPCHQuery3 {
 
 		// get input data
 		DataSet<Lineitem> lineitems = getLineitemDataSet(env, params.get("lineitem"));
-		DataSet<Order> orders = getOrdersDataSet(env, params.get("customer"));
-		DataSet<Customer> customers = getCustomerDataSet(env, params.get("orders"));
+		DataSet<Customer> customers = getCustomerDataSet(env, params.get("customer"));
+		DataSet<Order> orders = getOrdersDataSet(env, params.get("orders"));
 
 		// Filter market segment "AUTOMOBILE"
 		customers = customers.filter(
@@ -180,7 +180,10 @@ public class TPCHQuery3 {
 	//     DATA TYPES
 	// *************************************************************************
 
-	private static class Lineitem extends Tuple4<Long, Double, Double, String> {
+	/**
+	 * Lineitem.
+ 	 */
+	public static class Lineitem extends Tuple4<Long, Double, Double, String> {
 
 		public Long getOrderkey() {
 			return this.f0;
@@ -199,7 +202,10 @@ public class TPCHQuery3 {
 		}
 	}
 
-	private static class Customer extends Tuple2<Long, String> {
+	/**
+	 * Customer.
+	 */
+	public static class Customer extends Tuple2<Long, String> {
 
 		public Long getCustKey() {
 			return this.f0;
@@ -210,7 +216,10 @@ public class TPCHQuery3 {
 		}
 	}
 
-	private static class Order extends Tuple4<Long, Long, String, Long> {
+	/**
+	 * Order.
+	 */
+	public static class Order extends Tuple4<Long, Long, String, Long> {
 
 		public Long getOrderKey() {
 			return this.f0;

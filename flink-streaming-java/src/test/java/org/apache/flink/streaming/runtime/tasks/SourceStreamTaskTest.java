@@ -24,6 +24,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -55,14 +56,17 @@ public class SourceStreamTaskTest {
 	 * This test verifies that open() and close() are correctly called by the StreamTask.
 	 */
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testOpenClose() throws Exception {
-		final SourceStreamTask<String, SourceFunction<String>, StreamSource<String, SourceFunction<String>>> sourceTask = new SourceStreamTask<>();
-		final StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<String>(sourceTask, BasicTypeInfo.STRING_TYPE_INFO);
+		final StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<>(
+				SourceStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
+
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamSource<String, ?> sourceOperator = new StreamSource<>(new OpenCloseTestSource());
 		streamConfig.setStreamOperator(sourceOperator);
+		streamConfig.setOperatorID(new OperatorID());
 
 		testHarness.invoke();
 		testHarness.waitForTaskCompletion();
@@ -97,15 +101,16 @@ public class SourceStreamTaskTest {
 
 		ExecutorService executor = Executors.newFixedThreadPool(10);
 		try {
-			final TupleTypeInfo<Tuple2<Long, Integer>> typeInfo = new TupleTypeInfo<Tuple2<Long, Integer>>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
-			final SourceStreamTask<Tuple2<Long, Integer>, SourceFunction<Tuple2<Long, Integer>>,
-				StreamSource<Tuple2<Long, Integer>, SourceFunction<Tuple2<Long, Integer>>>> sourceTask = new SourceStreamTask<>();
-			final StreamTaskTestHarness<Tuple2<Long, Integer>> testHarness = new StreamTaskTestHarness<Tuple2<Long, Integer>>(sourceTask, typeInfo);
+			final TupleTypeInfo<Tuple2<Long, Integer>> typeInfo = new TupleTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
+
+			final StreamTaskTestHarness<Tuple2<Long, Integer>> testHarness = new StreamTaskTestHarness<>(
+					SourceStreamTask::new, typeInfo);
 			testHarness.setupOutputForSingletonOperatorChain();
 
 			StreamConfig streamConfig = testHarness.getStreamConfig();
 			StreamSource<Tuple2<Long, Integer>, ?> sourceOperator = new StreamSource<>(new MockSource(numElements, sourceCheckpointDelay, sourceReadDelay));
 			streamConfig.setStreamOperator(sourceOperator);
+			streamConfig.setOperatorID(new OperatorID());
 
 			// prepare the
 
@@ -113,6 +118,9 @@ public class SourceStreamTaskTest {
 
 			// invoke this first, so the tasks are actually running when the checkpoints are scheduled
 			testHarness.invoke();
+			testHarness.waitForTaskRunning();
+
+			final StreamTask<Tuple2<Long, Integer>, ?> sourceTask = testHarness.getTask();
 
 			for (int i = 0; i < numCheckpointers; i++) {
 				checkpointerResults[i] = executor.submit(new Checkpointer(numCheckpoints, checkpointInterval, sourceTask));
@@ -234,7 +242,7 @@ public class SourceStreamTaskTest {
 			for (int i = 0; i < numCheckpoints; i++) {
 				long currentCheckpointId = checkpointId.getAndIncrement();
 				CheckpointMetaData checkpointMetaData = new CheckpointMetaData(currentCheckpointId, 0L);
-				sourceTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forFullCheckpoint());
+				sourceTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation());
 				Thread.sleep(checkpointInterval);
 			}
 			return true;

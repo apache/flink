@@ -24,15 +24,16 @@ import java.util.UUID
 import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.akka.ListeningBehaviour
-import org.apache.flink.runtime.blob.BlobKey
+import org.apache.flink.runtime.blob.PermanentBlobKey
 import org.apache.flink.runtime.client.{JobStatusMessage, SerializedJobExecutionResult}
+import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.executiongraph.{AccessExecutionGraph, ExecutionAttemptID, ExecutionGraph}
 import org.apache.flink.runtime.instance.{Instance, InstanceID}
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID
 import org.apache.flink.runtime.jobgraph.{IntermediateDataSetID, JobGraph, JobStatus, JobVertexID}
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph
 import org.apache.flink.runtime.messages.checkpoint.AbstractCheckpointMessage
-import org.apache.flink.runtime.util.SerializedThrowable
+import org.apache.flink.util.SerializedThrowable
 
 import scala.collection.JavaConverters._
 
@@ -235,7 +236,7 @@ object JobManagerMessages {
     * @param requiredClasspaths The urls of the required classpaths
     */
   case class ClassloadingProps(blobManagerPort: Integer,
-                               requiredJarFiles: java.util.Collection[BlobKey],
+                               requiredJarFiles: java.util.Collection[PermanentBlobKey],
                                requiredClasspaths: java.util.Collection[URL])
 
   /**
@@ -419,9 +420,9 @@ object JobManagerMessages {
   /**
    * Requests the [[Instance]] object of the task manager with the given instance ID
    *
-   * @param instanceID Instance ID of the task manager
+   * @param resourceId identifying the TaskManager which shall be retrieved
    */
-  case class RequestTaskManagerInstance(instanceID: InstanceID)
+  case class RequestTaskManagerInstance(resourceId: ResourceID)
 
   /**
    * Returns the [[Instance]] object of the requested task manager. This is in response to
@@ -464,15 +465,8 @@ object JobManagerMessages {
   /** Response containing the ActorRef of the archiver */
   case class ResponseArchive(actor: ActorRef)
 
-  /** Request for the [[org.apache.flink.runtime.webmonitor.WebMonitor]] port. */
-  case object RequestWebMonitorPort
-
-  /**
-   * Response containing the [[org.apache.flink.runtime.webmonitor.WebMonitor]] port.
-   *
-   * -1 indicates that there is no web monitor running.
-   */
-  case class ResponseWebMonitorPort(port: Integer)
+  /** Request for the JobManager's REST endpoint address */
+  case object RequestRestAddress
 
   /**
     * Triggers a savepoint for the specified job.
@@ -580,8 +574,8 @@ object JobManagerMessages {
     RecoverAllJobs
   }
 
-  def getRequestWebMonitorPort: AnyRef = {
-    RequestWebMonitorPort
+  def getRequestRestAddress: AnyRef = {
+    RequestRestAddress
   }
 
   def getDisposeSavepointSuccess: AnyRef = {

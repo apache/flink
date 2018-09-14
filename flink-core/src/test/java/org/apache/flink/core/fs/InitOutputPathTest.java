@@ -28,7 +28,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
-
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -40,9 +39,12 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static org.powermock.api.mockito.PowerMockito.*;
-import static org.junit.Assert.*;
+import static org.junit.Assert.fail;
+import static org.powermock.api.mockito.PowerMockito.whenNew;
 
+/**
+ * A test validating that the initialization of local output paths is properly synchronized.
+ */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(LocalFileSystem.class)
 public class InitOutputPathTest {
@@ -79,7 +81,7 @@ public class InitOutputPathTest {
 
 	@Test
 	public void testProperSynchronized() throws Exception {
-		// in the synchronized variant, we cannot use the "await latches" because not 
+		// in the synchronized variant, we cannot use the "await latches" because not
 		// both threads can make process interleaved (due to the synchronization)
 		// the test uses sleeps (rather than latches) to produce the same interleaving.
 		// while that is not guaranteed to produce the pathological interleaving,
@@ -121,7 +123,7 @@ public class InitOutputPathTest {
 		});
 
 		final LocalFileSystem fs1 = new SyncedFileSystem(
-				deleteAwaitLatch1, mkdirsAwaitLatch1, 
+				deleteAwaitLatch1, mkdirsAwaitLatch1,
 				deleteTriggerLatch1, mkdirsTriggerLatch1);
 
 		final LocalFileSystem fs2 = new SyncedFileSystem(

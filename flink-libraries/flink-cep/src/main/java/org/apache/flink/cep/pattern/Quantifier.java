@@ -55,7 +55,7 @@ public class Quantifier {
 		return new Quantifier(consumingStrategy, QuantifierProperty.SINGLE);
 	}
 
-	public static Quantifier oneOrMore(final ConsumingStrategy consumingStrategy) {
+	public static Quantifier looping(final ConsumingStrategy consumingStrategy) {
 		return new Quantifier(consumingStrategy, QuantifierProperty.LOOPING);
 	}
 
@@ -105,6 +105,15 @@ public class Quantifier {
 		properties.add(Quantifier.QuantifierProperty.OPTIONAL);
 	}
 
+	public void greedy() {
+		checkPattern(!(innerConsumingStrategy == ConsumingStrategy.SKIP_TILL_ANY),
+			"Option not applicable to FollowedByAny pattern");
+		checkPattern(!hasProperty(Quantifier.QuantifierProperty.SINGLE),
+			"Option not applicable to singleton quantifier");
+
+		properties.add(QuantifierProperty.GREEDY);
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
@@ -130,7 +139,8 @@ public class Quantifier {
 		SINGLE,
 		LOOPING,
 		TIMES,
-		OPTIONAL
+		OPTIONAL,
+		GREEDY
 	}
 
 	/**

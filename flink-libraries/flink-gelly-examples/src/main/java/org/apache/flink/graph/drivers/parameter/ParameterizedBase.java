@@ -46,6 +46,11 @@ implements Parameterized {
 	}
 
 	@Override
+	public String getName() {
+		return this.getClass().getSimpleName();
+	}
+
+	@Override
 	public String getUsage() {
 		StrBuilder strBuilder = new StrBuilder();
 

@@ -29,22 +29,16 @@ public class MigrationTestUtil {
 	/**
 	 * Restore from a snapshot taken with an older Flink version.
 	 *
-	 * @param testHarness the test harness to restore the snapshot to.
-	 * @param snapshotPath the absolute path to the snapshot.
+	 * @param testHarness          the test harness to restore the snapshot to.
+	 * @param snapshotPath         the absolute path to the snapshot.
 	 * @param snapshotFlinkVersion the Flink version of the snapshot.
-	 *
 	 * @throws Exception
 	 */
 	public static void restoreFromSnapshot(
-			AbstractStreamOperatorTestHarness<?> testHarness,
-			String snapshotPath,
-			MigrationVersion snapshotFlinkVersion) throws Exception {
+		AbstractStreamOperatorTestHarness<?> testHarness,
+		String snapshotPath,
+		MigrationVersion snapshotFlinkVersion) throws Exception {
 
-		if (snapshotFlinkVersion == MigrationVersion.v1_1) {
-			// Flink 1.1 snapshots should be read using the legacy restore method
-			testHarness.initializeStateFromLegacyCheckpoint(snapshotPath);
-		} else {
-			testHarness.initializeState(OperatorSnapshotUtil.readStateHandle(snapshotPath));
-		}
+		testHarness.initializeState(OperatorSnapshotUtil.readStateHandle(snapshotPath));
 	}
 }

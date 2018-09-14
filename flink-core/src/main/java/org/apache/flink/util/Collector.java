@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.util;
 
 import org.apache.flink.annotation.Public;
@@ -27,14 +26,14 @@ import org.apache.flink.annotation.Public;
  */
 @Public
 public interface Collector<T> {
-	
+
 	/**
 	 * Emits a record.
-	 * 
+	 *
 	 * @param record The record to collect.
 	 */
 	void collect(T record);
-	
+
 	/**
 	 * Closes the collector. If any data was buffered, that data will be flushed.
 	 */

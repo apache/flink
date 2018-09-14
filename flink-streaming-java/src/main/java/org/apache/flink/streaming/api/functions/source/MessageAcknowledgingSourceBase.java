@@ -28,7 +28,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.state.SerializedCheckpointData;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.util.Preconditions;
 
@@ -96,13 +95,13 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 	private final TypeSerializer<UId> idSerializer;
 
 	/** The list gathering the IDs of messages emitted during the current checkpoint. */
-	private transient List<UId> idsForCurrentCheckpoint;
+	private transient Set<UId> idsForCurrentCheckpoint;
 
 	/**
 	 * The list with IDs from checkpoints that were triggered, but not yet completed or notified of
 	 * completion.
 	 */
-	protected transient ArrayDeque<Tuple2<Long, List<UId>>> pendingCheckpoints;
+	protected transient ArrayDeque<Tuple2<Long, Set<UId>>> pendingCheckpoints;
 
 	/**
 	 * Set which contain all processed ids. Ids are acknowledged after checkpoints. When restoring
@@ -142,7 +141,7 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 			.getOperatorStateStore()
 			.getSerializableListState("message-acknowledging-source-state");
 
-		this.idsForCurrentCheckpoint = new ArrayList<>(64);
+		this.idsForCurrentCheckpoint = new HashSet<>(64);
 		this.pendingCheckpoints = new ArrayDeque<>();
 		this.idsProcessedButNotAcknowledged = new HashSet<>();
 
@@ -161,7 +160,7 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 			pendingCheckpoints = SerializedCheckpointData.toDeque(retrievedStates.get(0), idSerializer);
 			// build a set which contains all processed ids. It may be used to check if we have
 			// already processed an incoming message.
-			for (Tuple2<Long, List<UId>> checkpoint : pendingCheckpoints) {
+			for (Tuple2<Long, Set<UId>> checkpoint : pendingCheckpoints) {
 				idsProcessedButNotAcknowledged.addAll(checkpoint.f1);
 			}
 		} else {
@@ -185,7 +184,7 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 	 *
 	 * @param uIds The list od IDs to acknowledge.
 	 */
-	protected abstract void acknowledgeIDs(long checkpointId, List<UId> uIds);
+	protected abstract void acknowledgeIDs(long checkpointId, Set<UId> uIds);
 
 	/**
 	 * Adds an ID to be stored with the current checkpoint.
@@ -213,7 +212,7 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 		}
 
 		pendingCheckpoints.addLast(new Tuple2<>(context.getCheckpointId(), idsForCurrentCheckpoint));
-		idsForCurrentCheckpoint = new ArrayList<>(64);
+		idsForCurrentCheckpoint = new HashSet<>(64);
 
 		this.checkpointedState.clear();
 		this.checkpointedState.add(SerializedCheckpointData.fromDeque(pendingCheckpoints, idSerializer));
@@ -223,8 +222,8 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		LOG.debug("Committing Messages externally for checkpoint {}", checkpointId);
 
-		for (Iterator<Tuple2<Long, List<UId>>> iter = pendingCheckpoints.iterator(); iter.hasNext();) {
-			Tuple2<Long, List<UId>> checkpoint = iter.next();
+		for (Iterator<Tuple2<Long, Set<UId>>> iter = pendingCheckpoints.iterator(); iter.hasNext();) {
+			Tuple2<Long, Set<UId>> checkpoint = iter.next();
 			long id = checkpoint.f0;
 
 			if (id <= checkpointId) {

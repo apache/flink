@@ -26,8 +26,10 @@ import java.io.Serializable;
 
 /**
  * A {@link GraphAlgorithm} result for a pair vertices.
+ *
+ * @param <K> graph ID type
  */
-public interface BinaryResult<T>
+public interface BinaryResult<K>
 extends Serializable {
 
 	/**
@@ -35,33 +37,33 @@ extends Serializable {
 	 *
 	 * @return first vertex ID
 	 */
-	T getVertexId0();
+	K getVertexId0();
 
 	/**
 	 * Set the first vertex ID.
 	 *
-	 * @param value new vertex ID
+	 * @param vertexId0 new vertex ID
 	 */
-	void setVertexId0(T value);
+	void setVertexId0(K vertexId0);
 
 	/**
 	 * Get the second vertex ID.
 	 *
 	 * @return second vertex ID
 	 */
-	T getVertexId1();
+	K getVertexId1();
 
 	/**
 	 * Set the second vertex ID.
 	 *
-	 * @param value new vertex ID
+	 * @param vertexId1 new vertex ID
 	 */
-	void setVertexId1(T value);
+	void setVertexId1(K vertexId1);
 
 	/**
 	 * Output each input and a second result with the vertex order flipped.
 	 *
-	 * @param <T> ID type
+	 * @param <T> graph ID type
 	 * @param <RT> result type
 	 */
 	class MirrorResult<T, RT extends BinaryResult<T>>

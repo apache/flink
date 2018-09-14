@@ -21,7 +21,7 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Aggregator that can handle Long types
+ * Aggregator that can handle Long types.
  */
 @Internal
 public class LongSummaryAggregator extends NumericSummaryAggregator<Long> {
@@ -30,7 +30,10 @@ public class LongSummaryAggregator extends NumericSummaryAggregator<Long> {
 
 	// Nested classes are only "public static" for Kryo serialization, otherwise they'd be private
 
-	public static class MinLongAggregator implements Aggregator<Long,Long> {
+	/**
+	 * Aggregator for min operation.
+	 */
+	public static class MinLongAggregator implements Aggregator<Long, Long> {
 
 		private long min = Long.MAX_VALUE;
 
@@ -41,7 +44,7 @@ public class LongSummaryAggregator extends NumericSummaryAggregator<Long> {
 
 		@Override
 		public void combine(Aggregator<Long, Long> other) {
-			min = Math.min(min,((MinLongAggregator)other).min);
+			min = Math.min(min, ((MinLongAggregator) other).min);
 		}
 
 		@Override
@@ -50,7 +53,10 @@ public class LongSummaryAggregator extends NumericSummaryAggregator<Long> {
 		}
 	}
 
-	public static class MaxLongAggregator implements Aggregator<Long,Long> {
+	/**
+	 * Aggregator for max operation.
+	 */
+	public static class MaxLongAggregator implements Aggregator<Long, Long> {
 
 		private long max = Long.MIN_VALUE;
 
@@ -70,7 +76,10 @@ public class LongSummaryAggregator extends NumericSummaryAggregator<Long> {
 		}
 	}
 
-	public static class SumLongAggregator implements Aggregator<Long,Long> {
+	/**
+	 * Aggregator for sum operation.
+	 */
+	private static class SumLongAggregator implements Aggregator<Long, Long> {
 
 		private long sum = 0;
 
@@ -81,7 +90,7 @@ public class LongSummaryAggregator extends NumericSummaryAggregator<Long> {
 
 		@Override
 		public void combine(Aggregator<Long, Long> other) {
-			sum += ((SumLongAggregator)other).sum;
+			sum += ((SumLongAggregator) other).sum;
 		}
 
 		@Override

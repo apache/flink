@@ -19,68 +19,108 @@
 package org.apache.flink.runtime.jobmanager.scheduler;
 
 import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
+/**
+ * ScheduledUnit contains the information necessary to allocate a slot for the given
+ * {@link JobVertexID}.
+ */
 public class ScheduledUnit {
-	
+
+	@Nullable
 	private final Execution vertexExecution;
-	
-	private final SlotSharingGroup sharingGroup;
-	
-	private final CoLocationConstraint locationConstraint;
+
+	private final JobVertexID jobVertexId;
+
+	@Nullable
+	private final SlotSharingGroupId slotSharingGroupId;
+
+	@Nullable
+	private final CoLocationConstraint coLocationConstraint;
 	
 	// --------------------------------------------------------------------------------------------
 	
 	public ScheduledUnit(Execution task) {
-		Preconditions.checkNotNull(task);
-		
-		this.vertexExecution = task;
-		this.sharingGroup = null;
-		this.locationConstraint = null;
+		this(
+			Preconditions.checkNotNull(task),
+			task.getVertex().getJobvertexId(),
+			null,
+			null);
 	}
 	
-	public ScheduledUnit(Execution task, SlotSharingGroup sharingUnit) {
-		Preconditions.checkNotNull(task);
-		
-		this.vertexExecution = task;
-		this.sharingGroup = sharingUnit;
-		this.locationConstraint = null;
+	public ScheduledUnit(Execution task, @Nullable SlotSharingGroupId slotSharingGroupId) {
+		this(
+			Preconditions.checkNotNull(task),
+			task.getVertex().getJobvertexId(),
+			slotSharingGroupId,
+			null);
 	}
 	
-	public ScheduledUnit(Execution task, SlotSharingGroup sharingUnit, CoLocationConstraint locationConstraint) {
-		Preconditions.checkNotNull(task);
-		Preconditions.checkNotNull(sharingUnit);
-		Preconditions.checkNotNull(locationConstraint);
-		
+	public ScheduledUnit(
+			Execution task,
+			@Nullable SlotSharingGroupId slotSharingGroupId,
+			@Nullable CoLocationConstraint coLocationConstraint) {
+		this(
+			Preconditions.checkNotNull(task),
+			task.getVertex().getJobvertexId(),
+			slotSharingGroupId,
+			coLocationConstraint);
+	}
+
+	public ScheduledUnit(
+			JobVertexID jobVertexId,
+			@Nullable SlotSharingGroupId slotSharingGroupId,
+			@Nullable CoLocationConstraint coLocationConstraint) {
+		this(
+			null,
+			jobVertexId,
+			slotSharingGroupId,
+			coLocationConstraint);
+	}
+
+	public ScheduledUnit(
+		@Nullable Execution task,
+		JobVertexID jobVertexId,
+		@Nullable SlotSharingGroupId slotSharingGroupId,
+		@Nullable CoLocationConstraint coLocationConstraint) {
+
 		this.vertexExecution = task;
-		this.sharingGroup = sharingUnit;
-		this.locationConstraint = locationConstraint;
+		this.jobVertexId = Preconditions.checkNotNull(jobVertexId);
+		this.slotSharingGroupId = slotSharingGroupId;
+		this.coLocationConstraint = coLocationConstraint;
+
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
 	public JobVertexID getJobVertexId() {
-		return this.vertexExecution.getVertex().getJobvertexId();
+		return jobVertexId;
 	}
-	
+
+	@Nullable
 	public Execution getTaskToExecute() {
 		return vertexExecution;
 	}
-	
-	public SlotSharingGroup getSlotSharingGroup() {
-		return sharingGroup;
+
+	@Nullable
+	public SlotSharingGroupId getSlotSharingGroupId() {
+		return slotSharingGroupId;
 	}
-	
-	public CoLocationConstraint getLocationConstraint() {
-		return locationConstraint;
+
+	@Nullable
+	public CoLocationConstraint getCoLocationConstraint() {
+		return coLocationConstraint;
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
 	public String toString() {
-		return "{task=" + vertexExecution.getVertexWithAttempt() + ", sharingUnit=" + sharingGroup + 
-				", locationConstraint=" + locationConstraint + '}';
+		return "{task=" + vertexExecution.getVertexWithAttempt() + ", sharingUnit=" + slotSharingGroupId +
+				", locationConstraint=" + coLocationConstraint + '}';
 	}
 }

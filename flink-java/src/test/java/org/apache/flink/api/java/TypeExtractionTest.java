@@ -20,7 +20,7 @@ package org.apache.flink.api.java;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
+import org.apache.flink.api.common.typeinfo.Types;
 
 import org.junit.Test;
 
@@ -31,11 +31,11 @@ import static org.junit.Assert.assertEquals;
  */
 @SuppressWarnings("serial")
 public class TypeExtractionTest {
-	
+
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	@Test
 	public void testFunctionWithMissingGenericsAndReturns() {
-		
+
 		RichMapFunction function = new RichMapFunction() {
 			private static final long serialVersionUID = 1L;
 
@@ -47,9 +47,9 @@ public class TypeExtractionTest {
 
 		TypeInformation<?> info = ExecutionEnvironment.getExecutionEnvironment()
 				.fromElements("arbitrary", "data")
-				.map(function).returns("String").getResultType();
+				.map(function).returns(Types.STRING).getResultType();
 
-		assertEquals(TypeInfoParser.parse("String"), info);
+		assertEquals(Types.STRING, info);
 	}
 
 	@Test
@@ -57,11 +57,16 @@ public class TypeExtractionTest {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.fromElements(new VertexTyped(0L, 3.0), new VertexTyped(1L, 1.0));
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Test types
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Representation of Vertex with maximum of 2 keys and a value.
+	 * @param <K> keys type
+	 * @param <V> value type
+	 */
 	public static class Vertex<K, V> {
 
 		private K key1;
@@ -107,10 +112,14 @@ public class TypeExtractionTest {
 		}
 	}
 
+	/**
+	 * A {@link Vertex} with {@link Long} as key and {@link Double} as value.
+	 */
 	public static class VertexTyped extends Vertex<Long, Double>{
 		public VertexTyped(Long l, Double d) {
 			super(l, d);
 		}
+
 		public VertexTyped() {
 		}
 	}

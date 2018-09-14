@@ -20,7 +20,9 @@ package org.apache.flink.runtime.client;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.akka.AkkaJobManagerGateway;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -112,7 +114,7 @@ public final class JobListeningContext {
 	}
 
 	/**
-	 * @return The Job Client actor which communicats with the JobManager.
+	 * @return The Job Client actor which communicates with the JobManager.
 	 */
 	public ActorRef getJobClientActor() {
 		return jobClientActor;
@@ -136,9 +138,10 @@ public final class JobListeningContext {
 			// lazily initializes the class loader when it is needed
 			classLoader = JobClient.retrieveClassLoader(
 				jobID,
-				getJobManager(),
+				new AkkaJobManagerGateway(getJobManager()),
 				configuration,
-				highAvailabilityServices);
+				highAvailabilityServices,
+				Time.milliseconds(timeout.toMillis()));
 			LOG.info("Reconstructed class loader for Job {}", jobID);
 		}
 		return classLoader;

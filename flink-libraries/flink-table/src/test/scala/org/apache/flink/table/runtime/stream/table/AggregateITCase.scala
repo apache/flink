@@ -23,8 +23,10 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.StreamITCase.RetractingSink
-import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment}
-import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
+import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment, Types}
+import org.apache.flink.table.expressions.Null
+import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, DataViewTestAgg, WeightedAvg}
+import org.apache.flink.table.runtime.utils.{JavaUserDefinedAggFunctions, StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -38,6 +40,83 @@ class AggregateITCase extends StreamingWithStateTestBase {
   private val queryConfig = new StreamQueryConfig()
   queryConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
 
+  @Test
+  def testDistinctUDAGG(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val testAgg = new DataViewTestAgg
+    val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+      .groupBy('e)
+      .select('e, testAgg.distinct('d, 'e))
+
+    val results = t.toRetractStream[Row](queryConfig)
+    results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList("1,10", "2,21", "3,12")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testDistinctUDAGGMixedWithNonDistinctUsage(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val testAgg = new WeightedAvg
+    val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+      .groupBy('e)
+      .select('e, testAgg.distinct('a, 'a), testAgg('a, 'a))
+
+    val results = t.toRetractStream[Row](queryConfig)
+    results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList("1,3,3", "2,3,4", "3,4,4")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testDistinctAggregate(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+      .groupBy('e)
+      .select('e, 'a.count.distinct)
+
+    val results = t.toRetractStream[Row](queryConfig)
+    results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList("1,4", "2,4", "3,2")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testDistinctAggregateMixedWithNonDistinct(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+      .groupBy('e)
+      .select('e, 'a.count.distinct, 'b.count)
+
+    val results = t.toRetractStream[Row](queryConfig)
+    results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList("1,4,5", "2,4,7", "3,2,3")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
 
   @Test
   def testDistinct(): Unit = {
@@ -47,13 +126,13 @@ class AggregateITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
 
     val t = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-      .select('b).distinct()
+      .select('b, Null(Types.LONG)).distinct()
 
     val results = t.toRetractStream[Row](queryConfig)
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
-    val expected = mutable.MutableList("1", "2", "3", "4", "5", "6")
+    val expected = mutable.MutableList("1,null", "2,null", "3,null", "4,null", "5,null", "6,null")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
@@ -153,5 +232,89 @@ class AggregateITCase extends StreamingWithStateTestBase {
       "3,2,3,3", "1,2,3,3", "14,2,5,1",
       "12,3,5,1", "5,3,4,2")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testCollect(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val t = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+      .groupBy('b)
+      .select('b, 'a.collect)
+
+    val results = t.toRetractStream[Row](queryConfig)
+    results.addSink(new RetractingSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,{1=1}", "2,{2=1, 3=1}", "3,{4=1, 5=1, 6=1}", "4,{7=1, 8=1, 9=1, 10=1}",
+      "5,{11=1, 12=1, 13=1, 14=1, 15=1}", "6,{16=1, 17=1, 18=1, 19=1, 20=1, 21=1}")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testGroupAggregateWithStateBackend(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 1L, "A"))
+    data.+=((2, 2L, "B"))
+    data.+=((3, 2L, "B"))
+    data.+=((4, 3L, "C"))
+    data.+=((5, 3L, "C"))
+    data.+=((6, 3L, "C"))
+    data.+=((7, 4L, "B"))
+    data.+=((8, 4L, "A"))
+    data.+=((9, 4L, "D"))
+    data.+=((10, 4L, "E"))
+    data.+=((11, 5L, "A"))
+    data.+=((12, 5L, "B"))
+
+    val distinct = new CountDistinct
+    val testAgg = new DataViewTestAgg
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+      .groupBy('b)
+      .select('b, distinct('c), testAgg('c, 'b))
+
+    val results = t.toRetractStream[Row](queryConfig)
+    results.addSink(new StreamITCase.RetractingSink)
+    env.execute()
+
+    val expected = List("1,1,2", "2,1,5", "3,1,10", "4,4,20", "5,2,12")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+
+    // verify agg close is called
+    assert(JavaUserDefinedAggFunctions.isCloseCalled)
+  }
+
+  @Test
+  def testRemoveDuplicateRecordsWithUpsertSink(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 1L, "A"))
+    data.+=((2, 2L, "B"))
+    data.+=((3, 2L, "B"))
+    data.+=((4, 3L, "C"))
+    data.+=((5, 3L, "C"))
+
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+            .groupBy('c)
+            .select('c, 'b.max)
+
+    t.writeToSink(new TestUpsertSink(Array("c"), false))
+    env.execute()
+
+    val expected = List("(true,A,1)", "(true,B,2)", "(true,C,3)")
+    assertEquals(expected.sorted, RowCollector.getAndClearValues.map(_.toString).sorted)
   }
 }

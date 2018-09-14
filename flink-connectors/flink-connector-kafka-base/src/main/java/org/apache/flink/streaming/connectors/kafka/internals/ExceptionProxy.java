@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
+
 import javax.annotation.Nullable;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -66,6 +68,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * }
  * </pre>
  */
+@Internal
 public class ExceptionProxy {
 
 	/** The thread that should be interrupted when an exception occurs. */

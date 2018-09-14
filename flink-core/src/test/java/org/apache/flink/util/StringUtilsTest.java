@@ -18,12 +18,14 @@
 
 package org.apache.flink.util;
 
+import org.junit.Test;
+
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
-import org.apache.flink.util.StringUtils;
-import org.junit.Test;
-
+/**
+ * Tests for the {@link StringUtils}.
+ */
 public class StringUtilsTest extends TestLogger {
 
 	@Test
@@ -32,11 +34,11 @@ public class StringUtilsTest extends TestLogger {
 		String controlString = StringUtils.showControlCharacters(testString);
 		assertEquals("\\b \\t \\n \\f \\r default", controlString);
 	}
-	
+
 	@Test
 	public void testArrayToString() {
 		double[] array = {1.0};
-		String controlString = StringUtils.arrayToString(array );
+		String controlString = StringUtils.arrayToString(array);
 		assertEquals("[1.0]", controlString);
 	}
 
@@ -47,7 +49,7 @@ public class StringUtilsTest extends TestLogger {
 		byte[] expectedArray = new byte[]{1, -97, 49, 74 };
 		assertArrayEquals(expectedArray, hexArray);
 	}
-	
+
 	@Test
 	public void testHexArrayToString() {
 		byte[] byteArray = new byte[]{1, -97, 49, 74 };

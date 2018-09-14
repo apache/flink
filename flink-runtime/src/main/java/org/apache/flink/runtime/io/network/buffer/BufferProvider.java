@@ -18,43 +18,46 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
-import org.apache.flink.runtime.util.event.EventListener;
-
 import java.io.IOException;
 
 /**
  * A buffer provider to request buffers from in a synchronous or asynchronous fashion.
  *
- * <p> The data producing side (result partition writers) request buffers in a synchronous fashion,
+ * <p>The data producing side (result partition writers) request buffers in a synchronous fashion,
  * whereas the input side requests asynchronously.
  */
 public interface BufferProvider {
 
 	/**
 	 * Returns a {@link Buffer} instance from the buffer provider, if one is available.
-	 * <p>
-	 * Returns <code>null</code> if no buffer is available or the buffer provider has been destroyed.
+	 *
+	 * <p>Returns <code>null</code> if no buffer is available or the buffer provider has been destroyed.
 	 */
 	Buffer requestBuffer() throws IOException;
 
 	/**
 	 * Returns a {@link Buffer} instance from the buffer provider.
-	 * <p>
-	 * If there is no buffer available, the call will block until one becomes available again or the
+	 *
+	 * <p>If there is no buffer available, the call will block until one becomes available again or the
 	 * buffer provider has been destroyed.
 	 */
 	Buffer requestBufferBlocking() throws IOException, InterruptedException;
 
 	/**
-	 * Adds a buffer availability listener to the buffer provider.
-	 * <p>
-	 * The operation fails with return value <code>false</code>, when there is a buffer available or
-	 * the buffer provider has been destroyed.
-	 * <p>
-	 * If the buffer provider gets destroyed while the listener is registered the listener will be
-	 * notified with a <code>null</code> value.
+	 * Returns a {@link BufferBuilder} instance from the buffer provider.
+	 *
+	 * <p>If there is no buffer available, the call will block until one becomes available again or the
+	 * buffer provider has been destroyed.
 	 */
-	boolean addListener(EventListener<Buffer> listener);
+	BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException;
+
+	/**
+	 * Adds a buffer availability listener to the buffer provider.
+	 *
+	 * <p>The operation fails with return value <code>false</code>, when there is a buffer available or
+	 * the buffer provider has been destroyed.
+	 */
+	boolean addBufferListener(BufferListener listener);
 
 	/**
 	 * Returns whether the buffer provider has been destroyed.

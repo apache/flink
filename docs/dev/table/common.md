@@ -50,7 +50,7 @@ tableEnv.registerExternalCatalog("extCat", ...);
 // create a Table from a Table API query
 Table tapiResult = tableEnv.scan("table1").select(...);
 // create a Table from a SQL query
-Table sqlResult  = tableEnv.sql("SELECT ... FROM table2 ... ");
+Table sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table2 ... ");
 
 // emit a Table API result Table to a TableSink, same for SQL result
 tapiResult.writeToSink(...);
@@ -77,7 +77,7 @@ tableEnv.registerExternalCatalog("extCat", ...)
 // create a Table from a Table API query
 val tapiResult = tableEnv.scan("table1").select(...)
 // Create a Table from a SQL query
-val sqlResult  = tableEnv.sql("SELECT ... FROM table2 ...")
+val sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table2 ...")
 
 // emit a Table API result Table to a TableSink, same for SQL result
 tapiResult.writeToSink(...)
@@ -149,18 +149,18 @@ val bTableEnv = TableEnvironment.getTableEnvironment(bEnv)
 
 {% top %}
 
-Register a Table in the Catalog
+Register Tables in the Catalog
 -------------------------------
 
-A `TableEnvironment` has an internal catalog of tables, organized by table name. Table API or SQL queries can access tables which are registered in the catalog, by referencing them by name. 
+A `TableEnvironment` maintains a catalog of tables which are registered by name. There are two types of tables, *input tables* and *output tables*. Input tables can be referenced in Table API and SQL queries and provide input data. Output tables can be used to emit the result of a Table API or SQL query to an external system.
 
-A `TableEnvironment` allows you to register a table from various sources:
+An input table can be registered from various sources:
 
 * an existing `Table` object, usually the result of a Table API or SQL query.
 * a `TableSource`, which accesses external data, such as a file, database, or messaging system. 
-* a `DataStream` or `DataSet` from a DataStream or DataSet program.
+* a `DataStream` or `DataSet` from a DataStream or DataSet program. Registering a `DataStream` or `DataSet` is discussed in the [Integration with DataStream and DataSet API](#integration-with-datastream-and-dataset-api) section.
 
-Registering a `DataStream` or `DataSet` as a table is discussed in the [Integration with DataStream and DataSet API](#integration-with-datastream-and-dataset-api) section.
+An output table can be registered using a `TableSink`.
 
 ### Register a Table
 
@@ -173,7 +173,7 @@ A `Table` is registered in a `TableEnvironment` as follows:
 StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // Table is the result of a simple projection query 
-Table projTable = tableEnv.scan("X").project(...);
+Table projTable = tableEnv.scan("X").select(...);
 
 // register the Table projTable as table "projectedX"
 tableEnv.registerTable("projectedTable", projTable);
@@ -186,7 +186,7 @@ tableEnv.registerTable("projectedTable", projTable);
 val tableEnv = TableEnvironment.getTableEnvironment(env)
 
 // Table is the result of a simple projection query 
-val projTable: Table = tableEnv.scan("X").project(...)
+val projTable: Table = tableEnv.scan("X").select(...)
 
 // register the Table projTable as table "projectedX"
 tableEnv.registerTable("projectedTable", projTable)
@@ -200,7 +200,7 @@ tableEnv.registerTable("projectedTable", projTable)
 
 ### Register a TableSource
 
-A `TableSource` provides access to external data which is stored in a storage systems such as a database (MySQL, HBase, ...), a file with specific encoding (CSV, Apache \[Parquet, Avro, ORC\], ...), or a messaging system (Apache Kafka, RabbitMQ, ...). 
+A `TableSource` provides access to external data which is stored in a storage system such as a database (MySQL, HBase, ...), a file with a specific encoding (CSV, Apache \[Parquet, Avro, ORC\], ...), or a messaging system (Apache Kafka, RabbitMQ, ...). 
 
 Flink aims to provide TableSources for common data formats and storage systems. Please have a look at the [Table Sources and Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html) page for a list of supported TableSources and instructions for how to build a custom `TableSource`.
 
@@ -230,6 +230,52 @@ val csvSource: TableSource = new CsvTableSource("/path/to/file", ...)
 
 // register the TableSource as table "CsvTable"
 tableEnv.registerTableSource("CsvTable", csvSource)
+{% endhighlight %}
+</div>
+</div>
+
+{% top %}
+
+### Register a TableSink
+
+A registered `TableSink` can be used to [emit the result of a Table API or SQL query](common.html#emit-a-table) to an external storage system, such as a database, key-value store, message queue, or file system (in different encodings, e.g., CSV, Apache \[Parquet, Avro, ORC\], ...).
+
+Flink aims to provide TableSinks for common data formats and storage systems. Please see the documentation about [Table Sources and Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html) page for details about available sinks and instructions for how to implement a custom `TableSink`.
+
+A `TableSink` is registered in a `TableEnvironment` as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
+StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+// create a TableSink
+TableSink csvSink = new CsvTableSink("/path/to/file", ...);
+
+// define the field names and types
+String[] fieldNames = {"a", "b", "c"};
+TypeInformation[] fieldTypes = {Types.INT, Types.STRING, Types.LONG};
+
+// register the TableSink as table "CsvSinkTable"
+tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, csvSink);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// get a TableEnvironment
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+// create a TableSink
+val csvSink: TableSink = new CsvTableSink("/path/to/file", ...)
+
+// define the field names and types
+val fieldNames: Array[String] = Array("a", "b", "c")
+val fieldTypes: Array[TypeInformation[_]] = Array(Types.INT, Types.STRING, Types.LONG)
+
+// register the TableSink as table "CsvSinkTable"
+tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, csvSink)
 {% endhighlight %}
 </div>
 </div>
@@ -286,7 +332,7 @@ The Table API is a language-integrated query API for Scala and Java. In contrast
 
 The API is based on the `Table` class which represents a table (streaming or batch) and offers methods to apply relational operations. These methods return a new `Table` object, which represents the result of applying the relational operation on the input `Table`. Some relational operations are composed of multiple method calls such as `table.groupBy(...).select()`, where `groupBy(...)` specifies a grouping of `table`, and `select(...)` the projection on the grouping of `table`.
 
-The [Table API]({{ site.baseurl }}/dev/table/tableapi.html) document describes all Table API operations that are supported on streaming and batch tables.
+The [Table API]({{ site.baseurl }}/dev/table/tableApi.html) document describes all Table API operations that are supported on streaming and batch tables.
 
 The following example shows a simple Table API aggregation query:
 
@@ -319,9 +365,9 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // register Orders table
 
 // scan registered Orders table
-Table orders = tableEnv.scan("Orders")
+val orders = tableEnv.scan("Orders")
 // compute revenue for all customers from France
-Table revenue = orders
+val revenue = orders
   .filter('cCountry === "FRANCE")
   .groupBy('cID, 'cName)
   .select('cID, 'cName, 'revenue.sum AS 'revSum)
@@ -342,7 +388,7 @@ Flink's SQL integration is based on [Apache Calcite](https://calcite.apache.org)
 
 The [SQL]({{ site.baseurl }}/dev/table/sql.html) document describes Flink's SQL support for streaming and batch tables.
 
-The following example shows how to specify a query and return the result as a Table.
+The following example shows how to specify a query and return the result as a `Table`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -353,7 +399,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // register Orders table
 
 // compute revenue for all customers from France
-Table revenue = tableEnv.sql(
+Table revenue = tableEnv.sqlQuery(
     "SELECT cID, cName, SUM(revenue) AS revSum " +
     "FROM Orders " +
     "WHERE cCountry = 'FRANCE' " +
@@ -373,7 +419,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // register Orders table
 
 // compute revenue for all customers from France
-Table revenue = tableEnv.sql(""" 
+val revenue = tableEnv.sqlQuery("""
   |SELECT cID, cName, SUM(revenue) AS revSum
   |FROM Orders
   |WHERE cCountry = 'FRANCE'
@@ -381,6 +427,53 @@ Table revenue = tableEnv.sql("""
   """.stripMargin)
 
 // emit or convert Table
+// execute query
+{% endhighlight %}
+
+</div>
+</div>
+
+The following example shows how to specify an update query that inserts its result into a registered table.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
+StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+// register "Orders" table
+// register "RevenueFrance" output table
+
+// compute revenue for all customers from France and emit to "RevenueFrance"
+tableEnv.sqlUpdate(
+    "INSERT INTO RevenueFrance " +
+    "SELECT cID, cName, SUM(revenue) AS revSum " +
+    "FROM Orders " +
+    "WHERE cCountry = 'FRANCE' " +
+    "GROUP BY cID, cName"
+  );
+
+// execute query
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// get a TableEnvironment
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+// register "Orders" table
+// register "RevenueFrance" output table
+
+// compute revenue for all customers from France and emit to "RevenueFrance"
+tableEnv.sqlUpdate("""
+  |INSERT INTO RevenueFrance
+  |SELECT cID, cName, SUM(revenue) AS revSum
+  |FROM Orders
+  |WHERE cCountry = 'FRANCE'
+  |GROUP BY cID, cName
+  """.stripMargin)
+
 // execute query
 {% endhighlight %}
 
@@ -401,11 +494,18 @@ Table API and SQL queries can be easily mixed because both return `Table` object
 Emit a Table 
 ------------
 
-In order to emit a `Table`, it can be written to a `TableSink`. A `TableSink` is a generic interface to support a wide variety of file formats (e.g. CSV, Apache Parquet, Apache Avro), storage systems (e.g., JDBC, Apache HBase, Apache Cassandra, Elasticsearch), or messaging systems (e.g., Apache Kafka, RabbitMQ). 
+A `Table` is emitted by writing it to a `TableSink`. A `TableSink` is a generic interface to support a wide variety of file formats (e.g. CSV, Apache Parquet, Apache Avro), storage systems (e.g., JDBC, Apache HBase, Apache Cassandra, Elasticsearch), or messaging systems (e.g., Apache Kafka, RabbitMQ). 
 
-A batch `Table` can only be written to a `BatchTableSink`, while a streaming table requires either an `AppendStreamTableSink`, a `RetractStreamTableSink`, or an `UpsertStreamTableSink`. 
+A batch `Table` can only be written to a `BatchTableSink`, while a streaming `Table` requires either an `AppendStreamTableSink`, a `RetractStreamTableSink`, or an `UpsertStreamTableSink`. 
 
 Please see the documentation about [Table Sources & Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html) for details about available sinks and instructions for how to implement a custom `TableSink`.
+
+There are two ways to emit a table:
+
+1. The `Table.writeToSink(TableSink sink)` method emits the table using the provided `TableSink` and automatically configures the sink with the schema of the table to emit.
+2. The `Table.insertInto(String sinkTable)` method looks up a `TableSink` that was registered with a specific schema under the provided name in the `TableEnvironment`'s catalog. The schema of the table to emit is validated against the schema of the registered `TableSink`.
+
+The following examples shows how to emit a `Table`:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -419,8 +519,17 @@ Table result = ...
 // create a TableSink
 TableSink sink = new CsvTableSink("/path/to/file", fieldDelim = "|");
 
-// write the result Table to the TableSink
+// METHOD 1:
+//   Emit the result Table to the TableSink via the writeToSink() method
 result.writeToSink(sink);
+
+// METHOD 2:
+//   Register the TableSink with a specific schema
+String[] fieldNames = {"a", "b", "c"};
+TypeInformation[] fieldTypes = {Types.INT, Types.STRING, Types.LONG};
+tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, sink);
+//   Emit the result Table to the registered TableSink via the insertInto() method
+result.insertInto("CsvSinkTable");
 
 // execute the program
 {% endhighlight %}
@@ -437,8 +546,17 @@ val result: Table = ...
 // create a TableSink
 val sink: TableSink = new CsvTableSink("/path/to/file", fieldDelim = "|")
 
-// write the result Table to the TableSink
+// METHOD 1:
+//   Emit the result Table to the TableSink via the writeToSink() method
 result.writeToSink(sink)
+
+// METHOD 2:
+//   Register the TableSink with a specific schema
+val fieldNames: Array[String] = Array("a", "b", "c")
+val fieldTypes: Array[TypeInformation] = Array(Types.INT, Types.STRING, Types.LONG)
+tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, sink)
+//   Emit the result Table to the registered TableSink via the insertInto() method
+result.insertInto("CsvSinkTable")
 
 // execute the program
 {% endhighlight %}
@@ -458,8 +576,9 @@ Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/de
 
 A Table API or SQL query is translated when:
 
-* the `Table` is emitted to a `TableSink`, i.e., when `Table.writeToSink()` is called.
-* the `Table` is converted into a `DataStream` or `DataSet` (see [Integration with DataStream and DataSet API](#integration-with-dataStream-and-dataSet-api)).
+* a `Table` is emitted to a `TableSink`, i.e., when `Table.writeToSink()` or `Table.insertInto()` is called.
+* a SQL update query is specified, i.e., when `TableEnvironment.sqlUpdate()` is called.
+* a `Table` is converted into a `DataStream` or `DataSet` (see [Integration with DataStream and DataSet API](#integration-with-dataStream-and-dataSet-api)).
 
 Once translated, a Table API or SQL query is handled like a regular DataStream or DataSet program and is executed when `StreamExecutionEnvironment.execute()` or `ExecutionEnvironment.execute()` is called.
 
@@ -656,8 +775,8 @@ DataSet<Row> dsRow = tableEnv.toDataSet(table, Row.class);
 TupleTypeInfo<Tuple2<String, Integer>> tupleType = new TupleTypeInfo<>(
   Types.STRING(),
   Types.INT());
-DataStream<Tuple2<String, Integer>> dsTuple = 
-  tableEnv.toAppendStream(table, tupleType);
+DataSet<Tuple2<String, Integer>> dsTuple = 
+  tableEnv.toDataSet(table, tupleType);
 {% endhighlight %}
 </div>
 
@@ -683,11 +802,101 @@ val dsTuple: DataSet[(String, Int)] = tableEnv.toDataSet[(String, Int)](table)
 
 ### Mapping of Data Types to Table Schema
 
-Flink's DataStream and DataSet APIs support very diverse types, such as Tuples (built-in Scala and Flink Java tuples), POJOs, case classes, and atomic types. In the following we describe how the Table API converts these types into an internal row representation and show examples of converting a `DataStream` into a `Table`.
+Flink's DataStream and DataSet APIs support very diverse types. Composite types such as Tuples (built-in Scala and Flink Java tuples), POJOs, Scala case classes, and Flink's Row type allow for nested data structures with multiple fields that can be accessed in table expressions. Other types are treated as atomic types. In the following, we describe how the Table API converts these types into an internal row representation and show examples of converting a `DataStream` into a `Table`.
+
+The mapping of a data type to a table schema can happen in two ways: **based on the field positions** or **based on the field names**.
+
+**Position-based Mapping**
+
+Position-based mapping can be used to give fields a more meaningful name while keeping the field order. This mapping is available for composite data types *with a defined field order* as well as atomic types. Composite data types such as tuples, rows, and case classes have such a field order. However, fields of a POJO must be mapped based on the field names (see next section).
+
+When defining a position-based mapping, the specified names must not exist in the input data type, otherwise the API will assume that the mapping should happen based on the field names. If no field names are specified, the default field names and field order of the composite type are used or `f0` for atomic types. 
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
+StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+DataStream<Tuple2<Long, Integer>> stream = ...
+
+// convert DataStream into Table with default field names "f0" and "f1"
+Table table = tableEnv.fromDataStream(stream);
+
+// convert DataStream into Table with field names "myLong" and "myInt"
+Table table = tableEnv.fromDataStream(stream, "myLong, myInt");
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// get a TableEnvironment
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+val stream: DataStream[(Long, Int)] = ...
+
+// convert DataStream into Table with default field names "_1" and "_2"
+val table: Table = tableEnv.fromDataStream(stream)
+
+// convert DataStream into Table with field names "myLong" and "myInt"
+val table: Table = tableEnv.fromDataStream(stream, 'myLong 'myInt)
+{% endhighlight %}
+</div>
+</div>
+
+**Name-based Mapping**
+
+Name-based mapping can be used for any data type including POJOs. It is the most flexible way of defining a table schema mapping. All fields in the mapping are referenced by name and can be possibly renamed using an alias `as`. Fields can be reordered and projected out.
+
+If no field names are specified, the default field names and field order of the composite type are used or `f0` for atomic types.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
+StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+DataStream<Tuple2<Long, Integer>> stream = ...
+
+// convert DataStream into Table with default field names "f0" and "f1"
+Table table = tableEnv.fromDataStream(stream);
+
+// convert DataStream into Table with field "f1" only
+Table table = tableEnv.fromDataStream(stream, "f1");
+
+// convert DataStream into Table with swapped fields
+Table table = tableEnv.fromDataStream(stream, "f1, f0");
+
+// convert DataStream into Table with swapped fields and field names "myInt" and "myLong"
+Table table = tableEnv.fromDataStream(stream, "f1 as myInt, f0 as myLong");
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// get a TableEnvironment
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+val stream: DataStream[(Long, Int)] = ...
+
+// convert DataStream into Table with default field names "_1" and "_2"
+val table: Table = tableEnv.fromDataStream(stream)
+
+// convert DataStream into Table with field "_2" only
+val table: Table = tableEnv.fromDataStream(stream, '_2)
+
+// convert DataStream into Table with swapped fields
+val table: Table = tableEnv.fromDataStream(stream, '_2, '_1)
+
+// convert DataStream into Table with swapped fields and field names "myInt" and "myLong"
+val table: Table = tableEnv.fromDataStream(stream, '_2 as 'myInt, '_1 as 'myLong)
+{% endhighlight %}
+</div>
+</div>
 
 #### Atomic Types
 
-Flink treats primitives (`Integer`, `Double`, `String`) or generic types (types that cannot be analyzed and decomposed) as atomic types. A `DataStream` or `DataSet` of an atomic type is converted into a `Table` with a single attribute. The type of the attribute is inferred from the atomic type and the name of the attribute must be specified.
+Flink treats primitives (`Integer`, `Double`, `String`) or generic types (types that cannot be analyzed and decomposed) as atomic types. A `DataStream` or `DataSet` of an atomic type is converted into a `Table` with a single attribute. The type of the attribute is inferred from the atomic type and the name of the attribute can be specified.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -696,7 +905,11 @@ Flink treats primitives (`Integer`, `Double`, `String`) or generic types (types 
 StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 DataStream<Long> stream = ...
-// convert DataStream into Table with field "myLong"
+
+// convert DataStream into Table with default field name "f0"
+Table table = tableEnv.fromDataStream(stream);
+
+// convert DataStream into Table with field name "myLong"
 Table table = tableEnv.fromDataStream(stream, "myLong");
 {% endhighlight %}
 </div>
@@ -707,7 +920,11 @@ Table table = tableEnv.fromDataStream(stream, "myLong");
 val tableEnv = TableEnvironment.getTableEnvironment(env)
 
 val stream: DataStream[Long] = ...
-// convert DataStream into Table with field 'myLong
+
+// convert DataStream into Table with default field name "f0"
+val table: Table = tableEnv.fromDataStream(stream)
+
+// convert DataStream into Table with field name "myLong"
 val table: Table = tableEnv.fromDataStream(stream, 'myLong)
 {% endhighlight %}
 </div>
@@ -715,7 +932,7 @@ val table: Table = tableEnv.fromDataStream(stream, 'myLong)
 
 #### Tuples (Scala and Java) and Case Classes (Scala only)
 
-Flink supports Scala's built-in tuples and provides its own tuple classes for Java. DataStreams and DataSets of both kinds of tuples can be converted into tables. Fields can be renamed by providing names for all fields (mapping based on position). If no field names are specified, the default field names are used.
+Flink supports Scala's built-in tuples and provides its own tuple classes for Java. DataStreams and DataSets of both kinds of tuples can be converted into tables. Fields can be renamed by providing names for all fields (mapping based on position). If no field names are specified, the default field names are used. If the original field names (`f0`, `f1`, ... for Flink Tuples and `_1`, `_2`, ... for Scala Tuples) are referenced, the API assumes that the mapping is name-based instead of position-based. Name-based mapping allows for reordering fields and projection with alias (`as`).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -725,11 +942,20 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 DataStream<Tuple2<Long, String>> stream = ...
 
-// convert DataStream into Table with field names "myLong", "myString"
-Table table1 = tableEnv.fromDataStream(stream, "myLong, myString");
-
 // convert DataStream into Table with default field names "f0", "f1"
-Table table2 = tableEnv.fromDataStream(stream);
+Table table = tableEnv.fromDataStream(stream);
+
+// convert DataStream into Table with renamed field names "myLong", "myString" (position-based)
+Table table = tableEnv.fromDataStream(stream, "myLong, myString");
+
+// convert DataStream into Table with reordered fields "f1", "f0" (name-based)
+Table table = tableEnv.fromDataStream(stream, "f1, f0");
+
+// convert DataStream into Table with projected field "f1" (name-based)
+Table table = tableEnv.fromDataStream(stream, "f1");
+
+// convert DataStream into Table with reordered and aliased fields "myString", "myLong" (name-based)
+Table table = tableEnv.fromDataStream(stream, "f1 as 'myString', f0 as 'myLong'");
 {% endhighlight %}
 </div>
 
@@ -740,21 +966,33 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 
 val stream: DataStream[(Long, String)] = ...
 
-// convert DataStream into Table with field names 'myLong, 'myString
-val table1: Table = tableEnv.fromDataStream(stream, 'myLong, 'myString)
+// convert DataStream into Table with renamed default field names '_1, '_2
+val table: Table = tableEnv.fromDataStream(stream)
 
-// convert DataStream into Table with default field names '_1, '_2
-val table2: Table = tableEnv.fromDataStream(stream)
+// convert DataStream into Table with field names "myLong", "myString" (position-based)
+val table: Table = tableEnv.fromDataStream(stream, 'myLong, 'myString)
+
+// convert DataStream into Table with reordered fields "_2", "_1" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, '_2, '_1)
+
+// convert DataStream into Table with projected field "_2" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, '_2)
+
+// convert DataStream into Table with reordered and aliased fields "myString", "myLong" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, '_2 as 'myString, '_1 as 'myLong)
 
 // define case class
 case class Person(name: String, age: Int)
 val streamCC: DataStream[Person] = ...
 
 // convert DataStream into Table with default field names 'name, 'age
-val tableCC1 = tableEnv.fromDataStream(streamCC)
+val table = tableEnv.fromDataStream(streamCC)
 
-// convert DataStream into Table with field names 'myName, 'myAge
-val tableCC1 = tableEnv.fromDataStream(streamCC, 'myName, 'myAge)
+// convert DataStream into Table with field names 'myName, 'myAge (position-based)
+val table = tableEnv.fromDataStream(streamCC, 'myName, 'myAge)
+
+// convert DataStream into Table with reordered and aliased fields "myAge", "myName" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, 'age as 'myAge, 'name as 'myName)
 
 {% endhighlight %}
 </div>
@@ -764,7 +1002,7 @@ val tableCC1 = tableEnv.fromDataStream(streamCC, 'myName, 'myAge)
 
 Flink supports POJOs as composite types. The rules for what determines a POJO are documented [here]({{ site.baseurl }}/dev/api_concepts.html#pojos).
 
-When converting a POJO `DataStream` or `DataSet` into a `Table` without specifying field names, the names of the original POJO fields are used. Renaming the original POJO fields requires the keyword `AS` because POJO fields have no inherent order. The name mapping requires the original names and cannot be done by positions.
+When converting a POJO `DataStream` or `DataSet` into a `Table` without specifying field names, the names of the original POJO fields are used. The name mapping requires the original names and cannot be done by positions. Fields can be renamed using an alias (with the `as` keyword), reordered, and projected.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -775,11 +1013,17 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // Person is a POJO with fields "name" and "age"
 DataStream<Person> stream = ...
 
-// convert DataStream into Table with field names "name", "age"
-Table table1 = tableEnv.fromDataStream(stream);
+// convert DataStream into Table with default field names "age", "name" (fields are ordered by name!)
+Table table = tableEnv.fromDataStream(stream);
 
-// convert DataStream into Table with field names "myName", "myAge"
-Table table2 = tableEnv.fromDataStream(stream, "name as myName, age as myAge");
+// convert DataStream into Table with renamed fields "myAge", "myName" (name-based)
+Table table = tableEnv.fromDataStream(stream, "age as myAge, name as myName");
+
+// convert DataStream into Table with projected field "name" (name-based)
+Table table = tableEnv.fromDataStream(stream, "name");
+
+// convert DataStream into Table with projected and renamed field "myName" (name-based)
+Table table = tableEnv.fromDataStream(stream, "name as myName");
 {% endhighlight %}
 </div>
 
@@ -791,18 +1035,24 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // Person is a POJO with field names "name" and "age"
 val stream: DataStream[Person] = ...
 
-// convert DataStream into Table with field names 'name, 'age
-val table1: Table = tableEnv.fromDataStream(stream)
+// convert DataStream into Table with default field names "age", "name" (fields are ordered by name!)
+val table: Table = tableEnv.fromDataStream(stream)
 
-// convert DataStream into Table with field names 'myName, 'myAge
-val table2: Table = tableEnv.fromDataStream(stream, 'name as 'myName, 'age as 'myAge)
+// convert DataStream into Table with renamed fields "myAge", "myName" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, 'age as 'myAge, 'name as 'myName)
+
+// convert DataStream into Table with projected field "name" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, 'name)
+
+// convert DataStream into Table with projected and renamed field "myName" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, 'name as 'myName)
 {% endhighlight %}
 </div>
 </div>
 
 #### Row
 
-The Row data type supports an arbitrary number of fields and fields with `null` values. Field names can be specified via a `RowTypeInfo` or when converting a `Row` `DataStream` or `DataSet` into a `Table` (based on position).
+The `Row` data type supports an arbitrary number of fields and fields with `null` values. Field names can be specified via a `RowTypeInfo` or when converting a `Row` `DataStream` or `DataSet` into a `Table`. The row type supports mapping of fields by position and by name. Fields can be renamed by providing names for all fields (mapping based on position) or selected individually for projection/ordering/renaming (mapping based on name).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -813,11 +1063,20 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // DataStream of Row with two fields "name" and "age" specified in `RowTypeInfo`
 DataStream<Row> stream = ...
 
-// convert DataStream into Table with field names "name", "age"
-Table table1 = tableEnv.fromDataStream(stream);
+// convert DataStream into Table with default field names "name", "age"
+Table table = tableEnv.fromDataStream(stream);
 
-// convert DataStream into Table with field names "myName", "myAge"
-Table table2 = tableEnv.fromDataStream(stream, "myName, myAge");
+// convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
+Table table = tableEnv.fromDataStream(stream, "myName, myAge");
+
+// convert DataStream into Table with renamed fields "myName", "myAge" (name-based)
+Table table = tableEnv.fromDataStream(stream, "name as myName, age as myAge");
+
+// convert DataStream into Table with projected field "name" (name-based)
+Table table = tableEnv.fromDataStream(stream, "name");
+
+// convert DataStream into Table with projected and renamed field "myName" (name-based)
+Table table = tableEnv.fromDataStream(stream, "name as myName");
 {% endhighlight %}
 </div>
 
@@ -829,11 +1088,20 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // DataStream of Row with two fields "name" and "age" specified in `RowTypeInfo`
 val stream: DataStream[Row] = ...
 
-// convert DataStream into Table with field names 'name, 'age
-val table1: Table = tableEnv.fromDataStream(stream)
+// convert DataStream into Table with default field names "name", "age"
+val table: Table = tableEnv.fromDataStream(stream)
 
-// convert DataStream into Table with field names 'myName, 'myAge
-val table2: Table = tableEnv.fromDataStream(stream, 'myName, 'myAge)
+// convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
+val table: Table = tableEnv.fromDataStream(stream, 'myName, 'myAge)
+
+// convert DataStream into Table with renamed fields "myName", "myAge" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, 'name as 'myName, 'age as 'myAge)
+
+// convert DataStream into Table with projected field "name" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, 'name)
+
+// convert DataStream into Table with projected and renamed field "myName" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, 'name as 'myName)
 {% endhighlight %}
 </div>
 </div>

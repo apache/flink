@@ -23,18 +23,20 @@ import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.testutils.MultiShotLatch;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.fs.AvroKeyValueSinkWriter.AvroKeyValue;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Type;
@@ -44,7 +46,6 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericData.StringType;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -71,6 +72,8 @@ import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.streaming.connectors.fs.bucketing.BucketingSinkTestUtils.checkLocalFs;
+
 /**
  * Tests for {@link RollingSink}. These
  * tests test the different output methods as well as the rolling feature using a manual clock
@@ -83,13 +86,14 @@ import java.util.Map;
  * @deprecated should be removed with the {@link RollingSink}.
  */
 @Deprecated
-public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
+public class RollingSinkITCase extends TestLogger {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(RollingSinkITCase.class);
 
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
+	protected static MiniClusterResource miniClusterResource;
 	protected static MiniDFSCluster hdfsCluster;
 	protected static org.apache.hadoop.fs.FileSystem dfs;
 	protected static String hdfsURI;
@@ -98,7 +102,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 	protected static File dataDir;
 
 	@BeforeClass
-	public static void createHDFS() throws IOException {
+	public static void setup() throws Exception {
 
 		LOG.info("In RollingSinkITCase: Starting MiniDFSCluster ");
 
@@ -113,12 +117,24 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		hdfsURI = "hdfs://"
 				+ NetUtils.hostAndPortToUrlString(hdfsCluster.getURI().getHost(), hdfsCluster.getNameNodePort())
 				+ "/";
+
+		miniClusterResource = new MiniClusterResource(
+			new MiniClusterResourceConfiguration.Builder()
+				.setNumberTaskManagers(1)
+				.setNumberSlotsPerTaskManager(4)
+				.build());
+
+		miniClusterResource.before();
 	}
 
 	@AfterClass
-	public static void destroyHDFS() {
+	public static void teardown() throws Exception {
 		LOG.info("In RollingSinkITCase: tearing down MiniDFSCluster ");
 		hdfsCluster.shutdown();
+
+		if (miniClusterResource != null) {
+			miniClusterResource.after();
+		}
 	}
 
 	/**
@@ -648,32 +664,32 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 
 		testHarness.processElement(new StreamRecord<>("test1", 1L));
 		testHarness.processElement(new StreamRecord<>("test2", 1L));
-		checkFs(outDir, 1, 1 , 0, 0);
+		checkLocalFs(outDir, 1, 1 , 0, 0);
 
 		testHarness.processElement(new StreamRecord<>("test3", 1L));
-		checkFs(outDir, 1, 2, 0, 0);
+		checkLocalFs(outDir, 1, 2, 0, 0);
 
 		testHarness.snapshot(0, 0);
-		checkFs(outDir, 1, 2, 0, 0);
+		checkLocalFs(outDir, 1, 2, 0, 0);
 
 		testHarness.notifyOfCompletedCheckpoint(0);
-		checkFs(outDir, 1, 0, 2, 0);
+		checkLocalFs(outDir, 1, 0, 2, 0);
 
-		OperatorStateHandles snapshot = testHarness.snapshot(1, 0);
+		OperatorSubtaskState snapshot = testHarness.snapshot(1, 0);
 
 		testHarness.close();
-		checkFs(outDir, 0, 1, 2, 0);
+		checkLocalFs(outDir, 0, 1, 2, 0);
 
 		testHarness = createRescalingTestSink(outDir, 1, 0);
 		testHarness.setup();
 		testHarness.initializeState(snapshot);
 		testHarness.open();
-		checkFs(outDir, 0, 0, 3, 1);
+		checkLocalFs(outDir, 0, 0, 3, 1);
 
 		snapshot = testHarness.snapshot(2, 0);
 
 		testHarness.processElement(new StreamRecord<>("test4", 10));
-		checkFs(outDir, 1, 0, 3, 1);
+		checkLocalFs(outDir, 1, 0, 3, 1);
 
 		testHarness = createRescalingTestSink(outDir, 1, 0);
 		testHarness.setup();
@@ -681,13 +697,13 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		testHarness.open();
 
 		// the in-progress file remains as we do not clean up now
-		checkFs(outDir, 1, 0, 3, 1);
+		checkLocalFs(outDir, 1, 0, 3, 1);
 
 		testHarness.close();
 
 		// at close it is not moved to final because it is not part
 		// of the current task's state, it was just a not cleaned up leftover.
-		checkFs(outDir, 1, 0, 3, 1);
+		checkLocalFs(outDir, 1, 0, 3, 1);
 	}
 
 	@Test
@@ -707,21 +723,21 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		testHarness3.open();
 
 		testHarness1.processElement(new StreamRecord<>("test1", 0L));
-		checkFs(outDir, 1, 0, 0, 0);
+		checkLocalFs(outDir, 1, 0, 0, 0);
 
 		testHarness2.processElement(new StreamRecord<>("test2", 0L));
 		testHarness2.processElement(new StreamRecord<>("test3", 0L));
 		testHarness2.processElement(new StreamRecord<>("test4", 0L));
 		testHarness2.processElement(new StreamRecord<>("test5", 0L));
 		testHarness2.processElement(new StreamRecord<>("test6", 0L));
-		checkFs(outDir, 2, 4, 0, 0);
+		checkLocalFs(outDir, 2, 4, 0, 0);
 
 		testHarness3.processElement(new StreamRecord<>("test7", 0L));
 		testHarness3.processElement(new StreamRecord<>("test8", 0L));
-		checkFs(outDir, 3, 5, 0, 0);
+		checkLocalFs(outDir, 3, 5, 0, 0);
 
 		// intentionally we snapshot them in a not ascending order so that the states are shuffled
-		OperatorStateHandles mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
+		OperatorSubtaskState mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
 			testHarness3.snapshot(0, 0),
 			testHarness1.snapshot(0, 0),
 			testHarness2.snapshot(0, 0)
@@ -738,14 +754,14 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 
 		// we do not have a length file for part-2-0 because bucket part-2-0
 		// was not "in-progress", but "pending" (its full content is valid).
-		checkFs(outDir, 1, 4, 3, 2);
+		checkLocalFs(outDir, 1, 4, 3, 2);
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness5 = createRescalingTestSink(outDir, 2, 1);
 		testHarness5.setup();
 		testHarness5.initializeState(mergedSnapshot);
 		testHarness5.open();
 
-		checkFs(outDir, 0, 0, 8, 3);
+		checkLocalFs(outDir, 0, 0, 8, 3);
 	}
 
 	@Test
@@ -763,16 +779,16 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		testHarness1.processElement(new StreamRecord<>("test1", 0L));
 		testHarness1.processElement(new StreamRecord<>("test2", 0L));
 
-		checkFs(outDir, 1, 1, 0, 0);
+		checkLocalFs(outDir, 1, 1, 0, 0);
 
 		testHarness2.processElement(new StreamRecord<>("test3", 0L));
 		testHarness2.processElement(new StreamRecord<>("test4", 0L));
 		testHarness2.processElement(new StreamRecord<>("test5", 0L));
 
-		checkFs(outDir, 2, 3, 0, 0);
+		checkLocalFs(outDir, 2, 3, 0, 0);
 
 		// intentionally we snapshot them in the reverse order so that the states are shuffled
-		OperatorStateHandles mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
+		OperatorSubtaskState mergedSnapshot = AbstractStreamOperatorTestHarness.repackageState(
 			testHarness2.snapshot(0, 0),
 			testHarness1.snapshot(0, 0)
 		);
@@ -782,28 +798,28 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		testHarness1.initializeState(mergedSnapshot);
 		testHarness1.open();
 
-		checkFs(outDir, 1, 1, 3, 1);
+		checkLocalFs(outDir, 1, 1, 3, 1);
 
 		testHarness2 = createRescalingTestSink(outDir, 3, 1);
 		testHarness2.setup();
 		testHarness2.initializeState(mergedSnapshot);
 		testHarness2.open();
 
-		checkFs(outDir, 0, 0, 5, 2);
+		checkLocalFs(outDir, 0, 0, 5, 2);
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness3 = createRescalingTestSink(outDir, 3, 2);
 		testHarness3.setup();
 		testHarness3.initializeState(mergedSnapshot);
 		testHarness3.open();
 
-		checkFs(outDir, 0, 0, 5, 2);
+		checkLocalFs(outDir, 0, 0, 5, 2);
 
 		testHarness1.processElement(new StreamRecord<>("test6", 0));
 		testHarness2.processElement(new StreamRecord<>("test6", 0));
 		testHarness3.processElement(new StreamRecord<>("test6", 0));
 
 		// 3 for the different tasks
-		checkFs(outDir, 3, 0, 5, 2);
+		checkLocalFs(outDir, 3, 0, 5, 2);
 
 		testHarness1.snapshot(1, 0);
 		testHarness2.snapshot(1, 0);
@@ -813,7 +829,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		testHarness2.close();
 		testHarness3.close();
 
-		checkFs(outDir, 0, 3, 5, 2);
+		checkLocalFs(outDir, 0, 3, 5, 2);
 	}
 
 	private OneInputStreamOperatorTestHarness<String, Object> createRescalingTestSink(
@@ -836,34 +852,6 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 	private <T> OneInputStreamOperatorTestHarness<T, Object> createTestSink(
 		RollingSink<T> sink, int totalParallelism, int taskIdx) throws Exception {
 		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), 10, totalParallelism, taskIdx);
-	}
-
-	private void checkFs(File outDir, int inprogress, int pending, int completed, int valid) throws IOException {
-		int inProg = 0;
-		int pend = 0;
-		int compl = 0;
-		int val = 0;
-
-		for (File file: FileUtils.listFiles(outDir, null, true)) {
-			if (file.getAbsolutePath().endsWith("crc")) {
-				continue;
-			}
-			String path = file.getPath();
-			if (path.endsWith(IN_PROGRESS_SUFFIX)) {
-				inProg++;
-			} else if (path.endsWith(PENDING_SUFFIX)) {
-				pend++;
-			} else if (path.endsWith(VALID_LENGTH_SUFFIX)) {
-				val++;
-			} else if (path.contains(PART_PREFIX)) {
-				compl++;
-			}
-		}
-
-		Assert.assertEquals(inprogress, inProg);
-		Assert.assertEquals(pending, pend);
-		Assert.assertEquals(completed, compl);
-		Assert.assertEquals(valid, val);
 	}
 
 	private static class TestSourceFunction implements SourceFunction<Tuple2<Integer, String>> {
@@ -926,6 +914,8 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 	}
 
 	private static class StreamWriterWithConfigCheck<T> extends StringWriter<T> {
+		private static final long serialVersionUID = 761584896826819477L;
+
 		private String key;
 		private String expect;
 		public StreamWriterWithConfigCheck(String key, String expect) {
@@ -940,7 +930,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
-		public Writer<T> duplicate() {
+		public StreamWriterWithConfigCheck<T> duplicate() {
 			return new StreamWriterWithConfigCheck<>(key, expect);
 		}
 	}

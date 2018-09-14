@@ -27,12 +27,13 @@ import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
+import java.util.Optional;
 
 /**
  * The BarrierTracker keeps track of what checkpoint barriers have been received from
@@ -74,7 +75,7 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 	private final ArrayDeque<CheckpointBarrierCount> pendingCheckpoints;
 
 	/** The listener to be notified on complete checkpoints. */
-	private StatefulTask toNotifyOnCheckpoint;
+	private AbstractInvokable toNotifyOnCheckpoint;
 
 	/** The highest checkpoint ID encountered so far. */
 	private long latestPendingCheckpointID = -1;
@@ -84,32 +85,37 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 	public BarrierTracker(InputGate inputGate) {
 		this.inputGate = inputGate;
 		this.totalNumberOfInputChannels = inputGate.getNumberOfInputChannels();
-		this.pendingCheckpoints = new ArrayDeque<CheckpointBarrierCount>();
+		this.pendingCheckpoints = new ArrayDeque<>();
 	}
 
 	@Override
 	public BufferOrEvent getNextNonBlocked() throws Exception {
 		while (true) {
-			BufferOrEvent next = inputGate.getNextBufferOrEvent();
-			if (next == null || next.isBuffer()) {
+			Optional<BufferOrEvent> next = inputGate.getNextBufferOrEvent();
+			if (!next.isPresent()) {
 				// buffer or input exhausted
-				return next;
+				return null;
 			}
-			else if (next.getEvent().getClass() == CheckpointBarrier.class) {
-				processBarrier((CheckpointBarrier) next.getEvent(), next.getChannelIndex());
+
+			BufferOrEvent bufferOrEvent = next.get();
+			if (bufferOrEvent.isBuffer()) {
+				return bufferOrEvent;
 			}
-			else if (next.getEvent().getClass() == CancelCheckpointMarker.class) {
-				processCheckpointAbortBarrier((CancelCheckpointMarker) next.getEvent(), next.getChannelIndex());
+			else if (bufferOrEvent.getEvent().getClass() == CheckpointBarrier.class) {
+				processBarrier((CheckpointBarrier) bufferOrEvent.getEvent(), bufferOrEvent.getChannelIndex());
+			}
+			else if (bufferOrEvent.getEvent().getClass() == CancelCheckpointMarker.class) {
+				processCheckpointAbortBarrier((CancelCheckpointMarker) bufferOrEvent.getEvent(), bufferOrEvent.getChannelIndex());
 			}
 			else {
 				// some other event
-				return next;
+				return bufferOrEvent;
 			}
 		}
 	}
 
 	@Override
-	public void registerCheckpointEventHandler(StatefulTask toNotifyOnCheckpoint) {
+	public void registerCheckpointEventHandler(AbstractInvokable toNotifyOnCheckpoint) {
 		if (this.toNotifyOnCheckpoint == null) {
 			this.toNotifyOnCheckpoint = toNotifyOnCheckpoint;
 		}

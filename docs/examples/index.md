@@ -25,15 +25,24 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-[Sample Project in Java]({{ site.baseurl }}/quickstart/java_api_quickstart.html) and [Sample Project in Scala]({{ site.baseurl }}/quickstart/scala_api_quickstart.html) are guides to setting up Maven and SBT projects and include simple implementations of a word count application.
-
-[Monitoring Wikipedia Edits]({{ site.baseurl }}/quickstart/run_example_quickstart.html) is a more complete example of a streaming analytics application.
-
-[Building real-time dashboard applications with Apache Flink, Elasticsearch, and Kibana](https://www.elastic.co/blog/building-real-time-dashboard-applications-with-apache-flink-elasticsearch-and-kibana) is a blog post at elastic.co showing how to build a real-time dashboard solution for streaming data analytics using Apache Flink, Elasticsearch, and Kibana.
-
-The [Flink training website](http://dataartisans.github.io/flink-training) from data Artisans has a number of examples. See the hands-on sections, and the exercises.
 
 ## Bundled Examples
 
-The Flink sources include a number of examples for both **streaming** ( [java](https://github.com/apache/flink/tree/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples) / [scala](https://github.com/apache/flink/tree/master/flink-examples/flink-examples-streaming/src/main/scala/org/apache/flink/streaming/scala/examples) ) and **batch** ( [java](https://github.com/apache/flink/tree/master/flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java) / [scala](https://github.com/apache/flink/tree/master/flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala) ). These [instructions]({{ site.baseurl }}/dev/batch/examples.html#running-an-example) explain how to run the examples.
+The Flink sources include many examples for Flink's different APIs:
 
+* DataStream applications ({% gh_link flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples "Java" %} / {% gh_link flink-examples/flink-examples-streaming/src/main/scala/org/apache/flink/streaming/scala/examples "Scala" %}) 
+* DataSet applications ({% gh_link flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java "Java" %} / {% gh_link flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala "Scala" %})
+* Table API / SQL queries ({% gh_link flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java "Java" %} / {% gh_link flink-examples/flink-examples-table/src/main/scala/org/apache/flink/table/examples/scala "Scala" %})
+
+These [instructions]({{ site.baseurl }}/dev/batch/examples.html#running-an-example) explain how to run the examples.
+
+## Examples on the Web
+
+There are also a few blog posts published online that discuss example applications:
+
+* [How to build stateful streaming applications with Apache Flink
+](https://www.infoworld.com/article/3293426/big-data/how-to-build-stateful-streaming-applications-with-apache-flink.html) presents an event-driven application implemented with the DataStream API and two SQL queries for streaming analytics.
+
+* [Building real-time dashboard applications with Apache Flink, Elasticsearch, and Kibana](https://www.elastic.co/blog/building-real-time-dashboard-applications-with-apache-flink-elasticsearch-and-kibana) is a blog post at elastic.co showing how to build a real-time dashboard solution for streaming data analytics using Apache Flink, Elasticsearch, and Kibana.
+
+* The [Flink training website](http://training.data-artisans.com/) from data Artisans has a number of examples. Check out the hands-on sections and the exercises.

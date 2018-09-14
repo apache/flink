@@ -18,18 +18,19 @@
 package org.apache.flink.table.runtime.utils
 
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
+import org.apache.flink.runtime.state.StateBackend
+import org.apache.flink.test.util.AbstractTestBase
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 
-class StreamingWithStateTestBase extends StreamingMultipleProgramsTestBase {
+class StreamingWithStateTestBase extends AbstractTestBase {
 
   val _tempFolder = new TemporaryFolder
 
   @Rule
   def tempFolder: TemporaryFolder = _tempFolder
 
-  def getStateBackend: RocksDBStateBackend = {
+  def getStateBackend: StateBackend = {
     val dbPath = tempFolder.newFolder().getAbsolutePath
     val checkpointPath = tempFolder.newFolder().toURI.toString
     val backend = new RocksDBStateBackend(checkpointPath)

@@ -18,33 +18,37 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.UnpooledByteBufAllocator;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.embedded.EmbeddedChannel;
-import org.apache.flink.core.memory.HeapMemorySegment;
-import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferListener;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
-import org.apache.flink.runtime.testutils.DiscardingRecycler;
-import org.apache.flink.runtime.util.event.EventListener;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.taskmanager.TaskActions;
+
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
+import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
+
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -72,42 +76,42 @@ public class PartitionRequestClientHandlerTest {
 		final BufferProvider bufferProvider = mock(BufferProvider.class);
 		when(bufferProvider.requestBuffer()).thenReturn(null);
 		when(bufferProvider.isDestroyed()).thenReturn(true);
-		when(bufferProvider.addListener(any(EventListener.class))).thenReturn(false);
+		when(bufferProvider.addBufferListener(any(BufferListener.class))).thenReturn(false);
 
 		final RemoteInputChannel inputChannel = mock(RemoteInputChannel.class);
 		when(inputChannel.getInputChannelId()).thenReturn(new InputChannelID());
 		when(inputChannel.getBufferProvider()).thenReturn(bufferProvider);
 
-		final BufferResponse ReceivedBuffer = createBufferResponse(
-				TestBufferFactory.createBuffer(), 0, inputChannel.getInputChannelId());
+		final BufferResponse receivedBuffer = createBufferResponse(
+				TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE), 0, inputChannel.getInputChannelId(), 2);
 
 		final PartitionRequestClientHandler client = new PartitionRequestClientHandler();
 		client.addInputChannel(inputChannel);
 
-		client.channelRead(mock(ChannelHandlerContext.class), ReceivedBuffer);
+		client.channelRead(mock(ChannelHandlerContext.class), receivedBuffer);
 	}
 
 	/**
 	 * Tests a fix for FLINK-1761.
 	 *
-	 * <p> FLINK-1761 discovered an IndexOutOfBoundsException, when receiving buffers of size 0.
+	 * <p>FLINK-1761 discovered an IndexOutOfBoundsException, when receiving buffers of size 0.
 	 */
 	@Test
 	public void testReceiveEmptyBuffer() throws Exception {
 		// Minimal mock of a remote input channel
 		final BufferProvider bufferProvider = mock(BufferProvider.class);
-		when(bufferProvider.requestBuffer()).thenReturn(TestBufferFactory.createBuffer());
+		when(bufferProvider.requestBuffer()).thenReturn(TestBufferFactory.createBuffer(0));
 
 		final RemoteInputChannel inputChannel = mock(RemoteInputChannel.class);
 		when(inputChannel.getInputChannelId()).thenReturn(new InputChannelID());
 		when(inputChannel.getBufferProvider()).thenReturn(bufferProvider);
 
 		// An empty buffer of size 0
-		final Buffer emptyBuffer = TestBufferFactory.createBuffer();
-		emptyBuffer.setSize(0);
+		final Buffer emptyBuffer = TestBufferFactory.createBuffer(0);
 
+		final int backlog = -1;
 		final BufferResponse receivedBuffer = createBufferResponse(
-				emptyBuffer, 0, inputChannel.getInputChannelId());
+			emptyBuffer, 0, inputChannel.getInputChannelId(), backlog);
 
 		final PartitionRequestClientHandler client = new PartitionRequestClientHandler();
 		client.addInputChannel(inputChannel);
@@ -117,6 +121,40 @@ public class PartitionRequestClientHandlerTest {
 
 		// This should not throw an exception
 		verify(inputChannel, never()).onError(any(Throwable.class));
+		verify(inputChannel, times(1)).onEmptyBuffer(0, backlog);
+	}
+
+	/**
+	 * Verifies that {@link RemoteInputChannel#onBuffer(Buffer, int, int)} is called when a
+	 * {@link BufferResponse} is received.
+	 */
+	@Test
+	public void testReceiveBuffer() throws Exception {
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
+		final SingleInputGate inputGate = createSingleInputGate();
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
+		try {
+			final BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8);
+			inputGate.setBufferPool(bufferPool);
+			final int numExclusiveBuffers = 2;
+			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
+
+			final PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
+			handler.addInputChannel(inputChannel);
+
+			final int backlog = 2;
+			final BufferResponse bufferResponse = createBufferResponse(
+				TestBufferFactory.createBuffer(32), 0, inputChannel.getInputChannelId(), backlog);
+			handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
+
+			assertEquals(1, inputChannel.getNumberOfQueuedBuffers());
+		} finally {
+			// Release all the buffer resources
+			inputGate.releaseAllResources();
+
+			networkBufferPool.destroyAllBufferPools();
+			networkBufferPool.destroy();
+		}
 	}
 
 	/**
@@ -127,15 +165,15 @@ public class PartitionRequestClientHandlerTest {
 	public void testReceivePartitionNotFoundException() throws Exception {
 		// Minimal mock of a remote input channel
 		final BufferProvider bufferProvider = mock(BufferProvider.class);
-		when(bufferProvider.requestBuffer()).thenReturn(TestBufferFactory.createBuffer());
+		when(bufferProvider.requestBuffer()).thenReturn(TestBufferFactory.createBuffer(0));
 
 		final RemoteInputChannel inputChannel = mock(RemoteInputChannel.class);
 		when(inputChannel.getInputChannelId()).thenReturn(new InputChannelID());
 		when(inputChannel.getBufferProvider()).thenReturn(bufferProvider);
 
 		final ErrorResponse partitionNotFound = new ErrorResponse(
-				new PartitionNotFoundException(new ResultPartitionID()),
-				inputChannel.getInputChannelId());
+			new PartitionNotFoundException(new ResultPartitionID()),
+			inputChannel.getInputChannelId());
 
 		final PartitionRequestClientHandler client = new PartitionRequestClientHandler();
 		client.addInputChannel(inputChannel);
@@ -167,107 +205,101 @@ public class PartitionRequestClientHandlerTest {
 		client.cancelRequestFor(inputChannel.getInputChannelId());
 	}
 
-	/**
-	 * Tests that an unsuccessful message decode call for a staged message
-	 * does not leave the channel with auto read set to false.
-	 */
-	@Test
-	@SuppressWarnings("unchecked")
-	public void testAutoReadAfterUnsuccessfulStagedMessage() throws Exception {
-		PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
-		EmbeddedChannel channel = new EmbeddedChannel(handler);
-
-		final AtomicReference<EventListener<Buffer>> listener = new AtomicReference<>();
-
-		BufferProvider bufferProvider = mock(BufferProvider.class);
-		when(bufferProvider.addListener(any(EventListener.class))).thenAnswer(new Answer<Boolean>() {
-			@Override
-			@SuppressWarnings("unchecked")
-			public Boolean answer(InvocationOnMock invocation) throws Throwable {
-				listener.set((EventListener<Buffer>) invocation.getArguments()[0]);
-				return true;
-			}
-		});
-
-		when(bufferProvider.requestBuffer()).thenReturn(null);
-
-		InputChannelID channelId = new InputChannelID(0, 0);
-		RemoteInputChannel inputChannel = mock(RemoteInputChannel.class);
-		when(inputChannel.getInputChannelId()).thenReturn(channelId);
-
-		// The 3rd staged msg has a null buffer provider
-		when(inputChannel.getBufferProvider()).thenReturn(bufferProvider, bufferProvider, null);
-
-		handler.addInputChannel(inputChannel);
-
-		BufferResponse msg = createBufferResponse(createBuffer(true), 0, channelId);
-
-		// Write 1st buffer msg. No buffer is available, therefore the buffer
-		// should be staged and auto read should be set to false.
-		assertTrue(channel.config().isAutoRead());
-		channel.writeInbound(msg);
-
-		// No buffer available, auto read false
-		assertFalse(channel.config().isAutoRead());
-
-		// Write more buffers... all staged.
-		msg = createBufferResponse(createBuffer(true), 1, channelId);
-		channel.writeInbound(msg);
-
-		msg = createBufferResponse(createBuffer(true), 2, channelId);
-		channel.writeInbound(msg);
-
-		// Notify about buffer => handle 1st msg
-		Buffer availableBuffer = createBuffer(false);
-		listener.get().onEvent(availableBuffer);
-
-		// Start processing of staged buffers (in run pending tasks). Make
-		// sure that the buffer provider acts like it's destroyed.
-		when(bufferProvider.addListener(any(EventListener.class))).thenReturn(false);
-		when(bufferProvider.isDestroyed()).thenReturn(true);
-
-		// Execute all tasks that are scheduled in the event loop. Further
-		// eventLoop().execute() calls are directly executed, if they are
-		// called in the scope of this call.
-		channel.runPendingTasks();
-
-		assertTrue(channel.config().isAutoRead());
-	}
-
 	// ---------------------------------------------------------------------------------------------
 
-	private static Buffer createBuffer(boolean fill) {
-		MemorySegment segment = HeapMemorySegment.FACTORY.allocateUnpooledSegment(1024, null);
-		if (fill) {
-			for (int i = 0; i < 1024; i++) {
-				segment.put(i, (byte) i);
-			}
-		}
-		return new Buffer(segment, DiscardingRecycler.INSTANCE, true);
+	/**
+	 * Creates and returns the single input gate for credit-based testing.
+	 *
+	 * @return The new created single input gate.
+	 */
+	static SingleInputGate createSingleInputGate() {
+		return new SingleInputGate(
+			"InputGate",
+			new JobID(),
+			new IntermediateDataSetID(),
+			ResultPartitionType.PIPELINED,
+			0,
+			1,
+			mock(TaskActions.class),
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+			true);
+	}
+
+	/**
+	 * Creates and returns a remote input channel for the specific input gate.
+	 *
+	 * @param inputGate The input gate owns the created input channel.
+	 * @return The new created remote input channel.
+	 */
+	static RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate) throws Exception {
+		return createRemoteInputChannel(inputGate, mock(PartitionRequestClient.class));
+	}
+
+	/**
+	 * Creates and returns a remote input channel for the specific input gate with specific partition request client.
+	 *
+	 * @param inputGate The input gate owns the created input channel.
+	 * @param client The client is used to send partition request.
+	 * @return The new created remote input channel.
+	 */
+	static RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate, PartitionRequestClient client) throws Exception {
+		return createRemoteInputChannel(inputGate, client, 0, 0);
+	}
+
+	/**
+	 * Creates and returns a remote input channel for the specific input gate with specific partition request client.
+	 *
+	 * @param inputGate The input gate owns the created input channel.
+	 * @param client The client is used to send partition request.
+	 * @param initialBackoff initial back off (in ms) for retriggering subpartition requests (must be <tt>&gt; 0</tt> to activate)
+	 * @param maxBackoff after which delay (in ms) to stop retriggering subpartition requests
+	 * @return The new created remote input channel.
+	 */
+	static RemoteInputChannel createRemoteInputChannel(
+			SingleInputGate inputGate,
+			PartitionRequestClient client,
+			int initialBackoff,
+			int maxBackoff) throws Exception {
+		final ConnectionManager connectionManager = mock(ConnectionManager.class);
+		when(connectionManager.createPartitionRequestClient(any(ConnectionID.class)))
+			.thenReturn(client);
+
+		ResultPartitionID partitionId = new ResultPartitionID();
+		RemoteInputChannel inputChannel = new RemoteInputChannel(
+			inputGate,
+			0,
+			partitionId,
+			mock(ConnectionID.class),
+			connectionManager,
+			initialBackoff,
+			maxBackoff,
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+
+		inputGate.setInputChannel(partitionId.getPartitionId(), inputChannel);
+		return inputChannel;
 	}
 
 	/**
 	 * Returns a deserialized buffer message as it would be received during runtime.
 	 */
-	private BufferResponse createBufferResponse(
+	static BufferResponse createBufferResponse(
 			Buffer buffer,
 			int sequenceNumber,
-			InputChannelID receivingChannelId) throws IOException {
+			InputChannelID receivingChannelId,
+			int backlog) throws IOException {
 
 		// Mock buffer to serialize
-		BufferResponse resp = new BufferResponse(buffer, sequenceNumber, receivingChannelId);
+		BufferResponse resp = new BufferResponse(buffer, sequenceNumber, receivingChannelId, backlog);
 
 		ByteBuf serialized = resp.write(UnpooledByteBufAllocator.DEFAULT);
 
 		// Skip general header bytes
-		serialized.readBytes(NettyMessage.HEADER_LENGTH);
-
-		BufferResponse deserialized = new BufferResponse();
+		serialized.readBytes(NettyMessage.FRAME_HEADER_LENGTH);
 
 		// Deserialize the bytes again. We have to go this way, because we only partly deserialize
 		// the header of the response and wait for a buffer from the buffer pool to copy the payload
 		// data into.
-		deserialized.readFrom(serialized);
+		BufferResponse deserialized = BufferResponse.readFrom(serialized);
 
 		return deserialized;
 	}

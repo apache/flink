@@ -22,11 +22,11 @@ import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.functions.{FlatMapFunction, RichFlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.codegen.Compiler
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-import org.slf4j.LoggerFactory
 
 class FlatMapRunner(
     name: String,
@@ -34,9 +34,8 @@ class FlatMapRunner(
     @transient var returnType: TypeInformation[Row])
   extends RichFlatMapFunction[Row, Row]
   with ResultTypeQueryable[Row]
-  with Compiler[FlatMapFunction[Row, Row]] {
-
-  val LOG = LoggerFactory.getLogger(this.getClass)
+  with Compiler[FlatMapFunction[Row, Row]]
+  with Logging {
 
   private var function: FlatMapFunction[Row, Row] = _
 

@@ -23,28 +23,32 @@ import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.Preconditions;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * (De)serializer for checkpoint metadata format version 2.
@@ -238,19 +242,26 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 	//  task state (de)serialization methods
 	// ------------------------------------------------------------------------
 
+	private static <T> T extractSingleton(Collection<T> collection) {
+		if (collection == null || collection.isEmpty()) {
+			return null;
+		}
+
+		if (collection.size() == 1) {
+			return collection.iterator().next();
+		} else {
+			throw new IllegalStateException("Expected singleton collection, but found size: " + collection.size());
+		}
+	}
+
 	private static void serializeSubtaskState(OperatorSubtaskState subtaskState, DataOutputStream dos) throws IOException {
 
 		dos.writeLong(-1);
 
-		StreamStateHandle nonPartitionableState = subtaskState.getLegacyOperatorState();
-
-		int len = nonPartitionableState != null ? 1 : 0;
+		int len = 0;
 		dos.writeInt(len);
-		if (len == 1) {
-			serializeStreamStateHandle(nonPartitionableState, dos);
-		}
 
-		OperatorStateHandle operatorStateBackend = subtaskState.getManagedOperatorState();
+		OperatorStateHandle operatorStateBackend = extractSingleton(subtaskState.getManagedOperatorState());
 
 		len = operatorStateBackend != null ? 1 : 0;
 		dos.writeInt(len);
@@ -258,7 +269,7 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 			serializeOperatorStateHandle(operatorStateBackend, dos);
 		}
 
-		OperatorStateHandle operatorStateFromStream = subtaskState.getRawOperatorState();
+		OperatorStateHandle operatorStateFromStream = extractSingleton(subtaskState.getRawOperatorState());
 
 		len = operatorStateFromStream != null ? 1 : 0;
 		dos.writeInt(len);
@@ -266,19 +277,31 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 			serializeOperatorStateHandle(operatorStateFromStream, dos);
 		}
 
-		KeyedStateHandle keyedStateBackend = subtaskState.getManagedKeyedState();
+		KeyedStateHandle keyedStateBackend = extractSingleton(subtaskState.getManagedKeyedState());
 		serializeKeyedStateHandle(keyedStateBackend, dos);
 
-		KeyedStateHandle keyedStateStream = subtaskState.getRawKeyedState();
+		KeyedStateHandle keyedStateStream = extractSingleton(subtaskState.getRawKeyedState());
 		serializeKeyedStateHandle(keyedStateStream, dos);
 	}
 
 	private static OperatorSubtaskState deserializeSubtaskState(DataInputStream dis) throws IOException {
-		// Duration field has been removed from SubtaskState
+		// Duration field has been removed from SubtaskState, do not remove
 		long ignoredDuration = dis.readLong();
 
+		// for compatibility, do not remove
 		int len = dis.readInt();
-		StreamStateHandle nonPartitionableState = len == 0 ? null : deserializeStreamStateHandle(dis);
+
+		if (SavepointSerializers.FAIL_WHEN_LEGACY_STATE_DETECTED) {
+			Preconditions.checkState(len == 0,
+				"Legacy state (from Flink <= 1.1, created through the 'Checkpointed' interface) is " +
+					"no longer supported starting from Flink 1.4. Please rewrite your job to use " +
+					"'CheckpointedFunction' instead!");
+		} else {
+			for (int i = 0; i < len; ++i) {
+				// absorb bytes from stream and ignore result
+				deserializeStreamStateHandle(dis);
+			}
+		}
 
 		len = dis.readInt();
 		OperatorStateHandle operatorStateBackend = len == 0 ? null : deserializeOperatorStateHandle(dis);
@@ -291,7 +314,6 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 		KeyedStateHandle keyedStateStream = deserializeKeyedStateHandle(dis);
 
 		return new OperatorSubtaskState(
-				nonPartitionableState,
 				operatorStateBackend,
 				operatorStateStream,
 				keyedStateBackend,
@@ -320,7 +342,7 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 			dos.writeByte(INCREMENTAL_KEY_GROUPS_HANDLE);
 
 			dos.writeLong(incrementalKeyedStateHandle.getCheckpointId());
-			dos.writeUTF(incrementalKeyedStateHandle.getOperatorIdentifier());
+			dos.writeUTF(String.valueOf(incrementalKeyedStateHandle.getBackendIdentifier()));
 			dos.writeInt(incrementalKeyedStateHandle.getKeyGroupRange().getStartKeyGroup());
 			dos.writeInt(incrementalKeyedStateHandle.getKeyGroupRange().getNumberOfKeyGroups());
 
@@ -380,7 +402,7 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 		} else if (INCREMENTAL_KEY_GROUPS_HANDLE == type) {
 
 			long checkpointId = dis.readLong();
-			String operatorId = dis.readUTF();
+			String backendId = dis.readUTF();
 			int startKeyGroup = dis.readInt();
 			int numKeyGroups = dis.readInt();
 			KeyGroupRange keyGroupRange =
@@ -390,8 +412,17 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 			Map<StateHandleID, StreamStateHandle> sharedStates = deserializeStreamStateHandleMap(dis);
 			Map<StateHandleID, StreamStateHandle> privateStates = deserializeStreamStateHandleMap(dis);
 
+			UUID uuid;
+
+			try {
+				uuid = UUID.fromString(backendId);
+			} catch (Exception ex) {
+				// compatibility with old format pre FLINK-6964:
+				uuid = UUID.nameUUIDFromBytes(backendId.getBytes(StandardCharsets.UTF_8));
+			}
+
 			return new IncrementalKeyedStateHandle(
-				operatorId,
+				uuid,
 				keyGroupRange,
 				checkpointId,
 				sharedStates,
@@ -403,7 +434,7 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 	}
 
 	private static void serializeOperatorStateHandle(
-			OperatorStateHandle stateHandle, DataOutputStream dos) throws IOException {
+		OperatorStateHandle stateHandle, DataOutputStream dos) throws IOException {
 
 		if (stateHandle != null) {
 			dos.writeByte(PARTITIONABLE_OPERATOR_STATE_HANDLE);
@@ -455,7 +486,7 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 				offsetsMap.put(key, metaInfo);
 			}
 			StreamStateHandle stateHandle = deserializeStreamStateHandle(dis);
-			return new OperatorStateHandle(offsetsMap, stateHandle);
+			return new OperatorStreamStateHandle(offsetsMap, stateHandle);
 		} else {
 			throw new IllegalStateException("Reading invalid OperatorStateHandle, type: " + type);
 		}

@@ -42,7 +42,7 @@ extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 	private final ExecutionEnvironment env;
 
 	// Required configuration
-	private long vertexPairCount;
+	private final long vertexPairCount;
 
 	/**
 	 * An undirected {@link Graph} containing one or more isolated two-paths.
@@ -62,8 +62,10 @@ extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 
 	@Override
 	public Graph<LongValue, NullValue, NullValue> generate() {
+		Preconditions.checkState(vertexPairCount > 0);
+
 		// Vertices
-		long vertexCount = 2 * this.vertexPairCount;
+		long vertexCount = 2 * vertexPairCount;
 
 		DataSet<Vertex<LongValue, NullValue>> vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
 

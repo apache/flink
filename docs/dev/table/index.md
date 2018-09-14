@@ -2,7 +2,7 @@
 title: "Table API & SQL"
 nav-id: tableapi
 nav-parent_id: dev
-is_beta: true
+is_beta: false
 nav-show_overview: true
 nav-pos: 35
 ---
@@ -74,7 +74,7 @@ Where to go next?
 
 * [Concepts & Common API]({{ site.baseurl }}/dev/table/common.html): Shared concepts and APIs of the Table API and SQL.
 * [Streaming Table API & SQL]({{ site.baseurl }}/dev/table/streaming.html): Streaming-specific documentation for the Table API or SQL such as configuration of time attributes and handling of updating results.
-* [Table API]({{ site.baseurl }}/dev/table/tableapi.html): Supported operations and API for the Table API.
+* [Table API]({{ site.baseurl }}/dev/table/tableApi.html): Supported operations and API for the Table API.
 * [SQL]({{ site.baseurl }}/dev/table/sql.html): Supported operations and syntax for SQL
 * [Table Sources & Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html): Reading tables from and emitting tables to external storage systems.
 * [User-Defined Functions]({{ site.baseurl }}/dev/table/udfs.html): Definition and usage of user-defined functions.

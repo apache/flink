@@ -20,10 +20,13 @@ package org.apache.flink.table.functions.aggfunctions
 import java.math.BigDecimal
 import java.util.{HashMap => JHashMap}
 import java.lang.{Iterable => JIterable}
+import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, TupleTypeInfo}
+import org.apache.flink.table.api.Types
+import org.apache.flink.table.functions.aggfunctions.Ordering._
 import org.apache.flink.table.functions.AggregateFunction
 
 /** The initial accumulator for Max with retraction aggregate function */
@@ -82,7 +85,7 @@ abstract class MaxWithRetractAggFunction[T](implicit ord: Ordering[T])
           val iterator = acc.f1.keySet().iterator()
           var key = iterator.next()
           acc.f0 = key
-          while (iterator.hasNext()) {
+          while (iterator.hasNext) {
             key = iterator.next()
             if (ord.compare(acc.f0, key) < 0) {
               acc.f0 = key
@@ -116,7 +119,7 @@ abstract class MaxWithRetractAggFunction[T](implicit ord: Ordering[T])
         }
         // merge the count for each key
         val iterator = a.f1.keySet().iterator()
-        while (iterator.hasNext()) {
+        while (iterator.hasNext) {
           val key = iterator.next()
           if (acc.f1.containsKey(key)) {
             acc.f1.put(key, acc.f1.get(key) + a.f1.get(key))
@@ -133,9 +136,9 @@ abstract class MaxWithRetractAggFunction[T](implicit ord: Ordering[T])
     acc.f1.clear()
   }
 
-  def getAccumulatorType(): TypeInformation[_] = {
+  override def getAccumulatorType: TypeInformation[MaxWithRetractAccumulator[T]] = {
     new TupleTypeInfo(
-      new MaxWithRetractAccumulator[T].getClass,
+      classOf[MaxWithRetractAccumulator[T]],
       getValueTypeInfo,
       new MapTypeInfo(getValueTypeInfo, BasicTypeInfo.LONG_TYPE_INFO))
   }
@@ -215,4 +218,28 @@ class DecimalMaxWithRetractAggFunction extends MaxWithRetractAggFunction[BigDeci
 class StringMaxWithRetractAggFunction extends MaxWithRetractAggFunction[String] {
   override def getInitValue: String = ""
   override def getValueTypeInfo = BasicTypeInfo.STRING_TYPE_INFO
+}
+
+/**
+  * Built-in Timestamp Max with retraction aggregate function
+  */
+class TimestampMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Timestamp] {
+  override def getInitValue: Timestamp = new Timestamp(0)
+  override def getValueTypeInfo = Types.SQL_TIMESTAMP
+}
+
+/**
+  * Built-in Date Max with retraction aggregate function
+  */
+class DateMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Date] {
+  override def getInitValue: Date = new Date(0)
+  override def getValueTypeInfo = Types.SQL_DATE
+}
+
+/**
+  * Built-in Time Max with retraction aggregate function
+  */
+class TimeMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Time] {
+  override def getInitValue: Time = new Time(0)
+  override def getValueTypeInfo = Types.SQL_TIME
 }

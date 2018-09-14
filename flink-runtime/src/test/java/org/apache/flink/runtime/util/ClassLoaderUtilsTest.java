@@ -54,7 +54,9 @@ public class ClassLoaderUtilsTest {
 				e.printStackTrace();
 				fail("test setup broken: cannot create a valid jar file");
 			} finally {
-				if (jarFile != null) jarFile.close();
+				if (jarFile != null) {
+					jarFile.close();
+				}
 			}
 			
 			// file with some random contents

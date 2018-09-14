@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -45,6 +46,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * the thread has terminated.
  */
 @ThreadSafe
+@Internal
 public final class Handover implements Closeable {
 
 	private final Object lock = new Object();

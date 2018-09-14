@@ -18,26 +18,28 @@
 
 package org.apache.flink.runtime.instance;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotOwner;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
-import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
-import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-
-import org.apache.flink.util.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An instance represents a {@link org.apache.flink.runtime.taskmanager.TaskManager}
@@ -163,8 +165,9 @@ public class Instance implements SlotOwner {
 		 * owning the assignment group lock wants to give itself back to the instance which requires
 		 * the instance lock
 		 */
+		final FlinkException cause = new FlinkException("Instance " + this + " has been marked as dead.");
 		for (Slot slot : slots) {
-			slot.releaseSlot();
+			slot.releaseSlot(cause);
 		}
 	}
 
@@ -209,19 +212,13 @@ public class Instance implements SlotOwner {
 	 * Allocates a simple slot on this TaskManager instance. This method returns {@code null}, if no slot
 	 * is available at the moment.
 	 *
-	 * @param jobID The ID of the job that the slot is allocated for.
-	 *
 	 * @return A simple slot that represents a task slot on this TaskManager instance, or null, if the
 	 *         TaskManager instance has no more slots available.
 	 *
 	 * @throws InstanceDiedException Thrown if the instance is no longer alive by the time the
 	 *                               slot is allocated. 
 	 */
-	public SimpleSlot allocateSimpleSlot(JobID jobID) throws InstanceDiedException {
-		if (jobID == null) {
-			throw new IllegalArgumentException();
-		}
-
+	public SimpleSlot allocateSimpleSlot() throws InstanceDiedException {
 		synchronized (instanceLock) {
 			if (isDead) {
 				throw new InstanceDiedException(this);
@@ -232,7 +229,7 @@ public class Instance implements SlotOwner {
 				return null;
 			}
 			else {
-				SimpleSlot slot = new SimpleSlot(jobID, this, location, nextSlot, taskManagerGateway);
+				SimpleSlot slot = new SimpleSlot(this, location, nextSlot, taskManagerGateway);
 				allocatedSlots.add(slot);
 				return slot;
 			}
@@ -243,7 +240,6 @@ public class Instance implements SlotOwner {
 	 * Allocates a shared slot on this TaskManager instance. This method returns {@code null}, if no slot
 	 * is available at the moment. The shared slot will be managed by the given  SlotSharingGroupAssignment.
 	 *
-	 * @param jobID The ID of the job that the slot is allocated for.
 	 * @param sharingGroupAssignment The assignment group that manages this shared slot.
 	 *
 	 * @return A shared slot that represents a task slot on this TaskManager instance and can hold other
@@ -251,13 +247,8 @@ public class Instance implements SlotOwner {
 	 *
 	 * @throws InstanceDiedException Thrown if the instance is no longer alive by the time the slot is allocated. 
 	 */
-	public SharedSlot allocateSharedSlot(JobID jobID, SlotSharingGroupAssignment sharingGroupAssignment)
-			throws InstanceDiedException
-	{
-		// the slot needs to be in the returned to taskManager state
-		if (jobID == null) {
-			throw new IllegalArgumentException();
-		}
+	public SharedSlot allocateSharedSlot(SlotSharingGroupAssignment sharingGroupAssignment)
+			throws InstanceDiedException {
 
 		synchronized (instanceLock) {
 			if (isDead) {
@@ -270,7 +261,11 @@ public class Instance implements SlotOwner {
 			}
 			else {
 				SharedSlot slot = new SharedSlot(
-						jobID, this, location, nextSlot, taskManagerGateway, sharingGroupAssignment);
+					this,
+					location,
+					nextSlot,
+					taskManagerGateway,
+					sharingGroupAssignment);
 				allocatedSlots.add(slot);
 				return slot;
 			}
@@ -284,12 +279,15 @@ public class Instance implements SlotOwner {
 	 * <p>The method will transition the slot to the "released" state. If the slot is already in state
 	 * "released", this method will do nothing.</p>
 	 * 
-	 * @param slot The slot to return.
-	 * @return True, if the slot was returned, false if not.
+	 * @param logicalSlot The slot to return.
+	 * @return Future which is completed with true, if the slot was returned, false if not.
 	 */
 	@Override
-	public boolean returnAllocatedSlot(Slot slot) {
-		checkNotNull(slot);
+	public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
+		checkNotNull(logicalSlot);
+		checkArgument(logicalSlot instanceof Slot);
+
+		final Slot slot = ((Slot) logicalSlot);
 		checkArgument(!slot.isAlive(), "slot is still alive");
 		checkArgument(slot.getOwner() == this, "slot belongs to the wrong TaskManager.");
 
@@ -297,7 +295,7 @@ public class Instance implements SlotOwner {
 			LOG.debug("Return allocated slot {}.", slot);
 			synchronized (instanceLock) {
 				if (isDead) {
-					return false;
+					return CompletableFuture.completedFuture(false);
 				}
 
 				if (this.allocatedSlots.remove(slot)) {
@@ -307,7 +305,7 @@ public class Instance implements SlotOwner {
 						this.slotAvailabilityListener.newSlotAvailable(this);
 					}
 
-					return true;
+					return CompletableFuture.completedFuture(true);
 				}
 				else {
 					throw new IllegalArgumentException("Slot was not allocated from this TaskManager.");
@@ -315,7 +313,7 @@ public class Instance implements SlotOwner {
 			}
 		}
 		else {
-			return false;
+			return CompletableFuture.completedFuture(false);
 		}
 	}
 
@@ -326,8 +324,9 @@ public class Instance implements SlotOwner {
 			copy = new ArrayList<Slot>(this.allocatedSlots);
 		}
 
+		final FlinkException cause = new FlinkException("Cancel and release all slots of instance " + this + '.');
 		for (Slot slot : copy) {
-			slot.releaseSlot();
+			slot.releaseSlot(cause);
 		}
 	}
 

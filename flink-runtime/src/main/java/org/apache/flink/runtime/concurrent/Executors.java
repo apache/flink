@@ -22,12 +22,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
+
+import scala.concurrent.ExecutionContext;
 
 /**
- * Collection of {@link Executor} implementations
+ * Collection of {@link Executor} implementations.
  */
 public class Executors {
 
@@ -59,46 +60,37 @@ public class Executors {
 	}
 
 	/**
-	 * Gracefully shutdown the given {@link ExecutorService}. The call waits the given timeout that
-	 * all ExecutorServices terminate. If the ExecutorServices do not terminate in this time,
-	 * they will be shut down hard.
+	 * Return a direct execution context. The direct execution context executes the runnable directly
+	 * in the calling thread.
 	 *
-	 * @param timeout to wait for the termination of all ExecutorServices
-	 * @param unit of the timeout
-	 * @param executorServices to shut down
+	 * @return Direct execution context.
 	 */
-	public static void gracefulShutdown(long timeout, TimeUnit unit, ExecutorService... executorServices) {
-		for (ExecutorService executorService: executorServices) {
-			executorService.shutdown();
+	public static ExecutionContext directExecutionContext() {
+		return DirectExecutionContext.INSTANCE;
+	}
+
+	/**
+	 * Direct execution context.
+	 */
+	private static class DirectExecutionContext implements ExecutionContext {
+
+		static final DirectExecutionContext INSTANCE = new DirectExecutionContext();
+
+		private DirectExecutionContext() {}
+
+		@Override
+		public void execute(Runnable runnable) {
+			runnable.run();
 		}
 
-		boolean wasInterrupted = false;
-		final long endTime = unit.toMillis(timeout) + System.currentTimeMillis();
-		long timeLeft = unit.toMillis(timeout);
-		boolean hasTimeLeft = timeLeft > 0L;
+		@Override
+		public void reportFailure(Throwable cause) {
+			throw new IllegalStateException("Error in direct execution context.", cause);
+		}
 
-		for (ExecutorService executorService: executorServices) {
-			if (wasInterrupted || !hasTimeLeft) {
-				executorService.shutdownNow();
-			} else {
-				try {
-					if (!executorService.awaitTermination(timeLeft, TimeUnit.MILLISECONDS)) {
-						LOG.warn("ExecutorService did not terminate in time. Shutting it down now.");
-						executorService.shutdownNow();
-					}
-				} catch (InterruptedException e) {
-					LOG.warn("Interrupted while shutting down executor services. Shutting all " +
-						"remaining ExecutorServices down now.", e);
-					executorService.shutdownNow();
-
-					wasInterrupted = true;
-
-					Thread.currentThread().interrupt();
-				}
-
-				timeLeft = endTime - System.currentTimeMillis();
-				hasTimeLeft = timeLeft > 0L;
-			}
+		@Override
+		public ExecutionContext prepare() {
+			return this;
 		}
 	}
 }

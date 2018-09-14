@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.sampling;
 
 import org.apache.flink.annotation.Internal;
@@ -32,7 +33,7 @@ import java.util.Random;
  * difference is that, in the first phase, we generate weights for each element K times, so that
  * each element can get selected multiple times.
  *
- * This implementation refers to the algorithm described in <a href="researcher.ibm.com/files/us-dpwoodru/tw11.pdf">
+ * <p>This implementation refers to the algorithm described in <a href="researcher.ibm.com/files/us-dpwoodru/tw11.pdf">
  * "Optimal Random Sampling from Distributed Streams Revisited"</a>.
  *
  * @param <T> The type of sample.
@@ -50,7 +51,7 @@ public class ReservoirSamplerWithReplacement<T> extends DistributedRandomSampler
 	public ReservoirSamplerWithReplacement(int numSamples) {
 		this(numSamples, new XORShiftRandom());
 	}
-	
+
 	/**
 	 * Create a sampler with fixed sample size and random number generator seed.
 	 *
@@ -60,7 +61,7 @@ public class ReservoirSamplerWithReplacement<T> extends DistributedRandomSampler
 	public ReservoirSamplerWithReplacement(int numSamples, long seed) {
 		this(numSamples, new XORShiftRandom(seed));
 	}
-	
+
 	/**
 	 * Create a sampler with fixed sample size and random number generator.
 	 *
@@ -76,7 +77,7 @@ public class ReservoirSamplerWithReplacement<T> extends DistributedRandomSampler
 	@Override
 	public Iterator<IntermediateSampleData<T>> sampleInPartition(Iterator<T> input) {
 		if (numSamples == 0) {
-			return EMPTY_INTERMEDIATE_ITERABLE;
+			return emptyIntermediateIterable;
 		}
 
 		// This queue holds a fixed number of elements with the top K weight for current partition.

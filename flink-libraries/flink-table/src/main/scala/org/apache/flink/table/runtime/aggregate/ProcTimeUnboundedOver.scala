@@ -17,17 +17,16 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
+import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.types.Row
-import org.apache.flink.util.Collector
-import org.apache.flink.api.common.state.ValueStateDescriptor
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.CRow
-import org.slf4j.LoggerFactory
+import org.apache.flink.table.util.Logging
+import org.apache.flink.types.Row
+import org.apache.flink.util.Collector
 
 /**
   * Process Function for processing-time unbounded OVER window
@@ -40,11 +39,11 @@ class ProcTimeUnboundedOver(
     aggregationStateType: RowTypeInfo,
     queryConfig: StreamQueryConfig)
   extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
-    with Compiler[GeneratedAggregations] {
+    with Compiler[GeneratedAggregations]
+    with Logging {
 
   private var output: CRow = _
   private var state: ValueState[Row] = _
-  val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
@@ -56,6 +55,7 @@ class ProcTimeUnboundedOver(
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
+    function.open(getRuntimeContext)
 
     output = new CRow(function.createOutputRow(), true)
     val stateDescriptor: ValueStateDescriptor[Row] =
@@ -97,6 +97,11 @@ class ProcTimeUnboundedOver(
 
     if (needToCleanupState(timestamp)) {
       cleanupState(state)
+      function.cleanup()
     }
+  }
+  
+  override def close(): Unit = {
+    function.close()
   }
 }

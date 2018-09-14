@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -28,6 +27,7 @@ import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.messages.ContainersAllocated;
 import org.apache.flink.yarn.messages.ContainersComplete;
 
@@ -47,10 +47,8 @@ import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.slf4j.Logger;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -298,6 +296,9 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		} catch (Throwable t) {
 			LOG.error("Could not cleanly shut down the Node Manager Client", t);
 		}
+
+		// stop the actor after finishing processing the stop message
+		getContext().system().stop(getSelf());
 	}
 
 	@Override
@@ -334,7 +335,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 
 			// Resource requirements for worker containers
 			int taskManagerSlots = taskManagerParameters.numSlots();
-			int vcores = config.getInteger(ConfigConstants.YARN_VCORES, Math.max(taskManagerSlots, 1));
+			int vcores = config.getInteger(YarnConfigOptions.VCORES, Math.max(taskManagerSlots, 1));
 			Resource capability = Resource.newInstance(containerMemorySizeMB, vcores);
 
 			resourceManagerClient.addContainerRequest(
@@ -547,7 +548,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 					String msg = "Stopping YARN session because the number of failed containers ("
 						+ failedContainersSoFar + ") exceeded the maximum failed containers ("
 						+ maxFailedContainers + "). This number is controlled by the '"
-						+ ConfigConstants.YARN_MAX_FAILED_CONTAINERS + "' configuration setting. "
+						+ YarnConfigOptions.MAX_FAILED_CONTAINERS.key() + "' configuration setting. "
 						+ "By default its the number of requested containers.";
 
 					LOG.error(msg);
@@ -613,56 +614,6 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		}
 	}
 
-	/**
-	 * Looks up the getContainersFromPreviousAttempts method on RegisterApplicationMasterResponse
-	 * once and saves the method. This saves computation time on the sequent calls.
-	 */
-	private static class RegisterApplicationMasterResponseReflector {
-
-		private Logger logger;
-		private Method method;
-
-		public RegisterApplicationMasterResponseReflector(Logger log) {
-			this.logger = log;
-
-			try {
-				method = RegisterApplicationMasterResponse.class
-					.getMethod("getContainersFromPreviousAttempts");
-
-			} catch (NoSuchMethodException e) {
-				// that happens in earlier Hadoop versions
-				logger.info("Cannot reconnect to previously allocated containers. " +
-					"This YARN version does not support 'getContainersFromPreviousAttempts()'");
-			}
-		}
-
-		/**
-		 * Checks if a YARN application still has registered containers. If the application master
-		 * registered at the ResourceManager for the first time, this list will be empty. If the
-		 * application master registered a repeated time (after a failure and recovery), this list
-		 * will contain the containers that were previously allocated.
-		 *
-		 * @param response The response object from the registration at the ResourceManager.
-		 * @return A list with containers from previous application attempt.
-		 */
-		private List<Container> getContainersFromPreviousAttempts(RegisterApplicationMasterResponse response) {
-			if (method != null && response != null) {
-				try {
-					@SuppressWarnings("unchecked")
-					List<Container> list = (List<Container>) method.invoke(response);
-					if (list != null && !list.isEmpty()) {
-						return list;
-					}
-				} catch (Throwable t) {
-					logger.error("Error invoking 'getContainersFromPreviousAttempts()'", t);
-				}
-			}
-
-			return Collections.emptyList();
-		}
-
-	}
-
 	// ------------------------------------------------------------------------
 	//  Actor props factory
 	// ------------------------------------------------------------------------
@@ -707,7 +658,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 			Logger log) {
 
 		final int yarnHeartbeatIntervalMS = flinkConfig.getInteger(
-			ConfigConstants.YARN_HEARTBEAT_DELAY_SECONDS, DEFAULT_YARN_HEARTBEAT_INTERVAL_MS / 1000) * 1000;
+			YarnConfigOptions.HEARTBEAT_DELAY_SECONDS) * 1000;
 
 		final long yarnExpiryIntervalMS = yarnConfig.getLong(
 			YarnConfiguration.RM_AM_EXPIRY_INTERVAL_MS,
@@ -720,7 +671,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		}
 
 		final int maxFailedContainers = flinkConfig.getInteger(
-			ConfigConstants.YARN_MAX_FAILED_CONTAINERS, numInitialTaskManagers);
+			YarnConfigOptions.MAX_FAILED_CONTAINERS.key(), numInitialTaskManagers);
 		if (maxFailedContainers >= 0) {
 			log.info("YARN application tolerates {} failed TaskManager containers before giving up",
 				maxFailedContainers);

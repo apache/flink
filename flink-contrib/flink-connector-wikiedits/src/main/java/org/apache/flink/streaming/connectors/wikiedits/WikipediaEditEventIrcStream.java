@@ -26,10 +26,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-class WikipediaEditEventIrcStream {
+class WikipediaEditEventIrcStream implements AutoCloseable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(WikipediaEditEventIrcStream.class);
 
@@ -37,11 +39,11 @@ class WikipediaEditEventIrcStream {
 	private final BlockingQueue<WikipediaEditEvent> edits =
 			new ArrayBlockingQueue<>(128);
 
-	/** IRC connection (Thread). */
+	/** IRC connection (NOTE: this is a separate Thread). */
 	private IRCConnection conn;
 
 	WikipediaEditEventIrcStream(String host, int port) {
-		final String nick = "flink-bot-" + (int) (Math.random() * 1000);
+		final String nick = "flink-bot-" + UUID.randomUUID().toString();
 		this.conn = new IRCConnection(host, new int[] { port}, "", nick, nick, nick);
 		conn.addIRCEventListener(new WikipediaIrcChannelListener(edits));
 		conn.setEncoding("UTF-8");
@@ -51,30 +53,32 @@ class WikipediaEditEventIrcStream {
 		conn.setName("WikipediaEditEventIrcStreamThread");
 	}
 
-	void start() throws IOException {
+	BlockingQueue<WikipediaEditEvent> getEdits() {
+		return edits;
+	}
+
+	void connect() throws IOException {
 		if (!conn.isConnected()) {
 			conn.connect();
 		}
 	}
 
-	void stop() throws InterruptedException {
-		if (conn.isConnected()) {
-		}
-
-		conn.interrupt();
-		conn.join(5 * 1000);
-	}
-
-	BlockingQueue<WikipediaEditEvent> getEdits() {
-		return edits;
-	}
-
 	void join(String channel) {
+		Objects.requireNonNull(channel, "channel");
 		conn.send("JOIN " + channel);
 	}
 
 	void leave(String channel) {
 		conn.send("PART " + channel);
+	}
+
+	@Override
+	public void close() throws Exception {
+		if (conn != null && conn.isConnected()) {
+			conn.doQuit();
+			conn.close();
+			conn.join(5 * 1000);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -85,12 +89,8 @@ class WikipediaEditEventIrcStream {
 
 		private final BlockingQueue<WikipediaEditEvent> edits;
 
-		public WikipediaIrcChannelListener(BlockingQueue<WikipediaEditEvent> edits) {
-			if (edits == null) {
-				throw new NullPointerException();
-			}
-
-			this.edits = edits;
+		WikipediaIrcChannelListener(BlockingQueue<WikipediaEditEvent> edits) {
+			this.edits = Objects.requireNonNull(edits, "edits");
 		}
 
 		@Override

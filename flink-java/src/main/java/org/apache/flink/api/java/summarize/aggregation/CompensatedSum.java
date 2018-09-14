@@ -21,9 +21,9 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Used to calculate sums using the Kahan summation algorithm
+ * Used to calculate sums using the Kahan summation algorithm.
  *
- * The Kahan summation algorithm (also known as compensated summation) reduces the numerical errors that
+ * <p>The Kahan summation algorithm (also known as compensated summation) reduces the numerical errors that
  * occur when adding a sequence of finite precision floating point numbers. Numerical errors arise due to
  * truncation and rounding. These errors can lead to numerical instability.
  *
@@ -41,7 +41,7 @@ public class CompensatedSum implements java.io.Serializable {
 	private final double delta;
 
 	/**
-	 * Used to calculate sums using the Kahan summation algorithm
+	 * Used to calculate sums using the Kahan summation algorithm.
 	 * @param value the sum
 	 * @param delta correction term
 	 */
@@ -51,35 +51,35 @@ public class CompensatedSum implements java.io.Serializable {
 	}
 
 	/**
-	 * The value of the sum
+	 * The value of the sum.
 	 */
 	public double value() {
 		return value;
 	}
 
 	/**
-	 * The correction term
+	 * The correction term.
 	 */
 	public double delta() {
 		return delta;
 	}
 
 	/**
-	 * Increments the Kahan sum by adding a value and a correction term
+	 * Increments the Kahan sum by adding a value and a correction term.
 	 */
 	public CompensatedSum add(double value, double delta) {
 		return add(new CompensatedSum(value, delta));
 	}
 
 	/**
-	 * Increments the Kahan sum by adding a value without a correction term
+	 * Increments the Kahan sum by adding a value without a correction term.
 	 */
 	public CompensatedSum add(double value) {
 		return add(new CompensatedSum(value, NO_CORRECTION));
 	}
 
 	/**
-	 * Increments the Kahan sum by adding two sums, and updating the correction term for reducing numeric errors
+	 * Increments the Kahan sum by adding two sums, and updating the correction term for reducing numeric errors.
 	 */
 	public CompensatedSum add(CompensatedSum other) {
 		double correctedSum = other.value() + (delta + other.delta());

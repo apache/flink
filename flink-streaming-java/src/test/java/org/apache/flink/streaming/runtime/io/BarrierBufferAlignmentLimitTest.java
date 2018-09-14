@@ -29,8 +29,9 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -114,9 +115,9 @@ public class BarrierBufferAlignmentLimitTest {
 
 		// the barrier buffer has a limit that only 1000 bytes may be spilled in alignment
 		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierBuffer buffer = new BarrierBuffer(gate, ioManager, 1000);
+		BarrierBuffer buffer = new BarrierBuffer(gate, new BufferSpiller(ioManager, gate.getPageSize()), 1000);
 
-		StatefulTask toNotify = mock(StatefulTask.class);
+		AbstractInvokable toNotify = mock(AbstractInvokable.class);
 		buffer.registerCheckpointEventHandler(toNotify);
 
 		// validating the sequence of buffers
@@ -208,9 +209,9 @@ public class BarrierBufferAlignmentLimitTest {
 
 		// the barrier buffer has a limit that only 1000 bytes may be spilled in alignment
 		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierBuffer buffer = new BarrierBuffer(gate, ioManager, 500);
+		BarrierBuffer buffer = new BarrierBuffer(gate, new BufferSpiller(ioManager, gate.getPageSize()), 500);
 
-		StatefulTask toNotify = mock(StatefulTask.class);
+		AbstractInvokable toNotify = mock(AbstractInvokable.class);
 		buffer.registerCheckpointEventHandler(toNotify);
 
 		// validating the sequence of buffers
@@ -277,17 +278,17 @@ public class BarrierBufferAlignmentLimitTest {
 		MemorySegment memory = MemorySegmentFactory.allocateUnpooledSegment(PAGE_SIZE);
 		memory.put(0, bytes);
 
-		Buffer buf = new Buffer(memory, FreeingBufferRecycler.INSTANCE);
+		Buffer buf = new NetworkBuffer(memory, FreeingBufferRecycler.INSTANCE);
 		buf.setSize(size);
 
 		// retain an additional time so it does not get disposed after being read by the input gate
-		buf.retain();
+		buf.retainBuffer();
 
 		return new BufferOrEvent(buf, channel);
 	}
 
 	private static BufferOrEvent createBarrier(long id, int channel) {
-		return new BufferOrEvent(new CheckpointBarrier(id, System.currentTimeMillis(), CheckpointOptions.forFullCheckpoint()), channel);
+		return new BufferOrEvent(new CheckpointBarrier(id, System.currentTimeMillis(), CheckpointOptions.forCheckpointWithDefaultLocation()), channel);
 	}
 
 	private static void check(BufferOrEvent expected, BufferOrEvent present) {
@@ -296,6 +297,7 @@ public class BarrierBufferAlignmentLimitTest {
 		assertEquals(expected.isBuffer(), present.isBuffer());
 
 		if (expected.isBuffer()) {
+			assertEquals(expected.getBuffer().getMaxCapacity(), present.getBuffer().getMaxCapacity());
 			assertEquals(expected.getBuffer().getSize(), present.getBuffer().getSize());
 			MemorySegment expectedMem = expected.getBuffer().getMemorySegment();
 			MemorySegment presentMem = present.getBuffer().getMemorySegment();

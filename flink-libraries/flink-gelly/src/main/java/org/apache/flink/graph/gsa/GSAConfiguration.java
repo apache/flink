@@ -55,30 +55,30 @@ public class GSAConfiguration extends IterationConfiguration {
 	 * Adds a data set as a broadcast set to the gather function.
 	 *
 	 * @param name The name under which the broadcast data is available in the gather function.
-	 * @param data The data set to be broadcasted.
+	 * @param data The data set to be broadcast.
 	 */
 	public void addBroadcastSetForGatherFunction(String name, DataSet<?> data) {
-		this.bcVarsGather.add(new Tuple2<String, DataSet<?>>(name, data));
+		this.bcVarsGather.add(new Tuple2<>(name, data));
 	}
 
 	/**
 	 * Adds a data set as a broadcast set to the sum function.
 	 *
 	 * @param name The name under which the broadcast data is available in the sum function.
-	 * @param data The data set to be broadcasted.
+	 * @param data The data set to be broadcast.
 	 */
 	public void addBroadcastSetForSumFunction(String name, DataSet<?> data) {
-		this.bcVarsSum.add(new Tuple2<String, DataSet<?>>(name, data));
+		this.bcVarsSum.add(new Tuple2<>(name, data));
 	}
 
 	/**
 	 * Adds a data set as a broadcast set to the apply function.
 	 *
 	 * @param name The name under which the broadcast data is available in the apply function.
-	 * @param data The data set to be broadcasted.
+	 * @param data The data set to be broadcast.
 	 */
 	public void addBroadcastSetForApplyFunction(String name, DataSet<?> data) {
-		this.bcVarsApply.add(new Tuple2<String, DataSet<?>>(name, data));
+		this.bcVarsApply.add(new Tuple2<>(name, data));
 	}
 
 	/**

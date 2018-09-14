@@ -148,7 +148,7 @@ public class InterestingProperties implements Cloneable  {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj != null && obj instanceof InterestingProperties) {
+		if (obj instanceof InterestingProperties) {
 			InterestingProperties other = (InterestingProperties) obj;
 			return this.globalProps.equals(other.globalProps) &&
 					this.localProps.equals(other.localProps);

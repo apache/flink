@@ -21,11 +21,12 @@ package org.apache.flink.table.runtime.utils
 import java.io.{File, FileOutputStream, OutputStreamWriter}
 import java.util
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.catalog._
+import org.apache.flink.table.descriptors.{Csv, FileSystem, Schema}
 import org.apache.flink.table.sources.{BatchTableSource, CsvTableSource}
 
 object CommonTestData {
@@ -49,10 +50,10 @@ object CommonTestData {
       tempFilePath,
       Array("first", "id", "score", "last"),
       Array(
-        BasicTypeInfo.STRING_TYPE_INFO,
-        BasicTypeInfo.INT_TYPE_INFO,
-        BasicTypeInfo.DOUBLE_TYPE_INFO,
-        BasicTypeInfo.STRING_TYPE_INFO
+        Types.STRING,
+        Types.INT,
+        Types.DOUBLE,
+        Types.STRING
       ),
       fieldDelim = "#",
       rowDelim = "$",
@@ -61,27 +62,31 @@ object CommonTestData {
     )
   }
 
-  def getInMemoryTestCatalog: ExternalCatalog = {
+  def getInMemoryTestCatalog(isStreaming: Boolean): ExternalCatalog = {
     val csvRecord1 = Seq(
       "1#1#Hi",
       "2#2#Hello",
       "3#2#Hello world"
     )
-    val tempFilePath1 = writeToTempFile(csvRecord1.mkString("$"), "csv-test1", "tmp")
-    val properties1 = new util.HashMap[String, String]()
-    properties1.put("path", tempFilePath1)
-    properties1.put("fieldDelim", "#")
-    properties1.put("rowDelim", "$")
-    val externalCatalogTable1 = ExternalCatalogTable(
-      "csv",
-      new TableSchema(
-        Array("a", "b", "c"),
-        Array(
-          BasicTypeInfo.INT_TYPE_INFO,
-          BasicTypeInfo.LONG_TYPE_INFO,
-          BasicTypeInfo.STRING_TYPE_INFO)),
-      properties1
-    )
+    val tempFilePath1 = writeToTempFile(csvRecord1.mkString("\n"), "csv-test1", "tmp")
+
+    val connDesc1 = FileSystem().path(tempFilePath1)
+    val formatDesc1 = Csv()
+      .field("a", Types.INT)
+      .field("b", Types.LONG)
+      .field("c", Types.STRING)
+      .fieldDelimiter("#")
+    val schemaDesc1 = Schema()
+      .field("a", Types.INT)
+      .field("b", Types.LONG)
+      .field("c", Types.STRING)
+    val externalTableBuilder1 = ExternalCatalogTable.builder(connDesc1)
+      .withFormat(formatDesc1)
+      .withSchema(schemaDesc1)
+
+    if (isStreaming) {
+      externalTableBuilder1.inAppendMode()
+    }
 
     val csvRecord2 = Seq(
       "1#1#0#Hallo#1",
@@ -100,24 +105,30 @@ object CommonTestData {
       "5#14#13#JKL#2",
       "5#15#14#KLM#2"
     )
-    val tempFilePath2 = writeToTempFile(csvRecord2.mkString("$"), "csv-test2", "tmp")
-    val properties2 = new util.HashMap[String, String]()
-    properties2.put("path", tempFilePath2)
-    properties2.put("fieldDelim", "#")
-    properties2.put("rowDelim", "$")
-    val externalCatalogTable2 = ExternalCatalogTable(
-      "csv",
-      new TableSchema(
-        Array("d", "e", "f", "g", "h"),
-        Array(
-          BasicTypeInfo.INT_TYPE_INFO,
-          BasicTypeInfo.LONG_TYPE_INFO,
-          BasicTypeInfo.INT_TYPE_INFO,
-          BasicTypeInfo.STRING_TYPE_INFO,
-          BasicTypeInfo.LONG_TYPE_INFO)
-      ),
-      properties2
-    )
+    val tempFilePath2 = writeToTempFile(csvRecord2.mkString("\n"), "csv-test2", "tmp")
+
+    val connDesc2 = FileSystem().path(tempFilePath2)
+    val formatDesc2 = Csv()
+      .field("d", Types.INT)
+      .field("e", Types.LONG)
+      .field("f", Types.INT)
+      .field("g", Types.STRING)
+      .field("h", Types.LONG)
+      .fieldDelimiter("#")
+    val schemaDesc2 = Schema()
+      .field("d", Types.INT)
+      .field("e", Types.LONG)
+      .field("f", Types.INT)
+      .field("g", Types.STRING)
+      .field("h", Types.LONG)
+    val externalTableBuilder2 = ExternalCatalogTable.builder(connDesc2)
+      .withFormat(formatDesc2)
+      .withSchema(schemaDesc2)
+
+    if (isStreaming) {
+      externalTableBuilder2.inAppendMode()
+    }
+
     val catalog = new InMemoryExternalCatalog("test")
     val db1 = new InMemoryExternalCatalog("db1")
     val db2 = new InMemoryExternalCatalog("db2")
@@ -125,9 +136,9 @@ object CommonTestData {
     catalog.createSubCatalog("db2", db2, ignoreIfExists = false)
 
     // Register the table with both catalogs
-    catalog.createTable("tb1", externalCatalogTable1, ignoreIfExists = false)
-    db1.createTable("tb1", externalCatalogTable1, ignoreIfExists = false)
-    db2.createTable("tb2", externalCatalogTable2, ignoreIfExists = false)
+    catalog.createTable("tb1", externalTableBuilder1.asTableSource(), ignoreIfExists = false)
+    db1.createTable("tb1", externalTableBuilder1.asTableSource(), ignoreIfExists = false)
+    db2.createTable("tb2", externalTableBuilder2.asTableSource(), ignoreIfExists = false)
     catalog
   }
 
@@ -160,6 +171,8 @@ object CommonTestData {
       override def getReturnType: TypeInformation[Person] = {
         TypeExtractor.getForClass(classOf[Person])
       }
+
+      override def getTableSchema: TableSchema = TableSchema.fromTypeInfo(getReturnType)
     }
   }
 
@@ -173,5 +186,15 @@ object CommonTestData {
     def this() {
       this(null, null)
     }
+  }
+
+  class NonPojo {
+    val x = new java.util.HashMap[String, String]()
+
+    override def toString: String = x.toString
+
+    override def hashCode(): Int = super.hashCode()
+
+    override def equals(obj: scala.Any): Boolean = super.equals(obj)
   }
 }

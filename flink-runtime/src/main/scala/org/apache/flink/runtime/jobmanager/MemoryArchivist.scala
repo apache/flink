@@ -35,6 +35,7 @@ import org.apache.flink.runtime.executiongraph.{ArchivedExecutionGraph, Executio
 import org.apache.flink.runtime.history.FsJobArchivist
 import org.apache.flink.runtime.messages.ArchiveMessages._
 import org.apache.flink.runtime.messages.JobManagerMessages._
+import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview.JobIdWithStatus
 
 import scala.collection.mutable
 import scala.concurrent.future
@@ -189,7 +190,7 @@ class MemoryArchivist(
           v => WebMonitorUtils.createDetailsForJob(v)
         }.toArray[JobDetails]
 
-        theSender ! decorateMessage(new MultipleJobsDetails(null, details))
+        theSender ! decorateMessage(new MultipleJobsDetails(util.Arrays.asList(details: _*)))
     }
   }
 
@@ -222,22 +223,16 @@ class MemoryArchivist(
     new JobsOverview(0, finishedCnt, canceledCnt, failedCnt)
   }
 
-  private def createJobsWithIDsOverview() : JobsWithIDsOverview = {
-    val runningOrPending = new util.ArrayList[JobID]()
-    val finished = new util.ArrayList[JobID]()
-    val canceled = new util.ArrayList[JobID]()
-    val failed = new util.ArrayList[JobID]()
+  private def createJobsWithIDsOverview() : JobIdsWithStatusOverview = {
+    val jobIdsWithStatuses =
+      new java.util.ArrayList[JobIdWithStatus](graphs.size)
 
     graphs.values.foreach { graph =>
-      graph.getState() match {
-        case JobStatus.FINISHED => finished.add(graph.getJobID)
-        case JobStatus.CANCELED => canceled.add(graph.getJobID)
-        case JobStatus.FAILED => failed.add(graph.getJobID)
-        case _ => runningOrPending.add(graph.getJobID)
-      }
+      jobIdsWithStatuses.add(
+        new JobIdWithStatus(graph.getJobID, graph.getState))
     }
 
-    new JobsWithIDsOverview(runningOrPending, finished, canceled, failed)
+    new JobIdsWithStatusOverview(jobIdsWithStatuses)
   }
 
   // --------------------------------------------------------------------------
@@ -291,11 +286,12 @@ class MemoryArchivist(
       throw new IllegalArgumentException("Cannot use the root directory for storing job archives.")
     }
 
-    if (!FileSystem.isFlinkSupportedScheme(archivePathUri.getScheme)) {
-      // skip verification checks for non-flink supported filesystem
-      // this is because the required filesystem classes may not be available to the flink client
-      throw new IllegalArgumentException("No file system found with scheme " + scheme
-        + ", referenced in file URI '" + archivePathUri.toString + "'.")
+    try {
+      FileSystem.get(archivePathUri)
+    }
+    catch {
+      case e: Exception =>
+          throw new IllegalArgumentException(s"No file system found for URI '${archivePathUri}'.")
     }
     new Path(archivePathUri)
   }

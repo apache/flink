@@ -26,23 +26,26 @@ package org.apache.flink.runtime.webmonitor.history;
  * https://github.com/netty/netty/blob/4.0/example/src/main/java/io/netty/example/http/file/HttpStaticFileServerHandler.java
  *****************************************************************************/
 
-import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
+import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
+import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
+import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
+import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.DefaultFileRegion;
-import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.HttpChunkedInput;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.LastHttpContent;
-import io.netty.handler.codec.http.router.Routed;
-import io.netty.handler.ssl.SslHandler;
-import io.netty.handler.stream.ChunkedFile;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
+import org.apache.flink.shaded.netty4.io.netty.channel.DefaultFileRegion;
+import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultHttpResponse;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpChunkedInput;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
+import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedFile;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,15 +59,16 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Locale;
 
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
-import static io.netty.handler.codec.http.HttpHeaders.Names.IF_MODIFIED_SINCE;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
-import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.IF_MODIFIED_SINCE;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -80,7 +84,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * page is prevented.
  */
 @ChannelHandler.Sharable
-public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHandler<Routed> {
+public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHandler<RoutedRequest> {
 
 	/** Default logger, if none is specified. */
 	private static final Logger LOG = LoggerFactory.getLogger(HistoryServerStaticFileServerHandler.class);
@@ -99,10 +103,10 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
-		String requestPath = routed.path();
+	public void channelRead0(ChannelHandlerContext ctx, RoutedRequest routedRequest) throws Exception {
+		String requestPath = routedRequest.getPath();
 
-		respondWithFile(ctx, routed.request(), requestPath);
+		respondWithFile(ctx, routedRequest.getRequest(), requestPath);
 	}
 
 	/**
@@ -157,7 +161,12 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 				} finally {
 					if (!success) {
 						LOG.debug("Unable to load requested file {} from classloader", pathToLoad);
-						StaticFileServerHandler.sendError(ctx, NOT_FOUND);
+						HandlerUtils.sendErrorResponse(
+							ctx,
+							request,
+							new ErrorResponseBody("File not found."),
+							NOT_FOUND,
+							Collections.emptyMap());
 						return;
 					}
 				}
@@ -165,12 +174,22 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 		}
 
 		if (!file.exists() || file.isHidden() || file.isDirectory() || !file.isFile()) {
-			StaticFileServerHandler.sendError(ctx, NOT_FOUND);
+			HandlerUtils.sendErrorResponse(
+				ctx,
+				request,
+				new ErrorResponseBody("File not found."),
+				NOT_FOUND,
+				Collections.emptyMap());
 			return;
 		}
 
 		if (!file.getCanonicalFile().toPath().startsWith(rootPath.toPath())) {
-			StaticFileServerHandler.sendError(ctx, NOT_FOUND);
+			HandlerUtils.sendErrorResponse(
+				ctx,
+				request,
+				new ErrorResponseBody("File not found."),
+				NOT_FOUND,
+				Collections.emptyMap());
 			return;
 		}
 
@@ -203,7 +222,12 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 		try {
 			raf = new RandomAccessFile(file, "r");
 		} catch (FileNotFoundException e) {
-			StaticFileServerHandler.sendError(ctx, NOT_FOUND);
+			HandlerUtils.sendErrorResponse(
+				ctx,
+				request,
+				new ErrorResponseBody("File not found."),
+				NOT_FOUND,
+				Collections.emptyMap());
 			return;
 		}
 
@@ -243,7 +267,12 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 		} catch (Exception e) {
 			raf.close();
 			LOG.error("Failed to serve file.", e);
-			StaticFileServerHandler.sendError(ctx, INTERNAL_SERVER_ERROR);
+			HandlerUtils.sendErrorResponse(
+				ctx,
+				request,
+				new ErrorResponseBody("Internal server error."),
+				INTERNAL_SERVER_ERROR,
+				Collections.emptyMap());
 		}
 	}
 
@@ -251,7 +280,12 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
 		if (ctx.channel().isActive()) {
 			LOG.error("Caught exception", cause);
-			StaticFileServerHandler.sendError(ctx, INTERNAL_SERVER_ERROR);
+			HandlerUtils.sendErrorResponse(
+				ctx,
+				false,
+				new ErrorResponseBody("Internal server error."),
+				INTERNAL_SERVER_ERROR,
+				Collections.emptyMap());
 		}
 	}
 }

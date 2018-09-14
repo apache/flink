@@ -22,8 +22,8 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -33,14 +33,13 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 
 import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
+import org.junit.Rule;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
-
-import static org.junit.Assert.assertTrue;
 
 /**
  * Test for streaming program behaviour in case of TaskManager failure
@@ -57,19 +56,22 @@ import static org.junit.Assert.assertTrue;
  */
 @SuppressWarnings("serial")
 public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTaskManagerProcessFailureRecoveryTest {
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	private static final int DATA_COUNT = 10000;
 
 	@Override
 	public void testTaskManagerFailure(int jobManagerPort, final File coordinateDir) throws Exception {
 
-		final File tempCheckpointDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH),
-				UUID.randomUUID().toString());
+		final File tempCheckpointDir = tempFolder.newFolder();
 
-		assertTrue("Cannot create directory for checkpoints", tempCheckpointDir.mkdirs());
-
-		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createRemoteEnvironment("localhost", jobManagerPort);
+		final Configuration configuration = new Configuration();
+		configuration.setString(CoreOptions.MODE, CoreOptions.LEGACY_MODE);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
+			"localhost",
+			jobManagerPort,
+			configuration);
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1000));

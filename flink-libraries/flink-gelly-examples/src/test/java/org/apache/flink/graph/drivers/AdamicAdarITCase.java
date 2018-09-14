@@ -30,8 +30,7 @@ import org.junit.runners.Parameterized;
  * Tests for {@link AdamicAdar}.
  */
 @RunWith(Parameterized.class)
-public class AdamicAdarITCase
-extends CopyableValueDriverBaseITCase {
+public class AdamicAdarITCase extends CopyableValueDriverBaseITCase {
 
 	public AdamicAdarITCase(String idType, TestExecutionMode mode) {
 		super(idType, mode);
@@ -39,7 +38,7 @@ extends CopyableValueDriverBaseITCase {
 
 	private String[] parameters(int scale, String output, String... additionalParameters) {
 		String[] parameters = new String[] {
-			"--algorithm", "AdamicAdar",
+			"--algorithm", "AdamicAdar", "--mirror_results",
 			"--input", "RMatGraph", "--scale", Integer.toString(scale), "--type", idType, "--simplify", "undirected",
 			"--output", output};
 
@@ -61,8 +60,14 @@ extends CopyableValueDriverBaseITCase {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedCount(
-			parameters(7, "print"),
-			5694);
+		expectedCount(parameters(8, "print"), 39276);
+	}
+
+	@Test
+	public void testParallelism() throws Exception {
+		TestUtils.verifyParallelism(parameters(8, "print"),
+			"FlatMap \\(Mirror results\\)",
+			"GroupReduce \\(Compute scores\\)",
+			"GroupReduce \\(Generate group pairs\\)");
 	}
 }

@@ -19,9 +19,7 @@
 package org.apache.flink.graph.generator;
 
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
 import org.apache.flink.types.LongValue;
@@ -36,12 +34,10 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for {@link RMatGraph}.
  */
-public class RMatGraphTest
-extends GraphGeneratorTestBase {
+public class RMatGraphTest extends GraphGeneratorTestBase {
 
 	@Test
-	public void testGraphMetrics()
-			throws Exception {
+	public void testGraphMetrics() throws Exception {
 		long vertexCount = 100;
 
 		long edgeCount = 1000;
@@ -56,8 +52,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testParallelism()
-			throws Exception {
+	public void testParallelism() throws Exception {
 		int parallelism = 2;
 
 		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
@@ -66,8 +61,8 @@ extends GraphGeneratorTestBase {
 			.setParallelism(parallelism)
 			.generate();
 
-		graph.getVertices().output(new DiscardingOutputFormat<Vertex<LongValue, NullValue>>());
-		graph.getEdges().output(new DiscardingOutputFormat<Edge<LongValue, NullValue>>());
+		graph.getVertices().output(new DiscardingOutputFormat<>());
+		graph.getEdges().output(new DiscardingOutputFormat<>());
 
 		TestUtils.verifyParallelism(env, parallelism);
 	}

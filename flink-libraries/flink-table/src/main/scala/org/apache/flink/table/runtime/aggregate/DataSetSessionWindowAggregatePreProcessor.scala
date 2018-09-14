@@ -22,11 +22,11 @@ import java.lang.Iterable
 import org.apache.flink.api.common.functions.{AbstractRichFunction, GroupCombineFunction, MapPartitionFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.util.Logging
+import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-import org.slf4j.LoggerFactory
 
 /**
   * This wraps the aggregate logic inside of
@@ -46,20 +46,20 @@ class DataSetSessionWindowAggregatePreProcessor(
   with MapPartitionFunction[Row,Row]
   with GroupCombineFunction[Row,Row]
   with ResultTypeQueryable[Row]
-  with Compiler[GeneratedAggregations] {
+  with Compiler[GeneratedAggregations]
+  with Logging {
 
   private var output: Row = _
   private val rowTimeFieldPos = keysAndAggregatesArity
   private var accumulators: Row = _
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
     LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
                 s"Code:\n$genAggregations.code")
     val clazz = compile(
-      getClass.getClassLoader,
+      getRuntimeContext.getUserCodeClassLoader,
       genAggregations.name,
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")

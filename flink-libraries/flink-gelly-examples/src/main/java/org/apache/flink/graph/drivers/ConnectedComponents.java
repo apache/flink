@@ -46,8 +46,8 @@ extends DriverBase<K, VV, EV> {
 	@Override
 	public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
 		return graph
-			.mapVertices(new MapVertices<K, VV>())
-			.run(new GSAConnectedComponents<K, K, EV>(Integer.MAX_VALUE));
+			.mapVertices(new MapVertices<>())
+			.run(new GSAConnectedComponents<>(Integer.MAX_VALUE));
 	}
 
 	/**

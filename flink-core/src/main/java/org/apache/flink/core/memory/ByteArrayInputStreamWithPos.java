@@ -30,20 +30,23 @@ import java.io.InputStream;
 @Internal
 public class ByteArrayInputStreamWithPos extends InputStream {
 
+	private static final byte[] EMPTY = new byte[0];
+
 	protected byte[] buffer;
 	protected int position;
 	protected int count;
 	protected int mark = 0;
+
+	public ByteArrayInputStreamWithPos() {
+		this(EMPTY);
+	}
 
 	public ByteArrayInputStreamWithPos(byte[] buffer) {
 		this(buffer, 0, buffer.length);
 	}
 
 	public ByteArrayInputStreamWithPos(byte[] buffer, int offset, int length) {
-		this.position = offset;
-		this.buffer = buffer;
-		this.mark = offset;
-		this.count = Math.min(buffer.length, offset + length);
+		setBuffer(buffer, offset, length);
 	}
 
 	@Override
@@ -121,5 +124,12 @@ public class ByteArrayInputStreamWithPos extends InputStream {
 	public void setPosition(int pos) {
 		Preconditions.checkArgument(pos >= 0 && pos <= count, "Position out of bounds.");
 		this.position = pos;
+	}
+
+	public void setBuffer(byte[] buffer, int offset, int length) {
+		this.count = Math.min(buffer.length, offset + length);
+		setPosition(offset);
+		this.buffer = buffer;
+		this.mark = offset;
 	}
 }

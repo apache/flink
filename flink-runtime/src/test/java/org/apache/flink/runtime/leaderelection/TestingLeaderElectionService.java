@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import javax.annotation.Nonnull;
+
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Test {@link LeaderElectionService} implementation which directly forwards isLeader and notLeader
@@ -28,43 +31,72 @@ public class TestingLeaderElectionService implements LeaderElectionService {
 
 	private LeaderContender contender;
 	private boolean hasLeadership = false;
+	private CompletableFuture<UUID> confirmationFuture = null;
+	private UUID issuedLeaderSessionId = null;
+
+	/**
+	 * Gets a future that completes when leadership is confirmed.
+	 *
+	 * <p>Note: the future is created upon calling {@link #isLeader(UUID)}.
+	 */
+	public synchronized CompletableFuture<UUID> getConfirmationFuture() {
+		return confirmationFuture;
+	}
 
 	@Override
-	public void start(LeaderContender contender) throws Exception {
+	public synchronized void start(LeaderContender contender) throws Exception {
 		this.contender = contender;
 	}
 
 	@Override
-	public void stop() throws Exception {
+	public synchronized void stop() throws Exception {
 
 	}
 
 	@Override
-	public void confirmLeaderSessionID(UUID leaderSessionID) {
-
+	public synchronized void confirmLeaderSessionID(UUID leaderSessionID) {
+		if (confirmationFuture != null) {
+			confirmationFuture.complete(leaderSessionID);
+		}
 	}
 
 	@Override
-	public boolean hasLeadership() {
-		return hasLeadership;
+	public synchronized boolean hasLeadership(@Nonnull UUID leaderSessionId) {
+		return hasLeadership && leaderSessionId.equals(issuedLeaderSessionId);
 	}
 
-	public void isLeader(UUID leaderSessionID) {
+	public synchronized CompletableFuture<UUID> isLeader(UUID leaderSessionID) {
+		if (confirmationFuture != null) {
+			confirmationFuture.cancel(false);
+		}
+		confirmationFuture = new CompletableFuture<>();
 		hasLeadership = true;
+		issuedLeaderSessionId = leaderSessionID;
 		contender.grantLeadership(leaderSessionID);
+
+		return confirmationFuture;
 	}
 
-	public void notLeader() {
+	public synchronized void notLeader() {
 		hasLeadership = false;
 		contender.revokeLeadership();
 	}
 
-	public void reset() {
+	public synchronized void reset() {
 		contender = null;
 		hasLeadership  = false;
 	}
 
-	public String getAddress() {
+	public synchronized String getAddress() {
 		return contender.getAddress();
 	}
+
+	/**
+	 * Returns <code>true</code> if {@link #start(LeaderContender)} was called,
+	 * <code>false</code> otherwise.
+	 */
+	public synchronized boolean isStarted() {
+		return contender != null;
+	}
+
 }

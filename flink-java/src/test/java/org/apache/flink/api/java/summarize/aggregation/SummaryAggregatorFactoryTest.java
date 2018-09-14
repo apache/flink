@@ -18,13 +18,22 @@
 
 package org.apache.flink.api.java.summarize.aggregation;
 
-import org.apache.flink.types.*;
+import org.apache.flink.types.BooleanValue;
+import org.apache.flink.types.DoubleValue;
+import org.apache.flink.types.FloatValue;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.LongValue;
+import org.apache.flink.types.ShortValue;
+import org.apache.flink.types.StringValue;
+
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.List;
 
-
+/**
+ * Tests for {@link SummaryAggregatorFactory}.
+ */
 public class SummaryAggregatorFactoryTest {
 
 	@Test

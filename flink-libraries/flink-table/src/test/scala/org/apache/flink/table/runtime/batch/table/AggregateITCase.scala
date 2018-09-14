@@ -22,12 +22,13 @@ import java.math.BigDecimal
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
+import org.apache.flink.table.api.{TableEnvironment, Types}
+import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinctWithMergeAndReset, WeightedAvgWithMergeAndReset}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.utils.{NonMergableCount, Top10}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.junit._
@@ -35,11 +36,29 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
 class AggregationsITCase(
     configMode: TableConfigMode)
   extends TableProgramsCollectionTestBase(configMode) {
+
+  @Test
+  def testAggregationWithCaseClass(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val inputTable = CollectionDataSets.getSmallNestedTupleDataSet(env).toTable(tEnv, 'a, 'b)
+    tEnv.registerDataSet("MyTable", inputTable)
+
+    val result = tEnv.scan("MyTable")
+      .where('a.get("_1") > 0)
+      .select('a.get("_1").avg, 'a.get("_2").sum, 'b.count)
+
+    val expected = "2,6,3"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
 
   @Test
   def testAggregationTypes(): Unit = {
@@ -209,13 +228,14 @@ class AggregationsITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
     val countFun = new CountAggFunction
     val wAvgFun = new WeightedAvgWithMergeAndReset
+    val countDistinct = new CountDistinctWithMergeAndReset
 
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
-      .select('b, 'a.sum, countFun('c), wAvgFun('b, 'a), wAvgFun('a, 'a))
+      .select('b, 'a.sum, countFun('c), wAvgFun('b, 'a), wAvgFun('a, 'a), countDistinct('c))
 
-    val expected = "1,1,1,1,1\n" + "2,5,2,2,2\n" + "3,15,3,3,5\n" + "4,34,4,4,8\n" +
-      "5,65,5,5,13\n" + "6,111,6,6,18\n"
+    val expected = "1,1,1,1,1,1\n" + "2,5,2,2,2,2\n" + "3,15,3,3,5,3\n" + "4,34,4,4,8,4\n" +
+      "5,65,5,5,13,5\n" + "6,111,6,6,18,6\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -247,10 +267,33 @@ class AggregationsITCase(
       .select('a.sum as 'd, 'b)
       .groupBy('b, 'd)
       .select('b)
-
     val expected = "1\n" + "2\n" + "3\n" + "4\n" + "5\n" + "6\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testAggregateEmptyDataSets(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val myAgg = new NonMergableCount
+
+    val t1 = env.fromCollection(new mutable.MutableList[(Int, String)]).toTable(tEnv, 'a, 'b)
+      .select('a.sum, 'a.count)
+    val t2 = env.fromCollection(new mutable.MutableList[(Int, String)]).toTable(tEnv, 'a, 'b)
+      .select('a.sum, myAgg('b), 'a.count)
+
+    val expected1 = "null,0"
+    val expected2 = "null,0,0"
+
+    val results1 = t1.toDataSet[Row].collect()
+    val results2 = t2.toDataSet[Row].collect()
+
+    TestBaseUtils.compareResultAsText(results1.asJava, expected1)
+    TestBaseUtils.compareResultAsText(results2.asJava, expected2)
+
   }
 
   @Test
@@ -372,6 +415,44 @@ class AggregationsITCase(
         "1,1,1," +
         "1,0.5,0.5,0.5"
     val results = res.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testComplexAggregate(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val top10Fun = new Top10
+
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+      .groupBy('b)
+      .select('b, top10Fun('b.cast(Types.INT), 'a.cast(Types.FLOAT)))
+
+    val expected =
+      "1,[(1,1.0), null, null, null, null, null, null, null, null, null]\n" +
+      "2,[(2,3.0), (2,2.0), null, null, null, null, null, null, null, null]\n" +
+      "3,[(3,6.0), (3,5.0), (3,4.0), null, null, null, null, null, null, null]\n" +
+      "4,[(4,10.0), (4,9.0), (4,8.0), (4,7.0), null, null, null, null, null, null]\n" +
+      "5,[(5,15.0), (5,14.0), (5,13.0), (5,12.0), (5,11.0), null, null, null, null, null]\n" +
+      "6,[(6,21.0), (6,20.0), (6,19.0), (6,18.0), (6,17.0), (6,16.0), null, null, null, null]"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testCollect(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+      .groupBy('b)
+      .select('b, 'a.collect)
+
+    val expected =
+      "1,{1=1}\n2,{2=1, 3=1}\n3,{4=1, 5=1, 6=1}\n4,{8=1, 9=1, 10=1, 7=1}\n" +
+        "5,{11=1, 12=1, 13=1, 14=1, 15=1}\n6,{16=1, 17=1, 18=1, 19=1, 20=1, 21=1}"
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 }

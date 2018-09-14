@@ -25,35 +25,35 @@ import org.apache.flink.api.common.operators.Union;
 import org.apache.flink.api.java.DataSet;
 
 /**
- * Java API operator for union of two data sets
- * 
- * @param <T> The type of the two input data sets and the result data set 
+ * Java API operator for union of two data sets.
+ *
+ * @param <T> The type of the two input data sets and the result data set
  */
 @Public
 public class UnionOperator<T> extends TwoInputOperator<T, T, T, UnionOperator<T>> {
 
 	private final String unionLocationName;
-	
+
 	/**
 	 * Create an operator that produces the union of the two given data sets.
-	 * 
+	 *
 	 * @param input1 The first data set to be unioned.
 	 * @param input2 The second data set to be unioned.
 	 */
 	public UnionOperator(DataSet<T> input1, DataSet<T> input2, String unionLocationName) {
 		super(input1, input2, input1.getType());
-		
+
 		if (!input1.getType().equals(input2.getType())) {
-			throw new InvalidProgramException("Cannot union inputs of different types. Input1=" 
+			throw new InvalidProgramException("Cannot union inputs of different types. Input1="
 					+ input1.getType() + ", input2=" + input2.getType());
 		}
-		
+
 		this.unionLocationName = unionLocationName;
 	}
-	
+
 	/**
 	 * Returns the BinaryNodeTranslation of the Union.
-	 * 
+	 *
 	 * @param input1 The first input of the union, as a common API operator.
 	 * @param input2 The second input of the union, as a common API operator.
 	 * @return The common API union operator.
@@ -61,5 +61,12 @@ public class UnionOperator<T> extends TwoInputOperator<T, T, T, UnionOperator<T>
 	@Override
 	protected Union<T> translateToDataFlow(Operator<T> input1, Operator<T> input2) {
 		return new Union<T>(input1, input2, unionLocationName);
+	}
+
+	@Override
+	public UnionOperator<T> setParallelism(int parallelism) {
+		// Union is not translated to an independent operator but executed by multiplexing
+		// its input on the following operator. Hence, the parallelism of a Union cannot be set.
+		throw new UnsupportedOperationException("Cannot set the parallelism for Union.");
 	}
 }

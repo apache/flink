@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager.registration;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 
@@ -29,13 +30,20 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class TaskExecutorConnection {
 
+	private final ResourceID resourceID;
+
 	private final InstanceID instanceID;
 
 	private final TaskExecutorGateway taskExecutorGateway;
 
-	public TaskExecutorConnection(TaskExecutorGateway taskExecutorGateway) {
+	public TaskExecutorConnection(ResourceID resourceID, TaskExecutorGateway taskExecutorGateway) {
+		this.resourceID = checkNotNull(resourceID);
 		this.instanceID = new InstanceID();
 		this.taskExecutorGateway = checkNotNull(taskExecutorGateway);
+	}
+
+	public ResourceID getResourceID() {
+		return resourceID;
 	}
 
 	public InstanceID getInstanceID() {

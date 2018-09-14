@@ -84,6 +84,9 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 	private double convergenceThreshold;
 
+	// Optional configuration
+	private boolean includeZeroDegreeVertices = false;
+
 	/**
 	 * PageRank with a fixed number of iterations.
 	 *
@@ -126,6 +129,42 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		this.convergenceThreshold = convergenceThreshold;
 	}
 
+	/**
+	 * This PageRank implementation properly handles both source and sink
+	 * vertices which have, respectively, only outgoing and incoming edges.
+	 *
+	 * <p>Setting this flag includes "zero-degree" vertices in the PageRank
+	 * computation and result. These vertices are handled the same as other
+	 * "source" vertices (with a consistent score of
+	 * <code>(1 - damping factor) / number of vertices</code>) but only
+	 * affect the scores of other vertices indirectly through the taking of
+	 * this proportional portion of the "random jump" score.
+	 *
+	 * <p>The cost to include zero-degree vertices is a reduce for uniqueness
+	 * on the vertex set followed by an outer join on the vertex degree
+	 * DataSet.
+	 *
+	 * @param includeZeroDegreeVertices whether to include zero-degree vertices in the iterative computation
+	 * @return this
+	 */
+	public PageRank<K, VV, EV> setIncludeZeroDegreeVertices(boolean includeZeroDegreeVertices) {
+		this.includeZeroDegreeVertices = includeZeroDegreeVertices;
+
+		return this;
+	}
+
+	@Override
+	protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
+		if (!super.canMergeConfigurationWith(other)) {
+			return false;
+		}
+
+		PageRank rhs = (PageRank) other;
+
+		return dampingFactor == rhs.dampingFactor &&
+			includeZeroDegreeVertices == rhs.includeZeroDegreeVertices;
+	}
+
 	@Override
 	protected void mergeConfiguration(GraphAlgorithmWrappingBase other) {
 		super.mergeConfiguration(other);
@@ -142,6 +181,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		// vertex degree
 		DataSet<Vertex<K, Degrees>> vertexDegree = input
 			.run(new VertexDegrees<K, VV, EV>()
+				.setIncludeZeroDegreeVertices(includeZeroDegreeVertices)
 				.setParallelism(parallelism));
 
 		// vertex count
@@ -151,20 +191,19 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		DataSet<Edge<K, LongValue>> edgeSourceDegree = input
 			.run(new EdgeSourceDegrees<K, VV, EV>()
 				.setParallelism(parallelism))
-			.map(new ExtractSourceDegree<K, EV>())
+			.map(new ExtractSourceDegree<>())
 				.setParallelism(parallelism)
 				.name("Extract source degree");
 
 		// vertices with zero in-edges
 		DataSet<Tuple2<K, DoubleValue>> sourceVertices = vertexDegree
-			.flatMap(new InitializeSourceVertices<K>())
-			.withBroadcastSet(vertexCount, VERTEX_COUNT)
+			.flatMap(new InitializeSourceVertices<>())
 				.setParallelism(parallelism)
 				.name("Initialize source vertex scores");
 
 		// s, initial pagerank(s)
 		DataSet<Tuple2<K, DoubleValue>> initialScores = vertexDegree
-			.map(new InitializeVertexScores<K>())
+			.map(new InitializeVertexScores<>())
 			.withBroadcastSet(vertexCount, VERTEX_COUNT)
 				.setParallelism(parallelism)
 				.name("Initialize scores");
@@ -178,27 +217,26 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			.coGroup(edgeSourceDegree)
 			.where(0)
 			.equalTo(0)
-			.with(new SendScore<K>())
+			.with(new SendScore<>())
 				.setParallelism(parallelism)
 				.name("Send score")
 			.groupBy(0)
-			.reduce(new SumScore<K>())
+			.reduce(new SumScore<>())
 			.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 
 		// ignored ID, total pagerank
 		DataSet<Tuple2<K, DoubleValue>> sumOfScores = vertexScores
-			.reduce(new SumVertexScores<K>())
+			.reduce(new SumVertexScores<>())
 				.setParallelism(parallelism)
 				.name("Sum");
 
 		// s, adjusted pagerank(s)
 		DataSet<Tuple2<K, DoubleValue>> adjustedScores = vertexScores
 			.union(sourceVertices)
-				.setParallelism(parallelism)
 				.name("Union with source vertices")
-			.map(new AdjustScores<K>(dampingFactor))
+			.map(new AdjustScores<>(dampingFactor))
 				.withBroadcastSet(sumOfScores, SUM_OF_SCORES)
 				.withBroadcastSet(vertexCount, VERTEX_COUNT)
 					.setParallelism(parallelism)
@@ -211,7 +249,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				.join(adjustedScores)
 				.where(0)
 				.equalTo(0)
-				.with(new ChangeInScores<K>())
+				.with(new ChangeInScores<>())
 					.setParallelism(parallelism)
 					.name("Change in scores");
 
@@ -222,7 +260,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 		return iterative
 			.closeWith(passThrough)
-			.map(new TranslateResult<K>())
+			.map(new TranslateResult<>())
 				.setParallelism(parallelism)
 				.name("Map result");
 	}
@@ -285,7 +323,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			super.open(parameters);
 
 			Collection<LongValue> vertexCount = getRuntimeContext().getBroadcastVariable(VERTEX_COUNT);
-			output.f1 = new DoubleValue(1.0 / vertexCount.iterator().next().getValue());
+			Iterator<LongValue> vertexCountIterator = vertexCount.iterator();
+			output.f1 = new DoubleValue(vertexCountIterator.hasNext() ? 1.0 / vertexCountIterator.next().getValue() : Double.NaN);
 		}
 
 		@Override
@@ -376,11 +415,13 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			super.open(parameters);
 
 			Collection<Tuple2<T, DoubleValue>> sumOfScores = getRuntimeContext().getBroadcastVariable(SUM_OF_SCORES);
+			Iterator<Tuple2<T, DoubleValue>> sumOfScoresIterator = sumOfScores.iterator();
 			// floating point precision error is also included in sumOfSinks
-			double sumOfSinks = 1 - sumOfScores.iterator().next().f1.getValue();
+			double sumOfSinks = 1 - (sumOfScoresIterator.hasNext() ? sumOfScoresIterator.next().f1.getValue() : 0);
 
 			Collection<LongValue> vertexCount = getRuntimeContext().getBroadcastVariable(VERTEX_COUNT);
-			this.vertexCount = vertexCount.iterator().next().getValue();
+			Iterator<LongValue> vertexCountIterator = vertexCount.iterator();
+			this.vertexCount = vertexCountIterator.hasNext() ? vertexCountIterator.next().getValue() : 0;
 
 			this.uniformlyDistributedScore = ((1 - dampingFactor) + dampingFactor * sumOfSinks) / this.vertexCount;
 		}

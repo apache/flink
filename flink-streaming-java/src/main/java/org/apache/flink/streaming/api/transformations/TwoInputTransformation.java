@@ -24,15 +24,15 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 
-import com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import java.util.Collection;
 import java.util.List;
 
 /**
  * This Transformation represents the application of a
- * {@link org.apache.flink.streaming.api.operators.TwoInputStreamOperator} to two input
- * {@code StreamTransformations}. The result is again only one stream.
+ * {@link TwoInputStreamOperator} to two input {@code StreamTransformations}.
+ * The result is again only one stream.
  *
  * @param <IN1> The type of the elements in the first input {@code StreamTransformation}
  * @param <IN2> The type of the elements in the second input {@code StreamTransformation}

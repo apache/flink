@@ -23,13 +23,19 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.4-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
-	
+
 	<artifactId>flink-yarn_${scala.binary.version}</artifactId>
 	<name>flink-yarn</name>
 	<packaging>jar</packaging>
+
+	<properties>
+		<!-- for testing (will override Hadoop's default dependency on too low SDK versions that
+			do not work with our httpcomponents version) -->
+		<aws.sdk.version>1.11.171</aws.sdk.version>
+	</properties>
 
 	<dependencies>
 
@@ -39,12 +45,6 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
-			<exclusions>
-				<exclusion>
-					<artifactId>hadoop-core</artifactId>
-					<groupId>org.apache.hadoop</groupId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -60,6 +60,35 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-actor_${scala.binary.version}</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-remote_${scala.binary.version}</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-camel_${scala.binary.version}</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>com.sun.xml.bind</groupId>
+					<artifactId>jaxb-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.sun.xml.bind</groupId>
+					<artifactId>jaxb-impl</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<!-- test dependencies -->
+
+		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
@@ -68,33 +97,9 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-actor_${scala.binary.version}</artifactId>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
-
-		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-remote_${scala.binary.version}</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-camel_${scala.binary.version}</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>${guava.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
-			<scope>test</scope>
-		</dependency>
-
-		<!-- test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -119,44 +124,91 @@ under the License.
 			<type>test-jar</type>
 			<version>${hadoop.version}</version>
 		</dependency>
+
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-testkit_${scala.binary.version}</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<profiles>
 		<profile>
-			<id>generate-config-docs</id>
-
-			<build>
-				<plugins>
-					<plugin>
-						<artifactId>maven-antrun-plugin</artifactId>
-						<version>1.7</version>
-						<executions>
-							<execution>
-								<phase>package</phase>
-								<goals>
-									<goal>run</goal>
-								</goals>
-							</execution>
-						</executions>
-						<configuration>
-							<target>
-								<mkdir dir="${rootDir}/${generated.docs.dir}"/>
-								<java classname="org.apache.flink.configuration.ConfigOptionsDocGenerator" fork="true">
-									<classpath refid="maven.compile.classpath" />
-									<arg value="${rootDir}/${generated.docs.dir}/" />
-									<!--package with configuration classes-->
-									<arg value="org.apache.flink.yarn.configuration" />
-								</java>
-							</target>
-						</configuration>
-					</plugin>
-				</plugins>
-			</build>
+			<!-- Hadoop >= 2.6 moved the S3 file systems from hadoop-common into hadoop-aws artifact
+				(see https://issues.apache.org/jira/browse/HADOOP-11074)
+				We can add the (test) dependency per default once 2.6 is the minimum required version.
+			-->
+			<id>include_hadoop_aws</id>
+			<activation>
+				<property>
+					<name>include_hadoop_aws</name>
+				</property>
+			</activation>
+			<dependencies>
+				<!-- for the S3 tests of YarnFileStageTestS3ITCase -->
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-aws</artifactId>
+					<version>${hadoop.version}</version>
+					<scope>test</scope>
+					<exclusions>
+						<exclusion>
+							<groupId>org.apache.avro</groupId>
+							<artifactId>avro</artifactId>
+						</exclusion>
+						<!-- The aws-java-sdk-core requires jackson 2.6, but
+							hadoop pulls in 2.3 -->
+						<exclusion>
+							<groupId>com.fasterxml.jackson.core</groupId>
+							<artifactId>jackson-annotations</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>com.fasterxml.jackson.core</groupId>
+							<artifactId>jackson-core</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>com.fasterxml.jackson.core</groupId>
+							<artifactId>jackson-databind</artifactId>
+						</exclusion>
+					</exclusions>
+				</dependency>
+				<!-- override Hadoop's default dependency on too low SDK versions that do not work
+					with our httpcomponents version when initialising the s3a file system -->
+				<dependency>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-s3</artifactId>
+					<version>${aws.sdk.version}</version>
+					<scope>test</scope>
+				</dependency>
+				<dependency>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-sts</artifactId>
+					<version>${aws.sdk.version}</version>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
 		</profile>
+
 	</profiles>
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>dependency-convergence</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<skip>true</skip>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
 			<!-- Scala Compiler -->
 			<plugin>
 				<groupId>net.alchim31.maven</groupId>

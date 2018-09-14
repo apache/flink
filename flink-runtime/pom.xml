@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.4-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -49,11 +49,53 @@ under the License.
 			<artifactId>flink-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-queryable-state-client-java_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<!-- The Hadoop FS support has only an optional dependency on Hadoop and
+			gracefully handles absence of Hadoop classes -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-hadoop-fs</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<!-- optional dependency on Hadoop, so that Hadoop classes are not always pulled in -->
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-hadoop2</artifactId>
 			<version>${project.version}</version>
+			<optional>true</optional>
+		</dependency>
+
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-netty</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-guava</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-asm</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-jackson</artifactId>
 		</dependency>
 
 		<dependency>
@@ -66,12 +108,6 @@ under the License.
 			<artifactId>commons-cli</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>io.netty</groupId>
-			<artifactId>netty-all</artifactId>
-			<!-- Version is set in root POM -->
-		</dependency>
-
 		<!-- See: https://groups.google.com/forum/#!msg/netty/-aAPDBNUnDg/SkGOXL2Ma2QJ -->
 		<dependency>
 			<groupId>org.javassist</groupId>
@@ -80,45 +116,14 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>${guava.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.ow2.asm</groupId>
-			<artifactId>asm-all</artifactId>
-			<version>${asm.version}</version>
-		</dependency>
-		
-		<dependency>
 			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-library</artifactId>
 		</dependency>
 
 		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-actor_${scala.binary.version}</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-remote_${scala.binary.version}</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-slf4j_${scala.binary.version}</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.clapper</groupId>
-			<artifactId>grizzled-slf4j_${scala.binary.version}</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>com.github.scopt</groupId>
-			<artifactId>scopt_${scala.binary.version}</artifactId>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-actor_${scala.binary.version}</artifactId>
+			<!-- exclusions for dependency conversion -->
 			<exclusions>
 				<exclusion>
 					<groupId>org.scala-lang</groupId>
@@ -128,26 +133,88 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-core</artifactId>
-			<version>${jackson.version}</version>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-remote_${scala.binary.version}</artifactId>
+			<!-- exclusions for dependency conversion -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-library</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<!-- Transitive dependency of akka-remote that we explicitly define to keep it
+			visible after the shading (without relocation!) of akka-remote -->
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-stream_${scala.binary.version}</artifactId>
+			<!-- exclusions for dependency conversion -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-library</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.typesafe</groupId>
+					<artifactId>config</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<!-- Transitive dependency of akka-remote that we explicitly define to keep it
+			visible after the shading (without relocation!) of akka-remote -->
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-protobuf_${scala.binary.version}</artifactId>
+			<!-- exclusions for dependency conversion -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-library</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
-			<version>${jackson.version}</version>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-slf4j_${scala.binary.version}</artifactId>
+			<!-- exclusions for dependency conversion -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-library</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.zookeeper</groupId>
-			<artifactId>zookeeper</artifactId>
+			<groupId>org.clapper</groupId>
+			<artifactId>grizzled-slf4j_${scala.binary.version}</artifactId>
+			<!-- exclusions for dependency conversion -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-library</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>com.github.scopt</groupId>
+			<artifactId>scopt_${scala.binary.version}</artifactId>
+			<!-- exclusions for dependency conversion -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-library</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.xerial.snappy</groupId>
 			<artifactId>snappy-java</artifactId>
-			<version>1.1.4</version>
 		</dependency>
 
 		<!--
@@ -160,11 +227,30 @@ under the License.
 			<groupId>com.twitter</groupId>
 			<artifactId>chill_${scala.binary.version}</artifactId>
 			<version>${chill.version}</version>
+			<!-- exclusions for dependency conversion -->
+			<exclusions>
+				<exclusion>
+					<groupId>com.esotericsoftware.kryo</groupId>
+					<artifactId>kryo</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-library</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<!-- Curator and ZooKeeper - we explicitly add ZooKeeper here as
+			well to make sure our managed version is used -->
+
+		<dependency>
+			<groupId>org.apache.zookeeper</groupId>
+			<artifactId>zookeeper</artifactId>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-curator-recipes</artifactId>
+			<artifactId>flink-shaded-curator</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -173,8 +259,14 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-metrics-core</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
+			<type>test-jar</type>
 		</dependency>
 
 		<dependency>
@@ -199,8 +291,15 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
+			<groupId>com.squareup.okhttp3</groupId>
+			<artifactId>okhttp</artifactId>
+			<version>3.7.0</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-testkit_${scala.binary.version}</artifactId>
 		</dependency>
 
 		<dependency>
@@ -208,37 +307,49 @@ under the License.
 			<artifactId>reflections</artifactId>
 		</dependency>
 
+		<!-- Used only for additional logging. Optional because of unclear EPL 1.0 license compatibility. -->
+		<dependency>
+			<groupId>com.github.oshi</groupId>
+			<artifactId>oshi-core</artifactId>
+			<optional>true</optional>
+		</dependency>
 	</dependencies>
+
+	<!-- Dependency Management to converge transitive dependency versions -->
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.typesafe</groupId>
+				<artifactId>config</artifactId>
+				<version>1.3.0</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<build>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.17</version>
-				<dependencies>
-					<dependency>
-						<groupId>com.puppycrawl.tools</groupId>
-						<artifactId>checkstyle</artifactId>
-						<version>6.19</version>
-					</dependency>
-				</dependencies>
+				<artifactId>maven-enforcer-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>validate</id>
-						<phase>validate</phase>
+						<id>dependency-convergence</id>
 						<goals>
-							<goal>check</goal>
+							<goal>enforce</goal>
 						</goals>
+						<configuration>
+							<skip>true</skip>
+						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
 
 				<configuration>
-					<configLocation>/tools/maven/checkstyle.xml</configLocation>
-					<suppressionsLocation>/tools/maven/suppressions-runtime.xml</suppressionsLocation>
-					<includeTestSourceDirectory>false</includeTestSourceDirectory>
-					<logViolationsToConsole>true</logViolationsToConsole>
-					<failOnViolation>true</failOnViolation>
+					<suppressionsLocation combine.self="override">/tools/maven/suppressions-runtime.xml</suppressionsLocation>
 				</configuration>
 			</plugin>
 			<!-- Scala Compiler -->
@@ -347,19 +458,12 @@ under the License.
 				</configuration>
 			</plugin>
 
+			<!-- to increase build stability here, do not reuse unit test JVM forks -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
 					<reuseForks>false</reuseForks>
-					<!-- <workingDirectory>${project.build.testOutputDirectory}</workingDirectory> -->
-					<excludes>
-						<exclude>**/TestData.java</exclude>
-						<exclude>**/TestInstanceListener.java</exclude>
-					</excludes>
-					<systemPropertyVariables>
-						<log.level>WARN</log.level>
-					</systemPropertyVariables>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -367,7 +471,6 @@ under the License.
 					Used to show the git ref when starting the jobManager. -->
 				<groupId>pl.project13.maven</groupId>
 				<artifactId>git-commit-id-plugin</artifactId>
-				<version>2.1.5</version>
 				<executions>
 					<execution>
 						<goals>
@@ -423,15 +526,55 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<includes combine.children="append">
-									<include>org.apache.flink:flink-shaded-curator-recipes</include>
+									<include>org.apache.flink:flink-shaded-curator</include>
+									<!-- add akka, akka's netty, akka uncommon math -->
+									<!-- we can do this only because our own netty dependency is
+										already externally shaded (flink-shaded-netty) -->
+									<include>com.typesafe.akka:akka-remote_*</include>
+									<include>io.netty:netty</include>
+									<include>org.uncommons.maths:uncommons-maths</include>
+									<include>org.apache.zookeeper:*</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="append">
 								<relocation>
+									<pattern>org.jboss.netty</pattern>
+									<shadedPattern>org.apache.flink.shaded.akka.org.jboss.netty</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.uncommons.math</pattern>
+									<shadedPattern>org.apache.flink.shaded.akka.org.uncommons.math</shadedPattern>
+								</relocation>
+								<relocation>
 									<pattern>org.apache.curator</pattern>
-									<shadedPattern>org.apache.flink.shaded.org.apache.curator</shadedPattern>
+									<!-- IMPORTANT: This must be kept in sync with flink-connector-kafka-0.8 -->
+									<shadedPattern>org.apache.flink.shaded.curator.org.apache.curator</shadedPattern>
+									<excludes>
+										<!-- Do not relocate curator-test. This leads to problems for downstream
+											users of runtime test classes that make use of it as the relocated
+											dependency is not included in the test-jar.-->
+										<exclude>org.apache.curator.test.*</exclude>
+									</excludes>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.zookeeper</pattern>
+									<shadedPattern>org.apache.flink.shaded.zookeeper.org.apache.zookeeper</shadedPattern>
+								</relocation>
+								<!-- jute is already shaded into the ZooKeeper jar -->
+								<relocation>
+									<pattern>org.apache.jute</pattern>
+									<shadedPattern>org.apache.flink.shaded.zookeeper.org.apache.zookeeper.jute</shadedPattern>
 								</relocation>
 							</relocations>
+							<filters>
+								<filter>
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>META-INF/maven/io.netty/**</exclude>
+										<exclude>META-INF/maven/org.uncommons.maths/**</exclude>
+									</excludes>
+								</filter>
+							</filters>
 						</configuration>
 					</execution>
 				</executions>

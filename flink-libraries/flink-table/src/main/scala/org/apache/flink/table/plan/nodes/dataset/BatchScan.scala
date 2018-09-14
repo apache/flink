@@ -18,48 +18,52 @@
 
 package org.apache.flink.table.plan.nodes.dataset
 
+import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.plan.nodes.CommonScan
-import org.apache.flink.table.plan.schema.FlinkTable
+import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.MapRunner
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.types.Row
-
-import scala.collection.JavaConversions._
-import scala.collection.JavaConverters._
 
 trait BatchScan extends CommonScan[Row] with DataSetRel {
 
   protected def convertToInternalRow(
+      schema: RowSchema,
       input: DataSet[Any],
-      flinkTable: FlinkTable[_],
-      config: TableConfig)
-    : DataSet[Row] = {
+      fieldIdxs: Array[Int],
+      config: TableConfig,
+      rowtimeExpression: Option[RexNode]): DataSet[Row] = {
 
     val inputType = input.getType
+    val internalType = schema.typeInfo
 
-    val internalType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
+    val hasTimeIndicator = fieldIdxs.exists(f =>
+      f == TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER ||
+      f == TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER)
 
     // conversion
-    if (needsConversion(inputType, internalType)) {
+    if (inputType != internalType || hasTimeIndicator) {
 
-      val function = generatedConversionFunction(
+      val function = generateConversionMapper(
         config,
-        classOf[MapFunction[Any, Row]],
         inputType,
         internalType,
         "DataSetSourceConversion",
-        getRowType.getFieldNames,
-        Some(flinkTable.fieldIndexes))
+        schema.fieldNames,
+        fieldIdxs,
+        rowtimeExpression)
 
       val runner = new MapRunner[Any, Row](
         function.name,
         function.code,
         function.returnType)
 
-      val opName = s"from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
+      val opName = s"from: (${schema.fieldNames.mkString(", ")})"
 
       input.map(runner).name(opName)
     }
@@ -67,5 +71,39 @@ trait BatchScan extends CommonScan[Row] with DataSetRel {
     else {
       input.asInstanceOf[DataSet[Row]]
     }
+  }
+
+  private def generateConversionMapper(
+      config: TableConfig,
+      inputType: TypeInformation[Any],
+      outputType: TypeInformation[Row],
+      conversionOperatorName: String,
+      fieldNames: Seq[String],
+      inputFieldMapping: Array[Int],
+      rowtimeExpression: Option[RexNode]): GeneratedFunction[MapFunction[Any, Row], Row] = {
+
+    val generator = new FunctionCodeGenerator(
+      config,
+      false,
+      inputType,
+      None,
+      Some(inputFieldMapping))
+
+    val conversion = generator.generateConverterResultExpression(
+      outputType,
+      fieldNames,
+      rowtimeExpression)
+
+    val body =
+      s"""
+         |${conversion.code}
+         |return ${conversion.resultTerm};
+         |""".stripMargin
+
+    generator.generateFunction(
+      "DataSetSourceConversion",
+      classOf[MapFunction[Any, Row]],
+      body,
+      outputType)
   }
 }

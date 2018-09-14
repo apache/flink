@@ -19,7 +19,6 @@
 package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.api.common.io.RichOutputFormat;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.Row;
 
@@ -33,14 +32,15 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 /**
- * OutputFormat to write tuples into a database.
+ * OutputFormat to write Rows into a JDBC database.
  * The OutputFormat has to be configured using the supplied OutputFormatBuilder.
  *
- * @see Tuple
+ * @see Row
  * @see DriverManager
  */
 public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private static final long serialVersionUID = 1L;
+	static final int DEFAULT_BATCH_INTERVAL = 5000;
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCOutputFormat.class);
 
@@ -49,14 +49,14 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private String drivername;
 	private String dbURL;
 	private String query;
-	private int batchInterval = 5000;
+	private int batchInterval = DEFAULT_BATCH_INTERVAL;
 
 	private Connection dbConn;
 	private PreparedStatement upload;
 
 	private int batchCount = 0;
 
-	public int[] typesArray;
+	private int[] typesArray;
 
 	public JDBCOutputFormat() {
 	}
@@ -116,7 +116,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 			if (typesArray == null) {
 				// no types provided
 				for (int index = 0; index < row.getArity(); index++) {
-					LOG.warn("Unknown column type for column %s. Best effort approach to set its value: %s.", index + 1, row.getField(index));
+					LOG.warn("Unknown column type for column {}. Best effort approach to set its value: {}.", index + 1, row.getField(index));
 					upload.setObject(index + 1, row.getField(index));
 				}
 			} else {
@@ -181,7 +181,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 								break;
 							default:
 								upload.setObject(index + 1, row.getField(index));
-								LOG.warn("Unmanaged sql type (%s) for column %s. Best effort approach to set its value: %s.",
+								LOG.warn("Unmanaged sql type ({}) for column {}. Best effort approach to set its value: {}.",
 									typesArray[index], index + 1, row.getField(index));
 								// case java.sql.Types.SQLXML
 								// case java.sql.Types.ARRAY:
@@ -201,13 +201,27 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 			}
 			upload.addBatch();
 			batchCount++;
-			if (batchCount >= batchInterval) {
-				upload.executeBatch();
-				batchCount = 0;
-			}
-		} catch (SQLException | IllegalArgumentException e) {
-			throw new IllegalArgumentException("writeRecord() failed", e);
+		} catch (SQLException e) {
+			throw new RuntimeException("Preparation of JDBC statement failed.", e);
 		}
+
+		if (batchCount >= batchInterval) {
+			// execute batch
+			flush();
+		}
+	}
+
+	void flush() {
+		try {
+			upload.executeBatch();
+			batchCount = 0;
+		} catch (SQLException e) {
+			throw new RuntimeException("Execution of JDBC statement failed.", e);
+		}
+	}
+
+	int[] getTypesArray() {
+		return typesArray;
 	}
 
 	/**
@@ -217,26 +231,26 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	 */
 	@Override
 	public void close() throws IOException {
-		try {
-			if (upload != null) {
-				upload.executeBatch();
+		if (upload != null) {
+			flush();
+			// close the connection
+			try {
 				upload.close();
+			} catch (SQLException e) {
+				LOG.info("JDBC statement could not be closed: " + e.getMessage());
+			} finally {
+				upload = null;
 			}
-		} catch (SQLException se) {
-			LOG.info("Inputformat couldn't be closed - " + se.getMessage());
-		} finally {
-			upload = null;
-			batchCount = 0;
 		}
 
-		try {
-			if (dbConn != null) {
+		if (dbConn != null) {
+			try {
 				dbConn.close();
+			} catch (SQLException se) {
+				LOG.info("JDBC connection could not be closed: " + se.getMessage());
+			} finally {
+				dbConn = null;
 			}
-		} catch (SQLException se) {
-			LOG.info("Inputformat couldn't be closed - " + se.getMessage());
-		} finally {
-			dbConn = null;
 		}
 	}
 
@@ -296,19 +310,19 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 		 */
 		public JDBCOutputFormat finish() {
 			if (format.username == null) {
-				LOG.info("Username was not supplied separately.");
+				LOG.info("Username was not supplied.");
 			}
 			if (format.password == null) {
-				LOG.info("Password was not supplied separately.");
+				LOG.info("Password was not supplied.");
 			}
 			if (format.dbURL == null) {
-				throw new IllegalArgumentException("No dababase URL supplied.");
+				throw new IllegalArgumentException("No database URL supplied.");
 			}
 			if (format.query == null) {
-				throw new IllegalArgumentException("No query suplied");
+				throw new IllegalArgumentException("No query supplied.");
 			}
 			if (format.drivername == null) {
-				throw new IllegalArgumentException("No driver supplied");
+				throw new IllegalArgumentException("No driver supplied.");
 			}
 
 			return format;

@@ -26,8 +26,8 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
-import org.slf4j.LoggerFactory
 
 /**
   * This map function only works for windows on batch tables.
@@ -44,12 +44,12 @@ class DataSetWindowAggMapFunction(
     @transient private val returnType: TypeInformation[Row])
   extends RichMapFunction[Row, Row]
     with ResultTypeQueryable[Row]
-    with Compiler[GeneratedAggregations] {
+    with Compiler[GeneratedAggregations]
+    with Logging {
 
   private var accs: Row = _
   private var output: Row = _
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {

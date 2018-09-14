@@ -78,7 +78,7 @@ class BatchScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
        """^org\.apache\.flink\.api.java.*project""",
 
        // I don't want to have withParameters in the API since I consider Configuration to be
-       // deprecated. But maybe thats just me ...
+       // deprecated. But maybe that's just me ...
        """^org\.apache\.flink\.api.java.*withParameters""",
 
        // These are only used internally. Should be internal API but Java doesn't have

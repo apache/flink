@@ -19,8 +19,9 @@
 
 package org.apache.flink.runtime.util;
 
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.Opcodes;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.ClassReader;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.Opcodes;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -189,7 +190,7 @@ public class JarFileCreator {
 			this.outputFile.delete();
 		}
 
-		try ( JarOutputStream jos = new JarOutputStream(new FileOutputStream(this.outputFile), new Manifest())) {
+		try ( FileOutputStream fos = new FileOutputStream(this.outputFile); JarOutputStream jos = new JarOutputStream(fos, new Manifest())) {
 			final Iterator<Class<?>> it = this.classSet.iterator();
 			while (it.hasNext()) {
 

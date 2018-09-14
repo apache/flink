@@ -29,8 +29,8 @@ import org.apache.flink.streaming.examples.ml.util.IncrementalLearningSkeletonDa
 import org.apache.flink.streaming.examples.twitter.util.TwitterExampleData;
 import org.apache.flink.streaming.examples.windowing.util.SessionWindowingData;
 import org.apache.flink.streaming.test.examples.join.WindowJoinData;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.util.AbstractTestBase;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.Test;
@@ -40,7 +40,7 @@ import java.io.File;
 /**
  * Integration test for streaming programs in Java examples.
  */
-public class StreamingExamplesITCase extends StreamingMultipleProgramsTestBase {
+public class StreamingExamplesITCase extends AbstractTestBase {
 
 	@Test
 	public void testIterateExample() throws Exception {

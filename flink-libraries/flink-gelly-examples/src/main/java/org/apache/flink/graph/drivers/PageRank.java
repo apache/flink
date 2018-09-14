@@ -20,13 +20,14 @@ package org.apache.flink.graph.drivers;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.drivers.parameter.BooleanParameter;
 import org.apache.flink.graph.drivers.parameter.DoubleParameter;
 import org.apache.flink.graph.drivers.parameter.IterationConvergence;
 
 import org.apache.commons.lang3.text.StrBuilder;
 
 /**
- * @see org.apache.flink.graph.library.linkanalysis.PageRank
+ * Driver for {@link org.apache.flink.graph.library.linkanalysis.PageRank}.
  */
 public class PageRank<K, VV, EV>
 extends DriverBase<K, VV, EV> {
@@ -39,6 +40,8 @@ extends DriverBase<K, VV, EV> {
 		.setMaximumValue(1.0, false);
 
 	private IterationConvergence iterationConvergence = new IterationConvergence(this, DEFAULT_ITERATIONS);
+
+	private BooleanParameter includeZeroDegreeVertices = new BooleanParameter(this, "__include_zero_degree_vertices");
 
 	@Override
 	public String getShortDescription() {
@@ -63,6 +66,7 @@ extends DriverBase<K, VV, EV> {
 					dampingFactor.getValue(),
 					iterationConvergence.getValue().iterations,
 					iterationConvergence.getValue().convergenceThreshold)
+				.setIncludeZeroDegreeVertices(includeZeroDegreeVertices.getValue())
 				.setParallelism(parallelism.getValue().intValue()));
 	}
 }

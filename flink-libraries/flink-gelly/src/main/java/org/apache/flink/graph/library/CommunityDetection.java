@@ -73,14 +73,14 @@ public class CommunityDetection<K> implements GraphAlgorithm<K, Long, Double, Gr
 	public Graph<K, Long, Double> run(Graph<K, Long, Double> graph) {
 
 		DataSet<Vertex<K, Tuple2<Long, Double>>> initializedVertices = graph.getVertices()
-			.map(new AddScoreToVertexValuesMapper<K>());
+			.map(new AddScoreToVertexValuesMapper<>());
 
 		Graph<K, Tuple2<Long, Double>, Double> graphWithScoredVertices =
 			Graph.fromDataSet(initializedVertices, graph.getEdges(), graph.getContext()).getUndirected();
 
-		return graphWithScoredVertices.runScatterGatherIteration(new LabelMessenger<K>(),
-			new VertexLabelUpdater<K>(delta), maxIterations)
-				.mapVertices(new RemoveScoreFromVertexValuesMapper<K>());
+		return graphWithScoredVertices.runScatterGatherIteration(new LabelMessenger<>(),
+			new VertexLabelUpdater<>(delta), maxIterations)
+				.mapVertices(new RemoveScoreFromVertexValuesMapper<>());
 	}
 
 	@SuppressWarnings("serial")
@@ -144,7 +144,7 @@ public class CommunityDetection<K> implements GraphAlgorithm<K, Long, Double, Gr
 
 			if (receivedLabelsWithScores.size() > 0) {
 				// find the label with the highest score from the ones received
-				double maxScore = Double.MIN_VALUE;
+				double maxScore = -Double.MAX_VALUE;
 				long maxScoreLabel = vertex.getValue().f0;
 				for (long curLabel : receivedLabelsWithScores.keySet()) {
 

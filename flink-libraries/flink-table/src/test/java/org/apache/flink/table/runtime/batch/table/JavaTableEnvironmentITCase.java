@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.batch.table;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -36,6 +37,7 @@ import org.apache.flink.table.calcite.CalciteConfigBuilder;
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase;
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase;
 import org.apache.flink.test.operators.util.CollectionDataSets;
+import org.apache.flink.types.Either;
 import org.apache.flink.types.Row;
 
 import org.apache.calcite.tools.RuleSets;
@@ -177,7 +179,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 	}
 
 	@Test
-	public void testAsFromTuple() throws Exception {
+	public void testAsFromTupleByPosition() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
@@ -194,6 +196,25 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 			"14,5,Comment#8\n" + "15,5,Comment#9\n" + "16,6,Comment#10\n" +
 			"17,6,Comment#11\n" + "18,6,Comment#12\n" + "19,6,Comment#13\n" +
 			"20,6,Comment#14\n" + "21,6,Comment#15\n";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testAsFromTupleByName() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		Table table = tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "f2");
+
+		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "Hi\n" + "Hello\n" + "Hello world\n" +
+			"Hello world, how are you?\n" + "I am fine.\n" + "Luke Skywalker\n" +
+			"Comment#1\n" + "Comment#2\n" + "Comment#3\n" + "Comment#4\n" +
+			"Comment#5\n" + "Comment#6\n" + "Comment#7\n" +
+			"Comment#8\n" + "Comment#9\n" + "Comment#10\n" +
+			"Comment#11\n" + "Comment#12\n" + "Comment#13\n" +
+			"Comment#14\n" + "Comment#15\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -269,6 +290,57 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 			"Sales,28,4000.0,Peter,[42]\n" +
 			"Engineering,56,10000.0,Anna,[]\n" +
 			"HR,42,6000.0,Lucy,[1, 2, 3]\n";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testFromNonAtomicAndNonComposite() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		List<Either<String, Integer>> data = new ArrayList<>();
+		data.add(new Either.Left<>("Hello"));
+		data.add(new Either.Right<>(42));
+		data.add(new Either.Left<>("World"));
+
+		Table table = tableEnv
+			.fromDataSet(
+				env.fromCollection(
+					data,
+					TypeInformation.of(new TypeHint<Either<String, Integer>>() { })
+				),
+				"either")
+			.select("either");
+
+		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
+		List<Row> results = ds.collect();
+		String expected =
+			"Left(Hello)\n" +
+			"Left(World)\n" +
+			"Right(42)\n";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testAsFromPojoProjected() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		List<SmallPojo> data = new ArrayList<>();
+		data.add(new SmallPojo("Peter", 28, 4000.00, "Sales", new Integer[] {42}));
+		data.add(new SmallPojo("Anna", 56, 10000.00, "Engineering", new Integer[] {}));
+		data.add(new SmallPojo("Lucy", 42, 6000.00, "HR", new Integer[] {1, 2, 3}));
+
+		Table table = tableEnv
+			.fromDataSet(env.fromCollection(data), "name AS d")
+			.select("d");
+
+		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
+		List<Row> results = ds.collect();
+		String expected =
+			"Peter\n" +
+			"Anna\n" +
+			"Lucy\n";
 		compareResultAsText(results, expected);
 	}
 

@@ -18,121 +18,144 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.webmonitor.RuntimeMonitorHandler;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
+import org.apache.flink.runtime.rest.handler.HandlerRequest;
+import org.apache.flink.runtime.rest.handler.RestHandlerException;
+import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.FlinkException;
 
-import com.fasterxml.jackson.core.JsonGenerator;
+import javax.annotation.Nonnull;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
-import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
+
+import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Handle request for listing uploaded jars.
  */
-public class JarListHandler extends AbstractJsonRequestHandler {
+public class JarListHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, JarListInfo, EmptyMessageParameters> {
 
-	static final String JAR_LIST_REST_PATH = "/jars";
+	private static final File[] EMPTY_FILES_ARRAY = new File[0];
 
 	private final File jarDir;
 
-	public  JarListHandler(File jarDirectory) {
-		jarDir = jarDirectory;
+	private final Executor executor;
+
+	public JarListHandler(
+			CompletableFuture<String> localRestAddress,
+			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+			Time timeout,
+			Map<String, String> responseHeaders,
+			MessageHeaders<EmptyRequestBody, JarListInfo, EmptyMessageParameters> messageHeaders,
+			File jarDir,
+			Executor executor) {
+		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
+
+		this.jarDir = requireNonNull(jarDir);
+		this.executor = requireNonNull(executor);
 	}
 
 	@Override
-	public String[] getPaths() {
-		return new String[]{JAR_LIST_REST_PATH};
-	}
+	protected CompletableFuture<JarListInfo> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
+		final String localAddress;
+		checkState(localAddressFuture.isDone());
 
-	@Override
-	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		try {
-			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
+			localAddress = localAddressFuture.get();
+		} catch (Exception e) {
+			return FutureUtils.completedExceptionally(e);
+		}
 
-			gen.writeStartObject();
-			gen.writeStringField("address", queryParams.get(RuntimeMonitorHandler.WEB_MONITOR_ADDRESS_KEY));
-			gen.writeArrayFieldStart("files");
+		return CompletableFuture.supplyAsync(() -> {
+			try {
+				final File[] list = getJarFiles();
+				final List<JarListInfo.JarFileInfo> jarFileList = new ArrayList<>(list.length);
+				for (File f : list) {
+					// separate the uuid and the name parts.
+					String id = f.getName();
 
-			File[] list = jarDir.listFiles(new FilenameFilter() {
-				@Override
-				public boolean accept(File dir, String name) {
-					return name.endsWith(".jar");
-				}
-			});
+					int startIndex = id.indexOf("_");
+					if (startIndex < 0) {
+						continue;
+					}
+					String name = id.substring(startIndex + 1);
+					if (name.length() < 5 || !name.endsWith(".jar")) {
+						continue;
+					}
 
-			for (File f : list) {
-				// separate the uuid and the name parts.
-				String id = f.getName();
+					List<JarListInfo.JarEntryInfo> jarEntryList = new ArrayList<>();
+					String[] classes = new String[0];
+					try (JarFile jar = new JarFile(f)) {
+						Manifest manifest = jar.getManifest();
+						String assemblerClass = null;
 
-				int startIndex = id.indexOf("_");
-				if (startIndex < 0) {
-					continue;
-				}
-				String name = id.substring(startIndex + 1);
-				if (name.length() < 5 || !name.endsWith(".jar")) {
-					continue;
-				}
+						if (manifest != null) {
+							assemblerClass = manifest.getMainAttributes().getValue(PackagedProgram.MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS);
+							if (assemblerClass == null) {
+								assemblerClass = manifest.getMainAttributes().getValue(PackagedProgram.MANIFEST_ATTRIBUTE_MAIN_CLASS);
+							}
+						}
+						if (assemblerClass != null) {
+							classes = assemblerClass.split(",");
+						}
+					} catch (IOException ignored) {
+						// we simply show no entries here
+					}
 
-				gen.writeStartObject();
-				gen.writeStringField("id", id);
-				gen.writeStringField("name", name);
-				gen.writeNumberField("uploaded", f.lastModified());
-				gen.writeArrayFieldStart("entry");
+					// show every entry class that can be loaded later on.
+					for (String clazz : classes) {
+						clazz = clazz.trim();
 
-				String[] classes = new String[0];
-				try {
-					JarFile jar = new JarFile(f);
-					Manifest manifest = jar.getManifest();
-					String assemblerClass = null;
-
-					if (manifest != null) {
-						assemblerClass = manifest.getMainAttributes().getValue(PackagedProgram.MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS);
-						if (assemblerClass == null) {
-							assemblerClass = manifest.getMainAttributes().getValue(PackagedProgram.MANIFEST_ATTRIBUTE_MAIN_CLASS);
+						PackagedProgram program = null;
+						try {
+							program = new PackagedProgram(f, clazz, new String[0]);
+						} catch (Exception ignored) {
+							// ignore jar files which throw an error upon creating a PackagedProgram
+						}
+						if (program != null) {
+							JarListInfo.JarEntryInfo jarEntryInfo = new JarListInfo.JarEntryInfo(clazz, program.getDescription());
+							jarEntryList.add(jarEntryInfo);
 						}
 					}
-					if (assemblerClass != null) {
-						classes = assemblerClass.split(",");
-					}
-				} catch (IOException ignored) {
-					// we simply show no entries here
+
+					jarFileList.add(new JarListInfo.JarFileInfo(id, name, f.lastModified(), jarEntryList));
 				}
 
-				// show every entry class that can be loaded later on.
-				for (String clazz : classes) {
-					clazz = clazz.trim();
-
-					PackagedProgram program = null;
-					try {
-						program = new PackagedProgram(f, clazz, new String[0]);
-					} catch (Exception ignored) {
-						// ignore jar files which throw an error upon creating a PackagedProgram
-					}
-					if (program != null) {
-						gen.writeStartObject();
-						gen.writeStringField("name", clazz);
-						String desc = program.getDescription();
-						gen.writeStringField("description", desc == null ? "No description provided" : desc);
-						gen.writeEndObject();
-					}
-				}
-				gen.writeEndArray();
-				gen.writeEndObject();
+				return new JarListInfo(localAddress, jarFileList);
+			} catch (Exception e) {
+				throw new CompletionException(new FlinkException("Failed to fetch jar list.", e));
 			}
-			gen.writeEndArray();
-			gen.writeEndObject();
-			gen.close();
-			return writer.toString();
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Failed to fetch jar list: " + e.getMessage(), e);
+		}, executor);
+	}
+
+	private File[] getJarFiles() {
+		final File[] list = jarDir.listFiles((dir, name) -> name.endsWith(".jar"));
+		if (list == null) {
+			log.warn("Jar upload dir {} does not exist, or had been deleted externally. " +
+				"Previously uploaded jars are no longer available.", jarDir);
+			return EMPTY_FILES_ARRAY;
+		} else {
+			// last modified ascending order
+			Arrays.sort(list, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
+			return list;
 		}
 	}
 }

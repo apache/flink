@@ -18,11 +18,6 @@
 
 package org.apache.flink.api.java.operators;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
@@ -35,8 +30,14 @@ import org.apache.flink.api.java.operators.translation.PlanFilterOperator;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Visitor;
+
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Test proper automated assignment of the transformation's name, if not set by the user.
@@ -49,7 +50,6 @@ public class NamesTest implements Serializable {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<String> strs = env.fromCollection(Arrays.asList("a", "b"));
-
 
 		// WARNING: The test will fail if this line is being moved down in the file (the line-number is hard-coded)
 		strs.filter(new FilterFunction<String>() {
@@ -92,8 +92,7 @@ public class NamesTest implements Serializable {
 		DataSet<Tuple1<String>> strs1 = env.fromCollection(strLi);
 		strs.join(strs1).where(0).equalTo(0).with(new FlatJoinFunction<Tuple1<String>, Tuple1<String>, String>() {
 			@Override
-			public void join(Tuple1<String> first, Tuple1<String> second,
-							 Collector<String> out) throws Exception {
+			public void join(Tuple1<String> first, Tuple1<String> second, Collector<String> out) throws Exception {
 				//
 			}
 		})
@@ -102,11 +101,12 @@ public class NamesTest implements Serializable {
 		plan.accept(new Visitor<Operator<?>>() {
 			@Override
 			public boolean preVisit(Operator<?> visitable) {
-				if(visitable instanceof InnerJoinOperatorBase) {
+				if (visitable instanceof InnerJoinOperatorBase) {
 					Assert.assertEquals("Join at testJoinWith(NamesTest.java:93)", visitable.getName());
 				}
 				return true;
 			}
+
 			@Override
 			public void postVisit(Operator<?> visitable) {}
 		});
@@ -116,7 +116,7 @@ public class NamesTest implements Serializable {
 		plan.accept(new Visitor<Operator<?>>() {
 			@Override
 			public boolean preVisit(Operator<?> visitable) {
-				if(visitable instanceof PlanFilterOperator<?>) {
+				if (visitable instanceof PlanFilterOperator<?>) {
 					// cast is actually not required. Its just a check for the right element
 					PlanFilterOperator<?> filterOp = (PlanFilterOperator<?>) visitable;
 					Assert.assertEquals(expected, filterOp.getName());

@@ -46,7 +46,7 @@ import java.util.List;
 public interface RandomGenerableFactory<T extends RandomGenerator> {
 
 	/**
-	 * The amount of work ({@code elementCount * cyclerPerElement}) is used to
+	 * The amount of work ({@code elementCount * cyclesPerElement}) is used to
 	 * generate a list of blocks of work of near-equal size.
 	 *
 	 * @param elementCount number of elements, as indexed in the {@code BlockInfo}

@@ -41,7 +41,7 @@ extends DriverBaseITCase {
 	public static Collection<Object[]> executionModes() {
 		List<Object[]> executionModes = new ArrayList<>();
 
-		for (String idType : new String[] {"byte", "short", "char", "integer", "long", "string"}) {
+		for (String idType : new String[] {"byte", "short", "char", "integer", "long", "float", "double", "string"}) {
 			for (TestExecutionMode executionMode : TestExecutionMode.values()) {
 				executionModes.add(new Object[] {idType, executionMode});
 			}

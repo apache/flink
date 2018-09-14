@@ -37,6 +37,14 @@ if [[ -z "${FLINK_TM_MEM_MANAGED_FRACTION}" ]]; then
 fi
 
 FLINK_CONF_DIR=${bin}/../../main/resources
-. ${bin}/../../main/flink-bin/bin/config.sh
+. ${bin}/../../main/flink-bin/bin/config.sh > /dev/null
+
+FLINK_TM_HEAP_MB=$(getMebiBytes $(parseBytes ${FLINK_TM_HEAP}))
+
+if hasUnit ${FLINK_TM_MEM_MANAGED_SIZE}; then
+    FLINK_TM_MEM_MANAGED_SIZE=$(getMebiBytes $(parseBytes ${FLINK_TM_MEM_MANAGED_SIZE}))
+else
+    FLINK_TM_MEM_MANAGED_SIZE=$(getMebiBytes $(parseBytes ${FLINK_TM_MEM_MANAGED_SIZE}"m"))
+fi
 
 calculateTaskManagerHeapSizeMB

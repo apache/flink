@@ -19,6 +19,7 @@
 package org.apache.flink.table.api
 
 import _root_.java.io.Serializable
+
 import org.apache.flink.api.common.time.Time
 
 class QueryConfig private[table] extends Serializable {}
@@ -40,32 +41,13 @@ class StreamQueryConfig private[table] extends QueryConfig {
     * The minimum time until state which was not updated will be retained.
     * State might be cleared and removed if it was not updated for the defined period of time.
     */
-  private var minIdleStateRetentionTime: Long = Long.MinValue
+  private var minIdleStateRetentionTime: Long = 0L
 
   /**
     * The maximum time until state which was not updated will be retained.
     * State will be cleared and removed if it was not updated for the defined period of time.
     */
-  private var maxIdleStateRetentionTime: Long = Long.MinValue
-
-  /**
-    * Specifies the time interval for how long idle state, i.e., state which was not updated, will
-    * be retained. When state was not updated for the specified interval of time, it will be cleared
-    * and removed.
-    *
-    * When new data arrives for previously cleaned-up state, the new data will be handled as if it
-    * was the first data. This can result in previous results being overwritten.
-    *
-    * Note: [[withIdleStateRetentionTime(minTime: Time, maxTime: Time)]] allows to set a minimum and
-    * maximum time for state to be retained. This method is more efficient, because the system has
-    * to do less bookkeeping to identify the time at which state must be cleared.
-    *
-    * @param time The time interval for how long idle state is retained. Set to 0 (zero) to never
-    *             clean-up the state.
-    */
-  def withIdleStateRetentionTime(time: Time): StreamQueryConfig = {
-    withIdleStateRetentionTime(time, time)
-  }
+  private var maxIdleStateRetentionTime: Long = 0L
 
   /**
     * Specifies a minimum and a maximum time interval for how long idle state, i.e., state which
@@ -78,14 +60,22 @@ class StreamQueryConfig private[table] extends QueryConfig {
     *
     * Set to 0 (zero) to never clean-up the state.
     *
+    * NOTE: Cleaning up state requires additional bookkeeping which becomes less expensive for
+    * larger differences of minTime and maxTime. The difference between minTime and maxTime must be
+    * at least 5 minutes.
+    *
     * @param minTime The minimum time interval for which idle state is retained. Set to 0 (zero) to
     *                never clean-up the state.
-    * @param maxTime The maximum time interval for which idle state is retained. May not be smaller
-    *                than than minTime. Set to 0 (zero) to never clean-up the state.
+    * @param maxTime The maximum time interval for which idle state is retained. Must be at least
+    *                5 minutes greater than minTime. Set to 0 (zero) to never clean-up the state.
     */
   def withIdleStateRetentionTime(minTime: Time, maxTime: Time): StreamQueryConfig = {
-    if (maxTime.toMilliseconds < minTime.toMilliseconds) {
-      throw new IllegalArgumentException("maxTime may not be smaller than minTime.")
+
+    if (maxTime.toMilliseconds - minTime.toMilliseconds < 300000 &&
+      !(maxTime.toMilliseconds == 0 && minTime.toMilliseconds == 0)) {
+      throw new IllegalArgumentException(
+        s"Difference between minTime: ${minTime.toString} and maxTime: ${maxTime.toString} " +
+          s"shoud be at least 5 minutes.")
     }
     minIdleStateRetentionTime = minTime.toMilliseconds
     maxIdleStateRetentionTime = maxTime.toMilliseconds

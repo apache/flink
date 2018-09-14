@@ -21,7 +21,9 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
@@ -74,7 +76,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <h2>State management</h2>
  */
-public class ResultPartition implements BufferPoolOwner {
+public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ResultPartition.class);
 	
@@ -118,14 +120,6 @@ public class ResultPartition implements BufferPoolOwner {
 	private boolean isFinished;
 
 	private volatile Throwable cause;
-
-	// - Statistics ----------------------------------------------------------
-
-	/** The total number of buffers (both data and event buffers) */
-	private int totalNumberOfBuffers;
-
-	/** The total number of bytes (both data and event buffers) */
-	private long totalNumberOfBytes;
 
 	public ResultPartition(
 		String owningTaskName,
@@ -205,38 +199,26 @@ public class ResultPartition implements BufferPoolOwner {
 		return jobId;
 	}
 
+	public String getOwningTaskName() {
+		return owningTaskName;
+	}
+
 	public ResultPartitionID getPartitionId() {
 		return partitionId;
 	}
 
+	@Override
 	public int getNumberOfSubpartitions() {
 		return subpartitions.length;
 	}
 
+	@Override
 	public BufferProvider getBufferProvider() {
 		return bufferPool;
 	}
 
 	public BufferPool getBufferPool() {
 		return bufferPool;
-	}
-
-	/**
-	 * Returns the total number of processed network buffers since initialization.
-	 *
-	 * @return overall number of processed network buffers
-	 */
-	public int getTotalNumberOfBuffers() {
-		return totalNumberOfBuffers;
-	}
-
-	/**
-	 * Returns the total size of processed network buffers since initialization.
-	 *
-	 * @return overall size of processed network buffers
-	 */
-	public long getTotalNumberOfBytes() {
-		return totalNumberOfBytes;
 	}
 
 	public int getNumberOfQueuedBuffers() {
@@ -260,36 +242,35 @@ public class ResultPartition implements BufferPoolOwner {
 
 	// ------------------------------------------------------------------------
 
-	/**
-	 * Adds a buffer to the subpartition with the given index.
-	 *
-	 * <p> For PIPELINED results, this will trigger the deployment of consuming tasks after the
-	 * first buffer has been added.
-	 */
-	public void add(Buffer buffer, int subpartitionIndex) throws IOException {
-		boolean success = false;
+	@Override
+	public void addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
+		checkNotNull(bufferConsumer);
 
+		ResultSubpartition subpartition;
 		try {
 			checkInProduceState();
-
-			final ResultSubpartition subpartition = subpartitions[subpartitionIndex];
-
-			synchronized (subpartition) {
-				success = subpartition.add(buffer);
-
-				// Update statistics
-				totalNumberOfBuffers++;
-				totalNumberOfBytes += buffer.getSize();
-			}
+			subpartition = subpartitions[subpartitionIndex];
 		}
-		finally {
-			if (success) {
-				notifyPipelinedConsumers();
-			}
-			else {
-				buffer.recycle();
-			}
+		catch (Exception ex) {
+			bufferConsumer.close();
+			throw ex;
 		}
+
+		if (subpartition.add(bufferConsumer)) {
+			notifyPipelinedConsumers();
+		}
+	}
+
+	@Override
+	public void flushAll() {
+		for (ResultSubpartition subpartition : subpartitions) {
+			subpartition.flush();
+		}
+	}
+
+	@Override
+	public void flush(int subpartitionIndex) {
+		subpartitions[subpartitionIndex].flush();
 	}
 
 	/**
@@ -306,9 +287,7 @@ public class ResultPartition implements BufferPoolOwner {
 			checkInProduceState();
 
 			for (ResultSubpartition subpartition : subpartitions) {
-				synchronized (subpartition) {
-					subpartition.finish();
-				}
+				subpartition.finish();
 			}
 
 			success = true;
@@ -341,9 +320,7 @@ public class ResultPartition implements BufferPoolOwner {
 			// Release all subpartitions
 			for (ResultSubpartition subpartition : subpartitions) {
 				try {
-					synchronized (subpartition) {
-						subpartition.release();
-					}
+					subpartition.release();
 				}
 				// Catch this in order to ensure that release is called on all subpartitions
 				catch (Throwable t) {
@@ -381,6 +358,7 @@ public class ResultPartition implements BufferPoolOwner {
 		return cause;
 	}
 
+	@Override
 	public int getNumTargetKeyGroups() {
 		return numTargetKeyGroups;
 	}
@@ -463,7 +441,7 @@ public class ResultPartition implements BufferPoolOwner {
 
 	// ------------------------------------------------------------------------
 
-	private void checkInProduceState() {
+	private void checkInProduceState() throws IllegalStateException {
 		checkState(!isFinished, "Partition already finished.");
 	}
 

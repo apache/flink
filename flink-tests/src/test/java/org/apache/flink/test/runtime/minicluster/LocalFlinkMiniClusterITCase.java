@@ -20,6 +20,7 @@ package org.apache.flink.test.runtime.minicluster;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
+import akka.actor.RobustActorSystem;
 import akka.testkit.JavaTestKit;
 import org.junit.Test;
 
@@ -37,8 +39,11 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.TimeoutException;
 
+import scala.concurrent.Await;
 import scala.concurrent.ExecutionContext$;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.forkjoin.ForkJoinPool;
 import scala.concurrent.impl.ExecutionContextImpl;
 
@@ -49,12 +54,21 @@ import static org.junit.Assert.fail;
  */
 public class LocalFlinkMiniClusterITCase extends TestLogger {
 
-	private static final String[] ALLOWED_THREAD_PREFIXES = { };
+	private static final String[] ALLOWED_THREAD_PREFIXES = {
+		// This is a daemon thread spawned by netty's ThreadLocalRandom class if no
+		// initialSeedUniquifier is set yet and it is sometimes spawned before this test and
+		// sometimes during this test.
+		"initialSeedUniquifierGenerator",
+		// This thread quits only on JVM because of static field
+		// io.netty.buffer.PooledByteBufAllocator.DEFAULT
+		// https://github.com/netty/netty/issues/7759
+		"ObjectCleanerThread"
+	};
 
 	@Test
-	public void testLocalFlinkMiniClusterWithMultipleTaskManagers() {
+	public void testLocalFlinkMiniClusterWithMultipleTaskManagers() throws InterruptedException, TimeoutException {
 
-		final ActorSystem system = ActorSystem.create("Testkit", AkkaUtils.getDefaultAkkaConfig());
+		final ActorSystem system = RobustActorSystem.create("Testkit", AkkaUtils.getDefaultAkkaConfig());
 		LocalFlinkMiniCluster miniCluster = null;
 
 		final int numTMs = 3;
@@ -71,7 +85,7 @@ public class LocalFlinkMiniClusterITCase extends TestLogger {
 		try {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots);
+			config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlots);
 			miniCluster = new LocalFlinkMiniCluster(config, true);
 
 			miniCluster.start();
@@ -107,7 +121,7 @@ public class LocalFlinkMiniClusterITCase extends TestLogger {
 			}
 
 			JavaTestKit.shutdownActorSystem(system);
-			system.awaitTermination();
+			Await.ready(system.whenTerminated(), Duration.Inf());
 		}
 
 		// shut down the global execution context, to make sure it does not affect this testing

@@ -88,8 +88,7 @@ public class TranslateTest {
 	}
 
 	@Test
-	public void testTranslateGraphIds()
-			throws Exception {
+	public void testTranslateGraphIds() throws Exception {
 		Graph<StringValue, LongValue, LongValue> stringIdGraph = graph
 			.translateGraphIds(new LongValueToStringValue());
 
@@ -109,8 +108,7 @@ public class TranslateTest {
 	}
 
 	@Test
-	public void testTranslateVertexValues()
-			throws Exception {
+	public void testTranslateVertexValues() throws Exception {
 		DataSet<Vertex<LongValue, StringValue>> vertexSet = graph
 			.translateVertexValues(new LongValueToStringValue())
 			.getVertices();
@@ -124,8 +122,7 @@ public class TranslateTest {
 	}
 
 	@Test
-	public void testTranslateEdgeValues()
-			throws Exception {
+	public void testTranslateEdgeValues() throws Exception {
 		DataSet<Edge<LongValue, StringValue>> edgeSet = graph
 			.translateEdgeValues(new LongValueToStringValue())
 			.getEdges();

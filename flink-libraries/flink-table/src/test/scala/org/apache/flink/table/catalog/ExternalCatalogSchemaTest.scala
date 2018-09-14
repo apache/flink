@@ -18,23 +18,25 @@
 
 package org.apache.flink.table.catalog
 
-import java.util.Collections
+import java.util.{Collections, Properties}
 
 import com.google.common.collect.Lists
+import org.apache.calcite.config.{CalciteConnectionConfigImpl, CalciteConnectionProperty}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.validate.SqlMonikerType
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.plan.schema.TableSourceTable
+import org.apache.flink.table.plan.schema.{TableSourceSinkTable, TableSourceTable}
 import org.apache.flink.table.runtime.utils.CommonTestData
 import org.apache.flink.table.sources.CsvTableSource
+import org.apache.flink.table.utils.TableTestBase
 import org.junit.Assert._
 import org.junit.{Before, Test}
 
 import scala.collection.JavaConverters._
 
-class ExternalCatalogSchemaTest {
+class ExternalCatalogSchemaTest extends TableTestBase {
 
   private val schemaName: String = "test"
   private var externalCatalogSchema: SchemaPlus = _
@@ -45,15 +47,20 @@ class ExternalCatalogSchemaTest {
   @Before
   def setUp(): Unit = {
     val rootSchemaPlus: SchemaPlus = CalciteSchema.createRootSchema(true, false).plus()
-    val catalog = CommonTestData.getInMemoryTestCatalog
-    ExternalCatalogSchema.registerCatalog(rootSchemaPlus, schemaName, catalog)
+    val catalog = CommonTestData.getInMemoryTestCatalog(isStreaming = true)
+    ExternalCatalogSchema.registerCatalog(
+      streamTestUtil().tableEnv, rootSchemaPlus, schemaName, catalog)
     externalCatalogSchema = rootSchemaPlus.getSubSchema("schemaName")
     val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
+    val prop = new Properties()
+    prop.setProperty(CalciteConnectionProperty.CASE_SENSITIVE.camelName, "false")
+    val calciteConnConfig = new CalciteConnectionConfigImpl(prop)
     calciteCatalogReader = new CalciteCatalogReader(
       CalciteSchema.from(rootSchemaPlus),
-      false,
       Collections.emptyList(),
-      typeFactory)
+      typeFactory,
+      calciteConnConfig
+    )
   }
 
   @Test
@@ -71,9 +78,9 @@ class ExternalCatalogSchemaTest {
   def testGetTable(): Unit = {
     val relOptTable = calciteCatalogReader.getTable(Lists.newArrayList(schemaName, db, tb))
     assertNotNull(relOptTable)
-    val tableSourceTable = relOptTable.unwrap(classOf[TableSourceTable[_]])
-    tableSourceTable match {
-      case tst: TableSourceTable[_] =>
+    val tableSourceSinkTable = relOptTable.unwrap(classOf[TableSourceSinkTable[_, _]])
+    tableSourceSinkTable.tableSourceTable match {
+      case Some(tst: TableSourceTable[_]) =>
         assertTrue(tst.tableSource.isInstanceOf[CsvTableSource])
       case _ =>
         fail("unexpected table type!")

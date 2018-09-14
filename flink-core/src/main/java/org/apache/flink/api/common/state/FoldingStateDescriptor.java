@@ -30,7 +30,7 @@ import static java.util.Objects.requireNonNull;
  * {@link StateDescriptor} for {@link FoldingState}. This can be used to create partitioned
  * folding state.
  *
- * @param <T> Type of the values folded int othe state
+ * @param <T> Type of the values folded in the other state
  * @param <ACC> Type of the value in the state
  *
  * @deprecated will be removed in a future version in favor of {@link AggregatingStateDescriptor}
@@ -97,49 +97,11 @@ public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState
 		}
 	}
 
-	// ------------------------------------------------------------------------
-	
-	@Override
-	public FoldingState<T, ACC> bind(StateBinder stateBinder) throws Exception {
-		return stateBinder.createFoldingState(this);
-	}
-
 	/**
 	 * Returns the fold function to be used for the folding state.
 	 */
 	public FoldFunction<T, ACC> getFoldFunction() {
 		return foldFunction;
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-
-		FoldingStateDescriptor<?, ?> that = (FoldingStateDescriptor<?, ?>) o;
-
-		return serializer.equals(that.serializer) && name.equals(that.name);
-
-	}
-
-	@Override
-	public int hashCode() {
-		int result = serializer.hashCode();
-		result = 31 * result + name.hashCode();
-		return result;
-	}
-
-	@Override
-	public String toString() {
-		return "FoldingStateDescriptor{" +
-				"serializer=" + serializer +
-				", initialValue=" + defaultValue +
-				", foldFunction=" + foldFunction +
-				'}';
 	}
 
 	@Override

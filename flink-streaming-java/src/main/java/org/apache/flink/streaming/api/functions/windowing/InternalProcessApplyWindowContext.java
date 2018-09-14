@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.functions.windowing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+import org.apache.flink.util.OutputTag;
 
 /**
  * Internal reusable context wrapper.
@@ -63,5 +64,10 @@ public class InternalProcessApplyWindowContext<IN, OUT, KEY, W extends Window>
 	@Override
 	public KeyedStateStore globalState() {
 		return context.globalState();
+	}
+
+	@Override
+	public <X> void output(OutputTag<X> outputTag, X value) {
+		context.output(outputTag, value);
 	}
 }

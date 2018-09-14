@@ -18,12 +18,10 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.ManuallyTriggeredDirectExecutor;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
@@ -32,18 +30,16 @@ import org.apache.flink.runtime.executiongraph.failover.RestartPipelinedRegionSt
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
-import org.apache.flink.runtime.instance.SlotProvider;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.net.URL;
-import java.util.Collections;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.waitUntilExecutionState;
@@ -58,7 +54,7 @@ import static org.junit.Assert.assertTrue;
  * <p>This test must be in the package it resides in, because it uses package-private methods
  * from the ExecutionGraph classes.
  */
-public class PipelinedRegionFailoverConcurrencyTest {
+public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 
 	/**
 	 * Tests that a cancellation concurrent to a local failover leads to a properly
@@ -117,7 +113,7 @@ public class PipelinedRegionFailoverConcurrencyTest {
 		// now report that cancelling is complete for the other vertex
 		vertex2.getCurrentExecutionAttempt().cancelingComplete();
 
-		assertEquals(JobStatus.CANCELED, graph.getState());
+		assertEquals(JobStatus.CANCELED, graph.getTerminationFuture().get());
 		assertTrue(vertex1.getCurrentExecutionAttempt().getState().isTerminal());
 		assertTrue(vertex2.getCurrentExecutionAttempt().getState().isTerminal());
 
@@ -309,21 +305,23 @@ public class PipelinedRegionFailoverConcurrencyTest {
 			SlotProvider slotProvider,
 			int parallelism) throws Exception {
 
+		final JobInformation jobInformation = new DummyJobInformation(
+			jid,
+			"test job");
+
 		// build a simple execution graph with on job vertex, parallelism 2
+		final Time timeout = Time.seconds(10L);
 		final ExecutionGraph graph = new ExecutionGraph(
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
-				jid,
-				"test job",
-				new Configuration(),
-				new SerializedValue<>(new ExecutionConfig()),
-				Time.seconds(10),
-				restartStrategy,
-				failoverStrategy,
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
-				slotProvider,
-				getClass().getClassLoader());
+			jobInformation,
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
+			timeout,
+			restartStrategy,
+			failoverStrategy,
+			slotProvider,
+			getClass().getClassLoader(),
+			VoidBlobWriter.getInstance(),
+			timeout);
 
 		JobVertex jv = new JobVertex("test vertex");
 		jv.setInvokableClass(NoOpInvokable.class);

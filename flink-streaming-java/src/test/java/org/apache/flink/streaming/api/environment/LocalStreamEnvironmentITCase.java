@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.environment;
 
-import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.util.TestLogger;
 
@@ -27,7 +26,7 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link Flip6LocalStreamEnvironment}.
+ * Tests for {@link LocalStreamEnvironment}.
  */
 @SuppressWarnings("serial")
 public class LocalStreamEnvironmentITCase extends TestLogger {
@@ -38,7 +37,7 @@ public class LocalStreamEnvironmentITCase extends TestLogger {
 	 */
 	@Test
 	public void testRunIsolatedJob() throws Exception {
-		Flip6LocalStreamEnvironment env = new Flip6LocalStreamEnvironment();
+		LocalStreamEnvironment env = new LocalStreamEnvironment();
 		assertEquals(1, env.getParallelism());
 
 		addSmallBoundedJob(env, 3);
@@ -51,7 +50,7 @@ public class LocalStreamEnvironmentITCase extends TestLogger {
 	 */
 	@Test
 	public void testMultipleJobsAfterAnother() throws Exception {
-		Flip6LocalStreamEnvironment env = new Flip6LocalStreamEnvironment();
+		LocalStreamEnvironment env = new LocalStreamEnvironment();
 
 		addSmallBoundedJob(env, 3);
 		env.execute();
@@ -63,23 +62,11 @@ public class LocalStreamEnvironmentITCase extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	private static void addSmallBoundedJob(StreamExecutionEnvironment env, int parallelism) {
-		DataStream<Long> stream = env
-				.generateSequence(1, 100)
-					.setParallelism(parallelism)
-					.slotSharingGroup("group_1");
+		DataStream<Long> stream = env.generateSequence(1, 100).setParallelism(parallelism);
 
 		stream
-				.filter(new FilterFunction<Long>() {
-					@Override
-					public boolean filter(Long value) {
-						return false;
-					}
-				})
-					.setParallelism(parallelism)
+				.filter(ignored -> false).setParallelism(parallelism)
 					.startNewChain()
-					.slotSharingGroup("group_2")
-
-				.print()
-					.setParallelism(parallelism);
+					.print().setParallelism(parallelism);
 	}
 }

@@ -22,7 +22,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.util.OperatingSystem;
 
-import com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.Assume;
@@ -37,6 +36,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_APP_ID;
@@ -90,14 +91,15 @@ public class YarnApplicationMasterRunnerTest {
 			}
 		}).when(yarnConf).getStrings(anyString(), Mockito.<String> anyVararg());
 
-		Map<String, String> env = ImmutableMap.<String, String> builder()
-			.put(ENV_APP_ID, "foo")
-			.put(ENV_CLIENT_HOME_DIR, home.getAbsolutePath())
-			.put(ENV_CLIENT_SHIP_FILES, "")
-			.put(ENV_FLINK_CLASSPATH, "")
-			.put(ENV_HADOOP_USER_NAME, "foo")
-			.put(FLINK_JAR_PATH, root.toURI().toString())
-			.build();
+		Map<String, String> env = new HashMap<>();
+		env.put(ENV_APP_ID, "foo");
+		env.put(ENV_CLIENT_HOME_DIR, home.getAbsolutePath());
+		env.put(ENV_CLIENT_SHIP_FILES, "");
+		env.put(ENV_FLINK_CLASSPATH, "");
+		env.put(ENV_HADOOP_USER_NAME, "foo");
+		env.put(FLINK_JAR_PATH, root.toURI().toString());
+		env = Collections.unmodifiableMap(env);
+
 		ContaineredTaskManagerParameters tmParams = mock(ContaineredTaskManagerParameters.class);
 		Configuration taskManagerConf = new Configuration();
 

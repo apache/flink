@@ -15,21 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.sampling;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import org.apache.commons.math3.stat.inference.KolmogorovSmirnovTest;
 import org.apache.flink.testutils.junit.RetryOnFailure;
 import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.commons.math3.stat.inference.KolmogorovSmirnovTest;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -61,13 +63,11 @@ public class RandomSamplerTest {
 
 	private static final List<Double> source = new ArrayList<Double>(SOURCE_SIZE);
 
-
 	@Rule
 	public final RetryRule retryRule = new RetryRule();
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private final List<Double>[] sourcePartitions = new List[DEFAULT_PARTITION_NUMBER];
-
 
 	@BeforeClass
 	public static void init() {
@@ -78,27 +78,27 @@ public class RandomSamplerTest {
 	}
 
 	private void initSourcePartition() {
-		for (int i = 0; i< DEFAULT_PARTITION_NUMBER; i++) {
-			sourcePartitions[i] = new ArrayList<Double>((int)Math.ceil((double)SOURCE_SIZE / DEFAULT_PARTITION_NUMBER));
+		for (int i = 0; i < DEFAULT_PARTITION_NUMBER; i++) {
+			sourcePartitions[i] = new ArrayList<Double>((int) Math.ceil((double) SOURCE_SIZE / DEFAULT_PARTITION_NUMBER));
 		}
-		for (int i = 0; i< SOURCE_SIZE; i++) {
+		for (int i = 0; i < SOURCE_SIZE; i++) {
 			int index = i % DEFAULT_PARTITION_NUMBER;
-			sourcePartitions[index].add((double)i);
+			sourcePartitions[index].add((double) i);
 		}
 	}
-	
+
 	@Test(expected = java.lang.IllegalArgumentException.class)
 	public void testBernoulliSamplerWithUnexpectedFraction1() {
 		verifySamplerFraction(-1, false);
 	}
-	
+
 	@Test(expected = java.lang.IllegalArgumentException.class)
 	public void testBernoulliSamplerWithUnexpectedFraction2() {
 		verifySamplerFraction(2, false);
 	}
-	
+
 	@Test
-	@RetryOnFailure(times=3)
+	@RetryOnFailure(times = 3)
 	public void testBernoulliSamplerFraction() {
 		verifySamplerFraction(0.01, false);
 		verifySamplerFraction(0.05, false);
@@ -108,22 +108,22 @@ public class RandomSamplerTest {
 		verifySamplerFraction(0.854, false);
 		verifySamplerFraction(0.99, false);
 	}
-	
+
 	@Test
-	@RetryOnFailure(times=3)
+	@RetryOnFailure(times = 3)
 	public void testBernoulliSamplerDuplicateElements() {
 		verifyRandomSamplerDuplicateElements(new BernoulliSampler<Double>(0.01));
 		verifyRandomSamplerDuplicateElements(new BernoulliSampler<Double>(0.1));
 		verifyRandomSamplerDuplicateElements(new BernoulliSampler<Double>(0.5));
 	}
-	
+
 	@Test(expected = java.lang.IllegalArgumentException.class)
 	public void testPoissonSamplerWithUnexpectedFraction1() {
 		verifySamplerFraction(-1, true);
 	}
-	
+
 	@Test
-	@RetryOnFailure(times=3)
+	@RetryOnFailure(times = 3)
 	public void testPoissonSamplerFraction() {
 		verifySamplerFraction(0.01, true);
 		verifySamplerFraction(0.05, true);
@@ -133,37 +133,37 @@ public class RandomSamplerTest {
 		verifySamplerFraction(0.99, true);
 		verifySamplerFraction(1.5, true);
 	}
-	
+
 	@Test(expected = java.lang.IllegalArgumentException.class)
 	public void testReservoirSamplerUnexpectedSize1() {
 		verifySamplerFixedSampleSize(-1, true);
 	}
-	
+
 	@Test(expected = java.lang.IllegalArgumentException.class)
 	public void testReservoirSamplerUnexpectedSize2() {
 		verifySamplerFixedSampleSize(-1, false);
 	}
-	
+
 	@Test
-	@RetryOnFailure(times=3)
+	@RetryOnFailure(times = 3)
 	public void testBernoulliSamplerDistribution() {
 		verifyBernoulliSampler(0.01d);
 		verifyBernoulliSampler(0.05d);
 		verifyBernoulliSampler(0.1d);
 		verifyBernoulliSampler(0.5d);
 	}
-	
+
 	@Test
-	@RetryOnFailure(times=3)
+	@RetryOnFailure(times = 3)
 	public void testPoissonSamplerDistribution() {
 		verifyPoissonSampler(0.01d);
 		verifyPoissonSampler(0.05d);
 		verifyPoissonSampler(0.1d);
 		verifyPoissonSampler(0.5d);
 	}
-	
+
 	@Test
-	@RetryOnFailure(times=3)
+	@RetryOnFailure(times = 3)
 	public void testReservoirSamplerSampledSize() {
 		verifySamplerFixedSampleSize(1, true);
 		verifySamplerFixedSampleSize(10, true);
@@ -171,41 +171,41 @@ public class RandomSamplerTest {
 		verifySamplerFixedSampleSize(1234, true);
 		verifySamplerFixedSampleSize(9999, true);
 		verifySamplerFixedSampleSize(20000, true);
-		
+
 		verifySamplerFixedSampleSize(1, false);
 		verifySamplerFixedSampleSize(10, false);
 		verifySamplerFixedSampleSize(100, false);
 		verifySamplerFixedSampleSize(1234, false);
 		verifySamplerFixedSampleSize(9999, false);
 	}
-	
+
 	@Test
-	@RetryOnFailure(times=3)
+	@RetryOnFailure(times = 3)
 	public void testReservoirSamplerSampledSize2() {
 		RandomSampler<Double> sampler = new ReservoirSamplerWithoutReplacement<Double>(20000);
 		Iterator<Double> sampled = sampler.sample(source.iterator());
 		assertTrue("ReservoirSamplerWithoutReplacement sampled output size should not beyond the source size.", getSize(sampled) == SOURCE_SIZE);
 	}
-	
+
 	@Test
-	@RetryOnFailure(times=3)
+	@RetryOnFailure(times = 3)
 	public void testReservoirSamplerDuplicateElements() {
 		verifyRandomSamplerDuplicateElements(new ReservoirSamplerWithoutReplacement<Double>(100));
 		verifyRandomSamplerDuplicateElements(new ReservoirSamplerWithoutReplacement<Double>(1000));
 		verifyRandomSamplerDuplicateElements(new ReservoirSamplerWithoutReplacement<Double>(5000));
 	}
-	
+
 	@Test
-	@RetryOnFailure(times=3)
+	@RetryOnFailure(times = 3)
 	public void testReservoirSamplerWithoutReplacement() {
 		verifyReservoirSamplerWithoutReplacement(100, false);
 		verifyReservoirSamplerWithoutReplacement(500, false);
 		verifyReservoirSamplerWithoutReplacement(1000, false);
 		verifyReservoirSamplerWithoutReplacement(5000, false);
 	}
-	
+
 	@Test
-	@RetryOnFailure(times=3)
+	@RetryOnFailure(times = 3)
 	public void testReservoirSamplerWithReplacement() {
 		verifyReservoirSamplerWithReplacement(100, false);
 		verifyReservoirSamplerWithReplacement(500, false);
@@ -214,7 +214,7 @@ public class RandomSamplerTest {
 	}
 
 	@Test
-	@RetryOnFailure(times=3)
+	@RetryOnFailure(times = 3)
 	public void testReservoirSamplerWithMultiSourcePartitions1() {
 		initSourcePartition();
 
@@ -225,7 +225,7 @@ public class RandomSamplerTest {
 	}
 
 	@Test
-	@RetryOnFailure(times=3)
+	@RetryOnFailure(times = 3)
 	public void testReservoirSamplerWithMultiSourcePartitions2() {
 		initSourcePartition();
 
@@ -259,7 +259,7 @@ public class RandomSamplerTest {
 		} else {
 			sampler = new BernoulliSampler<Double>(fraction);
 		}
-		
+
 		// take 20 times sample, and take the average result size for next step comparison.
 		int totalSampledSize = 0;
 		double sampleCount = 20;
@@ -274,16 +274,14 @@ public class RandomSamplerTest {
 	 * Test sampler without replacement, and verify that there should not exist any duplicate element in sampled result.
 	 */
 	private void verifyRandomSamplerDuplicateElements(final RandomSampler<Double> sampler) {
-		List<Double> list = Lists.newLinkedList(new Iterable<Double>() {
-			@Override
-			public Iterator<Double> iterator() {
-				return sampler.sample(source.iterator());
-			}
-		});
-		Set<Double> set = Sets.newHashSet(list);
-		assertTrue("There should not have duplicate element for sampler without replacement.", list.size() == set.size());
+		Iterator<Double> values = sampler.sample(source.iterator());
+		Set<Double> set = new HashSet<>();
+		while (values.hasNext()) {
+			double next = values.next();
+			assertTrue("Sampler returned duplicate element (" + next + "). Set=" + set, set.add(next));
+		}
 	}
-	
+
 	private int getSize(Iterator<?> iterator) {
 		int size = 0;
 		while (iterator.hasNext()) {
@@ -292,25 +290,25 @@ public class RandomSamplerTest {
 		}
 		return size;
 	}
-	
+
 	private void verifyBernoulliSampler(double fraction) {
 		BernoulliSampler<Double> sampler = new BernoulliSampler<Double>(fraction);
 		verifyRandomSamplerWithFraction(fraction, sampler, true);
 		verifyRandomSamplerWithFraction(fraction, sampler, false);
 	}
-	
+
 	private void verifyPoissonSampler(double fraction) {
 		PoissonSampler<Double> sampler = new PoissonSampler<Double>(fraction);
 		verifyRandomSamplerWithFraction(fraction, sampler, true);
 		verifyRandomSamplerWithFraction(fraction, sampler, false);
 	}
-	
+
 	private void verifyReservoirSamplerWithReplacement(int numSamplers, boolean sampleOnPartitions) {
 		ReservoirSamplerWithReplacement<Double> sampler = new ReservoirSamplerWithReplacement<Double>(numSamplers);
 		verifyRandomSamplerWithSampleSize(numSamplers, sampler, true, sampleOnPartitions);
 		verifyRandomSamplerWithSampleSize(numSamplers, sampler, false, sampleOnPartitions);
 	}
-	
+
 	private void verifyReservoirSamplerWithoutReplacement(int numSamplers, boolean sampleOnPartitions) {
 		ReservoirSamplerWithoutReplacement<Double> sampler = new ReservoirSamplerWithoutReplacement<Double>(numSamplers);
 		verifyRandomSamplerWithSampleSize(numSamplers, sampler, true, sampleOnPartitions);
@@ -330,7 +328,7 @@ public class RandomSamplerTest {
 		} else {
 			baseSample = getWrongSampler(fraction);
 		}
-		
+
 		verifyKSTest(sampler, baseSample, withDefaultSampler);
 	}
 
@@ -347,7 +345,7 @@ public class RandomSamplerTest {
 		} else {
 			baseSample = getWrongSampler(sampleSize);
 		}
-		
+
 		verifyKSTest(sampler, baseSample, withDefaultSampler, sampleWithPartitions);
 	}
 
@@ -365,13 +363,13 @@ public class RandomSamplerTest {
 			assertTrue(String.format("KS test result with p value(%f), d value(%f)", pValue, dValue), pValue > dValue);
 		}
 	}
-	
+
 	private double[] getSampledOutput(RandomSampler<Double> sampler, boolean sampleOnPartitions) {
 		Iterator<Double> sampled;
 		if (sampleOnPartitions) {
-			DistributedRandomSampler<Double> reservoirRandomSampler = (DistributedRandomSampler<Double>)sampler;
-			List<IntermediateSampleData<Double>> intermediateResult = Lists.newLinkedList();
-			for (int i = 0; i< DEFAULT_PARTITION_NUMBER; i++) {
+			DistributedRandomSampler<Double> reservoirRandomSampler = (DistributedRandomSampler<Double>) sampler;
+			List<IntermediateSampleData<Double>> intermediateResult = new LinkedList<>();
+			for (int i = 0; i < DEFAULT_PARTITION_NUMBER; i++) {
 				Iterator<IntermediateSampleData<Double>> partialIntermediateResult = reservoirRandomSampler.sampleInPartition(sourcePartitions[i].iterator());
 				while (partialIntermediateResult.hasNext()) {
 					intermediateResult.add(partialIntermediateResult.next());
@@ -381,7 +379,7 @@ public class RandomSamplerTest {
 		} else {
 			sampled = sampler.sample(source.iterator());
 		}
-		List<Double> list = Lists.newArrayList();
+		List<Double> list = new ArrayList<>();
 		while (sampled.hasNext()) {
 			list.add(sampled.next());
 		}
@@ -408,10 +406,10 @@ public class RandomSamplerTest {
 		for (int i = 0; i < size; i++) {
 			defaultSampler[i] = Math.round(step * i);
 		}
-		
+
 		return defaultSampler;
 	}
-	
+
 	private double[] getDefaultSampler(int fixSize) {
 		Preconditions.checkArgument(fixSize > 0, "Sample fraction should be positive.");
 		double step = SOURCE_SIZE / (double) fixSize;
@@ -419,10 +417,10 @@ public class RandomSamplerTest {
 		for (int i = 0; i < fixSize; i++) {
 			defaultSampler[i] = Math.round(step * i);
 		}
-		
+
 		return defaultSampler;
 	}
-	
+
 	/*
 	 * Build a failed sample distribution which only contains elements in the first half of source data.
 	 */
@@ -434,10 +432,10 @@ public class RandomSamplerTest {
 		for (int i = 0; i < size; i++) {
 			wrongSampler[i] = (double) i % halfSourceSize;
 		}
-		
+
 		return wrongSampler;
 	}
-	
+
 	/*
 	 * Build a failed sample distribution which only contains elements in the first half of source data.
 	 */
@@ -448,10 +446,10 @@ public class RandomSamplerTest {
 		for (int i = 0; i < fixSize; i++) {
 			wrongSampler[i] = (double) i % halfSourceSize;
 		}
-		
+
 		return wrongSampler;
 	}
-	
+
 	/*
 	 * Calculate the D value of K-S test for p-value 0.001, m and n are the sample size
 	 */

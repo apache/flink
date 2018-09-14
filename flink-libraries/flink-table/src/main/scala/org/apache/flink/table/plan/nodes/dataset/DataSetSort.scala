@@ -21,14 +21,12 @@ package org.apache.flink.table.plan.nodes.dataset
 import java.util
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
-import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
+import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvironment, TableException}
 import org.apache.flink.table.runtime.{CountPartitionFunction, LimitFilterFunction}
 import org.apache.flink.types.Row
 import org.apache.flink.table.plan.nodes.CommonSort
@@ -80,7 +78,9 @@ class DataSetSort(
     }
   }
 
-  override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
+  override def translateToPlan(
+      tableEnv: BatchTableEnvironment,
+      queryConfig: BatchQueryConfig): DataSet[Row] = {
 
     if (fieldCollations.isEmpty) {
       throw TableException("Limiting the result without sorting is not allowed " +
@@ -89,7 +89,7 @@ class DataSetSort(
 
     val config = tableEnv.getConfig
 
-    val inputDs = inp.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val inputDs = inp.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
 
     val currentParallelism = inputDs.getExecutionEnvironment.getParallelism
     var partitionedDs = if (currentParallelism == 1) {
@@ -132,17 +132,17 @@ class DataSetSort(
 
   private val fieldCollations = collations.getFieldCollations.asScala
     .map(c => (c.getFieldIndex, directionToOrder(c.getDirection)))
-    
+
   override def toString: String = {
     sortToString(getRowType, collations, offset, fetch)
   }
-    
-  override def explainTerms(pw: RelWriter) : RelWriter = {
-     sortExplainTerms(
+
+  override def explainTerms(pw: RelWriter): RelWriter = {
+    sortExplainTerms(
       super.explainTerms(pw),
-      getRowType, 
-      collations, 
-      offset, 
+      getRowType,
+      collations,
+      offset,
       fetch)
   }
 }

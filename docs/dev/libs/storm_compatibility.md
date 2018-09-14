@@ -43,21 +43,21 @@ The code resides in the `org.apache.flink.storm` package.
 
 Add the following dependency to your `pom.xml` if you want to execute Storm code in Flink.
 
-~~~xml
+{% highlight xml %}
 <dependency>
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-storm{{ site.scala_version_suffix }}</artifactId>
 	<version>{{site.version}}</version>
 </dependency>
-~~~
+{% endhighlight %}
 
 **Please note**: Do not add `storm-core` as a dependency. It is already included via `flink-storm`.
 
 **Please note**: `flink-storm` is not part of the provided binary Flink distribution.
-Thus, you need to include `flink-storm` classes (and their dependencies) in your program jar (also called ueber-jar or fat-jar) that is submitted to Flink's JobManager.
+Thus, you need to include `flink-storm` classes (and their dependencies) in your program jar (also called uber-jar or fat-jar) that is submitted to Flink's JobManager.
 See *WordCount Storm* within `flink-storm-examples/pom.xml` for an example how to package a jar correctly.
 
-If you want to avoid large ueber-jars, you can manually copy `storm-core-0.9.4.jar`, `json-simple-1.1.jar` and `flink-storm-{{site.version}}.jar` into Flink's `lib/` folder of each cluster node (*before* the cluster is started).
+If you want to avoid large uber-jars, you can manually copy `storm-core-0.9.4.jar`, `json-simple-1.1.jar` and `flink-storm-{{site.version}}.jar` into Flink's `lib/` folder of each cluster node (*before* the cluster is started).
 For this case, it is sufficient to include only your own Spout and Bolt classes (and their internal dependencies) into the program jar.
 
 # Execute Storm Topologies
@@ -74,7 +74,7 @@ If a topology is executed in a remote cluster, parameters `nimbus.host` and `nim
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-~~~java
+{% highlight java %}
 TopologyBuilder builder = new TopologyBuilder(); // the Storm topology builder
 
 // actual topology assembling code and used Spouts/Bolts can be used as-is
@@ -95,7 +95,7 @@ if(runLocal) { // submit to test cluster
 	// replaces: StormSubmitter.submitTopology(topologyId, conf, builder.createTopology());
 	FlinkSubmitter.submitTopology("WordCount", conf, FlinkTopology.createTopology(builder));
 }
-~~~
+{% endhighlight %}
 </div>
 </div>
 
@@ -118,7 +118,7 @@ The generic type declaration `OUT` specifies the type of the source output strea
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-~~~java
+{% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 // stream has `raw` type (single field output streams only)
@@ -128,13 +128,13 @@ DataStream<String> rawInput = env.addSource(
 
 // process data stream
 [...]
-~~~
+{% endhighlight %}
 </div>
 </div>
 
 If a Spout emits a finite number of tuples, `SpoutWrapper` can be configures to terminate automatically by setting `numberOfInvocations` parameter in its constructor.
 This allows the Flink program to shut down automatically after all data is processed.
-Per default the program will run until it is [canceled]({{site.baseurl}}/setup/cli.html) manually.
+Per default the program will run until it is [canceled]({{site.baseurl}}/ops/cli.html) manually.
 
 
 ## Embed Bolts
@@ -145,7 +145,7 @@ The generic type declarations `IN` and `OUT` specify the type of the operator's 
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-~~~java
+{% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 DataStream<String> text = env.readTextFile(localFilePath);
 
@@ -156,7 +156,7 @@ DataStream<Tuple2<String, Integer>> counts = text.transform(
 
 // do further processing
 [...]
-~~~
+{% endhighlight %}
 </div>
 </div>
 
@@ -192,7 +192,7 @@ Thus, Flink additionally provides `StormConfig` class that can be used like a ra
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-~~~java
+{% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 StormConfig config = new StormConfig();
@@ -204,7 +204,7 @@ env.getConfig().setGlobalJobParameters(config);
 
 // assemble program with embedded Spouts and/or Bolts
 [...]
-~~~
+{% endhighlight %}
 </div>
 </div>
 
@@ -219,7 +219,7 @@ Furthermore, the wrapper type `SplitStreamTuple<T>` can be removed using `SplitS
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-~~~java
+{% highlight java %}
 [...]
 
 // get DataStream from Spout or Bolt which declares two output streams s1 and s2 with output type SomeType
@@ -233,7 +233,7 @@ DataStream<SomeType> s2 = splitStream.select("s2").map(new SplitStreamMapper<Som
 
 // do further processing on s1 and s2
 [...]
-~~~
+{% endhighlight %}
 </div>
 </div>
 
@@ -259,7 +259,7 @@ An example of a finite Spout that emits records for 10 seconds only:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-~~~java
+{% highlight java %}
 public class TimedFiniteSpout extends BaseRichSpout implements FiniteSpout {
 	[...] // implement open(), nextTuple(), ...
 
@@ -269,7 +269,7 @@ public class TimedFiniteSpout extends BaseRichSpout implements FiniteSpout {
 		return System.currentTimeMillis() - starttime > 10000l;
 	}
 }
-~~~
+{% endhighlight %}
 </div>
 </div>
 
@@ -285,3 +285,5 @@ Compare `pom.xml` to see how both jars are built.
 Furthermore, there is one example for whole Storm topologies (`WordCount-StormTopology.jar`).
 
 You can run each of those examples via `bin/flink run <jarname>.jar`. The correct entry point class is contained in each jar's manifest file.
+
+{% top %}

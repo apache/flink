@@ -22,9 +22,8 @@ package org.apache.flink.test.example.java;
 import org.apache.flink.examples.java.graph.PageRank;
 import org.apache.flink.test.testdata.PageRankData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.util.FileUtils;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -34,6 +33,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.util.UUID;
 
 /**
  * Test for {@link PageRank}.
@@ -55,12 +55,15 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 
 	@Before
 	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
+		final File folder = tempFolder.newFolder();
+		final File resultFile = new File(folder, UUID.randomUUID().toString());
+		resultPath = resultFile.toURI().toString();
+
 		File verticesFile = tempFolder.newFile();
-		Files.write(PageRankData.VERTICES, verticesFile, Charsets.UTF_8);
+		FileUtils.writeFileUtf8(verticesFile, PageRankData.VERTICES);
 
 		File edgesFile = tempFolder.newFile();
-		Files.write(PageRankData.EDGES, edgesFile, Charsets.UTF_8);
+		FileUtils.writeFileUtf8(edgesFile, PageRankData.EDGES);
 
 		verticesPath = verticesFile.toURI().toString();
 		edgesPath = edgesFile.toURI().toString();

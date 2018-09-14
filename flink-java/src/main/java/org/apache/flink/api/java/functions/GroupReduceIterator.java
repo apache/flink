@@ -18,23 +18,26 @@
 
 package org.apache.flink.api.java.functions;
 
-import java.util.Iterator;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.util.Collector;
 
+import java.util.Iterator;
+
+/**
+ * Base class that simplifies reducing all values provided as {@link Iterable}.
+ * @param <IN>
+ * @param <OUT>
+ */
 @PublicEvolving
 public abstract class GroupReduceIterator<IN, OUT> extends RichGroupReduceFunction<IN, OUT> {
-	
+
 	private static final long serialVersionUID = 1L;
 
-
 	public abstract Iterator<OUT> reduceGroup(Iterable<IN> values) throws Exception;
-	
-	
+
 	// -------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public final void reduce(Iterable<IN> values, Collector<OUT> out) throws Exception {
 		for (Iterator<OUT> iter = reduceGroup(values); iter.hasNext(); ) {

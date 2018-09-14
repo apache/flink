@@ -23,8 +23,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
-import org.apache.flink.runtime.blob.BlobClient;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
@@ -33,24 +33,27 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.NetUtils;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import scala.Option;
 import scala.Tuple2;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -93,6 +96,8 @@ public class JobSubmitTest {
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			highAvailabilityServices,
+			NoOpMetricRegistry.INSTANCE,
+			Option.empty(),
 			JobManager.class,
 			MemoryArchivist.class)._1();
 
@@ -112,7 +117,7 @@ public class JobSubmitTest {
 	@AfterClass
 	public static void teardownJobmanager() throws Exception {
 		if (jobManagerSystem != null) {
-			jobManagerSystem.shutdown();
+			jobManagerSystem.terminate();
 		}
 
 		if (highAvailabilityServices != null) {
@@ -129,26 +134,8 @@ public class JobSubmitTest {
 			jobVertex.setInvokableClass(NoOpInvokable.class);
 			JobGraph jg = new JobGraph("test job", jobVertex);
 
-			// request the blob port from the job manager
-			Future<Object> future = jmGateway.ask(JobManagerMessages.getRequestBlobManagerPort(), timeout);
-			int blobPort = (Integer) Await.result(future, timeout);
-
-			// upload two dummy bytes and add their keys to the job graph as dependencies
-			BlobKey key1, key2;
-			BlobClient bc = new BlobClient(new InetSocketAddress("localhost", blobPort), jmConfig);
-			try {
-				key1 = bc.put(new byte[10]);
-				key2 = bc.put(new byte[10]);
-
-				// delete one of the blobs to make sure that the startup failed
-				bc.delete(key2);
-			}
-			finally {
-				bc.close();
-			}
-
-			jg.addBlob(key1);
-			jg.addBlob(key2);
+			// add a reference to some non-existing BLOB to the job graph as a dependency
+			jg.addUserJarBlobKey(new PermanentBlobKey());
 
 			// submit the job
 			Future<Object> submitFuture = jmGateway.ask(
@@ -239,8 +226,19 @@ public class JobSubmitTest {
 		List<JobVertexID> vertexIdList = Collections.singletonList(jobVertex.getID());
 
 		JobGraph jg = new JobGraph("test job", jobVertex);
-		jg.setSnapshotSettings(new JobCheckpointingSettings(vertexIdList, vertexIdList, vertexIdList,
-			5000, 5000, 0L, 10, ExternalizedCheckpointSettings.none(), null, true));
+		jg.setSnapshotSettings(
+			new JobCheckpointingSettings(
+				vertexIdList,
+				vertexIdList,
+				vertexIdList,
+				new CheckpointCoordinatorConfiguration(
+					5000,
+					5000,
+					0L,
+					10,
+					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+					true),
+				null));
 		return jg;
 	}
 }

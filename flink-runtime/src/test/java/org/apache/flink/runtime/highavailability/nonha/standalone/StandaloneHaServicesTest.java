@@ -39,14 +39,20 @@ import static org.mockito.Mockito.verify;
 public class StandaloneHaServicesTest extends TestLogger {
 
 	private final String jobManagerAddress = "jobManager";
+	private final String dispatcherAddress = "dispatcher";
 	private final String resourceManagerAddress = "resourceManager";
+	private final String webMonitorAddress = "webMonitor";
 
 	private StandaloneHaServices standaloneHaServices;
 
 	@Before
 	public void setupTest() {
 
-		standaloneHaServices = new StandaloneHaServices(resourceManagerAddress, jobManagerAddress);
+		standaloneHaServices = new StandaloneHaServices(
+			resourceManagerAddress,
+			dispatcherAddress,
+			jobManagerAddress,
+			webMonitorAddress);
 	}
 
 	@After
@@ -107,7 +113,7 @@ public class StandaloneHaServicesTest extends TestLogger {
 	 * fixed leader session id.
 	 */
 	@Test
-	public void testJobManagerLeaderRetrievalFlip6() throws Exception {
+	public void testJobMasterLeaderRetrieval() throws Exception {
 		JobID jobId1 = new JobID();
 		JobID jobId2 = new JobID();
 		final String jobManagerAddress1 = "foobar";

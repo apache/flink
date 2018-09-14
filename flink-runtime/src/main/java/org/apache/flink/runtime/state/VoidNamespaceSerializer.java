@@ -21,7 +21,6 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.migration.MigrationNamespaceSerializerProxy;
 
 import java.io.IOException;
 
@@ -89,12 +88,5 @@ public final class VoidNamespaceSerializer extends TypeSerializerSingleton<VoidN
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof VoidNamespaceSerializer;
-	}
-
-	@Override
-	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
-		// we might be replacing a migration namespace serializer, in which case we just assume compatibility
-		return super.isCompatibleSerializationFormatIdentifier(identifier)
-			|| identifier.equals(MigrationNamespaceSerializerProxy.class.getCanonicalName());
 	}
 }

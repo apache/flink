@@ -28,7 +28,7 @@ import org.apache.flink.api.common.typeinfo.{FractionalTypeInfo, SqlTimeTypeInfo
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.table.typeutils.{TimeIntervalTypeInfo, TypeCheckUtils}
+import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TimeIntervalTypeInfo, TypeCheckUtils}
 
 object CodeGenUtils {
 
@@ -90,6 +90,9 @@ object CodeGenUtils {
     case BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO => "boolean[]"
     case CHAR_PRIMITIVE_ARRAY_TYPE_INFO => "char[]"
 
+    // time indicators are represented as Long even if they seem to be Timestamp
+    case _: TimeIndicatorTypeInfo => "java.lang.Long"
+
     case _ =>
       tpe.getTypeClass.getCanonicalName
   }
@@ -123,8 +126,10 @@ object CodeGenUtils {
   def qualifyEnum(enum: Enum[_]): String =
     enum.getClass.getCanonicalName + "." + enum.name()
 
-  def internalToTimePointCode(resultType: TypeInformation[_], resultTerm: String) =
+  def internalToTimePointCode(resultType: TypeInformation[_], resultTerm: String): String =
     resultType match {
+      case _: TimeIndicatorTypeInfo =>
+        resultTerm // time indicators are not modified
       case SqlTimeTypeInfo.DATE =>
         s"${qualifyMethod(BuiltInMethod.INTERNAL_TO_DATE.method)}($resultTerm)"
       case SqlTimeTypeInfo.TIME =>
@@ -133,7 +138,7 @@ object CodeGenUtils {
         s"${qualifyMethod(BuiltInMethod.INTERNAL_TO_TIMESTAMP.method)}($resultTerm)"
     }
 
-  def timePointToInternalCode(resultType: TypeInformation[_], resultTerm: String) =
+  def timePointToInternalCode(resultType: TypeInformation[_], resultTerm: String): String =
     resultType match {
       case SqlTimeTypeInfo.DATE =>
         s"${qualifyMethod(BuiltInMethod.DATE_TO_INT.method)}($resultTerm)"
@@ -157,43 +162,48 @@ object CodeGenUtils {
 
   // ----------------------------------------------------------------------------------------------
 
-  def requireNumeric(genExpr: GeneratedExpression) =
+  def requireNumeric(genExpr: GeneratedExpression): Unit =
     if (!TypeCheckUtils.isNumeric(genExpr.resultType)) {
       throw new CodeGenException("Numeric expression type expected, but was " +
         s"'${genExpr.resultType}'.")
     }
 
-  def requireComparable(genExpr: GeneratedExpression) =
+  def requireComparable(genExpr: GeneratedExpression): Unit =
     if (!TypeCheckUtils.isComparable(genExpr.resultType)) {
       throw new CodeGenException(s"Comparable type expected, but was '${genExpr.resultType}'.")
     }
 
-  def requireString(genExpr: GeneratedExpression) =
+  def requireString(genExpr: GeneratedExpression): Unit =
     if (!TypeCheckUtils.isString(genExpr.resultType)) {
       throw new CodeGenException("String expression type expected.")
     }
 
-  def requireBoolean(genExpr: GeneratedExpression) =
+  def requireBoolean(genExpr: GeneratedExpression): Unit =
     if (!TypeCheckUtils.isBoolean(genExpr.resultType)) {
       throw new CodeGenException("Boolean expression type expected.")
     }
 
-  def requireTemporal(genExpr: GeneratedExpression) =
+  def requireTemporal(genExpr: GeneratedExpression): Unit =
     if (!TypeCheckUtils.isTemporal(genExpr.resultType)) {
       throw new CodeGenException("Temporal expression type expected.")
     }
 
-  def requireTimeInterval(genExpr: GeneratedExpression) =
+  def requireTimeInterval(genExpr: GeneratedExpression): Unit =
     if (!TypeCheckUtils.isTimeInterval(genExpr.resultType)) {
       throw new CodeGenException("Interval expression type expected.")
     }
 
-  def requireArray(genExpr: GeneratedExpression) =
+  def requireArray(genExpr: GeneratedExpression): Unit =
     if (!TypeCheckUtils.isArray(genExpr.resultType)) {
       throw new CodeGenException("Array expression type expected.")
     }
 
-  def requireInteger(genExpr: GeneratedExpression) =
+  def requireMap(genExpr: GeneratedExpression): Unit =
+    if (!TypeCheckUtils.isMap(genExpr.resultType)) {
+      throw new CodeGenException("Map expression type expected.")
+    }
+
+  def requireInteger(genExpr: GeneratedExpression): Unit =
     if (!TypeCheckUtils.isInteger(genExpr.resultType)) {
       throw new CodeGenException("Integer expression type expected.")
     }
@@ -243,7 +253,7 @@ object CodeGenUtils {
         val fieldName = pt.getFieldNames()(index)
         getFieldAccessor(pt.getTypeClass, fieldName)
 
-      case _ => throw new CodeGenException(s"Unsupported composite type: '${compType}'")
+      case _ => throw new CodeGenException(s"Unsupported composite type: '$compType'")
     }
   }
 

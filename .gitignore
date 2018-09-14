@@ -17,7 +17,8 @@ tmp
 *.log
 .DS_Store
 build-target
-flink-connectors/flink-avro/src/test/java/org/apache/flink/api/io/avro/generated/
+flink-end-to-end-tests/flink-datastream-allround-test/src/main/java/org/apache/flink/streaming/tests/avro/
+flink-formats/flink-avro/src/test/java/org/apache/flink/formats/avro/generated/
 flink-runtime-web/web-dashboard/assets/fonts/
 flink-runtime-web/web-dashboard/node_modules/
 flink-runtime-web/web-dashboard/bower_components/
@@ -34,3 +35,4 @@ out/
 *.iws
 tools/flink
 tools/flink-*
+tools/releasing/release

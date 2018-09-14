@@ -45,17 +45,29 @@ public class StandaloneHaServices extends AbstractNonHaServices {
 	/** The fix address of the ResourceManager */
 	private final String resourceManagerAddress;
 
+	/** The fix address of the Dispatcher */
+	private final String dispatcherAddress;
+
 	/** The fix address of the JobManager */
 	private final String jobManagerAddress;
 
+	private final String webMonitorAddress;
+
 	/**
 	 * Creates a new services class for the fix pre-defined leaders.
-	 * 
+	 *
 	 * @param resourceManagerAddress    The fix address of the ResourceManager
+	 * @param webMonitorAddress
 	 */
-	public StandaloneHaServices(String resourceManagerAddress, String jobManagerAddress) {
+	public StandaloneHaServices(
+			String resourceManagerAddress,
+			String dispatcherAddress,
+			String jobManagerAddress,
+			String webMonitorAddress) {
 		this.resourceManagerAddress = checkNotNull(resourceManagerAddress, "resourceManagerAddress");
+		this.dispatcherAddress = checkNotNull(dispatcherAddress, "dispatcherAddress");
 		this.jobManagerAddress = checkNotNull(jobManagerAddress, "jobManagerAddress");
+		this.webMonitorAddress = checkNotNull(webMonitorAddress, webMonitorAddress);
 	}
 
 	// ------------------------------------------------------------------------
@@ -73,7 +85,25 @@ public class StandaloneHaServices extends AbstractNonHaServices {
 	}
 
 	@Override
+	public LeaderRetrievalService getDispatcherLeaderRetriever() {
+		synchronized (lock) {
+			checkNotShutdown();
+
+			return new StandaloneLeaderRetrievalService(dispatcherAddress, DEFAULT_LEADER_ID);
+		}
+	}
+
+	@Override
 	public LeaderElectionService getResourceManagerLeaderElectionService() {
+		synchronized (lock) {
+			checkNotShutdown();
+
+			return new StandaloneLeaderElectionService();
+		}
+	}
+
+	@Override
+	public LeaderElectionService getDispatcherLeaderElectionService() {
 		synchronized (lock) {
 			checkNotShutdown();
 
@@ -107,4 +137,23 @@ public class StandaloneHaServices extends AbstractNonHaServices {
 			return new StandaloneLeaderElectionService();
 		}
 	}
+
+	@Override
+	public LeaderRetrievalService getWebMonitorLeaderRetriever() {
+		synchronized (lock) {
+			checkNotShutdown();
+
+			return new StandaloneLeaderRetrievalService(webMonitorAddress, DEFAULT_LEADER_ID);
+		}
+	}
+
+	@Override
+	public LeaderElectionService getWebMonitorLeaderElectionService() {
+		synchronized (lock) {
+			checkNotShutdown();
+
+			return new StandaloneLeaderElectionService();
+		}
+	}
+
 }

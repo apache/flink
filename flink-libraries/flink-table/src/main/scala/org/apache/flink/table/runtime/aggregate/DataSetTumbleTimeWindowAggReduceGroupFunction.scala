@@ -22,9 +22,9 @@ import java.lang.Iterable
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-import org.slf4j.LoggerFactory
 
 /**
   * It wraps the aggregate logic inside of
@@ -35,6 +35,8 @@ import org.slf4j.LoggerFactory
   * @param windowSize       Tumbling time window size
   * @param windowStartPos   The relative window-start field position to the last field of output row
   * @param windowEndPos     The relative window-end field position to the last field of output row
+  * @param windowRowtimePos The relative window-rowtime field position to the last field of
+  *                         output row
   * @param keysAndAggregatesArity    The total arity of keys and aggregates
   */
 class DataSetTumbleTimeWindowAggReduceGroupFunction(
@@ -42,24 +44,25 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
     windowSize: Long,
     windowStartPos: Option[Int],
     windowEndPos: Option[Int],
+    windowRowtimePos: Option[Int],
     keysAndAggregatesArity: Int)
   extends RichGroupReduceFunction[Row, Row]
-    with Compiler[GeneratedAggregations] {
+    with Compiler[GeneratedAggregations]
+    with Logging {
 
-  private var collector: RowTimeWindowPropertyCollector = _
+  private var collector: DataSetTimeWindowPropertyCollector = _
   protected var aggregateBuffer: Row = new Row(keysAndAggregatesArity + 1)
 
   private var output: Row = _
   protected var accumulators: Row = _
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
   protected var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
     LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
                 s"Code:\n$genAggregations.code")
     val clazz = compile(
-      getClass.getClassLoader,
+      getRuntimeContext.getUserCodeClassLoader,
       genAggregations.name,
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
@@ -67,7 +70,10 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
 
     output = function.createOutputRow()
     accumulators = function.createAccumulators()
-    collector = new RowTimeWindowPropertyCollector(windowStartPos, windowEndPos)
+    collector = new DataSetTimeWindowPropertyCollector(
+      windowStartPos,
+      windowEndPos,
+      windowRowtimePos)
   }
 
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {

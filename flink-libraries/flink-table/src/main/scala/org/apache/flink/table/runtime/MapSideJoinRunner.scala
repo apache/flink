@@ -21,9 +21,9 @@ package org.apache.flink.table.runtime
 import org.apache.flink.api.common.functions.{FlatJoinFunction, RichFlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.configuration.Configuration
-import org.slf4j.LoggerFactory
+import org.apache.flink.table.codegen.Compiler
+import org.apache.flink.table.util.Logging
 
 abstract class MapSideJoinRunner[IN1, IN2, SINGLE_IN, MULTI_IN, OUT](
     name: String,
@@ -32,9 +32,8 @@ abstract class MapSideJoinRunner[IN1, IN2, SINGLE_IN, MULTI_IN, OUT](
     broadcastSetName: String)
   extends RichFlatMapFunction[MULTI_IN, OUT]
     with ResultTypeQueryable[OUT]
-    with Compiler[FlatJoinFunction[IN1, IN2, OUT]] {
-
-  val LOG = LoggerFactory.getLogger(this.getClass)
+    with Compiler[FlatJoinFunction[IN1, IN2, OUT]]
+    with Logging {
 
   protected var function: FlatJoinFunction[IN1, IN2, OUT] = _
   protected var broadcastSet: Option[SINGLE_IN] = _

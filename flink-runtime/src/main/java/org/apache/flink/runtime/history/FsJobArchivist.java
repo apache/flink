@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.history;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
@@ -28,11 +29,12 @@ import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.util.IOUtils;
 
-import com.fasterxml.jackson.core.JsonEncoding;
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonEncoding;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +68,9 @@ public class FsJobArchivist {
 	 * @param graph  graph to archive
 	 * @return path to where the archive was written, or null if no archive was created
 	 * @throws IOException
+	 * @deprecated only kept for legacy reasons
 	 */
+	@Deprecated
 	public static Path archiveJob(Path rootPath, AccessExecutionGraph graph) throws IOException {
 		try {
 			FileSystem fs = rootPath.getFileSystem();
@@ -91,6 +95,45 @@ public class FsJobArchivist {
 				throw e;
 			}
 			LOG.info("Job {} has been archived at {}.", graph.getJobID(), path);
+			return path;
+		} catch (IOException e) {
+			LOG.error("Failed to archive job.", e);
+			throw e;
+		}
+	}
+
+	/**
+	 * Writes the given {@link AccessExecutionGraph} to the {@link FileSystem} pointed to by
+	 * {@link JobManagerOptions#ARCHIVE_DIR}.
+	 *
+	 * @param rootPath directory to which the archive should be written to
+	 * @param jobId  job id
+	 * @param jsonToArchive collection of json-path pairs to that should be archived
+	 * @return path to where the archive was written, or null if no archive was created
+	 * @throws IOException
+	 */
+	public static Path archiveJob(Path rootPath, JobID jobId, Collection<ArchivedJson> jsonToArchive) throws IOException {
+		try {
+			FileSystem fs = rootPath.getFileSystem();
+			Path path = new Path(rootPath, jobId.toString());
+			OutputStream out = fs.create(path, FileSystem.WriteMode.NO_OVERWRITE);
+
+			try (JsonGenerator gen = jacksonFactory.createGenerator(out, JsonEncoding.UTF8)) {
+				gen.writeStartObject();
+				gen.writeArrayFieldStart(ARCHIVE);
+				for (ArchivedJson archive : jsonToArchive) {
+					gen.writeStartObject();
+					gen.writeStringField(PATH, archive.getPath());
+					gen.writeStringField(JSON, archive.getJson());
+					gen.writeEndObject();
+				}
+				gen.writeEndArray();
+				gen.writeEndObject();
+			} catch (Exception e) {
+				fs.delete(path, false);
+				throw e;
+			}
+			LOG.info("Job {} has been archived at {}.", jobId, path);
 			return path;
 		} catch (IOException e) {
 			LOG.error("Failed to archive job.", e);

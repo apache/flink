@@ -68,7 +68,7 @@ public class Emitter<OUT> implements Runnable {
 
 		this.checkpointLock = Preconditions.checkNotNull(checkpointLock, "checkpointLock");
 		this.output = Preconditions.checkNotNull(output, "output");
-		this.streamElementQueue = Preconditions.checkNotNull(streamElementQueue, "asyncCollectorBuffer");
+		this.streamElementQueue = Preconditions.checkNotNull(streamElementQueue, "streamElementQueue");
 		this.operatorActions = Preconditions.checkNotNull(operatorActions, "operatorActions");
 
 		this.timestampedCollector = new TimestampedCollector<>(this.output);
@@ -89,8 +89,7 @@ public class Emitter<OUT> implements Runnable {
 				operatorActions.failOperator(e);
 			} else {
 				// Thread got interrupted which means that it should shut down
-				LOG.debug("Emitter thread got interrupted. This indicates that the emitter should " +
-					"shut down.", e);
+				LOG.debug("Emitter thread got interrupted, shutting down.");
 			}
 		} catch (Throwable t) {
 			operatorActions.failOperator(new Exception("AsyncWaitOperator's emitter caught an " +

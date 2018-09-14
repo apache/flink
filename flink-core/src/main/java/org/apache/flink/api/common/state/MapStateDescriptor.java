@@ -29,18 +29,20 @@ import java.util.Map;
 /**
  * A {@link StateDescriptor} for {@link MapState}. This can be used to create state where the type
  * is a map that can be updated and iterated over.
- * 
+ *
  * <p>Using {@code MapState} is typically more efficient than manually maintaining a map in a
  * {@link ValueState}, because the backing implementation can support efficient updates, rather then
  * replacing the full map on write.
- * 
- * <p>To create keyed map state (on a KeyedStream), use 
+ *
+ * <p>To create keyed map state (on a KeyedStream), use
  * {@link org.apache.flink.api.common.functions.RuntimeContext#getMapState(MapStateDescriptor)}.
  *
  * @param <UK> The type of the keys that can be added to the map state.
  */
 @PublicEvolving
 public class MapStateDescriptor<UK, UV> extends StateDescriptor<MapState<UK, UV>, Map<UK, UV>> {
+
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * Create a new {@code MapStateDescriptor} with the given name and the given type serializers.
@@ -54,7 +56,7 @@ public class MapStateDescriptor<UK, UV> extends StateDescriptor<MapState<UK, UV>
 	}
 
 	/**
-	 * Create a new {@code MapStateDescriptor} with the given name and the given type informations.
+	 * Create a new {@code MapStateDescriptor} with the given name and the given type information.
 	 *
 	 * @param name The name of the {@code MapStateDescriptor}.
 	 * @param keyTypeInfo The type information for the keys in the state.
@@ -79,18 +81,13 @@ public class MapStateDescriptor<UK, UV> extends StateDescriptor<MapState<UK, UV>
 	}
 
 	@Override
-	public MapState<UK, UV> bind(StateBinder stateBinder) throws Exception {
-		return stateBinder.createMapState(this);
-	}
-
-	@Override
 	public Type getType() {
 		return Type.MAP;
 	}
 
 	/**
 	 * Gets the serializer for the keys in the state.
-	 * 
+	 *
 	 * @return The serializer for the keys in the state.
 	 */
 	public TypeSerializer<UK> getKeySerializer() {
@@ -114,34 +111,5 @@ public class MapStateDescriptor<UK, UV> extends StateDescriptor<MapState<UK, UV>
 		}
 
 		return ((MapSerializer<UK, UV>) rawSerializer).getValueSerializer();
-	}
-	
-	@Override
-	public int hashCode() {
-		int result = serializer.hashCode();
-		result = 31 * result + name.hashCode();
-		return result;
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-
-		MapStateDescriptor<?, ?> that = (MapStateDescriptor<?, ?>) o;
-		return serializer.equals(that.serializer) && name.equals(that.name);
-	}
-
-	@Override
-	public String toString() {
-		return "MapStateDescriptor{" +
-				"name=" + name +
-				", serializer=" + serializer +
-				'}';
 	}
 }

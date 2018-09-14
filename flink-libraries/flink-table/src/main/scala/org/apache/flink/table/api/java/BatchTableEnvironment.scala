@@ -20,8 +20,8 @@ package org.apache.flink.table.api.java
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
-import org.apache.flink.table.expressions.ExpressionParser
 import org.apache.flink.table.api._
+import org.apache.flink.table.expressions.ExpressionParser
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
 
 /**
@@ -143,7 +143,8 @@ class BatchTableEnvironment(
     * @return The converted [[DataSet]].
     */
   def toDataSet[T](table: Table, clazz: Class[T]): DataSet[T] = {
-    translate[T](table)(TypeExtractor.createTypeInfo(clazz))
+    // Use the default query config.
+    translate[T](table, queryConfig)(TypeExtractor.createTypeInfo(clazz))
   }
 
   /**
@@ -160,7 +161,50 @@ class BatchTableEnvironment(
     * @return The converted [[DataSet]].
     */
   def toDataSet[T](table: Table, typeInfo: TypeInformation[T]): DataSet[T] = {
-    translate[T](table)(typeInfo)
+    // Use the default batch query config.
+    translate[T](table, queryConfig)(typeInfo)
+  }
+
+  /**
+    * Converts the given [[Table]] into a [[DataSet]] of a specified type.
+    *
+    * The fields of the [[Table]] are mapped to [[DataSet]] fields as follows:
+    * - [[org.apache.flink.types.Row]] and [[org.apache.flink.api.java.tuple.Tuple]]
+    * types: Fields are mapped by position, field types must match.
+    * - POJO [[DataSet]] types: Fields are mapped by field name, field types must match.
+    *
+    * @param table The [[Table]] to convert.
+    * @param clazz The class of the type of the resulting [[DataSet]].
+    * @param queryConfig The configuration for the query to generate.
+    * @tparam T The type of the resulting [[DataSet]].
+    * @return The converted [[DataSet]].
+    */
+  def toDataSet[T](
+      table: Table,
+      clazz: Class[T],
+      queryConfig: BatchQueryConfig): DataSet[T] = {
+    translate[T](table, queryConfig)(TypeExtractor.createTypeInfo(clazz))
+  }
+
+  /**
+    * Converts the given [[Table]] into a [[DataSet]] of a specified type.
+    *
+    * The fields of the [[Table]] are mapped to [[DataSet]] fields as follows:
+    * - [[org.apache.flink.types.Row]] and [[org.apache.flink.api.java.tuple.Tuple]]
+    * types: Fields are mapped by position, field types must match.
+    * - POJO [[DataSet]] types: Fields are mapped by field name, field types must match.
+    *
+    * @param table The [[Table]] to convert.
+    * @param typeInfo The [[TypeInformation]] that specifies the type of the resulting [[DataSet]].
+    * @param queryConfig The configuration for the query to generate.
+    * @tparam T The type of the resulting [[DataSet]].
+    * @return The converted [[DataSet]].
+    */
+  def toDataSet[T](
+      table: Table,
+      typeInfo: TypeInformation[T],
+      queryConfig: BatchQueryConfig): DataSet[T] = {
+    translate[T](table, queryConfig)(typeInfo)
   }
 
   /**

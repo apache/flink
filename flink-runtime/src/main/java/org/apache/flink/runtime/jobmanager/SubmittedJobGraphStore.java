@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+
+import javax.annotation.Nullable;
 
 import java.util.Collection;
 
@@ -38,10 +41,10 @@ public interface SubmittedJobGraphStore {
 	void stop() throws Exception;
 
 	/**
-	 * Returns the {@link SubmittedJobGraph} with the given {@link JobID}.
-	 *
-	 * <p>An Exception is thrown, if no job graph with the given ID exists.
+	 * Returns the {@link SubmittedJobGraph} with the given {@link JobID} or
+	 * {@code null} if no job was registered.
 	 */
+	@Nullable
 	SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception;
 
 	/**
@@ -55,6 +58,17 @@ public interface SubmittedJobGraphStore {
 	 * Removes the {@link SubmittedJobGraph} with the given {@link JobID} if it exists.
 	 */
 	void removeJobGraph(JobID jobId) throws Exception;
+
+	/**
+	 * Releases the locks on the specified {@link JobGraph}.
+	 *
+	 * Releasing the locks allows that another instance can delete the job from
+	 * the {@link SubmittedJobGraphStore}.
+	 *
+	 * @param jobId specifying the job to release the locks for
+	 * @throws Exception if the locks cannot be released
+	 */
+	void releaseJobGraph(JobID jobId) throws Exception;
 
 	/**
 	 * Get all job ids of submitted job graphs to the submitted job graph store.

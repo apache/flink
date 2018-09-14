@@ -96,13 +96,17 @@ DEFAULT_ENV_JAVA_OPTS=""                            # Optional JVM args
 DEFAULT_ENV_JAVA_OPTS_JM=""                         # Optional JVM args (JobManager)
 DEFAULT_ENV_JAVA_OPTS_TM=""                         # Optional JVM args (TaskManager)
 DEFAULT_ENV_SSH_OPTS=""                             # Optional SSH parameters running in cluster mode
+DEFAULT_YARN_CONF_DIR=""                            # YARN Configuration Directory, if necessary
+DEFAULT_HADOOP_CONF_DIR=""                          # Hadoop Configuration Directory, if necessary
 
 ########################################################################################################################
 # CONFIG KEYS: The default values can be overwritten by the following keys in conf/flink-conf.yaml
 ########################################################################################################################
 
-KEY_JOBM_MEM_SIZE="jobmanager.heap.mb"
-KEY_TASKM_MEM_SIZE="taskmanager.heap.mb"
+KEY_JOBM_MEM_SIZE="jobmanager.heap.size"
+KEY_JOBM_MEM_MB="jobmanager.heap.mb"
+KEY_TASKM_MEM_SIZE="taskmanager.heap.size"
+KEY_TASKM_MEM_MB="taskmanager.heap.mb"
 KEY_TASKM_MEM_MANAGED_SIZE="taskmanager.memory.size"
 KEY_TASKM_MEM_MANAGED_FRACTION="taskmanager.memory.fraction"
 KEY_TASKM_OFFHEAP="taskmanager.memory.off-heap"
@@ -118,6 +122,8 @@ KEY_TASKM_COMPUTE_NUMA="taskmanager.compute.numa"
 KEY_ENV_PID_DIR="env.pid.dir"
 KEY_ENV_LOG_DIR="env.log.dir"
 KEY_ENV_LOG_MAX="env.log.max"
+KEY_ENV_YARN_CONF_DIR="env.yarn.conf.dir"
+KEY_ENV_HADOOP_CONF_DIR="env.hadoop.conf.dir"
 KEY_ENV_JAVA_HOME="env.java.home"
 KEY_ENV_JAVA_OPTS="env.java.opts"
 KEY_ENV_JAVA_OPTS_JM="env.java.opts.jobmanager"
@@ -125,6 +131,145 @@ KEY_ENV_JAVA_OPTS_TM="env.java.opts.taskmanager"
 KEY_ENV_SSH_OPTS="env.ssh.opts"
 KEY_HIGH_AVAILABILITY="high-availability"
 KEY_ZK_HEAP_MB="zookeeper.heap.mb"
+
+KEY_FLINK_MODE="mode"
+
+########################################################################################################################
+# MEMORY SIZE UNIT
+########################################################################################################################
+
+BYTES_UNITS=("b" "bytes")
+KILO_BYTES_UNITS=("k" "kb" "kibibytes")
+MEGA_BYTES_UNITS=("m" "mb" "mebibytes")
+GIGA_BYTES_UNITS=("g" "gb" "gibibytes")
+TERA_BYTES_UNITS=("t" "tb" "tebibytes")
+
+hasUnit() {
+    text=$1
+
+    trimmed=$(echo -e "${text}" | tr -d '[:space:]')
+
+    if [ -z "$trimmed" -o "$trimmed" == " " ]; then
+        echo "$trimmed is an empty- or whitespace-only string"
+	exit 1
+    fi
+
+    len=${#trimmed}
+    pos=0
+
+    while [ $pos -lt $len ]; do
+	current=${trimmed:pos:1}
+	if [[ ! $current < '0' ]] && [[ ! $current > '9' ]]; then
+	    let pos+=1
+	else
+	    break
+	fi
+    done
+
+    number=${trimmed:0:pos}
+
+    unit=${trimmed:$pos}
+    unit=$(echo -e "${unit}" | tr -d '[:space:]')
+    unit=$(echo -e "${unit}" | tr '[A-Z]' '[a-z]')
+
+    [[ ! -z "$unit" ]]
+}
+
+parseBytes() {
+    text=$1
+
+    trimmed=$(echo -e "${text}" | tr -d '[:space:]')
+
+    if [ -z "$trimmed" -o "$trimmed" == " " ]; then
+        echo "$trimmed is an empty- or whitespace-only string"
+	exit 1
+    fi
+
+    len=${#trimmed}
+    pos=0
+
+    while [ $pos -lt $len ]; do
+	current=${trimmed:pos:1}
+	if [[ ! $current < '0' ]] && [[ ! $current > '9' ]]; then
+	    let pos+=1
+	else
+	    break
+	fi
+    done
+
+    number=${trimmed:0:pos}
+
+    unit=${trimmed:$pos}
+    unit=$(echo -e "${unit}" | tr -d '[:space:]')
+    unit=$(echo -e "${unit}" | tr '[A-Z]' '[a-z]')
+
+    if [ -z "$number" ]; then
+        echo "text does not start with a number"
+        exit 1
+    fi
+
+    local multiplier
+    if [ -z "$unit" ]; then
+        multiplier=1
+    else
+        if matchesAny $unit "${BYTES_UNITS[*]}"; then
+            multiplier=1
+        elif matchesAny $unit "${KILO_BYTES_UNITS[*]}"; then
+                multiplier=1024
+        elif matchesAny $unit "${MEGA_BYTES_UNITS[*]}"; then
+                multiplier=`expr 1024 \* 1024`
+        elif matchesAny $unit "${GIGA_BYTES_UNITS[*]}"; then
+                multiplier=`expr 1024 \* 1024 \* 1024`
+        elif matchesAny $unit "${TERA_BYTES_UNITS[*]}"; then
+                multiplier=`expr 1024 \* 1024 \* 1024 \* 1024`
+        else
+            echo "[ERROR] Memory size unit $unit does not match any of the recognized units"
+            exit 1
+        fi
+    fi
+
+    ((result=$number * $multiplier))
+
+    if [ $[result / multiplier] != "$number" ]; then
+        echo "[ERROR] The value $text cannot be re represented as 64bit number of bytes (numeric overflow)."
+        exit 1
+    fi
+
+    echo "$result"
+}
+
+matchesAny() {
+    str=$1
+    variants=$2
+
+    for s in ${variants[*]}; do
+        if [ $str == $s ]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+getKibiBytes() {
+    bytes=$1
+    echo "$(($bytes >>10))"
+}
+
+getMebiBytes() {
+    bytes=$1
+    echo "$(($bytes >> 20))"
+}
+
+getGibiBytes() {
+    bytes=$1
+    echo "$(($bytes >> 30))"
+}
+
+getTebiBytes() {
+    bytes=$1
+    echo "$(($bytes >> 40))"
+}
 
 ########################################################################################################################
 # PATHS AND CONFIG
@@ -153,11 +298,14 @@ SYMLINK_RESOLVED_BIN=`cd "$bin"; pwd -P`
 # Define the main directory of the flink installation
 FLINK_ROOT_DIR=`dirname "$SYMLINK_RESOLVED_BIN"`
 FLINK_LIB_DIR=$FLINK_ROOT_DIR/lib
+FLINK_OPT_DIR=$FLINK_ROOT_DIR/opt
 
 ### Exported environment variables ###
 export FLINK_CONF_DIR
 # export /lib dir to access it during deployment of the Yarn staging files
 export FLINK_LIB_DIR
+# export /opt dir to access it for the SQL client
+export FLINK_OPT_DIR
 
 # These need to be mangled because they are directly passed to java.
 # The above lib path is used by the shell script to retrieve jars in a
@@ -211,14 +359,30 @@ if [ -z "${FLINK_JM_HEAP}" ]; then
     FLINK_JM_HEAP=$(readFromConfig ${KEY_JOBM_MEM_SIZE} 0 "${YAML_CONF}")
 fi
 
+# Try read old config key, if new key not exists
+if [ "${FLINK_JM_HEAP}" == 0 ]; then
+    FLINK_JM_HEAP_MB=$(readFromConfig ${KEY_JOBM_MEM_MB} 0 "${YAML_CONF}")
+fi
+
 # Define FLINK_TM_HEAP if it is not already set
 if [ -z "${FLINK_TM_HEAP}" ]; then
     FLINK_TM_HEAP=$(readFromConfig ${KEY_TASKM_MEM_SIZE} 0 "${YAML_CONF}")
 fi
 
+# Try read old config key, if new key not exists
+if [ "${FLINK_TM_HEAP}" == 0 ]; then
+    FLINK_TM_HEAP_MB=$(readFromConfig ${KEY_TASKM_MEM_MB} 0 "${YAML_CONF}")
+fi
+
 # Define FLINK_TM_MEM_MANAGED_SIZE if it is not already set
 if [ -z "${FLINK_TM_MEM_MANAGED_SIZE}" ]; then
     FLINK_TM_MEM_MANAGED_SIZE=$(readFromConfig ${KEY_TASKM_MEM_MANAGED_SIZE} 0 "${YAML_CONF}")
+
+    if hasUnit ${FLINK_TM_MEM_MANAGED_SIZE}; then
+        FLINK_TM_MEM_MANAGED_SIZE=$(getMebiBytes $(parseBytes ${FLINK_TM_MEM_MANAGED_SIZE}))
+    else
+        FLINK_TM_MEM_MANAGED_SIZE=$(getMebiBytes $(parseBytes ${FLINK_TM_MEM_MANAGED_SIZE}"m"))
+    fi
 fi
 
 # Define FLINK_TM_MEM_MANAGED_FRACTION if it is not already set
@@ -245,19 +409,29 @@ fi
 # Define FLINK_TM_NET_BUF_MIN and FLINK_TM_NET_BUF_MAX if not already set (as a fallback)
 if [ -z "${FLINK_TM_NET_BUF_MIN}" -a -z "${FLINK_TM_NET_BUF_MAX}" ]; then
     FLINK_TM_NET_BUF_MIN=$(readFromConfig ${KEY_TASKM_NET_BUF_NR} -1 "${YAML_CONF}")
-    FLINK_TM_NET_BUF_MAX=${FLINK_TM_NET_BUF_MIN}
+    if [ $FLINK_TM_NET_BUF_MIN != -1 ]; then
+        FLINK_TM_NET_BUF_MIN=$(parseBytes ${FLINK_TM_NET_BUF_MIN})
+        FLINK_TM_NET_BUF_MAX=${FLINK_TM_NET_BUF_MIN}
+    fi
 fi
 
 # Define FLINK_TM_NET_BUF_MIN if it is not already set
 if [ -z "${FLINK_TM_NET_BUF_MIN}" -o "${FLINK_TM_NET_BUF_MIN}" = "-1" ]; then
     # default: 64MB = 67108864 bytes (same as the previous default with 2048 buffers of 32k each)
     FLINK_TM_NET_BUF_MIN=$(readFromConfig ${KEY_TASKM_NET_BUF_MIN} 67108864 "${YAML_CONF}")
+    FLINK_TM_NET_BUF_MIN=$(parseBytes ${FLINK_TM_NET_BUF_MIN})
 fi
 
 # Define FLINK_TM_NET_BUF_MAX if it is not already set
 if [ -z "${FLINK_TM_NET_BUF_MAX}" -o "${FLINK_TM_NET_BUF_MAX}" = "-1" ]; then
     # default: 1GB = 1073741824 bytes
     FLINK_TM_NET_BUF_MAX=$(readFromConfig ${KEY_TASKM_NET_BUF_MAX} 1073741824 "${YAML_CONF}")
+    FLINK_TM_NET_BUF_MAX=$(parseBytes ${FLINK_TM_NET_BUF_MAX})
+fi
+
+# Define FLIP if it is not already set
+if [ -z "${FLINK_MODE}" ]; then
+    FLINK_MODE=$(readFromConfig ${KEY_FLINK_MODE} "new" "${YAML_CONF}")
 fi
 
 
@@ -278,6 +452,14 @@ fi
 
 if [ -z "${FLINK_LOG_DIR}" ]; then
     FLINK_LOG_DIR=$(readFromConfig ${KEY_ENV_LOG_DIR} "${DEFAULT_FLINK_LOG_DIR}" "${YAML_CONF}")
+fi
+
+if [ -z "${YARN_CONF_DIR}" ]; then
+    YARN_CONF_DIR=$(readFromConfig ${KEY_ENV_YARN_CONF_DIR} "${DEFAULT_YARN_CONF_DIR}" "${YAML_CONF}")
+fi
+
+if [ -z "${HADOOP_CONF_DIR}" ]; then
+    HADOOP_CONF_DIR=$(readFromConfig ${KEY_ENV_HADOOP_CONF_DIR} "${DEFAULT_HADOOP_CONF_DIR}" "${YAML_CONF}")
 fi
 
 if [ -z "${FLINK_PID_DIR}" ]; then
@@ -336,40 +518,33 @@ if [ -z "${JVM_ARGS}" ]; then
     JVM_ARGS=""
 fi
 
-# Check if deprecated HADOOP_HOME is set.
-if [ -n "$HADOOP_HOME" ]; then
-    # HADOOP_HOME is set. Check if its a Hadoop 1.x or 2.x HADOOP_HOME path
-    if [ -d "$HADOOP_HOME/conf" ]; then
-        # its a Hadoop 1.x
-        HADOOP_CONF_DIR="$HADOOP_CONF_DIR:$HADOOP_HOME/conf"
+# Check if deprecated HADOOP_HOME is set, and specify config path to HADOOP_CONF_DIR if it's empty.
+if [ -z "$HADOOP_CONF_DIR" ]; then
+    if [ -n "$HADOOP_HOME" ]; then
+        # HADOOP_HOME is set. Check if its a Hadoop 1.x or 2.x HADOOP_HOME path
+        if [ -d "$HADOOP_HOME/conf" ]; then
+            # its a Hadoop 1.x
+            HADOOP_CONF_DIR="$HADOOP_HOME/conf"
+        fi
+        if [ -d "$HADOOP_HOME/etc/hadoop" ]; then
+            # Its Hadoop 2.2+
+            HADOOP_CONF_DIR="$HADOOP_HOME/etc/hadoop"
+        fi
     fi
-    if [ -d "$HADOOP_HOME/etc/hadoop" ]; then
-        # Its Hadoop 2.2+
-        HADOOP_CONF_DIR="$HADOOP_CONF_DIR:$HADOOP_HOME/etc/hadoop"
+fi
+
+# try and set HADOOP_CONF_DIR to some common default if it's not set
+if [ -z "$HADOOP_CONF_DIR" ]; then
+    if [ -d "/etc/hadoop/conf" ]; then
+        echo "Setting HADOOP_CONF_DIR=/etc/hadoop/conf because no HADOOP_CONF_DIR was set."
+        HADOOP_CONF_DIR="/etc/hadoop/conf"
     fi
 fi
 
 INTERNAL_HADOOP_CLASSPATHS="${HADOOP_CLASSPATH}:${HADOOP_CONF_DIR}:${YARN_CONF_DIR}"
 
 if [ -n "${HBASE_CONF_DIR}" ]; then
-    # Look for hbase command in HBASE_HOME or search PATH.
-    if [ -n "${HBASE_HOME}" ]; then
-        HBASE_PATH="${HBASE_HOME}/bin"
-        HBASE_COMMAND=`command -v "${HBASE_PATH}/hbase"`
-    else
-        HBASE_PATH=$PATH
-        HBASE_COMMAND=`command -v hbase`
-    fi
-
-    # Whether the hbase command was found.
-    if [[ $? -eq 0 ]]; then
-        # Setup the HBase classpath. We add the HBASE_CONF_DIR last to ensure the right config directory is used.
-        INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:`${HBASE_COMMAND} classpath`:${HBASE_CONF_DIR}"
-    else
-        echo "HBASE_CONF_DIR=${HBASE_CONF_DIR} is set but 'hbase' command was not found in ${HBASE_PATH} so classpath could not be updated."
-    fi
-
-    unset HBASE_COMMAND HBASE_PATH
+    INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:${HBASE_CONF_DIR}"
 fi
 
 # Auxilliary function which extracts the name of host from a line which
@@ -420,6 +595,7 @@ readMasters() {
     MASTERS=()
     WEBUIPORTS=()
 
+    MASTERS_ALL_LOCALHOST=true
     GOON=true
     while $GOON; do
         read line || GOON=false
@@ -434,6 +610,10 @@ readMasters() {
                 WEBUIPORTS+=(0)
             else
                 WEBUIPORTS+=(${WEBUIPORT})
+            fi
+
+            if [ "${HOST}" != "localhost" ] && [ "${HOST}" != "127.0.0.1" ] ; then
+                MASTERS_ALL_LOCALHOST=false
             fi
         fi
     done < "$MASTERS_FILE"
@@ -456,7 +636,7 @@ readSlaves() {
         HOST=$( extractHostName $line)
         if [ -n "$HOST" ] ; then
             SLAVES+=(${HOST})
-            if [ "${HOST}" != "localhost" ] ; then
+            if [ "${HOST}" != "localhost" ] && [ "${HOST}" != "127.0.0.1" ] ; then
                 SLAVES_ALL_LOCALHOST=false
             fi
         fi
@@ -498,7 +678,7 @@ HAVE_AWK=
 # same as org.apache.flink.runtime.taskexecutor.TaskManagerServices.calculateNetworkBufferMemory(long totalJavaMemorySize, Configuration config)
 calculateNetworkBufferMemory() {
     local network_buffers_bytes
-    if [ "${FLINK_TM_HEAP}" -le "0" ]; then
+    if [ "${FLINK_TM_HEAP_MB}" -le "0" ]; then
         echo "Variable 'FLINK_TM_HEAP' not set (usually read from '${KEY_TASKM_MEM_SIZE}' in ${FLINK_CONF_FILE})."
         exit 1
     fi
@@ -533,13 +713,13 @@ calculateNetworkBufferMemory() {
             exit 1
         fi
 
-        network_buffers_bytes=`awk "BEGIN { x = ${FLINK_TM_HEAP} * 1048576 * ${FLINK_TM_NET_BUF_FRACTION}; netbuf = x > ${FLINK_TM_NET_BUF_MAX} ? ${FLINK_TM_NET_BUF_MAX} : x < ${FLINK_TM_NET_BUF_MIN} ? ${FLINK_TM_NET_BUF_MIN} : x; printf \"%.0f\n\", netbuf }"`
+        network_buffers_bytes=`awk "BEGIN { x = ${FLINK_TM_HEAP_MB} * 1048576 * ${FLINK_TM_NET_BUF_FRACTION}; netbuf = x > ${FLINK_TM_NET_BUF_MAX} ? ${FLINK_TM_NET_BUF_MAX} : x < ${FLINK_TM_NET_BUF_MIN} ? ${FLINK_TM_NET_BUF_MIN} : x; printf \"%.0f\n\", netbuf }"`
     fi
 
     # recalculate the JVM heap memory by taking the network buffers into account
-    local tm_heap_size_bytes=$((${FLINK_TM_HEAP} << 20)) # megabytes to bytes
+    local tm_heap_size_bytes=$((${FLINK_TM_HEAP_MB} << 20)) # megabytes to bytes
     if [[ "${tm_heap_size_bytes}" -le "${network_buffers_bytes}" ]]; then
-        echo "[ERROR] Configured TaskManager memory size (${FLINK_TM_HEAP} MB, from '${KEY_TASKM_MEM_SIZE}') must be larger than the network buffer memory size (${network_buffers_bytes} bytes, from: '${KEY_TASKM_NET_BUF_FRACTION}', '${KEY_TASKM_NET_BUF_MIN}', '${KEY_TASKM_NET_BUF_MAX}', and '${KEY_TASKM_NET_BUF_NR}')."
+        echo "[ERROR] Configured TaskManager memory size (${FLINK_TM_HEAP_MB} MB, from '${KEY_TASKM_MEM_SIZE}') must be larger than the network buffer memory size (${network_buffers_bytes} bytes, from: '${KEY_TASKM_NET_BUF_FRACTION}', '${KEY_TASKM_NET_BUF_MIN}', '${KEY_TASKM_NET_BUF_MAX}', and '${KEY_TASKM_NET_BUF_NR}')."
         exit 1
     fi
 
@@ -548,22 +728,21 @@ calculateNetworkBufferMemory() {
 
 # same as org.apache.flink.runtime.taskexecutor.TaskManagerServices.calculateHeapSizeMB(long totalJavaMemorySizeMB, Configuration config)
 calculateTaskManagerHeapSizeMB() {
-    if [ "${FLINK_TM_HEAP}" -le "0" ]; then
+    if [ "${FLINK_TM_HEAP_MB}" -le "0" ]; then
         echo "Variable 'FLINK_TM_HEAP' not set (usually read from '${KEY_TASKM_MEM_SIZE}' in ${FLINK_CONF_FILE})."
         exit 1
     fi
 
-    local tm_heap_size_mb=${FLINK_TM_HEAP}
+    local network_buffers_mb=$(($(calculateNetworkBufferMemory) >> 20)) # bytes to megabytes
+    # network buffers are always off-heap and thus need to be deduced from the heap memory size
+    local tm_heap_size_mb=$((${FLINK_TM_HEAP_MB} - network_buffers_mb))
 
     if useOffHeapMemory; then
-
-        local network_buffers_mb=$(($(calculateNetworkBufferMemory) >> 20)) # bytes to megabytes
-        tm_heap_size_mb=$((tm_heap_size_mb - network_buffers_mb))
 
         if [[ "${FLINK_TM_MEM_MANAGED_SIZE}" -gt "0" ]]; then
             # We split up the total memory in heap and off-heap memory
             if [[ "${tm_heap_size_mb}" -le "${FLINK_TM_MEM_MANAGED_SIZE}" ]]; then
-                echo "[ERROR] Remaining TaskManager memory size (${tm_heap_size_mb} MB, from: '${KEY_TASKM_MEM_SIZE}' (${FLINK_TM_HEAP} MB) minus network buffer memory size (${network_buffers_mb} MB, from: '${KEY_TASKM_NET_BUF_FRACTION}', '${KEY_TASKM_NET_BUF_MIN}', '${KEY_TASKM_NET_BUF_MAX}', and '${KEY_TASKM_NET_BUF_NR}')) must be larger than the managed memory size (${FLINK_TM_MEM_MANAGED_SIZE} MB, from: '${KEY_TASKM_MEM_MANAGED_SIZE}')."
+                echo "[ERROR] Remaining TaskManager memory size (${tm_heap_size_mb} MB, from: '${KEY_TASKM_MEM_SIZE}' (${FLINK_TM_HEAP_MB} MB) minus network buffer memory size (${network_buffers_mb} MB, from: '${KEY_TASKM_NET_BUF_FRACTION}', '${KEY_TASKM_NET_BUF_MIN}', '${KEY_TASKM_NET_BUF_MAX}', and '${KEY_TASKM_NET_BUF_NR}')) must be larger than the managed memory size (${FLINK_TM_MEM_MANAGED_SIZE} MB, from: '${KEY_TASKM_MEM_MANAGED_SIZE}')."
                 exit 1
             fi
 

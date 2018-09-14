@@ -20,6 +20,9 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.AggregatingState;
+import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.AppendingState;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
@@ -41,17 +44,15 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.state.ArrayListSerializer;
+import org.apache.flink.runtime.state.DefaultKeyedStateStore;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.internal.InternalAppendingState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMergingState;
-import org.apache.flink.streaming.api.datastream.LegacyWindowOperatorType;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -61,8 +62,6 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.windowing.assigners.BaseAlignedWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
@@ -70,16 +69,9 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
-import org.apache.flink.util.Preconditions;
 
-import org.apache.commons.math3.util.ArithmeticUtils;
-
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Comparator;
-import java.util.List;
-import java.util.PriorityQueue;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -146,21 +138,25 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 */
 	protected final OutputTag<IN> lateDataOutputTag;
 
+	private static final  String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
+
+	protected transient Counter numLateRecordsDropped;
+
 	// ------------------------------------------------------------------------
 	// State that is not checkpointed
 	// ------------------------------------------------------------------------
 
 	/** The state in which the window contents is stored. Each window is a namespace */
-	private transient InternalAppendingState<W, IN, ACC> windowState;
+	private transient InternalAppendingState<K, W, IN, ACC, ACC> windowState;
 
 	/**
 	 * The {@link #windowState}, typed to merging state for merging windows.
 	 * Null if the window state is not mergeable.
 	 */
-	private transient InternalMergingState<W, IN, ACC> windowMergingState;
+	private transient InternalMergingState<K, W, IN, ACC, ACC> windowMergingState;
 
 	/** The state that holds the merging window metadata (the sets that describe what is merged). */
-	private transient InternalListState<VoidNamespace, Tuple2<W, W>> mergingSetsState;
+	private transient InternalListState<K, VoidNamespace, Tuple2<W, W>> mergingSetsState;
 
 	/**
 	 * This is given to the {@code InternalWindowFunction} for emitting elements with a given
@@ -170,7 +166,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	protected transient Context triggerContext = new Context(null, null);
 
-	protected transient WindowContext processContext = new WindowContext(null);
+	protected transient WindowContext processContext;
 
 	protected transient WindowAssigner.WindowAssignerContext windowAssignerContext;
 
@@ -179,34 +175,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	// ------------------------------------------------------------------------
 
 	protected transient InternalTimerService<W> internalTimerService;
-
-	// ------------------------------------------------------------------------
-	// State restored in case of migration from an older version (backwards compatibility)
-	// ------------------------------------------------------------------------
-
-	/**
-	 * A flag indicating if we are migrating from a regular {@link WindowOperator}
-	 * or one of the deprecated {@link AccumulatingProcessingTimeWindowOperator} and
-	 * {@link AggregatingProcessingTimeWindowOperator}.
-	 */
-	private final LegacyWindowOperatorType legacyWindowOperatorType;
-
-	/**
-	 * The elements restored when migrating from an older, deprecated
-	 * {@link AccumulatingProcessingTimeWindowOperator} or
-	 * {@link AggregatingProcessingTimeWindowOperator}. */
-	private transient PriorityQueue<StreamRecord<IN>> restoredFromLegacyAlignedOpRecords;
-
-	/**
-	 * The restored processing time timers when migrating from an
-	 * older version of the {@link WindowOperator}.
-	 */
-	private transient PriorityQueue<Timer<K, W>> restoredFromLegacyProcessingTimeTimers;
-
-	/** The restored event time timer when migrating from an
-	 * older version of the {@link WindowOperator}.
-	 */
-	private transient PriorityQueue<Timer<K, W>> restoredFromLegacyEventTimeTimers;
 
 	/**
 	 * Creates a new {@code WindowOperator} based on the given policies and user functions.
@@ -221,25 +189,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			Trigger<? super IN, ? super W> trigger,
 			long allowedLateness,
 			OutputTag<IN> lateDataOutputTag) {
-
-		this(windowAssigner, windowSerializer, keySelector, keySerializer,
-			windowStateDescriptor, windowFunction, trigger, allowedLateness, lateDataOutputTag, LegacyWindowOperatorType.NONE);
-	}
-
-	/**
-	 * Creates a new {@code WindowOperator} based on the given policies and user functions.
-	 */
-	public WindowOperator(
-			WindowAssigner<? super IN, W> windowAssigner,
-			TypeSerializer<W> windowSerializer,
-			KeySelector<IN, K> keySelector,
-			TypeSerializer<K> keySerializer,
-			StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
-			InternalWindowFunction<ACC, OUT, K, W> windowFunction,
-			Trigger<? super IN, ? super W> trigger,
-			long allowedLateness,
-			OutputTag<IN> lateDataOutputTag,
-			LegacyWindowOperatorType legacyWindowOperatorType) {
 
 		super(windowFunction);
 
@@ -261,7 +210,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		this.trigger = checkNotNull(trigger);
 		this.allowedLateness = allowedLateness;
 		this.lateDataOutputTag = lateDataOutputTag;
-		this.legacyWindowOperatorType = legacyWindowOperatorType;
 
 		setChainingStrategy(ChainingStrategy.ALWAYS);
 	}
@@ -270,6 +218,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	public void open() throws Exception {
 		super.open();
 
+		this.numLateRecordsDropped = metrics.counter(LATE_ELEMENTS_DROPPED_METRIC_NAME);
 		timestampedCollector = new TimestampedCollector<>(output);
 
 		internalTimerService =
@@ -288,7 +237,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		// create (or restore) the state that hold the actual window contents
 		// NOTE - the state may be null in the case of the overriding evicting window operator
 		if (windowStateDescriptor != null) {
-			windowState = (InternalAppendingState<W, IN, ACC>) getOrCreateKeyedState(windowSerializer, windowStateDescriptor);
+			windowState = (InternalAppendingState<K, W, IN, ACC, ACC>) getOrCreateKeyedState(windowSerializer, windowStateDescriptor);
 		}
 
 		// create the typed and helper states for merging windows
@@ -296,7 +245,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 			// store a typed reference for the state of merging windows - sanity check
 			if (windowState instanceof InternalMergingState) {
-				windowMergingState = (InternalMergingState<W, IN, ACC>) windowState;
+				windowMergingState = (InternalMergingState<K, W, IN, ACC, ACC>) windowState;
 			}
 			// TODO this sanity check should be here, but is prevented by an incorrect test (pending validation)
 			// TODO see WindowOperatorTest.testCleanupTimerWithEmptyFoldingStateForSessionWindows()
@@ -317,12 +266,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					new ListStateDescriptor<>("merging-window-set", tupleSerializer);
 
 			// get the state that stores the merging sets
-			mergingSetsState = (InternalListState<VoidNamespace, Tuple2<W, W>>)
+			mergingSetsState = (InternalListState<K, VoidNamespace, Tuple2<W, W>>)
 					getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, mergingSetsStateDescriptor);
 			mergingSetsState.setCurrentNamespace(VoidNamespace.INSTANCE);
 		}
-
-		registerRestoredLegacyStateState();
 	}
 
 	@Override
@@ -467,8 +414,12 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		// element not handled by any window
 		// late arriving tag has been set
 		// windowAssigner is event time and current timestamp + allowed lateness no less than element timestamp
-		if (isSkippedElement && lateDataOutputTag != null && isElementLate(element)) {
-			sideOutput(element);
+		if (isSkippedElement && isElementLate(element)) {
+			if (lateDataOutputTag != null){
+				sideOutput(element);
+			} else {
+				this.numLateRecordsDropped.inc();
+			}
 		}
 	}
 
@@ -495,19 +446,17 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			mergingWindows = null;
 		}
 
-		ACC contents = null;
-		if (windowState != null) {
-			contents = windowState.get();
-		}
+		TriggerResult triggerResult = triggerContext.onEventTime(timer.getTimestamp());
 
-		if (contents != null) {
-			TriggerResult triggerResult = triggerContext.onEventTime(timer.getTimestamp());
-			if (triggerResult.isFire()) {
+		if (triggerResult.isFire()) {
+			ACC contents = windowState.get();
+			if (contents != null) {
 				emitWindowContents(triggerContext.window, contents);
 			}
-			if (triggerResult.isPurge()) {
-				windowState.clear();
-			}
+		}
+
+		if (triggerResult.isPurge()) {
+			windowState.clear();
 		}
 
 		if (windowAssigner.isEventTime() && isCleanupTime(triggerContext.window, timer.getTimestamp())) {
@@ -543,19 +492,17 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			mergingWindows = null;
 		}
 
-		ACC contents = null;
-		if (windowState != null) {
-			contents = windowState.get();
-		}
+		TriggerResult triggerResult = triggerContext.onProcessingTime(timer.getTimestamp());
 
-		if (contents != null) {
-			TriggerResult triggerResult = triggerContext.onProcessingTime(timer.getTimestamp());
-			if (triggerResult.isFire()) {
+		if (triggerResult.isFire()) {
+			ACC contents = windowState.get();
+			if (contents != null) {
 				emitWindowContents(triggerContext.window, contents);
 			}
-			if (triggerResult.isPurge()) {
-				windowState.clear();
-			}
+		}
+
+		if (triggerResult.isPurge()) {
+			windowState.clear();
 		}
 
 		if (!windowAssigner.isEventTime() && isCleanupTime(triggerContext.window, timer.getTimestamp())) {
@@ -680,7 +627,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	/**
 	 * Returns the cleanup time for a window, which is
 	 * {@code window.maxTimestamp + allowedLateness}. In
-	 * case this leads to a value greated than {@link Long#MAX_VALUE}
+	 * case this leads to a value greater than {@link Long#MAX_VALUE}
 	 * then a cleanup time of {@link Long#MAX_VALUE} is
 	 * returned.
 	 *
@@ -706,17 +653,26 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * Base class for per-window {@link KeyedStateStore KeyedStateStores}. Used to allow per-window
 	 * state access for {@link org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction}.
 	 */
-	public abstract class AbstractPerWindowStateStore implements KeyedStateStore {
+	public abstract class AbstractPerWindowStateStore extends DefaultKeyedStateStore {
 
 		// we have this in the base class even though it's not used in MergingKeyStore so that
 		// we can always set it and ignore what actual implementation we have
 		protected W window;
+
+		public AbstractPerWindowStateStore(KeyedStateBackend<?> keyedStateBackend, ExecutionConfig executionConfig) {
+			super(keyedStateBackend, executionConfig);
+		}
 	}
 
 	/**
 	 * Special {@link AbstractPerWindowStateStore} that doesn't allow access to per-window state.
 	 */
 	public class MergingWindowStateStore extends AbstractPerWindowStateStore {
+
+		public MergingWindowStateStore(KeyedStateBackend<?> keyedStateBackend, ExecutionConfig executionConfig) {
+			super(keyedStateBackend, executionConfig);
+		}
+
 		@Override
 		public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
 			throw new UnsupportedOperationException("Per-window state is not allowed when using merging windows.");
@@ -729,6 +685,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		@Override
 		public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
+			throw new UnsupportedOperationException("Per-window state is not allowed when using merging windows.");
+		}
+
+		@Override
+		public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
 			throw new UnsupportedOperationException("Per-window state is not allowed when using merging windows.");
 		}
 
@@ -748,49 +709,17 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * {@link org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction}.
 	 */
 	public class PerWindowStateStore extends AbstractPerWindowStateStore {
-		@Override
-		public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
-			try {
-				return WindowOperator.this.getPartitionedState(window, windowSerializer, stateProperties);
-			} catch (Exception e) {
-				throw new RuntimeException("Could not retrieve state", e);
-			}
+
+		public PerWindowStateStore(KeyedStateBackend<?> keyedStateBackend, ExecutionConfig executionConfig) {
+			super(keyedStateBackend, executionConfig);
 		}
 
 		@Override
-		public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
-			try {
-				return WindowOperator.this.getPartitionedState(window, windowSerializer, stateProperties);
-			} catch (Exception e) {
-				throw new RuntimeException("Could not retrieve state", e);
-			}
-		}
-
-		@Override
-		public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
-			try {
-				return WindowOperator.this.getPartitionedState(window, windowSerializer, stateProperties);
-			} catch (Exception e) {
-				throw new RuntimeException("Could not retrieve state", e);
-			}
-		}
-
-		@Override
-		public <T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties) {
-			try {
-				return WindowOperator.this.getPartitionedState(window, windowSerializer, stateProperties);
-			} catch (Exception e) {
-				throw new RuntimeException("Could not retrieve state", e);
-			}
-		}
-
-		@Override
-		public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
-			try {
-				return WindowOperator.this.getPartitionedState(window, windowSerializer, stateProperties);
-			} catch (Exception e) {
-				throw new RuntimeException("Could not retrieve state", e);
-			}
+		protected  <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) throws Exception {
+			return keyedStateBackend.getPartitionedState(
+				window,
+				windowSerializer,
+				stateDescriptor);
 		}
 	}
 
@@ -806,7 +735,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		public WindowContext(W window) {
 			this.window = window;
-			this.windowState = windowAssigner instanceof MergingWindowAssigner ?  new MergingWindowStateStore() : new PerWindowStateStore();
+			this.windowState = windowAssigner instanceof MergingWindowAssigner ?
+				new MergingWindowStateStore(getKeyedStateBackend(), getExecutionConfig()) :
+				new PerWindowStateStore(getKeyedStateBackend(), getExecutionConfig());
 		}
 
 		@Override
@@ -837,6 +768,14 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		@Override
 		public KeyedStateStore globalState() {
 			return WindowOperator.this.getKeyedStateStore();
+		}
+
+		@Override
+		public <X> void output(OutputTag<X> outputTag, X value) {
+			if (outputTag == null) {
+				throw new IllegalArgumentException("OutputTag must not be null.");
+			}
+			output.collect(outputTag, new StreamRecord<>(value, window.maxTimestamp()));
 		}
 	}
 
@@ -913,7 +852,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 					if (rawState instanceof InternalMergingState) {
 						@SuppressWarnings("unchecked")
-						InternalMergingState<W, ?, ?> mergingState = (InternalMergingState<W, ?, ?>) rawState;
+						InternalMergingState<K, W, ?, ?, ?> mergingState = (InternalMergingState<K, W, ?, ?, ?>) rawState;
 						mergingState.mergeNamespaces(window, mergedWindows);
 					}
 					else {
@@ -1034,256 +973,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				", window=" + window +
 				'}';
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Restoring / Migrating from an older Flink version.
-	// ------------------------------------------------------------------------
-
-	private static final int BEGIN_OF_STATE_MAGIC_NUMBER = 0x0FF1CE42;
-
-	private static final int BEGIN_OF_PANE_MAGIC_NUMBER = 0xBADF00D5;
-
-	@Override
-	public void restoreState(FSDataInputStream in) throws Exception {
-		super.restoreState(in);
-
-		LOG.info("{} (taskIdx={}) restoring {} state from an older Flink version.",
-			getClass().getSimpleName(), legacyWindowOperatorType, getRuntimeContext().getIndexOfThisSubtask());
-
-		DataInputViewStreamWrapper streamWrapper = new DataInputViewStreamWrapper(in);
-
-		switch (legacyWindowOperatorType) {
-			case NONE:
-				restoreFromLegacyWindowOperator(streamWrapper);
-				break;
-			case FAST_ACCUMULATING:
-			case FAST_AGGREGATING:
-				restoreFromLegacyAlignedWindowOperator(streamWrapper);
-				break;
-		}
-	}
-
-	public void registerRestoredLegacyStateState() throws Exception {
-
-		switch (legacyWindowOperatorType) {
-			case NONE:
-				reregisterStateFromLegacyWindowOperator();
-				break;
-			case FAST_ACCUMULATING:
-			case FAST_AGGREGATING:
-				reregisterStateFromLegacyAlignedWindowOperator();
-				break;
-		}
-	}
-
-	private void restoreFromLegacyAlignedWindowOperator(DataInputViewStreamWrapper in) throws IOException {
-		Preconditions.checkArgument(legacyWindowOperatorType != LegacyWindowOperatorType.NONE);
-
-		final long nextEvaluationTime = in.readLong();
-		final long nextSlideTime = in.readLong();
-
-		validateMagicNumber(BEGIN_OF_STATE_MAGIC_NUMBER, in.readInt());
-
-		restoredFromLegacyAlignedOpRecords = new PriorityQueue<>(42,
-			new Comparator<StreamRecord<IN>>() {
-				@Override
-				public int compare(StreamRecord<IN> o1, StreamRecord<IN> o2) {
-					return Long.compare(o1.getTimestamp(), o2.getTimestamp());
-				}
-			}
-		);
-
-		switch (legacyWindowOperatorType) {
-			case FAST_ACCUMULATING:
-				restoreElementsFromLegacyAccumulatingAlignedWindowOperator(in, nextSlideTime);
-				break;
-			case FAST_AGGREGATING:
-				restoreElementsFromLegacyAggregatingAlignedWindowOperator(in, nextSlideTime);
-				break;
-		}
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("{} (taskIdx={}) restored {} events from legacy {}.",
-				getClass().getSimpleName(),
-				getRuntimeContext().getIndexOfThisSubtask(),
-				restoredFromLegacyAlignedOpRecords.size(),
-				legacyWindowOperatorType);
-		}
-	}
-
-	private void restoreElementsFromLegacyAccumulatingAlignedWindowOperator(DataInputView in, long nextSlideTime) throws IOException {
-		int numPanes = in.readInt();
-		final long paneSize = getPaneSize();
-		long nextElementTimestamp = nextSlideTime - (numPanes * paneSize);
-
-		@SuppressWarnings("unchecked")
-		ArrayListSerializer<IN> ser = new ArrayListSerializer<>((TypeSerializer<IN>) getStateDescriptor().getSerializer());
-
-		while (numPanes > 0) {
-			validateMagicNumber(BEGIN_OF_PANE_MAGIC_NUMBER, in.readInt());
-
-			nextElementTimestamp += paneSize - 1; // the -1 is so that the elements fall into the correct time-frame
-
-			final int numElementsInPane = in.readInt();
-			for (int i = numElementsInPane - 1; i >= 0; i--) {
-				K key = keySerializer.deserialize(in);
-
-				@SuppressWarnings("unchecked")
-				List<IN> valueList = ser.deserialize(in);
-				for (IN record: valueList) {
-					restoredFromLegacyAlignedOpRecords.add(new StreamRecord<>(record, nextElementTimestamp));
-				}
-			}
-			numPanes--;
-		}
-	}
-
-	private void restoreElementsFromLegacyAggregatingAlignedWindowOperator(DataInputView in, long nextSlideTime) throws IOException {
-		int numPanes = in.readInt();
-		final long paneSize = getPaneSize();
-		long nextElementTimestamp = nextSlideTime - (numPanes * paneSize);
-
-		while (numPanes > 0) {
-			validateMagicNumber(BEGIN_OF_PANE_MAGIC_NUMBER, in.readInt());
-
-			nextElementTimestamp += paneSize - 1; // the -1 is so that the elements fall into the correct time-frame
-
-			final int numElementsInPane = in.readInt();
-			for (int i = numElementsInPane - 1; i >= 0; i--) {
-				K key = keySerializer.deserialize(in);
-
-				@SuppressWarnings("unchecked")
-				IN value = (IN) getStateDescriptor().getSerializer().deserialize(in);
-				restoredFromLegacyAlignedOpRecords.add(new StreamRecord<>(value, nextElementTimestamp));
-			}
-			numPanes--;
-		}
-	}
-
-	private long getPaneSize() {
-		Preconditions.checkArgument(
-			legacyWindowOperatorType == LegacyWindowOperatorType.FAST_ACCUMULATING ||
-				legacyWindowOperatorType == LegacyWindowOperatorType.FAST_AGGREGATING);
-
-		final long paneSlide;
-		if (windowAssigner instanceof SlidingProcessingTimeWindows) {
-			SlidingProcessingTimeWindows timeWindows = (SlidingProcessingTimeWindows) windowAssigner;
-			paneSlide = ArithmeticUtils.gcd(timeWindows.getSize(), timeWindows.getSlide());
-		} else {
-			TumblingProcessingTimeWindows timeWindows = (TumblingProcessingTimeWindows) windowAssigner;
-			paneSlide = timeWindows.getSize(); // this is valid as windowLength == windowSlide == timeWindows.getSize
-		}
-		return paneSlide;
-	}
-
-	private static void validateMagicNumber(int expected, int found) throws IOException {
-		if (expected != found) {
-			throw new IOException("Corrupt state stream - wrong magic number. " +
-				"Expected '" + Integer.toHexString(expected) +
-				"', found '" + Integer.toHexString(found) + '\'');
-		}
-	}
-
-	private void restoreFromLegacyWindowOperator(DataInputViewStreamWrapper in) throws IOException {
-		Preconditions.checkArgument(legacyWindowOperatorType == LegacyWindowOperatorType.NONE);
-
-		int numWatermarkTimers = in.readInt();
-		this.restoredFromLegacyEventTimeTimers = new PriorityQueue<>(Math.max(numWatermarkTimers, 1));
-
-		for (int i = 0; i < numWatermarkTimers; i++) {
-			K key = keySerializer.deserialize(in);
-			W window = windowSerializer.deserialize(in);
-			long timestamp = in.readLong();
-
-			Timer<K, W> timer = new Timer<>(timestamp, key, window);
-			restoredFromLegacyEventTimeTimers.add(timer);
-		}
-
-		int numProcessingTimeTimers = in.readInt();
-		this.restoredFromLegacyProcessingTimeTimers = new PriorityQueue<>(Math.max(numProcessingTimeTimers, 1));
-
-		for (int i = 0; i < numProcessingTimeTimers; i++) {
-			K key = keySerializer.deserialize(in);
-			W window = windowSerializer.deserialize(in);
-			long timestamp = in.readLong();
-
-			Timer<K, W> timer = new Timer<>(timestamp, key, window);
-			restoredFromLegacyProcessingTimeTimers.add(timer);
-		}
-
-		// just to read all the rest, although we do not really use this information.
-		int numProcessingTimeTimerTimestamp = in.readInt();
-		for (int i = 0; i < numProcessingTimeTimerTimestamp; i++) {
-			in.readLong();
-			in.readInt();
-		}
-
-		if (LOG.isDebugEnabled()) {
-			int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
-
-			if (restoredFromLegacyEventTimeTimers != null && !restoredFromLegacyEventTimeTimers.isEmpty()) {
-				LOG.debug("{} (taskIdx={}) restored {} event time timers from an older Flink version: {}",
-					getClass().getSimpleName(), subtaskIdx,
-					restoredFromLegacyEventTimeTimers.size(),
-					restoredFromLegacyEventTimeTimers);
-			}
-
-			if (restoredFromLegacyProcessingTimeTimers != null && !restoredFromLegacyProcessingTimeTimers.isEmpty()) {
-				LOG.debug("{} (taskIdx={}) restored {} processing time timers from an older Flink version: {}",
-					getClass().getSimpleName(), subtaskIdx,
-					restoredFromLegacyProcessingTimeTimers.size(),
-					restoredFromLegacyProcessingTimeTimers);
-			}
-		}
-	}
-
-	public void reregisterStateFromLegacyWindowOperator() {
-		// if we restore from an older version,
-		// we have to re-register the recovered state.
-
-		if (restoredFromLegacyEventTimeTimers != null && !restoredFromLegacyEventTimeTimers.isEmpty()) {
-
-			LOG.info("{} (taskIdx={}) re-registering event-time timers from an older Flink version.",
-				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
-
-			for (Timer<K, W> timer : restoredFromLegacyEventTimeTimers) {
-				setCurrentKey(timer.key);
-				internalTimerService.registerEventTimeTimer(timer.window, timer.timestamp);
-			}
-		}
-
-		if (restoredFromLegacyProcessingTimeTimers != null && !restoredFromLegacyProcessingTimeTimers.isEmpty()) {
-
-			LOG.info("{} (taskIdx={}) re-registering processing-time timers from an older Flink version.",
-				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
-
-			for (Timer<K, W> timer : restoredFromLegacyProcessingTimeTimers) {
-				setCurrentKey(timer.key);
-				internalTimerService.registerProcessingTimeTimer(timer.window, timer.timestamp);
-			}
-		}
-
-		// gc friendliness
-		restoredFromLegacyEventTimeTimers = null;
-		restoredFromLegacyProcessingTimeTimers = null;
-	}
-
-	public void reregisterStateFromLegacyAlignedWindowOperator() throws Exception {
-		if (restoredFromLegacyAlignedOpRecords != null && !restoredFromLegacyAlignedOpRecords.isEmpty()) {
-
-			LOG.info("{} (taskIdx={}) re-registering timers from legacy {} from an older Flink version.",
-				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), legacyWindowOperatorType);
-
-			while (!restoredFromLegacyAlignedOpRecords.isEmpty()) {
-				StreamRecord<IN> record = restoredFromLegacyAlignedOpRecords.poll();
-				setCurrentKey(keySelector.getKey(record.getValue()));
-				processElement(record);
-			}
-		}
-
-		// gc friendliness
-		restoredFromLegacyAlignedOpRecords = null;
 	}
 
 	// ------------------------------------------------------------------------

@@ -37,7 +37,7 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * A streaming program with a custom reducing KvState.
  *
- * <p>This is used to test proper usage of the user code class laoder when
+ * <p>This is used to test proper usage of the user code class loader when
  * disposing savepoints.
  */
 public class CustomKvStateProgram {

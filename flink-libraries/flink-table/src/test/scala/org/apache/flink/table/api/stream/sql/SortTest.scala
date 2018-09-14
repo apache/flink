@@ -31,7 +31,7 @@ class SortTest extends TableTestBase {
       'proctime.proctime, 'rowtime.rowtime)
   
   @Test
-  def testSortProcessingTime() = {
+  def testSortProcessingTime(): Unit = {
 
     val sqlQuery = "SELECT a FROM MyTable ORDER BY proctime, c"
 
@@ -41,13 +41,13 @@ class SortTest extends TableTestBase {
         unaryNode("DataStreamSort",
           streamTableNode(0),
           term("orderBy", "proctime ASC", "c ASC")),
-        term("select", "a", "TIME_MATERIALIZATION(proctime) AS proctime", "c"))
+        term("select", "a", "PROCTIME(proctime) AS proctime", "c"))
 
     streamUtil.verifySql(sqlQuery, expected)
   }
 
   @Test
-  def testSortRowTime() = {
+  def testSortRowTime(): Unit = {
 
     val sqlQuery = "SELECT a FROM MyTable ORDER BY rowtime, c"
       
@@ -57,7 +57,7 @@ class SortTest extends TableTestBase {
         unaryNode("DataStreamSort",
           streamTableNode(0),
           term("orderBy", "rowtime ASC, c ASC")),
-        term("select", "a", "TIME_MATERIALIZATION(rowtime) AS rowtime", "c"))
+        term("select", "a", "rowtime", "c"))
        
     streamUtil.verifySql(sqlQuery, expected)
   }

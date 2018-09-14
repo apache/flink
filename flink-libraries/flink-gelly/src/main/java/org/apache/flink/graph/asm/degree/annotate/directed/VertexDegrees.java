@@ -93,18 +93,18 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 			throws Exception {
 		// s, t, bitmask
 		DataSet<Tuple2<K, ByteValue>> vertexWithEdgeOrder = input.getEdges()
-			.flatMap(new EmitAndFlipEdge<K, EV>())
+			.flatMap(new EmitAndFlipEdge<>())
 				.setParallelism(parallelism)
 				.name("Emit and flip edge")
 			.groupBy(0, 1)
-			.reduceGroup(new ReduceBitmask<K>())
+			.reduceGroup(new ReduceBitmask<>())
 				.setParallelism(parallelism)
 				.name("Reduce bitmask");
 
 		// s, d(s)
 		DataSet<Vertex<K, Degrees>> vertexDegrees = vertexWithEdgeOrder
 			.groupBy(0)
-			.reduceGroup(new DegreeCount<K>())
+			.reduceGroup(new DegreeCount<>())
 				.setParallelism(parallelism)
 				.name("Degree count");
 
@@ -113,7 +113,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 				.leftOuterJoin(vertexDegrees)
 				.where(0)
 				.equalTo(0)
-				.with(new JoinVertexWithVertexDegrees<K, VV>())
+				.with(new JoinVertexWithVertexDegrees<>())
 					.setParallelism(parallelism)
 					.name("Zero degree vertices");
 		}

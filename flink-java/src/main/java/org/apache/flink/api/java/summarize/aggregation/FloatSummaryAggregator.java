@@ -23,7 +23,7 @@ import org.apache.flink.annotation.Internal;
 import static org.apache.flink.api.java.summarize.aggregation.CompensatedSum.ZERO;
 
 /**
- * Aggregator that can handle Float types
+ * Aggregator that can handle Float types.
  */
 @Internal
 public class FloatSummaryAggregator extends NumericSummaryAggregator<Float> {
@@ -32,7 +32,10 @@ public class FloatSummaryAggregator extends NumericSummaryAggregator<Float> {
 
 	// Nested classes are only "public static" for Kryo serialization, otherwise they'd be private
 
-	public static class MinFloatAggregator implements Aggregator<Float,Float> {
+	/**
+	 * Aggregator for min operation.
+	 */
+	public static class MinFloatAggregator implements Aggregator<Float, Float> {
 
 		private float min = Float.POSITIVE_INFINITY;
 
@@ -43,7 +46,7 @@ public class FloatSummaryAggregator extends NumericSummaryAggregator<Float> {
 
 		@Override
 		public void combine(Aggregator<Float, Float> other) {
-			min = Math.min(min,((MinFloatAggregator)other).min);
+			min = Math.min(min, ((MinFloatAggregator) other).min);
 		}
 
 		@Override
@@ -52,7 +55,10 @@ public class FloatSummaryAggregator extends NumericSummaryAggregator<Float> {
 		}
 	}
 
-	public static class MaxFloatAggregator implements Aggregator<Float,Float> {
+	/**
+	 * Aggregator for max operation.
+	 */
+	public static class MaxFloatAggregator implements Aggregator<Float, Float> {
 
 		private float max = Float.NEGATIVE_INFINITY;
 
@@ -72,7 +78,10 @@ public class FloatSummaryAggregator extends NumericSummaryAggregator<Float> {
 		}
 	}
 
-	public static class SumFloatAggregator implements Aggregator<Float,Float> {
+	/**
+	 * Aggregator for sum operation.
+	 */
+	public static class SumFloatAggregator implements Aggregator<Float, Float> {
 
 		private CompensatedSum sum = ZERO;
 
@@ -83,7 +92,7 @@ public class FloatSummaryAggregator extends NumericSummaryAggregator<Float> {
 
 		@Override
 		public void combine(Aggregator<Float, Float> other) {
-			sum = sum.add(((SumFloatAggregator)other).sum);
+			sum = sum.add(((SumFloatAggregator) other).sum);
 		}
 
 		@Override

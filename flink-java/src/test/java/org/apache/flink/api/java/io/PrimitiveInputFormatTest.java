@@ -18,25 +18,27 @@
 
 package org.apache.flink.api.java.io;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.Path;
+
+import org.junit.Test;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileInputSplit;
-import org.apache.flink.core.fs.Path;
-
+/**
+ * Tests for {@link PrimitiveInputFormat}.
+ */
 public class PrimitiveInputFormatTest {
 
 	private static final Path PATH = new Path("an/ignored/file/");
-
 
 	@Test
 	public void testStringInput() {
@@ -71,15 +73,13 @@ public class PrimitiveInputFormatTest {
 		}
 	}
 
-
-
 	@Test
 	public void testIntegerInput() throws IOException {
 		try {
 			final String fileContent = "111|222|";
 			final FileInputSplit split = createInputSplit(fileContent);
 
-			final PrimitiveInputFormat<Integer> format = new PrimitiveInputFormat<Integer>(PATH,"|", Integer.class);
+			final PrimitiveInputFormat<Integer> format = new PrimitiveInputFormat<Integer>(PATH, "|", Integer.class);
 
 			format.configure(new Configuration());
 			format.open(split);
@@ -99,7 +99,6 @@ public class PrimitiveInputFormatTest {
 			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
 		}
 	}
-	
 
 	@Test
 	public void testDoubleInputLinewise() throws IOException {
@@ -136,7 +135,7 @@ public class PrimitiveInputFormatTest {
 			String fileContent = first + "\r\n" + second + "\r\n";
 			final FileInputSplit split = createInputSplit(fileContent);
 
-			final PrimitiveInputFormat<String> format = new PrimitiveInputFormat<String>(PATH ,String.class);
+			final PrimitiveInputFormat<String> format = new PrimitiveInputFormat<String>(PATH, String.class);
 
 			format.configure(new Configuration());
 			format.open(split);
@@ -153,14 +152,14 @@ public class PrimitiveInputFormatTest {
 			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
 		}
 	}
-	
+
 	@Test(expected = IOException.class)
 	public void testFailingInput() throws IOException {
-		
+
 		final String fileContent = "111|222|asdf|17";
 		final FileInputSplit split = createInputSplit(fileContent);
 
-		final PrimitiveInputFormat<Integer> format = new PrimitiveInputFormat<Integer>(PATH,"|", Integer.class);
+		final PrimitiveInputFormat<Integer> format = new PrimitiveInputFormat<Integer>(PATH, "|", Integer.class);
 
 		format.configure(new Configuration());
 		format.open(split);

@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.api
 
-import org.apache.flink.table.catalog.TableSourceConverter
+import org.apache.flink.table.descriptors.DescriptorProperties
+import org.apache.flink.table.factories.TableFactory
 
 /**
   * Exception for all errors occurring during expression parsing.
@@ -39,6 +40,9 @@ case class SqlParserException(
 
 /**
   * General Exception for all errors during table handling.
+  *
+  * This exception indicates that an internal error occurred or that a feature is not supported
+  * yet. Usually, this exception does not indicate a fault of the user.
   */
 case class TableException(
     msg: String,
@@ -55,6 +59,8 @@ object TableException {
 
 /**
   * Exception for all errors occurring during validation phase.
+  *
+  * This exception indicates that the user did something wrong.
   */
 case class ValidationException(
     msg: String,
@@ -137,33 +143,80 @@ case class CatalogAlreadyExistException(
 }
 
 /**
-  * Exception for not finding a [[TableSourceConverter]] for a given table type.
+  * Exception for not finding a [[TableFactory]] for the given properties.
   *
-  * @param tableType table type
+  * @param message message that indicates the current matching step
+  * @param factoryClass required factory class
+  * @param factories all found factories
+  * @param properties properties that describe the configuration
   * @param cause the cause
   */
-case class NoMatchedTableSourceConverterException(
-    tableType: String,
-    cause: Throwable)
-    extends RuntimeException(s"Could not find a TableSourceConverter for table type $tableType.",
+case class NoMatchingTableFactoryException(
+      message: String,
+      factoryClass: Class[_],
+      factories: Seq[TableFactory],
+      properties: Map[String, String],
+      cause: Throwable)
+    extends RuntimeException(
+      s"""Could not find a suitable table factory for '${factoryClass.getName}' in
+        |the classpath.
+        |
+        |Reason: $message
+        |
+        |The following properties are requested:
+        |${DescriptorProperties.toString(properties)}
+        |
+        |The following factories have been considered:
+        |${factories.map(_.getClass.getName).mkString("\n")}
+        |""".stripMargin,
       cause) {
 
-  def this(tableType: String) = this(tableType, null)
+  def this(
+      message: String,
+      factoryClass: Class[_],
+      factories: Seq[TableFactory],
+      properties: Map[String, String]) = {
+    this(message, factoryClass, factories, properties, null)
+  }
 }
 
 /**
-  * Exception for finding more than one [[TableSourceConverter]] for a given table type.
+  * Exception for finding more than one [[TableFactory]] for the given properties.
   *
-  * @param tableType table type
+  * @param matchingFactories factories that match the properties
+  * @param factoryClass required factory class
+  * @param factories all found factories
+  * @param properties properties that describe the configuration
   * @param cause the cause
   */
-case class AmbiguousTableSourceConverterException(
-    tableType: String,
-    cause: Throwable)
-    extends RuntimeException(s"More than one TableSourceConverter for table type $tableType.",
+case class AmbiguousTableFactoryException(
+      matchingFactories: Seq[TableFactory],
+      factoryClass: Class[_],
+      factories: Seq[TableFactory],
+      properties: Map[String, String],
+      cause: Throwable)
+    extends RuntimeException(
+      s"""More than one suitable table factory for '${factoryClass.getName}' could
+        |be found in the classpath.
+        |
+        |The following factories match:
+        |${matchingFactories.map(_.getClass.getName).mkString("\n")}
+        |
+        |The following properties are requested:
+        |${DescriptorProperties.toString(properties)}
+        |
+        |The following factories have been considered:
+        |${factories.map(_.getClass.getName).mkString("\n")}
+        |""".stripMargin,
       cause) {
 
-  def this(tableType: String) = this(tableType, null)
+  def this(
+      matchingFactories: Seq[TableFactory],
+      factoryClass: Class[_],
+      factories: Seq[TableFactory],
+      properties: Map[String, String]) = {
+    this(matchingFactories, factoryClass, factories, properties, null)
+  }
 }
 
 /**

@@ -28,7 +28,6 @@ under the License.
 	<includeBaseDirectory>true</includeBaseDirectory>
 	<baseDirectory>flink-${project.version}</baseDirectory>
 
-	<!-- Include flink-python.jar in lib/ -->
 	<dependencySets>
 		<dependencySet>
 			<outputDirectory>lib</outputDirectory>
@@ -39,7 +38,6 @@ under the License.
 			<useTransitiveFiltering>true</useTransitiveFiltering>
 
 			<includes>
-				<include>org.apache.flink:flink-python_${scala.binary.version}</include>
 				<include>org.slf4j:slf4j-log4j12</include>
 				<include>log4j:log4j</include>
 			</includes>
@@ -51,14 +49,6 @@ under the License.
 		<file>
 			<source>target/flink-dist_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>lib/</outputDirectory>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<!-- copy the Hadoop uber jar -->
-		<file>
-			<source>../flink-shaded-hadoop/flink-shaded-hadoop2-uber/target/flink-shaded-hadoop2-uber-${project.version}.jar</source>
-			<outputDirectory>lib/</outputDirectory>
-			<destName>flink-shaded-hadoop2-uber-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
@@ -85,12 +75,27 @@ under the License.
 			<fileMode>755</fileMode>
 		</fileSet>
 
+		<!-- copy SQL client -->
+		<fileSet>
+			<directory>../flink-libraries/flink-sql-client/bin/</directory>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
+		<!-- copy SQL client configuration files -->
+		<fileSet>
+			<directory>../flink-libraries/flink-sql-client/conf/</directory>
+			<outputDirectory>conf</outputDirectory>
+			<fileMode>0644</fileMode>
+		</fileSet>
+
 		<!-- copy yarn start scripts -->
 		<fileSet>
 			<directory>src/main/flink-bin/yarn-bin</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
+
 		<!-- copy Mesos start scripts -->
 		<fileSet>
 			<directory>src/main/flink-bin/mesos-bin</directory>
@@ -188,27 +193,31 @@ under the License.
 			<outputDirectory>examples/gelly</outputDirectory>
 			<fileMode>0644</fileMode>
 			<includes>
-				<include>*.jar</include>
+				<include>flink-gelly-examples_${scala.binary.version}-${project.version}.jar</include>
 			</includes>
-			<excludes>
-				<exclude>original-*.jar</exclude>
-				<exclude>*-tests.jar</exclude>
-			</excludes>
 		</fileSet>
 
-		<!-- copy python package -->
+		<!-- copy python jar -->
 		<fileSet>
-			<directory>../flink-libraries/flink-python/src/main/python/org/apache/flink/python/api</directory>
-			<outputDirectory>resources/python</outputDirectory>
-			<fileMode>0755</fileMode>
-			<excludes>
-				<exclude>**/example/**</exclude>
-			</excludes>
+			<directory>../flink-libraries/flink-python/target</directory>
+			<outputDirectory>lib</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>flink-python_${scala.binary.version}-${project.version}.jar</include>
+			</includes>
 		</fileSet>
+
 		<!-- copy python example to examples of dist -->
 		<fileSet>
 			<directory>../flink-libraries/flink-python/src/main/python/org/apache/flink/python/api/flink/example</directory>
-			<outputDirectory>examples/python</outputDirectory>
+			<outputDirectory>examples/python/batch</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
+		<!-- copy python streaming example to examples of dist -->
+		<fileSet>
+			<directory>../flink-libraries/flink-streaming-python/src/test/python/org/apache/flink/streaming/python/api/examples</directory>
+			<outputDirectory>examples/python/streaming</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
 

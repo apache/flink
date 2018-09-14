@@ -19,31 +19,35 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
+
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
-import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -55,6 +59,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.when;
 
+/**
+ * Tests for the {@link PendingCheckpoint}.
+ */
 public class PendingCheckpointTest {
 
 	private static final Map<ExecutionAttemptID, ExecutionVertex> ACK_TASKS = new HashMap<>();
@@ -63,7 +70,7 @@ public class PendingCheckpointTest {
 	static {
 		ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
 		when(jobVertex.getOperatorIDs()).thenReturn(Collections.singletonList(new OperatorID()));
-		
+
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 		when(vertex.getMaxParallelism()).thenReturn(128);
 		when(vertex.getTotalNumberOfParallelSubtasks()).thenReturn(1);
@@ -80,8 +87,8 @@ public class PendingCheckpointTest {
 	@Test
 	public void testCanBeSubsumed() throws Exception {
 		// Forced checkpoints cannot be subsumed
-		CheckpointProperties forced = new CheckpointProperties(true, true, false, false, false, false, false);
-		PendingCheckpoint pending = createPendingCheckpoint(forced, "ignored");
+		CheckpointProperties forced = new CheckpointProperties(true, CheckpointType.SAVEPOINT, false, false, false, false, false);
+		PendingCheckpoint pending = createPendingCheckpoint(forced);
 		assertFalse(pending.canBeSubsumed());
 
 		try {
@@ -92,36 +99,9 @@ public class PendingCheckpointTest {
 		}
 
 		// Non-forced checkpoints can be subsumed
-		CheckpointProperties subsumed = new CheckpointProperties(false, true, false, false, false, false, false);
-		pending = createPendingCheckpoint(subsumed, "ignored");
+		CheckpointProperties subsumed = new CheckpointProperties(false, CheckpointType.SAVEPOINT, false, false, false, false, false);
+		pending = createPendingCheckpoint(subsumed);
 		assertTrue(pending.canBeSubsumed());
-	}
-
-	/**
-	 * Tests that the persist checkpoint property is respected by the pending
-	 * checkpoint when finalizing.
-	 */
-	@Test
-	public void testPersistExternally() throws Exception {
-		File tmp = tmpFolder.newFolder();
-
-		// Persisted checkpoint
-		CheckpointProperties persisted = new CheckpointProperties(false, true, false, false, false, false, false);
-
-		PendingCheckpoint pending = createPendingCheckpoint(persisted, tmp.getAbsolutePath());
-		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
-		assertEquals(0, tmp.listFiles().length);
-		pending.finalizeCheckpointExternalized();
-		assertEquals(1, tmp.listFiles().length);
-
-		// Ephemeral checkpoint
-		CheckpointProperties ephemeral = new CheckpointProperties(false, false, true, true, true, true, true);
-		pending = createPendingCheckpoint(ephemeral, null);
-		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
-
-		assertEquals(1, tmp.listFiles().length);
-		pending.finalizeCheckpointNonExternalized();
-		assertEquals(1, tmp.listFiles().length);
 	}
 
 	/**
@@ -130,18 +110,18 @@ public class PendingCheckpointTest {
 	 */
 	@Test
 	public void testCompletionFuture() throws Exception {
-		CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
+		CheckpointProperties props = new CheckpointProperties(false, CheckpointType.SAVEPOINT, false, false, false, false, false);
 
 		// Abort declined
-		PendingCheckpoint pending = createPendingCheckpoint(props, "ignored");
-		Future<CompletedCheckpoint> future = pending.getCompletionFuture();
+		PendingCheckpoint pending = createPendingCheckpoint(props);
+		CompletableFuture<CompletedCheckpoint> future = pending.getCompletionFuture();
 
 		assertFalse(future.isDone());
 		pending.abortDeclined();
 		assertTrue(future.isDone());
 
 		// Abort expired
-		pending = createPendingCheckpoint(props, "ignored");
+		pending = createPendingCheckpoint(props);
 		future = pending.getCompletionFuture();
 
 		assertFalse(future.isDone());
@@ -149,7 +129,7 @@ public class PendingCheckpointTest {
 		assertTrue(future.isDone());
 
 		// Abort subsumed
-		pending = createPendingCheckpoint(props, "ignored");
+		pending = createPendingCheckpoint(props);
 		future = pending.getCompletionFuture();
 
 		assertFalse(future.isDone());
@@ -157,29 +137,22 @@ public class PendingCheckpointTest {
 		assertTrue(future.isDone());
 
 		// Finalize (all ACK'd)
-		String target = tmpFolder.newFolder().getAbsolutePath();
-		pending = createPendingCheckpoint(props, target);
+		pending = createPendingCheckpoint(props);
 		future = pending.getCompletionFuture();
 
 		assertFalse(future.isDone());
 		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
 		assertTrue(pending.isFullyAcknowledged());
-		pending.finalizeCheckpointExternalized();
+		pending.finalizeCheckpoint();
 		assertTrue(future.isDone());
 
 		// Finalize (missing ACKs)
-		pending = createPendingCheckpoint(props, "ignored");
+		pending = createPendingCheckpoint(props);
 		future = pending.getCompletionFuture();
 
 		assertFalse(future.isDone());
 		try {
-			pending.finalizeCheckpointNonExternalized();
-			fail("Did not throw expected Exception");
-		} catch (IllegalStateException ignored) {
-			// Expected
-		}
-		try {
-			pending.finalizeCheckpointExternalized();
+			pending.finalizeCheckpoint();
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException ignored) {
 			// Expected
@@ -192,16 +165,14 @@ public class PendingCheckpointTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testAbortDiscardsState() throws Exception {
-		CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
+		CheckpointProperties props = new CheckpointProperties(false, CheckpointType.SAVEPOINT, false, false, false, false, false);
 		QueueExecutor executor = new QueueExecutor();
 
 		OperatorState state = mock(OperatorState.class);
 		doNothing().when(state).registerSharedStates(any(SharedStateRegistry.class));
 
-		String targetDir = tmpFolder.newFolder().getAbsolutePath();
-
 		// Abort declined
-		PendingCheckpoint pending = createPendingCheckpoint(props, targetDir, executor);
+		PendingCheckpoint pending = createPendingCheckpoint(props, executor);
 		setTaskState(pending, state);
 
 		pending.abortDeclined();
@@ -212,7 +183,7 @@ public class PendingCheckpointTest {
 		// Abort error
 		Mockito.reset(state);
 
-		pending = createPendingCheckpoint(props, targetDir, executor);
+		pending = createPendingCheckpoint(props, executor);
 		setTaskState(pending, state);
 
 		pending.abortError(new Exception("Expected Test Exception"));
@@ -223,7 +194,7 @@ public class PendingCheckpointTest {
 		// Abort expired
 		Mockito.reset(state);
 
-		pending = createPendingCheckpoint(props, targetDir, executor);
+		pending = createPendingCheckpoint(props, executor);
 		setTaskState(pending, state);
 
 		pending.abortExpired();
@@ -234,7 +205,7 @@ public class PendingCheckpointTest {
 		// Abort subsumed
 		Mockito.reset(state);
 
-		pending = createPendingCheckpoint(props, targetDir, executor);
+		pending = createPendingCheckpoint(props, executor);
 		setTaskState(pending, state);
 
 		pending.abortSubsumed();
@@ -249,22 +220,24 @@ public class PendingCheckpointTest {
 	@Test
 	public void testPendingCheckpointStatsCallbacks() throws Exception {
 		{
-			// Complete sucessfully
+			// Complete successfully
 			PendingCheckpointStats callback = mock(PendingCheckpointStats.class);
-			PendingCheckpoint pending = createPendingCheckpoint(CheckpointProperties.forStandardCheckpoint(), null);
+			PendingCheckpoint pending = createPendingCheckpoint(
+					CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 			pending.setStatsCallback(callback);
 
 			pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
 			verify(callback, times(1)).reportSubtaskStats(any(JobVertexID.class), any(SubtaskStateStats.class));
 
-			pending.finalizeCheckpointNonExternalized();
+			pending.finalizeCheckpoint();
 			verify(callback, times(1)).reportCompletedCheckpoint(any(String.class));
 		}
 
 		{
 			// Fail subsumed
 			PendingCheckpointStats callback = mock(PendingCheckpointStats.class);
-			PendingCheckpoint pending = createPendingCheckpoint(CheckpointProperties.forStandardCheckpoint(), null);
+			PendingCheckpoint pending = createPendingCheckpoint(
+					CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 			pending.setStatsCallback(callback);
 
 			pending.abortSubsumed();
@@ -274,7 +247,8 @@ public class PendingCheckpointTest {
 		{
 			// Fail subsumed
 			PendingCheckpointStats callback = mock(PendingCheckpointStats.class);
-			PendingCheckpoint pending = createPendingCheckpoint(CheckpointProperties.forStandardCheckpoint(), null);
+			PendingCheckpoint pending = createPendingCheckpoint(
+					CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 			pending.setStatsCallback(callback);
 
 			pending.abortDeclined();
@@ -284,7 +258,8 @@ public class PendingCheckpointTest {
 		{
 			// Fail subsumed
 			PendingCheckpointStats callback = mock(PendingCheckpointStats.class);
-			PendingCheckpoint pending = createPendingCheckpoint(CheckpointProperties.forStandardCheckpoint(), null);
+			PendingCheckpoint pending = createPendingCheckpoint(
+					CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 			pending.setStatsCallback(callback);
 
 			pending.abortError(new Exception("Expected test error"));
@@ -294,7 +269,8 @@ public class PendingCheckpointTest {
 		{
 			// Fail subsumed
 			PendingCheckpointStats callback = mock(PendingCheckpointStats.class);
-			PendingCheckpoint pending = createPendingCheckpoint(CheckpointProperties.forStandardCheckpoint(), null);
+			PendingCheckpoint pending = createPendingCheckpoint(
+					CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 			pending.setStatsCallback(callback);
 
 			pending.abortExpired();
@@ -303,41 +279,43 @@ public class PendingCheckpointTest {
 	}
 
 	/**
-	 * FLINK-5985
-	 * <p>
-	 * Ensures that subtasks that acknowledge their state as 'null' are considered stateless. This means that they
+	 * FLINK-5985.
+	 *
+	 * <p>Ensures that subtasks that acknowledge their state as 'null' are considered stateless. This means that they
 	 * should not appear in the task states map of the checkpoint.
 	 */
 	@Test
 	public void testNullSubtaskStateLeadsToStatelessTask() throws Exception {
-		PendingCheckpoint pending = createPendingCheckpoint(CheckpointProperties.forStandardCheckpoint(), null);
+		PendingCheckpoint pending = createPendingCheckpoint(
+				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 		pending.acknowledgeTask(ATTEMPT_ID, null, mock(CheckpointMetrics.class));
 		Assert.assertTrue(pending.getOperatorStates().isEmpty());
 	}
 
 	/**
-	 * FLINK-5985
-	 * <p>
-	 * This tests checks the inverse of {@link #testNullSubtaskStateLeadsToStatelessTask()}. We want to test that
+	 * FLINK-5985.
+	 *
+	 * <p>This tests checks the inverse of {@link #testNullSubtaskStateLeadsToStatelessTask()}. We want to test that
 	 * for subtasks that acknowledge some state are given an entry in the task states of the checkpoint.
 	 */
 	@Test
 	public void testNonNullSubtaskStateLeadsToStatefulTask() throws Exception {
-		PendingCheckpoint pending = createPendingCheckpoint(CheckpointProperties.forStandardCheckpoint(), null);
-		pending.acknowledgeTask(ATTEMPT_ID, mock(SubtaskState.class), mock(CheckpointMetrics.class));
+		PendingCheckpoint pending = createPendingCheckpoint(
+				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
+		pending.acknowledgeTask(ATTEMPT_ID, mock(TaskStateSnapshot.class), mock(CheckpointMetrics.class));
 		Assert.assertFalse(pending.getOperatorStates().isEmpty());
 	}
 
 	@Test
-	public void testSetCanceller() {
-		final CheckpointProperties props = new CheckpointProperties(false, false, true, true, true, true, true);
+	public void testSetCanceller() throws Exception {
+		final CheckpointProperties props = new CheckpointProperties(false, CheckpointType.CHECKPOINT, true, true, true, true, true);
 
-		PendingCheckpoint aborted = createPendingCheckpoint(props, null);
+		PendingCheckpoint aborted = createPendingCheckpoint(props);
 		aborted.abortDeclined();
 		assertTrue(aborted.isDiscarded());
 		assertFalse(aborted.setCancellerHandle(mock(ScheduledFuture.class)));
 
-		PendingCheckpoint pending = createPendingCheckpoint(props, null);
+		PendingCheckpoint pending = createPendingCheckpoint(props);
 		ScheduledFuture<?> canceller = mock(ScheduledFuture.class);
 
 		assertTrue(pending.setCancellerHandle(canceller));
@@ -347,23 +325,28 @@ public class PendingCheckpointTest {
 
 	// ------------------------------------------------------------------------
 
-	private static PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, String targetDirectory) {
-		return createPendingCheckpoint(props, targetDirectory, Executors.directExecutor());
+	private PendingCheckpoint createPendingCheckpoint(CheckpointProperties props) throws IOException {
+		return createPendingCheckpoint(props, Executors.directExecutor());
 	}
 
-	private static PendingCheckpoint createPendingCheckpoint(
-			CheckpointProperties props,
-			String targetDirectory,
-			Executor executor) {
+	private PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, Executor executor) throws IOException {
 
-		Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(ACK_TASKS);
+		final Path checkpointDir = new Path(tmpFolder.newFolder().toURI());
+		final FsCheckpointStorageLocation location = new FsCheckpointStorageLocation(
+				LocalFileSystem.getSharedInstance(),
+				checkpointDir, checkpointDir, checkpointDir,
+				CheckpointStorageLocationReference.getDefault(),
+				1024);
+
+		final Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(ACK_TASKS);
+
 		return new PendingCheckpoint(
 			new JobID(),
 			0,
 			1,
 			ackTasks,
 			props,
-			targetDirectory,
+			location,
 			executor);
 	}
 

@@ -26,6 +26,7 @@ under the License.
     <title>Apache Flink {{ site.version_title }} Documentation: {{ page.title }}</title>
     <link rel="shortcut icon" href="{{ site.baseurl }}/page/favicon.ico" type="image/x-icon">
     <link rel="icon" href="{{ site.baseurl }}/page/favicon.ico" type="image/x-icon">
+    <link rel="canonical" href="{{ site.stable_baseurl }}{{ page.url | replace:'index.html',''}}">
 
     <!-- Bootstrap -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
@@ -54,12 +55,10 @@ under the License.
     <![endif]-->
   </head>
   <body>
-    {% if site.is_stable %}
-    {% unless site.is_latest %}
-    <div style="position:fixed; bottom:0; left:0; z-index:99999; width:100%; text-align:center; padding:15px; border-top:1px dashed #CE4B65; background:#f6f0e3; font-weight:bold">
-       This documentation is for an out-of-date version of Apache Flink. We recommend you use <a href="https://flink.apache.org/q/stable-docs.html">the latest stable version</a>.
+    {% if site.show_outdated_warning %}
+    <div style="position:fixed; bottom:0; left:0; z-index:99999; width:100%; text-align:center; padding:15px; border-top:5px solid #ECCCD1; background:#F2DEDE; color:#AD433F; font-weight:bold">
+       This documentation is for an out-of-date version of Apache Flink. We recommend you use <a href="https://ci.apache.org/projects/flink/flink-docs-stable/">the latest stable version</a>.
     </div>
-    {% endunless %}
     {% endif %}
 
     <!-- Main content. -->
@@ -83,7 +82,7 @@ under the License.
     </div><!-- /.container -->
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <script src="{{ site.baseurl }}/page/js/jquery.min.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/3.1.0/anchor.min.js"></script>

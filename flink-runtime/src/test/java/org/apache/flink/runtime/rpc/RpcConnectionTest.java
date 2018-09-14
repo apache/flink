@@ -23,16 +23,20 @@ import akka.actor.ActorSystem;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.util.TestLogger;
 
+import akka.actor.Terminated;
 import org.junit.Test;
 
 import scala.Option;
 import scala.Tuple2;
 
+import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -43,21 +47,21 @@ import static org.junit.Assert.*;
  * This test validates that the RPC service gives a good message when it cannot
  * connect to an RpcEndpoint.
  */
-public class RpcConnectionTest {
+public class RpcConnectionTest extends TestLogger {
 
 	@Test
-	public void testConnectFailure() {
+	public void testConnectFailure() throws Exception {
 		ActorSystem actorSystem = null;
 		RpcService rpcService = null;
 		try {
 			actorSystem = AkkaUtils.createActorSystem(
-					new Configuration(), Option.apply(new Tuple2<String, Object>("localhost", 0)));
+					new Configuration(), Option.<Tuple2<String, Object>>apply(new Tuple2<>("localhost", 0)));
 
 			// we start the RPC service with a very long timeout to ensure that the test
 			// can only pass if the connection problem is not recognized merely via a timeout
 			rpcService = new AkkaRpcService(actorSystem, Time.of(10000000, TimeUnit.SECONDS));
 
-			Future<TaskExecutorGateway> future = rpcService.connect("foo.bar.com.test.invalid", TaskExecutorGateway.class);
+			CompletableFuture<TaskExecutorGateway> future = rpcService.connect("foo.bar.com.test.invalid", TaskExecutorGateway.class);
 
 			future.get(10000000, TimeUnit.SECONDS);
 			fail("should never complete normally");
@@ -74,12 +78,25 @@ public class RpcConnectionTest {
 			fail("wrong exception: " + t);
 		}
 		finally {
+			final CompletableFuture<Void> rpcTerminationFuture;
+
 			if (rpcService != null) {
-				rpcService.stopService();
+				rpcTerminationFuture = rpcService.stopService();
+			} else {
+				rpcTerminationFuture = CompletableFuture.completedFuture(null);
 			}
+
+			final CompletableFuture<Terminated> actorSystemTerminationFuture;
+
 			if (actorSystem != null) {
-				actorSystem.shutdown();
+				actorSystemTerminationFuture = FutureUtils.toJava(actorSystem.terminate());
+			} else {
+				actorSystemTerminationFuture = CompletableFuture.completedFuture(null);
 			}
+
+			FutureUtils
+				.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
+				.get();
 		}
 	}
 }

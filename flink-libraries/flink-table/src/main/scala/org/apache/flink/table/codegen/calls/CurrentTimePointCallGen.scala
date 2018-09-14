@@ -36,23 +36,23 @@ class CurrentTimePointCallGen(
     : GeneratedExpression = targetType match {
     case SqlTimeTypeInfo.TIME if local =>
       val time = codeGenerator.addReusableLocalTime()
-      codeGenerator.generateNonNullLiteral(targetType, time)
+      codeGenerator.generateTerm(targetType, time)
 
     case SqlTimeTypeInfo.TIMESTAMP if local =>
       val timestamp = codeGenerator.addReusableLocalTimestamp()
-      codeGenerator.generateNonNullLiteral(targetType, timestamp)
+      codeGenerator.generateTerm(targetType, timestamp)
 
     case SqlTimeTypeInfo.DATE =>
       val date = codeGenerator.addReusableDate()
-      codeGenerator.generateNonNullLiteral(targetType, date)
+      codeGenerator.generateTerm(targetType, date)
 
     case SqlTimeTypeInfo.TIME =>
       val time = codeGenerator.addReusableTime()
-      codeGenerator.generateNonNullLiteral(targetType, time)
+      codeGenerator.generateTerm(targetType, time)
 
     case SqlTimeTypeInfo.TIMESTAMP =>
       val timestamp = codeGenerator.addReusableTimestamp()
-      codeGenerator.generateNonNullLiteral(targetType, timestamp)
+      codeGenerator.generateTerm(targetType, timestamp)
   }
 
 }

@@ -24,12 +24,10 @@ import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedRestoring;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink;
 import org.apache.flink.util.Preconditions;
@@ -41,6 +39,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -132,7 +132,7 @@ import java.util.UUID;
 @Deprecated
 public class RollingSink<T> extends RichSinkFunction<T>
 		implements InputTypeConfigurable, CheckpointedFunction,
-					CheckpointListener, CheckpointedRestoring<RollingSink.BucketState> {
+					CheckpointListener {
 
 	private static final long serialVersionUID = 1L;
 
@@ -280,6 +280,7 @@ public class RollingSink<T> extends RichSinkFunction<T>
 	/**
 	 * User-defined FileSystem parameters.
      */
+	@Nullable
 	private Configuration fsConfig;
 
 	/**
@@ -383,19 +384,10 @@ public class RollingSink<T> extends RichSinkFunction<T>
 	 * @throws IOException
 	 */
 	private void initFileSystem() throws IOException {
-		if (fs != null) {
-			return;
+		if (fs == null) {
+			Path path = new Path(basePath);
+			fs = BucketingSink.createHadoopFileSystem(path, fsConfig);
 		}
-		org.apache.hadoop.conf.Configuration hadoopConf = HadoopFileSystem.getHadoopConfiguration();
-		if (fsConfig != null) {
-			String disableCacheName = String.format("fs.%s.impl.disable.cache", new Path(basePath).toUri().getScheme());
-			hadoopConf.setBoolean(disableCacheName, true);
-			for (String key : fsConfig.keySet()) {
-				hadoopConf.set(key, fsConfig.getString(key, null));
-			}
-		}
-
-		fs = new Path(basePath).getFileSystem(hadoopConf);
 	}
 
 	@Override
@@ -541,12 +533,9 @@ public class RollingSink<T> extends RichSinkFunction<T>
 			}
 
 			// verify that truncate actually works
-			FSDataOutputStream outputStream;
 			Path testPath = new Path(UUID.randomUUID().toString());
-			try {
-				outputStream = fs.create(testPath);
+			try (FSDataOutputStream outputStream = fs.create(testPath)) {
 				outputStream.writeUTF("hello");
-				outputStream.close();
 			} catch (IOException e) {
 				LOG.error("Could not create file for checking if truncate works.", e);
 				throw new RuntimeException("Could not create file for checking if truncate works.", e);
@@ -707,12 +696,12 @@ public class RollingSink<T> extends RichSinkFunction<T>
 					}
 
 				} else {
-					LOG.debug("Writing valid-length file for {} to specify valid length {}", partPath, bucketState.currentFileValidLength);
 					Path validLengthFilePath = getValidLengthPathFor(partPath);
 					if (!fs.exists(validLengthFilePath) && fs.exists(partPath)) {
-						FSDataOutputStream lengthFileOut = fs.create(validLengthFilePath);
-						lengthFileOut.writeUTF(Long.toString(bucketState.currentFileValidLength));
-						lengthFileOut.close();
+						LOG.debug("Writing valid-length file for {} to specify valid length {}", partPath, bucketState.currentFileValidLength);
+						try (FSDataOutputStream lengthFileOut = fs.create(validLengthFilePath)) {
+							lengthFileOut.writeUTF(Long.toString(bucketState.currentFileValidLength));
+						}
 					}
 				}
 
@@ -756,25 +745,6 @@ public class RollingSink<T> extends RichSinkFunction<T>
 		synchronized (bucketState.pendingFilesPerCheckpoint) {
 			bucketState.pendingFilesPerCheckpoint.clear();
 		}
-	}
-
-	// --------------------------------------------------------------------------------------------
-	//  Backwards compatibility with Flink 1.1
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public void restoreState(BucketState state) throws Exception {
-		LOG.info("{} (taskIdx={}) restored bucket state from an older Flink version: {}",
-			getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), state);
-
-		try {
-			initFileSystem();
-		} catch (IOException e) {
-			LOG.error("Error while creating FileSystem when restoring the state of the RollingSink.", e);
-			throw new RuntimeException("Error while creating FileSystem when restoring the state of the RollingSink.", e);
-		}
-
-		handleRestoredBucketState(state);
 	}
 
 	// --------------------------------------------------------------------------------------------

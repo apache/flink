@@ -43,8 +43,8 @@ import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
@@ -59,6 +59,9 @@ import org.mockito.stubbing.Answer;
 import java.net.URL;
 import java.util.Collections;
 import java.util.UUID;
+
+import scala.concurrent.Await;
+import scala.concurrent.duration.Duration;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -114,8 +117,8 @@ public class ClientTest extends TestLogger {
 	public void shutDownActorSystem() {
 		if (jobManagerSystem != null) {
 			try {
-				jobManagerSystem.shutdown();
-				jobManagerSystem.awaitTermination();
+				jobManagerSystem.terminate();
+				Await.ready(jobManagerSystem.whenTerminated(), Duration.Inf());
 			} catch (Exception e) {
 				e.printStackTrace();
 				fail(e.getMessage());
@@ -131,7 +134,7 @@ public class ClientTest extends TestLogger {
 		jobManagerSystem.actorOf(
 			Props.create(SuccessReturningActor.class),
 			JobMaster.JOB_MANAGER_NAME);
-		ClusterClient out = new StandaloneClusterClient(config);
+		StandaloneClusterClient out = new StandaloneClusterClient(config);
 		out.setDetached(true);
 
 		try {
@@ -204,7 +207,7 @@ public class ClientTest extends TestLogger {
 			Props.create(SuccessReturningActor.class),
 			JobMaster.JOB_MANAGER_NAME);
 
-		ClusterClient out = new StandaloneClusterClient(config);
+		StandaloneClusterClient out = new StandaloneClusterClient(config);
 		out.setDetached(true);
 		JobSubmissionResult result = out.run(program.getPlanWithJars(), 1);
 
@@ -222,7 +225,7 @@ public class ClientTest extends TestLogger {
 				Props.create(FailureReturningActor.class),
 				JobMaster.JOB_MANAGER_NAME);
 
-		ClusterClient out = new StandaloneClusterClient(config);
+		StandaloneClusterClient out = new StandaloneClusterClient(config);
 		out.setDetached(true);
 
 		try {
@@ -259,7 +262,7 @@ public class ClientTest extends TestLogger {
 			}).when(packagedProgramMock).invokeInteractiveModeForExecution();
 
 			try {
-				ClusterClient client = new StandaloneClusterClient(config);
+				StandaloneClusterClient client = new StandaloneClusterClient(config);
 				client.setDetached(true);
 				client.run(packagedProgramMock, 1);
 				fail("Creating the local execution environment should not be possible");
@@ -322,8 +325,9 @@ public class ClientTest extends TestLogger {
 				getSender().tell(
 						decorateMessage(new JobManagerMessages.ResponseLeaderSessionID(leaderSessionID)),
 						getSelf());
-			}
-			else {
+			} else if (message instanceof JobManagerMessages.RequestBlobManagerPort$) {
+				getSender().tell(1337, getSelf());
+			} else {
 				getSender().tell(
 						decorateMessage(new Status.Failure(new Exception("Unknown message " + message))),
 						getSelf());

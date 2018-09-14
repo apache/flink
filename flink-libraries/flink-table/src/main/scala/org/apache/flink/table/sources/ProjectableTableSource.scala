@@ -18,16 +18,33 @@
 
 package org.apache.flink.table.sources
 
+import org.apache.flink.api.java.DataSet
+import org.apache.flink.streaming.api.datastream.DataStream
+
 /**
   * Adds support for projection push-down to a [[TableSource]].
-  * A [[TableSource]] extending this interface is able to project the fields of the return table.
+  * A [[TableSource]] extending this interface is able to project the fields of the returned
+  * [[DataSet]] if it is a [[BatchTableSource]] or [[DataStream]] if it is a [[StreamTableSource]].
   *
   * @tparam T The return type of the [[TableSource]].
   */
 trait ProjectableTableSource[T] {
 
   /**
-    * Creates a copy of the [[TableSource]] that projects its output on the specified fields.
+    * Creates a copy of the [[TableSource]] that projects its output to the given field indexes.
+    * The field indexes relate to the physical return type ([[TableSource.getReturnType]]) and not
+    * to the table schema ([[TableSource.getTableSchema]] of the [[TableSource]].
+    *
+    * The table schema ([[TableSource.getTableSchema]] of the [[TableSource]] copy must not be
+    * modified by this method, but only the return type ([[TableSource.getReturnType]]) and the
+    * produced [[DataSet]] ([[BatchTableSource.getDataSet(]]) or [[DataStream]]
+    * ([[StreamTableSource.getDataStream]]).
+    *
+    * If the [[TableSource]] implements the [[DefinedFieldMapping]] interface, it might
+    * be necessary to adjust the mapping as well.
+    *
+    * IMPORTANT: This method must return a true copy and must not modify the original table source
+    * object.
     *
     * @param fields The indexes of the fields to return.
     * @return A copy of the [[TableSource]] that projects its output.

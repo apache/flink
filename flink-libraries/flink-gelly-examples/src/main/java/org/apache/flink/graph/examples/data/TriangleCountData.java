@@ -45,16 +45,16 @@ public class TriangleCountData {
 
 	public static DataSet<Edge<Long, NullValue>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
 
-		List<Edge<Long, NullValue>> edges = new ArrayList<Edge<Long, NullValue>>();
-		edges.add(new Edge<Long, NullValue>(1L, 2L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(1L, 3L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(2L, 3L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(2L, 6L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(3L, 4L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(3L, 5L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(3L, 6L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(4L, 5L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(6L, 7L, NullValue.getInstance()));
+		List<Edge<Long, NullValue>> edges = new ArrayList<>();
+		edges.add(new Edge<>(1L, 2L, NullValue.getInstance()));
+		edges.add(new Edge<>(1L, 3L, NullValue.getInstance()));
+		edges.add(new Edge<>(2L, 3L, NullValue.getInstance()));
+		edges.add(new Edge<>(2L, 6L, NullValue.getInstance()));
+		edges.add(new Edge<>(3L, 4L, NullValue.getInstance()));
+		edges.add(new Edge<>(3L, 5L, NullValue.getInstance()));
+		edges.add(new Edge<>(3L, 6L, NullValue.getInstance()));
+		edges.add(new Edge<>(4L, 5L, NullValue.getInstance()));
+		edges.add(new Edge<>(6L, 7L, NullValue.getInstance()));
 
 		return env.fromCollection(edges);
 	}

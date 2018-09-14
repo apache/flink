@@ -34,13 +34,13 @@ public class ByteStreamStateHandle implements StreamStateHandle {
 	/**
 	 * The state data.
 	 */
-	protected final byte[] data;
+	private final byte[] data;
 
 	/**
 	 * A unique name of by which this state handle is identified and compared. Like a filename, all
 	 * {@link ByteStreamStateHandle} with the exact same name must also have the exact same content in data.
 	 */
-	protected final String handleName;
+	private final String handleName;
 
 	/**
 	 * Creates a new ByteStreamStateHandle containing the given data.
@@ -52,7 +52,7 @@ public class ByteStreamStateHandle implements StreamStateHandle {
 
 	@Override
 	public FSDataInputStream openInputStream() throws IOException {
-		return new ByteStateHandleInputStream();
+		return new ByteStateHandleInputStream(data);
 	}
 
 	public byte[] getData() {
@@ -81,7 +81,6 @@ public class ByteStreamStateHandle implements StreamStateHandle {
 			return false;
 		}
 
-
 		ByteStreamStateHandle that = (ByteStreamStateHandle) o;
 		return handleName.equals(that.handleName);
 	}
@@ -95,24 +94,29 @@ public class ByteStreamStateHandle implements StreamStateHandle {
 	public String toString() {
 		return "ByteStreamStateHandle{" +
 			"handleName='" + handleName + '\'' +
+			", dataBytes=" + data.length +
 			'}';
 	}
 
 	/**
 	 * An input stream view on a byte array.
 	 */
-	private final class ByteStateHandleInputStream extends FSDataInputStream {
+	private static final class ByteStateHandleInputStream extends FSDataInputStream {
 
+		private final byte[] data;
 		private int index;
 
-		public ByteStateHandleInputStream() {
-			this.index = 0;
+		public ByteStateHandleInputStream(byte[] data) {
+			this.data = data;
 		}
 
 		@Override
 		public void seek(long desired) throws IOException {
-			Preconditions.checkArgument(desired >= 0 && desired < Integer.MAX_VALUE);
-			index = (int) desired;
+			if (desired >= 0 && desired <= data.length) {
+				index = (int) desired;
+			} else {
+				throw new IOException("position out of bounds");
+			}
 		}
 
 		@Override
@@ -123,6 +127,23 @@ public class ByteStreamStateHandle implements StreamStateHandle {
 		@Override
 		public int read() throws IOException {
 			return index < data.length ? data[index++] & 0xFF : -1;
+		}
+
+		@Override
+		public int read(byte[] b, int off, int len) throws IOException {
+			// note that any bounds checking on "byte[] b" happend anyways by the
+			// System.arraycopy() call below, so we don't add extra checks here
+
+			final int bytesLeft = data.length - index;
+			if (bytesLeft > 0) {
+				final int bytesToCopy = Math.min(len, bytesLeft);
+				System.arraycopy(data, index, b, off, bytesToCopy);
+				index += bytesToCopy;
+				return bytesToCopy;
+			}
+			else {
+				return -1;
+			}
 		}
 	}
 }

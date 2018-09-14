@@ -19,17 +19,23 @@
 
 package org.apache.flink.table.functions.utils
 
+import java.util
 import java.lang.{Integer => JInt, Long => JLong}
 import java.lang.reflect.{Method, Modifier}
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.commons.codec.binary.Base64
 import com.google.common.primitives.Primitives
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.{SqlCallBinding, SqlFunction}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
+import org.apache.calcite.sql.`type`._
+import org.apache.calcite.sql.{SqlCallBinding, SqlFunction, SqlOperandCountRange, SqlOperator, SqlOperatorBinding}
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtractor}
+import org.apache.flink.table.api.dataview._
+import org.apache.flink.table.dataview._
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.expressions._
@@ -37,6 +43,8 @@ import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.util.InstantiationUtil
+
+import scala.collection.mutable
 
 object UserDefinedFunctionUtils {
 
@@ -75,19 +83,20 @@ object UserDefinedFunctionUtils {
   // ----------------------------------------------------------------------------------------------
 
   /**
-    * Returns signatures of eval methods matching the given signature of [[TypeInformation]].
+    * Returns the signature of the eval method matching the given signature of [[TypeInformation]].
     * Elements of the signature can be null (act as a wildcard).
     */
   def getEvalMethodSignature(
-    function: UserDefinedFunction,
-    signature: Seq[TypeInformation[_]])
+      function: UserDefinedFunction,
+      signature: Seq[TypeInformation[_]])
     : Option[Array[Class[_]]] = {
+
     getUserDefinedMethod(function, "eval", typeInfoToClass(signature)).map(_.getParameterTypes)
   }
 
   /**
-    * Returns signatures of accumulate methods matching the given signature of [[TypeInformation]].
-    * Elements of the signature can be null (act as a wildcard).
+    * Returns the signature of the accumulate method matching the given signature
+    * of [[TypeInformation]]. Elements of the signature can be null (act as a wildcard).
     */
   def getAccumulateMethodSignature(
       function: AggregateFunction[_, _],
@@ -175,17 +184,17 @@ object UserDefinedFunctionUtils {
         }
       }) {
       throw new ValidationException(
-        s"Scala-style variable arguments in '${methodName}' methods are not supported. Please " +
+        s"Scala-style variable arguments in '$methodName' methods are not supported. Please " +
           s"add a @scala.annotation.varargs annotation.")
     } else if (found.length > 1) {
       throw new ValidationException(
-        s"Found multiple '${methodName}' methods which match the signature.")
+        s"Found multiple '$methodName' methods which match the signature.")
     }
     found.headOption
   }
 
   /**
-    * Check if a given method exists in the given function
+    * Checks if a given method exists in the given function
     */
   def ifMethodExistInFunction(method: String, function: UserDefinedFunction): Boolean = {
     val methods = function
@@ -218,7 +227,7 @@ object UserDefinedFunctionUtils {
     if (methods.isEmpty) {
       throw new ValidationException(
         s"Function class '${function.getClass.getCanonicalName}' does not implement at least " +
-          s"one method named '${methodName}' which is public, not abstract and " +
+          s"one method named '$methodName' which is public, not abstract and " +
           s"(in case of table functions) not static.")
     }
 
@@ -236,7 +245,7 @@ object UserDefinedFunctionUtils {
   // ----------------------------------------------------------------------------------------------
 
   /**
-    * Create [[SqlFunction]] for a [[ScalarFunction]]
+    * Creates [[SqlFunction]] for a [[ScalarFunction]]
     *
     * @param name function name
     * @param function scalar function
@@ -245,14 +254,15 @@ object UserDefinedFunctionUtils {
     */
   def createScalarSqlFunction(
       name: String,
+      displayName: String,
       function: ScalarFunction,
       typeFactory: FlinkTypeFactory)
     : SqlFunction = {
-    new ScalarSqlFunction(name, function, typeFactory)
+    new ScalarSqlFunction(name, displayName, function, typeFactory)
   }
 
   /**
-    * Create [[SqlFunction]]s for a [[TableFunction]]'s every eval method
+    * Creates [[SqlFunction]] for a [[TableFunction]]
     *
     * @param name function name
     * @param tableFunction table function
@@ -260,23 +270,20 @@ object UserDefinedFunctionUtils {
     * @param typeFactory type factory
     * @return the TableSqlFunction
     */
-  def createTableSqlFunctions(
+  def createTableSqlFunction(
       name: String,
+      displayName: String,
       tableFunction: TableFunction[_],
       resultType: TypeInformation[_],
       typeFactory: FlinkTypeFactory)
-    : Seq[SqlFunction] = {
+    : SqlFunction = {
     val (fieldNames, fieldIndexes, _) = UserDefinedFunctionUtils.getFieldInfo(resultType)
-    val evalMethods = checkAndExtractMethods(tableFunction, "eval")
-
-    evalMethods.map { method =>
-      val function = new FlinkTableFunctionImpl(resultType, fieldIndexes, fieldNames, method)
-      TableSqlFunction(name, tableFunction, resultType, typeFactory, function)
-    }
+    val function = new FlinkTableFunctionImpl(resultType, fieldIndexes, fieldNames)
+    new TableSqlFunction(name, displayName, tableFunction, resultType, typeFactory, function)
   }
 
   /**
-    * Create [[SqlFunction]] for an [[AggregateFunction]]
+    * Creates [[SqlFunction]] for an [[AggregateFunction]]
     *
     * @param name function name
     * @param aggFunction aggregate function
@@ -285,6 +292,7 @@ object UserDefinedFunctionUtils {
     */
   def createAggregateSqlFunction(
       name: String,
+      displayName: String,
       aggFunction: AggregateFunction[_, _],
       resultType: TypeInformation[_],
       accTypeInfo: TypeInformation[_],
@@ -295,6 +303,7 @@ object UserDefinedFunctionUtils {
 
     AggSqlFunction(
       name,
+      displayName,
       aggFunction,
       resultType,
       accTypeInfo,
@@ -302,66 +311,311 @@ object UserDefinedFunctionUtils {
       aggFunction.requiresOver)
   }
 
+  /**
+    * Creates a [[SqlOperandTypeChecker]] for SQL validation of
+    * eval functions (scalar and table functions).
+    */
+  def createEvalOperandTypeChecker(
+      name: String,
+      function: UserDefinedFunction)
+    : SqlOperandTypeChecker = {
+
+    val methods = checkAndExtractMethods(function, "eval")
+
+    new SqlOperandTypeChecker {
+      override def getAllowedSignatures(op: SqlOperator, opName: String): String = {
+        s"$opName[${signaturesToString(function, "eval")}]"
+      }
+
+      override def getOperandCountRange: SqlOperandCountRange = {
+        var min = 254
+        var max = -1
+        var isVarargs = false
+        methods.foreach( m => {
+          var len = m.getParameterTypes.length
+          if (len > 0 && m.isVarArgs && m.getParameterTypes()(len - 1).isArray) {
+            isVarargs = true
+            len = len - 1
+          }
+          max = Math.max(len, max)
+          min = Math.min(len, min)
+        })
+        if (isVarargs) {
+          // if eval method is varargs, set max to -1 to skip length check in Calcite
+          max = -1
+        }
+
+        SqlOperandCountRanges.between(min, max)
+      }
+
+      override def checkOperandTypes(
+          callBinding: SqlCallBinding,
+          throwOnFailure: Boolean)
+        : Boolean = {
+        val operandTypeInfo = getOperandTypeInfo(callBinding)
+
+        val foundSignature = getEvalMethodSignature(function, operandTypeInfo)
+
+        if (foundSignature.isEmpty) {
+          if (throwOnFailure) {
+            throw new ValidationException(
+              s"Given parameters of function '$name' do not match any signature. \n" +
+                s"Actual: ${signatureToString(operandTypeInfo)} \n" +
+                s"Expected: ${signaturesToString(function, "eval")}")
+          } else {
+            false
+          }
+        } else {
+          true
+        }
+      }
+
+      override def isOptional(i: Int): Boolean = false
+
+      override def getConsistency: Consistency = Consistency.NONE
+
+    }
+  }
+
+  /**
+    * Creates a [[SqlOperandTypeInference]] for the SQL validation of eval functions
+    * (scalar and table functions).
+    */
+  def createEvalOperandTypeInference(
+    name: String,
+    function: UserDefinedFunction,
+    typeFactory: FlinkTypeFactory)
+  : SqlOperandTypeInference = {
+
+    new SqlOperandTypeInference {
+      override def inferOperandTypes(
+          callBinding: SqlCallBinding,
+          returnType: RelDataType,
+          operandTypes: Array[RelDataType]): Unit = {
+
+        val operandTypeInfo = getOperandTypeInfo(callBinding)
+
+        val foundSignature = getEvalMethodSignature(function, operandTypeInfo)
+          .getOrElse(throw new ValidationException(
+            s"Given parameters of function '$name' do not match any signature. \n" +
+              s"Actual: ${signatureToString(operandTypeInfo)} \n" +
+              s"Expected: ${signaturesToString(function, "eval")}"))
+
+        val inferredTypes = function match {
+          case sf: ScalarFunction =>
+            sf.getParameterTypes(foundSignature)
+              .map(typeFactory.createTypeFromTypeInfo(_, isNullable = true))
+          case tf: TableFunction[_] =>
+            tf.getParameterTypes(foundSignature)
+              .map(typeFactory.createTypeFromTypeInfo(_, isNullable = true))
+          case _ => throw new TableException("Unsupported function.")
+        }
+
+        for (i <- operandTypes.indices) {
+          if (i < inferredTypes.length - 1) {
+            operandTypes(i) = inferredTypes(i)
+          } else if (null != inferredTypes.last.getComponentType) {
+            // last argument is a collection, the array type
+            operandTypes(i) = inferredTypes.last.getComponentType
+          } else {
+            operandTypes(i) = inferredTypes.last
+          }
+        }
+      }
+    }
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Utilities for user-defined functions
   // ----------------------------------------------------------------------------------------------
 
   /**
-    * Internal method of AggregateFunction#getResultType() that does some pre-checking and uses
-    * [[TypeExtractor]] as default return type inference.
+    * Remove StateView fields from accumulator type information.
+    *
+    * @param index index of aggregate function
+    * @param aggFun aggregate function
+    * @param accType accumulator type information, only support pojo type
+    * @param isStateBackedDataViews is data views use state backend
+    * @return mapping of accumulator type information and data view config which contains id,
+    *         field name and state descriptor
+    */
+  def removeStateViewFieldsFromAccTypeInfo(
+      index: Int,
+      aggFun: AggregateFunction[_, _],
+      accType: TypeInformation[_],
+      isStateBackedDataViews: Boolean)
+    : (TypeInformation[_], Option[Seq[DataViewSpec[_]]]) = {
+
+    /** Recursively checks if composite type includes a data view type. */
+    def includesDataView(ct: CompositeType[_]): Boolean = {
+      (0 until ct.getArity).exists(i =>
+        ct.getTypeAt(i) match {
+          case nestedCT: CompositeType[_] => includesDataView(nestedCT)
+          case t: TypeInformation[_] if t.getTypeClass == classOf[ListView[_]] => true
+          case t: TypeInformation[_] if t.getTypeClass == classOf[MapView[_, _]] => true
+          case _ => false
+        }
+      )
+    }
+
+    val acc = aggFun.createAccumulator()
+    accType match {
+      case pojoType: PojoTypeInfo[_] if pojoType.getArity > 0 =>
+        val arity = pojoType.getArity
+        val newPojoFields = new util.ArrayList[PojoField]()
+        val accumulatorSpecs = new mutable.ArrayBuffer[DataViewSpec[_]]
+        for (i <- 0 until arity) {
+          val pojoField = pojoType.getPojoFieldAt(i)
+          val field = pojoField.getField
+          val fieldName = field.getName
+          field.setAccessible(true)
+
+          pojoField.getTypeInformation match {
+            case ct: CompositeType[_] if includesDataView(ct) =>
+              throw new TableException(
+                "MapView and ListView only supported at first level of accumulators of Pojo type.")
+            case map: MapViewTypeInfo[_, _] =>
+              val mapView = field.get(acc).asInstanceOf[MapView[_, _]]
+              if (mapView != null) {
+                val keyTypeInfo = mapView.keyTypeInfo
+                val valueTypeInfo = mapView.valueTypeInfo
+                val newTypeInfo = if (keyTypeInfo != null && valueTypeInfo != null) {
+                  new MapViewTypeInfo(keyTypeInfo, valueTypeInfo)
+                } else {
+                  map
+                }
+
+                // create map view specs with unique id (used as state name)
+                var spec = MapViewSpec(
+                  "agg" + index + "$" + fieldName,
+                  field,
+                  newTypeInfo)
+
+                accumulatorSpecs += spec
+                if (!isStateBackedDataViews) {
+                  // add data view field if it is not backed by a state backend.
+                  // data view fields which are backed by state backend are not serialized.
+                  newPojoFields.add(new PojoField(field, newTypeInfo))
+                }
+              }
+
+            case list: ListViewTypeInfo[_] =>
+              val listView = field.get(acc).asInstanceOf[ListView[_]]
+              if (listView != null) {
+                val elementTypeInfo = listView.elementTypeInfo
+                val newTypeInfo = if (elementTypeInfo != null) {
+                  new ListViewTypeInfo(elementTypeInfo)
+                } else {
+                  list
+                }
+
+                // create list view specs with unique is (used as state name)
+                var spec = ListViewSpec(
+                  "agg" + index + "$" + fieldName,
+                  field,
+                  newTypeInfo)
+
+                accumulatorSpecs += spec
+                if (!isStateBackedDataViews) {
+                  // add data view field if it is not backed by a state backend.
+                  // data view fields which are backed by state backend are not serialized.
+                  newPojoFields.add(new PojoField(field, newTypeInfo))
+                }
+              }
+
+            case _ => newPojoFields.add(pojoField)
+          }
+        }
+        (new PojoTypeInfo(accType.getTypeClass, newPojoFields), Some(accumulatorSpecs))
+      case ct: CompositeType[_] if includesDataView(ct) =>
+        throw new TableException(
+          "MapView and ListView only supported in accumulators of POJO type.")
+      case _ => (accType, None)
+    }
+  }
+
+  /**
+    * Tries to infer the TypeInformation of an AggregateFunction's return type.
+    *
+    * @param aggregateFunction The AggregateFunction for which the return type is inferred.
+    * @param extractedType The implicitly inferred type of the result type.
+    *
+    * @return The inferred result type of the AggregateFunction.
     */
   def getResultTypeOfAggregateFunction(
       aggregateFunction: AggregateFunction[_, _],
       extractedType: TypeInformation[_] = null)
     : TypeInformation[_] = {
-    getParameterTypeOfAggregateFunction(aggregateFunction, "getResultType", 0, extractedType)
-  }
 
-  /**
-    * Internal method of AggregateFunction#getAccumulatorType() that does some pre-checking
-    * and uses [[TypeExtractor]] as default return type inference.
-    */
-  def getAccumulatorTypeOfAggregateFunction(
-    aggregateFunction: AggregateFunction[_, _],
-    extractedType: TypeInformation[_] = null)
-  : TypeInformation[_] = {
-    getParameterTypeOfAggregateFunction(aggregateFunction, "getAccumulatorType", 1, extractedType)
-  }
-
-  private def getParameterTypeOfAggregateFunction(
-    aggregateFunction: AggregateFunction[_, _],
-    getTypeMethod: String,
-    parameterTypePos: Int,
-    extractedType: TypeInformation[_] = null)
-  : TypeInformation[_] = {
-
-    val resultType = try {
-      val method: Method = aggregateFunction.getClass.getMethod(getTypeMethod)
-      method.invoke(aggregateFunction).asInstanceOf[TypeInformation[_]]
-    } catch {
-      case _: NoSuchMethodException => null
-      case ite: Throwable => throw new TableException("Unexpected exception:", ite)
-    }
+    val resultType = aggregateFunction.getResultType
     if (resultType != null) {
       resultType
     } else if (extractedType != null) {
       extractedType
     } else {
       try {
-        TypeExtractor
-        .createTypeInfo(aggregateFunction,
-                        classOf[AggregateFunction[_, _]],
-                        aggregateFunction.getClass,
-                        parameterTypePos)
-        .asInstanceOf[TypeInformation[_]]
+        extractTypeFromAggregateFunction(aggregateFunction, 0)
       } catch {
         case ite: InvalidTypesException =>
           throw new TableException(
-            s"Cannot infer generic type of ${aggregateFunction.getClass}. " +
-              s"You can override AggregateFunction.$getTypeMethod() to specify the type.",
-            ite)
+            "Cannot infer generic type of ${aggregateFunction.getClass}. " +
+              "You can override AggregateFunction.getResultType() to specify the type.",
+            ite
+          )
       }
     }
+  }
+
+  /**
+    * Tries to infer the TypeInformation of an AggregateFunction's accumulator type.
+    *
+    * @param aggregateFunction The AggregateFunction for which the accumulator type is inferred.
+    * @param extractedType The implicitly inferred type of the accumulator type.
+    *
+    * @return The inferred accumulator type of the AggregateFunction.
+    */
+  def getAccumulatorTypeOfAggregateFunction(
+    aggregateFunction: AggregateFunction[_, _],
+    extractedType: TypeInformation[_] = null)
+  : TypeInformation[_] = {
+
+    val accType = aggregateFunction.getAccumulatorType
+    if (accType != null) {
+      accType
+    } else if (extractedType != null) {
+      extractedType
+    } else {
+      try {
+        extractTypeFromAggregateFunction(aggregateFunction, 1)
+      } catch {
+        case ite: InvalidTypesException =>
+          throw new TableException(
+            "Cannot infer generic type of ${aggregateFunction.getClass}. " +
+              "You can override AggregateFunction.getAccumulatorType() to specify the type.",
+            ite
+          )
+      }
+    }
+  }
+
+  /**
+    * Internal method to extract a type from an AggregateFunction's type parameters.
+    *
+    * @param aggregateFunction The AggregateFunction for which the type is extracted.
+    * @param parameterTypePos The position of the type parameter for which the type is extracted.
+    *
+    * @return The extracted type.
+    */
+  @throws(classOf[InvalidTypesException])
+  private def extractTypeFromAggregateFunction(
+      aggregateFunction: AggregateFunction[_, _],
+      parameterTypePos: Int): TypeInformation[_] = {
+
+    TypeExtractor.createTypeInfo(
+      aggregateFunction,
+      classOf[AggregateFunction[_, _]],
+      aggregateFunction.getClass,
+      parameterTypePos).asInstanceOf[TypeInformation[_]]
   }
 
   /**
@@ -470,13 +724,14 @@ object UserDefinedFunctionUtils {
     candidate == expected ||
     expected == classOf[Object] ||
     expected.isPrimitive && Primitives.wrap(expected) == candidate ||
+    // time types
     candidate == classOf[Date] && (expected == classOf[Int] || expected == classOf[JInt])  ||
     candidate == classOf[Time] && (expected == classOf[Int] || expected == classOf[JInt]) ||
     candidate == classOf[Timestamp] && (expected == classOf[Long] || expected == classOf[JLong]) ||
-    (candidate.isArray &&
-      expected.isArray &&
-      candidate.getComponentType.isInstanceOf[Object] &&
-      expected.getComponentType == classOf[Object])
+    // arrays
+    (candidate.isArray && expected.isArray &&
+      (candidate.getComponentType == expected.getComponentType ||
+        expected.getComponentType == classOf[Object]))
 
   @throws[Exception]
   def serialize(function: UserDefinedFunction): String = {
@@ -494,7 +749,7 @@ object UserDefinedFunctionUtils {
   /**
     * Creates a [[LogicalTableFunctionCall]] by parsing a String expression.
     *
-    * @param tableEnv The table environmenent to lookup the function.
+    * @param tableEnv The table environment to lookup the function.
     * @param udtf a String expression of a TableFunctionCall, such as "split(c)"
     * @return A LogicalTableFunctionCall.
     */

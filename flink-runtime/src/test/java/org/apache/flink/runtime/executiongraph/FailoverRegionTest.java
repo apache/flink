@@ -18,12 +18,9 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
@@ -34,26 +31,24 @@ import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.SlotProvider;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -131,19 +126,15 @@ public class FailoverRegionTest extends TestLogger {
 		List<JobVertex> ordered = Arrays.asList(v1, v2, v3, v4);
 
 		ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
+			new DummyJobInformation(
 				jobId,
-				jobName,
-				new Configuration(),
-				new SerializedValue<>(new ExecutionConfig()),
-				AkkaUtils.getDefaultTimeout(),
-				new InfiniteDelayRestartStrategy(10),
-				new FailoverPipelinedRegionWithDirectExecutor(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
-				slotProvider,
-				ExecutionGraph.class.getClassLoader());
+				jobName),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
+			AkkaUtils.getDefaultTimeout(),
+			new InfiniteDelayRestartStrategy(10),
+			new FailoverPipelinedRegionWithDirectExecutor(),
+			slotProvider);
 
 		eg.attachJobGraph(ordered);
 
@@ -166,7 +157,7 @@ public class FailoverRegionTest extends TestLogger {
 
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev11).getState());
 
-		ev21.scheduleForExecution(slotProvider, true);
+		ev21.scheduleForExecution(slotProvider, true, LocationPreferenceConstraint.ALL);
 		ev21.getCurrentExecutionAttempt().fail(new Exception("New fail"));
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev11).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev22).getState());
@@ -179,7 +170,7 @@ public class FailoverRegionTest extends TestLogger {
 
 		ev11.getCurrentExecutionAttempt().markFinished();
 		ev21.getCurrentExecutionAttempt().markFinished();
-		ev22.scheduleForExecution(slotProvider, true);
+		ev22.scheduleForExecution(slotProvider, true, LocationPreferenceConstraint.ALL);
 		ev22.getCurrentExecutionAttempt().markFinished();
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev11).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev22).getState());
@@ -219,11 +210,11 @@ public class FailoverRegionTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that two failover regions failover at the same time, they will not influence each orther
+	 * Tests that two failover regions failover at the same time, they will not influence each other
 	 * @throws Exception
 	 */
 	@Test
-	public void testMutilRegionFailoverAtSameTime() throws Exception {
+	public void testMultiRegionFailoverAtSameTime() throws Exception {
 		Instance instance = ExecutionGraphTestUtils.getInstance(
 				new ActorTaskManagerGateway(
 						new SimpleActorGateway(TestingUtils.directExecutionContext())),
@@ -234,7 +225,6 @@ public class FailoverRegionTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
-		final Configuration cfg = new Configuration();
 
 		JobVertex v1 = new JobVertex("vertex1");
 		JobVertex v2 = new JobVertex("vertex2");
@@ -258,19 +248,15 @@ public class FailoverRegionTest extends TestLogger {
 		List<JobVertex> ordered = Arrays.asList(v1, v2, v3, v4);
 
 		ExecutionGraph eg = new ExecutionGraph(
+				new DummyJobInformation(
+					jobId,
+					jobName),
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
-				jobId,
-				jobName,
-				cfg,
-				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
 				new InfiniteDelayRestartStrategy(10),
 				new RestartPipelinedRegionStrategy.Factory(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
-				scheduler,
-				ExecutionGraph.class.getClassLoader());
+				scheduler);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -319,7 +305,6 @@ public class FailoverRegionTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
-		final Configuration cfg = new Configuration();
 
 		JobVertex v1 = new JobVertex("vertex1");
 		JobVertex v2 = new JobVertex("vertex2");
@@ -335,19 +320,15 @@ public class FailoverRegionTest extends TestLogger {
 		List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
 
 		ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
+			new DummyJobInformation(
 				jobId,
-				jobName,
-				cfg,
-				new SerializedValue<>(new ExecutionConfig()),
-				AkkaUtils.getDefaultTimeout(),
-				new InfiniteDelayRestartStrategy(10),
-				new FailoverPipelinedRegionWithDirectExecutor(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
-				scheduler,
-				ExecutionGraph.class.getClassLoader());
+				jobName),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
+			AkkaUtils.getDefaultTimeout(),
+			new InfiniteDelayRestartStrategy(10),
+			new FailoverPipelinedRegionWithDirectExecutor(),
+			scheduler);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -428,7 +409,6 @@ public class FailoverRegionTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
-		final Configuration cfg = new Configuration();
 
 		JobVertex v1 = new JobVertex("vertex1");
 		JobVertex v2 = new JobVertex("vertex2");
@@ -442,25 +422,22 @@ public class FailoverRegionTest extends TestLogger {
 		v2.setInvokableClass(AbstractInvokable.class);
 		v3.setInvokableClass(AbstractInvokable.class);
 
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		v3.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		v3.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
 		List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3));
 
 		ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
+			new DummyJobInformation(
 				jobId,
-				jobName,
-				cfg,
-				new SerializedValue<>(new ExecutionConfig()),
-				AkkaUtils.getDefaultTimeout(),
-				restartStrategy,
-				new FailoverPipelinedRegionWithDirectExecutor(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
-				scheduler,
-				ExecutionGraph.class.getClassLoader());
+				jobName),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
+			AkkaUtils.getDefaultTimeout(),
+			restartStrategy,
+			new FailoverPipelinedRegionWithDirectExecutor(),
+			scheduler);
 		try {
 			eg.attachJobGraph(ordered);
 		}

@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.highavailability.zookeeper;
 
-import org.apache.curator.framework.CuratorFramework;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -34,6 +32,10 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
+
+import org.apache.curator.framework.CuratorFramework;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.Executor;
@@ -80,9 +82,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ZooKeeperHaServices implements HighAvailabilityServices {
 
+	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperHaServices.class);
+
 	private static final String RESOURCE_MANAGER_LEADER_PATH = "/resource_manager_lock";
 
+	private static final String DISPATCHER_LEADER_PATH = "/dispatcher_lock";
+
 	private static final String JOB_MANAGER_LEADER_PATH = "/job_manager_lock";
+
+	private static final String REST_SERVER_LEADER_PATH = "/rest_server_lock";
 
 	// ------------------------------------------------------------------------
 	
@@ -125,6 +133,11 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 	}
 
 	@Override
+	public LeaderRetrievalService getDispatcherLeaderRetriever() {
+		return ZooKeeperUtils.createLeaderRetrievalService(client, configuration, DISPATCHER_LEADER_PATH);
+	}
+
+	@Override
 	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
 		return ZooKeeperUtils.createLeaderRetrievalService(client, configuration, getPathForJobManager(jobID));
 	}
@@ -135,13 +148,28 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 	}
 
 	@Override
+	public LeaderRetrievalService getWebMonitorLeaderRetriever() {
+		return ZooKeeperUtils.createLeaderRetrievalService(client, configuration, REST_SERVER_LEADER_PATH);
+	}
+
+	@Override
 	public LeaderElectionService getResourceManagerLeaderElectionService() {
 		return ZooKeeperUtils.createLeaderElectionService(client, configuration, RESOURCE_MANAGER_LEADER_PATH);
 	}
 
 	@Override
+	public LeaderElectionService getDispatcherLeaderElectionService() {
+		return ZooKeeperUtils.createLeaderElectionService(client, configuration, DISPATCHER_LEADER_PATH);
+	}
+
+	@Override
 	public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) {
 		return ZooKeeperUtils.createLeaderElectionService(client, configuration, getPathForJobManager(jobID));
+	}
+
+	@Override
+	public LeaderElectionService getWebMonitorLeaderElectionService() {
+		return ZooKeeperUtils.createLeaderElectionService(client, configuration, REST_SERVER_LEADER_PATH);
 	}
 
 	@Override
@@ -151,7 +179,7 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 
 	@Override
 	public SubmittedJobGraphStore getSubmittedJobGraphStore() throws Exception {
-		return ZooKeeperUtils.createSubmittedJobGraphs(client, configuration, executor);
+		return ZooKeeperUtils.createSubmittedJobGraphs(client, configuration);
 	}
 
 	@Override
@@ -187,6 +215,8 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 
 	@Override
 	public void closeAndCleanupAllData() throws Exception {
+		LOG.info("Close and clean up all data for ZooKeeperHaServices.");
+
 		Throwable exception = null;
 
 		try {

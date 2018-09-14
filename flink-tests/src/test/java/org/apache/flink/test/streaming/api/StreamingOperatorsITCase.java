@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.streaming.api;
 
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -29,11 +30,12 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
-import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.MathUtils;
 
 import org.junit.Assert;
@@ -52,7 +54,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Integration tests for streaming operators.
  */
-public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase {
+public class StreamingOperatorsITCase extends AbstractTestBase {
 
 	/**
 	 * Tests the proper functioning of the streaming fold operator. For this purpose, a stream
@@ -240,11 +242,11 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 
 			@Override
 			public void asyncInvoke(final Tuple2<Integer, NonSerializable> input,
-									final AsyncCollector<Integer> collector) throws Exception {
+									final ResultFuture<Integer> resultFuture) throws Exception {
 				executorService.submit(new Runnable() {
 					@Override
 					public void run() {
-						collector.collect(Collections.singletonList(input.f0 + input.f0));
+						resultFuture.complete(Collections.singletonList(input.f0 + input.f0));
 					}
 				});
 			}
@@ -377,5 +379,19 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		public static void clear() {
 			collections.clear();
 		}
+	}
+
+	@Test
+	public void testOperatorChainWithObjectReuseAndNoOutputOperators() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().enableObjectReuse();
+		DataStream<Integer> input = env.fromElements(1, 2, 3);
+		input.flatMap(new FlatMapFunction<Integer, Integer>() {
+			@Override
+			public void flatMap(Integer value, Collector<Integer> out) throws Exception {
+				out.collect(value << 1);
+			}
+		});
+		env.execute();
 	}
 }

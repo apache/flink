@@ -40,11 +40,6 @@ implements Driver<K, VV, EV> {
 		.setDefaultValue(PARALLELISM_DEFAULT);
 
 	@Override
-	public String getName() {
-		return this.getClass().getSimpleName();
-	}
-
-	@Override
 	public void printAnalytics(PrintStream out) {
 		// analytics are optionally executed by drivers overriding this method
 	}

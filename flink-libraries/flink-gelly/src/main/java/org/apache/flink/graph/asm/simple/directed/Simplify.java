@@ -19,6 +19,7 @@
 package org.apache.flink.graph.asm.simple.directed;
 
 import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
@@ -40,10 +41,11 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 		// Edges
 		DataSet<Edge<K, EV>> edges = input
 			.getEdges()
-			.filter(new RemoveSelfLoops<K, EV>())
+			.filter(new RemoveSelfLoops<>())
 				.setParallelism(parallelism)
 				.name("Remove self-loops")
 			.distinct(0, 1)
+				.setCombineHint(CombineHint.NONE)
 				.setParallelism(parallelism)
 				.name("Remove duplicate edges");
 

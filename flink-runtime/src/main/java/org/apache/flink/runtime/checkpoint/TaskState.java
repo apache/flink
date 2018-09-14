@@ -48,7 +48,6 @@ public class TaskState implements CompositeStateHandle {
 	/** handles to non-partitioned states, subtaskindex -> subtaskstate */
 	private final Map<Integer, SubtaskState> subtaskStates;
 
-
 	/** parallelism of the operator when it was checkpointed */
 	private final int parallelism;
 
@@ -115,15 +114,6 @@ public class TaskState implements CompositeStateHandle {
 
 	public int getChainLength() {
 		return chainLength;
-	}
-
-	public boolean hasNonPartitionedState() {
-		for(SubtaskState sts : subtaskStates.values()) {
-			if (sts != null && !sts.getLegacyOperatorState().isEmpty()) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 	@Override

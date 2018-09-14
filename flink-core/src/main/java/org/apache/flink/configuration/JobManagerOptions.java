@@ -18,9 +18,12 @@
 
 package org.apache.flink.configuration;
 
-import static org.apache.flink.configuration.ConfigOptions.key;
-
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.description.Description;
+
+import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * Configuration options for the JobManager.
@@ -31,8 +34,8 @@ public class JobManagerOptions {
 	/**
 	 * The config parameter defining the network address to connect to
 	 * for communication with the job manager.
-	 * 
-	 * <p>This value is only interpreted in setups where a single JobManager with static 
+	 *
+	 * <p>This value is only interpreted in setups where a single JobManager with static
 	 * name or address exists (simple standalone setups, or container setups with dynamic
 	 * service name resolution). It is not used in many high-availability setups, when a
 	 * leader-election service (like ZooKeeper) is used to elect and discover the JobManager
@@ -40,12 +43,19 @@ public class JobManagerOptions {
 	 */
 	public static final ConfigOption<String> ADDRESS =
 		key("jobmanager.rpc.address")
-		.noDefaultValue();
+		.noDefaultValue()
+		.withDescription("The config parameter defining the network address to connect to" +
+			" for communication with the job manager." +
+			" This value is only interpreted in setups where a single JobManager with static" +
+			" name or address exists (simple standalone setups, or container setups with dynamic" +
+			" service name resolution). It is not used in many high-availability setups, when a" +
+			" leader-election service (like ZooKeeper) is used to elect and discover the JobManager" +
+			" leader from potentially multiple standby JobManagers.");
 
 	/**
 	 * The config parameter defining the network port to connect to
 	 * for communication with the job manager.
-	 * 
+	 *
 	 * <p>Like {@link JobManagerOptions#ADDRESS}, this value is only interpreted in setups where
 	 * a single JobManager with static name/address and port exists (simple standalone setups,
 	 * or container setups with dynamic service name resolution).
@@ -55,14 +65,34 @@ public class JobManagerOptions {
 	 */
 	public static final ConfigOption<Integer> PORT =
 		key("jobmanager.rpc.port")
-		.defaultValue(6123);
+		.defaultValue(6123)
+		.withDescription("The config parameter defining the network port to connect to" +
+			" for communication with the job manager." +
+			" Like " + ADDRESS.key() + ", this value is only interpreted in setups where" +
+			" a single JobManager with static name/address and port exists (simple standalone setups," +
+			" or container setups with dynamic service name resolution)." +
+			" This config option is not used in many high-availability setups, when a" +
+			" leader-election service (like ZooKeeper) is used to elect and discover the JobManager" +
+			" leader from potentially multiple standby JobManagers.");
 
 	/**
-	 * JVM heap size (in megabytes) for the JobManager
+	 * JVM heap size for the JobManager with memory size.
 	 */
-	public static final ConfigOption<Integer> JOB_MANAGER_HEAP_MEMORY =
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
+	public static final ConfigOption<String> JOB_MANAGER_HEAP_MEMORY =
+		key("jobmanager.heap.size")
+		.defaultValue("1024m")
+		.withDescription("JVM heap size for the JobManager.");
+
+	/**
+	 * JVM heap size (in megabytes) for the JobManager.
+	 * @deprecated use {@link #JOB_MANAGER_HEAP_MEMORY}
+	 */
+	@Deprecated
+	public static final ConfigOption<Integer> JOB_MANAGER_HEAP_MEMORY_MB =
 		key("jobmanager.heap.mb")
-		.defaultValue(1024);
+		.defaultValue(1024)
+		.withDescription("JVM heap size (in megabytes) for the JobManager.");
 
 	/**
 	 * The maximum number of prior execution attempts kept in history.
@@ -70,135 +100,35 @@ public class JobManagerOptions {
 	public static final ConfigOption<Integer> MAX_ATTEMPTS_HISTORY_SIZE =
 		key("jobmanager.execution.attempts-history-size")
 			.defaultValue(16)
-			.withDeprecatedKeys("job-manager.max-attempts-history-size");
+			.withDeprecatedKeys("job-manager.max-attempts-history-size")
+			.withDescription("The maximum number of prior execution attempts kept in history.");
 
 	/**
-	 * The maximum number of prior execution attempts kept in history.
+	 * This option specifies the failover strategy, i.e. how the job computation recovers from task failures.
 	 */
 	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
 		key("jobmanager.execution.failover-strategy")
-			.defaultValue("full");
+			.defaultValue("full")
+			.withDescription(Description.builder()
+				.text("This option specifies how the job computation recovers from task failures. " +
+					"Accepted values are:")
+				.list(
+					text("'full': Restarts all tasks."),
+					text("'individual': Restarts only the failed task. Should only be used if all tasks are independent components."),
+					text("'region': Restarts all tasks that could be affected by the task failure.")
+				).build());
 
 	/**
 	 * This option specifies the interval in order to trigger a resource manager reconnection if the connection
 	 * to the resource manager has been lost.
 	 *
-	 * This option is only intended for internal use.
+	 * <p>This option is only intended for internal use.
 	 */
 	public static final ConfigOption<Long> RESOURCE_MANAGER_RECONNECT_INTERVAL =
 		key("jobmanager.resourcemanager.reconnect-interval")
-		.defaultValue(2000L);
-
-	// ------------------------------------------------------------------------
-	//  JobManager web UI
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Config parameter defining the runtime monitor web-frontend server address.
-	 */
-	public static final ConfigOption<String> WEB_FRONTEND_ADDRESS =
-		key("jobmanager.web.address")
-			.noDefaultValue();
-
-	/**
-	 * The port for the runtime monitor web-frontend server.
-	 */
-	public static final ConfigOption<Integer> WEB_PORT =
-		key("jobmanager.web.port")
-		.defaultValue(8081);
-
-	/**
-	 * The config parameter defining the Access-Control-Allow-Origin header for all
-	 * responses from the web-frontend.
-	 */
-	public static final ConfigOption<String> WEB_ACCESS_CONTROL_ALLOW_ORIGIN =
-		key("jobmanager.web.access-control-allow-origin")
-			.defaultValue("*");
-
-	/**
-	 * The config parameter defining the refresh interval for the web-frontend.
-	 */
-	public static final ConfigOption<Long> WEB_REFRESH_INTERVAL =
-		key("jobmanager.web.refresh-interval")
-			.defaultValue(3000L);
-	
-	/**
-	 * Config parameter to override SSL support for the JobManager Web UI
-	 */
-	public static final ConfigOption<Boolean> WEB_SSL_ENABLED =
-		key("jobmanager.web.ssl.enabled")
-		.defaultValue(true);
-
-	/**
-	 * The config parameter defining the flink web directory to be used by the webmonitor.
-	 */
-	public static final ConfigOption<String> WEB_TMP_DIR =
-		key("jobmanager.web.tmpdir")
-		.defaultValue(System.getProperty("java.io.tmpdir"));
-
-	/**
-	 * The config parameter defining the directory for uploading the job jars. If not specified a dynamic directory
-	 * will be used under the directory specified by JOB_MANAGER_WEB_TMPDIR_KEY.
-	 */
-	public static final ConfigOption<String> WEB_UPLOAD_DIR =
-		key("jobmanager.web.upload.dir")
-		.noDefaultValue();
-
-	/**
-	 * The config parameter defining the number of archived jobs for the jobmanager.
-	 */
-	public static final ConfigOption<Integer> WEB_ARCHIVE_COUNT =
-		key("jobmanager.web.history")
-		.defaultValue(5);
-
-	/**
-	 * The log file location (may be in /log for standalone but under log directory when using YARN).
-	 */
-	public static final ConfigOption<String> WEB_LOG_PATH =
-		key("jobmanager.web.log.path")
-		.noDefaultValue();
-
-	/**
-	 * Config parameter indicating whether jobs can be uploaded and run from the web-frontend.
-	 */
-	public static final ConfigOption<Boolean> WEB_SUBMIT_ENABLE =
-		key("jobmanager.web.submit.enable")
-		.defaultValue(true);
-
-	/**
-	 * Config parameter defining the number of checkpoints to remember for recent history.
-	 */
-	public static final ConfigOption<Integer> WEB_CHECKPOINTS_HISTORY_SIZE =
-		key("jobmanager.web.checkpoints.history")
-		.defaultValue(10);
-
-	/**
-	 * Time after which cached stats are cleaned up if not accessed.
-	 */
-	public static final ConfigOption<Integer> WEB_BACKPRESSURE_CLEANUP_INTERVAL =
-		key("jobmanager.web.backpressure.cleanup-interval")
-		.defaultValue(10 * 60 * 1000);
-
-	/**
-	 * Time after which available stats are deprecated and need to be refreshed (by resampling).
-	 */
-	public static final ConfigOption<Integer> WEB_BACKPRESSURE_REFRESH_INTERVAL =
-		key("jobmanager.web.backpressure.refresh-interval")
-		.defaultValue(60 * 1000);
-
-	/**
-	 * Number of stack trace samples to take to determine back pressure.
-	 */
-	public static final ConfigOption<Integer> WEB_BACKPRESSURE_NUM_SAMPLES =
-		key("jobmanager.web.backpressure.num-samples")
-		.defaultValue(100);
-
-	/**
-	 * Delay between stack trace samples to determine back pressure.
-	 */
-	public static final ConfigOption<Integer> WEB_BACKPRESSURE_DELAY =
-		key("jobmanager.web.backpressure.delay-between-samples")
-		.defaultValue(50);
+		.defaultValue(2000L)
+		.withDescription("This option specifies the interval in order to trigger a resource manager reconnection if the connection" +
+			" to the resource manager has been lost. This option is only intended for internal use.");
 
 	/**
 	 * The location where the JobManager stores the archives of completed jobs.
@@ -206,6 +136,40 @@ public class JobManagerOptions {
 	public static final ConfigOption<String> ARCHIVE_DIR =
 		key("jobmanager.archive.fs.dir")
 			.noDefaultValue();
+
+	/**
+	 * The job store cache size in bytes which is used to keep completed
+	 * jobs in memory.
+	 */
+	public static final ConfigOption<Long> JOB_STORE_CACHE_SIZE =
+		key("jobstore.cache-size")
+		.defaultValue(50L * 1024L * 1024L)
+		.withDescription("The job store cache size in bytes which is used to keep completed jobs in memory.");
+
+	/**
+	 * The time in seconds after which a completed job expires and is purged from the job store.
+	 */
+	public static final ConfigOption<Long> JOB_STORE_EXPIRATION_TIME =
+		key("jobstore.expiration-time")
+		.defaultValue(60L * 60L)
+		.withDescription("The time in seconds after which a completed job expires and is purged from the job store.");
+
+	/**
+	 * The timeout in milliseconds for requesting a slot from Slot Pool.
+	 */
+	public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT =
+		key("slot.request.timeout")
+		.defaultValue(5L * 60L * 1000L)
+		.withDescription("The timeout in milliseconds for requesting a slot from Slot Pool.");
+
+	/**
+	 * The timeout in milliseconds for a idle slot in Slot Pool.
+	 */
+	public static final ConfigOption<Long> SLOT_IDLE_TIMEOUT =
+		key("slot.idle.timeout")
+			// default matches heartbeat.timeout so that sticky allocation is not lost on timeouts for local recovery
+			.defaultValue(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT.defaultValue())
+			.withDescription("The timeout in milliseconds for a idle slot in Slot Pool.");
 
 	// ---------------------------------------------------------------------------------------------
 

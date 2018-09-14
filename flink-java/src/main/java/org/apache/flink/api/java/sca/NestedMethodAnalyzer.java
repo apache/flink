@@ -18,30 +18,31 @@
 
 package org.apache.flink.api.java.sca;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.sca.TaggedValue.Tag;
+
+import org.apache.flink.shaded.asm5.org.objectweb.asm.Type;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.AbstractInsnNode;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.FieldInsnNode;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.IntInsnNode;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.LdcInsnNode;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.MethodInsnNode;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.MethodNode;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.TypeInsnNode;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.analysis.AnalyzerException;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.analysis.BasicInterpreter;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.analysis.BasicValue;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.findMethodNode;
 import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.hasImportantDependencies;
 import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.isTagged;
 import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.mergeReturnValues;
 import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.removeUngroupedInputs;
 import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.tagged;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.java.sca.TaggedValue.Tag;
-import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.FieldInsnNode;
-import org.objectweb.asm.tree.IntInsnNode;
-import org.objectweb.asm.tree.LdcInsnNode;
-import org.objectweb.asm.tree.MethodInsnNode;
-import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.TypeInsnNode;
-import org.objectweb.asm.tree.analysis.AnalyzerException;
-import org.objectweb.asm.tree.analysis.BasicInterpreter;
-import org.objectweb.asm.tree.analysis.BasicValue;
 
 /**
  * Extends ASM's BasicInterpreter. Instead of ASM's BasicValues, it introduces
@@ -76,7 +77,7 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 		this.owner = owner;
 		this.methodNode = methodNode;
 		this.argumentValues = argumentValues;
-		
+
 		this.remainingNesting = remainingNesting;
 		if (remainingNesting < 0) {
 			throw new CodeAnalyzerException("Maximum nesting level reached.");
@@ -117,7 +118,7 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 		}
 		final NestedMethodAnalyzer nma = new NestedMethodAnalyzer(analyzer, (String) mn[1],
 				(MethodNode) mn[0],
-				(List<BasicValue>) values, remainingNesting -1,
+				(List<BasicValue>) values, remainingNesting - 1,
 				topLevelMethod && isBridgeMethod());
 		return nma.analyze();
 	}
@@ -157,7 +158,7 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 		else if (convertedType.equals("boolean") && actualType.equals("Boolean")) {
 			return Type.BOOLEAN_TYPE;
 		}
-		else if (convertedType.equals("char") && actualType.equals("Character")	) {
+		else if (convertedType.equals("char") && actualType.equals("Character")) {
 			return Type.CHAR_TYPE;
 		}
 		else if (convertedType.equals("float") && actualType.equals("Float")) {
@@ -301,7 +302,7 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 				return new TaggedValue(Type.getObjectType("null"), Tag.NULL);
 			case NEW:
 				analyzer.incrNewOperationCounters(topLevelMethod);
-				// make new objects a tagged value to have possibility to tag an 
+				// make new objects a tagged value to have possibility to tag an
 				// input container later
 				return new TaggedValue(Type.getObjectType(((TypeInsnNode) insn).desc));
 			// tag "int"-like constants
@@ -358,6 +359,8 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 			case DUP2_X2:
 				if (isTagged(value) && tagged(value).isInput() && tagged(value).isCallByValue()) {
 					return tagged(value).copy();
+				} else {
+					return super.copyOperation(insn, value);
 				}
 			default:
 				return super.copyOperation(insn, value);
@@ -488,13 +491,13 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 	@Override
 	public BasicValue naryOperation(AbstractInsnNode insn, List rawValues) throws AnalyzerException {
 		final List<BasicValue> values = (List<BasicValue>) rawValues;
-		boolean isStatic = false;
+		boolean isStatic;
 		switch (insn.getOpcode()) {
 			case INVOKESTATIC:
-				isStatic = true;
 			case INVOKESPECIAL:
 			case INVOKEVIRTUAL:
 			case INVOKEINTERFACE:
+				isStatic = insn.getOpcode() == INVOKESTATIC;
 				final MethodInsnNode method = (MethodInsnNode) insn;
 				String methodOwner = method.owner;
 
@@ -596,7 +599,7 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 							&& methodOwner.startsWith("org/apache/flink/api/java/tuple/Tuple")
 							&& isTagged(values.get(0))
 							) {
-						final TaggedValue tuple =tagged(values.get(0));
+						final TaggedValue tuple = tagged(values.get(0));
 						tuple.setTag(Tag.CONTAINER);
 
 						// check if fieldPos is constant
@@ -607,7 +610,7 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 						else {
 							final int constant = tagged(values.get(2)).getIntConstant();
 
-							if (constant < 0 || Integer.parseInt(methodOwner.split("Tuple")[1]) <= constant ) {
+							if (constant < 0 || Integer.parseInt(methodOwner.split("Tuple")[1]) <= constant) {
 								analyzer.handleInvalidTupleAccess();
 							}
 

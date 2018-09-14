@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
-import com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -61,7 +61,7 @@ public class CoFeedbackTransformation<F> extends StreamTransformation<F> {
 	/**
 	 * Creates a new {@code CoFeedbackTransformation} from the given input.
 	 *
-	 * @param parallelism The parallelism of the upstream {@code StreamTransformatino} and the
+	 * @param parallelism The parallelism of the upstream {@code StreamTransformation} and the
 	 *                    feedback edges.
 	 * @param feedbackType The type of the feedback edges
 	 * @param waitTime The wait time of the feedback operator. After the time expires

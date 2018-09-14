@@ -36,17 +36,17 @@ public final class MessageIterator<Message> implements Iterator<Message>, Iterab
 	}
 
 	@Override
-	public boolean hasNext() {
+	public final boolean hasNext() {
 		return this.source.hasNext();
 	}
 
 	@Override
-	public Message next() {
+	public final Message next() {
 		return this.source.next().f1;
 	}
 
 	@Override
-	public void remove() {
+	public final void remove() {
 		throw new UnsupportedOperationException();
 	}
 

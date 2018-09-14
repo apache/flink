@@ -43,11 +43,11 @@ extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 	private final ExecutionEnvironment env;
 
 	// Required configuration
-	private long vertexCount;
+	private final long vertexCount;
 
 	/**
-	 * An undirected {@Graph} with {@code n} vertices where the single central
-	 * node has degree {@code n-1}, connecting to the other {@code n-1}
+	 * An undirected {@link Graph} with {@code n} vertices where the single
+	 * central node has degree {@code n-1}, connecting to the other {@code n-1}
 	 * vertices which have degree {@code 1}.
 	 *
 	 * @param env the Flink execution environment
@@ -63,6 +63,8 @@ extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 
 	@Override
 	public Graph<LongValue, NullValue, NullValue> generate() {
+		Preconditions.checkState(vertexCount >= 2);
+
 		// Vertices
 		DataSet<Vertex<LongValue, NullValue>> vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
 

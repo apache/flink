@@ -17,15 +17,20 @@
 
 package org.apache.flink.streaming.connectors.kinesis;
 
-import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisSerializationSchema;
-import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
-import org.apache.flink.streaming.util.serialization.SerializationSchema;
-import org.apache.flink.util.PropertiesUtil;
+import org.apache.flink.streaming.connectors.kinesis.util.TimeoutLatch;
+import org.apache.flink.util.InstantiationUtil;
 
 import com.amazonaws.services.kinesis.producer.Attempt;
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
@@ -40,9 +45,9 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.Objects;
 import java.util.Properties;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -50,7 +55,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <OUT> Data type to produce into Kinesis Streams
  */
-public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
+@PublicEvolving
+public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements CheckpointedFunction {
+
+	public static final String KINESIS_PRODUCER_METRIC_GROUP = "kinesisProducer";
+
+	public static final String METRIC_BACKPRESSURE_CYCLES = "backpressureCycles";
+
+	public static final String METRIC_OUTSTANDING_RECORDS_COUNT = "outstandingRecordsCount";
+
+	private static final long serialVersionUID = 6447077318449477846L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkKinesisProducer.class);
 
@@ -59,6 +73,9 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 
 	/* Flag controlling the error behavior of the producer */
 	private boolean failOnError = false;
+
+	/* Maximum length of the internal record queue before backpressuring */
+	private int queueLimit = Integer.MAX_VALUE;
 
 	/* Name of the default stream to produce to. Can be overwritten by the serialization schema */
 	private String defaultStream;
@@ -77,8 +94,14 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	/* Our Kinesis instance for each parallel Flink sink */
 	private transient KinesisProducer producer;
 
+	/* Backpressuring waits for this latch, triggered by record callback */
+	private transient TimeoutLatch backpressureLatch;
+
 	/* Callback handling failures */
 	private transient FutureCallback<UserRecordResult> callback;
+
+	/* Counts how often we have to wait for KPL because we are above the queue limit */
+	private transient Counter backpressureCycles;
 
 	/* Field for async exception */
 	private transient volatile Throwable thrownException;
@@ -90,7 +113,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	 * This is a constructor supporting Flink's {@see SerializationSchema}.
 	 *
 	 * @param schema Serialization schema for the data type
-	 * @param configProps The properties used to configure AWS credentials and AWS region
+	 * @param configProps The properties used to configure KinesisProducer, including AWS credentials and AWS region
 	 */
 	public FlinkKinesisProducer(final SerializationSchema<OUT> schema, Properties configProps) {
 
@@ -115,15 +138,17 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	 * This is a constructor supporting {@see KinesisSerializationSchema}.
 	 *
 	 * @param schema Kinesis serialization schema for the data type
-	 * @param configProps The properties used to configure AWS credentials and AWS region
+	 * @param configProps The properties used to configure KinesisProducer, including AWS credentials and AWS region
 	 */
 	public FlinkKinesisProducer(KinesisSerializationSchema<OUT> schema, Properties configProps) {
-		this.configProps = checkNotNull(configProps, "configProps can not be null");
+		checkNotNull(configProps, "configProps can not be null");
+		this.configProps = KinesisConfigUtil.replaceDeprecatedProducerKeys(configProps);
 
-		// check the configuration properties for any conflicting settings
-		KinesisConfigUtil.validateProducerConfiguration(this.configProps);
-
-		ClosureCleaner.ensureSerializable(Objects.requireNonNull(schema));
+		checkNotNull(schema, "serialization schema cannot be null");
+		checkArgument(
+			InstantiationUtil.isSerializable(schema),
+			"The provided serialization schema is not serializable: " + schema.getClass().getName() + ". " +
+				"Please check that it does not contain references to non-serializable instances.");
 		this.schema = schema;
 	}
 
@@ -135,6 +160,18 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	 */
 	public void setFailOnError(boolean failOnError) {
 		this.failOnError = failOnError;
+	}
+
+	/**
+	 * The {@link KinesisProducer} holds an unbounded queue internally. To avoid memory
+	 * problems under high loads, a limit can be employed above which the internal queue
+	 * will be flushed, thereby applying backpressure.
+	 *
+	 * @param queueLimit The maximum length of the internal queue before backpressuring
+	 */
+	public void setQueueLimit(int queueLimit) {
+		checkArgument(queueLimit > 0, "queueLimit must be a positive number");
+		this.queueLimit = queueLimit;
 	}
 
 	/**
@@ -154,8 +191,12 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	}
 
 	public void setCustomPartitioner(KinesisPartitioner<OUT> partitioner) {
-		Objects.requireNonNull(partitioner);
-		ClosureCleaner.ensureSerializable(partitioner);
+		checkNotNull(partitioner, "partitioner cannot be null");
+		checkArgument(
+			InstantiationUtil.isSerializable(partitioner),
+			"The provided custom partitioner is not serializable: " + partitioner.getClass().getName() + ". " +
+				"Please check that it does not contain references to non-serializable instances.");
+
 		this.customPartitioner = partitioner;
 	}
 
@@ -165,26 +206,26 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 
-		KinesisProducerConfiguration producerConfig = new KinesisProducerConfiguration();
+		// check and pass the configuration properties
+		KinesisProducerConfiguration producerConfig = KinesisConfigUtil.getValidatedProducerConfiguration(configProps);
 
-		producerConfig.setRegion(configProps.getProperty(ProducerConfigConstants.AWS_REGION));
-		producerConfig.setCredentialsProvider(AWSUtil.getCredentialsProvider(configProps));
-		if (configProps.containsKey(ProducerConfigConstants.COLLECTION_MAX_COUNT)) {
-			producerConfig.setCollectionMaxCount(PropertiesUtil.getLong(configProps,
-					ProducerConfigConstants.COLLECTION_MAX_COUNT, producerConfig.getCollectionMaxCount(), LOG));
-		}
-		if (configProps.containsKey(ProducerConfigConstants.AGGREGATION_MAX_COUNT)) {
-			producerConfig.setAggregationMaxCount(PropertiesUtil.getLong(configProps,
-					ProducerConfigConstants.AGGREGATION_MAX_COUNT, producerConfig.getAggregationMaxCount(), LOG));
-		}
+		producer = getKinesisProducer(producerConfig);
 
-		producer = new KinesisProducer(producerConfig);
+		final MetricGroup kinesisMectricGroup = getRuntimeContext().getMetricGroup().addGroup(KINESIS_PRODUCER_METRIC_GROUP);
+		this.backpressureCycles = kinesisMectricGroup.counter(METRIC_BACKPRESSURE_CYCLES);
+		kinesisMectricGroup.gauge(METRIC_OUTSTANDING_RECORDS_COUNT, producer::getOutstandingRecordsCount);
+
+		backpressureLatch = new TimeoutLatch();
 		callback = new FutureCallback<UserRecordResult>() {
 			@Override
 			public void onSuccess(UserRecordResult result) {
+				backpressureLatch.trigger();
 				if (!result.isSuccessful()) {
 					if (failOnError) {
-						thrownException = new RuntimeException("Record was not sent successful");
+						// only remember the first thrown exception
+						if (thrownException == null) {
+							thrownException = new RuntimeException("Record was not sent successful");
+						}
 					} else {
 						LOG.warn("Record was not sent successful");
 					}
@@ -193,6 +234,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 
 			@Override
 			public void onFailure(Throwable t) {
+				backpressureLatch.trigger();
 				if (failOnError) {
 					thrownException = t;
 				} else {
@@ -209,26 +251,16 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	}
 
 	@Override
-	public void invoke(OUT value) throws Exception {
+	public void invoke(OUT value, Context context) throws Exception {
 		if (this.producer == null) {
 			throw new RuntimeException("Kinesis producer has been closed");
 		}
-		if (thrownException != null) {
-			String errorMessages = "";
-			if (thrownException instanceof UserRecordFailedException) {
-				List<Attempt> attempts = ((UserRecordFailedException) thrownException).getResult().getAttempts();
-				for (Attempt attempt: attempts) {
-					if (attempt.getErrorMessage() != null) {
-						errorMessages += attempt.getErrorMessage() + "\n";
-					}
-				}
-			}
-			if (failOnError) {
-				throw new RuntimeException("An exception was thrown while processing a record: " + errorMessages, thrownException);
-			} else {
-				LOG.warn("An exception was thrown while processing a record: {}", thrownException, errorMessages);
-				thrownException = null; // reset
-			}
+
+		checkAndPropagateAsyncError();
+		boolean didWaitForFlush = enforceQueueLimit();
+
+		if (didWaitForFlush) {
+			checkAndPropagateAsyncError();
 		}
 
 		String stream = defaultStream;
@@ -266,24 +298,116 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	public void close() throws Exception {
 		LOG.info("Closing producer");
 		super.close();
-		KinesisProducer kp = this.producer;
-		this.producer = null;
-		if (kp != null) {
-			LOG.info("Flushing outstanding {} records", kp.getOutstandingRecordsCount());
+
+		if (producer != null) {
+			LOG.info("Flushing outstanding {} records", producer.getOutstandingRecordsCount());
 			// try to flush all outstanding records
-			while (kp.getOutstandingRecordsCount() > 0) {
-				kp.flush();
-				try {
-					Thread.sleep(500);
-				} catch (InterruptedException e) {
-					LOG.warn("Flushing was interrupted.");
-					// stop the blocking flushing and destroy producer immediately
-					break;
+			flushSync();
+
+			LOG.info("Flushing done. Destroying producer instance.");
+			producer.destroy();
+			producer = null;
+		}
+
+		// make sure we propagate pending errors
+		checkAndPropagateAsyncError();
+	}
+
+	@Override
+	public void initializeState(FunctionInitializationContext context) throws Exception {
+		// nothing to do
+	}
+
+	@Override
+	public void snapshotState(FunctionSnapshotContext context) throws Exception {
+		// check for asynchronous errors and fail the checkpoint if necessary
+		checkAndPropagateAsyncError();
+
+		flushSync();
+		if (producer.getOutstandingRecordsCount() > 0) {
+			throw new IllegalStateException(
+				"Number of outstanding records must be zero at this point: " + producer.getOutstandingRecordsCount());
+		}
+
+		// if the flushed requests has errors, we should propagate it also and fail the checkpoint
+		checkAndPropagateAsyncError();
+	}
+
+	// --------------------------- Utilities ---------------------------
+
+	/**
+	 * Creates a {@link KinesisProducer}.
+	 * Exposed so that tests can inject mock producers easily.
+	 */
+	@VisibleForTesting
+	protected KinesisProducer getKinesisProducer(KinesisProducerConfiguration producerConfig) {
+		return new KinesisProducer(producerConfig);
+	}
+
+	/**
+	 * Check if there are any asynchronous exceptions. If so, rethrow the exception.
+	 */
+	private void checkAndPropagateAsyncError() throws Exception {
+		if (thrownException != null) {
+			String errorMessages = "";
+			if (thrownException instanceof UserRecordFailedException) {
+				List<Attempt> attempts = ((UserRecordFailedException) thrownException).getResult().getAttempts();
+				for (Attempt attempt: attempts) {
+					if (attempt.getErrorMessage() != null) {
+						errorMessages += attempt.getErrorMessage() + "\n";
+					}
 				}
 			}
-			LOG.info("Flushing done. Destroying producer instance.");
-			kp.destroy();
+			if (failOnError) {
+				throw new RuntimeException("An exception was thrown while processing a record: " + errorMessages, thrownException);
+			} else {
+				LOG.warn("An exception was thrown while processing a record: {}", thrownException, errorMessages);
+
+				// reset, prevent double throwing
+				thrownException = null;
+			}
 		}
 	}
 
+	/**
+	 * If the internal queue of the {@link KinesisProducer} gets too long,
+	 * flush some of the records until we are below the limit again.
+	 * We don't want to flush _all_ records at this point since that would
+	 * break record aggregation.
+	 *
+	 * @return boolean whether flushing occurred or not
+	 */
+	private boolean enforceQueueLimit() {
+		int attempt = 0;
+		while (producer.getOutstandingRecordsCount() >= queueLimit) {
+			backpressureCycles.inc();
+			if (attempt >= 10) {
+				LOG.warn("Waiting for the queue length to drop below the limit takes unusually long, still not done after {} attempts.", attempt);
+			}
+			attempt++;
+			try {
+				backpressureLatch.await(100);
+			} catch (InterruptedException e) {
+				LOG.warn("Flushing was interrupted.");
+				break;
+			}
+		}
+		return attempt > 0;
+	}
+
+	/**
+	 * A reimplementation of {@link KinesisProducer#flushSync()}.
+	 * This implementation releases the block on flushing if an interruption occurred.
+	 */
+	private void flushSync() throws Exception {
+		while (producer.getOutstandingRecordsCount() > 0) {
+			producer.flush();
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {
+				LOG.warn("Flushing was interrupted.");
+				break;
+			}
+		}
+	}
 }

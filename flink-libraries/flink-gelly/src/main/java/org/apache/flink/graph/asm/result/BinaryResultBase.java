@@ -18,6 +18,9 @@
 
 package org.apache.flink.graph.asm.result;
 
+import org.apache.flink.graph.asm.translate.TranslateFunction;
+import org.apache.flink.util.Collector;
+
 /**
  * Base class for algorithm results for a pair of vertices.
  *
@@ -25,7 +28,7 @@ package org.apache.flink.graph.asm.result;
  */
 public abstract class BinaryResultBase<K>
 extends ResultBase
-implements BinaryResult<K> {
+implements BinaryResult<K>, TranslatableResult<K> {
 
 	private K vertexId0;
 
@@ -49,5 +52,44 @@ implements BinaryResult<K> {
 	@Override
 	public void setVertexId1(K vertexId1) {
 		this.vertexId1 = vertexId1;
+	}
+
+	@Override
+	public <T> TranslatableResult<T> translate(TranslateFunction<K, T> translator, TranslatableResult<T> reuse, Collector<TranslatableResult<T>> out)
+			throws Exception {
+		if (reuse == null) {
+			reuse = new BasicBinaryResult<>();
+		}
+
+		K vertexId0 = this.getVertexId0();
+		K vertexId1 = this.getVertexId1();
+
+		BinaryResult<T> translatable = (BinaryResult<T>) reuse;
+		BinaryResult<T> translated = (BinaryResult<T>) this;
+
+		translated.setVertexId0(translator.translate(this.getVertexId0(), translatable.getVertexId0()));
+		translated.setVertexId1(translator.translate(this.getVertexId1(), translatable.getVertexId1()));
+
+		out.collect((TranslatableResult<T>) translated);
+
+		this.setVertexId0(vertexId0);
+		this.setVertexId1(vertexId1);
+
+		return reuse;
+	}
+
+	/**
+	 * Simple override of {@code BinaryResultBase}. This holds no additional
+	 * values but is used by {@link BinaryResultBase#translate} as the reuse
+	 * object for translating vertex IDs.
+	 *
+	 * @param <U> result ID type
+	 */
+	private static class BasicBinaryResult<U>
+	extends BinaryResultBase<U> {
+		@Override
+		public String toString() {
+			return "(" + getVertexId0() + "," + getVertexId1() + ")";
+		}
 	}
 }

@@ -27,8 +27,8 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink
+import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.util.Collector
 import org.junit.Assert._
 import org.junit.Test
@@ -36,7 +36,7 @@ import org.junit.Test
 /**
  * Integration test for streaming programs using side outputs.
  */
-class SideOutputITCase extends StreamingMultipleProgramsTestBase {
+class SideOutputITCase extends AbstractTestBase {
 
   /**
     * Test ProcessFunction side output.
@@ -234,6 +234,97 @@ class SideOutputITCase extends StreamingMultipleProgramsTestBase {
     assertEquals(util.Arrays.asList(("3", 3), ("4", 4)), lateResultSink.getResult)
   }
 
+  /**
+    * Test ProcessWindowFunction side output.
+    */
+  @Test
+  def testProcessWindowFunctionSideOutput() {
+    val resultSink = new TestListResultSink[String]
+    val sideOutputResultSink = new TestListResultSink[String]
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+
+    val dataStream = env.fromElements(("1", 1), ("2", 2), ("5", 5), ("3", 3), ("4", 4))
+
+
+    val sideOutputTag = OutputTag[String]("side")
+
+    val windowOperator = dataStream
+      .assignTimestampsAndWatermarks(new TestAssigner)
+      .keyBy(i => i._1)
+      .window(TumblingEventTimeWindows.of(Time.milliseconds(1)))
+      .process(new ProcessWindowFunction[(String, Int), String, String, TimeWindow] {
+        override def process(
+            key: String,
+            context: Context,
+            elements: Iterable[(String, Int)],
+            out: Collector[String]): Unit = {
+          for (in <- elements) {
+            out.collect(in._1)
+            context.output(sideOutputTag, "sideout-" + in._1)
+          }
+        }
+      })
+
+    windowOperator
+      .getSideOutput(sideOutputTag)
+      .addSink(sideOutputResultSink)
+
+    windowOperator.addSink(resultSink)
+
+    env.execute()
+
+    assertEquals(util.Arrays.asList("1", "2", "5"), resultSink.getResult)
+    assertEquals(util.Arrays.asList("sideout-1", "sideout-2", "sideout-5"),
+                  sideOutputResultSink.getResult)
+  }
+
+  /**
+    * Test ProcessAllWindowFunction side output.
+    */
+  @Test
+  def testProcessAllWindowFunctionSideOutput() {
+    val resultSink = new TestListResultSink[String]
+    val sideOutputResultSink = new TestListResultSink[String]
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+
+    val dataStream = env.fromElements(("1", 1), ("2", 2), ("5", 5), ("3", 3), ("4", 4))
+
+
+    val sideOutputTag = OutputTag[String]("side")
+
+    val windowOperator = dataStream
+      .assignTimestampsAndWatermarks(new TestAssigner)
+      .windowAll(TumblingEventTimeWindows.of(Time.milliseconds(1)))
+      .process(new ProcessAllWindowFunction[(String, Int), String, TimeWindow] {
+        override def process(
+                              context: Context,
+                              elements: Iterable[(String, Int)],
+                              out: Collector[String]): Unit = {
+          for (in <- elements) {
+            out.collect(in._1)
+            context.output(sideOutputTag, "sideout-" + in._1)
+          }
+        }
+      })
+
+    windowOperator
+      .getSideOutput(sideOutputTag)
+      .addSink(sideOutputResultSink)
+
+    windowOperator.addSink(resultSink)
+
+    env.execute()
+
+    assertEquals(util.Arrays.asList("1", "2", "5"), resultSink.getResult)
+    assertEquals(util.Arrays.asList("sideout-1", "sideout-2", "sideout-5"),
+      sideOutputResultSink.getResult)
+  }
 }
 
 class TestAssigner extends AssignerWithPunctuatedWatermarks[(String, Int)] {

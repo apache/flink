@@ -24,8 +24,8 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.core.io.GenericInputSplit
 import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
-import org.slf4j.LoggerFactory
 
 class CRowValuesInputFormat(
     name: String,
@@ -34,9 +34,8 @@ class CRowValuesInputFormat(
   extends GenericInputFormat[CRow]
   with NonParallelInput
   with ResultTypeQueryable[CRow]
-  with Compiler[GenericInputFormat[Row]] {
-
-  val LOG = LoggerFactory.getLogger(this.getClass)
+  with Compiler[GenericInputFormat[Row]]
+  with Logging {
 
   private var format: GenericInputFormat[Row] = _
 

@@ -17,22 +17,23 @@
  */
 package org.apache.flink.table.runtime.stream.table
 
+import java.lang.{Boolean => JBoolean}
+
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{TableEnvironment, Types, ValidationException}
 import org.apache.flink.table.expressions.utils.{Func18, RichFunc2}
-import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
-import org.apache.flink.table.runtime.utils._
+import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, _}
 import org.apache.flink.table.utils._
+import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.{Before, Test}
 
 import scala.collection.mutable
 
-class CorrelateITCase extends StreamingMultipleProgramsTestBase {
+class CorrelateITCase extends AbstractTestBase {
 
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
   val tEnv: StreamTableEnvironment = TableEnvironment.getTableEnvironment(env)
@@ -64,7 +65,7 @@ class CorrelateITCase extends StreamingMultipleProgramsTestBase {
   }
 
   @Test
-  def testLeftOuterJoin(): Unit = {
+  def testLeftOuterJoinWithoutPredicates(): Unit = {
     val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
     val func0 = new TableFunc0
 
@@ -79,6 +80,27 @@ class CorrelateITCase extends StreamingMultipleProgramsTestBase {
     val expected = mutable.MutableList(
       "nosharp,null,null", "Jack#22,Jack,22",
       "John#19,John,19", "Anna#44,Anna,44")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  /**
+    * Common join predicates are temporarily forbidden (see FLINK-7865).
+    */
+  @Test (expected = classOf[ValidationException])
+  def testLeftOuterJoinWithPredicates(): Unit = {
+    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val func0 = new TableFunc0
+
+    val result = t
+      .leftOuterJoin(func0('c) as ('s, 'l), 'a === 'l)
+      .select('c, 's, 'l)
+      .toAppendStream[Row]
+
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = "John#19,null,null\n" + "John#22,null,null\n" + "Anna44,null,null\n" +
+      "nosharp,null,null"
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -210,6 +232,31 @@ class CorrelateITCase extends StreamingMultipleProgramsTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
+  @Test
+  def testRowType(): Unit = {
+    val row = Row.of(
+      12.asInstanceOf[Integer],
+      true.asInstanceOf[JBoolean],
+      Row.of(1.asInstanceOf[Integer], 2.asInstanceOf[Integer], 3.asInstanceOf[Integer])
+    )
+
+    val rowType = Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
+    val in = env.fromElements(row, row)(rowType).toTable(tEnv).as('a, 'b, 'c)
+
+    val tableFunc5 = new TableFunc5()
+    val result = in
+      .join(tableFunc5('c) as ('f0, 'f1, 'f2))
+      .select('c, 'f2)
+
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,2,3,3",
+      "1,2,3,3")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
   private def testData(
       env: StreamExecutionEnvironment)
     : DataStream[(Int, Long, String)] = {
@@ -221,5 +268,4 @@ class CorrelateITCase extends StreamingMultipleProgramsTestBase {
     data.+=((4, 3L, "nosharp"))
     env.fromCollection(data)
   }
-
 }

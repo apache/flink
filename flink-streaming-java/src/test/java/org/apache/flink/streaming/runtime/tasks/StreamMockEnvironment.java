@@ -24,53 +24,42 @@ import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
-import org.apache.flink.runtime.checkpoint.SubtaskState;
-import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
-import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
-import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.api.writer.RecordOrEventCollectingResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
-import org.apache.flink.runtime.plugable.DeserializationDelegate;
-import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.util.Preconditions;
 
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.concurrent.Future;
 
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Mock {@link Environment}.
@@ -93,7 +82,9 @@ public class StreamMockEnvironment implements Environment {
 
 	private final List<ResultPartitionWriter> outputs;
 
-	private final JobID jobID = new JobID();
+	private final JobID jobID;
+
+	private final ExecutionAttemptID executionAttemptID;
 
 	private final BroadcastVariableManager bcVarManager = new BroadcastVariableManager();
 
@@ -105,23 +96,60 @@ public class StreamMockEnvironment implements Environment {
 
 	private final ExecutionConfig executionConfig;
 
+	private final TaskStateManager taskStateManager;
+
 	private volatile boolean wasFailedExternally = false;
 
-	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, ExecutionConfig executionConfig,
-								long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
+	private TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
+
+	public StreamMockEnvironment(
+		Configuration jobConfig,
+		Configuration taskConfig,
+		ExecutionConfig executionConfig,
+		long memorySize,
+		MockInputSplitProvider inputSplitProvider,
+		int bufferSize,
+		TaskStateManager taskStateManager) {
+		this(
+			new JobID(),
+			new ExecutionAttemptID(0L, 0L),
+			jobConfig,
+			taskConfig,
+			executionConfig,
+			memorySize,
+			inputSplitProvider,
+			bufferSize,
+			taskStateManager);
+	}
+
+	public StreamMockEnvironment(
+		JobID jobID,
+		ExecutionAttemptID executionAttemptID,
+		Configuration jobConfig,
+		Configuration taskConfig,
+		ExecutionConfig executionConfig,
+		long memorySize,
+		MockInputSplitProvider inputSplitProvider,
+		int bufferSize,
+		TaskStateManager taskStateManager) {
+
+		this.jobID = jobID;
+		this.executionAttemptID = executionAttemptID;
+
+		int subtaskIndex = 0;
 		this.taskInfo = new TaskInfo(
 			"", /* task name */
 			1, /* num key groups / max parallelism */
-			0, /* index of this subtask */
+			subtaskIndex, /* index of this subtask */
 			1, /* num subtasks */
 			0 /* attempt number */);
 		this.jobConfiguration = jobConfig;
 		this.taskConfiguration = taskConfig;
 		this.inputs = new LinkedList<InputGate>();
 		this.outputs = new LinkedList<ResultPartitionWriter>();
-
 		this.memManager = new MemoryManager(memorySize, 1);
 		this.ioManager = new IOManagerAsync();
+		this.taskStateManager = Preconditions.checkNotNull(taskStateManager);
 		this.inputSplitProvider = inputSplitProvider;
 		this.bufferSize = bufferSize;
 
@@ -132,102 +160,31 @@ public class StreamMockEnvironment implements Environment {
 		this.kvStateRegistry = registry.createTaskRegistry(jobID, getJobVertexId());
 	}
 
-	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, long memorySize,
-								MockInputSplitProvider inputSplitProvider, int bufferSize) {
-		this(jobConfig, taskConfig, new ExecutionConfig(), memorySize, inputSplitProvider, bufferSize);
+	public StreamMockEnvironment(
+		Configuration jobConfig,
+		Configuration taskConfig,
+		long memorySize,
+		MockInputSplitProvider inputSplitProvider,
+		int bufferSize,
+		TaskStateManager taskStateManager) {
+
+		this(jobConfig, taskConfig, new ExecutionConfig(), memorySize, inputSplitProvider, bufferSize, taskStateManager);
 	}
 
 	public void addInputGate(InputGate gate) {
 		inputs.add(gate);
 	}
 
-	public <T> void addOutput(final Queue<Object> outputList, final TypeSerializer<T> serializer) {
+	public <T> void addOutput(final Collection<Object> outputList, final TypeSerializer<T> serializer) {
 		try {
-			// The record-oriented writers wrap the buffer writer. We mock it
-			// to collect the returned buffers and deserialize the content to
-			// the output list
-			BufferProvider mockBufferProvider = mock(BufferProvider.class);
-			when(mockBufferProvider.requestBufferBlocking()).thenAnswer(new Answer<Buffer>() {
-
-				@Override
-				public Buffer answer(InvocationOnMock invocationOnMock) throws Throwable {
-					return new Buffer(
-						MemorySegmentFactory.allocateUnpooledSegment(bufferSize),
-						mock(BufferRecycler.class));
-				}
-			});
-
-			ResultPartitionWriter mockWriter = mock(ResultPartitionWriter.class);
-			when(mockWriter.getNumberOfOutputChannels()).thenReturn(1);
-			when(mockWriter.getBufferProvider()).thenReturn(mockBufferProvider);
-
-			final RecordDeserializer<DeserializationDelegate<T>> recordDeserializer = new AdaptiveSpanningRecordDeserializer<DeserializationDelegate<T>>();
-			final NonReusingDeserializationDelegate<T> delegate = new NonReusingDeserializationDelegate<T>(serializer);
-
-			// Add records and events from the buffer to the output list
-			doAnswer(new Answer<Void>() {
-
-				@Override
-				public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-					Buffer buffer = (Buffer) invocationOnMock.getArguments()[0];
-					addBufferToOutputList(recordDeserializer, delegate, buffer, outputList);
-					return null;
-				}
-			}).when(mockWriter).writeBuffer(any(Buffer.class), anyInt());
-
-			doAnswer(new Answer<Void>() {
-
-				@Override
-				public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-					Buffer buffer = (Buffer) invocationOnMock.getArguments()[0];
-					addBufferToOutputList(recordDeserializer, delegate, buffer, outputList);
-					return null;
-				}
-			}).when(mockWriter).writeBufferToAllChannels(any(Buffer.class));
-
-			outputs.add(mockWriter);
+			outputs.add(new RecordOrEventCollectingResultPartitionWriter<T>(
+				outputList,
+				new TestPooledBufferProvider(Integer.MAX_VALUE),
+				serializer));
 		}
 		catch (Throwable t) {
 			t.printStackTrace();
 			fail(t.getMessage());
-		}
-	}
-
-	/**
-	 * Adds the object behind the given <tt>buffer</tt> to the <tt>outputList</tt>.
-	 *
-	 * @param recordDeserializer de-serializer to use for the buffer
-	 * @param delegate de-serialization delegate to use for non-event buffers
-	 * @param buffer the buffer to add
-	 * @param outputList the output list to add the object to
-	 * @param <T> type of the objects behind the non-event buffers
-	 *
-	 * @throws java.io.IOException
-	 */
-	private <T> void addBufferToOutputList(
-		RecordDeserializer<DeserializationDelegate<T>> recordDeserializer,
-		NonReusingDeserializationDelegate<T> delegate, Buffer buffer,
-		final Queue<Object> outputList) throws java.io.IOException {
-		if (buffer.isBuffer()) {
-			recordDeserializer.setNextBuffer(buffer);
-
-			while (recordDeserializer.hasUnfinishedData()) {
-				RecordDeserializer.DeserializationResult result =
-					recordDeserializer.getNextRecord(delegate);
-
-				if (result.isFullRecord()) {
-					outputList.add(delegate.getInstance());
-				}
-
-				if (result == RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER
-					|| result == RecordDeserializer.DeserializationResult.PARTIAL_RECORD) {
-					break;
-				}
-			}
-		} else {
-			// is event
-			AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
-			outputList.add(event);
 		}
 	}
 
@@ -304,18 +261,28 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
+	public TaskEventDispatcher getTaskEventDispatcher() {
+		return taskEventDispatcher;
+	}
+
+	@Override
 	public JobVertexID getJobVertexId() {
 		return new JobVertexID(new byte[16]);
 	}
 
 	@Override
 	public ExecutionAttemptID getExecutionId() {
-		return new ExecutionAttemptID(0L, 0L);
+		return executionAttemptID;
 	}
 
 	@Override
 	public BroadcastVariableManager getBroadcastVariableManager() {
 		return this.bcVarManager;
+	}
+
+	@Override
+	public TaskStateManager getTaskStateManager() {
+		return taskStateManager;
 	}
 
 	@Override
@@ -333,7 +300,12 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
-	public void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics, SubtaskState subtaskState) {
+	public void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics, TaskStateSnapshot subtaskState) {
+		taskStateManager.reportTaskStateSnapshots(
+			new CheckpointMetaData(checkpointId, 0L),
+			checkpointMetrics,
+			subtaskState,
+			null);
 	}
 
 	@Override
@@ -355,6 +327,6 @@ public class StreamMockEnvironment implements Environment {
 
 	@Override
 	public TaskMetricGroup getMetricGroup() {
-		return new UnregisteredTaskMetricsGroup();
+		return UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
 	}
 }

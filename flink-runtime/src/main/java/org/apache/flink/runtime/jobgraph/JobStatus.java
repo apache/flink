@@ -47,6 +47,9 @@ public enum JobStatus {
 	/** The job is currently undergoing a reset and total restart */
 	RESTARTING(TerminalState.NON_TERMINAL),
 
+	/** The job has been suspended and is currently waiting for the cleanup to complete */
+	SUSPENDING(TerminalState.NON_TERMINAL),
+
 	/**
 	 * The job has been suspended which means that it has been stopped but not been removed from a
 	 * potential HA job store.

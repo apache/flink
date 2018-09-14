@@ -19,6 +19,8 @@
 package org.apache.flink.table.runtime.stream.sql
 
 import org.apache.flink.api.common.time.Time
+import org.apache.flink.api.java.tuple.Tuple1
+import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.source.SourceFunction
@@ -28,6 +30,7 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment}
+import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
 import org.junit.Assert._
@@ -68,7 +71,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "    PARTITION BY a ORDER BY proctime ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) " +
       "FROM MyTable"
 
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
@@ -110,7 +113,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "  MIN(c) OVER (" +
       "    ORDER BY proctime ROWS BETWEEN 10 PRECEDING AND CURRENT ROW) " +
       "FROM MyTable"
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
@@ -150,16 +153,17 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     val sqlQuery = "SELECT " +
       "c, " +
       "count(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding), " +
-      "sum(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding) " +
+      "sum(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding), " +
+      "sum(2) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding) " +
       "from T1"
 
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
-      "Hello World,1,7", "Hello World,2,15", "Hello World,3,35",
-      "Hello,1,1", "Hello,2,3", "Hello,3,6", "Hello,4,10", "Hello,5,15", "Hello,6,21")
+      "Hello World,1,7,2", "Hello World,2,15,4", "Hello World,3,35,6",
+      "Hello,1,1,2", "Hello,2,3,4", "Hello,3,6,6", "Hello,4,10,8", "Hello,5,15,10", "Hello,6,21,12")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -177,11 +181,11 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     val sqlQuery = "SELECT c, cnt1 from " +
       "(SELECT " +
       "c, " +
-      "count(a) " +
+      "count(1) " +
       " OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
       "as cnt1 from T1)"
 
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
@@ -215,7 +219,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "sum(a) OVER (ORDER BY proctime RANGE UNBOUNDED preceding) " +
       "from T1"
 
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row](queryConfig)
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row](queryConfig)
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
@@ -240,7 +244,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "count(a) OVER (ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
       "from T1"
 
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
@@ -293,30 +297,34 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.registerTable("T1", t1)
+    tEnv.registerFunction("LTCNT", new LargerThanCount)
 
     val sqlQuery = "SELECT " +
       "  c, b, " +
+      "  LTCNT(a, CAST('4' AS BIGINT)) OVER (PARTITION BY c ORDER BY rowtime RANGE " +
+      "    BETWEEN INTERVAL '1' SECOND PRECEDING AND CURRENT ROW), " +
       "  COUNT(a) OVER (PARTITION BY c ORDER BY rowtime RANGE " +
       "    BETWEEN INTERVAL '1' SECOND PRECEDING AND CURRENT ROW), " +
       "  SUM(a) OVER (PARTITION BY c ORDER BY rowtime RANGE " +
-      "    BETWEEN INTERVAL '1' SECOND PRECEDING AND CURRENT ROW)" +
+      "    BETWEEN INTERVAL '1' SECOND PRECEDING AND CURRENT ROW) " +
       " FROM T1"
 
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
-      "Hello,1,1,1", "Hello,15,2,2", "Hello,16,3,3",
-      "Hello,2,6,9", "Hello,3,6,9", "Hello,2,6,9",
-      "Hello,3,4,9",
-      "Hello,4,2,7",
-      "Hello,5,2,9",
-      "Hello,6,2,11", "Hello,65,2,12",
-      "Hello,9,2,12", "Hello,9,2,12", "Hello,18,3,18",
-      "Hello World,7,1,7", "Hello World,17,3,21", "Hello World,77,3,21", "Hello World,18,1,7",
-      "Hello World,8,2,15",
-      "Hello World,20,1,20")
+      "Hello,1,0,1,1", "Hello,15,0,2,2", "Hello,16,0,3,3",
+      "Hello,2,0,6,9", "Hello,3,0,6,9", "Hello,2,0,6,9",
+      "Hello,3,0,4,9",
+      "Hello,4,0,2,7",
+      "Hello,5,1,2,9",
+      "Hello,6,2,2,11", "Hello,65,2,2,12",
+      "Hello,9,2,2,12", "Hello,9,2,2,12", "Hello,18,3,3,18",
+      "Hello World,7,1,1,7", "Hello World,17,3,3,21", "Hello World,77,3,3,21",
+      "Hello World,18,1,1,7",
+      "Hello World,8,2,2,15",
+      "Hello World,20,1,1,20")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -354,26 +362,29 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.registerTable("T1", t1)
+    tEnv.registerFunction("LTCNT", new LargerThanCount)
 
     val sqlQuery = "SELECT " +
       " c, a, " +
-      "  COUNT(a) " +
+      "  LTCNT(a, CAST('4' AS BIGINT)) " +
+      "    OVER (PARTITION BY c ORDER BY rowtime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), " +
+      "  COUNT(1) " +
       "    OVER (PARTITION BY c ORDER BY rowtime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), " +
       "  SUM(a) " +
       "    OVER (PARTITION BY c ORDER BY rowtime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) " +
       "FROM T1"
 
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
-      "Hello,1,1,1", "Hello,1,2,2", "Hello,1,3,3",
-      "Hello,2,3,4", "Hello,2,3,5", "Hello,2,3,6",
-      "Hello,3,3,7", "Hello,4,3,9", "Hello,5,3,12",
-      "Hello,6,3,15",
-      "Hello World,7,1,7", "Hello World,7,2,14", "Hello World,7,3,21",
-      "Hello World,7,3,21", "Hello World,8,3,22", "Hello World,20,3,35")
+      "Hello,1,0,1,1", "Hello,1,0,2,2", "Hello,1,0,3,3",
+      "Hello,2,0,3,4", "Hello,2,0,3,5", "Hello,2,0,3,6",
+      "Hello,3,0,3,7", "Hello,4,0,3,9", "Hello,5,1,3,12",
+      "Hello,6,2,3,15",
+      "Hello World,7,1,1,7", "Hello World,7,2,2,14", "Hello World,7,3,3,21",
+      "Hello World,7,3,3,21", "Hello World,8,3,3,22", "Hello World,20,3,3,35")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -431,7 +442,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "    OVER (ORDER BY rowtime RANGE BETWEEN INTERVAL '1' SECOND PRECEDING AND CURRENT ROW) " +
       " FROM T1"
 
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
@@ -492,7 +503,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "  SUM(a) OVER (ORDER BY rowtime ROWS BETWEEN 2 preceding AND CURRENT ROW) " +
       "FROM T1"
 
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
@@ -518,6 +529,8 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
 
     val sqlQuery = "SELECT a, b, c, " +
+      "  LTCNT(b, CAST('4' AS BIGINT)) OVER(" +
+      "    PARTITION BY a ORDER BY rowtime RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), " +
       "  SUM(b) OVER (" +
       "    PARTITION BY a ORDER BY rowtime RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), " +
       "  COUNT(b) OVER (" +
@@ -552,25 +565,26 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.registerTable("T1", t1)
+    tEnv.registerFunction("LTCNT", new LargerThanCount)
 
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
-      "1,1,Hello,6,3,2,3,1",
-      "1,2,Hello,6,3,2,3,1",
-      "1,3,Hello world,6,3,2,3,1",
-      "1,1,Hi,7,4,1,3,1",
-      "2,1,Hello,1,1,1,1,1",
-      "2,2,Hello world,6,3,2,3,1",
-      "2,3,Hello world,6,3,2,3,1",
-      "1,4,Hello world,11,5,2,4,1",
-      "1,5,Hello world,29,8,3,7,1",
-      "1,6,Hello world,29,8,3,7,1",
-      "1,7,Hello world,29,8,3,7,1",
-      "2,4,Hello world,15,5,3,5,1",
-      "2,5,Hello world,15,5,3,5,1")
+      "1,1,Hello,0,6,3,2,3,1",
+      "1,2,Hello,0,6,3,2,3,1",
+      "1,3,Hello world,0,6,3,2,3,1",
+      "1,1,Hi,0,7,4,1,3,1",
+      "2,1,Hello,0,1,1,1,1,1",
+      "2,2,Hello world,0,6,3,2,3,1",
+      "2,3,Hello world,0,6,3,2,3,1",
+      "1,4,Hello world,0,11,5,2,4,1",
+      "1,5,Hello world,3,29,8,3,7,1",
+      "1,6,Hello world,3,29,8,3,7,1",
+      "1,7,Hello world,3,29,8,3,7,1",
+      "2,4,Hello world,1,15,5,3,5,1",
+      "2,5,Hello world,1,15,5,3,5,1")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -583,6 +597,8 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     StreamITCase.testResults = mutable.MutableList()
 
     val sqlQuery = "SELECT a, b, c, " +
+      "LTCNT(b, CAST('4' AS BIGINT)) over(" +
+      "partition by a order by rowtime rows between unbounded preceding and current row), " +
       "SUM(b) over (" +
       "partition by a order by rowtime rows between unbounded preceding and current row), " +
       "count(b) over (" +
@@ -618,26 +634,27 @@ class OverWindowITCase extends StreamingWithStateTestBase {
              .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.registerTable("T1", t1)
+    tEnv.registerFunction("LTCNT", new LargerThanCount)
 
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
-      "1,2,Hello,2,1,2,2,2",
-      "1,3,Hello world,5,2,2,3,2",
-      "1,1,Hi,6,3,2,3,1",
-      "2,1,Hello,1,1,1,1,1",
-      "2,2,Hello world,3,2,1,2,1",
-      "3,1,Hello,1,1,1,1,1",
-      "3,2,Hello world,3,2,1,2,1",
-      "1,5,Hello world,11,4,2,5,1",
-      "1,6,Hello world,17,5,3,6,1",
-      "1,9,Hello world,26,6,4,9,1",
-      "1,8,Hello world,34,7,4,9,1",
-      "1,7,Hello world,41,8,5,9,1",
-      "2,5,Hello world,8,3,2,5,1",
-      "3,5,Hello world,8,3,2,5,1")
+      "1,2,Hello,0,2,1,2,2,2",
+      "1,3,Hello world,0,5,2,2,3,2",
+      "1,1,Hi,0,6,3,2,3,1",
+      "2,1,Hello,0,1,1,1,1,1",
+      "2,2,Hello world,0,3,2,1,2,1",
+      "3,1,Hello,0,1,1,1,1,1",
+      "3,2,Hello world,0,3,2,1,2,1",
+      "1,5,Hello world,1,11,4,2,5,1",
+      "1,6,Hello world,2,17,5,3,6,1",
+      "1,9,Hello world,3,26,6,4,9,1",
+      "1,8,Hello world,4,34,7,4,9,1",
+      "1,7,Hello world,5,41,8,5,9,1",
+      "2,5,Hello world,1,8,3,2,5,1",
+      "3,5,Hello world,1,8,3,2,5,1")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -681,7 +698,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     tEnv.registerTable("T1", t1)
 
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
@@ -742,7 +759,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     tEnv.registerTable("T1", t1)
 
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
@@ -814,7 +831,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     tEnv.registerTable("T1", t1)
 
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
@@ -836,6 +853,195 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+
+  @Test
+  def testProcTimeDistinctBoundedPartitionedRowsOver(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.clear
+
+    val t = StreamTestData.get5TupleDataStream(env)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery = "SELECT a, " +
+      "  SUM(DISTINCT e) OVER (" +
+      "    PARTITION BY a ORDER BY proctime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW), " +
+      "  MIN(DISTINCT e) OVER (" +
+      "    PARTITION BY a ORDER BY proctime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW), " +
+      "  COLLECT(DISTINCT e) OVER (" +
+      "    PARTITION BY a ORDER BY proctime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW) " +
+      "FROM MyTable"
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List(
+      "1,1,1,{1=1}",
+      "2,2,2,{2=1}",
+      "2,3,1,{1=1, 2=1}",
+      "3,2,2,{2=1}",
+      "3,2,2,{2=1}",
+      "3,5,2,{2=1, 3=1}",
+      "4,2,2,{2=1}",
+      "4,3,1,{1=1, 2=1}",
+      "4,3,1,{1=1, 2=1}",
+      "4,3,1,{1=1, 2=1}",
+      "5,1,1,{1=1}",
+      "5,4,1,{1=1, 3=1}",
+      "5,4,1,{1=1, 3=1}",
+      "5,6,1,{1=1, 2=1, 3=1}",
+      "5,5,2,{2=1, 3=1}")
+    assertEquals(expected, StreamITCase.testResults)
+  }
+
+  @Test
+  def testProcTimeDistinctUnboundedPartitionedRowsOver(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.clear
+
+    val t = StreamTestData.get5TupleDataStream(env)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery = "SELECT a, " +
+      "  COUNT(e) OVER (" +
+      "    PARTITION BY a ORDER BY proctime RANGE UNBOUNDED preceding), " +
+      "  SUM(DISTINCT e) OVER (" +
+      "    PARTITION BY a ORDER BY proctime RANGE UNBOUNDED preceding), " +
+      "  MIN(DISTINCT e) OVER (" +
+      "    PARTITION BY a ORDER BY proctime RANGE UNBOUNDED preceding) " +
+      "FROM MyTable"
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List(
+      "1,1,1,1",
+      "2,1,2,2",
+      "2,2,3,1",
+      "3,1,2,2",
+      "3,2,2,2",
+      "3,3,5,2",
+      "4,1,2,2",
+      "4,2,3,1",
+      "4,3,3,1",
+      "4,4,3,1",
+      "5,1,1,1",
+      "5,2,4,1",
+      "5,3,4,1",
+      "5,4,6,1",
+      "5,5,6,1")
+    assertEquals(expected, StreamITCase.testResults)
+  }
+
+  @Test
+  def testProcTimeDistinctUnboundedPartitionedRangeOverWithNullValues(): Unit = {
+    val data = List(
+      (1L, 1, null),
+      (2L, 1, null),
+      (3L, 2, null),
+      (4L, 1, "Hello"),
+      (5L, 1, "Hello"),
+      (6L, 2, "Hello"),
+      (7L, 1, "Hello World"),
+      (8L, 2, "Hello World"),
+      (9L, 2, "Hello World"),
+      (10L, 1, null))
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    // for sum aggregation ensure that every time the order of each element is consistent
+    env.setParallelism(1)
+
+    val table = env.fromCollection(data)
+      .assignAscendingTimestamps(_._1)
+      .toTable(tEnv, 'a, 'b, 'c, 'rtime.rowtime)
+
+    tEnv.registerTable("MyTable", table)
+    tEnv.registerFunction("CntNullNonNull", new CountNullNonNull)
+
+    val sqlQuery = "SELECT " +
+      "  c, " +
+      "  b, " +
+      "  COUNT(DISTINCT c) " +
+      "    OVER (PARTITION BY b ORDER BY rtime RANGE UNBOUNDED preceding), " +
+      "  CntNullNonNull(DISTINCT c) " +
+      "    OVER (PARTITION BY b ORDER BY rtime RANGE UNBOUNDED preceding)" +
+      "FROM " +
+      "  MyTable"
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List(
+      "null,1,0,0|1", "null,1,0,0|1", "null,2,0,0|1", "null,1,2,2|1",
+      "Hello,1,1,1|1", "Hello,1,1,1|1", "Hello,2,1,1|1",
+      "Hello World,1,2,2|1", "Hello World,2,2,2|1", "Hello World,2,2,2|1")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testProcTimeDistinctPairWithNulls(): Unit = {
+
+    val data = List(
+      ("A", null),
+      ("A", null),
+      ("B", null),
+      (null, "Hello"),
+      ("A", "Hello"),
+      ("A", "Hello"),
+      (null, "Hello World"),
+      (null, "Hello World"),
+      ("A", "Hello World"),
+      ("B", "Hello World"))
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.clear
+
+    val table = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'proctime.proctime)
+    tEnv.registerTable("MyTable", table)
+    tEnv.registerFunction("PairCount", new CountPairs)
+
+    val sqlQuery = "SELECT a, b, " +
+      "  PairCount(a, b) OVER (ORDER BY proctime RANGE UNBOUNDED preceding), " +
+      "  PairCount(DISTINCT a, b) OVER (ORDER BY proctime RANGE UNBOUNDED preceding) " +
+      "FROM MyTable"
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List(
+      "A,null,1,1",
+      "A,null,2,1",
+      "B,null,3,2",
+      "null,Hello,4,3",
+      "A,Hello,5,4",
+      "A,Hello,6,4",
+      "null,Hello World,7,5",
+      "null,Hello World,8,5",
+      "A,Hello World,9,6",
+      "B,Hello World,10,7")
+    assertEquals(expected, StreamITCase.testResults)
+  }
 }
 
 object OverWindowITCase {
@@ -851,4 +1057,58 @@ object OverWindowITCase {
 
     override def cancel(): Unit = ???
   }
+}
+
+/** Counts how often the first argument was larger than the second argument. */
+class LargerThanCount extends AggregateFunction[Long, Tuple1[Long]] {
+
+  def accumulate(acc: Tuple1[Long], a: Long, b: Long): Unit = {
+    if (a > b) acc.f0 += 1
+  }
+
+  def retract(acc: Tuple1[Long], a: Long, b: Long): Unit = {
+    if (a > b) acc.f0 -= 1
+  }
+
+  override def createAccumulator(): Tuple1[Long] = Tuple1.of(0L)
+
+  override def getValue(acc: Tuple1[Long]): Long = acc.f0
+}
+
+class CountNullNonNull extends AggregateFunction[String, Tuple2[Long, Long]] {
+
+  override def createAccumulator(): Tuple2[Long, Long] = Tuple2.of(0L, 0L)
+
+  override def getValue(acc: Tuple2[Long, Long]): String = s"${acc.f0}|${acc.f1}"
+
+  def accumulate(acc: Tuple2[Long, Long], v: String): Unit = {
+    if (v == null) {
+      acc.f1 += 1
+    } else {
+      acc.f0 += 1
+    }
+  }
+
+  def retract(acc: Tuple2[Long, Long], v: String): Unit = {
+    if (v == null) {
+      acc.f1 -= 1
+    } else {
+      acc.f0 -= 1
+    }
+  }
+}
+
+class CountPairs extends AggregateFunction[Long, Tuple1[Long]] {
+
+  def accumulate(acc: Tuple1[Long], a: String, b: String): Unit = {
+    acc.f0 += 1
+  }
+
+  def retract(acc: Tuple1[Long], a: String, b: String): Unit = {
+    acc.f0 -= 1
+  }
+
+  override def createAccumulator(): Tuple1[Long] = Tuple1.of(0L)
+
+  override def getValue(acc: Tuple1[Long]): Long = acc.f0
 }

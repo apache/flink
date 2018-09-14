@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.iterative.task;
 
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetUpdateBarrier;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetUpdateBarrierBroker;
 import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatch;
@@ -46,6 +47,19 @@ public class IterationTailTask<S extends Function, OT> extends AbstractIterative
 	private SolutionSetUpdateBarrier solutionSetUpdateBarrier;
 
 	private WorksetUpdateOutputCollector<OT> worksetUpdateOutputCollector;
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Create an Invokable task and set its environment.
+	 *
+	 * @param environment The environment assigned to this invokable.
+	 */
+	public IterationTailTask(Environment environment) {
+		super(environment);
+	}
+
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	protected void initialize() throws Exception {

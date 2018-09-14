@@ -142,7 +142,7 @@ public abstract class YarnHighAvailabilityServices implements HighAvailabilitySe
 			throw new IOException("Cannot instantiate YARN's Hadoop file system for " + fsUri, e);
 		}
 
-		this.flinkFileSystem = new HadoopFileSystem(hadoopConf, hadoopFileSystem);
+		this.flinkFileSystem = new HadoopFileSystem(hadoopFileSystem);
 
 		this.workingDirectory = new Path(hadoopFileSystem.getWorkingDirectory().toUri());
 		this.haDataDirectory = new Path(workingDirectory, FLINK_RECOVERY_DATA_DIR);

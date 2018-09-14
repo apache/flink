@@ -20,8 +20,8 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
+
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -33,19 +33,7 @@ import static org.mockito.Mockito.when;
 /**
  * Some utility methods used for testing InputChannels and InputGates.
  */
-class InputChannelTestUtils {
-
-	/**
-	 * Creates a simple Buffer that is not recycled (never will be) of the given size.
-	 */
-	public static Buffer createMockBuffer(int size) {
-		final Buffer mockBuffer = mock(Buffer.class);
-		when(mockBuffer.isBuffer()).thenReturn(true);
-		when(mockBuffer.getSize()).thenReturn(size);
-		when(mockBuffer.isRecycled()).thenReturn(false);
-
-		return mockBuffer;
-	}
+public class InputChannelTestUtils {
 
 	/**
 	 * Creates a result partition manager that ignores all IDs, and simply returns the given

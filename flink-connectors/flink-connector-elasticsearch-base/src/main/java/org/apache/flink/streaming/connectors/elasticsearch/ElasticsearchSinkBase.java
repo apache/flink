@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
@@ -40,6 +42,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -60,8 +63,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * for example, to create a Elasticsearch {@link Client}, handle failed item responses, etc.
  *
  * @param <T> Type of the elements handled by this sink
+ * @param <C> Type of the Elasticsearch client, which implements {@link AutoCloseable}
  */
-public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> implements CheckpointedFunction {
+@Internal
+public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends RichSinkFunction<T> implements CheckpointedFunction {
 
 	private static final long serialVersionUID = -1007596293618451942L;
 
@@ -82,6 +87,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	/**
 	 * Used to control whether the retry delay should increase exponentially or remain constant.
 	 */
+	@PublicEvolving
 	public enum FlushBackoffType {
 		CONSTANT,
 		EXPONENTIAL
@@ -132,17 +138,23 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 
 	private final Integer bulkProcessorFlushMaxActions;
 	private final Integer bulkProcessorFlushMaxSizeMb;
-	private final Integer bulkProcessorFlushIntervalMillis;
+	private final Long bulkProcessorFlushIntervalMillis;
 	private final BulkFlushBackoffPolicy bulkProcessorFlushBackoffPolicy;
 
 	// ------------------------------------------------------------------------
 	//  User-facing API and configuration
 	// ------------------------------------------------------------------------
 
-	/** The user specified config map that we forward to Elasticsearch when we create the {@link Client}. */
+	/**
+	 * The config map that contains configuration for the bulk flushing behaviours.
+	 *
+	 * <p>For {@link org.elasticsearch.client.transport.TransportClient} based implementations, this config
+	 * map would also contain Elasticsearch-shipped configuration, and therefore this config map
+	 * would also be forwarded when creating the Elasticsearch client.
+	 */
 	private final Map<String, String> userConfig;
 
-	/** The function that is used to construct mulitple {@link ActionRequest ActionRequests} from each incoming element. */
+	/** The function that is used to construct multiple {@link ActionRequest ActionRequests} from each incoming element. */
 	private final ElasticsearchSinkFunction<T> elasticsearchSinkFunction;
 
 	/** User-provided handler for failed {@link ActionRequest ActionRequests}. */
@@ -152,14 +164,14 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	private boolean flushOnCheckpoint = true;
 
 	/** Provided to the user via the {@link ElasticsearchSinkFunction} to add {@link ActionRequest ActionRequests}. */
-	private transient BulkProcessorIndexer requestIndexer;
+	private transient RequestIndexer requestIndexer;
 
 	// ------------------------------------------------------------------------
 	//  Internals for the Flink Elasticsearch Sink
 	// ------------------------------------------------------------------------
 
 	/** Call bridge for different version-specific. */
-	private final ElasticsearchApiCallBridge callBridge;
+	private final ElasticsearchApiCallBridge<C> callBridge;
 
 	/**
 	 * Number of pending action requests not yet acknowledged by Elasticsearch.
@@ -173,7 +185,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	private AtomicLong numPendingRequests = new AtomicLong(0);
 
 	/** Elasticsearch client created using the call bridge. */
-	private transient Client client;
+	private transient C client;
 
 	/** Bulk processor to buffer and send requests to Elasticsearch, created using the client. */
 	private transient BulkProcessor bulkProcessor;
@@ -214,6 +226,9 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 
 		checkNotNull(userConfig);
 
+		// copy config so we can remove entries without side-effects
+		userConfig = new HashMap<>(userConfig);
+
 		ParameterTool params = ParameterTool.fromMap(userConfig);
 
 		if (params.has(CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS)) {
@@ -231,7 +246,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 		}
 
 		if (params.has(CONFIG_KEY_BULK_FLUSH_INTERVAL_MS)) {
-			bulkProcessorFlushIntervalMillis = params.getInt(CONFIG_KEY_BULK_FLUSH_INTERVAL_MS);
+			bulkProcessorFlushIntervalMillis = params.getLong(CONFIG_KEY_BULK_FLUSH_INTERVAL_MS);
 			userConfig.remove(CONFIG_KEY_BULK_FLUSH_INTERVAL_MS);
 		} else {
 			bulkProcessorFlushIntervalMillis = null;
@@ -280,7 +295,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	public void open(Configuration parameters) throws Exception {
 		client = callBridge.createClient(userConfig);
 		bulkProcessor = buildBulkProcessor(new BulkProcessorListener());
-		requestIndexer = new BulkProcessorIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequests);
+		requestIndexer = callBridge.createBulkProcessorIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequests);
 	}
 
 	@Override
@@ -335,7 +350,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	protected BulkProcessor buildBulkProcessor(BulkProcessor.Listener listener) {
 		checkNotNull(listener);
 
-		BulkProcessor.Builder bulkProcessorBuilder = BulkProcessor.builder(client, listener);
+		BulkProcessor.Builder bulkProcessorBuilder = callBridge.createBulkProcessorBuilder(client, listener);
 
 		// This makes flush() blocking
 		bulkProcessorBuilder.setConcurrentRequests(0);

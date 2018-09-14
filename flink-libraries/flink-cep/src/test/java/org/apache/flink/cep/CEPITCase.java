@@ -19,59 +19,38 @@
 package org.apache.flink.cep;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.NFA;
+import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Either;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * End to end tests of both CEP operators and {@link NFA}.
  */
 @SuppressWarnings("serial")
-public class CEPITCase extends StreamingMultipleProgramsTestBase {
-
-	private String resultPath;
-	private String expected;
-
-	private String lateEventPath;
-	private String expectedLateEvents;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception {
-		resultPath = tempFolder.newFile().toURI().toString();
-		expected = "";
-
-		lateEventPath = tempFolder.newFile().toURI().toString();
-		expectedLateEvents = "";
-	}
-
-	@After
-	public void after() throws Exception {
-		compareResultsByLinesInMemory(expected, resultPath);
-		compareResultsByLinesInMemory(expectedLateEvents, lateEventPath);
-	}
+public class CEPITCase extends AbstractTestBase {
 
 	/**
 	 * Checks that a certain event sequence is recognized.
@@ -118,26 +97,21 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		});
 
-		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
+		DataStream<String> result = CEP.pattern(input, pattern).flatSelect((p, o) -> {
+			StringBuilder builder = new StringBuilder();
 
-			@Override
-			public String select(Map<String, List<Event>> pattern) {
-				StringBuilder builder = new StringBuilder();
+			builder.append(p.get("start").get(0).getId()).append(",")
+				.append(p.get("middle").get(0).getId()).append(",")
+				.append(p.get("end").get(0).getId());
 
-				builder.append(pattern.get("start").get(0).getId()).append(",")
-					.append(pattern.get("middle").get(0).getId()).append(",")
-					.append(pattern.get("end").get(0).getId());
+			o.collect(builder.toString());
+		}, Types.STRING);
 
-				return builder.toString();
-			}
-		});
+		List<String> resultList = new ArrayList<>();
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-		// expected sequence of matching event ids
-		expected = "2,6,8";
-
-		env.execute();
+		assertEquals(Arrays.asList("2,6,8"), resultList);
 	}
 
 	@Test
@@ -193,26 +167,23 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 				}
 			});
 
-		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
+		DataStream<String> result = CEP.pattern(input, pattern).select(p -> {
+			StringBuilder builder = new StringBuilder();
 
-			@Override
-			public String select(Map<String, List<Event>> pattern) {
-				StringBuilder builder = new StringBuilder();
+			builder.append(p.get("start").get(0).getId()).append(",")
+				.append(p.get("middle").get(0).getId()).append(",")
+				.append(p.get("end").get(0).getId());
 
-				builder.append(pattern.get("start").get(0).getId()).append(",")
-					.append(pattern.get("middle").get(0).getId()).append(",")
-					.append(pattern.get("end").get(0).getId());
-
-				return builder.toString();
-			}
+			return builder.toString();
 		});
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		List<String> resultList = new ArrayList<>();
 
-		// the expected sequences of matching event ids
-		expected = "2,2,2\n3,3,3\n42,42,42";
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-		env.execute();
+		resultList.sort(String::compareTo);
+
+		assertEquals(Arrays.asList("2,2,2", "3,3,3", "42,42,42"), resultList);
 	}
 
 	@Test
@@ -285,12 +256,13 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		);
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		List<String> resultList = new ArrayList<>();
 
-		// the expected sequence of matching event ids
-		expected = "1,5,4";
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-		env.execute();
+		resultList.sort(String::compareTo);
+
+		assertEquals(Arrays.asList("1,5,4"), resultList);
 	}
 
 	@Test
@@ -374,12 +346,13 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		);
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		List<String> resultList = new ArrayList<>();
 
-		// the expected sequences of matching event ids
-		expected = "1,1,1\n2,2,2";
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-		env.execute();
+		resultList.sort(String::compareTo);
+
+		assertEquals(Arrays.asList("1,1,1", "2,2,2"), resultList);
 	}
 
 	@Test
@@ -407,11 +380,11 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		});
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		List<Tuple2<Integer, Integer>> resultList = new ArrayList<>();
 
-		expected = "(0,1)";
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-		env.execute();
+		assertEquals(Arrays.asList(new Tuple2<>(0, 1)), resultList);
 	}
 
 	@Test
@@ -430,11 +403,11 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		});
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		List<Integer> resultList = new ArrayList<>();
 
-		expected = "3";
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-		env.execute();
+		assertEquals(Arrays.asList(3), resultList);
 	}
 
 	@Test
@@ -511,12 +484,20 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		);
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		List<Either<String, String>> resultList = new ArrayList<>();
 
-		// the expected sequences of matching event ids
-		expected = "Left(1.0)\nLeft(2.0)\nLeft(2.0)\nRight(2.0,2.0,2.0)";
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-		env.execute();
+		resultList.sort(Comparator.comparing(either -> either.toString()));
+
+		List<Either<String, String>> expected = Arrays.asList(
+			Either.Left.of("1.0"),
+			Either.Left.of("2.0"),
+			Either.Left.of("2.0"),
+			Either.Right.of("2.0,2.0,2.0")
+		);
+
+		assertEquals(expected, resultList);
 	}
 
 	/**
@@ -579,11 +560,160 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		});
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		List<String> resultList = new ArrayList<>();
 
-		// expected sequence of matching event ids
-		expected = "1,5,6\n1,2,3\n4,5,6\n1,2,6";
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-		env.execute();
+		List<String> expected = Arrays.asList(
+			"1,5,6",
+			"1,2,3",
+			"4,5,6",
+			"1,2,6"
+		);
+
+		expected.sort(String::compareTo);
+
+		resultList.sort(String::compareTo);
+
+		assertEquals(expected, resultList);
+	}
+
+	/**
+	 * Checks that a certain event sequence is recognized.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testSimplePatternEventTimeWithComparator() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+
+		// (Event, timestamp)
+		DataStream<Event> input = env.fromElements(
+			Tuple2.of(new Event(1, "start", 1.0), 5L),
+			Tuple2.of(new Event(2, "middle", 2.0), 1L),
+			Tuple2.of(new Event(3, "end", 3.0), 3L),
+			Tuple2.of(new Event(4, "end", 4.0), 10L),
+			Tuple2.of(new Event(5, "middle", 6.0), 7L),
+			Tuple2.of(new Event(6, "middle", 5.0), 7L),
+			// last element for high final watermark
+			Tuple2.of(new Event(7, "middle", 5.0), 100L)
+		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
+
+			@Override
+			public long extractTimestamp(Tuple2<Event, Long> element, long previousTimestamp) {
+				return element.f1;
+			}
+
+			@Override
+			public Watermark checkAndGetNextWatermark(Tuple2<Event, Long> lastElement, long extractedTimestamp) {
+				return new Watermark(lastElement.f1 - 5);
+			}
+
+		}).map(new MapFunction<Tuple2<Event, Long>, Event>() {
+
+			@Override
+			public Event map(Tuple2<Event, Long> value) throws Exception {
+				return value.f0;
+			}
+		});
+
+		EventComparator<Event> comparator = new CustomEventComparator();
+
+		Pattern<Event, ? extends Event> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("start");
+			}
+		}).followedByAny("middle").where(new SimpleCondition<Event>() {
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("middle");
+			}
+		}).followedByAny("end").where(new SimpleCondition<Event>() {
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("end");
+			}
+		});
+
+		DataStream<String> result = CEP.pattern(input, pattern, comparator).select(
+			new PatternSelectFunction<Event, String>() {
+
+				@Override
+				public String select(Map<String, List<Event>> pattern) {
+					StringBuilder builder = new StringBuilder();
+
+					builder.append(pattern.get("start").get(0).getId()).append(",")
+						.append(pattern.get("middle").get(0).getId()).append(",")
+						.append(pattern.get("end").get(0).getId());
+
+					return builder.toString();
+				}
+			}
+		);
+
+		List<String> resultList = new ArrayList<>();
+
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+
+		List<String> expected = Arrays.asList(
+			"1,6,4",
+			"1,5,4"
+		);
+
+		expected.sort(String::compareTo);
+
+		resultList.sort(String::compareTo);
+
+		assertEquals(expected, resultList);
+	}
+
+	private static class CustomEventComparator implements EventComparator<Event> {
+		@Override
+		public int compare(Event o1, Event o2) {
+			return Double.compare(o1.getPrice(), o2.getPrice());
+		}
+	}
+
+	@Test
+	public void testSimpleAfterMatchSkip() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStream<Tuple2<Integer, String>> input = env.fromElements(
+			new Tuple2<>(1, "a"),
+			new Tuple2<>(2, "a"),
+			new Tuple2<>(3, "a"),
+			new Tuple2<>(4, "a"));
+
+		Pattern<Tuple2<Integer, String>, ?> pattern =
+			Pattern.<Tuple2<Integer, String>>begin("start", AfterMatchSkipStrategy.skipPastLastEvent())
+				.where(new SimpleCondition<Tuple2<Integer, String>>() {
+					@Override
+					public boolean filter(Tuple2<Integer, String> rec) throws Exception {
+						return rec.f1.equals("a");
+					}
+				}).times(2);
+
+		PatternStream<Tuple2<Integer, String>> pStream = CEP.pattern(input, pattern);
+
+		DataStream<Tuple2<Integer, String>> result = pStream.select(new PatternSelectFunction<Tuple2<Integer, String>, Tuple2<Integer, String>>() {
+			@Override
+			public Tuple2<Integer, String> select(Map<String, List<Tuple2<Integer, String>>> pattern) throws Exception {
+				return pattern.get("start").get(0);
+			}
+		});
+
+		List<Tuple2<Integer, String>> resultList = new ArrayList<>();
+
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+
+		resultList.sort(Comparator.comparing(tuple2 -> tuple2.toString()));
+
+		List<Tuple2<Integer, String>> expected = Arrays.asList(Tuple2.of(1, "a"), Tuple2.of(3, "a"));
+
+		assertEquals(expected, resultList);
 	}
 }

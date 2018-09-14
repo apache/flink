@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.operators;
 
 import org.apache.flink.annotation.Internal;
@@ -23,19 +24,19 @@ import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.Keys;
+import org.apache.flink.api.common.operators.Keys.IncompatibleKeysException;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.base.CoGroupRawOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.common.operators.Keys.IncompatibleKeysException;
 
 /**
- * A {@link DataSet} that is the result of a CoGroup transformation. 
- * 
+ * A {@link DataSet} that is the result of a CoGroup transformation.
+ *
  * @param <I1> The type of the first input DataSet of the CoGroup transformation.
  * @param <I2> The type of the second input DataSet of the CoGroup transformation.
  * @param <OUT> The type of the result of the CoGroup transformation.
- * 
+ *
  * @see DataSet
  */
 @Internal
@@ -95,10 +96,12 @@ public class CoGroupRawOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2,
 			int[] logicalKeyPositions1 = keys1.computeLogicalKeyPositions();
 			int[] logicalKeyPositions2 = keys2.computeLogicalKeyPositions();
 
-			CoGroupRawOperatorBase<I1, I2, OUT, CoGroupFunction<I1, I2, OUT>> po
-					= new CoGroupRawOperatorBase<I1, I2, OUT, CoGroupFunction<I1, I2, OUT>>(
-							function, new BinaryOperatorInformation<I1, I2, OUT>(getInput1Type(), getInput2Type(), 
-									getResultType()), logicalKeyPositions1, logicalKeyPositions2, name);
+			CoGroupRawOperatorBase<I1, I2, OUT, CoGroupFunction<I1, I2, OUT>> po = new CoGroupRawOperatorBase<>(
+				function,
+				new BinaryOperatorInformation<>(getInput1Type(), getInput2Type(), getResultType()),
+				logicalKeyPositions1,
+				logicalKeyPositions2,
+				name);
 
 			// set inputs
 			po.setFirstInput(input1);

@@ -44,4 +44,44 @@ class ScalarOperatorsValidationTest extends ScalarOperatorsTestBase {
   def testInvalidStringComparison2(): Unit = {
     testTableApi("w" > 4.toExpr, "FAIL", "FAIL")
   }
+
+  // ----------------------------------------------------------------------------------------------
+  // Sub-query functions
+  // ----------------------------------------------------------------------------------------------
+
+  @Test(expected = classOf[ValidationException])
+  def testInMoreThanOneTypes(): Unit = {
+    testTableApi(
+      'f2.in('f3, 'f4, 4),
+      "FAIL",
+      "FAIL"
+    )
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInDifferentOperands(): Unit = {
+    testTableApi(
+      'f1.in("Hi", "Hello world", "Comment#1"),
+      "FAIL",
+      "FAIL"
+    )
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testBetweenWithDifferentOperandTypeScala(): Unit = {
+    testTableApi(
+      2.between(1, "a"),
+      "FAIL",
+      "FAIL"
+    )
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testBetweenWithDifferentOperandTypeJava(): Unit = {
+    testTableApi(
+      "FAIL",
+      "2.between(1, 'a')",
+      "FAIL"
+    )
+  }
 }

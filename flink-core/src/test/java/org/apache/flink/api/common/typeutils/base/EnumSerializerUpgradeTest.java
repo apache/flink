@@ -139,6 +139,6 @@ public class EnumSerializerUpgradeTest extends TestLogger {
 
 	private static int compileClass(File sourceFile) {
 		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-		return compiler.run(null, null, null, sourceFile.getPath());
+		return compiler.run(null, null, null, "-proc:none", sourceFile.getPath());
 	}
 }

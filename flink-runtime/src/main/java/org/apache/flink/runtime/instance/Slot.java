@@ -20,15 +20,16 @@ package org.apache.flink.runtime.instance;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
-import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.SlotContext;
+import org.apache.flink.runtime.jobmaster.SlotOwner;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.api.common.JobID;
 
 import javax.annotation.Nullable;
+
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -60,13 +61,15 @@ public abstract class Slot {
 	/** State where all tasks in this slot have been canceled and the slot been given back to the instance */
 	private static final int RELEASED = 2;
 
-	// temporary placeholder for Slots that are not constructed from an AllocatedSlot (prior to FLIP-6)
-	protected static final AllocationID NO_ALLOCATION_ID = new AllocationID(0, 0);
+	// temporary placeholder for Slots that are not constructed from an AllocatedSlot (by legacy code)
+	protected static final AllocationID NO_ALLOCATION_ID = new AllocationID(0L, 0L);
+	protected static final SlotRequestId NO_SLOT_REQUEST_ID = new SlotRequestId(0L, 0L);
+	protected static final SlotSharingGroupId NO_SLOT_SHARING_GROUP_ID = new SlotSharingGroupId(0L, 0L);
 
 	// ------------------------------------------------------------------------
 
-	/** The allocated slot that this slot represents. */
-	private final AllocatedSlot allocatedSlot;
+	/** Context of this logical slot. */
+	private final SlotContext slotContext;
 
 	/** The owner of this slot - the slot was taken from that owner and must be disposed to it */
 	private final SlotOwner owner;
@@ -79,7 +82,6 @@ public abstract class Slot {
 	@Nullable
 	private final AbstractID groupID;
 
-	/** The number of the slot on which the task is deployed */
 	private final int slotNumber;
 
 	/** The state of the vertex, only atomically updated */
@@ -90,9 +92,8 @@ public abstract class Slot {
 	/**
 	 * Base constructor for slots.
 	 * 
-	 * <p>This is the old way of constructing slots, prior to the FLIP-6 resource management refactoring.
+	 * <p>This is the old way of constructing slots by the legacy code
 	 * 
-	 * @param jobID The ID of the job that this slot is allocated for.
 	 * @param owner The component from which this slot is allocated.
 	 * @param location The location info of the TaskManager where the slot was allocated from
 	 * @param slotNumber The number of this slot.
@@ -102,7 +103,6 @@ public abstract class Slot {
 	 *                if the slot does not belong to any task group.   
 	 */
 	protected Slot(
-			JobID jobID,
 			SlotOwner owner,
 			TaskManagerLocation location,
 			int slotNumber,
@@ -112,12 +112,11 @@ public abstract class Slot {
 
 		checkArgument(slotNumber >= 0);
 
-		this.allocatedSlot = new AllocatedSlot(
+		// create a simple slot context
+		this.slotContext = new SimpleSlotContext(
 			NO_ALLOCATION_ID,
-			jobID,
 			location,
 			slotNumber,
-			ResourceProfile.UNKNOWN,
 			taskManagerGateway);
 
 		this.owner = checkNotNull(owner);
@@ -129,7 +128,7 @@ public abstract class Slot {
 	/**
 	 * Base constructor for slots.
 	 *
-	 * @param allocatedSlot The allocated slot that this slot represents.
+	 * @param slotContext The slot context of this slot.
 	 * @param owner The component from which this slot is allocated.
 	 * @param slotNumber The number of this slot.
 	 * @param parent The parent slot that contains this slot. May be null, if this slot is the root.
@@ -137,12 +136,13 @@ public abstract class Slot {
 	 *                if the slot does not belong to any task group.   
 	 */
 	protected Slot(
-			AllocatedSlot allocatedSlot, SlotOwner owner, int slotNumber,
-			@Nullable SharedSlot parent, @Nullable AbstractID groupID) {
+			SlotContext slotContext,
+			SlotOwner owner,
+			int slotNumber,
+			@Nullable SharedSlot parent,
+			@Nullable AbstractID groupID) {
 
-		checkArgument(slotNumber >= 0);
-
-		this.allocatedSlot = checkNotNull(allocatedSlot);
+		this.slotContext = checkNotNull(slotContext);
 		this.owner = checkNotNull(owner);
 		this.parent = parent; // may be null
 		this.groupID = groupID; // may be null
@@ -156,17 +156,8 @@ public abstract class Slot {
 	 * 
 	 * @return This slot's allocated slot.
 	 */
-	public AllocatedSlot getAllocatedSlot() {
-		return allocatedSlot;
-	}
-
-	/**
-	 * Returns the ID of the job this allocated slot belongs to.
-	 *
-	 * @return the ID of the job this allocated slot belongs to
-	 */
-	public JobID getJobID() {
-		return allocatedSlot.getJobID();
+	public SlotContext getSlotContext() {
+		return slotContext;
 	}
 
 	/**
@@ -175,7 +166,7 @@ public abstract class Slot {
 	 * @return The ID of the TaskManager that offers this slot
 	 */
 	public ResourceID getTaskManagerID() {
-		return allocatedSlot.getTaskManagerLocation().getResourceID();
+		return slotContext.getTaskManagerLocation().getResourceID();
 	}
 
 	/**
@@ -184,7 +175,7 @@ public abstract class Slot {
 	 * @return The location info of the TaskManager that offers this slot
 	 */
 	public TaskManagerLocation getTaskManagerLocation() {
-		return allocatedSlot.getTaskManagerLocation();
+		return slotContext.getTaskManagerLocation();
 	}
 
 	/**
@@ -195,7 +186,7 @@ public abstract class Slot {
 	 * @return The actor gateway that can be used to send messages to the TaskManager.
 	 */
 	public TaskManagerGateway getTaskManagerGateway() {
-		return allocatedSlot.getTaskManagerGateway();
+		return slotContext.getTaskManagerGateway();
 	}
 
 	/**
@@ -343,7 +334,7 @@ public abstract class Slot {
 	 * If this slot is a simple slot, it will be returned to its instance. If it is a shared slot,
 	 * it will release all of its sub-slots and release itself.
 	 */
-	public abstract void releaseSlot();
+	public abstract CompletableFuture<?> releaseSlot(@Nullable Throwable cause);
 
 
 	// --------------------------------------------------------------------------------------------
@@ -372,7 +363,7 @@ public abstract class Slot {
 	}
 
 	protected String hierarchy() {
-		return (getParent() != null ? getParent().hierarchy() : "") + '(' + slotNumber + ')';
+		return (getParent() != null ? getParent().hierarchy() : "") + '(' + getSlotNumber() + ')';
 	}
 
 	private static String getStateName(int state) {

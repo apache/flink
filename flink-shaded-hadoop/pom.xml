@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.4-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -52,20 +52,25 @@ under the License.
 			<artifactId>slf4j-api</artifactId>
 			<scope>provided</scope>
 		</dependency>
-		<dependency>
-			<groupId>org.apache.zookeeper</groupId>
-			<artifactId>zookeeper</artifactId>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.avro</groupId>
-			<artifactId>avro</artifactId>
-			<scope>provided</scope>
-		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>dependency-convergence</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<skip>true</skip>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<!-- Relocate the Hadoop's Guava dependency into a different namespace and
 			put Hadoop into a fat-jar.
 			-->
@@ -124,6 +129,7 @@ under the License.
 									<include>net.java.dev.jets3t:jets3t</include>
 									<include>org.apache.httpcomponents:*</include>
 									<include>commons-httpclient:commons-httpclient</include>
+									<include>org.codehaus.jackson:*</include>
 								</includes>
 								<excludes>
 									<exclude>org.slf4j:*</exclude>
@@ -161,6 +167,10 @@ under the License.
 								<relocation>
 									<pattern>org.htrace</pattern>
 									<shadedPattern>org.apache.flink.hadoop.shaded.org.htrace</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.codehaus.jackson</pattern>
+									<shadedPattern>org.apache.flink.hadoop.shaded.org.codehaus.jackson</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

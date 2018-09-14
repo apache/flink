@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.windowing.{ProcessWindowFunction => JProcessWindowFunction}
 import org.apache.flink.streaming.api.functions.windowing.{ProcessAllWindowFunction => JProcessAllWindowFunction}
+import org.apache.flink.streaming.api.scala.OutputTag
 import org.apache.flink.streaming.api.scala.function.{ProcessWindowFunction => ScalaProcessWindowFunction}
 import org.apache.flink.streaming.api.scala.function.{ProcessAllWindowFunction => ScalaProcessAllWindowFunction}
 import org.apache.flink.streaming.api.windowing.windows.Window
@@ -56,6 +57,8 @@ final class ScalaProcessWindowFunctionWrapper[IN, OUT, KEY, W <: Window](
       override def windowState = context.windowState()
 
       override def globalState = context.globalState()
+
+      override def output[X](outputTag: OutputTag[X], value: X) = context.output(outputTag, value)
     }
     func.process(key, ctx, elements.asScala, out)
   }
@@ -71,6 +74,8 @@ final class ScalaProcessWindowFunctionWrapper[IN, OUT, KEY, W <: Window](
       override def windowState = context.windowState()
 
       override def globalState = context.globalState()
+
+      override def output[X](outputTag: OutputTag[X], value: X) = context.output(outputTag, value)
     }
     func.clear(ctx)
   }
@@ -122,6 +127,8 @@ final class ScalaProcessAllWindowFunctionWrapper[IN, OUT, W <: Window](
       override def windowState = context.windowState()
 
       override def globalState = context.globalState()
+
+      override def output[X](outputTag: OutputTag[X], value: X) = context.output(outputTag, value)
     }
     func.process(ctx, elements.asScala, out)
   }
@@ -133,6 +140,8 @@ final class ScalaProcessAllWindowFunctionWrapper[IN, OUT, W <: Window](
       override def windowState = context.windowState()
 
       override def globalState = context.globalState()
+
+      override def output[X](outputTag: OutputTag[X], value: X) = context.output(outputTag, value)
     }
     func.clear(ctx)
   }

@@ -48,11 +48,11 @@ public class InvalidVertexIdsValidator<K, VV, EV> extends GraphValidator<K, VV, 
 	@Override
 	public boolean validate(Graph<K, VV, EV> graph) throws Exception {
 		DataSet<Tuple1<K>> edgeIds = graph.getEdges()
-				.flatMap(new MapEdgeIds<K, EV>()).distinct();
+				.flatMap(new MapEdgeIds<>()).distinct();
 		DataSet<K> invalidIds = graph.getVertices().coGroup(edgeIds).where(0)
-				.equalTo(0).with(new GroupInvalidIds<K, VV>()).first(1);
+				.equalTo(0).with(new GroupInvalidIds<>()).first(1);
 
-		return invalidIds.map(new KToTupleMap<K>()).count() == 0;
+		return invalidIds.map(new KToTupleMap<>()).count() == 0;
 	}
 
 	private static final class MapEdgeIds<K, EV> implements FlatMapFunction<Edge<K, EV>, Tuple1<K>> {

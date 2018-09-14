@@ -27,9 +27,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
@@ -42,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The persistent checkpoint metadata, format version 2.
- * his format was introduced with Flink 1.3.0.
+ * This format was introduced with Flink 1.3.0.
  */
 public class SavepointV2 implements Savepoint {
 
@@ -207,9 +206,6 @@ public class SavepointV2 implements Savepoint {
 					continue;
 				}
 
-				@SuppressWarnings("deprecation")
-				ChainedStateHandle<StreamStateHandle> nonPartitionedState =
-					subtaskState.getLegacyOperatorState();
 				ChainedStateHandle<OperatorStateHandle> partitioneableState =
 					subtaskState.getManagedOperatorState();
 				ChainedStateHandle<OperatorStateHandle> rawOperatorState =
@@ -240,7 +236,6 @@ public class SavepointV2 implements Savepoint {
 						}
 
 						OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
-							nonPartitionedState != null ? nonPartitionedState.get(operatorIndex) : null,
 							partitioneableState != null ? partitioneableState.get(operatorIndex) : null,
 							rawOperatorState != null ? rawOperatorState.get(operatorIndex) : null,
 							managedKeyedState,

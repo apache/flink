@@ -27,14 +27,13 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
-
-import org.junit.Test
+import org.apache.flink.test.util.AbstractTestBase
 import org.junit.Assert._
+import org.junit.Test
 
 import scala.collection.mutable
 
-class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
+class CoGroupJoinITCase extends AbstractTestBase {
 
   @Test
   def testCoGroup(): Unit = {

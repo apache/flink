@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.4-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -124,7 +124,6 @@ under the License.
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-api</artifactId>
 			<version>2.7</version>
-			<scope>test</scope>
 		</dependency>
 
 		<dependency>
@@ -149,12 +148,125 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.12.2</version>
 				<configuration>
 					<classpathDependencyExcludes>
 						<classpathDependencyExclude>org.apache.logging.log4j:log4j-to-slf4j</classpathDependencyExclude>
 					</classpathDependencyExcludes>
 				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<artifactSet>
+								<includes>
+									<include>*:*</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>com.carrotsearch</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.com.carrotsearch</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.fasterxml</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.com.fasterxml</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.github</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.com.github</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.sun</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.com.sun</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.tdunning</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.com.tdunning</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>io.netty</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.io.netty</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.org.apache</shadedPattern>
+									<excludes>
+										<!-- keep flink classes as they are (exceptions as above) -->
+										<exclude>org.apache.flink.**</exclude>
+										<exclude>org.apache.log4j.**</exclude> <!-- provided -->
+									</excludes>
+								</relocation>
+								<relocation>
+									<pattern>org.HdrHistogram</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.org.HdrHistogram</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.jboss</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.org.jboss</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.joda</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.org.joda</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.tartarus</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.org.tartarus</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.yaml</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.org.yaml</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>joptsimple</pattern>
+									<shadedPattern>org.apache.flink.streaming.connectors.elasticsearch5.shaded.joptsimple</shadedPattern>
+								</relocation>
+							</relocations>
+							<filters>
+								<filter>
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>log4j.properties</exclude>
+										<exclude>config/favicon.ico</exclude>
+										<exclude>mozilla/**</exclude>
+										<exclude>META-INF/maven/com*/**</exclude>
+										<exclude>META-INF/maven/io*/**</exclude>
+										<exclude>META-INF/maven/joda*/**</exclude>
+										<exclude>META-INF/maven/net*/**</exclude>
+										<exclude>META-INF/maven/org.an*/**</exclude>
+										<exclude>META-INF/maven/org.apache.h*/**</exclude>
+										<exclude>META-INF/maven/org.apache.commons/**</exclude>
+										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
+										<exclude>META-INF/maven/org.apache.logging*/**</exclude>
+										<exclude>META-INF/maven/org.e*/**</exclude>
+										<exclude>META-INF/maven/org.h*/**</exclude>
+										<exclude>META-INF/maven/org.j*/**</exclude>
+										<exclude>META-INF/maven/org.y*/**</exclude>
+									</excludes>
+								</filter>
+								<!--
+								  Since we relocate the dependency, the paths specified in the providers file
+								  will be incorrect. We exclude it here, and re-package a new providers file
+								  with the correct re-located paths.
+								-->
+								<filter>
+									<artifact>org.apache.logging.log4j:log4j-to-slf4j</artifact>
+									<excludes>
+										<exclude>META-INF/log4j-provider.properties</exclude>
+									</excludes>
+								</filter>
+							</filters>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

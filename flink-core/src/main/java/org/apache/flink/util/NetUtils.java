@@ -19,8 +19,8 @@
 package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
-
 import org.apache.flink.configuration.IllegalConfigurationException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.net.util.IPAddressUtil;
@@ -38,18 +38,21 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 
+/**
+ * Utility for various network related tasks (such as finding free ports).
+ */
 @Internal
 public class NetUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NetUtils.class);
 
-	/** The wildcard address to listen on all interfaces (either 0.0.0.0 or ::) */
+	/** The wildcard address to listen on all interfaces (either 0.0.0.0 or ::). */
 	private static final String WILDCARD_ADDRESS = new InetSocketAddress(0).getAddress().getHostAddress();
-	
+
 	/**
 	 * Turn a fully qualified domain name (fqdn) into a hostname. If the fqdn has multiple subparts
 	 * (separated by a period '.'), it will take the first part. Otherwise it takes the entire fqdn.
-	 * 
+	 *
 	 * @param fqdn The fully qualified domain name.
 	 * @return The hostname.
 	 */
@@ -58,7 +61,7 @@ public class NetUtils {
 			throw new IllegalArgumentException("fqdn is null");
 		}
 		int dotPos = fqdn.indexOf('.');
-		if(dotPos == -1) {
+		if (dotPos == -1) {
 			return fqdn;
 		} else {
 			return fqdn.substring(0, dotPos);
@@ -68,31 +71,31 @@ public class NetUtils {
 	/**
 	 * Method to validate if the given String represents a hostname:port.
 	 *
-	 * Works also for ipv6.
+	 * <p>Works also for ipv6.
 	 *
-	 * See: http://stackoverflow.com/questions/2345063/java-common-way-to-validate-and-convert-hostport-to-inetsocketaddress
+	 * <p>See: http://stackoverflow.com/questions/2345063/java-common-way-to-validate-and-convert-hostport-to-inetsocketaddress
 	 *
 	 * @return URL object for accessing host and Port
 	 */
 	public static URL getCorrectHostnamePort(String hostPort) {
 		try {
-			URL u = new URL("http://"+hostPort);
-			if(u.getHost() == null) {
-				throw new IllegalArgumentException("The given host:port ('"+hostPort+"') doesn't contain a valid host");
+			URL u = new URL("http://" + hostPort);
+			if (u.getHost() == null) {
+				throw new IllegalArgumentException("The given host:port ('" + hostPort + "') doesn't contain a valid host");
 			}
-			if(u.getPort() == -1) {
-				throw new IllegalArgumentException("The given host:port ('"+hostPort+"') doesn't contain a valid port");
+			if (u.getPort() == -1) {
+				throw new IllegalArgumentException("The given host:port ('" + hostPort + "') doesn't contain a valid port");
 			}
 			return u;
 		} catch (MalformedURLException e) {
-			throw new IllegalArgumentException("The given host:port ('"+hostPort+"') is invalid", e);
+			throw new IllegalArgumentException("The given host:port ('" + hostPort + "') is invalid", e);
 		}
 	}
 
 	// ------------------------------------------------------------------------
 	//  Lookup of to free ports
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Find a non-occupied port.
 	 *
@@ -111,7 +114,7 @@ public class NetUtils {
 
 		throw new RuntimeException("Could not find a free permitted port on the machine.");
 	}
-	
+
 
 	// ------------------------------------------------------------------------
 	//  Encoding of IP addresses for URLs
@@ -168,7 +171,7 @@ public class NetUtils {
 	/**
 	 * Encodes an IP address properly as a URL string. This method makes sure that IPv6 addresses
 	 * have the proper formatting to be included in URLs.
-	 * 
+	 *
 	 * @param address The IP address to encode.
 	 * @return The proper URL string encoded IP address.
 	 */
@@ -202,7 +205,7 @@ public class NetUtils {
 	/**
 	 * Encodes an IP address and port to be included in URL. in particular, this method makes
 	 * sure that IPv6 addresses have the proper formatting to be included in URLs.
-	 * 
+	 *
 	 * @param address The socket address with the IP address and port.
 	 * @return The proper URL string encoded IP address and port.
 	 */
@@ -214,7 +217,7 @@ public class NetUtils {
 	}
 
 	/**
-	 * Normalizes and encodes a hostname and port to be included in URL. 
+	 * Normalizes and encodes a hostname and port to be included in URL.
 	 * In particular, this method makes sure that IPv6 address literals have the proper
 	 * formatting to be included in URLs.
 	 *
@@ -277,7 +280,7 @@ public class NetUtils {
 		// convert into text form
 		StringBuilder buf = new StringBuilder(40);
 		buf.append('[');
-		
+
 		boolean lastWasNumber = false;
 		for (int i = 0; i < hextets.length; i++) {
 			boolean thisIsNumber = hextets[i] >= 0;
@@ -296,11 +299,11 @@ public class NetUtils {
 		buf.append(']');
 		return buf.toString();
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Port range parsing
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Returns an iterator over available ports defined by the range definition.
 	 *
@@ -310,9 +313,9 @@ public class NetUtils {
 	 */
 	public static Iterator<Integer> getPortRangeFromString(String rangeDefinition) throws NumberFormatException {
 		final String[] ranges = rangeDefinition.trim().split(",");
-		
+
 		UnionIterator<Integer> iterators = new UnionIterator<>();
-		
+
 		for (String rawRange: ranges) {
 			Iterator<Integer> rangeIterator;
 			String range = rawRange.trim();
@@ -332,7 +335,7 @@ public class NetUtils {
 					throw new IllegalConfigurationException("Invalid port configuration. Port must be between 0" +
 						"and 65535, but was " + start + ".");
 				}
-				final int end = Integer.valueOf(range.substring(dashIdx+1, range.length()));
+				final int end = Integer.valueOf(range.substring(dashIdx + 1, range.length()));
 				if (end < 0 || end > 65535) {
 					throw new IllegalConfigurationException("Invalid port configuration. Port must be between 0" +
 						"and 65535, but was " + end + ".");
@@ -357,7 +360,7 @@ public class NetUtils {
 			}
 			iterators.add(rangeIterator);
 		}
-		
+
 		return iterators;
 	}
 
@@ -393,6 +396,10 @@ public class NetUtils {
 		return WILDCARD_ADDRESS;
 	}
 
+	/**
+	 * A factory for a local socket from port number.
+	 */
+	@FunctionalInterface
 	public interface SocketFactory {
 		ServerSocket createSocket(int port) throws IOException;
 	}

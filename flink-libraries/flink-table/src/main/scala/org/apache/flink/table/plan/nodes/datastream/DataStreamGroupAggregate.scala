@@ -18,20 +18,20 @@
 package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
-import org.apache.flink.table.codegen.CodeGenerator
-import org.apache.flink.table.runtime.aggregate._
+import org.apache.flink.table.codegen.AggregationCodeGenerator
 import org.apache.flink.table.plan.nodes.CommonAggregate
-import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
+import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.runtime.CRowKeySelector
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
+import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
-import org.slf4j.LoggerFactory
+import org.apache.flink.table.util.Logging
 
 /**
   *
@@ -56,11 +56,10 @@ class DataStreamGroupAggregate(
     groupings: Array[Int])
   extends SingleRel(cluster, traitSet, inputNode)
     with CommonAggregate
-    with DataStreamRel {
+    with DataStreamRel
+    with Logging {
 
-  private val LOG = LoggerFactory.getLogger(this.getClass)
-
-  override def deriveRowType() = schema.logicalType
+  override def deriveRowType() = schema.relDataType
 
   override def needsUpdatesAsRetraction = true
 
@@ -84,20 +83,20 @@ class DataStreamGroupAggregate(
   override def toString: String = {
     s"Aggregate(${
       if (!groupings.isEmpty) {
-        s"groupBy: (${groupingToString(inputSchema.logicalType, groupings)}), "
+        s"groupBy: (${groupingToString(inputSchema.relDataType, groupings)}), "
       } else {
         ""
       }
     }select:(${aggregationToString(
-      inputSchema.logicalType, groupings, getRowType, namedAggregates, Nil)}))"
+      inputSchema.relDataType, groupings, getRowType, namedAggregates, Nil)}))"
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .itemIf("groupBy", groupingToString(
-        inputSchema.logicalType, groupings), !groupings.isEmpty)
+        inputSchema.relDataType, groupings), !groupings.isEmpty)
       .item("select", aggregationToString(
-        inputSchema.logicalType, groupings, getRowType, namedAggregates, Nil))
+        inputSchema.relDataType, groupings, getRowType, namedAggregates, Nil))
   }
 
   override def translateToPlan(
@@ -113,47 +112,41 @@ class DataStreamGroupAggregate(
 
     val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
 
-    val physicalNamedAggregates = namedAggregates.map { namedAggregate =>
-      new CalcitePair[AggregateCall, String](
-        inputSchema.mapAggregateCall(namedAggregate.left),
-        namedAggregate.right)
-    }
+    val outRowType = CRowTypeInfo(schema.typeInfo)
 
-    val outRowType = CRowTypeInfo(schema.physicalTypeInfo)
-
-    val generator = new CodeGenerator(
+    val generator = new AggregationCodeGenerator(
       tableEnv.getConfig,
       false,
-      inputSchema.physicalTypeInfo)
+      inputSchema.typeInfo,
+      None)
 
     val aggString = aggregationToString(
-      inputSchema.logicalType,
+      inputSchema.relDataType,
       groupings,
       getRowType,
       namedAggregates,
       Nil)
 
-    val keyedAggOpName = s"groupBy: (${groupingToString(inputSchema.logicalType, groupings)}), " +
+    val keyedAggOpName = s"groupBy: (${groupingToString(inputSchema.relDataType, groupings)}), " +
       s"select: ($aggString)"
     val nonKeyedAggOpName = s"select: ($aggString)"
 
-    val physicalGrouping = groupings.map(inputSchema.mapIndex)
-
     val processFunction = AggregateUtil.createGroupAggregateFunction(
       generator,
-      physicalNamedAggregates,
-      inputSchema.logicalType,
-      inputSchema.physicalFieldTypeInfo,
+      namedAggregates,
+      inputSchema.relDataType,
+      inputSchema.fieldTypeInfos,
       groupings,
       queryConfig,
+      tableEnv.getConfig,
       DataStreamRetractionRules.isAccRetract(this),
       DataStreamRetractionRules.isAccRetract(getInput))
 
     val result: DataStream[CRow] =
     // grouped / keyed aggregation
-      if (physicalGrouping.nonEmpty) {
+      if (groupings.nonEmpty) {
         inputDS
-        .keyBy(groupings: _*)
+        .keyBy(new CRowKeySelector(groupings, inputSchema.projectedTypeInfo(groupings)))
         .process(processFunction)
         .returns(outRowType)
         .name(keyedAggOpName)

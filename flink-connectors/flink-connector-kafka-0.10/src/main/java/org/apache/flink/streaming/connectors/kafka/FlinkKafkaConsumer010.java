@@ -17,6 +17,9 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
@@ -27,18 +30,22 @@ import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
-import org.apache.flink.util.PropertiesUtil;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
+import org.apache.kafka.common.TopicPartition;
 
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 /**
  * The Flink Kafka Consumer is a streaming data source that pulls a parallel data stream from
@@ -56,11 +63,8 @@ import java.util.Properties;
  *
  * <p>Please refer to Kafka's documentation for the available configuration properties:
  * http://kafka.apache.org/documentation.html#newconsumerconfigs</p>
- *
- * <p><b>NOTE:</b> The implementation currently accesses partition metadata when the consumer
- * is constructed. That means that the client that submits the program needs to be able to
- * reach the Kafka brokers or ZooKeeper.</p>
  */
+@PublicEvolving
 public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 
 	private static final long serialVersionUID = 2324564345203409112L;
@@ -130,6 +134,49 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 		super(topics, deserializer, props);
 	}
 
+	/**
+	 * Creates a new Kafka streaming source consumer for Kafka 0.10.x. Use this constructor to
+	 * subscribe to multiple topics based on a regular expression pattern.
+	 *
+	 * <p>If partition discovery is enabled (by setting a non-negative value for
+	 * {@link FlinkKafkaConsumer010#KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS} in the properties), topics
+	 * with names matching the pattern will also be subscribed to as they are created on the fly.
+	 *
+	 * @param subscriptionPattern
+	 *           The regular expression for a pattern of topic names to subscribe to.
+	 * @param valueDeserializer
+	 *           The de-/serializer used to convert between Kafka's byte messages and Flink's objects.
+	 * @param props
+	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
+	 */
+	@PublicEvolving
+	public FlinkKafkaConsumer010(Pattern subscriptionPattern, DeserializationSchema<T> valueDeserializer, Properties props) {
+		this(subscriptionPattern, new KeyedDeserializationSchemaWrapper<>(valueDeserializer), props);
+	}
+
+	/**
+	 * Creates a new Kafka streaming source consumer for Kafka 0.10.x. Use this constructor to
+	 * subscribe to multiple topics based on a regular expression pattern.
+	 *
+	 * <p>If partition discovery is enabled (by setting a non-negative value for
+	 * {@link FlinkKafkaConsumer010#KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS} in the properties), topics
+	 * with names matching the pattern will also be subscribed to as they are created on the fly.
+	 *
+	 * <p>This constructor allows passing a {@see KeyedDeserializationSchema} for reading key/value
+	 * pairs, offsets, and topic names from Kafka.
+	 *
+	 * @param subscriptionPattern
+	 *           The regular expression for a pattern of topic names to subscribe to.
+	 * @param deserializer
+	 *           The keyed de-/serializer used to convert between Kafka's byte messages and Flink's objects.
+	 * @param props
+	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
+	 */
+	@PublicEvolving
+	public FlinkKafkaConsumer010(Pattern subscriptionPattern, KeyedDeserializationSchema<T> deserializer, Properties props) {
+		super(subscriptionPattern, deserializer, props);
+	}
+
 	@Override
 	protected AbstractFetcher<T, ?> createFetcher(
 			SourceContext<T> sourceContext,
@@ -137,9 +184,9 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			StreamingRuntimeContext runtimeContext,
-			OffsetCommitMode offsetCommitMode) throws Exception {
-
-		boolean useMetrics = !PropertiesUtil.getBoolean(properties, KEY_DISABLE_METRICS, false);
+			OffsetCommitMode offsetCommitMode,
+			MetricGroup consumerMetricGroup,
+			boolean useMetrics) throws Exception {
 
 		// make sure that auto commit is disabled when our offset commit mode is ON_CHECKPOINTS;
 		// this overwrites whatever setting the user configured in the properties
@@ -156,10 +203,11 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 				runtimeContext.getExecutionConfig().getAutoWatermarkInterval(),
 				runtimeContext.getUserCodeClassLoader(),
 				runtimeContext.getTaskNameWithSubtasks(),
-				runtimeContext.getMetricGroup(),
 				deserializer,
 				properties,
 				pollTimeout,
+				runtimeContext.getMetricGroup(),
+				consumerMetricGroup,
 				useMetrics);
 	}
 
@@ -170,5 +218,45 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 			int numParallelSubtasks) {
 
 		return new Kafka010PartitionDiscoverer(topicsDescriptor, indexOfThisSubtask, numParallelSubtasks, properties);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Timestamp-based startup
+	// ------------------------------------------------------------------------
+
+	@Override
+	public FlinkKafkaConsumerBase<T> setStartFromTimestamp(long startupOffsetsTimestamp) {
+		// the purpose of this override is just to publicly expose the method for Kafka 0.10+;
+		// the base class doesn't publicly expose it since not all Kafka versions support the functionality
+		return super.setStartFromTimestamp(startupOffsetsTimestamp);
+	}
+
+	@Override
+	protected Map<KafkaTopicPartition, Long> fetchOffsetsWithTimestamp(
+			Collection<KafkaTopicPartition> partitions,
+			long timestamp) {
+
+		Map<TopicPartition, Long> partitionOffsetsRequest = new HashMap<>(partitions.size());
+		for (KafkaTopicPartition partition : partitions) {
+			partitionOffsetsRequest.put(
+				new TopicPartition(partition.getTopic(), partition.getPartition()),
+				timestamp);
+		}
+
+		// use a short-lived consumer to fetch the offsets;
+		// this is ok because this is a one-time operation that happens only on startup
+		KafkaConsumer<?, ?> consumer = new KafkaConsumer(properties);
+
+		Map<KafkaTopicPartition, Long> result = new HashMap<>(partitions.size());
+		for (Map.Entry<TopicPartition, OffsetAndTimestamp> partitionToOffset :
+				consumer.offsetsForTimes(partitionOffsetsRequest).entrySet()) {
+
+			result.put(
+				new KafkaTopicPartition(partitionToOffset.getKey().topic(), partitionToOffset.getKey().partition()),
+				(partitionToOffset.getValue() == null) ? null : partitionToOffset.getValue().offset());
+		}
+
+		consumer.close();
+		return result;
 	}
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -25,16 +26,26 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
+import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.SerializedValue;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.COMMITTED_OFFSETS_METRICS_GAUGE;
+import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.CURRENT_OFFSETS_METRICS_GAUGE;
+import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.LEGACY_COMMITTED_OFFSETS_METRICS_GROUP;
+import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.LEGACY_CURRENT_OFFSETS_METRICS_GROUP;
+import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.OFFSETS_BY_PARTITION_METRICS_GROUP;
+import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.OFFSETS_BY_TOPIC_METRICS_GROUP;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -48,11 +59,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *            the Flink data streams.
  * @param <KPH> The type of topic/partition identifier used by Kafka in the specific version.
  */
+@Internal
 public abstract class AbstractFetcher<T, KPH> {
 
-	protected static final int NO_TIMESTAMPS_WATERMARKS = 0;
-	protected static final int PERIODIC_WATERMARKS = 1;
-	protected static final int PUNCTUATED_WATERMARKS = 2;
+	private static final int NO_TIMESTAMPS_WATERMARKS = 0;
+	private static final int PERIODIC_WATERMARKS = 1;
+	private static final int PUNCTUATED_WATERMARKS = 2;
 
 	// ------------------------------------------------------------------------
 
@@ -61,7 +73,7 @@ public abstract class AbstractFetcher<T, KPH> {
 
 	/** The lock that guarantees that record emission and state updates are atomic,
 	 * from the view of taking a checkpoint. */
-	protected final Object checkpointLock;
+	private final Object checkpointLock;
 
 	/** All partitions (and their state) that this fetcher is subscribed to. */
 	private final List<KafkaTopicPartitionState<KPH>> subscribedPartitionStates;
@@ -78,10 +90,7 @@ public abstract class AbstractFetcher<T, KPH> {
 	protected final ClosableBlockingQueue<KafkaTopicPartitionState<KPH>> unassignedPartitionsQueue;
 
 	/** The mode describing whether the fetcher also generates timestamps and watermarks. */
-	protected final int timestampWatermarkMode;
-
-	/** Flag whether to register metrics for the fetcher. */
-	protected final boolean useMetrics;
+	private final int timestampWatermarkMode;
 
 	/**
 	 * Optional timestamp extractor / watermark generator that will be run per Kafka partition,
@@ -104,6 +113,27 @@ public abstract class AbstractFetcher<T, KPH> {
 	private volatile long maxWatermarkSoFar = Long.MIN_VALUE;
 
 	// ------------------------------------------------------------------------
+	//  Metrics
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Flag indicating whether or not metrics should be exposed.
+	 * If {@code true}, offset metrics (e.g. current offset, committed offset) and
+	 * Kafka-shipped metrics will be registered.
+	 */
+	private final boolean useMetrics;
+
+	/**
+	 * The metric group which all metrics for the consumer should be registered to.
+	 * This metric group is defined under the user scope {@link KafkaConsumerMetricConstants#KAFKA_CONSUMER_METRICS_GROUP}.
+	 */
+	private final MetricGroup consumerMetricGroup;
+
+	@Deprecated
+	private final MetricGroup legacyCurrentOffsetsMetricGroup;
+
+	@Deprecated
+	private final MetricGroup legacyCommittedOffsetsMetricGroup;
 
 	protected AbstractFetcher(
 			SourceContext<T> sourceContext,
@@ -113,11 +143,16 @@ public abstract class AbstractFetcher<T, KPH> {
 			ProcessingTimeService processingTimeProvider,
 			long autoWatermarkInterval,
 			ClassLoader userCodeClassLoader,
+			MetricGroup consumerMetricGroup,
 			boolean useMetrics) throws Exception {
 		this.sourceContext = checkNotNull(sourceContext);
 		this.checkpointLock = sourceContext.getCheckpointLock();
-		this.useMetrics = useMetrics;
 		this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
+
+		this.useMetrics = useMetrics;
+		this.consumerMetricGroup = checkNotNull(consumerMetricGroup);
+		this.legacyCurrentOffsetsMetricGroup = consumerMetricGroup.addGroup(LEGACY_CURRENT_OFFSETS_METRICS_GROUP);
+		this.legacyCommittedOffsetsMetricGroup = consumerMetricGroup.addGroup(LEGACY_COMMITTED_OFFSETS_METRICS_GROUP);
 
 		// figure out what we watermark mode we will be using
 		this.watermarksPeriodic = watermarksPeriodic;
@@ -160,6 +195,11 @@ public abstract class AbstractFetcher<T, KPH> {
 			unassignedPartitionsQueue.add(partition);
 		}
 
+		// register metrics for the initial seed partitions
+		if (useMetrics) {
+			registerOffsetMetrics(consumerMetricGroup, subscribedPartitionStates);
+		}
+
 		// if we have periodic watermarks, kick off the interval scheduler
 		if (timestampWatermarkMode == PERIODIC_WATERMARKS) {
 			@SuppressWarnings("unchecked")
@@ -195,7 +235,13 @@ public abstract class AbstractFetcher<T, KPH> {
 				watermarksPunctuated,
 				userCodeClassLoader);
 
+		if (useMetrics) {
+			registerOffsetMetrics(consumerMetricGroup, newPartitionStates);
+		}
+
 		for (KafkaTopicPartitionState<KPH> newPartitionState : newPartitionStates) {
+			// the ordering is crucial here; first register the state holder, then
+			// push it to the partitions queue to be read
 			subscribedPartitionStates.add(newPartitionState);
 			unassignedPartitionsQueue.add(newPartitionState);
 		}
@@ -237,9 +283,27 @@ public abstract class AbstractFetcher<T, KPH> {
 	 * committing them, so that committed offsets to Kafka represent "the next record to process".
 	 *
 	 * @param offsets The offsets to commit to Kafka (implementations must increment offsets by 1 before committing).
+	 * @param commitCallback The callback that the user should trigger when a commit request completes or fails.
 	 * @throws Exception This method forwards exceptions.
 	 */
-	public abstract void commitInternalOffsetsToKafka(Map<KafkaTopicPartition, Long> offsets) throws Exception;
+	public final void commitInternalOffsetsToKafka(
+			Map<KafkaTopicPartition, Long> offsets,
+			@Nonnull KafkaCommitCallback commitCallback) throws Exception {
+		// Ignore sentinels. They might appear here if snapshot has started before actual offsets values
+		// replaced sentinels
+		doCommitInternalOffsetsToKafka(filterOutSentinels(offsets), commitCallback);
+	}
+
+	protected abstract void doCommitInternalOffsetsToKafka(
+			Map<KafkaTopicPartition, Long> offsets,
+			@Nonnull KafkaCommitCallback commitCallback) throws Exception;
+
+	private Map<KafkaTopicPartition, Long> filterOutSentinels(Map<KafkaTopicPartition, Long> offsets) {
+		return offsets.entrySet()
+			.stream()
+			.filter(entry -> !KafkaTopicPartitionStateSentinel.isSentinel(entry.getValue()))
+			.collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
+	}
 
 	/**
 	 * Creates the Kafka version specific representation of the given
@@ -351,7 +415,7 @@ public abstract class AbstractFetcher<T, KPH> {
 	 * Record emission, if a timestamp will be attached from an assigner that is
 	 * also a periodic watermark generator.
 	 */
-	protected void emitRecordWithTimestampAndPeriodicWatermark(
+	private void emitRecordWithTimestampAndPeriodicWatermark(
 			T record, KafkaTopicPartitionState<KPH> partitionState, long offset, long kafkaEventTimestamp) {
 		@SuppressWarnings("unchecked")
 		final KafkaTopicPartitionStateWithPeriodicWatermarks<T, KPH> withWatermarksState =
@@ -378,7 +442,7 @@ public abstract class AbstractFetcher<T, KPH> {
 	 * Record emission, if a timestamp will be attached from an assigner that is
 	 * also a punctuated watermark generator.
 	 */
-	protected void emitRecordWithTimestampAndPunctuatedWatermark(
+	private void emitRecordWithTimestampAndPunctuatedWatermark(
 			T record, KafkaTopicPartitionState<KPH> partitionState, long offset, long kafkaEventTimestamp) {
 		@SuppressWarnings("unchecked")
 		final KafkaTopicPartitionStateWithPunctuatedWatermarks<T, KPH> withWatermarksState =
@@ -445,7 +509,9 @@ public abstract class AbstractFetcher<T, KPH> {
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			ClassLoader userCodeClassLoader) throws IOException, ClassNotFoundException {
 
-		List<KafkaTopicPartitionState<KPH>> partitionStates = new LinkedList<>();
+		// CopyOnWrite as adding discovered partitions could happen in parallel
+		// while different threads iterate the partitions list
+		List<KafkaTopicPartitionState<KPH>> partitionStates = new CopyOnWriteArrayList<>();
 
 		switch (timestampWatermarkMode) {
 			case NO_TIMESTAMPS_WATERMARKS: {
@@ -538,18 +604,34 @@ public abstract class AbstractFetcher<T, KPH> {
 	// ------------------------- Metrics ----------------------------------
 
 	/**
-	 * Add current and committed offsets to metric group.
+	 * For each partition, register a new metric group to expose current offsets and committed offsets.
+	 * Per-partition metric groups can be scoped by user variables {@link KafkaConsumerMetricConstants#OFFSETS_BY_TOPIC_METRICS_GROUP}
+	 * and {@link KafkaConsumerMetricConstants#OFFSETS_BY_PARTITION_METRICS_GROUP}.
 	 *
-	 * @param metricGroup The metric group to use
+	 * <p>Note: this method also registers gauges for deprecated offset metrics, to maintain backwards compatibility.
+	 *
+	 * @param consumerMetricGroup The consumer metric group
+	 * @param partitionOffsetStates The partition offset state holders, whose values will be used to update metrics
 	 */
-	protected void addOffsetStateGauge(MetricGroup metricGroup) {
-		// add current offsets to gage
-		MetricGroup currentOffsets = metricGroup.addGroup("current-offsets");
-		MetricGroup committedOffsets = metricGroup.addGroup("committed-offsets");
-		for (KafkaTopicPartitionState<KPH> ktp : subscribedPartitionStates) {
-			currentOffsets.gauge(ktp.getTopic() + "-" + ktp.getPartition(), new OffsetGauge(ktp, OffsetGaugeType.CURRENT_OFFSET));
-			committedOffsets.gauge(ktp.getTopic() + "-" + ktp.getPartition(), new OffsetGauge(ktp, OffsetGaugeType.COMMITTED_OFFSET));
+	private void registerOffsetMetrics(
+			MetricGroup consumerMetricGroup,
+			List<KafkaTopicPartitionState<KPH>> partitionOffsetStates) {
+
+		for (KafkaTopicPartitionState<KPH> ktp : partitionOffsetStates) {
+			MetricGroup topicPartitionGroup = consumerMetricGroup
+				.addGroup(OFFSETS_BY_TOPIC_METRICS_GROUP, ktp.getTopic())
+				.addGroup(OFFSETS_BY_PARTITION_METRICS_GROUP, Integer.toString(ktp.getPartition()));
+
+			topicPartitionGroup.gauge(CURRENT_OFFSETS_METRICS_GAUGE, new OffsetGauge(ktp, OffsetGaugeType.CURRENT_OFFSET));
+			topicPartitionGroup.gauge(COMMITTED_OFFSETS_METRICS_GAUGE, new OffsetGauge(ktp, OffsetGaugeType.COMMITTED_OFFSET));
+
+			legacyCurrentOffsetsMetricGroup.gauge(getLegacyOffsetsMetricsGaugeName(ktp), new OffsetGauge(ktp, OffsetGaugeType.CURRENT_OFFSET));
+			legacyCommittedOffsetsMetricGroup.gauge(getLegacyOffsetsMetricsGaugeName(ktp), new OffsetGauge(ktp, OffsetGaugeType.COMMITTED_OFFSET));
 		}
+	}
+
+	private static String getLegacyOffsetsMetricsGaugeName(KafkaTopicPartitionState<?> ktp) {
+		return ktp.getTopic() + "-" + ktp.getPartition();
 	}
 
 	/**
@@ -568,7 +650,7 @@ public abstract class AbstractFetcher<T, KPH> {
 		private final KafkaTopicPartitionState<?> ktp;
 		private final OffsetGaugeType gaugeType;
 
-		public OffsetGauge(KafkaTopicPartitionState<?> ktp, OffsetGaugeType gaugeType) {
+		OffsetGauge(KafkaTopicPartitionState<?> ktp, OffsetGaugeType gaugeType) {
 			this.ktp = ktp;
 			this.gaugeType = gaugeType;
 		}
@@ -627,6 +709,7 @@ public abstract class AbstractFetcher<T, KPH> {
 		public void onProcessingTime(long timestamp) throws Exception {
 
 			long minAcrossAll = Long.MAX_VALUE;
+			boolean isEffectiveMinAggregation = false;
 			for (KafkaTopicPartitionState<?> state : allPartitions) {
 
 				// we access the current watermark for the periodic assigners under the state
@@ -638,10 +721,11 @@ public abstract class AbstractFetcher<T, KPH> {
 				}
 
 				minAcrossAll = Math.min(minAcrossAll, curr);
+				isEffectiveMinAggregation = true;
 			}
 
 			// emit next watermark, if there is one
-			if (minAcrossAll > lastWatermarkTimestamp) {
+			if (isEffectiveMinAggregation && minAcrossAll > lastWatermarkTimestamp) {
 				lastWatermarkTimestamp = minAcrossAll;
 				emitter.emitWatermark(new Watermark(minAcrossAll));
 			}

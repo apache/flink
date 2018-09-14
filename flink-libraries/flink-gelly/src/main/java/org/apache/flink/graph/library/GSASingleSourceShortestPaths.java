@@ -51,9 +51,9 @@ public class GSASingleSourceShortestPaths<K, VV> implements
 	@Override
 	public DataSet<Vertex<K, Double>> run(Graph<K, VV, Double> input) {
 
-		return input.mapVertices(new InitVerticesMapper<K, VV>(srcVertexId))
+		return input.mapVertices(new InitVerticesMapper<>(srcVertexId))
 				.runGatherSumApplyIteration(new CalculateDistances(), new ChooseMinDistance(),
-						new UpdateDistance<K>(), maxIterations)
+					new UpdateDistance<>(), maxIterations)
 						.getVertices();
 	}
 

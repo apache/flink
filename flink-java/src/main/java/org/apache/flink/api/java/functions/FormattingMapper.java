@@ -23,6 +23,10 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat.TextFormatter;
 
+/**
+ * Mapper that converts values to strings using a {@link TextFormatter}.
+ * @param <T>
+ */
 @Internal
 public class FormattingMapper<T> implements MapFunction<T, String> {
 	private static final long serialVersionUID = 1L;

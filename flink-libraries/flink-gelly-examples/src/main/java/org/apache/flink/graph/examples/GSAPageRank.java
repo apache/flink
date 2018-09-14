@@ -66,7 +66,7 @@ public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet
 		parameters.setOptNumVertices(true);
 
 		return networkWithWeights.runGatherSumApplyIteration(new GatherRanks(), new SumRanks(),
-				new UpdateRanks<K>(beta), maxIterations, parameters)
+			new UpdateRanks<>(beta), maxIterations, parameters)
 				.getVertices();
 	}
 

@@ -89,7 +89,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Edge<K, Tuple3<EV, LongValue, L
 			.join(vertexDegrees, JoinHint.REPARTITION_HASH_SECOND)
 			.where(1)
 			.equalTo(0)
-			.with(new JoinEdgeDegreeWithVertexDegree<K, EV, LongValue>())
+			.with(new JoinEdgeDegreeWithVertexDegree<>())
 				.setParallelism(parallelism)
 				.name("Edge target degree");
 	}

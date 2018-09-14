@@ -18,24 +18,27 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.epoll.Epoll;
-import io.netty.channel.epoll.EpollEventLoopGroup;
-import io.netty.channel.epoll.EpollServerSocketChannel;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.ssl.SslHandler;
+import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
+
+import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOption;
+import org.apache.flink.shaded.netty4.io.netty.channel.epoll.Epoll;
+import org.apache.flink.shaded.netty4.io.netty.channel.epoll.EpollEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.epoll.EpollServerSocketChannel;
+import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
+import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ThreadFactory;
@@ -58,8 +61,6 @@ class NettyServer {
 
 	private ChannelFuture bindFuture;
 
-	private SSLContext serverSSLContext = null;
-
 	private InetSocketAddress localAddress;
 
 	NettyServer(NettyConfig config) {
@@ -70,7 +71,7 @@ class NettyServer {
 	void init(final NettyProtocol protocol, NettyBufferPool nettyBufferPool) throws IOException {
 		checkState(bootstrap == null, "Netty server has already been initialized.");
 
-		long start = System.currentTimeMillis();
+		final long start = System.nanoTime();
 
 		bootstrap = new ServerBootstrap();
 
@@ -121,12 +122,23 @@ class NettyServer {
 		}
 
 		// Low and high water marks for flow control
-		bootstrap.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, config.getMemorySegmentSize() + 1);
-		bootstrap.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, 2 * config.getMemorySegmentSize());
+		// hack around the impossibility (in the current netty version) to set both watermarks at
+		// the same time:
+		final int defaultHighWaterMark = 64 * 1024; // from DefaultChannelConfig (not exposed)
+		final int newLowWaterMark = config.getMemorySegmentSize() + 1;
+		final int newHighWaterMark = 2 * config.getMemorySegmentSize();
+		if (newLowWaterMark > defaultHighWaterMark) {
+			bootstrap.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, newHighWaterMark);
+			bootstrap.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, newLowWaterMark);
+		} else { // including (newHighWaterMark < defaultLowWaterMark)
+			bootstrap.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, newLowWaterMark);
+			bootstrap.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, newHighWaterMark);
+		}
 
 		// SSL related configuration
+		final SSLEngineFactory sslEngineFactory;
 		try {
-			serverSSLContext = config.createServerSSLContext();
+			sslEngineFactory = config.createServerSSLEngineFactory();
 		} catch (Exception e) {
 			throw new IOException("Failed to initialize SSL Context for the Netty Server", e);
 		}
@@ -138,10 +150,8 @@ class NettyServer {
 		bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
 			@Override
 			public void initChannel(SocketChannel channel) throws Exception {
-				if (serverSSLContext != null) {
-					SSLEngine sslEngine = serverSSLContext.createSSLEngine();
-					config.setSSLVerAndCipherSuites(sslEngine);
-					sslEngine.setUseClientMode(false);
+				if (sslEngineFactory != null) {
+					SSLEngine sslEngine = sslEngineFactory.createSSLEngine();
 					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
 				}
 
@@ -157,8 +167,8 @@ class NettyServer {
 
 		localAddress = (InetSocketAddress) bindFuture.channel().localAddress();
 
-		long end = System.currentTimeMillis();
-		LOG.info("Successful initialization (took {} ms). Listening on SocketAddress {}.", (end - start), bindFuture.channel().localAddress().toString());
+		final long duration = (System.nanoTime() - start) / 1_000_000;
+		LOG.info("Successful initialization (took {} ms). Listening on SocketAddress {}.", duration, localAddress);
 	}
 
 	NettyConfig getConfig() {
@@ -174,7 +184,7 @@ class NettyServer {
 	}
 
 	void shutdown() {
-		long start = System.currentTimeMillis();
+		final long start = System.nanoTime();
 		if (bindFuture != null) {
 			bindFuture.channel().close().awaitUninterruptibly();
 			bindFuture = null;
@@ -186,8 +196,8 @@ class NettyServer {
 			}
 			bootstrap = null;
 		}
-		long end = System.currentTimeMillis();
-		LOG.info("Successful shutdown (took {} ms).", (end - start));
+		final long duration = (System.nanoTime() - start) / 1_000_000;
+		LOG.info("Successful shutdown (took {} ms).", duration);
 	}
 
 	private void initNioBootstrap() {

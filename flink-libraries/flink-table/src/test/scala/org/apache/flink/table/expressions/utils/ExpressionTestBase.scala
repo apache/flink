@@ -40,11 +40,11 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.Path
 import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableEnvironment}
 import org.apache.flink.table.calcite.FlinkPlannerImpl
-import org.apache.flink.table.codegen.{CodeGenerator, Compiler, GeneratedFunction}
+import org.apache.flink.table.codegen.{Compiler, FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.dataset.DataSetCalc
+import org.apache.flink.table.plan.nodes.dataset.{DataSetCalc, DataSetScan}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.types.Row
 import org.junit.Assert._
@@ -115,7 +115,7 @@ abstract class ExpressionTestBase {
   def evaluateExprs() = {
     val relBuilder = context._1
     val config = new TableConfig()
-    val generator = new CodeGenerator(config, false, typeInfo)
+    val generator = new FunctionCodeGenerator(config, false, typeInfo)
 
     // cast expressions to String
     val stringTestExprs = testExprs.map(expr => relBuilder.cast(expr._1, VARCHAR))
@@ -205,6 +205,11 @@ abstract class ExpressionTestBase {
     val physicalProps = converted.getTraitSet.replace(FlinkConventions.DATASET).simplify()
     val dataSetCalc = dataSetOptProgram.run(context._2.getPlanner, logicalCalc, physicalProps,
       ImmutableList.of(), ImmutableList.of())
+
+    // throw exception if plan contains more than a calc
+    if (!dataSetCalc.getInput(0).isInstanceOf[DataSetScan]) {
+      fail("Expression is converted into more than a Calc operation. Use a different test method.")
+    }
 
     // extract RexNode
     val calcProgram = dataSetCalc

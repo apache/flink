@@ -54,7 +54,7 @@ Traditionally, training and testing would be done to train an algorithms as norm
 
 In a train-test-holdout strategy we sacrifice the sample size of the initial fitting algorithm for increased confidence that our model is not over-fit.
 
-When using `trainTestHoldout` splitter, the *fraction* `Double` is replaced by a *fraction* array of length three. The first element coresponds to the portion to be used for training, second for testing, and third for holdout.  The weights of this array are *relative*, e.g. an array `Array(3.0, 2.0, 1.0)` would results in approximately 50% of the observations being in the training set, 33% of the observations in the testing set, and 17% of the observations in holdout set.
+When using `trainTestHoldout` splitter, the *fraction* `Double` is replaced by a *fraction* array of length three. The first element corresponds to the portion to be used for training, second for testing, and third for holdout.  The weights of this array are *relative*, e.g. an array `Array(3.0, 2.0, 1.0)` would results in approximately 50% of the observations being in the training set, 33% of the observations in the testing set, and 17% of the observations in holdout set.
 
 ### K-Fold Splits
 
@@ -62,7 +62,7 @@ In a *k-fold* strategy, the DataSet is split into *k* equal subsets. Then for ea
 
 For each training set, an algorithm is trained and then is evaluated based on the predictions based on the associated testing set. When an algorithm that has consistent grades (e.g. prediction errors) across held out datasets we can have some confidence that our approach (e.g. choice of algorithm / algorithm parameters / number of iterations) is robust against overfitting.
 
-<a href="https://en.wikipedia.org/wiki/Cross-validation_(statistics)#k-fold_cross-validation">K-Fold Cross Validatation</a>
+<a href="https://en.wikipedia.org/wiki/Cross-validation_(statistics)#k-fold_cross-validation">K-Fold Cross Validation</a>
 
 ### Multi-Random Splits
 
@@ -169,3 +169,5 @@ val dataKFolded: Array[TrainTestDataSet] =  Splitter.kFoldSplit(data, 10)
 // create an array of 5 datasets
 val dataMultiRandom: Array[DataSet[T]] = Splitter.multiRandomSplit(data, Array(0.5, 0.1, 0.1, 0.1, 0.1))
 {% endhighlight %}
+
+{% top %}

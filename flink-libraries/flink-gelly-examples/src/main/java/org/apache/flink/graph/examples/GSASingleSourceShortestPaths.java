@@ -179,7 +179,7 @@ public class GSASingleSourceShortestPaths implements ProgramDescription {
 					.fieldDelimiter("\t")
 					.lineDelimiter("\n")
 					.types(Long.class, Long.class, Double.class)
-					.map(new Tuple3ToEdgeMap<Long, Double>());
+					.map(new Tuple3ToEdgeMap<>());
 		} else {
 			return SingleSourceShortestPathsData.getDefaultEdgeDataSet(env);
 		}

@@ -21,6 +21,7 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.minicluster.JobExecutor;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
@@ -37,20 +38,20 @@ import java.util.Collections;
  */
 public class TestStreamEnvironment extends StreamExecutionEnvironment {
 
-	/** The mini cluster in which this environment executes its jobs. */
-	private final LocalFlinkMiniCluster miniCluster;
+	/** The job executor to use to execute environment's jobs. */
+	private final JobExecutor jobExecutor;
 
 	private final Collection<Path> jarFiles;
 
 	private final Collection<URL> classPaths;
 
 	public TestStreamEnvironment(
-			LocalFlinkMiniCluster miniCluster,
+			JobExecutor jobExecutor,
 			int parallelism,
 			Collection<Path> jarFiles,
 			Collection<URL> classPaths) {
 
-		this.miniCluster = Preconditions.checkNotNull(miniCluster);
+		this.jobExecutor = Preconditions.checkNotNull(jobExecutor);
 		this.jarFiles = Preconditions.checkNotNull(jarFiles);
 		this.classPaths = Preconditions.checkNotNull(classPaths);
 
@@ -58,9 +59,9 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	public TestStreamEnvironment(
-			LocalFlinkMiniCluster miniCluster,
+			JobExecutor jobExecutor,
 			int parallelism) {
-		this(miniCluster, parallelism, Collections.<Path>emptyList(), Collections.<URL>emptyList());
+		this(jobExecutor, parallelism, Collections.emptyList(), Collections.emptyList());
 	}
 
 	@Override
@@ -69,13 +70,13 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 		streamGraph.setJobName(jobName);
 		final JobGraph jobGraph = streamGraph.getJobGraph();
 
-		for (Path jarFile: jarFiles) {
+		for (Path jarFile : jarFiles) {
 			jobGraph.addJar(jarFile);
 		}
 
 		jobGraph.setClasspaths(new ArrayList<>(classPaths));
 
-		return miniCluster.submitJobAndWait(jobGraph, false);
+		return jobExecutor.executeJobBlocking(jobGraph);
 	}
 
 	// ------------------------------------------------------------------------
@@ -85,13 +86,13 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	 * the given cluster with the given default parallelism and the specified jar files and class
 	 * paths.
 	 *
-	 * @param cluster The test cluster to run the test program on.
+	 * @param jobExecutor The executor to execute the jobs on
 	 * @param parallelism The default parallelism for the test programs.
 	 * @param jarFiles Additional jar files to execute the job with
 	 * @param classpaths Additional class paths to execute the job with
 	 */
 	public static void setAsContext(
-			final LocalFlinkMiniCluster cluster,
+			final JobExecutor jobExecutor,
 			final int parallelism,
 			final Collection<Path> jarFiles,
 			final Collection<URL> classpaths) {
@@ -100,7 +101,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 			@Override
 			public StreamExecutionEnvironment createExecutionEnvironment() {
 				return new TestStreamEnvironment(
-					cluster,
+					jobExecutor,
 					parallelism,
 					jarFiles,
 					classpaths);
@@ -114,15 +115,15 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	 * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
 	 * the given cluster with the given default parallelism.
 	 *
-	 * @param cluster The test cluster to run the test program on.
+	 * @param jobExecutor The executor to execute the jobs on
 	 * @param parallelism The default parallelism for the test programs.
 	 */
-	public static void setAsContext(final LocalFlinkMiniCluster cluster, final int parallelism) {
+	public static void setAsContext(final JobExecutor jobExecutor, final int parallelism) {
 		setAsContext(
-			cluster,
+			jobExecutor,
 			parallelism,
-			Collections.<Path>emptyList(),
-			Collections.<URL>emptyList());
+			Collections.emptyList(),
+			Collections.emptyList());
 	}
 
 	/**

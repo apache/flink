@@ -59,7 +59,7 @@ implements GraphAnalytic<K, VV, EV, T> {
 	 */
 	public GraphAnalyticBase<K, VV, EV, T> setParallelism(int parallelism) {
 		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT,
-			"The parallelism must be greater than zero.");
+				"The parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT (use system default).");
 
 		this.parallelism = parallelism;
 

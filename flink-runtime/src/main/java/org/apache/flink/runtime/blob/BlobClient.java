@@ -21,47 +21,40 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.net.SSLUtils;
-import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.IOUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLParameters;
-import javax.net.ssl.SSLSocket;
+import javax.annotation.Nullable;
+
 import java.io.Closeable;
 import java.io.EOFException;
+import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.BUFFER_SIZE;
-import static org.apache.flink.runtime.blob.BlobServerProtocol.CONTENT_ADDRESSABLE;
-import static org.apache.flink.runtime.blob.BlobServerProtocol.DELETE_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.GET_OPERATION;
-import static org.apache.flink.runtime.blob.BlobServerProtocol.PUT_OPERATION;
+import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_RELATED_CONTENT;
+import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_UNRELATED_CONTENT;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_ERROR;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_OKAY;
-import static org.apache.flink.runtime.blob.BlobUtils.readFully;
-import static org.apache.flink.runtime.blob.BlobUtils.readLength;
-import static org.apache.flink.runtime.blob.BlobUtils.writeLength;
+import static org.apache.flink.runtime.blob.BlobUtils.readExceptionFromStream;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The BLOB client can communicate with the BLOB server and either upload (PUT), download (GET),
@@ -72,54 +65,115 @@ public final class BlobClient implements Closeable {
 	private static final Logger LOG = LoggerFactory.getLogger(BlobClient.class);
 
 	/** The socket connection to the BLOB server. */
-	private Socket socket;
+	private final Socket socket;
 
 	/**
 	 * Instantiates a new BLOB client.
-	 * 
+	 *
 	 * @param serverAddress
 	 *        the network address of the BLOB server
 	 * @param clientConfig
 	 *        additional configuration like SSL parameters required to connect to the blob server
+	 *
 	 * @throws IOException
 	 *         thrown if the connection to the BLOB server could not be established
 	 */
 	public BlobClient(InetSocketAddress serverAddress, Configuration clientConfig) throws IOException {
+		Socket socket = null;
 
 		try {
-			// Check if ssl is enabled
-			SSLContext clientSSLContext = null;
-			if (clientConfig != null &&
-				clientConfig.getBoolean(BlobServerOptions.SSL_ENABLED)) {
-
-				clientSSLContext = SSLUtils.createSSLClientContext(clientConfig);
-			}
-
-			if (clientSSLContext != null) {
-
+			// create an SSL socket if configured
+			if (SSLUtils.isInternalSSLEnabled(clientConfig) && clientConfig.getBoolean(BlobServerOptions.SSL_ENABLED)) {
 				LOG.info("Using ssl connection to the blob server");
 
-				SSLSocket sslSocket = (SSLSocket) clientSSLContext.getSocketFactory().createSocket(
+				socket = SSLUtils.createSSLClientSocketFactory(clientConfig).createSocket(
 					serverAddress.getAddress(),
 					serverAddress.getPort());
-
-				// Enable hostname verification for remote SSL connections
-				if (!serverAddress.getAddress().isLoopbackAddress()) {
-					SSLParameters newSSLParameters = sslSocket.getSSLParameters();
-					SSLUtils.setSSLVerifyHostname(clientConfig, newSSLParameters);
-					sslSocket.setSSLParameters(newSSLParameters);
-				}
-				this.socket = sslSocket;
-			} else {
-				this.socket = new Socket();
-				this.socket.connect(serverAddress);
 			}
-
+			else {
+				socket = new Socket();
+				socket.connect(serverAddress);
+			}
 		}
-		catch(Exception e) {
+		catch (Exception e) {
 			BlobUtils.closeSilently(socket, LOG);
 			throw new IOException("Could not connect to BlobServer at address " + serverAddress, e);
 		}
+
+		this.socket = socket;
+	}
+
+	/**
+	 * Downloads the given BLOB from the given server and stores its contents to a (local) file.
+	 *
+	 * <p>Transient BLOB files are deleted after a successful copy of the server's data into the
+	 * given <tt>localJarFile</tt>.
+	 *
+	 * @param jobId
+	 * 		job ID the BLOB belongs to or <tt>null</tt> if job-unrelated
+	 * @param blobKey
+	 * 		BLOB key
+	 * @param localJarFile
+	 * 		the local file to write to
+	 * @param serverAddress
+	 * 		address of the server to download from
+	 * @param blobClientConfig
+	 * 		client configuration for the connection
+	 * @param numFetchRetries
+	 * 		number of retries before failing
+	 *
+	 * @throws IOException
+	 * 		if an I/O error occurs during the download
+	 */
+	static void downloadFromBlobServer(
+			@Nullable JobID jobId,
+			BlobKey blobKey,
+			File localJarFile,
+			InetSocketAddress serverAddress,
+			Configuration blobClientConfig,
+			int numFetchRetries) throws IOException {
+
+		final byte[] buf = new byte[BUFFER_SIZE];
+		LOG.info("Downloading {}/{} from {}", jobId, blobKey, serverAddress);
+
+		// loop over retries
+		int attempt = 0;
+		while (true) {
+			try (
+				final BlobClient bc = new BlobClient(serverAddress, blobClientConfig);
+				final InputStream is = bc.getInternal(jobId, blobKey);
+				final OutputStream os = new FileOutputStream(localJarFile)
+			) {
+				while (true) {
+					final int read = is.read(buf);
+					if (read < 0) {
+						break;
+					}
+					os.write(buf, 0, read);
+				}
+
+				return;
+			}
+			catch (Throwable t) {
+				String message = "Failed to fetch BLOB " + jobId + "/" + blobKey + " from " + serverAddress +
+					" and store it under " + localJarFile.getAbsolutePath();
+				if (attempt < numFetchRetries) {
+					if (LOG.isDebugEnabled()) {
+						LOG.error(message + " Retrying...", t);
+					} else {
+						LOG.error(message + " Retrying...");
+					}
+				}
+				else {
+					LOG.error(message + " No retries left.", t);
+					throw new IOException(message, t);
+				}
+
+				// retry
+				++attempt;
+				LOG.info("Downloading {}/{} from {} (retry {})", jobId, blobKey, serverAddress, attempt);
+			}
+		} // end loop over retries
 	}
 
 	@Override
@@ -136,22 +190,30 @@ public final class BlobClient implements Closeable {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Downloads the BLOB identified by the given BLOB key from the BLOB server. If no such BLOB exists on the server, a
-	 * {@link FileNotFoundException} is thrown.
-	 * 
+	 * Downloads the BLOB identified by the given BLOB key from the BLOB server.
+	 *
+	 * @param jobId
+	 * 		ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
 	 * @param blobKey
-	 *        the BLOB key identifying the BLOB to download
+	 * 		blob key associated with the requested file
+	 *
 	 * @return an input stream to read the retrieved data from
+	 *
+	 * @throws FileNotFoundException
+	 * 		if there is no such file;
 	 * @throws IOException
-	 *         thrown if an I/O error occurs during the download
+	 * 		if an I/O error occurs during the download
 	 */
-	public InputStream get(BlobKey blobKey) throws IOException {
+	InputStream getInternal(@Nullable JobID jobId, BlobKey blobKey)
+			throws IOException {
+
 		if (this.socket.isClosed()) {
 			throw new IllegalStateException("BLOB Client is not connected. " +
 					"Client has been shut down or encountered an error before.");
 		}
 		if (LOG.isDebugEnabled()) {
-			LOG.debug(String.format("GET content addressable BLOB %s from %s", blobKey, socket.getLocalSocketAddress()));
+			LOG.debug("GET BLOB {}/{} from {}.", jobId, blobKey,
+				socket.getLocalSocketAddress());
 		}
 
 		try {
@@ -159,10 +221,10 @@ public final class BlobClient implements Closeable {
 			InputStream is = this.socket.getInputStream();
 
 			// Send GET header
-			sendGetHeader(os, null, blobKey);
-			receiveAndCheckResponse(is);
+			sendGetHeader(os, jobId, blobKey);
+			receiveAndCheckGetResponse(is);
 
-			return new BlobInputStream(is, blobKey);
+			return new BlobInputStream(is, blobKey, os);
 		}
 		catch (Throwable t) {
 			BlobUtils.closeSilently(socket, LOG);
@@ -175,29 +237,44 @@ public final class BlobClient implements Closeable {
 	 *
 	 * @param outputStream
 	 *        the output stream to write the header data to
-	 * @param jobID
-	 *        the job ID identifying the BLOB to download or <code>null</code> to indicate the BLOB key should be used
-	 *        to identify the BLOB on the server instead
+	 * @param jobId
+	 * 		ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
 	 * @param blobKey
-	 *        the BLOB key to identify the BLOB to download if either the job ID or the regular key are
-	 *        <code>null</code>
+	 * 		blob key associated with the requested file
+	 *
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while writing the header data to the output stream
 	 */
-	private void sendGetHeader(OutputStream outputStream, JobID jobID, BlobKey blobKey) throws IOException {
-		checkArgument(jobID == null);
+	private static void sendGetHeader(
+			OutputStream outputStream, @Nullable JobID jobId, BlobKey blobKey)
+			throws IOException {
+		checkNotNull(blobKey);
+		checkArgument(jobId != null || blobKey instanceof TransientBlobKey,
+			"permanent BLOBs must be job-related");
 
 		// Signal type of operation
 		outputStream.write(GET_OPERATION);
 
-		// Check if GET should be done in content-addressable manner
-		if (jobID == null) {
-			outputStream.write(CONTENT_ADDRESSABLE);
-			blobKey.writeToOutputStream(outputStream);
+		// Send job ID and key
+		if (jobId == null) {
+			outputStream.write(JOB_UNRELATED_CONTENT);
+		} else {
+			outputStream.write(JOB_RELATED_CONTENT);
+			outputStream.write(jobId.getBytes());
 		}
+		blobKey.writeToOutputStream(outputStream);
 	}
 
-	private void receiveAndCheckResponse(InputStream is) throws IOException {
+	/**
+	 * Reads the response from the input stream and throws in case of errors.
+	 *
+	 * @param is
+	 * 		stream to read from
+	 *
+	 * @throws IOException
+	 * 		if the response is an error or reading the response failed
+	 */
+	private static void receiveAndCheckGetResponse(InputStream is) throws IOException {
 		int response = is.read();
 		if (response < 0) {
 			throw new EOFException("Premature end of response");
@@ -217,111 +294,43 @@ public final class BlobClient implements Closeable {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Uploads the data of the given byte array to the BLOB server in a content-addressable manner.
-	 *
-	 * @param value
-	 *        the buffer to upload
-	 * @return the computed BLOB key identifying the BLOB on the server
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while uploading the data to the BLOB server
-	 */
-	public BlobKey put(byte[] value) throws IOException {
-		return put(value, 0, value.length);
-	}
-
-	/**
-	 * Uploads data from the given byte array to the BLOB server in a content-addressable manner.
-	 *
-	 * @param value
-	 *        the buffer to upload data from
-	 * @param offset
-	 *        the read offset within the buffer
-	 * @param len
-	 *        the number of bytes to upload from the buffer
-	 * @return the computed BLOB key identifying the BLOB on the server
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while uploading the data to the BLOB server
-	 */
-	public BlobKey put(byte[] value, int offset, int len) throws IOException {
-		return putBuffer(null, value, offset, len);
-	}
-
-	/**
-	 * Uploads the data from the given input stream to the BLOB server in a content-addressable manner.
-	 *
-	 * @param inputStream
-	 *        the input stream to read the data from
-	 * @return the computed BLOB key identifying the BLOB on the server
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while reading the data from the input stream or uploading the data to the
-	 *         BLOB server
-	 */
-	public BlobKey put(InputStream inputStream) throws IOException {
-		return putInputStream(null, inputStream);
-	}
-
-	/**
 	 * Uploads data from the given byte buffer to the BLOB server.
 	 *
 	 * @param jobId
-	 *        the ID of the job the BLOB belongs to or <code>null</code> to store the BLOB in a content-addressable
-	 *        manner
+	 * 		the ID of the job the BLOB belongs to (or <tt>null</tt> if job-unrelated)
 	 * @param value
-	 *        the buffer to read the data from
+	 * 		the buffer to read the data from
 	 * @param offset
-	 *        the read offset within the buffer
+	 * 		the read offset within the buffer
 	 * @param len
-	 *        the number of bytes to read from the buffer
-	 * @return the computed BLOB key if the BLOB has been stored in a content-addressable manner, <code>null</code>
-	 *         otherwise
+	 * 		the number of bytes to read from the buffer
+	 * @param blobType
+	 * 		whether the BLOB should become permanent or transient
+	 *
+	 * @return the computed BLOB key of the uploaded BLOB
+	 *
 	 * @throws IOException
-	 *         thrown if an I/O error occurs while uploading the data to the BLOB server
+	 * 		thrown if an I/O error occurs while uploading the data to the BLOB server
 	 */
-	private BlobKey putBuffer(JobID jobId, byte[] value, int offset, int len) throws IOException {
+	BlobKey putBuffer(
+			@Nullable JobID jobId, byte[] value, int offset, int len, BlobKey.BlobType blobType)
+			throws IOException {
+
 		if (this.socket.isClosed()) {
 			throw new IllegalStateException("BLOB Client is not connected. " +
 					"Client has been shut down or encountered an error before.");
 		}
+		checkNotNull(value);
 
 		if (LOG.isDebugEnabled()) {
-			if (jobId == null) {
-				LOG.debug(String.format("PUT content addressable BLOB buffer (%d bytes) to %s",
-						len, socket.getLocalSocketAddress()));
-			}
+			LOG.debug("PUT BLOB buffer (" + len + " bytes) to " + socket.getLocalSocketAddress() + ".");
 		}
 
-		try {
-			final OutputStream os = this.socket.getOutputStream();
-			final MessageDigest md = jobId == null ? BlobUtils.createMessageDigest() : null;
-
-			// Send the PUT header
-			sendPutHeader(os, jobId);
-
-			// Send the value in iterations of BUFFER_SIZE
-			int remainingBytes = len;
-
-			while (remainingBytes > 0) {
-				final int bytesToSend = Math.min(BUFFER_SIZE, remainingBytes);
-				writeLength(bytesToSend, os);
-
-				os.write(value, offset, bytesToSend);
-
-				// Update the message digest if necessary
-				if (md != null) {
-					md.update(value, offset, bytesToSend);
-				}
-
-				remainingBytes -= bytesToSend;
-				offset += bytesToSend;
-			}
-			// send -1 as the stream end
-			writeLength(-1, os);
-
+		try (BlobOutputStream os = new BlobOutputStream(jobId, blobType, socket)) {
+			os.write(value, offset, len);
 			// Receive blob key and compare
-			final InputStream is = this.socket.getInputStream();
-			return receivePutResponseAndCompare(is, md);
-		}
-		catch (Throwable t) {
+			return os.finish();
+		} catch (Throwable t) {
 			BlobUtils.closeSilently(socket, LOG);
 			throw new IOException("PUT operation failed: " + t.getMessage(), t);
 		}
@@ -331,230 +340,70 @@ public final class BlobClient implements Closeable {
 	 * Uploads data from the given input stream to the BLOB server.
 	 *
 	 * @param jobId
-	 *        the ID of the job the BLOB belongs to or <code>null</code> to store the BLOB in a content-addressable
-	 *        manner
+	 * 		the ID of the job the BLOB belongs to (or <tt>null</tt> if job-unrelated)
 	 * @param inputStream
-	 *        the input stream to read the data from
-	 * @return he computed BLOB key if the BLOB has been stored in a content-addressable manner, <code>null</code>
-	 *         otherwise
+	 * 		the input stream to read the data from
+	 * @param blobType
+	 * 		whether the BLOB should become permanent or transient
+	 *
+	 * @return the computed BLOB key of the uploaded BLOB
+	 *
 	 * @throws IOException
-	 *         thrown if an I/O error occurs while uploading the data to the BLOB server
+	 * 		thrown if an I/O error occurs while uploading the data to the BLOB server
 	 */
-	private BlobKey putInputStream(JobID jobId, InputStream inputStream) throws IOException {
+	BlobKey putInputStream(@Nullable JobID jobId, InputStream inputStream, BlobKey.BlobType blobType)
+			throws IOException {
+
 		if (this.socket.isClosed()) {
 			throw new IllegalStateException("BLOB Client is not connected. " +
 					"Client has been shut down or encountered an error before.");
 		}
+		checkNotNull(inputStream);
 
 		if (LOG.isDebugEnabled()) {
-			if (jobId == null) {
-				LOG.debug(String.format("PUT content addressable BLOB stream to %s",
-						socket.getLocalSocketAddress()));
-			}
+			LOG.debug("PUT BLOB stream to {}.", socket.getLocalSocketAddress());
 		}
 
-		try {
-			final OutputStream os = this.socket.getOutputStream();
-			final MessageDigest md = jobId == null ? BlobUtils.createMessageDigest() : null;
-			final byte[] xferBuf = new byte[BUFFER_SIZE];
-
-			// Send the PUT header
-			sendPutHeader(os, jobId);
-
-			while (true) {
-				final int read = inputStream.read(xferBuf);
-				if (read < 0) {
-					// we are done. send a -1 and be done
-					writeLength(-1, os);
-					break;
-				}
-				if (read > 0) {
-					writeLength(read, os);
-					os.write(xferBuf, 0, read);
-					if (md != null) {
-						md.update(xferBuf, 0, read);
-					}
-				}
-			}
-
-			// Receive blob key and compare
-			final InputStream is = this.socket.getInputStream();
-			return receivePutResponseAndCompare(is, md);
-		}
-		catch (Throwable t) {
+		try (BlobOutputStream os = new BlobOutputStream(jobId, blobType, socket)) {
+			IOUtils.copyBytes(inputStream, os, BUFFER_SIZE, false);
+			return os.finish();
+		} catch (Throwable t) {
 			BlobUtils.closeSilently(socket, LOG);
 			throw new IOException("PUT operation failed: " + t.getMessage(), t);
 		}
 	}
 
-	private BlobKey receivePutResponseAndCompare(InputStream is, MessageDigest md) throws IOException {
-		int response = is.read();
-		if (response < 0) {
-			throw new EOFException("Premature end of response");
-		}
-		else if (response == RETURN_OKAY) {
-			if (md == null) {
-				// not content addressable
-				return null;
-			}
-
-			BlobKey remoteKey = BlobKey.readFromInputStream(is);
-			BlobKey localKey = new BlobKey(md.digest());
-
-			if (!localKey.equals(remoteKey)) {
-				throw new IOException("Detected data corruption during transfer");
-			}
-
-			return localKey;
-		}
-		else if (response == RETURN_ERROR) {
-			Throwable cause = readExceptionFromStream(is);
-			throw new IOException("Server side error: " + cause.getMessage(), cause);
-		}
-		else {
-			throw new IOException("Unrecognized response: " + response + '.');
-		}
-	}
-
 	/**
-	 * Constructs and writes the header data for a PUT request to the given output stream.
-	 * NOTE: If the jobId and key are null, we send the data to the content addressable section.
+	 * Uploads the JAR files to the {@link PermanentBlobService} of the {@link BlobServer} at the
+	 * given address with HA as configured.
 	 *
-	 * @param outputStream
-	 *        the output stream to write the PUT header data to
-	 * @param jobID
-	 *        the ID of job the BLOB belongs to or <code>null</code> to indicate the upload of a
-	 *        content-addressable BLOB
+	 * @param serverAddress
+	 * 		Server address of the {@link BlobServer}
+	 * @param clientConfig
+	 * 		Any additional configuration for the blob client
+	 * @param jobId
+	 * 		ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
+	 * @param files
+	 * 		List of files to upload
+	 *
 	 * @throws IOException
-	 *         thrown if an I/O error occurs while writing the header data to the output stream
+	 * 		if the upload fails
 	 */
-	private void sendPutHeader(OutputStream outputStream, JobID jobID) throws IOException {
-		checkArgument(jobID == null);
+	public static List<PermanentBlobKey> uploadFiles(
+			InetSocketAddress serverAddress, Configuration clientConfig, JobID jobId, List<Path> files)
+			throws IOException {
 
-		// Signal type of operation
-		outputStream.write(PUT_OPERATION);
+		checkNotNull(jobId);
 
-		// Check if PUT should be done in content-addressable manner
-		outputStream.write(CONTENT_ADDRESSABLE);
-	}
-
-	// --------------------------------------------------------------------------------------------
-	//  DELETE
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Deletes the BLOB identified by the given BLOB key from the BLOB server.
-	 *
-	 * @param blobKey
-	 *        the key to identify the BLOB
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while transferring the request to
-	 *         the BLOB server or if the BLOB server cannot delete the file
-	 */
-	public void delete(BlobKey blobKey) throws IOException {
-		checkArgument(blobKey != null, "BLOB key must not be null.");
-
-		try {
-			final OutputStream outputStream = this.socket.getOutputStream();
-			final InputStream inputStream = this.socket.getInputStream();
-
-			// Signal type of operation
-			outputStream.write(DELETE_OPERATION);
-
-			// delete blob key
-			outputStream.write(CONTENT_ADDRESSABLE);
-			blobKey.writeToOutputStream(outputStream);
-
-			int response = inputStream.read();
-			if (response < 0) {
-				throw new EOFException("Premature end of response");
-			}
-			if (response == RETURN_ERROR) {
-				Throwable cause = readExceptionFromStream(inputStream);
-				throw new IOException("Server side error: " + cause.getMessage(), cause);
-			}
-			else if (response != RETURN_OKAY) {
-				throw new IOException("Unrecognized response");
-			}
-		}
-		catch (Throwable t) {
-			BlobUtils.closeSilently(socket, LOG);
-			throw new IOException("DELETE operation failed: " + t.getMessage(), t);
-		}
-	}
-
-	/**
-	 * Retrieves the {@link BlobServer} address from the JobManager and uploads
-	 * the JAR files to it.
-	 *
-	 * @param jobManager   Server address of the {@link BlobServer}
-	 * @param askTimeout   Ask timeout for blob server address retrieval
-	 * @param clientConfig Any additional configuration for the blob client
-	 * @param jars         List of JAR files to upload
-	 * @throws IOException Thrown if the address retrieval or upload fails
-	 */
-	public static List<BlobKey> uploadJarFiles(
-			ActorGateway jobManager,
-			FiniteDuration askTimeout,
-			Configuration clientConfig,
-			List<Path> jars) throws IOException {
-
-		if (jars.isEmpty()) {
+		if (files.isEmpty()) {
 			return Collections.emptyList();
 		} else {
-			Object msg = JobManagerMessages.getRequestBlobManagerPort();
-			Future<Object> futureBlobPort = jobManager.ask(msg, askTimeout);
-
-			try {
-				// Retrieve address
-				Object result = Await.result(futureBlobPort, askTimeout);
-				if (result instanceof Integer) {
-					int port = (Integer) result;
-					LOG.info("Blob client connecting to " + jobManager.path());
-
-					Option<String> jmHost = jobManager.actor().path().address().host();
-					String jmHostname = jmHost.isDefined() ? jmHost.get() : "localhost";
-					InetSocketAddress serverAddress = new InetSocketAddress(jmHostname, port);
-
-					// Now, upload
-					return uploadJarFiles(serverAddress, clientConfig, jars);
-				} else {
-					throw new Exception("Expected port number (int) as answer, received " + result);
-				}
-			} catch (Exception e) {
-				throw new IOException("Could not retrieve the JobManager's blob port.", e);
-			}
-		}
-	}
-
-	/**
-	 * Uploads the JAR files to a {@link BlobServer} at the given address.
-	 *
-	 * @param serverAddress Server address of the {@link BlobServer}
-	 * @param clientConfig Any additional configuration for the blob client
-	 * @param jars List of JAR files to upload
-	 * @throws IOException Thrown if the upload fails
-	 */
-	public static List<BlobKey> uploadJarFiles(InetSocketAddress serverAddress,
-			Configuration clientConfig, List<Path> jars) throws IOException {
-		if (jars.isEmpty()) {
-			return Collections.emptyList();
-		} else {
-			List<BlobKey> blobKeys = new ArrayList<>();
+			List<PermanentBlobKey> blobKeys = new ArrayList<>();
 
 			try (BlobClient blobClient = new BlobClient(serverAddress, clientConfig)) {
-				for (final Path jar : jars) {
-					final FileSystem fs = jar.getFileSystem();
-					FSDataInputStream is = null;
-					try {
-						is = fs.open(jar);
-						final BlobKey key = blobClient.put(is);
-						blobKeys.add(key);
-					} finally {
-						if (is != null) {
-							is.close();
-						}
-					}
+				for (final Path file : files) {
+					final PermanentBlobKey key = blobClient.uploadFile(jobId, file);
+					blobKeys.add(key);
 				}
 			}
 
@@ -562,21 +411,21 @@ public final class BlobClient implements Closeable {
 		}
 	}
 
-	// --------------------------------------------------------------------------------------------
-	//  Miscellaneous
-	// --------------------------------------------------------------------------------------------
-
-	private static Throwable readExceptionFromStream(InputStream in) throws IOException {
-		int len = readLength(in);
-		byte[] bytes = new byte[len];
-		readFully(in, bytes, 0, len, "Error message");
-
-		try {
-			return (Throwable) InstantiationUtil.deserializeObject(bytes, ClassLoader.getSystemClassLoader());
-		}
-		catch (ClassNotFoundException e) {
-			// should never occur
-			throw new IOException("Could not transfer error message", e);
+	/**
+	 * Uploads a single file to the {@link PermanentBlobService} of the given {@link BlobServer}.
+	 *
+	 * @param jobId
+	 * 		ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
+	 * @param file
+	 * 		file to upload
+	 *
+	 * @throws IOException
+	 * 		if the upload fails
+	 */
+	public PermanentBlobKey uploadFile(JobID jobId, Path file) throws IOException {
+		final FileSystem fs = file.getFileSystem();
+		try (InputStream is = fs.open(file)) {
+			return (PermanentBlobKey) putInputStream(jobId, is, PERMANENT_BLOB);
 		}
 	}
 }

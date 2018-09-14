@@ -22,13 +22,13 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook.Factory;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -36,6 +36,7 @@ import javax.annotation.Nullable;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import static java.util.Arrays.asList;
@@ -48,7 +49,7 @@ import static org.junit.Assert.assertTrue;
  * configured in the job's checkpoint settings.
  */
 @SuppressWarnings("serial")
-public class WithMasterCheckpointHookConfigTest {
+public class WithMasterCheckpointHookConfigTest extends TestLogger {
 
 	/**
 	 * This test creates a program with 4 sources (2 with master hooks, 2 without).
@@ -115,7 +116,17 @@ public class WithMasterCheckpointHookConfigTest {
 		}
 
 		@Override
-		public Future<String> triggerCheckpoint(long checkpointId, long timestamp, Executor executor) {
+		public void reset() throws Exception {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void close() throws Exception {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public CompletableFuture<String> triggerCheckpoint(long checkpointId, long timestamp, Executor executor) {
 			throw new UnsupportedOperationException();
 		}
 

@@ -38,4 +38,17 @@ public class CEP {
 	public static <T> PatternStream<T> pattern(DataStream<T> input, Pattern<T, ?> pattern) {
 		return new PatternStream<>(input, pattern);
 	}
+
+	/**
+	 * Creates a {@link PatternStream} from an input data stream and a pattern.
+	 *
+	 * @param input DataStream containing the input events
+	 * @param pattern Pattern specification which shall be detected
+	 * @param comparator Comparator to sort events with equal timestamps
+	 * @param <T> Type of the input events
+	 * @return Resulting pattern stream
+	 */
+	public static <T> PatternStream<T> pattern(DataStream<T> input, Pattern<T, ?> pattern, EventComparator<T> comparator) {
+		return new PatternStream<>(input, pattern, comparator);
+	}
 }

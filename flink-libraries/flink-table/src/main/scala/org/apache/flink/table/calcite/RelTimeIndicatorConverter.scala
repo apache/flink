@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl, RelRecordType}
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.logical._
 import org.apache.calcite.rel.{RelNode, RelShuttle}
@@ -26,10 +26,11 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.calcite.FlinkTypeFactory.isTimeIndicatorType
-import org.apache.flink.table.functions.TimeMaterializationSqlFunction
+import org.apache.flink.table.calcite.FlinkTypeFactory.{isRowtimeIndicatorType, _}
+import org.apache.flink.table.functions.sql.ProctimeSqlFunction
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
 import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
+import org.apache.flink.table.validate.BasicOperatorTable
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -44,7 +45,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
   private val timestamp = rexBuilder
       .getTypeFactory
       .asInstanceOf[FlinkTypeFactory]
-      .createTypeFromTypeInfo(SqlTimeTypeInfo.TIMESTAMP)
+      .createTypeFromTypeInfo(SqlTimeTypeInfo.TIMESTAMP, isNullable = false)
 
   override def visit(intersect: LogicalIntersect): RelNode =
     throw new TableException("Logical intersect in a stream environment is not supported yet.")
@@ -138,15 +139,10 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     // visit children and update inputs
     val input = filter.getInput.accept(this)
 
-    // check if input field contains time indicator type
-    // materialize field if no time indicator is present anymore
-    // if input field is already materialized, change to timestamp type
-    val materializer = new RexTimeIndicatorMaterializer(
-      rexBuilder,
-      input.getRowType.getFieldList.map(_.getType))
-
-    val condition = filter.getCondition.accept(materializer)
-    LogicalFilter.create(input, condition)
+    // We do not materialize time indicators in conditions because they can be locally evaluated.
+    // Some conditions are evaluated by special operators (e.g., time window joins).
+    // Time indicators in remaining conditions are materialized by Calc before the code generation.
+    LogicalFilter.create(input, filter.getCondition)
   }
 
   override def visit(project: LogicalProject): RelNode = {
@@ -165,8 +161,14 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     LogicalProject.create(input, projects, fieldNames)
   }
 
-  override def visit(join: LogicalJoin): RelNode =
-    throw new TableException("Logical join in a stream environment is not supported yet.")
+  override def visit(join: LogicalJoin): RelNode = {
+    val left = join.getLeft.accept(this)
+    val right = join.getRight.accept(this)
+
+    LogicalJoin.create(left, right, join.getCondition, join.getVariablesSet, join.getJoinType)
+
+  }
+
 
   override def visit(correlate: LogicalCorrelate): RelNode = {
     // visit children and update inputs
@@ -241,9 +243,13 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         case lp: LogicalProject =>
           val projects = lp.getProjects.zipWithIndex.map { case (expr, idx) =>
             if (isTimeIndicatorType(expr.getType) && refIndices.contains(idx)) {
-              rexBuilder.makeCall(
-                TimeMaterializationSqlFunction,
-                expr)
+              if (isRowtimeIndicatorType(expr.getType)) {
+                // cast rowtime indicator to regular timestamp
+                rexBuilder.makeAbstractCast(timestamp, expr)
+              } else {
+                // generate proctime access
+                rexBuilder.makeCall(ProctimeSqlFunction, expr)
+              }
             } else {
               expr
             }
@@ -258,9 +264,17 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         case _ =>
           val projects = input.getRowType.getFieldList.map { field =>
             if (isTimeIndicatorType(field.getType) && refIndices.contains(field.getIndex)) {
-              rexBuilder.makeCall(
-                TimeMaterializationSqlFunction,
-                new RexInputRef(field.getIndex, field.getType))
+              if (isRowtimeIndicatorType(field.getType)) {
+                // cast rowtime indicator to regular timestamp
+                rexBuilder.makeAbstractCast(
+                  timestamp,
+                  new RexInputRef(field.getIndex, field.getType))
+              } else {
+                // generate proctime access
+                rexBuilder.makeCall(
+                  ProctimeSqlFunction,
+                  new RexInputRef(field.getIndex, field.getType))
+              }
             } else {
               new RexInputRef(field.getIndex, field.getType)
             }
@@ -300,68 +314,6 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       updatedAggCalls)
   }
 
-  class RexTimeIndicatorMaterializer(
-      private val rexBuilder: RexBuilder,
-      private val input: Seq[RelDataType])
-    extends RexShuttle {
-
-    override def visitInputRef(inputRef: RexInputRef): RexNode = {
-      // reference is interesting
-      if (isTimeIndicatorType(inputRef.getType)) {
-        val resolvedRefType = input(inputRef.getIndex)
-        // input is a valid time indicator
-        if (isTimeIndicatorType(resolvedRefType)) {
-          inputRef
-        }
-        // input has been materialized
-        else {
-          new RexInputRef(inputRef.getIndex, resolvedRefType)
-        }
-      }
-      // reference is a regular field
-      else {
-        super.visitInputRef(inputRef)
-      }
-    }
-
-    override def visitCall(call: RexCall): RexNode = {
-      val updatedCall = super.visitCall(call).asInstanceOf[RexCall]
-
-      // materialize operands with time indicators
-      val materializedOperands = updatedCall.getOperator match {
-
-        // skip materialization for special operators
-        case SqlStdOperatorTable.SESSION | SqlStdOperatorTable.HOP | SqlStdOperatorTable.TUMBLE =>
-          updatedCall.getOperands.toList
-
-        case _ =>
-          updatedCall.getOperands.map { o =>
-            if (isTimeIndicatorType(o.getType)) {
-              rexBuilder.makeCall(TimeMaterializationSqlFunction, o)
-            } else {
-              o
-            }
-          }
-      }
-
-      // remove time indicator return type
-      updatedCall.getOperator match {
-
-        // we do not modify AS if operand has not been materialized
-        case SqlStdOperatorTable.AS if
-            isTimeIndicatorType(updatedCall.getOperands.get(0).getType) =>
-          updatedCall
-
-        // materialize function's result and operands
-        case _ if isTimeIndicatorType(updatedCall.getType) =>
-          updatedCall.clone(timestamp, materializedOperands)
-
-        // materialize function's operands only
-        case _ =>
-          updatedCall.clone(updatedCall.getType, materializedOperands)
-      }
-    }
-  }
 }
 
 object RelTimeIndicatorConverter {
@@ -372,19 +324,19 @@ object RelTimeIndicatorConverter {
 
     var needsConversion = false
 
-    // materialize all remaining time indicators
+    // materialize remaining proctime indicators
     val projects = convertedRoot.getRowType.getFieldList.map(field =>
-      if (isTimeIndicatorType(field.getType)) {
+      if (isProctimeIndicatorType(field.getType)) {
         needsConversion = true
         rexBuilder.makeCall(
-          TimeMaterializationSqlFunction,
+          ProctimeSqlFunction,
           new RexInputRef(field.getIndex, field.getType))
       } else {
         new RexInputRef(field.getIndex, field.getType)
       }
     )
 
-    // add final conversion
+    // add final conversion if necessary
     if (needsConversion) {
       LogicalProject.create(
       convertedRoot,
@@ -395,24 +347,106 @@ object RelTimeIndicatorConverter {
     }
   }
 
-  def convertOutputType(rootRel: RelNode): RelDataType = {
+  /**
+    * Materializes time indicator accesses in an expression.
+    *
+    * @param expr The expression in which time indicators are materialized.
+    * @param rowType The input schema of the expression.
+    * @param rexBuilder A RexBuilder.
+    *
+    * @return The expression with materialized time indicators.
+    */
+  def convertExpression(expr: RexNode, rowType: RelDataType, rexBuilder: RexBuilder): RexNode = {
+    val materializer = new RexTimeIndicatorMaterializer(
+          rexBuilder,
+          rowType.getFieldList.map(_.getType))
 
-    val timestamp = rootRel
-      .getCluster
-      .getRexBuilder
-      .getTypeFactory
-      .asInstanceOf[FlinkTypeFactory]
-      .createTypeFromTypeInfo(SqlTimeTypeInfo.TIMESTAMP)
+        expr.accept(materializer)
+  }
+}
 
-    // convert all time indicators types to timestamps
-    val fields = rootRel.getRowType.getFieldList.map { field =>
-      if (isTimeIndicatorType(field.getType)) {
-        new RelDataTypeFieldImpl(field.getName, field.getIndex, timestamp)
-      } else {
-        field
+class RexTimeIndicatorMaterializer(
+  private val rexBuilder: RexBuilder,
+  private val input: Seq[RelDataType])
+  extends RexShuttle {
+
+  private val timestamp = rexBuilder
+    .getTypeFactory
+    .asInstanceOf[FlinkTypeFactory]
+    .createTypeFromTypeInfo(SqlTimeTypeInfo.TIMESTAMP, isNullable = false)
+
+  override def visitInputRef(inputRef: RexInputRef): RexNode = {
+    // reference is interesting
+    if (isTimeIndicatorType(inputRef.getType)) {
+      val resolvedRefType = input(inputRef.getIndex)
+      // input is a valid time indicator
+      if (isTimeIndicatorType(resolvedRefType)) {
+        inputRef
+      }
+      // input has been materialized
+      else {
+        new RexInputRef(inputRef.getIndex, resolvedRefType)
       }
     }
+    // reference is a regular field
+    else {
+      super.visitInputRef(inputRef)
+    }
+  }
 
-    new RelRecordType(fields)
+  override def visitCall(call: RexCall): RexNode = {
+    val updatedCall = super.visitCall(call).asInstanceOf[RexCall]
+
+    // materialize operands with time indicators
+    val materializedOperands = updatedCall.getOperator match {
+
+      // skip materialization for special operators
+      case BasicOperatorTable.SESSION | BasicOperatorTable.HOP | BasicOperatorTable.TUMBLE =>
+        updatedCall.getOperands.toList
+
+      case _ =>
+        updatedCall.getOperands.map { o =>
+          if (isTimeIndicatorType(o.getType)) {
+            if (isRowtimeIndicatorType(o.getType)) {
+              // cast rowtime indicator to regular timestamp
+              rexBuilder.makeAbstractCast(timestamp, o)
+            } else {
+              // generate proctime access
+              rexBuilder.makeCall(ProctimeSqlFunction, o)
+            }
+          } else {
+            o
+          }
+        }
+    }
+
+    // remove time indicator return type
+    updatedCall.getOperator match {
+
+      // we do not modify AS if operand has not been materialized
+      case SqlStdOperatorTable.AS if
+      isTimeIndicatorType(updatedCall.getOperands.get(0).getType) =>
+        updatedCall
+
+      // do not modify window time attributes
+      case BasicOperatorTable.TUMBLE_ROWTIME |
+          BasicOperatorTable.TUMBLE_PROCTIME |
+          BasicOperatorTable.HOP_ROWTIME |
+          BasicOperatorTable.HOP_PROCTIME |
+          BasicOperatorTable.SESSION_ROWTIME |
+          BasicOperatorTable.SESSION_PROCTIME
+          // since we materialize groupings on time indicators,
+          // we cannot check the operands anymore but the return type at least
+          if isTimeIndicatorType(updatedCall.getType) =>
+      updatedCall
+
+      // materialize function's result and operands
+      case _ if isTimeIndicatorType(updatedCall.getType) =>
+        updatedCall.clone(timestamp, materializedOperands)
+
+      // materialize function's operands only
+      case _ =>
+        updatedCall.clone(updatedCall.getType, materializedOperands)
+    }
   }
 }

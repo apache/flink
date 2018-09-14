@@ -17,10 +17,12 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
-import java.util.HashMap;
+import org.apache.flink.annotation.Internal;
+
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -38,6 +40,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * not be concurrently accessed. The only exception for this would be the {@link #wakeup()}
  * call, which allows the discoverer to be interrupted during a {@link #discoverPartitions()} call.
  */
+@Internal
 public abstract class AbstractPartitionDiscoverer {
 
 	/** Describes whether we are discovering partitions for fixed topics or a topic pattern. */
@@ -68,7 +71,7 @@ public abstract class AbstractPartitionDiscoverer {
 	 * to keep track of only the largest partition id because Kafka partition numbers are only
 	 * allowed to be increased and has incremental ids.
 	 */
-	private Map<String, Integer> topicsToLargestDiscoveredPartitionId;
+	private Set<KafkaTopicPartition> discoveredPartitions;
 
 	public AbstractPartitionDiscoverer(
 			KafkaTopicsDescriptor topicsDescriptor,
@@ -78,7 +81,7 @@ public abstract class AbstractPartitionDiscoverer {
 		this.topicsDescriptor = checkNotNull(topicsDescriptor);
 		this.indexOfThisSubtask = indexOfThisSubtask;
 		this.numParallelSubtasks = numParallelSubtasks;
-		this.topicsToLargestDiscoveredPartitionId = new HashMap<>();
+		this.discoveredPartitions = new HashSet<>();
 	}
 
 	/**
@@ -149,10 +152,6 @@ public abstract class AbstractPartitionDiscoverer {
 				if (newDiscoveredPartitions == null || newDiscoveredPartitions.isEmpty()) {
 					throw new RuntimeException("Unable to retrieve any partitions with KafkaTopicsDescriptor: " + topicsDescriptor);
 				} else {
-					// sort so that we make sure the topicsToLargestDiscoveredPartitionId state is updated
-					// with incremental partition ids of the same topics (otherwise some partition ids may be skipped)
-					KafkaTopicPartition.sort(newDiscoveredPartitions);
-
 					Iterator<KafkaTopicPartition> iter = newDiscoveredPartitions.iterator();
 					KafkaTopicPartition nextPartition;
 					while (iter.hasNext()) {
@@ -196,9 +195,9 @@ public abstract class AbstractPartitionDiscoverer {
 	 */
 	public boolean setAndCheckDiscoveredPartition(KafkaTopicPartition partition) {
 		if (isUndiscoveredPartition(partition)) {
-				topicsToLargestDiscoveredPartitionId.put(partition.getTopic(), partition.getPartition());
+			discoveredPartitions.add(partition);
 
-			return shouldAssignToThisSubtask(partition, indexOfThisSubtask, numParallelSubtasks);
+			return KafkaTopicPartitionAssigner.assign(partition, numParallelSubtasks) == indexOfThisSubtask;
 		}
 
 		return false;
@@ -246,11 +245,6 @@ public abstract class AbstractPartitionDiscoverer {
 	}
 
 	private boolean isUndiscoveredPartition(KafkaTopicPartition partition) {
-		return !topicsToLargestDiscoveredPartitionId.containsKey(partition.getTopic())
-			||  partition.getPartition() > topicsToLargestDiscoveredPartitionId.get(partition.getTopic());
-	}
-
-	public static boolean shouldAssignToThisSubtask(KafkaTopicPartition partition, int indexOfThisSubtask, int numParallelSubtasks) {
-		return Math.abs(partition.hashCode() % numParallelSubtasks) == indexOfThisSubtask;
+		return !discoveredPartitions.contains(partition);
 	}
 }

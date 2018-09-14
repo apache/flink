@@ -18,24 +18,30 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.rpc.RpcEndpoint;
+import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.TestLogger;
+
 import akka.actor.ActorSystem;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.rpc.RpcEndpoint;
-import org.apache.flink.runtime.rpc.RpcGateway;
-import org.apache.flink.runtime.rpc.RpcMethod;
-import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.util.TestLogger;
 import org.hamcrest.core.Is;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -65,15 +71,17 @@ public class MessageSerializationTest extends TestLogger {
 	}
 
 	@AfterClass
-	public static void teardown() {
-		akkaRpcService1.stopService();
-		akkaRpcService2.stopService();
+	public static void teardown() throws InterruptedException, ExecutionException, TimeoutException {
+		final Collection<CompletableFuture<?>> terminationFutures = new ArrayList<>(4);
 
-		actorSystem1.shutdown();
-		actorSystem2.shutdown();
+		terminationFutures.add(akkaRpcService1.stopService());
+		terminationFutures.add(FutureUtils.toJava(actorSystem1.terminate()));
+		terminationFutures.add(akkaRpcService2.stopService());
+		terminationFutures.add(FutureUtils.toJava(actorSystem2.terminate()));
 
-		actorSystem1.awaitTermination();
-		actorSystem2.awaitTermination();
+		FutureUtils
+			.waitForAll(terminationFutures)
+			.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 	}
 
 	/**
@@ -85,7 +93,7 @@ public class MessageSerializationTest extends TestLogger {
 		TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService1, linkedBlockingQueue);
 		testEndpoint.start();
 
-		TestGateway testGateway = testEndpoint.getSelf();
+		TestGateway testGateway = testEndpoint.getSelfGateway(TestGateway.class);
 
 		NonSerializableObject expected = new NonSerializableObject(42);
 
@@ -108,7 +116,7 @@ public class MessageSerializationTest extends TestLogger {
 
 		String address = testEndpoint.getAddress();
 
-		Future<TestGateway> remoteGatewayFuture = akkaRpcService2.connect(address, TestGateway.class);
+		CompletableFuture<TestGateway> remoteGatewayFuture = akkaRpcService2.connect(address, TestGateway.class);
 
 		TestGateway remoteGateway = remoteGatewayFuture.get(timeout.getSize(), timeout.getUnit());
 
@@ -129,7 +137,7 @@ public class MessageSerializationTest extends TestLogger {
 
 		String address = testEndpoint.getAddress();
 
-		Future<TestGateway> remoteGatewayFuture = akkaRpcService2.connect(address, TestGateway.class);
+		CompletableFuture<TestGateway> remoteGatewayFuture = akkaRpcService2.connect(address, TestGateway.class);
 
 		TestGateway remoteGateway = remoteGatewayFuture.get(timeout.getSize(), timeout.getUnit());
 
@@ -153,7 +161,7 @@ public class MessageSerializationTest extends TestLogger {
 
 		String address = testEndpoint.getAddress();
 
-		Future<TestGateway> remoteGatewayFuture = akkaRpcService2.connect(address, TestGateway.class);
+		CompletableFuture<TestGateway> remoteGatewayFuture = akkaRpcService2.connect(address, TestGateway.class);
 
 		TestGateway remoteGateway = remoteGatewayFuture.get(timeout.getSize(), timeout.getUnit());
 
@@ -169,7 +177,7 @@ public class MessageSerializationTest extends TestLogger {
 		void foobar(Object object) throws IOException, InterruptedException;
 	}
 
-	private static class TestEndpoint extends RpcEndpoint<TestGateway> {
+	private static class TestEndpoint extends RpcEndpoint implements TestGateway {
 
 		private final LinkedBlockingQueue<Object> queue;
 
@@ -178,9 +186,14 @@ public class MessageSerializationTest extends TestLogger {
 			this.queue = queue;
 		}
 
-		@RpcMethod
+		@Override
 		public void foobar(Object object) throws InterruptedException {
 			queue.put(object);
+		}
+
+		@Override
+		public CompletableFuture<Void> postStop() {
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 

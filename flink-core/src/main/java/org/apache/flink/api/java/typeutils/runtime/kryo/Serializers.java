@@ -18,23 +18,20 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.java.typeutils.AvroUtils;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractionUtils;
+
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.CollectionSerializer;
-
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
-import org.apache.avro.specific.SpecificRecordBase;
-
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompositeType;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
-import org.apache.flink.api.java.typeutils.TypeExtractionUtils;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -46,7 +43,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
-
 
 /**
  * Class containing utilities for the serializers of the Flink Runtime.
@@ -94,8 +90,9 @@ public class Serializers {
 		}
 		else {
 			config.registerKryoType(type);
-			checkAndAddSerializerForTypeAvro(config, type);
-	
+			// add serializers for Avro type if necessary
+			AvroUtils.getAvroUtils().addAvroSerializersIfRequired(config, type);
+
 			Field[] fields = type.getDeclaredFields();
 			for (Field field : fields) {
 				if (Modifier.isStatic(field.getModifiers()) || Modifier.isTransient(field.getModifiers())) {
@@ -147,20 +144,30 @@ public class Serializers {
 			}
 		}
 	}
-	
-	// ------------------------------------------------------------------------
-	
-	private static void checkAndAddSerializerForTypeAvro(ExecutionConfig reg, Class<?> type) {
-		if (GenericData.Record.class.isAssignableFrom(type) || SpecificRecordBase.class.isAssignableFrom(type)) {
-			// Avro POJOs contain java.util.List which have GenericData.Array as their runtime type
-			// because Kryo is not able to serialize them properly, we use this serializer for them
-			reg.registerTypeWithKryoSerializer(GenericData.Array.class, SpecificInstanceCollectionSerializerForArrayList.class);
 
-			// We register this serializer for users who want to use untyped Avro records (GenericData.Record).
-			// Kryo is able to serialize everything in there, except for the Schema.
-			// This serializer is very slow, but using the GenericData.Records of Kryo is in general a bad idea.
-			// we add the serializer as a default serializer because Avro is using a private sub-type at runtime.
-			reg.addDefaultKryoSerializer(Schema.class, AvroSchemaSerializer.class);
+	/**
+	 * This is used in case we don't have Avro on the classpath. Flink versions before 1.4
+	 * always registered special Serializers for Kryo but starting with Flink 1.4 we don't have
+	 * Avro on the classpath by default anymore. We still have to retain the same registered
+	 * Serializers for backwards compatibility of savepoints.
+	 */
+	public static class DummyAvroRegisteredClass {}
+
+	/**
+	 * This is used in case we don't have Avro on the classpath. Flink versions before 1.4
+	 * always registered special Serializers for Kryo but starting with Flink 1.4 we don't have
+	 * Avro on the classpath by default anymore. We still have to retain the same registered
+	 * Serializers for backwards compatibility of savepoints.
+	 */
+	public static class DummyAvroKryoSerializerClass<T> extends Serializer<T> {
+		@Override
+		public void write(Kryo kryo, Output output, Object o) {
+			throw new UnsupportedOperationException("Could not find required Avro dependency.");
+		}
+
+		@Override
+		public T read(Kryo kryo, Input input, Class<T> aClass) {
+			throw new UnsupportedOperationException("Could not find required Avro dependency.");
 		}
 	}
 
@@ -168,6 +175,9 @@ public class Serializers {
 	// Custom Serializers
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Special serializer for Java's {@link ArrayList} used for Avro's GenericData.Array.
+	 */
 	@SuppressWarnings("rawtypes")
 	public static class SpecificInstanceCollectionSerializerForArrayList extends SpecificInstanceCollectionSerializer<ArrayList> {
 		private static final long serialVersionUID = 1L;
@@ -176,19 +186,19 @@ public class Serializers {
 			super(ArrayList.class);
 		}
 	}
+
 	/**
 	 * Special serializer for Java collections enforcing certain instance types.
 	 * Avro is serializing collections with an "GenericData.Array" type. Kryo is not able to handle
 	 * this type, so we use ArrayLists.
 	 */
 	@SuppressWarnings("rawtypes")
-	public static class SpecificInstanceCollectionSerializer<T extends Collection> 
-			extends CollectionSerializer implements Serializable
-	{
+	public static class SpecificInstanceCollectionSerializer<T extends Collection>
+			extends CollectionSerializer implements Serializable {
 		private static final long serialVersionUID = 1L;
-		
+
 		private Class<T> type;
-		
+
 		public SpecificInstanceCollectionSerializer(Class<T> type) {
 			this.type = type;
 		}
@@ -201,29 +211,6 @@ public class Serializers {
 		@Override
 		protected Collection createCopy(Kryo kryo, Collection original) {
 			return kryo.newInstance(this.type);
-		}
-	}
-
-	/**
-	 * Slow serialization approach for Avro schemas.
-	 * This is only used with {{@link org.apache.avro.generic.GenericData.Record}} types.
-	 * Having this serializer, we are able to handle avro Records.
-	 */
-	public static class AvroSchemaSerializer extends Serializer<Schema> implements Serializable {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void write(Kryo kryo, Output output, Schema object) {
-			String schemaAsString = object.toString(false);
-			output.writeString(schemaAsString);
-		}
-
-		@Override
-		public Schema read(Kryo kryo, Input input, Class<Schema> type) {
-			String schemaAsString = input.readString();
-			// the parser seems to be stateful, to we need a new one for every type.
-			Schema.Parser sParser = new Schema.Parser();
-			return sParser.parse(schemaAsString);
 		}
 	}
 }

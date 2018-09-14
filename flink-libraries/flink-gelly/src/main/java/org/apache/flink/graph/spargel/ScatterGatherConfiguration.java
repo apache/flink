@@ -56,20 +56,20 @@ public class ScatterGatherConfiguration extends IterationConfiguration {
 	 * Adds a data set as a broadcast set to the scatter function.
 	 *
 	 * @param name The name under which the broadcast data is available in the scatter function.
-	 * @param data The data set to be broadcasted.
+	 * @param data The data set to be broadcast.
 	 */
 	public void addBroadcastSetForScatterFunction(String name, DataSet<?> data) {
-		this.bcVarsScatter.add(new Tuple2<String, DataSet<?>>(name, data));
+		this.bcVarsScatter.add(new Tuple2<>(name, data));
 	}
 
 	/**
 	 * Adds a data set as a broadcast set to the gather function.
 	 *
 	 * @param name The name under which the broadcast data is available in the gather function.
-	 * @param data The data set to be broadcasted.
+	 * @param data The data set to be broadcast.
 	 */
 	public void addBroadcastSetForGatherFunction(String name, DataSet<?> data) {
-		this.bcVarsGather.add(new Tuple2<String, DataSet<?>>(name, data));
+		this.bcVarsGather.add(new Tuple2<>(name, data));
 	}
 
 	/**

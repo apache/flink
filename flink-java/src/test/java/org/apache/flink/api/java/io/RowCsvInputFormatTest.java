@@ -22,7 +22,6 @@ import org.apache.flink.api.common.io.ParseException;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
@@ -30,6 +29,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.StringParser;
+
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -45,18 +45,21 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static junit.framework.TestCase.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link RowCsvInputFormat}.
+ */
 public class RowCsvInputFormatTest {
 
-	private static Path PATH = new Path("an/ignored/file/");
+	private static final Path PATH = new Path("an/ignored/file/");
 
 	// static variables for testing the removal of \r\n to \n
-	private static String FIRST_PART = "That is the first part";
-	private static String SECOND_PART = "That is the second part";
+	private static final String FIRST_PART = "That is the first part";
+	private static final String SECOND_PART = "That is the second part";
 
 	@Test
 	public void ignoreInvalidLines() throws Exception {
@@ -588,7 +591,7 @@ public class RowCsvInputFormatTest {
 		RowCsvInputFormat format = new RowCsvInputFormat(
 			PATH,
 			fieldTypes,
-			new int[]{0,3,7});
+			new int[]{0, 3, 7});
 		format.setFieldDelimiter("|x|");
 		format.configure(new Configuration());
 		format.open(split);
@@ -712,9 +715,8 @@ public class RowCsvInputFormatTest {
 		}
 	}
 
-	// Test disabled because we do not support double-quote escaped quotes right now.
 	@Test
-	@Ignore
+	@Ignore("Test disabled because we do not support double-quote escaped quotes right now.")
 	public void testParserCorrectness() throws Exception {
 		// RFC 4180 Compliance Test content
 		// Taken from http://en.wikipedia.org/wiki/Comma-separated_values#Example

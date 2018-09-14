@@ -27,20 +27,27 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.util.Collector;
 
+/**
+ * @see FilterOperatorBase
+ * @param <T>
+ */
 @Internal
 @ForwardedFields("*")
 public class PlanFilterOperator<T> extends FilterOperatorBase<T, FlatMapFunction<T, T>> {
-	
+
 	public PlanFilterOperator(FilterFunction<T> udf, String name, TypeInformation<T> type) {
 		super(new FlatMapFilter<T>(udf), new UnaryOperatorInformation<T, T>(type, type), name);
 	}
 
+	/**
+	 * @see FlatMapFunction
+	 * @param <T>
+	 */
 	public static final class FlatMapFilter<T> extends WrappingFunction<FilterFunction<T>>
-		implements FlatMapFunction<T, T>
-	{
+		implements FlatMapFunction<T, T> {
 
 		private static final long serialVersionUID = 1L;
-		
+
 		private FlatMapFilter(FilterFunction<T> wrapped) {
 			super(wrapped);
 		}

@@ -18,28 +18,35 @@
 
 package org.apache.flink.runtime.clusterframework;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Address;
-import com.typesafe.config.Config;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Option;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
+import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.NetUtils;
 
-import org.slf4j.Logger;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
 
+import akka.actor.ActorSystem;
+import com.typesafe.config.Config;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Option;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.duration.FiniteDuration;
+
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -52,11 +59,23 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import scala.Some;
+import scala.Tuple2;
+import scala.concurrent.duration.FiniteDuration;
+
+import static org.apache.flink.configuration.ConfigOptions.key;
+
 /**
  * Tools for starting JobManager and TaskManager processes, including the
  * Actor Systems used to run the JobManager and TaskManager actors.
  */
 public class BootstrapTools {
+	/**
+	 * Internal option which says if default value is used for {@link CoreOptions#TMP_DIRS}.
+	 */
+	private static final ConfigOption<Boolean> USE_LOCAL_DEFAULT_TMP_DIRS = key("internal.io.tmpdirs.use-local-default")
+		.defaultValue(false);
+
 	private static final Logger LOG = LoggerFactory.getLogger(BootstrapTools.class);
 
 	/**
@@ -69,10 +88,10 @@ public class BootstrapTools {
 	 * @throws Exception
 	 */
 	public static ActorSystem startActorSystem(
-				Configuration configuration,
-				String listeningAddress,
-				String portRangeDefinition,
-				Logger logger) throws Exception {
+			Configuration configuration,
+			String listeningAddress,
+			String portRangeDefinition,
+			Logger logger) throws Exception {
 
 		// parse port range definition and create port iterator
 		Iterator<Integer> portsIterator;
@@ -85,14 +104,7 @@ public class BootstrapTools {
 		while (portsIterator.hasNext()) {
 			// first, we check if the port is available by opening a socket
 			// if the actor system fails to start on the port, we try further
-			ServerSocket availableSocket = NetUtils.createSocketFromPorts(
-				portsIterator,
-				new NetUtils.SocketFactory() {
-					@Override
-					public ServerSocket createSocket(int port) throws IOException {
-						return new ServerSocket(port);
-					}
-				});
+			ServerSocket availableSocket = NetUtils.createSocketFromPorts(portsIterator, ServerSocket::new);
 
 			int port;
 			if (availableSocket == null) {
@@ -137,13 +149,13 @@ public class BootstrapTools {
 				int listeningPort,
 				Logger logger) throws Exception {
 
-		String hostPortUrl = listeningAddress + ':' + listeningPort;
+		String hostPortUrl = NetUtils.unresolvedHostAndPortToNormalizedString(listeningAddress, listeningPort);
 		logger.info("Trying to start actor system at {}", hostPortUrl);
 
 		try {
 			Config akkaConfig = AkkaUtils.getAkkaConfig(
 				configuration,
-				new scala.Some<>(new scala.Tuple2<String, Object>(listeningAddress, listeningPort))
+				new Some<>(new Tuple2<>(listeningAddress, listeningPort))
 			);
 
 			logger.debug("Using akka configuration\n {}", akkaConfig);
@@ -154,9 +166,9 @@ public class BootstrapTools {
 			return actorSystem;
 		}
 		catch (Throwable t) {
-			if (t instanceof org.jboss.netty.channel.ChannelException) {
+			if (t instanceof ChannelException) {
 				Throwable cause = t.getCause();
-				if (cause != null && t.getCause() instanceof java.net.BindException) {
+				if (cause != null && t.getCause() instanceof BindException) {
 					throw new IOException("Unable to create ActorSystem at address " + hostPortUrl +
 							" : " + cause.getMessage(), t);
 				}
@@ -170,7 +182,10 @@ public class BootstrapTools {
 	 *
 	 * @param config The Flink config.
 	 * @param highAvailabilityServices Service factory for high availability services
-	 * @param actorSystem The ActorSystem to start the web frontend in.
+	 * @param jobManagerRetriever to retrieve the leading JobManagerGateway
+	 * @param queryServiceRetriever to resolve a query service
+	 * @param timeout for asynchronous operations
+	 * @param scheduledExecutor to run asynchronous operations
 	 * @param logger Logger for log output
 	 * @return WebMonitor instance.
 	 * @throws Exception
@@ -178,17 +193,13 @@ public class BootstrapTools {
 	public static WebMonitor startWebMonitorIfConfigured(
 			Configuration config,
 			HighAvailabilityServices highAvailabilityServices,
-			ActorSystem actorSystem,
-			ActorRef jobManager,
+			LeaderGatewayRetriever<JobManagerGateway> jobManagerRetriever,
+			MetricQueryServiceRetriever queryServiceRetriever,
+			Time timeout,
+			ScheduledExecutor scheduledExecutor,
 			Logger logger) throws Exception {
 
-
-		// this ensures correct values are present in the web frontend
-		final Address address = AkkaUtils.getAddress(actorSystem);
-		config.setString(JobManagerOptions.ADDRESS, address.host().get());
-		config.setInteger(JobManagerOptions.PORT, Integer.parseInt(address.port().get().toString()));
-
-		if (config.getInteger(JobManagerOptions.WEB_PORT.key(), 0) >= 0) {
+		if (config.getInteger(WebOptions.PORT, 0) >= 0) {
 			logger.info("Starting JobManager Web Frontend");
 
 			// start the web frontend. we need to load this dynamically
@@ -196,12 +207,14 @@ public class BootstrapTools {
 			WebMonitor monitor = WebMonitorUtils.startWebRuntimeMonitor(
 				config,
 				highAvailabilityServices,
-				actorSystem);
+				jobManagerRetriever,
+				queryServiceRetriever,
+				timeout,
+				scheduledExecutor);
 
 			// start the web monitor
 			if (monitor != null) {
-				String jobManagerAkkaURL = AkkaUtils.getAkkaURL(actorSystem, jobManager);
-				monitor.start(jobManagerAkkaURL);
+				monitor.start();
 			}
 			return monitor;
 		}
@@ -226,16 +239,22 @@ public class BootstrapTools {
 				int numSlots,
 				FiniteDuration registrationTimeout) {
 
-		Configuration cfg = baseConfig.clone();
+		Configuration cfg = cloneConfiguration(baseConfig);
 
-		cfg.setString(JobManagerOptions.ADDRESS, jobManagerHostname);
-		cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
-		cfg.setString(ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION, registrationTimeout.toString());
-		if (numSlots != -1){
-			cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots);
+		if (jobManagerHostname != null && !jobManagerHostname.isEmpty()) {
+			cfg.setString(JobManagerOptions.ADDRESS, jobManagerHostname);
 		}
 
-		return cfg; 
+		if (jobManagerPort > 0) {
+			cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
+		}
+
+		cfg.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, registrationTimeout.toString());
+		if (numSlots != -1){
+			cfg.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlots);
+		}
+
+		return cfg;
 	}
 
 	/**
@@ -246,8 +265,7 @@ public class BootstrapTools {
 	 */
 	public static void writeConfiguration(Configuration cfg, File file) throws IOException {
 		try (FileWriter fwrt = new FileWriter(file);
-			PrintWriter out = new PrintWriter(fwrt))
-		{
+			PrintWriter out = new PrintWriter(fwrt)) {
 			for (String key : cfg.keySet()) {
 				String value = cfg.getString(key, null);
 				out.print(key);
@@ -274,7 +292,7 @@ public class BootstrapTools {
 	}
 
 	/**
-	* Sets the value of of a new config key to the value of a deprecated config key. Taking into
+	* Sets the value of a new config key to the value of a deprecated config key. Taking into
 	* account the changed prefix.
 	* @param config Config to write
 	* @param deprecatedPrefix Old prefix of key
@@ -307,7 +325,7 @@ public class BootstrapTools {
 	/**
 	 * Get an instance of the dynamic properties option.
 	 *
-	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
+	 * <p>Dynamic properties allow the user to specify additional configuration values with -D, such as
 	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.network.memory.min=536346624</tt>
      */
 	public static Option newDynamicPropertiesOption() {
@@ -321,13 +339,13 @@ public class BootstrapTools {
 		final Configuration config = new Configuration();
 
 		String[] values = cmd.getOptionValues(DYNAMIC_PROPERTIES_OPT);
-		if(values != null) {
-			for(String value : values) {
+		if (values != null) {
+			for (String value : values) {
 				String[] pair = value.split("=", 2);
-				if(pair.length == 1) {
+				if (pair.length == 1) {
 					config.setString(pair[0], Boolean.TRUE.toString());
 				}
-				else if(pair.length == 2) {
+				else if (pair.length == 2) {
 					config.setString(pair[0], pair[1]);
 				}
 			}
@@ -339,7 +357,7 @@ public class BootstrapTools {
 	/**
 	 * Generates the shell command to start a task manager.
 	 * @param flinkConfig The Flink configuration.
-	 * @param tmParams Paramaters for the task manager.
+	 * @param tmParams Parameters for the task manager.
 	 * @param configDirectory The configuration directory for the flink-conf.yaml
 	 * @param logDirectory The log directory.
 	 * @param hasLogback Uses logback?
@@ -377,7 +395,7 @@ public class BootstrapTools {
 		}
 		//applicable only for YarnMiniCluster secure test run
 		//krb5.conf file will be available as local resource in JM/TM container
-		if(hasKrb5) {
+		if (hasKrb5) {
 			javaOpts += " -Djava.security.krb5.conf=krb5.conf";
 		}
 		startCommandValues.put("jvmopts", javaOpts);
@@ -415,12 +433,11 @@ public class BootstrapTools {
 
 	// ------------------------------------------------------------------------
 
-	/** Private constructor to prevent instantiation */
+	/** Private constructor to prevent instantiation. */
 	private BootstrapTools() {}
 
 	/**
-	 * Replaces placeholders in the template start command with values from
-	 * <tt>startCommandValues</tt>.
+	 * Replaces placeholders in the template start command with values from startCommandValues.
 	 *
 	 * <p>If the default template {@link ConfigConstants#DEFAULT_YARN_CONTAINER_START_COMMAND_TEMPLATE}
 	 * is used, the following keys must be present in the map or the resulting
@@ -434,7 +451,6 @@ public class BootstrapTools {
 	 * <li><tt>args</tt> = arguments for the main class</li>
 	 * <li><tt>redirects</tt> = output redirects</li>
 	 * </ul>
-	 * </p>
 	 *
 	 * @param template
 	 * 		a template start command with placeholders
@@ -451,5 +467,41 @@ public class BootstrapTools {
 				.replace("%" + variable.getKey() + "%", variable.getValue());
 		}
 		return template;
+	}
+
+	/**
+	 * Set temporary configuration directories if necessary.
+	 *
+	 * @param configuration flink config to patch
+	 * @param defaultDirs in case no tmp directories is set, next directories will be applied
+	 */
+	public static void updateTmpDirectoriesInConfiguration(
+			Configuration configuration,
+			@Nullable String defaultDirs) {
+		if (configuration.contains(CoreOptions.TMP_DIRS)) {
+			LOG.info("Overriding Fink's temporary file directories with those " +
+				"specified in the Flink config: {}", configuration.getValue(CoreOptions.TMP_DIRS));
+		} else if (defaultDirs != null) {
+			LOG.info("Setting directories for temporary files to: {}", defaultDirs);
+			configuration.setString(CoreOptions.TMP_DIRS, defaultDirs);
+			configuration.setBoolean(USE_LOCAL_DEFAULT_TMP_DIRS, true);
+		}
+	}
+
+	/**
+	 * Clones the given configuration and resets instance specific config options.
+	 *
+	 * @param configuration to clone
+	 * @return Cloned configuration with reset instance specific config options
+	 */
+	public static Configuration cloneConfiguration(Configuration configuration) {
+		final Configuration clonedConfiguration = new Configuration(configuration);
+
+		if (clonedConfiguration.getBoolean(USE_LOCAL_DEFAULT_TMP_DIRS)){
+			clonedConfiguration.removeConfig(CoreOptions.TMP_DIRS);
+			clonedConfiguration.removeConfig(USE_LOCAL_DEFAULT_TMP_DIRS);
+		}
+
+		return clonedConfiguration;
 	}
 }

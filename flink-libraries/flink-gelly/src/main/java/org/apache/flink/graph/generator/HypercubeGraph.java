@@ -36,7 +36,7 @@ extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 	private final ExecutionEnvironment env;
 
 	// Required configuration
-	private long dimensions;
+	private final long dimensions;
 
 	/**
 	 * An undirected {@code Graph} where edges form an n-dimensional hypercube.
@@ -56,6 +56,8 @@ extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 
 	@Override
 	public Graph<LongValue, NullValue, NullValue> generate() {
+		Preconditions.checkState(dimensions > 0);
+
 		GridGraph graph = new GridGraph(env);
 
 		for (int i = 0; i < dimensions; i++) {

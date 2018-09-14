@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-metrics</artifactId>
-		<version>1.4-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -36,6 +36,13 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-annotations</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -62,21 +69,21 @@ under the License.
 
 		<dependency>
 			<groupId>io.prometheus</groupId>
-			<artifactId>simpleclient_servlet</artifactId>
+			<artifactId>simpleclient_httpserver</artifactId>
 			<version>${prometheus.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>org.nanohttpd</groupId>
-			<artifactId>nanohttpd</artifactId>
-			<version>2.2.0</version>
+			<groupId>io.prometheus</groupId>
+			<artifactId>simpleclient_pushgateway</artifactId>
+			<version>${prometheus.version}</version>
 		</dependency>
 
 		<!-- test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-metrics-core</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -85,8 +92,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
 		</dependency>
 
 		<dependency>
@@ -104,20 +109,21 @@ under the License.
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
+						<id>shade-flink</id>
 						<phase>package</phase>
 						<goals>
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<artifactSet>
+								<includes>
+									<include>io.prometheus:*</include>
+								</includes>
+							</artifactSet>
 							<relocations combine.children="append">
 								<relocation>
 									<pattern>io.prometheus.client</pattern>
 									<shadedPattern>org.apache.flink.shaded.io.prometheus.client</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>fi.iki.elonen</pattern>
-									<shadedPattern>org.apache.flink.shaded.fi.iki.elonen</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

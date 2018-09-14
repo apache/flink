@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.operator;
 
 import org.apache.flink.api.common.InvalidProgramException;
@@ -25,6 +26,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -33,6 +35,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for {@link DataSet#writeAsText(String)}.
+ */
 public class DataSinkTest {
 
 	// TUPLE DATA
@@ -48,7 +53,7 @@ public class DataSinkTest {
 
 	@Before
 	public void fillPojoData() {
-		if(pojoData.isEmpty()) {
+		if (pojoData.isEmpty()) {
 			pojoData.add(new CustomType());
 		}
 	}
@@ -186,7 +191,7 @@ public class DataSinkTest {
 		final ExecutionEnvironment env = ExecutionEnvironment
 				.getExecutionEnvironment();
 		DataSet<Long> longDs = env
-				.generateSequence(0,2);
+				.generateSequence(0, 2);
 
 		// should work
 		try {
@@ -203,7 +208,7 @@ public class DataSinkTest {
 		final ExecutionEnvironment env = ExecutionEnvironment
 				.getExecutionEnvironment();
 		DataSet<Long> longDs = env
-				.generateSequence(0,2);
+				.generateSequence(0, 2);
 
 		// must not work
 		longDs.writeAsText("/tmp/willNotHappen")
@@ -216,7 +221,7 @@ public class DataSinkTest {
 		final ExecutionEnvironment env = ExecutionEnvironment
 				.getExecutionEnvironment();
 		DataSet<Long> longDs = env
-				.generateSequence(0,2);
+				.generateSequence(0, 2);
 
 		// must not work
 		longDs.writeAsText("/tmp/willNotHappen")
@@ -229,7 +234,7 @@ public class DataSinkTest {
 		final ExecutionEnvironment env = ExecutionEnvironment
 				.getExecutionEnvironment();
 		DataSet<Long> longDs = env
-				.generateSequence(0,2);
+				.generateSequence(0, 2);
 
 		// must not work
 		longDs.writeAsText("/tmp/willNotHappen")

@@ -20,9 +20,19 @@ package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.TimeoutException;
 
+/**
+ * Simple utility class to work with Java's Futures.
+ */
 @Internal
 public class FutureUtil {
 
@@ -41,5 +51,35 @@ public class FutureUtil {
 		}
 
 		return future.get();
+	}
+
+	public static void waitForAll(long timeoutMillis, Future<?>...futures) throws Exception {
+		waitForAll(timeoutMillis, Arrays.asList(futures));
+	}
+
+	public static void waitForAll(long timeoutMillis, Collection<Future<?>> futures) throws Exception {
+		long startMillis = System.currentTimeMillis();
+		Set<Future<?>> futuresSet = new HashSet<>();
+		futuresSet.addAll(futures);
+
+		while (System.currentTimeMillis() < startMillis + timeoutMillis) {
+			if (futuresSet.isEmpty()) {
+				return;
+			}
+			Iterator<Future<?>> futureIterator = futuresSet.iterator();
+			while (futureIterator.hasNext()) {
+				Future<?> future = futureIterator.next();
+				if (future.isDone()) {
+					future.get();
+					futureIterator.remove();
+				}
+			}
+
+			Thread.sleep(10);
+		}
+
+		if (!futuresSet.isEmpty()) {
+			throw new TimeoutException(String.format("Some of the futures have not finished [%s]", futuresSet));
+		}
 	}
 }

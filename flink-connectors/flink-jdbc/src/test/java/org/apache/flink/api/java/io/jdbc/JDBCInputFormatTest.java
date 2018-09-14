@@ -114,6 +114,17 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 	}
 
 	@Test
+	public void testValidFetchSizeIntegerMin() {
+		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
+			.setDrivername(DRIVER_CLASS)
+			.setDBUrl(DB_URL)
+			.setQuery(SELECT_ALL_BOOKS)
+			.setRowTypeInfo(ROW_TYPE_INFO)
+			.setFetchSize(Integer.MIN_VALUE)
+			.finish();
+	}
+
+	@Test
 	public void testDefaultFetchSizeIsUsedIfNotConfiguredOtherwise() throws SQLException, ClassNotFoundException {
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 			.setDrivername(DRIVER_CLASS)

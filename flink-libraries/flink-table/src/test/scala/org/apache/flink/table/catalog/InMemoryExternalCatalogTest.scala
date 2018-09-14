@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.catalog
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.api._
+import org.apache.flink.table.descriptors.{ConnectorDescriptor, DescriptorProperties, Schema}
 import org.junit.{Before, Test}
 import org.junit.Assert._
 
@@ -68,7 +69,7 @@ class InMemoryExternalCatalogTest {
     val table = createTableInstance()
     catalog.createTable(tableName, table, ignoreIfExists = false)
     assertEquals(catalog.getTable(tableName), table)
-    val newTable = createTableInstance()
+    val newTable = createTableInstance(Array("number"), Array(Types.INT))
     catalog.alterTable(tableName, newTable, ignoreIfNotExists = false)
     val currentTable = catalog.getTable(tableName)
     // validate the table is really replaced after alter table
@@ -133,13 +134,31 @@ class InMemoryExternalCatalogTest {
   }
 
   private def createTableInstance(): ExternalCatalogTable = {
-    val schema = new TableSchema(
-      Array("first", "second"),
-      Array(
-        BasicTypeInfo.STRING_TYPE_INFO,
-        BasicTypeInfo.INT_TYPE_INFO
-      )
-    )
-    ExternalCatalogTable("csv", schema)
+    val connDesc = new TestConnectorDesc
+    val schemaDesc = new Schema()
+      .field("first", BasicTypeInfo.STRING_TYPE_INFO)
+      .field("second", BasicTypeInfo.INT_TYPE_INFO)
+    ExternalCatalogTable.builder(connDesc)
+      .withSchema(schemaDesc)
+      .asTableSource()
   }
+
+  private def createTableInstance(
+      fieldNames: Array[String],
+      fieldTypes: Array[TypeInformation[_]]): ExternalCatalogTable = {
+    val connDesc = new TestConnectorDesc
+    val schemaDesc = new Schema()
+    fieldNames.zipWithIndex.foreach { case (fieldName, index) =>
+      schemaDesc.field(fieldName, fieldTypes(index))
+    }
+    ExternalCatalogTable.builder(connDesc)
+      .withSchema(schemaDesc)
+      .asTableSource()
+  }
+
+  class TestConnectorDesc extends ConnectorDescriptor("test", version = 1, formatNeeded = false) {
+    override protected def addConnectorProperties(properties: DescriptorProperties): Unit = {
+    }
+  }
+
 }

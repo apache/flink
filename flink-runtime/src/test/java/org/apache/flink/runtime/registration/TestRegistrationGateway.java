@@ -18,13 +18,12 @@
 
 package org.apache.flink.runtime.registration;
 
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.rpc.TestingGatewayBase;
 import org.apache.flink.util.Preconditions;
 
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -47,7 +46,7 @@ public class TestRegistrationGateway extends TestingGatewayBase {
 
 	// ------------------------------------------------------------------------
 
-	public Future<RegistrationResponse> registrationCall(UUID leaderId, long timeout) {
+	public CompletableFuture<RegistrationResponse> registrationCall(UUID leaderId, long timeout) {
 		invocations.add(new RegistrationCall(leaderId, timeout));
 
 		RegistrationResponse response = responses[pos];
@@ -56,7 +55,7 @@ public class TestRegistrationGateway extends TestingGatewayBase {
 		}
 
 		// return a completed future (for a proper value), or one that never completes and will time out (for null)
-		return response != null ? FlinkCompletableFuture.completed(response) : this.<RegistrationResponse>futureWithTimeout(timeout);
+		return response != null ? CompletableFuture.completedFuture(response) : futureWithTimeout(timeout);
 	}
 
 	public BlockingQueue<RegistrationCall> getInvocations() {

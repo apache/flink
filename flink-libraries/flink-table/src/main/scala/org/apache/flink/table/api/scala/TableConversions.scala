@@ -21,7 +21,7 @@ package org.apache.flink.table.api.scala
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.table.api.{StreamQueryConfig, Table, TableException}
+import org.apache.flink.table.api.{BatchQueryConfig, StreamQueryConfig, Table, TableException}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
 
@@ -48,6 +48,29 @@ class TableConversions(table: Table) {
     table.tableEnv match {
       case tEnv: ScalaBatchTableEnv =>
         tEnv.toDataSet(table)
+      case _ =>
+        throw new TableException(
+          "Only tables that originate from Scala DataSets can be converted to Scala DataSets.")
+    }
+  }
+
+  /**
+    * Converts the given [[Table]] into a [[DataSet]] of a specified type.
+    *
+    * The fields of the [[Table]] are mapped to [[DataSet]] fields as follows:
+    * - [[org.apache.flink.types.Row]] and [[org.apache.flink.api.java.tuple.Tuple]]
+    * types: Fields are mapped by position, field types must match.
+    * - POJO [[DataSet]] types: Fields are mapped by field name, field types must match.
+    *
+    * @param queryConfig The configuration of the query to generate.
+    * @tparam T The type of the resulting [[DataSet]].
+    * @return The converted [[DataSet]].
+    */
+  def toDataSet[T: TypeInformation](queryConfig: BatchQueryConfig): DataSet[T] = {
+
+    table.tableEnv match {
+      case tEnv: ScalaBatchTableEnv =>
+        tEnv.toDataSet(table, queryConfig)
       case _ =>
         throw new TableException(
           "Only tables that originate from Scala DataSets can be converted to Scala DataSets.")
@@ -192,8 +215,5 @@ class TableConversions(table: Table) {
             "can be converted to Scala DataStreams.")
     }
   }
-
-
-
 }
 

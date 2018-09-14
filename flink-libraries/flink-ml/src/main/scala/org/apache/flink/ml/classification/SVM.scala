@@ -35,7 +35,7 @@ import breeze.linalg.{DenseVector => BreezeDenseVector, Vector => BreezeVector}
 /** Implements a soft-margin SVM using the communication-efficient distributed dual coordinate
   * ascent algorithm (CoCoA) with hinge-loss function.
   *
-  * It can be used for binary classification problems, with the labels set as +1.0 to indiciate a
+  * It can be used for binary classification problems, with the labels set as +1.0 to indicate a
   * positive example and -1.0 to indicate a negative example.
   *
   * The algorithm solves the following minimization problem:

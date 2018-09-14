@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -35,6 +36,8 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.Node;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -54,6 +57,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> The type of elements produced by the fetcher.
  */
+@Internal
 public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 
 	static final KafkaTopicPartitionState<TopicAndPartition> MARKER =
@@ -93,6 +97,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long autoCommitInterval,
+			MetricGroup consumerMetricGroup,
 			boolean useMetrics) throws Exception {
 		super(
 				sourceContext,
@@ -102,6 +107,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 				runtimeContext.getProcessingTimeService(),
 				runtimeContext.getExecutionConfig().getAutoWatermarkInterval(),
 				runtimeContext.getUserCodeClassLoader(),
+				consumerMetricGroup,
 				useMetrics);
 
 		this.deserializer = checkNotNull(deserializer);
@@ -173,12 +179,6 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 				periodicCommitter.start();
 			}
 
-			// register offset metrics
-			if (useMetrics) {
-				final MetricGroup kafkaMetricGroup = runtimeContext.getMetricGroup().addGroup("KafkaConsumer");
-				addOffsetStateGauge(kafkaMetricGroup);
-			}
-
 			// Main loop polling elements from the unassignedPartitions queue to the threads
 			while (running) {
 				// re-throw any exception from the concurrent fetcher threads
@@ -189,7 +189,8 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 				// special marker into the queue
 				List<KafkaTopicPartitionState<TopicAndPartition>> partitionsToAssign =
 						unassignedPartitionsQueue.getBatchBlocking(5000);
-				partitionsToAssign.remove(MARKER);
+				// note: if there are more markers, remove them all
+				partitionsToAssign.removeIf(MARKER::equals);
 
 				if (!partitionsToAssign.isEmpty()) {
 					LOG.info("Assigning {} partitions to broker threads", partitionsToAssign.size());
@@ -346,15 +347,20 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void commitInternalOffsetsToKafka(Map<KafkaTopicPartition, Long> offsets) throws Exception {
+	protected void doCommitInternalOffsetsToKafka(
+			Map<KafkaTopicPartition, Long> offsets,
+			@Nonnull KafkaCommitCallback commitCallback) throws Exception {
+
 		ZookeeperOffsetHandler zkHandler = this.zookeeperOffsetHandler;
 		if (zkHandler != null) {
 			try {
 				// the ZK handler takes care of incrementing the offsets by 1 before committing
 				zkHandler.prepareAndCommitOffsets(offsets);
+				commitCallback.onSuccess();
 			}
 			catch (Exception e) {
 				if (running) {
+					commitCallback.onException(e);
 					throw e;
 				} else {
 					return;

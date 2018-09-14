@@ -37,7 +37,7 @@ extends Parameterized {
 	/**
 	 * A human-readable identifier summarizing the input and configuration.
 	 *
-	 * @return the unique identifier
+	 * @return the input identifier
 	 */
 	String getIdentity();
 

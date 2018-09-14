@@ -30,9 +30,8 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
+import org.apache.flink.util.FileUtils;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -59,7 +58,7 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 
 	private String createInputData(String data) throws Exception {
 		File file = tempFolder.newFile("input");
-		Files.write(data, file, Charsets.UTF_8);
+		FileUtils.writeFileUtf8(file, data);
 
 		return file.toURI().toString();
 	}

@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 
 /**
  * Used as a dummy {@link KeySelector} to allow using keyed operators
- * for non-keyed usecases. Essentially, it gives all incoming records
+ * for non-keyed use cases. Essentially, it gives all incoming records
  * the same key, which is a {@code (byte) 0} value.
  *
  * @param <T> The type of the input element.

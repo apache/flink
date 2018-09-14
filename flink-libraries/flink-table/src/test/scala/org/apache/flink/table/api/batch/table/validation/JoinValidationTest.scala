@@ -92,16 +92,7 @@ class JoinValidationTest extends TableTestBase {
   }
 
   @Test(expected = classOf[ValidationException])
-  def testNoJoinCondition(): Unit = {
-    val util = batchTestUtil()
-    val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
-    val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
-
-    ds2.leftOuterJoin(ds1, 'b === 'd && 'b < 3).select('c, 'g)
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testNoEquiJoin(): Unit = {
+  def testLeftJoinNoEquiJoinPredicate(): Unit = {
     val util = batchTestUtil()
     val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
@@ -110,57 +101,21 @@ class JoinValidationTest extends TableTestBase {
   }
 
   @Test(expected = classOf[ValidationException])
-  def testRightJoinWithNonEquiJoinPredicate(): Unit = {
+  def testRightJoinNoEquiJoinPredicate(): Unit = {
     val util = batchTestUtil()
     val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    ds1.rightOuterJoin(ds2, 'a === 'd && 'b < 'h).select('c, 'g)
+    ds2.rightOuterJoin(ds1, 'b < 'd).select('c, 'g)
   }
 
   @Test(expected = classOf[ValidationException])
-  def testLeftJoinWithLocalPredicate(): Unit = {
+  def testFullJoinNoEquiJoinPredicate(): Unit = {
     val util = batchTestUtil()
     val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    ds1.leftOuterJoin(ds2, 'a === 'd && 'b < 3).select('c, 'g)
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testFullJoinWithLocalPredicate(): Unit = {
-    val util = batchTestUtil()
-    val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
-    val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
-
-    ds1.fullOuterJoin(ds2, 'a === 'd && 'b < 3).select('c, 'g)
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testRightJoinWithLocalPredicate(): Unit = {
-    val util = batchTestUtil()
-    val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
-    val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
-
-    ds1.rightOuterJoin(ds2, 'a === 'd && 'b < 3).select('c, 'g)
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testLeftJoinWithNonEquiJoinPredicate(): Unit = {
-    val util = batchTestUtil()
-    val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
-    val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
-
-    ds1.leftOuterJoin(ds2, 'a === 'd && 'b < 'h).select('c, 'g)
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testFullJoinWithNonEquiJoinPredicate(): Unit = {
-    val util = batchTestUtil()
-    val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
-    val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
-
-    ds1.fullOuterJoin(ds2, 'a === 'd && 'b < 'h).select('c, 'g)
+    ds2.fullOuterJoin(ds1, 'b < 'd).select('c, 'g)
   }
 
   @Test(expected = classOf[ValidationException])

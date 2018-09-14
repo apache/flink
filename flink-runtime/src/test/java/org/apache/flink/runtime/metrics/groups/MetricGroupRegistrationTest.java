@@ -20,16 +20,16 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.util.TestReporter;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -39,17 +39,16 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for the registration of groups and metrics on a {@link MetricGroup}.
  */
-public class MetricGroupRegistrationTest {
+public class MetricGroupRegistrationTest extends TestLogger {
 	/**
 	 * Verifies that group methods instantiate the correct metric with the given name.
 	 */
 	@Test
-	public void testMetricInstantiation() {
+	public void testMetricInstantiation() throws Exception {
 		Configuration config = new Configuration();
-		config.setString(MetricOptions.REPORTERS_LIST, "test");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
 
-		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
 
 		MetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
 
@@ -86,7 +85,7 @@ public class MetricGroupRegistrationTest {
 
 		Assert.assertEquals(histogram, TestReporter1.lastPassedMetric);
 		assertEquals("histogram", TestReporter1.lastPassedName);
-		registry.shutdown();
+		registry.shutdown().get();
 	}
 
 	/**
@@ -108,10 +107,10 @@ public class MetricGroupRegistrationTest {
 	 * Verifies that when attempting to create a group with the name of an existing one the existing one will be returned instead.
 	 */
 	@Test
-	public void testDuplicateGroupName() {
+	public void testDuplicateGroupName() throws Exception {
 		Configuration config = new Configuration();
 
-		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
 
 		MetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
 
@@ -120,6 +119,6 @@ public class MetricGroupRegistrationTest {
 		MetricGroup group3 = root.addGroup("group");
 		Assert.assertTrue(group1 == group2 && group2 == group3);
 
-		registry.shutdown();
+		registry.shutdown().get();
 	}
 }

@@ -22,7 +22,7 @@ import java.io.{File, FileInputStream, IOException}
 import java.lang.management.ManagementFactory
 import java.net.{BindException, InetAddress, InetSocketAddress, ServerSocket}
 import java.util
-import java.util.concurrent.{Callable, TimeUnit}
+import java.util.concurrent.{Callable, TimeUnit, TimeoutException}
 import java.util.{Collections, UUID}
 
 import _root_.akka.actor._
@@ -35,19 +35,20 @@ import org.apache.flink.configuration._
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, DefaultQuarantineHandler, QuarantineMonitor}
-import org.apache.flink.runtime.blob.{BlobCache, BlobClient, BlobService}
+import org.apache.flink.runtime.blob.BlobCacheService
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
+import org.apache.flink.runtime.clusterframework.BootstrapTools
 import org.apache.flink.runtime.clusterframework.messages.StopCluster
-import org.apache.flink.runtime.clusterframework.types.ResourceID
-import org.apache.flink.runtime.concurrent.Executors
+import org.apache.flink.runtime.clusterframework.types.{AllocationID, ResourceID}
+import org.apache.flink.runtime.concurrent.{Executors, FutureUtils}
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
 import org.apache.flink.runtime.execution.ExecutionState
-import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, FallbackLibraryCacheManager, LibraryCacheManager}
+import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, PartitionInfo}
 import org.apache.flink.runtime.filecache.FileCache
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
 import org.apache.flink.runtime.highavailability.{HighAvailabilityServices, HighAvailabilityServicesUtils}
-import org.apache.flink.runtime.instance.{AkkaActorGateway, HardwareDescription, InstanceID}
+import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway, HardwareDescription, InstanceID}
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker
@@ -63,10 +64,10 @@ import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, 
 import org.apache.flink.runtime.messages.{Acknowledge, StackTraceSampleResponse}
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
 import org.apache.flink.runtime.metrics.util.MetricUtils
-import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
+import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistryImpl, MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.process.ProcessReaper
-import org.apache.flink.runtime.security.SecurityUtils
-import org.apache.flink.runtime.security.SecurityUtils.SecurityConfiguration
+import org.apache.flink.runtime.security.{SecurityConfiguration, SecurityUtils}
+import org.apache.flink.runtime.state.{TaskExecutorLocalStateStoresManager, TaskStateManagerImpl}
 import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
@@ -76,6 +77,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.{Failure, Success}
 
 /**
  * The TaskManager is responsible for executing the individual tasks of a Flink job. It is
@@ -125,9 +127,10 @@ class TaskManager(
     protected val memoryManager: MemoryManager,
     protected val ioManager: IOManager,
     protected val network: NetworkEnvironment,
+    protected val taskManagerLocalStateStoresManager: TaskExecutorLocalStateStoresManager,
     protected val numberOfSlots: Int,
     protected val highAvailabilityServices: HighAvailabilityServices,
-    protected val metricsRegistry: FlinkMetricRegistry)
+    protected val taskManagerMetricGroup: TaskManagerMetricGroup)
   extends FlinkActor
   with LeaderSessionMessageFilter // Mixin order is important: We want to filter after logging
   with LogMessages // Mixin order is important: first we want to support message logging
@@ -147,20 +150,19 @@ class TaskManager(
   /** Handler for shared broadcast variables (shared between multiple Tasks) */
   protected val bcVarManager = new BroadcastVariableManager()
 
-  /** Handler for distributed files cached by this TaskManager */
-  protected val fileCache = new FileCache(config.getTmpDirectories())
+
 
   protected val leaderRetrievalService: LeaderRetrievalService = highAvailabilityServices.
     getJobManagerLeaderRetriever(
       HighAvailabilityServices.DEFAULT_JOB_ID)
 
-  private var taskManagerMetricGroup : TaskManagerMetricGroup = _
-
   /** Actors which want to be notified once this task manager has been
     * registered at the job manager */
   private val waitForRegistration = scala.collection.mutable.Set[ActorRef]()
 
-  private var blobService: Option[BlobService] = None
+  private var blobCache: Option[BlobCacheService] = None
+  /** Handler for distributed files cached by this TaskManager */
+  private var fileCache: Option[FileCache] = None
   private var libraryCacheManager: Option[LibraryCacheManager] = None
 
   /* The current leading JobManager Actor associated with */
@@ -254,17 +256,12 @@ class TaskManager(
     }
 
     try {
-      fileCache.shutdown()
+      taskManagerLocalStateStoresManager.shutdown()
     } catch {
-      case t: Exception => log.error("FileCache did not shutdown properly.", t)
+      case t: Exception => log.error("Task state manager did not shutdown properly.", t)
     }
-    
-    // failsafe shutdown of the metrics registry
-    try {
-      metricsRegistry.shutdown()
-    } catch {
-      case t: Exception => log.error("MetricRegistry did not shutdown properly.", t)
-    }
+
+    taskManagerMetricGroup.close()
 
     log.info(s"Task manager ${self.path} is completely shut down.")
   }
@@ -333,11 +330,11 @@ class TaskManager(
       killTaskManagerFatal(message, cause)
 
     case RequestTaskManagerLog(requestType : LogTypeRequest) =>
-      blobService match {
+      blobCache match {
         case Some(_) =>
           handleRequestTaskManagerLog(sender(), requestType, currentJobManager.get)
         case None =>
-          sender() ! akka.actor.Status.Failure(new IOException("BlobService not " +
+          sender() ! akka.actor.Status.Failure(new IOException("BlobCache not " +
             "available. Cannot upload TaskManager logs."))
       }
 
@@ -427,7 +424,7 @@ class TaskManager(
               futureResponse.mapTo[Boolean].onComplete {
                 // IMPORTANT: In the future callback, we cannot directly modify state
                 //            but only send messages to the TaskManager to do those changes
-                case scala.util.Success(result) =>
+                case Success(result) =>
                   if (!result) {
                   self ! decorateMessage(
                     FailTask(
@@ -436,7 +433,7 @@ class TaskManager(
                     )
                   }
 
-                case scala.util.Failure(t) =>
+                case Failure(t) =>
                 self ! decorateMessage(
                   FailTask(
                     executionID,
@@ -480,7 +477,7 @@ class TaskManager(
             log.debug(s"Cannot find task to stop for execution ${executionID})")
             sender ! decorateMessage(Acknowledge.get())
           }
- 
+
         // cancels a task
         case CancelTask(executionID) =>
           val task = runningTasks.get(executionID)
@@ -562,7 +559,7 @@ class TaskManager(
               "TaskManager was triggered to register at JobManager, but is already registered")
           } else if (deadline.exists(_.isOverdue())) {
             // we failed to register in time. that means we should quit
-            log.error("Failed to register at the JobManager withing the defined maximum " +
+            log.error("Failed to register at the JobManager within the defined maximum " +
                         "connect time. Shutting down ...")
 
             // terminate ourselves (hasta la vista)
@@ -592,8 +589,8 @@ class TaskManager(
               config.getMaxRegistrationPause().toMilliseconds,
               TimeUnit.MILLISECONDS))
 
-            // schedule (with our timeout s delay) a check triggers a new registration
-            // attempt, if we are not registered by then
+            // schedule a check to trigger a new registration attempt if not registered
+            // by the timeout
             scheduledTaskManagerRegistration = Option(context.system.scheduler.scheduleOnce(
               timeout,
               self,
@@ -840,14 +837,13 @@ class TaskManager(
         if (file.exists()) {
           val fis = new FileInputStream(file);
           Future {
-            val client: BlobClient = blobService.get.createClient()
-            client.put(fis);
+            blobCache.get.getTransientBlobService.putTransient(fis)
           }(context.dispatcher)
             .onComplete {
-              case scala.util.Success(value) =>
+              case Success(value) =>
                 sender ! value
                 fis.close()
-              case scala.util.Failure(e) =>
+              case Failure(e) =>
                 sender ! akka.actor.Status.Failure(e)
                 fis.close()
             }(context.dispatcher)
@@ -915,7 +911,7 @@ class TaskManager(
       "starting network stack and library cache.")
 
     // sanity check that the JobManager dependent components are not set up currently
-    if (connectionUtils.isDefined || blobService.isDefined) {
+    if (connectionUtils.isDefined || blobCache.isDefined) {
       throw new IllegalStateException("JobManager-specific components are already initialized.")
     }
 
@@ -951,44 +947,50 @@ class TaskManager(
       val kvStateRegistry = network.getKvStateRegistry()
 
       kvStateRegistry.registerListener(
+        HighAvailabilityServices.DEFAULT_JOB_ID,
         new ActorGatewayKvStateRegistryListener(
           jobManagerGateway,
-          kvStateServer.getAddress))
+          kvStateServer.getServerAddress))
+    }
+
+    val proxy = network.getKvStateProxy
+
+    if (proxy != null) {
+      proxy.updateKvStateLocationOracle(
+        HighAvailabilityServices.DEFAULT_JOB_ID,
+        new ActorGatewayKvStateLocationOracle(
+          jobManagerGateway,
+          config.getTimeout()))
     }
 
     // start a blob service, if a blob server is specified
-    if (blobPort > 0) {
-      val jmHost = jobManager.path.address.host.getOrElse("localhost")
-      val address = new InetSocketAddress(jmHost, blobPort)
+    val jmHost = jobManager.path.address.host.getOrElse("localhost")
+    val address = new InetSocketAddress(jmHost, blobPort)
 
-      log.info(s"Determined BLOB server address to be $address. Starting BLOB cache.")
+    log.info(s"Determined BLOB server address to be $address. Starting BLOB cache.")
 
-      try {
-        val blobcache = new BlobCache(
-          address,
-          config.getConfiguration(),
-          highAvailabilityServices.createBlobStore())
-        blobService = Option(blobcache)
-        libraryCacheManager = Some(
-          new BlobLibraryCacheManager(blobcache, config.getCleanupInterval()))
-      }
-      catch {
-        case e: Exception =>
-          val message = "Could not create BLOB cache or library cache."
-          log.error(message, e)
-          throw new RuntimeException(message, e)
-      }
+    try {
+      val blobcache = new BlobCacheService(
+        config.getConfiguration(),
+        highAvailabilityServices.createBlobStore(),
+        address)
+      blobCache = Option(blobcache)
+      libraryCacheManager = Some(
+        new BlobLibraryCacheManager(
+          blobcache.getPermanentBlobService,
+          config.getClassLoaderResolveOrder(),
+          config.getAlwaysParentFirstLoaderPatterns))
+      fileCache = Some(
+        new FileCache(config.getTmpDirectories(), blobcache.getPermanentBlobService)
+      )
     }
-    else {
-      libraryCacheManager = Some(new FallbackLibraryCacheManager)
+    catch {
+      case e: Exception =>
+        val message = "Could not create BLOB cache or library cache."
+        log.error(message, e)
+        throw new RuntimeException(message, e)
     }
-    
-    taskManagerMetricGroup = 
-      new TaskManagerMetricGroup(metricsRegistry, location.getHostname, id.toString)
-    
-    MetricUtils.instantiateStatusMetrics(taskManagerMetricGroup)
-    MetricUtils.instantiateNetworkMetrics(taskManagerMetricGroup, network)
-    
+
     // watch job manager to detect when it dies
     context.watch(jobManager)
 
@@ -1046,19 +1048,17 @@ class TaskManager(
     instanceID = null
 
     // shut down BLOB and library cache
+    fileCache foreach {
+      cache => cache.shutdown()
+    }
+    fileCache = None
+
     libraryCacheManager foreach {
-      manager =>
-        try {
-          manager.shutdown()
-        } catch {
-          case ioe: IOException => log.error(
-            "Could not properly shutdown library cache manager.",
-            ioe)
-        }
+      manager => manager.shutdown()
     }
     libraryCacheManager = None
 
-    blobService foreach {
+    blobCache foreach {
       service =>
         try {
           service.close()
@@ -1066,20 +1066,20 @@ class TaskManager(
           case ioe: IOException => log.error("Could not properly shutdown blob service.", ioe)
         }
     }
-    blobService = None
+    blobCache = None
 
     // disassociate the slot environment
     connectionUtils = None
 
     if (network.getKvStateRegistry != null) {
-      network.getKvStateRegistry.unregisterListener()
+      network.getKvStateRegistry.unregisterListener(HighAvailabilityServices.DEFAULT_JOB_ID)
     }
-    
-    // failsafe shutdown of the metrics registry
-    try {
-      taskManagerMetricGroup.close()
-    } catch {
-      case t: Exception => log.warn("TaskManagerMetricGroup could not be closed successfully.", t)
+
+    val proxy = network.getKvStateProxy
+
+    if (proxy != null) {
+      // clear the key-value location oracle
+      proxy.updateKvStateLocationOracle(HighAvailabilityServices.DEFAULT_JOB_ID, null)
     }
   }
 
@@ -1130,6 +1130,15 @@ class TaskManager(
         case Some(manager) => manager
         case None => throw new IllegalStateException("There is no valid library cache manager.")
       }
+      val blobCache = this.blobCache match {
+        case Some(manager) => manager
+        case None => throw new IllegalStateException("There is no valid BLOB cache.")
+      }
+
+      val fileCache = this.fileCache match {
+        case Some(manager) => manager
+        case None => throw new IllegalStateException("There is no valid file cache.")
+      }
 
       val slot = tdd.getTargetSlotNumber
       if (slot < 0 || slot >= numberOfSlots) {
@@ -1146,15 +1155,28 @@ class TaskManager(
       }
 
       // create the task. this does not grab any TaskManager resources or download
-      // and libraries - the operation does not block
+      // any libraries except for offloaded TaskDeploymentDescriptor data which
+      // was too big for the RPC - the operation may only block for the latter
 
       val jobManagerGateway = new AkkaActorGateway(jobManagerActor, leaderSessionID.orNull)
+
+      try {
+        tdd.loadBigData(blobCache.getPermanentBlobService);
+      } catch {
+        case e @ (_: IOException | _: ClassNotFoundException) =>
+          throw new IOException("Could not deserialize the job information.", e)
+      }
 
       val jobInformation = try {
         tdd.getSerializedJobInformation.deserializeValue(getClass.getClassLoader)
       } catch {
         case e @ (_: IOException | _: ClassNotFoundException) =>
           throw new IOException("Could not deserialize the job information.", e)
+      }
+      if (tdd.getJobId != jobInformation.getJobId) {
+        throw new IOException(
+          "Inconsistent job ID information inside TaskDeploymentDescriptor (" +
+          tdd.getJobId + " vs. " + jobInformation.getJobId + ")")
       }
 
       val taskInformation = try {
@@ -1182,6 +1204,24 @@ class TaskManager(
           config.getTimeout().getSize(),
           config.getTimeout().getUnit()))
 
+      val jobID = jobInformation.getJobId
+
+      // Allocation ids do not work properly in legacy mode, so we just fake one, based on the jid.
+      val fakeAllocationID = new AllocationID(jobID.getLowerPart, jobID.getUpperPart)
+
+      val taskLocalStateStore = taskManagerLocalStateStoresManager.localStateStoreForSubtask(
+        jobID,
+        fakeAllocationID,
+        taskInformation.getJobVertexId,
+        tdd.getSubtaskIndex)
+
+      val taskStateManager = new TaskStateManagerImpl(
+        jobID,
+        tdd.getExecutionAttemptId,
+        taskLocalStateStore,
+        tdd.getTaskRestore,
+        checkpointResponder)
+
       val task = new Task(
         jobInformation,
         taskInformation,
@@ -1192,14 +1232,15 @@ class TaskManager(
         tdd.getProducedPartitions,
         tdd.getInputGates,
         tdd.getTargetSlotNumber,
-        tdd.getTaskStateHandles,
         memoryManager,
         ioManager,
         network,
         bcVarManager,
+        taskStateManager,
         taskManagerConnection,
         inputSplitProvider,
         checkpointResponder,
+        blobCache,
         libCache,
         fileCache,
         config,
@@ -1218,7 +1259,7 @@ class TaskManager(
         runningTasks.put(execId, prevTask)
         throw new IllegalStateException("TaskManager already contains a task for id " + execId)
       }
-      
+
       // all good, we kick off the task, which performs its own initialization
       task.startTaskThread()
 
@@ -1494,7 +1535,7 @@ class TaskManager(
   }
 
   protected def shutdown(): Unit = {
-    context.system.shutdown()
+    context.system.terminate()
 
     // Await actor system termination and shut down JVM
     new ProcessShutDownThread(
@@ -1551,7 +1592,7 @@ object TaskManager {
     } else {
       LOG.info("Cannot determine the maximum number of open file descriptors")
     }
-    
+
     // try to parse the command line arguments
     val configuration: Configuration = try {
       parseArgsAndLoadConfig(args)
@@ -1591,11 +1632,11 @@ object TaskManager {
    */
   @throws(classOf[Exception])
   def parseArgsAndLoadConfig(args: Array[String]): Configuration = {
-    
+
     // set up the command line parser
     val parser = new scopt.OptionParser[TaskManagerCliOptions]("TaskManager") {
       head("Flink TaskManager")
-      
+
       opt[String]("configDir") action { (param, conf) =>
         conf.setConfigDir(param)
         conf
@@ -1620,7 +1661,7 @@ object TaskManager {
     }
 
     try {
-      FileSystem.setDefaultScheme(conf)
+      FileSystem.initialize(conf)
     }
     catch {
       case e: IOException => {
@@ -1790,43 +1831,34 @@ object TaskManager {
       taskManagerClass: Class[_ <: TaskManager])
     : Unit = {
 
-    LOG.info("Starting TaskManager")
+    LOG.info(s"Starting TaskManager with ResourceID: $resourceID")
 
     // Bring up the TaskManager actor system first, bind it to the given address.
 
     LOG.info(s"Starting TaskManager actor system at $taskManagerHostname:$actorSystemPort.")
 
-    val taskManagerSystem = try {
-      val akkaConfig = AkkaUtils.getAkkaConfig(
-        configuration,
-        Some((taskManagerHostname, actorSystemPort))
-      )
-      if (LOG.isDebugEnabled) {
-        LOG.debug("Using akka configuration\n " + akkaConfig)
-      }
-      AkkaUtils.createActorSystem(akkaConfig)
-    }
-    catch {
-      case t: Throwable =>
-        if (t.isInstanceOf[org.jboss.netty.channel.ChannelException]) {
-          val cause = t.getCause()
-          if (cause != null && t.getCause().isInstanceOf[java.net.BindException]) {
-            throw new IOException("Unable to bind TaskManager actor system to address " +
-              taskManagerHostname + ':' + actorSystemPort + " - " + cause.getMessage(), t)
-          }
-        }
-        throw new Exception("Could not create TaskManager actor system", t)
-    }
+    val taskManagerSystem = BootstrapTools.startActorSystem(
+      configuration,
+      taskManagerHostname,
+      actorSystemPort,
+      LOG.logger)
+
+    val metricRegistry = new MetricRegistryImpl(
+      MetricRegistryConfiguration.fromConfiguration(configuration))
+
+    metricRegistry.startQueryService(taskManagerSystem, resourceID)
 
     // start all the TaskManager services (network stack,  library cache, ...)
     // and the TaskManager actor
     try {
+
       LOG.info("Starting TaskManager actor")
       val taskManager = startTaskManagerComponentsAndActor(
         configuration,
         resourceID,
         taskManagerSystem,
         highAvailabilityServices,
+        metricRegistry,
         taskManagerHostname,
         Some(TaskExecutor.TASK_MANAGER_NAME),
         localTaskManagerCommunication = false,
@@ -1851,38 +1883,31 @@ object TaskManager {
         )
       }
 
-      // if desired, start the logging daemon that periodically logs the
-      // memory usage information
-      if (LOG.isInfoEnabled && configuration.getBoolean(
-        ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD,
-        ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD))
-      {
-        LOG.info("Starting periodic memory usage logger")
-
-        val interval = configuration.getLong(
-          ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS,
-          ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS)
-
-        val logger = new MemoryLogger(LOG.logger, interval, taskManagerSystem)
-        logger.start()
-      }
+      MemoryLogger.startIfConfigured(LOG.logger, configuration, taskManagerSystem)
 
       // block until everything is done
-      taskManagerSystem.awaitTermination()
+      Await.ready(taskManagerSystem.whenTerminated, Duration.Inf)
     } catch {
       case t: Throwable =>
         LOG.error("Error while starting up taskManager", t)
-        try {
-          taskManagerSystem.shutdown()
-        } catch {
-          case tt: Throwable => LOG.warn("Could not cleanly shut down actor system", tt)
-        }
+        taskManagerSystem.terminate().onComplete {
+          case Success(_) =>
+          case Failure(tt) => LOG.warn("Could not cleanly shut down actor system", tt)
+        }(Executors.directExecutionContext())
         throw t
+    }
+
+    // shut down the metric query service
+    try {
+      metricRegistry.shutdown().get()
+    } catch {
+      case t: Throwable =>
+        LOG.error("Could not properly shut down the metric registry.", t)
     }
   }
 
   /**
-    * Starts and runs the TaskManager. with all its components trying to bind to
+    * Starts and runs the TaskManager with all its components trying to bind to
     * a port in the specified range.
     *
     * @param taskManagerHostname The hostname/address of the interface where the actor system
@@ -1970,6 +1995,7 @@ object TaskManager {
       resourceID: ResourceID,
       actorSystem: ActorSystem,
       highAvailabilityServices: HighAvailabilityServices,
+      metricRegistry: FlinkMetricRegistry,
       taskManagerHostname: String,
       taskManagerActorName: Option[String],
       localTaskManagerCommunication: Boolean,
@@ -1985,9 +2011,16 @@ object TaskManager {
 
     val taskManagerServices = TaskManagerServices.fromConfiguration(
       taskManagerServicesConfiguration,
-      resourceID)
+      resourceID,
+      actorSystem.dispatcher,
+      EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag,
+      EnvironmentInformation.getMaxJvmHeapMemory)
 
-    val metricRegistry = taskManagerServices.getMetricRegistry()
+    val taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
+      metricRegistry,
+      taskManagerServices.getTaskManagerLocation(),
+      taskManagerServices.getNetworkEnvironment(),
+      taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval)
 
     // create the actor properties (which define the actor constructor parameters)
     val tmProps = getTaskManagerProps(
@@ -1998,10 +2031,9 @@ object TaskManager {
       taskManagerServices.getMemoryManager(),
       taskManagerServices.getIOManager(),
       taskManagerServices.getNetworkEnvironment(),
+      taskManagerServices.getTaskManagerStateStore(),
       highAvailabilityServices,
-      metricRegistry)
-
-    metricRegistry.startQueryService(actorSystem, resourceID)
+      taskManagerMetricGroup)
 
     taskManagerActorName match {
       case Some(actorName) => actorSystem.actorOf(tmProps, actorName)
@@ -2017,8 +2049,9 @@ object TaskManager {
     memoryManager: MemoryManager,
     ioManager: IOManager,
     networkEnvironment: NetworkEnvironment,
+    taskStateManager: TaskExecutorLocalStateStoresManager,
     highAvailabilityServices: HighAvailabilityServices,
-    metricsRegistry: FlinkMetricRegistry
+    taskManagerMetricGroup: TaskManagerMetricGroup
   ): Props = {
     Props(
       taskManagerClass,
@@ -2028,9 +2061,10 @@ object TaskManager {
       memoryManager,
       ioManager,
       networkEnvironment,
+      taskStateManager,
       taskManagerConfig.getNumberSlots(),
       highAvailabilityServices,
-      metricsRegistry)
+      taskManagerMetricGroup)
   }
 
   // --------------------------------------------------------------------------

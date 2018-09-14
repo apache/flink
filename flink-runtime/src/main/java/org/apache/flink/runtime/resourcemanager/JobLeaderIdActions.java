@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 
 import java.util.UUID;
 
@@ -31,9 +32,9 @@ public interface JobLeaderIdActions {
 	 * Callback when a monitored job leader lost its leadership.
 	 *
 	 * @param jobId identifying the job whose leader lost leadership
-	 * @param oldJobLeaderId of the job manager which lost leadership
+	 * @param oldJobMasterId of the job manager which lost leadership
 	 */
-	void jobLeaderLostLeadership(JobID jobId, UUID oldJobLeaderId);
+	void jobLeaderLostLeadership(JobID jobId, JobMasterId oldJobMasterId);
 
 	/**
 	 * Notify a job timeout. The job is identified by the given JobID. In order to check

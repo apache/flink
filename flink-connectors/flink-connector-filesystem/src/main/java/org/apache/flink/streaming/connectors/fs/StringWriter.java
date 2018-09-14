@@ -58,6 +58,11 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 		this.charsetName = charsetName;
 	}
 
+	protected StringWriter(StringWriter<T> other) {
+		super(other);
+		this.charsetName = other.charsetName;
+	}
+
 	@Override
 	public void open(FileSystem fs, Path path) throws IOException {
 		super.open(fs, path);
@@ -81,7 +86,11 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 	}
 
 	@Override
-	public Writer<T> duplicate() {
-		return new StringWriter<>();
+	public StringWriter<T> duplicate() {
+		return new StringWriter<>(this);
+	}
+
+	String getCharsetName() {
+		return charsetName;
 	}
 }

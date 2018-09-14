@@ -22,24 +22,25 @@ import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.google.common.io.Files;
-
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.util.StartupUtils;
 import org.apache.flink.util.NetUtils;
-
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 /**
  * Tests that verify the startup behavior of the JobManager in failure
@@ -51,13 +52,15 @@ public class JobManagerStartupTest extends TestLogger {
 
 	private File blobStorageDirectory;
 
-	@Before
-	public void before() {
-		
-		// Prepare test directory
-		blobStorageDirectory = Files.createTempDir();
+	@Rule
+	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
+	@Before
+	public void before() throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
+
+		// Prepare test directory
+		blobStorageDirectory = temporaryFolder.newFolder();
 
 		assertTrue(blobStorageDirectory.setExecutable(true, false));
 		assertTrue(blobStorageDirectory.setReadable(true, false));
@@ -67,7 +70,9 @@ public class JobManagerStartupTest extends TestLogger {
 	@After
 	public void after() {
 		// Cleanup test directory
-		assertTrue(blobStorageDirectory.delete());
+		if (blobStorageDirectory != null) {
+			assertTrue(blobStorageDirectory.delete());
+		}
 	}
 
 	/**

@@ -18,12 +18,17 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.ManuallyTriggeredDirectExecutor;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
+import org.apache.flink.runtime.checkpoint.PendingCheckpoint;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy.Factory;
@@ -32,33 +37,51 @@ import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
-import org.apache.flink.runtime.instance.SlotProvider;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.waitUntilExecutionState;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.waitUntilJobStatus;
-
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * These tests make sure that global failover (restart all) always takes precedence over
  * local recovery strategies.
- * 
+ *
  * <p>This test must be in the package it resides in, because it uses package-private methods
  * from the ExecutionGraph classes.
  */
-public class IndividualRestartsConcurrencyTest {
+public class IndividualRestartsConcurrencyTest extends TestLogger {
 
 	/**
 	 * Tests that a cancellation concurrent to a local failover leads to a properly
@@ -116,7 +139,7 @@ public class IndividualRestartsConcurrencyTest {
 		// now report that cancelling is complete for the other vertex
 		vertex2.getCurrentExecutionAttempt().cancelingComplete();
 
-		assertEquals(JobStatus.CANCELED, graph.getState());
+		assertEquals(JobStatus.CANCELED, graph.getTerminationFuture().get());
 		assertTrue(vertex1.getCurrentExecutionAttempt().getState().isTerminal());
 		assertTrue(vertex2.getCurrentExecutionAttempt().getState().isTerminal());
 
@@ -267,6 +290,120 @@ public class IndividualRestartsConcurrencyTest {
 		assertEquals(0, slotProvider.getNumberOfAvailableSlots());
 	}
 
+	/**
+	 * Tests that a local failure fails all pending checkpoints which have not been acknowledged by the failing
+	 * task.
+	 */
+	@Test
+	public void testLocalFailureFailsPendingCheckpoints() throws Exception {
+		final JobID jid = new JobID();
+		final int parallelism = 2;
+		final long verifyTimeout = 5000L;
+
+		final TaskManagerGateway taskManagerGateway = mock(TaskManagerGateway.class);
+		when(taskManagerGateway.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
+		when(taskManagerGateway.cancelTask(any(ExecutionAttemptID.class), any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
+
+		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism, taskManagerGateway);
+		final ManuallyTriggeredDirectExecutor executor = new ManuallyTriggeredDirectExecutor();
+
+		final CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration = new CheckpointCoordinatorConfiguration(
+			10L,
+			100000L,
+			1L,
+			3,
+			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true);
+
+		final ExecutionGraph graph = createSampleGraph(
+			jid,
+			new IndividualFailoverWithCustomExecutor(executor),
+			slotProvider,
+			parallelism);
+
+		final List<ExecutionJobVertex> allVertices = new ArrayList<>(graph.getAllVertices().values());
+
+		final StandaloneCheckpointIDCounter standaloneCheckpointIDCounter = new StandaloneCheckpointIDCounter();
+
+		graph.enableCheckpointing(
+			checkpointCoordinatorConfiguration.getCheckpointInterval(),
+			checkpointCoordinatorConfiguration.getCheckpointTimeout(),
+			checkpointCoordinatorConfiguration.getMinPauseBetweenCheckpoints(),
+			checkpointCoordinatorConfiguration.getMaxConcurrentCheckpoints(),
+			checkpointCoordinatorConfiguration.getCheckpointRetentionPolicy(),
+			allVertices,
+			allVertices,
+			allVertices,
+			Collections.emptyList(),
+			standaloneCheckpointIDCounter,
+			new StandaloneCompletedCheckpointStore(1),
+			new MemoryStateBackend(),
+			new CheckpointStatsTracker(
+				1,
+				allVertices,
+				checkpointCoordinatorConfiguration,
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()));
+
+		final CheckpointCoordinator checkpointCoordinator = graph.getCheckpointCoordinator();
+
+		final ExecutionJobVertex ejv = graph.getVerticesTopologically().iterator().next();
+		final ExecutionVertex vertex1 = ejv.getTaskVertices()[0];
+		final ExecutionVertex vertex2 = ejv.getTaskVertices()[1];
+
+		graph.scheduleForExecution();
+		assertEquals(JobStatus.RUNNING, graph.getState());
+
+		verify(taskManagerGateway, timeout(verifyTimeout).times(parallelism)).submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
+
+		// switch all executions to running
+		for (ExecutionVertex executionVertex : graph.getAllExecutionVertices()) {
+			executionVertex.getCurrentExecutionAttempt().switchToRunning();
+		}
+
+		// wait for a first checkpoint to be triggered
+		verify(taskManagerGateway, timeout(verifyTimeout).times(3)).triggerCheckpoint(
+			eq(vertex1.getCurrentExecutionAttempt().getAttemptId()),
+			any(JobID.class),
+			anyLong(),
+			anyLong(),
+			any(CheckpointOptions.class));
+
+		verify(taskManagerGateway, timeout(verifyTimeout).times(3)).triggerCheckpoint(
+			eq(vertex2.getCurrentExecutionAttempt().getAttemptId()),
+			any(JobID.class),
+			anyLong(),
+			anyLong(),
+			any(CheckpointOptions.class));
+
+		assertEquals(3, checkpointCoordinator.getNumberOfPendingCheckpoints());
+
+		long checkpointToAcknowledge = standaloneCheckpointIDCounter.getLast();
+
+		checkpointCoordinator.receiveAcknowledgeMessage(
+			new AcknowledgeCheckpoint(
+				graph.getJobID(),
+				vertex1.getCurrentExecutionAttempt().getAttemptId(),
+				checkpointToAcknowledge));
+
+		Map<Long, PendingCheckpoint> oldPendingCheckpoints = new HashMap<>(3);
+
+		for (PendingCheckpoint pendingCheckpoint : checkpointCoordinator.getPendingCheckpoints().values()) {
+			assertFalse(pendingCheckpoint.isDiscarded());
+			oldPendingCheckpoints.put(pendingCheckpoint.getCheckpointId(), pendingCheckpoint);
+		}
+
+		// let one of the vertices fail - this should trigger the failing of not acknowledged pending checkpoints
+		vertex1.getCurrentExecutionAttempt().fail(new Exception("test failure"));
+
+		for (PendingCheckpoint pendingCheckpoint : oldPendingCheckpoints.values()) {
+			if (pendingCheckpoint.getCheckpointId() == checkpointToAcknowledge) {
+				assertFalse(pendingCheckpoint.isDiscarded());
+			} else {
+				assertTrue(pendingCheckpoint.isDiscarded());
+			}
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  utilities
 	// ------------------------------------------------------------------------
@@ -289,19 +426,15 @@ public class IndividualRestartsConcurrencyTest {
 
 		// build a simple execution graph with on job vertex, parallelism 2
 		final ExecutionGraph graph = new ExecutionGraph(
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
+			new DummyJobInformation(
 				jid,
-				"test job",
-				new Configuration(),
-				new SerializedValue<>(new ExecutionConfig()),
-				Time.seconds(10),
-				restartStrategy,
-				failoverStrategy,
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
-				slotProvider,
-				getClass().getClassLoader());
+				"test job"),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
+			Time.seconds(10),
+			restartStrategy,
+			failoverStrategy,
+			slotProvider);
 
 		JobVertex jv = new JobVertex("test vertex");
 		jv.setInvokableClass(NoOpInvokable.class);

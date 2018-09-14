@@ -389,7 +389,7 @@ public class ConnectionUtils {
 										"while waiting for the leader retrieval.");
 							}
 						} else if (retrievalState == LeaderRetrievalState.NEWLY_RETRIEVED) {
-							targetAddress = AkkaUtils.getInetSockeAddressFromAkkaURL(akkaURL);
+							targetAddress = AkkaUtils.getInetSocketAddressFromAkkaURL(akkaURL);
 
 							LOG.info("Retrieved new target address {}.", targetAddress);
 

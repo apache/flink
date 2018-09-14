@@ -27,8 +27,11 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -36,8 +39,8 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
@@ -58,7 +61,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Integration test for streaming programs using side outputs.
  */
-public class SideOutputITCase extends StreamingMultipleProgramsTestBase implements Serializable {
+public class SideOutputITCase extends AbstractTestBase implements Serializable {
 
 	@Rule
 	public transient ExpectedException expectedException = ExpectedException.none();
@@ -360,6 +363,98 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 	}
 
 	/**
+	 * Test CoProcessFunction side output.
+	 */
+	@Test
+	public void testCoProcessFunctionSideOutput() throws Exception {
+		final OutputTag<String> sideOutputTag = new OutputTag<String>("side"){};
+
+		TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
+		TestListResultSink<Integer> resultSink = new TestListResultSink<>();
+
+		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+		see.setParallelism(3);
+
+		DataStream<Integer> ds1 = see.fromCollection(elements);
+		DataStream<Integer> ds2 = see.fromCollection(elements);
+
+		SingleOutputStreamOperator<Integer> passThroughtStream = ds1
+				.connect(ds2)
+				.process(new CoProcessFunction<Integer, Integer, Integer>() {
+					@Override
+					public void processElement1(Integer value, Context ctx, Collector<Integer> out) throws Exception {
+						if (value < 3) {
+							out.collect(value);
+							ctx.output(sideOutputTag, "sideout1-" + String.valueOf(value));
+						}
+					}
+
+					@Override
+					public void processElement2(Integer value, Context ctx, Collector<Integer> out) throws Exception {
+						if (value >= 3) {
+							out.collect(value);
+							ctx.output(sideOutputTag, "sideout2-" + String.valueOf(value));
+						}
+					}
+				});
+
+		passThroughtStream.getSideOutput(sideOutputTag).addSink(sideOutputResultSink);
+		passThroughtStream.addSink(resultSink);
+		see.execute();
+
+		assertEquals(Arrays.asList("sideout1-1", "sideout1-2", "sideout2-3", "sideout2-4", "sideout2-5"), sideOutputResultSink.getSortedResult());
+		assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
+	}
+
+	/**
+	 * Test CoProcessFunction side output with multiple consumers.
+	 */
+	@Test
+	public void testCoProcessFunctionSideOutputWithMultipleConsumers() throws Exception {
+		final OutputTag<String> sideOutputTag1 = new OutputTag<String>("side1"){};
+		final OutputTag<String> sideOutputTag2 = new OutputTag<String>("side2"){};
+
+		TestListResultSink<String> sideOutputResultSink1 = new TestListResultSink<>();
+		TestListResultSink<String> sideOutputResultSink2 = new TestListResultSink<>();
+		TestListResultSink<Integer> resultSink = new TestListResultSink<>();
+
+		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+		see.setParallelism(3);
+
+		DataStream<Integer> ds1 = see.fromCollection(elements);
+		DataStream<Integer> ds2 = see.fromCollection(elements);
+
+		SingleOutputStreamOperator<Integer> passThroughtStream = ds1
+				.connect(ds2)
+				.process(new CoProcessFunction<Integer, Integer, Integer>() {
+					@Override
+					public void processElement1(Integer value, Context ctx, Collector<Integer> out) throws Exception {
+						if (value < 4) {
+							out.collect(value);
+							ctx.output(sideOutputTag1, "sideout1-" + String.valueOf(value));
+						}
+					}
+
+					@Override
+					public void processElement2(Integer value, Context ctx, Collector<Integer> out) throws Exception {
+						if (value >= 4) {
+							out.collect(value);
+							ctx.output(sideOutputTag2, "sideout2-" + String.valueOf(value));
+						}
+					}
+				});
+
+		passThroughtStream.getSideOutput(sideOutputTag1).addSink(sideOutputResultSink1);
+		passThroughtStream.getSideOutput(sideOutputTag2).addSink(sideOutputResultSink2);
+		passThroughtStream.addSink(resultSink);
+		see.execute();
+
+		assertEquals(Arrays.asList("sideout1-1", "sideout1-2", "sideout1-3"), sideOutputResultSink1.getSortedResult());
+		assertEquals(Arrays.asList("sideout2-4", "sideout2-5"), sideOutputResultSink2.getSortedResult());
+		assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
+	}
+
+	/**
 	 * Test keyed ProcessFunction side output.
 	 */
 	@Test
@@ -399,6 +494,100 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 		see.execute();
 
 		assertEquals(Arrays.asList("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5"), sideOutputResultSink.getSortedResult());
+		assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
+	}
+
+	/**
+	 * Test keyed CoProcessFunction side output.
+	 */
+	@Test
+	public void testKeyedCoProcessFunctionSideOutput() throws Exception {
+		final OutputTag<String> sideOutputTag = new OutputTag<String>("side"){};
+
+		TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
+		TestListResultSink<Integer> resultSink = new TestListResultSink<>();
+
+		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+		see.setParallelism(3);
+
+		DataStream<Integer> ds1 = see.fromCollection(elements);
+		DataStream<Integer> ds2 = see.fromCollection(elements);
+
+		SingleOutputStreamOperator<Integer> passThroughtStream = ds1
+				.keyBy(i -> i)
+				.connect(ds2.keyBy(i -> i))
+				.process(new CoProcessFunction<Integer, Integer, Integer>() {
+					@Override
+					public void processElement1(Integer value, Context ctx, Collector<Integer> out) throws Exception {
+						if (value < 3) {
+							out.collect(value);
+							ctx.output(sideOutputTag, "sideout1-" + String.valueOf(value));
+						}
+					}
+
+					@Override
+					public void processElement2(Integer value, Context ctx, Collector<Integer> out) throws Exception {
+						if (value >= 3) {
+							out.collect(value);
+							ctx.output(sideOutputTag, "sideout2-" + String.valueOf(value));
+						}
+					}
+				});
+
+		passThroughtStream.getSideOutput(sideOutputTag).addSink(sideOutputResultSink);
+		passThroughtStream.addSink(resultSink);
+		see.execute();
+
+		assertEquals(Arrays.asList("sideout1-1", "sideout1-2", "sideout2-3", "sideout2-4", "sideout2-5"), sideOutputResultSink.getSortedResult());
+		assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
+	}
+
+	/**
+	 * Test keyed CoProcessFunction side output with multiple consumers.
+	 */
+	@Test
+	public void testKeyedCoProcessFunctionSideOutputWithMultipleConsumers() throws Exception {
+		final OutputTag<String> sideOutputTag1 = new OutputTag<String>("side1"){};
+		final OutputTag<String> sideOutputTag2 = new OutputTag<String>("side2"){};
+
+		TestListResultSink<String> sideOutputResultSink1 = new TestListResultSink<>();
+		TestListResultSink<String> sideOutputResultSink2 = new TestListResultSink<>();
+		TestListResultSink<Integer> resultSink = new TestListResultSink<>();
+
+		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+		see.setParallelism(3);
+
+		DataStream<Integer> ds1 = see.fromCollection(elements);
+		DataStream<Integer> ds2 = see.fromCollection(elements);
+
+		SingleOutputStreamOperator<Integer> passThroughtStream = ds1
+				.keyBy(i -> i)
+				.connect(ds2.keyBy(i -> i))
+				.process(new CoProcessFunction<Integer, Integer, Integer>() {
+					@Override
+					public void processElement1(Integer value, Context ctx, Collector<Integer> out) throws Exception {
+						if (value < 4) {
+							out.collect(value);
+							ctx.output(sideOutputTag1, "sideout1-" + String.valueOf(value));
+						}
+					}
+
+					@Override
+					public void processElement2(Integer value, Context ctx, Collector<Integer> out) throws Exception {
+						if (value >= 4) {
+							out.collect(value);
+							ctx.output(sideOutputTag2, "sideout2-" + String.valueOf(value));
+						}
+					}
+				});
+
+		passThroughtStream.getSideOutput(sideOutputTag1).addSink(sideOutputResultSink1);
+		passThroughtStream.getSideOutput(sideOutputTag2).addSink(sideOutputResultSink2);
+		passThroughtStream.addSink(resultSink);
+		see.execute();
+
+		assertEquals(Arrays.asList("sideout1-1", "sideout1-2", "sideout1-3"), sideOutputResultSink1.getSortedResult());
+		assertEquals(Arrays.asList("sideout2-4", "sideout2-5"), sideOutputResultSink2.getSortedResult());
 		assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
 	}
 
@@ -547,4 +736,74 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 		assertEquals(Collections.singletonList(3), lateResultSink.getSortedResult());
 	}
 
+	@Test
+	public void testProcessdWindowFunctionSideOutput() throws Exception {
+		TestListResultSink<Integer> resultSink = new TestListResultSink<>();
+		TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
+
+		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+		see.setParallelism(3);
+		see.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+
+		DataStream<Integer> dataStream = see.fromCollection(elements);
+
+		OutputTag<String> sideOutputTag = new OutputTag<String>("side"){};
+
+		SingleOutputStreamOperator<Integer> windowOperator = dataStream
+				.assignTimestampsAndWatermarks(new TestWatermarkAssigner())
+				.keyBy(new TestKeySelector())
+				.timeWindow(Time.milliseconds(1), Time.milliseconds(1))
+				.process(new ProcessWindowFunction<Integer, Integer, Integer, TimeWindow>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public void process(Integer integer, Context context, Iterable<Integer> elements, Collector<Integer> out) throws Exception {
+						out.collect(integer);
+						context.output(sideOutputTag, "sideout-" + String.valueOf(integer));
+					}
+				});
+
+		windowOperator.getSideOutput(sideOutputTag).addSink(sideOutputResultSink);
+		windowOperator.addSink(resultSink);
+		see.execute();
+
+		assertEquals(Arrays.asList("sideout-1", "sideout-2", "sideout-5"), sideOutputResultSink.getSortedResult());
+		assertEquals(Arrays.asList(1, 2, 5), resultSink.getSortedResult());
+	}
+
+	@Test
+	public void testProcessAllWindowFunctionSideOutput() throws Exception {
+		TestListResultSink<Integer> resultSink = new TestListResultSink<>();
+		TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
+
+		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+		see.setParallelism(1);
+		see.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+
+		DataStream<Integer> dataStream = see.fromCollection(elements);
+
+		OutputTag<String> sideOutputTag = new OutputTag<String>("side"){};
+
+		SingleOutputStreamOperator<Integer> windowOperator = dataStream
+				.assignTimestampsAndWatermarks(new TestWatermarkAssigner())
+				.timeWindowAll(Time.milliseconds(1), Time.milliseconds(1))
+				.process(new ProcessAllWindowFunction<Integer, Integer, TimeWindow>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public void process(Context context, Iterable<Integer> elements, Collector<Integer> out) throws Exception {
+						for (Integer e : elements) {
+							out.collect(e);
+							context.output(sideOutputTag, "sideout-" + String.valueOf(e));
+						}
+					}
+				});
+
+		windowOperator.getSideOutput(sideOutputTag).addSink(sideOutputResultSink);
+		windowOperator.addSink(resultSink);
+		see.execute();
+
+		assertEquals(Arrays.asList("sideout-1", "sideout-2", "sideout-5"), sideOutputResultSink.getSortedResult());
+		assertEquals(Arrays.asList(1, 2, 5), resultSink.getSortedResult());
+	}
 }

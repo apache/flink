@@ -21,16 +21,20 @@ package org.apache.flink.runtime.metrics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorRef;
@@ -44,6 +48,9 @@ import java.net.InetAddress;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import scala.Option;
+import scala.concurrent.Await;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
@@ -60,6 +67,9 @@ public class TaskManagerMetricsTest extends TestLogger {
 
 		HighAvailabilityServices highAvailabilityServices = new EmbeddedHaServices(TestingUtils.defaultExecutor());
 
+		final MetricRegistryImpl metricRegistry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.fromConfiguration(new Configuration()));
+
 		try {
 			actorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
 
@@ -72,6 +82,8 @@ public class TaskManagerMetricsTest extends TestLogger {
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
 				highAvailabilityServices,
+				NoOpMetricRegistry.INSTANCE,
+				Option.empty(),
 				JobManager.class,
 				MemoryArchivist.class)._1();
 
@@ -87,9 +99,17 @@ public class TaskManagerMetricsTest extends TestLogger {
 			TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(config);
 
 			TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
-					taskManagerServicesConfiguration, tmResourceID);
+				taskManagerServicesConfiguration,
+				tmResourceID,
+				Executors.directExecutor(),
+				EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag(),
+				EnvironmentInformation.getMaxJvmHeapMemory());
 
-			final MetricRegistry tmRegistry = taskManagerServices.getMetricRegistry();
+			TaskManagerMetricGroup taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
+				metricRegistry,
+				taskManagerServices.getTaskManagerLocation(),
+				taskManagerServices.getNetworkEnvironment(),
+				taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval());
 
 			// create the task manager
 			final Props tmProps = TaskManager.getTaskManagerProps(
@@ -100,8 +120,9 @@ public class TaskManagerMetricsTest extends TestLogger {
 				taskManagerServices.getMemoryManager(),
 				taskManagerServices.getIOManager(),
 				taskManagerServices.getNetworkEnvironment(),
+				taskManagerServices.getTaskManagerStateStore(),
 				highAvailabilityServices,
-				tmRegistry);
+				taskManagerMetricGroup);
 
 			final ActorRef taskManager = actorSystem.actorOf(tmProps);
 
@@ -133,19 +154,21 @@ public class TaskManagerMetricsTest extends TestLogger {
 			}};
 
 			// verify that the registry was not shutdown due to the disconnect
-			Assert.assertFalse(tmRegistry.isShutdown());
+			Assert.assertFalse(metricRegistry.isShutdown());
 
 			// shut down the actors and the actor system
-			actorSystem.shutdown();
-			actorSystem.awaitTermination();
+			actorSystem.terminate();
+			Await.result(actorSystem.whenTerminated(), Duration.Inf());
 		} finally {
 			if (actorSystem != null) {
-				actorSystem.shutdown();
+				actorSystem.terminate();
 			}
 
 			if (highAvailabilityServices != null) {
 				highAvailabilityServices.closeAndCleanupAllData();
 			}
+
+			metricRegistry.shutdown().get();
 		}
 	}
 }

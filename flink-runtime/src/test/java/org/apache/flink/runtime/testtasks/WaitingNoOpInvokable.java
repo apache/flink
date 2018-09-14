@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.testtasks;
 
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 /**
@@ -26,6 +27,10 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 public class WaitingNoOpInvokable extends AbstractInvokable {
 
 	private static final long waitingTime = 100L;
+
+	public WaitingNoOpInvokable(Environment environment) {
+		super(environment);
+	}
 
 	@Override
 	public void invoke() throws Exception {

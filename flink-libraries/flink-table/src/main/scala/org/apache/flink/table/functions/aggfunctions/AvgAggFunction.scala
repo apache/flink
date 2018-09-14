@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.functions.aggfunctions
 
-import java.math.{BigDecimal, BigInteger}
+import java.math.{BigDecimal, BigInteger, MathContext}
 import java.lang.{Iterable => JIterable}
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
@@ -80,9 +80,9 @@ abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T, IntegralAv
     acc.f1 = 0L
   }
 
-  def getAccumulatorType: TypeInformation[_] = {
+  override def getAccumulatorType: TypeInformation[IntegralAvgAccumulator] = {
     new TupleTypeInfo(
-      new IntegralAvgAccumulator().getClass,
+      classOf[IntegralAvgAccumulator],
       BasicTypeInfo.LONG_TYPE_INFO,
       BasicTypeInfo.LONG_TYPE_INFO)
   }
@@ -175,9 +175,9 @@ abstract class BigIntegralAvgAggFunction[T]
     acc.f1 = 0
   }
 
-  def getAccumulatorType: TypeInformation[_] = {
+  override def getAccumulatorType: TypeInformation[BigIntegralAvgAccumulator] = {
     new TupleTypeInfo(
-      new BigIntegralAvgAccumulator().getClass,
+      classOf[BigIntegralAvgAccumulator],
       BasicTypeInfo.BIG_INT_TYPE_INFO,
       BasicTypeInfo.LONG_TYPE_INFO)
   }
@@ -255,9 +255,9 @@ abstract class FloatingAvgAggFunction[T] extends AggregateFunction[T, FloatingAv
     acc.f1 = 0L
   }
 
-  def getAccumulatorType: TypeInformation[_] = {
+  override def getAccumulatorType: TypeInformation[FloatingAvgAccumulator] = {
     new TupleTypeInfo(
-      new FloatingAvgAccumulator().getClass,
+      classOf[FloatingAvgAccumulator],
       BasicTypeInfo.DOUBLE_TYPE_INFO,
       BasicTypeInfo.LONG_TYPE_INFO)
   }
@@ -295,7 +295,8 @@ class DecimalAvgAccumulator extends JTuple2[BigDecimal, Long] {
 /**
   * Base class for built-in Big Decimal Avg aggregate function
   */
-class DecimalAvgAggFunction extends AggregateFunction[BigDecimal, DecimalAvgAccumulator] {
+class DecimalAvgAggFunction(context: MathContext)
+  extends AggregateFunction[BigDecimal, DecimalAvgAccumulator] {
 
   override def createAccumulator(): DecimalAvgAccumulator = {
     new DecimalAvgAccumulator
@@ -321,7 +322,7 @@ class DecimalAvgAggFunction extends AggregateFunction[BigDecimal, DecimalAvgAccu
     if (acc.f1 == 0) {
       null.asInstanceOf[BigDecimal]
     } else {
-      acc.f0.divide(BigDecimal.valueOf(acc.f1))
+      acc.f0.divide(BigDecimal.valueOf(acc.f1), context)
     }
   }
 
@@ -339,9 +340,9 @@ class DecimalAvgAggFunction extends AggregateFunction[BigDecimal, DecimalAvgAccu
     acc.f1 = 0L
   }
 
-  def getAccumulatorType: TypeInformation[_] = {
+  override def getAccumulatorType: TypeInformation[DecimalAvgAccumulator] = {
     new TupleTypeInfo(
-      new DecimalAvgAccumulator().getClass,
+      classOf[DecimalAvgAccumulator],
       BasicTypeInfo.BIG_DEC_TYPE_INFO,
       BasicTypeInfo.LONG_TYPE_INFO)
   }

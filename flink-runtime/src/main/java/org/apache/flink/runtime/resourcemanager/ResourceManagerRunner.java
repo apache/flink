@@ -20,21 +20,25 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Simple {@link StandaloneResourceManager} runner. It instantiates the resource manager's services
  * and handles fatal errors by shutting the resource manager down.
  */
-public class ResourceManagerRunner implements FatalErrorHandler {
+public class ResourceManagerRunner implements FatalErrorHandler, AutoCloseableAsync {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ResourceManagerRunner.class);
 
@@ -51,7 +55,8 @@ public class ResourceManagerRunner implements FatalErrorHandler {
 			final RpcService rpcService,
 			final HighAvailabilityServices highAvailabilityServices,
 			final HeartbeatServices heartbeatServices,
-			final MetricRegistry metricRegistry) throws Exception {
+			final MetricRegistry metricRegistry,
+			final ClusterInformation clusterInformation) throws Exception {
 
 		Preconditions.checkNotNull(resourceId);
 		Preconditions.checkNotNull(configuration);
@@ -59,8 +64,6 @@ public class ResourceManagerRunner implements FatalErrorHandler {
 		Preconditions.checkNotNull(highAvailabilityServices);
 		Preconditions.checkNotNull(heartbeatServices);
 		Preconditions.checkNotNull(metricRegistry);
-
-		final ResourceManagerConfiguration resourceManagerConfiguration = ResourceManagerConfiguration.fromConfiguration(configuration);
 
 		final ResourceManagerRuntimeServicesConfiguration resourceManagerRuntimeServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
 
@@ -73,13 +76,17 @@ public class ResourceManagerRunner implements FatalErrorHandler {
 			rpcService,
 			resourceManagerEndpointId,
 			resourceId,
-			resourceManagerConfiguration,
 			highAvailabilityServices,
 			heartbeatServices,
 			resourceManagerRuntimeServices.getSlotManager(),
 			metricRegistry,
 			resourceManagerRuntimeServices.getJobLeaderIdService(),
+			clusterInformation,
 			this);
+	}
+
+	public ResourceManagerGateway getResourceManageGateway() {
+		return resourceManager.getSelfGateway(ResourceManagerGateway.class);
 	}
 
 	//-------------------------------------------------------------------------------------
@@ -90,28 +97,12 @@ public class ResourceManagerRunner implements FatalErrorHandler {
 		resourceManager.start();
 	}
 
-	public void shutDown() throws Exception {
-		shutDownInternally();
-	}
-
-	private void shutDownInternally() throws Exception {
-		Exception exception = null;
+	@Override
+	public CompletableFuture<Void> closeAsync() {
 		synchronized (lock) {
-			try {
-				resourceManager.shutDown();
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
+			resourceManager.shutDown();
 
-			try {
-				resourceManagerRuntimeServices.shutDown();
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-
-			if (exception != null) {
-				ExceptionUtils.rethrow(exception, "Error while shutting down the resource manager runner.");
-			}
+			return resourceManager.getTerminationFuture();
 		}
 	}
 
@@ -123,10 +114,13 @@ public class ResourceManagerRunner implements FatalErrorHandler {
 	public void onFatalError(Throwable exception) {
 		LOG.error("Encountered fatal error.", exception);
 
-		try {
-			shutDownInternally();
-		} catch (Exception e) {
-			LOG.error("Could not properly shut down the resource manager.", e);
-		}
+		CompletableFuture<Void> shutdownFuture = closeAsync();
+
+		shutdownFuture.whenComplete(
+			(Void ignored, Throwable throwable) -> {
+				if (throwable != null) {
+					LOG.error("Could not properly shut down the resource manager runner.", throwable);
+				}
+			});
 	}
 }

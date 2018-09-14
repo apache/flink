@@ -244,7 +244,11 @@ public class GraphCreatingVisitor implements Visitor<Operator<?>> {
 		if (n.getParallelism() < 1) {
 			// set the parallelism
 			int par = c.getParallelism();
-			if (par > 0) {
+			if (n instanceof BinaryUnionNode) {
+				// Keep parallelism of union undefined for now.
+				// It will be determined based on the parallelism of its successor.
+				par = -1;
+			} else if (par > 0) {
 				if (this.forceParallelism && par != this.defaultParallelism) {
 					par = this.defaultParallelism;
 					Optimizer.LOG.warn("The parallelism of nested dataflows (such as step functions in iterations) is " +

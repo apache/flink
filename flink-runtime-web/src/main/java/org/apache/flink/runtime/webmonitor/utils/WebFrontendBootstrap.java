@@ -19,30 +19,35 @@
 package org.apache.flink.runtime.webmonitor.utils;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.net.SSLEngineFactory;
+import org.apache.flink.runtime.rest.handler.router.Router;
+import org.apache.flink.runtime.rest.handler.router.RouterHandler;
 import org.apache.flink.runtime.webmonitor.HttpRequestHandler;
 import org.apache.flink.runtime.webmonitor.PipelineErrorHandler;
 import org.apache.flink.util.Preconditions;
 
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.codec.http.HttpServerCodec;
-import io.netty.handler.codec.http.router.Handler;
-import io.netty.handler.codec.http.router.Router;
-import io.netty.handler.ssl.SslHandler;
-import io.netty.handler.stream.ChunkedWriteHandler;
+import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
+import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
+import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
+import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCodec;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
+import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
+
 import org.slf4j.Logger;
 
-import javax.net.ssl.SSLContext;
+import javax.annotation.Nullable;
 import javax.net.ssl.SSLEngine;
 
 import java.io.File;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
+import java.util.HashMap;
 
 /**
  * This classes encapsulates the boot-strapping of netty for the web-frontend.
@@ -51,34 +56,32 @@ public class WebFrontendBootstrap {
 	private final Router router;
 	private final Logger log;
 	private final File uploadDir;
-	private final SSLContext serverSSLContext;
 	private final ServerBootstrap bootstrap;
 	private final Channel serverChannel;
+	private final String restAddress;
 
 	public WebFrontendBootstrap(
 			Router router,
 			Logger log,
 			File directory,
-			SSLContext sslContext,
+			@Nullable SSLEngineFactory serverSSLFactory,
 			String configuredAddress,
 			int configuredPort,
-			final Configuration config) throws InterruptedException {
+			final Configuration config) throws InterruptedException, UnknownHostException {
+
 		this.router = Preconditions.checkNotNull(router);
 		this.log = Preconditions.checkNotNull(log);
 		this.uploadDir = directory;
-		this.serverSSLContext = sslContext;
 
 		ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
 
 			@Override
 			protected void initChannel(SocketChannel ch) {
-				Handler handler = new Handler(WebFrontendBootstrap.this.router);
+				RouterHandler handler = new RouterHandler(WebFrontendBootstrap.this.router, new HashMap<>());
 
 				// SSL should be the first handler in the pipeline
-				if (serverSSLContext != null) {
-					SSLEngine sslEngine = serverSSLContext.createSSLEngine();
-					SSLUtils.setSSLVerAndCipherSuites(sslEngine, config);
-					sslEngine.setUseClientMode(false);
+				if (serverSSLFactory != null) {
+					SSLEngine sslEngine = serverSSLFactory.createSSLEngine();
 					ch.pipeline().addLast("ssl", new SslHandler(sslEngine));
 				}
 
@@ -86,7 +89,7 @@ public class WebFrontendBootstrap {
 					.addLast(new HttpServerCodec())
 					.addLast(new ChunkedWriteHandler())
 					.addLast(new HttpRequestHandler(uploadDir))
-					.addLast(handler.name(), handler)
+					.addLast(handler.getName(), handler)
 					.addLast(new PipelineErrorHandler(WebFrontendBootstrap.this.log));
 			}
 		};
@@ -109,10 +112,23 @@ public class WebFrontendBootstrap {
 		this.serverChannel = ch.sync().channel();
 
 		InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
-		String address = bindAddress.getAddress().getHostAddress();
+
+		InetAddress inetAddress = bindAddress.getAddress();
+		final String address;
+
+		if (inetAddress.isAnyLocalAddress()) {
+			address = config.getString(JobManagerOptions.ADDRESS, InetAddress.getLocalHost().getHostName());
+		} else {
+			address = inetAddress.getHostAddress();
+		}
+
 		int port = bindAddress.getPort();
 
 		this.log.info("Web frontend listening at {}" + ':' + "{}", address, port);
+
+		final String protocol = serverSSLFactory != null ? "https://" : "http://";
+
+		this.restAddress = protocol + address + ':' + port;
 	}
 
 	public ServerBootstrap getBootstrap() {
@@ -131,6 +147,10 @@ public class WebFrontendBootstrap {
 		}
 
 		return -1;
+	}
+
+	public String getRestAddress() {
+		return restAddress;
 	}
 
 	public void shutdown() {

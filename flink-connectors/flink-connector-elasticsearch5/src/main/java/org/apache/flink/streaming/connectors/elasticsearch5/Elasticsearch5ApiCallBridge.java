@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch5;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchApiCallBridge;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.util.ElasticsearchUtils;
@@ -25,7 +26,6 @@ import org.apache.flink.util.Preconditions;
 import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.settings.Settings;
@@ -45,7 +45,8 @@ import java.util.Map;
 /**
  * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 5.x.
  */
-public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge {
+@Internal
+public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge<TransportClient> {
 
 	private static final long serialVersionUID = -5222683870097809633L;
 
@@ -64,7 +65,7 @@ public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge {
 	}
 
 	@Override
-	public Client createClient(Map<String, String> clientConfig) {
+	public TransportClient createClient(Map<String, String> clientConfig) {
 		Settings settings = Settings.builder().put(clientConfig)
 			.put(NetworkModule.HTTP_TYPE_KEY, Netty3Plugin.NETTY_HTTP_TRANSPORT_NAME)
 			.put(NetworkModule.TRANSPORT_TYPE_KEY, Netty3Plugin.NETTY_TRANSPORT_NAME)
@@ -85,6 +86,11 @@ public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge {
 		}
 
 		return transportClient;
+	}
+
+	@Override
+	public BulkProcessor.Builder createBulkProcessorBuilder(TransportClient client, BulkProcessor.Listener listener) {
+		return BulkProcessor.builder(client, listener);
 	}
 
 	@Override
@@ -121,10 +127,4 @@ public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge {
 
 		builder.setBackoffPolicy(backoffPolicy);
 	}
-
-	@Override
-	public void cleanup() {
-		// nothing to cleanup
-	}
-
 }

@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -32,7 +34,6 @@ import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDi
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.migration.MigrationTestUtil;
@@ -92,7 +93,12 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 
 	@Parameterized.Parameters(name = "Migration Savepoint: {0}")
 	public static Collection<MigrationVersion> parameters () {
-		return Arrays.asList(MigrationVersion.v1_1, MigrationVersion.v1_2, MigrationVersion.v1_3);
+		return Arrays.asList(
+			MigrationVersion.v1_2,
+			MigrationVersion.v1_3,
+			MigrationVersion.v1_4,
+			MigrationVersion.v1_5,
+			MigrationVersion.v1_6);
 	}
 
 	public FlinkKafkaConsumerBaseMigrationTest(MigrationVersion testMigrateVersion) {
@@ -168,7 +174,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 			latch.await();
 		}
 
-		final OperatorStateHandles snapshot;
+		final OperatorSubtaskState snapshot;
 		synchronized (testHarness.getCheckpointLock()) {
 			snapshot = testHarness.snapshot(0L, 0L);
 		}
@@ -322,7 +328,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 	 */
 	@Test
 	public void testRestoreFailsWithNonEmptyPreFlink13StatesIfDiscoveryEnabled() throws Exception {
-		assumeTrue(testMigrateVersion == MigrationVersion.v1_1 || testMigrateVersion == MigrationVersion.v1_2);
+		assumeTrue(testMigrateVersion == MigrationVersion.v1_3 || testMigrateVersion == MigrationVersion.v1_2);
 
 		final List<KafkaTopicPartition> partitions = new ArrayList<>(PARTITION_STATE.keySet());
 
@@ -349,11 +355,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 
 			fail("Restore from savepoints from version before Flink 1.3.x should have failed if discovery is enabled.");
 		} catch (Exception e) {
-			if (testMigrateVersion == MigrationVersion.v1_1) {
-				Assert.assertTrue(e.getCause() instanceof IllegalArgumentException);
-			} else {
-				Assert.assertTrue(e instanceof IllegalArgumentException);
-			}
+			Assert.assertTrue(e instanceof IllegalArgumentException);
 		}
 	}
 
@@ -376,7 +378,8 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 				Arrays.asList("dummy-topic"),
 				null,
 				(KeyedDeserializationSchema< T >) mock(KeyedDeserializationSchema.class),
-				discoveryInterval);
+				discoveryInterval,
+				false);
 
 			this.fetcher = fetcher;
 			this.partitions = partitions;
@@ -393,7 +396,9 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 				SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 				StreamingRuntimeContext runtimeContext,
-				OffsetCommitMode offsetCommitMode) throws Exception {
+				OffsetCommitMode offsetCommitMode,
+				MetricGroup consumerMetricGroup,
+				boolean useMetrics) throws Exception {
 			return fetcher;
 		}
 
@@ -418,6 +423,13 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		@Override
 		protected boolean getIsAutoCommitEnabled() {
 			return false;
+		}
+
+		@Override
+		protected Map<KafkaTopicPartition, Long> fetchOffsetsWithTimestamp(
+				Collection<KafkaTopicPartition> partitions,
+				long timestamp) {
+			throw new UnsupportedOperationException();
 		}
 	}
 

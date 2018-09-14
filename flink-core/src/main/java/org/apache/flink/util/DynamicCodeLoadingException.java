@@ -22,10 +22,10 @@ import org.apache.flink.annotation.Public;
 
 /**
  * An exception that is thrown if the dynamic instantiation of code fails.
- * 
+ *
  * <p>This exception is supposed to "sum up" the zoo of exceptions typically thrown around
  * dynamic code loading and instantiations:
- * 
+ *
  * <pre>{@code
  * try {
  *     Class.forName(classname).asSubclass(TheType.class).newInstance();

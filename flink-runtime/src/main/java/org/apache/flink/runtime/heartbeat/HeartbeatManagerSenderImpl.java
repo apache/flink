@@ -19,13 +19,11 @@
 package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
-import org.apache.flink.runtime.concurrent.ApplyFunction;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -65,25 +63,20 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
 		if (!stopped) {
 			log.debug("Trigger heartbeat request.");
 			for (HeartbeatMonitor<O> heartbeatMonitor : getHeartbeatTargets()) {
-				Future<O> futurePayload = getHeartbeatListener().retrievePayload();
+				CompletableFuture<O> futurePayload = getHeartbeatListener().retrievePayload(heartbeatMonitor.getHeartbeatTargetId());
 				final HeartbeatTarget<O> heartbeatTarget = heartbeatMonitor.getHeartbeatTarget();
 
 				if (futurePayload != null) {
-					Future<Void> requestHeartbeatFuture = futurePayload.thenAcceptAsync(new AcceptFunction<O>() {
-						@Override
-						public void accept(O payload) {
-							heartbeatTarget.requestHeartbeat(getOwnResourceID(), payload);
-						}
-					}, getExecutor());
+					CompletableFuture<Void> requestHeartbeatFuture = futurePayload.thenAcceptAsync(
+						payload -> heartbeatTarget.requestHeartbeat(getOwnResourceID(), payload),
+						getExecutor());
 
-					requestHeartbeatFuture.exceptionally(new ApplyFunction<Throwable, Void>() {
-						@Override
-						public Void apply(Throwable failure) {
+					requestHeartbeatFuture.exceptionally(
+						(Throwable failure) -> {
 							log.warn("Could not request the heartbeat from target {}.", heartbeatTarget, failure);
 
 							return null;
-						}
-					});
+						});
 				} else {
 					heartbeatTarget.requestHeartbeat(getOwnResourceID(), null);
 				}

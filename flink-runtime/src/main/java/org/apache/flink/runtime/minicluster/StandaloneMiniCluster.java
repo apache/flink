@@ -18,30 +18,39 @@
 
 package org.apache.flink.runtime.minicluster;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.pattern.Patterns;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.taskmanager.TaskManager;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
-import scala.Option;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.pattern.Patterns;
+
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import scala.Option;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.Duration;
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Mini cluster to run the old JobManager code without embedded high availability services. This
@@ -51,7 +60,7 @@ import java.util.concurrent.TimeUnit;
  * {@link FlinkMiniCluster}, because the remote environment cannot retrieve the current leader
  * session id.
  */
-public class StandaloneMiniCluster {
+public class StandaloneMiniCluster implements AutoCloseableAsync {
 
 	private static final String LOCAL_HOSTNAME = "localhost";
 
@@ -62,6 +71,8 @@ public class StandaloneMiniCluster {
 	private final ScheduledExecutorService scheduledExecutorService;
 
 	private final HighAvailabilityServices highAvailabilityServices;
+
+	private final MetricRegistryImpl metricRegistry;
 
 	private final FiniteDuration timeout;
 
@@ -86,20 +97,30 @@ public class StandaloneMiniCluster {
 			Executors.directExecutor(),
 			HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION);
 
+		metricRegistry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.fromConfiguration(configuration));
+
+		metricRegistry.startQueryService(actorSystem, null);
+
 		JobManager.startJobManagerActors(
 			configuration,
 			actorSystem,
 			scheduledExecutorService,
 			scheduledExecutorService,
 			highAvailabilityServices,
+			metricRegistry,
+			Option.empty(),
 			JobManager.class,
 			MemoryArchivist.class);
 
+		final ResourceID taskManagerResourceId = ResourceID.generate();
+
 		ActorRef taskManager = TaskManager.startTaskManagerComponentsAndActor(
 			configuration,
-			ResourceID.generate(),
+			taskManagerResourceId,
 			actorSystem,
 			highAvailabilityServices,
+			metricRegistry,
 			LOCAL_HOSTNAME,
 			Option.<String>empty(),
 			true,
@@ -125,11 +146,22 @@ public class StandaloneMiniCluster {
 		return configuration;
 	}
 
-	public void close() throws Exception {
+	@Override
+	public CompletableFuture<Void> closeAsync() {
 		Exception exception = null;
 
-		actorSystem.shutdown();
-		actorSystem.awaitTermination();
+		try {
+			metricRegistry.shutdown();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		actorSystem.terminate();
+		try {
+			Await.ready(actorSystem.whenTerminated(), Duration.Inf());
+		} catch (InterruptedException | TimeoutException e) {
+			exception = e;
+		}
 
 		try {
 			highAvailabilityServices.closeAndCleanupAllData();
@@ -148,7 +180,9 @@ public class StandaloneMiniCluster {
 		}
 
 		if (exception != null) {
-			throw exception;
+			return FutureUtils.completedExceptionally(exception);
+		} else {
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 }

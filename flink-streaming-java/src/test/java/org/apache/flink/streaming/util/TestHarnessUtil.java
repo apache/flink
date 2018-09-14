@@ -21,7 +21,8 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
 import org.junit.Assert;
 
 import java.util.ArrayList;
@@ -56,7 +57,7 @@ public class TestHarnessUtil {
 	/**
 	 * Compare the two queues containing operator/task output by converting them to an array first.
 	 */
-	public static void assertOutputEquals(String message, Queue<Object> expected, Queue<Object> actual) {
+	public static <T> void assertOutputEquals(String message, Queue<T> expected, Queue<T> actual) {
 		Assert.assertArrayEquals(message,
 				expected.toArray(),
 				actual.toArray());
@@ -103,5 +104,25 @@ public class TestHarnessUtil {
 
 		Assert.assertArrayEquals(message, sortedExpected, sortedActual);
 
+	}
+
+	/**
+	 * Verify no StreamRecord is equal to or later than any watermarks. This is checked over the
+	 * order of the elements
+	 *
+	 * @param elements An iterable containing StreamRecords and watermarks
+	 */
+	public static void assertNoLateRecords(Iterable<Object> elements) {
+		// check that no watermark is violated
+		long highestWatermark = Long.MIN_VALUE;
+
+		for (Object elem : elements) {
+			if (elem instanceof Watermark) {
+				highestWatermark = ((Watermark) elem).asWatermark().getTimestamp();
+			} else if (elem instanceof StreamRecord) {
+				boolean dataIsOnTime = highestWatermark < ((StreamRecord) elem).getTimestamp();
+				Assert.assertTrue("Late data was emitted after join", dataIsOnTime);
+			}
+		}
 	}
 }

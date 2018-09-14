@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.4-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -57,14 +57,15 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- test dependencies -->
-
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils-junit</artifactId>
+			<artifactId>flink-avro</artifactId>
 			<version>${project.version}</version>
-			<scope>test</scope>
+			<!-- Projects depending on this project, won't depend on flink-avro. -->
+			<optional>true</optional>
 		</dependency>
+
+		<!-- test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -131,19 +132,6 @@ under the License.
 
 	<build>
 		<plugins>
-
-			<!--
-				https://issues.apache.org/jira/browse/DIRSHARED-134
-				Required to pull the Mini-KDC transitive dependency
-			-->
-			<plugin>
-				<groupId>org.apache.felix</groupId>
-				<artifactId>maven-bundle-plugin</artifactId>
-				<version>3.0.1</version>
-				<inherited>true</inherited>
-				<extensions>true</extensions>
-			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>

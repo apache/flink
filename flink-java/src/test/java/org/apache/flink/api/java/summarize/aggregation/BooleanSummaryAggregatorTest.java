@@ -19,10 +19,13 @@
 package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.BooleanColumnSummary;
+
 import org.junit.Assert;
 import org.junit.Test;
 
-
+/**
+ * Tests for {@link BooleanSummaryAggregator}.
+ */
 public class BooleanSummaryAggregatorTest {
 
 	@Test
@@ -68,7 +71,7 @@ public class BooleanSummaryAggregatorTest {
 	/**
 	 * Helper method for summarizing a list of values.
 	 *
-	 * This method breaks the rule of "testing only one thing" by aggregating and combining
+	 * <p>This method breaks the rule of "testing only one thing" by aggregating and combining
 	 * a bunch of different ways.
 	 */
 	protected BooleanColumnSummary summarize(Boolean... values) {

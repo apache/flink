@@ -23,9 +23,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 
 import java.io.IOException;
+import java.util.function.Function;
 
 
 /**
@@ -57,13 +59,13 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 	 * of channels per input gate.
 	 */
 	public OneInputStreamTaskTestHarness(
-		OneInputStreamTask<IN, OUT> task,
-		int numInputGates,
-		int numInputChannelsPerGate,
-		TypeInformation<IN> inputType,
-		TypeInformation<OUT> outputType) {
+			Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
+			int numInputGates,
+			int numInputChannelsPerGate,
+			TypeInformation<IN> inputType,
+			TypeInformation<OUT> outputType) {
 
-		super(task, outputType);
+		super(taskFactory, outputType);
 
 		this.inputType = inputType;
 		inputSerializer = inputType.createSerializer(executionConfig);
@@ -76,10 +78,11 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 	 * Creates a test harness with one input gate that has one input channel.
 	 */
 	public OneInputStreamTaskTestHarness(
-		OneInputStreamTask<IN, OUT> task,
-		TypeInformation<IN> inputType,
-		TypeInformation<OUT> outputType) {
-		this(task, 1, 1, inputType, outputType);
+			Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
+			TypeInformation<IN> inputType,
+			TypeInformation<OUT> outputType) {
+
+		this(taskFactory, 1, 1, inputType, outputType);
 	}
 
 	@Override
@@ -104,6 +107,12 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 		ClosureCleaner.clean(keySelector, false);
 		streamConfig.setStatePartitioner(0, keySelector);
 		streamConfig.setStateKeySerializer(keyType.createSerializer(executionConfig));
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public OneInputStreamTask<IN, OUT> getTask() {
+		return (OneInputStreamTask<IN, OUT>) super.getTask();
 	}
 }
 

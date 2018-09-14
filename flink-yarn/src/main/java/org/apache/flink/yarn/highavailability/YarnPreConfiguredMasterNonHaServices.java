@@ -21,6 +21,7 @@ package org.apache.flink.yarn.highavailability;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
@@ -65,6 +66,9 @@ public class YarnPreConfiguredMasterNonHaServices extends AbstractYarnNonHaServi
 
 	/** The RPC URL under which the single ResourceManager can be reached while available. */
 	private final String resourceManagerRpcUrl;
+
+	/** The RPC URL under which the single Dispatcher can be reached while available. */
+	private final String dispatcherRpcUrl;
 
 	// ------------------------------------------------------------------------
 
@@ -116,6 +120,13 @@ public class YarnPreConfiguredMasterNonHaServices extends AbstractYarnNonHaServi
 				addressResolution,
 				config);
 
+			this.dispatcherRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
+				rmHost,
+				rmPort,
+				Dispatcher.DISPATCHER_NAME,
+				addressResolution,
+				config);
+
 			// all well!
 			successful = true;
 		}
@@ -145,6 +156,17 @@ public class YarnPreConfiguredMasterNonHaServices extends AbstractYarnNonHaServi
 	}
 
 	@Override
+	public LeaderRetrievalService getDispatcherLeaderRetriever() {
+		enter();
+
+		try {
+			return new StandaloneLeaderRetrievalService(dispatcherRpcUrl, DEFAULT_LEADER_ID);
+		} finally {
+			exit();
+		}
+	}
+
+	@Override
 	public LeaderElectionService getResourceManagerLeaderElectionService() {
 		enter();
 		try {
@@ -156,10 +178,31 @@ public class YarnPreConfiguredMasterNonHaServices extends AbstractYarnNonHaServi
 	}
 
 	@Override
+	public LeaderElectionService getDispatcherLeaderElectionService() {
+		enter();
+		try {
+			throw new UnsupportedOperationException("Not supported on the TaskManager side");
+		} finally {
+			exit();
+		}
+	}
+
+	@Override
 	public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) {
 		enter();
 		try {
 			throw new UnsupportedOperationException("needs refactoring to accept default address");
+		}
+		finally {
+			exit();
+		}
+	}
+
+	@Override
+	public LeaderElectionService getWebMonitorLeaderElectionService() {
+		enter();
+		try {
+			throw new UnsupportedOperationException();
 		}
 		finally {
 			exit();
@@ -183,6 +226,17 @@ public class YarnPreConfiguredMasterNonHaServices extends AbstractYarnNonHaServi
 		try {
 			return new StandaloneLeaderRetrievalService(defaultJobManagerAddress, DEFAULT_LEADER_ID);
 		} finally {
+			exit();
+		}
+	}
+
+	@Override
+	public LeaderRetrievalService getWebMonitorLeaderRetriever() {
+		enter();
+		try {
+			throw new UnsupportedOperationException();
+		}
+		finally {
 			exit();
 		}
 	}

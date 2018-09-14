@@ -24,8 +24,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.codegen.Compiler
+import org.apache.flink.table.util.Logging
 import org.apache.flink.util.Collector
-import org.slf4j.{Logger, LoggerFactory}
 
 class CorrelateFlatMapRunner[IN, OUT](
     flatMapName: String,
@@ -35,9 +35,8 @@ class CorrelateFlatMapRunner[IN, OUT](
     @transient var returnType: TypeInformation[OUT])
   extends RichFlatMapFunction[IN, OUT]
   with ResultTypeQueryable[OUT]
-  with Compiler[Any] {
-
-  val LOG: Logger = LoggerFactory.getLogger(this.getClass)
+  with Compiler[Any]
+  with Logging {
 
   private var function: FlatMapFunction[IN, OUT] = _
   private var collector: TableFunctionCollector[_] = _

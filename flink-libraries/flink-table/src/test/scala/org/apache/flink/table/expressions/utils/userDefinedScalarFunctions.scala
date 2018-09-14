@@ -20,9 +20,11 @@ package org.apache.flink.table.expressions.utils
 
 import java.sql.{Date, Time, Timestamp}
 
+import org.apache.commons.lang3.StringUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.functions.{ScalarFunction, FunctionContext}
+import org.apache.flink.table.functions.{FunctionContext, ScalarFunction}
+import org.apache.flink.types.Row
 import org.junit.Assert
 
 import scala.annotation.varargs
@@ -41,6 +43,12 @@ object Func1 extends ScalarFunction {
   def eval(index: Integer): Integer = {
     index + 1
   }
+
+  def eval(b: Byte): Byte = (b + 1).toByte
+
+  def eval(s: Short): Short = (s + 1).toShort
+
+  def eval(f: Float): Float = f + 1
 }
 
 object Func2 extends ScalarFunction {
@@ -267,4 +275,29 @@ object Func18 extends ScalarFunction {
   def eval(str: String, prefix: String): Boolean = {
     str.startsWith(prefix)
   }
+}
+
+object Func19 extends ScalarFunction {
+  def eval(row: Row): Row = {
+    row
+  }
+
+  override def getParameterTypes(signature: Array[Class[_]]): Array[TypeInformation[_]] =
+    Array(Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT)))
+
+  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
+    Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
+
+}
+
+class SplitUDF(deterministic: Boolean) extends ScalarFunction {
+  def eval(x: String, sep: String, index: Int): String = {
+    val splits = StringUtils.splitByWholeSeparator(x, sep)
+    if (splits.length > index) {
+      splits(index)
+    } else {
+      null
+    }
+  }
+  override def isDeterministic: Boolean = deterministic
 }

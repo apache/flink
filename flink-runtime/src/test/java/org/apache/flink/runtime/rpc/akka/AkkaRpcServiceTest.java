@@ -18,19 +18,21 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import akka.actor.ActorSystem;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.util.TestLogger;
 
+import akka.actor.ActorSystem;
+import akka.actor.Terminated;
 import org.junit.AfterClass;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
@@ -50,13 +52,19 @@ public class AkkaRpcServiceTest extends TestLogger {
 
 	private static ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
 
+	private static final Time timeout = Time.milliseconds(10000);
+
 	private static AkkaRpcService akkaRpcService =
-			new AkkaRpcService(actorSystem, Time.milliseconds(10000));
+			new AkkaRpcService(actorSystem, timeout);
 
 	@AfterClass
-	public static void shutdown() {
-		akkaRpcService.stopService();
-		actorSystem.shutdown();
+	public static void shutdown() throws InterruptedException, ExecutionException, TimeoutException {
+		final CompletableFuture<Void> rpcTerminationFuture = akkaRpcService.stopService();
+		final CompletableFuture<Terminated> actorSystemTerminationFuture = FutureUtils.toJava(actorSystem.terminate());
+
+		FutureUtils
+			.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
+			.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 	}
 
 	// ------------------------------------------------------------------------
@@ -91,26 +99,21 @@ public class AkkaRpcServiceTest extends TestLogger {
 	public void testExecuteRunnable() throws Exception {
 		final OneShotLatch latch = new OneShotLatch();
 
-		akkaRpcService.execute(new Runnable() {
-			@Override
-			public void run() {
-				latch.trigger();
-			}
-		});
+		akkaRpcService.execute(() -> latch.trigger());
 
 		latch.await(30L, TimeUnit.SECONDS);
 	}
 
 	/**
 	 * Tests that the {@link AkkaRpcService} can execute callables and returns their result as
-	 * a {@link Future}.
+	 * a {@link CompletableFuture}.
 	 */
 	@Test
 	public void testExecuteCallable() throws InterruptedException, ExecutionException, TimeoutException {
 		final OneShotLatch latch = new OneShotLatch();
 		final int expected = 42;
 
-		Future<Integer> result = akkaRpcService.execute(new Callable<Integer>() {
+		CompletableFuture<Integer> result = akkaRpcService.execute(new Callable<Integer>() {
 			@Override
 			public Integer call() throws Exception {
 				latch.trigger();
@@ -136,27 +139,17 @@ public class AkkaRpcServiceTest extends TestLogger {
 
 	/**
 	 * Tests that we can wait for the termination of the rpc service
-	 *
-	 * @throws ExecutionException
-	 * @throws InterruptedException
 	 */
 	@Test(timeout = 60000)
-	public void testTerminationFuture() throws ExecutionException, InterruptedException {
+	public void testTerminationFuture() throws Exception {
 		final ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
 		final AkkaRpcService rpcService = new AkkaRpcService(actorSystem, Time.milliseconds(1000));
 
-		Future<Void> terminationFuture = rpcService.getTerminationFuture();
+		CompletableFuture<Void> terminationFuture = rpcService.getTerminationFuture();
 
 		assertFalse(terminationFuture.isDone());
 
-		FlinkFuture.supplyAsync(new Callable<Void>() {
-			@Override
-			public Void call() throws Exception {
-				rpcService.stopService();
-
-				return null;
-			}
-		}, actorSystem.dispatcher());
+		CompletableFuture.runAsync(rpcService::stopService, actorSystem.dispatcher());
 
 		terminationFuture.get();
 	}
@@ -315,5 +308,9 @@ public class AkkaRpcServiceTest extends TestLogger {
 		} catch (TimeoutException e) {
 			// expected
 		}
+	}
+
+	@Test
+	public void testVersionIncompatibility() {
 	}
 }

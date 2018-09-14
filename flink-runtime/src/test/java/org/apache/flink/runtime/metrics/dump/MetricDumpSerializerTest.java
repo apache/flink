@@ -24,7 +24,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.SimpleCounter;
-import org.apache.flink.runtime.metrics.util.TestingHistogram;
+import org.apache.flink.metrics.util.TestHistogram;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -113,7 +113,7 @@ public class MetricDumpSerializerTest {
 			}
 		};
 
-		Histogram h1 = new TestingHistogram();
+		Histogram h1 = new TestHistogram();
 
 		Meter m1 = new Meter() {
 			@Override

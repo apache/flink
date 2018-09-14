@@ -17,9 +17,15 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.connectors.kinesis.KinesisShardAssigner;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.metrics.KinesisConsumerMetricConstants;
+import org.apache.flink.streaming.connectors.kinesis.metrics.ShardMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
@@ -38,6 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -69,7 +76,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * and 2) last processed sequence numbers of each subscribed shard. Since operations on the second state will be performed
  * by multiple threads, these operations should only be done using the handler methods provided in this class.
  */
+@Internal
 public class KinesisDataFetcher<T> {
+
+	public static final KinesisShardAssigner DEFAULT_SHARD_ASSIGNER = (shard, subtasks) -> shard.hashCode();
 
 	private static final Logger LOG = LoggerFactory.getLogger(KinesisDataFetcher.class);
 
@@ -89,6 +99,18 @@ public class KinesisDataFetcher<T> {
 	 * clone a copy using {@link KinesisDataFetcher#getClonedDeserializationSchema()}.
 	 */
 	private final KinesisDeserializationSchema<T> deserializationSchema;
+
+	/**
+	 * The function that determines which subtask a shard should be assigned to.
+	 */
+	private final KinesisShardAssigner shardAssigner;
+
+	// ------------------------------------------------------------------------
+	//  Consumer metrics
+	// ------------------------------------------------------------------------
+
+	/** The metric group that all metrics should be registered to. */
+	private final MetricGroup consumerMetricGroup;
 
 	// ------------------------------------------------------------------------
 	//  Subtask-specific settings
@@ -141,6 +163,9 @@ public class KinesisDataFetcher<T> {
 	/** Reference to the first error thrown by any of the {@link ShardConsumer} threads. */
 	private final AtomicReference<Throwable> error;
 
+	/** The Kinesis proxy factory that will be used to create instances for discovery and shard consumers. */
+	private final FlinkKinesisProxyFactory kinesisProxyFactory;
+
 	/** The Kinesis proxy that the fetcher will be using to discover new shards. */
 	private final KinesisProxyInterface kinesis;
 
@@ -158,6 +183,13 @@ public class KinesisDataFetcher<T> {
 	private volatile boolean running = true;
 
 	/**
+	 * Factory to create Kinesis proxy instances used by a fetcher.
+	 */
+	public interface FlinkKinesisProxyFactory {
+		KinesisProxyInterface create(Properties configProps);
+	}
+
+	/**
 	 * Creates a Kinesis Data Fetcher.
 	 *
 	 * @param streams the streams to subscribe to
@@ -170,30 +202,33 @@ public class KinesisDataFetcher<T> {
 							SourceFunction.SourceContext<T> sourceContext,
 							RuntimeContext runtimeContext,
 							Properties configProps,
-							KinesisDeserializationSchema<T> deserializationSchema) {
+							KinesisDeserializationSchema<T> deserializationSchema,
+							KinesisShardAssigner shardAssigner) {
 		this(streams,
 			sourceContext,
 			sourceContext.getCheckpointLock(),
 			runtimeContext,
 			configProps,
 			deserializationSchema,
-			new AtomicReference<Throwable>(),
-			new LinkedList<KinesisStreamShardState>(),
+			shardAssigner,
+			new AtomicReference<>(),
+			new ArrayList<>(),
 			createInitialSubscribedStreamsToLastDiscoveredShardsState(streams),
-			KinesisProxy.create(configProps));
+			KinesisProxy::create);
 	}
 
-	/** This constructor is exposed for testing purposes. */
+	@VisibleForTesting
 	protected KinesisDataFetcher(List<String> streams,
 								SourceFunction.SourceContext<T> sourceContext,
 								Object checkpointLock,
 								RuntimeContext runtimeContext,
 								Properties configProps,
 								KinesisDeserializationSchema<T> deserializationSchema,
+								KinesisShardAssigner shardAssigner,
 								AtomicReference<Throwable> error,
-								LinkedList<KinesisStreamShardState> subscribedShardsState,
+								List<KinesisStreamShardState> subscribedShardsState,
 								HashMap<String, String> subscribedStreamsToLastDiscoveredShardIds,
-								KinesisProxyInterface kinesis) {
+								FlinkKinesisProxyFactory kinesisProxyFactory) {
 		this.streams = checkNotNull(streams);
 		this.configProps = checkNotNull(configProps);
 		this.sourceContext = checkNotNull(sourceContext);
@@ -202,7 +237,12 @@ public class KinesisDataFetcher<T> {
 		this.totalNumberOfConsumerSubtasks = runtimeContext.getNumberOfParallelSubtasks();
 		this.indexOfThisConsumerSubtask = runtimeContext.getIndexOfThisSubtask();
 		this.deserializationSchema = checkNotNull(deserializationSchema);
-		this.kinesis = checkNotNull(kinesis);
+		this.shardAssigner = checkNotNull(shardAssigner);
+		this.kinesisProxyFactory = checkNotNull(kinesisProxyFactory);
+		this.kinesis = kinesisProxyFactory.create(configProps);
+
+		this.consumerMetricGroup = runtimeContext.getMetricGroup()
+			.addGroup(KinesisConsumerMetricConstants.KINESIS_CONSUMER_METRICS_GROUP);
 
 		this.error = checkNotNull(error);
 		this.subscribedShardsState = checkNotNull(subscribedShardsState);
@@ -210,6 +250,29 @@ public class KinesisDataFetcher<T> {
 
 		this.shardConsumersExecutor =
 			createShardConsumersThreadPool(runtimeContext.getTaskNameWithSubtasks());
+	}
+
+	/**
+	 * Create a new shard consumer.
+	 * Override this method to customize shard consumer behavior in subclasses.
+	 * @param subscribedShardStateIndex the state index of the shard this consumer is subscribed to
+	 * @param subscribedShard the shard this consumer is subscribed to
+	 * @param lastSequenceNum the sequence number in the shard to start consuming
+	 * @param shardMetricsReporter the reporter to report metrics to
+	 * @return shard consumer
+	 */
+	protected ShardConsumer createShardConsumer(
+		Integer subscribedShardStateIndex,
+		StreamShardHandle subscribedShard,
+		SequenceNumber lastSequenceNum,
+		ShardMetricsReporter shardMetricsReporter) {
+		return new ShardConsumer<>(
+			this,
+			subscribedShardStateIndex,
+			subscribedShard,
+			lastSequenceNum,
+			this.kinesisProxyFactory.create(configProps),
+			shardMetricsReporter);
 	}
 
 	/**
@@ -268,11 +331,11 @@ public class KinesisDataFetcher<T> {
 					}
 
 				shardConsumersExecutor.submit(
-					new ShardConsumer<>(
-						this,
+					createShardConsumer(
 						seededStateIndex,
 						subscribedShardsState.get(seededStateIndex).getStreamShardHandle(),
-						subscribedShardsState.get(seededStateIndex).getLastProcessedSequenceNum()));
+						subscribedShardsState.get(seededStateIndex).getLastProcessedSequenceNum(),
+						registerShardMetrics(consumerMetricGroup, subscribedShardsState.get(seededStateIndex))));
 			}
 		}
 
@@ -314,11 +377,11 @@ public class KinesisDataFetcher<T> {
 				}
 
 				shardConsumersExecutor.submit(
-					new ShardConsumer<>(
-						this,
+					createShardConsumer(
 						newStateIndex,
 						newShardState.getStreamShardHandle(),
-						newShardState.getLastProcessedSequenceNum()));
+						newShardState.getLastProcessedSequenceNum(),
+						registerShardMetrics(consumerMetricGroup, newShardState)));
 			}
 
 			// we also check if we are running here so that we won't start the discovery sleep
@@ -434,7 +497,8 @@ public class KinesisDataFetcher<T> {
 			for (String stream : streamsWithNewShards) {
 				List<StreamShardHandle> newShardsOfStream = shardListResult.getRetrievedShardListOfStream(stream);
 				for (StreamShardHandle newShard : newShardsOfStream) {
-					if (isThisSubtaskShouldSubscribeTo(newShard, totalNumberOfConsumerSubtasks, indexOfThisConsumerSubtask)) {
+					int hashCode = shardAssigner.assign(newShard, totalNumberOfConsumerSubtasks);
+					if (isThisSubtaskShouldSubscribeTo(hashCode, totalNumberOfConsumerSubtasks, indexOfThisConsumerSubtask)) {
 						newShardsToSubscribe.add(newShard);
 					}
 				}
@@ -483,7 +547,14 @@ public class KinesisDataFetcher<T> {
 	 */
 	protected void emitRecordAndUpdateState(T record, long recordTimestamp, int shardStateIndex, SequenceNumber lastSequenceNumber) {
 		synchronized (checkpointLock) {
-			sourceContext.collectWithTimestamp(record, recordTimestamp);
+			if (record != null) {
+				sourceContext.collectWithTimestamp(record, recordTimestamp);
+			} else {
+				LOG.warn("Skipping non-deserializable record at sequence number {} of shard {}.",
+					lastSequenceNumber,
+					subscribedShardsState.get(shardStateIndex).getStreamShardHandle());
+			}
+
 			updateState(shardStateIndex, lastSequenceNumber);
 		}
 	}
@@ -498,7 +569,7 @@ public class KinesisDataFetcher<T> {
 	 *                        when the shard state was registered.
 	 * @param lastSequenceNumber the last sequence number value to update
 	 */
-	protected void updateState(int shardStateIndex, SequenceNumber lastSequenceNumber) {
+	protected final void updateState(int shardStateIndex, SequenceNumber lastSequenceNumber) {
 		synchronized (checkpointLock) {
 			subscribedShardsState.get(shardStateIndex).setLastProcessedSequenceNum(lastSequenceNumber);
 
@@ -542,6 +613,34 @@ public class KinesisDataFetcher<T> {
 		}
 	}
 
+	/**
+	 * Registers a metric group associated with the shard id of the provided {@link KinesisStreamShardState shardState}.
+	 *
+	 * @return a {@link ShardMetricsReporter} that can be used to update metric values
+	 */
+	private static ShardMetricsReporter registerShardMetrics(MetricGroup metricGroup, KinesisStreamShardState shardState) {
+		ShardMetricsReporter shardMetrics = new ShardMetricsReporter();
+
+		MetricGroup streamShardMetricGroup = metricGroup
+			.addGroup(
+				KinesisConsumerMetricConstants.STREAM_METRICS_GROUP,
+				shardState.getStreamShardHandle().getStreamName())
+			.addGroup(
+				KinesisConsumerMetricConstants.SHARD_METRICS_GROUP,
+				shardState.getStreamShardHandle().getShard().getShardId());
+
+		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.MILLIS_BEHIND_LATEST_GAUGE, shardMetrics::getMillisBehindLatest);
+		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.MAX_RECORDS_PER_FETCH, shardMetrics::getMaxNumberOfRecordsPerFetch);
+		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.NUM_AGGREGATED_RECORDS_PER_FETCH, shardMetrics::getNumberOfAggregatedRecords);
+		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.NUM_DEAGGREGATED_RECORDS_PER_FETCH, shardMetrics::getNumberOfDeaggregatedRecords);
+		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.AVG_RECORD_SIZE_BYTES, shardMetrics::getAverageRecordSizeBytes);
+		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.BYTES_PER_READ, shardMetrics::getBytesPerRead);
+		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.RUNTIME_LOOP_NANOS, shardMetrics::getRunLoopTimeNanos);
+		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.LOOP_FREQUENCY_HZ, shardMetrics::getLoopFrequencyHz);
+		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.SLEEP_TIME_MILLIS, shardMetrics::getSleepTimeMillis);
+		return shardMetrics;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Miscellaneous utility functions
 	// ------------------------------------------------------------------------
@@ -549,17 +648,18 @@ public class KinesisDataFetcher<T> {
 	/**
 	 * Utility function to determine whether a shard should be subscribed by this consumer subtask.
 	 *
-	 * @param shard the shard to determine
+	 * @param shardHash hash code for the shard
 	 * @param totalNumberOfConsumerSubtasks total number of consumer subtasks
 	 * @param indexOfThisConsumerSubtask index of this consumer subtask
 	 */
-	public static boolean isThisSubtaskShouldSubscribeTo(StreamShardHandle shard,
+	public static boolean isThisSubtaskShouldSubscribeTo(int shardHash,
 														int totalNumberOfConsumerSubtasks,
 														int indexOfThisConsumerSubtask) {
-		return (Math.abs(shard.hashCode() % totalNumberOfConsumerSubtasks)) == indexOfThisConsumerSubtask;
+		return (Math.abs(shardHash % totalNumberOfConsumerSubtasks)) == indexOfThisConsumerSubtask;
 	}
 
-	private static ExecutorService createShardConsumersThreadPool(final String subtaskName) {
+	@VisibleForTesting
+	protected ExecutorService createShardConsumersThreadPool(final String subtaskName) {
 		return Executors.newCachedThreadPool(new ThreadFactory() {
 			@Override
 			public Thread newThread(Runnable runnable) {
@@ -570,6 +670,11 @@ public class KinesisDataFetcher<T> {
 				return thread;
 			}
 		});
+	}
+
+	@VisibleForTesting
+	public List<KinesisStreamShardState> getSubscribedShardsState() {
+		return subscribedShardsState;
 	}
 
 	/**

@@ -18,7 +18,13 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -30,9 +36,20 @@ import java.util.List;
  * flink-yarn-tests-X-tests.jar and the flink-runtime-X-tests.jar to the set of files which
  * are shipped to the yarn cluster. This is necessary to load the testing classes.
  */
-public class TestingYarnClusterDescriptor extends AbstractYarnClusterDescriptor {
+public class TestingYarnClusterDescriptor extends LegacyYarnClusterDescriptor {
 
-	public TestingYarnClusterDescriptor() {
+	public TestingYarnClusterDescriptor(
+			Configuration configuration,
+			YarnConfiguration yarnConfiguration,
+			String configurationDirectory,
+			YarnClient yarnClient,
+			boolean sharedYarnClient) {
+		super(
+			configuration,
+			yarnConfiguration,
+			configurationDirectory,
+			yarnClient,
+			sharedYarnClient);
 		List<File> filesToShip = new ArrayList<>();
 
 		File testingJar = YarnTestBase.findFile("..", new TestJarFinder("flink-yarn-tests"));
@@ -55,15 +72,28 @@ public class TestingYarnClusterDescriptor extends AbstractYarnClusterDescriptor 
 	}
 
 	@Override
-	protected Class<?> getApplicationMasterClass() {
-		return TestingApplicationMaster.class;
+	protected String getYarnSessionClusterEntrypoint() {
+		return TestingApplicationMaster.class.getName();
 	}
 
-	private static class TestJarFinder implements FilenameFilter {
+	@Override
+	protected String getYarnJobClusterEntrypoint() {
+		throw new UnsupportedOperationException("Does not support Yarn per-job clusters.");
+	}
+
+	@Override
+	public YarnClusterClient deployJobCluster(
+			ClusterSpecification clusterSpecification,
+			JobGraph jobGraph,
+			boolean detached) {
+		throw new UnsupportedOperationException("Cannot deploy a per-job cluster yet.");
+	}
+
+	static class TestJarFinder implements FilenameFilter {
 
 		private final String jarName;
 
-		public TestJarFinder(final String jarName) {
+		TestJarFinder(final String jarName) {
 			this.jarName = jarName;
 		}
 

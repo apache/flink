@@ -38,7 +38,7 @@ Think about it like a database that infers the schema of tables. In most cases, 
 by itself. Having the type information allows Flink to do some cool things:
 
 * Using POJOs types and grouping / joining / aggregating them by referring to field names (like `dataSet.keyBy("username")`).
-  The type information allows Flink to check (for typos and type compatibility) early rather than failing later ar runtime.
+  The type information allows Flink to check (for typos and type compatibility) early rather than failing later at runtime.
 
 * The more Flink knows about data types, the better the serialization and data layout schemes are.
   That is quite important for the memory usage paradigm in Flink (work on serialized data inside/outside the heap where ever possible
@@ -64,7 +64,7 @@ The most frequent issues where users need to interact with Flink's data type han
   Call `.getConfig().addDefaultKryoSerializer(clazz, serializer)` on the `StreamExecutionEnvironment` or `ExecutionEnvironment`.
   Additional Kryo serializers are available in many libraries. See [Custom Serializers]({{ site.baseurl }}/dev/custom_serializers.html) for more details on working with custom serializers.
 
-* **Adding Type Hints:** Sometimes, when Flink cannot infer the generic types despits all tricks, a user must pass a *type hint*. That is generally
+* **Adding Type Hints:** Sometimes, when Flink cannot infer the generic types despite all tricks, a user must pass a *type hint*. That is generally
   only necessary in the Java API. The [Type Hints Section](#type-hints-in-the-java-api) describes that in more detail.
 
 * **Manually creating a `TypeInformation`:** This may be necessary for some API calls where it is not possible for Flink to infer
@@ -114,6 +114,9 @@ conditions are fulfilled:
 * All non-static, non-transient fields in the class (and all superclasses) are either public (and non-final)
   or have a public getter- and a setter- method that follows the Java beans
   naming conventions for getters and setters.
+
+Note that when a user-defined data type can't be recognized as a POJO type, it must be processed as GenericType and
+serialized with Kryo.
 
 
 #### Creating a TypeInformation or TypeSerializer
@@ -330,7 +333,7 @@ Type information factories can be used in both the Java and Scala API.
 
 In a hierarchy of types the closest factory 
 will be chosen while traversing upwards, however, a built-in factory has highest precedence. A factory has 
-also higher precendence than Flink's built-in types, therefore you should know what you are doing.
+also higher precedence than Flink's built-in types, therefore you should know what you are doing.
 
 The following example shows how to annotate a custom type `MyTuple` and supply custom type information for it using a factory in Java.
 
@@ -360,3 +363,5 @@ The parameters provide additional information about the type itself as well as t
 If your type contains generic parameters that might need to be derived from the input type of a Flink function, make sure to also 
 implement `org.apache.flink.api.common.typeinfo.TypeInformation#getGenericParameters` for a bidirectional mapping of generic 
 parameters to type information.
+
+{% top %}

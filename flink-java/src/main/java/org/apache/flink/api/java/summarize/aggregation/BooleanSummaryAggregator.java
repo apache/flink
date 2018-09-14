@@ -21,8 +21,11 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.summarize.BooleanColumnSummary;
 
+/**
+ * Aggregator for {@link Boolean} type.
+ */
 @Internal
-public class BooleanSummaryAggregator implements Aggregator<Boolean,BooleanColumnSummary> {
+public class BooleanSummaryAggregator implements Aggregator<Boolean, BooleanColumnSummary> {
 
 	private long trueCount = 0L;
 	private long falseCount = 0L;
@@ -32,11 +35,9 @@ public class BooleanSummaryAggregator implements Aggregator<Boolean,BooleanColum
 	public void aggregate(Boolean value) {
 		if (value == null) {
 			nullCount++;
-		}
-		else if (value) {
+		} else if (value) {
 			trueCount++;
-		}
-		else {
+		} else {
 			falseCount++;
 		}
 	}
@@ -51,6 +52,6 @@ public class BooleanSummaryAggregator implements Aggregator<Boolean,BooleanColum
 
 	@Override
 	public BooleanColumnSummary result() {
-		return new BooleanColumnSummary(trueCount,falseCount,nullCount);
+		return new BooleanColumnSummary(trueCount, falseCount, nullCount);
 	}
 }

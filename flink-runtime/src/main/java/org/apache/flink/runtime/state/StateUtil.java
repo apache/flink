@@ -18,15 +18,22 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FutureUtil;
+import org.apache.flink.util.LambdaUtil;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RunnableFuture;
 
 /**
  * Helpers for {@link StateObject} related code.
  */
 public class StateUtil {
+
+	private static final Logger LOG = LoggerFactory.getLogger(StateUtil.class);
 
 	private StateUtil() {
 		throw new AssertionError();
@@ -49,27 +56,8 @@ public class StateUtil {
 	 * @throws Exception exception that is a collection of all suppressed exceptions that were caught during iteration
 	 */
 	public static void bestEffortDiscardAllStateObjects(
-			Iterable<? extends StateObject> handlesToDiscard) throws Exception {
-
-		if (handlesToDiscard != null) {
-			Exception exception = null;
-
-			for (StateObject state : handlesToDiscard) {
-
-				if (state != null) {
-					try {
-						state.discardState();
-					}
-					catch (Exception ex) {
-						exception = ExceptionUtils.firstOrSuppressed(ex, exception);
-					}
-				}
-			}
-
-			if (exception != null) {
-				throw exception;
-			}
-		}
+		Iterable<? extends StateObject> handlesToDiscard) throws Exception {
+		LambdaUtil.applyToAllWhileSuppressingExceptions(handlesToDiscard, StateObject::discardState);
 	}
 
 	/**
@@ -82,10 +70,17 @@ public class StateUtil {
 	public static void discardStateFuture(RunnableFuture<? extends StateObject> stateFuture) throws Exception {
 		if (null != stateFuture) {
 			if (!stateFuture.cancel(true)) {
-				StateObject stateObject = FutureUtil.runIfNotDoneAndGet(stateFuture);
 
-				if (null != stateObject) {
-					stateObject.discardState();
+				try {
+					// We attempt to get a result, in case the future completed before cancellation.
+					StateObject stateObject = FutureUtil.runIfNotDoneAndGet(stateFuture);
+
+					if (null != stateObject) {
+						stateObject.discardState();
+					}
+				} catch (CancellationException | ExecutionException ex) {
+					LOG.debug("Cancelled execution of snapshot future runnable. Cancellation produced the following " +
+						"exception, which is expected an can be ignored.", ex);
 				}
 			}
 		}

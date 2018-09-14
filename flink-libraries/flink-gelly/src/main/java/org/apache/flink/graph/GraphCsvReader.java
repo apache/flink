@@ -158,7 +158,7 @@ public class GraphCsvReader {
 		DataSet<Edge<K, NullValue>> edges = edgeReader
 			.types(vertexKey, vertexKey)
 				.name(GraphCsvReader.class.getName())
-			.map(new Tuple2ToEdgeMap<K>())
+			.map(new Tuple2ToEdgeMap<>())
 				.name("Type conversion");
 
 		return Graph.fromDataSet(edges, executionContext);
@@ -183,7 +183,7 @@ public class GraphCsvReader {
 		DataSet<Edge<K, NullValue>> edges = edgeReader
 			.types(vertexKey, vertexKey)
 				.name(GraphCsvReader.class.getName())
-			.map(new Tuple2ToEdgeMap<K>())
+			.map(new Tuple2ToEdgeMap<>())
 				.name("To Edge");
 
 		// the vertex value can be provided by an input file or a user-defined mapper
@@ -191,7 +191,7 @@ public class GraphCsvReader {
 			DataSet<Vertex<K, VV>> vertices = vertexReader
 				.types(vertexKey, vertexValue)
 					.name(GraphCsvReader.class.getName())
-				.map(new Tuple2ToVertexMap<K, VV>())
+				.map(new Tuple2ToVertexMap<>())
 					.name("Type conversion");
 
 			return Graph.fromDataSet(vertices, edges, executionContext);

@@ -40,9 +40,9 @@ import org.mockito.Matchers;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.apache.flink.configuration.Configuration;
@@ -50,14 +50,12 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 
@@ -130,7 +128,7 @@ public class ExecutionGraphConstructionTest {
 			fail("Job failed with exception: " + e.getMessage());
 		}
 		
-		verifyTestGraph(eg, jobId, v1, v2, v3, v4, v5);
+		verifyTestGraph(eg, v1, v2, v3, v4, v5);
 	}
 	
 	@Test
@@ -207,7 +205,7 @@ public class ExecutionGraphConstructionTest {
 		}
 		
 		// verify
-		verifyTestGraph(eg, jobId, v1, v2, v3, v4, v5);
+		verifyTestGraph(eg, v1, v2, v3, v4, v5);
 	}
 	
 	@Test
@@ -283,208 +281,18 @@ public class ExecutionGraphConstructionTest {
 		}
 		
 		// verify
-		verifyTestGraph(eg, jobId, v1, v2, v3, v4, v5);
+		verifyTestGraph(eg, v1, v2, v3, v4, v5);
 	}
 	
-	private void verifyTestGraph(ExecutionGraph eg, JobID jobId,
+	private void verifyTestGraph(ExecutionGraph eg,
 				JobVertex v1, JobVertex v2, JobVertex v3,
 				JobVertex v4, JobVertex v5)
 	{
-		Map<JobVertexID, ExecutionJobVertex> vertices = eg.getAllVertices();
-		
-		// verify v1
-		{
-			ExecutionJobVertex e1 = vertices.get(v1.getID());
-			assertNotNull(e1);
-			
-			// basic properties
-			assertEquals(v1.getParallelism(), e1.getParallelism());
-			assertEquals(v1.getID(), e1.getJobVertexId());
-			assertEquals(jobId, e1.getJobId());
-			assertEquals(v1, e1.getJobVertex());
-			
-			// produced data sets
-			assertEquals(1, e1.getProducedDataSets().length);
-			assertEquals(v1.getProducedDataSets().get(0).getId(), e1.getProducedDataSets()[0].getId());
-			assertEquals(v1.getParallelism(), e1.getProducedDataSets()[0].getPartitions().length);
-			
-			// task vertices
-			assertEquals(v1.getParallelism(), e1.getTaskVertices().length);
-			
-			int num = 0;
-			for (ExecutionVertex ev : e1.getTaskVertices()) {
-				assertEquals(jobId, ev.getJobId());
-				assertEquals(v1.getID(), ev.getJobvertexId());
-				
-				assertEquals(v1.getParallelism(), ev.getTotalNumberOfParallelSubtasks());
-				assertEquals(num++, ev.getParallelSubtaskIndex());
-				
-				assertEquals(0, ev.getNumberOfInputs());
-				
-				assertTrue(ev.getStateTimestamp(ExecutionState.CREATED) > 0);
-			}
-		}
-		
-		// verify v2
-		{
-			ExecutionJobVertex e2 = vertices.get(v2.getID());
-			assertNotNull(e2);
-			
-			// produced data sets
-			assertEquals(1, e2.getProducedDataSets().length);
-			assertEquals(v2.getProducedDataSets().get(0).getId(), e2.getProducedDataSets()[0].getId());
-			assertEquals(v2.getParallelism(), e2.getProducedDataSets()[0].getPartitions().length);
-			
-			// task vertices
-			assertEquals(v2.getParallelism(), e2.getTaskVertices().length);
-			
-			int num = 0;
-			for (ExecutionVertex ev : e2.getTaskVertices()) {
-				assertEquals(jobId, ev.getJobId());
-				assertEquals(v2.getID(), ev.getJobvertexId());
-				
-				assertEquals(v2.getParallelism(), ev.getTotalNumberOfParallelSubtasks());
-				assertEquals(num++, ev.getParallelSubtaskIndex());
-				
-				assertEquals(1, ev.getNumberOfInputs());
-				ExecutionEdge[] inputs = ev.getInputEdges(0);
-				assertEquals(v1.getParallelism(), inputs.length);
-				
-				int sumOfPartitions = 0;
-				for (ExecutionEdge inEdge : inputs) {
-					assertEquals(0,inEdge.getInputNum());
-					sumOfPartitions += inEdge.getSource().getPartitionNumber();
-				}
-				
-				assertEquals(10, sumOfPartitions);
-			}
-		}
-		
-		// verify v3
-		{
-			ExecutionJobVertex e3 = vertices.get(v3.getID());
-			assertNotNull(e3);
-			
-			// produced data sets
-			assertEquals(2, e3.getProducedDataSets().length);
-			assertEquals(v3.getProducedDataSets().get(0).getId(), e3.getProducedDataSets()[0].getId());
-			assertEquals(v3.getProducedDataSets().get(1).getId(), e3.getProducedDataSets()[1].getId());
-			assertEquals(v3.getParallelism(), e3.getProducedDataSets()[0].getPartitions().length);
-			assertEquals(v3.getParallelism(), e3.getProducedDataSets()[1].getPartitions().length);
-			
-			// task vertices
-			assertEquals(v3.getParallelism(), e3.getTaskVertices().length);
-			
-			int num = 0;
-			for (ExecutionVertex ev : e3.getTaskVertices()) {
-				assertEquals(jobId, ev.getJobId());
-				assertEquals(v3.getID(), ev.getJobvertexId());
-				
-				assertEquals(v3.getParallelism(), ev.getTotalNumberOfParallelSubtasks());
-				assertEquals(num++, ev.getParallelSubtaskIndex());
-				
-				assertEquals(0, ev.getNumberOfInputs());
-			}
-		}
-
-		// verify v4
-		{
-			ExecutionJobVertex e4 = vertices.get(v4.getID());
-			assertNotNull(e4);
-			
-			// produced data sets
-			assertEquals(1, e4.getProducedDataSets().length);
-			assertEquals(v4.getProducedDataSets().get(0).getId(), e4.getProducedDataSets()[0].getId());
-			
-			// task vertices
-			assertEquals(v4.getParallelism(), e4.getTaskVertices().length);
-			
-			int num = 0;
-			for (ExecutionVertex ev : e4.getTaskVertices()) {
-				assertEquals(jobId, ev.getJobId());
-				assertEquals(v4.getID(), ev.getJobvertexId());
-				
-				assertEquals(v4.getParallelism(), ev.getTotalNumberOfParallelSubtasks());
-				assertEquals(num++, ev.getParallelSubtaskIndex());
-				
-				assertEquals(2, ev.getNumberOfInputs());
-				// first input
-				{
-					ExecutionEdge[] inputs = ev.getInputEdges(0);
-					assertEquals(v2.getParallelism(), inputs.length);
-					
-					int sumOfPartitions = 0;
-					for (ExecutionEdge inEdge : inputs) {
-						assertEquals(0, inEdge.getInputNum());
-						sumOfPartitions += inEdge.getSource().getPartitionNumber();
-					}
-					
-					assertEquals(21, sumOfPartitions);
-				}
-				// second input
-				{
-					ExecutionEdge[] inputs = ev.getInputEdges(1);
-					assertEquals(v3.getParallelism(), inputs.length);
-					
-					int sumOfPartitions = 0;
-					for (ExecutionEdge inEdge : inputs) {
-						assertEquals(1, inEdge.getInputNum());
-						sumOfPartitions += inEdge.getSource().getPartitionNumber();
-					}
-					
-					assertEquals(1, sumOfPartitions);
-				}
-			}
-		}
-		
-		// verify v5
-		{
-			ExecutionJobVertex e5 = vertices.get(v5.getID());
-			assertNotNull(e5);
-			
-			// produced data sets
-			assertEquals(0, e5.getProducedDataSets().length);
-			
-			// task vertices
-			assertEquals(v5.getParallelism(), e5.getTaskVertices().length);
-			
-			int num = 0;
-			for (ExecutionVertex ev : e5.getTaskVertices()) {
-				assertEquals(jobId, ev.getJobId());
-				assertEquals(v5.getID(), ev.getJobvertexId());
-				
-				assertEquals(v5.getParallelism(), ev.getTotalNumberOfParallelSubtasks());
-				assertEquals(num++, ev.getParallelSubtaskIndex());
-				
-				assertEquals(2, ev.getNumberOfInputs());
-				// first input
-				{
-					ExecutionEdge[] inputs = ev.getInputEdges(0);
-					assertEquals(v4.getParallelism(), inputs.length);
-					
-					int sumOfPartitions = 0;
-					for (ExecutionEdge inEdge : inputs) {
-						assertEquals(0, inEdge.getInputNum());
-						sumOfPartitions += inEdge.getSource().getPartitionNumber();
-					}
-					
-					assertEquals(55, sumOfPartitions);
-				}
-				// second input
-				{
-					ExecutionEdge[] inputs = ev.getInputEdges(1);
-					assertEquals(v3.getParallelism(), inputs.length);
-					
-					int sumOfPartitions = 0;
-					for (ExecutionEdge inEdge : inputs) {
-						assertEquals(1, inEdge.getInputNum());
-						sumOfPartitions += inEdge.getSource().getPartitionNumber();
-					}
-					
-					assertEquals(1, sumOfPartitions);
-				}
-			}
-		}
+		ExecutionGraphTestUtils.verifyGeneratedExecutionJobVertex(eg, v1, null, Collections.singletonList(v2));
+		ExecutionGraphTestUtils.verifyGeneratedExecutionJobVertex(eg, v2, Collections.singletonList(v1), Collections.singletonList(v4));
+		ExecutionGraphTestUtils.verifyGeneratedExecutionJobVertex(eg, v3, null, Arrays.asList(v4, v5));
+		ExecutionGraphTestUtils.verifyGeneratedExecutionJobVertex(eg, v4, Arrays.asList(v2, v3), Collections.singletonList(v5));
+		ExecutionGraphTestUtils.verifyGeneratedExecutionJobVertex(eg, v5, Arrays.asList(v4, v3), null);
 	}
 	
 	@Test

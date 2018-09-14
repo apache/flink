@@ -26,7 +26,8 @@ import static org.apache.flink.runtime.testutils.CommonTestUtils.isProcessAlive;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
-import org.apache.flink.configuration.JobManagerOptions;
+
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmaster.JobMaster;
@@ -181,7 +182,7 @@ public class JobManagerProcessReapingTest extends TestLogger {
 				jmProcess.destroy();
 			}
 			if (localSystem != null) {
-				localSystem.shutdown();
+				localSystem.terminate();
 			}
 		}
 	}
@@ -203,7 +204,7 @@ public class JobManagerProcessReapingTest extends TestLogger {
 		public static void main(String[] args) {
 			try {
 				Configuration config = new Configuration();
-				config.setInteger(JobManagerOptions.WEB_PORT, -1);
+				config.setInteger(WebOptions.PORT, -1);
 
 				JobManager.runJobManager(config, JobManagerMode.CLUSTER, "localhost", 0);
 				System.exit(0);

@@ -169,24 +169,24 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 			case OUT:
 				neighbors = iteration
 				.getWorkset().join(edgeDataSet)
-				.where(0).equalTo(0).with(new ProjectKeyWithNeighborOUT<K, VV, EV>());
+				.where(0).equalTo(0).with(new ProjectKeyWithNeighborOUT<>());
 				break;
 			case IN:
 				neighbors = iteration
 				.getWorkset().join(edgeDataSet)
-				.where(0).equalTo(1).with(new ProjectKeyWithNeighborIN<K, VV, EV>());
+				.where(0).equalTo(1).with(new ProjectKeyWithNeighborIN<>());
 				break;
 			case ALL:
 				neighbors =  iteration
 						.getWorkset().join(edgeDataSet)
-						.where(0).equalTo(0).with(new ProjectKeyWithNeighborOUT<K, VV, EV>()).union(iteration
+						.where(0).equalTo(0).with(new ProjectKeyWithNeighborOUT<>()).union(iteration
 								.getWorkset().join(edgeDataSet)
-								.where(0).equalTo(1).with(new ProjectKeyWithNeighborIN<K, VV, EV>()));
+								.where(0).equalTo(1).with(new ProjectKeyWithNeighborIN<>()));
 				break;
 			default:
 				neighbors = iteration
 						.getWorkset().join(edgeDataSet)
-						.where(0).equalTo(0).with(new ProjectKeyWithNeighborOUT<K, VV, EV>());
+						.where(0).equalTo(0).with(new ProjectKeyWithNeighborOUT<>());
 				break;
 		}
 

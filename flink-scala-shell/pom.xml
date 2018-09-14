@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.4-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -208,30 +208,5 @@ under the License.
 
 		</plugins>
 	</build>
-
-	<profiles>
-		<profile>
-			<id>scala-2.10</id>
-			<activation>
-				<property>
-					<!-- only required for Scala 2.10 -->
-					<name>!scala-2.11</name>
-				</property>
-			</activation>
-			<dependencies>
-				<dependency>
-					<groupId>org.scalamacros</groupId>
-					<artifactId>quasiquotes_2.10</artifactId>
-					<version>${scala.macros.version}</version>
-				</dependency>
-
-				<dependency>
-					<groupId>org.scala-lang</groupId>
-					<artifactId>jline</artifactId>
-					<version>2.10.4</version>
-				</dependency>
-			</dependencies>
-		</profile>
-	</profiles>
 
 </project>

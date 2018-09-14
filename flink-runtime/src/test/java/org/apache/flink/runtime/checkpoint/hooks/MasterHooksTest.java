@@ -20,13 +20,15 @@ package org.apache.flink.runtime.checkpoint.hooks;
 
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import javax.annotation.Nullable;
+
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import static org.junit.Assert.assertEquals;
@@ -67,9 +69,19 @@ public class MasterHooksTest extends TestLogger {
 				return id;
 			}
 
+			@Override
+			public void reset() throws Exception {
+				assertEquals(userClassLoader, Thread.currentThread().getContextClassLoader());
+			}
+
+			@Override
+			public void close() throws Exception {
+				assertEquals(userClassLoader, Thread.currentThread().getContextClassLoader());
+			}
+
 			@Nullable
 			@Override
-			public Future<String> triggerCheckpoint(long checkpointId, long timestamp, Executor executor) throws Exception {
+			public CompletableFuture<String> triggerCheckpoint(long checkpointId, long timestamp, Executor executor) throws Exception {
 				assertEquals(userClassLoader, Thread.currentThread().getContextClassLoader());
 				executor.execute(command);
 				return null;
@@ -112,6 +124,11 @@ public class MasterHooksTest extends TestLogger {
 		// verify createCheckpointDataSerializer
 		wrapped.createCheckpointDataSerializer();
 		verify(hook, times(1)).createCheckpointDataSerializer();
+		assertEquals(originalClassLoader, thread.getContextClassLoader());
+
+		// verify close
+		wrapped.close();
+		verify(hook, times(1)).close();
 		assertEquals(originalClassLoader, thread.getContextClassLoader());
 	}
 

@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.operators.async.queue;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.streaming.api.operators.async.OperatorActions;
 import org.apache.flink.util.Preconditions;
 
@@ -193,9 +192,8 @@ public class OrderedStreamElementQueue implements StreamElementQueue {
 
 		queue.addLast(streamElementQueueEntry);
 
-		streamElementQueueEntry.onComplete(new AcceptFunction<StreamElementQueueEntry<T>>() {
-			@Override
-			public void accept(StreamElementQueueEntry<T> value) {
+		streamElementQueueEntry.onComplete(
+			(StreamElementQueueEntry<T> value) -> {
 				try {
 					onCompleteHandler(value);
 				} catch (InterruptedException e) {
@@ -206,8 +204,8 @@ public class OrderedStreamElementQueue implements StreamElementQueue {
 					operatorActions.failOperator(new Exception("Could not complete the " +
 						"stream element queue entry: " + value + '.', t));
 				}
-			}
-		}, executor);
+			},
+			executor);
 	}
 
 	/**

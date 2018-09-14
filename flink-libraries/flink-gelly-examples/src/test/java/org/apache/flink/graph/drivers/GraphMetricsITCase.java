@@ -20,7 +20,6 @@ package org.apache.flink.graph.drivers;
 
 import org.apache.flink.client.program.ProgramParametrizationException;
 
-import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -29,8 +28,7 @@ import org.junit.runners.Parameterized;
  * Tests for {@link GraphMetrics}.
  */
 @RunWith(Parameterized.class)
-public class GraphMetricsITCase
-extends DriverBaseITCase {
+public class GraphMetricsITCase extends DriverBaseITCase {
 
 	public GraphMetricsITCase(String idType, TestExecutionMode mode) {
 		super(idType, mode);
@@ -54,7 +52,7 @@ extends DriverBaseITCase {
 	}
 
 	@Test
-	public void testWithSmallDirectedRMatIntegerGraph() throws Exception {
+	public void testWithDirectedRMatGraph() throws Exception {
 		String expected = "\n" +
 			"Vertex metrics:\n" +
 			"  vertex count: 117\n" +
@@ -80,39 +78,7 @@ extends DriverBaseITCase {
 	}
 
 	@Test
-	public void testWithLargeDirectedRMatIntegerGraph() throws Exception {
-		// skip 'byte' which cannot store vertex IDs for scale > 8
-		Assume.assumeFalse(idType.equals("byte") || idType.equals("nativeByte"));
-
-		// skip 'string' which does not compare numerically and generates a different triangle count
-		Assume.assumeFalse(idType.equals("string") || idType.equals("nativeString"));
-
-		String expected = "\n" +
-			"Vertex metrics:\n" +
-			"  vertex count: 3,349\n" +
-			"  edge count: 53,368\n" +
-			"  unidirectional edge count: 43,602\n" +
-			"  bidirectional edge count: 4,883\n" +
-			"  average degree: 15.936\n" +
-			"  density: 0.00475971\n" +
-			"  triplet count: 9,276,207\n" +
-			"  maximum degree: 1,356\n" +
-			"  maximum out degree: 921\n" +
-			"  maximum in degree: 966\n" +
-			"  maximum triplets: 918,690\n" +
-			"\n" +
-			"Edge metrics:\n" +
-			"  triangle triplet count: 779,202\n" +
-			"  rectangle triplet count: 2,506,371\n" +
-			"  maximum triangle triplets: 3,160\n" +
-			"  maximum rectangle triplets: 16,835\n";
-
-		expectedOutput(parameters(12, "directed", "hash"), expected);
-		expectedOutput(parameters(12, "directed", "print"), expected);
-	}
-
-	@Test
-	public void testWithSmallUndirectedRMatIntegerGraph() throws Exception {
+	public void testWithUndirectedRMatGraph() throws Exception {
 		String expected = "\n" +
 			"Vertex metrics:\n" +
 			"  vertex count: 117\n" +
@@ -134,30 +100,8 @@ extends DriverBaseITCase {
 	}
 
 	@Test
-	public void testWithLargelUndirectedRMatIntegerGraph() throws Exception {
-		// skip 'byte' which cannot store vertex IDs for scale > 8
-		Assume.assumeFalse(idType.equals("byte") || idType.equals("nativeByte"));
-
-		// skip 'string' which does not compare numerically and generates a different triangle count
-		Assume.assumeFalse(idType.equals("string") || idType.equals("nativeString"));
-
-		String expected = "\n" +
-			"Vertex metrics:\n" +
-			"  vertex count: 3,349\n" +
-			"  edge count: 48,485\n" +
-			"  average degree: 28.955\n" +
-			"  density: 0.00864842\n" +
-			"  triplet count: 9,276,207\n" +
-			"  maximum degree: 1,356\n" +
-			"  maximum triplets: 918,690\n" +
-			"\n" +
-			"Edge metrics:\n" +
-			"  triangle triplet count: 779,202\n" +
-			"  rectangle triplet count: 2,506,371\n" +
-			"  maximum triangle triplets: 3,160\n" +
-			"  maximum rectangle triplets: 16,835\n";
-
-		expectedOutput(parameters(12, "undirected", "hash"), expected);
-		expectedOutput(parameters(12, "undirected", "print"), expected);
+	public void testParallelism() throws Exception {
+		TestUtils.verifyParallelism(parameters(8, "directed", "print"));
+		TestUtils.verifyParallelism(parameters(8, "undirected", "print"));
 	}
 }

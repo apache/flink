@@ -137,7 +137,7 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> res = graph.runScatterGatherIteration(
 			new MessageFunctionDefault(), new UpdateFunctionDefault(), 5);
 
-		DataSet<Tuple2<Long, Long>> data = res.getVertices().map(new VertexToTuple2Map<Long, Long>());
+		DataSet<Tuple2<Long, Long>> data = res.getVertices().map(new VertexToTuple2Map<>());
 		List<Tuple2<Long, Long>> result = data.collect();
 
 		expectedResult = "1,6\n" +

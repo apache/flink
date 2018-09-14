@@ -38,15 +38,25 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	private volatile LeaderRetrievalService resourceManagerLeaderRetriever;
 
+	private volatile LeaderRetrievalService dispatcherLeaderRetriever;
+
+	private volatile LeaderRetrievalService webMonitorEndpointLeaderRetriever;
+
 	private ConcurrentHashMap<JobID, LeaderRetrievalService> jobMasterLeaderRetrievers = new ConcurrentHashMap<>();
 
 	private ConcurrentHashMap<JobID, LeaderElectionService> jobManagerLeaderElectionServices = new ConcurrentHashMap<>();
 
 	private volatile LeaderElectionService resourceManagerLeaderElectionService;
 
+	private volatile LeaderElectionService dispatcherLeaderElectionService;
+
+	private volatile LeaderElectionService webMonitorEndpointLeaderElectionService;
+
 	private volatile CheckpointRecoveryFactory checkpointRecoveryFactory;
 
 	private volatile SubmittedJobGraphStore submittedJobGraphStore;
+
+	private volatile RunningJobsRegistry runningJobsRegistry = new StandaloneRunningJobsRegistry();
 
 	// ------------------------------------------------------------------------
 	//  Setters for mock / testing implementations
@@ -54,6 +64,14 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	public void setResourceManagerLeaderRetriever(LeaderRetrievalService resourceManagerLeaderRetriever) {
 		this.resourceManagerLeaderRetriever = resourceManagerLeaderRetriever;
+	}
+
+	public void setDispatcherLeaderRetriever(LeaderRetrievalService dispatcherLeaderRetriever) {
+		this.dispatcherLeaderRetriever = dispatcherLeaderRetriever;
+	}
+
+	public void setWebMonitorEndpointLeaderRetriever(final LeaderRetrievalService webMonitorEndpointLeaderRetriever) {
+		this.webMonitorEndpointLeaderRetriever = webMonitorEndpointLeaderRetriever;
 	}
 
 	public void setJobMasterLeaderRetriever(JobID jobID, LeaderRetrievalService jobMasterLeaderRetriever) {
@@ -68,6 +86,14 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 		this.resourceManagerLeaderElectionService = leaderElectionService;
 	}
 
+	public void setDispatcherLeaderElectionService(LeaderElectionService leaderElectionService) {
+		this.dispatcherLeaderElectionService = leaderElectionService;
+	}
+
+	public void setWebMonitorEndpointLeaderElectionService(final LeaderElectionService webMonitorEndpointLeaderElectionService) {
+		this.webMonitorEndpointLeaderElectionService = webMonitorEndpointLeaderElectionService;
+	}
+
 	public void setCheckpointRecoveryFactory(CheckpointRecoveryFactory checkpointRecoveryFactory) {
 		this.checkpointRecoveryFactory = checkpointRecoveryFactory;
 	}
@@ -76,6 +102,9 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 		this.submittedJobGraphStore = submittedJobGraphStore;
 	}
 
+	public void setRunningJobsRegistry(RunningJobsRegistry runningJobsRegistry) {
+		this.runningJobsRegistry = runningJobsRegistry;
+	}
 	// ------------------------------------------------------------------------
 	//  HA Services Methods
 	// ------------------------------------------------------------------------
@@ -83,6 +112,16 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 	@Override
 	public LeaderRetrievalService getResourceManagerLeaderRetriever() {
 		LeaderRetrievalService service = this.resourceManagerLeaderRetriever;
+		if (service != null) {
+			return service;
+		} else {
+			throw new IllegalStateException("ResourceManagerLeaderRetriever has not been set");
+		}
+	}
+
+	@Override
+	public LeaderRetrievalService getDispatcherLeaderRetriever() {
+		LeaderRetrievalService service = this.dispatcherLeaderRetriever;
 		if (service != null) {
 			return service;
 		} else {
@@ -106,6 +145,11 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 	}
 
 	@Override
+	public LeaderRetrievalService getWebMonitorLeaderRetriever() {
+		return webMonitorEndpointLeaderRetriever;
+	}
+
+	@Override
 	public LeaderElectionService getResourceManagerLeaderElectionService() {
 		LeaderElectionService service = resourceManagerLeaderElectionService;
 
@@ -113,6 +157,17 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 			return service;
 		} else {
 			throw new IllegalStateException("ResourceManagerLeaderElectionService has not been set");
+		}
+	}
+
+	@Override
+	public LeaderElectionService getDispatcherLeaderElectionService() {
+		LeaderElectionService service = dispatcherLeaderElectionService;
+
+		if (service != null) {
+			return service;
+		} else {
+			throw new IllegalStateException("DispatcherLeaderElectionService has not been set");
 		}
 	}
 
@@ -125,6 +180,11 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 		} else {
 			throw new IllegalStateException("JobMasterLeaderElectionService has not been set");
 		}
+	}
+
+	@Override
+	public LeaderElectionService getWebMonitorLeaderElectionService() {
+		return webMonitorEndpointLeaderElectionService;
 	}
 
 	@Override
@@ -152,7 +212,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	@Override
 	public RunningJobsRegistry getRunningJobsRegistry() {
-		return new StandaloneRunningJobsRegistry();
+		return runningJobsRegistry;
 	}
 
 	@Override

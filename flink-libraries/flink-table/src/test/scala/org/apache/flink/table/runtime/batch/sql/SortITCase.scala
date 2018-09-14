@@ -62,7 +62,7 @@ class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
 
     val expected = sortExpectedly(tupleDataSetStrings)
     // squash all rows inside a partition into one element
-    val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => {
+    val results = tEnv.sqlQuery(sqlQuery).toDataSet[Row].mapPartition(rows => {
       // the rows need to be copied in object reuse mode
       val copied = new mutable.ArrayBuffer[Row]
       rows.foreach(r => copied += Row.copy(r))
@@ -99,7 +99,7 @@ class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
 
     val expected = sortExpectedly(tupleDataSetStrings, 2, 21)
     // squash all rows inside a partition into one element
-    val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => {
+    val results = tEnv.sqlQuery(sqlQuery).toDataSet[Row].mapPartition(rows => {
       // the rows need to be copied in object reuse mode
       val copied = new mutable.ArrayBuffer[Row]
       rows.foreach(r => copied += Row.copy(r))
@@ -130,7 +130,7 @@ class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
 
     val expected = sortExpectedly(tupleDataSetStrings, 2, 7)
     // squash all rows inside a partition into one element
-    val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => {
+    val results = tEnv.sqlQuery(sqlQuery).toDataSet[Row].mapPartition(rows => {
       // the rows need to be copied in object reuse mode
       val copied = new mutable.ArrayBuffer[Row]
       rows.foreach(r => copied += Row.copy(r))
@@ -161,7 +161,7 @@ class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
 
     val expected = sortExpectedly(tupleDataSetStrings, 0, 5)
     // squash all rows inside a partition into one element
-    val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => {
+    val results = tEnv.sqlQuery(sqlQuery).toDataSet[Row].mapPartition(rows => {
       // the rows need to be copied in object reuse mode
       val copied = new mutable.ArrayBuffer[Row]
       rows.foreach(r => copied += Row.copy(r))

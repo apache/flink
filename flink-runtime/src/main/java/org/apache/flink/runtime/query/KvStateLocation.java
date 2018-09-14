@@ -19,19 +19,21 @@
 package org.apache.flink.runtime.query;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
+import java.net.InetSocketAddress;
 import java.util.Arrays;
 
 /**
  * Location information for all key groups of a {@link InternalKvState} instance.
  *
  * <p>This is populated by the {@link KvStateLocationRegistry} and used by the
- * {@link QueryableStateClient} to target queries.
+ * queryable state to target queries.
  */
 public class KvStateLocation implements Serializable {
 
@@ -56,7 +58,7 @@ public class KvStateLocation implements Serializable {
 	 * Server address for each KvState instance where array index corresponds to
 	 * key group index.
 	 */
-	private final KvStateServerAddress[] kvStateAddresses;
+	private final InetSocketAddress[] kvStateAddresses;
 
 	/** Current number of registered key groups. */
 	private int numRegisteredKeyGroups;
@@ -76,7 +78,7 @@ public class KvStateLocation implements Serializable {
 		this.numKeyGroups = numKeyGroups;
 		this.registrationName = Preconditions.checkNotNull(registrationName, "Registration name");
 		this.kvStateIds = new KvStateID[numKeyGroups];
-		this.kvStateAddresses = new KvStateServerAddress[numKeyGroups];
+		this.kvStateAddresses = new InetSocketAddress[numKeyGroups];
 	}
 
 	/**
@@ -142,15 +144,15 @@ public class KvStateLocation implements Serializable {
 	}
 
 	/**
-	 * Returns the registered KvStateServerAddress for the key group index or
+	 * Returns the registered server address for the key group index or
 	 * <code>null</code> if none is registered yet.
 	 *
 	 * @param keyGroupIndex Key group index to get server address for.
-	 * @return KvStateServerAddress for the key group index or <code>null</code>
+	 * @return the server address for the key group index or <code>null</code>
 	 * if none is registered yet
 	 * @throws IndexOutOfBoundsException If key group index < 0 or >= Number of key groups
 	 */
-	public KvStateServerAddress getKvStateServerAddress(int keyGroupIndex) {
+	public InetSocketAddress getKvStateServerAddress(int keyGroupIndex) {
 		if (keyGroupIndex < 0 || keyGroupIndex >= numKeyGroups) {
 			throw new IndexOutOfBoundsException("Key group index");
 		}
@@ -166,7 +168,7 @@ public class KvStateLocation implements Serializable {
 	 * @param kvStateAddress Server address of the KvState instance at the key group index.
 	 * @throws IndexOutOfBoundsException If key group range start < 0 or key group range end >= Number of key groups
 	 */
-	void registerKvState(KeyGroupRange keyGroupRange, KvStateID kvStateId, KvStateServerAddress kvStateAddress) {
+	public void registerKvState(KeyGroupRange keyGroupRange, KvStateID kvStateId, InetSocketAddress kvStateAddress) {
 
 		if (keyGroupRange.getStartKeyGroup() < 0 || keyGroupRange.getEndKeyGroup() >= numKeyGroups) {
 			throw new IndexOutOfBoundsException("Key group index");

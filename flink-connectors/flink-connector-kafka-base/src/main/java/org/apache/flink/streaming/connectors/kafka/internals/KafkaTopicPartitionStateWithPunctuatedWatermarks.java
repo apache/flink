@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
@@ -32,6 +33,7 @@ import javax.annotation.Nullable;
  * @param <T> The type of records handled by the watermark generator
  * @param <KPH> The type of the Kafka partition descriptor, which varies across Kafka versions
  */
+@Internal
 public final class KafkaTopicPartitionStateWithPunctuatedWatermarks<T, KPH> extends KafkaTopicPartitionState<KPH> {
 
 	/** The timestamp assigner and watermark generator for the partition. */

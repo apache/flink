@@ -156,7 +156,7 @@ extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 			.rebalance()
 				.setParallelism(parallelism)
 				.name("Rebalance")
-			.flatMap(new GenerateEdges<T>(vertexCount, scale, a, b, c, noiseEnabled, noise))
+			.flatMap(new GenerateEdges<>(vertexCount, scale, a, b, c, noiseEnabled, noise))
 				.setParallelism(parallelism)
 				.name("RMat graph edges");
 

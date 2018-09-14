@@ -18,21 +18,21 @@
 package org.apache.flink.streaming.connectors.rabbitmq;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
@@ -51,8 +51,9 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.List;
 import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -158,7 +159,7 @@ public class RMQSourceTest {
 
 		for (int i = 0; i < numSnapshots; i++) {
 			long snapshotId = random.nextLong();
-			OperatorStateHandles data;
+			OperatorSubtaskState data;
 
 			synchronized (DummySourceContext.lock) {
 				data = testHarness.snapshot(snapshotId, System.currentTimeMillis());
@@ -180,12 +181,12 @@ public class RMQSourceTest {
 			testHarnessCopy.initializeState(data);
 			testHarnessCopy.open();
 
-			ArrayDeque<Tuple2<Long, List<String>>> deque = sourceCopy.getRestoredState();
-			List<String> messageIds = deque.getLast().f1;
+			ArrayDeque<Tuple2<Long, Set<String>>> deque = sourceCopy.getRestoredState();
+			Set<String> messageIds = deque.getLast().f1;
 
 			assertEquals(numIds, messageIds.size());
 			if (messageIds.size() > 0) {
-				assertEquals(lastSnapshotId, (long) Long.valueOf(messageIds.get(messageIds.size() - 1)));
+				assertTrue(messageIds.contains(Long.toString(lastSnapshotId)));
 			}
 
 			// check if the messages are being acknowledged and the transaction committed
@@ -339,7 +340,7 @@ public class RMQSourceTest {
 
 	private class RMQTestSource extends RMQSource<String> {
 
-		private ArrayDeque<Tuple2<Long, List<String>>> restoredState;
+		private ArrayDeque<Tuple2<Long, Set<String>>> restoredState;
 
 		public RMQTestSource() {
 			super(new RMQConnectionConfig.Builder().setHost("hostTest")
@@ -353,7 +354,7 @@ public class RMQSourceTest {
 			this.restoredState = this.pendingCheckpoints;
 		}
 
-		public ArrayDeque<Tuple2<Long, List<String>>> getRestoredState() {
+		public ArrayDeque<Tuple2<Long, Set<String>>> getRestoredState() {
 			return this.restoredState;
 		}
 
@@ -404,7 +405,7 @@ public class RMQSourceTest {
 			try {
 				Mockito.when(connectionFactory.newConnection()).thenReturn(connection);
 				Mockito.when(connection.createChannel()).thenReturn(Mockito.mock(Channel.class));
-			} catch (IOException e) {
+			} catch (IOException | TimeoutException e) {
 				fail("Test environment couldn't be created.");
 			}
 			return connectionFactory;

@@ -21,25 +21,31 @@ package org.apache.flink.mesos.runtime.clusterframework.services;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
 import org.apache.flink.mesos.runtime.clusterframework.store.ZooKeeperMesosWorkerStore;
+import org.apache.flink.mesos.util.MesosArtifactServer;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperSharedCount;
 import org.apache.flink.runtime.zookeeper.ZooKeeperSharedValue;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.runtime.zookeeper.ZooKeeperUtilityFactory;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+
+import akka.actor.ActorSystem;
 
 import java.util.concurrent.Executor;
 
 /**
  * {@link MesosServices} implementation for the ZooKeeper high availability based mode.
  */
-public class ZooKeeperMesosServices implements MesosServices {
+public class ZooKeeperMesosServices extends AbstractMesosServices {
 
 	// Factory to create ZooKeeper utility classes
 	private final ZooKeeperUtilityFactory zooKeeperUtilityFactory;
 
-	public ZooKeeperMesosServices(ZooKeeperUtilityFactory zooKeeperUtilityFactory) {
+	public ZooKeeperMesosServices(ActorSystem actorSystem, MesosArtifactServer artifactServer, ZooKeeperUtilityFactory zooKeeperUtilityFactory) {
+		super(actorSystem, artifactServer);
 		this.zooKeeperUtilityFactory = Preconditions.checkNotNull(zooKeeperUtilityFactory);
 	}
 
@@ -50,8 +56,7 @@ public class ZooKeeperMesosServices implements MesosServices {
 
 		ZooKeeperStateHandleStore<MesosWorkerStore.Worker> zooKeeperStateHandleStore = zooKeeperUtilityFactory.createZooKeeperStateHandleStore(
 			"/workers",
-			stateStorageHelper,
-			executor);
+			stateStorageHelper);
 
 		ZooKeeperSharedValue frameworkId = zooKeeperUtilityFactory.createSharedValue("/frameworkId", new byte[0]);
 		ZooKeeperSharedCount totalTaskCount = zooKeeperUtilityFactory.createSharedCount("/taskCount", 0);
@@ -64,7 +69,23 @@ public class ZooKeeperMesosServices implements MesosServices {
 
 	@Override
 	public void close(boolean cleanup) throws Exception {
-		// this also closes the underlying CuratorFramework instance
-		zooKeeperUtilityFactory.close(cleanup);
+		Throwable exception = null;
+
+		try {
+			// this also closes the underlying CuratorFramework instance
+			zooKeeperUtilityFactory.close(cleanup);
+		} catch (Throwable t) {
+			exception = ExceptionUtils.firstOrSuppressed(t, exception);
+		}
+
+		try {
+			super.close(cleanup);
+		} catch (Throwable t) {
+			exception = ExceptionUtils.firstOrSuppressed(t, exception);
+		}
+
+		if (exception != null) {
+			throw new FlinkException("Could not properly shut down the Mesos services.", exception);
+		}
 	}
 }

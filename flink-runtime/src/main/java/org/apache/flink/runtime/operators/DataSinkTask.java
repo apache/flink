@@ -29,12 +29,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.MutableReader;
 import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
@@ -44,6 +46,7 @@ import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,12 +56,12 @@ import org.slf4j.LoggerFactory;
  * @see OutputFormat
  */
 public class DataSinkTask<IT> extends AbstractInvokable {
-	
+
 	// Obtain DataSinkTask Logger
 	private static final Logger LOG = LoggerFactory.getLogger(DataSinkTask.class);
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	// OutputFormat instance. volatile, because the asynchronous canceller may access it
 	private volatile OutputFormat<IT> format;
 
@@ -80,6 +83,15 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	private volatile boolean taskCanceled;
 	
 	private volatile boolean cleanupCalled;
+
+	/**
+	 * Create an Invokable task and set its environment.
+	 *
+	 * @param environment The environment assigned to this invokable.
+	 */
+	public DataSinkTask(Environment environment) {
+		super(environment);
+	}
 
 	@Override
 	public void invoke() throws Exception {
@@ -107,10 +119,22 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		LOG.debug(getLogString("Starting data sink operator"));
 
 		RuntimeContext ctx = createRuntimeContext();
-		final Counter numRecordsIn = ((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup().getNumRecordsInCounter();
-		((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup().reuseInputMetricsForTask();
-		((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup().reuseOutputMetricsForTask();
-		
+
+		final Counter numRecordsIn;
+		{
+			Counter tmpNumRecordsIn;
+			try {
+				OperatorIOMetricGroup ioMetricGroup = ((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup();
+				ioMetricGroup.reuseInputMetricsForTask();
+				ioMetricGroup.reuseOutputMetricsForTask();
+				tmpNumRecordsIn = ioMetricGroup.getNumRecordsInCounter();
+			} catch (Exception e) {
+				LOG.warn("An exception occurred during the metrics setup.", e);
+				tmpNumRecordsIn = new SimpleCounter();
+			}
+			numRecordsIn = tmpNumRecordsIn;
+		}
+
 		if(RichOutputFormat.class.isAssignableFrom(this.format.getClass())){
 			((RichOutputFormat) this.format).setRuntimeContext(ctx);
 			LOG.debug(getLogString("Rich Sink detected. Initializing runtime context."));
@@ -284,7 +308,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		
 		LOG.debug(getLogString("Cancelling data sink operator"));
 	}
-	
+
 	/**
 	 * Initializes the OutputFormat implementation and configuration.
 	 * 
@@ -385,6 +409,6 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 
 		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
 				getExecutionConfig(), env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap(), 
-				getEnvironment().getMetricGroup().addOperator(getEnvironment().getTaskInfo().getTaskName()));
+				getEnvironment().getMetricGroup().getOrAddOperator(getEnvironment().getTaskInfo().getTaskName()));
 	}
 }

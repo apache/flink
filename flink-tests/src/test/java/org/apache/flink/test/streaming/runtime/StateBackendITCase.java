@@ -29,12 +29,16 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
 
@@ -46,12 +50,10 @@ import static org.junit.Assert.fail;
 /**
  * Integration tests for {@link OperatorStateBackend}.
  */
-public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
+public class StateBackendITCase extends AbstractTestBase {
 
 	/**
 	 * Verify that the user-specified state backend is used even if checkpointing is disabled.
-	 *
-	 * @throws Exception
 	 */
 	@Test
 	public void testStateBackendWithoutCheckpointing() throws Exception {
@@ -70,7 +72,7 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 				@Override
 				public void open(Configuration parameters) throws Exception {
 					super.open(parameters);
-					getRuntimeContext().getState(new ValueStateDescriptor<Integer>("Test", Integer.class, 0));
+					getRuntimeContext().getState(new ValueStateDescriptor<>("Test", Integer.class));
 				}
 
 				@Override
@@ -85,35 +87,33 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 			fail();
 		}
 		catch (JobExecutionException e) {
-			Throwable t = e.getCause();
-			assertTrue("wrong exception", t instanceof SuccessException);
+			assertTrue(ExceptionUtils.findThrowable(e, SuccessException.class).isPresent());
 		}
 	}
 
-	private static class FailingStateBackend extends AbstractStateBackend {
+	private static class FailingStateBackend implements StateBackend {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public CheckpointStreamFactory createStreamFactory(JobID jobId,
-				String operatorIdentifier) throws IOException {
-			throw new SuccessException();
-		}
-
-		@Override
-		public CheckpointStreamFactory createSavepointStreamFactory(JobID jobId,
-			String operatorIdentifier, String targetLocation) throws IOException {
+		public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
 		@Override
+		public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
+			return new MemoryBackendCheckpointStorage(jobId, null, null, 1_000_000);
+		}
+
+		@Override
 		public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-				Environment env,
-				JobID jobID,
-				String operatorIdentifier,
-				TypeSerializer<K> keySerializer,
-				int numberOfKeyGroups,
-				KeyGroupRange keyGroupRange,
-				TaskKvStateRegistry kvStateRegistry) throws IOException {
+			Environment env,
+			JobID jobID,
+			String operatorIdentifier,
+			TypeSerializer<K> keySerializer,
+			int numberOfKeyGroups,
+			KeyGroupRange keyGroupRange,
+			TaskKvStateRegistry kvStateRegistry,
+			TtlTimeProvider ttlTimeProvider) throws IOException {
 			throw new SuccessException();
 		}
 
@@ -122,7 +122,7 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 			Environment env,
 			String operatorIdentifier) throws Exception {
 
-			throw new UnsupportedOperationException();
+			throw new SuccessException();
 		}
 	}
 

@@ -19,9 +19,9 @@
 package org.apache.flink.runtime.webmonitor.history;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 
-import io.netty.handler.codec.http.router.Router;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -29,6 +29,8 @@ import org.junit.rules.TemporaryFolder;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+
+import static org.hamcrest.CoreMatchers.containsString;
 
 /**
  * Tests for the HistoryServerStaticFileServerHandler.
@@ -42,39 +44,41 @@ public class HistoryServerStaticFileServerHandlerTest {
 	public void testRespondWithFile() throws Exception {
 		File webDir = tmp.newFolder("webDir");
 		Router router = new Router()
-			.GET("/:*", new HistoryServerStaticFileServerHandler(webDir));
+			.addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
 		WebFrontendBootstrap webUI = new WebFrontendBootstrap(
 			router,
 			LoggerFactory.getLogger(HistoryServerStaticFileServerHandlerTest.class),
 			tmp.newFolder("uploadDir"),
 			null,
 			"localhost",
-			8081,
+			0,
 			new Configuration());
+
+		int port = webUI.getServerPort();
 		try {
-			// verify that 404 message is returned when requesting a non-existant file
-			String notFound404 = HistoryServerTest.getFromHTTP("http://localhost:8081/hello");
-			Assert.assertTrue(notFound404.contains("404 Not Found"));
+			// verify that 404 message is returned when requesting a non-existent file
+			String notFound404 = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/hello");
+			Assert.assertThat(notFound404, containsString("not found"));
 
 			// verify that a) a file can be loaded using the ClassLoader and b) that the HistoryServer
 			// index_hs.html is injected
-			String index = HistoryServerTest.getFromHTTP("http://localhost:8081/index.html");
+			String index = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/index.html");
 			Assert.assertTrue(index.contains("Completed Jobs"));
 
 			// verify that index.html is appended if the request path ends on '/'
-			String index2 = HistoryServerTest.getFromHTTP("http://localhost:8081/");
+			String index2 = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/");
 			Assert.assertEquals(index, index2);
 
 			// verify that a 404 message is returned when requesting a directory
 			File dir = new File(webDir, "dir.json");
 			dir.mkdirs();
-			String dirNotFound404 = HistoryServerTest.getFromHTTP("http://localhost:8081/dir");
-			Assert.assertTrue(dirNotFound404.contains("404 Not Found"));
+			String dirNotFound404 = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/dir");
+			Assert.assertTrue(dirNotFound404.contains("not found"));
 
 			// verify that a 404 message is returned when requesting a file outside the webDir
 			tmp.newFile("secret");
-			String x = HistoryServerTest.getFromHTTP("http://localhost:8081/../secret");
-			Assert.assertTrue(x.contains("404 Not Found"));
+			String x = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/../secret");
+			Assert.assertTrue(x.contains("not found"));
 		} finally {
 			webUI.shutdown();
 		}

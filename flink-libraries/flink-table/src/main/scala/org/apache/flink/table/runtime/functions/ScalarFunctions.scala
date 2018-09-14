@@ -17,12 +17,23 @@
  */
 package org.apache.flink.table.runtime.functions
 
-import scala.annotation.varargs
+import java.lang.{StringBuilder, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
-import java.lang.StringBuilder
+import java.nio.charset.StandardCharsets
+
+import org.apache.commons.codec.binary.{Base64, Hex}
+import org.apache.commons.lang3.StringUtils
+
+import scala.annotation.varargs
 
 /**
   * Built-in scalar runtime functions.
+  *
+  * NOTE: Before you add functions here, check if Calcite provides it in
+  * [[org.apache.calcite.runtime.SqlFunctions]]. Furthermore, make sure to implement the function
+  * efficiently. Sometimes it makes sense to create a
+  * [[org.apache.flink.table.codegen.calls.CallGenerator]] instead to avoid massive object
+  * creation and reuse instances.
   */
 class ScalarFunctions {}
 
@@ -82,4 +93,149 @@ object ScalarFunctions {
     }
     sb.toString
   }
+
+  /**
+    * Returns the natural logarithm of "x".
+    */
+  def log(x: Double): Double = {
+    if (x <= 0.0) {
+      throw new IllegalArgumentException(s"x of 'log(x)' must be > 0, but x = $x")
+    } else {
+      Math.log(x)
+    }
+  }
+
+  /**
+    * Returns the logarithm of "x" with base "base".
+    */
+  def log(base: Double, x: Double): Double = {
+    if (x <= 0.0) {
+      throw new IllegalArgumentException(s"x of 'log(base, x)' must be > 0, but x = $x")
+    }
+    if (base <= 1.0) {
+      throw new IllegalArgumentException(s"base of 'log(base, x)' must be > 1, but base = $base")
+    } else {
+      Math.log(x) / Math.log(base)
+    }
+  }
+
+  /**
+    * Returns the logarithm of "x" with base 2.
+    */
+  def log2(x: Double): Double = {
+    if (x <= 0.0) {
+      throw new IllegalArgumentException(s"x of 'log2(x)' must be > 0, but x = $x")
+    } else {
+      Math.log(x) / Math.log(2)
+    }
+  }
+
+  /**
+    * Returns the string str left-padded with the string pad to a length of len characters.
+    * If str is longer than len, the return value is shortened to len characters.
+    */
+  def lpad(base: String, len: Integer, pad: String): String = {
+    if (len < 0) {
+      return null
+    } else if (len == 0) {
+      return ""
+    }
+
+    val data = new Array[Char](len)
+    val baseChars = base.toCharArray
+    val padChars = pad.toCharArray
+
+    // The length of the padding needed
+    val pos = Math.max(len - base.length, 0)
+
+    // Copy the padding
+    var i = 0
+    while (i < pos) {
+      var j = 0
+      while (j < pad.length && j < pos - i) {
+        data(i + j) = padChars(j)
+        j += 1
+      }
+      i += pad.length
+    }
+
+    // Copy the base
+    i = 0
+    while (pos + i < len && i < base.length) {
+      data(pos + i) = baseChars(i)
+      i += 1
+    }
+
+    new String(data)
+  }
+
+  /**
+    * Returns the string str right-padded with the string pad to a length of len characters.
+    * If str is longer than len, the return value is shortened to len characters.
+    */
+  def rpad(base: String, len: Integer, pad: String): String = {
+    if (len < 0) {
+      return null
+    } else if (len == 0) {
+      return ""
+    }
+
+    val data = new Array[Char](len)
+    val baseChars = base.toCharArray
+    val padChars = pad.toCharArray
+
+    var pos = 0
+
+    // Copy the base
+    while (pos < base.length && pos < len) {
+      data(pos) = baseChars(pos)
+      pos += 1
+    }
+
+    // Copy the padding
+    while (pos < len) {
+      var i = 0
+      while (i < pad.length && i < len - pos) {
+        data(pos + i) = padChars(i)
+        i += 1
+      }
+      pos += pad.length
+    }
+
+    new String(data)
+  }
+
+  /**
+    * Returns the base string decoded with base64.
+    */
+  def fromBase64(str: String): String =
+    new String(Base64.decodeBase64(str), StandardCharsets.UTF_8)
+
+  /**
+    * Returns the base64-encoded result of the input string.
+    */
+  def toBase64(base: String): String =
+    Base64.encodeBase64String(base.getBytes(StandardCharsets.UTF_8))
+
+  /**
+    * Returns the hex string of a long argument.
+    */
+  def hex(x: Long): String = JLong.toHexString(x).toUpperCase()
+
+  /**
+    * Returns the hex string of a string argument.
+    */
+  def hex(x: String): String =
+    Hex.encodeHexString(x.getBytes(StandardCharsets.UTF_8)).toUpperCase()
+
+  /**
+    * Returns an UUID string using Java utilities.
+    */
+  def uuid(): String = java.util.UUID.randomUUID().toString
+
+  /**
+    * Returns a string that repeats the base string n times.
+    */
+  def repeat(base: String, n: Int): String = StringUtils.repeat(base, n)
+
 }

@@ -55,58 +55,58 @@ public class LabelPropagationData {
 
 	public static final DataSet<Vertex<Long, Long>> getDefaultVertexSet(ExecutionEnvironment env) {
 
-		List<Vertex<Long, Long>> vertices = new ArrayList<Vertex<Long, Long>>();
-		vertices.add(new Vertex<Long, Long>(1L, 10L));
-		vertices.add(new Vertex<Long, Long>(2L, 10L));
-		vertices.add(new Vertex<Long, Long>(3L, 30L));
-		vertices.add(new Vertex<Long, Long>(4L, 40L));
-		vertices.add(new Vertex<Long, Long>(5L, 40L));
-		vertices.add(new Vertex<Long, Long>(6L, 40L));
-		vertices.add(new Vertex<Long, Long>(7L, 40L));
+		List<Vertex<Long, Long>> vertices = new ArrayList<>();
+		vertices.add(new Vertex<>(1L, 10L));
+		vertices.add(new Vertex<>(2L, 10L));
+		vertices.add(new Vertex<>(3L, 30L));
+		vertices.add(new Vertex<>(4L, 40L));
+		vertices.add(new Vertex<>(5L, 40L));
+		vertices.add(new Vertex<>(6L, 40L));
+		vertices.add(new Vertex<>(7L, 40L));
 
 		return env.fromCollection(vertices);
 	}
 
 	public static final DataSet<Edge<Long, NullValue>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
 
-		List<Edge<Long, NullValue>> edges = new ArrayList<Edge<Long, NullValue>>();
-		edges.add(new Edge<Long, NullValue>(1L, 3L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(2L, 3L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(4L, 7L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(5L, 7L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(6L, 7L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(7L, 3L, NullValue.getInstance()));
+		List<Edge<Long, NullValue>> edges = new ArrayList<>();
+		edges.add(new Edge<>(1L, 3L, NullValue.getInstance()));
+		edges.add(new Edge<>(2L, 3L, NullValue.getInstance()));
+		edges.add(new Edge<>(4L, 7L, NullValue.getInstance()));
+		edges.add(new Edge<>(5L, 7L, NullValue.getInstance()));
+		edges.add(new Edge<>(6L, 7L, NullValue.getInstance()));
+		edges.add(new Edge<>(7L, 3L, NullValue.getInstance()));
 
 		return env.fromCollection(edges);
 	}
 
 	public static final DataSet<Vertex<Long, Long>> getTieVertexSet(ExecutionEnvironment env) {
 
-		List<Vertex<Long, Long>> vertices = new ArrayList<Vertex<Long, Long>>();
-		vertices.add(new Vertex<Long, Long>(1L, 10L));
-		vertices.add(new Vertex<Long, Long>(2L, 10L));
-		vertices.add(new Vertex<Long, Long>(3L, 10L));
-		vertices.add(new Vertex<Long, Long>(4L, 10L));
-		vertices.add(new Vertex<Long, Long>(5L, 0L));
-		vertices.add(new Vertex<Long, Long>(6L, 20L));
-		vertices.add(new Vertex<Long, Long>(7L, 20L));
-		vertices.add(new Vertex<Long, Long>(8L, 20L));
-		vertices.add(new Vertex<Long, Long>(9L, 20L));
+		List<Vertex<Long, Long>> vertices = new ArrayList<>();
+		vertices.add(new Vertex<>(1L, 10L));
+		vertices.add(new Vertex<>(2L, 10L));
+		vertices.add(new Vertex<>(3L, 10L));
+		vertices.add(new Vertex<>(4L, 10L));
+		vertices.add(new Vertex<>(5L, 0L));
+		vertices.add(new Vertex<>(6L, 20L));
+		vertices.add(new Vertex<>(7L, 20L));
+		vertices.add(new Vertex<>(8L, 20L));
+		vertices.add(new Vertex<>(9L, 20L));
 
 		return env.fromCollection(vertices);
 	}
 
 	public static final DataSet<Edge<Long, NullValue>> getTieEdgeDataSet(ExecutionEnvironment env) {
 
-		List<Edge<Long, NullValue>> edges = new ArrayList<Edge<Long, NullValue>>();
-		edges.add(new Edge<Long, NullValue>(1L, 5L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(2L, 5L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(4L, 5L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(5L, 5L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(6L, 5L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(7L, 5L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(8L, 5L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(9L, 5L, NullValue.getInstance()));
+		List<Edge<Long, NullValue>> edges = new ArrayList<>();
+		edges.add(new Edge<>(1L, 5L, NullValue.getInstance()));
+		edges.add(new Edge<>(2L, 5L, NullValue.getInstance()));
+		edges.add(new Edge<>(4L, 5L, NullValue.getInstance()));
+		edges.add(new Edge<>(5L, 5L, NullValue.getInstance()));
+		edges.add(new Edge<>(6L, 5L, NullValue.getInstance()));
+		edges.add(new Edge<>(7L, 5L, NullValue.getInstance()));
+		edges.add(new Edge<>(8L, 5L, NullValue.getInstance()));
+		edges.add(new Edge<>(9L, 5L, NullValue.getInstance()));
 
 		return env.fromCollection(edges);
 	}

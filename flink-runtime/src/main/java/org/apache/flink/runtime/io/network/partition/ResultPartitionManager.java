@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Table;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.HashBasedTable;
+import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Table;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

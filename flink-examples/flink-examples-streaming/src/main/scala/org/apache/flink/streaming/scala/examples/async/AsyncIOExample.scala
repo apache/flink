@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.api.scala.async.AsyncCollector
+import org.apache.flink.streaming.api.scala.async.ResultFuture
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -38,9 +38,9 @@ object AsyncIOExample {
     val input = env.addSource(new SimpleSource())
 
     val asyncMapped = AsyncDataStream.orderedWait(input, timeout, TimeUnit.MILLISECONDS, 10) {
-      (input, collector: AsyncCollector[Int]) =>
+      (input, collector: ResultFuture[Int]) =>
         Future {
-          collector.collect(Seq(input))
+          collector.complete(Seq(input))
         } (ExecutionContext.global)
     }
 

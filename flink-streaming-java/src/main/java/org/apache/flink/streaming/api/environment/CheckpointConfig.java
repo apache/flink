@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
@@ -69,6 +68,9 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/** Cleanup behaviour for persistent checkpoints. */
 	private ExternalizedCheckpointCleanup externalizedCheckpointCleanup;
+
+	/** Determines if a tasks are failed or not if there is an error in their checkpointing. Default: true */
+	private boolean failOnCheckpointingErrors = true;
 
 	// ------------------------------------------------------------------------
 
@@ -231,6 +233,23 @@ public class CheckpointConfig implements java.io.Serializable {
 	}
 
 	/**
+	 * This determines the behaviour of tasks if there is an error in their local checkpointing. If this returns true,
+	 * tasks will fail as a reaction. If this returns false, task will only decline the failed checkpoint.
+	 */
+	public boolean isFailOnCheckpointingErrors() {
+		return failOnCheckpointingErrors;
+	}
+
+	/**
+	 * Sets the expected behaviour for tasks in case that they encounter an error in their checkpointing procedure.
+	 * If this is set to true, the task will fail on checkpointing error. If this is set to false, the task will only
+	 * decline a the checkpoint and continue running. The default is true.
+	 */
+	public void setFailOnCheckpointingErrors(boolean failOnCheckpointingErrors) {
+		this.failOnCheckpointingErrors = failOnCheckpointingErrors;
+	}
+
+	/**
 	 * Enables checkpoints to be persisted externally.
 	 *
 	 * <p>Externalized checkpoints write their meta data out to persistent
@@ -247,7 +266,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * (terminating with job status {@link JobStatus#CANCELED}).
 	 *
 	 * <p>The target directory for externalized checkpoints is configured
-	 * via {@link CoreOptions#CHECKPOINTS_DIRECTORY}.
+	 * via {@link org.apache.flink.configuration.CheckpointingOptions#CHECKPOINTS_DIRECTORY}.
 	 *
 	 * @param cleanupMode Externalized checkpoint cleanup behaviour.
 	 */

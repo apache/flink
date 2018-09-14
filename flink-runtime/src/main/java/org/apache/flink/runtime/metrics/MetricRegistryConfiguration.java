@@ -32,10 +32,14 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
- * Configuration object for {@link MetricRegistry}.
+ * Configuration object for {@link MetricRegistryImpl}.
  */
 public class MetricRegistryConfiguration {
 
@@ -44,7 +48,14 @@ public class MetricRegistryConfiguration {
 	private static volatile MetricRegistryConfiguration defaultConfiguration;
 
 	// regex pattern to split the defined reporters
-	private static final Pattern splitPattern = Pattern.compile("\\s*,\\s*");
+	private static final Pattern reporterListPattern = Pattern.compile("\\s*,\\s*");
+
+	// regex pattern to extract the name from reporter configuration keys, e.g. "rep" from "metrics.reporter.rep.class"
+	private static final Pattern reporterClassPattern = Pattern.compile(
+		Pattern.quote(ConfigConstants.METRICS_REPORTER_PREFIX) +
+		// [\S&&[^.]] = intersection of non-whitespace and non-period character classes
+		"([\\S&&[^.]]*)\\." +
+		Pattern.quote(ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX));
 
 	// scope formats for the different components
 	private final ScopeFormats scopeFormats;
@@ -94,10 +105,10 @@ public class MetricRegistryConfiguration {
 	public static MetricRegistryConfiguration fromConfiguration(Configuration configuration) {
 		ScopeFormats scopeFormats;
 		try {
-			scopeFormats = createScopeConfig(configuration);
+			scopeFormats = ScopeFormats.fromConfig(configuration);
 		} catch (Exception e) {
 			LOG.warn("Failed to parse scope format, using default scope formats", e);
-			scopeFormats = new ScopeFormats();
+			scopeFormats = ScopeFormats.fromConfig(new Configuration());
 		}
 
 		char delim;
@@ -108,15 +119,37 @@ public class MetricRegistryConfiguration {
 			delim = '.';
 		}
 
-		final String definedReporters = configuration.getString(MetricOptions.REPORTERS_LIST);
+		String includedReportersString = configuration.getString(MetricOptions.REPORTERS_LIST, "");
+		Set<String> includedReporters = reporterListPattern.splitAsStream(includedReportersString)
+			.collect(Collectors.toSet());
+
+		// use a TreeSet to make the reporter order deterministic, which is useful for testing
+		Set<String> namedReporters = new TreeSet<>(String::compareTo);
+		// scan entire configuration for "metric.reporter" keys and parse individual reporter configurations
+		for (String key : configuration.keySet()) {
+			if (key.startsWith(ConfigConstants.METRICS_REPORTER_PREFIX)) {
+				Matcher matcher = reporterClassPattern.matcher(key);
+				if (matcher.matches()) {
+					String reporterName = matcher.group(1);
+					if (includedReporters.isEmpty() || includedReporters.contains(reporterName)) {
+						if (namedReporters.contains(reporterName)) {
+							LOG.warn("Duplicate class configuration detected for reporter {}.", reporterName);
+						} else {
+							namedReporters.add(reporterName);
+						}
+					} else {
+						LOG.info("Excluding reporter {}, not configured in reporter list ({}).", reporterName, includedReportersString);
+					}
+				}
+			}
+		}
+
 		List<Tuple2<String, Configuration>> reporterConfigurations;
 
-		if (definedReporters == null) {
+		if (namedReporters.isEmpty()) {
 			reporterConfigurations = Collections.emptyList();
 		} else {
-			String[] namedReporters = splitPattern.split(definedReporters);
-
-			reporterConfigurations = new ArrayList<>(namedReporters.length);
+			reporterConfigurations = new ArrayList<>(namedReporters.size());
 
 			for (String namedReporter: namedReporters) {
 				DelegatingConfiguration delegatingConfiguration = new DelegatingConfiguration(
@@ -128,23 +161,6 @@ public class MetricRegistryConfiguration {
 		}
 
 		return new MetricRegistryConfiguration(scopeFormats, delim, reporterConfigurations);
-	}
-
-	/**
-	 *	Create the scope formats from the given {@link Configuration}.
-	 *
-	 * @param configuration to extract the scope formats from
-	 * @return Scope formats extracted from the given configuration
-	 */
-	static ScopeFormats createScopeConfig(Configuration configuration) {
-		String jmFormat = configuration.getString(MetricOptions.SCOPE_NAMING_JM);
-		String jmJobFormat = configuration.getString(MetricOptions.SCOPE_NAMING_JM_JOB);
-		String tmFormat = configuration.getString(MetricOptions.SCOPE_NAMING_TM);
-		String tmJobFormat = configuration.getString(MetricOptions.SCOPE_NAMING_TM_JOB);
-		String taskFormat = configuration.getString(MetricOptions.SCOPE_NAMING_TASK);
-		String operatorFormat = configuration.getString(MetricOptions.SCOPE_NAMING_OPERATOR);
-
-		return new ScopeFormats(jmFormat, jmJobFormat, tmFormat, tmJobFormat, taskFormat, operatorFormat);
 	}
 
 	public static MetricRegistryConfiguration defaultMetricRegistryConfiguration() {

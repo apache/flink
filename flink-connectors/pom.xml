@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.4-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -36,7 +36,7 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>flink-avro</module>
+		<module>flink-orc</module>
 		<module>flink-jdbc</module>
 		<module>flink-hadoop-compatibility</module>
 		<module>flink-hbase</module>
@@ -45,9 +45,12 @@ under the License.
 		<module>flink-connector-kafka-0.8</module>
 		<module>flink-connector-kafka-0.9</module>
 		<module>flink-connector-kafka-0.10</module>
+		<module>flink-connector-kafka-0.11</module>
 		<module>flink-connector-elasticsearch-base</module>
 		<module>flink-connector-elasticsearch</module>
 		<module>flink-connector-elasticsearch2</module>
+		<module>flink-connector-elasticsearch5</module>
+		<module>flink-connector-elasticsearch6</module>
 		<module>flink-connector-rabbitmq</module>
 		<module>flink-connector-twitter</module>
 		<module>flink-connector-nifi</module>
@@ -70,6 +73,11 @@ under the License.
 			<artifactId>jsr305</artifactId>
 			<scope>provided</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils-junit</artifactId>
+		</dependency>
 	</dependencies>
 
 	<!-- See main pom.xml for explanation of profiles -->
@@ -82,24 +90,35 @@ under the License.
 		-->
 		<profile>
 			<id>include-kinesis</id>
+			<activation>
+				<property>
+					<name>include-kinesis</name>
+				</property>
+			</activation>
 			<modules>
 				<module>flink-connector-kinesis</module>
 			</modules>
 		</profile>
-
-		<!--
-			Since Elasticsearch 5.x requires Java 8 at a minimum, we use this profile
-			to include it as part of Java 8 builds only.
-		-->
-		<profile>
-			<id>include-elasticsearch5</id>
-			<activation>
-				<jdk>1.8</jdk>
-			</activation>
-			<modules>
-				<module>flink-connector-elasticsearch5</module>
-			</modules>
-		</profile>
 	</profiles>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>dependency-convergence</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<skip>true</skip>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
 
 </project>

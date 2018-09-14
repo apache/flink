@@ -26,7 +26,7 @@ under the License.
     <parent>
         <groupId>org.apache.flink</groupId>
         <artifactId>flink-libraries</artifactId>
-        <version>1.4-SNAPSHOT</version>
+        <version>1.7-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
     
@@ -49,14 +49,6 @@ under the License.
             <artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
-        </dependency>
-
-        <!-- We need to add this explicitly due to shading -->
-
-        <dependency>
-            <groupId>org.ow2.asm</groupId>
-            <artifactId>asm</artifactId>
-            <version>${asm.version}</version>
         </dependency>
 
         <!-- the dependencies below are already provided in Flink -->

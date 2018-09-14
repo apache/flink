@@ -19,30 +19,33 @@
 package org.apache.flink.graph.library.similarity;
 
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.AsmTestBase;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.graph.library.similarity.JaccardIndex.Result;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 
+import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.junit.Test;
+
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for {@link JaccardIndex}.
  */
-public class JaccardIndexTest
-extends AsmTestBase {
+public class JaccardIndexTest extends AsmTestBase {
 
 	@Test
-	public void testSimpleGraph()
-			throws Exception {
+	public void testSimpleGraph() throws Exception {
 		DataSet<Result<IntValue>> ji = undirectedSimpleGraph
-			.run(new JaccardIndex<IntValue, NullValue, NullValue>());
+			.run(new JaccardIndex<>());
 
 		String expectedResult =
 			"(0,1,1,4)\n" +
@@ -61,8 +64,7 @@ extends AsmTestBase {
 	}
 
 	@Test
-	public void testSimpleGraphWithMinimumScore()
-			throws Exception {
+	public void testWithSimpleGraphWithMinimumScore() throws Exception {
 		DataSet<Result<IntValue>> ji = undirectedSimpleGraph
 			.run(new JaccardIndex<IntValue, NullValue, NullValue>()
 				.setMinimumScore(1, 2));
@@ -76,8 +78,7 @@ extends AsmTestBase {
 	}
 
 	@Test
-	public void testSimpleGraphWithMaximumScore()
-			throws Exception {
+	public void testWithSimpleGraphWithMaximumScore() throws Exception {
 		DataSet<Result<IntValue>> ji = undirectedSimpleGraph
 			.run(new JaccardIndex<IntValue, NullValue, NullValue>()
 				.setMaximumScore(1, 2));
@@ -97,25 +98,73 @@ extends AsmTestBase {
 		TestBaseUtils.compareResultAsText(ji.collect(), expectedResult);
 	}
 
-	@Test
-	public void testCompleteGraph()
-			throws Exception {
-		DataSet<Result<LongValue>> ji = completeGraph
-			.run(new JaccardIndex<LongValue, NullValue, NullValue>()
+	/**
+	 * Validate a test where each result has the same values.
+	 *
+	 * @param graph input graph
+	 * @param count number of results
+	 * @param distinctNeighborCount result distinct neighbor count
+	 * @param sharedNeighborCount result shared neighbor count
+	 * @param <T> graph ID type
+	 * @throws Exception on error
+	 */
+	private static <T extends CopyableValue<T>> void validate(
+			Graph<T, NullValue, NullValue> graph, long count, long distinctNeighborCount, long sharedNeighborCount) throws Exception {
+		DataSet<Result<T>> ji = graph
+			.run(new JaccardIndex<T, NullValue, NullValue>()
 				.setGroupSize(4));
 
-		for (Result<LongValue> result : ji.collect()) {
-			// the intersection includes every vertex
-			assertEquals(completeGraphVertexCount, result.getDistinctNeighborCount().getValue());
+		List<Result<T>> results = ji.collect();
 
-			// the union only excludes the two vertices from the similarity score
-			assertEquals(completeGraphVertexCount - 2, result.getSharedNeighborCount().getValue());
+		assertEquals(count, results.size());
+
+		for (Result<T> result : results) {
+			assertEquals(distinctNeighborCount, result.getDistinctNeighborCount().getValue());
+			assertEquals(sharedNeighborCount, result.getSharedNeighborCount().getValue());
 		}
 	}
 
 	@Test
-	public void testRMatGraph()
-			throws Exception {
+	public void testWithCompleteGraph() throws Exception {
+		// all vertex pairs are linked
+		long expectedCount = CombinatoricsUtils.binomialCoefficient((int) completeGraphVertexCount, 2);
+
+		// the intersection includes every vertex
+		long expectedDistinctNeighborCount = completeGraphVertexCount;
+
+		// the union only excludes the two vertices from the similarity score
+		long expectedSharedNeighborCount = completeGraphVertexCount - 2;
+
+		validate(completeGraph, expectedCount, expectedDistinctNeighborCount, expectedSharedNeighborCount);
+	}
+
+	@Test
+	public void testWithEmptyGraphWithVertices() throws Exception {
+		validate(emptyGraphWithVertices, 0, 0, 0);
+	}
+
+	@Test
+	public void testWithEmptyGraphWithoutVertices() throws Exception {
+		validate(emptyGraphWithoutVertices, 0, 0, 0);
+	}
+
+	@Test
+	public void testWithStarGraph() throws Exception {
+		// all leaf vertices form a triplet with all other leaf vertices;
+		// only the center vertex is excluded
+		long expectedCount = CombinatoricsUtils.binomialCoefficient((int) starGraphVertexCount - 1, 2);
+
+		// the intersection includes only the center vertex
+		long expectedDistinctNeighborCount = 1;
+
+		// the union includes only the center vertex
+		long expectedSharedNeighborCount = 1;
+
+		validate(starGraph, expectedCount, expectedDistinctNeighborCount, expectedSharedNeighborCount);
+	}
+
+	@Test
+	public void testWithRMatGraph() throws Exception {
 		DataSet<Result<LongValue>> ji = undirectedRMatGraph(8, 8)
 			.run(new JaccardIndex<LongValue, NullValue, NullValue>()
 				.setGroupSize(4));

@@ -773,7 +773,7 @@ final class SelectLargeWeightNeighbors extends NeighborsFunctionWithVertexValue[
 
 			for (neighbor <- neighbors) {
 				if (neighbor._1.getValue() > 0.5) {
-					out.collect(vertex, neighbor._2);
+					out.collect(vertex, neighbor._2)
 				}
 			}
 		}

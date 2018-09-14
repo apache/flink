@@ -27,8 +27,7 @@ The following example programs showcase different applications of Flink
 from simple word counting to graph algorithms. The code samples illustrate the
 use of [Flink's DataSet API]({{ site.baseurl }}/dev/batch/index.html).
 
-The full source code of the following and more examples can be found in the __flink-examples-batch__
-or __flink-examples-streaming__ module of the Flink source repository.
+The full source code of the following and more examples can be found in the {% gh_link flink-examples/flink-examples-batch "flink-examples-batch" %} module of the Flink source repository.
 
 * This will be replaced by the TOC
 {:toc}
@@ -38,23 +37,23 @@ or __flink-examples-streaming__ module of the Flink source repository.
 
 In order to run a Flink example, we assume you have a running Flink instance available. The "Quickstart" and "Setup" tabs in the navigation describe various ways of starting Flink.
 
-The easiest way is running the `./bin/start-local.sh` script, which will start a JobManager locally.
+The easiest way is running the `./bin/start-cluster.sh`, which by default starts a local cluster with one JobManager and one TaskManager.
 
 Each binary release of Flink contains an `examples` directory with jar files for each of the examples on this page.
 
 To run the WordCount example, issue the following command:
 
-~~~bash
+{% highlight bash %}
 ./bin/flink run ./examples/batch/WordCount.jar
-~~~
+{% endhighlight %}
 
 The other examples can be started in a similar way.
 
 Note that many examples run without passing any arguments for them, by using build-in data. To run WordCount with real data, you have to pass the path to the data:
 
-~~~bash
+{% highlight bash %}
 ./bin/flink run ./examples/batch/WordCount.jar --input /path/to/some/text/data --output /path/to/result
-~~~
+{% endhighlight %}
 
 Note that non-local file systems require a schema prefix, such as `hdfs://`.
 
@@ -65,7 +64,7 @@ WordCount is the "Hello World" of Big Data processing systems. It computes the f
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-~~~java
+{% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 DataSet<String> text = env.readTextFile("/path/to/file");
@@ -95,14 +94,14 @@ public static class Tokenizer implements FlatMapFunction<String, Tuple2<String, 
         }
     }
 }
-~~~
+{% endhighlight %}
 
 The {% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/wordcount/WordCount.java  "WordCount example" %} implements the above described algorithm with input parameters: `--input <path> --output <path>`. As test data, any text file will do.
 
 </div>
 <div data-lang="scala" markdown="1">
 
-~~~scala
+{% highlight scala %}
 val env = ExecutionEnvironment.getExecutionEnvironment
 
 // get input data
@@ -114,7 +113,7 @@ val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
   .sum(1)
 
 counts.writeAsCsv(outputPath, "\n", " ")
-~~~
+{% endhighlight %}
 
 The {% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala  "WordCount example" %} implements the above described algorithm with input parameters: `--input <path> --output <path>`. As test data, any text file will do.
 
@@ -131,7 +130,7 @@ In this simple example, PageRank is implemented with a [bulk iteration](iteratio
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-~~~java
+{% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 // read the pages and initial ranks by parsing a CSV file
@@ -202,7 +201,7 @@ public static final class EpsilonFilter
         return Math.abs(value.f0.f1 - value.f1.f1) > EPSILON;
     }
 }
-~~~
+{% endhighlight %}
 
 The {% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/graph/PageRank.java "PageRank program" %} implements the above example.
 It requires the following parameters to run: `--pages <path> --links <path> --output <path> --numPages <n> --iterations <n>`.
@@ -210,7 +209,7 @@ It requires the following parameters to run: `--pages <path> --links <path> --ou
 </div>
 <div data-lang="scala" markdown="1">
 
-~~~scala
+{% highlight scala %}
 // User-defined types
 case class Link(sourceId: Long, targetId: Long)
 case class Page(pageId: Long, rank: Double)
@@ -269,7 +268,7 @@ val result = finalRanks
 
 // emit result
 result.writeAsCsv(outputPath, "\n", " ")
-~~~
+{% endhighlight %}
 
 he {% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/graph/PageRankBasic.scala "PageRank program" %} implements the above example.
 It requires the following parameters to run: `--pages <path> --links <path> --output <path> --numPages <n> --iterations <n>`.
@@ -293,7 +292,7 @@ This implementation uses a [delta iteration](iterations.html): Vertices that hav
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-~~~java
+{% highlight java %}
 // read vertex and edge data
 DataSet<Long> vertices = getVertexDataSet(env);
 DataSet<Tuple2<Long, Long>> edges = getEdgeDataSet(env).flatMap(new UndirectEdge());
@@ -365,14 +364,14 @@ public static final class ComponentIdFilter
         }
     }
 }
-~~~
+{% endhighlight %}
 
 The {% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/graph/ConnectedComponents.java "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `--vertices <path> --edges <path> --output <path> --iterations <n>`.
 
 </div>
 <div data-lang="scala" markdown="1">
 
-~~~scala
+{% highlight scala %}
 // set up execution environment
 val env = ExecutionEnvironment.getExecutionEnvironment
 
@@ -408,7 +407,7 @@ val verticesWithComponents = vertices.iterateDelta(vertices, maxIterations, Arra
 
 verticesWithComponents.writeAsCsv(outputPath, "\n", " ")
 
-~~~
+{% endhighlight %}
 
 The {% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/graph/ConnectedComponents.scala "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `--vertices <path> --edges <path> --output <path> --iterations <n>`.
 </div>
@@ -420,100 +419,4 @@ Input files are plain text files and must be formatted as follows:
 - Edges are represented as pairs for vertex IDs which are separated by space characters. Edges are separated by new-line characters:
     * For example `"1 2\n2 12\n1 12\n42 63\n"` gives four (undirected) links (1)-(2), (2)-(12), (1)-(12), and (42)-(63).
 
-## Relational Query
-
-The Relational Query example assumes two tables, one with `orders` and the other with `lineitems` as specified by the [TPC-H decision support benchmark](http://www.tpc.org/tpch/). TPC-H is a standard benchmark in the database industry. See below for instructions how to generate the input data.
-
-The example implements the following SQL query.
-
-~~~sql
-SELECT l_orderkey, o_shippriority, sum(l_extendedprice) as revenue
-    FROM orders, lineitem
-WHERE l_orderkey = o_orderkey
-    AND o_orderstatus = "F"
-    AND YEAR(o_orderdate) > 1993
-    AND o_orderpriority LIKE "5%"
-GROUP BY l_orderkey, o_shippriority;
-~~~
-
-The Flink program, which implements the above query looks as follows.
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-
-~~~java
-// get orders data set: (orderkey, orderstatus, orderdate, orderpriority, shippriority)
-DataSet<Tuple5<Integer, String, String, String, Integer>> orders = getOrdersDataSet(env);
-// get lineitem data set: (orderkey, extendedprice)
-DataSet<Tuple2<Integer, Double>> lineitems = getLineitemDataSet(env);
-
-// orders filtered by year: (orderkey, custkey)
-DataSet<Tuple2<Integer, Integer>> ordersFilteredByYear =
-        // filter orders
-        orders.filter(
-            new FilterFunction<Tuple5<Integer, String, String, String, Integer>>() {
-                @Override
-                public boolean filter(Tuple5<Integer, String, String, String, Integer> t) {
-                    // status filter
-                    if(!t.f1.equals(STATUS_FILTER)) {
-                        return false;
-                    // year filter
-                    } else if(Integer.parseInt(t.f2.substring(0, 4)) <= YEAR_FILTER) {
-                        return false;
-                    // order priority filter
-                    } else if(!t.f3.startsWith(OPRIO_FILTER)) {
-                        return false;
-                    }
-                    return true;
-                }
-            })
-        // project fields out that are no longer required
-        .project(0,4).types(Integer.class, Integer.class);
-
-// join orders with lineitems: (orderkey, shippriority, extendedprice)
-DataSet<Tuple3<Integer, Integer, Double>> lineitemsOfOrders =
-        ordersFilteredByYear.joinWithHuge(lineitems)
-                            .where(0).equalTo(0)
-                            .projectFirst(0,1).projectSecond(1)
-                            .types(Integer.class, Integer.class, Double.class);
-
-// extendedprice sums: (orderkey, shippriority, sum(extendedprice))
-DataSet<Tuple3<Integer, Integer, Double>> priceSums =
-        // group by order and sum extendedprice
-        lineitemsOfOrders.groupBy(0,1).aggregate(Aggregations.SUM, 2);
-
-// emit result
-priceSums.writeAsCsv(outputPath);
-~~~
-
-The {% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/relational/TPCHQuery10.java "Relational Query program" %} implements the above query. It requires the following parameters to run: `--orders <path> --lineitem <path> --output <path>`.
-
-</div>
-<div data-lang="scala" markdown="1">
-Coming soon...
-
-The {% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/relational/TPCHQuery3.scala "Relational Query program" %} implements the above query. It requires the following parameters to run: `--orders <path> --lineitem <path> --output <path>`.
-
-</div>
-</div>
-
-The orders and lineitem files can be generated using the [TPC-H benchmark](http://www.tpc.org/tpch/) suite's data generator tool (DBGEN).
-Take the following steps to generate arbitrary large input files for the provided Flink programs:
-
-1.  Download and unpack DBGEN
-2.  Make a copy of *makefile.suite* called *Makefile* and perform the following changes:
-
-~~~bash
-DATABASE = DB2
-MACHINE  = LINUX
-WORKLOAD = TPCH
-CC       = gcc
-~~~
-
-1.  Build DBGEN using *make*
-2.  Generate lineitem and orders relations using dbgen. A scale factor
-    (-s) of 1 results in a generated data set with about 1 GB size.
-
-~~~bash
-./dbgen -T o -s 1
-~~~
+{% top %}

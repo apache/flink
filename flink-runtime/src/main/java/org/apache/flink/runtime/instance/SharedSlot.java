@@ -18,17 +18,22 @@
 
 package org.apache.flink.runtime.instance;
 
-import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
-import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotContext;
+import org.apache.flink.runtime.jobmaster.SlotOwner;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.api.common.JobID;
 
 import javax.annotation.Nullable;
+
 import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -44,7 +49,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * passed through a {@link SlotSharingGroupAssignment} object which is responsible for
  * synchronization.
  */
-public class SharedSlot extends Slot {
+public class SharedSlot extends Slot implements LogicalSlot {
 
 	/** The assignment group os shared slots that manages the availability and release of the slots */
 	private final SlotSharingGroupAssignment assignmentGroup;
@@ -53,14 +58,13 @@ public class SharedSlot extends Slot {
 	private final Set<Slot> subSlots;
 
 	// ------------------------------------------------------------------------
-	//  Old Constructors (prior FLIP-6)
+	//  Old Constructors (legacy code)
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Creates a new shared slot that has no parent (is a root slot) and does not belong to any task group.
 	 * This constructor is used to create a slot directly from an instance. 
 	 *
-	 * @param jobID The ID of the job that the slot is created for.
 	 * @param owner The component from which this slot is allocated.
 	 * @param location The location info of the TaskManager where the slot was allocated from
 	 * @param slotNumber The number of the slot.
@@ -68,18 +72,17 @@ public class SharedSlot extends Slot {
 	 * @param assignmentGroup The assignment group that this shared slot belongs to.
 	 */
 	public SharedSlot(
-			JobID jobID, SlotOwner owner, TaskManagerLocation location, int slotNumber,
-			TaskManagerGateway taskManagerGateway,
-			SlotSharingGroupAssignment assignmentGroup) {
+		SlotOwner owner, TaskManagerLocation location, int slotNumber,
+		TaskManagerGateway taskManagerGateway,
+		SlotSharingGroupAssignment assignmentGroup) {
 
-		this(jobID, owner, location, slotNumber, taskManagerGateway, assignmentGroup, null, null);
+		this(owner, location, slotNumber, taskManagerGateway, assignmentGroup, null, null);
 	}
 
 	/**
 	 * Creates a new shared slot that has is a sub-slot of the given parent shared slot, and that belongs
 	 * to the given task group.
 	 *
-	 * @param jobID The ID of the job that the slot is created for.
 	 * @param owner The component from which this slot is allocated.
 	 * @param location The location info of the TaskManager where the slot was allocated from
 	 * @param slotNumber The number of the slot.
@@ -89,7 +92,6 @@ public class SharedSlot extends Slot {
 	 * @param groupId The assignment group of this slot.
 	 */
 	public SharedSlot(
-			JobID jobID,
 			SlotOwner owner,
 			TaskManagerLocation location,
 			int slotNumber,
@@ -98,7 +100,7 @@ public class SharedSlot extends Slot {
 			@Nullable SharedSlot parent,
 			@Nullable AbstractID groupId) {
 
-		super(jobID, owner, location, slotNumber, taskManagerGateway, parent, groupId);
+		super(owner, location, slotNumber, taskManagerGateway, parent, groupId);
 
 		this.assignmentGroup = checkNotNull(assignmentGroup);
 		this.subSlots = new HashSet<Slot>();
@@ -112,38 +114,23 @@ public class SharedSlot extends Slot {
 	 * Creates a new shared slot that has no parent (is a root slot) and does not belong to any task group.
 	 * This constructor is used to create a slot directly from an instance.
 	 * 
-	 * @param allocatedSlot The allocated slot that this slot represents.
+	 * @param slotContext The slot context of this shared slot
 	 * @param owner The component from which this slot is allocated.
 	 * @param assignmentGroup The assignment group that this shared slot belongs to.
 	 */
-	public SharedSlot(AllocatedSlot allocatedSlot, SlotOwner owner, SlotSharingGroupAssignment assignmentGroup) {
-		this(allocatedSlot, owner, allocatedSlot.getSlotNumber(), assignmentGroup, null, null);
-	}
-
-	/**
-	 * Creates a new shared slot that is a sub-slot of the given parent shared slot, and that belongs
-	 * to the given task group.
-	 * 
-	 * @param parent The parent slot of this slot.
-	 * @param owner The component from which this slot is allocated.
-	 * @param slotNumber The number of the slot.
-	 * @param assignmentGroup The assignment group that this shared slot belongs to.
-	 * @param groupId The assignment group of this slot.
-	 */
-	public SharedSlot(
-			SharedSlot parent, SlotOwner owner, int slotNumber,
-			SlotSharingGroupAssignment assignmentGroup,
-			AbstractID groupId) {
-
-		this(parent.getAllocatedSlot(), owner, slotNumber, assignmentGroup, parent, groupId);
+	public SharedSlot(SlotContext slotContext, SlotOwner owner, SlotSharingGroupAssignment assignmentGroup) {
+		this(slotContext, owner, slotContext.getPhysicalSlotNumber(), assignmentGroup, null, null);
 	}
 
 	private SharedSlot(
-			AllocatedSlot allocatedSlot, SlotOwner owner, int slotNumber,
+			SlotContext slotInformation,
+			SlotOwner owner,
+			int slotNumber,
 			SlotSharingGroupAssignment assignmentGroup,
-			@Nullable SharedSlot parent, @Nullable AbstractID groupId) {
+			@Nullable SharedSlot parent,
+			@Nullable AbstractID groupId) {
 
-		super(allocatedSlot, owner, slotNumber, parent, groupId);
+		super(slotInformation, owner, slotNumber, parent, groupId);
 
 		this.assignmentGroup = checkNotNull(assignmentGroup);
 		this.subSlots = new HashSet<Slot>();
@@ -186,14 +173,53 @@ public class SharedSlot extends Slot {
 	public boolean hasChildren() {
 		return subSlots.size() > 0;
 	}
-	
+
 	@Override
-	public void releaseSlot() {
+	public Locality getLocality() {
+		return Locality.UNKNOWN;
+	}
+
+	@Override
+	public boolean tryAssignPayload(Payload payload) {
+		throw new UnsupportedOperationException("Cannot assign an execution attempt id to a shared slot.");
+	}
+
+	@Nullable
+	@Override
+	public Payload getPayload() {
+		return null;
+	}
+
+	@Override
+	public CompletableFuture<?> releaseSlot(@Nullable Throwable cause) {
 		assignmentGroup.releaseSharedSlot(this);
-		
+
 		if (!(isReleased() && subSlots.isEmpty())) {
 			throw new IllegalStateException("Bug: SharedSlot is not empty and released after call to releaseSlot()");
 		}
+
+		return CompletableFuture.completedFuture(null);
+	}
+
+	@Override
+	public int getPhysicalSlotNumber() {
+		return getRootSlotNumber();
+	}
+
+	@Override
+	public AllocationID getAllocationId() {
+		return getSlotContext().getAllocationId();
+	}
+
+	@Override
+	public SlotRequestId getSlotRequestId() {
+		return NO_SLOT_REQUEST_ID;
+	}
+
+	@Nullable
+	@Override
+	public SlotSharingGroupId getSlotSharingGroupId() {
+		return NO_SLOT_SHARING_GROUP_ID;
 	}
 
 	/**
@@ -222,8 +248,12 @@ public class SharedSlot extends Slot {
 	SimpleSlot allocateSubSlot(AbstractID groupId) {
 		if (isAlive()) {
 			SimpleSlot slot = new SimpleSlot(
-					getJobID(), getOwner(), getTaskManagerLocation(), subSlots.size(), 
-					getTaskManagerGateway(), this, groupId);
+				getOwner(),
+				getTaskManagerLocation(),
+				subSlots.size(),
+				getTaskManagerGateway(),
+				this,
+				groupId);
 			subSlots.add(slot);
 			return slot;
 		}
@@ -244,8 +274,13 @@ public class SharedSlot extends Slot {
 	SharedSlot allocateSharedSlot(AbstractID groupId){
 		if (isAlive()) {
 			SharedSlot slot = new SharedSlot(
-					getJobID(), getOwner(), getTaskManagerLocation(), subSlots.size(), 
-					getTaskManagerGateway(), assignmentGroup, this, groupId);
+				getOwner(),
+				getTaskManagerLocation(),
+				subSlots.size(),
+				getTaskManagerGateway(),
+				assignmentGroup,
+				this,
+				groupId);
 			subSlots.add(slot);
 			return slot;
 		}

@@ -19,9 +19,9 @@
 package org.apache.flink.mesos.runtime.clusterframework;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.mesos.configuration.MesosOptions;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
 import org.apache.flink.mesos.scheduler.ConnectionMonitor;
 import org.apache.flink.mesos.scheduler.LaunchCoordinator;
@@ -57,6 +57,7 @@ import com.netflix.fenzo.VirtualMachineLease;
 import com.netflix.fenzo.functions.Action1;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.FrameworkInfo;
+import org.apache.mesos.Protos.FrameworkInfo.Capability;
 import org.apache.mesos.SchedulerDriver;
 import org.slf4j.Logger;
 
@@ -168,6 +169,11 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 			frameworkInfo.setId(frameworkID.get());
 		}
 
+		if (taskManagerParameters.gpus() > 0) {
+			LOG.info("Add GPU_RESOURCES capability to framework");
+			frameworkInfo.addCapabilities(Capability.newBuilder().setType(Capability.Type.GPU_RESOURCES));
+		}
+
 		MesosConfiguration initializedMesosConfig = mesosConfig.withFrameworkInfo(frameworkInfo);
 		MesosConfiguration.logMesosConfig(LOG, initializedMesosConfig);
 		schedulerDriver = initializedMesosConfig.createDriver(schedulerCallbackHandler, false);
@@ -192,7 +198,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 
 	protected ActorRef createTaskRouter() {
 		return context().actorOf(
-			Tasks.createActorProps(Tasks.class, config, schedulerDriver, TaskMonitor.class),
+			Tasks.createActorProps(Tasks.class, self(), config, schedulerDriver, TaskMonitor.class),
 			"tasks");
 	}
 
@@ -361,8 +367,9 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 
 				LaunchableMesosWorker launchable = createLaunchableMesosWorker(worker.taskID());
 
-				LOG.info("Scheduling Mesos task {} with ({} MB, {} cpus).",
-					launchable.taskID().getValue(), launchable.taskRequest().getMemory(), launchable.taskRequest().getCPUs());
+				LOG.info("Scheduling Mesos task {} with ({} MB, {} cpus, {} gpus).",
+					launchable.taskID().getValue(), launchable.taskRequest().getMemory(), launchable.taskRequest().getCPUs(),
+					launchable.taskRequest().getScalarRequests().get("gpus"));
 
 				toMonitor.add(new TaskMonitor.TaskGoalStateUpdated(extractGoalState(worker)));
 				toLaunch.add(launchable);
@@ -641,7 +648,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 				String msg = "Stopping Mesos session because the number of failed tasks ("
 					+ failedTasksSoFar + ") exceeded the maximum failed tasks ("
 					+ maxFailedTasks + "). This number is controlled by the '"
-					+ ConfigConstants.MESOS_MAX_FAILED_TASKS + "' configuration setting. "
+					+ MesosOptions.MAX_FAILED_TASKS.key() + "' configuration setting. "
 					+ "By default its the number of requested tasks.";
 
 				LOG.error(msg);
@@ -757,18 +764,18 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 			Logger log) {
 
 		final int numInitialTaskManagers = flinkConfig.getInteger(
-			ConfigConstants.MESOS_INITIAL_TASKS, 0);
+			MesosOptions.INITIAL_TASKS);
 		if (numInitialTaskManagers >= 0) {
 			log.info("Mesos framework to allocate {} initial tasks",
 				numInitialTaskManagers);
 		}
 		else {
 			throw new IllegalConfigurationException("Invalid value for " +
-				ConfigConstants.MESOS_INITIAL_TASKS + ", which must be at least zero.");
+				MesosOptions.INITIAL_TASKS.key() + ", which must be at least zero.");
 		}
 
 		final int maxFailedTasks = flinkConfig.getInteger(
-			ConfigConstants.MESOS_MAX_FAILED_TASKS, numInitialTaskManagers);
+			MesosOptions.MAX_FAILED_TASKS.key(), numInitialTaskManagers);
 		if (maxFailedTasks >= 0) {
 			log.info("Mesos framework tolerates {} failed tasks before giving up",
 				maxFailedTasks);

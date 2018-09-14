@@ -79,10 +79,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>If an {@link org.apache.flink.streaming.api.windowing.evictors.Evictor} is specified it will be
  * used to evict elements from the window after
  * evaluation was triggered by the {@code Trigger} but before the actual evaluation of the window.
- * When using an evictor window performance will degrade significantly, since
+ * When using an evictor, window performance will degrade significantly, since
  * pre-aggregation of window results cannot be used.
  *
- * <p>Note that the {@code AllWindowedStream} is purely and API construct, during runtime
+ * <p>Note that the {@code AllWindowedStream} is purely an API construct, during runtime
  * the {@code AllWindowedStream} will be collapsed together with the
  * operation over the window into one single operation.
  *
@@ -108,8 +108,7 @@ public class AllWindowedStream<T, W extends Window> {
 	private long allowedLateness = 0L;
 
 	/**
-	 * Side output {@code OutputTag} for late data. If no tag is set late data will simply be
-	 * dropped.
+	 * Side output {@code OutputTag} for late data. If no tag is set late data will simply be dropped.
 	 */
 	private OutputTag<T> lateDataOutputTag;
 
@@ -254,7 +253,11 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
 	@PublicEvolving
-	public <R> SingleOutputStreamOperator<R> reduce(ReduceFunction<T> reduceFunction, AllWindowFunction<T, R, W> function, TypeInformation<R> resultType) {
+	public <R> SingleOutputStreamOperator<R> reduce(
+			ReduceFunction<T> reduceFunction,
+			AllWindowFunction<T, R, W> function,
+			TypeInformation<R> resultType) {
+
 		if (reduceFunction instanceof RichFunction) {
 			throw new UnsupportedOperationException("ReduceFunction of reduce can not be a RichFunction.");
 		}
@@ -518,7 +521,6 @@ public class AllWindowedStream<T, W extends Window> {
 			AllWindowFunction.class,
 			0,
 			1,
-			new int[]{1, 0},
 			new int[]{2, 0},
 			inType,
 			null,
@@ -533,7 +535,6 @@ public class AllWindowedStream<T, W extends Window> {
 			ProcessAllWindowFunction.class,
 			0,
 			1,
-			TypeExtractor.NO_INDEX,
 			TypeExtractor.NO_INDEX,
 			inType,
 			null,

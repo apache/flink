@@ -20,6 +20,8 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -27,7 +29,7 @@ import static org.junit.Assert.*;
 /**
  * Unit test for {@link TaskManagerServicesConfiguration}.
  */
-public class TaskManagerServicesConfigurationTest {
+public class TaskManagerServicesConfigurationTest extends TestLogger {
 	/**
 	 * Verifies that {@link TaskManagerServicesConfiguration#hasNewNetworkBufConf(Configuration)}
 	 * returns the correct result for old configurations via
@@ -56,8 +58,8 @@ public class TaskManagerServicesConfigurationTest {
 
 		// fully defined:
 		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
-		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, 1024);
-		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 2048);
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "2048");
 
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
 
@@ -65,19 +67,19 @@ public class TaskManagerServicesConfigurationTest {
 		config = new Configuration();
 		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
-		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 1024);
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "1024");
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
 
 		config = new Configuration();
-		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, 1024);
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
 		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
 
 		config = new Configuration();
-		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 1024);
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "1024");
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
-		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, 1024);
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
 	}
 
@@ -100,11 +102,11 @@ public class TaskManagerServicesConfigurationTest {
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config1));
 
 		config1 = config.clone();
-		config1.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, 1024);
+		config1.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config1));
 
 		config1 = config.clone();
-		config1.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 1024);
+		config1.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "1024");
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config1));
 	}
 

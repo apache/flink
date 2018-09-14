@@ -20,19 +20,26 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.TreeSet;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+
+import static org.apache.flink.util.CollectionUtil.MAX_ARRAY_SIZE;
 
 /**
  * Implementation of Flink's in-memory state tables with copy-on-write support. This map does not support null values
@@ -126,7 +133,8 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	/**
 	 * Empty entry that we use to bootstrap our {@link CopyOnWriteStateTable.StateEntryIterator}.
 	 */
-	private static final StateTableEntry<?, ?, ?> ITERATOR_BOOTSTRAP_ENTRY = new StateTableEntry<>();
+	private static final StateTableEntry<?, ?, ?> ITERATOR_BOOTSTRAP_ENTRY =
+		new StateTableEntry<>(new Object(), new Object(), new Object(), 0, null, 0, 0);
 
 	/**
 	 * Maintains an ordered set of version ids that are still in use by unreleased snapshots.
@@ -196,7 +204,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	 * @param keyContext the key context.
 	 * @param metaInfo   the meta information, including the type serializer for state copy-on-write.
 	 */
-	CopyOnWriteStateTable(InternalKeyContext<K> keyContext, RegisteredKeyedBackendStateMetaInfo<N, S> metaInfo) {
+	CopyOnWriteStateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
 		this(keyContext, metaInfo, 1024);
 	}
 
@@ -209,7 +217,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	 * @throws IllegalArgumentException when the capacity is less than zero.
 	 */
 	@SuppressWarnings("unchecked")
-	private CopyOnWriteStateTable(InternalKeyContext<K> keyContext, RegisteredKeyedBackendStateMetaInfo<N, S> metaInfo, int capacity) {
+	private CopyOnWriteStateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo, int capacity) {
 		super(keyContext, metaInfo);
 
 		// initialized tables to EMPTY_TABLE.
@@ -284,6 +292,13 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 		}
 
 		return null;
+	}
+
+	@Override
+	public Stream<K> getKeys(N namespace) {
+		return StreamSupport.stream(spliterator(), false)
+			.filter(entry -> entry.getNamespace().equals(namespace))
+			.map(StateEntry::getKey);
 	}
 
 	@Override
@@ -532,17 +547,18 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	}
 
 	@Override
-	public RegisteredKeyedBackendStateMetaInfo<N, S> getMetaInfo() {
+	public RegisteredKeyValueStateBackendMetaInfo<N, S> getMetaInfo() {
 		return metaInfo;
 	}
 
 	@Override
-	public void setMetaInfo(RegisteredKeyedBackendStateMetaInfo<N, S> metaInfo) {
+	public void setMetaInfo(RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
 		this.metaInfo = metaInfo;
 	}
 
 	// Iteration  ------------------------------------------------------------------------------------------------------
 
+	@Nonnull
 	@Override
 	public Iterator<StateEntry<K, N, S>> iterator() {
 		return new StateEntryIterator();
@@ -587,11 +603,20 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 		}
 
 		StateTableEntry<K, N, S>[] table = primaryTable;
+
+		// In order to reuse the copied array as the destination array for the partitioned records in
+		// CopyOnWriteStateTableSnapshot#partitionByKeyGroup(), we need to make sure that the copied array
+		// is big enough to hold the flattened entries. In fact, given the current rehashing algorithm, we only
+		// need to do this check when isRehashing() is false, but in order to get a more robust code(in case that
+		// the rehashing algorithm may changed in the future), we do this check for all the case.
+		final int totalTableIndexSize = rehashIndex + table.length;
+		final int copiedArraySize = Math.max(totalTableIndexSize, size());
+		final StateTableEntry<K, N, S>[] copy = new StateTableEntry[copiedArraySize];
+
 		if (isRehashing()) {
 			// consider both tables for the snapshot, the rehash index tells us which part of the two tables we need
 			final int localRehashIndex = rehashIndex;
 			final int localCopyLength = table.length - localRehashIndex;
-			StateTableEntry<K, N, S>[] copy = new StateTableEntry[localRehashIndex + table.length];
 			// for the primary table, take every index >= rhIdx.
 			System.arraycopy(table, localRehashIndex, copy, 0, localCopyLength);
 
@@ -600,12 +625,12 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 			table = incrementalRehashTable;
 			System.arraycopy(table, 0, copy, localCopyLength, localRehashIndex);
 			System.arraycopy(table, table.length >>> 1, copy, localCopyLength + localRehashIndex, localRehashIndex);
-
-			return copy;
 		} else {
 			// we only need to copy the primary table
-			return Arrays.copyOf(table, table.length);
+			System.arraycopy(table, 0, copy, 0, table.length);
 		}
+
+		return copy;
 	}
 
 	/**
@@ -615,13 +640,23 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	 */
 	private StateTableEntry<K, N, S>[] makeTable(int newCapacity) {
 
-		if (MAXIMUM_CAPACITY == newCapacity) {
-			LOG.warn("Maximum capacity of 2^30 in StateTable reached. Cannot increase hash table size. This can lead " +
-					"to more collisions and lower performance. Please consider scaling-out your job or using a " +
+		if (newCapacity < MAXIMUM_CAPACITY) {
+			threshold = (newCapacity >> 1) + (newCapacity >> 2); // 3/4 capacity
+		} else {
+			if (size() > MAX_ARRAY_SIZE) {
+
+				throw new IllegalStateException("Maximum capacity of CopyOnWriteStateTable is reached and the job " +
+					"cannot continue. Please consider scaling-out your job or using a different keyed state backend " +
+					"implementation!");
+			} else {
+
+				LOG.warn("Maximum capacity of 2^30 in StateTable reached. Cannot increase hash table size. This can " +
+					"lead to more collisions and lower performance. Please consider scaling-out your job or using a " +
 					"different keyed state backend implementation!");
+				threshold = MAX_ARRAY_SIZE;
+			}
 		}
 
-		threshold = (newCapacity >> 1) + (newCapacity >> 2); // 3/4 capacity
 		@SuppressWarnings("unchecked") StateTableEntry<K, N, S>[] newTable
 				= (StateTableEntry<K, N, S>[]) new StateTableEntry[newCapacity];
 		return newTable;
@@ -836,8 +871,9 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	 *
 	 * @return a snapshot from this {@link CopyOnWriteStateTable}, for checkpointing.
 	 */
+	@Nonnull
 	@Override
-	public CopyOnWriteStateTableSnapshot<K, N, S> createSnapshot() {
+	public CopyOnWriteStateTableSnapshot<K, N, S> stateSnapshot() {
 		return new CopyOnWriteStateTableSnapshot<>(this);
 	}
 
@@ -867,27 +903,32 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	 * @param <N> type of namespace.
 	 * @param <S> type of state.
 	 */
-	static class StateTableEntry<K, N, S> implements StateEntry<K, N, S> {
+	@VisibleForTesting
+	protected static class StateTableEntry<K, N, S> implements StateEntry<K, N, S> {
 
 		/**
 		 * The key. Assumed to be immutable and not null.
 		 */
+		@Nonnull
 		final K key;
 
 		/**
 		 * The namespace. Assumed to be immutable and not null.
 		 */
+		@Nonnull
 		final N namespace;
 
 		/**
 		 * The state. This is not final to allow exchanging the object for copy-on-write. Can be null.
 		 */
+		@Nullable
 		S state;
 
 		/**
 		 * Link to another {@link StateTableEntry}. This is used to resolve collisions in the
 		 * {@link CopyOnWriteStateTable} through chaining.
 		 */
+		@Nullable
 		StateTableEntry<K, N, S> next;
 
 		/**
@@ -905,22 +946,18 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 		 */
 		final int hash;
 
-		StateTableEntry() {
-			this(null, null, null, 0, null, 0, 0);
-		}
-
 		StateTableEntry(StateTableEntry<K, N, S> other, int entryVersion) {
 			this(other.key, other.namespace, other.state, other.hash, other.next, entryVersion, other.stateVersion);
 		}
 
 		StateTableEntry(
-				K key,
-				N namespace,
-				S state,
-				int hash,
-				StateTableEntry<K, N, S> next,
-				int entryVersion,
-				int stateVersion) {
+			@Nonnull K key,
+			@Nonnull N namespace,
+			@Nullable S state,
+			int hash,
+			@Nullable StateTableEntry<K, N, S> next,
+			int entryVersion,
+			int stateVersion) {
 			this.key = key;
 			this.namespace = namespace;
 			this.hash = hash;
@@ -930,7 +967,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 			this.stateVersion = stateVersion;
 		}
 
-		public final void setState(S value, int mapVersion) {
+		public final void setState(@Nullable S value, int mapVersion) {
 			// naturally, we can update the state version every time we replace the old state with a different object
 			if (value != state) {
 				this.state = value;
@@ -938,16 +975,19 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 			}
 		}
 
+		@Nonnull
 		@Override
 		public K getKey() {
 			return key;
 		}
 
+		@Nonnull
 		@Override
 		public N getNamespace() {
 			return namespace;
 		}
 
+		@Nullable
 		@Override
 		public S getState() {
 			return state;
@@ -999,7 +1039,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 		private StateTableEntry<K, N, S>[] activeTable;
 		private int nextTablePosition;
 		private StateTableEntry<K, N, S> nextEntry;
-		private int expectedModCount = modCount;
+		private int expectedModCount;
 
 		StateEntryIterator() {
 			this.activeTable = primaryTable;

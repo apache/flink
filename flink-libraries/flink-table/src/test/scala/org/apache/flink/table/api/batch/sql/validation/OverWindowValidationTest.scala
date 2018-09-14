@@ -41,7 +41,7 @@ class OverWindowValidationTest extends TableTestBase {
     util.addFunction("overAgg", new OverAgg0)
 
     val sqlQuery = "SELECT overAgg(b, a) FROM T"
-    util.tableEnv.sql(sqlQuery)
+    util.tableEnv.sqlQuery(sqlQuery)
   }
 
   /**
@@ -55,6 +55,6 @@ class OverWindowValidationTest extends TableTestBase {
 
     val sqlQuery = "SELECT overAgg(b, a) FROM T GROUP BY TUMBLE(ts, INTERVAL '2' HOUR)"
 
-    util.tableEnv.sql(sqlQuery)
+    util.tableEnv.sqlQuery(sqlQuery)
   }
 }

@@ -56,8 +56,7 @@ public class BitSet {
 	 * @param index - position
 	 */
 	public void set(int index) {
-		Preconditions.checkArgument(index < bitLength && index >= 0, 
-			String.format("Input Index[%d] is larger than BitSet available size[%d].", index, bitLength));
+		Preconditions.checkArgument(index < bitLength && index >= 0);
 
 		int byteIndex = (index & BYTE_POSITION_MASK) >>> 3;
 		byte current = memorySegment.get(offset + byteIndex);
@@ -72,8 +71,7 @@ public class BitSet {
 	 * @return - value at the bit position
 	 */
 	public boolean get(int index) {
-		Preconditions.checkArgument(index < bitLength && index >= 0,
-			String.format("Input Index[%d] is larger than BitSet available size[%d].", index, bitLength));
+		Preconditions.checkArgument(index < bitLength && index >= 0);
 		
 		int byteIndex = (index & BYTE_POSITION_MASK) >>> 3;
 		byte current = memorySegment.get(offset + byteIndex);

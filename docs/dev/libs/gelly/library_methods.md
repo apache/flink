@@ -55,7 +55,7 @@ val graph: Graph[java.lang.Long, java.lang.Long, NullValue] = ...
 val verticesWithCommunity = graph.run(new LabelPropagation[java.lang.Long, java.lang.Long, NullValue](30))
 
 // print the result
-verticesWithCommunity.print
+verticesWithCommunity.print()
 
 {% endhighlight %}
 </div>
@@ -330,6 +330,7 @@ The algorithm takes a simple directed graph as input and outputs a `DataSet` of 
 hub score, and authority score. Termination is configured by the number of iterations and/or a convergence threshold on
 the iteration sum of the change in scores over all vertices.
 
+* `setIncludeZeroDegreeVertices`: whether to include zero-degree vertices in the iterative computation
 * `setParallelism`: override the operator parallelism
 
 ### PageRank

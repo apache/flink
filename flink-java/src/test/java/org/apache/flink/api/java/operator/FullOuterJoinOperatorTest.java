@@ -28,11 +28,15 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for {@link DataSet#fullOuterJoin(DataSet)}.
+ */
 public class FullOuterJoinOperatorTest {
 
 	// TUPLE DATA
@@ -201,7 +205,6 @@ public class FullOuterJoinOperatorTest {
 		this.testFullOuterStrategies(JoinHint.BROADCAST_HASH_FIRST);
 	}
 
-
 	private void testFullOuterStrategies(JoinHint hint) {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -214,13 +217,12 @@ public class FullOuterJoinOperatorTest {
 				.with(new DummyJoin());
 	}
 
-	
 	/*
 	 * ####################################################################
 	 */
 
 	@SuppressWarnings("serial")
-	public static class DummyJoin implements
+	private static class DummyJoin implements
 			JoinFunction<Tuple5<Integer, Long, String, Long, Integer>, Tuple5<Integer, Long, String, Long, Integer>, Long> {
 
 		@Override
@@ -230,7 +232,7 @@ public class FullOuterJoinOperatorTest {
 	}
 
 	@SuppressWarnings("serial")
-	public static class IntKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Integer> {
+	private static class IntKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Integer> {
 
 		@Override
 		public Integer getKey(Tuple5<Integer, Long, String, Long, Integer> v) throws Exception {
@@ -239,7 +241,7 @@ public class FullOuterJoinOperatorTest {
 	}
 
 	@SuppressWarnings("serial")
-	public static class LongKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Long> {
+	private static class LongKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Long> {
 
 		@Override
 		public Long getKey(Tuple5<Integer, Long, String, Long, Integer> v) throws Exception {

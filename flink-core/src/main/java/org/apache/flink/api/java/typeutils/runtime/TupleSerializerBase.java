@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
@@ -43,7 +44,7 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 
 	protected final Class<T> tupleClass;
 
-	protected final TypeSerializer<Object>[] fieldSerializers;
+	protected TypeSerializer<Object>[] fieldSerializers;
 
 	protected final int arity;
 
@@ -183,4 +184,9 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 	}
 
 	protected abstract TupleSerializerBase<T> createSerializerInstance(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers);
+
+	@VisibleForTesting
+	public TypeSerializer<Object>[] getFieldSerializers() {
+		return fieldSerializers;
+	}
 }

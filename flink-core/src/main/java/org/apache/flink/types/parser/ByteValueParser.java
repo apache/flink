@@ -33,6 +33,12 @@ public class ByteValueParser extends FieldParser<ByteValue> {
 	
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, ByteValue reusable) {
+
+		if (startPos == limit) {
+			setErrorState(ParseErrorState.EMPTY_COLUMN);
+			return -1;
+		}
+
 		int val = 0;
 		boolean neg = false;
 		
@@ -73,7 +79,7 @@ public class ByteValueParser extends FieldParser<ByteValue> {
 				return -1;
 			}
 		}
-		
+
 		reusable.setValue((byte) (neg ? -val : val));
 		return limit;
 	}

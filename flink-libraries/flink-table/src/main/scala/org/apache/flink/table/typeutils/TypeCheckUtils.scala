@@ -19,7 +19,10 @@ package org.apache.flink.table.typeutils
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo._
-import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
+import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, PojoTypeInfo}
+import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.typeutils.TimeIntervalTypeInfo.{INTERVAL_MILLIS, INTERVAL_MONTHS}
 import org.apache.flink.table.validate._
 
 object TypeCheckUtils {
@@ -65,7 +68,14 @@ object TypeCheckUtils {
 
   def isInteger(dataType: TypeInformation[_]): Boolean = dataType == INT_TYPE_INFO
 
+  def isIntegerFamily(dataType: TypeInformation[_]): Boolean =
+    dataType.isInstanceOf[IntegerTypeInfo[_]]
+
   def isLong(dataType: TypeInformation[_]): Boolean = dataType == LONG_TYPE_INFO
+
+  def isIntervalMonths(dataType: TypeInformation[_]): Boolean = dataType == INTERVAL_MONTHS
+
+  def isIntervalMillis(dataType: TypeInformation[_]): Boolean = dataType == INTERVAL_MILLIS
 
   def isArray(dataType: TypeInformation[_]): Boolean = dataType match {
     case _: ObjectArrayTypeInfo[_, _] |
@@ -73,6 +83,9 @@ object TypeCheckUtils {
          _: PrimitiveArrayTypeInfo[_]  => true
     case _ => false
   }
+
+  def isMap(dataType: TypeInformation[_]): Boolean =
+    dataType.isInstanceOf[MapTypeInfo[_, _]]
 
   def isComparable(dataType: TypeInformation[_]): Boolean =
     classOf[Comparable[_]].isAssignableFrom(dataType.getTypeClass) && !isArray(dataType)
@@ -89,11 +102,79 @@ object TypeCheckUtils {
       ValidationFailure(s"$caller requires numeric types, get $dataType here")
   }
 
+  def assertIntegerFamilyExpr(
+      dataType: TypeInformation[_],
+      caller: String)
+    : ValidationResult = dataType match {
+    case _: IntegerTypeInfo[_] =>
+      ValidationSuccess
+    case _ =>
+      ValidationFailure(s"$caller requires integer types but was '$dataType'.")
+  }
+
   def assertOrderableExpr(dataType: TypeInformation[_], caller: String): ValidationResult = {
     if (dataType.isSortKeyType) {
       ValidationSuccess
     } else {
       ValidationFailure(s"$caller requires orderable types, get $dataType here")
+    }
+  }
+
+  /**
+    * Checks whether a type implements own hashCode() and equals() methods for storing an instance
+    * in Flink's state or performing a keyBy operation.
+    *
+    * @param name name of the operation
+    * @param t type information to be validated
+    */
+  def validateEqualsHashCode(name: String, t: TypeInformation[_]): Unit = t match {
+
+    // make sure that a POJO class is a valid state type
+    case pt: PojoTypeInfo[_] =>
+      // we don't check the types recursively to give a chance of wrapping
+      // proper hashCode/equals methods around an immutable type
+      validateEqualsHashCode(name, pt.getClass)
+    // recursively check composite types
+    case ct: CompositeType[_] =>
+      validateEqualsHashCode(name, t.getTypeClass)
+      // we check recursively for entering Flink types such as tuples and rows
+      for (i <- 0 until ct.getArity) {
+        val subtype = ct.getTypeAt(i)
+        validateEqualsHashCode(name, subtype)
+      }
+    // check other type information only based on the type class
+    case _: TypeInformation[_] =>
+      validateEqualsHashCode(name, t.getTypeClass)
+  }
+
+  /**
+    * Checks whether a class implements own hashCode() and equals() methods for storing an instance
+    * in Flink's state or performing a keyBy operation.
+    *
+    * @param name name of the operation
+    * @param c class to be validated
+    */
+  def validateEqualsHashCode(name: String, c: Class[_]): Unit = {
+
+    // skip primitives
+    if (!c.isPrimitive) {
+      // check the component type of arrays
+      if (c.isArray) {
+        validateEqualsHashCode(name, c.getComponentType)
+      }
+      // check type for methods
+      else {
+        if (c.getMethod("hashCode").getDeclaringClass eq classOf[Object]) {
+          throw new ValidationException(
+            s"Type '${c.getCanonicalName}' cannot be used in a $name operation because it " +
+            s"does not implement a proper hashCode() method.")
+        }
+        if (c.getMethod("equals", classOf[Object]).getDeclaringClass eq classOf[Object]) {
+          throw new ValidationException(
+            s"Type '${c.getCanonicalName}' cannot be used in a $name operation because it " +
+            s"does not implement a proper equals() method.")
+        }
+      }
     }
   }
 }

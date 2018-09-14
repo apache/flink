@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.Preconditions;
 
@@ -37,23 +38,23 @@ public class QueryableStateStream<K, V> {
 	/** Key serializer for the state instance. */
 	private final TypeSerializer<K> keySerializer;
 
-	/** Value serializer for the state instance. */
-	private final TypeSerializer<V> valueSerializer;
+	/** State descriptor for the state instance. */
+	private final StateDescriptor<?, V> stateDescriptor;
 
 	/**
 	 * Creates a queryable state stream.
 	 *
 	 * @param queryableStateName Name under which to publish the queryable state instance
-	 * @param valueSerializer Value serializer for the state instance
+	 * @param stateDescriptor The state descriptor for the state instance
 	 * @param keySerializer Key serializer for the state instance
 	 */
 	public QueryableStateStream(
 			String queryableStateName,
-			TypeSerializer<V> valueSerializer,
+			StateDescriptor<?, V> stateDescriptor,
 			TypeSerializer<K> keySerializer) {
 
 		this.queryableStateName = Preconditions.checkNotNull(queryableStateName, "Queryable state name");
-		this.valueSerializer = Preconditions.checkNotNull(valueSerializer, "Value serializer");
+		this.stateDescriptor = Preconditions.checkNotNull(stateDescriptor, "State Descriptor");
 		this.keySerializer = Preconditions.checkNotNull(keySerializer, "Key serializer");
 	}
 
@@ -67,15 +68,6 @@ public class QueryableStateStream<K, V> {
 	}
 
 	/**
-	 * Returns the value serializer for the queryable state instance.
-	 *
-	 * @return Value serializer for the state instance
-	 */
-	public TypeSerializer<V> getValueSerializer() {
-		return valueSerializer;
-	}
-
-	/**
 	 * Returns the key serializer for the queryable state instance.
 	 *
 	 * @return Key serializer for the state instance.
@@ -84,4 +76,12 @@ public class QueryableStateStream<K, V> {
 		return keySerializer;
 	}
 
+	/**
+	 * Returns the state descriptor for the queryable state instance.
+	 *
+	 * @return State descriptor for the state instance
+	 */
+	public StateDescriptor<?, V> getStateDescriptor() {
+		return stateDescriptor;
+	}
 }

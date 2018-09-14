@@ -96,6 +96,7 @@ public class CheckpointStatsSnapshot implements Serializable {
 	 *
 	 * @return Latest restored checkpoint or <code>null</code>.
 	 */
+	@Nullable
 	public RestoredCheckpointStats getLatestRestoredCheckpoint() {
 		return latestRestoredCheckpoint;
 	}

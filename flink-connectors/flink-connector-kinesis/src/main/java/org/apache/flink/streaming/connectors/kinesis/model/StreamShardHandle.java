@@ -17,15 +17,18 @@
 
 package org.apache.flink.streaming.connectors.kinesis.model;
 
+import org.apache.flink.annotation.Internal;
+
 import com.amazonaws.services.kinesis.model.Shard;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A wrapper class around the information provided along with streamName and {@link com.amazonaws.services.kinesis.model.Shard},
- * with some extra utility methods to determine whether or not a shard is closed and whether or not the shard is
- * a result of parent shard splits or merges.
+ * A wrapper class around the information provided along with streamName and
+ * {@link com.amazonaws.services.kinesis.model.Shard}, with some extra utility methods to determine whether
+ * or not a shard is closed and whether or not the shard is a result of parent shard splits or merges.
  */
+@Internal
 public class StreamShardHandle {
 
 	private final String streamName;

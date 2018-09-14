@@ -456,7 +456,7 @@ public class GlobalProperties implements Cloneable {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj != null && obj instanceof GlobalProperties) {
+		if (obj instanceof GlobalProperties) {
 			final GlobalProperties other = (GlobalProperties) obj;
 			return (this.partitioning == other.partitioning)
 				&& (this.ordering == other.ordering || (this.ordering != null && this.ordering.equals(other.ordering)))

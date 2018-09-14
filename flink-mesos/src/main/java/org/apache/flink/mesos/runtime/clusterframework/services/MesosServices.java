@@ -20,6 +20,9 @@ package org.apache.flink.mesos.runtime.clusterframework.services;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
+import org.apache.flink.mesos.util.MesosArtifactServer;
+
+import akka.actor.ActorSystem;
 
 import java.util.concurrent.Executor;
 
@@ -40,6 +43,20 @@ public interface MesosServices {
 	MesosWorkerStore createMesosWorkerStore(
 		Configuration configuration,
 		Executor executor) throws Exception;
+
+	/**
+	 * Gets a local {@link ActorSystem} which is used for child actors within
+	 * {@link org.apache.flink.mesos.runtime.clusterframework.MesosResourceManager}.
+	 *
+	 * @return a reference to an actor system.
+	 */
+	ActorSystem getLocalActorSystem();
+
+	/**
+	 * Gets the artifact server with which to serve essential resources to task managers.
+	 * @return a reference to an artifact server.
+	 */
+	MesosArtifactServer getArtifactServer();
 
 	/**
 	 * Closes all state maintained by the mesos services implementation.

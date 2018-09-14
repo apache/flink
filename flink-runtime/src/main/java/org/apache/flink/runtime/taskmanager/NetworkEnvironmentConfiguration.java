@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 
@@ -36,8 +35,6 @@ public class NetworkEnvironmentConfiguration {
 	private final long networkBufMax;
 
 	private final int networkBufferSize;
-
-	private final MemoryType memoryType;
 
 	private final IOMode ioMode;
 
@@ -59,7 +56,6 @@ public class NetworkEnvironmentConfiguration {
 			long networkBufMin,
 			long networkBufMax,
 			int networkBufferSize,
-			MemoryType memoryType,
 			IOMode ioMode,
 			int partitionRequestInitialBackoff,
 			int partitionRequestMaxBackoff,
@@ -67,7 +63,7 @@ public class NetworkEnvironmentConfiguration {
 			int floatingNetworkBuffersPerGate) {
 
 		this(networkBufFraction, networkBufMin, networkBufMax, networkBufferSize,
-				memoryType, ioMode,
+				ioMode,
 				partitionRequestInitialBackoff, partitionRequestMaxBackoff,
 				networkBuffersPerChannel, floatingNetworkBuffersPerGate,
 				null);
@@ -79,7 +75,6 @@ public class NetworkEnvironmentConfiguration {
 			long networkBufMin,
 			long networkBufMax,
 			int networkBufferSize,
-			MemoryType memoryType,
 			IOMode ioMode,
 			int partitionRequestInitialBackoff,
 			int partitionRequestMaxBackoff,
@@ -91,7 +86,6 @@ public class NetworkEnvironmentConfiguration {
 		this.networkBufMin = networkBufMin;
 		this.networkBufMax = networkBufMax;
 		this.networkBufferSize = networkBufferSize;
-		this.memoryType = memoryType;
 		this.ioMode = ioMode;
 		this.partitionRequestInitialBackoff = partitionRequestInitialBackoff;
 		this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
@@ -116,10 +110,6 @@ public class NetworkEnvironmentConfiguration {
 
 	public int networkBufferSize() {
 		return networkBufferSize;
-	}
-
-	public MemoryType memoryType() {
-		return memoryType;
 	}
 
 	public IOMode ioMode() {
@@ -152,7 +142,6 @@ public class NetworkEnvironmentConfiguration {
 	public int hashCode() {
 		int result = 1;
 		result = 31 * result + networkBufferSize;
-		result = 31 * result + memoryType.hashCode();
 		result = 31 * result + ioMode.hashCode();
 		result = 31 * result + partitionRequestInitialBackoff;
 		result = 31 * result + partitionRequestMaxBackoff;
@@ -181,7 +170,6 @@ public class NetworkEnvironmentConfiguration {
 					this.partitionRequestMaxBackoff == that.partitionRequestMaxBackoff &&
 					this.networkBuffersPerChannel == that.networkBuffersPerChannel &&
 					this.floatingNetworkBuffersPerGate == that.floatingNetworkBuffersPerGate &&
-					this.memoryType == that.memoryType &&
 					this.ioMode == that.ioMode && 
 					(nettyConfig != null ? nettyConfig.equals(that.nettyConfig) : that.nettyConfig == null);
 		}
@@ -194,7 +182,6 @@ public class NetworkEnvironmentConfiguration {
 				", networkBufMin=" + networkBufMin +
 				", networkBufMax=" + networkBufMax +
 				", networkBufferSize=" + networkBufferSize +
-				", memoryType=" + memoryType +
 				", ioMode=" + ioMode +
 				", partitionRequestInitialBackoff=" + partitionRequestInitialBackoff +
 				", partitionRequestMaxBackoff=" + partitionRequestMaxBackoff +

@@ -28,7 +28,7 @@ public interface WebMonitor {
 	 *
 	 * @throws Exception This method may forward exceptions, if it cannot bring up the web monitor.
 	 */
-	void start(String jobManagerAkkaUrl) throws Exception;
+	void start() throws Exception;
 
 	/**
 	 * Stops the web server.
@@ -45,4 +45,11 @@ public interface WebMonitor {
 	 * @return The port where the web server is listening, or -1, if no server is running.
 	 */
 	int getServerPort();
+
+	/**
+	 * Returns the REST address of this WebMonitor.
+	 *
+	 * @return REST address of this WebMonitor
+	 */
+	String getRestAddress();
 }

@@ -24,8 +24,8 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.BatchTableEnvironment
-import org.apache.flink.table.plan.schema.DataSetTable
+import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvironment}
+import org.apache.flink.table.plan.schema.{DataSetTable, RowSchema}
 import org.apache.flink.types.Row
 
 /**
@@ -59,10 +59,14 @@ class DataSetScan(
     )
   }
 
-  override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
-    val config = tableEnv.getConfig
+  override def translateToPlan(
+      tableEnv: BatchTableEnvironment,
+      queryConfig: BatchQueryConfig): DataSet[Row] = {
+    val schema = new RowSchema(rowRelDataType)
     val inputDataSet: DataSet[Any] = dataSetTable.dataSet
-    convertToInternalRow(inputDataSet, dataSetTable, config)
+    val fieldIdxs = dataSetTable.fieldIndexes
+    val config = tableEnv.getConfig
+    convertToInternalRow(schema, inputDataSet, fieldIdxs, config, None)
   }
 
 }

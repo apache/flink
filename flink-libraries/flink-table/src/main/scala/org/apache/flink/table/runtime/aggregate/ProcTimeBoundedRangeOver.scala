@@ -22,19 +22,17 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-import org.apache.flink.api.common.state.ValueState
-import org.apache.flink.api.common.state.ValueStateDescriptor
-import org.apache.flink.api.common.state.MapState
-import org.apache.flink.api.common.state.MapStateDescriptor
+import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ListTypeInfo
 import java.util.{ArrayList, List => JList}
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
-import org.slf4j.LoggerFactory
+import org.apache.flink.table.util.Logging
 
 /**
   * Process Function used for the aggregate in bounded proc-time OVER window
@@ -52,13 +50,13 @@ class ProcTimeBoundedRangeOver(
     inputType: TypeInformation[CRow],
     queryConfig: StreamQueryConfig)
   extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
-    with Compiler[GeneratedAggregations] {
+    with Compiler[GeneratedAggregations]
+    with Logging {
 
   private var output: CRow = _
   private var accumulatorState: ValueState[Row] = _
   private var rowMapState: MapState[Long, JList[Row]] = _
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
@@ -70,6 +68,8 @@ class ProcTimeBoundedRangeOver(
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
+    function.open(getRuntimeContext)
+
     output = new CRow(function.createOutputRow(), true)
 
     // We keep the elements received in a MapState indexed based on their ingestion time
@@ -120,14 +120,26 @@ class ProcTimeBoundedRangeOver(
     if (needToCleanupState(timestamp)) {
       // clean up and return
       cleanupState(rowMapState, accumulatorState)
+      function.cleanup()
       return
     }
+
+    // remove timestamp set outside of ProcessFunction.
+    out.asInstanceOf[TimestampedCollector[_]].eraseTimestamp()
 
     // we consider the original timestamp of events
     // that have registered this time trigger 1 ms ago
 
     val currentTime = timestamp - 1
     var i = 0
+    // get the list of elements of current proctime
+    val currentElements = rowMapState.get(currentTime)
+
+    // Expired clean-up timers pass the needToCleanupState() check.
+    // Perform a null check to verify that we have data to process.
+    if (null == currentElements) {
+      return
+    }
 
     // initialize the accumulators
     var accumulators = accumulatorState.value()
@@ -143,13 +155,14 @@ class ProcTimeBoundedRangeOver(
     // when we find timestamps that are out of interest, we retrieve corresponding elements
     // and eliminate them. Multiple elements could have been received at the same timestamp
     // the removal of old elements happens only once per proctime as onTimer is called only once
-    val iter = rowMapState.keys.iterator
+    val iter = rowMapState.iterator
     val markToRemove = new ArrayList[Long]()
     while (iter.hasNext) {
-      val elementKey = iter.next
+      val entry = iter.next()
+      val elementKey = entry.getKey
       if (elementKey < limit) {
         // element key outside of window. Retract values
-        val elementsRemove = rowMapState.get(elementKey)
+        val elementsRemove = entry.getValue
         var iRemove = 0
         while (iRemove < elementsRemove.size()) {
           val retractRow = elementsRemove.get(iRemove)
@@ -167,8 +180,7 @@ class ProcTimeBoundedRangeOver(
       i += 1
     }
 
-    // get the list of elements of current proctime
-    val currentElements = rowMapState.get(currentTime)
+
     // add current elements to aggregator. Multiple elements might
     // have arrived in the same proctime
     // the same accumulator value will be computed for all elements
@@ -197,4 +209,7 @@ class ProcTimeBoundedRangeOver(
     accumulatorState.update(accumulators)
   }
 
+  override def close(): Unit = {
+    function.close()
+  }
 }

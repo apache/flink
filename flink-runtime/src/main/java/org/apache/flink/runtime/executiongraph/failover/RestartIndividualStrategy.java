@@ -20,8 +20,6 @@ package org.apache.flink.runtime.executiongraph.failover;
 
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -36,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -107,14 +106,13 @@ public class RestartIndividualStrategy extends FailoverStrategy {
 		// Note: currently all tasks passed here are already in their terminal state,
 		//       so we could actually avoid the future. We use it anyways because it is cheap and
 		//       it helps to support better testing
-		final Future<ExecutionState> terminationFuture = taskExecution.getTerminationFuture();
+		final CompletableFuture<ExecutionState> terminationFuture = taskExecution.getTerminalStateFuture();
 
 		final ExecutionVertex vertexToRecover = taskExecution.getVertex(); 
 		final long globalModVersion = taskExecution.getGlobalModVersion();
 
-		terminationFuture.thenAcceptAsync(new AcceptFunction<ExecutionState>() {
-			@Override
-			public void accept(ExecutionState value) {
+		terminationFuture.thenAcceptAsync(
+			(ExecutionState value) -> {
 				try {
 					long createTimestamp = System.currentTimeMillis();
 					Execution newExecution = vertexToRecover.resetForNewExecution(createTimestamp, globalModVersion);
@@ -127,8 +125,8 @@ public class RestartIndividualStrategy extends FailoverStrategy {
 					executionGraph.failGlobal(
 							new Exception("Error during fine grained recovery - triggering full recovery", e));
 				}
-			}
-		}, callbackExecutor);
+			},
+			callbackExecutor);
 	}
 
 	@Override

@@ -40,7 +40,7 @@ public interface AsyncResult {
 	/**
 	 * True fi the async result is a collection of output elements; otherwise false.
 	 *
-	 * @return True if the async reuslt is a collection of output elements; otherwise false
+	 * @return True if the async result is a collection of output elements; otherwise false
 	 */
 	boolean isResultCollection();
 

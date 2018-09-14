@@ -24,6 +24,7 @@ import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Cluster.Builder;
+import com.datastax.driver.mapping.Mapper;
 
 import java.util.ArrayList;
 
@@ -32,7 +33,8 @@ import java.util.ArrayList;
  *
  * <p>Pojo's have to be annotated with datastax annotations to work with this sink.
  *
- * <p>The example assumes that a table exists in a local cassandra database, according to the following query:
+ * <p>The example assumes that a table exists in a local cassandra database, according to the following queries:
+ * CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class': 'SimpleStrategy', 'replication_factor': ‘1’};
  * CREATE TABLE IF NOT EXISTS test.message(body txt PRIMARY KEY)
  */
 public class CassandraPojoSinkExample {
@@ -56,6 +58,7 @@ public class CassandraPojoSinkExample {
 					return builder.addContactPoint("127.0.0.1").build();
 				}
 			})
+			.setMapperOptions(() -> new Mapper.Option[]{Mapper.Option.saveNullFields(true)})
 			.build();
 
 		env.execute("Cassandra Sink example");

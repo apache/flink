@@ -19,6 +19,7 @@
 package org.apache.flink.graph.library.linkanalysis;
 
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.AsmTestBase;
 import org.apache.flink.graph.asm.dataset.Collect;
 import org.apache.flink.graph.library.linkanalysis.PageRank.Result;
@@ -38,8 +39,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link PageRank}.
  */
-public class PageRankTest
-extends AsmTestBase {
+public class PageRankTest extends AsmTestBase {
 
 	private static final double DAMPING_FACTOR = 0.85;
 
@@ -49,46 +49,66 @@ extends AsmTestBase {
 	import networkx as nx
 
 	graph=nx.read_edgelist('directedSimpleGraph.csv', delimiter=',', create_using=nx.DiGraph())
-	pagerank=nx.algorithms.link_analysis.pagerank(graph)
+	pagerank=nx.algorithms.link_analysis.pagerank(graph, tol=0.000001)
 
 	for key in sorted(pagerank):
 		print('{}: {}'.format(key, pagerank[key]))
 	 */
 	@Test
-	public void testWithSimpleGraph()
-			throws Exception {
-		DataSet<Result<IntValue>> pr = new PageRank<IntValue, NullValue, NullValue>(DAMPING_FACTOR, 10)
+	public void testWithSimpleGraph() throws Exception {
+		DataSet<Result<IntValue>> pr = new PageRank<IntValue, NullValue, NullValue>(DAMPING_FACTOR, 20)
 			.run(directedSimpleGraph);
 
 		List<Double> expectedResults = new ArrayList<>();
-		expectedResults.add(0.09091296131286301);
-		expectedResults.add(0.27951855944178117);
-		expectedResults.add(0.12956847924535586);
-		expectedResults.add(0.22329643739217675);
-		expectedResults.add(0.18579060129496028);
-		expectedResults.add(0.09091296131286301);
+		expectedResults.add(0.0909212166211);
+		expectedResults.add(0.279516064311);
+		expectedResults.add(0.129562719068);
+		expectedResults.add(0.223268406353);
+		expectedResults.add(0.185810377026);
+		expectedResults.add(0.0909212166211);
 
 		for (Result<IntValue> result : pr.collect()) {
 			int id = result.getVertexId0().getValue();
-			assertEquals(expectedResults.get(id), result.getPageRankScore().getValue(), 0.000001);
+			assertEquals(expectedResults.get(id), result.getPageRankScore().getValue(), ACCURACY);
+		}
+	}
+
+	/**
+	 * Validate a test where each result has the same values.
+	 *
+	 * @param graph input graph
+	 * @param count number of results
+	 * @param score result PageRank score
+	 * @param <T> graph ID type
+	 * @throws Exception on error
+	 */
+	private static <T> void validate(Graph<T, NullValue, NullValue> graph, long count, double score) throws Exception {
+		DataSet<Result<T>> pr = new PageRank<T, NullValue, NullValue>(DAMPING_FACTOR, ACCURACY)
+			.setIncludeZeroDegreeVertices(true)
+			.run(graph);
+
+		List<Result<T>> results = pr.collect();
+
+		assertEquals(count, results.size());
+
+		for (Result<T> result : results) {
+			assertEquals(score, result.getPageRankScore().getValue(), ACCURACY);
 		}
 	}
 
 	@Test
-	public void testWithCompleteGraph()
-			throws Exception {
-		double expectedScore = 1.0 / completeGraphVertexCount;
+	public void testWithCompleteGraph() throws Exception {
+		validate(completeGraph, completeGraphVertexCount, 1.0 / completeGraphVertexCount);
+	}
 
-		DataSet<Result<LongValue>> pr = new PageRank<LongValue, NullValue, NullValue>(DAMPING_FACTOR, 0.000001)
-			.run(completeGraph);
+	@Test
+	public void testWithEmptyGraphWithVertices() throws Exception {
+		validate(emptyGraphWithVertices, emptyGraphVertexCount, 1.0 / emptyGraphVertexCount);
+	}
 
-		List<Result<LongValue>> results = pr.collect();
-
-		assertEquals(completeGraphVertexCount, results.size());
-
-		for (Result<LongValue> result : results) {
-			assertEquals(expectedScore, result.getPageRankScore().getValue(), 0.000001);
-		}
+	@Test
+	public void testWithEmptyGraphWithoutVertices() throws Exception {
+		validate(emptyGraphWithoutVertices, 0, Double.NaN);
 	}
 
 	/*
@@ -97,15 +117,14 @@ extends AsmTestBase {
 	import networkx as nx
 
 	graph=nx.read_edgelist('directedRMatGraph.csv', delimiter=',', create_using=nx.DiGraph())
-	pagerank=nx.algorithms.link_analysis.pagerank(graph)
+	pagerank=nx.algorithms.link_analysis.pagerank(graph, tol=0.000001)
 
 	for key in [0, 1, 2, 8, 13, 29, 109, 394, 652, 1020]:
 		print('{}: {}'.format(key, pagerank[str(key)]))
 	 */
 	@Test
-	public void testWithRMatGraph()
-			throws Exception {
-		DataSet<Result<LongValue>> pr = new PageRank<LongValue, NullValue, NullValue>(DAMPING_FACTOR, 0.000001)
+	public void testWithRMatGraph() throws Exception {
+		DataSet<Result<LongValue>> pr = new PageRank<LongValue, NullValue, NullValue>(DAMPING_FACTOR, ACCURACY)
 			.run(directedRMatGraph(10, 16));
 
 		Map<Long, Result<LongValue>> results = new HashMap<>();
@@ -117,21 +136,21 @@ extends AsmTestBase {
 
 		Map<Long, Double> expectedResults = new HashMap<>();
 		// a pseudo-random selection of results, both high and low
-		expectedResults.put(0L, 0.027111807822);
-		expectedResults.put(1L, 0.0132842310382);
-		expectedResults.put(2L, 0.0121818392504);
-		expectedResults.put(8L, 0.0115916809743);
-		expectedResults.put(13L, 0.00183249490033);
-		expectedResults.put(29L, 0.000848095047082);
-		expectedResults.put(109L, 0.000308507844048);
-		expectedResults.put(394L, 0.000828743280246);
-		expectedResults.put(652L, 0.000684102931253);
-		expectedResults.put(1020L, 0.000250487135148);
+		expectedResults.put(0L, 0.0271152394743);
+		expectedResults.put(1L, 0.0132848430616);
+		expectedResults.put(2L, 0.0121819700294);
+		expectedResults.put(8L, 0.0115923214664);
+		expectedResults.put(13L, 0.00183241122822);
+		expectedResults.put(29L, 0.000848190646547);
+		expectedResults.put(109L, 0.00030846825644);
+		expectedResults.put(394L, 0.000828826945546);
+		expectedResults.put(652L, 0.000683948671035);
+		expectedResults.put(1020L, 0.000250442325034);
 
 		for (Map.Entry<Long, Double> expected : expectedResults.entrySet()) {
 			double value = results.get(expected.getKey()).getPageRankScore().getValue();
 
-			assertEquals(expected.getValue(), value, 0.00001);
+			assertEquals(expected.getValue(), value, ACCURACY);
 		}
 	}
 }

@@ -19,19 +19,36 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.state.CompositeStateHandle;
-import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Container for the state of one parallel subtask of an operator. This is part of the {@link OperatorState}.
+ * This class encapsulates the state for one parallel instance of an operator. The complete state of a (logical)
+ * operator (e.g. a flatmap operator) consists of the union of all {@link OperatorSubtaskState}s from all
+ * parallel tasks that physically execute parallelized, physical instances of the operator.
+ *
+ * <p>The full state of the logical operator is represented by {@link OperatorState} which consists of
+ * {@link OperatorSubtaskState}s.
+ *
+ * <p>Typically, we expect all collections in this class to be of size 0 or 1, because there is up to one state handle
+ * produced per state type (e.g. managed-keyed, raw-operator, ...). In particular, this holds when taking a snapshot.
+ * The purpose of having the state handles in collections is that this class is also reused in restoring state.
+ * Under normal circumstances, the expected size of each collection is still 0 or 1, except for scale-down. In
+ * scale-down, one operator subtask can become responsible for the state of multiple previous subtasks. The collections
+ * can then store all the state handles that are relevant to build up the new subtask state.
  */
 public class OperatorSubtaskState implements CompositeStateHandle {
 
@@ -40,33 +57,28 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	private static final long serialVersionUID = -2394696997971923995L;
 
 	/**
-	 * Legacy (non-repartitionable) operator state.
-	 *
-	 * @deprecated Non-repartitionable operator state that has been deprecated.
-	 * Can be removed when we remove the APIs for non-repartitionable operator state.
-	 */
-	@Deprecated
-	private final StreamStateHandle legacyOperatorState;
-
-	/**
 	 * Snapshot from the {@link org.apache.flink.runtime.state.OperatorStateBackend}.
 	 */
-	private final OperatorStateHandle managedOperatorState;
+	@Nonnull
+	private final StateObjectCollection<OperatorStateHandle> managedOperatorState;
 
 	/**
 	 * Snapshot written using {@link org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream}.
 	 */
-	private final OperatorStateHandle rawOperatorState;
+	@Nonnull
+	private final StateObjectCollection<OperatorStateHandle> rawOperatorState;
 
 	/**
 	 * Snapshot from {@link org.apache.flink.runtime.state.KeyedStateBackend}.
 	 */
-	private final KeyedStateHandle managedKeyedState;
+	@Nonnull
+	private final StateObjectCollection<KeyedStateHandle> managedKeyedState;
 
 	/**
 	 * Snapshot written using {@link org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream}.
 	 */
-	private final KeyedStateHandle rawKeyedState;
+	@Nonnull
+	private final StateObjectCollection<KeyedStateHandle> rawKeyedState;
 
 	/**
 	 * The state size. This is also part of the deserialized state handle.
@@ -75,72 +87,104 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	 */
 	private final long stateSize;
 
-	public OperatorSubtaskState(
-		StreamStateHandle legacyOperatorState,
-		OperatorStateHandle managedOperatorState,
-		OperatorStateHandle rawOperatorState,
-		KeyedStateHandle managedKeyedState,
-		KeyedStateHandle rawKeyedState) {
-
-		this.legacyOperatorState = legacyOperatorState;
-		this.managedOperatorState = managedOperatorState;
-		this.rawOperatorState = rawOperatorState;
-		this.managedKeyedState = managedKeyedState;
-		this.rawKeyedState = rawKeyedState;
-
-		try {
-			long calculateStateSize = getSizeNullSafe(legacyOperatorState);
-			calculateStateSize += getSizeNullSafe(managedOperatorState);
-			calculateStateSize += getSizeNullSafe(rawOperatorState);
-			calculateStateSize += getSizeNullSafe(managedKeyedState);
-			calculateStateSize += getSizeNullSafe(rawKeyedState);
-			stateSize = calculateStateSize;
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to get state size.", e);
-		}
+	/**
+	 * Empty state.
+	 */
+	public OperatorSubtaskState() {
+		this(
+			StateObjectCollection.empty(),
+			StateObjectCollection.empty(),
+			StateObjectCollection.empty(),
+			StateObjectCollection.empty());
 	}
 
-	private static long getSizeNullSafe(StateObject stateObject) throws Exception {
-		return stateObject != null ? stateObject.getStateSize() : 0L;
+	public OperatorSubtaskState(
+		@Nonnull StateObjectCollection<OperatorStateHandle> managedOperatorState,
+		@Nonnull StateObjectCollection<OperatorStateHandle> rawOperatorState,
+		@Nonnull StateObjectCollection<KeyedStateHandle> managedKeyedState,
+		@Nonnull StateObjectCollection<KeyedStateHandle> rawKeyedState) {
+
+		this.managedOperatorState = Preconditions.checkNotNull(managedOperatorState);
+		this.rawOperatorState = Preconditions.checkNotNull(rawOperatorState);
+		this.managedKeyedState = Preconditions.checkNotNull(managedKeyedState);
+		this.rawKeyedState = Preconditions.checkNotNull(rawKeyedState);
+
+		long calculateStateSize = managedOperatorState.getStateSize();
+		calculateStateSize += rawOperatorState.getStateSize();
+		calculateStateSize += managedKeyedState.getStateSize();
+		calculateStateSize += rawKeyedState.getStateSize();
+		stateSize = calculateStateSize;
+	}
+
+	/**
+	 * For convenience because the size of the collections is typically 0 or 1. Null values are translated into empty
+	 * Collections.
+	 */
+	public OperatorSubtaskState(
+		@Nullable OperatorStateHandle managedOperatorState,
+		@Nullable OperatorStateHandle rawOperatorState,
+		@Nullable KeyedStateHandle managedKeyedState,
+		@Nullable KeyedStateHandle rawKeyedState) {
+
+		this(
+			singletonOrEmptyOnNull(managedOperatorState),
+			singletonOrEmptyOnNull(rawOperatorState),
+			singletonOrEmptyOnNull(managedKeyedState),
+			singletonOrEmptyOnNull(rawKeyedState));
+	}
+
+	private static <T extends StateObject> StateObjectCollection<T> singletonOrEmptyOnNull(T element) {
+		return element != null ? StateObjectCollection.singleton(element) : StateObjectCollection.empty();
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * @deprecated Non-repartitionable operator state that has been deprecated.
-	 * Can be removed when we remove the APIs for non-repartitionable operator state.
+	 * Returns a handle to the managed operator state.
 	 */
-	@Deprecated
-	public StreamStateHandle getLegacyOperatorState() {
-		return legacyOperatorState;
-	}
-
-	public OperatorStateHandle getManagedOperatorState() {
+	@Nonnull
+	public StateObjectCollection<OperatorStateHandle> getManagedOperatorState() {
 		return managedOperatorState;
 	}
 
-	public OperatorStateHandle getRawOperatorState() {
+	/**
+	 * Returns a handle to the raw operator state.
+	 */
+	@Nonnull
+	public StateObjectCollection<OperatorStateHandle> getRawOperatorState() {
 		return rawOperatorState;
 	}
 
-	public KeyedStateHandle getManagedKeyedState() {
+	/**
+	 * Returns a handle to the managed keyed state.
+	 */
+	@Nonnull
+	public StateObjectCollection<KeyedStateHandle> getManagedKeyedState() {
 		return managedKeyedState;
 	}
 
-	public KeyedStateHandle getRawKeyedState() {
+	/**
+	 * Returns a handle to the raw keyed state.
+	 */
+	@Nonnull
+	public StateObjectCollection<KeyedStateHandle> getRawKeyedState() {
 		return rawKeyedState;
 	}
 
 	@Override
 	public void discardState() {
 		try {
-			StateUtil.bestEffortDiscardAllStateObjects(
-				Arrays.asList(
-					legacyOperatorState,
-					managedOperatorState,
-					rawOperatorState,
-					managedKeyedState,
-					rawKeyedState));
+			List<StateObject> toDispose =
+				new ArrayList<>(
+						managedOperatorState.size() +
+						rawOperatorState.size() +
+						managedKeyedState.size() +
+						rawKeyedState.size());
+			toDispose.addAll(managedOperatorState);
+			toDispose.addAll(rawOperatorState);
+			toDispose.addAll(managedKeyedState);
+			toDispose.addAll(rawKeyedState);
+			StateUtil.bestEffortDiscardAllStateObjects(toDispose);
 		} catch (Exception e) {
 			LOG.warn("Error while discarding operator states.", e);
 		}
@@ -148,12 +192,17 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 
 	@Override
 	public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
-		if (managedKeyedState != null) {
-			managedKeyedState.registerSharedStates(sharedStateRegistry);
-		}
+		registerSharedState(sharedStateRegistry, managedKeyedState);
+		registerSharedState(sharedStateRegistry, rawKeyedState);
+	}
 
-		if (rawKeyedState != null) {
-			rawKeyedState.registerSharedStates(sharedStateRegistry);
+	private static void registerSharedState(
+		SharedStateRegistry sharedStateRegistry,
+		Iterable<KeyedStateHandle> stateHandles) {
+		for (KeyedStateHandle stateHandle : stateHandles) {
+			if (stateHandle != null) {
+				stateHandle.registerSharedStates(sharedStateRegistry);
+			}
 		}
 	}
 
@@ -175,56 +224,46 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 
 		OperatorSubtaskState that = (OperatorSubtaskState) o;
 
-		if (stateSize != that.stateSize) {
+		if (getStateSize() != that.getStateSize()) {
 			return false;
 		}
-
-		if (legacyOperatorState != null ?
-			!legacyOperatorState.equals(that.legacyOperatorState)
-			: that.legacyOperatorState != null) {
+		if (!getManagedOperatorState().equals(that.getManagedOperatorState())) {
 			return false;
 		}
-		if (managedOperatorState != null ?
-			!managedOperatorState.equals(that.managedOperatorState)
-			: that.managedOperatorState != null) {
+		if (!getRawOperatorState().equals(that.getRawOperatorState())) {
 			return false;
 		}
-		if (rawOperatorState != null ?
-			!rawOperatorState.equals(that.rawOperatorState)
-			: that.rawOperatorState != null) {
+		if (!getManagedKeyedState().equals(that.getManagedKeyedState())) {
 			return false;
 		}
-		if (managedKeyedState != null ?
-			!managedKeyedState.equals(that.managedKeyedState)
-			: that.managedKeyedState != null) {
-			return false;
-		}
-		return rawKeyedState != null ?
-			rawKeyedState.equals(that.rawKeyedState)
-			: that.rawKeyedState == null;
-
+		return getRawKeyedState().equals(that.getRawKeyedState());
 	}
 
 	@Override
 	public int hashCode() {
-		int result = legacyOperatorState != null ? legacyOperatorState.hashCode() : 0;
-		result = 31 * result + (managedOperatorState != null ? managedOperatorState.hashCode() : 0);
-		result = 31 * result + (rawOperatorState != null ? rawOperatorState.hashCode() : 0);
-		result = 31 * result + (managedKeyedState != null ? managedKeyedState.hashCode() : 0);
-		result = 31 * result + (rawKeyedState != null ? rawKeyedState.hashCode() : 0);
-		result = 31 * result + (int) (stateSize ^ (stateSize >>> 32));
+		int result = getManagedOperatorState().hashCode();
+		result = 31 * result + getRawOperatorState().hashCode();
+		result = 31 * result + getManagedKeyedState().hashCode();
+		result = 31 * result + getRawKeyedState().hashCode();
+		result = 31 * result + (int) (getStateSize() ^ (getStateSize() >>> 32));
 		return result;
 	}
 
 	@Override
 	public String toString() {
 		return "SubtaskState{" +
-			"legacyState=" + legacyOperatorState +
-			", operatorStateFromBackend=" + managedOperatorState +
+			"operatorStateFromBackend=" + managedOperatorState +
 			", operatorStateFromStream=" + rawOperatorState +
 			", keyedStateFromBackend=" + managedKeyedState +
 			", keyedStateFromStream=" + rawKeyedState +
 			", stateSize=" + stateSize +
 			'}';
+	}
+
+	public boolean hasState() {
+		return managedOperatorState.hasState()
+			|| rawOperatorState.hasState()
+			|| managedKeyedState.hasState()
+			|| rawKeyedState.hasState();
 	}
 }

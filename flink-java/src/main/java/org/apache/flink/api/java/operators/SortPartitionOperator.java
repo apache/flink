@@ -58,7 +58,6 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 		this.sortLocationName = sortLocationName;
 	}
 
-
 	public SortPartitionOperator(DataSet<T> dataSet, int sortField, Order sortOrder, String sortLocationName) {
 		this(dataSet, sortLocationName);
 		this.useKeySelector = false;

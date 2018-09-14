@@ -20,17 +20,19 @@ package org.apache.flink.api.java.io;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.operators.DataSource;
-//CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
-import org.apache.flink.api.java.tuple.*;
-//CHECKSTYLE.ON: AvoidStarImport
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Preconditions;
+
+//CHECKSTYLE.OFF: AvoidStarImport|ImportOrder
+import org.apache.flink.api.java.tuple.*;
+//CHECKSTYLE.ON: AvoidStarImport|ImportOrder
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,14 +46,13 @@ import java.util.Arrays;
 public class CsvReader {
 
 	private final Path path;
-	
+
 	private final ExecutionEnvironment executionContext;
-	
-	
+
 	protected boolean[] includedMask;
-	
+
 	protected String lineDelimiter = CsvInputFormat.DEFAULT_LINE_DELIMITER;
-	
+
 	protected String fieldDelimiter = CsvInputFormat.DEFAULT_FIELD_DELIMITER;
 
 	protected String commentPrefix = null; //default: no comments
@@ -61,35 +62,35 @@ public class CsvReader {
 	protected char quoteCharacter = '"';
 
 	protected boolean skipFirstLineAsHeader = false;
-	
+
 	protected boolean ignoreInvalidLines = false;
 
 	private String charset = "UTF-8";
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public CsvReader(Path filePath, ExecutionEnvironment executionContext) {
 		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 		Preconditions.checkNotNull(executionContext, "The execution context may not be null.");
-		
+
 		this.path = filePath;
 		this.executionContext = executionContext;
 	}
-	
+
 	public CsvReader(String filePath, ExecutionEnvironment executionContext) {
 		this(new Path(Preconditions.checkNotNull(filePath, "The file path may not be null.")), executionContext);
 	}
-	
+
 	public Path getFilePath() {
 		return this.path;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Configures the delimiter that separates the lines/rows. The linebreak character
 	 * ({@code '\n'}) is used by default.
-	 * 
+	 *
 	 * @param delimiter The delimiter that separates the rows.
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 */
@@ -97,15 +98,15 @@ public class CsvReader {
 		if (delimiter == null || delimiter.length() == 0) {
 			throw new IllegalArgumentException("The delimiter must not be null or an empty string");
 		}
-		
+
 		this.lineDelimiter = delimiter;
 		return this;
 	}
-	
+
 	/**
 	 * Configures the delimiter that separates the fields within a row. The comma character
 	 * ({@code ','}) is used by default.
-	 * 
+	 *
 	 * @param delimiter The delimiter that separates the fields in one row.
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 *
@@ -148,7 +149,7 @@ public class CsvReader {
 	 * Configures the string that starts comments.
 	 * By default comments will be treated as invalid lines.
 	 * This function only recognizes comments which start at the beginning of the line!
-	 * 
+	 *
 	 * @param commentPrefix The string that starts the comments.
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 */
@@ -156,7 +157,7 @@ public class CsvReader {
 		if (commentPrefix == null || commentPrefix.length() == 0) {
 			throw new IllegalArgumentException("The comment prefix must not be null or an empty string");
 		}
-		
+
 		this.commentPrefix = commentPrefix;
 		return this;
 	}
@@ -172,7 +173,7 @@ public class CsvReader {
 	}
 
 	/**
-	 * Sets the charset of the reader
+	 * Sets the charset of the reader.
 	 *
 	 * @param charset The character set to set.
 	 */
@@ -189,7 +190,7 @@ public class CsvReader {
 	 * the boolean array is {@code true}.
 	 * The number of fields in the result is consequently equal to the number of times that {@code true}
 	 * occurs in the fields array.
-	 * 
+	 *
 	 * @param fields The array of flags that describes which fields are to be included and which not.
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 */
@@ -197,14 +198,14 @@ public class CsvReader {
 		if (fields == null || fields.length == 0) {
 			throw new IllegalArgumentException("The set of included fields must not be null or empty.");
 		}
-		
+
 		int lastTruePos = -1;
 		for (int i = 0; i < fields.length; i++) {
 			if (fields[i]) {
 				lastTruePos = i;
 			}
 		}
-		
+
 		if (lastTruePos == -1) {
 			throw new IllegalArgumentException("The description of fields to parse excluded all fields. At least one fields must be included.");
 		}
@@ -225,13 +226,13 @@ public class CsvReader {
 	 * in the string is {@code '0'}, {@code 'F'}, or {@code 'f'} (representing the value
 	 * {@code false}). The result contains the fields where the corresponding position in
 	 * the boolean array is {@code '1'}, {@code 'T'}, or {@code 't'} (representing the value {@code true}).
-	 * 
+	 *
 	 * @param mask The string mask defining which fields to include and which to skip.
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 */
 	public CsvReader includeFields(String mask) {
 		boolean[] includedMask = new boolean[mask.length()];
-		
+
 		for (int i = 0; i < mask.length(); i++) {
 			char c = mask.charAt(i);
 			if (c == '1' || c == 'T' || c == 't') {
@@ -240,10 +241,10 @@ public class CsvReader {
 				throw new IllegalArgumentException("Mask string may contain only '0' and '1'.");
 			}
 		}
-		
+
 		return includeFields(includedMask);
 	}
-	
+
 	/**
 	 * Configures which fields of the CSV file should be included and which should be skipped. The
 	 * bits in the value (read from least significant to most significant) define whether the field at
@@ -252,14 +253,14 @@ public class CsvReader {
 	 * non-zero bit.
 	 * The parser will skip over all fields where the character at the corresponding bit is zero, and
 	 * include the fields where the corresponding bit is one.
-	 * <p>
-	 * Examples:
+	 *
+	 * <p>Examples:
 	 * <ul>
 	 *   <li>A mask of {@code 0x7} would include the first three fields.</li>
 	 *   <li>A mask of {@code 0x26} (binary {@code 100110} would skip the first fields, include fields
 	 *       two and three, skip fields four and five, and include field six.</li>
 	 * </ul>
-	 * 
+	 *
 	 * @param mask The bit mask defining which fields to include and which to skip.
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 */
@@ -267,36 +268,36 @@ public class CsvReader {
 		if (mask == 0) {
 			throw new IllegalArgumentException("The description of fields to parse excluded all fields. At least one fields must be included.");
 		}
-		
+
 		ArrayList<Boolean> fields = new ArrayList<Boolean>();
 
 		while (mask != 0) {
 			fields.add((mask & 0x1L) != 0);
 			mask >>>= 1;
 		}
-		
+
 		boolean[] fieldsArray = new boolean[fields.size()];
 		for (int i = 0; i < fieldsArray.length; i++) {
 			fieldsArray[i] = fields.get(i);
 		}
-		
+
 		return includeFields(fieldsArray);
 	}
 
 	/**
 	 * Sets the CSV reader to ignore the first line. This is useful for files that contain a header line.
-	 * 
+	 *
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 */
 	public CsvReader ignoreFirstLine() {
 		skipFirstLineAsHeader = true;
 		return this;
 	}
-	
+
 	/**
-	 * Sets the CSV reader to ignore any invalid lines. 
+	 * Sets the CSV reader to ignore any invalid lines.
 	 * This is useful for files that contain an empty line at the end, multiple header lines or comments. This would throw an exception otherwise.
-	 * 
+	 *
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 */
 	public CsvReader ignoreInvalidLines(){
@@ -316,21 +317,25 @@ public class CsvReader {
 		Preconditions.checkNotNull(pojoType, "The POJO type class must not be null.");
 		Preconditions.checkNotNull(pojoFields, "POJO fields must be specified (not null) if output type is a POJO.");
 
-		@SuppressWarnings("unchecked")
-		PojoTypeInfo<T> typeInfo = (PojoTypeInfo<T>) TypeExtractor.createTypeInfo(pojoType);
+		final TypeInformation<T> ti = TypeExtractor.createTypeInfo(pojoType);
+		if (!(ti instanceof PojoTypeInfo)) {
+			throw new IllegalArgumentException(
+				"The specified class is not a POJO. The type class must meet the POJO requirements. Found: " + ti);
+		}
+		final PojoTypeInfo<T> pti = (PojoTypeInfo<T>) ti;
 
-		CsvInputFormat<T> inputFormat = new PojoCsvInputFormat<T>(path, this.lineDelimiter, this.fieldDelimiter, typeInfo, pojoFields, this.includedMask);
+		CsvInputFormat<T> inputFormat = new PojoCsvInputFormat<T>(path, this.lineDelimiter, this.fieldDelimiter, pti, pojoFields, this.includedMask);
 
 		configureInputFormat(inputFormat);
 
-		return new DataSource<T>(executionContext, inputFormat, typeInfo, Utils.getCallLocationName());
+		return new DataSource<T>(executionContext, inputFormat, pti, Utils.getCallLocationName());
 	}
-	
+
 	/**
 	 * Configures the reader to read the CSV data and parse it to the given type. The type must be a subclass of
 	 * {@link Tuple}. The type information for the fields is obtained from the type class. The type
 	 * consequently needs to specify all generic field types of the tuple.
-	 * 
+	 *
 	 * @param targetType The class of the target type, needs to be a subclass of Tuple.
 	 * @return The DataSet representing the parsed CSV data.
 	 */
@@ -339,24 +344,24 @@ public class CsvReader {
 		if (!Tuple.class.isAssignableFrom(targetType)) {
 			throw new IllegalArgumentException("The target type must be a subclass of " + Tuple.class.getName());
 		}
-		
+
 		@SuppressWarnings("unchecked")
 		TupleTypeInfo<T> typeInfo = (TupleTypeInfo<T>) TypeExtractor.createTypeInfo(targetType);
 		CsvInputFormat<T> inputFormat = new TupleCsvInputFormat<T>(path, this.lineDelimiter, this.fieldDelimiter, typeInfo, this.includedMask);
-		
+
 		Class<?>[] classes = new Class<?>[typeInfo.getArity()];
 		for (int i = 0; i < typeInfo.getArity(); i++) {
 			classes[i] = typeInfo.getTypeAt(i).getTypeClass();
 		}
-		
+
 		configureInputFormat(inputFormat);
 		return new DataSource<T>(executionContext, inputFormat, typeInfo, Utils.getCallLocationName());
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Miscellaneous
 	// --------------------------------------------------------------------------------------------
-	
+
 	private void configureInputFormat(CsvInputFormat<?> format) {
 		format.setCharset(this.charset);
 		format.setDelimiter(this.lineDelimiter);
@@ -368,10 +373,10 @@ public class CsvReader {
 			format.enableQuotedStringParsing(this.quoteCharacter);
 		}
 	}
-	
-	// --------------------------------------------------------------------------------------------	
+
+	// --------------------------------------------------------------------------------------------
 	// The following lines are generated.
-	// --------------------------------------------------------------------------------------------	
+	// --------------------------------------------------------------------------------------------
 	// BEGIN_OF_TUPLE_DEPENDENT_CODE
 	// GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
 

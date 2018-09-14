@@ -36,7 +36,7 @@ extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 	private final ExecutionEnvironment env;
 
 	// Required configuration
-	private long vertexCount;
+	private final long vertexCount;
 
 	/**
 	 * An undirected {@link Graph} connecting every distinct pair of vertices.

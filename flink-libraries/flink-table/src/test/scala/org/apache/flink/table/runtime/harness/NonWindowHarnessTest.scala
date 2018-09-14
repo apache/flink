@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.streaming.api.operators.KeyedProcessOperator
+import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.runtime.aggregate._
@@ -34,12 +34,12 @@ import org.junit.Test
 class NonWindowHarnessTest extends HarnessTestBase {
 
   protected var queryConfig =
-    new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(2), Time.seconds(3))
+    new TestStreamQueryConfig(Time.seconds(2), Time.seconds(3))
 
   @Test
-  def testProcTimeNonWindow(): Unit = {
+  def testNonWindow(): Unit = {
 
-    val processFunction = new KeyedProcessOperator[String, CRow, CRow](
+    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
       new GroupAggProcessFunction(
         genSumAggFunction,
         sumAggregationStateType,
@@ -91,15 +91,15 @@ class NonWindowHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(CRow(Row.of(9L: JLong, 18: JInt), true), 1))
     expectedOutput.add(new StreamRecord(CRow(Row.of(10L: JLong, 3: JInt), true), 1))
 
-    verify(expectedOutput, result, new RowResultSortComparator(6))
+    verify(expectedOutput, result, new RowResultSortComparator())
 
     testHarness.close()
   }
 
   @Test
-  def testProcTimeNonWindowWithRetract(): Unit = {
+  def testNonWindowWithRetract(): Unit = {
 
-    val processFunction = new KeyedProcessOperator[String, CRow, CRow](
+    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
       new GroupAggProcessFunction(
         genSumAggFunction,
         sumAggregationStateType,
@@ -150,7 +150,7 @@ class NonWindowHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(CRow(Row.of(10L: JLong, 2: JInt), false), 10))
     expectedOutput.add(new StreamRecord(CRow(Row.of(10L: JLong, 5: JInt), true), 10))
 
-    verify(expectedOutput, result, new RowResultSortComparator(0))
+    verify(expectedOutput, result, new RowResultSortComparator())
 
     testHarness.close()
   }

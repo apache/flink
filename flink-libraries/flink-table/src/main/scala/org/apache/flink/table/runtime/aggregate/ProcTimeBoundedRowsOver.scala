@@ -18,25 +18,19 @@
 package org.apache.flink.table.runtime.aggregate
 
 import java.util
-
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.types.Row
-import org.apache.flink.util.{Collector, Preconditions}
-import org.apache.flink.api.common.state.ValueStateDescriptor
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.common.state.ValueState
-import org.apache.flink.api.common.state.MapState
-import org.apache.flink.api.common.state.MapStateDescriptor
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.ListTypeInfo
 import java.util.{List => JList}
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.common.state.{MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.java.typeutils.{ListTypeInfo, RowTypeInfo}
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
-import org.slf4j.LoggerFactory
+import org.apache.flink.table.util.Logging
+import org.apache.flink.types.Row
+import org.apache.flink.util.{Collector, Preconditions}
 
 /**
   * Process Function for ROW clause processing-time bounded OVER window
@@ -53,7 +47,8 @@ class ProcTimeBoundedRowsOver(
     inputType: TypeInformation[CRow],
     queryConfig: StreamQueryConfig)
   extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
-    with Compiler[GeneratedAggregations] {
+    with Compiler[GeneratedAggregations]
+    with Logging {
 
   Preconditions.checkArgument(precedingOffset > 0)
 
@@ -63,7 +58,6 @@ class ProcTimeBoundedRowsOver(
   private var counterState: ValueState[Long] = _
   private var smallestTsState: ValueState[Long] = _
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
@@ -75,6 +69,7 @@ class ProcTimeBoundedRowsOver(
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
+    function.open(getRuntimeContext)
 
     output = new CRow(function.createOutputRow(), true)
     // We keep the elements received in a Map state keyed
@@ -194,6 +189,11 @@ class ProcTimeBoundedRowsOver(
 
     if (needToCleanupState(timestamp)) {
       cleanupState(rowMapState, accumulatorState, counterState, smallestTsState)
+      function.cleanup()
     }
+  }
+
+  override def close(): Unit = {
+    function.close()
   }
 }

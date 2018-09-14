@@ -104,3 +104,5 @@ See `docs/_include/latex_commands.html` for the complete list of predefined late
 
 Once you have implemented the algorithm with adequate test coverage and added documentation, you are ready to open a pull request.
 Details of how to open a pull request can be found [here](http://flink.apache.org/how-to-contribute.html#contributing-code--documentation).
+
+{% top %}

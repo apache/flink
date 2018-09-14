@@ -26,12 +26,9 @@ import java.util.List;
 import java.util.Properties;
 
 import org.apache.flink.util.OperatingSystem;
-import org.apache.hadoop.util.VersionInfo;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.apache.hadoop.security.UserGroupInformation;
 
 /**
  * Utility class that gives access to the execution environment of the JVM, like
@@ -87,9 +84,20 @@ public class EnvironmentInformation {
 	 * 
 	 * @return The name of the user that is running the JVM.
 	 */
-	public static String getUserRunning() {
+	public static String getHadoopUser() {
 		try {
-			return UserGroupInformation.getCurrentUser().getShortUserName();
+			Class<?> ugiClass = Class.forName(
+				"org.apache.hadoop.security.UserGroupInformation",
+				false,
+				EnvironmentInformation.class.getClassLoader());
+
+			Method currentUserMethod = ugiClass.getMethod("getCurrentUser");
+			Method shortUserNameMethod = ugiClass.getMethod("getShortUserName");
+			Object ugi = currentUserMethod.invoke(null);
+			return (String) shortUserNameMethod.invoke(ugi);
+		}
+		catch (ClassNotFoundException e) {
+			return "<no hadoop dependency found>";
 		}
 		catch (LinkageError e) {
 			// hadoop classes are not in the classpath
@@ -101,12 +109,7 @@ public class EnvironmentInformation {
 			LOG.warn("Error while accessing user/group information via Hadoop utils.", t);
 		}
 		
-		String user = System.getProperty("user.name");
-		if (user == null) {
-			user = UNKNOWN;
-			LOG.debug("Cannot determine user/group information for the current user.");
-		}
-		return user;
+		return UNKNOWN;
 	}
 
 	/**
@@ -256,7 +259,7 @@ public class EnvironmentInformation {
 	}
 	
 	/**
-	 * Logs a information about the environment, like code revision, current user, java version,
+	 * Logs information about the environment, like code revision, current user, Java version,
 	 * and JVM parameters.
 	 *
 	 * @param log The logger to log the information to.
@@ -268,8 +271,6 @@ public class EnvironmentInformation {
 			RevisionInformation rev = getRevisionInformation();
 			String version = getVersion();
 			
-			String user = getUserRunning();
-			
 			String jvmVersion = getJvmVersion();
 			String[] options = getJvmStartupOptionsArray();
 			
@@ -280,11 +281,18 @@ public class EnvironmentInformation {
 			log.info("--------------------------------------------------------------------------------");
 			log.info(" Starting " + componentName + " (Version: " + version + ", "
 					+ "Rev:" + rev.commitId + ", " + "Date:" + rev.commitDate + ")");
-			log.info(" Current user: " + user);
+			log.info(" OS current user: " + System.getProperty("user.name"));
+			log.info(" Current Hadoop/Kerberos user: " + getHadoopUser());
 			log.info(" JVM: " + jvmVersion);
 			log.info(" Maximum heap size: " + maxHeapMegabytes + " MiBytes");
 			log.info(" JAVA_HOME: " + (javaHome == null ? "(not set)" : javaHome));
-			log.info(" Hadoop version: " + VersionInfo.getVersion());
+
+			String hadoopVersionString = getHadoopVersionString();
+			if (hadoopVersionString != null) {
+				log.info(" Hadoop version: " + hadoopVersionString);
+			} else {
+				log.info(" No Hadoop Dependency available");
+			}
 
 			if (options.length == 0) {
 				log.info(" JVM Options: (none)");
@@ -309,6 +317,22 @@ public class EnvironmentInformation {
 			log.info(" Classpath: " + System.getProperty("java.class.path"));
 
 			log.info("--------------------------------------------------------------------------------");
+		}
+	}
+
+	public static String getHadoopVersionString() {
+		try {
+			Class<?> versionInfoClass = Class.forName(
+				"org.apache.hadoop.util.VersionInfo",
+				false,
+				EnvironmentInformation.class.getClassLoader());
+			Method method = versionInfoClass.getMethod("getVersion");
+			return (String) method.invoke(null);
+		} catch (ClassNotFoundException | NoSuchMethodException e) {
+			return null;
+		} catch (Throwable e) {
+			LOG.error("Cannot invoke VersionInfo.getVersion reflectively.", e);
+			return null;
 		}
 	}
 

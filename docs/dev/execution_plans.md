@@ -72,7 +72,7 @@ __Web Interface__
 
 Flink offers a web interface for submitting and executing jobs. The interface is part of the JobManager's
 web interface for monitoring, per default running on port 8081. Job submission via this interfaces requires
-that you have set `jobmanager.web.submit.enable: true` in `flink-conf.yaml`.
+that you have set `web.submit.enable: true` in `flink-conf.yaml`.
 
 You may specify program arguments before the job is executed. The plan visualization enables you to show
 the execution plan before executing the Flink job.

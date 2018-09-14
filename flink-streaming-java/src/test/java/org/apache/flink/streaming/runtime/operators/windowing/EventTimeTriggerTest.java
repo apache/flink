@@ -23,7 +23,8 @@ import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -151,5 +152,44 @@ public class EventTimeTriggerTest {
 		assertEquals(0, testHarness.numStateEntries());
 		assertEquals(0, testHarness.numProcessingTimeTimers());
 		assertEquals(0, testHarness.numEventTimeTimers());
+	}
+
+	/**
+	 * Merging a late window should not register a timer, otherwise we would get two firings:
+	 * one from onElement() on the merged window and one from the timer.
+	 */
+	@Test
+	public void testMergingLateWindows() throws Exception {
+
+		TriggerTestHarness<Object, TimeWindow> testHarness =
+			new TriggerTestHarness<>(EventTimeTrigger.create(), new TimeWindow.Serializer());
+
+		assertTrue(EventTimeTrigger.create().canMerge());
+
+		assertEquals(TriggerResult.CONTINUE, testHarness.processElement(new StreamRecord<Object>(1), new TimeWindow(0, 2)));
+		assertEquals(TriggerResult.CONTINUE, testHarness.processElement(new StreamRecord<Object>(1), new TimeWindow(2, 4)));
+
+		assertEquals(0, testHarness.numStateEntries());
+		assertEquals(0, testHarness.numProcessingTimeTimers());
+		assertEquals(2, testHarness.numEventTimeTimers());
+		assertEquals(1, testHarness.numEventTimeTimers(new TimeWindow(0, 2)));
+		assertEquals(1, testHarness.numEventTimeTimers(new TimeWindow(2, 4)));
+
+		testHarness.advanceWatermark(10);
+
+		assertEquals(0, testHarness.numStateEntries());
+		assertEquals(0, testHarness.numProcessingTimeTimers());
+		assertEquals(0, testHarness.numEventTimeTimers());
+		assertEquals(0, testHarness.numEventTimeTimers(new TimeWindow(0, 2)));
+		assertEquals(0, testHarness.numEventTimeTimers(new TimeWindow(2, 4)));
+
+		testHarness.mergeWindows(new TimeWindow(0, 4), Lists.newArrayList(new TimeWindow(0, 2), new TimeWindow(2, 4)));
+
+		assertEquals(0, testHarness.numStateEntries());
+		assertEquals(0, testHarness.numProcessingTimeTimers());
+		assertEquals(0, testHarness.numEventTimeTimers());
+		assertEquals(0, testHarness.numEventTimeTimers(new TimeWindow(0, 2)));
+		assertEquals(0, testHarness.numEventTimeTimers(new TimeWindow(2, 4)));
+		assertEquals(0, testHarness.numEventTimeTimers(new TimeWindow(0, 4)));
 	}
 }

@@ -20,12 +20,12 @@ package org.apache.flink.runtime.jobmanager.slots;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.StopCluster;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
@@ -41,6 +41,9 @@ import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
 import org.apache.flink.util.Preconditions;
+
+import java.util.concurrent.CompletableFuture;
+
 import scala.concurrent.duration.FiniteDuration;
 import scala.reflect.ClassTag$;
 
@@ -78,7 +81,7 @@ public class ActorTaskManagerGateway implements TaskManagerGateway {
 	}
 
 	@Override
-	public Future<StackTrace> requestStackTrace(final Time timeout) {
+	public CompletableFuture<StackTrace> requestStackTrace(final Time timeout) {
 		Preconditions.checkNotNull(timeout);
 
 		scala.concurrent.Future<StackTrace> stackTraceFuture = actorGateway.ask(
@@ -86,11 +89,11 @@ public class ActorTaskManagerGateway implements TaskManagerGateway {
 			new FiniteDuration(timeout.getSize(), timeout.getUnit()))
 			.mapTo(ClassTag$.MODULE$.<StackTrace>apply(StackTrace.class));
 
-		return new FlinkFuture<>(stackTraceFuture);
+		return FutureUtils.toJava(stackTraceFuture);
 	}
 
 	@Override
-	public Future<StackTraceSampleResponse> requestStackTraceSample(
+	public CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
 			ExecutionAttemptID executionAttemptID,
 			int sampleId,
 			int numSamples,
@@ -113,11 +116,11 @@ public class ActorTaskManagerGateway implements TaskManagerGateway {
 			new FiniteDuration(timeout.getSize(), timeout.getUnit()))
 			.mapTo(ClassTag$.MODULE$.<StackTraceSampleResponse>apply(StackTraceSampleResponse.class));
 
-		return new FlinkFuture<>(stackTraceSampleResponseFuture);
+		return FutureUtils.toJava(stackTraceSampleResponseFuture);
 	}
 
 	@Override
-	public Future<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
+	public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
 		Preconditions.checkNotNull(tdd);
 		Preconditions.checkNotNull(timeout);
 
@@ -126,11 +129,11 @@ public class ActorTaskManagerGateway implements TaskManagerGateway {
 			new FiniteDuration(timeout.getSize(), timeout.getUnit()))
 			.mapTo(ClassTag$.MODULE$.<Acknowledge>apply(Acknowledge.class));
 
-		return new FlinkFuture<>(submitResult);
+		return FutureUtils.toJava(submitResult);
 	}
 
 	@Override
-	public Future<Acknowledge> stopTask(ExecutionAttemptID executionAttemptID, Time timeout) {
+	public CompletableFuture<Acknowledge> stopTask(ExecutionAttemptID executionAttemptID, Time timeout) {
 		Preconditions.checkNotNull(executionAttemptID);
 		Preconditions.checkNotNull(timeout);
 
@@ -139,11 +142,11 @@ public class ActorTaskManagerGateway implements TaskManagerGateway {
 			new FiniteDuration(timeout.getSize(), timeout.getUnit()))
 			.mapTo(ClassTag$.MODULE$.<Acknowledge>apply(Acknowledge.class));
 
-		return new FlinkFuture<>(stopResult);
+		return FutureUtils.toJava(stopResult);
 	}
 
 	@Override
-	public Future<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
+	public CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
 		Preconditions.checkNotNull(executionAttemptID);
 		Preconditions.checkNotNull(timeout);
 
@@ -152,11 +155,11 @@ public class ActorTaskManagerGateway implements TaskManagerGateway {
 			new FiniteDuration(timeout.getSize(), timeout.getUnit()))
 			.mapTo(ClassTag$.MODULE$.<Acknowledge>apply(Acknowledge.class));
 
-		return new FlinkFuture<>(cancelResult);
+		return FutureUtils.toJava(cancelResult);
 	}
 
 	@Override
-	public Future<Acknowledge> updatePartitions(ExecutionAttemptID executionAttemptID, Iterable<PartitionInfo> partitionInfos, Time timeout) {
+	public CompletableFuture<Acknowledge> updatePartitions(ExecutionAttemptID executionAttemptID, Iterable<PartitionInfo> partitionInfos, Time timeout) {
 		Preconditions.checkNotNull(executionAttemptID);
 		Preconditions.checkNotNull(partitionInfos);
 
@@ -169,7 +172,7 @@ public class ActorTaskManagerGateway implements TaskManagerGateway {
 			new FiniteDuration(timeout.getSize(), timeout.getUnit()))
 			.mapTo(ClassTag$.MODULE$.<Acknowledge>apply(Acknowledge.class));
 
-		return new FlinkFuture<>(updatePartitionsResult);
+		return FutureUtils.toJava(updatePartitionsResult);
 	}
 
 	@Override
@@ -207,25 +210,30 @@ public class ActorTaskManagerGateway implements TaskManagerGateway {
 	}
 
 	@Override
-	public Future<BlobKey> requestTaskManagerLog(Time timeout) {
+	public CompletableFuture<TransientBlobKey> requestTaskManagerLog(Time timeout) {
 		return requestTaskManagerLog((TaskManagerMessages.RequestTaskManagerLog) TaskManagerMessages.getRequestTaskManagerLog(), timeout);
 	}
 
 	@Override
-	public Future<BlobKey> requestTaskManagerStdout(Time timeout) {
+	public CompletableFuture<TransientBlobKey> requestTaskManagerStdout(Time timeout) {
 		return requestTaskManagerLog((TaskManagerMessages.RequestTaskManagerLog) TaskManagerMessages.getRequestTaskManagerStdout(), timeout);
 	}
 
-	private Future<BlobKey> requestTaskManagerLog(TaskManagerMessages.RequestTaskManagerLog request, Time timeout) {
+	@Override
+	public CompletableFuture<Acknowledge> freeSlot(AllocationID allocationId, Throwable cause, Time timeout) {
+		throw new UnsupportedOperationException("The old TaskManager does not support freeing slots");
+	}
+
+	private CompletableFuture<TransientBlobKey> requestTaskManagerLog(TaskManagerMessages.RequestTaskManagerLog request, Time timeout) {
 		Preconditions.checkNotNull(request);
 		Preconditions.checkNotNull(timeout);
 
-		scala.concurrent.Future<BlobKey> blobKeyFuture = actorGateway
+		scala.concurrent.Future<TransientBlobKey> blobKeyFuture = actorGateway
 			.ask(
 				request,
 				new FiniteDuration(timeout.getSize(), timeout.getUnit()))
-			.mapTo(ClassTag$.MODULE$.<BlobKey>apply(BlobKey.class));
+			.mapTo(ClassTag$.MODULE$.<TransientBlobKey>apply(TransientBlobKey.class));
 
-		return new FlinkFuture<>(blobKeyFuture);
+		return FutureUtils.toJava(blobKeyFuture);
 	}
 }

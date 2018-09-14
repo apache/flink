@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.leaderretrieval;
 
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.api.UnhandledErrorListener;
 import org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.curator.framework.recipes.cache.NodeCache;
 import org.apache.curator.framework.recipes.cache.NodeCacheListener;
@@ -41,7 +43,7 @@ import java.util.UUID;
  * been elected by the {@link org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionService}.
  * The leader address as well as the current leader session ID is retrieved from ZooKeeper.
  */
-public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, NodeCacheListener {
+public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, NodeCacheListener, UnhandledErrorListener {
 	private static final Logger LOG = LoggerFactory.getLogger(
 		ZooKeeperLeaderRetrievalService.class);
 
@@ -52,6 +54,8 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 
 	/** Curator recipe to watch changes of a specific ZooKeeper node. */
 	private final NodeCache cache;
+
+	private final String retrievalPath;
 
 	/** Listener which will be notified about leader changes. */
 	private volatile LeaderRetrievalListener leaderListener;
@@ -78,6 +82,7 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 	public ZooKeeperLeaderRetrievalService(CuratorFramework client, String retrievalPath) {
 		this.client = Preconditions.checkNotNull(client, "CuratorFramework client");
 		this.cache = new NodeCache(client, retrievalPath);
+		this.retrievalPath = Preconditions.checkNotNull(retrievalPath);
 
 		this.leaderListener = null;
 		this.lastLeaderAddress = null;
@@ -92,11 +97,12 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 		Preconditions.checkState(leaderListener == null, "ZooKeeperLeaderRetrievalService can " +
 				"only be started once.");
 
-		LOG.info("Starting ZooKeeperLeaderRetrievalService.");
+		LOG.info("Starting ZooKeeperLeaderRetrievalService {}.", retrievalPath);
 
 		synchronized (lock) {
 			leaderListener = listener;
 
+			client.getUnhandledErrorListenable().addListener(this);
 			cache.getListenable().addListener(this);
 			cache.start();
 
@@ -108,7 +114,7 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 
 	@Override
 	public void stop() throws Exception {
-		LOG.info("Stopping ZooKeeperLeaderRetrievalService.");
+		LOG.info("Stopping ZooKeeperLeaderRetrievalService {}.", retrievalPath);
 
 		synchronized (lock) {
 			if (!running) {
@@ -118,6 +124,7 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 			running = false;
 		}
 
+		client.getUnhandledErrorListenable().removeListener(this);
 		client.getConnectionStateListenable().removeListener(connectionStateListener);
 
 		try {
@@ -195,5 +202,10 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 					"ZooKeeper.");
 				break;
 		}
+	}
+
+	@Override
+	public void unhandledError(String s, Throwable throwable) {
+		leaderListener.handleError(new FlinkException("Unhandled error in ZooKeeperLeaderRetrievalService:" + s, throwable));
 	}
 }

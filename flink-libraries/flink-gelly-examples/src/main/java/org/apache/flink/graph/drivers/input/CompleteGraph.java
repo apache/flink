@@ -30,14 +30,14 @@ import static org.apache.flink.graph.generator.CompleteGraph.MINIMUM_VERTEX_COUN
  * Generate a {@link org.apache.flink.graph.generator.CompleteGraph}.
  */
 public class CompleteGraph
-extends GeneratedGraph<LongValue> {
+extends GeneratedGraph {
 
 	private LongParameter vertexCount = new LongParameter(this, "vertex_count")
 		.setMinimumValue(MINIMUM_VERTEX_COUNT);
 
 	@Override
 	public String getIdentity() {
-		return getTypeName() + " " + getName() + " (" + vertexCount.getValue() + ")";
+		return getName() + " (" + vertexCount.getValue() + ")";
 	}
 
 	@Override
@@ -46,7 +46,7 @@ extends GeneratedGraph<LongValue> {
 	}
 
 	@Override
-	protected Graph<LongValue, NullValue, NullValue> generate(ExecutionEnvironment env) throws Exception {
+	public Graph<LongValue, NullValue, NullValue> create(ExecutionEnvironment env) throws Exception {
 		return new org.apache.flink.graph.generator.CompleteGraph(env, vertexCount.getValue())
 			.setParallelism(parallelism.getValue().intValue())
 			.generate();

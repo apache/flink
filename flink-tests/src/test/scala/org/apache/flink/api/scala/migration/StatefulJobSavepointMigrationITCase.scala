@@ -35,14 +35,14 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.test.checkpointing.utils.SavepointMigrationTestBase
 import org.apache.flink.util.Collector
 import org.apache.flink.api.java.tuple.Tuple2
-import org.apache.flink.runtime.state.{AbstractStateBackend, FunctionInitializationContext, FunctionSnapshotContext}
+import org.apache.flink.runtime.state.{StateBackendLoader, FunctionInitializationContext, FunctionSnapshotContext}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.migration.CustomEnum.CustomEnum
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
 import org.apache.flink.streaming.util.migration.MigrationVersion
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Assume, Ignore, Test}
+import org.junit.{Ignore, Test}
 
 import scala.util.{Failure, Properties, Try}
 
@@ -51,17 +51,21 @@ object StatefulJobSavepointMigrationITCase {
   @Parameterized.Parameters(name = "Migrate Savepoint / Backend: {0}")
   def parameters: util.Collection[(MigrationVersion, String)] = {
     util.Arrays.asList(
-      (MigrationVersion.v1_2, AbstractStateBackend.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_2, AbstractStateBackend.ROCKSDB_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_3, AbstractStateBackend.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_3, AbstractStateBackend.ROCKSDB_STATE_BACKEND_NAME))
+      (MigrationVersion.v1_2, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_2, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_3, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_3, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_4, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_4, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_6, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME))
   }
 
   // TODO to generate savepoints for a specific Flink version / backend type,
   // TODO change these values accordingly, e.g. to generate for 1.3 with RocksDB,
-  // TODO set as (MigrationVersion.v1_3, AbstractStateBackend.ROCKSDB_STATE_BACKEND_NAME)
-  val GENERATE_SAVEPOINT_VER: MigrationVersion = MigrationVersion.v1_3
-  val GENERATE_SAVEPOINT_BACKEND_TYPE: String = AbstractStateBackend.ROCKSDB_STATE_BACKEND_NAME
+  // TODO set as (MigrationVersion.v1_3, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME)
+  val GENERATE_SAVEPOINT_VER: MigrationVersion = MigrationVersion.v1_4
+  val GENERATE_SAVEPOINT_BACKEND_TYPE: String = StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME
 
   val SCALA_VERSION: String = {
     val versionString = Properties.versionString.split(" ")(1)
@@ -86,9 +90,9 @@ class StatefulJobSavepointMigrationITCase(
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     StatefulJobSavepointMigrationITCase.GENERATE_SAVEPOINT_BACKEND_TYPE match {
-      case AbstractStateBackend.ROCKSDB_STATE_BACKEND_NAME =>
+      case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME =>
         env.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()))
-      case AbstractStateBackend.MEMORY_STATE_BACKEND_NAME =>
+      case StateBackendLoader.MEMORY_STATE_BACKEND_NAME =>
         env.setStateBackend(new MemoryStateBackend())
       case _ => throw new UnsupportedOperationException
     }
@@ -129,9 +133,9 @@ class StatefulJobSavepointMigrationITCase(
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     migrationVersionAndBackend._2 match {
-      case AbstractStateBackend.ROCKSDB_STATE_BACKEND_NAME =>
+      case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME =>
         env.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()))
-      case AbstractStateBackend.MEMORY_STATE_BACKEND_NAME =>
+      case StateBackendLoader.MEMORY_STATE_BACKEND_NAME =>
         env.setStateBackend(new MemoryStateBackend())
       case _ => throw new UnsupportedOperationException
     }

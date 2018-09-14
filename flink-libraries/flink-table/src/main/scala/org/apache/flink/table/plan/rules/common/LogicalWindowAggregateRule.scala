@@ -23,11 +23,11 @@ import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
+import org.apache.flink.table.validate.BasicOperatorTable
 
 import _root_.scala.collection.JavaConversions._
 
@@ -40,7 +40,6 @@ abstract class LogicalWindowAggregateRule(ruleName: String)
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg = call.rel(0).asInstanceOf[LogicalAggregate]
 
-    val distinctAggs = agg.getAggCallList.exists(_.isDistinct)
     val groupSets = agg.getGroupSets.size() != 1 || agg.getGroupSets.get(0) != agg.getGroupSet
 
     val windowExpressions = getWindowExpressions(agg)
@@ -48,7 +47,7 @@ abstract class LogicalWindowAggregateRule(ruleName: String)
       throw new TableException("Only a single window group function may be used in GROUP BY")
     }
 
-    !distinctAggs && !groupSets && !agg.indicator && windowExpressions.nonEmpty
+    !groupSets && !agg.indicator && windowExpressions.nonEmpty
   }
 
   /**
@@ -65,20 +64,28 @@ abstract class LogicalWindowAggregateRule(ruleName: String)
     val (windowExpr, windowExprIdx) = getWindowExpressions(agg).head
     val window = translateWindowExpression(windowExpr, project.getInput.getRowType)
 
-    val builder = call.builder()
-    val rexBuilder = builder.getRexBuilder
+    val rexBuilder = call.builder().getRexBuilder
 
     val inAggGroupExpression = getInAggregateGroupExpression(rexBuilder, windowExpr)
+
     val newGroupSet = agg.getGroupSet.except(ImmutableBitSet.of(windowExprIdx))
-    val newAgg = builder
+
+    val builder = call.builder()
+
+    val newProject = builder
       .push(project.getInput)
       .project(project.getChildExps.updated(windowExprIdx, inAggGroupExpression))
-      .aggregate(builder.groupKey(
-        newGroupSet,
-        agg.indicator, ImmutableList.of(newGroupSet)), agg.getAggCallList)
-      .build().asInstanceOf[LogicalAggregate]
+      .build()
 
-    // Create an additional project to conform with types
+    // we don't use the builder here because it uses RelMetadataQuery which affects the plan
+    val newAgg = LogicalAggregate.create(
+      newProject,
+      agg.indicator,
+      newGroupSet,
+      ImmutableList.of(newGroupSet),
+      agg.getAggCallList)
+
+    // create an additional project to conform with types
     val outAggGroupExpression = getOutAggregateGroupExpression(rexBuilder, windowExpr)
     val transformed = call.builder()
     transformed.push(LogicalWindowAggregate.create(
@@ -103,19 +110,19 @@ abstract class LogicalWindowAggregateRule(ruleName: String)
       g._1 match {
         case call: RexCall =>
           call.getOperator match {
-            case SqlStdOperatorTable.TUMBLE =>
+            case BasicOperatorTable.TUMBLE =>
               if (call.getOperands.size() == 2) {
                 true
               } else {
                 throw TableException("TUMBLE window with alignment is not supported yet.")
               }
-            case SqlStdOperatorTable.HOP =>
+            case BasicOperatorTable.HOP =>
               if (call.getOperands.size() == 3) {
                 true
               } else {
                 throw TableException("HOP window with alignment is not supported yet.")
               }
-            case SqlStdOperatorTable.SESSION =>
+            case BasicOperatorTable.SESSION =>
               if (call.getOperands.size() == 2) {
                 true
               } else {

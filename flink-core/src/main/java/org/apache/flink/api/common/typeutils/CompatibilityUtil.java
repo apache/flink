@@ -30,6 +30,8 @@ public class CompatibilityUtil {
 	/**
 	 * Resolves the final compatibility result of two serializers by taking into account compound information,
 	 * including the preceding serializer, the preceding serializer's configuration snapshot, and the new serializer.
+	 * This method has the side effect that the provided new serializer may have been reconfigured in order to
+	 * remain compatible.
 	 *
 	 * The final result is determined as follows:
 	 *   1. If there is no configuration snapshot of the preceding serializer,

@@ -18,8 +18,9 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import io.netty.buffer.ByteBuf;
 import org.apache.flink.util.AbstractID;
+
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
 public class InputChannelID extends AbstractID {
 

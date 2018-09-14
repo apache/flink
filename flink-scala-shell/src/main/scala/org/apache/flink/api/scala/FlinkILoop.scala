@@ -35,7 +35,7 @@ class FlinkILoop(
     val externalJars: Option[Array[String]],
     in0: Option[BufferedReader],
     out0: JPrintWriter)
-  extends ILoopCompat(in0, out0) {
+  extends ILoop(in0, out0) {
 
   def this(
     host: String,
@@ -145,15 +145,13 @@ class FlinkILoop(
   override def createInterpreter(): Unit = {
     super.createInterpreter()
 
-    addThunk {
-      intp.beQuietDuring {
-        // import dependencies
-        intp.interpret("import " + packageImports.mkString(", "))
+    intp.beQuietDuring {
+      // import dependencies
+      intp.interpret("import " + packageImports.mkString(", "))
 
-        // set execution environment
-        intp.bind("benv", this.scalaBenv)
-        intp.bind("senv", this.scalaSenv)
-      }
+      // set execution environment
+      intp.bind("benv", this.scalaBenv)
+      intp.bind("senv", this.scalaSenv)
     }
   }
 

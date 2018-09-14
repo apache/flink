@@ -18,10 +18,10 @@
 
 package org.apache.flink.graph.library.clustering.undirected;
 
+import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.AsmTestBase;
 import org.apache.flink.graph.library.clustering.undirected.AverageClusteringCoefficient.Result;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.LongValue;
+import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.NullValue;
 
 import org.junit.Test;
@@ -31,56 +31,50 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link AverageClusteringCoefficient}.
  */
-public class AverageClusteringCoefficientTest
-extends AsmTestBase {
+public class AverageClusteringCoefficientTest extends AsmTestBase {
+
+	/**
+	 * Validate a test result.
+	 *
+	 * @param graph input graph
+	 * @param vertexCount result vertex count
+	 * @param averageClusteringCoefficient result average clustering coefficient
+	 * @param <T> graph ID type
+	 * @throws Exception on error
+	 */
+	private static <T extends Comparable<T> & CopyableValue<T>> void validate(
+			Graph<T, NullValue, NullValue> graph, long vertexCount, double averageClusteringCoefficient) throws Exception {
+		Result result = new AverageClusteringCoefficient<T, NullValue, NullValue>()
+			.run(graph)
+			.execute();
+
+		assertEquals(vertexCount, result.getNumberOfVertices());
+		assertEquals(averageClusteringCoefficient, result.getAverageClusteringCoefficient(), ACCURACY);
+	}
 
 	@Test
-	public void testWithSimpleGraph()
-			throws Exception {
+	public void testWithSimpleGraph() throws Exception {
 		// see results in LocalClusteringCoefficientTest.testSimpleGraph
-		Result expectedResult = new Result(6, 1.0 / 1 + 2.0 / 3 + 2.0 / 3 + 1.0 / 6);
-
-		Result averageClusteringCoefficient = new AverageClusteringCoefficient<IntValue, NullValue, NullValue>()
-			.run(undirectedSimpleGraph)
-			.execute();
-
-		assertEquals(expectedResult, averageClusteringCoefficient);
+		validate(undirectedSimpleGraph, 6, (1.0 / 1 + 2.0 / 3 + 2.0 / 3 + 1.0 / 6) / 6);
 	}
 
 	@Test
-	public void testWithCompleteGraph()
-			throws Exception {
-		Result expectedResult = new Result(completeGraphVertexCount, completeGraphVertexCount);
-
-		Result averageClusteringCoefficient = new AverageClusteringCoefficient<LongValue, NullValue, NullValue>()
-			.run(completeGraph)
-			.execute();
-
-		assertEquals(expectedResult, averageClusteringCoefficient);
+	public void testWithCompleteGraph() throws Exception {
+		validate(completeGraph, completeGraphVertexCount, 1.0);
 	}
 
 	@Test
-	public void testWithEmptyGraph()
-			throws Exception {
-		Result expectedResult = new Result(emptyGraphVertexCount, 0);
-
-		Result averageClusteringCoefficient = new AverageClusteringCoefficient<LongValue, NullValue, NullValue>()
-			.run(emptyGraph)
-			.execute();
-
-		assertEquals(expectedResult, averageClusteringCoefficient);
+	public void testWithEmptyGraphWithVertices() throws Exception {
+		validate(emptyGraphWithVertices, emptyGraphVertexCount, 0);
 	}
 
 	@Test
-	public void testWithRMatGraph()
-			throws Exception {
-		Result expectedResult = new Result(902, 380.40109);
+	public void testWithEmptyGraphWithoutVertices() throws Exception {
+		validate(emptyGraphWithoutVertices, 0, Double.NaN);
+	}
 
-		Result averageClusteringCoefficient = new AverageClusteringCoefficient<LongValue, NullValue, NullValue>()
-			.run(undirectedRMatGraph(10, 16))
-			.execute();
-
-		assertEquals(expectedResult.getNumberOfVertices(), averageClusteringCoefficient.getNumberOfVertices());
-		assertEquals(expectedResult.getAverageClusteringCoefficient(), averageClusteringCoefficient.getAverageClusteringCoefficient(), 0.000001);
+	@Test
+	public void testWithRMatGraph() throws Exception {
+		validate(undirectedRMatGraph(10, 16), 902, 0.421730);
 	}
 }

@@ -30,7 +30,7 @@ import static org.apache.flink.graph.generator.PathGraph.MINIMUM_VERTEX_COUNT;
  * Generate a {@link org.apache.flink.graph.generator.SingletonEdgeGraph}.
  */
 public class SingletonEdgeGraph
-extends GeneratedGraph<LongValue> {
+extends GeneratedGraph {
 
 	private LongParameter vertexPairCount = new LongParameter(this, "vertex_pair_count")
 		.setMinimumValue(MINIMUM_VERTEX_COUNT)
@@ -38,7 +38,7 @@ extends GeneratedGraph<LongValue> {
 
 	@Override
 	public String getIdentity() {
-		return getTypeName() + " " + getName() + " (" + vertexPairCount + ")";
+		return getName() + " (" + vertexPairCount + ")";
 	}
 
 	@Override
@@ -47,7 +47,7 @@ extends GeneratedGraph<LongValue> {
 	}
 
 	@Override
-	public Graph<LongValue, NullValue, NullValue> generate(ExecutionEnvironment env) {
+	public Graph<LongValue, NullValue, NullValue> create(ExecutionEnvironment env) {
 		return new org.apache.flink.graph.generator.SingletonEdgeGraph(env, vertexPairCount.getValue())
 			.setParallelism(parallelism.getValue().intValue())
 			.generate();

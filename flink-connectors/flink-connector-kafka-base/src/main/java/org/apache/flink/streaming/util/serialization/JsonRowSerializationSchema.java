@@ -17,12 +17,9 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.Preconditions;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * Serialization schema that serializes an object into a JSON bytes.
@@ -32,40 +29,24 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  *
  * <p>Result <code>byte[]</code> messages can be deserialized using
  * {@link JsonRowDeserializationSchema}.
+ *
+ * @deprecated Please use {@link org.apache.flink.formats.json.JsonRowSerializationSchema} in
+ * the "flink-json" module.
  */
-public class JsonRowSerializationSchema implements SerializationSchema<Row> {
-	/** Fields names in the input Row object. */
-	private final String[] fieldNames;
-	/** Object mapper that is used to create output JSON objects. */
-	private static ObjectMapper mapper = new ObjectMapper();
+@PublicEvolving
+@Deprecated
+public class JsonRowSerializationSchema extends org.apache.flink.formats.json.JsonRowSerializationSchema {
 
 	/**
 	 * Creates a JSON serialization schema for the given fields and types.
 	 *
-	 * @param fieldNames Names of JSON fields to parse.
+	 * @param typeInfo The schema of the rows to encode.
+	 *
+	 * @deprecated Please use {@link org.apache.flink.formats.json.JsonRowSerializationSchema} in
+	 * the "flink-json" module.
 	 */
-	public JsonRowSerializationSchema(String[] fieldNames) {
-		this.fieldNames = Preconditions.checkNotNull(fieldNames);
-	}
-
-	@Override
-	public byte[] serialize(Row row) {
-		if (row.getArity() != fieldNames.length) {
-			throw new IllegalStateException(String.format(
-				"Number of elements in the row %s is different from number of field names: %d", row, fieldNames.length));
-		}
-
-		ObjectNode objectNode = mapper.createObjectNode();
-
-		for (int i = 0; i < row.getArity(); i++) {
-			JsonNode node = mapper.valueToTree(row.getField(i));
-			objectNode.set(fieldNames[i], node);
-		}
-
-		try {
-			return mapper.writeValueAsBytes(objectNode);
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to serialize row", e);
-		}
+	@Deprecated
+	public JsonRowSerializationSchema(TypeInformation<Row> typeInfo) {
+		super(typeInfo);
 	}
 }

@@ -23,12 +23,16 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.Operator;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
+
 import org.junit.Test;
 
 import java.lang.reflect.Method;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link Operator}.
+ */
 public class OperatorTest {
 
 	@Test
@@ -56,8 +60,8 @@ public class OperatorTest {
 		opMethod.setAccessible(true);
 
 		// verify explicit change in resources
-		ResourceSpec minResources = new ResourceSpec(1.0, 100);
-		ResourceSpec preferredResources = new ResourceSpec(2.0, 200);
+		ResourceSpec minResources = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
+		ResourceSpec preferredResources = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(200).build();
 		opMethod.invoke(operator, minResources, preferredResources);
 
 		assertEquals(minResources, operator.getMinResources());

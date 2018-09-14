@@ -20,6 +20,7 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.CharacterFilter;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
@@ -35,11 +36,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class OperatorMetricGroup extends ComponentMetricGroup<TaskMetricGroup> {
 	private final String operatorName;
+	private final OperatorID operatorID;
 
 	private final OperatorIOMetricGroup ioMetrics;
 
-	public OperatorMetricGroup(MetricRegistry registry, TaskMetricGroup parent, String operatorName) {
-		super(registry, registry.getScopeFormats().getOperatorFormat().formatScope(checkNotNull(parent), operatorName), parent);
+	public OperatorMetricGroup(MetricRegistry registry, TaskMetricGroup parent, OperatorID operatorID, String operatorName) {
+		super(registry, registry.getScopeFormats().getOperatorFormat().formatScope(checkNotNull(parent), operatorID, operatorName), parent);
+		this.operatorID = operatorID;
 		this.operatorName = operatorName;
 
 		ioMetrics = new OperatorIOMetricGroup(this);
@@ -75,6 +78,7 @@ public class OperatorMetricGroup extends ComponentMetricGroup<TaskMetricGroup> {
 
 	@Override
 	protected void putVariables(Map<String, String> variables) {
+		variables.put(ScopeFormat.SCOPE_OPERATOR_ID, String.valueOf(operatorID));
 		variables.put(ScopeFormat.SCOPE_OPERATOR_NAME, operatorName);
 		// we don't enter the subtask_index as the task group does that already
 	}

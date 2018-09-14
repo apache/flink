@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph.failover;
 
-import org.apache.flink.runtime.concurrent.AcceptFunction;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -27,6 +25,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.GlobalModVersionMismatch;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
 
@@ -37,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -143,7 +143,7 @@ public class FailoverRegion {
 				if (transitionState(curStatus, JobStatus.CANCELLING)) {
 
 					// we build a future that is complete once all vertices have reached a terminal state
-					final ArrayList<Future<?>> futures = new ArrayList<>(connectedExecutionVertexes.size());
+					final ArrayList<CompletableFuture<?>> futures = new ArrayList<>(connectedExecutionVertexes.size());
 
 					// cancel all tasks (that still need cancelling)
 					for (ExecutionVertex vertex : connectedExecutionVertexes) {
@@ -151,12 +151,9 @@ public class FailoverRegion {
 					}
 
 					final FutureUtils.ConjunctFuture<Void> allTerminal = FutureUtils.waitForAll(futures);
-					allTerminal.thenAcceptAsync(new AcceptFunction<Void>() {
-						@Override
-						public void accept(Void value) {
-							allVerticesInTerminalState(globalModVersionOfFailover);
-						}
-					}, executor);
+					allTerminal.thenAcceptAsync(
+						(Void value) -> allVerticesInTerminalState(globalModVersionOfFailover),
+						executor);
 
 					break;
 				}
@@ -220,8 +217,9 @@ public class FailoverRegion {
 				for (ExecutionVertex ev : connectedExecutionVertexes) {
 					try {
 						ev.scheduleForExecution(
-								executionGraph.getSlotProvider(),
-								executionGraph.isQueuedSchedulingAllowed());
+							executionGraph.getSlotProvider(),
+							executionGraph.isQueuedSchedulingAllowed(),
+							LocationPreferenceConstraint.ANY); // some inputs not belonging to the failover region might have failed concurrently
 					}
 					catch (Throwable e) {
 						failover(globalModVersionOfFailover);

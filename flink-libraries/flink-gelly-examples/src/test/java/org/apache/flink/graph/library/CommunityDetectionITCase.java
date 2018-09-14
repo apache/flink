@@ -53,7 +53,7 @@ public class CommunityDetectionITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Double> inputGraph = Graph.fromDataSet(
 			CommunityDetectionData.getSimpleEdgeDataSet(env), new InitLabels(), env);
 
-		List<Vertex<Long, Long>> result = inputGraph.run(new CommunityDetection<Long>(1, CommunityDetectionData.DELTA))
+		List<Vertex<Long, Long>> result = inputGraph.run(new CommunityDetection<>(1, CommunityDetectionData.DELTA))
 			.getVertices().collect();
 
 		expected = CommunityDetectionData.COMMUNITIES_SINGLE_ITERATION;
@@ -69,7 +69,7 @@ public class CommunityDetectionITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Double> inputGraph = Graph.fromDataSet(
 			CommunityDetectionData.getTieEdgeDataSet(env), new InitLabels(), env);
 
-		List<Vertex<Long, Long>> result = inputGraph.run(new CommunityDetection<Long>(1, CommunityDetectionData.DELTA))
+		List<Vertex<Long, Long>> result = inputGraph.run(new CommunityDetection<>(1, CommunityDetectionData.DELTA))
 			.getVertices().collect();
 		expected = CommunityDetectionData.COMMUNITIES_WITH_TIE;
 		compareResultAsTuples(result, expected);

@@ -144,7 +144,7 @@ public class MusicProfiles implements ProgramDescription {
 				.map(new MapFunction<Tuple2<Long, String>, Tuple2<String, Long>>() {
 					@Override
 					public Tuple2<String, Long> map(Tuple2<Long, String> tuple2) throws Exception {
-						return new Tuple2<String, Long>(tuple2.f1, tuple2.f0);
+						return new Tuple2<>(tuple2.f1, tuple2.f0);
 					}
 				});
 
@@ -154,7 +154,7 @@ public class MusicProfiles implements ProgramDescription {
 							public Long vertexJoin(Long vertexValue, Long inputValue) {
 								return inputValue;
 							}
-						}).run(new LabelPropagation<String, Long, NullValue>(maxIterations));
+						}).run(new LabelPropagation<>(maxIterations));
 
 		if (fileOutput) {
 			verticesWithCommunity.writeAsCsv(communitiesOutputPath, "\n", "\t");
@@ -172,7 +172,7 @@ public class MusicProfiles implements ProgramDescription {
 		public Tuple1<String> map(String value) {
 			String[] tokens = value.split("\\s+");
 			String songId = tokens[1].substring(1);
-			return new Tuple1<String>(songId);
+			return new Tuple1<>(songId);
 		}
 	}
 
@@ -211,7 +211,7 @@ public class MusicProfiles implements ProgramDescription {
 					topSong = edge.getTarget();
 				}
 			}
-			out.collect(new Tuple2<String, String>(vertex.getId(), topSong));
+			out.collect(new Tuple2<>(vertex.getId(), topSong));
 		}
 	}
 
@@ -219,14 +219,14 @@ public class MusicProfiles implements ProgramDescription {
 		Edge<String, NullValue>> {
 
 		public void reduce(Iterable<Edge<String, Integer>> edges, Collector<Edge<String, NullValue>> out) {
-			List<String> listeners = new ArrayList<String>();
+			List<String> listeners = new ArrayList<>();
 			for (Edge<String, Integer> edge : edges) {
 				listeners.add(edge.getSource());
 			}
 			for (int i = 0; i < listeners.size() - 1; i++) {
 				for (int j = i + 1; j < listeners.size(); j++) {
-					out.collect(new Edge<String, NullValue>(listeners.get(i),
-							listeners.get(j), NullValue.getInstance()));
+					out.collect(new Edge<>(listeners.get(i),
+						listeners.get(j), NullValue.getInstance()));
 				}
 			}
 		}

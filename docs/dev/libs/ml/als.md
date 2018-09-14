@@ -173,3 +173,5 @@ val testingDS: DataSet[(Int, Int)] = env.readCsvFile[(Int, Int)](pathToData)
 // Calculate the ratings according to the matrix factorization
 val predictedRatings = als.predict(testingDS)
 {% endhighlight %}
+
+{% top %}

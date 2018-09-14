@@ -19,9 +19,12 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.Event;
+import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
+import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
+import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
+import org.apache.flink.cep.utils.TestSharedBuffer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import com.google.common.primitives.Doubles;
 import org.junit.Assert;
 
 import java.util.ArrayList;
@@ -36,20 +39,51 @@ import java.util.Map;
  */
 public class NFATestUtilities {
 
-	public static List<List<Event>> feedNFA(List<StreamRecord<Event>> inputEvents, NFA<Event> nfa) {
+	public static List<List<Event>> feedNFA(
+		List<StreamRecord<Event>> inputEvents,
+		NFA<Event> nfa) throws Exception {
+		return feedNFA(inputEvents, nfa, nfa.createInitialNFAState(), AfterMatchSkipStrategy.noSkip());
+	}
+
+	public static List<List<Event>> feedNFA(
+			List<StreamRecord<Event>> inputEvents,
+			NFA<Event> nfa,
+			NFAState nfaState) throws Exception {
+		return feedNFA(inputEvents, nfa, nfaState, AfterMatchSkipStrategy.noSkip());
+	}
+
+	public static List<List<Event>> feedNFA(
+		List<StreamRecord<Event>> inputEvents,
+		NFA<Event> nfa,
+		AfterMatchSkipStrategy afterMatchSkipStrategy) throws Exception {
+		return feedNFA(inputEvents, nfa, nfa.createInitialNFAState(), afterMatchSkipStrategy);
+	}
+
+	public static List<List<Event>> feedNFA(
+			List<StreamRecord<Event>> inputEvents,
+			NFA<Event> nfa,
+			NFAState nfaState,
+			AfterMatchSkipStrategy afterMatchSkipStrategy) throws Exception {
 		List<List<Event>> resultingPatterns = new ArrayList<>();
 
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, List<Event>>> patterns = nfa.process(
-				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
+		SharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
 
-			for (Map<String, List<Event>> p: patterns) {
-				List<Event> res = new ArrayList<>();
-				for (List<Event> le: p.values()) {
-					res.addAll(le);
+		for (StreamRecord<Event> inputEvent : inputEvents) {
+			try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
+				nfa.advanceTime(sharedBufferAccessor, nfaState, inputEvent.getTimestamp());
+				Collection<Map<String, List<Event>>> patterns = nfa.process(
+					sharedBufferAccessor,
+					nfaState,
+					inputEvent.getValue(),
+					inputEvent.getTimestamp(),
+					afterMatchSkipStrategy);
+				for (Map<String, List<Event>> p: patterns) {
+					List<Event> res = new ArrayList<>();
+					for (List<Event> le: p.values()) {
+						res.addAll(le);
+					}
+					resultingPatterns.add(res);
 				}
-				resultingPatterns.add(res);
 			}
 		}
 		return resultingPatterns;
@@ -96,7 +130,7 @@ public class NFATestUtilities {
 		@Override
 		public int compare(Event o1, Event o2) {
 			int nameComp = o1.getName().compareTo(o2.getName());
-			int priceComp = Doubles.compare(o1.getPrice(), o2.getPrice());
+			int priceComp = Double.compare(o1.getPrice(), o2.getPrice());
 			int idComp = Integer.compare(o1.getId(), o2.getId());
 			if (nameComp == 0) {
 				if (priceComp == 0) {

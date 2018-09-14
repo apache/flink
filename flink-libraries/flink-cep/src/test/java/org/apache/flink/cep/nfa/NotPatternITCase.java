@@ -19,13 +19,13 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.Event;
-import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 
-import com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -33,6 +33,7 @@ import java.util.List;
 
 import static org.apache.flink.cep.nfa.NFATestUtilities.compareMaps;
 import static org.apache.flink.cep.nfa.NFATestUtilities.feedNFA;
+import static org.apache.flink.cep.utils.NFAUtils.compile;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -42,7 +43,7 @@ import static org.junit.Assert.assertEquals;
 public class NotPatternITCase extends TestLogger {
 
 	@Test
-	public void testNotNext() {
+	public void testNotNext() throws Exception {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event a1 = new Event(40, "a", 1.0);
@@ -87,7 +88,7 @@ public class NotPatternITCase extends TestLogger {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
@@ -98,7 +99,7 @@ public class NotPatternITCase extends TestLogger {
 	}
 
 	@Test
-	public void testNotNextNoMatches() {
+	public void testNotNextNoMatches() throws Exception {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event a1 = new Event(40, "a", 1.0);
@@ -143,7 +144,7 @@ public class NotPatternITCase extends TestLogger {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
@@ -151,7 +152,7 @@ public class NotPatternITCase extends TestLogger {
 	}
 
 	@Test
-	public void testNotNextNoMatchesAtTheEnd() {
+	public void testNotNextNoMatchesAtTheEnd() throws Exception {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event a1 = new Event(40, "a", 1.0);
@@ -196,7 +197,7 @@ public class NotPatternITCase extends TestLogger {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
@@ -204,7 +205,7 @@ public class NotPatternITCase extends TestLogger {
 	}
 
 	@Test
-	public void testNotFollowedBy() {
+	public void testNotFollowedBy() throws Exception {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event a1 = new Event(40, "a", 1.0);
@@ -249,7 +250,7 @@ public class NotPatternITCase extends TestLogger {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
@@ -259,7 +260,7 @@ public class NotPatternITCase extends TestLogger {
 	}
 
 	@Test
-	public void testNotFollowedByBeforeOptional() {
+	public void testNotFollowedByBeforeOptional() throws Exception {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event a1 = new Event(40, "a", 1.0);
@@ -304,7 +305,7 @@ public class NotPatternITCase extends TestLogger {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
@@ -314,7 +315,7 @@ public class NotPatternITCase extends TestLogger {
 	}
 
 	@Test
-	public void testTimesWithNotFollowedBy() {
+	public void testTimesWithNotFollowedBy() throws Exception {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event a1 = new Event(40, "a", 1.0);
@@ -359,7 +360,7 @@ public class NotPatternITCase extends TestLogger {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
@@ -367,7 +368,7 @@ public class NotPatternITCase extends TestLogger {
 	}
 
 	@Test
-	public void testIgnoreStateOfTimesWithNotFollowedBy() {
+	public void testIgnoreStateOfTimesWithNotFollowedBy() throws Exception {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event a1 = new Event(40, "a", 1.0);
@@ -416,7 +417,7 @@ public class NotPatternITCase extends TestLogger {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
@@ -426,7 +427,7 @@ public class NotPatternITCase extends TestLogger {
 	}
 
 	@Test
-	public void testTimesWithNotFollowedByAfter() {
+	public void testTimesWithNotFollowedByAfter() throws Exception {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event a1 = new Event(40, "a", 1.0);
@@ -475,7 +476,7 @@ public class NotPatternITCase extends TestLogger {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
@@ -483,7 +484,7 @@ public class NotPatternITCase extends TestLogger {
 	}
 
 	@Test
-	public void testNotFollowedByBeforeOptionalAtTheEnd() {
+	public void testNotFollowedByBeforeOptionalAtTheEnd() throws Exception {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event a1 = new Event(40, "a", 1.0);
@@ -519,7 +520,7 @@ public class NotPatternITCase extends TestLogger {
 			}
 		}).optional();
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
@@ -530,7 +531,7 @@ public class NotPatternITCase extends TestLogger {
 	}
 
 	@Test
-	public void testNotFollowedByBeforeOptionalTimes() {
+	public void testNotFollowedByBeforeOptionalTimes() throws Exception {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event a1 = new Event(40, "a", 1.0);
@@ -575,7 +576,7 @@ public class NotPatternITCase extends TestLogger {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
@@ -585,7 +586,7 @@ public class NotPatternITCase extends TestLogger {
 	}
 
 	@Test
-	public void testNotFollowedByWithBranchingAtStart() {
+	public void testNotFollowedByWithBranchingAtStart() throws Exception {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event a1 = new Event(40, "a", 1.0);
@@ -632,7 +633,7 @@ public class NotPatternITCase extends TestLogger {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
@@ -657,20 +658,20 @@ public class NotPatternITCase extends TestLogger {
 	}
 
 	@Test
-	public void testNotNextAfterOneOrMoreSkipTillNext() {
+	public void testNotNextAfterOneOrMoreSkipTillNext() throws Exception {
 		final List<List<Event>> matches = testNotNextAfterOneOrMore(false);
 		assertEquals(0, matches.size());
 	}
 
 	@Test
-	public void testNotNextAfterOneOrMoreSkipTillAny() {
+	public void testNotNextAfterOneOrMoreSkipTillAny() throws Exception {
 		final List<List<Event>> matches = testNotNextAfterOneOrMore(true);
 		compareMaps(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_2, NotFollowByData.D_1)
 		));
 	}
 
-	private List<List<Event>> testNotNextAfterOneOrMore(boolean allMatches) {
+	private List<List<Event>> testNotNextAfterOneOrMore(boolean allMatches) throws Exception {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		int i = 0;
@@ -715,19 +716,19 @@ public class NotPatternITCase extends TestLogger {
 				}
 			});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		return feedNFA(inputEvents, nfa);
 	}
 
 	@Test
-	public void testNotFollowedByNextAfterOneOrMoreEager() {
+	public void testNotFollowedByNextAfterOneOrMoreEager() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByAfterOneOrMore(true, false);
 		assertEquals(0, matches.size());
 	}
 
 	@Test
-	public void testNotFollowedByAnyAfterOneOrMoreEager() {
+	public void testNotFollowedByAnyAfterOneOrMoreEager() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByAfterOneOrMore(true, true);
 		compareMaps(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.B_6, NotFollowByData.D_1),
@@ -740,13 +741,13 @@ public class NotPatternITCase extends TestLogger {
 	}
 
 	@Test
-	public void testNotFollowedByNextAfterOneOrMoreCombinations() {
+	public void testNotFollowedByNextAfterOneOrMoreCombinations() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByAfterOneOrMore(false, false);
 		assertEquals(0, matches.size());
 	}
 
 	@Test
-	public void testNotFollowedByAnyAfterOneOrMoreCombinations() {
+	public void testNotFollowedByAnyAfterOneOrMoreCombinations() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByAfterOneOrMore(false, true);
 		compareMaps(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.B_6, NotFollowByData.D_1),
@@ -759,7 +760,7 @@ public class NotPatternITCase extends TestLogger {
 		));
 	}
 
-	private List<List<Event>> testNotFollowedByAfterOneOrMore(boolean eager, boolean allMatches) {
+	private List<List<Event>> testNotFollowedByAfterOneOrMore(boolean eager, boolean allMatches) throws Exception {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		int i = 0;
@@ -811,13 +812,13 @@ public class NotPatternITCase extends TestLogger {
 				}
 			});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		return feedNFA(inputEvents, nfa);
 	}
 
 	@Test
-	public void testNotFollowedByAnyBeforeOneOrMoreEager() {
+	public void testNotFollowedByAnyBeforeOneOrMoreEager() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByBeforeOneOrMore(true, true);
 
 		compareMaps(matches, Lists.<List<Event>>newArrayList(
@@ -829,7 +830,7 @@ public class NotPatternITCase extends TestLogger {
 	}
 
 	@Test
-	public void testNotFollowedByAnyBeforeOneOrMoreCombinations() {
+	public void testNotFollowedByAnyBeforeOneOrMoreCombinations() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByBeforeOneOrMore(false, true);
 
 		compareMaps(matches, Lists.<List<Event>>newArrayList(
@@ -845,7 +846,7 @@ public class NotPatternITCase extends TestLogger {
 	}
 
 	@Test
-	public void testNotFollowedByBeforeOneOrMoreEager() {
+	public void testNotFollowedByBeforeOneOrMoreEager() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByBeforeOneOrMore(true, false);
 
 		compareMaps(matches, Lists.<List<Event>>newArrayList(
@@ -857,7 +858,7 @@ public class NotPatternITCase extends TestLogger {
 	}
 
 	@Test
-	public void testNotFollowedByBeforeOneOrMoreCombinations() {
+	public void testNotFollowedByBeforeOneOrMoreCombinations() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByBeforeOneOrMore(false, false);
 
 		compareMaps(matches, Lists.<List<Event>>newArrayList(
@@ -872,7 +873,7 @@ public class NotPatternITCase extends TestLogger {
 		));
 	}
 
-	private List<List<Event>> testNotFollowedByBeforeOneOrMore(boolean eager, boolean allMatches) {
+	private List<List<Event>> testNotFollowedByBeforeOneOrMore(boolean eager, boolean allMatches) throws Exception {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		int i = 0;
@@ -922,13 +923,13 @@ public class NotPatternITCase extends TestLogger {
 				}
 			});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		return feedNFA(inputEvents, nfa);
 	}
 
 	@Test
-	public void testNotFollowedByBeforeZeroOrMoreEagerSkipTillNext() {
+	public void testNotFollowedByBeforeZeroOrMoreEagerSkipTillNext() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByBeforeZeroOrMore(true, false);
 		compareMaps(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.B_6, NotFollowByData.D_1),
@@ -939,7 +940,7 @@ public class NotPatternITCase extends TestLogger {
 	}
 
 	@Test
-	public void testNotFollowedByBeforeZeroOrMoreCombinationsSkipTillNext() {
+	public void testNotFollowedByBeforeZeroOrMoreCombinationsSkipTillNext() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByBeforeZeroOrMore(false, false);
 		compareMaps(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.B_6, NotFollowByData.D_1),
@@ -954,7 +955,7 @@ public class NotPatternITCase extends TestLogger {
 	}
 
 	@Test
-	public void testNotFollowedByBeforeZeroOrMoreEagerSkipTillAny() {
+	public void testNotFollowedByBeforeZeroOrMoreEagerSkipTillAny() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByBeforeZeroOrMore(true, true);
 		compareMaps(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.B_6, NotFollowByData.D_1),
@@ -965,7 +966,7 @@ public class NotPatternITCase extends TestLogger {
 	}
 
 	@Test
-	public void testNotFollowedByBeforeZeroOrMoreCombinationsSkipTillAny() {
+	public void testNotFollowedByBeforeZeroOrMoreCombinationsSkipTillAny() throws Exception {
 		final List<List<Event>> matches = testNotFollowedByBeforeZeroOrMore(false, true);
 		compareMaps(matches, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(NotFollowByData.A_1, NotFollowByData.B_1, NotFollowByData.B_4, NotFollowByData.B_5, NotFollowByData.B_6, NotFollowByData.D_1),
@@ -979,7 +980,7 @@ public class NotPatternITCase extends TestLogger {
 		));
 	}
 
-	private List<List<Event>> testNotFollowedByBeforeZeroOrMore(boolean eager, boolean allMatches) {
+	private List<List<Event>> testNotFollowedByBeforeZeroOrMore(boolean eager, boolean allMatches) throws Exception {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		int i = 0;
@@ -1029,7 +1030,7 @@ public class NotPatternITCase extends TestLogger {
 				}
 			});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		return feedNFA(inputEvents, nfa);
 	}

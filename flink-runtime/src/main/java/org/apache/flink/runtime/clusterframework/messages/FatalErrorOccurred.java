@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
-import org.apache.flink.runtime.util.SerializedThrowable;
+import org.apache.flink.util.SerializedThrowable;
 
 import java.io.Serializable;
 

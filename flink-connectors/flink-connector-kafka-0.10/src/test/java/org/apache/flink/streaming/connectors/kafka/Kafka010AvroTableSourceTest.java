@@ -18,25 +18,22 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.util.serialization.AvroRowDeserializationSchema;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.formats.avro.AvroRowDeserializationSchema;
 import org.apache.flink.types.Row;
-
-import java.util.Properties;
 
 /**
  * Tests for the {@link Kafka010AvroTableSource}.
+ *
+ * @deprecated Ensures backwards compatibility with Flink 1.5. Can be removed once we
+ *             drop support for format-specific table sources.
  */
-public class Kafka010AvroTableSourceTest extends KafkaTableSourceTestBase {
+@Deprecated
+public class Kafka010AvroTableSourceTest extends KafkaAvroTableSourceTestBase {
 
 	@Override
-	protected KafkaTableSource createTableSource(String topic, Properties properties, TypeInformation<Row> typeInfo) {
-
-		return new Kafka010AvroTableSource(
-			topic,
-			properties,
-			AvroSpecificRecord.class);
+	protected KafkaTableSource.Builder getBuilder() {
+		return Kafka010AvroTableSource.builder();
 	}
 
 	@Override

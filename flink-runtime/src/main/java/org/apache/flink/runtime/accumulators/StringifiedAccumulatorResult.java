@@ -19,6 +19,13 @@
 package org.apache.flink.runtime.accumulators;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.OptionalFailure;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.Map;
 
@@ -26,6 +33,7 @@ import java.util.Map;
  * Container class that transports the result of an accumulator as set of strings.
  */
 public class StringifiedAccumulatorResult implements java.io.Serializable{
+	private static final Logger LOG = LoggerFactory.getLogger(StringifiedAccumulatorResult.class);
 
 	private static final long serialVersionUID = -4642311296836822611L;
 
@@ -58,7 +66,7 @@ public class StringifiedAccumulatorResult implements java.io.Serializable{
 	/**
 	 * Flatten a map of accumulator names to Accumulator instances into an array of StringifiedAccumulatorResult values.
      */
-	public static StringifiedAccumulatorResult[] stringifyAccumulatorResults(Map<String, Accumulator<?, ?>> accs) {
+	public static StringifiedAccumulatorResult[] stringifyAccumulatorResults(Map<String, OptionalFailure<Accumulator<?, ?>>> accs) {
 		if (accs == null || accs.isEmpty()) {
 			return new StringifiedAccumulatorResult[0];
 		}
@@ -66,23 +74,37 @@ public class StringifiedAccumulatorResult implements java.io.Serializable{
 			StringifiedAccumulatorResult[] results = new StringifiedAccumulatorResult[accs.size()];
 
 			int i = 0;
-			for (Map.Entry<String, Accumulator<?, ?>> entry : accs.entrySet()) {
-				StringifiedAccumulatorResult result;
-				Accumulator<?, ?> accumulator = entry.getValue();
-				if (accumulator != null) {
-					Object localValue = accumulator.getLocalValue();
-					if (localValue != null) {
-						result = new StringifiedAccumulatorResult(entry.getKey(), accumulator.getClass().getSimpleName(), localValue.toString());
-					} else {
-						result = new StringifiedAccumulatorResult(entry.getKey(), accumulator.getClass().getSimpleName(), "null");
-					}
-				} else {
-					result = new StringifiedAccumulatorResult(entry.getKey(), "null", "null");
-				}
-
-				results[i++] = result;
+			for (Map.Entry<String, OptionalFailure<Accumulator<?, ?>>> entry : accs.entrySet()) {
+				results[i++] = stringifyAccumulatorResult(entry.getKey(), entry.getValue());
 			}
 			return results;
+		}
+	}
+
+	private static StringifiedAccumulatorResult stringifyAccumulatorResult(
+			String name,
+			@Nullable OptionalFailure<Accumulator<?, ?>> accumulator) {
+		if (accumulator == null) {
+			return new StringifiedAccumulatorResult(name, "null", "null");
+		}
+		else if (accumulator.isFailure()) {
+			return new StringifiedAccumulatorResult(
+				name,
+				"null",
+				ExceptionUtils.stringifyException(accumulator.getFailureCause()));
+		}
+		else {
+			Object localValue;
+			String simpleName = "null";
+			try {
+				simpleName = accumulator.getUnchecked().getClass().getSimpleName();
+				localValue = accumulator.getUnchecked().getLocalValue();
+			}
+			catch (RuntimeException exception) {
+				LOG.error("Failed to stringify accumulator [" + name + "]", exception);
+				localValue = ExceptionUtils.stringifyException(exception);
+			}
+			return new StringifiedAccumulatorResult(name, simpleName, localValue != null ? localValue.toString() : "null");
 		}
 	}
 }

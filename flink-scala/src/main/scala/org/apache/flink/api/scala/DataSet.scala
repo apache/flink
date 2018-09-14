@@ -23,7 +23,7 @@ import org.apache.flink.api.common.accumulators.SerializedListAccumulator
 import org.apache.flink.api.common.aggregators.Aggregator
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.{FileOutputFormat, OutputFormat}
-import org.apache.flink.api.common.operators.{ResourceSpec, Keys, Order}
+import org.apache.flink.api.common.operators.{Keys, Order, ResourceSpec}
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
@@ -268,7 +268,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * The runtime context itself is available in all UDFs via
    * `org.apache.flink.api.common.functions.AbstractRichFunction#getRuntimeContext()`
    *
-   * @param data The data set to be broadcasted.
+   * @param data The data set to be broadcast.
    * @param name The name under which the broadcast data set retrieved.
    * @return The operator itself, to allow chaining function calls.
    */

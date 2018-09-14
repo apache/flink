@@ -34,14 +34,12 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link MaximumDegree}.
  */
-public class MaximumDegreeTest
-extends AsmTestBase {
+public class MaximumDegreeTest extends AsmTestBase {
 
 	@Test
-	public void testWithSimpleGraph()
-			throws Exception {
+	public void testWithSimpleGraph() throws Exception {
 		Graph<IntValue, NullValue, NullValue> graph = undirectedSimpleGraph
-			.run(new MaximumDegree<IntValue, NullValue, NullValue>(3));
+			.run(new MaximumDegree<>(3));
 
 		String expectedVerticesResult =
 			"(0,(null))\n" +
@@ -64,11 +62,28 @@ extends AsmTestBase {
 	}
 
 	@Test
-	public void testWithRMatGraph()
-			throws Exception {
+	public void testWithEmptyGraphWithVertices() throws Exception {
+		Graph<LongValue, NullValue, NullValue> graph = emptyGraphWithVertices
+			.run(new MaximumDegree<>(1));
+
+		assertEquals(emptyGraphVertexCount, graph.getVertices().collect().size());
+		assertEquals(0, graph.getEdges().collect().size());
+	}
+
+	@Test
+	public void testWithEmptyGraphWithoutVertices() throws Exception {
+		Graph<LongValue, NullValue, NullValue> graph = emptyGraphWithoutVertices
+			.run(new MaximumDegree<>(1));
+
+		assertEquals(0, graph.getVertices().collect().size());
+		assertEquals(0, graph.getEdges().collect().size());
+	}
+
+	@Test
+	public void testWithRMatGraph() throws Exception {
 		Checksum checksum = undirectedRMatGraph(10, 16)
-			.run(new MaximumDegree<LongValue, NullValue, NullValue>(16))
-			.run(new ChecksumHashCode<LongValue, NullValue, NullValue>())
+			.run(new MaximumDegree<>(16))
+			.run(new ChecksumHashCode<>())
 			.execute();
 
 		assertEquals(805, checksum.getCount());

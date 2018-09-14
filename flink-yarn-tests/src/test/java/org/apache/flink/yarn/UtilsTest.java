@@ -20,6 +20,8 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.Level;
@@ -38,7 +40,7 @@ import java.util.Map;
 /**
  * Tests for various utilities.
  */
-public class UtilsTest {
+public class UtilsTest extends TestLogger {
 	private static final Logger LOG = LoggerFactory.getLogger(UtilsTest.class);
 
 	@Test
@@ -62,8 +64,8 @@ public class UtilsTest {
 	@Test
 	public void testHeapCutoff() {
 		Configuration conf = new Configuration();
-		conf.setDouble(ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO, 0.15);
-		conf.setInteger(ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_MIN, 384);
+		conf.setFloat(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO, 0.15F);
+		conf.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 384);
 
 		Assert.assertEquals(616, Utils.calculateHeapSize(1000, conf));
 		Assert.assertEquals(8500, Utils.calculateHeapSize(10000, conf));
@@ -71,14 +73,14 @@ public class UtilsTest {
 		// test different configuration
 		Assert.assertEquals(3400, Utils.calculateHeapSize(4000, conf));
 
-		conf.setString(ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_MIN, "1000");
-		conf.setString(ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO, "0.1");
+		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.key(), "1000");
+		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "0.1");
 		Assert.assertEquals(3000, Utils.calculateHeapSize(4000, conf));
 
-		conf.setString(ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO, "0.5");
+		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "0.5");
 		Assert.assertEquals(2000, Utils.calculateHeapSize(4000, conf));
 
-		conf.setString(ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO, "1");
+		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "1");
 		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
 
 		// test also deprecated keys
@@ -93,21 +95,21 @@ public class UtilsTest {
 	@Test(expected = IllegalArgumentException.class)
 	public void illegalArgument() {
 		Configuration conf = new Configuration();
-		conf.setString(ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO, "1.1");
+		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "1.1");
 		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void illegalArgumentNegative() {
 		Configuration conf = new Configuration();
-		conf.setString(ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO, "-0.01");
+		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "-0.01");
 		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void tooMuchCutoff() {
 		Configuration conf = new Configuration();
-		conf.setString(ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO, "6000");
+		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "6000");
 		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
 	}
 

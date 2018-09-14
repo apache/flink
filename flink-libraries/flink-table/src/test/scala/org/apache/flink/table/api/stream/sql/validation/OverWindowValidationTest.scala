@@ -43,7 +43,7 @@ class OverWindowValidationTest extends TableTestBase {
       "sum(a) OVER (PARTITION BY b ORDER BY proctime RANGE UNBOUNDED preceding) " +
       "from T1"
 
-    streamUtil.tableEnv.sql(sqlQuery).toAppendStream[Row]
+    streamUtil.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
   }
 
   /**
@@ -55,7 +55,7 @@ class OverWindowValidationTest extends TableTestBase {
 
     val sqlQuery = "SELECT overAgg(c, a) FROM MyTable"
 
-    streamUtil.tableEnv.sql(sqlQuery)
+    streamUtil.tableEnv.sqlQuery(sqlQuery)
   }
 
   /**
@@ -66,6 +66,6 @@ class OverWindowValidationTest extends TableTestBase {
     streamUtil.addFunction("overAgg", new OverAgg0)
 
     val sqlQuery = "SELECT overAgg(c, a) FROM MyTable"
-    streamUtil.tableEnv.sql(sqlQuery)
+    streamUtil.tableEnv.sqlQuery(sqlQuery)
   }
 }

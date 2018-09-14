@@ -18,16 +18,17 @@
 
 package org.apache.flink.configuration;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * This class contains test for the configuration package. In particular, the serialization of {@link Configuration}
@@ -52,9 +53,9 @@ public class ConfigurationTest extends TestLogger {
 			orig.setFloat("PI", 3.1415926f);
 			orig.setDouble("E", Math.E);
 			orig.setBoolean("shouldbetrue", true);
-			orig.setBytes("bytes sequence", new byte[] { 1, 2, 3, 4, 5 } );
+			orig.setBytes("bytes sequence", new byte[] { 1, 2, 3, 4, 5 });
 			orig.setClass("myclass", this.getClass());
-	
+
 			final Configuration copy = InstantiationUtil.createCopyWritable(orig);
 			assertEquals("myvalue", copy.getString("mykey", "null"));
 			assertEquals(100, copy.getInteger("mynumber", 0));
@@ -64,7 +65,7 @@ public class ConfigurationTest extends TestLogger {
 			assertEquals(true, copy.getBoolean("shouldbetrue", false));
 			assertArrayEquals(new byte[] { 1, 2, 3, 4, 5 }, copy.getBytes("bytes sequence", null));
 			assertEquals(getClass(), copy.getClass("myclass", null, getClass().getClassLoader()));
-			
+
 			assertEquals(orig, copy);
 			assertEquals(orig.keySet(), copy.keySet());
 			assertEquals(orig.hashCode(), copy.hashCode());
@@ -79,7 +80,7 @@ public class ConfigurationTest extends TestLogger {
 	public void testConversions() {
 		try {
 			Configuration pc = new Configuration();
-			
+
 			pc.setInteger("int", 5);
 			pc.setLong("long", 15);
 			pc.setLong("too_long", TOO_LONG);
@@ -91,7 +92,7 @@ public class ConfigurationTest extends TestLogger {
 			pc.setString("string", "42");
 			pc.setString("non_convertible_string", "bcdefg&&");
 			pc.setBoolean("boolean", true);
-			
+
 			// as integer
 			assertEquals(5, pc.getInteger("int", 0));
 			assertEquals(5L, pc.getLong("int", 0));
@@ -100,7 +101,7 @@ public class ConfigurationTest extends TestLogger {
 			assertEquals(false, pc.getBoolean("int", true));
 			assertEquals("5", pc.getString("int", "0"));
 			assertArrayEquals(EMPTY_BYTES, pc.getBytes("int", EMPTY_BYTES));
-			
+
 			// as long
 			assertEquals(15, pc.getInteger("long", 0));
 			assertEquals(15L, pc.getLong("long", 0));
@@ -109,7 +110,7 @@ public class ConfigurationTest extends TestLogger {
 			assertEquals(false, pc.getBoolean("long", true));
 			assertEquals("15", pc.getString("long", "0"));
 			assertArrayEquals(EMPTY_BYTES, pc.getBytes("long", EMPTY_BYTES));
-			
+
 			// as too long
 			assertEquals(0, pc.getInteger("too_long", 0));
 			assertEquals(TOO_LONG, pc.getLong("too_long", 0));
@@ -118,7 +119,7 @@ public class ConfigurationTest extends TestLogger {
 			assertEquals(false, pc.getBoolean("too_long", true));
 			assertEquals(String.valueOf(TOO_LONG), pc.getString("too_long", "0"));
 			assertArrayEquals(EMPTY_BYTES, pc.getBytes("too_long", EMPTY_BYTES));
-			
+
 			// as float
 			assertEquals(0, pc.getInteger("float", 0));
 			assertEquals(0L, pc.getLong("float", 0));
@@ -127,7 +128,7 @@ public class ConfigurationTest extends TestLogger {
 			assertEquals(false, pc.getBoolean("float", true));
 			assertTrue(pc.getString("float", "0").startsWith("2.145677"));
 			assertArrayEquals(EMPTY_BYTES, pc.getBytes("float", EMPTY_BYTES));
-			
+
 			// as double
 			assertEquals(0, pc.getInteger("double", 0));
 			assertEquals(0L, pc.getLong("double", 0));
@@ -163,7 +164,7 @@ public class ConfigurationTest extends TestLogger {
 			assertEquals(false, pc.getBoolean("too_long_double", true));
 			assertEquals(String.valueOf(TOO_LONG_DOUBLE), pc.getString("too_long_double", "0"));
 			assertArrayEquals(EMPTY_BYTES, pc.getBytes("too_long_double", EMPTY_BYTES));
-			
+
 			// as string
 			assertEquals(42, pc.getInteger("string", 0));
 			assertEquals(42L, pc.getLong("string", 0));
@@ -172,7 +173,7 @@ public class ConfigurationTest extends TestLogger {
 			assertEquals(false, pc.getBoolean("string", true));
 			assertEquals("42", pc.getString("string", "0"));
 			assertArrayEquals(EMPTY_BYTES, pc.getBytes("string", EMPTY_BYTES));
-			
+
 			// as non convertible string
 			assertEquals(0, pc.getInteger("non_convertible_string", 0));
 			assertEquals(0L, pc.getLong("non_convertible_string", 0));
@@ -181,7 +182,7 @@ public class ConfigurationTest extends TestLogger {
 			assertEquals(false, pc.getBoolean("non_convertible_string", true));
 			assertEquals("bcdefg&&", pc.getString("non_convertible_string", "0"));
 			assertArrayEquals(EMPTY_BYTES, pc.getBytes("non_convertible_string", EMPTY_BYTES));
-			
+
 			// as boolean
 			assertEquals(0, pc.getInteger("boolean", 0));
 			assertEquals(0L, pc.getLong("boolean", 0));
@@ -201,13 +202,13 @@ public class ConfigurationTest extends TestLogger {
 	public void testCopyConstructor() {
 		try {
 			final String key = "theKey";
-			
+
 			Configuration cfg1 = new Configuration();
 			cfg1.setString(key, "value");
-			
+
 			Configuration cfg2 = new Configuration(cfg1);
 			cfg2.setString(key, "another value");
-			
+
 			assertEquals("value", cfg1.getString(key, ""));
 		}
 		catch (Exception e) {
@@ -302,5 +303,33 @@ public class ConfigurationTest extends TestLogger {
 		assertEquals(12, cfg.getInteger(matchesSecond));
 		assertEquals(13, cfg.getInteger(matchesThird));
 		assertEquals(-1, cfg.getInteger(notContained));
+	}
+
+	@Test
+	public void testRemove(){
+		Configuration cfg = new Configuration();
+		cfg.setInteger("a", 1);
+		cfg.setInteger("b", 2);
+
+		ConfigOption<Integer> validOption = ConfigOptions
+			.key("a")
+			.defaultValue(-1);
+
+		ConfigOption<Integer> deprecatedOption = ConfigOptions
+			.key("c")
+			.defaultValue(-1)
+			.withDeprecatedKeys("d", "b");
+
+		ConfigOption<Integer> unexistedOption = ConfigOptions
+			.key("e")
+			.defaultValue(-1)
+			.withDeprecatedKeys("f", "g", "j");
+
+		assertEquals("Wrong expectation about size", cfg.keySet().size(), 2);
+		assertTrue("Expected 'validOption' is removed", cfg.removeConfig(validOption));
+		assertEquals("Wrong expectation about size", cfg.keySet().size(), 1);
+		assertTrue("Expected 'existedOption' is removed", cfg.removeConfig(deprecatedOption));
+		assertEquals("Wrong expectation about size", cfg.keySet().size(), 0);
+		assertFalse("Expected 'unexistedOption' is not removed", cfg.removeConfig(unexistedOption));
 	}
 }

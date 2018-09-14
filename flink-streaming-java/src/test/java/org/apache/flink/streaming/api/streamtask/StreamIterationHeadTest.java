@@ -33,8 +33,8 @@ public class StreamIterationHeadTest {
 
 	@Test
 	public void testIterationHeadWatermarkEmission() throws Exception {
-		StreamIterationHead<Integer> head = new StreamIterationHead<>();
-		StreamTaskTestHarness<Integer> harness = new StreamTaskTestHarness<>(head,
+		StreamTaskTestHarness<Integer> harness = new StreamTaskTestHarness<>(
+				StreamIterationHead::new,
 				BasicTypeInfo.INT_TYPE_INFO);
 		harness.setupOutputForSingletonOperatorChain();
 		harness.getStreamConfig().setIterationId("1");

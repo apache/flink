@@ -22,7 +22,9 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
@@ -30,7 +32,6 @@ import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.BatchTask;
-import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
@@ -65,25 +66,27 @@ public class TaskDeploymentDescriptorTest {
 			final Class<? extends AbstractInvokable> invokableClass = BatchTask.class;
 			final List<ResultPartitionDeploymentDescriptor> producedResults = new ArrayList<ResultPartitionDeploymentDescriptor>(0);
 			final List<InputGateDeploymentDescriptor> inputGates = new ArrayList<InputGateDeploymentDescriptor>(0);
-			final List<BlobKey> requiredJars = new ArrayList<BlobKey>(0);
-			final List<URL> requiredClasspaths = new ArrayList<URL>(0);
+			final List<PermanentBlobKey> requiredJars = new ArrayList<>(0);
+			final List<URL> requiredClasspaths = new ArrayList<>(0);
 			final SerializedValue<ExecutionConfig> executionConfig = new SerializedValue<>(new ExecutionConfig());
 			final SerializedValue<JobInformation> serializedJobInformation = new SerializedValue<>(new JobInformation(
 				jobID, jobName, executionConfig, jobConfiguration, requiredJars, requiredClasspaths));
 			final SerializedValue<TaskInformation> serializedJobVertexInformation = new SerializedValue<>(new TaskInformation(
 				vertexID, taskName, currentNumberOfSubtasks, numberOfKeyGroups, invokableClass.getName(), taskConfiguration));
 			final int targetSlotNumber = 47;
-			final TaskStateHandles taskStateHandles = new TaskStateHandles();
+			final TaskStateSnapshot taskStateHandles = new TaskStateSnapshot();
+			final JobManagerTaskRestore taskRestore = new JobManagerTaskRestore(1L, taskStateHandles);
 
 			final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(
-				serializedJobInformation,
-				serializedJobVertexInformation,
+				jobID,
+				new TaskDeploymentDescriptor.NonOffloaded<>(serializedJobInformation),
+				new TaskDeploymentDescriptor.NonOffloaded<>(serializedJobVertexInformation),
 				execId,
 				allocationId,
 				indexInSubtaskGroup,
 				attemptNumber,
 				targetSlotNumber,
-				taskStateHandles,
+				taskRestore,
 				producedResults,
 				inputGates);
 
@@ -92,7 +95,7 @@ public class TaskDeploymentDescriptorTest {
 			assertFalse(orig.getSerializedJobInformation() == copy.getSerializedJobInformation());
 			assertFalse(orig.getSerializedTaskInformation() == copy.getSerializedTaskInformation());
 			assertFalse(orig.getExecutionAttemptId() == copy.getExecutionAttemptId());
-			assertFalse(orig.getTaskStateHandles() == copy.getTaskStateHandles());
+			assertFalse(orig.getTaskRestore() == copy.getTaskRestore());
 			assertFalse(orig.getProducedPartitions() == copy.getProducedPartitions());
 			assertFalse(orig.getInputGates() == copy.getInputGates());
 
@@ -103,7 +106,8 @@ public class TaskDeploymentDescriptorTest {
 			assertEquals(orig.getSubtaskIndex(), copy.getSubtaskIndex());
 			assertEquals(orig.getAttemptNumber(), copy.getAttemptNumber());
 			assertEquals(orig.getTargetSlotNumber(), copy.getTargetSlotNumber());
-			assertEquals(orig.getTaskStateHandles(), copy.getTaskStateHandles());
+			assertEquals(orig.getTaskRestore().getRestoreCheckpointId(), copy.getTaskRestore().getRestoreCheckpointId());
+			assertEquals(orig.getTaskRestore().getTaskStateSnapshot(), copy.getTaskRestore().getTaskStateSnapshot());
 			assertEquals(orig.getProducedPartitions(), copy.getProducedPartitions());
 			assertEquals(orig.getInputGates(), copy.getInputGates());
 		}

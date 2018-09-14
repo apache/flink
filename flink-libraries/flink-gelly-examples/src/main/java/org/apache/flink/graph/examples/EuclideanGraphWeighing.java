@@ -83,8 +83,8 @@ public class EuclideanGraphWeighing implements ProgramDescription {
 						Vertex<Long, Point> srcVertex = triplet.getSrcVertex();
 						Vertex<Long, Point> trgVertex = triplet.getTrgVertex();
 
-						return new Tuple3<Long, Long, Double>(srcVertex.getId(), trgVertex.getId(),
-								srcVertex.getValue().euclideanDistance(trgVertex.getValue()));
+						return new Tuple3<>(srcVertex.getId(), trgVertex.getId(),
+							srcVertex.getValue().euclideanDistance(trgVertex.getValue()));
 					}
 				});
 
@@ -186,7 +186,7 @@ public class EuclideanGraphWeighing implements ProgramDescription {
 
 						@Override
 						public Vertex<Long, Point> map(Tuple3<Long, Double, Double> value) throws Exception {
-							return new Vertex<Long, Point>(value.f0, new Point(value.f1, value.f2));
+							return new Vertex<>(value.f0, new Point(value.f1, value.f2));
 						}
 					});
 		} else {
@@ -203,7 +203,7 @@ public class EuclideanGraphWeighing implements ProgramDescription {
 
 						@Override
 						public Edge<Long, Double> map(Tuple2<Long, Long> tuple2) throws Exception {
-							return new Edge<Long, Double>(tuple2.f0, tuple2.f1, 0.0);
+							return new Edge<>(tuple2.f0, tuple2.f1, 0.0);
 						}
 					});
 		} else {

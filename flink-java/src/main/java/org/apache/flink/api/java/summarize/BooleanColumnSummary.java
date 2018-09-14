@@ -21,7 +21,7 @@ package org.apache.flink.api.java.summarize;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Summary for a column of booleans
+ * Summary for a column of booleans.
  */
 @PublicEvolving
 public class BooleanColumnSummary extends ColumnSummary {
@@ -45,7 +45,7 @@ public class BooleanColumnSummary extends ColumnSummary {
 	}
 
 	/**
-	 * The number of non-null values in this column
+	 * The number of non-null values in this column.
 	 */
 	@Override
 	public long getNonNullCount() {

@@ -19,8 +19,8 @@
 package org.apache.flink.table.plan.nodes.logical
 
 import java.util.{List => JList}
+import java.util.function.Supplier
 
-import com.google.common.base.Supplier
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}

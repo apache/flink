@@ -24,7 +24,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 
-import com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import java.util.Collection;
 import java.util.List;
@@ -34,7 +34,7 @@ import java.util.List;
  * {@link org.apache.flink.streaming.api.operators.OneInputStreamOperator} to one input
  * {@link org.apache.flink.streaming.api.transformations.StreamTransformation}.
  *
- * @param <IN> The type of the elements in the nput {@code StreamTransformation}
+ * @param <IN> The type of the elements in the input {@code StreamTransformation}
  * @param <OUT> The type of the elements that result from this {@code OneInputTransformation}
  */
 @Internal

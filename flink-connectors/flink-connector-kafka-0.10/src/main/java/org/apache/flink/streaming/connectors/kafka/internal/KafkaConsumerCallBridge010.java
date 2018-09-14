@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import org.apache.flink.annotation.Internal;
+
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 
@@ -32,6 +34,7 @@ import java.util.List;
  *
  * <p>Because of that, we need two versions whose compiled code goes against different method signatures.
  */
+@Internal
 public class KafkaConsumerCallBridge010 extends KafkaConsumerCallBridge {
 
 	@Override

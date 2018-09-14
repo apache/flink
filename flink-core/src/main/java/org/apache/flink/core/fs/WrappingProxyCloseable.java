@@ -27,6 +27,4 @@ import java.io.Closeable;
  * {@link WrappingProxy} for {@link Closeable} that is also closeable.
  */
 @Internal
-public interface WrappingProxyCloseable<T extends Closeable> extends Closeable, WrappingProxy<T> {
-
-}
+public interface WrappingProxyCloseable<T extends Closeable> extends Closeable, WrappingProxy<T> {}

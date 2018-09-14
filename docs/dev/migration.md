@@ -37,7 +37,7 @@ This would be relevant mostly for users implementing custom `TypeSerializer`s fo
 
 Since Flink 1.3, two additional methods have been added that are related to serializer compatibility
 across savepoint restores. Please see
-[Handling serializer upgrades and compatibility]({{ site.baseurl }}/dev/stream/state.html#handling-serializer-upgrades-and-compatibility)
+[Handling serializer upgrades and compatibility]({{ site.baseurl }}/dev/stream/state/custom_serialization.html#handling-serializer-upgrades-and-compatibility)
 for further details on how to implement these methods.
 
 ### `ProcessFunction` is always a `RichFunction`
@@ -55,11 +55,11 @@ Please visit the [CEP Migration docs]({{ site.baseurl }}/dev/libs/cep.html#migra
 
 In Flink 1.3, to make sure that users can use their own custom logging framework, core Flink artifacts are
 now clean of specific logger dependencies.
- 
-Example and quickstart archtypes already have loggers specified and should not be affected.
+
+Example and quickstart archetypes already have loggers specified and should not be affected.
 For other custom projects, make sure to add logger dependencies. For example, in Maven's `pom.xml`, you can add:
 
-~~~xml
+{% highlight xml %}
 <dependency>
     <groupId>org.slf4j</groupId>
     <artifactId>slf4j-log4j12</artifactId>
@@ -71,11 +71,11 @@ For other custom projects, make sure to add logger dependencies. For example, in
     <artifactId>log4j</artifactId>
     <version>1.2.17</version>
 </dependency>
-~~~
+{% endhighlight %}
 
 ## Migrating from Flink 1.1 to Flink 1.2
 
-As mentioned in the [State documentation]({{ site.baseurl }}/dev/stream/state.html), Flink has two types of state:
+As mentioned in the [State documentation]({{ site.baseurl }}/dev/stream/state/state.html), Flink has two types of state:
 **keyed** and **non-keyed** state (also called **operator** state). Both types are available to
 both operators and user-defined functions. This document will guide you through the process of migrating your Flink 1.1
 function code to Flink 1.2 and will present some important internal changes introduced in Flink 1.2 that concern the
@@ -89,7 +89,7 @@ The migration process will serve two goals:
 Flink 1.1 predecessor.
 
 After following the steps in this guide, you will be able to migrate your running job from Flink 1.1 to Flink 1.2
-simply by taking a [savepoint]({{ site.baseurl }}/setup/savepoints.html) with your Flink 1.1 job and giving it to
+simply by taking a [savepoint]({{ site.baseurl }}/ops/state/savepoints.html) with your Flink 1.1 job and giving it to
 your Flink 1.2 job as a starting point. This will allow the Flink 1.2 job to resume execution from where its
 Flink 1.1 predecessor left off.
 
@@ -145,16 +145,16 @@ public class BufferingSink implements SinkFunction<Tuple2<String, Integer>>,
         bufferedElements.add(value);
         if (bufferedElements.size() == threshold) {
             for (Tuple2<String, Integer> element: bufferedElements) {
-	        // send it to the sink
-	    }
-	    bufferedElements.clear();
-	}
+                // send it to the sink
+            }
+            bufferedElements.clear();
+        }
     }
 
     @Override
     public ArrayList<Tuple2<String, Integer>> snapshotState(
         long checkpointId, long checkpointTimestamp) throws Exception {
-	    return bufferedElements;
+        return bufferedElements;
     }
 
     @Override
@@ -165,7 +165,7 @@ public class BufferingSink implements SinkFunction<Tuple2<String, Integer>>,
 {% endhighlight %}
 
 
-The `CountMapper` is a `RichFlatMapFuction` which assumes a grouped-by-key input stream of the form
+The `CountMapper` is a `RichFlatMapFunction` which assumes a grouped-by-key input stream of the form
 `(word, 1)`. The function keeps a counter for each incoming key (`ValueState<Integer> counter`) and if
 the number of occurrences of a certain word surpasses the user-provided threshold, a tuple is emitted
 containing the word itself and the number of occurrences.
@@ -203,7 +203,7 @@ contains elements `(test1, 2)` and `(test2, 2)`, when increasing the parallelism
 while `(test2, 2)` will go to task 1.
 
 More details on the principles behind rescaling of both keyed state and non-keyed state can be found in
-the [State documentation]({{ site.baseurl }}/dev/stream/state.html).
+the [State documentation]({{ site.baseurl }}/dev/stream/state/index.html).
 
 ##### ListCheckpointed
 
@@ -445,15 +445,15 @@ The code to use the aligned window operators in Flink 1.2 is presented below:
 
 // for tumbling windows
 DataStream<Tuple2<String, Integer>> window1 = source
-	.keyBy(0)
-	.window(TumblingAlignedProcessingTimeWindows.of(Time.of(1000, TimeUnit.MILLISECONDS)))
-	.apply(your-function)
+    .keyBy(0)
+    .window(TumblingAlignedProcessingTimeWindows.of(Time.of(1000, TimeUnit.MILLISECONDS)))
+    .apply(your-function)
 
 // for sliding windows
 DataStream<Tuple2<String, Integer>> window1 = source
-	.keyBy(0)
-	.window(SlidingAlignedProcessingTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
-	.apply(your-function)
+    .keyBy(0)
+    .window(SlidingAlignedProcessingTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
+    .apply(your-function)
 
 {% endhighlight %}
 </div>
@@ -476,3 +476,5 @@ val window2 = source
 {% endhighlight %}
 </div>
 </div>
+
+{% top %}

@@ -18,10 +18,7 @@
 
 package org.apache.flink.runtime.rpc;
 
-import org.apache.flink.runtime.concurrent.CompletableFuture;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
-
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -77,8 +74,8 @@ public abstract class TestingGatewayBase implements RpcGateway {
 	//  utilities
 	// ------------------------------------------------------------------------
 
-	public <T> Future<T> futureWithTimeout(long timeoutMillis) {
-		FlinkCompletableFuture<T> future = new FlinkCompletableFuture<>();
+	public <T> CompletableFuture<T> futureWithTimeout(long timeoutMillis) {
+		CompletableFuture<T> future = new CompletableFuture<>();
 		executor.schedule(new FutureTimeout(future), timeoutMillis, TimeUnit.MILLISECONDS);
 		return future;
 	}

@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.api.validation
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, Types}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.stream.table.TestAppendSink
+import org.apache.flink.table.utils.MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
 
@@ -39,4 +41,27 @@ class TableSinksValidationTest extends TableTestBase {
     .writeToSink(new TestAppendSink)
   }
 
+  @Test(expected = classOf[TableException])
+  def testSinkTableRegistrationUsingExistedTableName(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Int, String)]("TargetTable", 'id, 'text)
+
+    val fieldNames = Array("a", "b", "c")
+    val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.INT, Types.LONG)
+    // table name already registered
+    util.tableEnv
+      .registerTableSink("TargetTable", fieldNames, fieldTypes, new UnsafeMemoryAppendTableSink)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testRegistrationWithInconsistentFieldNamesAndTypesLength(): Unit = {
+    val util = streamTestUtil()
+
+    // inconsistent length of field names and types
+    val fieldNames = Array("a", "b", "c")
+    val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.LONG)
+
+    util.tableEnv
+      .registerTableSink("TargetTable", fieldNames, fieldTypes, new UnsafeMemoryAppendTableSink)
+  }
 }

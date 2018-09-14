@@ -21,7 +21,8 @@ package org.apache.flink.runtime.testutils;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,14 +42,21 @@ public class RecoverableCompletedCheckpointStore implements CompletedCheckpointS
 
 	private final ArrayDeque<CompletedCheckpoint> suspended = new ArrayDeque<>(2);
 
+	private final int maxRetainedCheckpoints;
+
+	public RecoverableCompletedCheckpointStore() {
+		this(1);
+	}
+
+	public RecoverableCompletedCheckpointStore(int maxRetainedCheckpoints) {
+		Preconditions.checkArgument(maxRetainedCheckpoints > 0);
+		this.maxRetainedCheckpoints = maxRetainedCheckpoints;
+	}
+
 	@Override
-	public void recover(SharedStateRegistry sharedStateRegistry) throws Exception {
+	public void recover() throws Exception {
 		checkpoints.addAll(suspended);
 		suspended.clear();
-
-		for (CompletedCheckpoint checkpoint : checkpoints) {
-			checkpoint.registerSharedStatesAfterRestored(sharedStateRegistry);
-		}
 	}
 
 	@Override
@@ -56,11 +64,14 @@ public class RecoverableCompletedCheckpointStore implements CompletedCheckpointS
 
 		checkpoints.addLast(checkpoint);
 
-
-		if (checkpoints.size() > 1) {
-			CompletedCheckpoint checkpointToSubsume = checkpoints.removeFirst();
-			checkpointToSubsume.discardOnSubsume();
+		if (checkpoints.size() > maxRetainedCheckpoints) {
+			removeOldestCheckpoint();
 		}
+	}
+
+	public void removeOldestCheckpoint() throws Exception {
+		CompletedCheckpoint checkpointToSubsume = checkpoints.removeFirst();
+		checkpointToSubsume.discardOnSubsume();
 	}
 
 	@Override
@@ -96,7 +107,7 @@ public class RecoverableCompletedCheckpointStore implements CompletedCheckpointS
 
 	@Override
 	public int getMaxNumberOfRetainedCheckpoints() {
-		return 1;
+		return maxRetainedCheckpoints;
 	}
 
 	@Override

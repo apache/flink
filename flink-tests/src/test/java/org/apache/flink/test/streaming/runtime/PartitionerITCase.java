@@ -26,9 +26,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.test.streaming.runtime.util.NoOpIntMap;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
+import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Test;
 
@@ -45,7 +45,7 @@ import static org.junit.Assert.fail;
  * IT case that tests the different stream partitioning schemes.
  */
 @SuppressWarnings("serial")
-public class PartitionerITCase extends StreamingMultipleProgramsTestBase {
+public class PartitionerITCase extends AbstractTestBase {
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testForwardFailsLowToHighParallelism() throws Exception {

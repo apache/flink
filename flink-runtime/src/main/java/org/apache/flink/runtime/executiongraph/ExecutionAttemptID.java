@@ -18,8 +18,9 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import io.netty.buffer.ByteBuf;
 import org.apache.flink.util.AbstractID;
+
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
 /**
  * Unique identifier for the attempt to execute a tasks. Multiple attempts happen

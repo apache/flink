@@ -18,12 +18,11 @@
 
 package org.apache.flink.runtime.blob;
 
-import com.google.common.io.Files;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.util.IOUtils;
+
+import org.apache.flink.shaded.guava18.com.google.common.io.Files;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +32,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.security.MessageDigest;
+import java.util.Arrays;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -45,10 +46,10 @@ public class FileSystemBlobStore implements BlobStoreService {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileSystemBlobStore.class);
 
-	/** The file system in which blobs are stored */
+	/** The file system in which blobs are stored. */
 	private final FileSystem fileSystem;
-	
-	/** The base path of the blob store */
+
+	/** The base path of the blob store. */
 	private final String basePath;
 
 	public FileSystemBlobStore(FileSystem fileSystem, String storagePath) throws IOException {
@@ -64,39 +65,60 @@ public class FileSystemBlobStore implements BlobStoreService {
 	// - Put ------------------------------------------------------------------
 
 	@Override
-	public void put(File localFile, BlobKey blobKey) throws IOException {
-		put(localFile, BlobUtils.getRecoveryPath(basePath, blobKey));
+	public boolean put(File localFile, JobID jobId, BlobKey blobKey) throws IOException {
+		return put(localFile, BlobUtils.getStorageLocationPath(basePath, jobId, blobKey));
 	}
 
-	private void put(File fromFile, String toBlobPath) throws IOException {
+	private boolean put(File fromFile, String toBlobPath) throws IOException {
 		try (OutputStream os = fileSystem.create(new Path(toBlobPath), FileSystem.WriteMode.OVERWRITE)) {
 			LOG.debug("Copying from {} to {}.", fromFile, toBlobPath);
 			Files.copy(fromFile, os);
 		}
+		return true;
 	}
 
 	// - Get ------------------------------------------------------------------
 
 	@Override
-	public void get(BlobKey blobKey, File localFile) throws IOException {
-		get(BlobUtils.getRecoveryPath(basePath, blobKey), localFile);
+	public boolean get(JobID jobId, BlobKey blobKey, File localFile) throws IOException {
+		return get(BlobUtils.getStorageLocationPath(basePath, jobId, blobKey), localFile, blobKey);
 	}
 
-	private void get(String fromBlobPath, File toFile) throws IOException {
+	private boolean get(String fromBlobPath, File toFile, BlobKey blobKey) throws IOException {
 		checkNotNull(fromBlobPath, "Blob path");
 		checkNotNull(toFile, "File");
+		checkNotNull(blobKey, "Blob key");
 
 		if (!toFile.exists() && !toFile.createNewFile()) {
 			throw new IOException("Failed to create target file to copy to");
 		}
 
 		final Path fromPath = new Path(fromBlobPath);
+		MessageDigest md = BlobUtils.createMessageDigest();
+
+		final int buffSize = 4096; // like IOUtils#BLOCKSIZE, for chunked file copying
 
 		boolean success = false;
 		try (InputStream is = fileSystem.open(fromPath);
 			FileOutputStream fos = new FileOutputStream(toFile)) {
 			LOG.debug("Copying from {} to {}.", fromBlobPath, toFile);
-			IOUtils.copyBytes(is, fos); // closes the streams
+
+			// not using IOUtils.copyBytes(is, fos) here to be able to create a hash on-the-fly
+			final byte[] buf = new byte[buffSize];
+			int bytesRead = is.read(buf);
+			while (bytesRead >= 0) {
+				fos.write(buf, 0, bytesRead);
+				md.update(buf, 0, bytesRead);
+
+				bytesRead = is.read(buf);
+			}
+
+			// verify that file contents are correct
+			final byte[] computedKey = md.digest();
+			if (!Arrays.equals(computedKey, blobKey.getHash())) {
+				throw new IOException("Detected data corruption during transfer");
+			}
+
 			success = true;
 		} finally {
 			// if the copy fails, we need to remove the target file because
@@ -107,27 +129,29 @@ public class FileSystemBlobStore implements BlobStoreService {
 				} catch (Throwable ignored) {}
 			}
 		}
+
+		return true; // success is always true here
 	}
 
 	// - Delete ---------------------------------------------------------------
 
 	@Override
-	public void delete(BlobKey blobKey) {
-		delete(BlobUtils.getRecoveryPath(basePath, blobKey));
+	public boolean delete(JobID jobId, BlobKey blobKey) {
+		return delete(BlobUtils.getStorageLocationPath(basePath, jobId, blobKey));
 	}
 
 	@Override
-	public void deleteAll(JobID jobId) {
-		delete(BlobUtils.getRecoveryPath(basePath, jobId));
+	public boolean deleteAll(JobID jobId) {
+		return delete(BlobUtils.getStorageLocationPath(basePath, jobId));
 	}
 
-	private void delete(String blobPath) {
+	private boolean delete(String blobPath) {
 		try {
 			LOG.debug("Deleting {}.", blobPath);
-			
+
 			Path path = new Path(blobPath);
 
-			fileSystem.delete(path, true);
+			boolean result = fileSystem.delete(path, true);
 
 			// send a call to delete the directory containing the file. This will
 			// fail (and be ignored) when some files still exist.
@@ -135,9 +159,11 @@ public class FileSystemBlobStore implements BlobStoreService {
 				fileSystem.delete(path.getParent(), false);
 				fileSystem.delete(new Path(basePath), false);
 			} catch (IOException ignored) {}
+			return result;
 		}
 		catch (Exception e) {
 			LOG.warn("Failed to delete blob at " + blobPath);
+			return false;
 		}
 	}
 

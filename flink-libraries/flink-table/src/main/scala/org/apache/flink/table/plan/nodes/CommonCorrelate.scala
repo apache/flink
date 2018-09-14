@@ -20,12 +20,12 @@ package org.apache.flink.table.plan.nodes
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexShuttle}
 import org.apache.calcite.sql.SemiJoinType
-import org.apache.flink.api.common.functions.{FlatMapFunction, Function}
+import org.apache.flink.api.common.functions.Function
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.codegen.CodeGenUtils.primitiveDefaultValue
 import org.apache.flink.table.codegen.GeneratedExpression.{ALWAYS_NULL, NO_CODE}
-import org.apache.flink.table.codegen.{CodeGenerator, GeneratedCollector, GeneratedExpression, GeneratedFunction}
+import org.apache.flink.table.codegen._
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.TableFunctionCollector
@@ -53,12 +53,10 @@ trait CommonCorrelate {
     functionClass: Class[T]):
   GeneratedFunction[T, Row] = {
 
-    val physicalRexCall = inputSchema.mapRexNode(rexCall)
-
-    val functionGenerator = new CodeGenerator(
+    val functionGenerator = new FunctionCodeGenerator(
       config,
       false,
-      inputSchema.physicalTypeInfo,
+      inputSchema.typeInfo,
       Some(udtfTypeInfo),
       None,
       pojoFieldMapping)
@@ -69,7 +67,7 @@ trait CommonCorrelate {
       .addReusableConstructor(classOf[TableFunctionCollector[_]])
       .head
 
-    val call = functionGenerator.generateExpression(physicalRexCall)
+    val call = functionGenerator.generateExpression(rexCall)
     var body =
       s"""
          |${call.resultTerm}.setCollector($collectorTerm);
@@ -90,8 +88,8 @@ trait CommonCorrelate {
       }
       val outerResultExpr = functionGenerator.generateResultExpression(
         input1AccessExprs ++ input2NullExprs,
-        returnSchema.physicalTypeInfo,
-        returnSchema.physicalFieldNames)
+        returnSchema.typeInfo,
+        returnSchema.fieldNames)
       body +=
         s"""
            |boolean hasOutput = $collectorTerm.isCollected();
@@ -108,7 +106,7 @@ trait CommonCorrelate {
       ruleDescription,
       functionClass,
       body,
-      returnSchema.physicalTypeInfo)
+      returnSchema.typeInfo)
   }
 
   /**
@@ -123,10 +121,10 @@ trait CommonCorrelate {
     pojoFieldMapping: Option[Array[Int]])
   : GeneratedCollector = {
 
-    val generator = new CodeGenerator(
+    val generator = new CollectorCodeGenerator(
       config,
       false,
-      inputSchema.physicalTypeInfo,
+      inputSchema.typeInfo,
       Some(udtfTypeInfo),
       None,
       pojoFieldMapping)
@@ -135,8 +133,8 @@ trait CommonCorrelate {
 
     val crossResultExpr = generator.generateResultExpression(
       input1AccessExprs ++ input2AccessExprs,
-      returnSchema.physicalTypeInfo,
-      returnSchema.physicalFieldNames)
+      returnSchema.typeInfo,
+      returnSchema.fieldNames)
 
     val collectorCode = if (condition.isEmpty) {
       s"""
@@ -145,17 +143,23 @@ trait CommonCorrelate {
          |""".stripMargin
     } else {
 
-      // adjust indicies of InputRefs to adhere to schema expected by generator
+      // adjust indices of InputRefs to adhere to schema expected by generator
       val changeInputRefIndexShuttle = new RexShuttle {
         override def visitInputRef(inputRef: RexInputRef): RexNode = {
-          new RexInputRef(inputSchema.physicalArity + inputRef.getIndex, inputRef.getType)
+          new RexInputRef(inputSchema.arity + inputRef.getIndex, inputRef.getType)
         }
       }
       // Run generateExpression to add init statements (ScalarFunctions) of condition to generator.
       //   The generated expression is discarded.
       generator.generateExpression(condition.get.accept(changeInputRefIndexShuttle))
 
-      val filterGenerator = new CodeGenerator(config, false, udtfTypeInfo, None, pojoFieldMapping)
+      val filterGenerator = new FunctionCodeGenerator(
+        config,
+        false,
+        udtfTypeInfo,
+        None,
+        pojoFieldMapping)
+
       filterGenerator.input1Term = filterGenerator.input2Term
       val filterCondition = filterGenerator.generateExpression(condition.get)
       s"""
@@ -175,21 +179,29 @@ trait CommonCorrelate {
   }
 
   private[flink] def selectToString(rowType: RelDataType): String = {
-    rowType.getFieldNames.asScala.mkString(",")
+    rowType.getFieldNames.asScala.mkString(", ")
   }
 
   private[flink] def correlateOpName(
+      inputType: RelDataType,
       rexCall: RexCall,
       sqlFunction: TableSqlFunction,
-      rowType: RelDataType)
+      rowType: RelDataType,
+      expression: (RexNode, List[String], Option[List[RexNode]]) => String)
     : String = {
 
-    s"correlate: ${correlateToString(rexCall, sqlFunction)}, select: ${selectToString(rowType)}"
+    s"correlate: ${correlateToString(inputType, rexCall, sqlFunction, expression)}," +
+      s" select: ${selectToString(rowType)}"
   }
 
-  private[flink] def correlateToString(rexCall: RexCall, sqlFunction: TableSqlFunction): String = {
-    val udtfName = sqlFunction.getName
-    val operands = rexCall.getOperands.asScala.map(_.toString).mkString(",")
+  private[flink] def correlateToString(
+      inputType: RelDataType,
+      rexCall: RexCall,
+      sqlFunction: TableSqlFunction,
+      expression: (RexNode, List[String], Option[List[RexNode]]) => String): String = {
+    val inFields = inputType.getFieldNames.asScala.toList
+    val udtfName = sqlFunction.toString
+    val operands = rexCall.getOperands.asScala.map(expression(_, inFields, None)).mkString(", ")
     s"table($udtfName($operands))"
   }
 

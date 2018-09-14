@@ -16,15 +16,14 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.io;
-
-import java.io.Serializable;
-import java.util.Iterator;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
+
+import java.io.Serializable;
+import java.util.Iterator;
 
 /**
  * An input format that returns objects from an iterator.
@@ -35,13 +34,12 @@ public class IteratorInputFormat<T> extends GenericInputFormat<T> implements Non
 	private static final long serialVersionUID = 1L;
 
 	private Iterator<T> iterator; // input data as serializable iterator
-	
-	
+
 	public IteratorInputFormat(Iterator<T> iterator) {
 		if (!(iterator instanceof Serializable)) {
 			throw new IllegalArgumentException("The data source iterator must be serializable.");
 		}
-		
+
 		this.iterator = iterator;
 	}
 

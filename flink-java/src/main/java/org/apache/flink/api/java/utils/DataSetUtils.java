@@ -41,8 +41,8 @@ import org.apache.flink.api.java.summarize.aggregation.SummaryAggregatorFactory;
 import org.apache.flink.api.java.summarize.aggregation.TupleSummaryAggregator;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
@@ -134,7 +134,7 @@ public final class DataSetUtils {
 	}
 
 	/**
-	 * Method that assigns a unique {@link Long} value to all elements in the input data set in the following way:
+	 * Method that assigns a unique {@link Long} value to all elements in the input data set as described below.
 	 * <ul>
 	 *  <li> a map function is applied to the input data set
 	 *  <li> each map task holds a counter c which is increased for each record
@@ -221,10 +221,9 @@ public final class DataSetUtils {
 
 	/**
 	 * Generate a sample of DataSet which contains fixed size elements.
-	 * <p>
-	 * <strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction, use sample with
+	 *
+	 * <p><strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction, use sample with
 	 * fraction unless you need exact precision.
-	 * </p>
 	 *
 	 * @param withReplacement Whether element can be selected more than once.
 	 * @param numSamples       The expected sample size.
@@ -240,10 +239,9 @@ public final class DataSetUtils {
 
 	/**
 	 * Generate a sample of DataSet which contains fixed size elements.
-	 * <p>
-	 * <strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction, use sample with
+	 *
+	 * <p><strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction, use sample with
 	 * fraction unless you need exact precision.
-	 * </p>
 	 *
 	 * @param withReplacement Whether element can be selected more than once.
 	 * @param numSamples       The expected sample size.
@@ -295,11 +293,10 @@ public final class DataSetUtils {
 	//  Summarize
 	// --------------------------------------------------------------------------------------------
 
-
 	/**
-	 * Summarize a DataSet of Tuples by collecting single pass statistics for all columns
+	 * Summarize a DataSet of Tuples by collecting single pass statistics for all columns.
 	 *
-	 * Example usage:
+	 * <p>Example usage:
 	 * <pre>
 	 * {@code
 	 * Dataset<Tuple3<Double, String, Boolean>> input = // [...]
@@ -312,7 +309,7 @@ public final class DataSetUtils {
 	 * @return the summary as a Tuple the same width as input rows
 	 */
 	public static <R extends Tuple, T extends Tuple> R summarize(DataSet<T> input) throws Exception {
-		if( !input.getType().isTupleType()) {
+		if (!input.getType().isTupleType()) {
 			throw new IllegalArgumentException("summarize() is only implemented for DataSet's of Tuples");
 		}
 		final TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) input.getType();
@@ -320,7 +317,7 @@ public final class DataSetUtils {
 			@Override
 			public void mapPartition(Iterable<T> values, Collector<TupleSummaryAggregator<R>> out) throws Exception {
 				TupleSummaryAggregator<R> aggregator = SummaryAggregatorFactory.create(inType);
-				for (Tuple value: values) {
+				for (Tuple value : values) {
 					aggregator.aggregate(value);
 				}
 				out.collect(aggregator);
@@ -356,16 +353,15 @@ public final class DataSetUtils {
 		return res.<Utils.ChecksumHashCode> getAccumulatorResult(id);
 	}
 
-
 	// *************************************************************************
 	//     UTIL METHODS
 	// *************************************************************************
 
-	public static int getBitSize(long value){
-		if(value > Integer.MAX_VALUE) {
-			return 64 - Integer.numberOfLeadingZeros((int)(value >> 32));
+	public static int getBitSize(long value) {
+		if (value > Integer.MAX_VALUE) {
+			return 64 - Integer.numberOfLeadingZeros((int) (value >> 32));
 		} else {
-			return 32 - Integer.numberOfLeadingZeros((int)value);
+			return 32 - Integer.numberOfLeadingZeros((int) value);
 		}
 	}
 

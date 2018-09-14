@@ -26,16 +26,14 @@ under the License.
 # License of the RabbitMQ Connector
 
 Flink's RabbitMQ connector defines a Maven dependency on the
-"RabbitMQ AMQP Java Client", licensed under the
-[Mozilla Public License v1.1 (MPL 1.1)](https://www.mozilla.org/en-US/MPL/1.1/).
+"RabbitMQ AMQP Java Client", is triple-licensed under the Mozilla Public License 1.1 ("MPL"), the GNU General Public License version 2 ("GPL") and the Apache License version 2 ("ASL").
 
 Flink itself neither reuses source code from the "RabbitMQ AMQP Java Client"
 nor packages binaries from the "RabbitMQ AMQP Java Client".
 
 Users that create and publish derivative work based on Flink's
 RabbitMQ connector (thereby re-distributing the "RabbitMQ AMQP Java Client")
-must be aware that this may be subject to conditions declared
-in the Mozilla Public License v1.1 (MPL 1.1).
+must be aware that this may be subject to conditions declared in the Mozilla Public License 1.1 ("MPL"), the GNU General Public License version 2 ("GPL") and the Apache License version 2 ("ASL").
 
 # RabbitMQ Connector
 
@@ -68,7 +66,7 @@ RabbitMQ source, the following is required -
  - *Use correlation ids*: Correlation ids are a RabbitMQ application feature.
  You have to set it in the message properties when injecting messages into RabbitMQ.
  The correlation id is used by the source to deduplicate any messages that
- have been reproccessed when restoring from a checkpoint.
+ have been reprocessed when restoring from a checkpoint.
  - *Non-parallel source*: The source must be non-parallel (parallelism set
  to 1) in order to achieve exactly-once. This limitation is mainly due to
  RabbitMQ's approach to dispatching messages from a single queue to multiple
@@ -173,3 +171,5 @@ stream.addSink(new RMQSink[String](
 </div>
 
 More about RabbitMQ can be found [here](http://www.rabbitmq.com/).
+
+{% top %}

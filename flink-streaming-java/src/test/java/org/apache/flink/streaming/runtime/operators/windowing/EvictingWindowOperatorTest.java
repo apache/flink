@@ -22,11 +22,11 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyWindowFunction;
@@ -65,9 +65,11 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class EvictingWindowOperatorTest {
 
+	private static final TypeInformation<Tuple2<String, Integer>> STRING_INT_TUPLE =
+			TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){});
+
 	/**
 	 * Tests CountEvictor evictAfter behavior.
-	 * @throws Exception
      */
 	@Test
 	public void testCountEvictorEvictAfter() throws Exception {
@@ -76,11 +78,9 @@ public class EvictingWindowOperatorTest {
 		final int triggerCount = 2;
 		final boolean evictAfter = true;
 
-		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
-
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
-			(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
+			(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
 
 		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
 			new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -143,7 +143,6 @@ public class EvictingWindowOperatorTest {
 
 	/**
 	 * Tests TimeEvictor evictAfter behavior.
-	 * @throws Exception
 	 */
 	@Test
 	public void testTimeEvictorEvictAfter() throws Exception {
@@ -151,11 +150,9 @@ public class EvictingWindowOperatorTest {
 		final int triggerCount = 2;
 		final boolean evictAfter = true;
 
-		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
-
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
-			(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
+			(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
 
 		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
 			new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -213,7 +210,6 @@ public class EvictingWindowOperatorTest {
 
 	/**
 	 * Tests TimeEvictor evictBefore behavior.
-	 * @throws Exception
 	 */
 	@Test
 	public void testTimeEvictorEvictBefore() throws Exception {
@@ -221,11 +217,9 @@ public class EvictingWindowOperatorTest {
 		final int triggerCount = 2;
 		final int windowSize = 4;
 
-		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
-
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
-			(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
+			(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
 
 		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
 			new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -284,7 +278,6 @@ public class EvictingWindowOperatorTest {
 	/**
 	 * Tests time evictor, if no timestamp information in the StreamRecord.
 	 * No element will be evicted from the window.
-	 * @throws Exception
 	 */
 	@Test
 	public void testTimeEvictorNoTimestamp() throws Exception {
@@ -292,11 +285,9 @@ public class EvictingWindowOperatorTest {
 		final int triggerCount = 2;
 		final boolean evictAfter = true;
 
-		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
-
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
-			(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
+			(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
 
 		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
 			new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -352,7 +343,6 @@ public class EvictingWindowOperatorTest {
 
 	/**
 	 * Tests DeltaEvictor, evictBefore behavior.
-	 * @throws Exception
 	 */
 	@Test
 	public void testDeltaEvictorEvictBefore() throws Exception {
@@ -361,11 +351,9 @@ public class EvictingWindowOperatorTest {
 		final boolean evictAfter = false;
 		final int threshold = 2;
 
-		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
-
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
-			(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
+			(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
 
 		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
 			new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -427,7 +415,6 @@ public class EvictingWindowOperatorTest {
 
 	/**
 	 * Tests DeltaEvictor, evictAfter behavior.
-	 * @throws Exception
 	 */
 	@Test
 	public void testDeltaEvictorEvictAfter() throws Exception {
@@ -436,11 +423,9 @@ public class EvictingWindowOperatorTest {
 		final boolean evictAfter = true;
 		final int threshold = 2;
 
-		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
-
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
-			(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
+			(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
 
 		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
 			new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -507,11 +492,9 @@ public class EvictingWindowOperatorTest {
 		final int windowSize = 4;
 		final int windowSlide = 2;
 
-		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
-
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
-				(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
+				(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
 
 		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
 				new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -579,11 +562,9 @@ public class EvictingWindowOperatorTest {
 		final int windowSize = 4;
 		final int windowSlide = 2;
 
-		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
-
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
-				(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
+				(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
 
 		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
 				new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -648,11 +629,9 @@ public class EvictingWindowOperatorTest {
 
 		final int windowSize = 4;
 
-		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
-
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
-				(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
+				(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
 
 		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
 				new ListStateDescriptor<>("window-contents", streamRecordSerializer);

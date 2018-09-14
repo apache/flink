@@ -96,6 +96,11 @@ public class UnregisteredMetricsGroup implements MetricGroup {
 	}
 
 	@Override
+	public MetricGroup addGroup(String key, String value) {
+		return new UnregisteredMetricsGroup();
+	}
+
+	@Override
 	public String[] getScopeComponents() {
 		return new String[0];
 	}

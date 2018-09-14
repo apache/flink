@@ -35,10 +35,9 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
 
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import org.junit.Assert;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -77,16 +76,17 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 		System.out.println(AccumulatorHelper.getResultsFormatted(res.getAllAccumulatorResults()));
 
 		Assert.assertEquals(Integer.valueOf(3), res.getAccumulatorResult("num-lines"));
+		Assert.assertEquals(Integer.valueOf(3), res.getIntCounterResult("num-lines"));
 
 		Assert.assertEquals(Double.valueOf(getParallelism()), res.getAccumulatorResult("open-close-counter"));
 
 		// Test histogram (words per line distribution)
-		Map<Integer, Integer> dist = Maps.newHashMap();
+		Map<Integer, Integer> dist = new HashMap<>();
 		dist.put(1, 1); dist.put(2, 1); dist.put(3, 1);
 		Assert.assertEquals(dist, res.getAccumulatorResult("words-per-line"));
 
 		// Test distinct words (custom accumulator)
-		Set<StringValue> distinctWords = Sets.newHashSet();
+		Set<StringValue> distinctWords = new HashSet<>();
 		distinctWords.add(new StringValue("one"));
 		distinctWords.add(new StringValue("two"));
 		distinctWords.add(new StringValue("three"));

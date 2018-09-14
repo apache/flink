@@ -31,6 +31,7 @@ import org.apache.flink.metrics.reporter.Scheduled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -140,6 +141,8 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
 		try {
 			client.send(request);
+		} catch (SocketTimeoutException e) {
+			LOGGER.warn("Failed reporting metrics to Datadog because of socket timeout.", e.getMessage());
 		} catch (Exception e) {
 			LOGGER.warn("Failed reporting metrics to Datadog.", e);
 		}

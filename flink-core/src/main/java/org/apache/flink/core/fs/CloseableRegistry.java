@@ -21,17 +21,18 @@ package org.apache.flink.core.fs;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.AbstractCloseableRegistry;
 
+import javax.annotation.Nonnull;
+
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * This class allows to register instances of {@link Closeable}, which are all closed if this registry is closed.
- * <p>
- * Registering to an already closed registry will throw an exception and close the provided {@link Closeable}
- * <p>
- * All methods in this class are thread-safe.
+ *
+ * <p>Registering to an already closed registry will throw an exception and close the provided {@link Closeable}
+ *
+ * <p>All methods in this class are thread-safe.
  */
 @Internal
 public class CloseableRegistry extends AbstractCloseableRegistry<Closeable, Object> {
@@ -39,16 +40,16 @@ public class CloseableRegistry extends AbstractCloseableRegistry<Closeable, Obje
 	private static final Object DUMMY = new Object();
 
 	public CloseableRegistry() {
-		super(new HashMap<Closeable, Object>());
+		super(new HashMap<>());
 	}
 
 	@Override
-	protected void doRegister(Closeable closeable, Map<Closeable, Object> closeableMap) throws IOException {
+	protected void doRegister(@Nonnull Closeable closeable, @Nonnull Map<Closeable, Object> closeableMap) {
 		closeableMap.put(closeable, DUMMY);
 	}
 
 	@Override
-	protected void doUnRegister(Closeable closeable, Map<Closeable, Object> closeableMap) {
-		closeableMap.remove(closeable);
+	protected boolean doUnRegister(@Nonnull Closeable closeable, @Nonnull Map<Closeable, Object> closeableMap) {
+		return closeableMap.remove(closeable) != null;
 	}
 }

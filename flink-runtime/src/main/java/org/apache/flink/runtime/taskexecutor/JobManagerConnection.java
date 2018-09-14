@@ -24,11 +24,10 @@ import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.util.Preconditions;
-
-import java.util.UUID;
 
 /**
  * Container class for JobManager specific communication utils used by the {@link TaskExecutor}.
@@ -40,9 +39,6 @@ public class JobManagerConnection {
 
 	// The unique id used for identifying the job manager
 	private final ResourceID resourceID;
-
-	// Job master leader session id
-	private final UUID leaderId;
 
 	// Gateway to the job master
 	private final JobMasterGateway jobMasterGateway;
@@ -63,18 +59,16 @@ public class JobManagerConnection {
 	private final PartitionProducerStateChecker partitionStateChecker;
 
 	public JobManagerConnection(
-		JobID jobID,
-		ResourceID resourceID,
-		JobMasterGateway jobMasterGateway,
-		UUID leaderId,
-		TaskManagerActions taskManagerActions,
-		CheckpointResponder checkpointResponder,
-		LibraryCacheManager libraryCacheManager,
-		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
-		PartitionProducerStateChecker partitionStateChecker) {
+				JobID jobID,
+				ResourceID resourceID,
+				JobMasterGateway jobMasterGateway,
+				TaskManagerActions taskManagerActions,
+				CheckpointResponder checkpointResponder,
+				LibraryCacheManager libraryCacheManager,
+				ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
+				PartitionProducerStateChecker partitionStateChecker) {
 		this.jobID = Preconditions.checkNotNull(jobID);
 		this.resourceID = Preconditions.checkNotNull(resourceID);
-		this.leaderId = Preconditions.checkNotNull(leaderId);
 		this.jobMasterGateway = Preconditions.checkNotNull(jobMasterGateway);
 		this.taskManagerActions = Preconditions.checkNotNull(taskManagerActions);
 		this.checkpointResponder = Preconditions.checkNotNull(checkpointResponder);
@@ -91,8 +85,8 @@ public class JobManagerConnection {
 		return resourceID;
 	}
 
-	public UUID getLeaderId() {
-		return leaderId;
+	public JobMasterId getJobMasterId() {
+		return jobMasterGateway.getFencingToken();
 	}
 
 	public JobMasterGateway getJobManagerGateway() {

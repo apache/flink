@@ -230,7 +230,7 @@ trait PredictOperation[Instance, Model, Testing, Prediction] extends Serializabl
   /** Calculates the prediction for a single element given the model of the [[Predictor]].
     *
     * @param value The unlabeled example on which we make the prediction
-    * @param model The model representation of the prediciton algorithm
+    * @param model The model representation of the prediction algorithm
     * @return A label for the provided example of type [[Prediction]]
     */
   def predict(value: Testing, model: Model):

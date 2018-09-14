@@ -17,8 +17,9 @@
 
 package org.apache.flink.streaming.connectors.kinesis.serialization;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -30,10 +31,13 @@ import java.io.Serializable;
  *
  * @param <T> The type created by the keyed deserialization schema.
  */
+@PublicEvolving
 public interface KinesisDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
 
 	/**
-	 * Deserializes a Kinesis record's bytes.
+	 * Deserializes a Kinesis record's bytes. If the record cannot be deserialized, {@code null}
+	 * may be returned. This informs the Flink Kinesis Consumer to process the Kinesis record
+	 * without producing any output for it, i.e. effectively "skipping" the record.
 	 *
 	 * @param recordValue the record's value as a byte array
 	 * @param partitionKey the record's partition key at the time of writing
@@ -41,7 +45,8 @@ public interface KinesisDeserializationSchema<T> extends Serializable, ResultTyp
 	 * @param approxArrivalTimestamp the server-side timestamp of when Kinesis received and stored the record
 	 * @param stream the name of the Kinesis stream that this record was sent to
 	 * @param shardId The identifier of the shard the record was sent to
-	 * @return the deserialized message as an Java object
+	 *
+	 * @return the deserialized message as an Java object ({@code null} if the message cannot be deserialized).
 	 * @throws IOException
 	 */
 	T deserialize(byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId) throws IOException;

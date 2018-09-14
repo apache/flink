@@ -54,7 +54,9 @@ extends GraphAlgorithmWrappingGraph<K, OLD, EV, K, NEW, EV> {
 
 	@Override
 	protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
-		super.mergeConfiguration(other);
+		if (!super.canMergeConfigurationWith(other)) {
+			return false;
+		}
 
 		TranslateVertexValues rhs = (TranslateVertexValues) other;
 

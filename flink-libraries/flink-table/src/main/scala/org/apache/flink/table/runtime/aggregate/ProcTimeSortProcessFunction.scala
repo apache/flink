@@ -23,9 +23,10 @@ import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.types.Row
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.util.{Collector, Preconditions}
-
 import java.util.ArrayList
 import java.util.Collections
+
+import org.apache.flink.streaming.api.operators.TimestampedCollector
 
 
 /**
@@ -75,7 +76,10 @@ class ProcTimeSortProcessFunction(
     timestamp: Long,
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
-    
+
+    // remove timestamp set outside of ProcessFunction.
+    out.asInstanceOf[TimestampedCollector[_]].eraseTimestamp()
+
     val iter =  bufferedEvents.get.iterator()
 
     // insert all rows into the sort buffer

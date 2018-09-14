@@ -67,7 +67,7 @@ public class GenericInputSplit implements InputSplit, java.io.Serializable {
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj != null && obj instanceof GenericInputSplit) {
+		if (obj instanceof GenericInputSplit) {
 			GenericInputSplit other = (GenericInputSplit) obj;
 			return this.partitionNumber == other.partitionNumber &&
 					this.totalNumberOfPartitions == other.totalNumberOfPartitions;

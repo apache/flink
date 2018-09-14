@@ -18,64 +18,66 @@
 
 package org.apache.flink.runtime.messages.webmonitor;
 
-import java.util.Arrays;
+import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.Objects;
 
 /**
  * An actor messages describing details of various jobs. This message is sent for example
- * in response to the {@link org.apache.flink.runtime.messages.webmonitor.RequestJobDetails}
- * message.
+ * in response to the {@link RequestJobDetails} message.
  */
-public class MultipleJobsDetails implements java.io.Serializable {
+public class MultipleJobsDetails implements ResponseBody, Serializable {
 
 	private static final long serialVersionUID = -1526236139616019127L;
 	
-	private static final JobDetails[] EMPTY = new JobDetails[0];
-	
-	private final JobDetails[] runningJobs;
-	private final JobDetails[] finishedJobs;
+	public static final String FIELD_NAME_JOBS = "jobs";
 
-	public MultipleJobsDetails(JobDetails[] running, JobDetails[] finished) {
-		this.runningJobs = running == null ? EMPTY : running;
-		this.finishedJobs = finished == null ? EMPTY : finished;
+	@JsonProperty(FIELD_NAME_JOBS)
+	private final Collection<JobDetails> jobs;
+
+	@JsonCreator
+	public MultipleJobsDetails(
+			@JsonProperty(FIELD_NAME_JOBS) Collection<JobDetails> jobs) {
+		this.jobs = Preconditions.checkNotNull(jobs);
 	}
 	
 	// ------------------------------------------------------------------------
 
-	public JobDetails[] getRunningJobs() {
-		return runningJobs;
-	}
 
-	public JobDetails[] getFinishedJobs() {
-		return finishedJobs;
-	}
-
-	// ------------------------------------------------------------------------
-
-	@Override
-	public int hashCode() {
-		return Arrays.deepHashCode(runningJobs) + Arrays.deepHashCode(finishedJobs);
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this) {
-			return true;
-		}
-		else if (obj instanceof MultipleJobsDetails) {
-			MultipleJobsDetails that = (MultipleJobsDetails) obj;
-			return Arrays.deepEquals(this.runningJobs, that.runningJobs) &&
-					Arrays.deepEquals(this.finishedJobs, that.finishedJobs);
-		}
-		else {
-			return false;
-		}
+	public Collection<JobDetails> getJobs() {
+		return jobs;
 	}
 
 	@Override
 	public String toString() {
-		return "MultipleJobsDetails {" +
-				"running=" + Arrays.toString(runningJobs) +
-				", finished=" + Arrays.toString(finishedJobs) +
-				'}';
+		return "MultipleJobsDetails{" +
+			"jobs=" + jobs +
+			'}';
 	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		MultipleJobsDetails that = (MultipleJobsDetails) o;
+		return Objects.equals(jobs, that.jobs);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(jobs);
+	}
+
+	// ------------------------------------------------------------------------
 }

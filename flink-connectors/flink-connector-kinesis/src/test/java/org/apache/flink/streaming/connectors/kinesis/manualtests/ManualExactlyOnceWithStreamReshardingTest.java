@@ -20,13 +20,14 @@ package org.apache.flink.streaming.connectors.kinesis.manualtests;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.testutils.ExactlyOnceValidatingConsumerThread;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 
-import com.amazonaws.services.kinesis.AmazonKinesisClient;
+import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.model.LimitExceededException;
 import com.amazonaws.services.kinesis.model.PutRecordsRequest;
@@ -73,7 +74,7 @@ public class ManualExactlyOnceWithStreamReshardingTest {
 		configProps.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, secretKey);
 		configProps.setProperty(ConsumerConfigConstants.AWS_REGION, region);
 		configProps.setProperty(ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS, "0");
-		final AmazonKinesisClient client = AWSUtil.createKinesisClient(configProps);
+		final AmazonKinesis client = AWSUtil.createKinesisClient(configProps);
 
 		// the stream is first created with 1 shard
 		client.createStream(streamName, 1);
@@ -89,8 +90,8 @@ public class ManualExactlyOnceWithStreamReshardingTest {
 
 		final Configuration flinkConfig = new Configuration();
 		flinkConfig.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
-		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
-		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 16);
+		flinkConfig.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 8);
+		flinkConfig.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "16m");
 		flinkConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
 
 		LocalFlinkMiniCluster flink = new LocalFlinkMiniCluster(flinkConfig, false);
@@ -106,7 +107,7 @@ public class ManualExactlyOnceWithStreamReshardingTest {
 			Runnable manualGenerate = new Runnable() {
 				@Override
 				public void run() {
-					AmazonKinesisClient client = AWSUtil.createKinesisClient(configProps);
+					AmazonKinesis client = AWSUtil.createKinesisClient(configProps);
 					int count = 0;
 					final int batchSize = 30;
 					while (true) {

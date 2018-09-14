@@ -20,8 +20,8 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
+import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Test;
 
@@ -34,7 +34,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Integration tests for a streaming {@link OutputSelector}.
  */
-public class OutputSplitterITCase extends StreamingMultipleProgramsTestBase {
+public class OutputSplitterITCase extends AbstractTestBase {
 
 	private static ArrayList<Integer> expectedSplitterResult = new ArrayList<Integer>();
 

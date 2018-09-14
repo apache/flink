@@ -21,6 +21,7 @@ package org.apache.flink.table.codegen.calls
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
+import org.apache.flink.table.typeutils.TypeCheckUtils
 
 trait CallGenerator {
 
@@ -33,40 +34,73 @@ trait CallGenerator {
 
 object CallGenerator {
 
+  /**
+    * Generates a call with a single result statement.
+    */
   def generateCallIfArgsNotNull(
       nullCheck: Boolean,
       returnType: TypeInformation[_],
       operands: Seq[GeneratedExpression])
       (call: (Seq[String]) => String)
     : GeneratedExpression = {
+
+    generateCallWithStmtIfArgsNotNull(nullCheck, returnType, operands) {
+      (terms) => (None, call(terms))
+    }
+  }
+
+  /**
+    * Generates a call with auxiliary statements and result expression.
+    */
+  def generateCallWithStmtIfArgsNotNull(
+      nullCheck: Boolean,
+      returnType: TypeInformation[_],
+      operands: Seq[GeneratedExpression])
+      (call: (Seq[String]) => (Option[String], String))
+    : GeneratedExpression = {
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
     val resultTypeTerm = primitiveTypeTermForTypeInfo(returnType)
     val defaultValue = primitiveDefaultValue(returnType)
 
+    val (auxiliaryStmt, result) = call(operands.map(_.resultTerm))
+
+    val nullTermCode = if (
+      nullCheck &&
+      isReference(returnType) &&
+      !TypeCheckUtils.isTemporal(returnType)) {
+      s"""
+         |$nullTerm = ($resultTerm == null);
+       """.stripMargin
+    } else {
+      ""
+    }
+
     val resultCode = if (nullCheck && operands.nonEmpty) {
       s"""
         |${operands.map(_.code).mkString("\n")}
         |boolean $nullTerm = ${operands.map(_.nullTerm).mkString(" || ")};
-        |$resultTypeTerm $resultTerm;
-        |if ($nullTerm) {
-        |  $resultTerm = $defaultValue;
-        |}
-        |else {
-        |  $resultTerm = ${call(operands.map(_.resultTerm))};
+        |$resultTypeTerm $resultTerm = $defaultValue;
+        |if (!$nullTerm) {
+        |  ${auxiliaryStmt.getOrElse("")}
+        |  $resultTerm = $result;
+        |  $nullTermCode
         |}
         |""".stripMargin
     } else if (nullCheck && operands.isEmpty) {
       s"""
         |${operands.map(_.code).mkString("\n")}
         |boolean $nullTerm = false;
-        |$resultTypeTerm $resultTerm = ${call(operands.map(_.resultTerm))};
+        |${auxiliaryStmt.getOrElse("")}
+        |$resultTypeTerm $resultTerm = $result;
+        |$nullTermCode
         |""".stripMargin
     } else{
       s"""
         |boolean $nullTerm = false;
         |${operands.map(_.code).mkString("\n")}
-        |$resultTypeTerm $resultTerm = ${call(operands.map(_.resultTerm))};
+        |${auxiliaryStmt.getOrElse("")}
+        |$resultTypeTerm $resultTerm = $result;
         |""".stripMargin
     }
 

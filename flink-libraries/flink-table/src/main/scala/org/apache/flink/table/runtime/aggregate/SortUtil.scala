@@ -35,6 +35,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.util.Preconditions
 
 import java.util.Comparator
 
@@ -60,6 +61,9 @@ object SortUtil {
     inputTypeInfo: TypeInformation[Row],
     execCfg: ExecutionConfig): ProcessFunction[CRow, CRow] = {
 
+    Preconditions.checkArgument(collationSort.getFieldCollations.size() > 0)
+    val rowtimeIdx = collationSort.getFieldCollations.get(0).getFieldIndex
+
     val collectionRowComparator = if (collationSort.getFieldCollations.size() > 1) {
 
       val rowComp = createRowComparator(
@@ -76,6 +80,7 @@ object SortUtil {
  
     new RowTimeSortProcessFunction(
       inputCRowType,
+      rowtimeIdx,
       collectionRowComparator)
 
   }
@@ -132,14 +137,15 @@ object SortUtil {
 
     val fieldComps = for ((k, o) <- sortFields.zip(sortDirections)) yield {
       FlinkTypeFactory.toTypeInfo(inputType.getFieldList.get(k).getType) match {
-        case a: AtomicType[AnyRef] => a.createComparator(o, execConfig)
+        case a: AtomicType[_] =>
+          a.createComparator(o, execConfig).asInstanceOf[TypeComparator[AnyRef]]
         case x: TypeInformation[_] =>  
           throw new TableException(s"Unsupported field type $x to sort on.")
       }
     }
 
     new RowComparator(
-      new RowSchema(inputType).physicalArity,
+      new RowSchema(inputType).arity,
       sortFields.toArray,
       fieldComps.toArray,
       new Array[TypeSerializer[AnyRef]](0), // not required because we only compare objects.
@@ -154,6 +160,7 @@ object SortUtil {
    * @return The direction of the first sort field.
    */
   def getFirstSortDirection(collationSort: RelCollation): Direction = {
+    Preconditions.checkArgument(collationSort.getFieldCollations.size() > 0)
     collationSort.getFieldCollations.get(0).direction
   }
   
@@ -165,6 +172,7 @@ object SortUtil {
    * @return The first sort field.
    */
   def getFirstSortField(collationSort: RelCollation, rowType: RelDataType): RelDataTypeField = {
+    Preconditions.checkArgument(collationSort.getFieldCollations.size() > 0)
     val idx = collationSort.getFieldCollations.get(0).getFieldIndex
     rowType.getFieldList.get(idx)
   }

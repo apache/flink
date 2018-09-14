@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.calcite
 
+import java.util.Properties
+
+import org.apache.calcite.config.{CalciteConnectionConfig, CalciteConnectionConfigImpl, CalciteConnectionProperty}
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.sql.SqlOperatorTable
 import org.apache.calcite.sql.parser.SqlParser
@@ -303,5 +306,12 @@ object CalciteConfig {
     */
   def createBuilder(): CalciteConfigBuilder = {
     new CalciteConfigBuilder
+  }
+
+  def connectionConfig(parserConfig : SqlParser.Config): CalciteConnectionConfig = {
+    val prop = new Properties()
+    prop.setProperty(CalciteConnectionProperty.CASE_SENSITIVE.camelName,
+      String.valueOf(parserConfig.caseSensitive))
+    new CalciteConnectionConfigImpl(prop)
   }
 }

@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.operators.async.queue;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.streaming.api.operators.async.OperatorActions;
 import org.apache.flink.util.Preconditions;
 
@@ -220,7 +219,7 @@ public class UnorderedStreamElementQueue implements StreamElementQueue {
 
 	/**
 	 * Callback for onComplete events for the given stream element queue entry. Whenever a queue
-	 * entry is completed, it is checked whether this entry belogns to the first set. If this is the
+	 * entry is completed, it is checked whether this entry belongs to the first set. If this is the
 	 * case, then the element is added to the completed entries queue from where it can be consumed.
 	 * If the first set becomes empty, then the next set is polled from the uncompleted entries
 	 * queue. Completed entries from this new set are then added to the completed entries queue.
@@ -285,9 +284,8 @@ public class UnorderedStreamElementQueue implements StreamElementQueue {
 			lastSet.add(streamElementQueueEntry);
 		}
 
-		streamElementQueueEntry.onComplete(new AcceptFunction<StreamElementQueueEntry<T>>() {
-			@Override
-			public void accept(StreamElementQueueEntry<T> value) {
+		streamElementQueueEntry.onComplete(
+			(StreamElementQueueEntry<T> value) -> {
 				try {
 					onCompleteHandler(value);
 				} catch (InterruptedException e) {
@@ -299,8 +297,8 @@ public class UnorderedStreamElementQueue implements StreamElementQueue {
 					operatorActions.failOperator(new Exception("Could not complete the " +
 						"stream element queue entry: " + value + '.', t));
 				}
-			}
-		}, executor);
+			},
+			executor);
 
 		numberEntries++;
 	}

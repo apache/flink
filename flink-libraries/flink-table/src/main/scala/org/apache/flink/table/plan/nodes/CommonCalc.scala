@@ -19,57 +19,43 @@
 package org.apache.flink.table.plan.nodes
 
 import org.apache.calcite.plan.{RelOptCost, RelOptPlanner}
+import org.apache.calcite.rel.metadata.RelMdUtil
 import org.apache.calcite.rex._
 import org.apache.flink.api.common.functions.Function
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.{CodeGenerator, GeneratedFunction}
+import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.types.Row
 
-import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 trait CommonCalc {
 
   private[flink] def generateFunction[T <: Function](
-      generator: CodeGenerator,
+      generator: FunctionCodeGenerator,
       ruleDescription: String,
       inputSchema: RowSchema,
       returnSchema: RowSchema,
-      calcProgram: RexProgram,
+      calcProjection: Seq[RexNode],
+      calcCondition: Option[RexNode],
       config: TableConfig,
       functionClass: Class[T]):
     GeneratedFunction[T, Row] = {
 
-    val expandedExpressions = calcProgram
-      .getProjectList
-      .map(expr => calcProgram.expandLocalRef(expr))
-      // time indicator fields must not be part of the code generation
-      .filter(expr => !FlinkTypeFactory.isTimeIndicatorType(expr.getType))
-      // update indices
-      .map(expr => inputSchema.mapRexNode(expr))
-
-    val condition = if (calcProgram.getCondition != null) {
-      inputSchema.mapRexNode(calcProgram.expandLocalRef(calcProgram.getCondition))
-    } else {
-      null
-    }
-
     val projection = generator.generateResultExpression(
-      returnSchema.physicalTypeInfo,
-      returnSchema.physicalFieldNames,
-      expandedExpressions)
+      returnSchema.typeInfo,
+      returnSchema.fieldNames,
+      calcProjection)
 
     // only projection
-    val body = if (condition == null) {
+    val body = if (calcCondition.isEmpty) {
       s"""
         |${projection.code}
         |${generator.collectorTerm}.collect(${projection.resultTerm});
         |""".stripMargin
     }
     else {
-      val filterCondition = generator.generateExpression(condition)
+      val filterCondition = generator.generateExpression(calcCondition.get)
       // only filter
       if (projection == null) {
         s"""
@@ -95,7 +81,7 @@ trait CommonCalc {
       ruleDescription,
       functionClass,
       body,
-      returnSchema.physicalTypeInfo)
+      returnSchema.typeInfo)
   }
 
   private[flink] def conditionToString(
@@ -164,12 +150,9 @@ trait CommonCalc {
     // conditions, etc. We only want to account for computations, not for simple projections.
     // CASTs in RexProgram are reduced as far as possible by ReduceExpressionsRule
     // in normalization stage. So we should ignore CASTs here in optimization stage.
-    val compCnt = calcProgram.getExprList.asScala.toList.count {
-      case _: RexInputRef => false
-      case _: RexLiteral => false
-      case c: RexCall if c.getOperator.getName.equals("CAST") => false
-      case _ => true
-    }
+    // Also, we add 1 to take calc RelNode number into consideration, so the cost of merged calc
+    // RelNode will be less than the total cost of un-merged calcs.
+    val compCnt = calcProgram.getExprList.asScala.toList.count(isComputation) + 1
 
     val newRowCnt = estimateRowCount(calcProgram, rowCnt)
     planner.getCostFactory.makeCost(newRowCnt, newRowCnt * compCnt, 0)
@@ -181,9 +164,24 @@ trait CommonCalc {
 
     if (calcProgram.getCondition != null) {
       // we reduce the result card to push filters down
-      (rowCnt * 0.75).max(1.0)
+      val exprs = calcProgram.expandLocalRef(calcProgram.getCondition)
+      val selectivity = RelMdUtil.guessSelectivity(exprs, false)
+      (rowCnt * selectivity).max(1.0)
     } else {
       rowCnt
+    }
+  }
+
+  /**
+    * Return true if the input rexNode do not access a field or literal, i.e. computations,
+    * conditions, etc.
+    */
+  private[flink] def isComputation(rexNode: RexNode): Boolean = {
+    rexNode match {
+      case _: RexInputRef => false
+      case _: RexLiteral => false
+      case c: RexCall if c.getOperator.getName.equals("CAST") => false
+      case _ => true
     }
   }
 }

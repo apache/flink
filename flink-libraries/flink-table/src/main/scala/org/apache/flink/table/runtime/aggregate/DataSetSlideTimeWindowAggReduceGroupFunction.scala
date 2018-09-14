@@ -25,9 +25,9 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-import org.slf4j.LoggerFactory
 
 /**
   * It is used for sliding windows on batch for time-windows. It takes a prepared input row (with
@@ -53,7 +53,8 @@ class DataSetSlideTimeWindowAggReduceGroupFunction(
   extends RichGroupReduceFunction[Row, Row]
   with CombineFunction[Row, Row]
   with ResultTypeQueryable[Row]
-  with Compiler[GeneratedAggregations] {
+  with Compiler[GeneratedAggregations]
+  with Logging {
 
   private val timeFieldPos = returnType.getArity - 1
   private val intermediateWindowStartPos = keysAndAggregatesArity
@@ -61,14 +62,13 @@ class DataSetSlideTimeWindowAggReduceGroupFunction(
   protected var intermediateRow: Row = _
   private var accumulators: Row = _
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
     LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
                 s"Code:\n$genAggregations.code")
     val clazz = compile(
-      getClass.getClassLoader,
+      getRuntimeContext.getUserCodeClassLoader,
       genAggregations.name,
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")

@@ -136,7 +136,7 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 				}
 				
 				/* Test on the union input connections
-				 * Must be NUM_INPUTS input connections, all FlatMapOperators with a own partitioning strategy(propably hash)
+				 * Must be NUM_INPUTS input connections, all FlatMapOperators with a own partitioning strategy (probably hash)
 				 */
 				if (visitable instanceof NAryUnionPlanNode) {
 					int numberInputs = 0;

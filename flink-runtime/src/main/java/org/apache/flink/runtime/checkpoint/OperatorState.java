@@ -30,8 +30,8 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Simple container class which contains the raw/managed/legacy operator state and key-group state handles for the sub
- * tasks of an operator.
+ * Simple container class which contains the raw/managed operator state and key-group state handles from all sub
+ * tasks of an operator and therefore represents the complete state of a logical operator.
  */
 public class OperatorState implements CompositeStateHandle {
 
@@ -100,15 +100,6 @@ public class OperatorState implements CompositeStateHandle {
 
 	public int getMaxParallelism() {
 		return maxParallelism;
-	}
-
-	public boolean hasNonPartitionedState() {
-		for (OperatorSubtaskState sts : operatorSubtaskStates.values()) {
-			if (sts != null && sts.getLegacyOperatorState() != null) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 	@Override

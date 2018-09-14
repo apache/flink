@@ -43,6 +43,7 @@ import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -95,9 +96,24 @@ public class CoGroupedStreams<T1, T2> {
 
 	/**
 	 * Specifies a {@link KeySelector} for elements from the first input.
+	 *
+	 * @param keySelector The KeySelector to be used for extracting the first input's key for partitioning.
 	 */
 	public <KEY> Where<KEY> where(KeySelector<T1, KEY> keySelector)  {
-		TypeInformation<KEY> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input1.getType());
+		Preconditions.checkNotNull(keySelector);
+		final TypeInformation<KEY> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input1.getType());
+		return where(keySelector, keyType);
+	}
+
+	/**
+	 * Specifies a {@link KeySelector} for elements from the first input with explicit type information.
+	 *
+	 * @param keySelector The KeySelector to be used for extracting the first input's key for partitioning.
+	 * @param keyType The type information describing the key type.
+	 */
+	public <KEY> Where<KEY> where(KeySelector<T1, KEY> keySelector, TypeInformation<KEY> keyType)  {
+		Preconditions.checkNotNull(keySelector);
+		Preconditions.checkNotNull(keyType);
 		return new Where<>(input1.clean(keySelector), keyType);
 	}
 
@@ -121,12 +137,28 @@ public class CoGroupedStreams<T1, T2> {
 
 		/**
 		 * Specifies a {@link KeySelector} for elements from the second input.
+		 *
+		 * @param keySelector The KeySelector to be used for extracting the second input's key for partitioning.
 		 */
 		public EqualTo equalTo(KeySelector<T2, KEY> keySelector)  {
-			TypeInformation<KEY> otherKey = TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
-			if (!otherKey.equals(this.keyType)) {
+			Preconditions.checkNotNull(keySelector);
+			final TypeInformation<KEY> otherKey = TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
+			return equalTo(keySelector, otherKey);
+		}
+
+		/**
+		 * Specifies a {@link KeySelector} for elements from the second input with explicit type information for the key type.
+		 *
+		 * @param keySelector The KeySelector to be used for extracting the key for partitioning.
+		 * @param keyType The type information describing the key type.
+		 */
+		public EqualTo equalTo(KeySelector<T2, KEY> keySelector, TypeInformation<KEY> keyType)  {
+			Preconditions.checkNotNull(keySelector);
+			Preconditions.checkNotNull(keyType);
+
+			if (!keyType.equals(this.keyType)) {
 				throw new IllegalArgumentException("The keys for the two inputs are not equal: " +
-						"first key = " + this.keyType + " , second key = " + otherKey);
+						"first key = " + this.keyType + " , second key = " + keyType);
 			}
 
 			return new EqualTo(input2.clean(keySelector));
@@ -611,7 +643,7 @@ public class CoGroupedStreams<T1, T2> {
 
 	// ------------------------------------------------------------------------
 	//  Utility functions that implement the CoGroup logic based on the tagged
-	//  untion window reduce
+	//  union window reduce
 	// ------------------------------------------------------------------------
 
 	private static class Input1Tagger<T1, T2> implements MapFunction<T1, TaggedUnion<T1, T2>> {

@@ -25,12 +25,12 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.runtime.utils.JavaStreamTestData;
 import org.apache.flink.table.runtime.utils.StreamITCase;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 
 import org.junit.Test;
@@ -41,7 +41,7 @@ import java.util.List;
 /**
  * Integration tests for streaming SQL.
  */
-public class JavaSqlITCase extends StreamingMultipleProgramsTestBase {
+public class JavaSqlITCase extends AbstractTestBase {
 
 	@Test
 	public void testRowRegisterRowWithNames() throws Exception {
@@ -68,7 +68,7 @@ public class JavaSqlITCase extends StreamingMultipleProgramsTestBase {
 		tableEnv.registerTable("MyTableRow", in);
 
 		String sqlQuery = "SELECT a,c FROM MyTableRow";
-		Table result = tableEnv.sql(sqlQuery);
+		Table result = tableEnv.sqlQuery(sqlQuery);
 
 		DataStream<Row> resultSet = tableEnv.toAppendStream(result, Row.class);
 		resultSet.addSink(new StreamITCase.StringSink<Row>());
@@ -93,7 +93,7 @@ public class JavaSqlITCase extends StreamingMultipleProgramsTestBase {
 		tableEnv.registerTable("MyTable", in);
 
 		String sqlQuery = "SELECT * FROM MyTable";
-		Table result = tableEnv.sql(sqlQuery);
+		Table result = tableEnv.sqlQuery(sqlQuery);
 
 		DataStream<Row> resultSet = tableEnv.toAppendStream(result, Row.class);
 		resultSet.addSink(new StreamITCase.StringSink<Row>());
@@ -117,7 +117,7 @@ public class JavaSqlITCase extends StreamingMultipleProgramsTestBase {
 		tableEnv.registerDataStream("MyTable", ds, "a, b, c, d, e");
 
 		String sqlQuery = "SELECT a, b, e FROM MyTable WHERE c < 4";
-		Table result = tableEnv.sql(sqlQuery);
+		Table result = tableEnv.sqlQuery(sqlQuery);
 
 		DataStream<Row> resultSet = tableEnv.toAppendStream(result, Row.class);
 		resultSet.addSink(new StreamITCase.StringSink<Row>());
@@ -148,7 +148,7 @@ public class JavaSqlITCase extends StreamingMultipleProgramsTestBase {
 		String sqlQuery = "SELECT * FROM T1 " +
 							"UNION ALL " +
 							"(SELECT a, b, c FROM T2 WHERE a	< 3)";
-		Table result = tableEnv.sql(sqlQuery);
+		Table result = tableEnv.sqlQuery(sqlQuery);
 
 		DataStream<Row> resultSet = tableEnv.toAppendStream(result, Row.class);
 		resultSet.addSink(new StreamITCase.StringSink<Row>());

@@ -20,87 +20,113 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.rpc.RpcGateway;
-import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.jobmaster.JobMaster;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
+import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
+import org.apache.flink.runtime.rpc.FencedRpcGateway;
+import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
+import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 
-import java.util.UUID;
+import javax.annotation.Nullable;
+
+import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The {@link ResourceManager}'s RPC gateway interface.
  */
-public interface ResourceManagerGateway extends RpcGateway {
+public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManagerId> {
 
 	/**
 	 * Register a {@link JobMaster} at the resource manager.
 	 *
-	 * @param resourceManagerLeaderId The fencing token for the ResourceManager leader
-	 * @param jobMasterLeaderId The fencing token for the JobMaster leader
-	 * @param jobMasterResourceId   The resource ID of the JobMaster that registers
-	 * @param jobMasterAddress        The address of the JobMaster that registers
-	 * @param jobID                   The Job ID of the JobMaster that registers
-	 * @param timeout                 Timeout for the future to complete
+	 * @param jobMasterId The fencing token for the JobMaster leader
+	 * @param jobMasterResourceId The resource ID of the JobMaster that registers
+	 * @param jobMasterAddress The address of the JobMaster that registers
+	 * @param jobId The Job ID of the JobMaster that registers
+	 * @param timeout Timeout for the future to complete
 	 * @return Future registration response
 	 */
-	Future<RegistrationResponse> registerJobManager(
-		UUID resourceManagerLeaderId,
-		UUID jobMasterLeaderId,
+	CompletableFuture<RegistrationResponse> registerJobManager(
+		JobMasterId jobMasterId,
 		ResourceID jobMasterResourceId,
 		String jobMasterAddress,
-		JobID jobID,
+		JobID jobId,
 		@RpcTimeout Time timeout);
 
 	/**
 	 * Requests a slot from the resource manager.
 	 *
-	 * @param resourceManagerLeaderID leader if of the ResourceMaster
-	 * @param jobMasterLeaderID leader if of the JobMaster
+	 * @param jobMasterId id of the JobMaster
 	 * @param slotRequest The slot to request
 	 * @return The confirmation that the slot gets allocated
 	 */
-	Future<Acknowledge> requestSlot(
-		UUID resourceManagerLeaderID,
-		UUID jobMasterLeaderID,
+	CompletableFuture<Acknowledge> requestSlot(
+		JobMasterId jobMasterId,
 		SlotRequest slotRequest,
 		@RpcTimeout Time timeout);
 
 	/**
-	 * Register a {@link org.apache.flink.runtime.taskexecutor.TaskExecutor} at the resource manager.
+	 * Cancel the slot allocation requests from the resource manager.
 	 *
-	 * @param resourceManagerLeaderId  The fencing token for the ResourceManager leader
-	 * @param taskExecutorAddress     The address of the TaskExecutor that registers
-	 * @param resourceID              The resource ID of the TaskExecutor that registers
-	 * @param slotReport              The slot report containing free and allocated task slots
-	 * @param timeout                 The timeout for the response.
+	 * @param allocationID The slot to request
+	 */
+	void cancelSlotRequest(AllocationID allocationID);
+
+	/**
+	 * Register a {@link TaskExecutor} at the resource manager.
+	 *
+	 * @param taskExecutorAddress The address of the TaskExecutor that registers
+	 * @param resourceId The resource ID of the TaskExecutor that registers
+	 * @param dataPort port used for data communication between TaskExecutors
+	 * @param hardwareDescription of the registering TaskExecutor
+	 * @param timeout The timeout for the response.
 	 *
 	 * @return The future to the response by the ResourceManager.
 	 */
-	Future<RegistrationResponse> registerTaskExecutor(
-		UUID resourceManagerLeaderId,
+	CompletableFuture<RegistrationResponse> registerTaskExecutor(
 		String taskExecutorAddress,
-		ResourceID resourceID,
+		ResourceID resourceId,
+		int dataPort,
+		HardwareDescription hardwareDescription,
+		@RpcTimeout Time timeout);
+
+	/**
+	 * Sends the given {@link SlotReport} to the ResourceManager.
+	 *
+	 * @param taskManagerRegistrationId id identifying the sending TaskManager
+	 * @param slotReport which is sent to the ResourceManager
+	 * @param timeout for the operation
+	 * @return Future which is completed with {@link Acknowledge} once the slot report has been received.
+	 */
+	CompletableFuture<Acknowledge> sendSlotReport(
+		ResourceID taskManagerResourceId,
+		InstanceID taskManagerRegistrationId,
 		SlotReport slotReport,
 		@RpcTimeout Time timeout);
 
 	/**
 	 * Sent by the TaskExecutor to notify the ResourceManager that a slot has become available.
 	 *
-	 * @param resourceManagerLeaderId The ResourceManager leader id
 	 * @param instanceId TaskExecutor's instance id
 	 * @param slotID The SlotID of the freed slot
 	 * @param oldAllocationId to which the slot has been allocated
 	 */
 	void notifySlotAvailable(
-		UUID resourceManagerLeaderId,
 		InstanceID instanceId,
 		SlotID slotID,
 		AllocationID oldAllocationId);
@@ -121,19 +147,19 @@ public interface ResourceManagerGateway extends RpcGateway {
 	void unRegisterInfoMessageListener(String infoMessageListenerAddress);
 
 	/**
-	 * shutdown cluster
-	 * @param finalStatus
-	 * @param optionalDiagnostics
+	 * Deregister Flink from the underlying resource management system.
+	 *
+	 * @param finalStatus final status with which to deregister the Flink application
+	 * @param diagnostics additional information for the resource management system, can be {@code null}
 	 */
-	void shutDownCluster(final ApplicationStatus finalStatus, final String optionalDiagnostics);
+	CompletableFuture<Acknowledge> deregisterApplication(final ApplicationStatus finalStatus, @Nullable final String diagnostics);
 
 	/**
 	 * Gets the currently registered number of TaskManagers.
 	 * 
-	 * @param leaderSessionId The leader session ID with which to address the ResourceManager.
 	 * @return The future to the number of registered TaskManagers.
 	 */
-	Future<Integer> getNumberOfRegisteredTaskManagers(UUID leaderSessionId);
+	CompletableFuture<Integer> getNumberOfRegisteredTaskManagers();
 
 	/**
 	 * Sends the heartbeat to resource manager from task manager
@@ -165,4 +191,50 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * @param cause for the disconnection of the JobManager
 	 */
 	void disconnectJobManager(JobID jobId, Exception cause);
+
+	/**
+	 * Requests information about the registered {@link TaskExecutor}.
+	 *
+	 * @param timeout of the request
+	 * @return Future collection of TaskManager information
+	 */
+	CompletableFuture<Collection<TaskManagerInfo>> requestTaskManagerInfo(@RpcTimeout Time timeout);
+
+	/**
+	 * Requests information about the given {@link TaskExecutor}.
+	 *
+	 * @param taskManagerId identifying the TaskExecutor for which to return information
+	 * @param timeout of the request
+	 * @return Future TaskManager information
+	 */
+	CompletableFuture<TaskManagerInfo> requestTaskManagerInfo(ResourceID taskManagerId, @RpcTimeout Time timeout);
+	 
+	/**
+	 * Requests the resource overview. The resource overview provides information about the
+	 * connected TaskManagers, the total number of slots and the number of available slots.
+	 *
+	 * @param timeout of the request
+	 * @return Future containing the resource overview
+	 */
+	CompletableFuture<ResourceOverview> requestResourceOverview(@RpcTimeout Time timeout);
+
+	/**
+	 * Requests the paths for the TaskManager's {@link MetricQueryService} to query.
+	 *
+	 * @param timeout for the asynchronous operation
+	 * @return Future containing the collection of resource ids and the corresponding metric query service path
+	 */
+	CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(@RpcTimeout Time timeout);
+
+	/**
+	 * Request the file upload from the given {@link TaskExecutor} to the cluster's {@link BlobServer}. The
+	 * corresponding {@link TransientBlobKey} is returned.
+	 *
+	 * @param taskManagerId identifying the {@link TaskExecutor} to upload the specified file
+	 * @param fileType type of the file to upload
+	 * @param timeout for the asynchronous operation
+	 * @return Future which is completed with the {@link TransientBlobKey} after uploading the file to the
+	 * {@link BlobServer}.
+	 */
+	CompletableFuture<TransientBlobKey> requestTaskManagerFileUpload(ResourceID taskManagerId, FileType fileType, @RpcTimeout Time timeout);
 }

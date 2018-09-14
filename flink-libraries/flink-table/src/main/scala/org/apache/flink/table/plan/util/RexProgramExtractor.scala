@@ -20,12 +20,18 @@ package org.apache.flink.table.plan.util
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.{SqlFunction, SqlPostfixOperator}
+import org.apache.calcite.util.{DateString, TimeString, TimestampString}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions.{Expression, Literal, ResolvedFieldReference}
+import org.apache.flink.table.expressions.{And, Expression, Literal, Or, ResolvedFieldReference}
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.util.Preconditions
+import java.sql.{Date, Time, Timestamp}
+
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -33,6 +39,8 @@ import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 object RexProgramExtractor {
+
+  lazy val LOG: Logger = LoggerFactory.getLogger(getClass)
 
   /**
     * Extracts the indices of input fields which accessed by the RexProgram.
@@ -149,12 +157,76 @@ class RexNodeToExpressionConverter(
     ))
   }
 
+  override def visitTableInputRef(rexTableInputRef: RexTableInputRef): Option[Expression] =
+    visitInputRef(rexTableInputRef)
+
   override def visitLocalRef(localRef: RexLocalRef): Option[Expression] = {
     throw new TableException("Bug: RexLocalRef should have been expanded")
   }
 
   override def visitLiteral(literal: RexLiteral): Option[Expression] = {
-    Some(Literal(literal.getValue, FlinkTypeFactory.toTypeInfo(literal.getType)))
+    val literalType = FlinkTypeFactory.toTypeInfo(literal.getType)
+
+    val literalValue = literalType match {
+
+      case _@SqlTimeTypeInfo.DATE =>
+        val rexValue = literal.getValueAs(classOf[DateString])
+        Date.valueOf(rexValue.toString)
+
+      case _@SqlTimeTypeInfo.TIME =>
+        val rexValue = literal.getValueAs(classOf[TimeString])
+        Time.valueOf(rexValue.toString(0))
+
+      case _@SqlTimeTypeInfo.TIMESTAMP =>
+        val rexValue = literal.getValueAs(classOf[TimestampString])
+        Timestamp.valueOf(rexValue.toString(3))
+
+      case _@BasicTypeInfo.BYTE_TYPE_INFO =>
+        // convert from BigDecimal to Byte
+        literal.getValueAs(classOf[java.lang.Byte])
+
+      case _@BasicTypeInfo.SHORT_TYPE_INFO =>
+        // convert from BigDecimal to Short
+        literal.getValueAs(classOf[java.lang.Short])
+
+      case _@BasicTypeInfo.INT_TYPE_INFO =>
+        // convert from BigDecimal to Integer
+        literal.getValueAs(classOf[java.lang.Integer])
+
+      case _@BasicTypeInfo.LONG_TYPE_INFO =>
+        // convert from BigDecimal to Long
+        literal.getValueAs(classOf[java.lang.Long])
+
+      case _@BasicTypeInfo.FLOAT_TYPE_INFO =>
+        // convert from BigDecimal to Float
+        literal.getValueAs(classOf[java.lang.Float])
+
+      case _@BasicTypeInfo.DOUBLE_TYPE_INFO =>
+        // convert from BigDecimal to Double
+        literal.getValueAs(classOf[java.lang.Double])
+
+      case _@BasicTypeInfo.STRING_TYPE_INFO =>
+        // convert from NlsString to String
+        literal.getValueAs(classOf[java.lang.String])
+
+      case _@BasicTypeInfo.BOOLEAN_TYPE_INFO =>
+        // convert to Boolean
+        literal.getValueAs(classOf[java.lang.Boolean])
+
+      case _@BasicTypeInfo.BIG_DEC_TYPE_INFO =>
+        // convert to BigDecimal
+        literal.getValueAs(classOf[java.math.BigDecimal])
+
+      case _ =>
+        // Literal type is not supported.
+        RexProgramExtractor.LOG.debug(
+          "Literal {} of SQL type {} is not supported and cannot be converted. " +
+            "Please reach out to the community if you think this type should be supported.",
+          Array(literal, literal.getType): _*)
+        return None
+    }
+
+    Some(Literal(literalValue, literalType))
   }
 
   override def visitCall(call: RexCall): Option[Expression] = {
@@ -167,6 +239,10 @@ class RexNodeToExpressionConverter(
       None
     } else {
         call.getOperator match {
+          case SqlStdOperatorTable.OR =>
+            Option(operands.reduceLeft(Or))
+          case SqlStdOperatorTable.AND =>
+            Option(operands.reduceLeft(And))
           case function: SqlFunction =>
             lookupFunction(replace(function.getName), operands)
           case postfix: SqlPostfixOperator =>
@@ -201,7 +277,6 @@ class RexNodeToExpressionConverter(
   private def replace(str: String): String = {
     str.replaceAll("\\s|_", "")
   }
-
 }
 
 /**

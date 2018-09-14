@@ -35,4 +35,36 @@ public class JavaUserDefinedTableFunctions {
 			collect(c);
 		}
 	}
+
+	/**
+	 * Emit every input string.
+	 */
+	public static class JavaVarsArgTableFunc0 extends TableFunction<String> {
+		public void eval(String... strs) {
+			for (String s : strs) {
+				collect(s);
+			}
+		}
+
+		public void eval(int val, String str) {
+			for (int i = 0; i < val; i++) {
+				collect(str);
+			}
+		}
+	}
+
+	/**
+	 * Emit sum of String length of all parameters.
+	 */
+	public static class JavaTableFunc1 extends TableFunction<Integer> {
+		public void eval(String... strs) {
+			int sum = 0;
+			if (strs != null) {
+				for (String str : strs) {
+					sum += str == null ? 0 : str.length();
+				}
+			}
+			collect(sum);
+		}
+	}
 }

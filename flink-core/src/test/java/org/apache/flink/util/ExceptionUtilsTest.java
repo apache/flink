@@ -20,12 +20,16 @@ package org.apache.flink.util;
 
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the utility methods in {@link ExceptionUtils}.
  */
-public class ExceptionUtilsTest {
+public class ExceptionUtilsTest extends TestLogger {
 
 	@Test
 	public void testStringifyNullException() {
@@ -57,4 +61,12 @@ public class ExceptionUtilsTest {
 		// non-fatal error is not rethrown
 		ExceptionUtils.rethrowIfFatalError(new NoClassDefFoundError());
 	}
+
+	@Test
+	public void testFindThrowableByType() {
+		assertTrue(ExceptionUtils.findThrowable(
+			new RuntimeException(new IllegalStateException()),
+			IllegalStateException.class).isPresent());
+	}
+
 }

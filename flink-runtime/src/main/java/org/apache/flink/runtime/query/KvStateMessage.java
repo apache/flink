@@ -19,12 +19,14 @@
 package org.apache.flink.runtime.query;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
+import java.net.InetSocketAddress;
 
 /**
  * Actor messages for {@link InternalKvState} lookup and registration.
@@ -114,7 +116,7 @@ public interface KvStateMessage extends Serializable {
 		private final KvStateID kvStateId;
 
 		/** Server address where to find the KvState instance. */
-		private final KvStateServerAddress kvStateServerAddress;
+		private final InetSocketAddress kvStateServerAddress;
 
 		/**
 		 * Notifies the JobManager about a registered {@link InternalKvState} instance.
@@ -132,7 +134,7 @@ public interface KvStateMessage extends Serializable {
 				KeyGroupRange keyGroupRange,
 				String registrationName,
 				KvStateID kvStateId,
-				KvStateServerAddress kvStateServerAddress) {
+				InetSocketAddress kvStateServerAddress) {
 
 			this.jobId = Preconditions.checkNotNull(jobId, "JobID");
 			this.jobVertexId = Preconditions.checkNotNull(jobVertexId, "JobVertexID");
@@ -140,7 +142,7 @@ public interface KvStateMessage extends Serializable {
 			this.keyGroupRange = Preconditions.checkNotNull(keyGroupRange);
 			this.registrationName = Preconditions.checkNotNull(registrationName, "Registration name");
 			this.kvStateId = Preconditions.checkNotNull(kvStateId, "KvStateID");
-			this.kvStateServerAddress = Preconditions.checkNotNull(kvStateServerAddress, "KvStateServerAddress");
+			this.kvStateServerAddress = Preconditions.checkNotNull(kvStateServerAddress, "ServerAddress");
 		}
 
 		/**
@@ -193,7 +195,7 @@ public interface KvStateMessage extends Serializable {
 		 *
 		 * @return Server address where to find the KvState instance
 		 */
-		public KvStateServerAddress getKvStateServerAddress() {
+		public InetSocketAddress getKvStateServerAddress() {
 			return kvStateServerAddress;
 		}
 

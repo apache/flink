@@ -85,7 +85,7 @@ public class JMXReporter implements MetricReporter {
 	/** The names under which the registered metrics have been added to the MBeanServer. */
 	private final Map<Metric, ObjectName> registeredMetrics;
 
-	/** The server to which JMX clients connect to. ALlows for better control over port usage. */
+	/** The server to which JMX clients connect to. Allows for better control over port usage. */
 	private JMXServer jmxServer;
 
 	public JMXReporter() {

@@ -20,27 +20,31 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.StringColumnSummary;
 import org.apache.flink.types.StringValue;
+
 import org.junit.Assert;
 
+/**
+ * Tests for {@link ValueSummaryAggregator.StringValueSummaryAggregator}.
+ */
 public class StringValueSummaryAggregatorTest extends StringSummaryAggregatorTest {
 
 	/**
 	 * Helper method for summarizing a list of values.
 	 *
-	 * This method breaks the rule of "testing only one thing" by aggregating and combining
+	 * <p>This method breaks the rule of "testing only one thing" by aggregating and combining
 	 * a bunch of different ways.
 	 */
 	@Override
 	protected StringColumnSummary summarize(String... values) {
 
 		StringValue[] stringValues = new StringValue[values.length];
-		for(int i = 0; i < values.length; i++) {
+		for (int i = 0; i < values.length; i++) {
 			if (values[i] != null) {
 				stringValues[i] = new StringValue(values[i]);
 			}
 		}
 
-		return new AggregateCombineHarness<StringValue,StringColumnSummary,ValueSummaryAggregator.StringValueSummaryAggregator>(){
+		return new AggregateCombineHarness<StringValue, StringColumnSummary, ValueSummaryAggregator.StringValueSummaryAggregator>(){
 
 			@Override
 			protected void compareResults(StringColumnSummary result1, StringColumnSummary result2) {

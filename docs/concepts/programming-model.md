@@ -34,7 +34,7 @@ Flink offers different levels of abstraction to develop streaming/batch applicat
 <img src="../fig/levels_of_abstraction.svg" alt="Programming levels of abstraction" class="offset" width="80%" />
 
   - The lowest level abstraction simply offers **stateful streaming**. It is embedded into the [DataStream API](../dev/datastream_api.html)
-    via the [Process Function](../dev/stream/process_function.html). It allows users freely process events from one or more streams,
+    via the [Process Function](../dev/stream/operators/process_function.html). It allows users freely process events from one or more streams,
     and use consistent fault tolerant *state*. In addition, users can register event time and processing time callbacks,
     allowing programs to realize sophisticated computations.
 
@@ -82,7 +82,7 @@ Often there is a one-to-one correspondence between the transformations in the pr
 in the dataflow. Sometimes, however, one transformation may consist of multiple transformation operators.
 
 Sources and sinks are documented in the [streaming connectors](../dev/connectors/index.html) and [batch connectors](../dev/batch/connectors.html) docs.
-Transformations are documented in [DataStream transformations](../dev/datastream_api.html#datastream-transformations) and [DataSet transformations](../dev/batch/dataset_transformations.html).
+Transformations are documented in [DataStream operators]({{ site.baseurl }}/dev/stream/operators/index.html) and [DataSet transformations](../dev/batch/dataset_transformations.html).
 
 {% top %}
 
@@ -133,7 +133,7 @@ One typically distinguishes different types of windows, such as *tumbling window
 <img src="../fig/windows.svg" alt="Time- and Count Windows" class="offset" width="80%" />
 
 More window examples can be found in this [blog post](https://flink.apache.org/news/2015/12/04/Introducing-windows.html).
-More details are in the [window docs](../dev/windows.html).
+More details are in the [window docs](../dev/stream/operators/windows.html).
 
 {% top %}
 
@@ -171,7 +171,7 @@ This alignment also allows Flink to redistribute the state and adjust the stream
 
 <img src="../fig/state_partitioning.svg" alt="State and Partitioning" class="offset" width="50%" />
 
-For more information, see the documentation on [working with state](../dev/stream/state.html).
+For more information, see the documentation on [state](../dev/stream/state/index.html).
 
 {% top %}
 
@@ -188,7 +188,7 @@ of events that need to be replayed).
 
 The description of the [fault tolerance internals]({{ site.baseurl }}/internals/stream_checkpointing.html) provides
 more information about how Flink manages checkpoints and related topics.
-Details about enabling and configuring checkpointing are in the [checkpointing API docs](../dev/stream/checkpointing.html).
+Details about enabling and configuring checkpointing are in the [checkpointing API docs](../dev/stream/state/checkpointing.html).
 
 
 {% top %}

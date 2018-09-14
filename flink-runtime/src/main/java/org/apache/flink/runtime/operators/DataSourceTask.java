@@ -27,12 +27,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProviderException;
+import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
@@ -40,6 +42,7 @@ import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
 import org.apache.flink.util.Collector;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,6 +81,15 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	// cancel flag
 	private volatile boolean taskCanceled = false;
 
+	/**
+	 * Create an Invokable task and set its environment.
+	 *
+	 * @param environment The environment assigned to this invokable.
+	 */
+	public DataSourceTask(Environment environment) {
+		super(environment);
+	}
+
 	@Override
 	public void invoke() throws Exception {
 		// --------------------------------------------------------------------
@@ -102,12 +114,25 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		LOG.debug(getLogString("Starting data source operator"));
 
 		RuntimeContext ctx = createRuntimeContext();
-		Counter completedSplitsCounter = ctx.getMetricGroup().counter("numSplitsProcessed");
-		((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup().reuseInputMetricsForTask();
-		Counter numRecordsOut = ((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup().getNumRecordsOutCounter();
-		if (this.config.getNumberOfChainedStubs() == 0) {
-			((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup().reuseOutputMetricsForTask();
+
+		final Counter numRecordsOut;
+		{
+			Counter tmpNumRecordsOut;
+			try {
+				OperatorIOMetricGroup ioMetricGroup = ((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup();
+				ioMetricGroup.reuseInputMetricsForTask();
+				if (this.config.getNumberOfChainedStubs() == 0) {
+					ioMetricGroup.reuseOutputMetricsForTask();
+				}
+				tmpNumRecordsOut = ioMetricGroup.getNumRecordsOutCounter();
+			} catch (Exception e) {
+				LOG.warn("An exception occurred during the metrics setup.", e);
+				tmpNumRecordsOut = new SimpleCounter();
+			}
+			numRecordsOut = tmpNumRecordsOut;
 		}
+		
+		Counter completedSplitsCounter = ctx.getMetricGroup().counter("numSplitsProcessed");
 
 		if (RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
 			((RichInputFormat) this.format).setRuntimeContext(ctx);
@@ -229,7 +254,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		this.taskCanceled = true;
 		LOG.debug(getLogString("Cancelling data source operator"));
 	}
-	
+
 	/**
 	 * Initializes the InputFormat implementation and configuration.
 	 * 
@@ -377,6 +402,6 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		sourceName = sourceName.startsWith("CHAIN") ? sourceName.substring(6) : sourceName;
 		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
 				getExecutionConfig(), env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap(), 
-				getEnvironment().getMetricGroup().addOperator(sourceName));
+				getEnvironment().getMetricGroup().getOrAddOperator(sourceName));
 	}
 }

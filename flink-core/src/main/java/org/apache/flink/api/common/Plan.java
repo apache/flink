@@ -26,17 +26,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.io.File;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.Operator;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Visitable;
 import org.apache.flink.util.Visitor;
 
@@ -201,7 +196,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @param sink The data sink to add.
 	 */
 	public void addDataSink(GenericDataSinkBase<?> sink) {
-		checkNotNull(jobName, "The data sink must not be null.");
+		checkNotNull(sink, "The data sink must not be null.");
 		
 		if (!this.sinks.contains(sink)) {
 			this.sinks.add(sink);
@@ -342,20 +337,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 */
 	public void registerCachedFile(String name, DistributedCacheEntry entry) throws IOException {
 		if (!this.cacheFile.containsKey(name)) {
-			try {
-				URI u = new URI(entry.filePath);
-				if (!u.getPath().startsWith("/")) {
-					u = new File(entry.filePath).toURI();
-				}
-				FileSystem fs = FileSystem.get(u);
-				if (fs.exists(new Path(u.getPath()))) {
-					this.cacheFile.put(name, new DistributedCacheEntry(u.toString(), entry.isExecutable));
-				} else {
-					throw new IOException("File " + u.toString() + " doesn't exist.");
-				}
-			} catch (URISyntaxException ex) {
-				throw new IOException("Invalid path: " + entry.filePath, ex);
-			}
+			this.cacheFile.put(name, entry);
 		} else {
 			throw new IOException("cache file " + name + "already exists!");
 		}

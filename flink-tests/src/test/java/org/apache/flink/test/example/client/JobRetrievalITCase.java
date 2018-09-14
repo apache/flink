@@ -20,28 +20,28 @@
 package org.apache.flink.test.example.client;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.StandaloneClusterClient;
+import org.apache.flink.client.deployment.StandaloneClusterId;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobRetrievalException;
+import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.minicluster.FlinkMiniCluster;
-import org.apache.flink.runtime.testingUtils.TestingCluster;
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
+import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.testkit.JavaTestKit;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.util.Optional;
 import java.util.concurrent.Semaphore;
-
-import scala.collection.Seq;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
@@ -53,19 +53,34 @@ public class JobRetrievalITCase extends TestLogger {
 
 	private static final Semaphore lock = new Semaphore(1);
 
-	private static FlinkMiniCluster cluster;
+	@ClassRule
+	public static final MiniClusterResource CLUSTER = new MiniClusterResource(
+		new MiniClusterResourceConfiguration.Builder()
+			.setNumberTaskManagers(1)
+			.setNumberSlotsPerTaskManager(4)
+			.setCodebaseType(TestBaseUtils.CodebaseType.NEW)
+			.build());
 
-	@BeforeClass
-	public static void before() {
-		Configuration configuration = new Configuration();
-		cluster = new TestingCluster(configuration, false);
-		cluster.start();
+	private RestClusterClient<StandaloneClusterId> client;
+
+	@Before
+	public void setUp() throws Exception {
+		final Configuration clientConfig = new Configuration();
+		clientConfig.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 0);
+		clientConfig.setLong(RestOptions.RETRY_DELAY, 0);
+		clientConfig.addAll(CLUSTER.getClientConfiguration());
+
+		client = new RestClusterClient<>(
+			clientConfig,
+			StandaloneClusterId.getInstance()
+		);
 	}
 
-	@AfterClass
-	public static void after() {
-		cluster.stop();
-		cluster = null;
+	@After
+	public void tearDown() {
+		if (client != null) {
+			client.shutdown();
+		}
 	}
 
 	@Test
@@ -77,66 +92,70 @@ public class JobRetrievalITCase extends TestLogger {
 
 		final JobGraph jobGraph = new JobGraph(jobID, "testjob", imalock);
 
-		final ClusterClient client = new StandaloneClusterClient(cluster.configuration(), cluster.highAvailabilityServices());
-
 		// acquire the lock to make sure that the job cannot complete until the job client
 		// has been attached in resumingThread
 		lock.acquire();
-		client.runDetached(jobGraph, JobRetrievalITCase.class.getClassLoader());
 
-		final Thread resumingThread = new Thread(new Runnable() {
+		client.setDetached(true);
+		client.submitJob(jobGraph, JobRetrievalITCase.class.getClassLoader());
+
+		final CheckedThread resumingThread = new CheckedThread("Flink-Job-Retriever") {
 			@Override
-			public void run() {
-				try {
-					assertNotNull(client.retrieveJob(jobID));
-				} catch (Throwable e) {
-					fail(e.getMessage());
-				}
+			public void go() throws Exception {
+				assertNotNull(client.requestJobResult(jobID).get());
 			}
-		});
+		};
 
-		final Seq<ActorSystem> actorSystemSeq = cluster.jobManagerActorSystems().get();
-		final ActorSystem actorSystem = actorSystemSeq.last();
-		JavaTestKit testkit = new JavaTestKit(actorSystem);
-
-		final ActorRef jm = cluster.getJobManagersAsJava().get(0);
-		// wait until client connects
-		jm.tell(TestingJobManagerMessages.getNotifyWhenClientConnects(), testkit.getRef());
-		// confirm registration
-		testkit.expectMsgEquals(true);
+		// wait until the job is running
+		while (client.listJobs().get().isEmpty()) {
+			Thread.sleep(50);
+		}
 
 		// kick off resuming
 		resumingThread.start();
 
 		// wait for client to connect
-		testkit.expectMsgAllOf(
-			TestingJobManagerMessages.getClientConnected(),
-			TestingJobManagerMessages.getClassLoadingPropsDelivered());
+		while (resumingThread.getState() != Thread.State.WAITING) {
+			Thread.sleep(10);
+		}
 
 		// client has connected, we can release the lock
 		lock.release();
 
-		resumingThread.join();
+		resumingThread.sync();
 	}
 
 	@Test
 	public void testNonExistingJobRetrieval() throws Exception {
 		final JobID jobID = new JobID();
-		ClusterClient client = new StandaloneClusterClient(cluster.configuration());
 
 		try {
-			client.retrieveJob(jobID);
+			client.requestJobResult(jobID).get();
 			fail();
-		} catch (JobRetrievalException ignored) {
-			// this is what we want
+		} catch (Exception exception) {
+			Optional<Throwable> expectedCause = ExceptionUtils.findThrowable(exception,
+				candidate -> candidate.getMessage() != null && candidate.getMessage().contains("Could not find Flink job"));
+			if (!expectedCause.isPresent()) {
+				throw exception;
+			}
 		}
 	}
 
-	private static class SemaphoreInvokable extends AbstractInvokable {
+	/**
+	 * Invokable that waits on {@link #lock} to be released and finishes afterwards.
+	 *
+	 * <p>NOTE: needs to be <tt>public</tt> so that a task can be run with this!
+	 */
+	public static class SemaphoreInvokable extends AbstractInvokable {
+
+		public SemaphoreInvokable(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {
 			lock.acquire();
+			lock.release();
 		}
 	}
 

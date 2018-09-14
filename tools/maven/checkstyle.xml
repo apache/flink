@@ -64,12 +64,6 @@ This file is based on the checkstyle file of Apache Beam.
     <!--<property name="fileNamePattern" value=".*Tests\.java$" />-->
   <!--</module>-->
 
-  <!-- Allow use of comment to suppress javadocstyle -->
-  <module name="SuppressionCommentFilter">
-    <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
-    <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
-    <property name="checkFormat" value="$1"/>
-  </module>
   <module name="SuppressionFilter">
     <property name="file" value="${checkstyle.suppressions.file}" default="suppressions.xml" />
   </module>
@@ -89,6 +83,13 @@ This file is based on the checkstyle file of Apache Beam.
 
   <!-- All Java AST specific tests live under TreeWalker module. -->
   <module name="TreeWalker">
+
+    <!-- Allow use of comment to suppress javadocstyle -->
+    <module name="SuppressionCommentFilter">
+      <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
+      <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
+      <property name="checkFormat" value="$1"/>
+    </module>
 
     <!--
 
@@ -197,8 +198,7 @@ This file is based on the checkstyle file of Apache Beam.
     <module name="ImportOrder">
       <!-- Checks for out of order import statements. -->
       <property name="severity" value="error"/>
-      <!-- Flink imports first, then other imports, then javax, java and scala imports, then static imports. -->
-      <property name="groups" value="org.apache.flink,*,javax,java,scala"/>
+      <property name="groups" value="org.apache.flink,org.apache.flink.shaded,*,javax,java,scala"/>
       <property name="separated" value="true"/>
       <property name="sortStaticImportsAlphabetically" value="true"/>
       <property name="option" value="bottom"/>
@@ -212,14 +212,16 @@ This file is based on the checkstyle file of Apache Beam.
     </module>
 
     <module name="IllegalImport">
-      <property name="illegalPkgs" value="org.apache.flink.shaded, autovalue.shaded, avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal"/>
+      <property name="illegalPkgs" value="autovalue.shaded, avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, org.codehaus.jackson, io.netty, org.objectweb.asm, com.google.common"/>
     </module>
 
     <module name="RedundantModifier">
       <!-- Checks for redundant modifiers on various symbol definitions.
         See: http://checkstyle.sourceforge.net/config_modifier.html#RedundantModifier
+        
+        We exclude METHOD_DEF to allow final methods in final classes to make them more future-proof.
       -->
-      <property name="tokens" value="METHOD_DEF, VARIABLE_DEF, ANNOTATION_FIELD_DEF, INTERFACE_DEF, CLASS_DEF, ENUM_DEF"/>
+      <property name="tokens" value="VARIABLE_DEF, ANNOTATION_FIELD_DEF, INTERFACE_DEF, CLASS_DEF, ENUM_DEF"/>
     </module>
 
     <!--
@@ -262,8 +264,8 @@ This file is based on the checkstyle file of Apache Beam.
       <property name="allowMissingThrowsTags" value="true"/>
       <property name="allowThrowsTagsForSubclasses" value="true"/>
       <property name="allowUndeclaredRTE" value="true"/>
-		<!-- This check sometimes failed for with "Unable to get class information for @throws tag" for custom exceptions -->
-	  <property name="suppressLoadErrors" value="true"/>
+      <!-- This check sometimes failed for with "Unable to get class information for @throws tag" for custom exceptions -->
+      <property name="suppressLoadErrors" value="true"/>
     </module>
 
     <!-- Check that paragraph tags are used correctly in Javadoc. -->
@@ -460,6 +462,13 @@ This file is based on the checkstyle file of Apache Beam.
     <!-- Detects empty statements (standalone ";" semicolon). -->
     <module name="EmptyStatement"/>
 
+	<!-- Detect multiple consecutive semicolons (e.g. ";;"). -->
+	<module name="RegexpSinglelineJava">
+	  <property name="format" value=";{2,}"/>
+	  <property name="message" value="Use one semicolon"/>
+	  <property name="ignoreComments" value="true"/>
+	</module>
+
     <!--
 
     MODIFIERS CHECKS
@@ -483,15 +492,15 @@ This file is based on the checkstyle file of Apache Beam.
     -->
 
     <module name="EmptyLineSeparator">
-	  <!-- Checks for empty line separator between tokens. The only
+      <!-- Checks for empty line separator between tokens. The only
            excluded token is VARIABLE_DEF, allowing class fields to
            be declared on consecutive lines.
       -->
-	  <property name="allowMultipleEmptyLines" value="false"/>
-	  <property name="allowMultipleEmptyLinesInsideClassMembers" value="false"/>
-	  <property name="tokens" value="PACKAGE_DEF, IMPORT, CLASS_DEF,
-	    INTERFACE_DEF, ENUM_DEF, STATIC_INIT, INSTANCE_INIT, METHOD_DEF,
-	    CTOR_DEF"/>
+      <property name="allowMultipleEmptyLines" value="false"/>
+      <property name="allowMultipleEmptyLinesInsideClassMembers" value="false"/>
+      <property name="tokens" value="PACKAGE_DEF, IMPORT, CLASS_DEF,
+        INTERFACE_DEF, ENUM_DEF, STATIC_INIT, INSTANCE_INIT, METHOD_DEF,
+        CTOR_DEF"/>
     </module>
 
     <module name="WhitespaceAround">
@@ -557,9 +566,6 @@ This file is based on the checkstyle file of Apache Beam.
       -->
       <property name="severity" value="error"/>
     </module>
-
-    <!-- Required to support SuppressWarningsComment -->
-    <module name="FileContentsHolder"/>
 
   </module>
 </module>

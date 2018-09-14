@@ -105,7 +105,7 @@ public final class GroupReduceWithCombineProperties extends OperatorDescriptorSi
 				in.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(),
 									in.getLocalStrategySortOrder());
 			}
-			return new SingleInputPlanNode(node, "Reduce("+node.getOperator().getName()+")", in,
+			return new SingleInputPlanNode(node, "Reduce ("+node.getOperator().getName()+")", in,
 											DriverStrategy.SORTED_GROUP_REDUCE, this.keyList);
 		} else {
 			// non forward case. all local properties are killed anyways, so we can safely plug in a combiner
@@ -116,7 +116,7 @@ public final class GroupReduceWithCombineProperties extends OperatorDescriptorSi
 			GroupReduceNode combinerNode = ((GroupReduceNode) node).getCombinerUtilityNode();
 			combinerNode.setParallelism(in.getSource().getParallelism());
 
-			SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode, "Combine("+node.getOperator()
+			SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode, "Combine ("+node.getOperator()
 					.getName()+")", toCombiner, DriverStrategy.SORTED_GROUP_COMBINE);
 			combiner.setCosts(new Costs(0, 0));
 			combiner.initProperties(toCombiner.getGlobalProperties(), toCombiner.getLocalProperties());

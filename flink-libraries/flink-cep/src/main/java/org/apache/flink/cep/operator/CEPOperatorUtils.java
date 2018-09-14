@@ -18,27 +18,25 @@
 
 package org.apache.flink.cep.operator;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.NullByteKeySelector;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.EitherTypeInfo;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.cep.EventComparator;
+import org.apache.flink.cep.PatternFlatSelectFunction;
+import org.apache.flink.cep.PatternFlatTimeoutFunction;
+import org.apache.flink.cep.PatternSelectFunction;
 import org.apache.flink.cep.PatternStream;
+import org.apache.flink.cep.PatternTimeoutFunction;
+import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.types.Either;
-
-import java.util.List;
-import java.util.Map;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.util.OutputTag;
 
 /**
  * Utility methods for creating {@link PatternStream}.
@@ -46,116 +44,276 @@ import java.util.Map;
 public class CEPOperatorUtils {
 
 	/**
-	 * Creates a data stream containing the fully matching event patterns of the NFA computation.
+	 * Creates a data stream containing results of {@link PatternSelectFunction} to fully matching event patterns.
 	 *
-	 * @param <K> Type of the key
-	 * @return Data stream containing fully matched event sequences stored in a {@link Map}. The
-	 * events are indexed by their associated names of the pattern.
+	 * @param inputStream stream of input events
+	 * @param pattern pattern to be search for in the stream
+	 * @param selectFunction function to be applied to matching event sequences
+	 * @param outTypeInfo output TypeInformation of selectFunction
+	 * @param <IN> type of input events
+	 * @param <OUT> type of output events
+	 * @return Data stream containing fully matched event sequence with applied {@link PatternSelectFunction}
 	 */
-	public static <K, T> SingleOutputStreamOperator<Map<String, List<T>>> createPatternStream(DataStream<T> inputStream, Pattern<T, ?> pattern) {
-		final TypeSerializer<T> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
+	public static <IN, OUT> SingleOutputStreamOperator<OUT> createPatternStream(
+			final DataStream<IN> inputStream,
+			final Pattern<IN, ?> pattern,
+			final EventComparator<IN> comparator,
+			final PatternSelectFunction<IN, OUT> selectFunction,
+			final TypeInformation<OUT> outTypeInfo,
+			final OutputTag<IN> lateDataOutputTag) {
+		return createPatternStream(inputStream, pattern, outTypeInfo, false, comparator, new OperatorBuilder<IN, OUT>() {
+			@Override
+			public OneInputStreamOperator<IN, OUT> build(
+				TypeSerializer<IN> inputSerializer,
+				boolean isProcessingTime,
+				NFACompiler.NFAFactory<IN> nfaFactory,
+				EventComparator<IN> comparator,
+				AfterMatchSkipStrategy skipStrategy) {
+				return new SelectCepOperator<>(
+					inputSerializer,
+					isProcessingTime,
+					nfaFactory,
+					comparator,
+					skipStrategy,
+					selectFunction,
+					lateDataOutputTag
+				);
+			}
+
+			@Override
+			public String getKeyedOperatorName() {
+				return "SelectCepOperator";
+			}
+
+			@Override
+			public String getOperatorName() {
+				return "SelectCepOperator";
+			}
+		});
+	}
+
+	/**
+	 * Creates a data stream containing results of {@link PatternFlatSelectFunction} to fully matching event patterns.
+	 *
+	 * @param inputStream stream of input events
+	 * @param pattern pattern to be search for in the stream
+	 * @param selectFunction function to be applied to matching event sequences
+	 * @param outTypeInfo output TypeInformation of selectFunction
+	 * @param <IN> type of input events
+	 * @param <OUT> type of output events
+	 * @return Data stream containing fully matched event sequence with applied {@link PatternFlatSelectFunction}
+	 */
+	public static <IN, OUT> SingleOutputStreamOperator<OUT> createPatternStream(
+			final DataStream<IN> inputStream,
+			final Pattern<IN, ?> pattern,
+			final EventComparator<IN> comparator,
+			final PatternFlatSelectFunction<IN, OUT> selectFunction,
+			final TypeInformation<OUT> outTypeInfo,
+			final OutputTag<IN> lateDataOutputTag) {
+		return createPatternStream(inputStream, pattern, outTypeInfo, false, comparator, new OperatorBuilder<IN, OUT>() {
+			@Override
+			public OneInputStreamOperator<IN, OUT> build(
+				TypeSerializer<IN> inputSerializer,
+				boolean isProcessingTime,
+				NFACompiler.NFAFactory<IN> nfaFactory,
+				EventComparator<IN> comparator,
+				AfterMatchSkipStrategy skipStrategy) {
+				return new FlatSelectCepOperator<>(
+					inputSerializer,
+					isProcessingTime,
+					nfaFactory,
+					comparator,
+					skipStrategy,
+					selectFunction,
+					lateDataOutputTag
+				);
+			}
+
+			@Override
+			public String getKeyedOperatorName() {
+				return "FlatSelectCepOperator";
+			}
+
+			@Override
+			public String getOperatorName() {
+				return "FlatSelectCepOperator";
+			}
+		});
+	}
+
+	/**
+	 * Creates a data stream containing results of {@link PatternFlatSelectFunction} to fully matching event patterns and
+	 * also timed out partially matched with applied {@link PatternFlatTimeoutFunction} as a sideoutput.
+	 *
+	 * @param inputStream stream of input events
+	 * @param pattern pattern to be search for in the stream
+	 * @param selectFunction function to be applied to matching event sequences
+	 * @param outTypeInfo output TypeInformation of selectFunction
+	 * @param outputTag {@link OutputTag} for a side-output with timed out matches
+	 * @param timeoutFunction function to be applied to timed out event sequences
+	 * @param <IN> type of input events
+	 * @param <OUT1> type of fully matched events
+	 * @param <OUT2> type of timed out events
+	 * @return Data stream containing fully matched event sequence with applied {@link PatternFlatSelectFunction} that
+	 * contains timed out patterns with applied {@link PatternFlatTimeoutFunction} as side-output
+	 */
+	public static <IN, OUT1, OUT2> SingleOutputStreamOperator<OUT1> createTimeoutPatternStream(
+			final DataStream<IN> inputStream,
+			final Pattern<IN, ?> pattern,
+			final EventComparator<IN> comparator,
+			final PatternFlatSelectFunction<IN, OUT1> selectFunction,
+			final TypeInformation<OUT1> outTypeInfo,
+			final OutputTag<OUT2> outputTag,
+			final PatternFlatTimeoutFunction<IN, OUT2> timeoutFunction,
+			final OutputTag<IN> lateDataOutputTag) {
+		return createPatternStream(inputStream, pattern, outTypeInfo, true, comparator, new OperatorBuilder<IN, OUT1>() {
+			@Override
+			public OneInputStreamOperator<IN, OUT1> build(
+				TypeSerializer<IN> inputSerializer,
+				boolean isProcessingTime,
+				NFACompiler.NFAFactory<IN> nfaFactory,
+				EventComparator<IN> comparator,
+				AfterMatchSkipStrategy skipStrategy) {
+				return new FlatSelectTimeoutCepOperator<>(
+					inputSerializer,
+					isProcessingTime,
+					nfaFactory,
+					comparator,
+					skipStrategy,
+					selectFunction,
+					timeoutFunction,
+					outputTag,
+					lateDataOutputTag
+				);
+			}
+
+			@Override
+			public String getKeyedOperatorName() {
+				return "FlatSelectTimeoutCepOperator";
+			}
+
+			@Override
+			public String getOperatorName() {
+				return "FlatSelectTimeoutCepOperator";
+			}
+		});
+	}
+
+	/**
+	 * Creates a data stream containing results of {@link PatternSelectFunction} to fully matching event patterns and
+	 * also timed out partially matched with applied {@link PatternTimeoutFunction} as a sideoutput.
+	 *
+	 * @param inputStream stream of input events
+	 * @param pattern pattern to be search for in the stream
+	 * @param selectFunction function to be applied to matching event sequences
+	 * @param outTypeInfo output TypeInformation of selectFunction
+	 * @param outputTag {@link OutputTag} for a side-output with timed out matches
+	 * @param timeoutFunction function to be applied to timed out event sequences
+	 * @param <IN> type of input events
+	 * @param <OUT1> type of fully matched events
+	 * @param <OUT2> type of timed out events
+	 * @return Data stream containing fully matched event sequence with applied {@link PatternSelectFunction} that
+	 * contains timed out patterns with applied {@link PatternTimeoutFunction} as side-output
+	 */
+	public static <IN, OUT1, OUT2> SingleOutputStreamOperator<OUT1> createTimeoutPatternStream(
+			final DataStream<IN> inputStream,
+			final Pattern<IN, ?> pattern,
+			final EventComparator<IN> comparator,
+			final PatternSelectFunction<IN, OUT1> selectFunction,
+			final TypeInformation<OUT1> outTypeInfo,
+			final OutputTag<OUT2> outputTag,
+			final PatternTimeoutFunction<IN, OUT2> timeoutFunction,
+			final OutputTag<IN> lateDataOutputTag) {
+		return createPatternStream(inputStream, pattern, outTypeInfo, true, comparator, new OperatorBuilder<IN, OUT1>() {
+			@Override
+			public OneInputStreamOperator<IN, OUT1> build(
+				TypeSerializer<IN> inputSerializer,
+				boolean isProcessingTime,
+				NFACompiler.NFAFactory<IN> nfaFactory,
+				EventComparator<IN> comparator,
+				AfterMatchSkipStrategy skipStrategy) {
+				return new SelectTimeoutCepOperator<>(
+					inputSerializer,
+					isProcessingTime,
+					nfaFactory,
+					comparator,
+					skipStrategy,
+					selectFunction,
+					timeoutFunction,
+					outputTag,
+					lateDataOutputTag
+				);
+			}
+
+			@Override
+			public String getKeyedOperatorName() {
+				return "SelectTimeoutCepOperator";
+			}
+
+			@Override
+			public String getOperatorName() {
+				return "SelectTimeoutCepOperator";
+			}
+		});
+	}
+
+	private static <IN, OUT, K> SingleOutputStreamOperator<OUT> createPatternStream(
+			final DataStream<IN> inputStream,
+			final Pattern<IN, ?> pattern,
+			final TypeInformation<OUT> outTypeInfo,
+			final boolean timeoutHandling,
+			final EventComparator<IN> comparator,
+			final OperatorBuilder<IN, OUT> operatorBuilder) {
+		final TypeSerializer<IN> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
 
 		// check whether we use processing time
 		final boolean isProcessingTime = inputStream.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
 
 		// compile our pattern into a NFAFactory to instantiate NFAs later on
-		final NFACompiler.NFAFactory<T> nfaFactory = NFACompiler.compileFactory(pattern, inputSerializer, false);
+		final NFACompiler.NFAFactory<IN> nfaFactory = NFACompiler.compileFactory(pattern, timeoutHandling);
 
-		final SingleOutputStreamOperator<Map<String, List<T>>> patternStream;
+		final SingleOutputStreamOperator<OUT> patternStream;
 
 		if (inputStream instanceof KeyedStream) {
-			// We have to use the KeyedCEPPatternOperator which can deal with keyed input streams
-			KeyedStream<T, K> keyedStream = (KeyedStream<T, K>) inputStream;
-
-			TypeSerializer<K> keySerializer = keyedStream.getKeyType().createSerializer(keyedStream.getExecutionConfig());
+			KeyedStream<IN, K> keyedStream = (KeyedStream<IN, K>) inputStream;
 
 			patternStream = keyedStream.transform(
-				"KeyedCEPPatternOperator",
-				(TypeInformation<Map<String, List<T>>>) (TypeInformation<?>) TypeExtractor.getForClass(Map.class),
-				new KeyedCEPPatternOperator<>(
+				operatorBuilder.getKeyedOperatorName(),
+				outTypeInfo,
+				operatorBuilder.build(
 					inputSerializer,
 					isProcessingTime,
-					keySerializer,
 					nfaFactory,
-					true));
+					comparator,
+					pattern.getAfterMatchSkipStrategy()));
 		} else {
-
-			KeySelector<T, Byte> keySelector = new NullByteKeySelector<>();
-			TypeSerializer<Byte> keySerializer = ByteSerializer.INSTANCE;
+			KeySelector<IN, Byte> keySelector = new NullByteKeySelector<>();
 
 			patternStream = inputStream.keyBy(keySelector).transform(
-				"CEPPatternOperator",
-				(TypeInformation<Map<String, List<T>>>) (TypeInformation<?>) TypeExtractor.getForClass(Map.class),
-				new KeyedCEPPatternOperator<>(
+				operatorBuilder.getOperatorName(),
+				outTypeInfo,
+				operatorBuilder.build(
 					inputSerializer,
 					isProcessingTime,
-					keySerializer,
 					nfaFactory,
-					false
+					comparator,
+					pattern.getAfterMatchSkipStrategy()
 				)).forceNonParallel();
 		}
 
 		return patternStream;
 	}
 
-	/**
-	 * Creates a data stream containing fully matching event patterns or partially matching event
-	 * patterns which have timed out. The former are wrapped in a Either.Right and the latter in a
-	 * Either.Left type.
-	 *
-	 * @param <K> Type of the key
-	 * @return Data stream containing fully matched and partially matched event sequences wrapped in
-	 * a {@link Either} instance.
-	 */
-	public static <K, T> SingleOutputStreamOperator<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>> createTimeoutPatternStream(
-			DataStream<T> inputStream, Pattern<T, ?> pattern) {
+	private interface OperatorBuilder<IN, OUT> {
+			OneInputStreamOperator<IN, OUT> build(
+			TypeSerializer<IN> inputSerializer,
+			boolean isProcessingTime,
+			NFACompiler.NFAFactory<IN> nfaFactory,
+			EventComparator<IN> comparator,
+			AfterMatchSkipStrategy skipStrategy);
 
-		final TypeSerializer<T> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
+		String getKeyedOperatorName();
 
-		// check whether we use processing time
-		final boolean isProcessingTime = inputStream.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
-
-		// compile our pattern into a NFAFactory to instantiate NFAs later on
-		final NFACompiler.NFAFactory<T> nfaFactory = NFACompiler.compileFactory(pattern, inputSerializer, true);
-
-		final SingleOutputStreamOperator<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>> patternStream;
-
-		final TypeInformation<Map<String, List<T>>> rightTypeInfo = (TypeInformation<Map<String, List<T>>>) (TypeInformation<?>)  TypeExtractor.getForClass(Map.class);
-		final TypeInformation<Tuple2<Map<String, List<T>>, Long>> leftTypeInfo = new TupleTypeInfo<>(rightTypeInfo, BasicTypeInfo.LONG_TYPE_INFO);
-		final TypeInformation<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>> eitherTypeInformation = new EitherTypeInfo<>(leftTypeInfo, rightTypeInfo);
-
-		if (inputStream instanceof KeyedStream) {
-			// We have to use the KeyedCEPPatternOperator which can deal with keyed input streams
-			KeyedStream<T, K> keyedStream = (KeyedStream<T, K>) inputStream;
-
-			TypeSerializer<K> keySerializer = keyedStream.getKeyType().createSerializer(keyedStream.getExecutionConfig());
-
-			patternStream = keyedStream.transform(
-				"TimeoutKeyedCEPPatternOperator",
-				eitherTypeInformation,
-				new TimeoutKeyedCEPPatternOperator<>(
-					inputSerializer,
-					isProcessingTime,
-					keySerializer,
-					nfaFactory,
-					true));
-		} else {
-
-			KeySelector<T, Byte> keySelector = new NullByteKeySelector<>();
-			TypeSerializer<Byte> keySerializer = ByteSerializer.INSTANCE;
-
-			patternStream = inputStream.keyBy(keySelector).transform(
-				"TimeoutCEPPatternOperator",
-				eitherTypeInformation,
-				new TimeoutKeyedCEPPatternOperator<>(
-					inputSerializer,
-					isProcessingTime,
-					keySerializer,
-					nfaFactory,
-					false
-				)).forceNonParallel();
-		}
-
-		return patternStream;
+		String getOperatorName();
 	}
 }

@@ -111,3 +111,5 @@ scaler.fit(dataSet)
 // Scale the provided data set to have mean=10.0 and std=2.0
 val scaledDS = scaler.transform(dataSet)
 {% endhighlight %}
+
+{% top %}

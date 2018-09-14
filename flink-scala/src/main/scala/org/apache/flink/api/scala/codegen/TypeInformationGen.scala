@@ -28,7 +28,6 @@ import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase
 import org.apache.flink.api.scala.typeutils._
 import org.apache.flink.types.Value
-import org.apache.hadoop.io.Writable
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -85,10 +84,6 @@ private[flink] trait TypeInformationGen[C <: Context] {
 
     case v : ValueDescriptor =>
       mkValueTypeInfo(v)(c.WeakTypeTag(v.tpe).asInstanceOf[c.WeakTypeTag[Value]])
-        .asInstanceOf[c.Expr[TypeInformation[T]]]
-
-    case d : WritableDescriptor =>
-      mkWritableTypeInfo(d)(c.WeakTypeTag(d.tpe).asInstanceOf[c.WeakTypeTag[Writable]])
         .asInstanceOf[c.Expr[TypeInformation[T]]]
 
     case pojo: PojoDescriptor => mkPojo(pojo)
@@ -317,14 +312,6 @@ private[flink] trait TypeInformationGen[C <: Context] {
     val tpeClazz = c.Expr[Class[T]](Literal(Constant(desc.tpe)))
     reify {
       new ValueTypeInfo[T](tpeClazz.splice)
-    }
-  }
-
-  def mkWritableTypeInfo[T <: Writable : c.WeakTypeTag](
-      desc: UDTDescriptor): c.Expr[TypeInformation[T]] = {
-    val tpeClazz = c.Expr[Class[T]](Literal(Constant(desc.tpe)))
-    reify {
-      TypeExtractor.createHadoopWritableTypeInfo[T](tpeClazz.splice)
     }
   }
 

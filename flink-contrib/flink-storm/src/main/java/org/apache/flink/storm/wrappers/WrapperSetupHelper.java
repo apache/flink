@@ -62,8 +62,8 @@ class WrapperSetupHelper {
 	 *            {@link org.apache.flink.api.java.tuple.Tuple1 Tuple1} but be of a raw type. (Can be {@code null}.)
 	 * @return The number of attributes to be used for each stream.
 	 * @throws IllegalArgumentException
-	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *             If {@code rawOutput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOutput} is {@code false} and the number of declared output attributes is not with range
 	 *             [0;25].
 	 */
 	static HashMap<String, Integer> getNumberOfAttributes(final IComponent spoutOrBolt,

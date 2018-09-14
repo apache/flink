@@ -61,7 +61,7 @@ public class PregelCompilerTest extends CompilerTestBase {
 
 			DataSet<Vertex<Long, Long>> initialVertices = env.fromElements(
 				new Tuple2<>(1L, 1L), new Tuple2<>(2L, 2L))
-				.map(new Tuple2ToVertexMap<Long, Long>());
+				.map(new Tuple2ToVertexMap<>());
 
 			DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<>(1L, 2L))
 				.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
@@ -76,7 +76,7 @@ public class PregelCompilerTest extends CompilerTestBase {
 			DataSet<Vertex<Long, Long>> result = graph.runVertexCentricIteration(
 				new CCCompute(), null, 100).getVertices();
 
-			result.output(new DiscardingOutputFormat<Vertex<Long, Long>>());
+			result.output(new DiscardingOutputFormat<>());
 		}
 
 		Plan p = env.createProgramPlan("Pregel Connected Components");
@@ -126,7 +126,7 @@ public class PregelCompilerTest extends CompilerTestBase {
 
 			DataSet<Vertex<Long, Long>> initialVertices = env.fromElements(
 				new Tuple2<>(1L, 1L), new Tuple2<>(2L, 2L))
-				.map(new Tuple2ToVertexMap<Long, Long>());
+				.map(new Tuple2ToVertexMap<>());
 
 			DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<>(1L, 2L))
 				.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
@@ -145,7 +145,7 @@ public class PregelCompilerTest extends CompilerTestBase {
 				new CCCompute(), null, 100, parameters)
 				.getVertices();
 
-			result.output(new DiscardingOutputFormat<Vertex<Long, Long>>());
+			result.output(new DiscardingOutputFormat<>());
 		}
 
 		Plan p = env.createProgramPlan("Pregel Connected Components");
@@ -192,7 +192,7 @@ public class PregelCompilerTest extends CompilerTestBase {
 
 			DataSet<Vertex<Long, Long>> initialVertices = env.fromElements(
 				new Tuple2<>(1L, 1L), new Tuple2<>(2L, 2L))
-				.map(new Tuple2ToVertexMap<Long, Long>());
+				.map(new Tuple2ToVertexMap<>());
 
 			DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<>(1L, 2L))
 				.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
@@ -207,7 +207,7 @@ public class PregelCompilerTest extends CompilerTestBase {
 			DataSet<Vertex<Long, Long>> result = graph.runVertexCentricIteration(
 				new CCCompute(), new CCCombiner(), 100).getVertices();
 
-			result.output(new DiscardingOutputFormat<Vertex<Long, Long>>());
+			result.output(new DiscardingOutputFormat<>());
 		}
 
 		Plan p = env.createProgramPlan("Pregel Connected Components");

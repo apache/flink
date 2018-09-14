@@ -18,18 +18,15 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.avatica.util.{TimeUnit, TimeUnitRange}
+import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.calcite.FlinkRelBuilder
-import org.apache.flink.table.expressions.ExpressionUtils.{divide, getFactor, mod}
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
-import org.apache.flink.table.functions.sql.DateTimeSqlFunction
-import org.apache.flink.table.runtime.functions.DateTimeFunctions
+import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.table.typeutils.{TimeIntervalTypeInfo, TypeCheckUtils}
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
@@ -50,7 +47,9 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends E
 
     timeIntervalUnit match {
       case SymbolExpression(TimeIntervalUnit.YEAR)
+           | SymbolExpression(TimeIntervalUnit.QUARTER)
            | SymbolExpression(TimeIntervalUnit.MONTH)
+           | SymbolExpression(TimeIntervalUnit.WEEK)
            | SymbolExpression(TimeIntervalUnit.DAY)
         if temporal.resultType == SqlTimeTypeInfo.DATE
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
@@ -75,67 +74,11 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends E
   override def toString: String = s"($temporal).extract($timeIntervalUnit)"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    // get wrapped Calcite unit
-    val timeUnitRange = timeIntervalUnit
-      .asInstanceOf[SymbolExpression]
-      .symbol
-      .enum
-      .asInstanceOf[TimeUnitRange]
-
-    // convert RexNodes
-    convertExtract(
-      timeIntervalUnit.toRexNode,
-      timeUnitRange,
-      temporal.toRexNode,
-      relBuilder.asInstanceOf[FlinkRelBuilder])
-  }
-
-  /**
-    * Standard conversion of the EXTRACT operator.
-    * Source: [[org.apache.calcite.sql2rel.StandardConvertletTable#convertExtract()]]
-    */
-  private def convertExtract(
-      timeUnitRangeRexNode: RexNode,
-      timeUnitRange: TimeUnitRange,
-      temporal: RexNode,
-      relBuilder: FlinkRelBuilder)
-    : RexNode = {
-
-    // TODO convert this into Table API expressions to make the code more readable
-    val rexBuilder = relBuilder.getRexBuilder
-    val resultType = relBuilder.getTypeFactory().createTypeFromTypeInfo(LONG_TYPE_INFO)
-    var result = rexBuilder.makeReinterpretCast(
-      resultType,
-      temporal,
-      rexBuilder.makeLiteral(false))
-
-    val unit = timeUnitRange.startUnit
-    val sqlTypeName = temporal.getType.getSqlTypeName
-    unit match {
-      case TimeUnit.YEAR | TimeUnit.MONTH | TimeUnit.DAY =>
-        sqlTypeName match {
-          case SqlTypeName.TIMESTAMP =>
-            result = divide(rexBuilder, result, TimeUnit.DAY.multiplier)
-            return rexBuilder.makeCall(
-              resultType,
-              SqlStdOperatorTable.EXTRACT_DATE,
-              Seq(timeUnitRangeRexNode, result))
-
-          case SqlTypeName.DATE =>
-            return rexBuilder.makeCall(
-              resultType,
-              SqlStdOperatorTable.EXTRACT_DATE,
-              Seq(timeUnitRangeRexNode, result))
-
-          case _ => // do nothing
-        }
-
-      case _ => // do nothing
-    }
-
-    result = mod(rexBuilder, resultType, result, getFactor(unit))
-    result = divide(rexBuilder, result, unit.multiplier)
-    result
+    relBuilder
+      .getRexBuilder
+      .makeCall(
+        SqlStdOperatorTable.EXTRACT,
+        Seq(timeIntervalUnit.toRexNode, temporal.toRexNode))
   }
 }
 
@@ -355,25 +298,35 @@ case class TemporalOverlaps(
       rightT: RexNode,
       relBuilder: FlinkRelBuilder)
     : RexNode = {
-    // leftT = leftP + leftT if leftT is an interval
-    val convLeftT = if (isTimeInterval(leftTemporal.resultType)) {
-        relBuilder.call(SqlStdOperatorTable.DATETIME_PLUS, leftP, leftT)
-      } else {
-        leftT
-      }
-    // rightT = rightP + rightT if rightT is an interval
-    val convRightT = if (isTimeInterval(rightTemporal.resultType)) {
-        relBuilder.call(SqlStdOperatorTable.DATETIME_PLUS, rightP, rightT)
-      } else {
-        rightT
-      }
-    // leftT >= rightP
-    val leftPred = relBuilder.call(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, convLeftT, rightP)
-    // rightT >= leftP
-    val rightPred = relBuilder.call(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, convRightT, leftP)
+    val convLeftT = convertOverlapsEnd(relBuilder, leftP, leftT, leftTemporal.resultType)
+    val convRightT = convertOverlapsEnd(relBuilder, rightP, rightT, rightTemporal.resultType)
 
-    // leftT >= rightP and rightT >= leftP
+    // sort end points into start and end, such that (s0 <= e0) and (s1 <= e1).
+    val (s0, e0) = buildSwap(relBuilder, leftP, convLeftT)
+    val (s1, e1) = buildSwap(relBuilder, rightP, convRightT)
+
+    // (e0 >= s1) AND (e1 >= s0)
+    val leftPred = relBuilder.call(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, e0, s1)
+    val rightPred = relBuilder.call(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, e1, s0)
     relBuilder.call(SqlStdOperatorTable.AND, leftPred, rightPred)
+  }
+
+  private def convertOverlapsEnd(
+      relBuilder: FlinkRelBuilder,
+      start: RexNode, end: RexNode,
+      endType: TypeInformation[_]) = {
+    if (isTimeInterval(endType)) {
+      relBuilder.call(SqlStdOperatorTable.DATETIME_PLUS, start, end)
+    } else {
+      end
+    }
+  }
+
+  private def buildSwap(relBuilder: FlinkRelBuilder, start: RexNode, end: RexNode) = {
+    val le = relBuilder.call(SqlStdOperatorTable.LESS_THAN_OR_EQUAL, start, end)
+    val l = relBuilder.call(SqlStdOperatorTable.CASE, le, start, end)
+    val r = relBuilder.call(SqlStdOperatorTable.CASE, le, end, start)
+    (l, r)
   }
 }
 
@@ -381,7 +334,7 @@ case class DateFormat(timestamp: Expression, format: Expression) extends Express
   override private[flink] def children = timestamp :: format :: Nil
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder) =
-    relBuilder.call(DateTimeSqlFunction.DATE_FORMAT, timestamp.toRexNode, format.toRexNode)
+    relBuilder.call(ScalarSqlFunctions.DATE_FORMAT, timestamp.toRexNode, format.toRexNode)
 
   override def toString: String = s"$timestamp.dateFormat($format)"
 

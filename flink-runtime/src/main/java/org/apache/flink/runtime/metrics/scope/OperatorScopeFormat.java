@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics.scope;
 
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 
 /**
@@ -36,11 +37,12 @@ public class OperatorScopeFormat extends ScopeFormat {
 				SCOPE_TASK_NAME,
 				SCOPE_TASK_SUBTASK_INDEX,
 				SCOPE_TASK_ATTEMPT_NUM,
+				SCOPE_OPERATOR_ID,
 				SCOPE_OPERATOR_NAME
 		});
 	}
 
-	public String[] formatScope(TaskMetricGroup parent, String operatorName) {
+	public String[] formatScope(TaskMetricGroup parent, OperatorID operatorID, String operatorName) {
 
 		final String[] template = copyTemplate();
 		final String[] values = {
@@ -53,6 +55,7 @@ public class OperatorScopeFormat extends ScopeFormat {
 				valueOrNull(parent.taskName()),
 				String.valueOf(parent.subtaskIndex()),
 				String.valueOf(parent.attemptNumber()),
+				valueOrNull(operatorID),
 				valueOrNull(operatorName)
 		};
 		return bindVariables(template, values);

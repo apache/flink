@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.scala.function
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.functions.AbstractRichFunction
 import org.apache.flink.api.common.state.KeyedStateStore
+import org.apache.flink.streaming.api.scala.OutputTag
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
 
@@ -73,6 +74,11 @@ abstract class ProcessAllWindowFunction[IN, OUT, W <: Window]
       * State accessor for per-key global state.
       */
     def globalState: KeyedStateStore
+
+    /**
+      * Emits a record to the side output identified by the [[OutputTag]].
+      */
+    def output[X](outputTag: OutputTag[X], value: X)
   }
 
 }

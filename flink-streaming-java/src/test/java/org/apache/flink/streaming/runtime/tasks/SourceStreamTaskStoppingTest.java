@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.functions.StoppableFunction;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 
@@ -33,13 +34,14 @@ import static org.junit.Assert.fail;
  */
 public class SourceStreamTaskStoppingTest {
 
-
 	// test flag for testStop()
 	static boolean stopped = false;
 
 	@Test
 	public void testStop() {
-		final StoppableSourceStreamTask<Object, StoppableSource> sourceTask = new StoppableSourceStreamTask<>();
+		final StoppableSourceStreamTask<Object, StoppableSource> sourceTask =
+				new StoppableSourceStreamTask<>(new DummyEnvironment("test", 1, 0));
+
 		sourceTask.headOperator = new StoppableStreamSource<>(new StoppableSource());
 
 		sourceTask.stop();
@@ -50,7 +52,8 @@ public class SourceStreamTaskStoppingTest {
 	@Test
 	public void testStopBeforeInitialization() throws Exception {
 
-		final StoppableSourceStreamTask<Object, StoppableFailingSource> sourceTask = new StoppableSourceStreamTask<>();
+		final StoppableSourceStreamTask<Object, StoppableFailingSource> sourceTask =
+				new StoppableSourceStreamTask<>(new DummyEnvironment("test", 1, 0));
 		sourceTask.stop();
 
 		sourceTask.headOperator = new StoppableStreamSource<>(new StoppableFailingSource());

@@ -40,7 +40,7 @@ import scala.util.Random
 
 /** Alternating least squares algorithm to calculate a matrix factorization.
   *
-  * Given a matrix `R`, ALS calculates two matricess `U` and `V` such that `R ~~ U^TV`. The
+  * Given a matrix `R`, ALS calculates two matrices `U` and `V` such that `R ~~ U^TV`. The
   * unknown row dimension is given by the number of latent factors. Since matrix factorization
   * is often used in the context of recommendation, we'll call the first matrix the user and the
   * second matrix the item matrix. The `i`th column of the user matrix is `u_i` and the `i`th

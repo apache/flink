@@ -17,30 +17,18 @@
 
 package org.apache.flink.streaming.util.serialization;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
-import java.io.IOException;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.formats.json.JsonNodeDeserializationSchema;
 
 /**
  * DeserializationSchema that deserializes a JSON String into an ObjectNode.
  *
  * <p>Fields can be accessed by calling objectNode.get(&lt;name>).as(&lt;type>)
+ *
+ * @deprecated Please use {@link JsonNodeDeserializationSchema} in the "flink-json" module.
  */
-public class JSONDeserializationSchema extends AbstractDeserializationSchema<ObjectNode> {
-	private ObjectMapper mapper;
-
-	@Override
-	public ObjectNode deserialize(byte[] message) throws IOException {
-		if (mapper == null) {
-			mapper = new ObjectMapper();
-		}
-		return mapper.readValue(message, ObjectNode.class);
-	}
-
-	@Override
-	public boolean isEndOfStream(ObjectNode nextElement) {
-		return false;
-	}
-
+@PublicEvolving
+@Deprecated
+public class JSONDeserializationSchema extends JsonNodeDeserializationSchema {
+	// delegate everything to the parent class
 }

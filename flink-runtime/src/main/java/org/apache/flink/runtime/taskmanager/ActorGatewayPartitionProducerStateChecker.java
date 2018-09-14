@@ -19,8 +19,7 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
@@ -28,6 +27,9 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.util.Preconditions;
+
+import java.util.concurrent.CompletableFuture;
+
 import scala.concurrent.duration.FiniteDuration;
 import scala.reflect.ClassTag$;
 
@@ -46,7 +48,7 @@ public class ActorGatewayPartitionProducerStateChecker implements PartitionProdu
 	}
 
 	@Override
-	public Future<ExecutionState> requestPartitionProducerState(
+	public CompletableFuture<ExecutionState> requestPartitionProducerState(
 			JobID jobId,
 			IntermediateDataSetID intermediateDataSetId,
 			ResultPartitionID resultPartitionId) {
@@ -60,7 +62,7 @@ public class ActorGatewayPartitionProducerStateChecker implements PartitionProdu
 			.ask(msg, timeout)
 			.mapTo(ClassTag$.MODULE$.<ExecutionState>apply(ExecutionState.class));
 
-		return new FlinkFuture<>(futureResponse);
+		return FutureUtils.toJava(futureResponse);
 	}
 
 }

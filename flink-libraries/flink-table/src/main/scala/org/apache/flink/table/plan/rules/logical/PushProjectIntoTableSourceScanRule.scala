@@ -20,10 +20,10 @@ package org.apache.flink.table.plan.rules.logical
 
 import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.util.{RexProgramExtractor, RexProgramRewriter}
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
-import org.apache.flink.table.sources.{NestedFieldsProjectableTableSource, ProjectableTableSource}
+import org.apache.flink.table.sources._
 
 class PushProjectIntoTableSourceScanRule extends RelOptRule(
   operand(classOf[FlinkLogicalCalc],
@@ -32,36 +32,50 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: FlinkLogicalTableSourceScan = call.rel(1).asInstanceOf[FlinkLogicalTableSourceScan]
-    scan.tableSource match {
-      case _: ProjectableTableSource[_] => true
-      case _ => false
-    }
+
+    // only continue if we haven't pushed down a projection yet.
+    scan.selectedFields.isEmpty
   }
 
   override def onMatch(call: RelOptRuleCall) {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
     val scan: FlinkLogicalTableSourceScan = call.rel(1).asInstanceOf[FlinkLogicalTableSourceScan]
-    val usedFields = RexProgramExtractor.extractRefInputFields(calc.getProgram)
-
-    // if no fields can be projected, we keep the original plan.
     val source = scan.tableSource
-    if (TableEnvironment.getFieldNames(source).length != usedFields.length) {
 
+    val accessedLogicalFields = RexProgramExtractor.extractRefInputFields(calc.getProgram)
+    val accessedPhysicalFields = TableSourceUtil.getPhysicalIndexes(source, accessedLogicalFields)
+
+    // only continue if fields are projected or reordered.
+    // eager reordering can remove a calc operator.
+    if (!(0 until scan.getRowType.getFieldCount).toArray.sameElements(accessedLogicalFields)) {
+
+      // try to push projection of physical fields to TableSource
       val newTableSource = source match {
         case nested: NestedFieldsProjectableTableSource[_] =>
           val nestedFields = RexProgramExtractor
-            .extractRefNestedInputFields(calc.getProgram, usedFields)
-          nested.projectNestedFields(usedFields, nestedFields)
+            .extractRefNestedInputFields(calc.getProgram, accessedPhysicalFields)
+          nested.projectNestedFields(accessedPhysicalFields, nestedFields)
         case projecting: ProjectableTableSource[_] =>
-          projecting.projectFields(usedFields)
+          projecting.projectFields(accessedPhysicalFields)
+        case nonProjecting: TableSource[_] =>
+          // projection cannot be pushed to TableSource
+          nonProjecting
       }
 
-      val newScan = scan.copy(scan.getTraitSet, newTableSource)
+      // check that table schema of the new table source is identical to original
+      if (source.getTableSchema != newTableSource.getTableSchema) {
+        throw new TableException("TableSchema of ProjectableTableSource must not be modified " +
+          "by projectFields() call. This is a bug in the implementation of the TableSource " +
+          s"${source.getClass.getCanonicalName}.")
+      }
+
+      // Apply the projection during the input conversion of the scan.
+      val newScan = scan.copy(scan.getTraitSet, newTableSource, Some(accessedLogicalFields))
       val newCalcProgram = RexProgramRewriter.rewriteWithFieldProjection(
         calc.getProgram,
         newScan.getRowType,
         calc.getCluster.getRexBuilder,
-        usedFields)
+        accessedLogicalFields)
 
       if (newCalcProgram.isTrivial) {
         // drop calc if the transformed program merely returns its input and doesn't exist filter

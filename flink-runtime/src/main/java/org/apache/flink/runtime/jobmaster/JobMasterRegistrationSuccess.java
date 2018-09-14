@@ -20,8 +20,7 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.registration.RegistrationResponse;
-
-import java.util.UUID;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -32,32 +31,19 @@ public class JobMasterRegistrationSuccess extends RegistrationResponse.Success {
 
 	private static final long serialVersionUID = 5577641250204140415L;
 
-	private final long heartbeatInterval;
-
-	private final UUID resourceManagerLeaderId;
+	private final ResourceManagerId resourceManagerId;
 
 	private final ResourceID resourceManagerResourceId;
 
 	public JobMasterRegistrationSuccess(
-			final long heartbeatInterval,
-			final UUID resourceManagerLeaderId,
+			final ResourceManagerId resourceManagerId,
 			final ResourceID resourceManagerResourceId) {
-		this.heartbeatInterval = heartbeatInterval;
-		this.resourceManagerLeaderId = checkNotNull(resourceManagerLeaderId);
+		this.resourceManagerId = checkNotNull(resourceManagerId);
 		this.resourceManagerResourceId = checkNotNull(resourceManagerResourceId);
 	}
 
-	/**
-	 * Gets the interval in which the ResourceManager will heartbeat the JobMaster.
-	 *
-	 * @return the interval in which the ResourceManager will heartbeat the JobMaster
-	 */
-	public long getHeartbeatInterval() {
-		return heartbeatInterval;
-	}
-
-	public UUID getResourceManagerLeaderId() {
-		return resourceManagerLeaderId;
+	public ResourceManagerId getResourceManagerId() {
+		return resourceManagerId;
 	}
 
 	public ResourceID getResourceManagerResourceId() {
@@ -67,8 +53,7 @@ public class JobMasterRegistrationSuccess extends RegistrationResponse.Success {
 	@Override
 	public String toString() {
 		return "JobMasterRegistrationSuccess{" +
-			"heartbeatInterval=" + heartbeatInterval +
-			", resourceManagerLeaderId=" + resourceManagerLeaderId +
+			"resourceManagerId=" + resourceManagerId +
 			", resourceManagerResourceId=" + resourceManagerResourceId +
 			'}';
 	}
