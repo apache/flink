@@ -131,15 +131,18 @@ public class CoreOptions {
 
 	public static final ConfigOption<String> FLINK_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts")
-		.defaultValue("");
+		.defaultValue("")
+		.withDescription(Description.builder().text("Java options to start the JVM of all Flink processes with.").build());
 
 	public static final ConfigOption<String> FLINK_JM_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts.jobmanager")
-		.defaultValue("");
+		.defaultValue("")
+		.withDescription(Description.builder().text("Java options to start the JVM of the JobManager with.").build());
 
 	public static final ConfigOption<String> FLINK_TM_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts.taskmanager")
-		.defaultValue("");
+		.defaultValue("")
+		.withDescription(Description.builder().text("Java options to start the JVM of the TaskManager with.").build());
 
 	public static final ConfigOption<String> FLINK_HS_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts.historyserver")
