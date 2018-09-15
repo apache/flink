@@ -26,6 +26,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.akka.ActorUtils;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -415,7 +416,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 			// verify that the JobManager terminated
 			testProbe.expectTerminated(jobManager, timeout);
 		} finally {
-			TestingUtils.stopActor(jobManager);
+			ActorUtils.stopActor(jobManager);
 		}
 	}
 

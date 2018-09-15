@@ -19,17 +19,17 @@
 package org.apache.flink.runtime.akka;
 
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.instance.AkkaActorGateway;
+import org.apache.flink.runtime.instance.ActorGateway;
 
 import akka.actor.ActorRef;
 import akka.actor.Kill;
-import akka.actor.PoisonPill;
 import akka.pattern.Patterns;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +37,8 @@ import java.util.concurrent.TimeoutException;
 
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
+
+import javax.annotation.Nonnull;
 
 /**
  * Utility functions for the interaction with Akka {@link akka.actor.Actor}.
@@ -87,13 +89,55 @@ public class ActorUtils {
 		return FutureUtils.completeAll(terminationFutures);
 	}
 
-	public static void stopActor(AkkaActorGateway akkaActorGateway) {
-		stopActor(akkaActorGateway.actor());
-	}
+	// ---------- Utils to stop an actor ----------
+
+	private static final FiniteDuration DEFAULT_TIMEOUT = FiniteDuration.apply(1, TimeUnit.MINUTES);
 
 	public static void stopActor(ActorRef actorRef) {
-		actorRef.tell(PoisonPill.getInstance(), ActorRef.noSender());
+		if (actorRef != null) {
+			actorRef.tell(Kill.getInstance(), ActorRef.noSender());
+		}
 	}
+
+	public static void stopActor(ActorGateway actorGateway) {
+		if (actorGateway != null) {
+			stopActor(actorGateway.actor());
+		}
+	}
+
+	public static void stopActorGracefully(ActorRef actorRef) {
+		stopActorsGracefully(actorRef);
+	}
+
+	public static void stopActorGracefully(ActorGateway actorGateway) {
+		stopActorGracefully(actorGateway.actor());
+	}
+
+	public static void stopActorsGracefully(@Nonnull ActorRef... actorRefs) {
+		List<CompletableFuture<?>> futures = new ArrayList<>(actorRefs.length);
+
+		for (ActorRef actorRef : actorRefs) {
+			if (actorRef != null) {
+				futures.add(FutureUtils.toJava(Patterns.gracefulStop(actorRef, DEFAULT_TIMEOUT)));
+			}
+		}
+
+		FutureUtils.waitForAll(futures);
+	}
+
+	public static void stopActorsGracefully(@Nonnull ActorGateway... actorGateways) {
+		List<ActorRef> actorRefs = new ArrayList<>(actorGateways.length);
+
+		for (ActorGateway actorGateway : actorGateways) {
+			if (actorGateway != null) {
+				actorRefs.add(actorGateway.actor());
+			}
+		}
+
+		stopActorsGracefully(actorRefs.toArray(new ActorRef[0]));
+	}
+
+
 
 	private ActorUtils() {}
 }

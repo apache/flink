@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.legacy.backpressure;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.akka.ActorUtils;
 import org.apache.flink.runtime.akka.AkkaJobManagerGateway;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClient;
@@ -277,8 +278,8 @@ public class BackPressureStatsTrackerImplITCase extends TestLogger {
 					}
 				};
 			} finally {
-				TestingUtils.stopActor(jobManger);
-				TestingUtils.stopActor(taskManager);
+				ActorUtils.stopActor(jobManger);
+				ActorUtils.stopActor(taskManager);
 
 				highAvailabilityServices.closeAndCleanupAllData();
 

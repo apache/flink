@@ -20,7 +20,7 @@ package org.apache.flink.runtime.akka
 
 import java.util.UUID
 
-import akka.actor.{Props, Kill, ActorRef, ActorSystem}
+import akka.actor.{Props, ActorSystem}
 import akka.testkit.{TestActorRef, TestKit}
 import grizzled.slf4j.Logger
 import org.apache.flink.runtime.akka.FlinkUntypedActorTest.PlainRequiresLeaderSessionID
@@ -82,11 +82,6 @@ class FlinkActorTest(_system: ActorSystem)
           s"leader session ID, even though the message requires a leader session ID.")
     }
   }
-
-  def stopActor(actor: ActorRef): Unit = {
-    actor ! Kill
-  }
-
 }
 
 class PlainFlinkActor(val leaderSessionID: Option[UUID])

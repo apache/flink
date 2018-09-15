@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.akka.ActorUtils;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
@@ -268,8 +269,8 @@ public class TaskManagerTest extends TestLogger {
 			}
 			finally {
 				// shut down the actors
-				TestingUtils.stopActor(taskManager);
-				TestingUtils.stopActor(jobManager);
+				ActorUtils.stopActor(taskManager);
+				ActorUtils.stopActor(jobManager);
 			}
 		}};
 	}
@@ -409,8 +410,8 @@ public class TaskManagerTest extends TestLogger {
 				fail(e.getMessage());
 			}
 			finally {
-				TestingUtils.stopActor(taskManager);
-				TestingUtils.stopActor(jobManager);
+				ActorUtils.stopActor(taskManager);
+				ActorUtils.stopActor(jobManager);
 			}
 		}};
 	}
@@ -539,8 +540,8 @@ public class TaskManagerTest extends TestLogger {
 				};
 			}
 			finally {
-				TestingUtils.stopActor(taskManager);
-				TestingUtils.stopActor(jobManager);
+				ActorUtils.stopActor(taskManager);
+				ActorUtils.stopActor(jobManager);
 			}
 		}};
 	}
@@ -636,8 +637,8 @@ public class TaskManagerTest extends TestLogger {
 			}
 			finally {
 				// shut down the actors
-				TestingUtils.stopActor(taskManager);
-				TestingUtils.stopActor(jobManager);
+				ActorUtils.stopActor(taskManager);
+				ActorUtils.stopActor(jobManager);
 			}
 		}};
 	}
@@ -775,8 +776,8 @@ public class TaskManagerTest extends TestLogger {
 			}
 			finally {
 				// shut down the actors
-				TestingUtils.stopActor(taskManager);
-				TestingUtils.stopActor(jobManager);
+				ActorUtils.stopActor(taskManager);
+				ActorUtils.stopActor(jobManager);
 			}
 		}};
 	}
@@ -924,8 +925,8 @@ public class TaskManagerTest extends TestLogger {
 			}
 			finally {
 				// shut down the actors
-				TestingUtils.stopActor(taskManager);
-				TestingUtils.stopActor(jobManager);
+				ActorUtils.stopActor(taskManager);
+				ActorUtils.stopActor(jobManager);
 			}
 		}};
 	}
@@ -1027,8 +1028,8 @@ public class TaskManagerTest extends TestLogger {
 				fail(e.getMessage());
 			}
 			finally {
-				TestingUtils.stopActor(taskManager);
-				TestingUtils.stopActor(jobManager);
+				ActorUtils.stopActor(taskManager);
+				ActorUtils.stopActor(jobManager);
 			}
 		}};
 	}
@@ -1148,8 +1149,8 @@ public class TaskManagerTest extends TestLogger {
 				fail(e.getMessage());
 			}
 			finally {
-				TestingUtils.stopActor(taskManager);
-				TestingUtils.stopActor(jobManager);
+				ActorUtils.stopActor(taskManager);
+				ActorUtils.stopActor(jobManager);
 			}
 		}};
 	}
@@ -1206,8 +1207,8 @@ public class TaskManagerTest extends TestLogger {
 					}
 				};
 			} finally {
-				TestingUtils.stopActor(taskManager);
-				TestingUtils.stopActor(jobManager);
+				ActorUtils.stopActor(taskManager);
+				ActorUtils.stopActor(jobManager);
 			}
 		}};}
 
@@ -1519,8 +1520,8 @@ public class TaskManagerTest extends TestLogger {
 					}
 				};
 			} finally {
-				TestingUtils.stopActor(taskManagerActorGateway);
-				TestingUtils.stopActor(jobManagerActorGateway);
+				ActorUtils.stopActor(taskManagerActorGateway);
+				ActorUtils.stopActor(jobManagerActorGateway);
 			}
 		}};
 	}
@@ -1618,8 +1619,8 @@ public class TaskManagerTest extends TestLogger {
 
 				assertEquals(true, cancelFuture.get());
 			} finally {
-				TestingUtils.stopActor(taskManager);
-				TestingUtils.stopActor(jobManager);
+				ActorUtils.stopActor(taskManager);
+				ActorUtils.stopActor(jobManager);
 			}
 		}};
 	}
@@ -1679,8 +1680,8 @@ public class TaskManagerTest extends TestLogger {
 				// expected
 			}
 		} finally {
-			TestingUtils.stopActor(jobManager);
-			TestingUtils.stopActor(taskManager);
+			ActorUtils.stopActor(jobManager);
+			ActorUtils.stopActor(taskManager);
 		}
 	}
 
@@ -1748,8 +1749,8 @@ public class TaskManagerTest extends TestLogger {
 				// expected
 			}
 		} finally {
-			TestingUtils.stopActor(jobManager);
-			TestingUtils.stopActor(taskManager);
+			ActorUtils.stopActor(jobManager);
+			ActorUtils.stopActor(taskManager);
 		}
 	}
 
@@ -1795,8 +1796,8 @@ public class TaskManagerTest extends TestLogger {
 				// expected
 			}
 		} finally {
-			TestingUtils.stopActor(jobManager);
-			TestingUtils.stopActor(taskManager);
+			ActorUtils.stopActor(jobManager);
+			ActorUtils.stopActor(taskManager);
 		}
 	}
 
@@ -1866,8 +1867,8 @@ public class TaskManagerTest extends TestLogger {
 				// expected
 			}
 		} finally {
-			TestingUtils.stopActor(jobManager);
-			TestingUtils.stopActor(taskManager);
+			ActorUtils.stopActor(jobManager);
+			ActorUtils.stopActor(taskManager);
 		}
 	}
 
