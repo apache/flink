@@ -27,12 +27,12 @@
 # we change the version for the complete docs when forking of a release branch
 # etc.
 # The full version string as referenced in Maven (e.g. 1.2.1)
-version: "1.5.0"
+version: "1.5.4"
 # For stable releases, leave the bugfix version out (e.g. 1.2). For snapshot
 # release this should be the same as the regular version
-version_title: "1.5"
-version_javadocs: "1.5"
-version_scaladocs: "1.5"
+version_title: 1.5
+version_javadocs: 1.5
+version_scaladocs: 1.5
 
 # This suffix is appended to the Scala-dependent Maven artifact names
 scala_version_suffix: "_2.11"
