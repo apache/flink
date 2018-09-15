@@ -293,7 +293,6 @@
                                                                       "-Djobmanager.rpc.address=$(hostname -f) "
                                                                       "-Djobmanager.heap.mb=2048 "
                                                                       "-Djobmanager.rpc.port=6123 "
-                                                                      "-rest.port=8081 "
                                                                       "-Dmesos.resourcemanager.tasks.mem=2048 "
                                                                       "-Dtaskmanager.heap.mb=2048 "
                                                                       "-Dtaskmanager.numberOfTaskSlots=2 "
