@@ -68,7 +68,7 @@ import static java.util.Objects.requireNonNull;
  *
  * DataStream<T> result = one.coGroup(two)
  *     .where(new MyFirstKeySelector())
- *     .equalTo(new MyFirstKeySelector())
+ *     .equalTo(new MySecondKeySelector())
  *     .window(TumblingEventTimeWindows.of(Time.of(5, TimeUnit.SECONDS)))
  *     .apply(new MyCoGroupFunction());
  * } </pre>
