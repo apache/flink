@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.functions
 import java.lang.{StringBuilder, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 import java.nio.charset.StandardCharsets
+import java.util.regex.Matcher
 
 import org.apache.commons.codec.binary.{Base64, Hex}
 import org.apache.commons.lang3.StringUtils
@@ -203,6 +204,18 @@ object ScalarFunctions {
     }
 
     new String(data)
+  }
+
+
+  /**
+    * Returns a string with all substrings that match the regular expression being replaced.
+    */
+  def regexp_replace(str: String, regex: String, replacement: String): String = {
+    if (str == null || regex == null || replacement == null) {
+      return null
+    }
+
+    str.replaceAll(regex, Matcher.quoteReplacement(replacement))
   }
 
   /**

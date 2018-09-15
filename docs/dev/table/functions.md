@@ -2416,6 +2416,18 @@ REPEAT(string, integer)
     <tr>
       <td>
         {% highlight text %}
+REGEXP_REPLACE(string1, string2, string3)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string from <i>string1</i> with all the substrings that match a regular expression <i>string2</i> being replaced with <i>string3</i>.</p> 
+        <p>E.g. <code>REGEXP_REPLACE('foobar', 'oo|ar', '')</code> returns "fb".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
 OVERLAY(string1 PLACING string2 FROM integer1 [ FOR integer2 ])
 {% endhighlight %}
       </td>
@@ -2638,6 +2650,18 @@ STRING.repeat(INT)
         <p>E.g., <code>'This is a test String.'.repeat(2)</code> returns "This is a test String.This is a test String.".</p>
       </td>
     </tr>    
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING1.regexpReplace(STRING2, STRING3)
+{% endhighlight %}
+      </td>
+       <td>
+         <p>Returns a string from <i>STRING1</i> with all the substrings that match a regular expression <i>STRING2</i> being replaced with <i>STRING3</i>.</p> 
+         <p>E.g., <code>'foobar'.regexpReplace('oo|ar', '')</code> returns "fb".</p>
+      </td>
+    </tr>
     
     <tr>
       <td>
@@ -2865,6 +2889,18 @@ STRING.repeat(INT)
         <p>E.g., <code>"This is a test String.".repeat(2)</code> returns "This is a test String.This is a test String.".</p>
       </td>
     </tr> 
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING1.regexpReplace(STRING2, STRING3)
+{% endhighlight %}
+      </td>
+       <td>
+         <p>Returns a string from <i>STRING1</i> with all the substrings that match a regular expression <i>STRING2</i> being replaced with <i>STRING3</i>.</p> 
+         <p>E.g. <code>"foobar".regexpReplace("oo|ar", "")</code> returns "fb".</p>
+      </td>
+    </tr>
 
     <tr>
       <td>

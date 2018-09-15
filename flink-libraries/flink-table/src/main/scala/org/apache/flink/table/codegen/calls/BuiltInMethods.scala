@@ -133,6 +133,13 @@ object BuiltInMethods {
 
   val BIN = Types.lookupMethod(classOf[JLong], "toBinaryString", classOf[Long])
 
+  val REGEXP_REPLACE = Types.lookupMethod(
+    classOf[ScalarFunctions],
+    "regexp_replace",
+    classOf[String],
+    classOf[String],
+    classOf[String])
+
   val FROMBASE64 = Types.lookupMethod(classOf[ScalarFunctions], "fromBase64", classOf[String])
 
   val TOBASE64 = Types.lookupMethod(classOf[ScalarFunctions], "toBase64", classOf[String])

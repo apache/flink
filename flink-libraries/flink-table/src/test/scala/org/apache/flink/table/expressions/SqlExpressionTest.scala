@@ -154,6 +154,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi(
       "REPEAT('This is a test String.', 2)",
       "This is a test String.This is a test String.")
+    testSqlApi("REGEXP_REPLACE('foobar', 'oo|ar', '')", "fb")
   }
 
   @Test
