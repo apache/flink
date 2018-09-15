@@ -86,6 +86,11 @@
     (take n)
     (reverse)))
 
+(defn- inc-by-factor
+  [n factor]
+  (assert (>= factor 1))
+  (int (* n factor)))
+
 (defn stop-generator
   [stop source job-running-healthy-threshold job-recovery-grace-period]
   (gen/concat source
@@ -105,9 +110,12 @@
                                                 (flink-checker/get-job-running-history)
                                                 (take-last-with-default job-running-healthy-threshold false))]
                       (if (or
-                            (and
-                              (every? true? job-running-history))
-                            (> (ju/relative-time-nanos) (+ @t (ju/secs->nanos job-recovery-grace-period))))
+                            (every? true? job-running-history)
+                            (> (ju/relative-time-nanos) (+ @t
+                                                           (ju/secs->nanos
+                                                             (inc-by-factor
+                                                               job-recovery-grace-period
+                                                               1.1)))))
                         (do
                           (reset! stop true)
                           nil)
