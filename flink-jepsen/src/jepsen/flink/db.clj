@@ -278,6 +278,23 @@
                         (fatal e "Could not submit job.")
                         (System/exit 1)))))
 
+(defn mesos-appmaster-cmd
+  "Returns the command used by Marathon to start Flink's Mesos application master."
+  [test]
+  (str (hadoop-env-vars)
+       install-dir "/bin/mesos-appmaster.sh "
+       "-Dmesos.master=" (zookeeper-uri
+                           test
+                           mesos/zk-namespace) " "
+       "-Djobmanager.rpc.address=$(hostname -f) "
+       "-Djobmanager.heap.mb=2048 "
+       "-Djobmanager.rpc.port=6123 "
+       "-Dmesos.resourcemanager.tasks.mem=2048 "
+       "-Dtaskmanager.heap.mb=2048 "
+       "-Dtaskmanager.numberOfTaskSlots=2 "
+       "-Dmesos.resourcemanager.tasks.cpus=1 "
+       "-Drest.bind-address=$(hostname -f) "))
+
 (defn start-mesos-session!
   [test]
   (c/su
@@ -285,19 +302,7 @@
                         (http/post
                           (str (mesos/marathon-base-url test) "/v2/apps")
                           {:form-params  {:id                    "flink"
-                                          :cmd                   (str (hadoop-env-vars)
-                                                                      install-dir "/bin/mesos-appmaster.sh "
-                                                                      "-Dmesos.master=" (zookeeper-uri
-                                                                                          test
-                                                                                          mesos/zk-namespace) " "
-                                                                      "-Djobmanager.rpc.address=$(hostname -f) "
-                                                                      "-Djobmanager.heap.mb=2048 "
-                                                                      "-Djobmanager.rpc.port=6123 "
-                                                                      "-Dmesos.resourcemanager.tasks.mem=2048 "
-                                                                      "-Dtaskmanager.heap.mb=2048 "
-                                                                      "-Dtaskmanager.numberOfTaskSlots=2 "
-                                                                      "-Dmesos.resourcemanager.tasks.cpus=1 "
-                                                                      "-Drest.bind-address=$(hostname -f) ")
+                                          :cmd                   (mesos-appmaster-cmd test)
                                           :cpus                  1.0
                                           :mem                   2048
                                           :maxLaunchDelaySeconds 3}
