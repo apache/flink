@@ -104,6 +104,20 @@ case class Log2(child: Expression) extends UnaryExpression with InputTypeSpec {
   override def toString: String = s"log2($child)"
 }
 
+case class Cosh(child: Expression) extends UnaryExpression {
+
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder) = {
+    relBuilder.call(ScalarSqlFunctions.COSH, child.toRexNode)
+  }
+
+  override private[flink] def validateInput(): ValidationResult =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "Cosh")
+
+  override def toString = s"cosh($child)"
+}
+
 case class Log(base: Expression, antilogarithm: Expression) extends Expression with InputTypeSpec {
   def this(antilogarithm: Expression) = this(null, antilogarithm)
 

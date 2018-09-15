@@ -45,6 +45,13 @@ object ScalarFunctions {
   }
 
   /**
+    * Returns the hyperbolic cosine of a big decimal value.
+    */
+  def cosh(x: JBigDecimal): Double = {
+    Math.cosh(x.doubleValue())
+  }
+
+  /**
     * Returns the string that results from concatenating the arguments.
     * Returns NULL if any argument is NULL.
     */

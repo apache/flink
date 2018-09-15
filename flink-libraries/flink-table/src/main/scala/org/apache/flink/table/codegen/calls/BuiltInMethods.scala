@@ -84,6 +84,9 @@ object BuiltInMethods {
   val ATAN = Types.lookupMethod(classOf[Math], "atan", classOf[Double])
   val ATAN_DEC = Types.lookupMethod(classOf[SqlFunctions], "atan", classOf[JBigDecimal])
 
+  val COSH = Types.lookupMethod(classOf[Math], "cosh", classOf[Double])
+  val COSH_DEC = Types.lookupMethod(classOf[ScalarFunctions], "cosh", classOf[JBigDecimal])
+
   val ATAN2_DOUBLE_DOUBLE = Types.lookupMethod(
     classOf[Math],
     "atan2",

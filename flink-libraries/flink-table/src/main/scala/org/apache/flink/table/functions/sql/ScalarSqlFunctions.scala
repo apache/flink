@@ -85,6 +85,14 @@ object ScalarSqlFunctions {
     SqlFunctionCategory.NUMERIC
   )
 
+  val COSH = new SqlFunction(
+    "COSH",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.DOUBLE_NULLABLE,
+    null,
+    OperandTypes.NUMERIC,
+    SqlFunctionCategory.NUMERIC)
+
   val LPAD = new SqlFunction(
     "LPAD",
     SqlKind.OTHER_FUNCTION,
