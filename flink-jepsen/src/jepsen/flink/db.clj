@@ -43,15 +43,16 @@
 (def deb-marathon-package "1.6.322")
 
 (def taskmanager-slots 1)
-(def master-count 1)
 
 (defn flink-configuration
-  [test]
+  [test node]
   {:high-availability                  "zookeeper"
    :high-availability.zookeeper.quorum (zookeeper-quorum test)
    :high-availability.storageDir       (str (:ha-storage-dir test) "/ha")
+   :jobmanager.rpc.address             node
    :state.savepoints.dir               (str (:ha-storage-dir test) "/savepoints")
-   :web.port                           8081
+   :rest.address                       node
+   :rest.port                          8081
    :rest.bind-address                  "0.0.0.0"
    :taskmanager.numberOfTaskSlots      taskmanager-slots
    :yarn.application-attempts          99999
@@ -59,23 +60,17 @@
    :state.backend.local-recovery       "false"
    :taskmanager.registration.timeout   "30 s"})
 
-(defn master-nodes
-  [test]
-  (take master-count (sort (:nodes test))))
-
 (defn write-configuration!
-  "Writes the flink-conf.yaml and masters file to the flink conf directory"
-  [test]
+  "Writes the flink-conf.yaml to the flink conf directory"
+  [test node]
   (let [c (clojure.string/join "\n" (map (fn [[k v]] (str (name k) ": " v))
-                                         (seq (flink-configuration test))))
-        m (clojure.string/join "\n" (master-nodes test))]
+                                         (seq (flink-configuration test node))))]
     (c/exec :echo c :> conf-file)
-    (c/exec :echo m :> masters-file)
     ;; TODO: write log4j.properties properly
     (c/exec (c/lit (str "sed -i'.bak' -e '/log4j.rootLogger=/ s/=.*/=DEBUG, file/' " install-dir "/conf/log4j.properties")))))
 
 (defn install-flink!
-  [test]
+  [test node]
   (let [url (:tarball test)]
     (info "Installing Flink from" url)
     (cu/install-archive! url install-dir)
@@ -83,12 +78,12 @@
     (c/exec (c/lit (str "ls " install-dir "/opt/flink-s3-fs-hadoop* | xargs -I {} mv {} " install-dir "/lib")))
     (c/upload (:job-jar test) upload-dir)
     (c/exec :mv (str upload-dir "/" (.getName (clojure.java.io/file (:job-jar test)))) install-dir)
-    (write-configuration! test)))
+    (write-configuration! test node)))
 
 (defn teardown-flink!
   []
   (info "Tearing down Flink")
-  (cu/grepkill! "flink")
+  (meh (cu/grepkill! "flink"))
   (meh (c/exec :rm :-rf install-dir))
   (meh (c/exec :rm :-rf (c/lit "/tmp/.yarn-properties*"))))
 
@@ -101,7 +96,7 @@
   (reify db/DB
     (setup! [_ test node]
       (c/su
-        (install-flink! test)))
+        (install-flink! test node)))
 
     (teardown! [_ test node]
       (c/su
@@ -123,7 +118,122 @@
         (doall (map #(db/teardown! % test node) dbs))))
     db/LogFiles
     (log-files [_ test node]
-      (flatten (map #(db/log-files % test node) dbs)))))
+      (->>
+        (filter (partial satisfies? db/LogFiles) dbs)
+        (map #(db/log-files % test node))
+        (flatten)))))
+
+(defn- sorted-nodes
+  [test]
+  (-> test :nodes sort))
+
+(defn- select-nodes
+  [test selector]
+  (-> (sorted-nodes test)
+      selector))
+
+(defn- first-node
+  [test]
+  (select-nodes test first))
+
+(defn- create-env-vars
+  "Expects a map containing environment variables, and returns a string that can be used to set
+  environment variables for a child process using Bash's quick assignment and inheritance trick.
+  For example, for a map {:FOO \"bar\"}, this function returns \"FOO=bar \"."
+  [m]
+  (->>
+    (map #(str (name (first %)) "=" (second %)) m)
+    (clojure.string/join " ")
+    (#(str % " "))))
+
+(defn- hadoop-env-vars
+  []
+  (create-env-vars {:HADOOP_CLASSPATH (str "`" hadoop/install-dir "/bin/hadoop classpath`")
+                    :HADOOP_CONF_DIR  hadoop/hadoop-conf-dir}))
+
+(defn exec-flink!
+  [cmd args]
+  (c/su
+    (c/exec (c/lit (str
+                     (hadoop-env-vars)
+                     install-dir "/bin/flink " cmd " " args)))))
+
+(defn flink-run-cli-args
+  "Returns the CLI args that should be passed to 'flink run'"
+  [test]
+  (concat
+    ["-d"]
+    (if (:main-class test)
+      [(str "-c " (:main-class test))]
+      [])))
+
+(defn submit-job!
+  ([test] (submit-job! test []))
+  ([test cli-args]
+   (exec-flink! "run" (clojure.string/join
+                        " "
+                        (concat cli-args
+                                (flink-run-cli-args test)
+                                [(str install-dir "/" (last (str/split (:job-jar test) #"/")))
+                                 (:job-args test)])))))
+
+;;; Standalone
+
+(def standalone-master-count 2)
+
+(defn- standalone-master-nodes
+  [test]
+  (select-nodes test (partial take standalone-master-count)))
+
+(defn- standalone-taskmanager-nodes
+  [test]
+  (select-nodes test (partial drop standalone-master-count)))
+
+(defn- start-standalone-masters!
+  [test node]
+  (when (some #{node} (standalone-master-nodes test))
+    (fu/create-supervised-service!
+      "flink-master"
+      (str "env " (hadoop-env-vars)
+           install-dir "/bin/jobmanager.sh start-foreground "
+           ">> " log-dir "/jobmanager.log"))))
+
+(defn- start-standalone-taskmanagers!
+  [test node]
+  (when (some #{node} (standalone-taskmanager-nodes test))
+    (fu/create-supervised-service!
+      "flink-taskmanager"
+      (str "env " (hadoop-env-vars)
+           install-dir "/bin/taskmanager.sh start-foreground "
+           ">> " log-dir "/taskmanager.log"))))
+
+(defn- start-flink-db
+  []
+  (reify db/DB
+    (setup! [_ test node]
+      (c/su
+        (start-standalone-masters! test node)
+        (start-standalone-taskmanagers! test node)))
+
+    (teardown! [_ test node]
+      (c/su
+        (when (some #{node} (standalone-master-nodes test))
+          (fu/stop-supervised-service! "flink-master"))
+        (when (some #{node} (standalone-taskmanager-nodes test))
+          (fu/stop-supervised-service! "flink-taskmanager"))))))
+
+(defn flink-standalone-db
+  []
+  (let [zk (zk/db deb-zookeeper-package)
+        hadoop (hadoop/db hadoop-dist-url)
+        flink (flink-db)
+        start-flink (start-flink-db)]
+    (combined-db [hadoop zk flink start-flink])))
+
+(defn submit-job-from-first-node!
+  [test]
+  (c/on (first-node test)
+        (submit-job! test)))
 
 ;;; YARN
 
@@ -134,48 +244,13 @@
         flink (flink-db)]
     (combined-db [hadoop zk flink])))
 
-(defn exec-flink!
-  [test cmd args]
-  (c/su
-    (c/exec (c/lit (str
-                     "HADOOP_CLASSPATH=`" hadoop/install-dir "/bin/hadoop classpath` "
-                     "HADOOP_CONF_DIR=" hadoop/hadoop-conf-dir " "
-                     install-dir "/bin/flink " cmd " " args)))))
-
-(defn flink-run-cli-args
-  "Returns the CLI args that should be passed to 'flink run'"
-  [test]
-  (concat
-    ["-d"]
-    (if (:main-class test)
-      [(str "-c " (:main-class test))]
-      [])
-    (if (= :yarn-job (:deployment-mode test))
-      ["-m yarn-cluster" "-yjm 2048m" "-ytm 2048m"]
-      [])))
-
-(defn submit-job!
-  ([test] (submit-job! test []))
-  ([test cli-args]
-   (exec-flink! test "run" (clojure.string/join
-                             " "
-                             (concat cli-args
-                                     (flink-run-cli-args test)
-                                     [(str install-dir "/" (last (str/split (:job-jar test) #"/")))
-                                      (:job-args test)])))))
-
-(defn first-node
-  [test]
-  (-> test :nodes sort first))
-
 (defn start-yarn-session!
   [test]
   (let [node (first-node test)]
     (c/on node
           (info "Starting YARN session from" node)
           (c/su
-            (c/exec (c/lit (str "HADOOP_CLASSPATH=`" hadoop/install-dir "/bin/hadoop classpath` "
-                                "HADOOP_CONF_DIR=" hadoop/hadoop-conf-dir
+            (c/exec (c/lit (str (hadoop-env-vars)
                                 " " install-dir "/bin/yarn-session.sh -d -jm 2048m -tm 2048m")))
             (submit-job! test)))))
 
@@ -183,7 +258,7 @@
   [test]
   (c/on (first-node test)
         (c/su
-          (submit-job! test))))
+          (submit-job! test ["-m yarn-cluster" "-yjm 2048m" "-ytm 2048m"]))))
 
 ;;; Mesos
 
@@ -210,8 +285,7 @@
                         (http/post
                           (str (mesos/marathon-base-url test) "/v2/apps")
                           {:form-params  {:id                    "flink"
-                                          :cmd                   (str "HADOOP_CLASSPATH=`" hadoop/install-dir "/bin/hadoop classpath` "
-                                                                      "HADOOP_CONF_DIR=" hadoop/hadoop-conf-dir " "
+                                          :cmd                   (str (hadoop-env-vars)
                                                                       install-dir "/bin/mesos-appmaster.sh "
                                                                       "-Dmesos.master=" (zookeeper-uri
                                                                                           test
