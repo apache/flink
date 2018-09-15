@@ -1094,6 +1094,47 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testCosh(): Unit = {
+    testAllApis(
+      0.cosh(),
+      "0.cosh()",
+      "COSH(0)",
+      math.cosh(0).toString
+    )
+
+    testAllApis(
+      -1.cosh(),
+      "-1.cosh()",
+      "COSH(-1)",
+      math.cosh(-1).toString
+    )
+
+    testAllApis(
+      'f4.cosh(),
+      "f4.cosh",
+      "COSH(f4)",
+      math.cosh(44L).toString)
+
+    testAllApis(
+      'f6.cosh(),
+      "f6.cosh",
+      "COSH(f6)",
+      math.cosh(4.6D).toString)
+
+    testAllApis(
+      'f7.cosh(),
+      "f7.cosh",
+      "COSH(f7)",
+      math.cosh(3).toString)
+
+    testAllApis(
+      'f22.cosh(),
+      "f22.cosh",
+      "COSH(f22)",
+      math.cosh(2.0).toString)
+  }
+
+  @Test
   def testLn(): Unit = {
     testAllApis(
       'f2.ln(),

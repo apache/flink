@@ -212,6 +212,18 @@ object FunctionGenerator {
     BuiltInMethods.LOG2)
 
   addSqlFunctionMethod(
+    COSH,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.COSH)
+
+  addSqlFunctionMethod(
+    COSH,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.COSH_DEC)
+
+  addSqlFunctionMethod(
     LN,
     Seq(DOUBLE_TYPE_INFO),
     DOUBLE_TYPE_INFO,

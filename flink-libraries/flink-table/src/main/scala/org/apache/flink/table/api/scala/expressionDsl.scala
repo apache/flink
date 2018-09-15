@@ -338,6 +338,11 @@ trait ImplicitExpressionOperations {
   def power(other: Expression) = Power(expr, other)
 
   /**
+    * Calculates the hyperbolic cosine of a given value.
+    */
+  def cosh() = Cosh(expr)
+
+  /**
     * Calculates the square root of a given value.
     */
   def sqrt() = Sqrt(expr)

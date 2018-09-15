@@ -1277,6 +1277,18 @@ ATAN2(numeric1, numeric2)
     <tr>
       <td>
         {% highlight text %}
+COSH(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic cosine of <i>NUMERIC</i>.</p> 
+        <p>Return value type is <i>DOUBLE</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
 DEGREES(numeric)
 {% endhighlight %}
       </td>
@@ -1706,6 +1718,18 @@ atan2(NUMERIC1, NUMERIC2)
       </td>
       <td>
         <p>Returns the arc tangent of a coordinate <i>(NUMERIC1, NUMERIC2)</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.cosh()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic cosine of <i>NUMERIC</i>.</p> 
+        <p>Return value type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
@@ -2142,6 +2166,18 @@ atan2(NUMERIC1, NUMERIC2)
       </td>
       <td>
         <p>Returns the arc tangent of a coordinate <i>(NUMERIC1, NUMERIC2)</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.cosh()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic cosine of <i>NUMERIC</i>.</p> 
+        <p>Return value type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
