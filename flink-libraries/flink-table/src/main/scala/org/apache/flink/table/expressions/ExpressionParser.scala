@@ -42,7 +42,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   // Convert the keyword into an case insensitive Parser
   implicit def keyword2Parser(kw: Keyword): Parser[String] = {
-    ("""(?i)\Q""" + kw.key + """\E""").r
+    ("""(?i)\Q""" + kw.key +
+      """\E(?![_$a-zA-Z0-9\u005f\u0024\u0061-\u007a\u0041-\u005a\u0030-\u0039])""").r
   }
 
   // Keyword
