@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.akka;
 
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 

@@ -27,6 +27,8 @@ import akka.pattern.Patterns;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -37,8 +39,6 @@ import java.util.concurrent.TimeoutException;
 
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
-
-import javax.annotation.Nonnull;
 
 /**
  * Utility functions for the interaction with Akka {@link akka.actor.Actor}.
@@ -136,8 +136,6 @@ public class ActorUtils {
 
 		stopActorsGracefully(actorRefs.toArray(new ActorRef[0]));
 	}
-
-
 
 	private ActorUtils() {}
 }
