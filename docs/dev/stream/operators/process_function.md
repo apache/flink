@@ -277,19 +277,18 @@ Both types of timers (processing-time and event-time) are internally maintained 
 
 The `TimerService` deduplicates timers per key and timestamp, i.e., there is at most one timer per key and timestamp. If multiple timers are registered for the same timestamp, the `onTimer()` method will be called just once.
 
-**Note:** Flink synchronizes invocations of `onTimer()` and `processElement()`. Hence, users do not have to worry about concurrent modification of state.
+<span class="label label-info">Note</span> Flink synchronizes invocations of `onTimer()` and `processElement()`. Hence, users do not have to worry about concurrent modification of state.
 
 ### Fault Tolerance
 
 Timers are fault tolerant and checkpointed along with the state of the application. 
 In case of a failure recovery or when starting an application from a savepoint, the timers are restored.
 
-**Note:** Checkpointed processing-time timers that were supposed to fire before their restoration, will fire immediately. 
+<span class="label label-info">Note</span> Checkpointed processing-time timers that were supposed to fire before their restoration, will fire immediately.
 This might happen when an application recovers from a failure or when it is started from a savepoint.
 
-**Note:** Timers are always synchronously checkpointed, regardless of the configuration of the state backends. 
-Therefore, a large number of timers can significantly increase checkpointing time. 
-See the "Timer Coalescing" section for advice on how to reduce the number of timers.
+<span class="label label-info">Note</span> Timers are always asynchronously checkpointed, except for the combination of RocksDB backend / with incremental snapshots / with heap-based timers (will be resolved with `FLINK-10026`).
+Notice that large numbers of timers can increase the checkpointing time because timers are part of the checkpointed state. See the "Timer Coalescing" section for advice on how to reduce the number of timers.
 
 ### Timer Coalescing
 
@@ -333,3 +332,43 @@ ctx.timerService.registerEventTimeTimer(coalescedTime)
 {% endhighlight %}
 </div>
 </div>
+
+Timers can also be stopped and removed as follows:
+
+Stopping a processing-time timer:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+long timestampOfTimerToStop = ...
+ctx.timerService().deleteProcessingTimeTimer(timestampOfTimerToStop);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val timestampOfTimerToStop = ...
+ctx.timerService.deleteProcessingTimeTimer(timestampOfTimerToStop)
+{% endhighlight %}
+</div>
+</div>
+
+Stopping an event-time timer:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+long timestampOfTimerToStop = ...
+ctx.timerService().deleteEventTimeTimer(timestampOfTimerToStop);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val timestampOfTimerToStop = ...
+ctx.timerService.deleteEventTimeTimer(timestampOfTimerToStop)
+{% endhighlight %}
+</div>
+</div>
+
+<span class="label label-info">Note</span> Stopping a timer has no effect if no such timer with the given timestamp is registered.

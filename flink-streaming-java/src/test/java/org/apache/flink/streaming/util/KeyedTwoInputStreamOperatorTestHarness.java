@@ -62,7 +62,7 @@ public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
 		AbstractStreamOperator<?> abstractStreamOperator = (AbstractStreamOperator<?>) operator;
 		KeyedStateBackend<Object> keyedStateBackend = abstractStreamOperator.getKeyedStateBackend();
 		if (keyedStateBackend instanceof HeapKeyedStateBackend) {
-			return ((HeapKeyedStateBackend) keyedStateBackend).numStateEntries();
+			return ((HeapKeyedStateBackend) keyedStateBackend).numKeyValueStateEntries();
 		} else {
 			throw new UnsupportedOperationException();
 		}

@@ -104,7 +104,7 @@ def main(factory):
         .key_by(Selector()) \
         .time_window(milliseconds(50)) \
         .reduce(Sum()) \
-        .print()
+        .output()
     env.execute()
 
 {% endhighlight %}
@@ -624,7 +624,7 @@ env.execute()
 
 A system-wide default parallelism for all execution environments can be defined by setting the
 `parallelism.default` property in `./conf/flink-conf.yaml`. See the
-[Configuration]({{ site.baseurl }}/setup/config.html) documentation for details.
+[Configuration]({{ site.baseurl }}/ops/config.html) documentation for details.
 
 {% top %}
 

@@ -29,13 +29,14 @@ import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.EventComparator;
-import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.NFA.MigratedNFA;
 import org.apache.flink.cep.nfa.NFAState;
 import org.apache.flink.cep.nfa.NFAStateSerializer;
+import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
+import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -375,9 +376,11 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 	 * @param timestamp The timestamp of the event
 	 */
 	private void processEvent(NFAState nfaState, IN event, long timestamp) throws Exception {
-		Collection<Map<String, List<IN>>> patterns =
-				nfa.process(partialMatches, nfaState, event, timestamp, afterMatchSkipStrategy);
-		processMatchedSequences(patterns, timestamp);
+		try (SharedBufferAccessor<IN> sharedBufferAccessor = partialMatches.getAccessor()) {
+			Collection<Map<String, List<IN>>> patterns =
+				nfa.process(sharedBufferAccessor, nfaState, event, timestamp, afterMatchSkipStrategy);
+			processMatchedSequences(patterns, timestamp);
+		}
 	}
 
 	/**
@@ -385,9 +388,11 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 	 * <b>lower</b> than the given timestamp should be passed to the nfa, This can lead to pruning and timeouts.
 	 */
 	private void advanceTime(NFAState nfaState, long timestamp) throws Exception {
-		Collection<Tuple2<Map<String, List<IN>>, Long>> timedOut =
-			nfa.advanceTime(partialMatches, nfaState, timestamp);
-		processTimedOutSequences(timedOut, timestamp);
+		try (SharedBufferAccessor<IN> sharedBufferAccessor = partialMatches.getAccessor()) {
+			Collection<Tuple2<Map<String, List<IN>>, Long>> timedOut =
+				nfa.advanceTime(sharedBufferAccessor, nfaState, timestamp);
+			processTimedOutSequences(timedOut, timestamp);
+		}
 	}
 
 	protected abstract void processMatchedSequences(Iterable<Map<String, List<IN>>> matchingSequences, long timestamp) throws Exception;

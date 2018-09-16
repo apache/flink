@@ -192,7 +192,7 @@ public class MyClass implements MapFunction {
 
 In all cases were classes are executed with a classpath created by a dependency manager such as Maven, Flink will pull log4j into the classpath.
 
-Therefore, you will need to exclude log4j from Flink's dependencies. The following description will assume a Maven project created from a [Flink quickstart](../quickstart/java_api_quickstart.html).
+Therefore, you will need to exclude log4j from Flink's dependencies. The following description will assume a Maven project created from a [Flink quickstart](./projectsetup/java_api_quickstart.html).
 
 Change your projects `pom.xml` file like this:
 

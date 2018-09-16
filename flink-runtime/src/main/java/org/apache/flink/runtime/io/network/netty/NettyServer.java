@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 
 import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -36,7 +37,6 @@ import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
 import java.io.IOException;
@@ -60,8 +60,6 @@ class NettyServer {
 	private ServerBootstrap bootstrap;
 
 	private ChannelFuture bindFuture;
-
-	private SSLContext serverSSLContext = null;
 
 	private InetSocketAddress localAddress;
 
@@ -138,8 +136,9 @@ class NettyServer {
 		}
 
 		// SSL related configuration
+		final SSLEngineFactory sslEngineFactory;
 		try {
-			serverSSLContext = config.createServerSSLContext();
+			sslEngineFactory = config.createServerSSLEngineFactory();
 		} catch (Exception e) {
 			throw new IOException("Failed to initialize SSL Context for the Netty Server", e);
 		}
@@ -151,10 +150,8 @@ class NettyServer {
 		bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
 			@Override
 			public void initChannel(SocketChannel channel) throws Exception {
-				if (serverSSLContext != null) {
-					SSLEngine sslEngine = serverSSLContext.createSSLEngine();
-					config.setSSLVerAndCipherSuites(sslEngine);
-					sslEngine.setUseClientMode(false);
+				if (sslEngineFactory != null) {
+					SSLEngine sslEngine = sslEngineFactory.createSSLEngine();
 					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
 				}
 

@@ -84,7 +84,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		int maxBackoff,
 		TaskIOMetricGroup metrics) {
 
-		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, metrics.getNumBytesInLocalCounter());
+		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, metrics.getNumBytesInLocalCounter(), metrics.getNumBuffersInLocalCounter());
 
 		this.partitionManager = checkNotNull(partitionManager);
 		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
@@ -194,6 +194,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		}
 
 		numBytesIn.inc(next.buffer().getSizeUnsafe());
+		numBuffersIn.inc();
 		return Optional.of(new BufferAndAvailability(next.buffer(), next.isMoreAvailable(), next.buffersInBacklog()));
 	}
 

@@ -38,4 +38,9 @@ public class SubtasksFilterQueryParameter extends MessageQueryParameter<String> 
 	public String convertValueToString(String value) {
 		return value;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Comma-separated list of integer ranges (e.g. \"1,3,5-9\") to select specific subtasks.";
+	}
 }

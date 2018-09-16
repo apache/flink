@@ -351,32 +351,4 @@ class CalcITCase extends AbstractTestBase {
       "{9=Comment#3}")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
-
-  @Test
-  def testUDFWithUnicodeParameter(): Unit = {
-    val data = List(
-      ("a\u0001b", "c\"d", "e\\\"\u0004f"),
-      ("x\u0001y", "y\"z", "z\\\"\u0004z")
-    )
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.testResults = mutable.MutableList()
-    val splitUDF0 = new SplitUDF(deterministic = true)
-    val splitUDF1 = new SplitUDF(deterministic = false)
-    val ds = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
-      .select(splitUDF0('a, "\u0001", 0) as 'a0,
-              splitUDF1('a, "\u0001", 0) as 'a1,
-              splitUDF0('b, "\"", 1) as 'b0,
-              splitUDF1('b, "\"", 1) as 'b1,
-              splitUDF0('c, "\\\"\u0004", 0) as 'c0,
-              splitUDF1('c, "\\\"\u0004", 0) as 'c1
-      )
-    val results = ds.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink[Row])
-    env.execute()
-    val expected = mutable.MutableList(
-      "a,a,d,d,e,e", "x,x,z,z,z,z"
-    )
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
-  }
 }

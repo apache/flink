@@ -30,4 +30,8 @@ public class ProgramArgsQueryParameter extends StringQueryParameter {
 		super("program-args", MessageParameterRequisiteness.OPTIONAL);
 	}
 
+	@Override
+	public String getDescription() {
+		return "String value that specifies the arguments for the program or plan.";
+	}
 }

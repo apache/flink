@@ -27,6 +27,8 @@ import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.rest.handler.router.RouterHandler;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.Preconditions;
 
@@ -43,7 +45,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocke
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCodec;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
-import org.apache.flink.shaded.netty4.io.netty.util.concurrent.DefaultThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -144,8 +145,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 				RestHandlerUrlComparator.INSTANCE);
 
 			handlers.forEach(handler -> {
-				log.debug("Register handler {} under {}@{}.", handler.f1, handler.f0.getHttpMethod(), handler.f0.getTargetRestEndpointURL());
-				registerHandler(router, handler);
+				registerHandler(router, handler, log);
 			});
 
 			ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
@@ -169,8 +169,8 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 				}
 			};
 
-			NioEventLoopGroup bossGroup = new NioEventLoopGroup(1, new DefaultThreadFactory("flink-rest-server-netty-boss"));
-			NioEventLoopGroup workerGroup = new NioEventLoopGroup(0, new DefaultThreadFactory("flink-rest-server-netty-worker"));
+			NioEventLoopGroup bossGroup = new NioEventLoopGroup(1, new ExecutorThreadFactory("flink-rest-server-netty-boss"));
+			NioEventLoopGroup workerGroup = new NioEventLoopGroup(0, new ExecutorThreadFactory("flink-rest-server-netty-worker"));
 
 			bootstrap = new ServerBootstrap();
 			bootstrap
@@ -178,6 +178,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 				.channel(NioServerSocketChannel.class)
 				.childHandler(initializer);
 
+			log.debug("Binding rest endpoint to {}:{}.", restBindAddress, restBindPort);
 			final ChannelFuture channel;
 			if (restBindAddress == null) {
 				channel = bootstrap.bind(restBindPort);
@@ -364,22 +365,37 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 		}
 	}
 
-	private static void registerHandler(Router router, Tuple2<RestHandlerSpecification, ChannelInboundHandler> specificationHandler) {
-		switch (specificationHandler.f0.getHttpMethod()) {
+	private static void registerHandler(Router router, Tuple2<RestHandlerSpecification, ChannelInboundHandler> specificationHandler, Logger log) {
+		final String handlerURL = specificationHandler.f0.getTargetRestEndpointURL();
+		// setup versioned urls
+		for (final RestAPIVersion supportedVersion : specificationHandler.f0.getSupportedAPIVersions()) {
+			final String versionedHandlerURL = '/' + supportedVersion.getURLVersionPrefix() + handlerURL;
+			log.debug("Register handler {} under {}@{}.", specificationHandler.f1, specificationHandler.f0.getHttpMethod(), versionedHandlerURL);
+			registerHandler(router, versionedHandlerURL, specificationHandler.f0.getHttpMethod(), specificationHandler.f1);
+			if (supportedVersion.isDefaultVersion()) {
+				// setup unversioned url for convenience and backwards compatibility
+				log.debug("Register handler {} under {}@{}.", specificationHandler.f1, specificationHandler.f0.getHttpMethod(), handlerURL);
+				registerHandler(router, handlerURL, specificationHandler.f0.getHttpMethod(), specificationHandler.f1);
+			}
+		}
+	}
+
+	private static void registerHandler(Router router, String handlerURL, HttpMethodWrapper httpMethod, ChannelInboundHandler handler) {
+		switch (httpMethod) {
 			case GET:
-				router.addGet(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
+				router.addGet(handlerURL, handler);
 				break;
 			case POST:
-				router.addPost(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
+				router.addPost(handlerURL, handler);
 				break;
 			case DELETE:
-				router.addDelete(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
+				router.addDelete(handlerURL, handler);
 				break;
 			case PATCH:
-				router.addPatch(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
+				router.addPatch(handlerURL, handler);
 				break;
 			default:
-				throw new RuntimeException("Unsupported http method: " + specificationHandler.f0.getHttpMethod() + '.');
+				throw new RuntimeException("Unsupported http method: " + httpMethod + '.');
 		}
 	}
 
@@ -437,13 +453,22 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 		private static final Comparator<String> CASE_INSENSITIVE_ORDER = new CaseInsensitiveOrderComparator();
 
+		private static final Comparator<RestAPIVersion> API_VERSION_ORDER = new RestAPIVersion.RestAPIVersionComparator();
+
 		static final RestHandlerUrlComparator INSTANCE = new RestHandlerUrlComparator();
 
 		@Override
 		public int compare(
 				Tuple2<RestHandlerSpecification, ChannelInboundHandler> o1,
 				Tuple2<RestHandlerSpecification, ChannelInboundHandler> o2) {
-			return CASE_INSENSITIVE_ORDER.compare(o1.f0.getTargetRestEndpointURL(), o2.f0.getTargetRestEndpointURL());
+			final int urlComparisonResult = CASE_INSENSITIVE_ORDER.compare(o1.f0.getTargetRestEndpointURL(), o2.f0.getTargetRestEndpointURL());
+			if (urlComparisonResult != 0) {
+				return urlComparisonResult;
+			} else {
+				return API_VERSION_ORDER.compare(
+					Collections.min(o1.f0.getSupportedAPIVersions()),
+					Collections.min(o2.f0.getSupportedAPIVersions()));
+			}
 		}
 
 		/**

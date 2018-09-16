@@ -73,11 +73,14 @@ if you only want to use your Hadoop data types. See the
 
 ### Using Hadoop InputFormats
 
-Hadoop input formats can be used to create a data source by using
-one of the methods `readHadoopFile` or `createHadoopInput` of the
-`ExecutionEnvironment`. The former is used for input formats derived
+To use Hadoop `InputFormats` with Flink the format must first be wrapped
+using either `readHadoopFile` or `createHadoopInput` of the
+`HadoopInputs` utilty class. 
+The former is used for input formats derived
 from `FileInputFormat` while the latter has to be used for general purpose
 input formats.
+The resulting `InputFormat` can be used to create a data source by using
+`ExecutionEnvironmen#createInput`.
 
 The resulting `DataSet` contains 2-tuples where the first field
 is the key and the second field is the value retrieved from the Hadoop
@@ -92,7 +95,8 @@ The following example shows how to use Hadoop's `TextInputFormat`.
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 DataSet<Tuple2<LongWritable, Text>> input =
-    env.readHadoopFile(new TextInputFormat(), LongWritable.class, Text.class, textPath);
+    env.createInput(HadoopInputs.readHadoopFile(new TextInputFormat(),
+                        LongWritable.class, Text.class, textPath));
 
 // Do something with the data.
 [...]
@@ -105,7 +109,8 @@ DataSet<Tuple2<LongWritable, Text>> input =
 val env = ExecutionEnvironment.getExecutionEnvironment
 
 val input: DataSet[(LongWritable, Text)] =
-  env.readHadoopFile(new TextInputFormat, classOf[LongWritable], classOf[Text], textPath)
+  env.createInput(HadoopInputs.readHadoopFile(
+                    new TextInputFormat, classOf[LongWritable], classOf[Text], textPath))
 
 // Do something with the data.
 [...]

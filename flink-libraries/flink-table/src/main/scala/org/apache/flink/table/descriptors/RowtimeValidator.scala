@@ -28,7 +28,11 @@ import scala.collection.JavaConverters._
 /**
   * Validator for [[Rowtime]].
   */
-class RowtimeValidator(val prefix: String = "") extends DescriptorValidator {
+class RowtimeValidator(
+    supportsSourceTimestamps: Boolean,
+    supportsSourceWatermarks: Boolean,
+    prefix: String = "")
+  extends DescriptorValidator {
 
   override def validate(properties: DescriptorProperties): Unit = {
     val timestampExistingField = (_: String) => {
@@ -43,14 +47,21 @@ class RowtimeValidator(val prefix: String = "") extends DescriptorValidator {
         prefix + ROWTIME_TIMESTAMPS_SERIALIZED, isOptional = false, minLen = 1)
     }
 
-    properties.validateEnum(
-      prefix + ROWTIME_TIMESTAMPS_TYPE,
-      isOptional = false,
+    val timestampsValidation = if (supportsSourceTimestamps) {
       Map(
         ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD -> toJava(timestampExistingField),
         ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_SOURCE -> properties.noValidation(),
-        ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM -> toJava(timestampCustom)
-      ).asJava
+        ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM -> toJava(timestampCustom))
+    } else {
+      Map(
+        ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD -> toJava(timestampExistingField),
+        ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM -> toJava(timestampCustom))
+    }
+
+    properties.validateEnum(
+      prefix + ROWTIME_TIMESTAMPS_TYPE,
+      isOptional = false,
+      timestampsValidation.asJava
     )
 
     val watermarkPeriodicBounded = (_: String) => {
@@ -65,15 +76,23 @@ class RowtimeValidator(val prefix: String = "") extends DescriptorValidator {
         prefix + ROWTIME_WATERMARKS_SERIALIZED, isOptional = false, minLen = 1)
     }
 
-    properties.validateEnum(
-      prefix + ROWTIME_WATERMARKS_TYPE,
-      isOptional = false,
+    val watermarksValidation = if (supportsSourceWatermarks) {
       Map(
         ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING -> properties.noValidation(),
         ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED -> toJava(watermarkPeriodicBounded),
         ROWTIME_WATERMARKS_TYPE_VALUE_FROM_SOURCE -> properties.noValidation(),
-        ROWTIME_WATERMARKS_TYPE_VALUE_CUSTOM -> toJava(watermarkCustom)
-      ).asJava
+        ROWTIME_WATERMARKS_TYPE_VALUE_CUSTOM -> toJava(watermarkCustom))
+    } else {
+      Map(
+        ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING -> properties.noValidation(),
+        ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED -> toJava(watermarkPeriodicBounded),
+        ROWTIME_WATERMARKS_TYPE_VALUE_CUSTOM -> toJava(watermarkCustom))
+    }
+
+    properties.validateEnum(
+      prefix + ROWTIME_WATERMARKS_TYPE,
+      isOptional = false,
+      watermarksValidation.asJava
     )
   }
 }
@@ -154,11 +173,11 @@ object RowtimeValidator {
         new ExistingField(field)
 
       case ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_SOURCE =>
-        new StreamRecordTimestamp
+        StreamRecordTimestamp.INSTANCE
 
       case ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM =>
         val clazz = properties.getClass(
-          ROWTIME_TIMESTAMPS_CLASS,
+          prefix + ROWTIME_TIMESTAMPS_CLASS,
           classOf[TimestampExtractor])
         DescriptorProperties.deserialize(
           properties.getString(prefix + ROWTIME_TIMESTAMPS_SERIALIZED),

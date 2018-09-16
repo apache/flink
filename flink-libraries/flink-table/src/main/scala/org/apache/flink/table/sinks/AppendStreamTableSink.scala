@@ -29,7 +29,7 @@ import org.apache.flink.table.api.Table
   *
   * @tparam T Type of [[DataStream]] that this [[TableSink]] expects and supports.
   */
-trait AppendStreamTableSink[T] extends TableSink[T] {
+trait AppendStreamTableSink[T] extends StreamTableSink[T] {
 
   /** Emits the DataStream. */
   def emitDataStream(dataStream: DataStream[T]): Unit

@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -51,7 +53,7 @@ class HeapMapState<K, N, UK, UV>
 	 * @param namespaceSerializer The serializer for the namespace.
 	 * @param defaultValue The default value for the state.
 	 */
-	HeapMapState(
+	private HeapMapState(
 		StateTable<K, N, Map<UK, UV>> stateTable,
 		TypeSerializer<K> keySerializer,
 		TypeSerializer<Map<UK, UV>> valueSerializer,
@@ -85,7 +87,7 @@ class HeapMapState<K, N, UK, UV>
 		if (userMap == null) {
 			return null;
 		}
-		
+
 		return userMap.get(userKey);
 	}
 
@@ -140,7 +142,7 @@ class HeapMapState<K, N, UK, UV>
 		Map<UK, UV> userMap = stateTable.get(currentNamespace);
 		return userMap == null ? null : userMap.entrySet();
 	}
-	
+
 	@Override
 	public Iterable<UK> keys() {
 		Map<UK, UV> userMap = stateTable.get(currentNamespace);
@@ -186,5 +188,18 @@ class HeapMapState<K, N, UK, UV>
 		final TypeSerializer<UV> dupUserValueSerializer = serializer.getValueSerializer();
 
 		return KvStateSerializer.serializeMap(result.entrySet(), dupUserKeySerializer, dupUserValueSerializer);
+	}
+
+	@SuppressWarnings("unchecked")
+	static <UK, UV, K, N, SV, S extends State, IS extends S> IS create(
+		StateDescriptor<S, SV> stateDesc,
+		StateTable<K, N, SV> stateTable,
+		TypeSerializer<K> keySerializer) {
+		return (IS) new HeapMapState<>(
+			(StateTable<K, N, Map<UK, UV>>) stateTable,
+			keySerializer,
+			(TypeSerializer<Map<UK, UV>>) stateTable.getStateSerializer(),
+			stateTable.getNamespaceSerializer(),
+			(Map<UK, UV>) stateDesc.getDefaultValue());
 	}
 }

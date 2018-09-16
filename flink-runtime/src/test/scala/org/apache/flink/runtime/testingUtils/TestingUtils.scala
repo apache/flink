@@ -262,7 +262,7 @@ object TestingUtils {
 
     val resultingConfiguration = new Configuration()
 
-    resultingConfiguration.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 10L)
+    resultingConfiguration.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "10m")
 
     resultingConfiguration.addAll(configuration)
 

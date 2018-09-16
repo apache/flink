@@ -63,6 +63,7 @@ import org.apache.flink.shaded.netty4.io.netty.util.concurrent.GenericFutureList
 import javax.annotation.Nonnull;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
@@ -117,7 +118,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 	}
 
 	@Override
-	protected void respondToRequest(ChannelHandlerContext ctx, HttpRequest httpRequest, HandlerRequest<EmptyRequestBody, M> handlerRequest, RestfulGateway gateway) throws RestHandlerException {
+	protected CompletableFuture<Void> respondToRequest(ChannelHandlerContext ctx, HttpRequest httpRequest, HandlerRequest<EmptyRequestBody, M> handlerRequest, RestfulGateway gateway) throws RestHandlerException {
 		final ResourceID taskManagerId = handlerRequest.getPathParameter(TaskManagerIdPathParameter.class);
 
 		final CompletableFuture<TransientBlobKey> blobKeyFuture;
@@ -152,7 +153,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 			},
 			ctx.executor());
 
-		resultFuture.whenComplete(
+		return resultFuture.whenComplete(
 			(Void ignored, Throwable throwable) -> {
 				if (throwable != null) {
 					log.error("Failed to transfer file from TaskExecutor {}.", taskManagerId, throwable);
@@ -208,11 +209,20 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 	}
 
 	private void transferFile(ChannelHandlerContext ctx, File file, HttpRequest httpRequest) throws FlinkException {
-		try (final RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r")) {
+		final RandomAccessFile randomAccessFile;
+
+		try {
+			randomAccessFile = new RandomAccessFile(file, "r");
+		} catch (FileNotFoundException e) {
+			throw new FlinkException("Can not find file " + file + ".", e);
+		}
+
+		try {
+
 			final long fileLength = randomAccessFile.length();
+			final FileChannel fileChannel = randomAccessFile.getChannel();
 
-			try (final FileChannel fileChannel = randomAccessFile.getChannel()) {
-
+			try {
 				HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
 				response.headers().set(CONTENT_TYPE, "text/plain");
 
@@ -251,8 +261,17 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 				if (!HttpHeaders.isKeepAlive(httpRequest)) {
 					lastContentFuture.addListener(ChannelFutureListener.CLOSE);
 				}
+			} catch (IOException ex) {
+				fileChannel.close();
+				throw ex;
 			}
 		} catch (IOException ioe) {
+			try {
+				randomAccessFile.close();
+			} catch (IOException e) {
+				throw new FlinkException("Close file or channel error.", e);
+			}
+
 			throw new FlinkException("Could not transfer file " + file + " to the client.", ioe);
 		}
 	}

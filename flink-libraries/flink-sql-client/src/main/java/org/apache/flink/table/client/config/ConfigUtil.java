@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.client.config;
 
+import org.apache.flink.table.client.SqlClientException;
+
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonToken;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.IOContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,6 +40,20 @@ public class ConfigUtil {
 
 	private ConfigUtil() {
 		// private
+	}
+
+	/**
+	 * Extracts an early string property from YAML (before normalization).
+	 */
+	public static String extractEarlyStringProperty(Map<String, Object> map, String key, String parent) {
+		if (!map.containsKey(key)) {
+			throw new SqlClientException("The '" + key + "' attribute of " + parent + " is missing.");
+		}
+		final Object object = map.get(key);
+		if (object == null || !(object instanceof String) || ((String) object).trim().length() <= 0) {
+			throw new SqlClientException("Invalid " + parent + " " + key + " '" + object + "'.");
+		}
+		return (String) object;
 	}
 
 	/**

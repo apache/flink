@@ -18,14 +18,15 @@
 
 package org.apache.flink.table.runtime.batch;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
+import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
+import org.apache.flink.formats.avro.utils.AvroKryoSerializerUtils;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
@@ -34,15 +35,22 @@ import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 
 import org.apache.avro.util.Utf8;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalTime;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for interoperability with Avro types.
@@ -72,6 +80,14 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 							.setCity("Berlin")
 							.setState("Berlin")
 							.setZip("12049").build())
+			.setTypeBytes(ByteBuffer.allocate(10))
+			.setTypeDate(LocalDate.parse("2014-03-01"))
+			.setTypeTimeMillis(LocalTime.parse("12:12:12"))
+			.setTypeTimeMicros(123456)
+			.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"))
+			.setTypeTimestampMicros(123456L)
+			.setTypeDecimalBytes(ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
+			.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 			.build();
 
 	private static final User USER_2 = User.newBuilder()
@@ -88,7 +104,14 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 			.setTypeMap(new HashMap<>())
 			.setTypeFixed(new Fixed16())
 			.setTypeUnion(null)
-			.setTypeNested(null)
+			.setTypeNested(null).setTypeDate(LocalDate.parse("2014-03-01"))
+			.setTypeBytes(ByteBuffer.allocate(10))
+			.setTypeTimeMillis(LocalTime.parse("12:12:12"))
+			.setTypeTimeMicros(123456)
+			.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"))
+			.setTypeTimestampMicros(123456L)
+			.setTypeDecimalBytes(ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
+			.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 			.build();
 
 	private static final User USER_3 = User.newBuilder()
@@ -106,25 +129,15 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 			.setTypeFixed(new Fixed16())
 			.setTypeUnion(null)
 			.setTypeNested(null)
+			.setTypeBytes(ByteBuffer.allocate(10))
+			.setTypeDate(LocalDate.parse("2014-03-01"))
+			.setTypeTimeMillis(LocalTime.parse("12:12:12"))
+			.setTypeTimeMicros(123456)
+			.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"))
+			.setTypeTimestampMicros(123456L)
+			.setTypeDecimalBytes(ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
+			.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 			.build();
-
-	private static TypeInformation<Row> rowType = Types.ROW(
-			Types.GENERIC(Utf8.class),
-			Types.INT,
-			Types.GENERIC(Utf8.class),
-			Types.GENERIC(List.class),
-			Types.GENERIC(List.class),
-			Types.GENERIC(Object.class),
-			Types.DOUBLE,
-			Types.ENUM(Colors.class),
-			Types.GENERIC(Fixed16.class),
-			Types.LONG,
-			Types.GENERIC(Map.class),
-			Types.POJO(Address.class),
-			Types.GENERIC(Object.class),
-			Types.GENERIC(List.class),
-			Types.GENERIC(Object.class)
-	);
 
 	public AvroTypesITCase(
 			TestExecutionMode executionMode,
@@ -135,19 +148,29 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 	@Test
 	public void testAvroToRow() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().registerTypeWithKryoSerializer(LocalDate.class, AvroKryoSerializerUtils.JodaLocalDateSerializer.class);
+		env.getConfig().registerTypeWithKryoSerializer(LocalTime.class, AvroKryoSerializerUtils.JodaLocalTimeSerializer.class);
 		BatchTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		Table t = tEnv.fromDataSet(testData(env));
 		Table result = t.select("*");
 
-		List<Row> results = tEnv.toDataSet(result, rowType).collect();
-		String expected = "black,null,Whatever,[true],[hello],true,0.0,GREEN," +
-				"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],42,{},null,null,null,null\n" +
-				"blue,null,Charlie,[],[],false,1.337,RED," +
-				"null,1337,{},{\"num\": 42, \"street\": \"Bakerstreet\", \"city\": \"Berlin\", " +
-				"\"state\": \"Berlin\", \"zip\": \"12049\"},null,null,null\n" +
-				"yellow,null,Terminator,[false],[world],false,0.0,GREEN," +
-				"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],1,{},null,null,null,null";
+		List<Row> results = tEnv.toDataSet(result, Row.class).collect();
+		String expected =
+			"black,null,Whatever,[true],[hello],true,java.nio.HeapByteBuffer[pos=0 lim=10 cap=10]," +
+			"2014-03-01,java.nio.HeapByteBuffer[pos=0 lim=2 cap=2],[7, -48],0.0,GREEN," +
+			"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],42,{},null,null,null,123456," +
+			"12:12:12.000,123456,2014-03-01T12:12:12.321Z,null\n" +
+			"blue,null,Charlie,[],[],false,java.nio.HeapByteBuffer[pos=0 lim=10 cap=10],2014-03-01," +
+			"java.nio.HeapByteBuffer[pos=0 lim=2 cap=2],[7, -48],1.337,RED,null,1337,{}," +
+			"{\"num\": 42, \"street\": \"Bakerstreet\", \"city\": \"Berlin\", \"state\": " +
+			"\"Berlin\", \"zip\": \"12049\"},null,null,123456,12:12:12.000,123456," +
+			"2014-03-01T12:12:12.321Z,null\n" +
+			"yellow,null,Terminator,[false],[world],false," +
+			"java.nio.HeapByteBuffer[pos=0 lim=10 cap=10],2014-03-01," +
+			"java.nio.HeapByteBuffer[pos=0 lim=2 cap=2],[7, -48],0.0,GREEN," +
+			"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],1,{},null,null,null,123456," +
+			"12:12:12.000,123456,2014-03-01T12:12:12.321Z,null";
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
 
@@ -189,8 +212,8 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 		Table result = t.select("*");
 
 		List<User> results = tEnv.toDataSet(result, Types.POJO(User.class)).collect();
-		String expected = USER_1 + "\n" + USER_2 + "\n" + USER_3;
-		TestBaseUtils.compareResultAsText(results, expected);
+		List<User> expected = Arrays.asList(USER_1, USER_2, USER_3);
+		assertEquals(expected, results);
 	}
 
 	private DataSet<User> testData(ExecutionEnvironment env) {

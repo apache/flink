@@ -49,6 +49,7 @@ import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent._
+import scala.util.{Failure, Success}
 
 /**
  * Abstract base class for Flink's mini cluster. The mini cluster starts a
@@ -448,6 +449,13 @@ abstract class FlinkMiniCluster(
       ioExecutor)
   }
 
+  def firstActorSystem(): Option[ActorSystem] = {
+    jobManagerActorSystems match {
+      case Some(jmActorSystems) => Some(jmActorSystems.head)
+      case None => None
+    }
+  }
+
   protected def startInternalShutdown(): Unit = {
     webMonitor foreach {
       _.stop()
@@ -472,30 +480,30 @@ abstract class FlinkMiniCluster(
 
     if (!useSingleActorSystem) {
       taskManagerActorSystems foreach {
-        _ foreach(_.shutdown())
+        _ foreach(_.terminate())
       }
 
       resourceManagerActorSystems foreach {
-        _ foreach(_.shutdown())
+        _ foreach(_.terminate())
       }
     }
 
     jobManagerActorSystems foreach {
-      _ foreach(_.shutdown())
+      _ foreach(_.terminate())
     }
   }
 
   def awaitTermination(): Unit = {
     jobManagerActorSystems foreach {
-      _ foreach(_.awaitTermination())
+      _ foreach(s => Await.ready(s.whenTerminated, Duration.Inf))
     }
 
     resourceManagerActorSystems foreach {
-      _ foreach(_.awaitTermination())
+      _ foreach(s => Await.ready(s.whenTerminated, Duration.Inf))
     }
 
     taskManagerActorSystems foreach {
-      _ foreach(_.awaitTermination())
+      _ foreach(s => Await.ready(s.whenTerminated, Duration.Inf))
     }
   }
 
@@ -618,7 +626,10 @@ abstract class FlinkMiniCluster(
 
   def shutdownJobClientActorSystem(actorSystem: ActorSystem): Unit = {
     if(!useSingleActorSystem) {
-      actorSystem.shutdown()
+      actorSystem.terminate().onComplete {
+        case Success(_) =>
+        case Failure(t) => LOG.warn("Could not cleanly shut down the job client actor system.", t)
+      }
     }
   }
 

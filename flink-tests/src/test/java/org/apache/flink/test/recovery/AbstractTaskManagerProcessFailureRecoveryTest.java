@@ -41,8 +41,9 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-import org.apache.commons.io.FileUtils;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,6 +88,9 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 
 	protected static final int PARALLELISM = 4;
 
+	@Rule
+	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 	@Test
 	public void testTaskManagerProcessFailure() throws Exception {
 
@@ -117,7 +121,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 			CommonTestUtils.printLog4jDebugConfig(tempLogFile);
 
 			// coordination between the processes goes through a directory
-			coordinateTempDir = CommonTestUtils.createTempDirectory();
+			coordinateTempDir = temporaryFolder.newFolder();
 
 			// find a free port to start the JobManager
 			final int jobManagerPort = NetUtils.getAvailablePort();
@@ -268,14 +272,6 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 			if (jmActorSystem != null) {
 				jmActorSystem.shutdown();
 			}
-			if (coordinateTempDir != null) {
-				try {
-					FileUtils.deleteDirectory(coordinateTempDir);
-				}
-				catch (Throwable t) {
-					// we can ignore this
-				}
-			}
 
 			if (highAvailabilityServices != null) {
 				highAvailabilityServices.closeAndCleanupAllData();
@@ -404,7 +400,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 				Configuration cfg = new Configuration();
 				cfg.setString(JobManagerOptions.ADDRESS, "localhost");
 				cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
-				cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
+				cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
 				cfg.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 100);
 				cfg.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
 				cfg.setString(AkkaOptions.ASK_TIMEOUT, "100 s");

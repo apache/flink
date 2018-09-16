@@ -70,11 +70,6 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	/**
 	 * Called when a processing-time timer that was set using the trigger context fires.
 	 *
-	 * <p>Note: This method is not called in case the window does not contain any elements. Thus,
-	 * if you return {@code PURGE} from a trigger method and you expect to do cleanup in a future
-	 * invocation of a timer callback it might be wise to clean any state that you would clean
-	 * in the timer callback.
-	 *
 	 * @param time The timestamp at which the timer fired.
 	 * @param window The window for which the timer fired.
 	 * @param ctx A context object that can be used to register timer callbacks.
@@ -83,11 +78,6 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 
 	/**
 	 * Called when an event-time timer that was set using the trigger context fires.
-	 *
-	 * <p>Note: This method is not called in case the window does not contain any elements. Thus,
-	 * if you return {@code PURGE} from a trigger method and you expect to do cleanup in a future
-	 * invocation of a timer callback it might be wise to clean any state that you would clean
-	 * in the timer callback.
 	 *
 	 * @param time The timestamp at which the timer fired.
 	 * @param window The window for which the timer fired.

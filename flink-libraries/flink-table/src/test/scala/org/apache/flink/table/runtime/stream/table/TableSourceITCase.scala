@@ -301,6 +301,42 @@ class TableSourceITCase extends AbstractTestBase {
   }
 
   @Test
+  def testRowtimeStringTableSource(): Unit = {
+    StreamITCase.testResults = mutable.MutableList()
+    val tableName = "MyTable"
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val data = Seq(
+      "1970-01-01 00:00:00",
+      "1970-01-01 00:00:01",
+      "1970-01-01 00:00:01",
+      "1970-01-01 00:00:02",
+      "1970-01-01 00:00:04")
+
+    val schema = new TableSchema(Array("rtime"), Array(Types.SQL_TIMESTAMP))
+    val returnType = Types.STRING
+
+    val tableSource = new TestTableSourceWithTime(schema, returnType, data, "rtime", null)
+    tEnv.registerTableSource(tableName, tableSource)
+
+    tEnv.scan(tableName)
+      .window(Tumble over 1.second on 'rtime as 'w)
+      .groupBy('w)
+      .select('w.start, 1.count)
+      .addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq(
+      "1970-01-01 00:00:00.0,1",
+      "1970-01-01 00:00:01.0,2",
+      "1970-01-01 00:00:02.0,1",
+      "1970-01-01 00:00:04.0,1")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
   def testProctimeStringTableSource(): Unit = {
     StreamITCase.testResults = mutable.MutableList()
     val tableName = "MyTable"
@@ -741,4 +777,5 @@ class TableSourceITCase extends AbstractTestBase {
     val expected = Seq("(1,A,1)", "(6,C,10)", "(6,D,20)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+
 }

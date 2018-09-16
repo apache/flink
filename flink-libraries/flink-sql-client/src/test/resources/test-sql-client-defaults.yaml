@@ -26,6 +26,7 @@
 tables:
   - name: TableNumber1
     type: source
+    $VAR_UPDATE_MODE
     schema:
       - name: IntegerField1
         type: INT
@@ -45,6 +46,7 @@ tables:
       comment-prefix: "#"
   - name: TableNumber2
     type: source
+    $VAR_UPDATE_MODE
     schema:
       - name: IntegerField2
         type: INT
@@ -62,15 +64,71 @@ tables:
           type: VARCHAR
       line-delimiter: "\n"
       comment-prefix: "#"
+  - name: TableSourceSink
+    type: both
+    $VAR_UPDATE_MODE
+    schema:
+      - name: BooleanField
+        type: BOOLEAN
+      - name: StringField
+        type: VARCHAR
+    connector:
+      type: filesystem
+      path: "$VAR_4"
+    format:
+      type: csv
+      fields:
+        - name: BooleanField
+          type: BOOLEAN
+        - name: StringField
+          type: VARCHAR
+
+views:
+  - name: TestView1
+    query: SELECT scalarUDF(IntegerField1) FROM TableNumber1
+  - name: TestView2
+    query: SELECT * FROM TestView1
+
+functions:
+  - name: scalarUDF
+    from: class
+    class: org.apache.flink.table.client.gateway.utils.UserDefinedFunctions$ScalarUDF
+    constructor:
+      - 5
+  - name: aggregateUDF
+    from: class
+    class: org.apache.flink.table.client.gateway.utils.UserDefinedFunctions$AggregateUDF
+    constructor:
+      - StarryName
+      - false
+      - class: java.lang.Integer
+        constructor:
+          - class: java.lang.String
+            constructor:
+              - type: VARCHAR
+                value: 3
+  - name: tableUDF
+    from: class
+    class: org.apache.flink.table.client.gateway.utils.UserDefinedFunctions$TableUDF
+    constructor:
+      - type: LONG
+        value: 5
 
 execution:
   type: "$VAR_2"
   time-characteristic: event-time
+  periodic-watermarks-interval: 99
   parallelism: 1
   max-parallelism: 16
   min-idle-state-retention: 0
   max-idle-state-retention: 0
   result-mode: "$VAR_3"
+  max-table-result-rows: "$VAR_MAX_ROWS"
+  restart-strategy:
+    type: failure-rate
+    max-failures-per-interval: 10
+    failure-rate-interval: 99000
+    delay: 1000
 
 deployment:
   response-timeout: 5000

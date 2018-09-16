@@ -25,6 +25,9 @@ if [[ -z $TEST_DATA_DIR ]]; then
 fi
 
 KAFKA_DIR=$TEST_DATA_DIR/kafka_2.11-0.10.2.0
+CONFLUENT_DIR=$TEST_DATA_DIR/confluent-3.2.0
+SCHEMA_REGISTRY_PORT=8082
+SCHEMA_REGISTRY_URL=http://localhost:${SCHEMA_REGISTRY_PORT}
 
 function setup_kafka_dist {
   # download Kafka
@@ -38,6 +41,19 @@ function setup_kafka_dist {
   # fix kafka config
   sed -i -e "s+^\(dataDir\s*=\s*\).*$+\1$TEST_DATA_DIR/zookeeper+" $KAFKA_DIR/config/zookeeper.properties
   sed -i -e "s+^\(log\.dirs\s*=\s*\).*$+\1$TEST_DATA_DIR/kafka+" $KAFKA_DIR/config/server.properties
+}
+
+function setup_confluent_dist {
+  # download confluent
+  mkdir -p $TEST_DATA_DIR
+  CONFLUENT_URL="http://packages.confluent.io/archive/3.2/confluent-oss-3.2.0-2.11.tar.gz"
+  echo "Downloading confluent from $CONFLUENT_URL"
+  curl "$CONFLUENT_URL" > $TEST_DATA_DIR/confluent.tgz
+
+  tar xzf $TEST_DATA_DIR/confluent.tgz -C $TEST_DATA_DIR/
+
+  # fix confluent config
+  sed -i -e "s#listeners=http://0.0.0.0:8081#listeners=http://0.0.0.0:${SCHEMA_REGISTRY_PORT}#" $CONFLUENT_DIR/etc/schema-registry/schema-registry.properties
 }
 
 function start_kafka_cluster {
@@ -59,6 +75,18 @@ function start_kafka_cluster {
 function stop_kafka_cluster {
   $KAFKA_DIR/bin/kafka-server-stop.sh
   $KAFKA_DIR/bin/zookeeper-server-stop.sh
+
+  PIDS=$(jps -vl | grep -i 'kafka\.Kafka' | grep java | grep -v grep | awk '{print $1}')
+
+  if [ ! -z "$PIDS" ]; then
+    kill -s TERM $PIDS
+  fi
+
+  PIDS=$(jps -vl | grep java | grep -i QuorumPeerMain | grep -v grep | awk '{print $1}')
+
+  if [ ! -z "$PIDS" ]; then
+    kill -s TERM $PIDS
+  fi
 }
 
 function create_kafka_topic {
@@ -74,6 +102,10 @@ function read_messages_from_kafka {
     --max-messages $1 \
     --topic $2 \
     --consumer-property group.id=$3 2> /dev/null
+}
+
+function send_messages_to_kafka_avro {
+echo -e $1 | $CONFLUENT_DIR/bin/kafka-avro-console-producer --broker-list localhost:9092 --topic $2 --property value.schema=$3 --property schema.registry.url=${SCHEMA_REGISTRY_URL}
 }
 
 function modify_num_partitions {
@@ -96,4 +128,25 @@ function get_partition_end_offset {
     | grep "$topic \+$partition" \
     | tr -s " " \
     | cut -d " " -f 4
+}
+
+function start_confluent_schema_registry {
+  $CONFLUENT_DIR/bin/schema-registry-start -daemon $CONFLUENT_DIR/etc/schema-registry/schema-registry.properties
+
+  # wait until the schema registry REST endpoint is up
+  for i in {1..30}; do
+    QUERY_RESULT=$(curl "${SCHEMA_REGISTRY_URL}/subjects" 2> /dev/null || true)
+
+    if [[ ${QUERY_RESULT} =~ \[.*\] ]]; then
+        echo "Schema registry is up."
+        break
+    fi
+
+    echo "Waiting for schema registry..."
+    sleep 1
+  done
+}
+
+function stop_confluent_schema_registry {
+    $CONFLUENT_DIR/bin/schema-registry-stop
 }

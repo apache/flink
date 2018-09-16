@@ -20,14 +20,12 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.formats.json.JsonRowDeserializationSchema;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.sources.DefinedFieldMapping;
+import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
 
 import java.util.Map;
-import java.util.Objects;
 import java.util.Properties;
 
 /**
@@ -37,15 +35,15 @@ import java.util.Properties;
  * override {@link #createKafkaConsumer(String, Properties, DeserializationSchema)}}.
  *
  * <p>The field names are used to parse the JSON file and so are the types.
+ *
+ * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
+ *             with descriptors for schema and format instead. Descriptors allow for
+ *             implementation-agnostic definition of tables. See also
+ *             {@link org.apache.flink.table.api.TableEnvironment#connect(ConnectorDescriptor)}.
  */
+@Deprecated
 @Internal
-public abstract class KafkaJsonTableSource extends KafkaTableSource implements DefinedFieldMapping {
-
-	private TableSchema jsonSchema;
-
-	private Map<String, String> fieldMapping;
-
-	private boolean failOnMissingField;
+public abstract class KafkaJsonTableSource extends KafkaTableSource {
 
 	/**
 	 * Creates a generic Kafka JSON {@link StreamTableSource}.
@@ -54,7 +52,9 @@ public abstract class KafkaJsonTableSource extends KafkaTableSource implements D
 	 * @param properties  Properties for the Kafka consumer.
 	 * @param tableSchema The schema of the table.
 	 * @param jsonSchema  The schema of the JSON messages to decode from Kafka.
+	 * @deprecated Use table descriptors instead of implementation-specific builders.
 	 */
+	@Deprecated
 	protected KafkaJsonTableSource(
 		String topic,
 		Properties properties,
@@ -62,51 +62,15 @@ public abstract class KafkaJsonTableSource extends KafkaTableSource implements D
 		TableSchema jsonSchema) {
 
 		super(
+			tableSchema,
 			topic,
 			properties,
-			tableSchema,
-			jsonSchemaToReturnType(jsonSchema));
-
-		this.jsonSchema = jsonSchema;
-	}
-
-	@Override
-	public Map<String, String> getFieldMapping() {
-		return fieldMapping;
-	}
-
-	@Override
-	protected JsonRowDeserializationSchema getDeserializationSchema() {
-		JsonRowDeserializationSchema deserSchema = new JsonRowDeserializationSchema(jsonSchemaToReturnType(jsonSchema));
-		deserSchema.setFailOnMissingField(failOnMissingField);
-		return deserSchema;
+			new JsonRowDeserializationSchema(jsonSchema.toRowType()));
 	}
 
 	@Override
 	public String explainSource() {
 		return "KafkaJsonTableSource";
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (!(o instanceof KafkaJsonTableSource)) {
-			return false;
-		}
-		if (!super.equals(o)) {
-			return false;
-		}
-		KafkaJsonTableSource that = (KafkaJsonTableSource) o;
-		return failOnMissingField == that.failOnMissingField &&
-			Objects.equals(jsonSchema, that.jsonSchema) &&
-			Objects.equals(fieldMapping, that.fieldMapping);
-	}
-
-	@Override
-	public int hashCode() {
-		return Objects.hash(super.hashCode(), jsonSchema, fieldMapping, failOnMissingField);
 	}
 
 	//////// SETTERS FOR OPTIONAL PARAMETERS
@@ -116,26 +80,14 @@ public abstract class KafkaJsonTableSource extends KafkaTableSource implements D
 	 * TableSource will fail for missing fields if set to true. If set to false, the missing field is set to null.
 	 *
 	 * @param failOnMissingField Flag that specifies the TableSource behavior in case of missing fields.
+	 * @deprecated Use table descriptors instead of implementation-specific builders.
 	 */
+	@Deprecated
 	protected void setFailOnMissingField(boolean failOnMissingField) {
-		this.failOnMissingField = failOnMissingField;
-	}
-
-	/**
-	 * Sets the mapping from table schema fields to JSON schema fields.
-	 *
-	 * @param fieldMapping The mapping from table schema fields to JSON schema fields.
-	 */
-	protected void setFieldMapping(Map<String, String> fieldMapping) {
-		this.fieldMapping = fieldMapping;
+		((JsonRowDeserializationSchema) getDeserializationSchema()).setFailOnMissingField(failOnMissingField);
 	}
 
 	//////// HELPER METHODS
-
-	/** Converts the JSON schema into into the return type. */
-	private static RowTypeInfo jsonSchemaToReturnType(TableSchema jsonSchema) {
-		return new RowTypeInfo(jsonSchema.getTypes(), jsonSchema.getColumnNames());
-	}
 
 	/**
 	 * Abstract builder for a {@link KafkaJsonTableSource} to be extended by builders of subclasses of
@@ -143,7 +95,12 @@ public abstract class KafkaJsonTableSource extends KafkaTableSource implements D
 	 *
 	 * @param <T> Type of the KafkaJsonTableSource produced by the builder.
 	 * @param <B> Type of the KafkaJsonTableSource.Builder subclass.
+	 * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
+	 *             with descriptors for schema and format instead. Descriptors allow for
+	 *             implementation-agnostic definition of tables. See also
+	 *             {@link org.apache.flink.table.api.TableEnvironment#connect(ConnectorDescriptor)}.
 	 */
+	@Deprecated
 	protected abstract static class Builder<T extends KafkaJsonTableSource, B extends KafkaJsonTableSource.Builder>
 		extends KafkaTableSource.Builder<T, B> {
 
@@ -159,7 +116,9 @@ public abstract class KafkaJsonTableSource extends KafkaTableSource implements D
 		 *
 		 * @param jsonSchema The schema of the JSON-encoded Kafka messages.
 		 * @return The builder.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		public B forJsonSchema(TableSchema jsonSchema) {
 			this.jsonSchema = jsonSchema;
 			return builder();
@@ -175,7 +134,9 @@ public abstract class KafkaJsonTableSource extends KafkaTableSource implements D
 		 *
 		 * @param tableToJsonMapping A mapping from table schema fields to JSON schema fields.
 		 * @return The builder.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		public B withTableToJsonMapping(Map<String, String> tableToJsonMapping) {
 			this.fieldMapping = tableToJsonMapping;
 			return builder();
@@ -188,7 +149,9 @@ public abstract class KafkaJsonTableSource extends KafkaTableSource implements D
 		 *                           field.
 		 *                           If set to false, a missing field is set to null.
 		 * @return The builder.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		public B failOnMissingField(boolean failOnMissingField) {
 			this.failOnMissingField = failOnMissingField;
 			return builder();
@@ -199,7 +162,9 @@ public abstract class KafkaJsonTableSource extends KafkaTableSource implements D
 		 * is returned.
 		 *
 		 * @return The JSON schema for the TableSource.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		protected TableSchema getJsonSchema() {
 			if (jsonSchema != null) {
 				return this.jsonSchema;
@@ -208,7 +173,13 @@ public abstract class KafkaJsonTableSource extends KafkaTableSource implements D
 			}
 		}
 
-		@Override
+		/**
+		 * Configures a TableSource with optional parameters.
+		 *
+		 * @param source The TableSource to configure.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
+		 */
+		@Deprecated
 		protected void configureTableSource(T source) {
 			super.configureTableSource(source);
 			// configure field mapping

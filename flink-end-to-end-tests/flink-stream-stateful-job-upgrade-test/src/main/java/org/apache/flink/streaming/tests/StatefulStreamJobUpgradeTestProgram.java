@@ -29,14 +29,14 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.tests.artificialstate.ComplexPayload;
 
+import java.util.Collections;
+import java.util.List;
+
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createArtificialKeyedStateMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createEventSource;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSemanticsCheckMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
-
-import java.util.Collections;
-import java.util.List;
 
 /**
  * Test upgrade of generic stateful job for Flink's DataStream API operators and primitives.
@@ -84,8 +84,8 @@ public class StatefulStreamJobUpgradeTestProgram {
 			Collections.singletonList(new KryoSerializer<>(ComplexPayload.class, env.getConfig()));
 
 		KeyedStream<Event, Integer> afterStatefulOperations = isOriginalJobVariant(pt) ?
-			applyOriginalStatefulOperations(source, stateSer) :
-			applyUpgradedStatefulOperations(source, stateSer);
+			applyOriginalStatefulOperations(source, stateSer, Collections.emptyList()) :
+			applyUpgradedStatefulOperations(source, stateSer, Collections.emptyList());
 
 		afterStatefulOperations
 			.flatMap(createSemanticsCheckMapper(pt))
@@ -109,26 +109,29 @@ public class StatefulStreamJobUpgradeTestProgram {
 
 	private static KeyedStream<Event, Integer> applyOriginalStatefulOperations(
 		KeyedStream<Event, Integer> source,
-		List<TypeSerializer<ComplexPayload>> stateSer) {
-		source = applyTestStatefulOperator("stateMap1", simpleStateUpdate("stateMap1"), source, stateSer);
-		return applyTestStatefulOperator("stateMap2", lastStateUpdate("stateMap2"), source, stateSer);
+		List<TypeSerializer<ComplexPayload>> stateSer,
+		List<Class<ComplexPayload>> stateClass) {
+		source = applyTestStatefulOperator("stateMap1", simpleStateUpdate("stateMap1"), source, stateSer, stateClass);
+		return applyTestStatefulOperator("stateMap2", lastStateUpdate("stateMap2"), source, stateSer, stateClass);
 	}
 
 	private static KeyedStream<Event, Integer> applyUpgradedStatefulOperations(
 		KeyedStream<Event, Integer> source,
-		List<TypeSerializer<ComplexPayload>> stateSer) {
-		source = applyTestStatefulOperator("stateMap2", simpleStateUpdate("stateMap2"), source, stateSer);
-		source = applyTestStatefulOperator("stateMap1", lastStateUpdate("stateMap1"), source, stateSer);
-		return applyTestStatefulOperator("stateMap3", simpleStateUpdate("stateMap3"), source, stateSer);
+		List<TypeSerializer<ComplexPayload>> stateSer,
+		List<Class<ComplexPayload>> stateClass) {
+		source = applyTestStatefulOperator("stateMap2", simpleStateUpdate("stateMap2"), source, stateSer, stateClass);
+		source = applyTestStatefulOperator("stateMap1", lastStateUpdate("stateMap1"), source, stateSer, stateClass);
+		return applyTestStatefulOperator("stateMap3", simpleStateUpdate("stateMap3"), source, stateSer, stateClass);
 	}
 
 	private static KeyedStream<Event, Integer> applyTestStatefulOperator(
 		String name,
 		JoinFunction<Event, ComplexPayload, ComplexPayload> stateFunc,
 		KeyedStream<Event, Integer> source,
-		List<TypeSerializer<ComplexPayload>> stateSer) {
+		List<TypeSerializer<ComplexPayload>> stateSer,
+		List<Class<ComplexPayload>> stateClass) {
 		return source
-			.map(createArtificialKeyedStateMapper(e -> e, stateFunc, stateSer))
+			.map(createArtificialKeyedStateMapper(e -> e, stateFunc, stateSer, stateClass))
 			.name(name)
 			.uid(name)
 			.returns(Event.class)

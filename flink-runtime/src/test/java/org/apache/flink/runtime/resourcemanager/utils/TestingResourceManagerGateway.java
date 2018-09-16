@@ -63,8 +63,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	private final ResourceID ownResourceId;
 
-	private final long heartbeatInterval;
-
 	private final String address;
 
 	private final String hostname;
@@ -95,7 +93,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		this(
 			ResourceManagerId.generate(),
 			ResourceID.generate(),
-			10000L,
 			"localhost",
 			"localhost");
 	}
@@ -103,12 +100,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	public TestingResourceManagerGateway(
 			ResourceManagerId resourceManagerId,
 			ResourceID resourceId,
-			long heartbeatInterval,
 			String address,
 			String hostname) {
 		this.resourceManagerId = Preconditions.checkNotNull(resourceManagerId);
 		this.ownResourceId = Preconditions.checkNotNull(resourceId);
-		this.heartbeatInterval = heartbeatInterval;
 		this.address = Preconditions.checkNotNull(address);
 		this.hostname = Preconditions.checkNotNull(hostname);
 		this.slotFutureReference = new AtomicReference<>();
@@ -174,7 +169,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 		return CompletableFuture.completedFuture(
 			new JobMasterRegistrationSuccess(
-				heartbeatInterval,
 				resourceManagerId,
 				ownResourceId));
 	}
@@ -227,7 +221,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 				new TaskExecutorRegistrationSuccess(
 					new InstanceID(),
 					ownResourceId,
-					heartbeatInterval,
 					new ClusterInformation("localhost", 1234)));
 		}
 	}
@@ -305,7 +298,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	@Override
 	public CompletableFuture<ResourceOverview> requestResourceOverview(Time timeout) {
-		return FutureUtils.completedExceptionally(new UnsupportedOperationException("Not yet implemented"));
+		return CompletableFuture.completedFuture(new ResourceOverview(1, 1, 1));
 	}
 
 	@Override

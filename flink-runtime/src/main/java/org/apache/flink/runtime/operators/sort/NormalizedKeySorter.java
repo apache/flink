@@ -310,7 +310,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 	// ------------------------------------------------------------------------
 	
 	private long readPointer(int logicalPosition) {
-		if (logicalPosition < 0 | logicalPosition >= this.numRecords) {
+		if (logicalPosition < 0 || logicalPosition >= this.numRecords) {
 			throw new IndexOutOfBoundsException();
 		}
 		

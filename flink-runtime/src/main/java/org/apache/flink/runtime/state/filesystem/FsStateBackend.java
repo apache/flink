@@ -36,6 +36,8 @@ import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.TernaryBoolean;
 
 import org.slf4j.LoggerFactory;
@@ -92,7 +94,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	private static final long serialVersionUID = -8191916350224044011L;
 
 	/** Maximum size of state that is stored with the metadata, rather than in files (1 MiByte). */
-	public static final int MAX_FILE_STATE_THRESHOLD = 1024 * 1024;
+	private static final int MAX_FILE_STATE_THRESHOLD = 1024 * 1024;
 
 	// ------------------------------------------------------------------------
 
@@ -447,16 +449,19 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 
 	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) {
+		Environment env,
+		JobID jobID,
+		String operatorIdentifier,
+		TypeSerializer<K> keySerializer,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		TaskKvStateRegistry kvStateRegistry,
+		TtlTimeProvider ttlTimeProvider) {
 
 		TaskStateManager taskStateManager = env.getTaskStateManager();
 		LocalRecoveryConfig localRecoveryConfig = taskStateManager.createLocalRecoveryConfig();
+		HeapPriorityQueueSetFactory priorityQueueSetFactory =
+			new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
 
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,
@@ -466,7 +471,9 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 				keyGroupRange,
 				isUsingAsynchronousSnapshots(),
 				env.getExecutionConfig(),
-				localRecoveryConfig);
+				localRecoveryConfig,
+				priorityQueueSetFactory,
+				ttlTimeProvider);
 	}
 
 	@Override

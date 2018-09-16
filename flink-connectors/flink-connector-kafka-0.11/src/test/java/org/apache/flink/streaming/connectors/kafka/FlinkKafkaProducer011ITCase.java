@@ -172,7 +172,6 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 
 		testHarness.setup();
 		testHarness.open();
-		testHarness.initializeState(null);
 		testHarness.processElement(42, 0);
 		testHarness.snapshot(0, 1);
 		testHarness.processElement(43, 2);
@@ -225,7 +224,6 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 
 		testHarness1.setup();
 		testHarness1.open();
-		testHarness1.initializeState(null);
 		testHarness1.processElement(42, 0);
 		testHarness1.snapshot(0, 1);
 		testHarness1.processElement(43, 2);

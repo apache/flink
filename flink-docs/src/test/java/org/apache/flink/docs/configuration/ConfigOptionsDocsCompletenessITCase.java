@@ -20,6 +20,8 @@ package org.apache.flink.docs.configuration;
 
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.description.Formatter;
+import org.apache.flink.configuration.description.HtmlFormatter;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -54,6 +56,8 @@ import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.stri
  * options.
  */
 public class ConfigOptionsDocsCompletenessITCase {
+
+	private static final Formatter htmlFormatter = new HtmlFormatter();
 
 	@Test
 	public void testCommonSectionCompleteness() throws IOException, ClassNotFoundException {
@@ -167,13 +171,18 @@ public class ConfigOptionsDocsCompletenessITCase {
 
 	private static Collection<DocumentedOption> parseDocumentedOptionsFromFile(Path file) throws IOException {
 		Document document = Jsoup.parse(file.toFile(), StandardCharsets.UTF_8.name());
+		document.outputSettings().prettyPrint(false);
 		return document.getElementsByTag("table").stream()
 			.map(element -> element.getElementsByTag("tbody").get(0))
 			.flatMap(element -> element.getElementsByTag("tr").stream())
 			.map(tableRow -> {
 				String key = tableRow.child(0).text();
 				String defaultValue = tableRow.child(1).text();
-				String description = tableRow.child(2).text();
+				String description = tableRow.child(2)
+					.childNodes()
+					.stream()
+					.map(Object::toString)
+					.collect(Collectors.joining());
 				return new DocumentedOption(key, defaultValue, description, file.getName(file.getNameCount() - 1));
 			})
 			.collect(Collectors.toList());
@@ -189,7 +198,7 @@ public class ConfigOptionsDocsCompletenessITCase {
 					if (predicate.test(option)) {
 						String key = option.option.key();
 						String defaultValue = stringifyDefault(option);
-						String description = option.option.description();
+						String description = htmlFormatter.format(option.option.description());
 						ExistingOption duplicate = existingOptions.put(key, new ExistingOption(key, defaultValue, description, optionsClass));
 						if (duplicate != null) {
 							// multiple documented options have the same key

@@ -27,6 +27,9 @@ import org.junit.Test
 
 import scala.collection.JavaConverters._
 
+/**
+  * Tests for [[Csv]].
+  */
 class CsvTest extends DescriptorTestBase {
 
   @Test(expected = classOf[ValidationException])
@@ -75,9 +78,9 @@ class CsvTest extends DescriptorTestBase {
       "format.fields.1.name" -> "field2",
       "format.fields.1.type" -> "TIMESTAMP",
       "format.fields.2.name" -> "field3",
-      "format.fields.2.type" -> "ANY(java.lang.Class)",
+      "format.fields.2.type" -> "ANY<java.lang.Class>",
       "format.fields.3.name" -> "field4",
-      "format.fields.3.type" -> "ROW(test INT, row VARCHAR)",
+      "format.fields.3.type" -> "ROW<test INT, row VARCHAR>",
       "format.line-delimiter" -> "^")
 
     val props2 = Map(

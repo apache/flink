@@ -20,9 +20,12 @@ package org.apache.flink.table.descriptors
 
 import java.util
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.descriptors.RowtimeTest.CustomAssigner
+import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.descriptors.RowtimeTest.{CustomAssigner, CustomExtractor}
+import org.apache.flink.table.expressions.{Cast, Expression, ResolvedFieldReference}
+import org.apache.flink.table.sources.tsextractors.TimestampExtractor
 import org.apache.flink.table.sources.wmstrategies.PunctuatedWatermarkAssigner
 import org.apache.flink.types.Row
 import org.junit.Test
@@ -41,6 +44,11 @@ class RowtimeTest extends DescriptorTestBase {
     removePropertyAndVerify(descriptors().get(1), "rowtime.watermarks.class")
   }
 
+  @Test(expected = classOf[ValidationException])
+  def testUnsupportedSourceWatermarks(): Unit = {
+    addPropertyAndVerify(descriptors().get(0), "rowtime.watermarks.type", "from-source")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   override def descriptors(): util.List[Descriptor] = {
@@ -52,11 +60,15 @@ class RowtimeTest extends DescriptorTestBase {
       .timestampsFromSource()
       .watermarksFromStrategy(new CustomAssigner())
 
-    util.Arrays.asList(desc1, desc2)
+    val desc3 = Rowtime()
+      .timestampsFromExtractor(new CustomExtractor("tsField"))
+      .watermarksPeriodicBounded(1000L)
+
+    util.Arrays.asList(desc1, desc2, desc3)
   }
 
   override def validator(): DescriptorValidator = {
-    new RowtimeValidator()
+    new RowtimeValidator(supportsSourceTimestamps = true, supportsSourceWatermarks = false)
   }
 
   override def properties(): util.List[util.Map[String, String]] = {
@@ -78,7 +90,19 @@ class RowtimeTest extends DescriptorTestBase {
         "F0ZWd5mB_uSxDZ8-MCAAB4cA")
     )
 
-    util.Arrays.asList(props1.asJava, props2.asJava)
+    val props3 = Map(
+      "rowtime.timestamps.type" -> "custom",
+      "rowtime.timestamps.class" -> ("org.apache.flink.table.descriptors." +
+        "RowtimeTest$CustomExtractor"),
+      "rowtime.timestamps.serialized" -> ("rO0ABXNyAD5vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmRlc2NyaXB0b3" +
+        "JzLlJvd3RpbWVUZXN0JEN1c3RvbUV4dHJhY3RvcoaChjMg55xwAgABTAAFZmllbGR0ABJMamF2YS9sYW5nL1N0cm" +
+        "luZzt4cgA-b3JnLmFwYWNoZS5mbGluay50YWJsZS5zb3VyY2VzLnRzZXh0cmFjdG9ycy5UaW1lc3RhbXBFeHRyYW" +
+        "N0b3LU8E2thK4wMQIAAHhwdAAHdHNGaWVsZA"),
+      "rowtime.watermarks.type" -> "periodic-bounded",
+      "rowtime.watermarks.delay" -> "1000"
+    )
+
+    util.Arrays.asList(props1.asJava, props2.asJava, props3.asJava)
   }
 }
 
@@ -87,5 +111,37 @@ object RowtimeTest {
   class CustomAssigner extends PunctuatedWatermarkAssigner() {
     override def getWatermark(row: Row, timestamp: Long): Watermark =
       throw new UnsupportedOperationException()
+  }
+
+  class CustomExtractor(val field: String) extends TimestampExtractor {
+    def this() = {
+      this("ts")
+    }
+
+    override def getArgumentFields: Array[String] = Array(field)
+
+    override def validateArgumentFields(argumentFieldTypes: Array[TypeInformation[_]]): Unit = {
+      argumentFieldTypes(0) match {
+        case Types.SQL_TIMESTAMP =>
+        case _ =>
+          throw ValidationException(
+            s"Field 'ts' must be of type Timestamp but is of type ${argumentFieldTypes(0)}.")
+      }
+    }
+
+    override def getExpression(fieldAccesses: Array[ResolvedFieldReference]): Expression = {
+      val fieldAccess: Expression = fieldAccesses(0)
+      require(fieldAccess.resultType == Types.SQL_TIMESTAMP)
+      Cast(fieldAccess, Types.LONG)
+    }
+
+    override def equals(other: Any): Boolean = other match {
+      case that: CustomExtractor => field == that.field
+      case _ => false
+    }
+
+    override def hashCode(): Int = {
+      field.hashCode
+    }
   }
 }

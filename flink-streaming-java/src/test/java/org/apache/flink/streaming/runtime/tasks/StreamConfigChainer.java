@@ -76,8 +76,8 @@ public class StreamConfigChainer {
 
 		tailConfig.setChainedOutputs(Collections.singletonList(
 			new StreamEdge(
-				new StreamNode(null, tailConfig.getChainIndex(), null, null, null, null, null),
-				new StreamNode(null, chainIndex, null, null, null, null, null),
+				new StreamNode(null, tailConfig.getChainIndex(), null, null, null, null, null, null),
+				new StreamNode(null, chainIndex, null, null, null, null, null, null),
 				0,
 				Collections.<String>emptyList(),
 				null,
@@ -99,8 +99,8 @@ public class StreamConfigChainer {
 		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
 		outEdgesInOrder.add(
 			new StreamEdge(
-				new StreamNode(null, chainIndex, null, null, null, null, null),
-				new StreamNode(null, chainIndex , null, null, null, null, null),
+				new StreamNode(null, chainIndex, null, null, null, null, null, null),
+				new StreamNode(null, chainIndex , null, null, null, null, null, null),
 				0,
 				Collections.<String>emptyList(),
 				new BroadcastPartitioner<Object>(),

@@ -102,6 +102,10 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
 		batch.clear();
 	}
 
+	public WriteOptions getOptions() {
+		return options;
+	}
+
 	@Override
 	public void close() throws RocksDBException {
 		if (batch.count() != 0) {

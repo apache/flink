@@ -57,6 +57,8 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Address;
 import akka.actor.Props;
+import akka.actor.Terminated;
+import akka.dispatch.OnComplete;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.Options;
@@ -73,10 +75,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import scala.Option;
+import scala.concurrent.Await;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
+import static org.apache.flink.runtime.concurrent.Executors.directExecutionContext;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -374,11 +380,14 @@ public class MesosApplicationMasterRunner {
 			}
 
 			if (actorSystem != null) {
-				try {
-					actorSystem.shutdown();
-				} catch (Throwable tt) {
-					LOG.error("Error shutting down actor system", tt);
-				}
+				actorSystem.terminate().onComplete(
+					new OnComplete<Terminated>() {
+						public void onComplete(Throwable failure, Terminated success) {
+							if (failure != null) {
+								LOG.error("Error shutting down actor system", failure);
+							}
+						}
+					}, directExecutionContext());
 			}
 
 			if (futureExecutor != null) {
@@ -412,7 +421,11 @@ public class MesosApplicationMasterRunner {
 		LOG.info("Mesos JobManager started");
 
 		// wait until everything is done
-		actorSystem.awaitTermination();
+		try {
+			Await.ready(actorSystem.whenTerminated(), Duration.Inf());
+		} catch (InterruptedException | TimeoutException e) {
+			LOG.error("Error shutting down actor system", e);
+		}
 
 		// if we get here, everything work out jolly all right, and we even exited smoothly
 		if (webMonitor != null) {

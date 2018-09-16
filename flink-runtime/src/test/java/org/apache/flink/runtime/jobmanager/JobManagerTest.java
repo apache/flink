@@ -32,8 +32,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointDeclineReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.clusterframework.messages.NotifyResourceStarted;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManager;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManagerSuccessful;
@@ -132,6 +132,7 @@ import scala.Tuple2;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 import scala.reflect.ClassTag$;
 
@@ -151,7 +152,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
 import static org.mockito.Mockito.mock;
 
 public class JobManagerTest extends TestLogger {
@@ -639,7 +639,7 @@ public class JobManagerTest extends TestLogger {
 				leaderId);
 
 		Configuration tmConfig = new Configuration();
-		tmConfig.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
+		tmConfig.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
 		tmConfig.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 8);
 
 		ActorRef taskManager = TaskManager.startTaskManagerComponentsAndActor(
@@ -940,7 +940,7 @@ public class JobManagerTest extends TestLogger {
 			assertTrue(savepointFile.exists());
 		} finally {
 			if (actorSystem != null) {
-				actorSystem.shutdown();
+				actorSystem.terminate();
 			}
 
 			if (archiver != null) {
@@ -956,7 +956,7 @@ public class JobManagerTest extends TestLogger {
 			}
 
 			if (actorSystem != null) {
-				actorSystem.awaitTermination(TESTING_TIMEOUT());
+				Await.result(actorSystem.whenTerminated(), TESTING_TIMEOUT());
 			}
 		}
 	}
@@ -1130,7 +1130,7 @@ public class JobManagerTest extends TestLogger {
 			}
 		} finally {
 			if (actorSystem != null) {
-				actorSystem.shutdown();
+				actorSystem.terminate();
 			}
 
 			if (archiver != null) {
@@ -1243,7 +1243,7 @@ public class JobManagerTest extends TestLogger {
 			assertEquals(1, targetDirectory.listFiles().length);
 		} finally {
 			if (actorSystem != null) {
-				actorSystem.shutdown();
+				actorSystem.terminate();
 			}
 
 			if (archiver != null) {
@@ -1259,7 +1259,7 @@ public class JobManagerTest extends TestLogger {
 			}
 
 			if (actorSystem != null) {
-				actorSystem.awaitTermination(TestingUtils.TESTING_TIMEOUT());
+				Await.result(actorSystem.whenTerminated(), TestingUtils.TESTING_TIMEOUT());
 			}
 		}
 	}
@@ -1416,7 +1416,7 @@ public class JobManagerTest extends TestLogger {
 			assertTrue("Unexpected response: " + response, response instanceof JobSubmitSuccess);
 		} finally {
 			if (actorSystem != null) {
-				actorSystem.shutdown();
+				actorSystem.terminate();
 			}
 
 			if (archiver != null) {
@@ -1432,7 +1432,7 @@ public class JobManagerTest extends TestLogger {
 			}
 
 			if (actorSystem != null) {
-				actorSystem.awaitTermination(TestingUtils.TESTING_TIMEOUT());
+				Await.ready(actorSystem.whenTerminated(), TestingUtils.TESTING_TIMEOUT());
 			}
 		}
 	}
@@ -1516,8 +1516,8 @@ public class JobManagerTest extends TestLogger {
 
 		} finally {
 			// cleanup the actor system and with it all of the started actors if not already terminated
-			actorSystem.shutdown();
-			actorSystem.awaitTermination();
+			actorSystem.terminate();
+			Await.ready(actorSystem.whenTerminated(), Duration.Inf());
 		}
 	}
 

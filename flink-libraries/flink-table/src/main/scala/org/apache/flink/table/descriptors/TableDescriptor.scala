@@ -19,22 +19,6 @@
 package org.apache.flink.table.descriptors
 
 /**
-  * Common class for all descriptors describing table sources and sinks.
+  * Common trait for all descriptors describing table sources and sinks.
   */
-abstract class TableDescriptor extends Descriptor {
-
-  protected var connectorDescriptor: Option[ConnectorDescriptor] = None
-  protected var formatDescriptor: Option[FormatDescriptor] = None
-  protected var schemaDescriptor: Option[Schema] = None
-  protected var metaDescriptor: Option[Metadata] = None
-
-  /**
-    * Internal method for properties conversion.
-    */
-  override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
-    connectorDescriptor.foreach(_.addProperties(properties))
-    formatDescriptor.foreach(_.addProperties(properties))
-    schemaDescriptor.foreach(_.addProperties(properties))
-    metaDescriptor.foreach(_.addProperties(properties))
-  }
-}
+trait TableDescriptor extends Descriptor

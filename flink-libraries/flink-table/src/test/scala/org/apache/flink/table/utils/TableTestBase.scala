@@ -122,6 +122,13 @@ object TableTestUtil {
        |""".stripMargin.stripLineEnd
   }
 
+  def naryNode(node: String, inputs: List[AnyRef], term: String*): String = {
+    val strInputs = inputs.mkString("\n")
+    s"""$node(${term.mkString(", ")})
+       |$strInputs
+       |""".stripMargin.stripLineEnd
+  }
+
   def values(node: String, term: String*): String = {
     s"$node(${term.mkString(", ")})"
   }
@@ -280,10 +287,23 @@ case class StreamTableTestUtil() extends TableTestUtil {
     verifyTable(tableEnv.sqlQuery(query), expected)
   }
 
+  def verifySqlPlansIdentical(query1: String, queries: String*): Unit = {
+    val resultTable1 = tableEnv.sqlQuery(query1)
+    queries.foreach(s => verify2Tables(resultTable1, tableEnv.sqlQuery(s)))
+  }
+
   def verifyTable(resultTable: Table, expected: String): Unit = {
     val relNode = resultTable.getRelNode
     val optimized = tableEnv.optimize(relNode, updatesAsRetraction = false)
     verifyString(expected, optimized)
+  }
+
+  def verify2Tables(resultTable1: Table, resultTable2: Table): Unit = {
+    val relNode1 = resultTable1.getRelNode
+    val optimized1 = tableEnv.optimize(relNode1, updatesAsRetraction = false)
+    val relNode2 = resultTable2.getRelNode
+    val optimized2 = tableEnv.optimize(relNode2, updatesAsRetraction = false)
+    assertEquals(RelOptUtil.toString(optimized1), RelOptUtil.toString(optimized2))
   }
 
   def verifyJavaSql(query: String, expected: String): Unit = {

@@ -25,8 +25,10 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.io.IOUtils;
@@ -53,7 +55,9 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			new KeyGroupRange(0, 15),
 			true,
 			executionConfig,
-			TestLocalRecoveryConfig.disabled());
+			TestLocalRecoveryConfig.disabled(),
+			mock(HeapPriorityQueueSetFactory.class),
+			TtlTimeProvider.DEFAULT);
 
 		try {
 			Assert.assertTrue(
@@ -75,7 +79,9 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			new KeyGroupRange(0, 15),
 			true,
 			executionConfig,
-			TestLocalRecoveryConfig.disabled());
+			TestLocalRecoveryConfig.disabled(),
+			mock(HeapPriorityQueueSetFactory.class),
+			TtlTimeProvider.DEFAULT);
 
 		try {
 			Assert.assertTrue(
@@ -115,14 +121,14 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			new KeyGroupRange(0, 15),
 			true,
 			executionConfig,
-			TestLocalRecoveryConfig.disabled());
+			TestLocalRecoveryConfig.disabled(),
+			mock(HeapPriorityQueueSetFactory.class),
+			TtlTimeProvider.DEFAULT);
 
 		try {
 
 			InternalValueState<String, VoidNamespace, String> state =
-				stateBackend.createValueState(
-					new VoidNamespaceSerializer(),
-					stateDescriptor);
+				stateBackend.createInternalState(new VoidNamespaceSerializer(), stateDescriptor);
 
 			stateBackend.setCurrentKey("A");
 			state.setCurrentNamespace(VoidNamespace.INSTANCE);
@@ -158,12 +164,14 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			new KeyGroupRange(0, 15),
 			true,
 			executionConfig,
-			TestLocalRecoveryConfig.disabled());
+			TestLocalRecoveryConfig.disabled(),
+			mock(HeapPriorityQueueSetFactory.class),
+			TtlTimeProvider.DEFAULT);
 		try {
 
 			stateBackend.restore(StateObjectCollection.singleton(stateHandle));
 
-			InternalValueState<String, VoidNamespace, String> state = stateBackend.createValueState(
+			InternalValueState<String, VoidNamespace, String> state = stateBackend.createInternalState(
 				new VoidNamespaceSerializer(),
 				stateDescriptor);
 

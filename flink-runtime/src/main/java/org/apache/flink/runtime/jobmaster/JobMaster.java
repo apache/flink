@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
@@ -51,7 +52,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategyResolving;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -70,6 +71,7 @@ import org.apache.flink.runtime.jobmaster.exceptions.JobModificationException;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -93,7 +95,6 @@ import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPre
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
@@ -101,7 +102,6 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.util.clock.SystemClock;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -226,6 +226,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			ResourceID resourceId,
 			JobGraph jobGraph,
 			HighAvailabilityServices highAvailabilityService,
+			SlotPoolFactory slotPoolFactory,
 			JobManagerSharedServices jobManagerSharedServices,
 			HeartbeatServices heartbeatServices,
 			BlobServer blobServer,
@@ -272,20 +273,15 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 						.deserializeValue(userCodeLoader)
 						.getRestartStrategy();
 
-		this.restartStrategy = (restartStrategyConfiguration != null) ?
-				RestartStrategyFactory.createRestartStrategy(restartStrategyConfiguration) :
-				jobManagerSharedServices.getRestartStrategyFactory().createRestartStrategy();
+		this.restartStrategy = RestartStrategyResolving.resolve(restartStrategyConfiguration,
+			jobManagerSharedServices.getRestartStrategyFactory(),
+			jobGraph.isCheckpointingEnabled());
 
-		log.info("Using restart strategy {} for {} ({}).", restartStrategy, jobName, jid);
+		log.info("Using restart strategy {} for {} ({}).", this.restartStrategy, jobName, jid);
 
 		resourceManagerLeaderRetriever = highAvailabilityServices.getResourceManagerLeaderRetriever();
 
-		this.slotPool = new SlotPool(
-			rpcService,
-			jobGraph.getJobID(),
-			SystemClock.getInstance(),
-			rpcTimeout,
-			jobMasterConfiguration.getSlotIdleTimeout());
+		this.slotPool = checkNotNull(slotPoolFactory).createSlotPool(jobGraph.getJobID());
 
 		this.slotPoolGateway = slotPool.getSelfGateway(SlotPoolGateway.class);
 
@@ -648,7 +644,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		log.debug("Disconnect TaskExecutor {} because: {}", resourceID, cause.getMessage());
 
 		taskManagerHeartbeatManager.unmonitorTarget(resourceID);
-		CompletableFuture<Acknowledge> releaseFuture = slotPoolGateway.releaseTaskManager(resourceID);
+		CompletableFuture<Acknowledge> releaseFuture = slotPoolGateway.releaseTaskManager(resourceID, cause);
 
 		Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManagerConnection = registeredTaskManagers.remove(resourceID);
 
@@ -912,7 +908,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	@Override
-	public CompletableFuture<JobDetails> requestJobDetails(@RpcTimeout Time timeout) {
+	public CompletableFuture<JobDetails> requestJobDetails(Time timeout) {
 		final ExecutionGraph currentExecutionGraph = executionGraph;
 		return CompletableFuture.supplyAsync(() -> WebMonitorUtils.createDetailsForJob(currentExecutionGraph), scheduledExecutorService);
 	}
@@ -982,6 +978,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			backPressureStatsTracker.getOperatorBackPressureStats(jobVertex);
 		return CompletableFuture.completedFuture(OperatorBackPressureStatsResponse.of(
 			operatorBackPressureStats.orElse(null)));
+	}
+
+	@Override
+	public void notifyAllocationFailure(AllocationID allocationID, Exception cause) {
+		slotPoolGateway.failAllocation(allocationID, cause);
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -1482,7 +1483,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				jobVertex.setMaxParallelism(executionJobVertex.getMaxParallelism());
 			}
 
-			rescalingBehaviour.acceptWithException(jobVertex, newParallelism);
+			rescalingBehaviour.accept(jobVertex, newParallelism);
 		}
 	}
 
@@ -1647,5 +1648,15 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		public CompletableFuture<Void> retrievePayload(ResourceID resourceID) {
 			return CompletableFuture.completedFuture(null);
 		}
+	}
+
+	@VisibleForTesting
+	RestartStrategy getRestartStrategy() {
+		return restartStrategy;
+	}
+
+	@VisibleForTesting
+	ExecutionGraph getExecutionGraph() {
+		return executionGraph;
 	}
 }

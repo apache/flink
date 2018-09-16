@@ -34,10 +34,23 @@ public class TaskManagerOptions {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * JVM heap size (in megabytes) for the TaskManagers.
+	 * JVM heap size for the TaskManagers with memory size.
 	 */
 	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
-	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY =
+	public static final ConfigOption<String> TASK_MANAGER_HEAP_MEMORY =
+			key("taskmanager.heap.size")
+			.defaultValue("1024m")
+			.withDescription("JVM heap size for the TaskManagers, which are the parallel workers of" +
+					" the system. On YARN setups, this value is automatically configured to the size of the TaskManager's" +
+					" YARN container, minus a certain tolerance value.");
+
+	/**
+	 * JVM heap size (in megabytes) for the TaskManagers.
+	 *
+	 * @deprecated use {@link #TASK_MANAGER_HEAP_MEMORY}
+	 */
+	@Deprecated
+	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY_MB =
 			key("taskmanager.heap.mb")
 			.defaultValue(1024)
 			.withDescription("JVM heap size (in megabytes) for the TaskManagers, which are the parallel workers of" +
@@ -103,7 +116,7 @@ public class TaskManagerOptions {
 		key("taskmanager.data.ssl.enabled")
 			.defaultValue(true)
 			.withDescription("Enable SSL support for the taskmanager data transport. This is applicable only when the" +
-				" global ssl flag " + SecurityOptions.SSL_ENABLED.key() + " is set to true");
+				" global flag for internal SSL (" + SecurityOptions.SSL_INTERNAL_ENABLED.key() + ") is set to true");
 
 	/**
 	 * The initial registration backoff between two consecutive registration attempts. The backoff
@@ -177,21 +190,21 @@ public class TaskManagerOptions {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Size of memory buffers used by the network stack and the memory manager (in bytes).
+	 * Size of memory buffers used by the network stack and the memory manager.
 	 */
-	public static final ConfigOption<Integer> MEMORY_SEGMENT_SIZE =
+	public static final ConfigOption<String> MEMORY_SEGMENT_SIZE =
 			key("taskmanager.memory.segment-size")
-			.defaultValue(32768)
-			.withDescription("Size of memory buffers used by the network stack and the memory manager (in bytes).");
+			.defaultValue("32kb")
+			.withDescription("Size of memory buffers used by the network stack and the memory manager.");
 
 	/**
-	 * Amount of memory to be allocated by the task manager's memory manager (in megabytes). If not
+	 * Amount of memory to be allocated by the task manager's memory manager. If not
 	 * set, a relative fraction will be allocated, as defined by {@link #MANAGED_MEMORY_FRACTION}.
 	 */
-	public static final ConfigOption<Long> MANAGED_MEMORY_SIZE =
+	public static final ConfigOption<String> MANAGED_MEMORY_SIZE =
 			key("taskmanager.memory.size")
-			.defaultValue(-1L)
-			.withDescription("Amount of memory to be allocated by the task manager's memory manager (in megabytes)." +
+			.defaultValue("0")
+			.withDescription("Amount of memory to be allocated by the task manager's memory manager." +
 				" If not set, a relative fraction will be allocated.");
 
 	/**
@@ -255,20 +268,20 @@ public class TaskManagerOptions {
 				"` and \"taskmanager.network.memory.max\" may override this fraction.");
 
 	/**
-	 * Minimum memory size for network buffers (in bytes).
+	 * Minimum memory size for network buffers.
 	 */
-	public static final ConfigOption<Long> NETWORK_BUFFERS_MEMORY_MIN =
+	public static final ConfigOption<String> NETWORK_BUFFERS_MEMORY_MIN =
 			key("taskmanager.network.memory.min")
-			.defaultValue(64L << 20) // 64 MB
-			.withDescription("Minimum memory size for network buffers (in bytes).");
+			.defaultValue("64mb")
+			.withDescription("Minimum memory size for network buffers.");
 
 	/**
-	 * Maximum memory size for network buffers (in bytes).
+	 * Maximum memory size for network buffers.
 	 */
-	public static final ConfigOption<Long> NETWORK_BUFFERS_MEMORY_MAX =
+	public static final ConfigOption<String> NETWORK_BUFFERS_MEMORY_MAX =
 			key("taskmanager.network.memory.max")
-			.defaultValue(1024L << 20) // 1 GB
-			.withDescription("Maximum memory size for network buffers (in bytes).");
+			.defaultValue("1gb")
+			.withDescription("Maximum memory size for network buffers.");
 
 	/**
 	 * Number of network buffers to use for each outgoing/incoming channel (subpartition/input channel).

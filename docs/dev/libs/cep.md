@@ -84,7 +84,7 @@ Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(
             }
         }
     ).next("middle").subtype(SubEvent.class).where(
-        new SimpleCondition<Event>() {
+        new SimpleCondition<SubEvent>() {
             @Override
             public boolean filter(SubEvent subEvent) {
                 return subEvent.getVolume() >= 10.0;
@@ -102,7 +102,7 @@ Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(
 PatternStream<Event> patternStream = CEP.pattern(input, pattern);
 
 DataStream<Alert> result = patternStream.select(
-    new PatternSelectFunction<Event, Alert> {
+    new PatternSelectFunction<Event, Alert>() {
         @Override
         public Alert select(Map<String, List<Event>> pattern) throws Exception {
             return createAlertFrom(pattern);
@@ -115,7 +115,7 @@ DataStream<Alert> result = patternStream.select(
 {% highlight scala %}
 val input: DataStream[Event] = ...
 
-val pattern = Pattern.begin("start").where(_.getId == 42)
+val pattern = Pattern.begin[Event]("start").where(_.getId == 42)
   .next("middle").subtype(classOf[SubEvent]).where(_.getVolume >= 10.0)
   .followedBy("end").where(_.getName == "end")
 
@@ -131,7 +131,7 @@ val result: DataStream[Alert] = patternStream.select(createAlert(_))
 The pattern API allows you to define complex pattern sequences that you want to extract from your input stream.
 
 Each complex pattern sequence consists of multiple simple patterns, i.e. patterns looking for individual events with the same properties. From now on, we will call these simple patterns **patterns**, and the final complex pattern sequence we are searching for in the stream, the **pattern sequence**. You can see a pattern sequence as a graph of such patterns, where transitions from one pattern to the next occur based on user-specified
-*conditions*, e.g. `event.getName().equals("start")`. A **match** is a sequence of input events which visits all
+*conditions*, e.g. `event.getName().equals("end")`. A **match** is a sequence of input events which visits all
 patterns of the complex pattern graph, through a sequence of valid pattern transitions.
 
 {% warn Attention %} Each pattern must have a unique name, which you use later to identify the matched events.
@@ -250,21 +250,10 @@ For a pattern named `start`, the following are valid quantifiers:
 
 #### Conditions
 
-At every pattern, and to go from one pattern to the next, you can specify additional **conditions**.
-You can relate these conditions to:
-
- 1. A [property of the incoming event](#conditions-on-properties), e.g. its value should be larger than 5,
- or larger than the average value of the previously accepted events.
-
- 2. The [contiguity of the matching events](#conditions-on-contiguity), e.g. detect pattern `a,b,c` without
- non-matching events between any matching ones.
-
-The latter refers to "looping" patterns, *i.e.* patterns that can accept more than one event, e.g. the `b+` in `a b+ c`,
-which searches for one or more `b`'s.
-
-##### Conditions on Properties
-
-You can specify conditions on the event properties via the `pattern.where()`, `pattern.or()` or the `pattern.until()` method. These can be either `IterativeCondition`s or `SimpleCondition`s.
+For every pattern you can specify a condition that an incoming event has to meet in order to be "accepted" into the pattern e.g. its value should be larger than 5,
+or larger than the average value of the previously accepted events.
+You can specify conditions on the event properties via the `pattern.where()`, `pattern.or()` or `pattern.until()` methods.
+These can be either `IterativeCondition`s or `SimpleCondition`s.
 
 **Iterative Conditions:** This is the most general type of condition. This is how you can specify a condition that
 accepts subsequent events based on properties of the previously accepted events or a statistic over a subset of them.
@@ -275,36 +264,40 @@ with "foo", and if the sum of the prices of the previously accepted events for t
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-middle.oneOrMore().where(new IterativeCondition<SubEvent>() {
-    @Override
-    public boolean filter(SubEvent value, Context<SubEvent> ctx) throws Exception {
-        if (!value.getName().startsWith("foo")) {
-            return false;
+middle.oneOrMore()
+    .subtype(SubEvent.class)
+    .where(new IterativeCondition<SubEvent>() {
+        @Override
+        public boolean filter(SubEvent value, Context<SubEvent> ctx) throws Exception {
+            if (!value.getName().startsWith("foo")) {
+                return false;
+            }
+    
+            double sum = value.getPrice();
+            for (Event event : ctx.getEventsForPattern("middle")) {
+                sum += event.getPrice();
+            }
+            return Double.compare(sum, 5.0) < 0;
         }
-
-        double sum = value.getPrice();
-        for (Event event : ctx.getEventsForPattern("middle")) {
-            sum += event.getPrice();
-        }
-        return Double.compare(sum, 5.0) < 0;
-    }
-});
+    });
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-middle.oneOrMore().where(
-    (value, ctx) => {
-        lazy val sum = ctx.getEventsForPattern("middle").asScala.map(_.getPrice).sum
-        value.getName.startsWith("foo") && sum + value.getPrice < 5.0
-    }
-)
+middle.oneOrMore()
+    .subtype(classOf[SubEvent])
+    .where(
+        (value, ctx) => {
+            lazy val sum = ctx.getEventsForPattern("middle").map(_.getPrice).sum
+            value.getName.startsWith("foo") && sum + value.getPrice < 5.0
+        }
+    )
 {% endhighlight %}
 </div>
 </div>
 
-{% warn Attention %} The call to `context.getEventsForPattern(...)` finds all the
+{% warn Attention %} The call to `ctx.getEventsForPattern(...)` finds all the
 previously accepted events for a given potential match. The cost of this operation can vary, so when implementing
 your condition, try to minimize its use.
 
@@ -391,36 +384,6 @@ To better understand it, have a look at the following example. Given
 * the library will output results: `{a1 a2} {a1} {a2} {a3}`.
 
 As you can see `{a1 a2 a3}` or `{a2 a3}` are not returned due to the stop condition.
-
-##### Conditions on Contiguity
-
-FlinkCEP supports the following forms of contiguity between events:
-
- 1. **Strict Contiguity**: Expects all matching events to appear strictly one after the other, without any non-matching events in-between.
-
- 2. **Relaxed Contiguity**: Ignores non-matching events appearing in-between the matching ones.
-
- 3. **Non-Deterministic Relaxed Contiguity**: Further relaxes contiguity, allowing additional matches
- that ignore some matching events.
-
-To illustrate the above with an example, a pattern sequence `"a+ b"` (one or more `"a"`'s followed by a `"b"`) with
-input `"a1", "c", "a2", "b"` will have the following results:
-
- 1. **Strict Contiguity**: `{a2 b}` -- the `"c"` after `"a1"` causes `"a1"` to be discarded.
-
- 2. **Relaxed Contiguity**: `{a1 b}` and `{a1 a2 b}` -- `"c"` is ignored.
-
- 3. **Non-Deterministic Relaxed Contiguity**: `{a1 b}`, `{a2 b}`, and `{a1 a2 b}`.
-
-For looping patterns (e.g. `oneOrMore()` and `times()`) the default is *relaxed contiguity*. If you want
-strict contiguity, you have to explicitly specify it by using the `consecutive()` call, and if you want
-*non-deterministic relaxed contiguity* you can use the `allowCombinations()` call.
-
-{% warn Attention %}
-In this section we are talking about contiguity *within* a single looping pattern, and the
-`consecutive()` and `allowCombinations()` calls need to be understood in that context. Later when looking at
-[Combining Patterns](#combining-patterns) we'll discuss other calls, such as `next()` and `followedBy()`,
-that are used to specify contiguity conditions *between* patterns.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -561,74 +524,6 @@ pattern.oneOrMore().greedy();
 {% endhighlight %}
           </td>
        </tr>
-       <tr>
-          <td><strong>consecutive()</strong><a name="consecutive_java"></a></td>
-          <td>
-              <p>Works in conjunction with <code>oneOrMore()</code> and <code>times()</code> and imposes strict contiguity between the matching
-              events, i.e. any non-matching element breaks the match (as in <code>next()</code>).</p>
-              <p>If not applied a relaxed contiguity (as in <code>followedBy()</code>) is used.</p>
-
-              <p>E.g. a pattern like:</p>
-{% highlight java %}
-Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-  @Override
-  public boolean filter(Event value) throws Exception {
-    return value.getName().equals("c");
-  }
-})
-.followedBy("middle").where(new SimpleCondition<Event>() {
-  @Override
-  public boolean filter(Event value) throws Exception {
-    return value.getName().equals("a");
-  }
-}).oneOrMore().consecutive()
-.followedBy("end1").where(new SimpleCondition<Event>() {
-  @Override
-  public boolean filter(Event value) throws Exception {
-    return value.getName().equals("b");
-  }
-});
-{% endhighlight %}
-              <p>Will generate the following matches for an input sequence: C D A1 A2 A3 D A4 B</p>
-
-              <p>with consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}</p>
-              <p>without consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}, {C A1 A2 A3 A4 B}</p>
-          </td>
-       </tr>
-       <tr>
-       <td><strong>allowCombinations()</strong><a name="allow_comb_java"></a></td>
-       <td>
-              <p>Works in conjunction with <code>oneOrMore()</code> and <code>times()</code> and imposes non-deterministic relaxed contiguity
-              between the matching events (as in <code>followedByAny()</code>).</p>
-              <p>If not applied a relaxed contiguity (as in <code>followedBy()</code>) is used.</p>
-
-              <p>E.g. a pattern like:</p>
-{% highlight java %}
-Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-  @Override
-  public boolean filter(Event value) throws Exception {
-    return value.getName().equals("c");
-  }
-})
-.followedBy("middle").where(new SimpleCondition<Event>() {
-  @Override
-  public boolean filter(Event value) throws Exception {
-    return value.getName().equals("a");
-  }
-}).oneOrMore().allowCombinations()
-.followedBy("end1").where(new SimpleCondition<Event>() {
-  @Override
-  public boolean filter(Event value) throws Exception {
-    return value.getName().equals("b");
-  }
-});
-{% endhighlight %}
-               <p>Will generate the following matches for an input sequence: C D A1 A2 A3 D A4 B</p>
-
-               <p>with combinations enabled: {C A1 B}, {C A1 A2 B}, {C A1 A3 B}, {C A1 A4 B}, {C A1 A2 A3 B}, {C A1 A2 A4 B}, {C A1 A3 A4 B}, {C A1 A2 A3 A4 B}</p>
-               <p>without combinations enabled: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}, {C A1 A2 A3 A4 B}</p>
-       </td>
-       </tr>
   </tbody>
 </table>
 </div>
@@ -753,52 +648,9 @@ pattern.oneOrMore().greedy()
 {% endhighlight %}
           </td>
        </tr>
-       <tr>
-          <td><strong>consecutive()</strong><a name="consecutive_scala"></a></td>
-          <td>
-            <p>Works in conjunction with <code>oneOrMore()</code> and <code>times()</code> and imposes strict contiguity between the matching
-                          events, i.e. any non-matching element breaks the match (as in <code>next()</code>).</p>
-                          <p>If not applied a relaxed contiguity (as in <code>followedBy()</code>) is used.</p>
-
-      <p>E.g. a pattern like:</p>
-{% highlight scala %}
-Pattern.begin("start").where(_.getName().equals("c"))
-  .followedBy("middle").where(_.getName().equals("a"))
-                       .oneOrMore().consecutive()
-  .followedBy("end1").where(_.getName().equals("b"))
-{% endhighlight %}
-
-            <p>Will generate the following matches for an input sequence: C D A1 A2 A3 D A4 B</p>
-
-                          <p>with consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}</p>
-                          <p>without consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}, {C A1 A2 A3 A4 B}</p>
-          </td>
-       </tr>
-       <tr>
-              <td><strong>allowCombinations()</strong><a name="allow_comb_java"></a></td>
-              <td>
-                <p>Works in conjunction with <code>oneOrMore()</code> and <code>times()</code> and imposes non-deterministic relaxed contiguity
-                     between the matching events (as in <code>followedByAny()</code>).</p>
-                     <p>If not applied a relaxed contiguity (as in <code>followedBy()</code>) is used.</p>
-
-      <p>E.g. a pattern like:</p>
-{% highlight scala %}
-Pattern.begin("start").where(_.getName().equals("c"))
-  .followedBy("middle").where(_.getName().equals("a"))
-                       .oneOrMore().allowCombinations()
-  .followedBy("end1").where(_.getName().equals("b"))
-{% endhighlight %}
-
-                      <p>Will generate the following matches for an input sequence: C D A1 A2 A3 D A4 B</p>
-
-                      <p>with combinations enabled: {C A1 B}, {C A1 A2 B}, {C A1 A3 B}, {C A1 A4 B}, {C A1 A2 A3 B}, {C A1 A2 A4 B}, {C A1 A3 A4 B}, {C A1 A2 A3 A4 B}</p>
-                      <p>without combinations enabled: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}, {C A1 A2 A3 A4 B}</p>
-              </td>
-              </tr>
   </tbody>
 </table>
 </div>
-
 </div>
 
 ### Combining Patterns
@@ -823,9 +675,16 @@ val start : Pattern[Event, _] = Pattern.begin("start")
 </div>
 
 Next, you can append more patterns to your pattern sequence by specifying the desired *contiguity conditions* between
-them. In the [previous section](#conditions-on-contiguity) we described the different contiguity modes supported by
-Flink, namely *strict*, *relaxed*, and *non-deterministic relaxed*, and how to apply them in looping patterns. To apply
-them between consecutive patterns, you can use:
+them. FlinkCEP supports the following forms of contiguity between events:
+
+ 1. **Strict Contiguity**: Expects all matching events to appear strictly one after the other, without any non-matching events in-between.
+
+ 2. **Relaxed Contiguity**: Ignores non-matching events appearing in-between the matching ones.
+
+ 3. **Non-Deterministic Relaxed Contiguity**: Further relaxes contiguity, allowing additional matches
+ that ignore some matching events. 
+ 
+To apply them between consecutive patterns, you can use:
 
 1. `next()`, for *strict*,
 2. `followedBy()`, for *relaxed*, and
@@ -915,6 +774,164 @@ next.within(Time.seconds(10))
 </div>
 </div>
 
+#### Contiguity within looping patterns
+
+You can apply the same contiguity condition as discussed in the previous [section](#combining-patterns) within a looping pattern.
+The contiguity will be applied between elements accepted into such a pattern.
+To illustrate the above with an example, a pattern sequence `"a b+ c"` (`"a"` followed by any(non-deterministic relaxed) sequence of one or more `"b"`'s followed by a `"c"`) with
+input `"a", "b1", "d1", "b2", "d2", "b3" "c"` will have the following results:
+
+ 1. **Strict Contiguity**: `{a b3 c}` -- the `"d1"` after `"b1"` causes `"b1"` to be discarded, the same happens for `"b2"` because of `"d2"`.
+
+ 2. **Relaxed Contiguity**: `{a b1 c}`, `{a b1 b2 c}`, `{a b1 b2 b3 c}`, `{a b2 c}`, `{a b2 b3 c}`, `{a b3 c}` - `"d"`'s are ignored.
+
+ 3. **Non-Deterministic Relaxed Contiguity**: `{a b1 c}`, `{a b1 b2 c}`, `{a b1 b3 c}`, `{a b1 b2 b3 c}`, `{a b2 c}`, `{a b2 b3 c}`, `{a b3 c}` -
+    notice the `{a b1 b3 c}`, which is the result of relaxing contiguity between `"b"`'s.
+
+For looping patterns (e.g. `oneOrMore()` and `times()`) the default is *relaxed contiguity*. If you want
+strict contiguity, you have to explicitly specify it by using the `consecutive()` call, and if you want
+*non-deterministic relaxed contiguity* you can use the `allowCombinations()` call.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 25%">Pattern Operation</th>
+            <th class="text-center">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+       <tr>
+          <td><strong>consecutive()</strong><a name="consecutive_java"></a></td>
+          <td>
+              <p>Works in conjunction with <code>oneOrMore()</code> and <code>times()</code> and imposes strict contiguity between the matching
+              events, i.e. any non-matching element breaks the match (as in <code>next()</code>).</p>
+              <p>If not applied a relaxed contiguity (as in <code>followedBy()</code>) is used.</p>
+
+              <p>E.g. a pattern like:</p>
+{% highlight java %}
+Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+  @Override
+  public boolean filter(Event value) throws Exception {
+    return value.getName().equals("c");
+  }
+})
+.followedBy("middle").where(new SimpleCondition<Event>() {
+  @Override
+  public boolean filter(Event value) throws Exception {
+    return value.getName().equals("a");
+  }
+}).oneOrMore().consecutive()
+.followedBy("end1").where(new SimpleCondition<Event>() {
+  @Override
+  public boolean filter(Event value) throws Exception {
+    return value.getName().equals("b");
+  }
+});
+{% endhighlight %}
+              <p>Will generate the following matches for an input sequence: C D A1 A2 A3 D A4 B</p>
+
+              <p>with consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}</p>
+              <p>without consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}, {C A1 A2 A3 A4 B}</p>
+          </td>
+       </tr>
+       <tr>
+       <td><strong>allowCombinations()</strong><a name="allow_comb_java"></a></td>
+       <td>
+              <p>Works in conjunction with <code>oneOrMore()</code> and <code>times()</code> and imposes non-deterministic relaxed contiguity
+              between the matching events (as in <code>followedByAny()</code>).</p>
+              <p>If not applied a relaxed contiguity (as in <code>followedBy()</code>) is used.</p>
+
+              <p>E.g. a pattern like:</p>
+{% highlight java %}
+Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+  @Override
+  public boolean filter(Event value) throws Exception {
+    return value.getName().equals("c");
+  }
+})
+.followedBy("middle").where(new SimpleCondition<Event>() {
+  @Override
+  public boolean filter(Event value) throws Exception {
+    return value.getName().equals("a");
+  }
+}).oneOrMore().allowCombinations()
+.followedBy("end1").where(new SimpleCondition<Event>() {
+  @Override
+  public boolean filter(Event value) throws Exception {
+    return value.getName().equals("b");
+  }
+});
+{% endhighlight %}
+               <p>Will generate the following matches for an input sequence: C D A1 A2 A3 D A4 B</p>
+
+               <p>with combinations enabled: {C A1 B}, {C A1 A2 B}, {C A1 A3 B}, {C A1 A4 B}, {C A1 A2 A3 B}, {C A1 A2 A4 B}, {C A1 A3 A4 B}, {C A1 A2 A3 A4 B}</p>
+               <p>without combinations enabled: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}, {C A1 A2 A3 A4 B}</p>
+       </td>
+       </tr>
+  </tbody>
+</table>
+</div>
+
+<div data-lang="scala" markdown="1">
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 25%">Pattern Operation</th>
+            <th class="text-center">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+           <tr>
+              <td><strong>consecutive()</strong><a name="consecutive_scala"></a></td>
+              <td>
+                <p>Works in conjunction with <code>oneOrMore()</code> and <code>times()</code> and imposes strict contiguity between the matching
+                              events, i.e. any non-matching element breaks the match (as in <code>next()</code>).</p>
+                              <p>If not applied a relaxed contiguity (as in <code>followedBy()</code>) is used.</p>
+    
+          <p>E.g. a pattern like:</p>
+{% highlight scala %}
+Pattern.begin("start").where(_.getName().equals("c"))
+  .followedBy("middle").where(_.getName().equals("a"))
+                       .oneOrMore().consecutive()
+  .followedBy("end1").where(_.getName().equals("b"))
+{% endhighlight %}
+    
+                <p>Will generate the following matches for an input sequence: C D A1 A2 A3 D A4 B</p>
+    
+                              <p>with consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}</p>
+                              <p>without consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}, {C A1 A2 A3 A4 B}</p>
+              </td>
+           </tr>
+           <tr>
+                  <td><strong>allowCombinations()</strong><a name="allow_comb_java"></a></td>
+                  <td>
+                    <p>Works in conjunction with <code>oneOrMore()</code> and <code>times()</code> and imposes non-deterministic relaxed contiguity
+                         between the matching events (as in <code>followedByAny()</code>).</p>
+                         <p>If not applied a relaxed contiguity (as in <code>followedBy()</code>) is used.</p>
+    
+          <p>E.g. a pattern like:</p>
+{% highlight scala %}
+Pattern.begin("start").where(_.getName().equals("c"))
+  .followedBy("middle").where(_.getName().equals("a"))
+                       .oneOrMore().allowCombinations()
+  .followedBy("end1").where(_.getName().equals("b"))
+{% endhighlight %}
+    
+                          <p>Will generate the following matches for an input sequence: C D A1 A2 A3 D A4 B</p>
+    
+                          <p>with combinations enabled: {C A1 B}, {C A1 A2 B}, {C A1 A3 B}, {C A1 A4 B}, {C A1 A2 A3 B}, {C A1 A2 A4 B}, {C A1 A3 A4 B}, {C A1 A2 A3 A4 B}</p>
+                          <p>without combinations enabled: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}, {C A1 A2 A3 A4 B}</p>
+                  </td>
+                  </tr>
+  </tbody>
+</table>
+</div>
+</div>
+
+### Groups of patterns
+
 It's also possible to define a pattern sequence as the condition for `begin`, `followedBy`, `followedByAny` and
 `next`. The pattern sequence will be considered as the matching condition logically and a `GroupPattern` will be
 returned and it is possible to apply `oneOrMore()`, `times(#ofTimes)`, `times(#fromTimes, #toTimes)`, `optional()`,
@@ -950,22 +967,22 @@ Pattern<Event, ?> nonDetermin = start.followedByAny(
 {% highlight scala %}
 
 val start: Pattern[Event, _] = Pattern.begin(
-    Pattern.begin[Event, _]("start").where(...).followedBy("start_middle").where(...)
+    Pattern.begin[Event]("start").where(...).followedBy("start_middle").where(...)
 )
 
 // strict contiguity
 val strict: Pattern[Event, _] = start.next(
-    Pattern.begin[Event, _]("next_start").where(...).followedBy("next_middle").where(...)
+    Pattern.begin[Event]("next_start").where(...).followedBy("next_middle").where(...)
 ).times(3)
 
 // relaxed contiguity
 val relaxed: Pattern[Event, _] = start.followedBy(
-    Pattern.begin[Event, _]("followedby_start").where(...).followedBy("followedby_middle").where(...)
+    Pattern.begin[Event]("followedby_start").where(...).followedBy("followedby_middle").where(...)
 ).oneOrMore()
 
 // non-deterministic relaxed contiguity
 val nonDetermin: Pattern[Event, _] = start.followedByAny(
-    Pattern.begin[Event, _]("followedbyany_start").where(...).followedBy("followedbyany_middle").where(...)
+    Pattern.begin[Event]("followedbyany_start").where(...).followedBy("followedbyany_middle").where(...)
 ).optional()
 
 {% endhighlight %}
@@ -1248,13 +1265,13 @@ pattern.within(Time.seconds(10))
 For a given pattern, the same event may be assigned to multiple successful matches. To control to how many matches an event will be assigned, you need to specify the skip strategy called `AfterMatchSkipStrategy`. There are four types of skip strategies, listed as follows:
 
 * <strong>*NO_SKIP*</strong>: Every possible match will be emitted.
-* <strong>*SKIP_PAST_LAST_EVENT*</strong>: Discards every partial match that contains event of the match.
-* <strong>*SKIP_TO_FIRST*</strong>: Discards every partial match that contains event of the match preceding the first of *PatternName*.
-* <strong>*SKIP_TO_LAST*</strong>: Discards every partial match that contains event of the match preceding the last of *PatternName*.
+* <strong>*SKIP_PAST_LAST_EVENT*</strong>: Discards every partial match that started after the match started but before it ended.
+* <strong>*SKIP_TO_FIRST*</strong>: Discards every partial match that started after the match started but before the first event of *PatternName* occurred.
+* <strong>*SKIP_TO_LAST*</strong>: Discards every partial match that started after the match started but before the last event of *PatternName* occurred.
 
 Notice that when using *SKIP_TO_FIRST* and *SKIP_TO_LAST* skip strategy, a valid *PatternName* should also be specified.
 
-For example, for a given pattern `a b{2}` and a data stream `ab1, ab2, ab3, ab4, ab5, ab6`, the differences between these four skip strategies are as follows:
+For example, for a given pattern `b+ c` and a data stream `b1 b2 b3 c`, the differences between these four skip strategies are as follows:
 
 <table class="table table-bordered">
     <tr>
@@ -1265,38 +1282,65 @@ For example, for a given pattern `a b{2}` and a data stream `ab1, ab2, ab3, ab4,
     <tr>
         <td><strong>NO_SKIP</strong></td>
         <td>
-            <code>ab1 ab2 ab3</code><br>
-            <code>ab2 ab3 ab4</code><br>
-            <code>ab3 ab4 ab5</code><br>
-            <code>ab4 ab5 ab6</code><br>
+            <code>b1 b2 b3 c</code><br>
+            <code>b2 b3 c</code><br>
+            <code>b3 c</code><br>
         </td>
-        <td>After found matching <code>ab1 ab2 ab3</code>, the match process will not discard any result.</td>
+        <td>After found matching <code>b1 b2 b3 c</code>, the match process will not discard any result.</td>
     </tr>
     <tr>
         <td><strong>SKIP_PAST_LAST_EVENT</strong></td>
         <td>
-            <code>ab1 ab2 ab3</code><br>
-            <code>ab4 ab5 ab6</code><br>
+            <code>b1 b2 b3 c</code><br>
         </td>
-        <td>After found matching <code>ab1 ab2 ab3</code>, the match process will discard all started partial matches.</td>
+        <td>After found matching <code>b1 b2 b3 c</code>, the match process will discard all started partial matches.</td>
     </tr>
     <tr>
-        <td><strong>SKIP_TO_FIRST</strong>[<code>b</code>]</td>
+        <td><strong>SKIP_TO_FIRST</strong>[<code>b*</code>]</td>
         <td>
-            <code>ab1 ab2 ab3</code><br>
-            <code>ab2 ab3 ab4</code><br>
-            <code>ab3 ab4 ab5</code><br>
-            <code>ab4 ab5 ab6</code><br>
+            <code>b1 b2 b3 c</code><br>
+            <code>b2 b3 c</code><br>
+            <code>b3 c</code><br>
         </td>
-        <td>After found matching <code>ab1 ab2 ab3</code>, the match process will discard all partial matches containing <code>ab1</code>, which is the only event that comes before the first <code>b</code>.</td>
+        <td>After found matching <code>b1 b2 b3 c</code>, the match process will try to discard all partial matches started before <code>b1</code>, but there are no such matches. Therefore nothing will be discarded.</td>
     </tr>
     <tr>
         <td><strong>SKIP_TO_LAST</strong>[<code>b</code>]</td>
         <td>
-            <code>ab1 ab2 ab3</code><br>
-            <code>ab3 ab4 ab5</code><br>
+            <code>b1 b2 b3 c</code><br>
+            <code>b3 c</code><br>
         </td>
-        <td>After found matching <code>ab1 ab2 ab3</code>, the match process will discard all partial matches containing <code>ab1</code> and <code>ab2</code>, which are events that comes before the last <code>b</code>.</td>
+        <td>After found matching <code>b1 b2 b3 c</code>, the match process will try to discard all partial matches started before <code>b3</code>. There is one such match <code>b2 b3 c</code></td>
+    </tr>
+</table>
+
+Have a look also at another example to better see the difference between NO_SKIP and SKIP_TO_FIRST:
+Pattern: `(a | c) (b | c) c+.greedy d` and sequence: `a b c1 c2 c3 d` Then the results will be:
+
+
+<table class="table table-bordered">
+    <tr>
+        <th class="text-left" style="width: 25%">Skip Strategy</th>
+        <th class="text-center" style="width: 25%">Result</th>
+        <th class="text-center"> Description</th>
+    </tr>
+    <tr>
+        <td><strong>NO_SKIP</strong></td>
+        <td>
+            <code>a b c1 c2 c3 d</code><br>
+            <code>b c1 c2 c3 d</code><br>
+            <code>c1 c2 c3 d</code><br>
+            <code>c2 c3 d</code><br>
+        </td>
+        <td>After found matching <code>a b c1 c2 c3 d</code>, the match process will not discard any result.</td>
+    </tr>
+    <tr>
+        <td><strong>SKIP_TO_FIRST</strong>[<code>b*</code>]</td>
+        <td>
+            <code>a b c1 c2 c3 d</code><br>
+            <code>c1 c2 c3 d</code><br>
+        </td>
+        <td>After found matching <code>a b c1 c2 c3 d</code>, the match process will try to discard all partial matches started before <code>c1</code>. There is one such match <code>b c1 c2 c3 d</code>.</td>
     </tr>
 </table>
 
@@ -1633,7 +1677,7 @@ val input : DataStream[Event] = ...
 
 val partitionedInput = input.keyBy(event => event.getId)
 
-val pattern = Pattern.begin("start")
+val pattern = Pattern.begin[Event]("start")
   .next("middle").where(_.getName == "error")
   .followedBy("end").where(_.getName == "critical")
   .within(Time.seconds(10))

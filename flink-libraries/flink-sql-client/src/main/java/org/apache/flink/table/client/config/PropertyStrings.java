@@ -41,6 +41,8 @@ public final class PropertyStrings {
 
 	public static final String EXECUTION_TIME_CHARACTERISTIC_VALUE_PROCESSING_TIME = "processing-time";
 
+	public static final String EXECUTION_PERIODIC_WATERMARKS_INTERVAL = "periodic-watermarks-interval";
+
 	public static final String EXECUTION_MIN_STATE_RETENTION = "min-idle-state-retention";
 
 	public static final String EXECUTION_MAX_STATE_RETENTION = "max-idle-state-retention";
@@ -54,6 +56,26 @@ public final class PropertyStrings {
 	public static final String EXECUTION_RESULT_MODE_VALUE_CHANGELOG = "changelog";
 
 	public static final String EXECUTION_RESULT_MODE_VALUE_TABLE = "table";
+
+	public static final String EXECUTION_MAX_TABLE_RESULT_ROWS = "max-table-result-rows";
+
+	public static final String EXECUTION_RESTART_STRATEGY_TYPE = "restart-strategy.type";
+
+	public static final String EXECUTION_RESTART_STRATEGY_TYPE_VALUE_FALLBACK = "fallback";
+
+	public static final String EXECUTION_RESTART_STRATEGY_TYPE_VALUE_NONE = "none";
+
+	public static final String EXECUTION_RESTART_STRATEGY_TYPE_VALUE_FIXED_DELAY = "fixed-delay";
+
+	public static final String EXECUTION_RESTART_STRATEGY_TYPE_VALUE_FAILURE_RATE = "failure-rate";
+
+	public static final String EXECUTION_RESTART_STRATEGY_ATTEMPTS = "restart-strategy.attempts";
+
+	public static final String EXECUTION_RESTART_STRATEGY_DELAY = "restart-strategy.delay";
+
+	public static final String EXECUTION_RESTART_STRATEGY_FAILURE_RATE_INTERVAL = "restart-strategy.failure-rate-interval";
+
+	public static final String EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL = "restart-strategy.max-failures-per-interval";
 
 	public static final String DEPLOYMENT = "deployment";
 

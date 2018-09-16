@@ -579,6 +579,12 @@ class DataStreamTest extends AbstractTestBase {
       env.getStreamGraph.getStreamEdges(unionFilter.getId, sink.getTransformation.getId)
     assert("a" == splitEdge.get(0).getSelectedNames.get(0))
 
+    val sinkWithIdentifier = select.print("identifier")
+    val newSplitEdge = env.getStreamGraph.getStreamEdges(
+      unionFilter.getId,
+      sinkWithIdentifier.getTransformation.getId)
+    assert("a" == newSplitEdge.get(0).getSelectedNames.get(0))
+
     val foldFunction = new FoldFunction[Int, String] {
       override def fold(accumulator: String, value: Int): String = ""
     }

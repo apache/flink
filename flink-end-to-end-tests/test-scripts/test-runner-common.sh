@@ -32,6 +32,12 @@ function run_test {
     printf "\n==============================================================================\n"
     printf "Running '${description}'\n"
     printf "==============================================================================\n"
+
+    # used to randomize created directories
+    export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
+    echo "TEST_DATA_DIR: $TEST_DATA_DIR"
+
+    backup_config
     start_timer
     ${command}
     exit_code="$?"
@@ -41,8 +47,8 @@ function run_test {
     check_logs_for_exceptions
     check_logs_for_non_empty_out_files
 
-    cleanup
-
+    # Investigate exit_code for failures of test executable as well as EXIT_CODE for failures of the test.
+    # Do not clean up if either fails.
     if [[ ${exit_code} == 0 ]]; then
         if [[ ${EXIT_CODE} != 0 ]]; then
             printf "\n[FAIL] '${description}' failed after ${time_elapsed}! Test exited with exit code 0 but the logs contained errors, exceptions or non-empty .out files\n\n"
@@ -58,19 +64,32 @@ function run_test {
         fi
     fi
 
-    if [[ ${exit_code} != 0 ]]; then
+    if [[ ${exit_code} == 0 ]]; then
+        cleanup
+    else
         exit "${exit_code}"
     fi
 }
 
-# Shuts down the cluster and cleans up all temporary folders and files. Make sure to clean up even in case of failures.
-function cleanup {
-  stop_cluster
-  tm_kill_all
-  jm_kill_all
-  rm -rf $TEST_DATA_DIR 2> /dev/null
-  revert_default_config
-  rm -rf $FLINK_DIR/log/* 2> /dev/null
+# Shuts down cluster and reverts changes to cluster configs
+function cleanup_proc {
+    shutdown_all
+    revert_default_config
 }
 
-trap cleanup EXIT
+# Cleans up all temporary folders and files
+function cleanup_tmp_files {
+    clean_log_files
+
+    rm -rf ${TEST_DATA_DIR} 2> /dev/null
+    echo "Deleted ${TEST_DATA_DIR}"
+}
+
+# Shuts down the cluster and cleans up all temporary folders and files.
+function cleanup {
+    cleanup_proc
+    cleanup_tmp_files
+}
+
+trap cleanup SIGINT
+trap cleanup_proc EXIT

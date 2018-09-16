@@ -48,7 +48,7 @@ import org.apache.flink.table.api.{Table, Types}
   *
   * @tparam T Type of records that this [[TableSink]] expects and supports.
   */
-trait UpsertStreamTableSink[T] extends TableSink[JTuple2[JBool, T]] {
+trait UpsertStreamTableSink[T] extends StreamTableSink[JTuple2[JBool, T]] {
 
   /**
     * Configures the unique key fields of the [[Table]] to write.

@@ -20,8 +20,10 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * Configuration options for the JobManager.
@@ -74,10 +76,20 @@ public class JobManagerOptions {
 			" leader from potentially multiple standby JobManagers.");
 
 	/**
-	 * JVM heap size (in megabytes) for the JobManager.
+	 * JVM heap size for the JobManager with memory size.
 	 */
 	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
-	public static final ConfigOption<Integer> JOB_MANAGER_HEAP_MEMORY =
+	public static final ConfigOption<String> JOB_MANAGER_HEAP_MEMORY =
+		key("jobmanager.heap.size")
+		.defaultValue("1024m")
+		.withDescription("JVM heap size for the JobManager.");
+
+	/**
+	 * JVM heap size (in megabytes) for the JobManager.
+	 * @deprecated use {@link #JOB_MANAGER_HEAP_MEMORY}
+	 */
+	@Deprecated
+	public static final ConfigOption<Integer> JOB_MANAGER_HEAP_MEMORY_MB =
 		key("jobmanager.heap.mb")
 		.defaultValue(1024)
 		.withDescription("JVM heap size (in megabytes) for the JobManager.");
@@ -92,12 +104,19 @@ public class JobManagerOptions {
 			.withDescription("The maximum number of prior execution attempts kept in history.");
 
 	/**
-	 * The maximum number of prior execution attempts kept in history.
+	 * This option specifies the failover strategy, i.e. how the job computation recovers from task failures.
 	 */
 	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
 		key("jobmanager.execution.failover-strategy")
 			.defaultValue("full")
-			.withDescription("The maximum number of prior execution attempts kept in history.");
+			.withDescription(Description.builder()
+				.text("This option specifies how the job computation recovers from task failures. " +
+					"Accepted values are:")
+				.list(
+					text("'full': Restarts all tasks."),
+					text("'individual': Restarts only the failed task. Should only be used if all tasks are independent components."),
+					text("'region': Restarts all tasks that could be affected by the task failure.")
+				).build());
 
 	/**
 	 * This option specifies the interval in order to trigger a resource manager reconnection if the connection
@@ -135,11 +154,17 @@ public class JobManagerOptions {
 		.defaultValue(60L * 60L)
 		.withDescription("The time in seconds after which a completed job expires and is purged from the job store.");
 
+	/**
+	 * The timeout in milliseconds for requesting a slot from Slot Pool.
+	 */
 	public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT =
 		key("slot.request.timeout")
 		.defaultValue(5L * 60L * 1000L)
 		.withDescription("The timeout in milliseconds for requesting a slot from Slot Pool.");
 
+	/**
+	 * The timeout in milliseconds for a idle slot in Slot Pool.
+	 */
 	public static final ConfigOption<Long> SLOT_IDLE_TIMEOUT =
 		key("slot.idle.timeout")
 			// default matches heartbeat.timeout so that sticky allocation is not lost on timeouts for local recovery

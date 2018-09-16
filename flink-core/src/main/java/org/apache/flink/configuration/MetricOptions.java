@@ -19,8 +19,10 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * Configuration options for metrics and metric reporters.
@@ -104,11 +106,43 @@ public class MetricOptions {
 			.defaultValue("<host>.taskmanager.<tm_id>.<job_name>.<operator_name>.<subtask_index>")
 			.withDescription("Defines the scope format string that is applied to all metrics scoped to an operator.");
 
+	public static final ConfigOption<Long> LATENCY_INTERVAL =
+		key("metrics.latency.interval")
+			.defaultValue(0L)
+			.withDescription("Defines the interval at which latency tracking marks are emitted from the sources." +
+				" Disables latency tracking if set to 0 or a negative value. Enabling this feature can significantly" +
+				" impact the performance of the cluster.");
+
+	public static final ConfigOption<String> LATENCY_SOURCE_GRANULARITY =
+		key("metrics.latency.granularity")
+			.defaultValue("operator")
+			.withDescription(Description.builder()
+				.text("Defines the granularity of latency metrics. Accepted values are:")
+				.list(
+					text("single - Track latency without differentiating between sources and subtasks."),
+					text("operator - Track latency while differentiating between sources, but not subtasks."),
+					text("subtask - Track latency while differentiating between sources and subtasks."))
+				.build());
+
 	/** The number of measured latencies to maintain at each operator. */
 	public static final ConfigOption<Integer> LATENCY_HISTORY_SIZE =
 		key("metrics.latency.history-size")
 			.defaultValue(128)
 			.withDescription("Defines the number of measured latencies to maintain at each operator.");
+
+	/**
+	 * Whether Flink should report system resource metrics such as machine's CPU, memory or network usage.
+	 */
+	public static final ConfigOption<Boolean> SYSTEM_RESOURCE_METRICS =
+		key("metrics.system-resource")
+			.defaultValue(false);
+	/**
+	 * Interval between probing of system resource metrics specified in milliseconds. Has an effect only when
+	 * {@link #SYSTEM_RESOURCE_METRICS} is enabled.
+	 */
+	public static final ConfigOption<Long> SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL =
+		key("metrics.system-resource-probing-interval")
+			.defaultValue(5000L);
 
 	private MetricOptions() {
 	}

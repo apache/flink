@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.util.TestLogger;
+
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.junit.After;
@@ -36,6 +38,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -47,17 +50,20 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.spy;
 
-public class LocalBufferPoolTest {
+/**
+ * Tests for the {@link LocalBufferPool}.
+ */
+public class LocalBufferPoolTest extends TestLogger {
 
-	private final static int numBuffers = 1024;
+	private static final int numBuffers = 1024;
 
-	private final static int memorySegmentSize = 128;
+	private static final int memorySegmentSize = 128;
 
 	private NetworkBufferPool networkBufferPool;
 
 	private BufferPool localBufferPool;
 
-	private final static ExecutorService executor = Executors.newCachedThreadPool();
+	private static final ExecutorService executor = Executors.newCachedThreadPool();
 
 	@Before
 	public void setupLocalBufferPool() {
@@ -405,13 +411,13 @@ public class LocalBufferPoolTest {
 
 	private BufferListener createBufferListener(int notificationTimes) {
 		return spy(new BufferListener() {
-			int times = 0;
+			AtomicInteger times = new AtomicInteger(0);
 
 			@Override
 			public boolean notifyBufferAvailable(Buffer buffer) {
-				times++;
+				int newCount = times.incrementAndGet();
 				buffer.recycleBuffer();
-				return times < notificationTimes;
+				return newCount < notificationTimes;
 			}
 
 			@Override

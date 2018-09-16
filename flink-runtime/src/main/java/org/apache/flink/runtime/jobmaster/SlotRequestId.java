@@ -40,4 +40,9 @@ public final class SlotRequestId extends AbstractID {
 	}
 
 	public SlotRequestId() {}
+
+	@Override
+	public String toString() {
+		return "SlotRequestId{" + super.toString() + '}';
+	}
 }

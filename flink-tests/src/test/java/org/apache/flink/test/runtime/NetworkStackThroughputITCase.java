@@ -20,7 +20,6 @@ package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -34,6 +33,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -235,13 +235,10 @@ public class NetworkStackThroughputITCase extends TestLogger {
 			final int numTaskManagers = parallelism / numSlotsPerTaskManager;
 
 			final MiniClusterResource cluster = new MiniClusterResource(
-				new MiniClusterResource.MiniClusterResourceConfiguration(
-					new Configuration(),
-					numTaskManagers,
-					numSlotsPerTaskManager
-				),
-				true
-			);
+				new MiniClusterResourceConfiguration.Builder()
+					.setNumberTaskManagers(numTaskManagers)
+					.setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
+					.build());
 			cluster.before();
 
 			try {

@@ -108,10 +108,10 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		args.add("1");
 
 		args.add("-jm");
-		args.add("768");
+		args.add("768m");
 
 		args.add("-tm");
-		args.add("1024");
+		args.add("1024m");
 
 		if (SecureTestEnvironment.getTestKeytab() != null) {
 			args.add("-D" + SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() + "=" + SecureTestEnvironment.getTestKeytab());
@@ -260,8 +260,8 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Starting testResourceComputation()");
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
 				"-n", "5",
-				"-jm", "256",
-				"-tm", "1585"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION, 0);
+				"-jm", "256m",
+				"-tm", "1585m"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION, 0);
 		LOG.info("Finished testResourceComputation()");
 		checkForLogString("This YARN session requires 8437MB of memory in the cluster. There are currently only 8192MB available.");
 	}
@@ -288,8 +288,8 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Starting testfullAlloc()");
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
 				"-n", "2",
-				"-jm", "256",
-				"-tm", "3840"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION, 0);
+				"-jm", "256m",
+				"-tm", "3840m"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION, 0);
 		LOG.info("Finished testfullAlloc()");
 		checkForLogString("There is not enough memory available in the YARN cluster. The TaskManager(s) require 3840MB each. NodeManagers available: [4096, 4096]\n" +
 				"After allocating the JobManager (512MB) and (1/2) TaskManagers, the following NodeManagers are available: [3584, 256]");
@@ -323,38 +323,40 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				.setSlotsPerTaskManager(1)
 				.createClusterSpecification();
 			// deploy
-			ClusterClient<ApplicationId> yarnCluster = null;
+			ClusterClient<ApplicationId> yarnClusterClient = null;
 			try {
-				yarnCluster = clusterDescriptor.deploySessionCluster(clusterSpecification);
-			} catch (Exception e) {
-				LOG.warn("Failing test", e);
-				Assert.fail("Error while deploying YARN cluster: " + e.getMessage());
-			}
-			GetClusterStatusResponse expectedStatus = new GetClusterStatusResponse(1, 1);
-			for (int second = 0; second < waitTime * 2; second++) { // run "forever"
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-					LOG.warn("Interrupted", e);
-				}
-				GetClusterStatusResponse status = yarnCluster.getClusterStatus();
-				if (status != null && status.equals(expectedStatus)) {
-					LOG.info("ClusterClient reached status " + status);
-					break; // all good, cluster started
-				}
-				if (second > waitTime) {
-					// we waited for 15 seconds. cluster didn't come up correctly
-					Assert.fail("The custer didn't start after " + waitTime + " seconds");
-				}
-			}
+				yarnClusterClient = clusterDescriptor.deploySessionCluster(clusterSpecification);
 
-			// use the cluster
-			Assert.assertNotNull(yarnCluster.getClusterConnectionInfo());
-			Assert.assertNotNull(yarnCluster.getWebInterfaceURL());
+				GetClusterStatusResponse expectedStatus = new GetClusterStatusResponse(1, 1);
+				for (int second = 0; second < waitTime * 2; second++) { // run "forever"
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+						LOG.warn("Interrupted", e);
+					}
+					GetClusterStatusResponse status = yarnClusterClient.getClusterStatus();
+					if (status != null && status.equals(expectedStatus)) {
+						LOG.info("ClusterClient reached status " + status);
+						break; // all good, cluster started
+					}
+					if (second > waitTime) {
+						// we waited for 15 seconds. cluster didn't come up correctly
+						Assert.fail("The custer didn't start after " + waitTime + " seconds");
+					}
+				}
 
-			LOG.info("Shutting down cluster. All tests passed");
-			// shutdown cluster
-			yarnCluster.shutdown();
+				// use the cluster
+				Assert.assertNotNull(yarnClusterClient.getClusterConnectionInfo());
+				Assert.assertNotNull(yarnClusterClient.getWebInterfaceURL());
+				LOG.info("All tests passed.");
+			} finally {
+				if (yarnClusterClient != null) {
+					// shutdown cluster
+					LOG.info("Shutting down the Flink Yarn application.");
+					yarnClusterClient.shutDownCluster();
+					yarnClusterClient.shutdown();
+				}
+			}
 		}
 		LOG.info("Finished testJavaAPI()");
 	}

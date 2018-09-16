@@ -101,11 +101,11 @@ public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDe
 		V value = null;
 
 		if (messageKey != null) {
-			inputDeserializer.setBuffer(messageKey, 0, messageKey.length);
+			inputDeserializer.setBuffer(messageKey);
 			key = keySerializer.deserialize(inputDeserializer);
 		}
 		if (message != null) {
-			inputDeserializer.setBuffer(message, 0, message.length);
+			inputDeserializer.setBuffer(message);
 			value = valueSerializer.deserialize(inputDeserializer);
 		}
 		return new Tuple2<>(key, value);

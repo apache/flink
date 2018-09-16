@@ -49,13 +49,14 @@ import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTabl
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
 import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
+import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSinkTable}
+import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSourceSinkTable}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
@@ -464,6 +465,16 @@ abstract class TableEnvironment(val config: TableConfig) {
       tableSink: TableSink[_]): Unit
 
   /**
+    * Registers an external [[TableSink]] with already configured field names and field types in
+    * this [[TableEnvironment]]'s catalog.
+    * Registered sink tables can be referenced in SQL DML statements.
+    *
+    * @param name The name under which the [[TableSink]] is registered.
+    * @param configuredSink The configured [[TableSink]] to register.
+    */
+  def registerTableSink(name: String, configuredSink: TableSink[_]): Unit
+
+  /**
     * Replaces a registered Table with another Table under the same name.
     * We use this method to replace a [[org.apache.flink.table.plan.schema.DataStreamTable]]
     * with a [[org.apache.calcite.schema.TranslatableTable]].
@@ -510,6 +521,37 @@ abstract class TableEnvironment(val config: TableConfig) {
       case None => throw new TableException(s"Table '${tablePath.mkString(".")}' was not found.")
     }
   }
+
+  /**
+    * Creates a table source and/or table sink from a descriptor.
+    *
+    * Descriptors allow for declaring the communication to external systems in an
+    * implementation-agnostic way. The classpath is scanned for suitable table factories that match
+    * the desired configuration.
+    *
+    * The following example shows how to read from a connector using a JSON format and
+    * registering a table source as "MyTable":
+    *
+    * {{{
+    *
+    * tableEnv
+    *   .connect(
+    *     new ExternalSystemXYZ()
+    *       .version("0.11"))
+    *   .withFormat(
+    *     new Json()
+    *       .jsonSchema("{...}")
+    *       .failOnMissingField(false))
+    *   .withSchema(
+    *     new Schema()
+    *       .field("user-name", "VARCHAR").from("u_name")
+    *       .field("count", "DECIMAL")
+    *   .registerSource("MyTable")
+    * }}}
+    *
+    * @param connectorDescriptor connector descriptor describing the external system
+    */
+  def connect(connectorDescriptor: ConnectorDescriptor): TableDescriptor
 
   private[flink] def scanInternal(tablePath: Array[String]): Option[Table] = {
     require(tablePath != null && !tablePath.isEmpty, "tablePath must not be null or empty.")
@@ -669,10 +711,10 @@ abstract class TableEnvironment(val config: TableConfig) {
       case insert: SqlInsert =>
         // validate the SQL query
         val query = insert.getSource
-        planner.validate(query)
+        val validatedQuery = planner.validate(query)
 
         // get query result as Table
-        val queryResult = new Table(this, LogicalRelNode(planner.rel(query).rel))
+        val queryResult = new Table(this, LogicalRelNode(planner.rel(validatedQuery).rel))
 
         // get name of sink table
         val targetTableName = insert.getTargetTable.asInstanceOf[SqlIdentifier].names.get(0)
@@ -712,8 +754,10 @@ abstract class TableEnvironment(val config: TableConfig) {
     }
 
     getTable(sinkTableName) match {
-      case s: TableSinkTable[_] =>
-        val tableSink = s.tableSink
+
+      // check for registered table that wraps a sink
+      case s: TableSourceSinkTable[_, _] if s.tableSinkTable.isDefined =>
+        val tableSink = s.tableSinkTable.get.tableSink
         // validate schema of source table and table sink
         val srcFieldTypes = table.getSchema.getTypes
         val sinkFieldTypes = tableSink.getFieldTypes
@@ -737,6 +781,7 @@ abstract class TableEnvironment(val config: TableConfig) {
               s"Query result schema: $srcSchema\n" +
               s"TableSink schema:    $sinkSchema")
         }
+
         // emit the table to the configured table sink
         writeToSink(table, tableSink, conf)
       case _ =>
@@ -783,7 +828,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     rootSchema.getTableNames.contains(name)
   }
 
-  private def getTable(name: String): org.apache.calcite.schema.Table = {
+  protected def getTable(name: String): org.apache.calcite.schema.Table = {
     rootSchema.getTable(name)
   }
 

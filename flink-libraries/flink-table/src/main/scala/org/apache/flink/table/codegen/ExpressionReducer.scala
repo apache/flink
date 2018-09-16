@@ -120,12 +120,7 @@ class ExpressionReducer(config: TableConfig)
              SqlTypeName.MAP |
              SqlTypeName.MULTISET =>
           reducedValues.add(unreduced)
-        // after expression reduce, the literal string has to be escaped
-        case SqlTypeName.VARCHAR | SqlTypeName.CHAR =>
-          val escapeVarchar = StringEscapeUtils
-            .escapeJava(reduced.getField(reducedIdx).asInstanceOf[String])
-          reducedValues.add(rexBuilder.makeLiteral(escapeVarchar, unreduced.getType, true))
-          reducedIdx += 1
+
         case _ =>
           val reducedValue = reduced.getField(reducedIdx)
           // RexBuilder handle double literal incorrectly, convert it into BigDecimal manually

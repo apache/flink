@@ -174,6 +174,7 @@ public class TaskTest extends TestLogger {
 			assertEquals(ExecutionState.FINISHED, task.getExecutionState());
 			assertFalse(task.isCanceledOrFailed());
 			assertNull(task.getFailureCause());
+			assertNull(task.getInvokable());
 
 			// verify listener messages
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
@@ -202,6 +203,8 @@ public class TaskTest extends TestLogger {
 			// verify final state
 			assertEquals(ExecutionState.CANCELED, task.getExecutionState());
 			validateUnregisterTask(task.getExecutionId());
+
+			assertNull(task.getInvokable());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -258,6 +261,8 @@ public class TaskTest extends TestLogger {
 
 			// make sure that the TaskManager received an message to unregister the task
 			validateUnregisterTask(task.getExecutionId());
+
+			assertNull(task.getInvokable());
 		}
 		catch (Exception e) {
 			e.printStackTrace();

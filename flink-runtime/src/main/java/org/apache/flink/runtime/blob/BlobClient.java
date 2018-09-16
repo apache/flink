@@ -21,8 +21,6 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.net.SSLUtils;
@@ -32,9 +30,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLParameters;
-import javax.net.ssl.SSLSocket;
 
 import java.io.Closeable;
 import java.io.EOFException;
@@ -49,8 +44,6 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.BUFFER_SIZE;
@@ -72,7 +65,7 @@ public final class BlobClient implements Closeable {
 	private static final Logger LOG = LoggerFactory.getLogger(BlobClient.class);
 
 	/** The socket connection to the BLOB server. */
-	private Socket socket;
+	private final Socket socket;
 
 	/**
 	 * Instantiates a new BLOB client.
@@ -86,41 +79,28 @@ public final class BlobClient implements Closeable {
 	 *         thrown if the connection to the BLOB server could not be established
 	 */
 	public BlobClient(InetSocketAddress serverAddress, Configuration clientConfig) throws IOException {
+		Socket socket = null;
 
 		try {
-			// Check if ssl is enabled
-			SSLContext clientSSLContext = null;
-			if (clientConfig != null &&
-				clientConfig.getBoolean(BlobServerOptions.SSL_ENABLED)) {
-
-				clientSSLContext = SSLUtils.createSSLClientContext(clientConfig);
-			}
-
-			if (clientSSLContext != null) {
-
+			// create an SSL socket if configured
+			if (SSLUtils.isInternalSSLEnabled(clientConfig) && clientConfig.getBoolean(BlobServerOptions.SSL_ENABLED)) {
 				LOG.info("Using ssl connection to the blob server");
 
-				SSLSocket sslSocket = (SSLSocket) clientSSLContext.getSocketFactory().createSocket(
+				socket = SSLUtils.createSSLClientSocketFactory(clientConfig).createSocket(
 					serverAddress.getAddress(),
 					serverAddress.getPort());
-
-				// Enable hostname verification for remote SSL connections
-				if (!serverAddress.getAddress().isLoopbackAddress()) {
-					SSLParameters newSSLParameters = sslSocket.getSSLParameters();
-					SSLUtils.setSSLVerifyHostname(clientConfig, newSSLParameters);
-					sslSocket.setSSLParameters(newSSLParameters);
-				}
-				this.socket = sslSocket;
-			} else {
-				this.socket = new Socket();
-				this.socket.connect(serverAddress);
 			}
-
+			else {
+				socket = new Socket();
+				socket.connect(serverAddress);
+			}
 		}
 		catch (Exception e) {
 			BlobUtils.closeSilently(socket, LOG);
 			throw new IOException("Could not connect to BlobServer at address " + serverAddress, e);
 		}
+
+		this.socket = socket;
 	}
 
 	/**
@@ -444,42 +424,8 @@ public final class BlobClient implements Closeable {
 	 */
 	public PermanentBlobKey uploadFile(JobID jobId, Path file) throws IOException {
 		final FileSystem fs = file.getFileSystem();
-		if (fs.getFileStatus(file).isDir()) {
-			return uploadDirectory(jobId, file, fs);
-		} else {
-			try (InputStream is = fs.open(file)) {
-				return (PermanentBlobKey) putInputStream(jobId, is, PERMANENT_BLOB);
-			}
+		try (InputStream is = fs.open(file)) {
+			return (PermanentBlobKey) putInputStream(jobId, is, PERMANENT_BLOB);
 		}
 	}
-
-	private PermanentBlobKey uploadDirectory(JobID jobId, Path file, FileSystem fs) throws IOException {
-		try (BlobOutputStream blobOutputStream = new BlobOutputStream(jobId, PERMANENT_BLOB, socket)) {
-			try (ZipOutputStream zipStream = new ZipOutputStream(blobOutputStream)) {
-				compressDirectoryToZipfile(fs, fs.getFileStatus(file), fs.getFileStatus(file), zipStream);
-				zipStream.finish();
-				return (PermanentBlobKey) blobOutputStream.finish();
-			}
-		}
-	}
-
-	private static void compressDirectoryToZipfile(FileSystem fs, FileStatus rootDir, FileStatus sourceDir, ZipOutputStream out) throws IOException {
-		for (FileStatus file : fs.listStatus(sourceDir.getPath())) {
-			LOG.info("Zipping file: {}", file);
-			if (file.isDir()) {
-				compressDirectoryToZipfile(fs, rootDir, file, out);
-			} else {
-				String entryName = file.getPath().getPath().replace(rootDir.getPath().getPath(), "");
-				LOG.info("Zipping entry: {}, file: {}, rootDir: {}", entryName, file, rootDir);
-				ZipEntry entry = new ZipEntry(entryName);
-				out.putNextEntry(entry);
-
-				try (FSDataInputStream in = fs.open(file.getPath())) {
-					IOUtils.copyBytes(in, out, false);
-				}
-				out.closeEntry();
-			}
-		}
-	}
-
 }

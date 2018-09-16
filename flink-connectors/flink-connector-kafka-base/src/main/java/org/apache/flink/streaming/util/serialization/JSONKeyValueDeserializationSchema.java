@@ -56,8 +56,12 @@ public class JSONKeyValueDeserializationSchema implements KeyedDeserializationSc
 			mapper = new ObjectMapper();
 		}
 		ObjectNode node = mapper.createObjectNode();
-		node.set("key", mapper.readValue(messageKey, JsonNode.class));
-		node.set("value", mapper.readValue(message, JsonNode.class));
+		if (messageKey != null) {
+			node.set("key", mapper.readValue(messageKey, JsonNode.class));
+		}
+		if (message != null) {
+			node.set("value", mapper.readValue(message, JsonNode.class));
+		}
 		if (includeMetadata) {
 			node.putObject("metadata")
 				.put("offset", offset)

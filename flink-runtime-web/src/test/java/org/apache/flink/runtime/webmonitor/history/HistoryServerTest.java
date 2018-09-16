@@ -28,6 +28,8 @@ import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -75,13 +77,12 @@ public class HistoryServerTest extends TestLogger {
 		clusterConfig.setString(JobManagerOptions.ARCHIVE_DIR, jmDirectory.toURI().toString());
 
 		cluster = new MiniClusterResource(
-			new MiniClusterResource.MiniClusterResourceConfiguration(
-				clusterConfig,
-				1,
-				1
-			),
-			MiniClusterResource.MiniClusterType.NEW
-		);
+			new MiniClusterResourceConfiguration.Builder()
+				.setConfiguration(clusterConfig)
+				.setNumberTaskManagers(1)
+				.setNumberSlotsPerTaskManager(1)
+				.setCodebaseType(TestBaseUtils.CodebaseType.NEW)
+				.build());
 		cluster.before();
 	}
 

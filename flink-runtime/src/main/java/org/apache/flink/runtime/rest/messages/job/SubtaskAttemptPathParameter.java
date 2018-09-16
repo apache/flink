@@ -50,4 +50,9 @@ public class SubtaskAttemptPathParameter extends MessagePathParameter<Integer> {
 	protected String convertToString(Integer value) {
 		return value.toString();
 	}
+
+	@Override
+	public String getDescription() {
+		return "Positive integer value that identifies an execution attempt.";
+	}
 }
