@@ -24,15 +24,15 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableEnvironment, Types}
 import org.apache.flink.table.runtime.stream.table.{RowCollector, TestRetractSink, TestUpsertSink}
-import org.apache.flink.table.runtime.utils.StreamTestData
+import org.apache.flink.table.runtime.utils.{StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
-import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
+import org.apache.flink.test.util.TestBaseUtils
 import org.junit.Assert._
 import org.junit.Test
 
 import scala.collection.JavaConverters._
 
-class InsertIntoITCase extends AbstractTestBase {
+class InsertIntoITCase extends StreamingWithStateTestBase {
 
   @Test
   def testInsertIntoAppendStreamToTableSink(): Unit = {
@@ -240,7 +240,7 @@ class InsertIntoITCase extends AbstractTestBase {
       "Received retraction messages for append only table",
       results.exists(!_.f0))
 
-    val retracted = RowCollector.upsertResults(results, Array(0, 1, 2)).sorted
+    val retracted = RowCollector.upsertResults(results, Array(0, 1)).sorted
     val expected = List(
       "1,1970-01-01 00:00:00.005,1",
       "2,1970-01-01 00:00:00.005,2",
