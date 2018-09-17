@@ -40,8 +40,8 @@ public class ParquetRowInputFormat extends ParquetInputFormat<Row> implements Re
 	private boolean timeStampRewrite;
 	private int tsIndex;
 
-	public ParquetRowInputFormat(Path path, RowTypeInfo rowTypeInfo) {
-		super(path, rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames());
+	public ParquetRowInputFormat(Path path, RowTypeInfo rowTypeInfo, boolean isStandard) {
+		super(path, rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames(), isStandard);
 		this.returnType = new RowTypeInfo(readType.getFieldTypes().clone(), readType.getFieldNames());
 		this.timeStampRewrite = false;
 		LOG.debug(String.format("Created ParquetRowInputFormat with path [%s]", path.toString()));

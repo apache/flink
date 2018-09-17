@@ -44,7 +44,9 @@ import java.util.List;
 public class ParquetSchemaConverter {
 	public static final String MAP_KEY = "key";
 	public static final String MAP_VALUE = "value";
-	public static final String LIST_ELEMENT = "array";
+	public static final String LIST_ARRAY_TYPE = "array";
+	public static final String LIST_ELEMENT = "element";
+	public static final String LIST_GROUP_NAME = "list";
 	public static final String MESSAGE_ROOT = "root";
 	private static final AvroSchemaConverter SCHEMA_CONVERTER = new AvroSchemaConverter();
 
@@ -52,8 +54,15 @@ public class ParquetSchemaConverter {
 		return convertFields(type.getFields());
 	}
 
-	public static MessageType toParquetType(TypeInformation<?> typeInformation) {
-		return (MessageType) convertField(null, typeInformation, Type.Repetition.OPTIONAL);
+	/**
+	 * Converts Flink Internal Type to Parquet schema.
+	 *
+	 * @param typeInformation  flink type information
+	 * @param isStandard is standard LIST and MAP schema or back-compatible schema
+	 * @return Parquet schema
+	 */
+	public static MessageType toParquetType(TypeInformation<?> typeInformation, boolean isStandard) {
+		return (MessageType) convertField(null, typeInformation, Type.Repetition.OPTIONAL, isStandard);
 	}
 
 	private static TypeInformation<?> convertFields(List<Type> parquetFields) {
@@ -194,10 +203,24 @@ public class ParquetSchemaConverter {
 						}
 
 						if (repeatedType.isPrimitive()) {
+							// Backward-compatibility element group doesn't exist also allowed
 							typeInfo = BasicArrayTypeInfo.getInfoFor(
 								Array.newInstance(convertField(repeatedType).getTypeClass(), 0).getClass());
 						} else {
-							typeInfo = ObjectArrayTypeInfo.getInfoFor(convertField(repeatedType));
+							// Backward-compatibility element group name can be any string (element/array/other)
+							GroupType elementType = repeatedType.asGroupType();
+							if (elementType.getFieldCount() > 1) {
+								typeInfo = ObjectArrayTypeInfo.getInfoFor(convertField(elementType));
+							} else {
+								Type internalType = elementType.getType(0);
+								if (internalType.isPrimitive()) {
+									typeInfo = BasicArrayTypeInfo.getInfoFor(
+										Array.newInstance(convertField(internalType).getTypeClass(),
+											0).getClass());
+								} else {
+									typeInfo = ObjectArrayTypeInfo.getInfoFor(convertField(internalType));
+								}
+							}
 						}
 						break;
 
@@ -235,7 +258,8 @@ public class ParquetSchemaConverter {
 		return typeInfo;
 	}
 
-	private static Type convertField(String fieldName, TypeInformation<?> typeInfo, Type.Repetition inheritRepetition) {
+	private static Type convertField(String fieldName, TypeInformation<?> typeInfo,
+									Type.Repetition inheritRepetition, boolean isStandard) {
 		Type fieldType = null;
 
 		Type.Repetition repetition = inheritRepetition == null ? Type.Repetition.OPTIONAL : inheritRepetition;
@@ -270,30 +294,46 @@ public class ParquetSchemaConverter {
 		} else if (typeInfo instanceof MapTypeInfo) {
 			MapTypeInfo mapTypeInfo = (MapTypeInfo) typeInfo;
 			fieldType = Types.optionalMap()
-				.key(convertField(MAP_KEY, mapTypeInfo.getKeyTypeInfo(), Type.Repetition.REQUIRED))
-				.value(convertField(MAP_VALUE, mapTypeInfo.getValueTypeInfo(), Type.Repetition.OPTIONAL))
+				.key(convertField(MAP_KEY, mapTypeInfo.getKeyTypeInfo(), Type.Repetition.REQUIRED, isStandard))
+				.value(convertField(MAP_VALUE, mapTypeInfo.getValueTypeInfo(), Type.Repetition.OPTIONAL, isStandard))
 				.named(fieldName);
 		} else if (typeInfo instanceof ObjectArrayTypeInfo) {
 			ObjectArrayTypeInfo objectArrayTypeInfo = (ObjectArrayTypeInfo) typeInfo;
 			fieldType = Types.optionalGroup()
-				.addField(convertField(LIST_ELEMENT, objectArrayTypeInfo.getComponentInfo(), Type.Repetition.REPEATED))
+				.addField(convertField(LIST_ELEMENT, objectArrayTypeInfo.getComponentInfo(),
+					Type.Repetition.REPEATED, isStandard))
 				.as(OriginalType.LIST)
 				.named(fieldName);
 		} else if (typeInfo instanceof BasicArrayTypeInfo) {
 			BasicArrayTypeInfo basicArrayType = (BasicArrayTypeInfo) typeInfo;
-			PrimitiveType.PrimitiveTypeName primitiveTypeName =
-				convertField(fieldName, basicArrayType.getComponentInfo(),
-					Type.Repetition.OPTIONAL).asPrimitiveType().getPrimitiveTypeName();
-			fieldType = Types.optionalGroup()
-				.repeated(primitiveTypeName).named(LIST_ELEMENT)
-				.as(OriginalType.LIST).named(fieldName);
+
+			if (isStandard) {
+
+				// Add extra layer of Group according to Parquet's standard
+				Type listGroup = Types.repeatedGroup().addField(
+					convertField(LIST_ELEMENT, basicArrayType.getComponentInfo(),
+						Type.Repetition.OPTIONAL, isStandard)).named(LIST_GROUP_NAME);
+
+				fieldType = Types.optionalGroup()
+					.addField(listGroup)
+					.as(OriginalType.LIST).named(fieldName);
+			} else {
+				PrimitiveType primitiveTyp =
+					convertField(fieldName, basicArrayType.getComponentInfo(),
+						Type.Repetition.OPTIONAL, isStandard).asPrimitiveType();
+				fieldType = Types.optionalGroup()
+					.repeated(primitiveTyp.getPrimitiveTypeName())
+					.as(primitiveTyp.getOriginalType())
+					.named(LIST_ARRAY_TYPE)
+					.as(OriginalType.LIST).named(fieldName);
+			}
 		} else {
 			RowTypeInfo rowTypeInfo = (RowTypeInfo) typeInfo;
 			List<Type> types = new ArrayList<>();
 			String[] fieldNames = rowTypeInfo.getFieldNames();
 			TypeInformation<?>[] fieldTypes = rowTypeInfo.getFieldTypes();
 			for (int i = 0; i < rowTypeInfo.getArity(); i++) {
-				types.add(convertField(fieldNames[i], fieldTypes[i], Type.Repetition.OPTIONAL));
+				types.add(convertField(fieldNames[i], fieldTypes[i], Type.Repetition.OPTIONAL, isStandard));
 			}
 
 			if (fieldName == null) {

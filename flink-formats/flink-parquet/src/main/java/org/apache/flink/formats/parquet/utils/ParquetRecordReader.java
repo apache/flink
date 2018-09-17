@@ -177,6 +177,7 @@ public class ParquetRecordReader<T> {
 			} catch (RuntimeException e) {
 				LOG.error(String.format("Can not read value at %d in block %d in file %s",
 					current, currentBlock, reader.getFile()), e);
+				return false;
 			}
 		}
 

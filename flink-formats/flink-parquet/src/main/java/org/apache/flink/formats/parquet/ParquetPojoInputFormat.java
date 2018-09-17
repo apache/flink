@@ -32,7 +32,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -46,12 +48,13 @@ public class ParquetPojoInputFormat<E> extends ParquetInputFormat<E> {
 	private final TypeSerializer<E> typeSerializer;
 	private transient Field[] pojoFields;
 
-	public ParquetPojoInputFormat(Path filePath, PojoTypeInfo<E> pojoTypeInfo) {
-		this(filePath, pojoTypeInfo, pojoTypeInfo.getFieldNames());
+	public ParquetPojoInputFormat(Path filePath, PojoTypeInfo<E> pojoTypeInfo, boolean isStandard) {
+		this(filePath, pojoTypeInfo, pojoTypeInfo.getFieldNames(), isStandard);
 	}
 
-	public ParquetPojoInputFormat(Path filePath, PojoTypeInfo<E> pojoTypeInfo, String[] fieldNames) {
-		super(filePath, extractTypeInfos(pojoTypeInfo, fieldNames), fieldNames);
+	public ParquetPojoInputFormat(Path filePath, PojoTypeInfo<E> pojoTypeInfo, String[] fieldNames,
+		boolean isStandard) {
+		super(filePath, extractTypeInfos(pojoTypeInfo, fieldNames), fieldNames, isStandard);
 		this.pojoTypeClass = pojoTypeInfo.getTypeClass();
 		this.typeSerializer = pojoTypeInfo.createSerializer(new ExecutionConfig());
 	}
@@ -93,7 +96,11 @@ public class ParquetPojoInputFormat<E> extends ParquetInputFormat<E> {
 		E result = typeSerializer.createInstance();
 		for (int i = 0; i < row.getArity(); ++i) {
 			try {
-				pojoFields[i].set(result, row.getField(i));
+				if (pojoFields[i].getType().isAssignableFrom(List.class)) {
+					pojoFields[i].set(result, Arrays.asList(row.getField(i)));
+				} else {
+					pojoFields[i].set(result, row.getField(i));
+				}
 			} catch (IllegalAccessException e) {
 				throw new RuntimeException(
 					String.format("Parsed value could not be set in POJO field %s", fieldNames[i]));

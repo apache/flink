@@ -39,8 +39,8 @@ import java.util.Map;
  */
 public class ParquetMapInputFormat extends ParquetInputFormat<Map> {
 
-	public ParquetMapInputFormat(Path path, TypeInformation[] fieldTypes, String[] fieldNames) {
-		super(path, fieldTypes, fieldNames);
+	public ParquetMapInputFormat(Path path, TypeInformation[] fieldTypes, String[] fieldNames, boolean isStandard) {
+		super(path, fieldTypes, fieldNames, isStandard);
 	}
 
 	@Override

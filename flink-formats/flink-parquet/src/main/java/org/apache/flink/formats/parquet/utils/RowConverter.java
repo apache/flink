@@ -175,10 +175,17 @@ public class RowConverter extends GroupConverter implements ParentDataHolder {
 
 		RowPrimitiveConverter(Type dataType, ParentDataHolder parentDataHolder, int pos) {
 			this.dataType = dataType;
-			this.originalType = dataType.getOriginalType();
-			this.primitiveTypeName = dataType.asPrimitiveType().getPrimitiveTypeName();
 			this.parentDataHolder = parentDataHolder;
 			this.pos = pos;
+			if (dataType.isPrimitive()) {
+				this.originalType = dataType.getOriginalType();
+				this.primitiveTypeName = dataType.asPrimitiveType().getPrimitiveTypeName();
+			} else {
+				// Backward-compatibility  It can be a group type middle layer
+				Type primitiveType = dataType.asGroupType().getType(0);
+				this.originalType = primitiveType.getOriginalType();
+				this.primitiveTypeName = primitiveType.asPrimitiveType().getPrimitiveTypeName();
+			}
 		}
 
 		@Override

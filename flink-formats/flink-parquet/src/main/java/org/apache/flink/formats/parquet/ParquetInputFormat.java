@@ -38,10 +38,13 @@ import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.InputFile;
 import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The base InputFormat class to read from Parquet files.
@@ -63,6 +66,8 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E> implement
 
 	protected RowTypeInfo readType;
 
+	protected boolean isStandard;
+
 	protected final TypeInformation[] fieldTypes;
 
 	protected final String[] fieldNames;
@@ -73,12 +78,13 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E> implement
 
 	protected long lastSyncedBlock = -1L;
 
-	protected ParquetInputFormat(Path path, TypeInformation[] fieldTypes, String[] fieldNames) {
+	protected ParquetInputFormat(Path path, TypeInformation[] fieldTypes, String[] fieldNames, boolean isStandard) {
 		super(path);
 		this.readType = new RowTypeInfo(fieldTypes, fieldNames);
 		this.fieldTypes = readType.getFieldTypes();
 		this.fieldNames = readType.getFieldNames();
 		this.unsplittable = true;
+		this.isStandard = isStandard;
 	}
 
 	@Override
@@ -94,8 +100,7 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E> implement
 		ParquetReadOptions options = ParquetReadOptions.builder().build();
 		ParquetFileReader fileReader = new ParquetFileReader(inputFile, options);
 		MessageType schema = fileReader.getFileMetaData().getSchema();
-		checkSchema(schema);
-		MessageType readSchema = ParquetSchemaConverter.toParquetType(readType);
+		MessageType readSchema = getReadSchema(schema);
 		this.parquetRecordReader = new ParquetRecordReader<>(new RowReadSupport(), readSchema, FilterCompat.NOOP);
 		this.parquetRecordReader.initialize(fileReader, configuration);
 		if (this.recordConsumed == null) {
@@ -164,9 +169,9 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E> implement
 
 	protected abstract E convert(Row row);
 
-	private void checkSchema(MessageType schema) {
+	private MessageType getReadSchema(MessageType schema) {
 		RowTypeInfo rootTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(schema);
-
+		List<Type> types = new ArrayList<>();
 		for (int i = 0; i < fieldNames.length; ++i) {
 			String readFieldName = fieldNames[i];
 			TypeInformation<?> readFieldType = fieldTypes[i];
@@ -177,6 +182,10 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E> implement
 			if (!readFieldType.equals(rootTypeInfo.getTypeAt(readFieldName))) {
 				throw new IllegalArgumentException(readFieldName + " can not be converted to " + readFieldType);
 			}
+			types.add(schema.getType(readFieldName));
 		}
+
+		MessageType readSchema = new MessageType(schema.getName(), types);
+		return readSchema;
 	}
 }

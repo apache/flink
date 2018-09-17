@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -54,9 +55,12 @@ public class ParquetRecordReaderTest extends TestUtil {
 	public void testReadSimpleGroup() throws IOException {
 		temp.create();
 		Configuration configuration = new Configuration();
+
+		Long[] array = {1L};
 		GenericData.Record record = new GenericRecordBuilder(SIMPLE_SCHEMA)
 			.set("bar", "test")
-			.set("foo", 32L).build();
+			.set("foo", 32L)
+			.set("arr", array).build();
 
 		Path path = createTempParquetFile(temp, SIMPLE_SCHEMA, record,  1);
 		MessageType readSchema = (new AvroSchemaConverter()).convert(SIMPLE_SCHEMA);
@@ -71,9 +75,10 @@ public class ParquetRecordReaderTest extends TestUtil {
 		assertEquals(true, rowReader.hasNextRecord());
 
 		Row row = rowReader.nextRecord();
-		assertEquals(2, row.getArity());
+		assertEquals(3, row.getArity());
 		assertEquals(32L, row.getField(0));
 		assertEquals("test", row.getField(1));
+		assertArrayEquals(array, (Long[]) row.getField(2));
 		assertEquals(true, rowReader.reachEnd());
 	}
 

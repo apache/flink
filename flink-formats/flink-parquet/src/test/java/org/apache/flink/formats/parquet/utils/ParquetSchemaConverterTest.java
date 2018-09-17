@@ -37,8 +37,9 @@ import static org.junit.Assert.assertEquals;
  */
 public class ParquetSchemaConverterTest extends TestUtil {
 	private final RowTypeInfo simplyRowType = new RowTypeInfo(
-		new TypeInformation[] {BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO},
-		new String[] {"foo", "bar"}
+		new TypeInformation[] {BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
+			BasicArrayTypeInfo.LONG_ARRAY_TYPE_INFO},
+		new String[] {"foo", "bar", "arr"}
 	);
 
 	private final ObjectArrayTypeInfo nestedArray = ObjectArrayTypeInfo.getInfoFor(
@@ -74,7 +75,7 @@ public class ParquetSchemaConverterTest extends TestUtil {
 
 	@Test
 	public void testSimpleSchemaConversion() {
-		MessageType simpleType = new MessageType("simple", SIMPLE_TYPES);
+		MessageType simpleType = new MessageType("simple", SIMPLE_STANDARD_TYPES);
 		RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(simpleType);
 		assertEquals(simplyRowType, rowTypeInfo);
 	}
@@ -88,13 +89,13 @@ public class ParquetSchemaConverterTest extends TestUtil {
 
 	@Test
 	public void testSimpleRowTypeConversion() {
-		MessageType simpleSchema = ParquetSchemaConverter.toParquetType(simplyRowType);
-		assertEquals(Arrays.asList(SIMPLE_TYPES), simpleSchema.getFields());
+		MessageType simpleSchema = ParquetSchemaConverter.toParquetType(simplyRowType, true);
+		assertEquals(Arrays.asList(SIMPLE_STANDARD_TYPES), simpleSchema.getFields());
 	}
 
 	@Test
 	public void testNestedRowTypeConversion() {
-		MessageType nestedSchema = ParquetSchemaConverter.toParquetType(nestedRowType);
+		MessageType nestedSchema = ParquetSchemaConverter.toParquetType(nestedRowType, true);
 		assertEquals(Arrays.asList(NESTED_TYPES), nestedSchema.getFields());
 	}
 }

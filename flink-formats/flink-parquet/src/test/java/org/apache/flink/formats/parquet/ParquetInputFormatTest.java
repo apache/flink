@@ -19,6 +19,7 @@
 package org.apache.flink.formats.parquet;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.PojoField;
@@ -26,7 +27,7 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.formats.parquet.generated.SimpleRecord;
+import org.apache.flink.formats.parquet.pojo.PojoSimpleRecord;
 import org.apache.flink.formats.parquet.utils.ParquetSchemaConverter;
 import org.apache.flink.formats.parquet.utils.TestUtil;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -67,7 +68,7 @@ public class ParquetInputFormatTest {
 		MessageType simpleType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
 
 		ParquetRowInputFormat rowInputFormat = new ParquetRowInputFormat(
-			path, (RowTypeInfo) ParquetSchemaConverter.fromParquetType(simpleType));
+			path, (RowTypeInfo) ParquetSchemaConverter.fromParquetType(simpleType), false);
 
 		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
 		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())
@@ -91,7 +92,7 @@ public class ParquetInputFormatTest {
 		MessageType nestedType = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
 
 		ParquetRowInputFormat rowInputFormat = new ParquetRowInputFormat(
-			path, (RowTypeInfo) ParquetSchemaConverter.fromParquetType(nestedType));
+			path, (RowTypeInfo) ParquetSchemaConverter.fromParquetType(nestedType), false);
 
 		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
 		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())
@@ -121,11 +122,14 @@ public class ParquetInputFormatTest {
 		Path path = TestUtil.createTempParquetFile(temp, TestUtil.SIMPLE_SCHEMA, simple.f1, 1);
 
 		List<PojoField> fieldList = new ArrayList<>();
-		fieldList.add(new PojoField(simple.f0.getField("foo"), BasicTypeInfo.LONG_TYPE_INFO));
-		fieldList.add(new PojoField(simple.f0.getField("bar"), BasicTypeInfo.STRING_TYPE_INFO));
+		fieldList.add(new PojoField(PojoSimpleRecord.class.getField("foo"), BasicTypeInfo.LONG_TYPE_INFO));
+		fieldList.add(new PojoField(PojoSimpleRecord.class.getField("bar"), BasicTypeInfo.STRING_TYPE_INFO));
+		fieldList.add(new PojoField(PojoSimpleRecord.class.getField("arr"),
+			BasicArrayTypeInfo.LONG_ARRAY_TYPE_INFO));
 
-		ParquetPojoInputFormat<SimpleRecord> pojoInputFormat =
-			new ParquetPojoInputFormat<SimpleRecord>(path, new PojoTypeInfo<SimpleRecord>(SimpleRecord.class, fieldList));
+		ParquetPojoInputFormat<PojoSimpleRecord> pojoInputFormat =
+			new ParquetPojoInputFormat<PojoSimpleRecord>(path, new PojoTypeInfo<PojoSimpleRecord>(
+				PojoSimpleRecord.class, fieldList), false);
 
 		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
 		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())
@@ -136,8 +140,10 @@ public class ParquetInputFormatTest {
 		assertEquals(1, splits.length);
 		pojoInputFormat.open(splits[0]);
 
-		SimpleRecord simpleRecord = pojoInputFormat.nextRecord(null);
-		assertEquals(simple.f1, simpleRecord);
+		PojoSimpleRecord simpleRecord = pojoInputFormat.nextRecord(null);
+		assertEquals(simple.f2.getField(0), simpleRecord.getFoo());
+		assertEquals(simple.f2.getField(1), simpleRecord.getBar());
+		assertArrayEquals((Long[]) simple.f2.getField(2), simpleRecord.getArr());
 	}
 
 	@Test
@@ -150,7 +156,7 @@ public class ParquetInputFormatTest {
 		RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(nestedType);
 
 		ParquetMapInputFormat mapInputFormat = new ParquetMapInputFormat(
-			path, rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames());
+			path, rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames(), false);
 
 		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
 		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())
@@ -161,6 +167,7 @@ public class ParquetInputFormatTest {
 		mapInputFormat.open(splits[0]);
 
 		Map map = mapInputFormat.nextRecord(null);
+		assertNotNull(map);
 		assertArrayEquals((Long[]) map.get("arr"), (Long[]) nested.f2.getField(3));
 		assertArrayEquals((String[]) map.get("strArray"), (String[]) nested.f2.getField(4));
 
@@ -183,7 +190,7 @@ public class ParquetInputFormatTest {
 		MessageType simpleType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
 
 		ParquetRowInputFormat rowInputFormat = new ParquetRowInputFormat(
-			path, (RowTypeInfo) ParquetSchemaConverter.fromParquetType(simpleType));
+			path, (RowTypeInfo) ParquetSchemaConverter.fromParquetType(simpleType), false);
 
 		byte[] bytes = InstantiationUtil.serializeObject(rowInputFormat);
 		ParquetRowInputFormat copy = InstantiationUtil.deserializeObject(bytes, getClass().getClassLoader());
