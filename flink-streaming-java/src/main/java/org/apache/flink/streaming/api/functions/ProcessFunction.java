@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
@@ -83,6 +84,15 @@ public abstract class ProcessFunction<I, O> extends AbstractRichFunction {
 	 *                   to fail and may trigger recovery.
 	 */
 	public void onTimer(long timestamp, OnTimerContext ctx, Collector<O> out) throws Exception {}
+
+	/**
+	 * Called when watermark has advanced.
+	 *
+	 * @param mark The {@link Watermark} that triggered this call
+	 * @param out The collector to emit resulting elements to
+	 */
+	public void processWatermark(Watermark mark, Collector<O> out) throws Exception {
+	}
 
 	/**
 	 * Information available in an invocation of {@link #processElement(Object, Context, Collector)}

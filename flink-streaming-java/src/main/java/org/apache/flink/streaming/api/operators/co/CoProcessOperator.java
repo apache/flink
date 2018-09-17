@@ -79,7 +79,24 @@ public class CoProcessOperator<IN1, IN2, OUT>
 	}
 
 	@Override
+	public void processWatermark1(Watermark mark) throws Exception {
+		collector.setAbsoluteTimestamp(currentWatermark);
+		userFunction.processWatermark1(mark, collector);
+		super.processWatermark1(mark);
+	}
+
+	@Override
+	public void processWatermark2(Watermark mark) throws Exception {
+		collector.setAbsoluteTimestamp(currentWatermark);
+		userFunction.processWatermark2(mark, collector);
+		super.processWatermark2(mark);
+	}
+
+	@Override
 	public void processWatermark(Watermark mark) throws Exception {
+		collector.setAbsoluteTimestamp(mark.getTimestamp());
+		userFunction.processWatermark(mark, collector);
+
 		super.processWatermark(mark);
 		currentWatermark = mark.getTimestamp();
 	}
