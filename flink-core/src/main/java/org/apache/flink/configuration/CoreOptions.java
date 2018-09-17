@@ -140,6 +140,10 @@ public class CoreOptions {
 		.key("env.java.opts.taskmanager")
 		.defaultValue("");
 
+	public static final ConfigOption<String> FLINK_HS_JVM_OPTIONS = ConfigOptions
+		.key("env.java.opts.historyserver")
+		.defaultValue("");
+
 	/**
 	 * This options is here only for documentation generation, it is only
 	 * evaluated in the shell scripts.
