@@ -15,6 +15,7 @@
 ;; limitations under the License.
 
 (ns jepsen.flink.flink
+  (:gen-class)
   (:require [clojure.tools.logging :refer :all]
             [jepsen
              [cli :as cli]
