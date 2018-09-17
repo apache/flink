@@ -743,7 +743,7 @@ class TableSourceITCase(
   }
 
   @Test
-  def testTableSourceScanWithConversion(): Unit = {
+  def testTableSourceScanWithPermutedFields(): Unit = {
     val tableName = "MyTable"
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)

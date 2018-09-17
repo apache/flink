@@ -779,7 +779,7 @@ class TableSourceITCase extends AbstractTestBase {
   }
 
   @Test
-  def testTableSourceScanWithConversion(): Unit = {
+  def testTableSourceScanPermutedFields(): Unit = {
     StreamITCase.testResults = mutable.MutableList()
     val tableName = "MyTable"
     val env = StreamExecutionEnvironment.getExecutionEnvironment
