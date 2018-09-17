@@ -18,6 +18,7 @@
   :license {:name "Apache License"
             :url  "http://www.apache.org/licenses/LICENSE-2.0"}
   :main jepsen.flink.flink
+  :aot [jepsen.flink.flink]
   :dependencies [[org.clojure/clojure "1.9.0"],
                  [cheshire "5.8.0"]
                  [clj-http "3.8.0"]
