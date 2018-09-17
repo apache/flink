@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.runtime.io.benchmark;
 
+import org.apache.flink.configuration.Configuration;
+
 import org.junit.Test;
 
 /**
@@ -25,11 +27,29 @@ import org.junit.Test;
  */
 public class StreamNetworkPointToPointBenchmarkTest {
 	@Test
-	public void test() throws Exception {
+	public void testRemote() throws Exception {
 		StreamNetworkPointToPointBenchmark benchmark = new StreamNetworkPointToPointBenchmark();
-		benchmark.setUp(10);
+		benchmark.setUp(10, new Configuration(), false);
 		try {
-			benchmark.executeBenchmark(100, false);
+			benchmark.executeBenchmark(1_000, false);
+			benchmark.executeBenchmark(1_000, false);
+			benchmark.executeBenchmark(1_000, false);
+			benchmark.executeBenchmark(1_000, false);
+		}
+		finally {
+			benchmark.tearDown();
+		}
+	}
+
+	@Test
+	public void testLocal() throws Exception {
+		StreamNetworkPointToPointBenchmark benchmark = new StreamNetworkPointToPointBenchmark();
+		benchmark.setUp(10, new Configuration(), true);
+		try {
+			benchmark.executeBenchmark(1_000, false);
+			benchmark.executeBenchmark(1_000, false);
+			benchmark.executeBenchmark(1_000, false);
+			benchmark.executeBenchmark(1_000, false);
 		}
 		finally {
 			benchmark.tearDown();

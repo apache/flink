@@ -201,6 +201,10 @@ public class CancelPartitionRequestTest {
 		}
 
 		@Override
+		public void registerPeriodicFlush(long flushTimeout) {
+		}
+
+		@Override
 		public void releaseAllResources() throws IOException {
 			sync.countDown();
 		}

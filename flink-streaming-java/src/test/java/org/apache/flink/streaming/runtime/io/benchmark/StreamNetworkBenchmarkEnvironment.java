@@ -87,6 +87,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	protected IOManager ioManager;
 
 	protected int channels;
+	protected boolean broadcastMode = false;
 	protected boolean localMode = false;
 
 	protected ResultPartitionID[] partitionIds;
@@ -100,6 +101,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 		setUp(
 			writers,
 			channels,
+			false,
 			localMode,
 			senderBufferPoolSize,
 			receiverBufferPoolSize,
@@ -123,10 +125,12 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	public void setUp(
 			int writers,
 			int channels,
+			boolean broadcastMode,
 			boolean localMode,
 			int senderBufferPoolSize,
 			int receiverBufferPoolSize,
 			Configuration config) throws Exception {
+		this.broadcastMode = broadcastMode;
 		this.localMode = localMode;
 		this.channels = channels;
 		this.partitionIds = new ResultPartitionID[writers];

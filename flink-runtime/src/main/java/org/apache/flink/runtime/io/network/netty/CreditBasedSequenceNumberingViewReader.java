@@ -115,8 +115,12 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	@Override
 	public boolean isAvailable() {
 		// BEWARE: this must be in sync with #isAvailable(BufferAndBacklog)!
-		return hasBuffersAvailable() &&
-			(numCreditsAvailable > 0 || subpartitionView.nextBufferIsEvent());
+		return hasBuffersAvailable() && !isBlocked();
+	}
+
+	@Override
+	public boolean isBlocked() {
+		return numCreditsAvailable <= 0 && !subpartitionView.nextBufferIsEvent();
 	}
 
 	/**
@@ -195,6 +199,11 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	@Override
 	public void notifyDataAvailable() {
 		requestQueue.notifyReaderNonEmpty(this);
+	}
+
+	@Override
+	public void registerPeriodicFlush(long flushTimeout) {
+		requestQueue.registerPeriodicFlush(this, flushTimeout);
 	}
 
 	@Override

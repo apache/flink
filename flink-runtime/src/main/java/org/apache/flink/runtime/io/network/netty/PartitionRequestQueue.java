@@ -34,6 +34,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdapter;
+import org.apache.flink.shaded.netty4.io.netty.util.concurrent.ScheduledFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,11 +43,18 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A nonEmptyReader of partition queues, which listens for channel writability changed
@@ -63,6 +71,8 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 
 	/** All the readers created for the consumers' partition requests. */
 	private final ConcurrentMap<InputChannelID, NetworkSequenceViewReader> allReaders = new ConcurrentHashMap<>();
+
+	private final PeriodicFlushes periodicFlushes = new PeriodicFlushes();
 
 	private final Set<InputChannelID> released = Sets.newHashSet();
 
@@ -97,6 +107,18 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		});
 	}
 
+	void registerPeriodicFlush(NetworkSequenceViewReader reader, long flushTimeout) {
+		if (flushTimeout == 0) {
+			return;
+		}
+		ctx.executor().execute(new Runnable() {
+			@Override
+			public void run() {
+				ctx.pipeline().fireUserEventTriggered(new RegisterPeriodicFlushEvent(reader, flushTimeout));
+			}
+		});
+	}
+
 	/**
 	 * Try to enqueue the reader once receiving credit notification from the consumer or receiving
 	 * non-empty reader notification from the producer.
@@ -119,6 +141,22 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		}
 	}
 
+	private void flushReaders(long flushTimeout) throws Exception {
+		List<NetworkSequenceViewReader> readersToFlush = periodicFlushes.getReaders(flushTimeout);
+
+		boolean wasEmpty = availableReaders.isEmpty();
+
+		for (NetworkSequenceViewReader reader : readersToFlush) {
+			if (!reader.isRegisteredAsAvailable() && !reader.isBlocked()) {
+				registerAvailableReader(reader);
+			}
+		}
+
+		if (wasEmpty && !availableReaders.isEmpty()) {
+			writeAndFlushNextMessageIfPossible(ctx.channel());
+		}
+	}
+
 	/**
 	 * Accesses internal state to verify reader registration in the unit tests.
 	 *
@@ -131,8 +169,15 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		return availableReaders;
 	}
 
-	public void notifyReaderCreated(final NetworkSequenceViewReader reader) {
+	public void notifyReaderCreated(final NetworkSequenceViewReader reader) throws Exception {
 		allReaders.put(reader.getReceiverId(), reader);
+	}
+
+	private void handleRegisterPeriodicFlush(RegisterPeriodicFlushEvent msg) {
+		NetworkSequenceViewReader reader = msg.reader;
+		long flushTimeout = msg.flushTimeout;
+
+		periodicFlushes.register(ctx, flushTimeout, reader);
 	}
 
 	public void cancel(InputChannelID receiverId) {
@@ -172,8 +217,12 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		// The user event triggered event loop callback is used for thread-safe
 		// hand over of reader queues and cancelled producers.
 
-		if (msg instanceof NetworkSequenceViewReader) {
+		if (msg instanceof Long) {
+			flushReaders((long) msg);
+		} else if (msg instanceof NetworkSequenceViewReader) {
 			enqueueAvailableReader((NetworkSequenceViewReader) msg);
+		} else if (msg instanceof RegisterPeriodicFlushEvent) {
+			handleRegisterPeriodicFlush((RegisterPeriodicFlushEvent) msg);
 		} else if (msg.getClass() == InputChannelID.class) {
 			// Release partition view that get a cancel request.
 			InputChannelID toCancel = (InputChannelID) msg;
@@ -193,7 +242,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 				}
 			}
 
-			allReaders.remove(toCancel);
+			periodicFlushes.cancel(checkNotNull(allReaders.remove(toCancel)));
 		} else {
 			ctx.fireUserEventTriggered(msg);
 		}
@@ -225,6 +274,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 				}
 
 				next = reader.getNextBuffer();
+
 				if (next == null) {
 					if (!reader.isReleased()) {
 						continue;
@@ -352,6 +402,66 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 			} catch (Throwable t) {
 				handleException(future.channel(), t);
 			}
+		}
+	}
+
+	private static class RegisterPeriodicFlushEvent {
+		private final NetworkSequenceViewReader reader;
+		private final long flushTimeout;
+
+		public RegisterPeriodicFlushEvent(NetworkSequenceViewReader reader, long flushTimeout) {
+			this.reader = checkNotNull(reader);
+			this.flushTimeout = flushTimeout;
+		}
+
+		public NetworkSequenceViewReader getReader() {
+			return reader;
+		}
+
+		public long getFlushTimeout() {
+			return flushTimeout;
+		}
+	}
+
+	private static class PeriodicFlushes {
+		private final Map<Long, List<NetworkSequenceViewReader>> periodicFlushes = new HashMap<>();
+		private final Map<NetworkSequenceViewReader, Long> flushTimeouts = new HashMap<>();
+		private final Map<Long, ScheduledFuture<?>> scheduledEvents = new HashMap<>();
+
+		public void register(ChannelHandlerContext ctx, long flushTimeout, NetworkSequenceViewReader reader) {
+			checkState(!flushTimeouts.containsKey(reader));
+			checkState(flushTimeout > 0);
+
+			flushTimeouts.put(reader, flushTimeout);
+			List<NetworkSequenceViewReader> readers = periodicFlushes.getOrDefault(flushTimeout, new ArrayList<>());
+			boolean wasEmpty = readers.isEmpty();
+			readers.add(reader);
+			periodicFlushes.put(flushTimeout, readers);
+
+			if (wasEmpty) {
+				ScheduledFuture<?> scheduledFuture = ctx.executor().scheduleWithFixedDelay(
+					() -> ctx.pipeline().fireUserEventTriggered(flushTimeout),
+					flushTimeout,
+					flushTimeout,
+					TimeUnit.MILLISECONDS);
+
+				scheduledEvents.put(flushTimeout, scheduledFuture);
+			}
+		}
+
+		public void cancel(NetworkSequenceViewReader reader) {
+			long flushTimeout = checkNotNull(flushTimeouts.remove(reader));
+			List<NetworkSequenceViewReader> readers = periodicFlushes.get(flushTimeout);
+			checkState(!readers.isEmpty());
+			readers.remove(reader);
+
+			if (readers.isEmpty()) {
+				checkNotNull(scheduledEvents.remove(flushTimeout)).cancel(false);
+			}
+		}
+
+		public List<NetworkSequenceViewReader> getReaders(long flushTimeout) {
+			return checkNotNull(periodicFlushes.get(flushTimeout));
 		}
 	}
 }

@@ -127,6 +127,10 @@ public class TestSubpartitionConsumer implements Callable<Boolean>, BufferAvaila
 	}
 
 	@Override
+	public void registerPeriodicFlush(long flushTimeout) {
+	}
+
+	@Override
 	public void notifyDataAvailable() {
 		synchronized (dataAvailableNotification) {
 			dataAvailableNotification.set(true);

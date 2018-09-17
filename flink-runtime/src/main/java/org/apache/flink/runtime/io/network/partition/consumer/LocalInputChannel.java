@@ -199,8 +199,18 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	}
 
 	@Override
+	public boolean isLocal() {
+		return true;
+	}
+
+	@Override
 	public void notifyDataAvailable() {
 		notifyChannelNonEmpty();
+	}
+
+	@Override
+	public void registerPeriodicFlush(long flushTimeout) {
+		throw new UnsupportedOperationException("Periodic flushes are not supported for LocalInputChannels");
 	}
 
 	private ResultSubpartitionView checkAndWaitForSubpartitionView() {

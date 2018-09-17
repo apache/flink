@@ -73,6 +73,8 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 			outputFlusher = new OutputFlusher(threadName, timeout);
 			outputFlusher.start();
 		}
+
+		writer.setFlushTimeout(timeout);
 	}
 
 	@Override
@@ -170,7 +172,7 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 
 					// any errors here should let the thread come to a halt and be
 					// recognized by the writer
-					flushAll();
+					flushAllLocal();
 				}
 			}
 			catch (Throwable t) {

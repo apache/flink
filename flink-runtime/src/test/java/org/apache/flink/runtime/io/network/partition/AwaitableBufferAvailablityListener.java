@@ -32,6 +32,10 @@ class AwaitableBufferAvailablityListener implements BufferAvailabilityListener {
 		numNotifications.getAndIncrement();
 	}
 
+	@Override
+	public void registerPeriodicFlush(long flushTimeout) {
+	}
+
 	public long getNumNotifications() {
 		return numNotifications.get();
 	}

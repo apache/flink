@@ -52,6 +52,8 @@ public interface NetworkSequenceViewReader {
 	 */
 	boolean isAvailable();
 
+	boolean isBlocked();
+
 	boolean isRegisteredAsAvailable();
 
 	/**

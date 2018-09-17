@@ -16,17 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition;
+package org.apache.flink.streaming.runtime.io.benchmark;
 
 /**
- * Test implementation of {@link BufferAvailabilityListener}.
+ * Tests for various network benchmarks based on {@link StreamNetworkBroadcastThroughputBenchmark}.
  */
-class NoOpBufferAvailablityListener implements BufferAvailabilityListener {
+public class StreamNetworkBroadcastThroughputBenchmarkTest extends StreamNetworkThroughputBenchmarkTest {
 	@Override
-	public void notifyDataAvailable() {
-	}
-
-	@Override
-	public void registerPeriodicFlush(long flushTimeout) {
+	protected StreamNetworkThroughputBenchmark createBenchmark() {
+		return new StreamNetworkBroadcastThroughputBenchmark();
 	}
 }

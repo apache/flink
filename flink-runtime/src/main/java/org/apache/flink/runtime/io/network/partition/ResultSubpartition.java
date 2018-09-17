@@ -26,6 +26,7 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -46,6 +47,8 @@ public abstract class ResultSubpartition {
 	/** The number of non-event buffers currently in this subpartition */
 	@GuardedBy("buffers")
 	private int buffersInBacklog;
+
+	private Optional<Boolean> isLocal = Optional.empty();
 
 	// - Statistics ----------------------------------------------------------
 
@@ -106,11 +109,32 @@ public abstract class ResultSubpartition {
 
 	abstract public void flush();
 
+	/**
+	 * Remote subpartitions support automatic periodic flush. This is the method to register it.
+	 * Can only by used after {@link #isLocal()} state is known.
+	 */
+	public abstract void registerPeriodicFlush(long flushTimeout);
+
+	/**
+	 * @return empty if {@link #createReadView(BufferAvailabilityListener)} has not been yet called.
+	 * Afterwards returns {@code Optional.of(true)} or {@code Optional.of(false)}
+	 */
+	public Optional<Boolean> isLocal() {
+		return isLocal;
+	}
+
 	abstract public void finish() throws IOException;
 
 	abstract public void release() throws IOException;
 
-	abstract public ResultSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException;
+	public ResultSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException {
+		isLocal = Optional.of(availabilityListener.isLocal());
+		return createReadViewInternal(availabilityListener);
+	}
+
+
+	abstract protected ResultSubpartitionView createReadViewInternal(
+		BufferAvailabilityListener availabilityListener) throws IOException;
 
 	abstract int releaseMemory() throws IOException;
 
