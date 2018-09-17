@@ -454,7 +454,7 @@ public class RecordWriterTest {
 				Buffer buffer = buildSingleBuffer(queues[i].remove());
 				deserializer.setNextBuffer(buffer);
 
-				assertRecords += DeserializationUtils.deserializeRecords(expectedRecords, deserializer);
+				assertRecords += DeserializationUtils.deserializeRecords(expectedRecords, deserializer, false);
 			}
 			Assert.assertEquals(numValues, assertRecords);
 		}

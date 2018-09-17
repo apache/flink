@@ -25,6 +25,10 @@ import org.junit.Assert;
 
 import java.util.ArrayDeque;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasProperty;
+
 /**
  * Utility class to help deserialization for testing.
  */
@@ -36,18 +40,25 @@ public final class DeserializationUtils {
 	 *
 	 * @param records records to be deserialized
 	 * @param deserializer the record deserializer
+	 * @param mustBeFullRecords if set, fails if the deserialized records contain partial records
 	 * @return the number of full deserialized records
 	 */
 	public static int deserializeRecords(
 			ArrayDeque<SerializationTestType> records,
-			RecordDeserializer<SerializationTestType> deserializer) throws Exception {
+			RecordDeserializer<SerializationTestType> deserializer,
+			boolean mustBeFullRecords) throws Exception {
 		int deserializedRecords = 0;
 
 		while (!records.isEmpty()) {
 			SerializationTestType expected = records.poll();
 			SerializationTestType actual = expected.getClass().newInstance();
 
-			if (deserializer.getNextRecord(actual).isFullRecord()) {
+			RecordDeserializer.DeserializationResult deserializationResult =
+				deserializer.getNextRecord(actual);
+			if (mustBeFullRecords) {
+				assertThat(deserializationResult, hasProperty("fullRecord", equalTo(true)));
+			}
+			if (deserializationResult.isFullRecord()) {
 				Assert.assertEquals(expected, actual);
 				deserializedRecords++;
 			} else {

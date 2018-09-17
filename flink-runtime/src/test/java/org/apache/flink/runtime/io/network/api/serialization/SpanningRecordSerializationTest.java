@@ -150,11 +150,12 @@ public class SpanningRecordSerializationTest extends TestLogger {
 				// buffer is full => start deserializing
 				deserializer.setNextBuffer(serializationResult.buildBuffer());
 
-				numRecords -= DeserializationUtils.deserializeRecords(serializedRecords, deserializer);
+				numRecords -= DeserializationUtils.deserializeRecords(serializedRecords, deserializer, false);
 
-				// move buffers as long as necessary (for long records)
+				// move buffers as long as necessary (for spanning records)
 				while ((serializationResult = setNextBufferForSerializer(serializer, segmentSize)).isFullBuffer()) {
 					deserializer.setNextBuffer(serializationResult.buildBuffer());
+					numRecords -= DeserializationUtils.deserializeRecords(serializedRecords, deserializer, false);
 				}
 			}
 		}
@@ -162,16 +163,7 @@ public class SpanningRecordSerializationTest extends TestLogger {
 		// deserialize left over records
 		deserializer.setNextBuffer(serializationResult.buildBuffer());
 
-		while (!serializedRecords.isEmpty()) {
-			SerializationTestType expected = serializedRecords.poll();
-
-			SerializationTestType actual = expected.getClass().newInstance();
-			RecordDeserializer.DeserializationResult result = deserializer.getNextRecord(actual);
-
-			Assert.assertTrue(result.isFullRecord());
-			Assert.assertEquals(expected, actual);
-			numRecords--;
-		}
+		numRecords -= DeserializationUtils.deserializeRecords(serializedRecords, deserializer, true);
 
 		// assert that all records have been serialized and deserialized
 		Assert.assertEquals(0, numRecords);
