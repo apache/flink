@@ -57,15 +57,15 @@ public class HadoopUserOverlay implements ContainerOverlay {
 	}
 
 	public static Builder newBuilder() {
-		// First check if we have Hadoop in the ClassPath. If not, we simply don't do anything.
+		// First check if we have Hadoop specific dependencies in the ClassPath. If not, we simply don't do anything.
 		try {
 			Class.forName(
 				"org.apache.hadoop.security.UserGroupInformation",
 				false,
 				HadoopUserOverlay.class.getClassLoader());
 		} catch (ClassNotFoundException e) {
-			LOG.info("Cannot create Hadoop User Overlay because Hadoop cannot be found in the Classpath.");
-			return new NoOpHadoopUserOverlayBuilder();
+			LOG.info("Cannot create Hadoop User Overlay because Hadoop specific dependencies cannot be found in the Classpath.");
+			return new EmptyHadoopUserOverlayBuilder();
 		}
 
 		return new HadoopUserOverlayBuilder();
@@ -84,9 +84,9 @@ public class HadoopUserOverlay implements ContainerOverlay {
 	}
 
 	/**
-	 * A builder for {@link HadoopUserOverlay} for when hadoop doesn't exist on the classpath
+	 * A builder for {@link HadoopUserOverlay} when hadoop doesn't exist on the classpath
 	 */
-	public static class NoOpHadoopUserOverlayBuilder implements Builder {
+	public static class EmptyHadoopUserOverlayBuilder implements Builder {
 		@Override
 		public Builder fromEnvironment(Configuration globalConfiguration) throws IOException {
 			return this;
