@@ -168,7 +168,9 @@ public class SlotManager implements AutoCloseable {
 		}
 	}
 
-	public int getNumberPendingSlotRequests() {return pendingSlotRequests.size(); }
+	public int getNumberPendingSlotRequests() {
+		return pendingSlotRequests.size();
+	}
 
 	// ---------------------------------------------------------------------------------------------
 	// Component lifecycle methods
