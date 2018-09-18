@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+
 import org.junit.Test;
 
 import java.io.File;
@@ -32,12 +33,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link TextInputFormat}.
@@ -250,13 +251,13 @@ public class TextInputFormatTest {
 			result = inputFormat.nextRecord("");
 			System.out.println(result);
 			assertNotNull("Expecting first record here", result);
-//			assertEquals(first, result.substring(1));
+			assertEquals(first, result.substring(1));
 
 			assertFalse(inputFormat.reachedEnd());
 			result = inputFormat.nextRecord(result);
 			System.out.println(result);
 			assertNotNull("Expecting second record here", result);
-//			assertEquals(second, result);
+			assertEquals(second, result);
 
 			assertTrue(inputFormat.reachedEnd() || null == inputFormat.nextRecord(result));
 		}
