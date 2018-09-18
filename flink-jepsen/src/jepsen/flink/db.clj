@@ -36,7 +36,7 @@
 (def conf-file (str install-dir "/conf/flink-conf.yaml"))
 (def masters-file (str install-dir "/conf/masters"))
 
-(def default-flink-dist-url "https://archive.apache.org/dist/flink/flink-1.5.0/flink-1.5.0-bin-hadoop28-scala_2.11.tgz")
+(def default-flink-dist-url "https://archive.apache.org/dist/flink/flink-1.6.0/flink-1.6.0-bin-hadoop28-scala_2.11.tgz")
 (def hadoop-dist-url "https://archive.apache.org/dist/hadoop/common/hadoop-2.8.3/hadoop-2.8.3.tar.gz")
 (def deb-zookeeper-package "3.4.9-3+deb8u1")
 (def deb-mesos-package "1.5.0-2.0.2")
