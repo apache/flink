@@ -32,7 +32,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+import static org.junit.Assert.assertNull;
 
 /**
  * Tests for {@link TextInputFormat}.
@@ -211,8 +216,8 @@ public class TextInputFormatTest {
 
 	@Test
 	public void testUTF16Read() {
-		final String first = "userId,startTime,startLon,startLat,endTime,endLon,endLat";
-		final String second = "15,2017-08-01 08:03:42,121.553284356451,31.2453823853525,2017-08-01 09:12:45,121.44078692371,31.1641319953861";
+		final String first = "First line";
+		final String second = "Second line";
 
 		try {
 			// create input file
@@ -237,10 +242,9 @@ public class TextInputFormatTest {
 			assertTrue("expected at least one input split", splits.length >= 1);
 			inputFormat.open(splits[0]);
 
-
 			String result = "";
 
-			System.out.println("bomCharsetName:"+inputFormat.getBomCharsetName());
+			System.out.println("bomCharsetName:" + inputFormat.getBomCharsetName());
 
 			assertFalse(inputFormat.reachedEnd());
 			result = inputFormat.nextRecord("");
