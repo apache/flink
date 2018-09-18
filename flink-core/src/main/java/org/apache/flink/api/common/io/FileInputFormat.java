@@ -612,6 +612,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		for (final FileStatus file : files) {
 
 			String bomCharsetName = getBomCharset(file.getPath().getPath());
+			System.out.println("bomCharsetName:"+bomCharsetName);
 
 			final FileSystem fs = file.getPath().getFileSystem();
 			final long len = file.getLen();
