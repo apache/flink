@@ -60,9 +60,9 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 
 	public String getCharsetName() {
 		String bomCharsetName = getBomCharsetName();
-		if(bomCharsetName!=null&&!bomCharsetName.equals(charsetName)){
+		if (bomCharsetName!=null&&!bomCharsetName.equals(charsetName)) {
 			return bomCharsetName;
-		}else{
+		} else {
 			return charsetName;
 		}
 	}
@@ -93,15 +93,15 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 		//Check if \n is used as delimiter and the end of this line is a \r, then remove \r from the line
 		if (this.getDelimiter() != null && this.getDelimiter().length == 1
 				&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 1
-				&& bytes[offset + numBytes - 1] == CARRIAGE_RETURN){
+				&& bytes[offset + numBytes - 1] == CARRIAGE_RETURN) {
 			numBytes -= 1;
-		}else if(this.getDelimiter() != null && this.getDelimiter().length == 1
+		} else if (this.getDelimiter() != null && this.getDelimiter().length == 1
 			&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 1
-			&& bytes[offset + numBytes - 2] == CARRIAGE_RETURN){
+			&& bytes[offset + numBytes - 2] == CARRIAGE_RETURN) {
 			numBytes -= 3;
-		} else if(this.getDelimiter() != null && this.getDelimiter().length == 1
+		} else if (this.getDelimiter() != null && this.getDelimiter().length == 1
 			&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 1
-			&& bytes[offset + numBytes - 4] == CARRIAGE_RETURN){
+			&& bytes[offset + numBytes - 4] == CARRIAGE_RETURN) {
 			numBytes -= 5;
 		}
 		return new String(bytes, offset, numBytes, this.getCharsetName());
