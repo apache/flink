@@ -60,7 +60,7 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 
 	public String getCharsetName() {
 		String bomCharsetName = getBomCharsetName();
-		if(!bomCharsetName.equals(charsetName)){
+		if(bomCharsetName!=null&&!bomCharsetName.equals(charsetName)){
 			return bomCharsetName;
 		}else{
 			return charsetName;

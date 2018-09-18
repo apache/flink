@@ -19,19 +19,34 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.api.common.io.compression.*;
+import org.apache.flink.api.common.io.compression.Bzip2InputStreamFactory;
+import org.apache.flink.api.common.io.compression.DeflateInflaterInputStreamFactory;
+import org.apache.flink.api.common.io.compression.GzipInflaterInputStreamFactory;
+import org.apache.flink.api.common.io.compression.InflaterInputStreamFactory;
+import org.apache.flink.api.common.io.compression.XZInputStreamFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.core.fs.*;
+import org.apache.flink.core.fs.BlockLocation;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -587,6 +602,8 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		if (unsplittable) {
 			int splitNum = 0;
 			for (final FileStatus file : files) {
+				String bomCharsetName = getBomCharset(file.getPath().getPath());
+
 				final FileSystem fs = file.getPath().getFileSystem();
 				final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, file.getLen());
 				Set<String> hosts = new HashSet<String>();
@@ -598,7 +615,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 					len = READ_WHOLE_SPLIT_FLAG;
 				}
 				FileInputSplit fis = new FileInputSplit(splitNum++, file.getPath(), 0, len,
-						hosts.toArray(new String[hosts.size()]));
+						hosts.toArray(new String[hosts.size()]),bomCharsetName);
 				inputSplits.add(fis);
 			}
 			return inputSplits.toArray(new FileInputSplit[inputSplits.size()]);
@@ -674,7 +691,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 				} else {
 					hosts = new String[0];
 				}
-				final FileInputSplit fis = new FileInputSplit(splitNum++, file.getPath(), 0, 0, hosts);
+				final FileInputSplit fis = new FileInputSplit(splitNum++, file.getPath(), 0, 0, hosts,bomCharsetName);
 				inputSplits.add(fis);
 			}
 		}
