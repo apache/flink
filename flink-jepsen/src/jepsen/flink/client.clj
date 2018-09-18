@@ -47,6 +47,12 @@
   (info "Waiting for path" path "in ZK.")
   (wait-for-zk-operation zk-client zk/exists path))
 
+(defn get-only-application-id
+  [coll]
+  (assert (= 1 (count coll)) (str "Expected 1 application id, got " coll ". "
+                                  "Failed to deploy the Flink cluster, or there are lingering Flink clusters."))
+  (first coll))
+
 (defn wait-for-children-to-exist
   [zk-client path]
   (wait-for-zk-operation zk-client zk/children path))
@@ -60,7 +66,7 @@
     (->
       (wait-for-children-to-exist zk-client "/flink")
       (deref)
-      (first))))
+      (get-only-application-id))))
 
 (defn watch-node-bytes
   [zk-client path callback]
