@@ -115,7 +115,9 @@
         (doall (map #(db/setup! % test node) dbs))))
     (teardown! [_ test node]
       (c/su
-        (doall (map #(db/teardown! % test node) dbs))))
+        (try
+          (doall (map #(db/teardown! % test node) dbs))
+          (finally (fu/stop-all-supervised-services!)))))
     db/LogFiles
     (log-files [_ test node]
       (->>
