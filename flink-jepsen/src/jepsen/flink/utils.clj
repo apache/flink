@@ -64,7 +64,7 @@
   [service-name cmd]
   (let [service-dir (str "/etc/sv/" service-name)
         run-script (str service-dir "/run")]
-    (info "Create service" service-name)
+    (info "Create supervised service" service-name)
     (c/su
       (install-process-supervisor!)
       (c/exec :mkdir :-p service-dir)
@@ -77,6 +77,13 @@
 (defn stop-supervised-service!
   "Stops a service and removes it from supervision."
   [service-name]
-  (info "Stop service" service-name)
+  (info "Stop supervised service" service-name)
   (c/su
     (c/exec :rm :-f (str "/etc/service/" service-name))))
+
+(defn stop-all-supervised-services!
+  "Stops and removes all services from supervision if any."
+  []
+  (info "Stop all supervised services.")
+  (c/su
+    (c/exec :rm :-f (c/lit (str "/etc/service/*")))))
