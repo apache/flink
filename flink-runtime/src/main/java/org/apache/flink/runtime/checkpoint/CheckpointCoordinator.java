@@ -180,6 +180,8 @@ public class CheckpointCoordinator {
 	/** Registry that tracks state which is shared across (incremental) checkpoints */
 	private SharedStateRegistry sharedStateRegistry;
 
+	private final CheckpointFailureManager failureManager;
+
 	// --------------------------------------------------------------------------------------------
 
 	public CheckpointCoordinator(
@@ -196,10 +198,12 @@ public class CheckpointCoordinator {
 			CompletedCheckpointStore completedCheckpointStore,
 			StateBackend checkpointStateBackend,
 			Executor executor,
-			SharedStateRegistryFactory sharedStateRegistryFactory) {
+			SharedStateRegistryFactory sharedStateRegistryFactory,
+			CheckpointFailureManager failureManager) {
 
 		// sanity checks
 		checkNotNull(checkpointStateBackend);
+		checkNotNull(failureManager);
 		checkArgument(baseInterval > 0, "Checkpoint base interval must be larger than zero");
 		checkArgument(checkpointTimeout >= 1, "Checkpoint timeout must be larger than zero");
 		checkArgument(minPauseBetweenCheckpoints >= 0, "minPauseBetweenCheckpoints must be >= 0");
@@ -230,6 +234,7 @@ public class CheckpointCoordinator {
 		this.executor = checkNotNull(executor);
 		this.sharedStateRegistryFactory = checkNotNull(sharedStateRegistryFactory);
 		this.sharedStateRegistry = sharedStateRegistryFactory.create(executor);
+		this.failureManager = failureManager;
 
 		this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
 		this.masterHooks = new HashMap<>();
@@ -546,6 +551,8 @@ public class CheckpointCoordinator {
 						LOG.info("Checkpoint {} of job {} expired before completing.", checkpointID, job);
 
 						checkpoint.abortExpired();
+						failureManager.tryHandleFailure(new Throwable("Checkpoint " + checkpointID + " of job " +
+							job + " expired before completing"), checkpointID);
 						pendingCheckpoints.remove(checkpointID);
 						rememberRecentCheckpointId(checkpointID);
 
@@ -642,6 +649,8 @@ public class CheckpointCoordinator {
 
 				if (!checkpoint.isDiscarded()) {
 					checkpoint.abortError(new Exception("Failed to trigger checkpoint", t));
+					failureManager.tryHandleFailure(
+						new Exception("Failed to trigger checkpoint : " + checkpointID, t), checkpointID);
 				}
 
 				try {
@@ -831,6 +840,8 @@ public class CheckpointCoordinator {
 				// abort the current pending checkpoint if we fails to finalize the pending checkpoint.
 				if (!pendingCheckpoint.isDiscarded()) {
 					pendingCheckpoint.abortError(e1);
+					failureManager.tryHandleFailure(
+						new Exception("Checkpoint : " + checkpointId, e1), checkpointId);
 				}
 
 				throw new CheckpointException("Could not finalize the pending checkpoint " + checkpointId + '.', e1);
@@ -873,6 +884,8 @@ public class CheckpointCoordinator {
 
 		LOG.info("Completed checkpoint {} for job {} ({} bytes in {} ms).", checkpointId, job,
 			completedCheckpoint.getStateSize(), completedCheckpoint.getDuration());
+
+		failureManager.resetCounter();
 
 		if (LOG.isDebugEnabled()) {
 			StringBuilder builder = new StringBuilder();
@@ -1147,10 +1160,6 @@ public class CheckpointCoordinator {
 		return completedCheckpointStore;
 	}
 
-	public CheckpointIDCounter getCheckpointIdCounter() {
-		return checkpointIdCounter;
-	}
-
 	public long getCheckpointTimeout() {
 		return checkpointTimeout;
 	}
@@ -1254,6 +1263,8 @@ public class CheckpointCoordinator {
 		LOG.info("Discarding checkpoint {} of job {} because: {}", checkpointId, job, reason);
 
 		pendingCheckpoint.abortDeclined();
+		failureManager.tryHandleFailure("Discarding checkpoint " + checkpointId +" of job " +
+			job + " because: " + reason, checkpointId);
 		rememberRecentCheckpointId(checkpointId);
 
 		// we don't have to schedule another "dissolving" checkpoint any more because the

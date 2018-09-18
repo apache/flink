@@ -28,6 +28,7 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
@@ -342,6 +343,11 @@ public class ExecutionGraphBuilder {
 
 			final CheckpointCoordinatorConfiguration chkConfig = snapshotSettings.getCheckpointCoordinatorConfiguration();
 
+			CheckpointFailureManager failureManager = new CheckpointFailureManager(
+				chkConfig.isFailOnCheckpointingErrors(),
+				chkConfig.getTolerableCpFailureNumber(),
+				executionGraph);
+
 			executionGraph.enableCheckpointing(
 				chkConfig.getCheckpointInterval(),
 				chkConfig.getCheckpointTimeout(),
@@ -355,7 +361,8 @@ public class ExecutionGraphBuilder {
 				checkpointIdCounter,
 				completedCheckpoints,
 				rootBackend,
-				checkpointStatsTracker);
+				checkpointStatsTracker,
+				failureManager);
 		}
 
 		// create all the metrics for the Execution Graph

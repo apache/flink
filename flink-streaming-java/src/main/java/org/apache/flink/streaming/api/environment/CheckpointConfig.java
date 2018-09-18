@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.util.Preconditions;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -45,6 +46,9 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/** The default limit of concurrently happening checkpoints: one. */
 	public static final int DEFAULT_MAX_CONCURRENT_CHECKPOINTS = 1;
+
+	/** The default tolerable failure number: none. */
+	public static final int DEFAULT_TOLERABLE_FAILURE_NUMBER = 0;
 
 	// ------------------------------------------------------------------------
 
@@ -71,6 +75,9 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/** Determines if a tasks are failed or not if there is an error in their checkpointing. Default: true */
 	private boolean failOnCheckpointingErrors = true;
+
+	/** Determines tolerate how many times the checkpoint fails in succession to trigger task fail. */
+	private int tolerableFailureNumber = DEFAULT_TOLERABLE_FAILURE_NUMBER;
 
 	// ------------------------------------------------------------------------
 
@@ -204,6 +211,24 @@ public class CheckpointConfig implements java.io.Serializable {
 			throw new IllegalArgumentException("The maximum number of concurrent attempts must be at least one.");
 		}
 		this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
+	}
+
+	/**
+	 * Get the number which allow how many times the checkpoint fails in succession to
+	 * trigger the job to fail. Default: 0.
+	 */
+	public int getTolerableFailureNumber() {
+		return tolerableFailureNumber;
+	}
+
+	/**
+	 * Set the number which allow how many times the checkpoint fails in succession to
+	 * trigger the job to fail. Default: 0.
+	 */
+	public void setTolerableFailureNumber(int tolerableFailureNumber) {
+		Preconditions.checkArgument(
+			tolerableFailureNumber >= 0, "The number must greater than or equal to zero.");
+		this.tolerableFailureNumber = tolerableFailureNumber;
 	}
 
 	/**

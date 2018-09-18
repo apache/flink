@@ -843,6 +843,8 @@ class JobManagerITCase(_system: ActorSystem)
               60000,
               1,
               CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+              true,
+              0,
               true),
             null))
 
@@ -904,6 +906,8 @@ class JobManagerITCase(_system: ActorSystem)
               60000,
               1,
               CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+              true,
+              0,
               true),
             null))
 
@@ -973,6 +977,8 @@ class JobManagerITCase(_system: ActorSystem)
               60000,
               1,
               CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+              true,
+              0,
               true),
             null))
 

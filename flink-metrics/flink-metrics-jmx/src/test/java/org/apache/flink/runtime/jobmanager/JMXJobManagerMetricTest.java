@@ -100,6 +100,8 @@ public class JMXJobManagerMetricTest extends TestLogger {
 					50,
 					5,
 					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+					true,
+					0,
 					true),
 				null));
 

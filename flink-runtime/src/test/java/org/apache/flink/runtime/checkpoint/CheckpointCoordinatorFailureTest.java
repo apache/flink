@@ -80,7 +80,8 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 			new FailingCompletedCheckpointStore(),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			SharedStateRegistry.DEFAULT_FACTORY);
+			SharedStateRegistry.DEFAULT_FACTORY,
+			mock(CheckpointFailureManager.class));
 
 		coord.triggerCheckpoint(triggerTimestamp, false);
 

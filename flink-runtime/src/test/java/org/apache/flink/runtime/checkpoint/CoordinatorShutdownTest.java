@@ -86,6 +86,8 @@ public class CoordinatorShutdownTest extends TestLogger {
 						0L,
 						Integer.MAX_VALUE,
 						CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+						true,
+						0,
 						true),
 					null));
 			testGraph.setExecutionConfig(executionConfig);
@@ -157,6 +159,8 @@ public class CoordinatorShutdownTest extends TestLogger {
 						0L,
 						Integer.MAX_VALUE,
 						CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+						true,
+						0,
 						true),
 					null));
 			

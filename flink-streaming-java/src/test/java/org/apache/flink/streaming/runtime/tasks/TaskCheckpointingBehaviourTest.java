@@ -91,7 +91,6 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -116,27 +115,12 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 	}
 
 	@Test
-	public void testTaskFailingOnCheckpointErrorInSyncPart() throws Exception {
-		Throwable failureCause = runTestTaskFailingOnCheckpointError(new SyncFailureInducingStateBackend());
-		assertNotNull(failureCause);
-
-		String expectedMessageStart = "Could not perform checkpoint";
-		assertEquals(expectedMessageStart, failureCause.getMessage().substring(0, expectedMessageStart.length()));
-	}
-
-	@Test
-	public void testTaskFailingOnCheckpointErrorInAsyncPart() throws Exception {
-		Throwable failureCause = runTestTaskFailingOnCheckpointError(new AsyncFailureInducingStateBackend());
-		assertEquals(AsynchronousException.class, failureCause.getClass());
-	}
-
-	@Test
 	public void testBlockingNonInterruptibleCheckpoint() throws Exception {
 
 		StateBackend lockingStateBackend = new BackendForTestStream(LockingOutputStream::new);
 
 		Task task =
-			createTask(new TestOperator(), lockingStateBackend, mock(CheckpointResponder.class), true);
+			createTask(new TestOperator(), lockingStateBackend, mock(CheckpointResponder.class));
 
 		// start the task and wait until it is in "restore"
 		task.startTaskThread();
@@ -156,7 +140,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		TestDeclinedCheckpointResponder checkpointResponder = new TestDeclinedCheckpointResponder();
 
 		Task task =
-			createTask(new FilterOperator(), backend, checkpointResponder, false);
+			createTask(new FilterOperator(), backend, checkpointResponder);
 
 		// start the task and wait until it is in "restore"
 		task.startTaskThread();
@@ -169,20 +153,6 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		task.getExecutingThread().join();
 	}
 
-	private Throwable runTestTaskFailingOnCheckpointError(AbstractStateBackend backend) throws Exception {
-
-		Task task =
-			createTask(new FilterOperator(), backend, mock(CheckpointResponder.class), true);
-
-		// start the task and wait until it is in "restore"
-		task.startTaskThread();
-
-		task.getExecutingThread().join();
-
-		assertEquals(ExecutionState.FAILED, task.getExecutionState());
-		return task.getFailureCause();
-	}
-
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -190,8 +160,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 	private static Task createTask(
 		StreamOperator<?> op,
 		StateBackend backend,
-		CheckpointResponder checkpointResponder,
-		boolean failOnCheckpointErrors) throws IOException {
+		CheckpointResponder checkpointResponder) throws IOException {
 
 		Configuration taskConfig = new Configuration();
 		StreamConfig cfg = new StreamConfig(taskConfig);
@@ -200,7 +169,6 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		cfg.setStateBackend(backend);
 
 		ExecutionConfig executionConfig = new ExecutionConfig();
-		executionConfig.setFailTaskOnCheckpointError(failOnCheckpointErrors);
 
 		JobInformation jobInformation = new JobInformation(
 				new JobID(),

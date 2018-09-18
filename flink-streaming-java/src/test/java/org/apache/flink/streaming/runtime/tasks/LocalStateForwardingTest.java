@@ -111,7 +111,8 @@ public class LocalStateForwardingTest extends TestLogger {
 				snapshots,
 				checkpointMetaData,
 				checkpointMetrics,
-				0L);
+				0L,
+				streamMockEnvironment);
 
 		checkpointRunnable.run();
 

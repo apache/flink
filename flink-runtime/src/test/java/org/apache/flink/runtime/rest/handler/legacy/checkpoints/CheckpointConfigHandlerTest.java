@@ -156,6 +156,8 @@ public class CheckpointConfigHandlerTest {
 		long timeout = 996979L;
 		long minPause = 119191919L;
 		int maxConcurrent = 12929329;
+		int tolerableCpFailureNumber = 0;
+		boolean failOnCheckpointingErrors = false;
 
 		CheckpointRetentionPolicy retentionPolicy = externalized
 			? CheckpointRetentionPolicy.RETAIN_ON_FAILURE
@@ -167,7 +169,9 @@ public class CheckpointConfigHandlerTest {
 			minPause,
 			maxConcurrent,
 			retentionPolicy,
-			exactlyOnce);
+			exactlyOnce,
+			tolerableCpFailureNumber,
+			failOnCheckpointingErrors);
 
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
 		when(graph.getCheckpointCoordinatorConfiguration()).thenReturn(chkConfig);

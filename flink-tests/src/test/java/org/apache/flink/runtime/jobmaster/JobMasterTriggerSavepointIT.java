@@ -105,6 +105,8 @@ public class JobMasterTriggerSavepointIT extends AbstractTestBase {
 				10,
 				1,
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				true,
+				0,
 				true),
 			null));
 

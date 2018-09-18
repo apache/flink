@@ -1354,6 +1354,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
 		env.enableCheckpointing(500);
+		env.getCheckpointConfig().setFailOnCheckpointingErrors(false);
+		env.getCheckpointConfig().setTolerableFailureNumber(Integer.MAX_VALUE);
 		env.setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
 

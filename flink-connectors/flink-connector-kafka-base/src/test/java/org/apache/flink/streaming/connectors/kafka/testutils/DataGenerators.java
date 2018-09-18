@@ -57,6 +57,8 @@ public class DataGenerators {
 		env.setParallelism(numPartitions);
 		env.getConfig().disableSysoutLogging();
 		env.setRestartStrategy(RestartStrategies.noRestart());
+		env.getCheckpointConfig().setFailOnCheckpointingErrors(false);
+		env.getCheckpointConfig().setTolerableFailureNumber(Integer.MAX_VALUE);
 
 		DataStream<Integer> stream = env.addSource(
 				new RichParallelSourceFunction<Integer>() {

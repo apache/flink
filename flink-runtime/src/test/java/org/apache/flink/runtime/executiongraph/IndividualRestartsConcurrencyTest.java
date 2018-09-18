@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.ManuallyTriggeredDirectExecutor;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
@@ -313,6 +314,8 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 			1L,
 			3,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			0,
 			true);
 
 		final ExecutionGraph graph = createSampleGraph(
@@ -342,7 +345,8 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 				1,
 				allVertices,
 				checkpointCoordinatorConfiguration,
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()));
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()),
+				mock(CheckpointFailureManager.class));
 
 		final CheckpointCoordinator checkpointCoordinator = graph.getCheckpointCoordinator();
 

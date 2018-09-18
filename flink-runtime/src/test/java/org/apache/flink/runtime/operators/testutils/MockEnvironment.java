@@ -312,7 +312,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	@Override
 	public void declineCheckpoint(long checkpointId, Throwable cause) {
-		throw new UnsupportedOperationException();
+
 	}
 
 	@Override

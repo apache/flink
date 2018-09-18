@@ -258,6 +258,8 @@ public class JobManagerHARecoveryTest extends TestLogger {
 						0L,
 						1,
 						CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+						true,
+						0,
 						true),
 					null));
 

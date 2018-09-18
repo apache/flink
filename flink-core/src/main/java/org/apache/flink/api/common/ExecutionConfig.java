@@ -883,16 +883,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 		return failTaskOnCheckpointError;
 	}
 
-	/**
-	 * This method is visible because of the way the configuration is currently forwarded from the checkpoint config to
-	 * the task. This should not be called by the user, please use CheckpointConfig.setFailOnCheckpointingErrors(...)
-	 * instead.
-	 */
-	@Internal
-	public void setFailTaskOnCheckpointError(boolean failTaskOnCheckpointError) {
-		this.failTaskOnCheckpointError = failTaskOnCheckpointError;
-	}
-
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof ExecutionConfig) {
