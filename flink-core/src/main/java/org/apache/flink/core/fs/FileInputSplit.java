@@ -39,6 +39,9 @@ public class FileInputSplit extends LocatableInputSplit {
 	/** The number of bytes in the file to process. */
 	private final long length;
 
+	/** The charset of bom in the file to process. */
+	private String bomCharsetName;
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -61,6 +64,31 @@ public class FileInputSplit extends LocatableInputSplit {
 		this.file = file;
 		this.start = start;
 		this.length = length;
+	}
+
+	/**
+	 * Constructs a split with host information.
+	 *
+	 * @param num
+	 *        the number of this input split
+	 * @param file
+	 *        the file name
+	 * @param start
+	 *        the position of the first byte in the file to process
+	 * @param length
+	 *        the number of bytes in the file to process (-1 is flag for "read whole file")
+	 * @param hosts
+	 *        the list of hosts containing the block, possibly <code>null</code>
+	 * @param bomCharsetName
+	 *        The charset of bom in the file to process (default is UTF-8)
+	 */
+	public FileInputSplit(int num, Path file, long start, long length, String[] hosts, String bomCharsetName) {
+		super(num, hosts);
+
+		this.file = file;
+		this.start = start;
+		this.length = length;
+		this.bomCharsetName = bomCharsetName;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -91,6 +119,12 @@ public class FileInputSplit extends LocatableInputSplit {
 	public long getLength() {
 		return length;
 	}
+
+	/**
+	 * return the charset of bom in the file
+	 * @return
+	 */
+	public String getBomCharsetName(){return bomCharsetName;}
 
 	// --------------------------------------------------------------------------------------------
 

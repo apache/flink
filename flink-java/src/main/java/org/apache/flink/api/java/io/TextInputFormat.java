@@ -59,7 +59,12 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 	// --------------------------------------------------------------------------------------------
 
 	public String getCharsetName() {
-		return charsetName;
+		String bomCharsetName = getBomCharsetName();
+		if(!bomCharsetName.equals(charsetName)){
+			return bomCharsetName;
+		}else{
+			return charsetName;
+		}
 	}
 
 	public void setCharsetName(String charsetName) {
@@ -90,9 +95,16 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 				&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 1
 				&& bytes[offset + numBytes - 1] == CARRIAGE_RETURN){
 			numBytes -= 1;
+		}else if(this.getDelimiter() != null && this.getDelimiter().length == 1
+			&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 1
+			&& bytes[offset + numBytes - 2] == CARRIAGE_RETURN){
+			numBytes -= 3;
+		} else if(this.getDelimiter() != null && this.getDelimiter().length == 1
+			&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 1
+			&& bytes[offset + numBytes - 4] == CARRIAGE_RETURN){
+			numBytes -= 5;
 		}
-
-		return new String(bytes, offset, numBytes, this.charsetName);
+		return new String(bytes, offset, numBytes, this.getCharsetName());
 	}
 
 	// --------------------------------------------------------------------------------------------

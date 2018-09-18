@@ -62,6 +62,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	// Charset is not serializable
 	private transient Charset charset;
 
+	/** The charset of bom in the file to process. */
+	private String bomCharsetName;
+
 	/**
 	 * The default read buffer size = 1MB.
 	 */
@@ -221,6 +224,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		}
 	}
 
+	@PublicEvolving
+	public String getBomCharsetName() {
+		return this.bomCharsetName;
+	}
+
 	public byte[] getDelimiter() {
 		return delimiter;
 	}
@@ -341,7 +349,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	@Override
 	public FileBaseStatistics getStatistics(BaseStatistics cachedStats) throws IOException {
 		
-		final FileBaseStatistics cachedFileStats = cachedStats instanceof FileBaseStatistics ?
+		final FileBaseStatistics cachedFileStats = cachedStats instanceof FileInputFormat.FileBaseStatistics ?
 				(FileBaseStatistics) cachedStats : null;
 		
 		// store properties
@@ -467,6 +475,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	 */
 	@Override
 	public void open(FileInputSplit split) throws IOException {
+		this.bomCharsetName = split.getBomCharsetName();
 		super.open(split);
 		initBuffers();
 

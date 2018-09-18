@@ -22,7 +22,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-
 import org.junit.Test;
 
 import java.io.File;
@@ -33,12 +32,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 /**
  * Tests for {@link TextInputFormat}.
@@ -207,6 +201,58 @@ public class TextInputFormatTest {
 				assertEquals(content, result);
 			}
 
+		}
+		catch (Throwable t) {
+			System.err.println("test failed with exception: " + t.getMessage());
+			t.printStackTrace(System.err);
+			fail("Test erroneous");
+		}
+	}
+
+	@Test
+	public void testUTF16Read() {
+		final String first = "userId,startTime,startLon,startLat,endTime,endLon,endLat";
+		final String second = "15,2017-08-01 08:03:42,121.553284356451,31.2453823853525,2017-08-01 09:12:45,121.44078692371,31.1641319953861";
+
+		try {
+			// create input file
+			File tempFile = File.createTempFile("TextInputFormatTest", "tmp");
+			tempFile.deleteOnExit();
+			tempFile.setWritable(true);
+
+			PrintStream ps = new  PrintStream(tempFile, "UTF-16");
+			ps.println(first);
+			ps.println(second);
+			ps.close();
+
+//			System.out.println(tempFile.toURI().toString());
+			TextInputFormat inputFormat = new TextInputFormat(new Path(tempFile.toURI().toString()));
+
+			Configuration parameters = new Configuration();
+			inputFormat.configure(parameters);
+
+//			inputFormat.setDelimiter("\n");
+
+			FileInputSplit[] splits = inputFormat.createInputSplits(1);
+			assertTrue("expected at least one input split", splits.length >= 1);
+			inputFormat.open(splits[0]);
+
+
+			String result = "";
+
+			assertFalse(inputFormat.reachedEnd());
+			result = inputFormat.nextRecord("");
+			System.out.println(result);
+			assertNotNull("Expecting first record here", result);
+			assertEquals(first, result.substring(1));
+
+			assertFalse(inputFormat.reachedEnd());
+			result = inputFormat.nextRecord(result);
+			System.out.println(result);
+			assertNotNull("Expecting second record here", result);
+			assertEquals(second, result);
+
+			assertTrue(inputFormat.reachedEnd() || null == inputFormat.nextRecord(result));
 		}
 		catch (Throwable t) {
 			System.err.println("test failed with exception: " + t.getMessage());
