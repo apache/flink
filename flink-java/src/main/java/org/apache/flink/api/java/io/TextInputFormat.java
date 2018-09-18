@@ -96,11 +96,11 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 				&& bytes[offset + numBytes - 1] == CARRIAGE_RETURN) {
 			numBytes -= 1;
 		} else if (this.getDelimiter() != null && this.getDelimiter().length == 1
-			&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 1
+			&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 3
 			&& bytes[offset + numBytes - 2] == CARRIAGE_RETURN) {
 			numBytes -= 3;
 		} else if (this.getDelimiter() != null && this.getDelimiter().length == 1
-			&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 1
+			&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 5
 			&& bytes[offset + numBytes - 4] == CARRIAGE_RETURN) {
 			numBytes -= 5;
 		}
