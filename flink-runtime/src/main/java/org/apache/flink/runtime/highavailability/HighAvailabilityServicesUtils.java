@@ -37,6 +37,8 @@ import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.InstantiationUtil;
 
 import java.util.concurrent.Executor;
 
@@ -159,19 +161,33 @@ public class HighAvailabilityServicesUtils {
 		return Tuple2.of(hostname, port);
 	}
 
-	private static HighAvailabilityServices createCustomHAServices(Configuration config, Executor executor) throws Exception {
-		Class<HighAvailabilityServicesFactory> factoryClass;
+	private static HighAvailabilityServices createCustomHAServices(Configuration config, Executor executor) throws FlinkException {
+		final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+		final String haServicesClassName = config.getString(HighAvailabilityOptions.HA_MODE);
+
+		final HighAvailabilityServicesFactory highAvailabilityServicesFactory;
+
 		try {
-			factoryClass = config.getClass(
-				HighAvailabilityOptions.HA_MODE.key(), null, Thread.currentThread().getContextClassLoader());
-		} catch (ClassNotFoundException e) {
-			throw new Exception("Custom HA FactoryClass not found");
+			highAvailabilityServicesFactory = InstantiationUtil.instantiate(
+				haServicesClassName,
+				HighAvailabilityServicesFactory.class,
+				classLoader);
+		} catch (Exception e) {
+			throw new FlinkException(
+				String.format(
+					"Could not instantiate the HighAvailabilityServicesFactory '%s'. Please make sure that this class is on your class path.",
+					haServicesClassName),
+				e);
 		}
 
-		if (factoryClass != null && HighAvailabilityServicesFactory.class.isAssignableFrom(factoryClass)) {
-			return factoryClass.newInstance().createHAServices(config, executor);
-		} else {
-			throw new Exception("Custom HA FactoryClass is not valid.");
+		try {
+			return highAvailabilityServicesFactory.createHAServices(config, executor);
+		} catch (Exception e) {
+			throw new FlinkException(
+				String.format(
+					"Could not create the ha services from the instantiated HighAvailabilityServicesFactory %s.",
+					haServicesClassName),
+				e);
 		}
 	}
 

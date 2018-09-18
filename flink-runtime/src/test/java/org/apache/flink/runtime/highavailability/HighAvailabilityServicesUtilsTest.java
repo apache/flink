@@ -71,7 +71,10 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
 		HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config, executor);
 	}
 
-	private static class TestHAFactory implements HighAvailabilityServicesFactory {
+	/**
+	 * Testing class which needs to be public in order to be instantiatable.
+	 */
+	public static class TestHAFactory implements HighAvailabilityServicesFactory {
 
 		static HighAvailabilityServices haServices;
 
