@@ -88,6 +88,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 	private boolean add(BufferConsumer bufferConsumer, boolean finish) {
 		checkNotNull(bufferConsumer);
 
+		final boolean notifyDataAvailable;
 		synchronized (buffers) {
 			if (isFinished || isReleased) {
 				bufferConsumer.close();
@@ -98,14 +99,13 @@ class PipelinedSubpartition extends ResultSubpartition {
 			buffers.add(bufferConsumer);
 			updateStatistics(bufferConsumer);
 			increaseBuffersInBacklog(bufferConsumer);
+			notifyDataAvailable = shouldNotifyDataAvailable() || finish;
 
-			if (finish) {
-				isFinished = true;
-				notifyDataAvailable();
-			}
-			else {
-				maybeNotifyDataAvailable();
-			}
+			isFinished |= finish;
+		}
+
+		if (notifyDataAvailable) {
+			notifyDataAvailable();
 		}
 
 		return true;
@@ -220,6 +220,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	@Override
 	public PipelinedSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException {
+		final boolean notifyDataAvailable;
 		synchronized (buffers) {
 			checkState(!isReleased);
 			checkState(readView == null,
@@ -230,9 +231,10 @@ class PipelinedSubpartition extends ResultSubpartition {
 				parent.getOwningTaskName(), index, parent.getPartitionId());
 
 			readView = new PipelinedSubpartitionView(this, availabilityListener);
-			if (!buffers.isEmpty()) {
-				notifyDataAvailable();
-			}
+			notifyDataAvailable = !buffers.isEmpty();
+		}
+		if (notifyDataAvailable) {
+			notifyDataAvailable();
 		}
 
 		return readView;
@@ -283,26 +285,24 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	@Override
 	public void flush() {
+		final boolean notifyDataAvailable;
 		synchronized (buffers) {
 			if (buffers.isEmpty()) {
 				return;
 			}
-			if (!flushRequested) {
-				flushRequested = true; // set this before the notification!
-				// if there is more then 1 buffer, we already notified the reader
-				// (at the latest when adding the second buffer)
-				if (buffers.size() == 1) {
-					notifyDataAvailable();
-				}
-			}
+			// if there is more then 1 buffer, we already notified the reader
+			// (at the latest when adding the second buffer)
+			notifyDataAvailable = !flushRequested && buffers.size() == 1;
+			flushRequested = true;
+		}
+		if (notifyDataAvailable) {
+			notifyDataAvailable();
 		}
 	}
 
-	private void maybeNotifyDataAvailable() {
+	private boolean shouldNotifyDataAvailable() {
 		// Notify only when we added first finished buffer.
-		if (getNumberOfFinishedBuffers() == 1) {
-			notifyDataAvailable();
-		}
+		return readView != null && !flushRequested && getNumberOfFinishedBuffers() == 1;
 	}
 
 	private void notifyDataAvailable() {
