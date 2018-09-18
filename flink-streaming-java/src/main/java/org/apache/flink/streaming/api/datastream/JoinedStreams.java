@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -33,6 +34,7 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.Preconditions;
 
 import static java.util.Objects.requireNonNull;
 
@@ -199,7 +201,11 @@ public class JoinedStreams<T1, T2> {
 
 		private final Evictor<? super TaggedUnion<T1, T2>, ? super W> evictor;
 
-		private final Time allowedLateness;
+		@VisibleForTesting
+		Time allowedLateness;
+
+		@VisibleForTesting
+		CoGroupedStreams.WithWindow<T1, T2, KEY, W> coGroupedWindow;
 
 		@PublicEvolving
 		protected WithWindow(DataStream<T1> input1,
@@ -254,8 +260,9 @@ public class JoinedStreams<T1, T2> {
 		 */
 		@PublicEvolving
 		public WithWindow<T1, T2, KEY, W> allowedLateness(Time newLateness) {
-			return new WithWindow<>(input1, input2, keySelector1, keySelector2, keyType,
-				windowAssigner, trigger, evictor, newLateness);
+			Preconditions.checkNotNull(newLateness, "The allowed lateness must not be null");
+			this.allowedLateness = newLateness;
+			return this;
 		}
 
 		/**
@@ -311,14 +318,18 @@ public class JoinedStreams<T1, T2> {
 			//clean the closure
 			function = input1.getExecutionEnvironment().clean(function);
 
-			return input1.coGroup(input2)
-					.where(keySelector1)
-					.equalTo(keySelector2)
-					.window(windowAssigner)
-					.trigger(trigger)
-					.evictor(evictor)
-					.allowedLateness(allowedLateness)
-					.apply(new FlatJoinCoGroupFunction<>(function), resultType);
+			coGroupedWindow = input1.coGroup(input2)
+				.where(keySelector1)
+				.equalTo(keySelector2)
+				.window(windowAssigner)
+				.trigger(trigger)
+				.evictor(evictor);
+
+			if (allowedLateness != null) {
+				coGroupedWindow.allowedLateness(allowedLateness);
+			}
+
+			return coGroupedWindow.apply(new FlatJoinCoGroupFunction<>(function), resultType);
 
 		}
 
@@ -393,15 +404,18 @@ public class JoinedStreams<T1, T2> {
 			//clean the closure
 			function = input1.getExecutionEnvironment().clean(function);
 
-			return input1.coGroup(input2)
-					.where(keySelector1)
-					.equalTo(keySelector2)
-					.window(windowAssigner)
-					.trigger(trigger)
-					.evictor(evictor)
-					.allowedLateness(allowedLateness)
-					.apply(new JoinCoGroupFunction<>(function), resultType);
+			coGroupedWindow = input1.coGroup(input2)
+				.where(keySelector1)
+				.equalTo(keySelector2)
+				.window(windowAssigner)
+				.trigger(trigger)
+				.evictor(evictor);
 
+			if (allowedLateness != null) {
+				coGroupedWindow.allowedLateness(allowedLateness);
+			}
+
+			return coGroupedWindow.apply(new JoinCoGroupFunction<>(function), resultType);
 		}
 
 		/**

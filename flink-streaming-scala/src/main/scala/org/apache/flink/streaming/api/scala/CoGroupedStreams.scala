@@ -127,7 +127,7 @@ class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
           windowAssigner: WindowAssigner[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], W],
           trigger: Trigger[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W],
           evictor: Evictor[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W],
-          allowedLateness: Time) {
+          val allowedLateness: Time) {
 
         /**
          * Sets the [[Trigger]] that should be used to trigger window emission.
@@ -158,6 +158,7 @@ class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
           */
         @PublicEvolving
         def allowedLateness(newLateness: Time): WithWindow[W] = {
+          require(newLateness != null, "The allowed lateness must not be null")
           new WithWindow[W](windowAssigner, trigger, evictor, newLateness)
         }
 
@@ -207,14 +208,19 @@ class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
 
           val coGroup = new JavaCoGroupedStreams[T1, T2](input1.javaStream, input2.javaStream)
 
-          asScalaStream(coGroup
+          val withWindow = coGroup
             .where(keySelector1)
             .equalTo(keySelector2)
             .window(windowAssigner)
             .trigger(trigger)
             .evictor(evictor)
-            .allowedLateness(allowedLateness)
-            .apply(clean(function), implicitly[TypeInformation[T]]))
+          val withLateness = if (allowedLateness != null) {
+            withWindow.allowedLateness(allowedLateness)
+          } else {
+            withWindow
+          }
+
+          asScalaStream(withLateness.apply(clean(function), implicitly[TypeInformation[T]]))
         }
       }
 

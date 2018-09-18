@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -216,7 +217,11 @@ public class CoGroupedStreams<T1, T2> {
 
 		private final Evictor<? super TaggedUnion<T1, T2>, ? super W> evictor;
 
-		private final Time allowedLateness;
+		@VisibleForTesting
+		Time allowedLateness;
+
+		@VisibleForTesting
+		WindowedStream<TaggedUnion<T1, T2>, KEY, W> windowOp;
 
 		protected WithWindow(DataStream<T1> input1,
 				DataStream<T2> input2,
@@ -269,8 +274,9 @@ public class CoGroupedStreams<T1, T2> {
 		 */
 		@PublicEvolving
 		public WithWindow<T1, T2, KEY, W> allowedLateness(Time newLateness) {
-			return new WithWindow<>(input1, input2, keySelector1, keySelector2, keyType,
-					windowAssigner, trigger, evictor, newLateness);
+			Preconditions.checkNotNull(newLateness, "The allowed lateness must not be null");
+			this.allowedLateness = newLateness;
+			return this;
 		}
 
 		/**
@@ -337,9 +343,7 @@ public class CoGroupedStreams<T1, T2> {
 			DataStream<TaggedUnion<T1, T2>> unionStream = taggedInput1.union(taggedInput2);
 
 			// we explicitly create the keyed stream to manually pass the key type information in
-			WindowedStream<TaggedUnion<T1, T2>, KEY, W> windowOp =
-					new KeyedStream<TaggedUnion<T1, T2>, KEY>(unionStream, unionKeySelector, keyType)
-					.window(windowAssigner);
+			windowOp = new KeyedStream<TaggedUnion<T1, T2>, KEY>(unionStream, unionKeySelector, keyType).window(windowAssigner);
 
 			if (trigger != null) {
 				windowOp.trigger(trigger);
