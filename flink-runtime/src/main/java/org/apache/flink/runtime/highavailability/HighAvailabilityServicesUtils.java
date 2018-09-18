@@ -191,6 +191,10 @@ public class HighAvailabilityServicesUtils {
 		}
 	}
 
+	/**
+	 * Enum specifying whether address resolution should be tried or not when creating the
+	 * {@link HighAvailabilityServices}.
+	 */
 	public enum AddressResolution {
 		TRY_ADDRESS_RESOLUTION,
 		NO_ADDRESS_RESOLUTION
