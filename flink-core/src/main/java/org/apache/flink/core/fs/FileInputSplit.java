@@ -121,7 +121,7 @@ public class FileInputSplit extends LocatableInputSplit {
 	}
 
 	/**
-	 * Return the charset of bom in the file
+	 * Returns the charset of bom in the file.
 	 *
 	 * @return the charset of bom in the file
 	 */
