@@ -28,7 +28,6 @@ import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
 import org.apache.calcite.plan.{RelOptPlanner, RelOptUtil, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql._
@@ -56,7 +55,7 @@ import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, Tabl
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSourceSinkTable}
+import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSinkTable, TableSourceSinkTable}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
@@ -749,44 +748,48 @@ abstract class TableEnvironment(val config: TableConfig) {
     // check that sink table exists
     if (null == sinkTableName) throw TableException("Name of TableSink must not be null.")
     if (sinkTableName.isEmpty) throw TableException("Name of TableSink must not be empty.")
-    if (!isRegistered(sinkTableName)) {
-      throw TableException(s"No table was registered under the name $sinkTableName.")
-    }
 
     getTable(sinkTableName) match {
 
       // check for registered table that wraps a sink
-      case s: TableSourceSinkTable[_, _] if s.tableSinkTable.isDefined =>
-        val tableSink = s.tableSinkTable.get.tableSink
-        // validate schema of source table and table sink
-        val srcFieldTypes = table.getSchema.getTypes
-        val sinkFieldTypes = tableSink.getFieldTypes
+      case Some(s: TableSourceSinkTable[_, _]) => s.tableSinkTable match {
 
-        if (srcFieldTypes.length != sinkFieldTypes.length ||
-          srcFieldTypes.zip(sinkFieldTypes).exists{case (srcF, snkF) => srcF != snkF}) {
+        case Some(sinkTable: TableSinkTable[_]) =>
+          val tableSink = sinkTable.tableSink
+          // validate schema of source table and table sink
+          val srcFieldTypes = table.getSchema.getTypes
+          val sinkFieldTypes = tableSink.getFieldTypes
 
-          val srcFieldNames = table.getSchema.getColumnNames
-          val sinkFieldNames = tableSink.getFieldNames
+          if (srcFieldTypes.length != sinkFieldTypes.length ||
+            srcFieldTypes.zip(sinkFieldTypes).exists { case (srcF, snkF) => srcF != snkF }) {
 
-          // format table and table sink schema strings
-          val srcSchema = srcFieldNames.zip(srcFieldTypes)
-            .map{case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}"}
-            .mkString("[", ", ", "]")
-          val sinkSchema = sinkFieldNames.zip(sinkFieldTypes)
-            .map{case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}"}
-            .mkString("[", ", ", "]")
+            val srcFieldNames = table.getSchema.getColumnNames
+            val sinkFieldNames = tableSink.getFieldNames
 
-          throw ValidationException(
-            s"Field types of query result and registered TableSink $sinkTableName do not match.\n" +
-              s"Query result schema: $srcSchema\n" +
-              s"TableSink schema:    $sinkSchema")
-        }
+            // format table and table sink schema strings
+            val srcSchema = srcFieldNames.zip(srcFieldTypes)
+              .map { case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}" }
+              .mkString("[", ", ", "]")
+            val sinkSchema = sinkFieldNames.zip(sinkFieldTypes)
+              .map { case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}" }
+              .mkString("[", ", ", "]")
 
-        // emit the table to the configured table sink
-        writeToSink(table, tableSink, conf)
+            throw ValidationException(
+              s"Field types of query result and registered TableSink " +
+                s"$sinkTableName do not match.\n" +
+                s"Query result schema: $srcSchema\n" +
+                s"TableSink schema:    $sinkSchema")
+          }
+
+          // emit the table to the configured table sink
+          writeToSink(table, tableSink, conf)
+        case _ =>
+          throw TableException(s"The table registered as $sinkTableName is not a TableSink. " +
+            s"You can only emit query results to a registered TableSink.")
+      }
+
       case _ =>
-        throw TableException(s"The table registered as $sinkTableName is not a TableSink. " +
-          s"You can only emit query results to a registered TableSink.")
+        throw TableException(s"No table was registered under the name $sinkTableName.")
     }
   }
 
@@ -828,12 +831,36 @@ abstract class TableEnvironment(val config: TableConfig) {
     rootSchema.getTableNames.contains(name)
   }
 
-  protected def getTable(name: String): org.apache.calcite.schema.Table = {
-    rootSchema.getTable(name)
-  }
+  /**
+    * Get a table from either internal or external catalogs.
+    *
+    * @param name The name of the table.
+    * @return The table registered either internally or externally, None otherwise.
+    */
+  protected def getTable(name: String): Option[org.apache.calcite.schema.Table] = {
+    val internalTable = rootSchema.getTable(name)
 
-  protected def getRowType(name: String): RelDataType = {
-    rootSchema.getTable(name).getRowType(typeFactory)
+    if (internalTable != null) {
+      Some(internalTable)
+    } else {
+      // search external catalogs
+      def searchSubschema(schema: SchemaPlus, tableName: String):
+        org.apache.calcite.schema.Table = {
+
+        if (schema == null) {
+          return null
+        }
+
+        if (tableName.contains(".")) {
+          val Array(subcatalog, table) = tableName.split("\\.", 2)
+          searchSubschema(schema.getSubSchema(subcatalog), table)
+        } else {
+          schema.getTable(tableName)
+        }
+      }
+
+      Option(searchSubschema(rootSchema, name))
+    }
   }
 
   /** Returns a unique temporary attribute name. */

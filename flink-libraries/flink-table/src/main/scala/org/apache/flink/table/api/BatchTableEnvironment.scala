@@ -107,7 +107,7 @@ abstract class BatchTableEnvironment(
       // check for proper batch table source
       case batchTableSource: BatchTableSource[_] =>
         // check if a table (source or sink) is registered
-        Option(getTable(name)) match {
+        getTable(name) match {
 
           // table source and/or sink is registered
           case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
@@ -249,7 +249,7 @@ abstract class BatchTableEnvironment(
       case _: BatchTableSink[_] =>
 
         // check if a table (source or sink) is registered
-        Option(getTable(name)) match {
+        getTable(name) match {
 
           // table source and/or sink is registered
           case Some(table: TableSourceSinkTable[_, _]) => table.tableSinkTable match {
