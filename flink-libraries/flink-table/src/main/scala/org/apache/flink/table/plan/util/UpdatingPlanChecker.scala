@@ -142,7 +142,8 @@ object UpdatingPlanChecker {
             .map(_.name)
           // we have only a unique key if at least one window property is selected
           if (windowProperties.nonEmpty) {
-            Some(groupKeys.map(e => (e, e)) ++ windowProperties.map(e => (e, e)))
+            val windowId = windowProperties.min
+            Some(groupKeys.map(e => (e, e)) ++ windowProperties.map(e => (e, windowId)))
           } else {
             None
           }
