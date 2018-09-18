@@ -124,7 +124,9 @@ public class FileInputSplit extends LocatableInputSplit {
 	 * return the charset of bom in the file
 	 * @return
 	 */
-	public String getBomCharsetName(){return bomCharsetName;}
+	public String getBomCharsetName(){
+		return bomCharsetName;
+	}
 
 	// --------------------------------------------------------------------------------------------
 
