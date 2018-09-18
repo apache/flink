@@ -130,14 +130,14 @@
 (defn kill-taskmanagers-bursts-gen
   [time-limit]
   (fgen/time-limit time-limit
-                  (gen/seq (cycle (concat (repeat 20 {:type :info, :f :kill-task-managers})
-                                          [(gen/sleep 300)])))))
+                   (gen/seq (cycle (concat (repeat 20 {:type :info, :f :kill-task-managers})
+                                           [(gen/sleep 300)])))))
 
 (defn kill-jobmanagers-gen
   [time-limit]
   (fgen/time-limit (+ time-limit job-submit-grace-period)
-                  (gen/seq (cons (gen/sleep job-submit-grace-period)
-                                 (cycle [{:type :info, :f :kill-job-manager}])))))
+                   (gen/seq (cons (gen/sleep job-submit-grace-period)
+                                  (cycle [{:type :info, :f :kill-job-manager}])))))
 
 (defn fail-name-node-during-recovery
   []
