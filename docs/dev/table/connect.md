@@ -82,7 +82,7 @@ The **connector** describes the external system that stores the data of a table.
 
 Some systems support different **data formats**. For example, a table that is stored in Kafka or in files can encode its rows with CSV, JSON, or Avro. A database connector might need the table schema here. Whether or not a storage system requires the definition of a format, is documented for every [connector](connect.html#table-connectors). Different systems also require different [types of formats](connect.html#table-formats) (e.g., column-oriented formats vs. row-oriented formats). The documentation states which format types and connectors are compatible.
 
-The **table schema** defines the schema of a table that is exposed to SQL queries. It describes how a source maps the data format to the table schema and a sink vice versa. The schema has access to fields defined by the connector or format. It can use one or more fields for extracting or inserting [time attributes](streaming.html#time-attributes). If input fields have no determinstic field order, the schema clearly defines column names, their order, and origin.
+The **table schema** defines the schema of a table that is exposed to SQL queries. It describes how a source maps the data format to the table schema and a sink vice versa. The schema has access to fields defined by the connector or format. It can use one or more fields for extracting or inserting [time attributes](streaming/time_attributes.html). If input fields have no determinstic field order, the schema clearly defines column names, their order, and origin.
 
 The subsequent sections will cover each definition part ([connector](connect.html#table-connectors), [format](connect.html#table-formats), and [schema](connect.html#table-schema)) in more detail. The following example shows how to pass them:
 
@@ -293,7 +293,7 @@ schema:
 
 Time attributes are essential when working with unbounded streaming tables. Therefore both processing-time and event-time (also known as "rowtime") attributes can be defined as part of the schema.
 
-For more information about time handling in Flink and especially event-time, we recommend the general [event-time section](streaming.html#time-attributes).
+For more information about time handling in Flink and especially event-time, we recommend the general [event-time section](streaming/time_attributes.html).
 
 ### Rowtime Attributes
 
@@ -436,7 +436,7 @@ ANY<class, serialized>           # used for type information that is not support
 Update Modes
 ------------
 
-For streaming queries, it is required to declare how to perform the [conversion between a dynamic table and an external connector](streaming.html#dynamic-tables--continuous-queries). The *update mode* specifies which kind of messages should be exchanged with the external system:
+For streaming queries, it is required to declare how to perform the [conversion between a dynamic table and an external connector](streaming/dynamic_tables.html#continuous-queries). The *update mode* specifies which kind of messages should be exchanged with the external system:
 
 **Append Mode:** In append mode, a dynamic table and an external connector only exchange INSERT messages.
 
@@ -463,7 +463,7 @@ tables:
 </div>
 </div>
 
-See also the [general streaming concepts documentation](streaming.html#dynamic-tables--continuous-queries) for more information.
+See also the [general streaming concepts documentation](streaming/dynamic_tables.html#continuous-queries) for more information.
 
 {% top %}
 
@@ -935,7 +935,7 @@ val orcTableSource = OrcTableSource.builder()
 
 The `CsvTableSink` emits a `Table` to one or more CSV files. 
 
-The sink only supports append-only streaming tables. It cannot be used to emit a `Table` that is continuously updated. See the [documentation on Table to Stream conversions](./streaming.html#table-to-stream-conversion) for details. When emitting a streaming table, rows are written at least once (if checkpointing is enabled) and the `CsvTableSink` does not split output files into bucket files but continuously writes to the same files. 
+The sink only supports append-only streaming tables. It cannot be used to emit a `Table` that is continuously updated. See the [documentation on Table to Stream conversions](./streaming/dynamic_tables.html#table-to-stream-conversion) for details. When emitting a streaming table, rows are written at least once (if checkpointing is enabled) and the `CsvTableSink` does not split output files into bucket files but continuously writes to the same files.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -971,7 +971,7 @@ table.writeToSink(
 
 ### JDBCAppendTableSink
 
-The `JDBCAppendTableSink` emits a `Table` to a JDBC connection. The sink only supports append-only streaming tables. It cannot be used to emit a `Table` that is continuously updated. See the [documentation on Table to Stream conversions](./streaming.html#table-to-stream-conversion) for details. 
+The `JDBCAppendTableSink` emits a `Table` to a JDBC connection. The sink only supports append-only streaming tables. It cannot be used to emit a `Table` that is continuously updated. See the [documentation on Table to Stream conversions](./streaming/dynamic_tables.html#table-to-stream-conversion) for details.
 
 The `JDBCAppendTableSink` inserts each `Table` row at least once into the database table (if checkpointing is enabled). However, you can specify the insertion query using <code>REPLACE</code> or <code>INSERT OVERWRITE</code> to perform upsert writes to the database.
 
@@ -1014,7 +1014,7 @@ Similar to using <code>JDBCOutputFormat</code>, you have to explicitly specify t
 
 ### CassandraAppendTableSink
 
-The `CassandraAppendTableSink` emits a `Table` to a Cassandra table. The sink only supports append-only streaming tables. It cannot be used to emit a `Table` that is continuously updated. See the [documentation on Table to Stream conversions](./streaming.html#table-to-stream-conversion) for details. 
+The `CassandraAppendTableSink` emits a `Table` to a Cassandra table. The sink only supports append-only streaming tables. It cannot be used to emit a `Table` that is continuously updated. See the [documentation on Table to Stream conversions](./streaming/dynamic_tables.html#table-to-stream-conversion) for details.
 
 The `CassandraAppendTableSink` inserts all rows at least once into the Cassandra table if checkpointing is enabled. However, you can specify the query as upsert query.
 
