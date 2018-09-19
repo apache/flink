@@ -43,12 +43,19 @@ Flink directly implements the following file systems:
   - **local**: This file system is used when the scheme is *"file://"*, and it represents the file system of the local machine, 
 including any NFS or SAN that is mounted into that local file system.
 
-  - **S3**: Flink directly provides file systems to talk to Amazon S3, registered under the scheme *"s3://"*.
-There are two alternative implementations, `flink-s3-fs-presto` and `flink-s3-fs-hadoop`, based on code from the [Presto project](https://prestodb.io/)
-and the [Hadoop Project](https://hadoop.apache.org/). Both implementations are self-contained with no dependency footprint.
-To use those when using Flink as a library, add the respective maven dependency (`org.apache.flink:flink-s3-fs-presto:{{ site.version }}` or `org.apache.flink:flink-s3-fs-hadoop:{{ site.version }}`).
-When starting a Flink application from the Flink binaries, copy or move the respective jar file from the `opt` folder to the `lib` folder.
-See [AWS setup](deployment/aws.html) for details.
+  - **S3**: Flink directly provides file systems to talk to Amazon S3. There are two alternative implementations, `flink-s3-fs-presto`
+    and `flink-s3-fs-hadoop`. Both implementations are self-contained with no dependency footprint, there is no need to add Hadoop to
+    the classpath to use them. Both internally use some Hadoop code, but "shade away" all classes to avoid any dependency conflicts.
+
+    - `flink-s3-fs-presto`, registered under the scheme *"s3://"*, is based on code from the [Presto project](https://prestodb.io/).
+      You can configure it the same way you can [configure the Presto file system](https://prestodb.io/docs/0.185/connector/hive.html#amazon-s3-configuration).
+      
+    - `flink-s3-fs-hadoop`, registered under *"s3://"* and *"s3a://"*, based on code from the [Hadoop Project](https://hadoop.apache.org/).
+      The file system can be [configured exactly like Hadoop's s3a](https://hadoop.apache.org/docs/stable/hadoop-aws/tools/hadoop-aws/index.html#S3A).
+
+    To use those file systems when using Flink as a library, add the respective maven dependency (`org.apache.flink:flink-s3-fs-presto:{{ site.version }}`
+    or `org.apache.flink:flink-s3-fs-hadoop:{{ site.version }}`). When starting a Flink application from the Flink binaries, copy or move
+    the respective jar file from the `opt` folder to the `lib` folder. See also [AWS setup](deployment/aws.html) for additional details.
 
   - **MapR FS**: The MapR file system *"maprfs://"* is automatically available when the MapR libraries are in the classpath.
   
@@ -59,8 +66,8 @@ See [AWS setup](deployment/aws.html) for details.
 
 ### HDFS and Hadoop File System support 
 
-For a scheme where Flink does not implemented a file system itself, Flink will try to use Hadoop to instantiate a file system for the respective scheme.
-All Hadoop file systems are automatically available once `flink-runtime` and the relevant Hadoop libraries are in classpath.
+For all schemes where Flink cannot find a directly supported file system, Flink will try to use Hadoop to instantiate a file system for the respective scheme.
+All Hadoop file systems are automatically available once `flink-runtime` and the Hadoop libraries are in classpath.
 
 That way, Flink seamlessly supports all of Hadoop file systems, and all Hadoop-compatible file systems (HCFS), for example:
 
@@ -114,7 +121,6 @@ To prevent inactive streams from taking up the complete pool (preventing new con
 These limits are enforced per TaskManager, so each TaskManager in a Flink application or cluster will open up to that number of connections.
 In addition, the limits are also only enforced per FileSystem instance. Because File Systems are created per scheme and authority, different
 authorities will have their own connection pool. For example `hdfs://myhdfs:50010/` and `hdfs://anotherhdfs:4399/` will have separate pools.
-
 
 ## Adding new File System Implementations
 
