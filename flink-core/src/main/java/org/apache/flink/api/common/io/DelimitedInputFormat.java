@@ -416,7 +416,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			while (samplesTaken < numSamples && fileNum < allFiles.size()) {
 				// make a split for the sample and use it to read a record
 				FileStatus file = allFiles.get(fileNum);
-				FileInputSplit split = new FileInputSplit(0, file.getPath(), offset, file.getLen() - offset, null);
+				String bomCharsetName = getBomCharset(file.getPath().getPath());
+
+				FileInputSplit split = new FileInputSplit(0, file.getPath(), offset, file.getLen() - offset, null, bomCharsetName);
 
 				// we open the split, read one line, and take its length
 				try {
@@ -745,7 +747,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		Preconditions.checkNotNull(split, "reopen() cannot be called on a null split.");
 		Preconditions.checkNotNull(state, "reopen() cannot be called with a null initial state.");
 		Preconditions.checkArgument(state == -1 || state >= split.getStart(),
-			" Illegal offset "+ state +", smaller than the splits start=" + split.getStart());
+			" Illegal offset " + state + ", smaller than the splits start=" + split.getStart());
 
 		try {
 			this.open(split);
