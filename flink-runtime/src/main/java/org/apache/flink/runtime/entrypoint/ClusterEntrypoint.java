@@ -84,6 +84,7 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -192,12 +193,13 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				return null;
 			});
 		} catch (Throwable t) {
-			LOG.error("Cluster initialization failed.", t);
+			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
+			LOG.error("Cluster initialization failed.", strippedThrowable);
 
 			shutDownAndTerminate(
 				STARTUP_FAILURE_RETURN_CODE,
 				ApplicationStatus.FAILED,
-				t.getMessage(),
+				strippedThrowable.getMessage(),
 				false);
 		}
 	}

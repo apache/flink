@@ -35,6 +35,7 @@ import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -121,14 +122,10 @@ public class HistoryServer {
 				}
 			});
 			System.exit(0);
-		} catch (UndeclaredThrowableException ute) {
-			Throwable cause = ute.getUndeclaredThrowable();
-			LOG.error("Failed to run HistoryServer.", cause);
-			cause.printStackTrace();
-			System.exit(1);
-		} catch (Exception e) {
-			LOG.error("Failed to run HistoryServer.", e);
-			e.printStackTrace();
+		} catch (Throwable t) {
+			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
+			LOG.error("Failed to run HistoryServer.", strippedThrowable);
+			strippedThrowable.printStackTrace();
 			System.exit(1);
 		}
 	}
