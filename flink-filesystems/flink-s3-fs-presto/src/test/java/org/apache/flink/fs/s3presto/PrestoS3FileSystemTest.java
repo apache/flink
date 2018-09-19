@@ -21,12 +21,12 @@ package org.apache.flink.fs.s3presto;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.fs.hdfs.HadoopConfigLoader;
-import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.facebook.presto.hive.PrestoS3FileSystem;
+import org.junit.After;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -40,6 +40,11 @@ import static org.junit.Assert.assertTrue;
  * These tests do not actually read from or write to S3.
  */
 public class PrestoS3FileSystemTest {
+
+	@After
+	public void resetFileSystemConfig() throws Exception {
+		FileSystem.initialize(new Configuration());
+	}
 
 	@Test
 	public void testConfigPropagation() throws Exception{
@@ -90,14 +95,29 @@ public class PrestoS3FileSystemTest {
 			hadoopConfig.get("presto.s3.credentials-provider"));
 	}
 
+	@Test
+	public void testEntropyInjectionConfig() throws Exception {
+		final Configuration conf = new Configuration();
+		conf.setString("s3.entropy.key", "__entropy__");
+		conf.setInteger("s3.entropy.length", 7);
+
+		FileSystem.initialize(conf);
+
+		FileSystem fs = FileSystem.get(new URI("s3://test"));
+		S3PrestoFileSystem s3fs = (S3PrestoFileSystem) fs;
+
+		assertEquals("__entropy__", s3fs.getEntropyInjectionKey());
+		assertEquals(7, s3fs.getEntropyLength());
+	}
+
 	// ------------------------------------------------------------------------
 	//  utilities
 	// ------------------------------------------------------------------------
 
 	private static void validateBasicCredentials(FileSystem fs) throws Exception {
-		assertTrue(fs instanceof HadoopFileSystem);
+		assertTrue(fs instanceof S3PrestoFileSystem);
 
-		org.apache.hadoop.fs.FileSystem hadoopFs = ((HadoopFileSystem) fs).getHadoopFileSystem();
+		org.apache.hadoop.fs.FileSystem hadoopFs = ((S3PrestoFileSystem) fs).getHadoopFileSystem();
 		assertTrue(hadoopFs instanceof PrestoS3FileSystem);
 
 		try (PrestoS3FileSystem prestoFs = (PrestoS3FileSystem) hadoopFs) {
