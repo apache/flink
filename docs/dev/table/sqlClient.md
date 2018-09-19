@@ -74,7 +74,7 @@ The **table mode** materializes results in memory and visualizes them in a regul
 SET execution.result-mode=table;
 {% endhighlight %}
 
-The **changelog mode** does not materialize results and visualizes the result stream that is produced by a [continuous query](streaming.html#dynamic-tables--continuous-queries) consisting of insertions (`+`) and retractions (`-`).
+The **changelog mode** does not materialize results and visualizes the result stream that is produced by a [continuous query](streaming/dynamic_tables.html#continuous-queries) consisting of insertions (`+`) and retractions (`-`).
 
 {% highlight text %}
 SET execution.result-mode=changelog;
