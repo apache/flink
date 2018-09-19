@@ -237,7 +237,8 @@ public class TextInputFormatTest {
 			Configuration parameters = new Configuration();
 			inputFormat.configure(parameters);
 
-//			inputFormat.setDelimiter("\n");
+//			inputFormat.setDelimiter("\r");
+//			inputFormat.setDelimiter("i");
 
 			FileInputSplit[] splits = inputFormat.createInputSplits(1);
 			assertTrue("expected at least one input split", splits.length >= 1);
