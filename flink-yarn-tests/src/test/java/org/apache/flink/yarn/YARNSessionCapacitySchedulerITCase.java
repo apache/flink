@@ -447,7 +447,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		// get temporary folder for writing output of wordcount example
 		File tmpOutFolder = null;
 		try {
-			tmpOutFolder = tmp.newFolder();
+			tmpOutFolder = TEMPORARY_FOLDER.newFolder();
 		}
 		catch (IOException e) {
 			throw new RuntimeException(e);
@@ -456,7 +456,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		// get temporary file for reading input data for wordcount example
 		File tmpInFile;
 		try {
-			tmpInFile = tmp.newFile();
+			tmpInFile = TEMPORARY_FOLDER.newFile();
 			FileUtils.writeStringToFile(tmpInFile, WordCountData.TEXT);
 		}
 		catch (IOException e) {

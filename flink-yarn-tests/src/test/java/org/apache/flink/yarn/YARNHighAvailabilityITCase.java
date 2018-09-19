@@ -112,9 +112,9 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		final Configuration configuration = GlobalConfiguration.loadConfiguration();
 		TestingYarnClusterDescriptor flinkYarnClient = new TestingYarnClusterDescriptor(
 			configuration,
-			getYarnConfiguration(),
+			YARN_CONFIGURATION,
 			confDirPath,
-			getYarnClient(),
+			yarnClient,
 			true);
 
 		Assert.assertNotNull("unable to get yarn client", flinkYarnClient);

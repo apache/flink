@@ -43,8 +43,6 @@ import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ContainerReport;
-import org.apache.hadoop.yarn.client.api.YarnClient;
-import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -78,7 +76,6 @@ public class YarnConfigurationITCase extends YarnTestBase {
 	 */
 	@Test(timeout = 60000)
 	public void testFlinkContainerMemory() throws Exception {
-		final YarnClient yarnClient = getYarnClient();
 		final Configuration configuration = new Configuration(flinkConfiguration);
 
 		final int masterMemory = 64;
@@ -90,10 +87,9 @@ public class YarnConfigurationITCase extends YarnTestBase {
 		configuration.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, String.valueOf(1L << 20));
 		configuration.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, String.valueOf(4L << 20));
 
-		final YarnConfiguration yarnConfiguration = getYarnConfiguration();
 		final YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
 			configuration,
-			yarnConfiguration,
+			YARN_CONFIGURATION,
 			CliFrontend.getConfigurationDirectoryFromEnv(),
 			yarnClient,
 			true);

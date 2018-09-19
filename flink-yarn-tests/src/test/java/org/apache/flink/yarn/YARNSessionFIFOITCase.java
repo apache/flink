@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -94,7 +94,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 		File exampleJarLocation = getTestJarPath("StreamingWordCount.jar");
 		// get temporary file for reading input data for wordcount example
-		File tmpInFile = tmp.newFile();
+		File tmpInFile = TEMPORARY_FOLDER.newFile();
 		FileUtils.writeStringToFile(tmpInFile, WordCountData.TEXT);
 
 		ArrayList<String> args = new ArrayList<>();
@@ -308,9 +308,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 		try (final AbstractYarnClusterDescriptor clusterDescriptor = new LegacyYarnClusterDescriptor(
 			configuration,
-			getYarnConfiguration(),
+			YARN_CONFIGURATION,
 			confDirPath,
-			getYarnClient(),
+			yarnClient,
 			true)) {
 			Assert.assertNotNull("unable to get yarn client", clusterDescriptor);
 			clusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
