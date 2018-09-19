@@ -100,7 +100,7 @@ public class HadoopConfigLoader {
 					String newValue = fixHadoopConfig(key, flinkConfig.getString(key, null));
 					hadoopConfig.set(newKey, newValue);
 
-					LOG.debug("Adding Flink config entry for {} as {}={} to Hadoop config", key, newKey, value);
+					LOG.debug("Adding Flink config entry for {} as {} to Hadoop config", key, newKey);
 				}
 			}
 		}
