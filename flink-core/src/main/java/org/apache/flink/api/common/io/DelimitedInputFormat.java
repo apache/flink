@@ -416,7 +416,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			while (samplesTaken < numSamples && fileNum < allFiles.size()) {
 				// make a split for the sample and use it to read a record
 				FileStatus file = allFiles.get(fileNum);
-				String bomCharsetName = getBomCharset(file.getPath().getPath());
+				String bomCharsetName = getBomCharset(file);
 
 				FileInputSplit split = new FileInputSplit(0, file.getPath(), offset, file.getLen() - offset, null, bomCharsetName);
 

@@ -226,7 +226,7 @@ public class TextInputFormatTest {
 			tempFile.deleteOnExit();
 			tempFile.setWritable(true);
 
-			PrintStream ps = new  PrintStream(tempFile, "UTF-16");
+			PrintStream ps = new PrintStream(tempFile, "UTF-16");
 			ps.println(first);
 			ps.println(second);
 			ps.close();
@@ -261,8 +261,7 @@ public class TextInputFormatTest {
 			assertEquals(second, result);
 
 			assertTrue(inputFormat.reachedEnd() || null == inputFormat.nextRecord(result));
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			System.err.println("test failed with exception: " + t.getMessage());
 			t.printStackTrace(System.err);
 			fail("Test erroneous");

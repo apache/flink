@@ -602,7 +602,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		if (unsplittable) {
 			int splitNum = 0;
 			for (final FileStatus file : files) {
-				String bomCharsetName = getBomCharset(file.getPath().getPath());
+				String bomCharsetName = getBomCharset(file);
 
 				final FileSystem fs = file.getPath().getFileSystem();
 				final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, file.getLen());
@@ -628,7 +628,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		int splitNum = 0;
 		for (final FileStatus file : files) {
 
-			String bomCharsetName = getBomCharset(file.getPath().getPath());
+			String bomCharsetName = getBomCharset(file);
 
 			final FileSystem fs = file.getPath().getFileSystem();
 			final long len = file.getLen();
@@ -890,22 +890,23 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 
 	/**
 	 * Get file bom encoding
-	 * @param filePath
+	 * @param fs
 	 * @return
 	 */
-	public String getBomCharset(String filePath) {
-		FileInputStream is = null;
-		String charset = null;
+	public String getBomCharset(FileStatus fs) {
+		FSDataInputStream inStream = null;
+		String charset;
+		byte[] bom = new byte[4];
+		byte[] bytes = new byte[]{(byte) 0x00, (byte) 0xFE, (byte) 0xFF, (byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
 		try {
-			is = new FileInputStream(filePath);
-			byte[] bom = new byte[4];
-			byte[] bytes = new byte[]{(byte)0x00,(byte)0xFE,(byte)0xFF,(byte)0xEF,(byte)0xBB,(byte)0xBF};
 			/*
 			 * int read() 从此输入流中读取一个数据字节。int read(byte[] b) 从此输入流中将最多 b.length
 			 * 个字节的数据读入一个 byte 数组中。 int read(byte[] b, int off, int len)
 			 * 从此输入流中将最多 len 个字节的数据读入一个 byte 数组中。
 			 */
-			is.read(bom, 0, bom.length);
+			FileSystem fileSystem = fs.getPath().getFileSystem();
+			inStream = fileSystem.open(fs.getPath());
+			inStream.read(bom, 0, bom.length);
 			if ((bom[0] == bytes[0]) && (bom[1] == bytes[0]) && (bom[2] == bytes[1]) && (bom[3] == bytes[2])) {
 				charset = "UTF-32BE";
 			} else if ((bom[0] == bytes[2]) && (bom[1] == bytes[1]) && (bom[2] == bytes[0]) && (bom[3] == bytes[0])) {
@@ -923,9 +924,9 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		} catch (Exception e) {
 			throw new IllegalArgumentException("Failed to get file bom encoding.");
 		} finally {
-			if (null != is) {
+			if (null != inStream) {
 				try {
-					is.close();
+					inStream.close();
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
