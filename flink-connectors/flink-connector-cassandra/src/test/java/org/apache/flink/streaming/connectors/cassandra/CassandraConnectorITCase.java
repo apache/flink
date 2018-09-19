@@ -144,8 +144,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 
 		public void start() throws IOException {
 			this.cassandraDaemon = new CassandraDaemon();
-			this.cassandraDaemon.init(null);
-			this.cassandraDaemon.start();
+			this.cassandraDaemon.activate();
 		}
 
 		public void stop() {

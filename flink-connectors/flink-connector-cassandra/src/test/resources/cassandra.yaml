@@ -21,9 +21,11 @@ commitlog_sync_period_in_ms: 10000
 commitlog_segment_size_in_mb: 16
 partitioner: 'org.apache.cassandra.dht.RandomPartitioner'
 endpoint_snitch: 'org.apache.cassandra.locator.SimpleSnitch'
+cdc_raw_directory: $PATH/cdc'
 commitlog_directory: $PATH/commit'
 data_file_directories:
     - $PATH/data'
+hints_directory: $PATH/hints'
 saved_caches_directory: $PATH/cache'
 listen_address: '127.0.0.1'
 seed_provider:
