@@ -27,23 +27,26 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.util.List;
 
 /**
- * Serializer wrapper to add support of null value serialization.
+ * Serializer wrapper to add support of {@code null} value serialization.
  *
- * <p>If the target serializer does not support null values of its type,
+ * <p>If the target serializer does not support {@code null} values of its type,
  * you can use this class to wrap this serializer.
- * This is a generic treatment of null value serialization
+ * This is a generic treatment of {@code null} value serialization
  * which comes with the cost of additional byte in the final serialized value.
- * The {@code NullableSerializer} will intercept null value serialization case
- * and prepend the target serialized value with a boolean flag marking whether it is null or not.
+ * The {@code NullableSerializer} will intercept {@code null} value serialization case
+ * and prepend the target serialized value with a boolean flag marking whether it is {@code null} or not.
  * <pre> {@code
  * TypeSerializer<T> originalSerializer = ...;
  * TypeSerializer<T> serializerWithNullValueSupport = NullableSerializer.wrap(originalSerializer);
@@ -56,33 +59,51 @@ import java.util.List;
 public class NullableSerializer<T> extends TypeSerializer<T> {
 	private static final long serialVersionUID = 3335569358214720033L;
 
+	@Nonnull
 	private final TypeSerializer<T> originalSerializer;
 
-	private NullableSerializer(TypeSerializer<T> originalSerializer) {
+	private NullableSerializer(@Nonnull TypeSerializer<T> originalSerializer) {
 		Preconditions.checkNotNull(originalSerializer, "The original serializer cannot be null");
 		this.originalSerializer = originalSerializer;
 	}
 
 	/**
-	 * This method tries to serialize null value with the {@code originalSerializer}
+	 * This method tries to serialize {@code null} value with the {@code originalSerializer}
 	 * and wraps it in case of {@link NullPointerException}, otherwise it returns the {@code originalSerializer}.
+	 *
+	 * @param originalSerializer serializer to wrap and add {@code null} support
+	 * @return serializer which supports {@code null} values
 	 */
-	public static <T> TypeSerializer<T> wrapIfNullIsNotSupported(TypeSerializer<T> originalSerializer) {
+	public static <T> TypeSerializer<T> wrapIfNullIsNotSupported(@Nonnull TypeSerializer<T> originalSerializer) {
 		return checkIfNullSupported(originalSerializer) ? originalSerializer : wrap(originalSerializer);
 	}
 
-	private static <T> boolean checkIfNullSupported(TypeSerializer<T> originalSerializer) {
+	/**
+	 * This method checks if {@code serializer} supports {@code null} value.
+	 *
+	 * @param serializer serializer to check
+	 */
+	public static <T> boolean checkIfNullSupported(@Nonnull TypeSerializer<T> serializer) {
 		try {
-			originalSerializer.serialize(null, new DataOutputSerializer(1));
-			Preconditions.checkArgument(originalSerializer.copy(null) == null);
-		} catch (NullPointerException | IOException e) {
+			int length = serializer.getLength() > 0 ? serializer.getLength() : 1;
+			DataOutputSerializer dos = new DataOutputSerializer(length);
+			serializer.serialize(null, dos);
+			DataInputDeserializer dis = new DataInputDeserializer(dos.getSharedBuffer());
+			Preconditions.checkArgument(serializer.deserialize(dis) == null);
+			Preconditions.checkArgument(serializer.copy(null) == null);
+		} catch (IOException | RuntimeException e) {
 			return false;
 		}
 		return true;
 	}
 
-	/** This method wraps the {@code originalSerializer} with the {@code NullableSerializer} if not already wrapped. */
-	public static <T> TypeSerializer<T> wrap(TypeSerializer<T> originalSerializer) {
+	/**
+	 * This method wraps the {@code originalSerializer} with the {@code NullableSerializer} if not already wrapped.
+	 *
+	 * @param originalSerializer serializer to wrap and add {@code null} support
+	 * @return wrapped serializer which supports {@code null} values
+	 */
+	public static <T> TypeSerializer<T> wrap(@Nonnull TypeSerializer<T> originalSerializer) {
 		return originalSerializer instanceof NullableSerializer ?
 			originalSerializer : new NullableSerializer<>(originalSerializer);
 	}
@@ -94,7 +115,9 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public TypeSerializer<T> duplicate() {
-		return new NullableSerializer<>(originalSerializer.duplicate());
+		TypeSerializer<T> duplicateOriginalSerializer = originalSerializer.duplicate();
+		return duplicateOriginalSerializer == originalSerializer ?
+			this : new NullableSerializer<>(originalSerializer.duplicate());
 	}
 
 	@Override
@@ -116,7 +139,7 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 	@Override
 	public int getLength() {
 		int len = originalSerializer.getLength();
-		return len < 0 ? len : len + 1;
+		return len == 0 ? 1 : -1;
 	}
 
 	@Override
@@ -155,12 +178,13 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 	public boolean equals(Object obj) {
 		return obj == this ||
 			(obj != null && obj.getClass() == getClass() &&
-				originalSerializer.equals(((NullableSerializer) originalSerializer).originalSerializer));
+				originalSerializer.equals(((NullableSerializer) obj).originalSerializer));
 	}
 
 	@Override
 	public boolean canEqual(Object obj) {
-		return (obj != null && obj.getClass() == getClass());
+		return (obj != null && obj.getClass() == getClass() &&
+			originalSerializer.canEqual(((NullableSerializer) obj).originalSerializer));
 	}
 
 	@Override

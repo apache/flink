@@ -33,9 +33,9 @@ import static org.apache.flink.api.common.state.StateTtlConfig.UpdateType.OnCrea
 /**
  * Configuration of state TTL logic.
  *
- * <p>Note: The map state with TTL currently supports null user values
- * only if the user value serializer can handle null values.
- * If the serializer does not support null values,
+ * <p>Note: The map state with TTL currently supports {@code null} user values
+ * only if the user value serializer can handle {@code null} values.
+ * If the serializer does not support {@code null} values,
  * it can be wrapped with {@link org.apache.flink.api.java.typeutils.runtime.NullableSerializer}
  * at the cost of an extra byte in the serialized form.
  */
