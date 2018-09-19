@@ -25,7 +25,6 @@ import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import akka.actor.Kill;
 import akka.actor.Props;
 import akka.actor.RobustActorSystem;
 import akka.testkit.JavaTestKit;
@@ -81,7 +80,7 @@ public class FlinkUntypedActorTest extends TestLogger {
 			assertEquals(3, underlyingActor.getMessageCounter());
 
 		} finally {
-			stopActor(actor);
+			ActorUtils.stopActor(actor);
 		}
 	}
 
@@ -114,13 +113,7 @@ public class FlinkUntypedActorTest extends TestLogger {
 			}
 
 		} finally {
-			stopActor(actor);
-		}
-	}
-
-	private static void stopActor(ActorRef actor) {
-		if (actor != null) {
-			actor.tell(Kill.getInstance(), ActorRef.noSender());
+			ActorUtils.stopActor(actor);
 		}
 	}
 

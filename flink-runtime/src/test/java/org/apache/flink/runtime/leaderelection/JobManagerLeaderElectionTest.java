@@ -20,6 +20,7 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.akka.ActorUtils;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
@@ -116,7 +117,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 
 			Await.ready(leaderFuture, duration);
 		} finally {
-			TestingUtils.stopActor(jm);
+			ActorUtils.stopActor(jm);
 		}
 
 	}
@@ -162,7 +163,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 
 			Await.ready(leader2Future, duration);
 		} finally {
-			TestingUtils.stopActor(jm2);
+			ActorUtils.stopActor(jm2);
 		}
 	}
 

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.akka;
 
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
@@ -130,9 +129,9 @@ public class QuarantineMonitorTest extends TestLogger {
 
 			Assert.assertEquals(actorSystem1Address.toString(), quarantineFuture.get());
 		} finally {
-			TestingUtils.stopActor(watchee);
-			TestingUtils.stopActor(watcher);
-			TestingUtils.stopActor(monitor);
+			ActorUtils.stopActor(watchee);
+			ActorUtils.stopActor(watcher);
+			ActorUtils.stopActor(monitor);
 		}
 	}
 
@@ -171,9 +170,9 @@ public class QuarantineMonitorTest extends TestLogger {
 
 			Assert.assertEquals(actorSystem1Address.toString(), quarantineFuture.get());
 		} finally {
-			TestingUtils.stopActor(watchee);
-			TestingUtils.stopActor(watcher);
-			TestingUtils.stopActor(monitor);
+			ActorUtils.stopActor(watchee);
+			ActorUtils.stopActor(watcher);
+			ActorUtils.stopActor(monitor);
 		}
 	}
 

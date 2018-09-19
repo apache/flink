@@ -22,8 +22,8 @@ import java.util
 import java.util.concurrent._
 import java.util.{Collections, UUID}
 
-import akka.actor.{ActorRef, ActorSystem, Kill, Props}
-import akka.pattern.{Patterns, ask}
+import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.pattern.ask
 import com.typesafe.config.ConfigFactory
 import grizzled.slf4j.Logger
 import org.apache.flink.api.common.time.Time
@@ -293,76 +293,6 @@ object TestingUtils {
     }
 
     new AkkaActorGateway(taskManager, leaderId)
-  }
-
-  /** Stops the given actor by sending it a Kill message
-    *
-    * @param actor
-    */
-  def stopActor(actor: ActorRef): Unit = {
-    if (actor != null) {
-      actor ! Kill
-    }
-  }
-
-  /** Stops the given actor by sending it a Kill message
-    *
-    * @param actorGateway
-    */
-  def stopActor(actorGateway: ActorGateway): Unit = {
-    if (actorGateway != null) {
-      stopActor(actorGateway.actor())
-    }
-  }
-
-  def stopActorGracefully(actor: ActorRef): Unit = {
-    val gracefulStopFuture = Patterns.gracefulStop(actor, TestingUtils.TESTING_TIMEOUT)
-
-    Await.result(gracefulStopFuture, TestingUtils.TESTING_TIMEOUT)
-  }
-
-  def stopActorGracefully(actorGateway: ActorGateway): Unit = {
-    stopActorGracefully(actorGateway.actor())
-  }
-
-  def stopActorsGracefully(actors: ActorRef*): Unit = {
-    val gracefulStopFutures = actors.flatMap{
-      actor =>
-        Option(actor) match {
-          case Some(actorRef) => Some(Patterns.gracefulStop(actorRef, TestingUtils.TESTING_TIMEOUT))
-          case None => None
-        }
-    }
-
-    implicit val executionContext = defaultExecutionContext
-
-    val globalStopFuture = scala.concurrent.Future.sequence(gracefulStopFutures)
-
-    Await.result(globalStopFuture, TestingUtils.TESTING_TIMEOUT)
-  }
-
-  def stopActorsGracefully(actors: java.util.List[ActorRef]): Unit = {
-    import scala.collection.JavaConverters._
-
-    stopActorsGracefully(actors.asScala: _*)
-  }
-
-  def stopActorGatewaysGracefully(actorGateways: ActorGateway*): Unit = {
-    val actors = actorGateways.flatMap {
-      actorGateway =>
-        Option(actorGateway) match {
-          case Some(actorGateway) => Some(actorGateway.actor())
-          case None => None
-        }
-    }
-
-    stopActorsGracefully(actors: _*)
-  }
-
-  def stopActorGatewaysGracefully(actorGateways: java.util.List[ActorGateway]): Unit = {
-    import scala.collection.JavaConverters._
-
-    stopActorGatewaysGracefully(actorGateways.asScala: _*)
   }
 
   /** Creates a testing JobManager using the default recovery mode (standalone)

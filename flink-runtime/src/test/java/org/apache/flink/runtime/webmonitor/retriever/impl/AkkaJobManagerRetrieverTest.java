@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.webmonitor.retriever.impl;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.akka.ActorUtils;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClientActorTest;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorRef;
@@ -100,7 +100,7 @@ public class AkkaJobManagerRetrieverTest extends TestLogger {
 			settableLeaderRetrievalService.stop();
 
 			if (actorRef != null) {
-				TestingUtils.stopActorGracefully(actorRef);
+				ActorUtils.stopActorGracefully(actorRef);
 			}
 		}
 	}

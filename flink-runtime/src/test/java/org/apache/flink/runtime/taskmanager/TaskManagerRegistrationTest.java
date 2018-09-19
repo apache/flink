@@ -26,6 +26,7 @@ import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.akka.ActorUtils;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
@@ -60,15 +61,13 @@ import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.runtime.testingUtils.TestingUtils.stopActor;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.createTaskManager;
-import static org.apache.flink.runtime.testingUtils.TestingUtils.stopActorGatewaysGracefully;
-import static org.apache.flink.runtime.testingUtils.TestingUtils.stopActorGracefully;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -189,7 +188,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				e.printStackTrace();
 				fail(e.getMessage());
 			} finally {
-				stopActorGatewaysGracefully(Arrays.asList(taskManager1, taskManager2, jobManager, resourceManager));
+				ActorUtils.stopActorsGracefully(taskManager1, taskManager2, jobManager, resourceManager);
 
 				embeddedHaServices.closeAndCleanupAllData();
 			}
@@ -240,7 +239,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 
 				assertTrue(response instanceof TaskManagerMessages.RegisteredAtJobManager);
 			} finally {
-				stopActorGatewaysGracefully(Arrays.asList(taskManager, jobManager));
+				ActorUtils.stopActorsGracefully(taskManager, jobManager);
 
 				embeddedHaServices.closeAndCleanupAllData();
 			}
@@ -301,7 +300,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				e.printStackTrace();
 				fail(e.getMessage());
 			} finally {
-				stopActorGracefully(taskManager);
+				ActorUtils.stopActorsGracefully(taskManager);
 			}
 		}};
 	}
@@ -371,7 +370,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 					}
 				};
 			} finally {
-				stopActorGatewaysGracefully(Arrays.asList(taskManager, jm));
+				ActorUtils.stopActorsGracefully(taskManager, jm);
 			}
 		}};
 	}
@@ -469,7 +468,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 					+ maxExpectedNumberOfRegisterTaskManagerMessages,
 					registerTaskManagerMessages.length <= maxExpectedNumberOfRegisterTaskManagerMessages);
 			} finally {
-				stopActorGatewaysGracefully(Arrays.asList(taskManager, jm));
+				ActorUtils.stopActorsGracefully(taskManager, jm);
 			}
 		}};
 	}
@@ -533,7 +532,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 
 				// kill the first forwarding JobManager
 				watch(fakeJobManager1Gateway.actor());
-				stopActor(fakeJobManager1Gateway.actor());
+				ActorUtils.stopActorsGracefully(fakeJobManager1Gateway.actor());
 
 				final ActorGateway gateway = fakeJobManager1Gateway;
 
@@ -598,7 +597,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				e.printStackTrace();
 				fail(e.getMessage());
 			} finally {
-				stopActorGatewaysGracefully(Arrays.asList(taskManagerGateway, fakeJobManager2Gateway));
+				ActorUtils.stopActorsGracefully(taskManagerGateway, fakeJobManager2Gateway);
 			}
 		}};
 	}
@@ -675,7 +674,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 					}
 				};
 			} finally {
-				stopActorGracefully(taskManagerGateway);
+				ActorUtils.stopActorsGracefully(taskManagerGateway);
 			}
 		}};
 	}

@@ -24,7 +24,7 @@ import java.util.concurrent.{Executors, ScheduledExecutorService, TimeUnit}
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.akka.{ActorUtils, AkkaUtils}
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices
@@ -33,7 +33,7 @@ import org.apache.flink.runtime.instance._
 import org.apache.flink.runtime.jobmanager.JobManagerRegistrationTest.PlainForwardingActor
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
 import org.apache.flink.runtime.messages.RegistrationMessages.{AcknowledgeRegistration, AlreadyRegistered, RegisterTaskManager}
-import org.apache.flink.runtime.metrics.{MetricRegistryImpl, MetricRegistryConfiguration}
+import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistryImpl}
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenLeader
 import org.apache.flink.runtime.testingUtils.{TestingJobManager, TestingUtils}
@@ -150,7 +150,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with Befor
 
           val response = probe.expectMsgType[LeaderSessionMessage]
           response match {
-            case LeaderSessionMessage(leaderSessionID, AcknowledgeRegistration(id, _)) => id2 = id
+            case LeaderSessionMessage(_, AcknowledgeRegistration(id, _)) => id2 = id
             case _ => fail("Wrong response message: " + response)
           }
         }
@@ -159,10 +159,10 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with Befor
         assertNotNull(id2)
         assertNotEquals(id1, id2)
       } finally {
-        jmOption.foreach(TestingUtils.stopActorGracefully)
-        rmOption.foreach(TestingUtils.stopActorGracefully)
-        tm1Option.foreach(TestingUtils.stopActorGracefully)
-        tm2Option.foreach(TestingUtils.stopActorGracefully)
+        jmOption.foreach(ActorUtils.stopActorGracefully)
+        rmOption.foreach(ActorUtils.stopActorGracefully)
+        tm1Option.foreach(ActorUtils.stopActorGracefully)
+        tm2Option.foreach(ActorUtils.stopActorGracefully)
       }
     }
 
@@ -239,8 +239,8 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with Befor
           }
         }
       } finally {
-        jmOption.foreach(TestingUtils.stopActorGracefully)
-        rmOption.foreach(TestingUtils.stopActorGracefully)
+        jmOption.foreach(ActorUtils.stopActorGracefully)
+        rmOption.foreach(ActorUtils.stopActorGracefully)
       }
     }
   }
@@ -277,8 +277,8 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with Befor
       components._6,
       highAvailabilityServices.getJobManagerLeaderElectionService(
         HighAvailabilityServices.DEFAULT_JOB_ID),
-      highAvailabilityServices.getSubmittedJobGraphStore(),
-      highAvailabilityServices.getCheckpointRecoveryFactory(),
+      highAvailabilityServices.getSubmittedJobGraphStore,
+      highAvailabilityServices.getCheckpointRecoveryFactory,
       components._9,
       components._10,
       None)

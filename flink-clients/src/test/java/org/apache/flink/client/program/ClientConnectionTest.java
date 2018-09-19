@@ -22,6 +22,7 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.akka.ActorUtils;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClientActorTest;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -29,7 +30,6 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -148,7 +148,7 @@ public class ClientConnectionTest extends TestLogger {
 			assertEquals(leaderId, gateway.leaderSessionID());
 		} finally {
 			if (actorRef != null) {
-				TestingUtils.stopActorGracefully(actorRef);
+				ActorUtils.stopActorGracefully(actorRef);
 			}
 
 			actorSystem.shutdown();

@@ -22,6 +22,7 @@ import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.akka.ActorUtils;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.messages.StopClusterSuccessful;
@@ -41,8 +42,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import scala.Option;
-
-import java.util.Arrays;
 
 /**
  * Runs tests to ensure that a cluster is shutdown properly.
@@ -129,8 +128,7 @@ public class ClusterShutdownITCase extends TestLogger {
 					StopClusterSuccessful.getInstance()
 				);
 			} finally {
-				TestingUtils.stopActorGatewaysGracefully(Arrays.asList(
-					jobManager, taskManager, forwardingActor));
+				ActorUtils.stopActorsGracefully(jobManager, taskManager, forwardingActor);
 			}
 
 		}};
@@ -207,8 +205,7 @@ public class ClusterShutdownITCase extends TestLogger {
 					StopClusterSuccessful.getInstance()
 				);
 			} finally {
-				TestingUtils.stopActorGatewaysGracefully(Arrays.asList(
-					jobManager, taskManager, resourceManager, forwardingActor));
+				ActorUtils.stopActorsGracefully(jobManager, taskManager, resourceManager, forwardingActor);
 			}
 
 		}};

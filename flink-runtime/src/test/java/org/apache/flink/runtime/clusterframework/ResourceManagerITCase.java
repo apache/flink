@@ -21,6 +21,7 @@ package org.apache.flink.runtime.clusterframework;
 import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.akka.ActorUtils;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -41,9 +42,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import scala.Option;
-
-
-import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -152,8 +150,7 @@ public class ResourceManagerITCase extends TestLogger {
 				assertEquals(1, reply.resources.size());
 				assertTrue(reply.resources.contains(resourceID));
 			} finally {
-				TestingUtils.stopActorGatewaysGracefully(Arrays.asList(
-					jobManager, resourceManager, forwardingActor));
+				ActorUtils.stopActorsGracefully(jobManager, resourceManager, forwardingActor);
 			}
 
 		}};
@@ -215,8 +212,7 @@ public class ResourceManagerITCase extends TestLogger {
 
 				assertEquals(1, reply.resources.size());
 			} finally {
-				TestingUtils.stopActorGatewaysGracefully(Arrays.asList(
-					jobManager, resourceManager, taskManager, forwardingActor));
+				ActorUtils.stopActorsGracefully(jobManager, resourceManager, taskManager, forwardingActor);
 			}
 
 		}};
