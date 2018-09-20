@@ -66,6 +66,15 @@ public class SSLUtils {
 	}
 
 	/**
+	 * Checks whether mutual SSL authentication for the external REST endpoint is enabled.
+	 */
+	public static boolean isRestSSLAuthenticationEnabled(Configuration sslConfig) {
+		checkNotNull(sslConfig, "sslConfig");
+		return isRestSSLEnabled(sslConfig) &&
+			sslConfig.getBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED);
+	}
+
+	/**
 	 * Creates a factory for SSL Server Sockets from the given configuration.
 	 * SSL Server Sockets are always part of internal communication.
 	 */
@@ -145,7 +154,7 @@ public class SSLUtils {
 				getEnabledProtocols(config),
 				getEnabledCipherSuites(config),
 				false,
-				false);
+				isRestSSLAuthenticationEnabled(config));
 	}
 
 	/**
@@ -164,7 +173,7 @@ public class SSLUtils {
 				getEnabledProtocols(config),
 				getEnabledCipherSuites(config),
 				true,
-				false);
+				isRestSSLAuthenticationEnabled(config));
 	}
 
 	private static String[] getEnabledProtocols(final Configuration config) {
@@ -229,6 +238,58 @@ public class SSLUtils {
 	}
 
 	/**
+	 * Creates an SSL context for the external REST SSL with mutual authentication if SSL and
+	 * mututal authenticataion is configures.
+	 * The client and the server side configuration are identical, to allow mutual authentication.
+	 */
+	@Nullable
+	public static SSLContext createRestAuthenticationSSLContext(Configuration config) throws Exception {
+		checkNotNull(config, "config");
+
+		if (!isRestSSLAuthenticationEnabled(config)) {
+			return null;
+		}
+
+		String keystoreFilePath = getAndCheckOption(
+			config, SecurityOptions.SSL_REST_KEYSTORE, SecurityOptions.SSL_KEYSTORE);
+
+		String keystorePassword = getAndCheckOption(
+			config, SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, SecurityOptions.SSL_KEYSTORE_PASSWORD);
+
+		String certPassword = getAndCheckOption(
+			config, SecurityOptions.SSL_REST_KEY_PASSWORD, SecurityOptions.SSL_KEY_PASSWORD);
+
+		String trustStoreFilePath = getAndCheckOption(
+			config, SecurityOptions.SSL_REST_TRUSTSTORE, SecurityOptions.SSL_TRUSTSTORE);
+
+		String trustStorePassword = getAndCheckOption(
+			config, SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, SecurityOptions.SSL_TRUSTSTORE_PASSWORD);
+
+		String sslProtocolVersion = config.getString(SecurityOptions.SSL_PROTOCOL);
+
+		KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+		try (InputStream keyStoreFile = Files.newInputStream(new File(keystoreFilePath).toPath())) {
+			keyStore.load(keyStoreFile, keystorePassword.toCharArray());
+		}
+
+		KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+		kmf.init(keyStore, certPassword.toCharArray());
+
+		KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+		try (InputStream trustStoreFile = Files.newInputStream(new File(trustStoreFilePath).toPath())) {
+			trustStore.load(trustStoreFile, trustStorePassword.toCharArray());
+		}
+
+		TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+		tmf.init(trustStore);
+
+		SSLContext sslContext = SSLContext.getInstance(sslProtocolVersion);
+		sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+
+		return sslContext;
+	}
+
+	/**
 	 * Creates an SSL context for the external REST endpoint server.
 	 */
 	@Nullable
@@ -237,6 +298,10 @@ public class SSLUtils {
 
 		if (!isRestSSLEnabled(config)) {
 			return null;
+		}
+
+		if (isRestSSLAuthenticationEnabled(config)) {
+			return createRestAuthenticationSSLContext(config);
 		}
 
 		String keystoreFilePath = getAndCheckOption(
@@ -273,6 +338,10 @@ public class SSLUtils {
 
 		if (!isRestSSLEnabled(config)) {
 			return null;
+		}
+
+		if (isRestSSLAuthenticationEnabled(config)) {
+			return createRestAuthenticationSSLContext(config);
 		}
 
 		String trustStoreFilePath = getAndCheckOption(

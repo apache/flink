@@ -78,6 +78,29 @@ public class SSLUtilsTest extends TestLogger {
 		assertFalse(SSLUtils.isRestSSLEnabled(precedence));
 	}
 
+	/**
+	 * Tests whether activation of REST mutual SSL authentication evaluates the config flags correctly.
+	 */
+	@SuppressWarnings("deprecation")
+	@Test
+	public void checkEnableRestSSLAuthentication() {
+		// SSL has to be enabled
+		Configuration noSSLOptions = new Configuration();
+		noSSLOptions.setBoolean(SecurityOptions.SSL_ENABLED, false);
+		noSSLOptions.setBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
+		assertFalse(SSLUtils.isRestSSLAuthenticationEnabled(noSSLOptions));
+
+		// authentication is disabled by default
+		Configuration defaultOptions = new Configuration();
+		defaultOptions.setBoolean(SecurityOptions.SSL_ENABLED, true);
+		assertFalse(SSLUtils.isRestSSLAuthenticationEnabled(defaultOptions));
+
+		Configuration options = new Configuration();
+		noSSLOptions.setBoolean(SecurityOptions.SSL_ENABLED, true);
+		noSSLOptions.setBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
+		assertTrue(SSLUtils.isRestSSLAuthenticationEnabled(noSSLOptions));
+	}
+
 	@Test
 	public void testSocketFactoriesWhenSslDisabled() throws Exception {
 		Configuration config = new Configuration();
