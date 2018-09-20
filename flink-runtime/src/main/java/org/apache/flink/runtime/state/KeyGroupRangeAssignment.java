@@ -56,7 +56,12 @@ public final class KeyGroupRangeAssignment {
 	 * @return the key-group to which the given key is assigned
 	 */
 	public static int assignToKeyGroup(Object key, int maxParallelism) {
-		return computeKeyGroupForKeyHash(key.hashCode(), maxParallelism);
+		try {
+			return computeKeyGroupForKeyHash(key.hashCode(), maxParallelism);
+		} catch (NullPointerException e){
+			throw new RuntimeException("Stream partition key must not be null. " +
+				"Ensure that a key provided for partitioning operator state is not null.", e);
+		}
 	}
 
 	/**

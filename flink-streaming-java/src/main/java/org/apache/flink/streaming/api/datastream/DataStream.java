@@ -278,7 +278,7 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * It creates a new {@link KeyedStream} that uses the provided key for partitioning
+	 * It creates a new {@link KeyedStream} that uses the provided not null key for partitioning
 	 * its operator states.
 	 *
 	 * @param key
@@ -294,7 +294,7 @@ public class DataStream<T> {
 	 * It creates a new {@link KeyedStream} that uses the provided key with explicit type information
 	 * for partitioning its operator states.
 	 *
-	 * @param key The KeySelector to be used for extracting the key for partitioning.
+	 * @param key The KeySelector to be used for extracting the not null key for partitioning.
 	 * @param keyType The type information describing the key type.
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 */
@@ -308,7 +308,7 @@ public class DataStream<T> {
 	 * Partitions the operator state of a {@link DataStream} by the given key positions.
 	 *
 	 * @param fields
-	 *            The position of the fields on which the {@link DataStream}
+	 *            The position of the not null fields on which the {@link DataStream}
 	 *            will be grouped.
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 */
@@ -327,7 +327,7 @@ public class DataStream<T> {
 	 * down into objects, as in {@code "field1.getInnerField2()" }.
 	 *
 	 * @param fields
-	 *            One or more field expressions on which the state of the {@link DataStream} operators will be
+	 *            One or more not null field expressions on which the state of the {@link DataStream} operators will be
 	 *            partitioned.
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 **/
