@@ -906,14 +906,10 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 			if (testFileSystem.equals(fileSystem.getClass().getSimpleName())) {
 				fileSystem = new LocalFileSystem();
 			}
+			
 			inStream = fileSystem.open(fs.getPath());
-
-			InflaterInputStreamFactory<?> inflaterInputStreamFactory = getInflaterInputStreamFactory(fs.getPath());
-			if (inflaterInputStreamFactory != null) {
-				inStream = new InputStreamFSInputWrapper(inflaterInputStreamFactory.create(stream));
-			}
-
 			inStream.read(bom, 0, bom.length);
+
 			if ((bom[0] == bytes[0]) && (bom[1] == bytes[0]) && (bom[2] == bytes[1]) && (bom[3] == bytes[2])) {
 				charset = "UTF-32BE";
 			} else if ((bom[0] == bytes[2]) && (bom[1] == bytes[1]) && (bom[2] == bytes[0]) && (bom[3] == bytes[0])) {
