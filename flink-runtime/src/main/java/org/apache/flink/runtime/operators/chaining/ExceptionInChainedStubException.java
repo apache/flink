@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.chaining;
 
 /**
@@ -24,13 +23,12 @@ package org.apache.flink.runtime.operators.chaining;
  * The exception's only purpose is to be  identifiable as such and to carry the cause exception.
  */
 public class ExceptionInChainedStubException extends RuntimeException {
-	
+
 	private static final long serialVersionUID = -7966910518892776903L;
 
 	private String taskName;
-	
+
 	private Exception exception;
-	
 
 	public ExceptionInChainedStubException(String taskName, Exception wrappedException) {
 		super("Exception in chained task '" + taskName + "'", exceptionUnwrap(wrappedException));
@@ -38,11 +36,10 @@ public class ExceptionInChainedStubException extends RuntimeException {
 		this.exception = wrappedException;
 	}
 
-	
 	public String getTaskName() {
 		return taskName;
 	}
-	
+
 	public Exception getWrappedException() {
 		return exception;
 	}
