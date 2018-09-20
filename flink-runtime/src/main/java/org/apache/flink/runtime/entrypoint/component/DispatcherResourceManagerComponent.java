@@ -26,7 +26,6 @@ import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
-import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nonnull;
@@ -41,7 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Component which starts a {@link Dispatcher}, {@link ResourceManager} and {@link WebMonitorEndpoint}
  * in the same process.
  */
-public class DispatcherResourceManagerComponent<T extends Dispatcher> implements AutoCloseableAsync {
+public class DispatcherResourceManagerComponent<T extends Dispatcher> {
 
 	@Nonnull
 	private final T dispatcher;
@@ -126,55 +125,6 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> implements
 		return webMonitorEndpoint;
 	}
 
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		if (isRunning.compareAndSet(true, false)) {
-			Exception exception = null;
-
-			final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(4);
-
-			try {
-				dispatcherLeaderRetrievalService.stop();
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-
-			try {
-				resourceManagerRetrievalService.stop();
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-
-			terminationFutures.add(webMonitorEndpoint.closeAsync());
-
-			dispatcher.shutDown();
-			terminationFutures.add(dispatcher.getTerminationFuture());
-
-			resourceManager.shutDown();
-			terminationFutures.add(resourceManager.getTerminationFuture());
-
-			if (exception != null) {
-				terminationFutures.add(FutureUtils.completedExceptionally(exception));
-			}
-
-			final CompletableFuture<Void> componentTerminationFuture = FutureUtils.completeAll(terminationFutures);
-
-			final CompletableFuture<Void> metricGroupTerminationFuture = FutureUtils.runAfterwards(
-				componentTerminationFuture,
-				jobManagerMetricGroup::close);
-
-			metricGroupTerminationFuture.whenComplete((aVoid, throwable) -> {
-				if (throwable != null) {
-					terminationFuture.completeExceptionally(throwable);
-				} else {
-					terminationFuture.complete(aVoid);
-				}
-			});
-		}
-
-		return terminationFuture;
-	}
-
 	/**
 	 * Deregister the Flink application from the resource management system by signalling
 	 * the {@link ResourceManager}.
@@ -183,8 +133,69 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> implements
 	 * @param diagnostics additional information about the shut down, can be {@code null}
 	 * @return Future which is completed once the shut down
 	 */
-	public CompletableFuture<Void> deregisterApplication(ApplicationStatus applicationStatus, @Nullable String diagnostics) {
+	public CompletableFuture<Void> deregisterApplicationAndClose(
+			final ApplicationStatus applicationStatus,
+			final @Nullable String diagnostics) {
+
+		if (isRunning.compareAndSet(true, false)) {
+			final CompletableFuture<Void> closeWebMonitorAndDeregisterAppFuture =
+				FutureUtils.composeAfterwards(webMonitorEndpoint.closeAsync(), () -> deregisterApplication(applicationStatus, diagnostics));
+
+			return FutureUtils.composeAfterwards(closeWebMonitorAndDeregisterAppFuture, this::closeAsyncInternal);
+		} else {
+			return terminationFuture;
+		}
+	}
+
+	private CompletableFuture<Void> deregisterApplication(
+			final ApplicationStatus applicationStatus,
+			final @Nullable String diagnostics) {
+
 		final ResourceManagerGateway selfGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 		return selfGateway.deregisterApplication(applicationStatus, diagnostics).thenApply(ack -> null);
+	}
+
+	private CompletableFuture<Void> closeAsyncInternal() {
+		Exception exception = null;
+
+		final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(3);
+
+		try {
+			dispatcherLeaderRetrievalService.stop();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		try {
+			resourceManagerRetrievalService.stop();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		dispatcher.shutDown();
+		terminationFutures.add(dispatcher.getTerminationFuture());
+
+		resourceManager.shutDown();
+		terminationFutures.add(resourceManager.getTerminationFuture());
+
+		if (exception != null) {
+			terminationFutures.add(FutureUtils.completedExceptionally(exception));
+		}
+
+		final CompletableFuture<Void> componentTerminationFuture = FutureUtils.completeAll(terminationFutures);
+
+		final CompletableFuture<Void> metricGroupTerminationFuture = FutureUtils.runAfterwards(
+			componentTerminationFuture,
+			jobManagerMetricGroup::close);
+
+		metricGroupTerminationFuture.whenComplete((aVoid, throwable) -> {
+			if (throwable != null) {
+				terminationFuture.completeExceptionally(throwable);
+			} else {
+				terminationFuture.complete(aVoid);
+			}
+		});
+
+		return terminationFuture;
 	}
 }

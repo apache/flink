@@ -34,6 +34,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -264,7 +265,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 				clusterClient.shutdown();
 			}
 			if (dispatcherResourceManagerComponent != null) {
-				dispatcherResourceManagerComponent.close();
+				dispatcherResourceManagerComponent.deregisterApplicationAndClose(ApplicationStatus.SUCCEEDED, null);
 			}
 
 			haServices.closeAndCleanupAllData();

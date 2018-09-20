@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest;
+package org.apache.flink.runtime.rest.handler;
 
-import org.apache.flink.runtime.rest.handler.FileUploads;
-import org.apache.flink.runtime.rest.handler.HandlerRequest;
-import org.apache.flink.runtime.rest.handler.RestHandlerException;
+import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.router.RouteResult;
 import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
