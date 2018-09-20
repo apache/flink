@@ -219,14 +219,16 @@ public class LocalExecutor implements Executor {
 
 	@Override
 	public String explainStatement(SessionContext session, String statement) throws SqlExecutionException {
-		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+		final TableEnvironment tableEnv = context
 			.createEnvironmentInstance()
 			.getTableEnvironment();
 
 		// translate
 		try {
 			final Table table = createTable(tableEnv, statement);
-			return tableEnv.explain(table);
+			// explanation requires an optimization step that might reference UDFs during code compilation
+			return context.wrapClassLoader(() -> tableEnv.explain(table));
 		} catch (Throwable t) {
 			// catch everything such that the query does not crash the executor
 			throw new SqlExecutionException("Invalid SQL statement.", t);
@@ -242,7 +244,7 @@ public class LocalExecutor implements Executor {
 	@Override
 	public TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(SessionContext session,
 			String resultId) throws SqlExecutionException {
-		final DynamicResult result = resultStore.getResult(resultId);
+		final DynamicResult<?> result = resultStore.getResult(resultId);
 		if (result == null) {
 			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
 		}
@@ -254,7 +256,7 @@ public class LocalExecutor implements Executor {
 
 	@Override
 	public TypedResult<Integer> snapshotResult(SessionContext session, String resultId, int pageSize) throws SqlExecutionException {
-		final DynamicResult result = resultStore.getResult(resultId);
+		final DynamicResult<?> result = resultStore.getResult(resultId);
 		if (result == null) {
 			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
 		}
@@ -266,7 +268,7 @@ public class LocalExecutor implements Executor {
 
 	@Override
 	public List<Row> retrieveResultPage(String resultId, int page) throws SqlExecutionException {
-		final DynamicResult result = resultStore.getResult(resultId);
+		final DynamicResult<?> result = resultStore.getResult(resultId);
 		if (result == null) {
 			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
 		}
@@ -350,7 +352,7 @@ public class LocalExecutor implements Executor {
 	private <C> ProgramTargetDescriptor executeUpdateInternal(ExecutionContext<C> context, String statement) {
 		final ExecutionContext.EnvironmentInstance envInst = context.createEnvironmentInstance();
 
-		applyUpdate(envInst.getTableEnvironment(), envInst.getQueryConfig(), statement);
+		applyUpdate(context, envInst.getTableEnvironment(), envInst.getQueryConfig(), statement);
 
 		// create job graph with dependencies
 		final String jobName = context.getSessionContext().getName() + ": " + statement;
@@ -392,7 +394,11 @@ public class LocalExecutor implements Executor {
 		final String jobName = context.getSessionContext().getName() + ": " + query;
 		final JobGraph jobGraph;
 		try {
-			table.writeToSink(result.getTableSink(), envInst.getQueryConfig());
+			// writing to a sink requires an optimization step that might reference UDFs during code compilation
+			context.wrapClassLoader(() -> {
+				table.writeToSink(result.getTableSink(), envInst.getQueryConfig());
+				return null;
+			});
 			jobGraph = envInst.createJobGraph(jobName);
 		} catch (Throwable t) {
 			// the result needs to be closed as long as
@@ -435,10 +441,14 @@ public class LocalExecutor implements Executor {
 	/**
 	 * Applies the given update statement to the given table environment with query configuration.
 	 */
-	private void applyUpdate(TableEnvironment tableEnv, QueryConfig queryConfig, String updateStatement) {
+	private <C> void applyUpdate(ExecutionContext<C> context, TableEnvironment tableEnv, QueryConfig queryConfig, String updateStatement) {
 		// parse and validate statement
 		try {
-			tableEnv.sqlUpdate(updateStatement, queryConfig);
+			// update statement requires an optimization step that might reference UDFs during code compilation
+			context.wrapClassLoader(() -> {
+				tableEnv.sqlUpdate(updateStatement, queryConfig);
+				return null;
+			});
 		} catch (Throwable t) {
 			// catch everything such that the statement does not crash the executor
 			throw new SqlExecutionException("Invalid SQL update statement.", t);

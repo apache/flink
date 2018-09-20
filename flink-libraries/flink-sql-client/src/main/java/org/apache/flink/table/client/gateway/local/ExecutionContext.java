@@ -75,6 +75,7 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Context for executing table programs. This class caches everything that can be cached across
@@ -181,6 +182,21 @@ public class ExecutionContext<T> {
 
 	public Map<String, TableSink<?>> getTableSinks() {
 		return tableSinks;
+	}
+
+	/**
+	 * Executes the given supplier using the execution context's classloader as thread classloader.
+	 */
+	public <R> R wrapClassLoader(Supplier<R> supplier) {
+		final ClassLoader previousClassloader = Thread.currentThread().getContextClassLoader();
+		Thread.currentThread().setContextClassLoader(classLoader);
+		R returnValue;
+		try {
+			returnValue = supplier.get();
+		} finally {
+			Thread.currentThread().setContextClassLoader(previousClassloader);
+		}
+		return returnValue;
 	}
 
 	// --------------------------------------------------------------------------------------------
