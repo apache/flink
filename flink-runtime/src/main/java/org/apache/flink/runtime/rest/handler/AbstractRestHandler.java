@@ -21,7 +21,6 @@ package org.apache.flink.runtime.rest.handler;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.rest.AbstractHandler;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -81,11 +80,9 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 			response = FutureUtils.completedExceptionally(e);
 		}
 
-		return response.whenComplete((P resp, Throwable throwable) -> {
-			Tuple2<ResponseBody, HttpResponseStatus> r = throwable != null ?
-				errorResponse(throwable) : Tuple2.of(resp, messageHeaders.getResponseStatusCode());
-			HandlerUtils.sendResponse(ctx, httpRequest, r.f0, r.f1, responseHeaders);
-		}).thenApply(ignored -> null);
+		return response.handle((resp, throwable) -> throwable != null ?
+			errorResponse(throwable) : Tuple2.of(resp, messageHeaders.getResponseStatusCode()))
+			.thenCompose(r -> HandlerUtils.sendResponse(ctx, httpRequest, r.f0, r.f1, responseHeaders));
 	}
 
 	private Tuple2<ResponseBody, HttpResponseStatus> errorResponse(Throwable throwable) {
