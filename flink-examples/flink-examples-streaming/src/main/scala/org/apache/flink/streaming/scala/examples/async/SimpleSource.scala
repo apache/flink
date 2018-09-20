@@ -18,32 +18,26 @@
 
 package org.apache.flink.streaming.scala.examples.async
 
+import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction
+import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 
-import java.util.concurrent.TimeUnit
+class SimpleSource extends ParallelSourceFunction[Int] {
+  var running = true
+  var counter = 0
 
-import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.api.scala.async.ResultFuture
+  override def run(ctx: SourceContext[Int]): Unit = {
+    while (running) {
+      ctx.getCheckpointLock.synchronized {
+        ctx.collect(counter)
+      }
+      counter += 1
 
-import scala.concurrent.{ExecutionContext, Future}
-
-object AsyncIOExample {
-
-  def main(args: Array[String]) {
-    val timeout = 10000L
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-    val input = env.addSource(new SimpleSource())
-
-    val asyncMapped = AsyncDataStream.orderedWait(input, timeout, TimeUnit.MILLISECONDS, 10) {
-      (input, collector: ResultFuture[Int]) =>
-        Future {
-          collector.complete(Seq(input))
-        } (ExecutionContext.global)
+      Thread.sleep(10L)
     }
+  }
 
-    asyncMapped.print()
-
-    env.execute("Async I/O job")
+  override def cancel(): Unit = {
+    running = false
   }
 }
+
