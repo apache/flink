@@ -99,6 +99,7 @@ import static java.util.Objects.requireNonNull;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -130,6 +131,8 @@ public class RestServerEndpointITCase extends TestLogger {
 	private final Configuration config;
 	private SSLContext defaultSSLContext;
 	private SSLSocketFactory defaultSSLSocketFactory;
+
+	private TestHandler testHandler;
 
 	public RestServerEndpointITCase(final Configuration config) {
 		this.config = requireNonNull(config);
@@ -194,7 +197,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->
 			CompletableFuture.completedFuture(mockRestfulGateway);
 
-		TestHandler testHandler = new TestHandler(
+		testHandler = new TestHandler(
 			CompletableFuture.completedFuture(restAddress),
 			mockGatewayRetriever,
 			RpcUtils.INF_TIMEOUT);
@@ -545,6 +548,33 @@ public class RestServerEndpointITCase extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that after calling {@link RestServerEndpoint#closeAsync()}, the handlers are closed
+	 * first. As long as not all handlers are closed, HTTP requests should be served.
+	 */
+	@Test
+	public void testShouldWaitForHandlersWhenClosing() throws Exception {
+		final CompletableFuture<Void> closeHandlerFuture = new CompletableFuture<>();
+		testHandler.closeFuture = closeHandlerFuture;
+
+		final CompletableFuture<Void> closeRestServerEndpointFuture = serverEndpoint.closeAsync();
+		assertThat(closeRestServerEndpointFuture.isDone(), is(false));
+
+		final TestParameters parameters = new TestParameters();
+		parameters.jobIDPathParameter.resolve(PATH_JOB_ID);
+		parameters.jobIDQueryParameter.resolve(Collections.singletonList(QUERY_JOB_ID));
+
+		restClient.sendRequest(
+			serverAddress.getHostName(),
+			serverAddress.getPort(),
+			new TestHeaders(),
+			parameters,
+			new TestRequest(1)).get(timeout.getSize(), timeout.getUnit());
+
+		closeHandlerFuture.complete(null);
+		closeRestServerEndpointFuture.get(timeout.getSize(), timeout.getUnit());
+	}
+
 	private HttpURLConnection openHttpConnectionForUpload(final String boundary) throws IOException {
 		final HttpURLConnection connection =
 			(HttpURLConnection) new URL(serverEndpoint.getRestBaseUrl() + "/upload").openConnection();
@@ -591,6 +621,8 @@ public class RestServerEndpointITCase extends TestLogger {
 
 		private static final int LARGE_RESPONSE_BODY_ID = 3;
 
+		private CompletableFuture<Void> closeFuture = CompletableFuture.completedFuture(null);
+
 		TestHandler(
 				CompletableFuture<String> localAddressFuture,
 				GatewayRetriever<RestfulGateway> leaderRetriever,
@@ -623,6 +655,11 @@ public class RestServerEndpointITCase extends TestLogger {
 					createStringOfSize(TEST_REST_MAX_CONTENT_LENGTH)));
 			}
 			return CompletableFuture.completedFuture(new TestResponse(id));
+		}
+
+		@Override
+		public CompletableFuture<Void> closeAsync() {
+			return closeFuture;
 		}
 	}
 

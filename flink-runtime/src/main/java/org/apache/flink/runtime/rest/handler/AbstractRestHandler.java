@@ -30,6 +30,7 @@ import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -53,7 +54,8 @@ import java.util.concurrent.CompletableFuture;
  * @param <P> type of outgoing responses
  */
 @ChannelHandler.Sharable
-public abstract class AbstractRestHandler<T extends RestfulGateway, R extends RequestBody, P extends ResponseBody, M extends MessageParameters> extends AbstractHandler<T, R, M> {
+public abstract class AbstractRestHandler<T extends RestfulGateway, R extends RequestBody, P extends ResponseBody, M extends MessageParameters> extends AbstractHandler<T, R, M>
+	implements AutoCloseableAsync {
 
 	private final MessageHeaders<R, P, M> messageHeaders;
 
@@ -120,4 +122,8 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 	 * @throws RestHandlerException if the handling failed
 	 */
 	protected abstract CompletableFuture<P> handleRequest(@Nonnull HandlerRequest<R, M> request, @Nonnull T gateway) throws RestHandlerException;
+
+	public CompletableFuture<Void> closeAsync() {
+		return CompletableFuture.completedFuture(null);
+	}
 }

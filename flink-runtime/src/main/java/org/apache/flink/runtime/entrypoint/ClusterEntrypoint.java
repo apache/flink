@@ -445,9 +445,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 	private CompletableFuture<Void> closeClusterComponent(ApplicationStatus applicationStatus, @Nullable String diagnostics) {
 		synchronized (lock) {
 			if (clusterComponent != null) {
-				final CompletableFuture<Void> deregisterApplicationFuture = clusterComponent.deregisterApplication(applicationStatus, diagnostics);
-
-				return FutureUtils.runAfterwards(deregisterApplicationFuture, clusterComponent::closeAsync);
+				return FutureUtils.runAfterwards(
+					clusterComponent.closeAsync(),
+					() -> clusterComponent.deregisterApplication(applicationStatus, diagnostics));
 			} else {
 				return CompletableFuture.completedFuture(null);
 			}

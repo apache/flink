@@ -179,6 +179,32 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that the future returned by {@link AbstractAsynchronousOperationHandlers.StatusHandler#closeAsync()}
+	 * completes when the result of the asynchronous operation is served.
+	 */
+	@Test
+	public void testCloseShouldFinishOnFirstServedResult() throws Exception {
+		final CompletableFuture<String> savepointFuture = new CompletableFuture<>();
+		final TestingRestfulGateway testingRestfulGateway = new TestingRestfulGateway.Builder()
+			.setTriggerSavepointFunction((JobID jobId, String directory) -> savepointFuture)
+			.build();
+
+		final TriggerId triggerId = testingTriggerHandler.handleRequest(
+			triggerOperationRequest(),
+			testingRestfulGateway).get().getTriggerId();
+		final CompletableFuture<Void> closeFuture = testingStatusHandler.closeAsync();
+
+		testingStatusHandler.handleRequest(statusOperationRequest(triggerId), testingRestfulGateway).get();
+
+		assertThat(closeFuture.isDone(), is(false));
+
+		savepointFuture.complete("foobar");
+		testingStatusHandler.handleRequest(statusOperationRequest(triggerId), testingRestfulGateway).get();
+
+		assertThat(closeFuture.isDone(), is(true));
+	}
+
 	private static HandlerRequest<EmptyRequestBody, EmptyMessageParameters> triggerOperationRequest() throws HandlerRequestException {
 		return new HandlerRequest<>(EmptyRequestBody.getInstance(), EmptyMessageParameters.getInstance());
 	}

@@ -129,48 +129,52 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> implements
 	@Override
 	public CompletableFuture<Void> closeAsync() {
 		if (isRunning.compareAndSet(true, false)) {
-			Exception exception = null;
-
-			final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(4);
-
-			try {
-				dispatcherLeaderRetrievalService.stop();
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-
-			try {
-				resourceManagerRetrievalService.stop();
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-
-			terminationFutures.add(webMonitorEndpoint.closeAsync());
-
-			dispatcher.shutDown();
-			terminationFutures.add(dispatcher.getTerminationFuture());
-
-			resourceManager.shutDown();
-			terminationFutures.add(resourceManager.getTerminationFuture());
-
-			if (exception != null) {
-				terminationFutures.add(FutureUtils.completedExceptionally(exception));
-			}
-
-			final CompletableFuture<Void> componentTerminationFuture = FutureUtils.completeAll(terminationFutures);
-
-			final CompletableFuture<Void> metricGroupTerminationFuture = FutureUtils.runAfterwards(
-				componentTerminationFuture,
-				jobManagerMetricGroup::close);
-
-			metricGroupTerminationFuture.whenComplete((aVoid, throwable) -> {
-				if (throwable != null) {
-					terminationFuture.completeExceptionally(throwable);
-				} else {
-					terminationFuture.complete(aVoid);
-				}
-			});
+			return FutureUtils.composeAfterwards(webMonitorEndpoint.closeAsync(), this::closeAsyncInternal);
+		} else {
+			return terminationFuture;
 		}
+	}
+
+	private CompletableFuture<Void> closeAsyncInternal() {
+		Exception exception = null;
+
+		final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(3);
+
+		try {
+			dispatcherLeaderRetrievalService.stop();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		try {
+			resourceManagerRetrievalService.stop();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		dispatcher.shutDown();
+		terminationFutures.add(dispatcher.getTerminationFuture());
+
+		resourceManager.shutDown();
+		terminationFutures.add(resourceManager.getTerminationFuture());
+
+		if (exception != null) {
+			terminationFutures.add(FutureUtils.completedExceptionally(exception));
+		}
+
+		final CompletableFuture<Void> componentTerminationFuture = FutureUtils.completeAll(terminationFutures);
+
+		final CompletableFuture<Void> metricGroupTerminationFuture = FutureUtils.runAfterwards(
+			componentTerminationFuture,
+			jobManagerMetricGroup::close);
+
+		metricGroupTerminationFuture.whenComplete((aVoid, throwable) -> {
+			if (throwable != null) {
+				terminationFuture.completeExceptionally(throwable);
+			} else {
+				terminationFuture.complete(aVoid);
+			}
+		});
 
 		return terminationFuture;
 	}
