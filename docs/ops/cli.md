@@ -257,9 +257,10 @@ Action "run" compiles and runs a program.
      -s,--fromSavepoint <savepointPath>   Path to a savepoint to restore the job
                                           from (for example
                                           hdfs:///flink/savepoint-1537).
-     -sae,--schutdownOnAttachedExist      If the job mode is not detached and
+     -sae,--shutdownOnAttachedExit        If the job mode is not detached and a
                                           cluster has been started for the job,
-                                          perform the best effort cluster.
+                                          perform the best effort cluster
+                                          shutdown also on the cli abrupt exit.
   Options for yarn-cluster mode:
      -d,--detached                        If present, runs the job in detached
                                           mode
@@ -268,9 +269,10 @@ Action "run" compiles and runs a program.
                                           connect to a different JobManager than
                                           the one specified in the
                                           configuration.
-     -sae,--schutdownOnAttachedExist      If the job mode is not detached and
+     -sae,--shutdownOnAttachedExit        If the job mode is not detached and a
                                           cluster has been started for the job,
-                                          perform the best effort cluster.
+                                          perform the best effort cluster
+                                          shutdown also on the cli abrupt exit.
      -yD <property=value>                 use value for given property
      -yd,--yarndetached                   If present, runs the job in detached
                                           mode (deprecated; use non-YARN
