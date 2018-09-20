@@ -120,6 +120,14 @@ public class SecurityOptions {
 			.defaultValue(false)
 			.withDescription("Turns on SSL for external communication via the REST endpoints.");
 
+	/**
+	 * Enable mututal SSL authentication for external REST endpoints.
+	 */
+	public static final ConfigOption<Boolean> SSL_REST_AUTHENTICATION_ENABLED =
+		key("security.ssl.rest.authentication-enabled")
+			.defaultValue(false)
+			.withDescription("Turns on mutual SSL authentication for external communication via the REST endpoints.");
+
 	// ----------------- certificates (internal + external) -------------------
 
 	/**
