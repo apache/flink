@@ -61,10 +61,13 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 
 	@Nonnull
 	private final TypeSerializer<T> originalSerializer;
+	private final boolean padNullValue;
+	private final byte[] padding;
 
-	private NullableSerializer(@Nonnull TypeSerializer<T> originalSerializer) {
-		Preconditions.checkNotNull(originalSerializer, "The original serializer cannot be null");
+	private NullableSerializer(@Nonnull TypeSerializer<T> originalSerializer, boolean padNullValueIfFixedLen) {
 		this.originalSerializer = originalSerializer;
+		this.padNullValue = originalSerializer.getLength() > 0 && padNullValueIfFixedLen;
+		padding = padNullValue ? new byte[originalSerializer.getLength()] : null;
 	}
 
 	/**
@@ -72,10 +75,13 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 	 * and wraps it in case of {@link NullPointerException}, otherwise it returns the {@code originalSerializer}.
 	 *
 	 * @param originalSerializer serializer to wrap and add {@code null} support
+	 * @param padNullValueIfFixedLen pad null value to preserve the fixed length of original serializer
 	 * @return serializer which supports {@code null} values
 	 */
-	public static <T> TypeSerializer<T> wrapIfNullIsNotSupported(@Nonnull TypeSerializer<T> originalSerializer) {
-		return checkIfNullSupported(originalSerializer) ? originalSerializer : wrap(originalSerializer);
+	public static <T> TypeSerializer<T> wrapIfNullIsNotSupported(
+		@Nonnull TypeSerializer<T> originalSerializer, boolean padNullValueIfFixedLen) {
+		return checkIfNullSupported(originalSerializer) ?
+			originalSerializer : wrap(originalSerializer, padNullValueIfFixedLen);
 	}
 
 	/**
@@ -84,16 +90,29 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 	 * @param serializer serializer to check
 	 */
 	public static <T> boolean checkIfNullSupported(@Nonnull TypeSerializer<T> serializer) {
+		int length = serializer.getLength() > 0 ? serializer.getLength() : 1;
+		DataOutputSerializer dos = new DataOutputSerializer(length);
 		try {
-			int length = serializer.getLength() > 0 ? serializer.getLength() : 1;
-			DataOutputSerializer dos = new DataOutputSerializer(length);
 			serializer.serialize(null, dos);
-			DataInputDeserializer dis = new DataInputDeserializer(dos.getSharedBuffer());
-			Preconditions.checkArgument(serializer.deserialize(dis) == null);
-			Preconditions.checkArgument(serializer.copy(null) == null);
 		} catch (IOException | RuntimeException e) {
 			return false;
 		}
+		Preconditions.checkArgument(
+			serializer.getLength() < 0 || serializer.getLength() == dos.getCopyOfBuffer().length,
+			"The serialized form of the null value should have the same length " +
+				"as any other if the length is fixed in the serializer");
+		DataInputDeserializer dis = new DataInputDeserializer(dos.getSharedBuffer());
+		try {
+			Preconditions.checkArgument(serializer.deserialize(dis) == null);
+		} catch (IOException e) {
+			throw new RuntimeException(
+				String.format("Unexpected failure to deserialize just serialized null value with %s",
+					serializer.getClass().getName()), e);
+		}
+		Preconditions.checkArgument(
+			serializer.copy(null) == null,
+			"Serializer %s has to be able properly copy null value if it can serialize it",
+			serializer.getClass().getName());
 		return true;
 	}
 
@@ -101,11 +120,13 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 	 * This method wraps the {@code originalSerializer} with the {@code NullableSerializer} if not already wrapped.
 	 *
 	 * @param originalSerializer serializer to wrap and add {@code null} support
+	 * @param padNullValueIfFixedLen pad null value to preserve the fixed length of original serializer
 	 * @return wrapped serializer which supports {@code null} values
 	 */
-	public static <T> TypeSerializer<T> wrap(@Nonnull TypeSerializer<T> originalSerializer) {
+	public static <T> TypeSerializer<T> wrap(
+		@Nonnull TypeSerializer<T> originalSerializer, boolean padNullValueIfFixedLen) {
 		return originalSerializer instanceof NullableSerializer ?
-			originalSerializer : new NullableSerializer<>(originalSerializer);
+			originalSerializer : new NullableSerializer<>(originalSerializer, padNullValueIfFixedLen);
 	}
 
 	@Override
@@ -117,7 +138,7 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 	public TypeSerializer<T> duplicate() {
 		TypeSerializer<T> duplicateOriginalSerializer = originalSerializer.duplicate();
 		return duplicateOriginalSerializer == originalSerializer ?
-			this : new NullableSerializer<>(originalSerializer.duplicate());
+			this : new NullableSerializer<>(originalSerializer.duplicate(), padNullValue);
 	}
 
 	@Override
@@ -139,13 +160,16 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 	@Override
 	public int getLength() {
 		int len = originalSerializer.getLength();
-		return len == 0 ? 1 : -1;
+		return len == 0 ? 1 : (padNullValue ? originalSerializer.getLength() + 1 : -1);
 	}
 
 	@Override
 	public void serialize(T record, DataOutputView target) throws IOException {
 		if (record == null) {
 			target.writeBoolean(true);
+			if (padNullValue) {
+				target.write(padding);
+			}
 		} else {
 			target.writeBoolean(false);
 			originalSerializer.serialize(record, target);
@@ -154,22 +178,32 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public T deserialize(DataInputView source) throws IOException {
-		boolean isNull = source.readBoolean();
+		boolean isNull = deserializeNull(source);
 		return isNull ? null : originalSerializer.deserialize(source);
 	}
 
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
-		boolean isNull = source.readBoolean();
+		boolean isNull = deserializeNull(source);
 		return isNull ? null : (reuse == null ?
 			originalSerializer.deserialize(source) : originalSerializer.deserialize(reuse, source));
+	}
+
+	private boolean deserializeNull(DataInputView source) throws IOException {
+		boolean isNull = source.readBoolean();
+		if (isNull && padNullValue) {
+			source.skipBytesToRead(originalSerializer.getLength());
+		}
+		return isNull;
 	}
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		boolean isNull = source.readBoolean();
 		target.writeBoolean(isNull);
-		if (!isNull) {
+		if (isNull && padNullValue) {
+			target.write(padding);
+		} else if (!isNull) {
 			originalSerializer.copy(source, target);
 		}
 	}
@@ -214,7 +248,7 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 			} else if (compatResult.getConvertDeserializer() != null) {
 				return CompatibilityResult.requiresMigration(
 					new NullableSerializer<>(
-						new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer())));
+						new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer()), padNullValue));
 			}
 		}
 

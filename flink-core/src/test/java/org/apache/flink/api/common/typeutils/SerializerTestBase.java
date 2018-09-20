@@ -34,7 +34,6 @@ import java.util.Arrays;
 
 import org.apache.flink.api.java.typeutils.runtime.NullableSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
@@ -430,14 +429,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	public void testNullability() {
 		TypeSerializer<T> serializer = getSerializer();
 		try {
-			int len = serializer.getLength();
-			if (NullableSerializer.checkIfNullSupported(serializer) && len > 0) {
-				DataOutputSerializer dos = new DataOutputSerializer(len);
-				serializer.serialize(null, dos);
-				assertEquals("The serialized form of the null value should have the same length " +
-						"as any other if the length is fixed in the serializer",
-					getLength(), dos.getCopyOfBuffer().length);
-			}
+			NullableSerializer.checkIfNullSupported(serializer);
 		} catch (Throwable t) {
 			System.err.println(t.getMessage());
 			t.printStackTrace();
