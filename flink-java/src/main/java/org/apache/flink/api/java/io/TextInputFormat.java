@@ -90,22 +90,25 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 
 	@Override
 	public String readRecord(String reusable, byte[] bytes, int offset, int numBytes) throws IOException {
-		int step = 0;
+		String utf8 = "UTF-8";
+		String utf16 = "UTF-16";
+		String utf32 = "UTF-32";
+		int stepSize = 0;
 		String charsetName = this.getCharsetName();
-		if (charsetName.contains("UTF-8")) {
-			step = 1;
-		} else if (charsetName.contains("UTF-16")) {
-			step = 2;
-		} else if (charsetName.contains("UTF-32")) {
-			step = 4;
+		if (charsetName.contains(utf8)) {
+			stepSize = 1;
+		} else if (charsetName.contains(utf16)) {
+			stepSize = 2;
+		} else if (charsetName.contains(utf32)) {
+			stepSize = 4;
 		}
 		//Check if \n is used as delimiter and the end of this line is a \r, then remove \r from the line
 		if (this.getDelimiter() != null && this.getDelimiter().length == 1
-			&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= step
-			&& bytes[offset + numBytes - step] == CARRIAGE_RETURN) {
-			numBytes -= step;
+			&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= stepSize
+			&& bytes[offset + numBytes - stepSize] == CARRIAGE_RETURN) {
+			numBytes -= stepSize;
 		}
-		numBytes = numBytes - step + 1;
+		numBytes = numBytes - stepSize + 1;
 		return new String(bytes, offset, numBytes, this.getCharsetName());
 	}
 

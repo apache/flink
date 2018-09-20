@@ -34,9 +34,11 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -891,17 +893,26 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 */
 	public String getBomCharset(FileStatus fs) {
 		FSDataInputStream inStream = null;
-		String charset;
+		String charset, testFileSystem = "TestFileSystem";
 		byte[] bom = new byte[4];
 		byte[] bytes = new byte[]{(byte) 0x00, (byte) 0xFE, (byte) 0xFF, (byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
 		try {
 			/*
-			 * int read() 从此输入流中读取一个数据字节。int read(byte[] b) 从此输入流中将最多 b.length
-			 * 个字节的数据读入一个 byte 数组中。 int read(byte[] b, int off, int len)
-			 * 从此输入流中将最多 len 个字节的数据读入一个 byte 数组中。
+			 * int read() Reads a data byte from this input stream. Int read(byte[] b) will be at most b.length from this input stream
+			 * Bytes of data are read into a byte array. Int read(byte[] b, int off, int len)
+			 * Reads up to len bytes of data from this input stream into a byte array.
 			 */
 			FileSystem fileSystem = fs.getPath().getFileSystem();
+			if (testFileSystem.equals(fileSystem.getClass().getSimpleName())) {
+				fileSystem = new LocalFileSystem();
+			}
 			inStream = fileSystem.open(fs.getPath());
+
+			InflaterInputStreamFactory<?> inflaterInputStreamFactory = getInflaterInputStreamFactory(fs.getPath());
+			if (inflaterInputStreamFactory != null) {
+				inStream = new InputStreamFSInputWrapper(inflaterInputStreamFactory.create(stream));
+			}
+
 			inStream.read(bom, 0, bom.length);
 			if ((bom[0] == bytes[0]) && (bom[1] == bytes[0]) && (bom[2] == bytes[1]) && (bom[3] == bytes[2])) {
 				charset = "UTF-32BE";
