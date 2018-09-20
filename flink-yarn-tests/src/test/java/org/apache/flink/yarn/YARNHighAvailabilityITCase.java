@@ -60,7 +60,7 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Tests that verify correct HA behavior.
  */
-public class YARNHighAvailabilityITCase extends YarnTestBase {
+	public class YARNHighAvailabilityITCase extends YarnTestBase {
 
 	private static TestingServer zkServer;
 
