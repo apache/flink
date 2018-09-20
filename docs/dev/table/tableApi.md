@@ -669,6 +669,31 @@ Table result = orders
 {% endhighlight %}
       </td>
     </tr>
+    <tr>
+      <td>
+        <strong>Join with Temporal Table</strong><br>
+        <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p><a href="streaming/temporal_tables.html">Temporal Tables</a> are tables that track changes over time.
+        A <a href="streaming/temporal_tables.html#temporal-table-functions">Temporal Table Function</a> provides access to the state of a temporal table at a specific point in time.
+        The syntax to join a table with a Temporal Table Function is the same as in Join with Table Functions.</p>
+
+        <p>Currently only inner joins with temporal tables are supported.</p>
+{% highlight java %}
+Table ratesHistory = tableEnv.scan("RatesHistory");
+// register temporal table function
+TemporalTableFunction rates = ratesHistory.createTemporalTableFunction("r_proctime", "r_currency");
+tableEnv.registerFunction("rates", rates);
+
+// join
+Table orders = tableEnv.scan("Orders");
+Table result = orders
+    .join(new Table(tEnv, "rates(o_proctime)"), "o_currency = r_currency")
+{% endhighlight %}
+        <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">Temporal Tables concept description.</a></p>
+      </td>
+    </tr>
 
   </tbody>
 </table>
@@ -783,6 +808,31 @@ val result: Table = table
     .leftOuterJoin(split('c) as ('s, 't, 'v))
     .select('a, 'b, 's, 't, 'v)
 {% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <strong>Join with Temporal Table</strong><br>
+        <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p><a href="streaming/temporal_tables.html">Temporal Tables</a> are tables that track their changes over time.
+        A <a href="streaming/temporal_tables.html#temporal-table-functions">Temporal Table Function</a> provides access to the state of a temporal table at a specific point in time.
+        The syntax to join a table with a Temporal Table Function is the same as in Join with Table Functions.</p>
+
+        <p>Currently only inner joins with temporal tables are supported.</p>
+{% highlight scala %}
+val ratesHistory = tableEnv.scan("RatesHistory")
+// register temporal table function
+val rates = ratesHistory.createTemporalTableFunction('r_proctime, 'r_currency)
+
+// join
+val orders = tableEnv.scan("Orders")
+val result = orders
+    .join(rates('o_rowtime), 'r_currency === 'o_currency)
+{% endhighlight %}
+        <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">Temporal Tables concept description.</a></p>
       </td>
     </tr>
 
