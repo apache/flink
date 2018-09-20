@@ -36,8 +36,15 @@ import org.apache.flink.table.functions.aggfunctions.{IntSumWithRetractAggFuncti
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getAccumulatorTypeOfAggregateFunction
 import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, RowResultSortComparatorWithWatermarks}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.junit.Rule
+import org.junit.rules.ExpectedException
 
 class HarnessTestBase {
+  // used for accurate exception information checking.
+  val expectedException = ExpectedException.none()
+
+  @Rule
+  def thrown = expectedException
 
   val longMinWithRetractAggFunction: String =
     UserDefinedFunctionUtils.serialize(new LongMinWithRetractAggFunction)

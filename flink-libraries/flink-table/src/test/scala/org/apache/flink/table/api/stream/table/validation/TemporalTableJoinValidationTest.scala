@@ -21,7 +21,7 @@ package org.apache.flink.table.api.stream.table.validation
 import java.sql.Timestamp
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils._
 import org.junit.Test
@@ -33,8 +33,17 @@ class TemporalTableJoinValidationTest extends TableTestBase {
   val orders = util.addTable[(Long, String, Timestamp)](
     "Orders", 'o_amount, 'o_currency, 'o_rowtime.rowtime)
 
+  val ordersProctime = util.addTable[(Long, String)](
+    "OrdersProctime", 'o_amount, 'o_currency, 'o_rowtime.proctime)
+
+  val ordersWithoutTimeAttribute = util.addTable[(Long, String, Timestamp)](
+    "OrdersWithoutTimeAttribute", 'o_amount, 'o_currency, 'o_rowtime)
+
   val ratesHistory = util.addTable[(String, Int, Timestamp)](
     "RatesHistory", 'currency, 'rate, 'rowtime.rowtime)
+
+  val ratesHistoryWithoutTimeAttribute = util.addTable[(String, Int, Timestamp)](
+    "ratesHistoryWithoutTimeAttribute", 'currency, 'rate, 'rowtime)
 
   @Test
   def testInvalidFieldReference(): Unit = {
@@ -50,5 +59,66 @@ class TemporalTableJoinValidationTest extends TableTestBase {
     expectedException.expectMessage("Cannot resolve field [foobar]")
 
     ratesHistory.createTemporalTableFunction("rowtime", "foobar")
+  }
+
+  @Test
+  def testNonTimeIndicatorOnRightSide(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Non rowtime timeAttribute [TIMESTAMP(3)] used to create TemporalTableFunction")
+
+    val rates = ratesHistoryWithoutTimeAttribute.createTemporalTableFunction('rowtime, 'currency)
+
+    val result = orders
+      .join(rates('o_rowtime), "currency = o_currency")
+      .select("o_amount * rate").as("rate")
+
+    util.explain(result)
+  }
+
+  @Test
+  def testNonTimeIndicatorOnLeftSide(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Non rowtime timeAttribute [TIMESTAMP(3)] passed as the argument to TemporalTableFunction")
+
+    val rates = ratesHistory.createTemporalTableFunction('rowtime, 'currency)
+
+    val result = ordersWithoutTimeAttribute
+      .join(rates('o_rowtime), "currency = o_currency")
+      .select("o_amount * rate").as("rate")
+
+    util.explain(result)
+  }
+
+  @Test
+  def testMixedTimeIndicators(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Non rowtime timeAttribute [TIME ATTRIBUTE(PROCTIME)] passed as the argument " +
+        "to TemporalTableFunction")
+
+    val rates = ratesHistory.createTemporalTableFunction('rowtime, 'currency)
+
+    val result = ordersProctime
+      .join(rates('o_rowtime), "currency = o_currency")
+      .select("o_amount * rate").as("rate")
+
+    util.explain(result)
+  }
+
+  @Test
+  def testEventTimeIndicators(): Unit = {
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage(
+      "Event time temporal joins are not yet supported.")
+
+    val rates = ratesHistory.createTemporalTableFunction('rowtime, 'currency)
+
+    val result = orders
+      .join(rates('o_rowtime), "currency = o_currency")
+      .select("o_amount * rate").as("rate")
+
+    util.explain(result)
   }
 }

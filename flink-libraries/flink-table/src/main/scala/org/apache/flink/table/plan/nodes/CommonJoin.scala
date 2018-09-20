@@ -48,6 +48,15 @@ trait CommonJoin {
     }
   }
 
+  private[flink] def temporalJoinToString(
+      inputType: RelDataType,
+      joinCondition: RexNode,
+      joinType: JoinRelType,
+      expression: (RexNode, List[String], Option[List[RexNode]]) => String): String = {
+
+    "Temporal" + joinToString(inputType, joinCondition, joinType, expression)
+  }
+
   private[flink] def joinToString(
       inputType: RelDataType,
       joinCondition: RexNode,
