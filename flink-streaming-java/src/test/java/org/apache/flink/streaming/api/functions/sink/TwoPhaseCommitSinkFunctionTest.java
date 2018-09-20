@@ -139,6 +139,22 @@ public class TwoPhaseCommitSinkFunctionTest {
 	}
 
 	@Test
+	public void testSubsumedNotificationOfPreviousCheckpoint() throws Exception {
+		harness.open();
+		harness.processElement("42", 0);
+		harness.snapshot(0, 1);
+		harness.processElement("43", 2);
+		harness.snapshot(1, 3);
+		harness.processElement("44", 4);
+		harness.snapshot(2, 5);
+		harness.notifyOfCompletedCheckpoint(2);
+		harness.notifyOfCompletedCheckpoint(1);
+
+		assertExactlyOnce(Arrays.asList("42", "43", "44"));
+		assertEquals(1, tmpDirectory.listFiles().size()); // one for currentTransaction
+	}
+
+	@Test
 	public void testNotifyOfCompletedCheckpoint() throws Exception {
 		harness.open();
 		harness.processElement("42", 0);
