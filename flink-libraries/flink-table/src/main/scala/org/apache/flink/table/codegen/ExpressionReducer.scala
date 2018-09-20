@@ -101,7 +101,10 @@ class ExpressionReducer(config: TableConfig)
         |""".stripMargin,
       resultType)
 
-    val clazz = compile(getClass.getClassLoader, generatedFunction.name, generatedFunction.code)
+    val clazz = compile(
+      Thread.currentThread().getContextClassLoader,
+      generatedFunction.name,
+      generatedFunction.code)
     val function = clazz.newInstance()
 
     // execute

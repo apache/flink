@@ -212,6 +212,8 @@ tables:
         type: VARCHAR
       - name: duplicate_count
         type: BIGINT
+      - name: constant
+        type: VARCHAR
     connector:
       type: filesystem
       path: $RESULT
@@ -226,6 +228,8 @@ tables:
           type: VARCHAR
         - name: duplicate_count
           type: BIGINT
+        - name: constant
+          type: VARCHAR
 
 functions:
   - name: RegReplace
@@ -261,7 +265,7 @@ $FLINK_DIR/bin/sql-client.sh embedded \
 
 read -r -d '' SQL_STATEMENT_2 << EOF
 INSERT INTO CsvSinkTable
-  SELECT *
+  SELECT AvroBothTable.*, RegReplace('Test constant folding.', 'Test', 'Success') AS constant
   FROM AvroBothTable
 EOF
 
@@ -285,4 +289,4 @@ for i in {1..10}; do
   sleep 5
 done
 
-check_result_hash "SQLClient" $RESULT "dca08a82cc09f6b19950291dbbef16bb"
+check_result_hash "SQLClient" $RESULT "0a1bf8bf716069b7269f575f87a802c0"
