@@ -22,11 +22,19 @@ import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rex.RexNode
+import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
+import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
+import org.apache.flink.table.codegen.FunctionCodeGenerator
 import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.table.runtime.CRowKeySelector
+import org.apache.flink.table.runtime.join._
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.types.Row
 import org.apache.flink.util.Preconditions.checkState
+
+import scala.collection.JavaConversions._
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * RelNode for a stream join with [[org.apache.flink.table.functions.TemporalTableFunction]].
@@ -74,9 +82,14 @@ class DataStreamTemporalTableJoin(
       ruleDescription)
   }
 
-  override def translateToPlan(
-      tableEnv: StreamTableEnvironment,
-      queryConfig: StreamQueryConfig): DataStream[CRow] = {
-    throw new NotImplementedError()
-  }
-}
+  override protected def createTranslator(
+      tableEnv: StreamTableEnvironment): DataStreamJoinToCoProcessTranslator = {
+    DataStreamTemporalJoinToCoProcessTranslator.create(
+      this.toString,
+      tableEnv.getConfig,
+      schema.typeInfo,
+      leftSchema,
+      rightSchema,
+      joinInfo,
+      cluster.getRexBuilder)
+  }}
