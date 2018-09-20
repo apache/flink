@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -245,37 +244,6 @@ public final class StringUtils {
 			data[i] = (char) (rnd.nextInt(diff) + minValue);
 		}
 		return new String(data);
-	}
-
-	/**
-	 * Appends a random alphanumeric string of given length to the given string buffer.
-	 *
-	 * @param rnd The random number generator to use.
-	 * @param buffer The buffer to append to.
-	 * @param length The number of alphanumeric characters to append.
-	 */
-	public static void appendRandomAlphanumericString(Random rnd, StringBuilder buffer, int length) {
-		checkNotNull(rnd);
-		checkArgument(length >= 0);
-
-		for (int i = 0; i < length; i++) {
-			buffer.append(nextAlphanumericChar(rnd));
-		}
-	}
-
-	private static char nextAlphanumericChar(Random rnd) {
-		int which = rnd.nextInt(62);
-		char c;
-		if (which < 10) {
-			c = (char) ('0' + which);
-		}
-		else if (which < 36) {
-			c = (char) ('A' - 10 + which);
-		}
-		else {
-			c = (char) ('a' - 36 + which);
-		}
-		return c;
 	}
 
 	/**

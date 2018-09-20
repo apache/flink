@@ -21,7 +21,6 @@ package org.apache.flink.runtime.state.filesystem;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.fs.WriteOptions;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -346,11 +345,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 			for (int attempt = 0; attempt < 10; attempt++) {
 				try {
 					Path statePath = createStatePath();
-					FSDataOutputStream outStream = fs.create(
-							statePath,
-							new WriteOptions()
-									.setOverwrite(FileSystem.WriteMode.NO_OVERWRITE)
-									.setInjectEntropy(true));
+					FSDataOutputStream outStream = fs.create(statePath, FileSystem.WriteMode.NO_OVERWRITE);
 
 					// success, managed to open the stream
 					this.statePath = statePath;

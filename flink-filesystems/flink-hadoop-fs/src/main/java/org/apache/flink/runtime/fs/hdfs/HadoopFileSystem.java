@@ -19,29 +19,22 @@
 package org.apache.flink.runtime.fs.hdfs;
 
 import org.apache.flink.core.fs.BlockLocation;
-import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableWriter;
-import org.apache.flink.core.fs.WriteOptions;
-import org.apache.flink.core.fs.WriteOptions.BlockOptions;
 
 import java.io.IOException;
 import java.net.URI;
 import java.util.Locale;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link FileSystem} that wraps an {@link org.apache.hadoop.fs.FileSystem Hadoop File System}.
  */
 public class HadoopFileSystem extends FileSystem {
-
-	/** The write buffer size used by default. */
-	public static final int DEFAULT_WRITE_BUFFER_SIZE = 4096;
 
 	/** The wrapped Hadoop File System. */
 	private final org.apache.hadoop.fs.FileSystem fs;
@@ -147,24 +140,6 @@ public class HadoopFileSystem extends FileSystem {
 		final org.apache.hadoop.fs.FSDataOutputStream fsDataOutputStream =
 				this.fs.create(toHadoopPath(f), overwrite == WriteMode.OVERWRITE);
 		return new HadoopDataOutputStream(fsDataOutputStream);
-	}
-
-	@Override
-	public FSDataOutputStream create(Path f, WriteOptions options) throws IOException {
-		BlockOptions blockSettings = options.getBlockSettings();
-		if (blockSettings == null) {
-			return create(f, options.getOverwrite());
-		}
-		else {
-			checkArgument(blockSettings.getReplicationFactor() <= Short.MAX_VALUE,
-					"block replication factor out of bounds");
-
-			return create(f,
-					options.getOverwrite() == WriteMode.OVERWRITE,
-					DEFAULT_WRITE_BUFFER_SIZE,
-					(short) blockSettings.getReplicationFactor(),
-					blockSettings.getBlockSize());
-		}
 	}
 
 	@Override
