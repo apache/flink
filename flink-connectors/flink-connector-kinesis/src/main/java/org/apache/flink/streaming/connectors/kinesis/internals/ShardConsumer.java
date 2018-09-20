@@ -373,7 +373,10 @@ public class ShardConsumer<T> implements Runnable {
 				getRecordsResult = kinesis.getRecords(shardItr, maxNumberOfRecords);
 
 				// Update millis behind latest so it gets reported by the millisBehindLatest gauge
-				shardMetricsReporter.setMillisBehindLatest(getRecordsResult.getMillisBehindLatest());
+				Long millisBehindLatest = getRecordsResult.getMillisBehindLatest();
+				if (millisBehindLatest != null) {
+					shardMetricsReporter.setMillisBehindLatest(millisBehindLatest);
+				}
 			} catch (ExpiredIteratorException eiEx) {
 				LOG.warn("Encountered an unexpected expired iterator {} for shard {};" +
 					" refreshing the iterator ...", shardItr, subscribedShard);
