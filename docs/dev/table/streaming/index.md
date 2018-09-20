@@ -37,8 +37,6 @@ In the following pages, we explain concepts, practical limitations, and stream-s
 
 * [Dynamic Tables]({{ site.baseurl }}/dev/table/streaming/dynamic_tables.html): Describes the concept of Dynamic Tables.
 * [Time attributes]({{ site.baseurl }}/dev/table/streaming/time_attributes.html): How time attributes are handled in Table API & SQL.
+* [Joins in Continuous Queries]({{ site.baseurl }}/dev/table/streaming/joins.html): Different supported types of Joins in Continuous Queries.
+* [Temporal Tables]({{ site.baseurl }}/dev/table/streaming/temporal_tables.html): Describes the Temporal Table concept.
 * [Query configuration]({{ site.baseurl }}/dev/table/streaming/query_configuration.html): Lists Table API & SQL specific configuration options.
-
-
-
-

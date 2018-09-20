@@ -502,6 +502,31 @@ FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) t AS tag ON TRUE
         <p><b>Note:</b> Currently, only literal <code>TRUE</code> is supported as predicate for a left outer join against a lateral table.</p>
       </td>
     </tr>
+    <tr>
+      <td>
+        <strong>Join with Temporal Table</strong><br>
+        <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p><a href="streaming/temporal_tables.html">Temporal Tables</a> are tables that track changes over time.
+        A <a href="streaming/temporal_tables.html#temporal-table-functions">Temporal Table Function</a> provides access to the state of a temporal table at a specific point in time.
+        The syntax to join a table with a temporal table function is the same as in Join with Table Functions.</p>
+
+        <p>Currently only inner joins with temporal tables are supported.</p>
+        Assuming <strong>Rates</strong> is a <a href="streaming/temporal_tables.html#temporal-table-functions">Temporal Table Function</a></p>
+{% highlight sql %}
+SELECT
+  o_amount, r_rate
+FROM
+  Orders,
+  LATERAL TABLE (Rates(o_proctime))
+WHERE
+  r_currency = o_currency
+{% endhighlight %}
+        <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">Temporal Tables concept description.</a></p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 </div>
