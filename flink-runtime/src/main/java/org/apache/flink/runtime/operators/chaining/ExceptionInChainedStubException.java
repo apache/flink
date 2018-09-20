@@ -33,7 +33,7 @@ public class ExceptionInChainedStubException extends RuntimeException {
 	
 
 	public ExceptionInChainedStubException(String taskName, Exception wrappedException) {
-		super();
+		super("Exception in chained task '" + taskName + "'", exceptionUnwrap(wrappedException));
 		this.taskName = taskName;
 		this.exception = wrappedException;
 	}
