@@ -16,14 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest;
+package org.apache.flink.runtime.rest.handler;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.rest.handler.FileUploads;
-import org.apache.flink.runtime.rest.handler.HandlerRequest;
-import org.apache.flink.runtime.rest.handler.HandlerRequestException;
-import org.apache.flink.runtime.rest.handler.RedirectHandler;
-import org.apache.flink.runtime.rest.handler.RestHandlerException;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.rest.FileUploadHandler;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
@@ -32,6 +29,7 @@ import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
@@ -64,13 +62,18 @@ import java.util.concurrent.CompletableFuture;
  * @param <R> type of the incoming request
  * @param <M> type of the message parameters
  */
-public abstract class AbstractHandler<T extends RestfulGateway, R extends RequestBody, M extends MessageParameters> extends RedirectHandler<T> {
+public abstract class AbstractHandler<T extends RestfulGateway, R extends RequestBody, M extends MessageParameters> extends RedirectHandler<T> implements AutoCloseableAsync {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	protected static final ObjectMapper MAPPER = RestMapperUtils.getStrictObjectMapper();
 
 	private final UntypedResponseMessageHeaders<R, M> untypedResponseMessageHeaders;
+
+	/**
+	 * Used to ensure that the handler is not closed while there are still in-flight requests.
+	 */
+	private final InFlightRequestTracker inFlightRequestTracker;
 
 	protected AbstractHandler(
 			@Nonnull CompletableFuture<String> localAddressFuture,
@@ -81,6 +84,7 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 		super(localAddressFuture, leaderRetriever, timeout, responseHeaders);
 
 		this.untypedResponseMessageHeaders = Preconditions.checkNotNull(untypedResponseMessageHeaders);
+		this.inFlightRequestTracker = new InFlightRequestTracker();
 	}
 
 	@Override
@@ -93,6 +97,7 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 
 		FileUploads uploadedFiles = null;
 		try {
+			inFlightRequestTracker.registerRequest();
 			if (!(httpRequest instanceof FullHttpRequest)) {
 				// The RestServerEndpoint defines a HttpObjectAggregator in the pipeline that always returns
 				// FullHttpRequests.
@@ -150,8 +155,12 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 
 			final FileUploads finalUploadedFiles = uploadedFiles;
 			requestProcessingFuture
-				.whenComplete((Void ignored, Throwable throwable) -> cleanupFileUploads(finalUploadedFiles));
+				.whenComplete((Void ignored, Throwable throwable) -> {
+					inFlightRequestTracker.deregisterRequest();
+					cleanupFileUploads(finalUploadedFiles);
+				});
 		} catch (RestHandlerException rhe) {
+			inFlightRequestTracker.deregisterRequest();
 			HandlerUtils.sendErrorResponse(
 				ctx,
 				httpRequest,
@@ -160,6 +169,7 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 				responseHeaders);
 			cleanupFileUploads(uploadedFiles);
 		} catch (Throwable e) {
+			inFlightRequestTracker.deregisterRequest();
 			log.error("Request processing failed.", e);
 			HandlerUtils.sendErrorResponse(
 				ctx,
@@ -169,6 +179,15 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 				responseHeaders);
 			cleanupFileUploads(uploadedFiles);
 		}
+	}
+
+	@Override
+	public final CompletableFuture<Void> closeAsync() {
+		return FutureUtils.composeAfterwards(closeHandlerAsync(), inFlightRequestTracker::awaitAsync);
+	}
+
+	protected CompletableFuture<Void> closeHandlerAsync() {
+		return CompletableFuture.completedFuture(null);
 	}
 
 	private void cleanupFileUploads(@Nullable FileUploads uploadedFiles) {

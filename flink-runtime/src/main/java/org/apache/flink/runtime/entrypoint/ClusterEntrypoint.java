@@ -499,10 +499,6 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				}
 			}
 
-			if (webMonitorEndpoint != null) {
-				terminationFutures.add(webMonitorEndpoint.closeAsync());
-			}
-
 			if (dispatcher != null) {
 				dispatcher.shutDown();
 				terminationFutures.add(dispatcher.getTerminationFuture());
@@ -562,10 +558,13 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		if (isShutDown.compareAndSet(false, true)) {
 			LOG.info("Stopping {}.", getClass().getSimpleName());
 
-			final CompletableFuture<Void> shutDownApplicationFuture = deregisterApplication(applicationStatus, diagnostics);
+			final CompletableFuture<Void> closeWebMonitorAndDeregisterAppFuture =
+				FutureUtils.composeAfterwards(
+					closeWebMonitorAsync(),
+					() -> deregisterApplication(applicationStatus, diagnostics));
 
 			final CompletableFuture<Void> componentShutdownFuture = FutureUtils.composeAfterwards(
-				shutDownApplicationFuture,
+				closeWebMonitorAndDeregisterAppFuture,
 				this::stopClusterComponents);
 
 			final CompletableFuture<Void> serviceShutdownFuture = FutureUtils.composeAfterwards(
@@ -587,6 +586,14 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		}
 
 		return terminationFuture;
+	}
+
+	private CompletableFuture<Void> closeWebMonitorAsync() {
+		if (webMonitorEndpoint != null) {
+			return webMonitorEndpoint.closeAsync();
+		} else {
+			return CompletableFuture.completedFuture(null);
+		}
 	}
 
 	protected void shutDownAndTerminate(
