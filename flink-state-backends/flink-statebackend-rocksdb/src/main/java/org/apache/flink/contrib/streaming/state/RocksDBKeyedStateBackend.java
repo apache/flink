@@ -47,6 +47,7 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -241,6 +242,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** Shared wrapper for batch writes to the RocksDB instance. */
 	private RocksDBWriteBatchWrapper writeBatchWrapper;
 
+	private final RocksDBNativeMetricOptions metricOptions;
+
+	private final Optional<MetricGroup> metricGroup;
+
+	/** The native metrics monitor. */
+	private RocksDBNativeMetricMonitor nativeMetricMonitor;
+
 	public RocksDBKeyedStateBackend(
 		String operatorIdentifier,
 		ClassLoader userCodeClassLoader,
@@ -255,7 +263,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		boolean enableIncrementalCheckpointing,
 		LocalRecoveryConfig localRecoveryConfig,
 		RocksDBStateBackend.PriorityQueueStateType priorityQueueStateType,
-		TtlTimeProvider ttlTimeProvider
+		TtlTimeProvider ttlTimeProvider,
+		RocksDBNativeMetricOptions metricOptions,
+		Optional<MetricGroup> metricGroup
 	) throws IOException {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader,
@@ -290,6 +300,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.restoredKvStateMetaInfos = new HashMap<>();
 
 		this.writeOptions = new WriteOptions().setDisableWAL(true);
+
+		this.metricOptions = metricOptions;
+		this.metricGroup = metricGroup;
 
 		switch (priorityQueueStateType) {
 			case HEAP:
@@ -356,6 +369,14 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	public ColumnFamilyHandle getColumnFamilyHandle(String state) {
 		Tuple2<ColumnFamilyHandle, ?> columnInfo = kvStateInformation.get(state);
 		return columnInfo != null ? columnInfo.f0 : null;
+	}
+
+	private void registerKvStateInformation(String columnFamilyName, Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> registeredColumn) {
+		kvStateInformation.put(columnFamilyName, registeredColumn);
+
+		if (nativeMetricMonitor != null) {
+			nativeMetricMonitor.watch(columnFamilyName, registeredColumn.f0);
+		}
 	}
 
 	/**
@@ -606,6 +627,21 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		Preconditions.checkState(1 + stateColumnFamilyDescriptors.size() == stateColumnFamilyHandles.size(),
 			"Not all requested column family handles have been created");
 
+		if (this.metricOptions.isEnabled()) {
+			if (metricGroup.isPresent()) {
+				this.nativeMetricMonitor = new RocksDBNativeMetricMonitor(
+					dbRef,
+					rocksDBResourceGuard,
+					metricOptions,
+					metricGroup.get()
+				);
+
+				this.cancelStreamRegistry.registerCloseable(nativeMetricMonitor);
+			} else {
+				LOG.warn("Unable to enable RocksDB native metrics, no metric group provided");
+			}
+		}
+
 		return dbRef;
 	}
 
@@ -733,7 +769,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					ColumnFamilyHandle columnFamily = rocksDBKeyedStateBackend.db.createColumnFamily(columnFamilyDescriptor);
 
 					registeredColumn = new Tuple2<>(columnFamily, stateMetaInfo);
-					rocksDBKeyedStateBackend.kvStateInformation.put(stateMetaInfo.getName(), registeredColumn);
+					rocksDBKeyedStateBackend.registerKvStateInformation(stateMetaInfo.getName(), registeredColumn);
 
 				} else {
 					// TODO with eager state registration in place, check here for serializer migration strategies
@@ -1051,7 +1087,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						columnFamilyHandle != null ? columnFamilyHandle : stateBackend.db.createColumnFamily(columnFamilyDescriptor),
 						stateMetaInfo);
 
-				stateBackend.kvStateInformation.put(
+				stateBackend.registerKvStateInformation(
 					stateMetaInfoSnapshot.getName(),
 					registeredStateMetaInfoEntry);
 			}
@@ -1180,7 +1216,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				RegisteredStateMetaInfoBase stateMetaInfo =
 					RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(stateMetaInfoSnapshot);
 
-				stateBackend.kvStateInformation.put(
+				stateBackend.registerKvStateInformation(
 					stateMetaInfoSnapshot.getName(),
 					new Tuple2<>(columnFamilyHandle, stateMetaInfo));
 			}
@@ -1291,6 +1327,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				StreamStateHandle remoteFileHandle = entry.getValue();
 				copyStateDataHandleData(new Path(restoreInstancePath, stateHandleID.toString()), remoteFileHandle);
 			}
+
 		}
 
 		/**
@@ -1383,7 +1420,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			ColumnFamilyHandle columnFamily = createColumnFamily(stateName);
 
 			stateInfo = Tuple2.of(columnFamily, newMetaInfo);
-			kvStateInformation.put(stateDesc.getName(), stateInfo);
+			registerKvStateInformation(stateDesc.getName(), stateInfo);
 		}
 
 		return Tuple2.of(stateInfo.f0, newMetaInfo);
@@ -1400,7 +1437,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		ColumnFamilyDescriptor columnDescriptor = new ColumnFamilyDescriptor(nameBytes, columnOptions);
 
 		try {
-			return db.createColumnFamily(columnDescriptor);
+			ColumnFamilyHandle handle = db.createColumnFamily(columnDescriptor);
+			return handle;
 		} catch (RocksDBException e) {
 			throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", e);
 		}
@@ -1567,7 +1605,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				new RegisteredPriorityQueueStateBackendMetaInfo<>(stateName, byteOrderedElementSerializer);
 
 			metaInfoTuple = new Tuple2<>(columnFamilyHandle, metaInfo);
-			kvStateInformation.put(stateName, metaInfoTuple);
+			registerKvStateInformation(stateName, metaInfoTuple);
 		} else {
 			// TODO we implement the simple way of supporting the current functionality, mimicking keyed state
 			// because this should be reworked in FLINK-9376 and then we should have a common algorithm over

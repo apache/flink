@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.execution.Environment;
@@ -59,6 +60,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
 /**
  * This class is the main implementation of a {@link StreamTaskStateInitializer}. This class obtains the state to create
@@ -106,7 +108,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		@Nonnull String operatorClassName,
 		@Nonnull KeyContext keyContext,
 		@Nullable TypeSerializer<?> keySerializer,
-		@Nonnull CloseableRegistry streamTaskCloseableRegistry) throws Exception {
+		@Nonnull CloseableRegistry streamTaskCloseableRegistry,
+		@Nonnull MetricGroup operatorMetricGroup) throws Exception {
 
 		TaskInfo taskInfo = environment.getTaskInfo();
 		OperatorSubtaskDescriptionText operatorSubtaskDescription =
@@ -134,7 +137,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 				keySerializer,
 				operatorIdentifierText,
 				prioritizedOperatorSubtaskStates,
-				streamTaskCloseableRegistry);
+				streamTaskCloseableRegistry,
+				operatorMetricGroup);
 
 			// -------------- Operator State Backend --------------
 			operatorStateBackend = operatorStateBackend(
@@ -247,7 +251,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		TypeSerializer<K> keySerializer,
 		String operatorIdentifierText,
 		PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates,
-		CloseableRegistry backendCloseableRegistry) throws Exception {
+		CloseableRegistry backendCloseableRegistry,
+		MetricGroup operatorMetricGroup) throws Exception {
 
 		if (keySerializer == null) {
 			return null;
@@ -272,7 +277,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 					taskInfo.getMaxNumberOfParallelSubtasks(),
 					keyGroupRange,
 					environment.getTaskKvStateRegistry(),
-					TtlTimeProvider.DEFAULT),
+					TtlTimeProvider.DEFAULT,
+					Optional.of(operatorMetricGroup)),
 				backendCloseableRegistry,
 				logDescription);
 

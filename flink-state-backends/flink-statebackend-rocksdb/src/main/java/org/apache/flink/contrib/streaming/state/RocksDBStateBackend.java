@@ -24,6 +24,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -57,6 +58,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 
@@ -405,14 +407,15 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry,
-			TtlTimeProvider ttlTimeProvider) throws IOException {
+		Environment env,
+		JobID jobID,
+		String operatorIdentifier,
+		TypeSerializer<K> keySerializer,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		TaskKvStateRegistry kvStateRegistry,
+		TtlTimeProvider ttlTimeProvider,
+		Optional<MetricGroup> operatorMetricGroup) throws IOException {
 
 		// first, make sure that the RocksDB JNI library is loaded
 		// we do this explicitly here to have better error handling
@@ -445,7 +448,10 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				isIncrementalCheckpointsEnabled(),
 				localRecoveryConfig,
 				priorityQueueStateType,
-				ttlTimeProvider);
+				ttlTimeProvider,
+				getMemoryWatcherOptions(),
+				operatorMetricGroup
+			);
 	}
 
 	@Override
@@ -664,6 +670,15 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		}
 
 		return opt;
+	}
+
+	public RocksDBNativeMetricOptions getMemoryWatcherOptions() {
+		RocksDBNativeMetricOptions options = new RocksDBNativeMetricOptions();
+		if (optionsFactory != null) {
+			options = optionsFactory.createNativeMetricsOptions(options);
+		}
+
+		return options;
 	}
 
 	// ------------------------------------------------------------------------

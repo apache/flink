@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -32,6 +33,7 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import static org.powermock.api.mockito.PowerMockito.spy;
 
@@ -55,7 +57,8 @@ public class TestSpyWrapperStateBackend extends AbstractStateBackend {
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry,
-			TtlTimeProvider ttlTimeProvider) throws IOException {
+			TtlTimeProvider ttlTimeProvider,
+			Optional<MetricGroup> operatorMetricGroup) throws IOException {
 			return spy(delegate.createKeyedStateBackend(
 				env,
 				jobID,
@@ -64,7 +67,8 @@ public class TestSpyWrapperStateBackend extends AbstractStateBackend {
 				numberOfKeyGroups,
 				keyGroupRange,
 				kvStateRegistry,
-				ttlTimeProvider));
+				ttlTimeProvider,
+				operatorMetricGroup));
 		}
 
 		@Override

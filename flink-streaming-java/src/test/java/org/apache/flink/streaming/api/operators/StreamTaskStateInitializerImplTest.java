@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -58,6 +59,7 @@ import org.junit.Test;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.Random;
 
 import static org.mockito.Matchers.eq;
@@ -85,13 +87,15 @@ public class StreamTaskStateInitializerImplTest {
 
 		TypeSerializer<?> typeSerializer = new IntSerializer();
 		CloseableRegistry closeableRegistry = new CloseableRegistry();
+		MetricGroup operatorMetricGroup = mock(MetricGroup.class);
 
 		StreamOperatorStateContext stateContext = streamTaskStateManager.streamOperatorStateContext(
 			streamOperator.getOperatorID(),
 			streamOperator.getClass().getSimpleName(),
 			streamOperator,
 			typeSerializer,
-			closeableRegistry);
+			closeableRegistry,
+			operatorMetricGroup);
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
@@ -140,7 +144,8 @@ public class StreamTaskStateInitializerImplTest {
 				TypeSerializer<K> keySerializer,
 				int numberOfKeyGroups, KeyGroupRange keyGroupRange,
 				TaskKvStateRegistry kvStateRegistry,
-				TtlTimeProvider ttlTimeProvider) throws Exception {
+				TtlTimeProvider ttlTimeProvider,
+				Optional<MetricGroup> operatorMetricGroup) throws Exception {
 				return mock(AbstractKeyedStateBackend.class);
 			}
 
@@ -186,13 +191,15 @@ public class StreamTaskStateInitializerImplTest {
 
 		TypeSerializer<?> typeSerializer = new IntSerializer();
 		CloseableRegistry closeableRegistry = new CloseableRegistry();
+		MetricGroup operatorMetricGroup = mock(MetricGroup.class);
 
 		StreamOperatorStateContext stateContext = streamTaskStateManager.streamOperatorStateContext(
 			streamOperator.getOperatorID(),
 			streamOperator.getClass().getSimpleName(),
 			streamOperator,
 			typeSerializer,
-			closeableRegistry);
+			closeableRegistry,
+			operatorMetricGroup);
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();

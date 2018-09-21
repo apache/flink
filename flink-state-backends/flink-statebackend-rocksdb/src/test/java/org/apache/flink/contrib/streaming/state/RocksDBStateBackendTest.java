@@ -77,6 +77,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.RunnableFuture;
 
@@ -250,7 +251,10 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				enableIncrementalCheckpointing,
 				TestLocalRecoveryConfig.disabled(),
 				RocksDBStateBackend.PriorityQueueStateType.HEAP,
-				TtlTimeProvider.DEFAULT);
+				TtlTimeProvider.DEFAULT,
+				new RocksDBNativeMetricOptions(),
+				Optional.empty()
+			);
 
 			verify(columnFamilyOptions, Mockito.times(1))
 				.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
