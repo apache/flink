@@ -113,9 +113,7 @@ public class TaskTest extends TestLogger {
 
 	private ActorGateway taskManagerGateway;
 	private ActorGateway jobManagerGateway;
-	private ActorGateway listenerGateway;
 
-	private ActorGatewayTaskExecutionStateListener listener;
 	private ActorGatewayTaskManagerActions taskManagerConnection;
 
 	private BlockingQueue<Object> taskManagerMessages;
@@ -129,9 +127,7 @@ public class TaskTest extends TestLogger {
 		listenerMessages = new LinkedBlockingQueue<>();
 		taskManagerGateway = new ForwardingActorGateway(taskManagerMessages);
 		jobManagerGateway = new ForwardingActorGateway(jobManagerMessages);
-		listenerGateway = new ForwardingActorGateway(listenerMessages);
 
-		listener = new ActorGatewayTaskExecutionStateListener(listenerGateway);
 		taskManagerConnection = new ActorGatewayTaskManagerActions(taskManagerGateway);
 
 		awaitLatch = new OneShotLatch();
@@ -147,7 +143,6 @@ public class TaskTest extends TestLogger {
 
 		taskManagerGateway = null;
 		jobManagerGateway = null;
-		listenerGateway = null;
 	}
 
 	// ------------------------------------------------------------------------
@@ -163,8 +158,6 @@ public class TaskTest extends TestLogger {
 			assertEquals(ExecutionState.CREATED, task.getExecutionState());
 			assertFalse(task.isCanceledOrFailed());
 			assertNull(task.getFailureCause());
-
-			task.registerExecutionListener(listener);
 
 			// go into the run method. we should switch to DEPLOYING, RUNNING, then
 			// FINISHED, and all should be good
@@ -244,8 +237,6 @@ public class TaskTest extends TestLogger {
 			assertFalse(task.isCanceledOrFailed());
 			assertNull(task.getFailureCause());
 
-			task.registerExecutionListener(listener);
-
 			// should fail
 			task.run();
 
@@ -292,8 +283,6 @@ public class TaskTest extends TestLogger {
 
 			Task task = createTask(TestInvokableCorrect.class, blobService, libCache, network, consumableNotifier, partitionProducerStateChecker, executor);
 
-			task.registerExecutionListener(listener);
-
 			task.run();
 
 			assertEquals(ExecutionState.FAILED, task.getExecutionState());
@@ -313,7 +302,6 @@ public class TaskTest extends TestLogger {
 	public void testInvokableInstantiationFailed() {
 		try {
 			Task task = createTask(InvokableNonInstantiable.class);
-			task.registerExecutionListener(listener);
 
 			task.run();
 
@@ -334,7 +322,6 @@ public class TaskTest extends TestLogger {
 	public void testExecutionFailsInInvoke() {
 		try {
 			Task task = createTask(InvokableWithExceptionInInvoke.class);
-			task.registerExecutionListener(listener);
 
 			task.run();
 
@@ -360,7 +347,6 @@ public class TaskTest extends TestLogger {
 	public void testFailWithWrappedException() {
 		try {
 			Task task = createTask(FailingInvokableWithChainedException.class);
-			task.registerExecutionListener(listener);
 
 			task.run();
 
@@ -386,7 +372,6 @@ public class TaskTest extends TestLogger {
 	public void testCancelDuringInvoke() {
 		try {
 			Task task = createTask(InvokableBlockingInInvoke.class);
-			task.registerExecutionListener(listener);
 
 			// run the task asynchronous
 			task.startTaskThread();
@@ -420,7 +405,6 @@ public class TaskTest extends TestLogger {
 	public void testFailExternallyDuringInvoke() {
 		try {
 			Task task = createTask(InvokableBlockingInInvoke.class);
-			task.registerExecutionListener(listener);
 
 			// run the task asynchronous
 			task.startTaskThread();
@@ -429,7 +413,7 @@ public class TaskTest extends TestLogger {
 			awaitLatch.await();
 
 			task.failExternally(new Exception("test"));
-			assertTrue(task.getExecutionState() == ExecutionState.FAILED);
+			assertEquals(ExecutionState.FAILED, task.getExecutionState());
 
 			task.getExecutingThread().join();
 
@@ -453,7 +437,6 @@ public class TaskTest extends TestLogger {
 	public void testCanceledAfterExecutionFailedInInvoke() {
 		try {
 			Task task = createTask(InvokableWithExceptionInInvoke.class);
-			task.registerExecutionListener(listener);
 
 			task.run();
 
@@ -477,10 +460,9 @@ public class TaskTest extends TestLogger {
 	}
 
 	@Test
-	public void testExecutionFailesAfterCanceling() {
+	public void testExecutionFailsAfterCanceling() {
 		try {
 			Task task = createTask(InvokableWithExceptionOnTrigger.class);
-			task.registerExecutionListener(listener);
 
 			// run the task asynchronous
 			task.startTaskThread();
@@ -517,7 +499,6 @@ public class TaskTest extends TestLogger {
 	public void testExecutionFailsAfterTaskMarkedFailed() {
 		try {
 			Task task = createTask(InvokableWithExceptionOnTrigger.class);
-			task.registerExecutionListener(listener);
 
 			// run the task asynchronous
 			task.startTaskThread();

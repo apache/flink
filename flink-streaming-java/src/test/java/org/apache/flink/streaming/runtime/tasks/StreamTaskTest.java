@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -87,8 +86,6 @@ import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.taskmanager.TaskExecutionStateListener;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.DirectExecutorService;
@@ -108,7 +105,6 @@ import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.util.CloseableIterable;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
@@ -129,16 +125,13 @@ import java.io.ObjectInputStream;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
-import java.util.PriorityQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -181,43 +174,21 @@ public class StreamTaskTest extends TestLogger {
 	 */
 	@Test
 	public void testEarlyCanceling() throws Exception {
-		Deadline deadline = Deadline.fromNow(Duration.ofMinutes(2));
 		StreamConfig cfg = new StreamConfig(new Configuration());
 		cfg.setOperatorID(new OperatorID(4711L, 42L));
 		cfg.setStreamOperator(new SlowlyDeserializingOperator());
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		Task task = createTask(SourceStreamTask.class, cfg, new Configuration());
-
-		TestingExecutionStateListener testingExecutionStateListener = new TestingExecutionStateListener();
-
-		task.registerExecutionListener(testingExecutionStateListener);
 		task.startTaskThread();
 
-		Future<ExecutionState> running = testingExecutionStateListener.notifyWhenExecutionState(ExecutionState.RUNNING);
-
-		// wait until the task thread reached state RUNNING
-		ExecutionState executionState = running.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-
-		// make sure the task is really running
-		if (executionState != ExecutionState.RUNNING) {
-			fail("Task entered state " + task.getExecutionState() + " with error "
-					+ ExceptionUtils.stringifyException(task.getFailureCause()));
-		}
+		waitUntilExecutionState(task, ExecutionState.RUNNING, Deadline.fromNow(Duration.ofMinutes(2)));
 
 		// send a cancel. because the operator takes a long time to deserialize, this should
 		// hit the task before the operator is deserialized
 		task.cancelExecution();
 
-		Future<ExecutionState> canceling = testingExecutionStateListener.notifyWhenExecutionState(ExecutionState.CANCELING);
-
-		executionState = canceling.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-
-		// the task should reach state canceled eventually
-		assertTrue(executionState == ExecutionState.CANCELING ||
-				executionState == ExecutionState.CANCELED);
-
-		task.getExecutingThread().join(deadline.timeLeft().toMillis());
+		task.getExecutingThread().join();
 
 		assertFalse("Task did not cancel", task.getExecutingThread().isAlive());
 		assertEquals(ExecutionState.CANCELED, task.getExecutionState());
@@ -846,6 +817,23 @@ public class StreamTaskTest extends TestLogger {
 	//  Test Utilities
 	// ------------------------------------------------------------------------
 
+	private static void waitUntilExecutionState(Task task, ExecutionState exceptedState, Deadline deadline) {
+		while (deadline.hasTimeLeft()) {
+			if (exceptedState == task.getExecutionState()) {
+				return;
+			}
+
+			try {
+				Thread.sleep(Math.min(deadline.timeLeft().toMillis(), 200));
+			} catch (InterruptedException e) {
+				// do nothing
+			}
+		}
+
+		throw new IllegalStateException("Task " + task + " does not arrive state " + exceptedState + "in time. "
+			+ "Current state is " + task.getExecutionState());
+	}
+
 	/**
 	 * Operator that does nothing.
 	 *
@@ -882,38 +870,6 @@ public class StreamTaskTest extends TestLogger {
 			IN_CLOSE.trigger();
 			FINISH_CLOSE.await();
 			super.close();
-		}
-	}
-
-	private static class TestingExecutionStateListener implements TaskExecutionStateListener {
-
-		private ExecutionState executionState = null;
-
-		private final PriorityQueue<Tuple2<ExecutionState, CompletableFuture<ExecutionState>>> priorityQueue =
-			new PriorityQueue<>(1, Comparator.comparingInt(o -> o.f0.ordinal()));
-
-		Future<ExecutionState> notifyWhenExecutionState(ExecutionState executionState) {
-			synchronized (priorityQueue) {
-				if (this.executionState != null && this.executionState.ordinal() >= executionState.ordinal()) {
-					return CompletableFuture.completedFuture(executionState);
-				} else {
-					CompletableFuture<ExecutionState> promise = new CompletableFuture<>();
-					priorityQueue.offer(Tuple2.of(executionState, promise));
-					return promise;
-				}
-			}
-		}
-
-		@Override
-		public void notifyTaskExecutionStateChanged(TaskExecutionState taskExecutionState) {
-			synchronized (priorityQueue) {
-				this.executionState = taskExecutionState.getExecutionState();
-
-				while (!priorityQueue.isEmpty() && priorityQueue.peek().f0.ordinal() <= executionState.ordinal()) {
-					CompletableFuture<ExecutionState> promise = priorityQueue.poll().f1;
-					promise.complete(executionState);
-				}
-			}
 		}
 	}
 
