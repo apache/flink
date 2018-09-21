@@ -58,7 +58,7 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 	private final boolean detachedMode;
 
-	private final boolean shutdownOnAttachedExist;
+	private final boolean shutdownOnAttachedExit;
 
 	private final SavepointRestoreSettings savepointSettings;
 
@@ -116,7 +116,7 @@ public abstract class ProgramOptions extends CommandLineOptions {
 		stdoutLogging = !line.hasOption(LOGGING_OPTION.getOpt());
 		detachedMode = line.hasOption(DETACHED_OPTION.getOpt()) || line.hasOption(
 			YARN_DETACHED_OPTION.getOpt());
-		shutdownOnAttachedExist = line.hasOption(SHUTDOWN_IF_ATTACHED_OPTION.getOpt());
+		shutdownOnAttachedExit = line.hasOption(SHUTDOWN_IF_ATTACHED_OPTION.getOpt());
 
 		this.savepointSettings = CliFrontendParser.createSavepointRestoreSettings(line);
 	}
@@ -149,8 +149,8 @@ public abstract class ProgramOptions extends CommandLineOptions {
 		return detachedMode;
 	}
 
-	public boolean isShutdownOnAttachedExist() {
-		return shutdownOnAttachedExist;
+	public boolean isShutdownOnAttachedExit() {
+		return shutdownOnAttachedExit;
 	}
 
 	public SavepointRestoreSettings getSavepointRestoreSettings() {
