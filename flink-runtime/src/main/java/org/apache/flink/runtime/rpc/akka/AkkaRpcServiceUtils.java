@@ -70,7 +70,10 @@ public class AkkaRpcServiceUtils {
 	 * @throws IOException      Thrown, if the actor system can not bind to the address
 	 * @throws Exception      Thrown is some other error occurs while creating akka actor system
 	 */
-	public static RpcService createRpcService(String hostname, int port, Configuration configuration) throws Exception {
+	public static RpcService createRpcService(
+		String hostname,
+		int port,
+		Configuration configuration) throws Exception {
 		LOG.info("Starting AkkaRpcService at {}.", NetUtils.unresolvedHostAndPortToNormalizedString(hostname, port));
 
 		final ActorSystem actorSystem;
