@@ -28,6 +28,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration.{AkkaOptions, Configuration, IllegalConfigurationException, SecurityOptions}
 import org.apache.flink.runtime.net.SSLUtils
+import org.apache.flink.runtime.rpc.akka.{AkkaExecutorMode, AkkaRpcServiceUtils}
 import org.apache.flink.util.NetUtils
 import org.jboss.netty.channel.ChannelException
 import org.jboss.netty.logging.{InternalLoggerFactory, Slf4JLoggerFactory}
@@ -121,6 +122,22 @@ object AkkaUtils {
     *
     * @param configuration containing the user provided configuration values
     * @param hostname to bind against. If null, then the loopback interface is used
+    * @param port to bind against\
+    * @param executorMode containing the user specified mode of executor
+    * @return A remote Akka config
+    */
+  def getAkkaConfig(configuration: Configuration,
+                    hostname: String,
+                    port: Int,
+                    executorMode: AkkaExecutorMode): Config = {
+    getAkkaConfig(configuration, Some((hostname, port)), executorMode)
+  }
+
+  /**
+    * Return a remote Akka config for the given configuration values.
+    *
+    * @param configuration containing the user provided configuration values
+    * @param hostname to bind against. If null, then the loopback interface is used
     * @param port to bind against
     * @return A remote Akka config
     */
@@ -153,7 +170,61 @@ object AkkaUtils {
   @throws(classOf[UnknownHostException])
   def getAkkaConfig(configuration: Configuration,
                     externalAddress: Option[(String, Int)]): Config = {
-    val defaultConfig = getBasicAkkaConfig(configuration)
+    getAkkaConfig(configuration, externalAddress, AkkaExecutorMode.FORK_JOIN_EXECUTOR)
+  }
+
+  /**
+    * Creates an akka config with the provided configuration values. If the listening address is
+    * specified, then the actor system will listen on the respective address.
+    *
+    * @param configuration instance containing the user provided configuration values
+    * @param externalAddress optional tuple of bindAddress and port to be reachable at.
+    *                        If None is given, then an Akka config for local actor system
+    *                        will be returned
+    * @return Akka config
+    */
+  @throws(classOf[UnknownHostException])
+  def getAkkaConfig(configuration: Configuration,
+                    externalAddress: Option[(String, Int)],
+                    executorMode: AkkaExecutorMode): Config = {
+    val defaultConfig = executorMode match {
+      case AkkaExecutorMode.FORK_JOIN_EXECUTOR =>
+        getBasicAkkaConfig(configuration)
+      case AkkaExecutorMode.SINGLE_THREAD_EXECUTOR =>
+        getSingleThreadExecutorBasicAkkaConfig(configuration)
+    }
+
+    externalAddress match {
+
+      case Some((hostname, port)) =>
+
+        val remoteConfig = getRemoteAkkaConfig(configuration,
+          // the wildcard IP lets us bind to all network interfaces
+          NetUtils.getWildcardIPAddress, port,
+          hostname, port)
+
+        remoteConfig.withFallback(defaultConfig)
+
+      case None =>
+        defaultConfig
+    }
+  }
+
+  /**
+    * Creates an akka config with the provided configuration values which use single thread
+    * executor. If the listening address is specified, then the actor system will listen on
+    * the respective address.
+    *
+    * @param configuration instance containing the user provided configuration values
+    * @param externalAddress optional tuple of bindAddress and port to be reachable at.
+    *                        If None is given, then an Akka config for local actor system
+    *                        will be returned
+    * @return Akka config
+    */
+  @throws(classOf[UnknownHostException])
+  def getSingleThreadExecutorAkkaConfig(configuration: Configuration,
+                    externalAddress: Option[(String, Int)]): Config = {
+    val defaultConfig = getSingleThreadExecutorBasicAkkaConfig(configuration)
 
     externalAddress match {
 
@@ -182,29 +253,13 @@ object AkkaUtils {
   }
 
   /**
-   * Gets the basic Akka config which is shared by remote and local actor systems.
+   * Gets the basic Akka config with fork join executor which is shared by remote
+   * and local actor systems.
    *
    * @param configuration instance which contains the user specified values for the configuration
    * @return Flink's basic Akka config
    */
   private def getBasicAkkaConfig(configuration: Configuration): Config = {
-    val akkaThroughput = configuration.getInteger(AkkaOptions.DISPATCHER_THROUGHPUT)
-    val lifecycleEvents = configuration.getBoolean(AkkaOptions.LOG_LIFECYCLE_EVENTS)
-
-    val jvmExitOnFatalError = if (
-      configuration.getBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR)){
-      "on"
-    } else {
-      "off"
-    }
-
-    val logLifecycleEvents = if (lifecycleEvents) "on" else "off"
-
-    val logLevel = getLogLevel
-
-    val supervisorStrategy = classOf[StoppingSupervisorWithoutLoggingActorKilledExceptionStrategy]
-      .getCanonicalName
-
     val forkJoinExecutorParallelismFactor =
       configuration.getDouble(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR)
 
@@ -223,37 +278,87 @@ object AkkaUtils {
          | }
        """.stripMargin
 
+    getBasicAkkaConfigWithParticularExecutor(configuration, forkJoinExecutorConfig)
+  }
+
+  /**
+    * Gets the basic Akka config with single thread executor which is shared by remote
+    * and local actor systems.
+    *
+    * @param configuration instance which contains the user specified values for the configuration
+    * @return Flink's basic Akka config
+    */
+  private def getSingleThreadExecutorBasicAkkaConfig(configuration: Configuration): Config = {
+    val singleThreadExecutorConfig =
+      s"""
+         | single-thread-executor {
+         |   executor = "thread-pool-executor"
+         |   type = PinnedDispatcher
+         |   threads-priority = ${Thread.MIN_PRIORITY}
+         | }
+       """.stripMargin
+
+    getBasicAkkaConfigWithParticularExecutor(configuration, singleThreadExecutorConfig)
+  }
+
+  /**
+    * Gets the basic Akka config which is shared by remote and local actor systems.
+    *
+    * @param configuration instance which contains the user specified values for the configuration
+    * @param executorConfig the akka config for particular executor
+    * @return Flink's basic Akka config
+    */
+  private def getBasicAkkaConfigWithParticularExecutor(
+    configuration: Configuration,
+    executorConfig: String): Config = {
+    val akkaThroughput = configuration.getInteger(AkkaOptions.DISPATCHER_THROUGHPUT)
+    val lifecycleEvents = configuration.getBoolean(AkkaOptions.LOG_LIFECYCLE_EVENTS)
+
+    val jvmExitOnFatalError = if (
+      configuration.getBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR)){
+      "on"
+    } else {
+      "off"
+    }
+
+    val logLifecycleEvents = if (lifecycleEvents) "on" else "off"
+
+    val logLevel = getLogLevel
+
+    val supervisorStrategy = classOf[StoppingSupervisorWithoutLoggingActorKilledExceptionStrategy]
+      .getCanonicalName
+
     val config =
       s"""
-        |akka {
-        | daemonic = off
-        |
+         |akka {
+         | daemonic = off
+         |
         | loggers = ["akka.event.slf4j.Slf4jLogger"]
-        | logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
-        | log-config-on-start = off
-        |
+         | logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
+         | log-config-on-start = off
+         |
         | jvm-exit-on-fatal-error = $jvmExitOnFatalError
-        |
+         |
         | serialize-messages = off
-        |
+         |
         | loglevel = $logLevel
-        | stdout-loglevel = OFF
-        |
+         | stdout-loglevel = OFF
+         |
         | log-dead-letters = $logLifecycleEvents
-        | log-dead-letters-during-shutdown = $logLifecycleEvents
-        |
+         | log-dead-letters-during-shutdown = $logLifecycleEvents
+         |
         | actor {
-        |   guardian-supervisor-strategy = $supervisorStrategy
-        |
+         |   guardian-supervisor-strategy = $supervisorStrategy
+         |
         |   warn-about-java-serializer-usage = off
-        |
+         |
         |   default-dispatcher {
-        |     throughput = $akkaThroughput
-        |
-        |   $forkJoinExecutorConfig
-        |   }
-        | }
-        |}
+         |     throughput = $akkaThroughput
+         |
+        |   $executorConfig
+         |   }
+         | }
+         |}
       """.stripMargin
 
     ConfigFactory.parseString(config)
