@@ -58,16 +58,21 @@ import java.util.List;
  */
 public class NullableSerializer<T> extends TypeSerializer<T> {
 	private static final long serialVersionUID = 3335569358214720033L;
+	private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
 
 	@Nonnull
 	private final TypeSerializer<T> originalSerializer;
-	private final boolean padNullValue;
 	private final byte[] padding;
 
 	private NullableSerializer(@Nonnull TypeSerializer<T> originalSerializer, boolean padNullValueIfFixedLen) {
 		this.originalSerializer = originalSerializer;
-		this.padNullValue = originalSerializer.getLength() > 0 && padNullValueIfFixedLen;
-		padding = padNullValue ? new byte[originalSerializer.getLength()] : null;
+		this.padding = createPadding(originalSerializer.getLength(), padNullValueIfFixedLen);
+
+	}
+
+	private static <T> byte[] createPadding(int originalSerializerLength, boolean padNullValueIfFixedLen) {
+		boolean padNullValue = originalSerializerLength > 0 && padNullValueIfFixedLen;
+		return padNullValue ? new byte[originalSerializerLength] : EMPTY_BYTE_ARRAY;
 	}
 
 	/**
@@ -116,6 +121,10 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 		return true;
 	}
 
+	private boolean padNullValue() {
+		return padding.length > 0;
+	}
+
 	/**
 	 * This method wraps the {@code originalSerializer} with the {@code NullableSerializer} if not already wrapped.
 	 *
@@ -138,7 +147,7 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 	public TypeSerializer<T> duplicate() {
 		TypeSerializer<T> duplicateOriginalSerializer = originalSerializer.duplicate();
 		return duplicateOriginalSerializer == originalSerializer ?
-			this : new NullableSerializer<>(originalSerializer.duplicate(), padNullValue);
+			this : new NullableSerializer<>(originalSerializer.duplicate(), padNullValue());
 	}
 
 	@Override
@@ -160,14 +169,14 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 	@Override
 	public int getLength() {
 		int len = originalSerializer.getLength();
-		return len == 0 ? 1 : (padNullValue ? originalSerializer.getLength() + 1 : -1);
+		return len == 0 ? 1 : (padNullValue() ? originalSerializer.getLength() + 1 : -1);
 	}
 
 	@Override
 	public void serialize(T record, DataOutputView target) throws IOException {
 		if (record == null) {
 			target.writeBoolean(true);
-			if (padNullValue) {
+			if (padNullValue()) {
 				target.write(padding);
 			}
 		} else {
@@ -191,7 +200,7 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 
 	private boolean deserializeNull(DataInputView source) throws IOException {
 		boolean isNull = source.readBoolean();
-		if (isNull && padNullValue) {
+		if (isNull && padNullValue()) {
 			source.skipBytesToRead(originalSerializer.getLength());
 		}
 		return isNull;
@@ -201,7 +210,7 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		boolean isNull = source.readBoolean();
 		target.writeBoolean(isNull);
-		if (isNull && padNullValue) {
+		if (isNull && padNullValue()) {
 			target.write(padding);
 		} else if (!isNull) {
 			originalSerializer.copy(source, target);
@@ -248,7 +257,7 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 			} else if (compatResult.getConvertDeserializer() != null) {
 				return CompatibilityResult.requiresMigration(
 					new NullableSerializer<>(
-						new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer()), padNullValue));
+						new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer()), padNullValue()));
 			}
 		}
 
