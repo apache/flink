@@ -168,17 +168,14 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public int getLength() {
-		int len = originalSerializer.getLength();
-		return len == 0 ? 1 : (padNullValue() ? originalSerializer.getLength() + 1 : -1);
+		return padNullValue() ? 1 + padding.length : -1;
 	}
 
 	@Override
 	public void serialize(T record, DataOutputView target) throws IOException {
 		if (record == null) {
 			target.writeBoolean(true);
-			if (padNullValue()) {
-				target.write(padding);
-			}
+			target.write(padding);
 		} else {
 			target.writeBoolean(false);
 			originalSerializer.serialize(record, target);
@@ -200,8 +197,8 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 
 	private boolean deserializeNull(DataInputView source) throws IOException {
 		boolean isNull = source.readBoolean();
-		if (isNull && padNullValue()) {
-			source.skipBytesToRead(originalSerializer.getLength());
+		if (isNull) {
+			source.skipBytesToRead(padding.length);
 		}
 		return isNull;
 	}
@@ -210,9 +207,9 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		boolean isNull = source.readBoolean();
 		target.writeBoolean(isNull);
-		if (isNull && padNullValue()) {
+		if (isNull) {
 			target.write(padding);
-		} else if (!isNull) {
+		} else {
 			originalSerializer.copy(source, target);
 		}
 	}
