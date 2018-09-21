@@ -906,7 +906,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 			if (testFileSystem.equals(fileSystem.getClass().getSimpleName())) {
 				fileSystem = new LocalFileSystem();
 			}
-			
+
 			inStream = fileSystem.open(fs.getPath());
 			inStream.read(bom, 0, bom.length);
 
@@ -921,8 +921,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 			} else if ((bom[0] == bytes[2]) && (bom[1] == bytes[1])) {
 				charset = "UTF-16LE";
 			} else {
-				// Unicode BOM mark not found, default encoding is UTF-8
-				charset = "UTF-8";
+				charset = null;
 			}
 		} catch (Exception e) {
 			throw new IllegalArgumentException("Failed to get file bom encoding.");
