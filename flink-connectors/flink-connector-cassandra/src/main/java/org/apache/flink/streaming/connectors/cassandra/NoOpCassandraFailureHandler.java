@@ -17,28 +17,22 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
-import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.annotation.Internal;
+
+import java.io.IOException;
 
 /**
- * Sink to write Flink {@link Tuple}s into a Cassandra cluster.
- *
- * @param <IN> Type of the elements emitted by this sink, it must extend {@link Tuple}
+ * A {@link CassandraFailureHandler} that simply fails the sink on any failures.
  */
-public class CassandraTupleSink<IN extends Tuple> extends AbstractCassandraTupleSink<IN> {
-	public CassandraTupleSink(String insertQuery, ClusterBuilder builder) {
-		this(insertQuery, builder, new NoOpCassandraFailureHandler());
-	}
+@Internal
+public class NoOpCassandraFailureHandler implements CassandraFailureHandler {
 
-	public CassandraTupleSink(String insertQuery, ClusterBuilder builder, CassandraFailureHandler failureHandler) {
-		super(insertQuery, builder, failureHandler);
-	}
+	private static final long serialVersionUID = 737941343410827885L;
 
 	@Override
-	protected Object[] extract(IN record) {
-		Object[] al = new Object[record.getArity()];
-		for (int i = 0; i < record.getArity(); i++) {
-			al[i] = record.getField(i);
-		}
-		return al;
+	public void onFailure(Throwable failure) throws IOException {
+		// simply fail the sink
+		throw new IOException("Error while sending value.", failure);
 	}
+
 }
