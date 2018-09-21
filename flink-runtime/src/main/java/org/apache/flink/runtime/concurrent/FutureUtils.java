@@ -212,7 +212,7 @@ public class FutureUtils {
 									"Exception is not retryable.";
 								resultFuture.completeExceptionally(new RetryException(
 									"Could not complete the operation. " + errorMsg,
-									throwable));
+									ExceptionUtils.stripCompletionException(throwable)));
 							}
 						}
 					} else {

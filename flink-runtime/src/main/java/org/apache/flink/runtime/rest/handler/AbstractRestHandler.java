@@ -39,6 +39,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import javax.annotation.Nonnull;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -111,10 +112,13 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 	private void processRestHandlerException(ChannelHandlerContext ctx, HttpRequest httpRequest, RestHandlerException rhe) {
 		log.error("Exception occurred in REST handler.", rhe);
 
+		String serverSideExceptionMesssage = "\n<Exception on server side:\n" +
+			ExceptionUtils.stringifyException(rhe) + "\nEnd of exception on server side>";
+
 		HandlerUtils.sendErrorResponse(
 			ctx,
 			httpRequest,
-			new ErrorResponseBody(rhe.getMessage()),
+			new ErrorResponseBody(Arrays.asList(rhe.getMessage(), serverSideExceptionMesssage)),
 			rhe.getHttpResponseStatus(),
 			responseHeaders);
 	}
