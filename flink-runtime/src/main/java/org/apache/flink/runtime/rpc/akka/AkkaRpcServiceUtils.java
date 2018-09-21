@@ -35,6 +35,7 @@ import org.jboss.netty.channel.ChannelException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -71,7 +72,17 @@ public class AkkaRpcServiceUtils {
 	 * @throws Exception      Thrown is some other error occurs while creating akka actor system
 	 */
 	public static RpcService createRpcService(String hostname, int port, Configuration configuration) throws Exception {
+		return createRpcService(hostname, port, configuration, AkkaExecutorMode.FORK_JOIN_EXECUTOR);
+	}
+
+	public static RpcService createRpcService(
+		String hostname,
+		int port,
+		Configuration configuration,
+		@Nonnull AkkaExecutorMode executorMode) throws Exception {
 		LOG.info("Starting AkkaRpcService at {}.", NetUtils.unresolvedHostAndPortToNormalizedString(hostname, port));
+
+		Preconditions.checkNotNull(executorMode);
 
 		final ActorSystem actorSystem;
 
