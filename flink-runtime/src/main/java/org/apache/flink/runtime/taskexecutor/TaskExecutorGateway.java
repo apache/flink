@@ -195,4 +195,11 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * @return Future which is completed with the {@link TransientBlobKey} of the uploaded file.
 	 */
 	CompletableFuture<TransientBlobKey> requestFileUpload(FileType fileType, @RpcTimeout Time timeout);
+
+	/**
+	 * Returns the fully qualified address of Metric Query Service on the TaskManager.
+	 *
+	 * @return Future String with Fully qualified (RPC) address of Metric Query Service on the TaskManager.
+	 */
+	CompletableFuture<String> getMetricQueryServiceAddress(@RpcTimeout Time timeout);
 }

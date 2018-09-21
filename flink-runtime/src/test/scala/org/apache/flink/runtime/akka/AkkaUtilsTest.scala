@@ -173,6 +173,24 @@ class AkkaUtilsTest
 
     val hostname = configure.getString("akka.remote.netty.tcp.hostname")
 
-    InetAddress.getByName(hostname).isLoopbackAddress should be (true)
+    InetAddress.getByName(hostname).isLoopbackAddress should be(true)
+  }
+
+  test("getAkkaConfig defaults to fork-join-executor") {
+    val akkaConfig = AkkaUtils.getAkkaConfig(new Configuration())
+
+    akkaConfig.getString("akka.actor.default-dispatcher.executor") should
+      equal("fork-join-executor")
+  }
+
+  test("getAkkaConfig respects executor config") {
+    val akkaConfig = AkkaUtils.getAkkaConfig(
+      new Configuration(),
+      "localhost",
+      1234,
+      AkkaUtils.getThreadPoolExecutorConfig)
+
+    akkaConfig.getString("akka.actor.default-dispatcher.executor") should
+      equal("thread-pool-executor")
   }
 }
