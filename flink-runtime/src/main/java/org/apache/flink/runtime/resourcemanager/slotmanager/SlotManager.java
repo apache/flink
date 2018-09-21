@@ -642,7 +642,11 @@ public class SlotManager implements AutoCloseable {
 						slot.updateAllocation(allocationId, jobId);
 
 						// remove the pending request if any as it has been assigned
-						pendingSlotRequests.remove(allocationId);
+						final PendingSlotRequest actualPendingSlotRequest = pendingSlotRequests.remove(allocationId);
+
+						if (actualPendingSlotRequest != null) {
+							cancelPendingSlotRequest(actualPendingSlotRequest);
+						}
 
 						// this will try to find a new slot for the request
 						rejectPendingSlotRequest(
