@@ -190,13 +190,11 @@ public class ExecutionContext<T> {
 	public <R> R wrapClassLoader(Supplier<R> supplier) {
 		final ClassLoader previousClassloader = Thread.currentThread().getContextClassLoader();
 		Thread.currentThread().setContextClassLoader(classLoader);
-		R returnValue;
 		try {
-			returnValue = supplier.get();
+			return supplier.get();
 		} finally {
 			Thread.currentThread().setContextClassLoader(previousClassloader);
 		}
-		return returnValue;
 	}
 
 	// --------------------------------------------------------------------------------------------
