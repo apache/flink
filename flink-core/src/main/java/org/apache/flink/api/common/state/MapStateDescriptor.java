@@ -37,6 +37,12 @@ import java.util.Map;
  * <p>To create keyed map state (on a KeyedStream), use
  * {@link org.apache.flink.api.common.functions.RuntimeContext#getMapState(MapStateDescriptor)}.
  *
+ * <p>Note: The map state with TTL currently supports {@code null} user values
+ * only if the user value serializer can handle {@code null} values.
+ * If the serializer does not support {@code null} values,
+ * it can be wrapped with {@link org.apache.flink.api.java.typeutils.runtime.NullableSerializer}
+ * at the cost of an extra byte in the serialized form.
+ *
  * @param <UK> The type of the keys that can be added to the map state.
  */
 @PublicEvolving
