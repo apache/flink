@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
@@ -47,7 +48,6 @@ import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
@@ -590,9 +590,15 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		for (Map.Entry<ResourceID, WorkerRegistration<WorkerType>> workerRegistrationEntry : taskExecutors.entrySet()) {
 			final ResourceID tmResourceId = workerRegistrationEntry.getKey();
 			final WorkerRegistration<WorkerType> workerRegistration = workerRegistrationEntry.getValue();
-			final String taskManagerAddress = workerRegistration.getTaskExecutorGateway().getAddress();
-			final String tmMetricQueryServicePath = taskManagerAddress.substring(0, taskManagerAddress.lastIndexOf('/') + 1) +
-				MetricQueryService.METRIC_QUERY_SERVICE_NAME + '_' + tmResourceId.getResourceIdString();
+			final TaskExecutorGateway taskExecutorGateway = workerRegistration.getTaskExecutorGateway();
+			String tmMetricQueryServicePath = null;
+			try {
+				tmMetricQueryServicePath =
+					taskExecutorGateway.getMetricQueryServiceAddress(AkkaUtils.getDefaultTimeout()).get();
+			} catch (Exception e) {
+				log.info("Fail to get task manager's metric query service path for worker: {}", taskExecutorGateway.getAddress());
+				continue;
+			}
 
 			metricQueryServicePaths.add(Tuple2.of(tmResourceId, tmMetricQueryServicePath));
 		}
