@@ -23,6 +23,7 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
@@ -46,6 +47,9 @@ import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
 
+/**
+ * Concurrency tests for input gates.
+ */
 public class InputGateConcurrentTest {
 
 	@Test
@@ -192,9 +196,11 @@ public class InputGateConcurrentTest {
 	//  testing threads
 	// ------------------------------------------------------------------------
 
-	private static abstract class Source {
-	
+	private abstract static class Source {
+
 		abstract void addBufferConsumer(BufferConsumer bufferConsumer) throws Exception;
+
+		abstract void flush();
 	}
 
 	private static class PipelinedSubpartitionSource extends Source {
@@ -209,6 +215,11 @@ public class InputGateConcurrentTest {
 		void addBufferConsumer(BufferConsumer bufferConsumer) throws Exception {
 			partition.add(bufferConsumer);
 		}
+
+		@Override
+		void flush() {
+			partition.flush();
+		}
 	}
 
 	private static class RemoteChannelSource extends Source {
@@ -222,13 +233,18 @@ public class InputGateConcurrentTest {
 
 		@Override
 		void addBufferConsumer(BufferConsumer bufferConsumer) throws Exception {
-			checkState(bufferConsumer.isFinished(), "Handling of non finished buffers is not yet implemented");
 			try {
-				channel.onBuffer(bufferConsumer.build(), seq++, -1);
+				Buffer buffer = bufferConsumer.build();
+				checkState(bufferConsumer.isFinished(), "Handling of non finished buffers is not yet implemented");
+				channel.onBuffer(buffer, seq++, -1);
 			}
 			finally {
 				bufferConsumer.close();
 			}
+		}
+
+		@Override
+		void flush() {
 		}
 	}
 
@@ -245,6 +261,7 @@ public class InputGateConcurrentTest {
 		private final int yieldAfter;
 
 		ProducerThread(Source[] sources, int numTotal, int maxChunk, int yieldAfter) {
+			super("producer");
 			this.sources = sources;
 			this.numTotal = numTotal;
 			this.maxChunk = maxChunk;
@@ -273,7 +290,10 @@ public class InputGateConcurrentTest {
 					//noinspection CallToThreadYield
 					Thread.yield();
 				}
+			}
 
+			for (Source source : sources) {
+				source.flush();
 			}
 		}
 	}
@@ -284,6 +304,7 @@ public class InputGateConcurrentTest {
 		private final int numBuffers;
 
 		ConsumerThread(SingleInputGate gate, int numBuffers) {
+			super("consumer");
 			this.gate = gate;
 			this.numBuffers = numBuffers;
 		}

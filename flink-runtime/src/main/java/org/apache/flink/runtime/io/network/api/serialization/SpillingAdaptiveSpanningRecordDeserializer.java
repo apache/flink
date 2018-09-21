@@ -485,7 +485,7 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 			}
 			else {
 				// collect in memory
-				ensureBufferCapacity(numBytesChunk);
+				ensureBufferCapacity(nextRecordLength);
 				partial.segment.get(partial.position, buffer, 0, numBytesChunk);
 			}
 
@@ -502,8 +502,8 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 			int segmentRemaining = numBytes;
 			// check where to go. if we have a partial length, we need to complete it first
 			if (this.lengthBuffer.position() > 0) {
-				int toPut = Math.min(this.lengthBuffer.remaining(), numBytes);
-				segment.get(offset, this.lengthBuffer, toPut);
+				int toPut = Math.min(this.lengthBuffer.remaining(), segmentRemaining);
+				segment.get(segmentPosition, this.lengthBuffer, toPut);
 				// did we complete the length?
 				if (this.lengthBuffer.hasRemaining()) {
 					return;
@@ -515,6 +515,8 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 					segmentRemaining -= toPut;
 					if (this.recordLength > THRESHOLD_FOR_SPILLING) {
 						this.spillingChannel = createSpillingChannel();
+					} else {
+						ensureBufferCapacity(this.recordLength);
 					}
 				}
 			}
@@ -527,9 +529,7 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 				// spill to file
 				ByteBuffer toWrite = segment.wrap(segmentPosition, toCopy);
 				this.spillingChannel.write(toWrite);
-			}
-			else {
-				ensureBufferCapacity(accumulatedRecordBytes + toCopy);
+			} else {
 				segment.get(segmentPosition, buffer, this.accumulatedRecordBytes, toCopy);
 			}
 

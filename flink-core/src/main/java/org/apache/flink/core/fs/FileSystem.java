@@ -576,29 +576,8 @@ public abstract class FileSystem {
 	/**
 	 * Opens an FSDataOutputStream at the indicated Path.
 	 *
-	 * <p>This method is deprecated, because most of its parameters are ignored by most file systems.
-	 * To control for example the replication factor and block size in the Hadoop Distributed File system,
-	 * make sure that the respective Hadoop configuration file is either linked from the Flink configuration,
-	 * or in the classpath of either Flink or the user code.
-	 *
-	 * @param f
-	 *        the file name to open
-	 * @param overwrite
-	 *        if a file with this name already exists, then if true,
-	 *        the file will be overwritten, and if false an error will be thrown.
-	 * @param bufferSize
-	 *        the size of the buffer to be used.
-	 * @param replication
-	 *        required block replication for the file.
-	 * @param blockSize
-	 *        the size of the file blocks
-	 *
-	 * @throws IOException Thrown, if the stream could not be opened because of an I/O, or because
-	 *                     a file already exists at that path and the write mode indicates to not
-	 *                     overwrite the file.
-	 *
-	 * @deprecated Deprecated because not well supported across types of file systems.
-	 *             Control the behavior of specific file systems via configurations instead.
+	 * @deprecated Deprecated in favor of {@link #create(Path, WriteOptions)} which offers better extensibility
+	 *             to options that are supported only by some filesystems implementations.
 	 */
 	@Deprecated
 	public FSDataOutputStream create(
@@ -647,6 +626,25 @@ public abstract class FileSystem {
 	 *                     overwrite the file.
 	 */
 	public abstract FSDataOutputStream create(Path f, WriteMode overwriteMode) throws IOException;
+
+	/**
+	 * Creates a new file at the given path and opens an FSDataOutputStream to that new file.
+	 *
+	 * <p>This method takes various options, some of which are not supported by all file systems
+	 * (such as controlling block size).
+	 *
+	 * <p>Implementation note: This method should be abstract, but is currently not in order to not break
+	 * backwards compatibility of this class with earlier Flink versions.
+	 *
+	 * @param f The path for the new file.
+	 * @param options The options to parametrize the file and stream creation.
+	 * @return The stream to the new file at the target path.
+	 *
+	 * @throws IOException Thrown if an error occurs while creating the file or opening the stream.
+	 */
+	public FSDataOutputStream create(Path f, WriteOptions options) throws IOException {
+		return create(f, options.getOverwrite());
+	}
 
 	/**
 	 * Renames the file/directory src to dst.
