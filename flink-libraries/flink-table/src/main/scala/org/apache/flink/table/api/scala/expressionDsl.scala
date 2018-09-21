@@ -358,6 +358,11 @@ trait ImplicitExpressionOperations {
   def floor() = Floor(expr)
 
   /**
+    * Calculates the hyperbolic sine of a given value.
+    */
+  def sinh() = Sinh(expr)
+
+  /**
     * Calculates the smallest integer greater than or equal to a given number.
     */
   def ceil() = Ceil(expr)

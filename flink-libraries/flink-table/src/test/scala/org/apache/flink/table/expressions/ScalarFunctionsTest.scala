@@ -1406,6 +1406,45 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testSinh(): Unit = {
+    testAllApis(
+      0.sinh(),
+      "0.sinh()",
+      "SINH(0)",
+      math.sinh(0).toString)
+
+    testAllApis(
+      -1.sinh(),
+      "-1.sinh()",
+      "SINH(-1)",
+      math.sinh(-1).toString)
+
+    testAllApis(
+      'f4.sinh(),
+      "f4.sinh",
+      "SINH(f4)",
+      math.sinh(44L).toString)
+
+    testAllApis(
+      'f6.sinh(),
+      "f6.sinh",
+      "SINH(f6)",
+      math.sinh(4.6D).toString)
+
+    testAllApis(
+      'f7.sinh(),
+      "f7.sinh",
+      "SINH(f7)",
+      math.sinh(3).toString)
+
+    testAllApis(
+      'f22.sinh(),
+      "f22.sinh",
+      "SINH(f22)",
+      math.sinh(2.0).toString)
+  }
+
+  @Test
   def testTan(): Unit = {
     testAllApis(
       'f2.tan(),

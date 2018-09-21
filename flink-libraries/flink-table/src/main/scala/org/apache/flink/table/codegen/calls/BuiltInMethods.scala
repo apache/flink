@@ -84,6 +84,9 @@ object BuiltInMethods {
   val ACOS = Types.lookupMethod(classOf[Math], "acos", classOf[Double])
   val ACOS_DEC = Types.lookupMethod(classOf[SqlFunctions], "acos", classOf[JBigDecimal])
 
+  val SINH = Types.lookupMethod(classOf[Math], "sinh", classOf[Double])
+  val SINH_DEC = Types.lookupMethod(classOf[ScalarFunctions], "sinh", classOf[JBigDecimal])
+
   val ATAN = Types.lookupMethod(classOf[Math], "atan", classOf[Double])
   val ATAN_DEC = Types.lookupMethod(classOf[SqlFunctions], "atan", classOf[JBigDecimal])
 
