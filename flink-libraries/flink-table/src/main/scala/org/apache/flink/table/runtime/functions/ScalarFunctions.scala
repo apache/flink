@@ -122,6 +122,13 @@ object ScalarFunctions {
   }
 
   /**
+    * Returns the hyperbolic sine of a big decimal value.
+    */
+  def sinh(x: JBigDecimal): Double = {
+    Math.sinh(x.doubleValue())
+  }
+
+  /**
     * Returns the logarithm of "x" with base "base".
     */
   def log(base: Double, x: Double): Double = {

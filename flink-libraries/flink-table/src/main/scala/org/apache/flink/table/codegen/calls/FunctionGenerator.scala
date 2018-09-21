@@ -242,6 +242,18 @@ object FunctionGenerator {
     BuiltInMethods.LN)
 
   addSqlFunctionMethod(
+    SINH,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.SINH)
+
+  addSqlFunctionMethod(
+    SINH,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.SINH_DEC)
+
+  addSqlFunctionMethod(
     EXP,
     Seq(DOUBLE_TYPE_INFO),
     DOUBLE_TYPE_INFO,

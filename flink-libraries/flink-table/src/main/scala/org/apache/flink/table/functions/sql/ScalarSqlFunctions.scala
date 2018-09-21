@@ -50,6 +50,14 @@ object ScalarSqlFunctions {
     OperandTypes.family(SqlTypeFamily.INTEGER),
     SqlFunctionCategory.NUMERIC)
 
+  val SINH = new SqlFunction(
+    "SINH",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.DOUBLE_NULLABLE,
+    null,
+    OperandTypes.NUMERIC,
+    SqlFunctionCategory.NUMERIC)
+
   val HEX = new SqlFunction(
     "HEX",
     SqlKind.OTHER_FUNCTION,
