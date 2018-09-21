@@ -64,7 +64,11 @@ public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, ResultSet> {
 	}
 
 	public CassandraPojoSink(Class<IN> clazz, ClusterBuilder builder, @Nullable MapperOptions options, String keyspace) {
-		super(builder);
+		this(clazz, builder, options, keyspace, new NoOpCassandraFailureHandler());
+	}
+
+	public CassandraPojoSink(Class<IN> clazz, ClusterBuilder builder, @Nullable MapperOptions options, String keyspace, CassandraFailureHandler failureHandler) {
+		super(builder, failureHandler);
 		this.clazz = clazz;
 		this.options = options;
 		this.keyspace = keyspace;

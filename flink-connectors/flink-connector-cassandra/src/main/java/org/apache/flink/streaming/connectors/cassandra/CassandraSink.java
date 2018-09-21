@@ -241,6 +241,7 @@ public class CassandraSink<IN> {
 		protected String query;
 		protected CheckpointCommitter committer;
 		protected boolean isWriteAheadLogEnabled;
+		protected CassandraFailureHandler failureHandler;
 
 		public CassandraSinkBuilder(DataStream<IN> input, TypeInformation<IN> typeInfo, TypeSerializer<IN> serializer) {
 			this.input = input;
@@ -355,6 +356,18 @@ public class CassandraSink<IN> {
 		}
 
 		/**
+		 * Sets the failure handler for this sink. The failure handler is used to provide custom error handling.
+		 *
+		 * @param failureHandler CassandraFailureHandler, that handles any Throwable error.
+		 *
+		 * @return this builder
+		 */
+		public CassandraSinkBuilder<IN> setFailureHandler(CassandraFailureHandler failureHandler) {
+			this.failureHandler = failureHandler;
+			return this;
+		}
+
+		/**
 		 * Finalizes the configuration of this sink.
 		 *
 		 * @return finalized sink
@@ -362,6 +375,9 @@ public class CassandraSink<IN> {
 		 */
 		public CassandraSink<IN> build() throws Exception {
 			sanityCheck();
+			if (failureHandler == null) {
+				failureHandler = new NoOpCassandraFailureHandler();
+			}
 			return isWriteAheadLogEnabled
 				? createWriteAheadSink()
 				: createSink();
@@ -400,7 +416,7 @@ public class CassandraSink<IN> {
 
 		@Override
 		public CassandraSink<IN> createSink() throws Exception {
-			return new CassandraSink<>(input.addSink(new CassandraTupleSink<IN>(query, builder)).name("Cassandra Sink"));
+			return new CassandraSink<>(input.addSink(new CassandraTupleSink<IN>(query, builder, failureHandler)).name("Cassandra Sink"));
 		}
 
 		@Override
@@ -432,7 +448,7 @@ public class CassandraSink<IN> {
 
 		@Override
 		protected CassandraSink<Row> createSink() throws Exception {
-			return new CassandraSink<>(input.addSink(new CassandraRowSink(typeInfo.getArity(), query, builder)).name("Cassandra Sink"));
+			return new CassandraSink<>(input.addSink(new CassandraRowSink(typeInfo.getArity(), query, builder, failureHandler)).name("Cassandra Sink"));
 
 		}
 
@@ -463,7 +479,7 @@ public class CassandraSink<IN> {
 
 		@Override
 		public CassandraSink<IN> createSink() throws Exception {
-			return new CassandraSink<>(input.addSink(new CassandraPojoSink<>(typeInfo.getTypeClass(), builder, mapperOptions, keyspace)).name("Cassandra Sink"));
+			return new CassandraSink<>(input.addSink(new CassandraPojoSink<>(typeInfo.getTypeClass(), builder, mapperOptions, keyspace, failureHandler)).name("Cassandra Sink"));
 		}
 
 		@Override
@@ -495,7 +511,7 @@ public class CassandraSink<IN> {
 
 		@Override
 		public CassandraSink<IN> createSink() throws Exception {
-			return new CassandraSink<>(input.addSink(new CassandraScalaProductSink<IN>(query, builder)).name("Cassandra Sink"));
+			return new CassandraSink<>(input.addSink(new CassandraScalaProductSink<IN>(query, builder, failureHandler)).name("Cassandra Sink"));
 		}
 
 		@Override
