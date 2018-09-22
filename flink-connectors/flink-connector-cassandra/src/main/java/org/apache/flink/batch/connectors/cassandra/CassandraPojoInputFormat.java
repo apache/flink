@@ -19,6 +19,7 @@ package org.apache.flink.batch.connectors.cassandra;
 
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
+import org.apache.flink.streaming.connectors.cassandra.MapperOptions;
 import org.apache.flink.util.Preconditions;
 
 import com.datastax.driver.mapping.Mapper;
@@ -35,14 +36,17 @@ public class CassandraPojoInputFormat<OUT> extends CassandraInputFormatBase<OUT>
 	private static final long serialVersionUID = 1992091320180905115L;
 
 	private transient Result<OUT> resultSet;
+	private final MapperOptions mapperOptions;
 	private final Class<OUT> inputClass;
 
 	public CassandraPojoInputFormat(String query, ClusterBuilder builder, Class<OUT> inputClass) {
+		this(query, builder, inputClass, null);
+	}
+
+	public CassandraPojoInputFormat(String query, ClusterBuilder builder, Class<OUT> inputClass, MapperOptions mapperOptions) {
 		super(query, builder);
-
-		Preconditions.checkArgument(inputClass != null, "InputClass cannot be null");
-
-		this.inputClass = inputClass;
+		this.mapperOptions = mapperOptions;
+		this.inputClass = Preconditions.checkNotNull(inputClass, "InputClass cannot be null");
 	}
 
 	@Override
@@ -52,6 +56,12 @@ public class CassandraPojoInputFormat<OUT> extends CassandraInputFormatBase<OUT>
 
 		Mapper<OUT> mapper = manager.mapper(inputClass);
 
+		if (mapperOptions != null) {
+			Mapper.Option[] optionsArray = mapperOptions.getMapperOptions();
+			if (optionsArray != null) {
+				mapper.setDefaultGetOptions(optionsArray);
+			}
+		}
 		this.resultSet = mapper.map(session.execute(query));
 	}
 

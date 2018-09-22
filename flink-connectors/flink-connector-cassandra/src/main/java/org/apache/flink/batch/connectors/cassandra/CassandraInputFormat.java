@@ -33,6 +33,7 @@ import java.io.IOException;
  */
 public class CassandraInputFormat<OUT extends Tuple> extends CassandraInputFormatBase<OUT> {
 
+	private static final long serialVersionUID = 3642323148032444264L;
 	private transient ResultSet resultSet;
 
 	public CassandraInputFormat(String query, ClusterBuilder builder) {

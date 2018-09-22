@@ -19,62 +19,65 @@ package org.apache.flink.batch.connectors.cassandra.example;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.batch.connectors.cassandra.CassandraPojoInputFormat;
 import org.apache.flink.batch.connectors.cassandra.CassandraTupleOutputFormat;
 import org.apache.flink.batch.connectors.cassandra.CustomCassandraAnnotatedPojo;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 
 import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.ConsistencyLevel;
+import com.datastax.driver.mapping.Mapper;
 
 import java.util.ArrayList;
 
 /**
- * This is an example showing the to use the CassandraPojoInput-/CassandraOutputFormats in the Batch API.
+ * This is an example showing the to use the {@link CassandraPojoInputFormat}/{@link CassandraTupleOutputFormat} in the Batch API.
  *
  * <p>The example assumes that a table exists in a local cassandra database, according to the following queries:
- * CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class': 'SimpleStrategy', 'replication_factor': ‘1’};
- * CREATE TABLE IF NOT EXISTS test.batches (number int, strings text, PRIMARY KEY(number, strings));
+ * CREATE KEYSPACE IF NOT EXISTS flink WITH replication = {'class': 'SimpleStrategy', 'replication_factor': ‘1’};
+ * CREATE TABLE IF NOT EXISTS flink.batches (id text, counter int, batch_id int, PRIMARY KEY(id, counter, batchId));
  */
 public class BatchPojoExample {
-	private static final String INSERT_QUERY = "INSERT INTO test.batches (number, strings) VALUES (?,?);";
-	private static final String SELECT_QUERY = "SELECT number, strings FROM test.batches;";
+	private static final String INSERT_QUERY = "INSERT INTO flink.batches (id, counter, batch_id) VALUES (?,?,?);";
+	private static final String SELECT_QUERY = "SELECT id, counter, batch_id FROM flink.batches;";
 
-	/*
-	 *	table script: "CREATE TABLE test.batches (number int, strings text, PRIMARY KEY(number, strings));"
-	 */
 	public static void main(String[] args) throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 
-		ArrayList<Tuple2<Integer, String>> collection = new ArrayList<>(20);
+		ArrayList<Tuple3<String, Integer, Integer>> collection = new ArrayList<>(20);
 		for (int i = 0; i < 20; i++) {
-			collection.add(new Tuple2<>(i, "string " + i));
+			collection.add(new Tuple3<>("string " + i, i, i));
 		}
 
-		DataSet<Tuple2<Integer, String>> dataSet = env.fromCollection(collection);
+		DataSet<Tuple3<String, Integer, Integer>> dataSet = env.fromCollection(collection);
 
-		dataSet.output(new CassandraTupleOutputFormat<Tuple2<Integer, String>>(INSERT_QUERY, new ClusterBuilder() {
+		ClusterBuilder clusterBuilder = new ClusterBuilder() {
+			private static final long serialVersionUID = -1754532803757154795L;
+
 			@Override
 			protected Cluster buildCluster(Cluster.Builder builder) {
 				return builder.addContactPoints("127.0.0.1").build();
 			}
-		}));
+		};
+
+		dataSet.output(new CassandraTupleOutputFormat<>(INSERT_QUERY, clusterBuilder));
+
+		env.execute("Write");
 
 		/*
 		 *	This is for the purpose of showing an example of creating a DataSet using CassandraPojoInputFormat.
 		 */
 		DataSet<CustomCassandraAnnotatedPojo> inputDS = env
-			.createInput(new CassandraPojoInputFormat<>(SELECT_QUERY, new ClusterBuilder() {
-				@Override
-				protected Cluster buildCluster(Cluster.Builder builder) {
-					return builder.addContactPoints("127.0.0.1").build();
-				}
-			}, CustomCassandraAnnotatedPojo.class));
+			.createInput(new CassandraPojoInputFormat<>(
+				SELECT_QUERY,
+				clusterBuilder,
+				CustomCassandraAnnotatedPojo.class,
+				() -> new Mapper.Option[]{Mapper.Option.consistencyLevel(ConsistencyLevel.ANY)}
+			));
 
 		inputDS.print();
-
-		env.execute("Write");
 	}
 }
