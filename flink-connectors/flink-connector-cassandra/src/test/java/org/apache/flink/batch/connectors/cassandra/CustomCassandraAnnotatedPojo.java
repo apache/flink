@@ -21,10 +21,12 @@ import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
 
 /**
- * Example of Cassandra Annotated POJO class for use with CassandraInputFormatter.
+ * Example of Cassandra Annotated POJO class for use with {@link CassandraPojoInputFormat}.
  */
-@Table(name = "$TABLE", keyspace = "flink")
+@Table(name = CustomCassandraAnnotatedPojo.TABLE_NAME, keyspace = "flink")
 public class CustomCassandraAnnotatedPojo {
+
+	public static final String TABLE_NAME = "batches";
 
 	@Column(name = "id")
 	private String id;
@@ -32,6 +34,17 @@ public class CustomCassandraAnnotatedPojo {
 	private Integer counter;
 	@Column(name = "batch_id")
 	private Integer batchId;
+
+	/**
+	 * Necessary for the driver's mapper instanciation.
+	 */
+	public CustomCassandraAnnotatedPojo(){}
+
+	public CustomCassandraAnnotatedPojo(String id, Integer counter, Integer batchId) {
+		this.id = id;
+		this.counter = counter;
+		this.batchId = batchId;
+	}
 
 	public String getId() {
 		return id;

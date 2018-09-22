@@ -36,22 +36,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * InputFormat to read data from Apache Cassandra and generate a custom Cassandra annotated object.
+ * Base class for {@link RichInputFormat} to read data from Apache Cassandra and generate a custom Cassandra annotated object.
  *
  * @param <OUT> type of inputClass
  */
 public abstract class CassandraInputFormatBase<OUT> extends RichInputFormat<OUT, InputSplit> implements NonParallelInput {
-	private static final Logger LOG = LoggerFactory.getLogger(CassandraInputFormatBase.class);
+	private static final long serialVersionUID = -1519372881115104601L;
+	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
 	protected final String query;
-	protected final ClusterBuilder builder;
+	private final ClusterBuilder builder;
 
 	protected transient Cluster cluster;
 	protected transient Session session;
 
 	public CassandraInputFormatBase(String query, ClusterBuilder builder){
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(query), "Query cannot be null or empty");
-		Preconditions.checkArgument(builder != null, "Builder cannot be null");
+		Preconditions.checkNotNull(builder, "Builder cannot be null");
 
 		this.query = query;
 		this.builder = builder;
@@ -87,7 +88,7 @@ public abstract class CassandraInputFormatBase<OUT> extends RichInputFormat<OUT,
 				session.close();
 			}
 		} catch (Exception e) {
-			LOG.error("Error while closing session.", e);
+			logger.error("Error while closing session.", e);
 		}
 
 		try {
@@ -95,7 +96,7 @@ public abstract class CassandraInputFormatBase<OUT> extends RichInputFormat<OUT,
 				cluster.close();
 			}
 		} catch (Exception e) {
-			LOG.error("Error while closing cluster.", e);
+			logger.error("Error while closing cluster.", e);
 		}
 	}
 
