@@ -674,18 +674,6 @@ under the License.
 		</profile>
 
 		<profile>
-			<id>legacyCode</id>
-			<activation>
-				<property>
-					<name>legacyCode</name>
-				</property>
-			</activation>
-			<properties>
-				<codebase>legacy</codebase>
-			</properties>
-		</profile>
-
-		<profile>
 			<id>spotbugs</id>
 			<activation>
 				<property>
