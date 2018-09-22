@@ -357,7 +357,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 				switch(worker.state()) {
 					case Launched:
 						workersInLaunch.put(extractResourceID(worker.taskID()), worker);
-						final LaunchableMesosWorker launchable = createLaunchableMesosWorker(worker.taskID(), worker.profile());
+						final LaunchableMesosWorker launchable = createLaunchableMesosWorker(worker.taskID());
 						toAssign.add(new Tuple2<>(launchable.taskRequest(), worker.hostname().get()));
 						break;
 					case Released:
@@ -439,7 +439,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			workerStore.putWorker(worker);
 			workersInNew.put(extractResourceID(worker.taskID()), worker);
 
-			LaunchableMesosWorker launchable = createLaunchableMesosWorker(worker.taskID(), resourceProfile);
+			LaunchableMesosWorker launchable = createLaunchableMesosWorker(worker.taskID());
 
 			LOG.info("Scheduling Mesos task {} with ({} MB, {} cpus).",
 				launchable.taskID().getValue(), launchable.taskRequest().getMemory(), launchable.taskRequest().getCPUs());
