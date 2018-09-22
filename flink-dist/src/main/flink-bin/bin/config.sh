@@ -134,8 +134,6 @@ KEY_ENV_SSH_OPTS="env.ssh.opts"
 KEY_HIGH_AVAILABILITY="high-availability"
 KEY_ZK_HEAP_MB="zookeeper.heap.mb"
 
-KEY_FLINK_MODE="mode"
-
 ########################################################################################################################
 # MEMORY SIZE UNIT
 ########################################################################################################################
@@ -429,11 +427,6 @@ if [ -z "${FLINK_TM_NET_BUF_MAX}" -o "${FLINK_TM_NET_BUF_MAX}" = "-1" ]; then
     # default: 1GB = 1073741824 bytes
     FLINK_TM_NET_BUF_MAX=$(readFromConfig ${KEY_TASKM_NET_BUF_MAX} 1073741824 "${YAML_CONF}")
     FLINK_TM_NET_BUF_MAX=$(parseBytes ${FLINK_TM_NET_BUF_MAX})
-fi
-
-# Define FLIP if it is not already set
-if [ -z "${FLINK_MODE}" ]; then
-    FLINK_MODE=$(readFromConfig ${KEY_FLINK_MODE} "new" "${YAML_CONF}")
 fi
 
 
