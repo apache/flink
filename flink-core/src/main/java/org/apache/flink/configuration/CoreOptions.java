@@ -304,26 +304,4 @@ public class CoreOptions {
 	public static ConfigOption<Long> fileSystemConnectionLimitStreamInactivityTimeout(String scheme) {
 		return ConfigOptions.key("fs." + scheme + ".limit.stream-timeout").defaultValue(0L);
 	}
-
-	// ------------------------------------------------------------------------
-	//  Distributed architecture
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Constant value for the new execution mode.
-	 */
-	public static final String NEW_MODE = "new";
-
-	/**
-	 * Constant value for the old execution mode.
-	 */
-	public static final String LEGACY_MODE = "legacy";
-
-	/**
-	 * Switch to select the execution mode. Possible values are {@link CoreOptions#NEW_MODE}
-	 * and {@link CoreOptions#LEGACY_MODE}.
-	 */
-	public static final ConfigOption<String> MODE = key("mode")
-		.defaultValue(NEW_MODE)
-		.withDescription("Switch to select the execution mode. Possible values are 'new' and 'legacy'.");
 }
