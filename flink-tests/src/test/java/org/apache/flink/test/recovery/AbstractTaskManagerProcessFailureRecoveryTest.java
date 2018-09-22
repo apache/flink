@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -413,6 +414,34 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 				synchronized (lock) {
 					lock.wait();
 				}
+			}
+			catch (Throwable t) {
+				LOG.error("Failed to start TaskManager process", t);
+				System.exit(1);
+			}
+		}
+	}
+
+	/**
+	 * The entry point for the TaskExecutor JVM. Simply configures and runs a TaskExecutor.
+	 */
+	public static class TaskExecutorProcessEntryPoint {
+
+		private static final Logger LOG = LoggerFactory.getLogger(TaskExecutorProcessEntryPoint.class);
+
+		public static void main(String[] args) {
+			try {
+				int jobManagerPort = Integer.parseInt(args[0]);
+
+				Configuration cfg = new Configuration();
+				cfg.setString(JobManagerOptions.ADDRESS, "localhost");
+				cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
+				cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
+				cfg.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 100);
+				cfg.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
+				cfg.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
+
+				TaskManagerRunner.runTaskManager(cfg, ResourceID.generate());
 			}
 			catch (Throwable t) {
 				LOG.error("Failed to start TaskManager process", t);
