@@ -18,6 +18,7 @@
 
 package org.apache.flink.container.entrypoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -60,6 +61,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 
+	static final JobID FIXED_JOB_ID = new JobID(0L, 0L);
+
 	private final String[] programArguments;
 
 	@Nonnull
@@ -84,7 +87,7 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 		final PackagedProgram packagedProgram = createPackagedProgram();
 		final int defaultParallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
 		try {
-			final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(packagedProgram, configuration, defaultParallelism);
+			final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(packagedProgram, configuration, defaultParallelism, FIXED_JOB_ID);
 			jobGraph.setAllowQueuedScheduling(true);
 			jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
 
