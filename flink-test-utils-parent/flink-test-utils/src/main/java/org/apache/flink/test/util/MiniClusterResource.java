@@ -19,10 +19,7 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.DefaultActorSystemLoader;
 import org.apache.flink.client.program.MiniClusterClient;
-import org.apache.flink.client.program.StandaloneClusterClient;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -30,17 +27,12 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.minicluster.JobExecutorService;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
-import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
-import akka.actor.ActorSystem;
-import org.junit.Assume;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
@@ -48,11 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
-import scala.Option;
-
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
 
 /**
  * Starts a Flink mini cluster as a resource and registers the respective
@@ -65,8 +52,6 @@ public class MiniClusterResource extends ExternalResource {
 	private final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private final MiniClusterResourceConfiguration miniClusterResourceConfiguration;
-
-	private final TestBaseUtils.CodebaseType codebaseType;
 
 	private JobExecutorService jobExecutorService;
 
@@ -82,11 +67,6 @@ public class MiniClusterResource extends ExternalResource {
 
 	public MiniClusterResource(final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
 		this.miniClusterResourceConfiguration = Preconditions.checkNotNull(miniClusterResourceConfiguration);
-		this.codebaseType = miniClusterResourceConfiguration.getCodebaseType();
-	}
-
-	public TestBaseUtils.CodebaseType getCodebaseType() {
-		return codebaseType;
 	}
 
 	public int getNumberSlots() {
@@ -111,12 +91,9 @@ public class MiniClusterResource extends ExternalResource {
 
 	@Override
 	public void before() throws Exception {
-		// verify that we are running in the correct test profile
-		Assume.assumeThat(TestBaseUtils.getCodebaseType(), is(equalTo(codebaseType)));
-
 		temporaryFolder.create();
 
-		startJobExecutorService(codebaseType);
+		startMiniCluster();
 
 		numberSlots = miniClusterResourceConfiguration.getNumberSlotsPerTaskManager() * miniClusterResourceConfiguration.getNumberTaskManagers();
 
@@ -160,57 +137,6 @@ public class MiniClusterResource extends ExternalResource {
 
 		if (exception != null) {
 			LOG.warn("Could not properly shut down the MiniClusterResource.", exception);
-		}
-	}
-
-	private void startJobExecutorService(TestBaseUtils.CodebaseType miniClusterType) throws Exception {
-		switch (miniClusterType) {
-			case LEGACY:
-				startLegacyMiniCluster();
-				break;
-			case NEW:
-				startMiniCluster();
-				break;
-			default:
-				throw new FlinkRuntimeException("Unknown MiniClusterType " + miniClusterType + '.');
-		}
-	}
-
-	private void startLegacyMiniCluster() throws Exception {
-		final Configuration configuration = new Configuration(miniClusterResourceConfiguration.getConfiguration());
-		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, miniClusterResourceConfiguration.getNumberTaskManagers());
-		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, miniClusterResourceConfiguration.getNumberSlotsPerTaskManager());
-		configuration.setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
-
-		final LocalFlinkMiniCluster flinkMiniCluster = TestBaseUtils.startCluster(
-			configuration,
-			miniClusterResourceConfiguration.getRpcServiceSharing() == RpcServiceSharing.SHARED);
-
-		jobExecutorService = flinkMiniCluster;
-
-		switch (miniClusterResourceConfiguration.getRpcServiceSharing()) {
-			case SHARED:
-				Option<ActorSystem> actorSystemOption = flinkMiniCluster.firstActorSystem();
-				Preconditions.checkState(actorSystemOption.isDefined());
-
-				final ActorSystem actorSystem = actorSystemOption.get();
-				clusterClient = new StandaloneClusterClient(
-					configuration,
-					flinkMiniCluster.highAvailabilityServices(),
-					true,
-					new DefaultActorSystemLoader(actorSystem));
-				break;
-			case DEDICATED:
-				clusterClient = new StandaloneClusterClient(configuration, flinkMiniCluster.highAvailabilityServices(), true);
-				break;
-		}
-
-		Configuration restClientConfig = new Configuration();
-		restClientConfig.setInteger(JobManagerOptions.PORT, flinkMiniCluster.getLeaderRPCPort());
-		this.restClusterClientConfig = new UnmodifiableConfiguration(restClientConfig);
-
-		if (flinkMiniCluster.webMonitor().isDefined()) {
-			webUIPort = flinkMiniCluster.webMonitor().get().getServerPort();
 		}
 	}
 
