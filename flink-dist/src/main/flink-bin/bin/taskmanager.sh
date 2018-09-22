@@ -34,11 +34,7 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-TYPE=taskmanager
-
-if [[ "${FLINK_MODE}" == "new" ]]; then
-    TYPE=taskexecutor
-fi
+ENTRYPOINT=taskexecutor
 
 if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 
@@ -78,11 +74,11 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 fi
 
 if [[ $STARTSTOP == "start-foreground" ]]; then
-    exec "${FLINK_BIN_DIR}"/flink-console.sh $TYPE "${ARGS[@]}"
+    exec "${FLINK_BIN_DIR}"/flink-console.sh $ENTRYPOINT "${ARGS[@]}"
 else
     if [[ $FLINK_TM_COMPUTE_NUMA == "false" ]]; then
         # Start a single TaskManager
-        "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP $TYPE "${ARGS[@]}"
+        "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP $ENTRYPOINT "${ARGS[@]}"
     else
         # Example output from `numactl --show` on an AWS c4.8xlarge:
         # policy: default
@@ -94,7 +90,7 @@ else
         read -ra NODE_LIST <<< $(numactl --show | grep "^nodebind: ")
         for NODE_ID in "${NODE_LIST[@]:1}"; do
             # Start a TaskManager for each NUMA node
-            numactl --membind=$NODE_ID --cpunodebind=$NODE_ID -- "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP $TYPE "${ARGS[@]}"
+            numactl --membind=$NODE_ID --cpunodebind=$NODE_ID -- "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP $ENTRYPOINT "${ARGS[@]}"
         done
     fi
 fi
