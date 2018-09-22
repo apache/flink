@@ -29,6 +29,7 @@ import org.junit.Test;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -53,6 +54,7 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 
 		assertThat(jobGraph.getName(), is(equalTo(TestJob.class.getCanonicalName() + "-suffix")));
 		assertThat(jobGraph.getMaximumParallelism(), is(parallelism));
+		assertEquals(jobGraph.getJobID(), ClassPathJobGraphRetriever.FIXED_JOB_ID);
 	}
 
 	@Test
@@ -68,5 +70,6 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 		final JobGraph jobGraph = classPathJobGraphRetriever.retrieveJobGraph(configuration);
 
 		assertThat(jobGraph.getSavepointRestoreSettings(), is(equalTo(savepointRestoreSettings)));
+		assertEquals(jobGraph.getJobID(), ClassPathJobGraphRetriever.FIXED_JOB_ID);
 	}
 }
