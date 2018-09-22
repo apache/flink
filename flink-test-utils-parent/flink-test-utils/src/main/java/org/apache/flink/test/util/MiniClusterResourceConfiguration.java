@@ -37,8 +37,6 @@ public class MiniClusterResourceConfiguration {
 
 	private final Time shutdownTimeout;
 
-	private final TestBaseUtils.CodebaseType codebaseType;
-
 	private final RpcServiceSharing rpcServiceSharing;
 
 	MiniClusterResourceConfiguration(
@@ -46,13 +44,11 @@ public class MiniClusterResourceConfiguration {
 		int numberTaskManagers,
 		int numberSlotsPerTaskManager,
 		Time shutdownTimeout,
-		TestBaseUtils.CodebaseType codebaseType,
 		RpcServiceSharing rpcServiceSharing) {
 		this.configuration = Preconditions.checkNotNull(configuration);
 		this.numberTaskManagers = numberTaskManagers;
 		this.numberSlotsPerTaskManager = numberSlotsPerTaskManager;
 		this.shutdownTimeout = Preconditions.checkNotNull(shutdownTimeout);
-		this.codebaseType = Preconditions.checkNotNull(codebaseType);
 		this.rpcServiceSharing = Preconditions.checkNotNull(rpcServiceSharing);
 	}
 
@@ -72,14 +68,6 @@ public class MiniClusterResourceConfiguration {
 		return shutdownTimeout;
 	}
 
-	/**
-	 * @deprecated Will be irrelevant once the legacy mode has been removed.
-	 */
-	@Deprecated
-	public TestBaseUtils.CodebaseType getCodebaseType() {
-		return codebaseType;
-	}
-
 	public RpcServiceSharing getRpcServiceSharing() {
 		return rpcServiceSharing;
 	}
@@ -93,7 +81,6 @@ public class MiniClusterResourceConfiguration {
 		private int numberTaskManagers = 1;
 		private int numberSlotsPerTaskManager = 1;
 		private Time shutdownTimeout = AkkaUtils.getTimeoutAsTime(configuration);
-		private TestBaseUtils.CodebaseType codebaseType = TestBaseUtils.getCodebaseType();
 
 		private RpcServiceSharing rpcServiceSharing = RpcServiceSharing.SHARED;
 
@@ -117,22 +104,13 @@ public class MiniClusterResourceConfiguration {
 			return this;
 		}
 
-		/**
-		 * @deprecated Will be irrelevant once the legacy mode has been removed.
-		 */
-		@Deprecated
-		public Builder setCodebaseType(TestBaseUtils.CodebaseType codebaseType) {
-			this.codebaseType = codebaseType;
-			return this;
-		}
-
 		public Builder setRpcServiceSharing(RpcServiceSharing rpcServiceSharing) {
 			this.rpcServiceSharing = rpcServiceSharing;
 			return this;
 		}
 
 		public MiniClusterResourceConfiguration build() {
-			return new MiniClusterResourceConfiguration(configuration, numberTaskManagers, numberSlotsPerTaskManager, shutdownTimeout, codebaseType, rpcServiceSharing);
+			return new MiniClusterResourceConfiguration(configuration, numberTaskManagers, numberSlotsPerTaskManager, shutdownTimeout, rpcServiceSharing);
 		}
 	}
 }

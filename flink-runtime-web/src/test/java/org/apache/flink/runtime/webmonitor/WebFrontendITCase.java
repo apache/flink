@@ -152,11 +152,7 @@ public class WebFrontendITCase extends TestLogger {
 		if (notFoundJobConnection.getResponseCode() >= 400) {
 			// we don't set the content-encoding header
 			Assert.assertNull(notFoundJobConnection.getContentEncoding());
-			if (CLUSTER.getCodebaseType() == TestBaseUtils.CodebaseType.NEW) {
-				Assert.assertEquals("application/json; charset=UTF-8", notFoundJobConnection.getContentType());
-			} else {
-				Assert.assertEquals("text/plain; charset=UTF-8", notFoundJobConnection.getContentType());
-			}
+			Assert.assertEquals("application/json; charset=UTF-8", notFoundJobConnection.getContentType());
 		} else {
 			throw new RuntimeException("Request for non-existing job did not return an error.");
 		}
@@ -280,23 +276,13 @@ public class WebFrontendITCase extends TestLogger {
 		final Deadline deadline = testTimeout.fromNow();
 
 		try (HttpTestClient client = new HttpTestClient("localhost", CLUSTER.getWebUIPort())) {
-			if (CLUSTER.getCodebaseType() == TestBaseUtils.CodebaseType.NEW) {
-				// stop the job
-				client.sendPatchRequest("/jobs/" + jid + "/?mode=stop", deadline.timeLeft());
-				HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
+			// stop the job
+			client.sendPatchRequest("/jobs/" + jid + "/?mode=stop", deadline.timeLeft());
+			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
 
-				assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
-				assertEquals("application/json; charset=UTF-8", response.getType());
-				assertEquals("{}", response.getContent());
-			} else {
-				// stop the job
-				client.sendDeleteRequest("/jobs/" + jid + "/stop", deadline.timeLeft());
-				HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
-
-				assertEquals(HttpResponseStatus.OK, response.getStatus());
-				assertEquals("application/json; charset=UTF-8", response.getType());
-				assertEquals("{}", response.getContent());
-			}
+			assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
+			assertEquals("application/json; charset=UTF-8", response.getType());
+			assertEquals("{}", response.getContent());
 		}
 
 		// wait for cancellation to finish
@@ -355,11 +341,7 @@ public class WebFrontendITCase extends TestLogger {
 			HttpTestClient.SimpleHttpResponse response = client
 				.getNextResponse(deadline.timeLeft());
 
-			if (CLUSTER.getCodebaseType() == TestBaseUtils.CodebaseType.NEW) {
-				assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
-			} else {
-				assertEquals(HttpResponseStatus.OK, response.getStatus());
-			}
+			assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
 			assertEquals("application/json; charset=UTF-8", response.getType());
 			assertEquals("{}", response.getContent());
 		}
