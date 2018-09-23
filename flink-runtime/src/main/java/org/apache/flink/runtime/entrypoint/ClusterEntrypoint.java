@@ -147,7 +147,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		return terminationFuture;
 	}
 
-	protected void startCluster() throws ClusterEntrypointException {
+	public void startCluster() throws ClusterEntrypointException {
 		LOG.info("Starting {}.", getClass().getSimpleName());
 
 		try {
@@ -392,7 +392,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		return resultConfiguration;
 	}
 
-	private CompletableFuture<ApplicationStatus> shutDownAsync(
+	public CompletableFuture<ApplicationStatus> shutDownAsync(
 			ApplicationStatus applicationStatus,
 			@Nullable String diagnostics,
 			boolean cleanupHaData) {

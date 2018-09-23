@@ -19,29 +19,21 @@
 package org.apache.flink.test.recovery;
 
 import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
-import org.apache.flink.runtime.jobmanager.JobManager;
-import org.apache.flink.runtime.jobmanager.MemoryArchivist;
-import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.entrypoint.StandaloneSessionClusterEntrypoint;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.taskmanager.TaskManager;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -52,16 +44,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
-
-import scala.Option;
-import scala.Some;
-import scala.Tuple2;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClasspath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
@@ -92,6 +75,9 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
+	@Rule
+	public final BlobServerResource blobServerResource = new BlobServerResource();
+
 	@Test
 	public void testTaskManagerProcessFailure() throws Exception {
 
@@ -99,13 +85,24 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 		final StringWriter processOutput2 = new StringWriter();
 		final StringWriter processOutput3 = new StringWriter();
 
-		ActorSystem jmActorSystem = null;
-		HighAvailabilityServices highAvailabilityServices = null;
 		Process taskManagerProcess1 = null;
 		Process taskManagerProcess2 = null;
 		Process taskManagerProcess3 = null;
 
 		File coordinateTempDir = null;
+
+		final int jobManagerPort = NetUtils.getAvailablePort();
+		final int restPort = NetUtils.getAvailablePort();
+
+		Configuration jmConfig = new Configuration();
+		jmConfig.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
+		jmConfig.setString(JobManagerOptions.ADDRESS, "localhost");
+		jmConfig.setInteger(JobManagerOptions.PORT, jobManagerPort);
+		jmConfig.setLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 500L);
+		jmConfig.setLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 10000L);
+		jmConfig.setInteger(RestOptions.PORT, restPort);
+
+		final StandaloneSessionClusterEntrypoint clusterEntrypoint = new StandaloneSessionClusterEntrypoint(jmConfig);
 
 		try {
 			// check that we run this test only if the java command
@@ -124,37 +121,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 			// coordination between the processes goes through a directory
 			coordinateTempDir = temporaryFolder.newFolder();
 
-			// find a free port to start the JobManager
-			final int jobManagerPort = NetUtils.getAvailablePort();
-
-			// start a JobManager
-			Tuple2<String, Object> localAddress = new Tuple2<String, Object>("localhost", jobManagerPort);
-
-			Configuration jmConfig = new Configuration();
-			jmConfig.setString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL, "1000 ms");
-			jmConfig.setString(AkkaOptions.WATCH_HEARTBEAT_PAUSE, "6 s");
-			jmConfig.setInteger(AkkaOptions.WATCH_THRESHOLD, 9);
-			jmConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "10 s");
-			jmConfig.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
-			jmConfig.setString(JobManagerOptions.ADDRESS, localAddress._1());
-			jmConfig.setInteger(JobManagerOptions.PORT, jobManagerPort);
-
-			highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
-				jmConfig,
-				TestingUtils.defaultExecutor(),
-				HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
-
-			jmActorSystem = AkkaUtils.createActorSystem(jmConfig, new Some<>(localAddress));
-			ActorRef jmActor = JobManager.startJobManagerActors(
-				jmConfig,
-				jmActorSystem,
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
-				highAvailabilityServices,
-				NoOpMetricRegistry.INSTANCE,
-				Option.empty(),
-				JobManager.class,
-				MemoryArchivist.class)._1();
+			clusterEntrypoint.startCluster();
 
 			// the TaskManager java command
 			String[] command = new String[] {
@@ -163,7 +130,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 					"-Dlog4j.configuration=file:" + tempLogFile.getAbsolutePath(),
 					"-Xms80m", "-Xmx80m",
 					"-classpath", getCurrentClasspath(),
-					TaskManagerProcessEntryPoint.class.getName(),
+					TaskExecutorProcessEntryPoint.class.getName(),
 					String.valueOf(jobManagerPort)
 			};
 
@@ -172,10 +139,6 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 			new CommonTestUtils.PipeForwarder(taskManagerProcess1.getErrorStream(), processOutput1);
 			taskManagerProcess2 = new ProcessBuilder(command).start();
 			new CommonTestUtils.PipeForwarder(taskManagerProcess2.getErrorStream(), processOutput2);
-
-			// we wait for the JobManager to have the two TaskManagers available
-			// since some of the CI environments are very hostile, we need to give this a lot of time (2 minutes)
-			waitUntilNumTaskManagersAreRegistered(jmActor, 2, 120000);
 
 			// the program will set a marker file in each of its parallel tasks once they are ready, so that
 			// this coordinating code is aware of this.
@@ -189,7 +152,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 				@Override
 				public void run() {
 					try {
-						testTaskManagerFailure(jobManagerPort, coordinateDirClosure);
+						testTaskManagerFailure(restPort, coordinateDirClosure);
 					}
 					catch (Throwable t) {
 						t.printStackTrace();
@@ -219,10 +182,6 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 			// start the third TaskManager
 			taskManagerProcess3 = new ProcessBuilder(command).start();
 			new CommonTestUtils.PipeForwarder(taskManagerProcess3.getErrorStream(), processOutput3);
-
-			// we wait for the third TaskManager to register
-			// since some of the CI environments are very hostile, we need to give this a lot of time (2 minutes)
-			waitUntilNumTaskManagersAreRegistered(jmActor, 3, 120000);
 
 			// kill one of the previous TaskManagers, triggering a failure and recovery
 			taskManagerProcess1.destroy();
@@ -270,13 +229,8 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 			if (taskManagerProcess3 != null) {
 				taskManagerProcess3.destroy();
 			}
-			if (jmActorSystem != null) {
-				jmActorSystem.shutdown();
-			}
 
-			if (highAvailabilityServices != null) {
-				highAvailabilityServices.closeAndCleanupAllData();
-			}
+			clusterEntrypoint.shutDownAsync(ApplicationStatus.SUCCEEDED, null, true).get();
 		}
 	}
 
@@ -289,44 +243,6 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 	 *                             have successfully created file under this directory
 	 */
 	public abstract void testTaskManagerFailure(int jobManagerPort, File coordinateDir) throws Exception;
-
-	protected void waitUntilNumTaskManagersAreRegistered(ActorRef jobManager, int numExpected, long maxDelayMillis)
-			throws Exception {
-		final long pollInterval = 10_000_000; // 10 ms = 10,000,000 nanos
-		final long deadline = System.nanoTime() + maxDelayMillis * 1_000_000;
-
-		long time;
-
-		while ((time = System.nanoTime()) < deadline) {
-			FiniteDuration timeout = new FiniteDuration(pollInterval, TimeUnit.NANOSECONDS);
-
-			try {
-				Future<?> result = Patterns.ask(jobManager,
-						JobManagerMessages.getRequestNumberRegisteredTaskManager(),
-						new Timeout(timeout));
-
-				int numTMs = (Integer) Await.result(result, timeout);
-
-				if (numTMs == numExpected) {
-					return;
-				}
-			}
-			catch (TimeoutException e) {
-				// ignore and retry
-			}
-			catch (ClassCastException e) {
-				fail("Wrong response: " + e.getMessage());
-			}
-
-			long timePassed = System.nanoTime() - time;
-			long remainingMillis = (pollInterval - timePassed) / 1_000_000;
-			if (remainingMillis > 0) {
-				Thread.sleep(remainingMillis);
-			}
-		}
-
-		fail("The TaskManagers did not register within the expected time (" + maxDelayMillis + "msecs)");
-	}
 
 	protected static void printProcessLog(String processName, String log) {
 		if (log == null || log.length() == 0) {
