@@ -398,6 +398,11 @@ trait ImplicitExpressionOperations {
   def atan() = Atan(expr)
 
   /**
+    * Calculates the hyperbolic tangent of a given number.
+    */
+  def tanh() = Tanh(expr)
+
+  /**
     * Converts numeric from radians to degrees.
     */
   def degrees() = Degrees(expr)
