@@ -44,6 +44,8 @@ public class JobResultSerializer extends StdSerializer<JobResult> {
 
 	static final String FIELD_NAME_JOB_ID = "id";
 
+	static final String FIELD_NAME_APPLICATION_STATUS = "application-status";
+
 	static final String FIELD_NAME_NET_RUNTIME = "net-runtime";
 
 	static final String FIELD_NAME_ACCUMULATOR_RESULTS = "accumulator-results";
@@ -75,6 +77,9 @@ public class JobResultSerializer extends StdSerializer<JobResult> {
 
 		gen.writeFieldName(FIELD_NAME_JOB_ID);
 		jobIdSerializer.serialize(result.getJobId(), gen, provider);
+
+		gen.writeFieldName(FIELD_NAME_APPLICATION_STATUS);
+		gen.writeString(result.getApplicationStatus().name());
 
 		gen.writeFieldName(FIELD_NAME_ACCUMULATOR_RESULTS);
 		gen.writeStartObject();
