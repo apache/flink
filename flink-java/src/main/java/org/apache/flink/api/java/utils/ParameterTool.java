@@ -87,7 +87,9 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 			}
 
 			if (key.length() == 0) {
-				throw new IllegalArgumentException(errorMessage + " Keys should never be empty");
+				throw new IllegalArgumentException(
+					String.format(errorMessage + " Keys should never be empty",
+						Arrays.toString(args), args[i]));
 			}
 
 			i += 1; // try to find the value
