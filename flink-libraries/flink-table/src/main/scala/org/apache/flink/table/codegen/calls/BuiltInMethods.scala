@@ -72,6 +72,9 @@ object BuiltInMethods {
   val TAN = Types.lookupMethod(classOf[Math], "tan", classOf[Double])
   val TAN_DEC = Types.lookupMethod(classOf[SqlFunctions], "tan", classOf[JBigDecimal])
 
+  val TANH = Types.lookupMethod(classOf[Math], "tanh", classOf[Double])
+  val TANH_DEC = Types.lookupMethod(classOf[ScalarFunctions], "tanh", classOf[JBigDecimal])
+
   val COT = Types.lookupMethod(classOf[SqlFunctions], "cot", classOf[Double])
   val COT_DEC = Types.lookupMethod(classOf[SqlFunctions], "cot", classOf[JBigDecimal])
 

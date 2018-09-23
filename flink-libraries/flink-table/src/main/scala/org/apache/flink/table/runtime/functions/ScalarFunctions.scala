@@ -115,6 +115,13 @@ object ScalarFunctions {
   }
 
   /**
+    * Calculates the hyperbolic tangent of a big decimal number.
+    */
+  def tanh(x: JBigDecimal): Double = {
+    Math.tanh(x.doubleValue())
+  }
+
+  /**
     * Returns the logarithm of "x" with base "base".
     */
   def log(base: Double, x: Double): Double = {

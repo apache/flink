@@ -332,6 +332,18 @@ object FunctionGenerator {
     BuiltInMethods.TAN_DEC)
 
   addSqlFunctionMethod(
+    TANH,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.TANH)
+
+  addSqlFunctionMethod(
+    TANH,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.TANH_DEC)
+
+  addSqlFunctionMethod(
     COT,
     Seq(DOUBLE_TYPE_INFO),
     DOUBLE_TYPE_INFO,

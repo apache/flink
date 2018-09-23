@@ -111,6 +111,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("SIN(2.5)", "0.5984721441039564")
     testSqlApi("COS(2.5)", "-0.8011436155469337")
     testSqlApi("TAN(2.5)", "-0.7470222972386603")
+    testSqlApi("TANH(2.5)", "0.9866142981514303")
     testSqlApi("COT(2.5)", "-1.3386481283041514")
     testSqlApi("ASIN(0.5)", "0.5235987755982989")
     testSqlApi("ACOS(0.5)", "1.0471975511965979")
