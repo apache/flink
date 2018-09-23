@@ -42,7 +42,7 @@ public abstract class AbstractParameterToolTest {
 
 	protected void validate(ParameterTool parameter) {
 		ClosureCleaner.ensureSerializable(parameter);
-		validatePrivate(parameter);
+		internalValidate(parameter);
 
 		// -------- test behaviour after serialization ------------
 		ParameterTool copy = null;
@@ -52,30 +52,29 @@ public abstract class AbstractParameterToolTest {
 		} catch (Exception e) {
 			fail();
 		}
-		validatePrivate(copy);
+		internalValidate(copy);
 	}
 
-	private void validatePrivate(ParameterTool parameter) {
+	private void internalValidate(ParameterTool parameter) {
 		Assert.assertEquals("myInput", parameter.getRequired("input"));
 		Assert.assertEquals("myDefaultValue", parameter.get("output", "myDefaultValue"));
-		Assert.assertEquals(null, parameter.get("whatever"));
+		Assert.assertNull(parameter.get("whatever"));
 		Assert.assertEquals(15L, parameter.getLong("expectedCount", -1L));
 		Assert.assertTrue(parameter.getBoolean("thisIsUseful", true));
 		Assert.assertEquals(42, parameter.getByte("myDefaultByte", (byte) 42));
 		Assert.assertEquals(42, parameter.getShort("myDefaultShort", (short) 42));
 
-		Configuration config = parameter.getConfiguration();
+		final Configuration config = parameter.getConfiguration();
 		Assert.assertEquals(15L, config.getLong("expectedCount", -1L));
 
-		Properties props = parameter.getProperties();
+		final Properties props = parameter.getProperties();
 		Assert.assertEquals("myInput", props.getProperty("input"));
-		props = null;
 
 		// -------- test the default file creation ------------
 		try {
-			String pathToFile = tmp.newFile().getAbsolutePath();
+			final String pathToFile = tmp.newFile().getAbsolutePath();
 			parameter.createPropertiesFile(pathToFile);
-			Properties defaultProps = new Properties();
+			final Properties defaultProps = new Properties();
 			try (FileInputStream fis = new FileInputStream(pathToFile)) {
 				defaultProps.load(fis);
 			}
