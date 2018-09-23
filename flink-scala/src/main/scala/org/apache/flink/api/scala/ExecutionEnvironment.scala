@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult, JobID}
 import org.apache.flink.api.java.io._
-import org.apache.flink.api.java.operators.DataSource
+import org.apache.flink.api.java.operators.{DataSource => JavaDataSource}
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfoBase, ValueTypeInfo}
 import org.apache.flink.api.java.{CollectionEnvironment, ExecutionEnvironment => JavaEnv}
@@ -250,9 +250,9 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     require(filePath != null, "The file path may not be null.")
     val format = new TextInputFormat(new Path(filePath))
     format.setCharsetName(charsetName)
-    val source = new DataSource[String](javaEnv, format, BasicTypeInfo.STRING_TYPE_INFO,
+    val source = new JavaDataSource[String](javaEnv, format, BasicTypeInfo.STRING_TYPE_INFO,
       getCallLocationName())
-    wrap(source)
+    new DataSource[String](source)
   }
 
   /**
@@ -267,13 +267,13 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def readTextFileWithValue(
       filePath: String,
-      charsetName: String = "UTF-8"): DataSet[StringValue] = {
+      charsetName: String = "UTF-8"): DataSource[StringValue] = {
     require(filePath != null, "The file path may not be null.")
     val format = new TextValueInputFormat(new Path(filePath))
     format.setCharsetName(charsetName)
-    val source = new DataSource[StringValue](
+    val source = new JavaDataSource[StringValue](
       javaEnv, format, new ValueTypeInfo[StringValue](classOf[StringValue]), getCallLocationName())
-    wrap(source)
+    new DataSource[StringValue](source)
   }
 
   /**
@@ -303,7 +303,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
       ignoreComments: String = null,
       lenient: Boolean = false,
       includedFields: Array[Int] = null,
-      pojoFields: Array[String] = null): DataSet[T] = {
+      pojoFields: Array[String] = null): DataSource[T] = {
 
     val typeInfo = implicitly[TypeInformation[T]]
 
@@ -340,7 +340,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine)
     inputFormat.setLenient(lenient)
     inputFormat.setCommentPrefix(ignoreComments)
-    wrap(new DataSource[T](javaEnv, inputFormat, typeInfo, getCallLocationName()))
+    new DataSource[T](new JavaDataSource[T](javaEnv, inputFormat, typeInfo, getCallLocationName()))
   }
 
   /**
@@ -355,15 +355,15 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def readFileOfPrimitives[T : ClassTag : TypeInformation](
       filePath : String,
-      delimiter : String = "\n") : DataSet[T] = {
+      delimiter : String = "\n") : DataSource[T] = {
     require(filePath != null, "File path must not be null.")
     val typeInfo = implicitly[TypeInformation[T]]
-    val datasource = new DataSource[T](
+    val datasource = new JavaDataSource[T](
       javaEnv,
       new PrimitiveInputFormat(new Path(filePath), delimiter, typeInfo.getTypeClass),
       typeInfo,
       getCallLocationName())
-    wrap(datasource)
+    new DataSource[T](datasource)
   }
 
   /**
@@ -372,7 +372,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def readFile[T : ClassTag : TypeInformation](
       inputFormat: FileInputFormat[T],
-      filePath: String): DataSet[T] = {
+      filePath: String): DataSource[T] = {
     require(inputFormat != null, "InputFormat must not be null.")
     require(filePath != null, "File path must not be null.")
     inputFormat.setFilePath(new Path(filePath))
@@ -383,7 +383,8 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * Generic method to create an input DataSet with an
    * [[org.apache.flink.api.common.io.InputFormat]].
    */
-  def createInput[T : ClassTag : TypeInformation](inputFormat: InputFormat[T, _]): DataSet[T] = {
+  def createInput[T : ClassTag : TypeInformation](
+      inputFormat: InputFormat[T, _]): DataSource[T] = {
     if (inputFormat == null) {
       throw new IllegalArgumentException("InputFormat must not be null.")
     }
@@ -396,12 +397,14 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    */
   private def createInput[T: ClassTag](
       inputFormat: InputFormat[T, _],
-      producedType: TypeInformation[T]): DataSet[T] = {
+      producedType: TypeInformation[T]): DataSource[T] = {
     if (inputFormat == null) {
       throw new IllegalArgumentException("InputFormat must not be null.")
     }
     require(producedType != null, "Produced type must not be null")
-    wrap(new DataSource[T](javaEnv, inputFormat, producedType, getCallLocationName()))
+    new DataSource[T](
+      new JavaDataSource(javaEnv, inputFormat, producedType, getCallLocationName())
+    )
   }
 
   /**
@@ -411,17 +414,17 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * a parallelism of one.
    */
   def fromCollection[T: ClassTag : TypeInformation](
-      data: Iterable[T]): DataSet[T] = {
+      data: Iterable[T]): DataSource[T] = {
     require(data != null, "Data must not be null.")
 
     val typeInfo = implicitly[TypeInformation[T]]
     CollectionInputFormat.checkCollection(data.asJavaCollection, typeInfo.getTypeClass)
-    val dataSource = new DataSource[T](
+    val dataSource = new JavaDataSource[T](
       javaEnv,
       new CollectionInputFormat[T](data.asJavaCollection, typeInfo.createSerializer(getConfig)),
       typeInfo,
       getCallLocationName())
-    wrap(dataSource)
+    new DataSource[T](dataSource)
   }
 
   /**
@@ -431,16 +434,16 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * a parallelism of one.
    */
   def fromCollection[T: ClassTag : TypeInformation] (
-    data: Iterator[T]): DataSet[T] = {
+    data: Iterator[T]): DataSource[T] = {
     require(data != null, "Data must not be null.")
 
     val typeInfo = implicitly[TypeInformation[T]]
-    val dataSource = new DataSource[T](
+    val dataSource = new JavaDataSource[T](
       javaEnv,
       new IteratorInputFormat[T](data.asJava),
       typeInfo,
       getCallLocationName())
-    wrap(dataSource)
+    new DataSource[T](dataSource)
   }
 
   /**
@@ -461,12 +464,12 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * iterator.
    */
   def fromParallelCollection[T: ClassTag : TypeInformation](
-      iterator: SplittableIterator[T]): DataSet[T] = {
+      iterator: SplittableIterator[T]): DataSource[T] = {
     val typeInfo = implicitly[TypeInformation[T]]
-    wrap(new DataSource[T](javaEnv,
+    new DataSource[T]((new JavaDataSource[T](javaEnv,
       new ParallelIteratorInputFormat[T](iterator),
       typeInfo,
-      getCallLocationName()))
+      getCallLocationName())))
   }
 
   /**
@@ -476,14 +479,14 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * @param from The number to start at (inclusive).
    * @param to The number to stop at (inclusive).
    */
-  def generateSequence(from: Long, to: Long): DataSet[Long] = {
+  def generateSequence(from: Long, to: Long): DataSource[Long] = {
     val iterator = new NumberSequenceIterator(from, to)
-    val source = new DataSource(
+    val source = new JavaDataSource(
       javaEnv,
       new ParallelIteratorInputFormat[java.lang.Long](iterator),
       BasicTypeInfo.LONG_TYPE_INFO,
       getCallLocationName())
-    wrap(source).asInstanceOf[DataSet[Long]]
+    new DataSource(source).asInstanceOf[DataSource[Long]]
   }
 
   def union[T](sets: Seq[DataSet[T]]): DataSet[T] = {

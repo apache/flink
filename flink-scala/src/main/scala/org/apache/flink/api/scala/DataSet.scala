@@ -17,12 +17,12 @@
  */
 package org.apache.flink.api.scala
 
-import org.apache.flink.annotation.{Public, PublicEvolving}
+import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator
 import org.apache.flink.api.common.aggregators.Aggregator
 import org.apache.flink.api.common.functions._
-import org.apache.flink.api.common.io.{FileOutputFormat, OutputFormat}
+import org.apache.flink.api.common.io.{FileOutputFormat, InputFormat, OutputFormat}
 import org.apache.flink.api.common.operators.{Keys, Order, ResourceSpec}
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
@@ -31,9 +31,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.Utils.CountHelper
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
-import org.apache.flink.api.java.io.{PrintingOutputFormat, TextOutputFormat}
+import org.apache.flink.api.java.io.{PrintingOutputFormat, SplitDataProperties, TextOutputFormat}
 import Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
+import org.apache.flink.api.java.operators.{DataSource => JavaDataSource}
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.java.{Utils, DataSet => JavaDataSet}
@@ -140,7 +141,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   def name(name: String) = {
     javaSet match {
-      case ds: DataSource[_] => ds.name(name)
+      case ds: JavaDataSource[_] => ds.name(name)
       case op: Operator[_, _] => op.name(name)
       case di: DeltaIterationResultSet[_, _] => di.getIterationHead.name(name)
       case _ =>
@@ -156,7 +157,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   def setParallelism(parallelism: Int) = {
     javaSet match {
-      case ds: DataSource[_] => ds.setParallelism(parallelism)
+      case ds: JavaDataSource[_] => ds.setParallelism(parallelism)
       case op: Operator[_, _] => op.setParallelism(parallelism)
       case di: DeltaIterationResultSet[_, _] => di.getIterationHead.parallelism(parallelism)
       case _ =>
@@ -170,7 +171,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * Returns the parallelism of this operation.
    */
   def getParallelism: Int = javaSet match {
-    case ds: DataSource[_] => ds.getParallelism
+    case ds: JavaDataSource[_] => ds.getParallelism
     case op: Operator[_, _] => op.getParallelism
     case _ =>
       throw new UnsupportedOperationException("Operator " + javaSet.toString + " does not have " +
@@ -212,7 +213,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   @PublicEvolving
   def minResources: ResourceSpec = javaSet match {
-    case ds: DataSource[_] => ds.getMinResources()
+    case ds: JavaDataSource[_] => ds.getMinResources()
     case op: Operator[_, _] => op.getMinResources()
     case _ =>
       throw new UnsupportedOperationException("Operator does not support " +
@@ -224,7 +225,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   @PublicEvolving
   def preferredResources: ResourceSpec = javaSet match {
-    case ds: DataSource[_] => ds.getPreferredResources()
+    case ds: JavaDataSource[_] => ds.getPreferredResources()
     case op: Operator[_, _] => op.getPreferredResources()
     case _ =>
       throw new UnsupportedOperationException("Operator does not support " +
@@ -451,10 +452,10 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def withParameters(parameters: Configuration): DataSet[T] = {
     javaSet match {
       case udfOp: UdfOperator[_] => udfOp.withParameters(parameters)
-      case source: DataSource[_] => source.withParameters(parameters)
+      case source: JavaDataSource[_] => source.withParameters(parameters)
       case _ =>
         throw new UnsupportedOperationException("Operator " + javaSet.toString
-            + " cannot have parameters")
+          + " cannot have parameters")
     }
     this
   }
