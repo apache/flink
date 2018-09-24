@@ -17,17 +17,29 @@
 # limitations under the License.
 ################################################################################
 
-FOLD_ESCAPE="\x0d\x1b"
-COLOR_ON="\x5b\x30\x4b\x1b\x5b\x33\x33\x3b\x31\x6d"
-COLOR_OFF="\x1b\x5b\x30\x6d"
+# Hex-encoded travis-interval ANSI escape sequences
+# https://github.com/travis-ci/travis-build/blob/master/lib/travis/build/bash/travis_fold.bash
+# https://github.com/travis-ci/travis-build/blob/master/lib/travis/build/bash/travis_setup_env.bash
+#
+# \x1b = \033 = ESC
+# \x5b = [
+# \x4b = K
+# \x6d = m
+# \x30 = 0
+# \x31 = 1
+# \x33 = 3
+# \x3b = ;
+
+COLOR_YELLOW="\x1b\x5b\x33\x33\x3b\x31\x6d"
+ANSI_CLEAR="\x1b\x5b\x30\x6d"
 
 function start_fold {
     local id=$1
     local message=$2
-    echo -e "travis_fold:start:${id}${FOLD_ESCAPE}${COLOR_ON}${message}${COLOR_OFF}"
+    echo -e "travis_fold:start:${id}\\r${ANSI_CLEAR}${COLOR_YELLOW}${message}${ANSI_CLEAR}"
 }
 
 function end_fold {
     local message=$1
-	echo -en "travis_fold:end:${message}${FOLD_ESCAPE}"
+	echo -en "travis_fold:end:${message}\\r${ANSI_CLEAR}"
 }
