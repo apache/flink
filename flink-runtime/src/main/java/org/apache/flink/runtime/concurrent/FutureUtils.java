@@ -198,7 +198,10 @@ public class FutureUtils {
 						if (throwable instanceof CancellationException) {
 							resultFuture.completeExceptionally(new RetryException("Operation future was cancelled.", throwable));
 						} else {
-							if (retries > 0 && retryPredicate.test(throwable)) {
+							throwable = ExceptionUtils.stripExecutionException(throwable);
+							if (!retryPredicate.test(throwable)) {
+								resultFuture.completeExceptionally(throwable);
+							} else if (retries > 0) {
 								final ScheduledFuture<?> scheduledFuture = scheduledExecutor.schedule(
 									() -> retryOperationWithDelay(resultFuture, operation, retries - 1, retryDelay, retryPredicate, scheduledExecutor),
 									retryDelay.toMilliseconds(),
@@ -207,12 +210,10 @@ public class FutureUtils {
 								resultFuture.whenComplete(
 									(innerT, innerThrowable) -> scheduledFuture.cancel(false));
 							} else {
-								final String errorMsg = retries == 0 ?
-									"Number of retries has been exhausted." :
-									"Exception is not retryable.";
-								resultFuture.completeExceptionally(new RetryException(
-									"Could not complete the operation. " + errorMsg,
-									ExceptionUtils.stripCompletionException(throwable)));
+								RetryException retryException = new RetryException(
+									"Could not complete the operation: number of retries has been exhausted.",
+									throwable);
+								resultFuture.completeExceptionally(retryException);
 							}
 						}
 					} else {

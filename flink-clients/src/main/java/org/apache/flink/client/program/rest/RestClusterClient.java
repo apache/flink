@@ -376,7 +376,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 				(JobSubmitResponseBody jobSubmitResponseBody) -> new JobSubmissionResult(jobGraph.getJobID()))
 			.exceptionally(
 				(Throwable throwable) -> {
-					throw new CompletionException(new JobSubmissionException(jobGraph.getJobID(), "Failed to submit JobGraph.", throwable));
+					throw new CompletionException(new JobSubmissionException(jobGraph.getJobID(), "Failed to submit JobGraph.", ExceptionUtils.stripCompletionException(throwable)));
 				});
 	}
 
