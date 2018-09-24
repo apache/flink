@@ -272,7 +272,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">Returns the dataflow plan of a job contained in a jar previously uploaded via '/jars/upload'.</td>
+      <td colspan="2">Returns the dataflow plan of a job contained in a jar previously uploaded via '/jars/upload'. Program arguments can be passed both via the JSON request (recommended) or query parameters.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -290,19 +290,40 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     <tr>
       <td colspan="2">
         <ul>
+<li><code>program-args</code> (optional): Deprecated, please use 'programArg' instead. String value that specifies the arguments for the program or plan</li>
+<li><code>programArg</code> (optional): Comma-separated list of program arguments.</li>
 <li><code>entry-class</code> (optional): String value that specifies the fully qualified name of the entry point class. Overrides the class defined in the jar file manifest.</li>
 <li><code>parallelism</code> (optional): Positive integer value that specifies the desired parallelism for the job.</li>
-<li><code>program-args</code> (optional): String value that specifies the arguments for the program or plan.</li>
         </ul>
       </td>
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-181694384">Request</button>
-        <div id="-181694384" class="collapse">
+        <button data-toggle="collapse" data-target="#550027726">Request</button>
+        <div id="550027726" class="collapse">
           <pre>
             <code>
-{}            </code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarPlanRequestBody",
+  "properties" : {
+    "entryClass" : {
+      "type" : "string"
+    },
+    "programArgs" : {
+      "type" : "string"
+    },
+    "programArgsList" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
+    },
+    "parallelism" : {
+      "type" : "integer"
+    }
+  }
+}            </code>
           </pre>
          </div>
       </td>
@@ -338,7 +359,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">Submits a job by running a jar previously uploaded via '/jars/upload'.</td>
+      <td colspan="2">Submits a job by running a jar previously uploaded via '/jars/upload'. Program arguments can be passed both via the JSON request (recommended) or query parameters.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -356,11 +377,12 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     <tr>
       <td colspan="2">
         <ul>
-<li><code>program-args</code> (optional): String value that specifies the arguments for the program or plan.</li>
-<li><code>entry-class</code> (optional): String value that specifies the fully qualified name of the entry point class. Overrides the class defined in the jar file manifest.</li>
-<li><code>parallelism</code> (optional): Positive integer value that specifies the desired parallelism for the job.</li>
 <li><code>allowNonRestoredState</code> (optional): Boolean value that specifies whether the job submission should be rejected if the savepoint contains state that cannot be mapped back to the job.</li>
 <li><code>savepointPath</code> (optional): String value that specifies the path of the savepoint to restore the job from.</li>
+<li><code>program-args</code> (optional): Deprecated, please use 'programArg' instead. String value that specifies the arguments for the program or plan</li>
+<li><code>programArg</code> (optional): Comma-separated list of program arguments.</li>
+<li><code>entry-class</code> (optional): String value that specifies the fully qualified name of the entry point class. Overrides the class defined in the jar file manifest.</li>
+<li><code>parallelism</code> (optional): Positive integer value that specifies the desired parallelism for the job.</li>
         </ul>
       </td>
     </tr>
@@ -379,6 +401,12 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     },
     "programArgs" : {
       "type" : "string"
+    },
+    "programArgsList" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      }
     },
     "parallelism" : {
       "type" : "integer"
