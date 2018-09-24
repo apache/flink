@@ -627,8 +627,8 @@ Table result = left.join(right)
       </td>
     </tr>
     <tr>
-    	<td>
-        <strong>TableFunction Inner Join</strong><br>
+      <td>
+        <strong>Inner Join with User-Defined Table Functions (UDTF)</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
@@ -637,19 +637,19 @@ Table result = left.join(right)
 {% highlight java %}
 // register function
 TableFunction<String> split = new MySplitUDTF();
-tEnv.registerFunction("split", split);
+tableEnv.registerFunction("split", split);
 
 // join
 Table orders = tableEnv.scan("Orders");
 Table result = orders
-    .join(new Table(tEnv, "split(c)").as("s", "t", "v"))
+    .join(new Table(tableEnv, "split(c)").as("s", "t", "v"))
     .select("a, b, s, t, v");
 {% endhighlight %}
       </td>
     </tr>
     <tr>
-    	<td>
-        <strong>TableFunction Left Outer Join</strong><br>
+      <td>
+        <strong>Left Outer Join with User-Defined Table Functions (UDTF)</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
@@ -659,12 +659,12 @@ Table result = orders
 {% highlight java %}
 // register function
 TableFunction<String> split = new MySplitUDTF();
-tEnv.registerFunction("split", split);
+tableEnv.registerFunction("split", split);
 
 // join
 Table orders = tableEnv.scan("Orders");
 Table result = orders
-    .leftOuterJoin(new Table(tEnv, "split(c)").as("s", "t", "v"))
+    .leftOuterJoin(new Table(tableEnv, "split(c)").as("s", "t", "v"))
     .select("a, b, s, t, v");
 {% endhighlight %}
       </td>
@@ -729,7 +729,7 @@ val fullOuterResult = left.fullOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
       <td>
         <p><b>Note:</b> Time-windowed joins are a subset of regular joins that can be processed in a streaming fashion.</p>
 
-        <p>A time-windowed join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="streaming.html#time-attributes">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p> 
+        <p>A time-windowed join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="streaming.html#time-attributes">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
         <p>For example, the following predicates are valid window join conditions:</p>
 
         <ul>
@@ -748,8 +748,8 @@ val result = left.join(right)
       </td>
     </tr>
     <tr>
-    	<td>
-        <strong>TableFunction Inner Join</strong><br>
+      <td>
+        <strong>Inner Join with User-Defined Table Functions (UDTF)</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
@@ -767,8 +767,8 @@ val result: Table = table
         </td>
     </tr>
     <tr>
-    	<td>
-        <strong>TableFunction Left Outer Join</strong><br>
+      <td>
+        <strong>Left Outer Join with User-Defined Table Functions (UDTF)</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
     	<td>
         <p>Joins a table with a the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. If a table function call returns an empty result, the corresponding outer row is preserved and the result padded with null values.
