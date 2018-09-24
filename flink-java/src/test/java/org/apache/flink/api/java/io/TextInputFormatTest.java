@@ -55,7 +55,7 @@ public class TextInputFormatTest {
 			tempFile.deleteOnExit();
 			tempFile.setWritable(true);
 
-			PrintStream ps = new  PrintStream(tempFile);
+			PrintStream ps = new PrintStream(tempFile);
 			ps.println(first);
 			ps.println(second);
 			ps.close();
@@ -83,8 +83,7 @@ public class TextInputFormatTest {
 			assertEquals(second, result);
 
 			assertTrue(inputFormat.reachedEnd() || null == inputFormat.nextRecord(result));
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			System.err.println("test failed with exception: " + t.getMessage());
 			t.printStackTrace(System.err);
 			fail("Test erroneous");
@@ -93,11 +92,11 @@ public class TextInputFormatTest {
 
 	@Test
 	public void testNestedFileRead() {
-		String[] dirs = new String[] {"tmp/first/", "tmp/second/"};
+		String[] dirs = new String[]{"tmp/first/", "tmp/second/"};
 		List<String> expectedFiles = new ArrayList<>();
 
 		try {
-			for (String dir: dirs) {
+			for (String dir : dirs) {
 				// create input file
 				File tmpDir = new File(dir);
 				if (!tmpDir.exists()) {
@@ -127,7 +126,7 @@ public class TextInputFormatTest {
 			FileInputSplit[] splits = inputFormat.createInputSplits(expectedFiles.size());
 
 			List<String> paths = new ArrayList<>();
-			for (FileInputSplit split: splits) {
+			for (FileInputSplit split : splits) {
 				paths.add(split.getPath().toString());
 			}
 
@@ -188,7 +187,7 @@ public class TextInputFormatTest {
 
 			String result = "";
 			if ((delimiter.equals("\n") && (lineBreaker.equals("\n") || lineBreaker.equals("\r\n")))
-					|| (lineBreaker.equals(delimiter))){
+				|| (lineBreaker.equals(delimiter))) {
 
 				result = inputFormat.nextRecord("");
 				assertNotNull("Expecting first record here", result);
@@ -207,8 +206,110 @@ public class TextInputFormatTest {
 				assertEquals(content, result);
 			}
 
+		} catch (Throwable t) {
+			System.err.println("test failed with exception: " + t.getMessage());
+			t.printStackTrace(System.err);
+			fail("Test erroneous");
 		}
-		catch (Throwable t) {
+	}
+
+	@Test
+	public void testUTF16Read() {
+		final String first = "First line";
+		final String second = "Second line";
+
+		try {
+			// create input file
+			File tempFile = File.createTempFile("TextInputFormatTest", "tmp");
+			tempFile.deleteOnExit();
+			tempFile.setWritable(true);
+
+			PrintStream ps = new PrintStream(tempFile, "UTF-16");
+			ps.println(first);
+			ps.println(second);
+			ps.close();
+
+			TextInputFormat inputFormat = new TextInputFormat(new Path(tempFile.toURI().toString()));
+			inputFormat.setCharsetName("UTF-32");
+
+			Configuration parameters = new Configuration();
+			inputFormat.configure(parameters);
+
+//			inputFormat.setDelimiter("\r");
+//			inputFormat.setDelimiter("i");
+
+			FileInputSplit[] splits = inputFormat.createInputSplits(1);
+			assertTrue("expected at least one input split", splits.length >= 1);
+			inputFormat.open(splits[0]);
+
+			String result = "";
+
+			System.out.println("bomCharsetName:" + inputFormat.getBomCharsetName());
+
+			assertFalse(inputFormat.reachedEnd());
+			result = inputFormat.nextRecord("");
+			System.out.println(result);
+			assertNotNull("Expecting first record here", result);
+			assertEquals(first, result.substring(1));
+
+			assertFalse(inputFormat.reachedEnd());
+			result = inputFormat.nextRecord(result);
+			System.out.println(result);
+			assertNotNull("Expecting second record here", result);
+			assertEquals(second, result);
+
+			assertTrue(inputFormat.reachedEnd() || null == inputFormat.nextRecord(result));
+		} catch (Throwable t) {
+			System.err.println("test failed with exception: " + t.getMessage());
+			t.printStackTrace(System.err);
+			fail("Test erroneous");
+		}
+	}
+
+	@Test
+	public void testUTF32Read() {
+		final String first = "First line";
+		final String second = "Second line";
+
+		try {
+			// create input file
+			File tempFile = File.createTempFile("TextInputFormatTest", "tmp");
+			tempFile.deleteOnExit();
+			tempFile.setWritable(true);
+
+			PrintStream ps = new PrintStream(tempFile, "UTF-32");
+			ps.println(first);
+			ps.println(second);
+			ps.close();
+
+			TextInputFormat inputFormat = new TextInputFormat(new Path(tempFile.toURI().toString()));
+			inputFormat.setCharsetName("UTF-32");
+
+			Configuration parameters = new Configuration();
+			inputFormat.configure(parameters);
+
+			FileInputSplit[] splits = inputFormat.createInputSplits(1);
+			assertTrue("expected at least one input split", splits.length >= 1);
+			inputFormat.open(splits[0]);
+
+			String result = "";
+
+			System.out.println("bomCharsetName:" + inputFormat.getBomCharsetName());
+
+			assertFalse(inputFormat.reachedEnd());
+			result = inputFormat.nextRecord("");
+			System.out.println(result);
+			assertNotNull("Expecting first record here", result);
+			assertEquals(first, result);
+
+			assertFalse(inputFormat.reachedEnd());
+			result = inputFormat.nextRecord(result);
+			System.out.println(result);
+			assertNotNull("Expecting second record here", result);
+			assertEquals(second, result);
+
+			assertTrue(inputFormat.reachedEnd() || null == inputFormat.nextRecord(result));
+		} catch (Throwable t) {
 			System.err.println("test failed with exception: " + t.getMessage());
 			t.printStackTrace(System.err);
 			fail("Test erroneous");

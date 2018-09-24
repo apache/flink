@@ -62,6 +62,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	// Charset is not serializable
 	private transient Charset charset;
 
+	/** The charset of bom in the file to process. */
+	private String bomCharsetName;
+
 	/**
 	 * The default read buffer size = 1MB.
 	 */
@@ -221,6 +224,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		}
 	}
 
+	@PublicEvolving
+	public String getBomCharsetName() {
+		return this.bomCharsetName;
+	}
+
 	public byte[] getDelimiter() {
 		return delimiter;
 	}
@@ -341,7 +349,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	@Override
 	public FileBaseStatistics getStatistics(BaseStatistics cachedStats) throws IOException {
 		
-		final FileBaseStatistics cachedFileStats = cachedStats instanceof FileBaseStatistics ?
+		final FileBaseStatistics cachedFileStats = cachedStats instanceof FileInputFormat.FileBaseStatistics ?
 				(FileBaseStatistics) cachedStats : null;
 		
 		// store properties
@@ -408,7 +416,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			while (samplesTaken < numSamples && fileNum < allFiles.size()) {
 				// make a split for the sample and use it to read a record
 				FileStatus file = allFiles.get(fileNum);
-				FileInputSplit split = new FileInputSplit(0, file.getPath(), offset, file.getLen() - offset, null);
+				String bomCharsetName = getBomCharset(file);
+
+				FileInputSplit split = new FileInputSplit(0, file.getPath(), offset, file.getLen() - offset, null, bomCharsetName);
 
 				// we open the split, read one line, and take its length
 				try {
@@ -467,6 +477,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	 */
 	@Override
 	public void open(FileInputSplit split) throws IOException {
+		this.bomCharsetName = split.getBomCharsetName();
 		super.open(split);
 		initBuffers();
 
@@ -736,7 +747,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		Preconditions.checkNotNull(split, "reopen() cannot be called on a null split.");
 		Preconditions.checkNotNull(state, "reopen() cannot be called with a null initial state.");
 		Preconditions.checkArgument(state == -1 || state >= split.getStart(),
-			" Illegal offset "+ state +", smaller than the splits start=" + split.getStart());
+			" Illegal offset " + state + ", smaller than the splits start=" + split.getStart());
 
 		try {
 			this.open(split);

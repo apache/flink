@@ -59,7 +59,12 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 	// --------------------------------------------------------------------------------------------
 
 	public String getCharsetName() {
-		return charsetName;
+		String bomCharsetName = getBomCharsetName();
+		if (bomCharsetName != null && !bomCharsetName.equals(charsetName)) {
+			return bomCharsetName;
+		} else {
+			return charsetName;
+		}
 	}
 
 	public void setCharsetName(String charsetName) {
@@ -85,14 +90,26 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 
 	@Override
 	public String readRecord(String reusable, byte[] bytes, int offset, int numBytes) throws IOException {
+		String utf8 = "UTF-8";
+		String utf16 = "UTF-16";
+		String utf32 = "UTF-32";
+		int stepSize = 0;
+		String charsetName = this.getCharsetName();
+		if (charsetName.contains(utf8)) {
+			stepSize = 1;
+		} else if (charsetName.contains(utf16)) {
+			stepSize = 2;
+		} else if (charsetName.contains(utf32)) {
+			stepSize = 4;
+		}
 		//Check if \n is used as delimiter and the end of this line is a \r, then remove \r from the line
 		if (this.getDelimiter() != null && this.getDelimiter().length == 1
-				&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 1
-				&& bytes[offset + numBytes - 1] == CARRIAGE_RETURN){
-			numBytes -= 1;
+			&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= stepSize
+			&& bytes[offset + numBytes - stepSize] == CARRIAGE_RETURN) {
+			numBytes -= stepSize;
 		}
-
-		return new String(bytes, offset, numBytes, this.charsetName);
+		numBytes = numBytes - stepSize + 1;
+		return new String(bytes, offset, numBytes, this.getCharsetName());
 	}
 
 	// --------------------------------------------------------------------------------------------
