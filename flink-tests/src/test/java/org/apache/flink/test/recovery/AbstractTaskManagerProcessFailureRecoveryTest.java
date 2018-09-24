@@ -28,7 +28,6 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.StandaloneSessionClusterEntrypoint;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
-import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.util.NetUtils;
@@ -302,41 +301,6 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 	}
 
 	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * The entry point for the TaskManager JVM. Simply configures and runs a TaskManager.
-	 */
-	public static class TaskManagerProcessEntryPoint {
-
-		private static final Logger LOG = LoggerFactory.getLogger(TaskManagerProcessEntryPoint.class);
-
-		public static void main(String[] args) {
-			try {
-				int jobManagerPort = Integer.parseInt(args[0]);
-
-				Configuration cfg = new Configuration();
-				cfg.setString(JobManagerOptions.ADDRESS, "localhost");
-				cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
-				cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
-				cfg.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 100);
-				cfg.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
-				cfg.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
-
-				TaskManager.selectNetworkInterfaceAndRunTaskManager(cfg,
-					ResourceID.generate(), TaskManager.class);
-
-				// wait forever
-				Object lock = new Object();
-				synchronized (lock) {
-					lock.wait();
-				}
-			}
-			catch (Throwable t) {
-				LOG.error("Failed to start TaskManager process", t);
-				System.exit(1);
-			}
-		}
-	}
 
 	/**
 	 * The entry point for the TaskExecutor JVM. Simply configures and runs a TaskExecutor.
