@@ -97,7 +97,6 @@ public class HadoopConfigLoader {
 		for (String key : flinkConfig.keySet()) {
 			for (String prefix : flinkConfigPrefixes) {
 				if (key.startsWith(prefix)) {
-					String value = flinkConfig.getString(key, null);
 					String newKey = hadoopConfigPrefix + key.substring(prefix.length());
 					String newValue = fixHadoopConfig(key, flinkConfig.getString(key, null));
 					hadoopConfig.set(newKey, newValue);
