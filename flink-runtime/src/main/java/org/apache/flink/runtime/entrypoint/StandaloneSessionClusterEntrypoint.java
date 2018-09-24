@@ -35,7 +35,7 @@ public class StandaloneSessionClusterEntrypoint extends SessionClusterEntrypoint
 	}
 
 	@Override
-	protected ClusterComponent<?> createDispatcherComponent(Configuration configuration) {
+	protected ClusterComponent<?> createClusterComponent(Configuration configuration) {
 		return new SessionClusterComponent(StandaloneResourceManagerFactory.INSTANCE);
 	}
 
@@ -60,6 +60,6 @@ public class StandaloneSessionClusterEntrypoint extends SessionClusterEntrypoint
 
 		StandaloneSessionClusterEntrypoint entrypoint = new StandaloneSessionClusterEntrypoint(configuration);
 
-		entrypoint.startCluster();
+		ClusterEntrypoint.runClusterEntrypoint(entrypoint);
 	}
 }

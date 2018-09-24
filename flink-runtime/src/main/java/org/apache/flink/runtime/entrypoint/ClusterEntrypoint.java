@@ -73,7 +73,10 @@ import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import scala.concurrent.duration.FiniteDuration;
@@ -94,19 +97,19 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 	protected static final int STARTUP_FAILURE_RETURN_CODE = 1;
 	protected static final int RUNTIME_FAILURE_RETURN_CODE = 2;
 
+	private static final Time INITIALIZATION_SHUTDOWN_TIMEOUT = Time.seconds(30L);
+
 	/** The lock to guard startup / shutdown / manipulation methods. */
 	private final Object lock = new Object();
 
 	private final Configuration configuration;
 
-	private final CompletableFuture<Void> terminationFuture;
-
-	private final AtomicBoolean isTerminating = new AtomicBoolean(false);
+	private final CompletableFuture<ApplicationStatus> terminationFuture;
 
 	private final AtomicBoolean isShutDown = new AtomicBoolean(false);
 
 	@GuardedBy("lock")
-	private ClusterComponent<?> dispatcherComponent;
+	private ClusterComponent<?> clusterComponent;
 
 	@GuardedBy("lock")
 	private MetricRegistryImpl metricRegistry;
@@ -138,11 +141,11 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		shutDownHook = ShutdownHookUtil.addShutdownHook(this::cleanupDirectories, getClass().getSimpleName(), LOG);
 	}
 
-	public CompletableFuture<Void> getTerminationFuture() {
+	public CompletableFuture<ApplicationStatus> getTerminationFuture() {
 		return terminationFuture;
 	}
 
-	protected void startCluster() {
+	protected void startCluster() throws ClusterEntrypointException {
 		LOG.info("Starting {}.", getClass().getSimpleName());
 
 		try {
@@ -157,17 +160,24 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			});
 		} catch (Throwable t) {
 			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
-			LOG.error("Cluster initialization failed.", strippedThrowable);
 
-			shutDownAndTerminate(
-				STARTUP_FAILURE_RETURN_CODE,
-				ApplicationStatus.FAILED,
-				strippedThrowable.getMessage(),
-				false);
+			try {
+				// clean up any partial state
+				shutDownAsync(
+					ApplicationStatus.FAILED,
+					ExceptionUtils.stringifyException(strippedThrowable),
+					false).get(INITIALIZATION_SHUTDOWN_TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+			} catch (InterruptedException | ExecutionException | TimeoutException e) {
+				strippedThrowable.addSuppressed(e);
+			}
+
+			throw new ClusterEntrypointException(
+				String.format("Failed to initialize the cluster entrypoint %s.", getClass().getSimpleName()),
+				strippedThrowable);
 		}
 	}
 
-	protected void configureFileSystems(Configuration configuration) throws Exception {
+	private void configureFileSystems(Configuration configuration) throws Exception {
 		LOG.info("Install default filesystem.");
 
 		try {
@@ -194,9 +204,9 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			configuration.setString(JobManagerOptions.ADDRESS, commonRpcService.getAddress());
 			configuration.setInteger(JobManagerOptions.PORT, commonRpcService.getPort());
 
-			dispatcherComponent = createDispatcherComponent(configuration);
+			clusterComponent = createClusterComponent(configuration);
 
-			dispatcherComponent.startComponent(
+			clusterComponent.startComponent(
 				configuration,
 				commonRpcService,
 				haServices,
@@ -206,19 +216,17 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				archivedExecutionGraphStore,
 				this);
 
-			dispatcherComponent.getShutDownFuture().whenComplete(
+			clusterComponent.getShutDownFuture().whenComplete(
 				(ApplicationStatus applicationStatus, Throwable throwable) -> {
 					if (throwable != null) {
-						shutDownAndTerminate(
-							RUNTIME_FAILURE_RETURN_CODE,
+						shutDownAsync(
 							ApplicationStatus.UNKNOWN,
 							ExceptionUtils.stringifyException(throwable),
 							false);
 					} else {
 						// This is the general shutdown path. If a separate more specific shutdown was
 						// already triggered, this will do nothing
-						shutDownAndTerminate(
-							applicationStatus.processExitCode(),
+						shutDownAsync(
 							applicationStatus,
 							null,
 							true);
@@ -382,12 +390,15 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		return resultConfiguration;
 	}
 
-	private CompletableFuture<Void> shutDownAsync(
-			boolean cleanupHaData,
+	private CompletableFuture<ApplicationStatus> shutDownAsync(
 			ApplicationStatus applicationStatus,
-			@Nullable String diagnostics) {
+			@Nullable String diagnostics,
+			boolean cleanupHaData) {
 		if (isShutDown.compareAndSet(false, true)) {
-			LOG.info("Stopping {}.", getClass().getSimpleName());
+			LOG.info("Shutting {} down with application status {}. Diagnostics {}.",
+				getClass().getSimpleName(),
+				applicationStatus,
+				diagnostics);
 
 			final CompletableFuture<Void> shutDownApplicationFuture = closeClusterComponent(applicationStatus, diagnostics);
 
@@ -404,43 +415,12 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 					if (serviceThrowable != null) {
 						terminationFuture.completeExceptionally(serviceThrowable);
 					} else {
-						terminationFuture.complete(null);
+						terminationFuture.complete(applicationStatus);
 					}
 				});
 		}
 
 		return terminationFuture;
-	}
-
-	protected void shutDownAndTerminate(
-		int returnCode,
-		ApplicationStatus applicationStatus,
-		@Nullable String diagnostics,
-		boolean cleanupHaData) {
-
-		if (isTerminating.compareAndSet(false, true)) {
-			LOG.info("Shut down and terminate {} with return code {} and application status {}. Diagnostics {}.",
-				getClass().getSimpleName(),
-				returnCode,
-				applicationStatus,
-				diagnostics);
-
-			shutDownAsync(
-				cleanupHaData,
-				applicationStatus,
-				diagnostics).whenComplete(
-				(Void ignored, Throwable t) -> {
-					if (t != null) {
-						LOG.info("Could not properly shut down cluster entrypoint.", t);
-					}
-
-					System.exit(returnCode);
-				});
-		} else {
-			LOG.debug("Concurrent termination call detected. Ignoring termination call with return code {} and application status {}.",
-				returnCode,
-				applicationStatus);
-		}
 	}
 
 	/**
@@ -453,10 +433,10 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 	 */
 	private CompletableFuture<Void> closeClusterComponent(ApplicationStatus applicationStatus, @Nullable String diagnostics) {
 		synchronized (lock) {
-			if (dispatcherComponent != null) {
-				final CompletableFuture<Void> deregisterApplicationFuture = dispatcherComponent.deregisterApplication(applicationStatus, diagnostics);
+			if (clusterComponent != null) {
+				final CompletableFuture<Void> deregisterApplicationFuture = clusterComponent.deregisterApplication(applicationStatus, diagnostics);
 
-				return FutureUtils.runAfterwards(deregisterApplicationFuture, dispatcherComponent::closeAsync);
+				return FutureUtils.runAfterwards(deregisterApplicationFuture, clusterComponent::closeAsync);
 			} else {
 				return CompletableFuture.completedFuture(null);
 			}
@@ -480,7 +460,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 	// Abstract methods
 	// --------------------------------------------------
 
-	protected abstract ClusterComponent<?> createDispatcherComponent(Configuration configuration);
+	protected abstract ClusterComponent<?> createClusterComponent(Configuration configuration);
 
 	protected abstract ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
 		Configuration configuration,
@@ -509,6 +489,34 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		}
 
 		return configuration;
+	}
+
+	// --------------------------------------------------
+	// Helper methods
+	// --------------------------------------------------
+
+	public static void runClusterEntrypoint(ClusterEntrypoint clusterEntrypoint) {
+
+		final String clusterEntrypointName = clusterEntrypoint.getClass().getSimpleName();
+		try {
+			clusterEntrypoint.startCluster();
+		} catch (ClusterEntrypointException e) {
+			LOG.error(String.format("Could not start cluster entrypoint %s.", clusterEntrypointName), e);
+			System.exit(STARTUP_FAILURE_RETURN_CODE);
+		}
+
+		clusterEntrypoint.getTerminationFuture().whenComplete((applicationStatus, throwable) -> {
+			final int returnCode;
+
+			if (throwable != null) {
+				returnCode = RUNTIME_FAILURE_RETURN_CODE;
+			} else {
+				returnCode = applicationStatus.processExitCode();
+			}
+
+			LOG.info("Terminating cluster entrypoint process {} with exit code {}.", clusterEntrypointName, returnCode, throwable);
+			System.exit(returnCode);
+		});
 	}
 
 	/**

@@ -61,7 +61,7 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 	}
 
 	@Override
-	protected ClusterComponent<?> createDispatcherComponent(Configuration configuration) {
+	protected ClusterComponent<?> createClusterComponent(Configuration configuration) {
 		return new JobClusterComponent(
 			StandaloneResourceManagerFactory.INSTANCE,
 			new ClassPathJobGraphRetriever(jobClassName, savepointRestoreSettings, programArguments));
@@ -94,6 +94,6 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 			clusterConfiguration.getSavepointRestoreSettings(),
 			clusterConfiguration.getArgs());
 
-		entrypoint.startCluster();
+		ClusterEntrypoint.runClusterEntrypoint(entrypoint);
 	}
 }

@@ -20,6 +20,7 @@ package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterComponent;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.FileJobGraphRetriever;
 import org.apache.flink.runtime.entrypoint.JobClusterComponent;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
@@ -61,7 +62,7 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 	}
 
 	@Override
-	protected ClusterComponent<?> createDispatcherComponent(Configuration configuration) {
+	protected ClusterComponent<?> createClusterComponent(Configuration configuration) {
 		return new JobClusterComponent(
 			YarnResourceManagerFactory.INSTANCE,
 			FileJobGraphRetriever.createFrom(configuration));
@@ -98,6 +99,6 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 			configuration,
 			workingDirectory);
 
-		yarnJobClusterEntrypoint.startCluster();
+		ClusterEntrypoint.runClusterEntrypoint(yarnJobClusterEntrypoint);
 	}
 }
