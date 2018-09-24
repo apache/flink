@@ -29,6 +29,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterComponent;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.FileJobGraphRetriever;
 import org.apache.flink.runtime.entrypoint.JobClusterComponent;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
@@ -108,7 +109,7 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 	}
 
 	@Override
-	protected ClusterComponent<?> createDispatcherComponent(Configuration configuration) {
+	protected ClusterComponent<?> createClusterComponent(Configuration configuration) {
 		return new JobClusterComponent(
 			new MesosResourceManagerFactory(
 				mesosServices,
@@ -141,6 +142,6 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 
 		MesosJobClusterEntrypoint clusterEntrypoint = new MesosJobClusterEntrypoint(configuration, dynamicProperties);
 
-		clusterEntrypoint.startCluster();
+		ClusterEntrypoint.runClusterEntrypoint(clusterEntrypoint);
 	}
 }

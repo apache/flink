@@ -20,8 +20,9 @@ package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterComponent;
-import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.SessionClusterComponent;
+import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
 import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
@@ -59,7 +60,7 @@ public class YarnSessionClusterEntrypoint extends SessionClusterEntrypoint {
 	}
 
 	@Override
-	protected ClusterComponent<?> createDispatcherComponent(Configuration configuration) {
+	protected ClusterComponent<?> createClusterComponent(Configuration configuration) {
 		return new SessionClusterComponent(YarnResourceManagerFactory.INSTANCE);
 	}
 
@@ -89,6 +90,6 @@ public class YarnSessionClusterEntrypoint extends SessionClusterEntrypoint {
 			configuration,
 			workingDirectory);
 
-		yarnSessionClusterEntrypoint.startCluster();
+		ClusterEntrypoint.runClusterEntrypoint(yarnSessionClusterEntrypoint);
 	}
 }
