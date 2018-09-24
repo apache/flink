@@ -18,22 +18,77 @@
 
 package org.apache.flink.fs.s3.common;
 
+import org.apache.flink.core.fs.EntropyInjectingFileSystem;
+import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
+import org.apache.flink.util.StringUtils;
+
+import javax.annotation.Nullable;
+
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Implementation of the Flink {@link org.apache.flink.core.fs.FileSystem} interface for S3.
  * This class implements the common behavior implemented directly by Flink and delegates
  * common calls to an implementation of Hadoop's filesystem abstraction.
  */
-public class FlinkS3FileSystem extends HadoopFileSystem {
+public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInjectingFileSystem {
+
+	@Nullable
+	private final String entropyInjectionKey;
+
+	private final int entropyLength;
 
 	/**
-	 * Wraps the given Hadoop S3 File System object as a Flink S3 File System object.
+	 * Creates a FlinkS3FileSystem based on the given Hadoop S3 file system.
 	 * The given Hadoop file system object is expected to be initialized already.
 	 *
 	 * @param hadoopS3FileSystem The Hadoop FileSystem that will be used under the hood.
 	 */
 	public FlinkS3FileSystem(org.apache.hadoop.fs.FileSystem hadoopS3FileSystem) {
+		this(hadoopS3FileSystem, null, -1);
+	}
+
+	/**
+	 * Creates a FlinkS3FileSystem based on the given Hadoop S3 file system.
+	 * The given Hadoop file system object is expected to be initialized already.
+	 *
+	 * <p>This constructor additionally configures the entropy injection for the file system.
+	 *
+	 * @param hadoopS3FileSystem The Hadoop FileSystem that will be used under the hood.
+	 * @param entropyInjectionKey The substring that will be replaced by entropy or removed.
+	 * @param entropyLength The number of random alphanumeric characters to inject as entropy.
+	 */
+	public FlinkS3FileSystem(
+			org.apache.hadoop.fs.FileSystem hadoopS3FileSystem,
+			@Nullable String entropyInjectionKey,
+			int entropyLength) {
+
 		super(hadoopS3FileSystem);
+
+		if (entropyInjectionKey != null && entropyLength <= 0) {
+			throw new IllegalArgumentException("Entropy length must be >= 0 when entropy injection key is set");
+		}
+
+		this.entropyInjectionKey = entropyInjectionKey;
+		this.entropyLength = entropyLength;
+	}
+
+	// ------------------------------------------------------------------------
+
+	@Nullable
+	@Override
+	public String getEntropyInjectionKey() {
+		return entropyInjectionKey;
+	}
+
+	@Override
+	public String generateEntropy() {
+		return StringUtils.generateRandomAlphanumericString(ThreadLocalRandom.current(), entropyLength);
+	}
+
+	@Override
+	public FileSystemKind getKind() {
+		return FileSystemKind.OBJECT_STORE;
 	}
 }
