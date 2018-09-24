@@ -628,42 +628,42 @@ Table result = left.join(right)
     </tr>
     <tr>
     	<td>
-        <strong>Table Function Inner Join</strong><br>
+        <strong>Inner Join with Table Function</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
         <p>Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. A row of the left (outer) table is dropped, if its table function call returns an empty result.
         </p>
 {% highlight java %}
-// register function
+// register User-Defined Table Function
 TableFunction<String> split = new MySplitUDTF();
-tEnv.registerFunction("split", split);
+tableEnv.registerFunction("split", split);
 
 // join
 Table orders = tableEnv.scan("Orders");
 Table result = orders
-    .join(new Table(tEnv, "split(c)").as("s", "t", "v"))
+    .join(new Table(tableEnv, "split(c)").as("s", "t", "v"))
     .select("a, b, s, t, v");
 {% endhighlight %}
       </td>
     </tr>
     <tr>
     	<td>
-        <strong>Table Function Left Outer Join</strong><br>
+        <strong>Left Outer Join with Table Function</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
         <p>Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. If a table function call returns an empty result, the corresponding outer row is preserved and the result padded with null values.</p>
         <p><b>Note:</b> Currently, the predicate of a table function left outer join can only be empty or literal <code>true</code>.</p>
 {% highlight java %}
-// register function
+// register User-Defined Table Function
 TableFunction<String> split = new MySplitUDTF();
-tEnv.registerFunction("split", split);
+tableEnv.registerFunction("split", split);
 
 // join
 Table orders = tableEnv.scan("Orders");
 Table result = orders
-    .leftOuterJoin(new Table(tEnv, "split(c)").as("s", "t", "v"))
+    .leftOuterJoin(new Table(tableEnv, "split(c)").as("s", "t", "v"))
     .select("a, b, s, t, v");
 {% endhighlight %}
       </td>
@@ -676,7 +676,7 @@ Table result = orders
       <td>
         <p><a href="streaming/temporal_tables.html">Temporal tables</a> are tables that track changes over time.</p>
         <p>A <a href="streaming/temporal_tables.html#temporal-table-functions">temporal table function</a> provides access to the state of a temporal table at a specific point in time.
-        The syntax to join a table with a temporal table function is the same as in <i>Table Function Inner Join</i>.</p>
+        The syntax to join a table with a temporal table function is the same as in <i>Inner Join with Table Function</i>.</p>
 
         <p>Currently only inner joins with temporal tables are supported.</p>
 {% highlight java %}
@@ -756,7 +756,7 @@ val fullOuterResult = left.fullOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
       <td>
         <p><b>Note:</b> Time-windowed joins are a subset of regular joins that can be processed in a streaming fashion.</p>
 
-        <p>A time-windowed join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p> 
+        <p>A time-windowed join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
         <p>For example, the following predicates are valid window join conditions:</p>
 
         <ul>
@@ -776,14 +776,14 @@ val result = left.join(right)
     </tr>
     <tr>
     	<td>
-        <strong>Table Function Inner Join</strong><br>
+        <strong>Inner Join with Table Function</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
         <p>Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. A row of the left (outer) table is dropped, if its table function call returns an empty result.
         </p>
         {% highlight scala %}
-// instantiate function
+// instantiate User-Defined Table Function
 val split: TableFunction[_] = new MySplitUDTF()
 
 // join
@@ -795,13 +795,13 @@ val result: Table = table
     </tr>
     <tr>
     	<td>
-        <strong>Table Function Left Outer Join</strong><br>
+        <strong>Left Outer Join with Table Function</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
     	<td>
         <p>Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. If a table function call returns an empty result, the corresponding outer row is preserved and the result padded with null values.</p>
         <p><b>Note:</b> Currently, the predicate of a table function left outer join can only be empty or literal <code>true</code>.</p>
 {% highlight scala %}
-// instantiate function
+// instantiate User-Defined Table Function
 val split: TableFunction[_] = new MySplitUDTF()
 
 // join
@@ -820,7 +820,7 @@ val result: Table = table
       <td>
         <p><a href="streaming/temporal_tables.html">Temporal tables</a> are tables that track their changes over time.</p>
         <p>A <a href="streaming/temporal_tables.html#temporal-table-functions">temporal table function</a> provides access to the state of a temporal table at a specific point in time.
-        The syntax to join a table with a temporal table function is the same as in <i>Table Function Inner Join</i>.</p>
+        The syntax to join a table with a temporal table function is the same as in <i>Inner Join with Table Function</i>.</p>
 
         <p>Currently only inner joins with temporal tables are supported.</p>
 {% highlight scala %}

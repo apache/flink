@@ -69,7 +69,7 @@ import org.apache.flink.util.Collector
   *
   *   // for Java users
   *   tEnv.registerFunction("split", new Split())   // register table function first
-  *   table.join("split(a) as (s)").select("a, s")
+  *   table.join(new Table(tEnv, "split(a) as (s)")).select("a, s")
   *
   *   // for SQL users
   *   tEnv.registerFunction("split", new Split())   // register table function first

@@ -483,7 +483,7 @@ FROM Orders CROSS JOIN UNNEST(tags) AS t (tag)
     </tr>
     <tr>
     	<td>
-        <strong>Table Function Join</strong><br>
+        <strong>Join with Table Function</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
@@ -515,7 +515,7 @@ FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) t AS tag ON TRUE
       <td>
         <p><a href="streaming/temporal_tables.html">Temporal tables</a> are tables that track changes over time.</p>
         <p>A <a href="streaming/temporal_tables.html#temporal-table-functions">Temporal table function</a> provides access to the state of a temporal table at a specific point in time.
-        The syntax to join a table with a temporal table function is the same as in <i>Table Function Join</i>.</p>
+        The syntax to join a table with a temporal table function is the same as in <i>Join with Table Function</i>.</p>
 
         <p><b>Note:</b> Currently only inner joins with temporal tables are supported.</p>
 
