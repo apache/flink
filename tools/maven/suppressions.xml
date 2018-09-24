@@ -51,6 +51,9 @@ under the License.
 		<suppress
 			files="org[\\/]apache[\\/]hadoop[\\/]util[\\/]NativeCodeLoader.java"
 			checks=".*"/>
+		<suppress
+			files="org[\\/]apache[\\/]hadoop[\\/]util[\\/]VersionInfo.java"
+			checks=".*"/>
 		<!-- This file is generated in the flink-python build process -->
 		<suppress
 			files="python-source.zip"

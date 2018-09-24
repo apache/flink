@@ -81,12 +81,12 @@ class RocksDBValueState<K, N, V>
 	public V value() {
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = dataOutputView.toByteArray();
+			byte[] key = dataOutputView.getCopyOfBuffer();
 			byte[] valueBytes = backend.db.get(columnFamily, key);
 			if (valueBytes == null) {
 				return getDefaultValue();
 			}
-			dataInputView.setData(valueBytes);
+			dataInputView.setBuffer(valueBytes);
 			return valueSerializer.deserialize(dataInputView);
 		} catch (IOException | RocksDBException e) {
 			throw new FlinkRuntimeException("Error while retrieving data from RocksDB.", e);
@@ -102,10 +102,10 @@ class RocksDBValueState<K, N, V>
 
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = dataOutputView.toByteArray();
-			dataOutputView.reset();
+			byte[] key = dataOutputView.getCopyOfBuffer();
+			dataOutputView.clear();
 			valueSerializer.serialize(value, dataOutputView);
-			backend.db.put(columnFamily, writeOptions, key, dataOutputView.toByteArray());
+			backend.db.put(columnFamily, writeOptions, key, dataOutputView.getCopyOfBuffer());
 		} catch (Exception e) {
 			throw new FlinkRuntimeException("Error while adding data to RocksDB", e);
 		}

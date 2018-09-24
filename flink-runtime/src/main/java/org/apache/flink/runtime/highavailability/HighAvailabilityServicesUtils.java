@@ -20,6 +20,7 @@ package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.blob.BlobStoreService;
@@ -36,6 +37,8 @@ import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.InstantiationUtil;
 
 import java.util.concurrent.Executor;
 
@@ -64,11 +67,14 @@ public class HighAvailabilityServicesUtils {
 					config,
 					blobStoreService);
 
+			case FACTORY_CLASS:
+				return createCustomHAServices(config, executor);
+
 			default:
 				throw new Exception("High availability mode " + highAvailabilityMode + " is not supported.");
 		}
 	}
-	
+
 	public static HighAvailabilityServices createHighAvailabilityServices(
 		Configuration configuration,
 		Executor executor,
@@ -76,7 +82,7 @@ public class HighAvailabilityServicesUtils {
 
 		HighAvailabilityMode highAvailabilityMode = LeaderRetrievalUtils.getRecoveryMode(configuration);
 
-		switch(highAvailabilityMode) {
+		switch (highAvailabilityMode) {
 			case NONE:
 				final Tuple2<String, Integer> hostnamePort = getJobManagerAddress(configuration);
 
@@ -119,6 +125,10 @@ public class HighAvailabilityServicesUtils {
 					executor,
 					configuration,
 					blobStoreService);
+
+			case FACTORY_CLASS:
+				return createCustomHAServices(configuration, executor);
+
 			default:
 				throw new Exception("Recovery mode " + highAvailabilityMode + " is not supported.");
 		}
@@ -151,6 +161,40 @@ public class HighAvailabilityServicesUtils {
 		return Tuple2.of(hostname, port);
 	}
 
+	private static HighAvailabilityServices createCustomHAServices(Configuration config, Executor executor) throws FlinkException {
+		final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+		final String haServicesClassName = config.getString(HighAvailabilityOptions.HA_MODE);
+
+		final HighAvailabilityServicesFactory highAvailabilityServicesFactory;
+
+		try {
+			highAvailabilityServicesFactory = InstantiationUtil.instantiate(
+				haServicesClassName,
+				HighAvailabilityServicesFactory.class,
+				classLoader);
+		} catch (Exception e) {
+			throw new FlinkException(
+				String.format(
+					"Could not instantiate the HighAvailabilityServicesFactory '%s'. Please make sure that this class is on your class path.",
+					haServicesClassName),
+				e);
+		}
+
+		try {
+			return highAvailabilityServicesFactory.createHAServices(config, executor);
+		} catch (Exception e) {
+			throw new FlinkException(
+				String.format(
+					"Could not create the ha services from the instantiated HighAvailabilityServicesFactory %s.",
+					haServicesClassName),
+				e);
+		}
+	}
+
+	/**
+	 * Enum specifying whether address resolution should be tried or not when creating the
+	 * {@link HighAvailabilityServices}.
+	 */
 	public enum AddressResolution {
 		TRY_ADDRESS_RESOLUTION,
 		NO_ADDRESS_RESOLUTION

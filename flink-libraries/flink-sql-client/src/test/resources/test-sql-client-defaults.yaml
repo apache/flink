@@ -83,6 +83,12 @@ tables:
         - name: StringField
           type: VARCHAR
 
+views:
+  - name: TestView1
+    query: SELECT scalarUDF(IntegerField1) FROM TableNumber1
+  - name: TestView2
+    query: SELECT * FROM TestView1
+
 functions:
   - name: scalarUDF
     from: class
@@ -117,6 +123,7 @@ execution:
   min-idle-state-retention: 0
   max-idle-state-retention: 0
   result-mode: "$VAR_3"
+  max-table-result-rows: "$VAR_MAX_ROWS"
   restart-strategy:
     type: failure-rate
     max-failures-per-interval: 10

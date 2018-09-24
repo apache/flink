@@ -154,6 +154,11 @@ public class CliClientTest extends TestLogger {
 		}
 
 		@Override
+		public void validateSession(SessionContext session) throws SqlExecutionException {
+			// nothing to do
+		}
+
+		@Override
 		public void stop(SessionContext session) {
 			// nothing to do
 		}

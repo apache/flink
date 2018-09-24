@@ -664,7 +664,7 @@ connector.debug=true
 
 ### Use a TableFactory in the Table & SQL API
 
-For a type-safe, programmatic approach with explanatory Scaladoc/Javadoc, the Table & SQL API offers descriptors in `org.apache.flink.table.descriptors` that translate into string-based properties. See the [built-in descriptors](connect.md) for sources, sinks, and formats as a reference.
+For a type-safe, programmatic approach with explanatory Scaladoc/Javadoc, the Table & SQL API offers descriptors in `org.apache.flink.table.descriptors` that translate into string-based properties. See the [built-in descriptors](connect.html) for sources, sinks, and formats as a reference.
 
 A connector for `MySystem` in our example can extend `ConnectorDescriptor` as shown below:
 

@@ -974,6 +974,40 @@ public class DataStream<T> {
 	}
 
 	/**
+	 * Writes a DataStream to the standard output stream (stdout).
+	 *
+	 * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
+	 *
+	 * <p>NOTE: This will print to stdout on the machine where the code is executed, i.e. the Flink
+	 * worker.
+	 *
+	 * @param sinkIdentifier The string to prefix the output with.
+	 * @return The closed DataStream.
+	 */
+	@PublicEvolving
+	public DataStreamSink<T> print(String sinkIdentifier) {
+		PrintSinkFunction<T> printFunction = new PrintSinkFunction<>(sinkIdentifier, false);
+		return addSink(printFunction).name("Print to Std. Out");
+	}
+
+	/**
+	 * Writes a DataStream to the standard output stream (stderr).
+	 *
+	 * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
+	 *
+	 * <p>NOTE: This will print to stderr on the machine where the code is executed, i.e. the Flink
+	 * worker.
+	 *
+	 * @param sinkIdentifier The string to prefix the output with.
+	 * @return The closed DataStream.
+	 */
+	@PublicEvolving
+	public DataStreamSink<T> printToErr(String sinkIdentifier) {
+		PrintSinkFunction<T> printFunction = new PrintSinkFunction<>(sinkIdentifier, true);
+		return addSink(printFunction).name("Print to Std. Err");
+	}
+
+	/**
 	 * Writes a DataStream to the file specified by path in text format.
 	 *
 	 * <p>For every element of the DataStream the result of {@link Object#toString()} is written.

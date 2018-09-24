@@ -22,12 +22,12 @@ import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.yarn.util.YarnTestUtils;
 
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,15 +52,15 @@ public class TestingYarnClusterDescriptor extends LegacyYarnClusterDescriptor {
 			sharedYarnClient);
 		List<File> filesToShip = new ArrayList<>();
 
-		File testingJar = YarnTestBase.findFile("..", new TestJarFinder("flink-yarn-tests"));
+		File testingJar = YarnTestBase.findFile("..", new YarnTestUtils.TestJarFinder("flink-yarn-tests"));
 		Preconditions.checkNotNull(testingJar, "Could not find the flink-yarn-tests tests jar. " +
 			"Make sure to package the flink-yarn-tests module.");
 
-		File testingRuntimeJar = YarnTestBase.findFile("..", new TestJarFinder("flink-runtime"));
+		File testingRuntimeJar = YarnTestBase.findFile("..", new YarnTestUtils.TestJarFinder("flink-runtime"));
 		Preconditions.checkNotNull(testingRuntimeJar, "Could not find the flink-runtime tests " +
 			"jar. Make sure to package the flink-runtime module.");
 
-		File testingYarnJar = YarnTestBase.findFile("..", new TestJarFinder("flink-yarn"));
+		File testingYarnJar = YarnTestBase.findFile("..", new YarnTestUtils.TestJarFinder("flink-yarn"));
 		Preconditions.checkNotNull(testingRuntimeJar, "Could not find the flink-yarn tests " +
 			"jar. Make sure to package the flink-yarn module.");
 
@@ -89,18 +89,4 @@ public class TestingYarnClusterDescriptor extends LegacyYarnClusterDescriptor {
 		throw new UnsupportedOperationException("Cannot deploy a per-job cluster yet.");
 	}
 
-	static class TestJarFinder implements FilenameFilter {
-
-		private final String jarName;
-
-		TestJarFinder(final String jarName) {
-			this.jarName = jarName;
-		}
-
-		@Override
-		public boolean accept(File dir, String name) {
-			return name.startsWith(jarName) && name.endsWith("-tests.jar") &&
-				dir.getAbsolutePath().contains(dir.separator + jarName + dir.separator);
-		}
-	}
 }

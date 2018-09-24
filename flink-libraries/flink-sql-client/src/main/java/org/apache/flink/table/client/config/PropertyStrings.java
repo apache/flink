@@ -57,6 +57,8 @@ public final class PropertyStrings {
 
 	public static final String EXECUTION_RESULT_MODE_VALUE_TABLE = "table";
 
+	public static final String EXECUTION_MAX_TABLE_RESULT_ROWS = "max-table-result-rows";
+
 	public static final String EXECUTION_RESTART_STRATEGY_TYPE = "restart-strategy.type";
 
 	public static final String EXECUTION_RESTART_STRATEGY_TYPE_VALUE_FALLBACK = "fallback";

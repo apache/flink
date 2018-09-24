@@ -69,6 +69,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.text.SimpleDateFormat;
@@ -1121,8 +1122,9 @@ public class CliFrontend {
 			System.exit(retCode);
 		}
 		catch (Throwable t) {
-			LOG.error("Fatal error while running command line interface.", t);
-			t.printStackTrace();
+			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
+			LOG.error("Fatal error while running command line interface.", strippedThrowable);
+			strippedThrowable.printStackTrace();
 			System.exit(31);
 		}
 	}

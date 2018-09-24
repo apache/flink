@@ -19,8 +19,10 @@
 package org.apache.flink.container.entrypoint;
 
 import org.apache.flink.runtime.entrypoint.EntrypointClusterConfiguration;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.Properties;
 
@@ -28,16 +30,26 @@ import java.util.Properties;
  * Configuration for the {@link StandaloneJobClusterEntryPoint}.
  */
 final class StandaloneJobClusterConfiguration extends EntrypointClusterConfiguration {
+
 	@Nonnull
 	private final String jobClassName;
 
-	public StandaloneJobClusterConfiguration(@Nonnull String configDir, @Nonnull Properties dynamicProperties, @Nonnull String[] args, int restPort, @Nonnull String jobClassName) {
-		super(configDir, dynamicProperties, args, restPort);
+	@Nonnull
+	private final SavepointRestoreSettings savepointRestoreSettings;
+
+	public StandaloneJobClusterConfiguration(@Nonnull String configDir, @Nonnull Properties dynamicProperties, @Nonnull String[] args, @Nullable String hostname, int restPort, @Nonnull String jobClassName, @Nonnull SavepointRestoreSettings savepointRestoreSettings) {
+		super(configDir, dynamicProperties, args, hostname, restPort);
 		this.jobClassName = jobClassName;
+		this.savepointRestoreSettings = savepointRestoreSettings;
 	}
 
 	@Nonnull
 	String getJobClassName() {
 		return jobClassName;
+	}
+
+	@Nonnull
+	public SavepointRestoreSettings getSavepointRestoreSettings() {
+		return savepointRestoreSettings;
 	}
 }

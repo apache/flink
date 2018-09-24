@@ -235,6 +235,14 @@ case class Aggregate(
     groupingExprs.foreach(validateGroupingExpression)
 
     def validateAggregateExpression(expr: Expression): Unit = expr match {
+      case distinctExpr: DistinctAgg =>
+        distinctExpr.child match {
+          case _: DistinctAgg => failValidation(
+            "Chained distinct operators are not supported!")
+          case aggExpr: Aggregation => validateAggregateExpression(aggExpr)
+          case _ => failValidation(
+            "Distinct operator can only be applied to aggregation expressions!")
+        }
       // check aggregate function
       case aggExpr: Aggregation
         if aggExpr.getSqlAggFunction.requiresOver =>
@@ -675,6 +683,20 @@ case class WindowAggregate(
     }
 
     resolvedWindowAggregate
+  }
+}
+
+case class TemporalTable(
+    timeAttribute: Expression,
+    primaryKey: Expression,
+    child: LogicalNode)
+  extends UnaryNode {
+
+  override def output: Seq[Attribute] = child.output
+
+  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+    throw new UnsupportedOperationException(
+      "This should never be called. This node is supposed to be used only for validation")
   }
 }
 

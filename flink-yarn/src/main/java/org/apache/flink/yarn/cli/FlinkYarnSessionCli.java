@@ -36,6 +36,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -71,6 +72,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -811,8 +813,9 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 			retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.run(args));
 		} catch (CliArgsException e) {
 			retCode = handleCliArgsException(e);
-		} catch (Exception e) {
-			retCode = handleError(e);
+		} catch (Throwable t) {
+			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
+			retCode = handleError(strippedThrowable);
 		}
 
 		System.exit(retCode);
@@ -949,15 +952,15 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		return 1;
 	}
 
-	private static int handleError(Exception e) {
-		LOG.error("Error while running the Flink Yarn session.", e);
+	private static int handleError(Throwable t) {
+		LOG.error("Error while running the Flink Yarn session.", t);
 
 		System.err.println();
 		System.err.println("------------------------------------------------------------");
 		System.err.println(" The program finished with the following exception:");
 		System.err.println();
 
-		e.printStackTrace();
+		t.printStackTrace();
 		return 1;
 	}
 

@@ -1049,7 +1049,7 @@ public class BucketingSink<T>
 	}
 
 	/**
-	 * Sets the prefix of part files.  The default is no suffix.
+	 * Sets the suffix of part files.  The default is no suffix.
 	 */
 	public BucketingSink<T> setPartSuffix(String partSuffix) {
 		this.partSuffix = partSuffix;

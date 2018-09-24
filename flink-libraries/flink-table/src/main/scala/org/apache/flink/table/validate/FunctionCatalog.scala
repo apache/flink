@@ -205,6 +205,10 @@ object FunctionCatalog {
     "fromBase64" -> classOf[FromBase64],
     "toBase64" -> classOf[ToBase64],
     "uuid" -> classOf[UUID],
+    "ltrim" -> classOf[LTrim],
+    "rtrim" -> classOf[RTrim],
+    "repeat" -> classOf[Repeat],
+    "regexpReplace" -> classOf[RegexpReplace],
 
     // math functions
     "plus" -> classOf[Plus],
@@ -455,6 +459,10 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.FROM_BASE64,
     ScalarSqlFunctions.TO_BASE64,
     ScalarSqlFunctions.UUID,
+    ScalarSqlFunctions.LTRIM,
+    ScalarSqlFunctions.RTRIM,
+    ScalarSqlFunctions.REPEAT,
+    ScalarSqlFunctions.REGEXP_REPLACE,
 
     // EXTENSIONS
     BasicOperatorTable.TUMBLE,

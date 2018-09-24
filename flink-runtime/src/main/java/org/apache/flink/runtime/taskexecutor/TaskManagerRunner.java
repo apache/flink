@@ -64,6 +64,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.util.ArrayList;
@@ -301,7 +302,8 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 				}
 			});
 		} catch (Throwable t) {
-			LOG.error("TaskManager initialization failed.", t);
+			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
+			LOG.error("TaskManager initialization failed.", strippedThrowable);
 			System.exit(STARTUP_FAILURE_RETURN_CODE);
 		}
 	}
@@ -315,7 +317,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			clusterConfiguration = commandLineParser.parse(args);
 		} catch (FlinkParseException e) {
 			LOG.error("Could not parse the command line options.", e);
-			commandLineParser.printHelp();
+			commandLineParser.printHelp(TaskManagerRunner.class.getSimpleName());
 			throw e;
 		}
 
@@ -348,6 +350,8 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		checkNotNull(resourceID);
 		checkNotNull(rpcService);
 		checkNotNull(highAvailabilityServices);
+
+		LOG.info("Starting TaskManager with ResourceID: {}", resourceID);
 
 		InetAddress remoteAddress = InetAddress.getByName(rpcService.getAddress());
 

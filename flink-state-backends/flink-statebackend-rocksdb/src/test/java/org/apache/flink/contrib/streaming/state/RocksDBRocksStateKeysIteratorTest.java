@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysIterator;
-import org.apache.flink.core.memory.ByteArrayDataOutputView;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -105,7 +105,7 @@ public class RocksDBRocksStateKeysIteratorTest {
 				testState.update(String.valueOf(i));
 			}
 
-			ByteArrayDataOutputView outputStream = new ByteArrayDataOutputView(8);
+			DataOutputSerializer outputStream = new DataOutputSerializer(8);
 			boolean ambiguousKeyPossible = RocksDBKeySerializationUtils.isAmbiguousKeyPossible(keySerializer, namespaceSerializer);
 			RocksDBKeySerializationUtils.writeNameSpace(
 				namespace,
@@ -113,7 +113,7 @@ public class RocksDBRocksStateKeysIteratorTest {
 				outputStream,
 				ambiguousKeyPossible);
 
-			byte[] nameSpaceBytes = outputStream.toByteArray();
+			byte[] nameSpaceBytes = outputStream.getCopyOfBuffer();
 
 			try (
 				ColumnFamilyHandle handle = keyedStateBackend.getColumnFamilyHandle(testStateName);

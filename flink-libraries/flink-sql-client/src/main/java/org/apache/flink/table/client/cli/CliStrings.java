@@ -50,13 +50,15 @@ public final class CliStrings {
 		.append(formatCommand(SqlCommand.EXPLAIN, "Describes the execution plan of a query or table with the given name."))
 		.append(formatCommand(SqlCommand.SELECT, "Executes a SQL SELECT query on the Flink cluster."))
 		.append(formatCommand(SqlCommand.INSERT_INTO, "Inserts the results of a SQL SELECT query into a declared table sink."))
+		.append(formatCommand(SqlCommand.CREATE_VIEW, "Creates a virtual table from a SQL query. Syntax: 'CREATE VIEW <name> AS <query>;'"))
+		.append(formatCommand(SqlCommand.DROP_VIEW, "Deletes a previously created virtual table. Syntax: 'DROP VIEW <name>;'"))
 		.append(formatCommand(SqlCommand.SOURCE, "Reads a SQL SELECT query from a file and executes it on the Flink cluster."))
-		.append(formatCommand(SqlCommand.SET, "Sets a session configuration property. Syntax: 'SET <key>=<value>'. Use 'SET' for listing all properties."))
+		.append(formatCommand(SqlCommand.SET, "Sets a session configuration property. Syntax: 'SET <key>=<value>;'. Use 'SET;' for listing all properties."))
 		.append(formatCommand(SqlCommand.RESET, "Resets all session configuration properties."))
 		.style(AttributedStyle.DEFAULT.underline())
 		.append("\nHint")
 		.style(AttributedStyle.DEFAULT)
-		.append(": Use '\\' for multi-line commands.")
+		.append(": Make sure that a statement ends with ';' for finalizing (multi-line) statements.")
 		.toAttributedString();
 
 	public static final String MESSAGE_WELCOME;
@@ -102,7 +104,7 @@ public final class CliStrings {
 			"   | |    | | | | | |   <   ____) | |__| | |____  | |____| | |  __/ | | | |_ \n" +
 			"   |_|    |_|_|_| |_|_|\\_\\ |_____/ \\___\\_\\______|  \\_____|_|_|\\___|_| |_|\\__|\n" +
 			"          \n" +
-			"        Welcome! Enter HELP to list all available commands. QUIT to exit.\n\n";
+			"        Welcome! Enter 'HELP;' to list all available commands. 'QUIT;' to exit.\n\n";
 	}
 
 	public static final String MESSAGE_QUIT = "Exiting " + CliStrings.CLI_NAME + "...";
@@ -115,7 +117,7 @@ public final class CliStrings {
 
 	public static final String MESSAGE_EMPTY = "Result was empty.";
 
-	public static final String MESSAGE_UNKNOWN_SQL = "Unknown SQL statement.";
+	public static final String MESSAGE_UNKNOWN_SQL = "Unknown or invalid SQL statement.";
 
 	public static final String MESSAGE_UNKNOWN_TABLE = "Unknown table.";
 
@@ -127,13 +129,22 @@ public final class CliStrings {
 
 	public static final String MESSAGE_STATEMENT_SUBMITTED = "Table update statement has been successfully submitted to the cluster:";
 
-	public static final String MESSAGE_INVALID_PATH = "Path is invalid.";
-
 	public static final String MESSAGE_MAX_SIZE_EXCEEDED = "The given file exceeds the maximum number of characters.";
 
 	public static final String MESSAGE_WILL_EXECUTE = "Executing the following statement:";
 
 	public static final String MESSAGE_UNSUPPORTED_SQL = "Unsupported SQL statement.";
+
+	public static final String MESSAGE_VIEW_CREATED = "View has been created.";
+
+	public static final String MESSAGE_VIEW_REMOVED = "View has been removed.";
+
+	public static final String MESSAGE_VIEW_ALREADY_EXISTS = "A view with this name has already been defined in the current CLI session.";
+
+	public static final String MESSAGE_VIEW_NOT_FOUND = "The given view does not exist in the current CLI session. " +
+		"Only views created with a CREATE VIEW statement can be accessed.";
+
+	public static final String MESSAGE_VIEW_NOT_REMOVED = "The given view cannot be removed without affecting other views.";
 
 	// --------------------------------------------------------------------------------------------
 

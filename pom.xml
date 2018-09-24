@@ -1387,7 +1387,7 @@ under the License.
 							<groupId>com.puppycrawl.tools</groupId>
 							<artifactId>checkstyle</artifactId>
 							<!-- Note: match version with docs/internals/ide_setup.md -->
-							<version>8.4</version>
+							<version>8.9</version>
 						</dependency>
 					</dependencies>
 					<executions>
@@ -1541,6 +1541,11 @@ under the License.
 					<groupId>net.alchim31.maven</groupId>
 					<artifactId>scala-maven-plugin</artifactId>
 					<version>3.2.2</version>
+					<configuration>
+						<args>
+							<arg>-nobootcp</arg>
+						</args>
+					</configuration>
 				</plugin>
 
 				<!-- Configuration for the binary compatibility checker -->
@@ -1553,7 +1558,7 @@ under the License.
 							<dependency>
 								<groupId>org.apache.flink</groupId>
 								<artifactId>${project.artifactId}</artifactId>
-								<version>1.6.0</version>
+								<version>1.6.1</version>
 								<type>${project.packaging}</type>
 							</dependency>
 						</oldVersion>

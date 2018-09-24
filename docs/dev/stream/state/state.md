@@ -350,6 +350,9 @@ will lead to compatibility failure and `StateMigrationException`.
 
 - The TTL configuration is not part of check- or savepoints but rather a way of how Flink treats it in the currently running job.
 
+- The map state with TTL currently supports null user values only if the user value serializer can handle null values. 
+If the serializer does not support null values, it can be wrapped with `NullableSerializer` at the cost of an extra byte in the serialized form.
+
 #### Cleanup of Expired State
 
 Currently, expired values are only removed when they are read out explicitly, 

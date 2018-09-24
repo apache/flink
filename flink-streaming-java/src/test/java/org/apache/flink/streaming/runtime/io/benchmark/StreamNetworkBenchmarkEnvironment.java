@@ -68,11 +68,6 @@ import static org.apache.flink.util.MathUtils.checkedDownCast;
  */
 public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 
-	private static final int BUFFER_SIZE =
-		checkedDownCast(MemorySize.parse(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue()).getBytes());
-
-	private static final int NUM_SLOTS_AND_THREADS = 1;
-
 	private static final InetAddress LOCAL_ADDRESS;
 
 	static {
@@ -92,9 +87,26 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	protected IOManager ioManager;
 
 	protected int channels;
+	protected boolean broadcastMode = false;
 	protected boolean localMode = false;
 
 	protected ResultPartitionID[] partitionIds;
+
+	public void setUp(
+			int writers,
+			int channels,
+			boolean localMode,
+			int senderBufferPoolSize,
+			int receiverBufferPoolSize) throws Exception {
+		setUp(
+			writers,
+			channels,
+			false,
+			localMode,
+			senderBufferPoolSize,
+			receiverBufferPoolSize,
+			new Configuration());
+	}
 
 	/**
 	 * Sets up the environment including buffer pools and netty threads.
@@ -113,9 +125,12 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	public void setUp(
 			int writers,
 			int channels,
+			boolean broadcastMode,
 			boolean localMode,
 			int senderBufferPoolSize,
-			int receiverBufferPoolSize) throws Exception {
+			int receiverBufferPoolSize,
+			Configuration config) throws Exception {
+		this.broadcastMode = broadcastMode;
 		this.localMode = localMode;
 		this.channels = channels;
 		this.partitionIds = new ResultPartitionID[writers];
@@ -128,13 +143,13 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 
 		ioManager = new IOManagerAsync();
 
-		senderEnv = createNettyNetworkEnvironment(senderBufferPoolSize);
+		senderEnv = createNettyNetworkEnvironment(senderBufferPoolSize, config);
 		senderEnv.start();
 		if (localMode && senderBufferPoolSize == receiverBufferPoolSize) {
 			receiverEnv = senderEnv;
 		}
 		else {
-			receiverEnv = createNettyNetworkEnvironment(receiverBufferPoolSize);
+			receiverEnv = createNettyNetworkEnvironment(receiverBufferPoolSize, config);
 			receiverEnv.start();
 		}
 
@@ -179,12 +194,25 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	}
 
 	private NetworkEnvironment createNettyNetworkEnvironment(
-			@SuppressWarnings("SameParameterValue") int bufferPoolSize) throws Exception {
+			@SuppressWarnings("SameParameterValue") int bufferPoolSize, Configuration config) throws Exception {
 
-		final NetworkBufferPool bufferPool = new NetworkBufferPool(bufferPoolSize, BUFFER_SIZE);
+		int segmentSize =
+			checkedDownCast(
+				MemorySize.parse(config.getString(TaskManagerOptions.MEMORY_SEGMENT_SIZE))
+					.getBytes());
+
+		// we need this because many configs have been written with a "-1" entry
+		// similar to TaskManagerServicesConfiguration#fromConfiguration()
+		// -> please note that this directly influences the number of netty threads!
+		int slots = config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
+		if (slots == -1) {
+			slots = 1;
+		}
+
+		final NetworkBufferPool bufferPool = new NetworkBufferPool(bufferPoolSize, segmentSize);
 
 		final NettyConnectionManager nettyConnectionManager = new NettyConnectionManager(
-			new NettyConfig(LOCAL_ADDRESS, 0, BUFFER_SIZE, NUM_SLOTS_AND_THREADS, new Configuration()));
+			new NettyConfig(LOCAL_ADDRESS, 0, segmentSize, slots, config));
 
 		return new NetworkEnvironment(
 			bufferPool,

@@ -145,8 +145,8 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 			mesosServices,
 			schedulerConfiguration,
 			taskManagerParameters,
-			taskManagerContainerSpec
-			);
+			taskManagerContainerSpec,
+			webInterfaceUrl);
 	}
 
 	@Override

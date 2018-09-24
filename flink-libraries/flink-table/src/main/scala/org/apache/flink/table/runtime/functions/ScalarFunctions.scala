@@ -19,8 +19,11 @@ package org.apache.flink.table.runtime.functions
 
 import java.lang.{StringBuilder, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
+import java.nio.charset.StandardCharsets
+import java.util.regex.Matcher
 
 import org.apache.commons.codec.binary.{Base64, Hex}
+import org.apache.commons.lang3.StringUtils
 
 import scala.annotation.varargs
 
@@ -203,15 +206,30 @@ object ScalarFunctions {
     new String(data)
   }
 
+
+  /**
+    * Returns a string resulting from replacing all substrings
+    * that match the regular expression with replacement.
+    */
+  def regexp_replace(str: String, regex: String, replacement: String): String = {
+    if (str == null || regex == null || replacement == null) {
+      return null
+    }
+
+    str.replaceAll(regex, Matcher.quoteReplacement(replacement))
+  }
+
   /**
     * Returns the base string decoded with base64.
     */
-  def fromBase64(str: String): String = new String(Base64.decodeBase64(str))
+  def fromBase64(str: String): String =
+    new String(Base64.decodeBase64(str), StandardCharsets.UTF_8)
 
   /**
     * Returns the base64-encoded result of the input string.
     */
-  def toBase64(base: String): String = Base64.encodeBase64String(base.getBytes())
+  def toBase64(base: String): String =
+    Base64.encodeBase64String(base.getBytes(StandardCharsets.UTF_8))
 
   /**
     * Returns the hex string of a long argument.
@@ -221,10 +239,17 @@ object ScalarFunctions {
   /**
     * Returns the hex string of a string argument.
     */
-  def hex(x: String): String = Hex.encodeHexString(x.getBytes).toUpperCase()
+  def hex(x: String): String =
+    Hex.encodeHexString(x.getBytes(StandardCharsets.UTF_8)).toUpperCase()
 
   /**
     * Returns an UUID string using Java utilities.
     */
   def uuid(): String = java.util.UUID.randomUUID().toString
+
+  /**
+    * Returns a string that repeats the base string n times.
+    */
+  def repeat(base: String, n: Int): String = StringUtils.repeat(base, n)
+
 }

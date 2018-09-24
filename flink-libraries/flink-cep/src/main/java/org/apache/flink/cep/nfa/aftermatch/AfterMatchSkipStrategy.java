@@ -20,7 +20,7 @@ package org.apache.flink.cep.nfa.aftermatch;
 
 import org.apache.flink.cep.nfa.ComputationState;
 import org.apache.flink.cep.nfa.sharedbuffer.EventId;
-import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
+import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -87,13 +87,13 @@ public abstract class AfterMatchSkipStrategy implements Serializable {
 	 *
 	 * @param matchesToPrune current partial matches
 	 * @param matchedResult  already completed matches
-	 * @param sharedBuffer   corresponding shared buffer
+	 * @param sharedBufferAccessor   accessor to corresponding shared buffer
 	 * @throws Exception thrown if could not access the state
 	 */
 	public void prune(
 			Collection<ComputationState> matchesToPrune,
 			Collection<Map<String, List<EventId>>> matchedResult,
-			SharedBuffer<?> sharedBuffer) throws Exception {
+			SharedBufferAccessor<?> sharedBufferAccessor) throws Exception {
 
 		EventId pruningId = getPruningId(matchedResult);
 		if (pruningId != null) {
@@ -101,7 +101,7 @@ public abstract class AfterMatchSkipStrategy implements Serializable {
 			for (ComputationState computationState : matchesToPrune) {
 				if (computationState.getStartEventID() != null &&
 					shouldPrune(computationState.getStartEventID(), pruningId)) {
-					sharedBuffer.releaseNode(computationState.getPreviousBufferEntry());
+					sharedBufferAccessor.releaseNode(computationState.getPreviousBufferEntry());
 					discardStates.add(computationState);
 				}
 			}

@@ -18,6 +18,8 @@
 
 package org.apache.flink.configuration.description;
 
+import java.util.EnumSet;
+
 /**
  * Formatter that transforms {@link Description} into Html representation.
  */
@@ -34,9 +36,22 @@ public class HtmlFormatter extends Formatter {
 	}
 
 	@Override
-	protected void formatText(StringBuilder state, String format, String[] elements) {
+	protected void formatText(
+			StringBuilder state,
+			String format,
+			String[] elements,
+			EnumSet<TextElement.TextStyle> styles) {
 		String escapedFormat = escapeCharacters(format);
+
+		String prefix = "";
+		String suffix = "";
+		if (styles.contains(TextElement.TextStyle.CODE)) {
+			prefix = "<span markdown=\"span\">`";
+			suffix = "`</span>";
+		}
+		state.append(prefix);
 		state.append(String.format(escapedFormat, elements));
+		state.append(suffix);
 	}
 
 	@Override

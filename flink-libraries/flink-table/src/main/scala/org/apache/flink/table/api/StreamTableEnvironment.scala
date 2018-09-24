@@ -126,7 +126,7 @@ abstract class StreamTableEnvironment(
         }
 
         // register
-        Option(getTable(name)) match {
+        getTable(name) match {
 
           // check if a table (source or sink) is registered
           case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
@@ -273,7 +273,7 @@ abstract class StreamTableEnvironment(
       case _: StreamTableSink[_] =>
 
         // check if a table (source or sink) is registered
-        Option(getTable(name)) match {
+        getTable(name) match {
 
           // table source and/or sink is registered
           case Some(table: TableSourceSinkTable[_, _]) => table.tableSinkTable match {
@@ -803,59 +803,29 @@ abstract class StreamTableEnvironment(
     * @return The optimized [[RelNode]] tree
     */
   private[flink] def optimize(relNode: RelNode, updatesAsRetraction: Boolean): RelNode = {
+    val convSubQueryPlan = optimizeConvertSubQueries(relNode)
+    val temporalTableJoinPlan = optimizeConvertToTemporalJoin(convSubQueryPlan)
+    val fullNode = optimizeConvertTableReferences(temporalTableJoinPlan)
+    val decorPlan = RelDecorrelator.decorrelateQuery(fullNode)
+    val planWithMaterializedTimeAttributes =
+      RelTimeIndicatorConverter.convert(decorPlan, getRelBuilder.getRexBuilder)
+    val normalizedPlan = optimizeNormalizeLogicalPlan(planWithMaterializedTimeAttributes)
+    val logicalPlan = optimizeLogicalPlan(normalizedPlan)
+    val physicalPlan = optimizePhysicalPlan(logicalPlan, FlinkConventions.DATASTREAM)
+    optimizeDecoratePlan(physicalPlan, updatesAsRetraction)
+  }
 
-    // 0. convert sub-queries before query decorrelation
-    val convSubQueryPlan = runHepPlanner(
-      HepMatchOrder.BOTTOM_UP, FlinkRuleSets.TABLE_SUBQUERY_RULES, relNode, relNode.getTraitSet)
-
-    // 0. convert table references
-    val fullRelNode = runHepPlanner(
-      HepMatchOrder.BOTTOM_UP,
-      FlinkRuleSets.TABLE_REF_RULES,
-      convSubQueryPlan,
-      relNode.getTraitSet)
-
-    // 1. decorrelate
-    val decorPlan = RelDecorrelator.decorrelateQuery(fullRelNode)
-
-    // 2. convert time indicators
-    val convPlan = RelTimeIndicatorConverter.convert(decorPlan, getRelBuilder.getRexBuilder)
-
-    // 3. normalize the logical plan
-    val normRuleSet = getNormRuleSet
-    val normalizedPlan = if (normRuleSet.iterator().hasNext) {
-      runHepPlanner(HepMatchOrder.BOTTOM_UP, normRuleSet, convPlan, convPlan.getTraitSet)
-    } else {
-      convPlan
-    }
-
-    // 4. optimize the logical Flink plan
-    val logicalOptRuleSet = getLogicalOptRuleSet
-    val logicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
-    val logicalPlan = if (logicalOptRuleSet.iterator().hasNext) {
-      runVolcanoPlanner(logicalOptRuleSet, normalizedPlan, logicalOutputProps)
-    } else {
-      normalizedPlan
-    }
-
-    // 5. optimize the physical Flink plan
-    val physicalOptRuleSet = getPhysicalOptRuleSet
-    val physicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.DATASTREAM).simplify()
-    val physicalPlan = if (physicalOptRuleSet.iterator().hasNext) {
-      runVolcanoPlanner(physicalOptRuleSet, logicalPlan, physicalOutputProps)
-    } else {
-      logicalPlan
-    }
-
-    // 6. decorate the optimized plan
+  private[flink] def optimizeDecoratePlan(
+      relNode: RelNode,
+      updatesAsRetraction: Boolean): RelNode = {
     val decoRuleSet = getDecoRuleSet
-    val decoratedPlan = if (decoRuleSet.iterator().hasNext) {
+    if (decoRuleSet.iterator().hasNext) {
       val planToDecorate = if (updatesAsRetraction) {
-        physicalPlan.copy(
-          physicalPlan.getTraitSet.plus(new UpdateAsRetractionTrait(true)),
-          physicalPlan.getInputs)
+        relNode.copy(
+          relNode.getTraitSet.plus(new UpdateAsRetractionTrait(true)),
+          relNode.getInputs)
       } else {
-        physicalPlan
+        relNode
       }
       runHepPlanner(
         HepMatchOrder.BOTTOM_UP,
@@ -863,10 +833,8 @@ abstract class StreamTableEnvironment(
         planToDecorate,
         planToDecorate.getTraitSet)
     } else {
-      physicalPlan
+      relNode
     }
-
-    decoratedPlan
   }
 
   /**

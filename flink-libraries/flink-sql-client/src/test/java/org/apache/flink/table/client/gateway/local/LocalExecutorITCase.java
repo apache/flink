@@ -36,6 +36,7 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.test.util.MiniClusterResource;
@@ -105,13 +106,61 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test
+	public void testValidateSession() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		executor.validateSession(session);
+
+		session.addView("AdditionalView1", "SELECT 1");
+		session.addView("AdditionalView2", "SELECT * FROM AdditionalView1");
+		executor.validateSession(session);
+
+		List<String> actualTables = executor.listTables(session);
+		List<String> expectedTables = Arrays.asList(
+			"AdditionalView1",
+			"AdditionalView2",
+			"TableNumber1",
+			"TableNumber2",
+			"TableSourceSink",
+			"TestView1",
+			"TestView2");
+		assertEquals(expectedTables, actualTables);
+
+		session.removeView("AdditionalView1");
+		try {
+			executor.validateSession(session);
+			fail();
+		} catch (SqlExecutionException e) {
+			// AdditionalView2 needs AdditionalView1
+		}
+
+		session.removeView("AdditionalView2");
+		executor.validateSession(session);
+
+		actualTables = executor.listTables(session);
+		expectedTables = Arrays.asList(
+			"TableNumber1",
+			"TableNumber2",
+			"TableSourceSink",
+			"TestView1",
+			"TestView2");
+		assertEquals(expectedTables, actualTables);
+	}
+
+	@Test
 	public void testListTables() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
 
 		final List<String> actualTables = executor.listTables(session);
 
-		final List<String> expectedTables = Arrays.asList("TableNumber1", "TableNumber2", "TableSourceSink");
+		final List<String> expectedTables = Arrays.asList(
+			"TableNumber1",
+			"TableNumber2",
+			"TableSourceSink",
+			"TestView1",
+			"TestView2");
 		assertEquals(expectedTables, actualTables);
 	}
 
@@ -149,6 +198,7 @@ public class LocalExecutorITCase extends TestLogger {
 		expectedProperties.put("execution.max-idle-state-retention", "0");
 		expectedProperties.put("execution.min-idle-state-retention", "0");
 		expectedProperties.put("execution.result-mode", "table");
+		expectedProperties.put("execution.max-table-result-rows", "100");
 		expectedProperties.put("execution.restart-strategy.type", "failure-rate");
 		expectedProperties.put("execution.restart-strategy.max-failures-per-interval", "10");
 		expectedProperties.put("execution.restart-strategy.failure-rate-interval", "99000");
@@ -215,38 +265,47 @@ public class LocalExecutorITCase extends TestLogger {
 	public void testStreamQueryExecutionTable() throws Exception {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
+
 		final Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_0", url.getPath());
 		replaceVars.put("$VAR_1", "/");
 		replaceVars.put("$VAR_2", "streaming");
 		replaceVars.put("$VAR_3", "table");
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
 
-		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
-		final SessionContext session = new SessionContext("test-session", new Environment());
+		final String query = "SELECT scalarUDF(IntegerField1), StringField1 FROM TableNumber1";
 
-		try {
-			// start job and retrieval
-			final ResultDescriptor desc = executor.executeQuery(
-				session,
-				"SELECT scalarUDF(IntegerField1), StringField1 FROM TableNumber1");
+		final List<String> expectedResults = new ArrayList<>();
+		expectedResults.add("47,Hello World");
+		expectedResults.add("27,Hello World");
+		expectedResults.add("37,Hello World");
+		expectedResults.add("37,Hello World");
+		expectedResults.add("47,Hello World");
+		expectedResults.add("57,Hello World!!!!");
 
-			assertTrue(desc.isMaterialized());
+		executeStreamQueryTable(replaceVars, query, expectedResults);
+	}
 
-			final List<String> actualResults = retrieveTableResult(executor, session, desc.getResultId());
+	@Test(timeout = 30_000L)
+	public void testStreamQueryExecutionLimitedTable() throws Exception {
+		final URL url = getClass().getClassLoader().getResource("test-data.csv");
+		Objects.requireNonNull(url);
 
-			final List<String> expectedResults = new ArrayList<>();
-			expectedResults.add("47,Hello World");
-			expectedResults.add("27,Hello World");
-			expectedResults.add("37,Hello World");
-			expectedResults.add("37,Hello World");
-			expectedResults.add("47,Hello World");
-			expectedResults.add("57,Hello World!!!!");
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_0", url.getPath());
+		replaceVars.put("$VAR_1", "/");
+		replaceVars.put("$VAR_2", "streaming");
+		replaceVars.put("$VAR_3", "table");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "1");
 
-			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
-		} finally {
-			executor.stop(session);
-		}
+		final String query = "SELECT COUNT(*), StringField1 FROM TableNumber1 GROUP BY StringField1";
+
+		final List<String> expectedResults = new ArrayList<>();
+		expectedResults.add("1,Hello World!!!!");
+
+		executeStreamQueryTable(replaceVars, query, expectedResults);
 	}
 
 	@Test(timeout = 30_000L)
@@ -264,19 +323,19 @@ public class LocalExecutorITCase extends TestLogger {
 		final SessionContext session = new SessionContext("test-session", new Environment());
 
 		try {
-			final ResultDescriptor desc = executor.executeQuery(session, "SELECT IntegerField1 FROM TableNumber1");
+			final ResultDescriptor desc = executor.executeQuery(session, "SELECT * FROM TestView1");
 
 			assertTrue(desc.isMaterialized());
 
 			final List<String> actualResults = retrieveTableResult(executor, session, desc.getResultId());
 
 			final List<String> expectedResults = new ArrayList<>();
-			expectedResults.add("42");
-			expectedResults.add("22");
-			expectedResults.add("32");
-			expectedResults.add("32");
-			expectedResults.add("42");
-			expectedResults.add("52");
+			expectedResults.add("47");
+			expectedResults.add("27");
+			expectedResults.add("37");
+			expectedResults.add("37");
+			expectedResults.add("47");
+			expectedResults.add("57");
 
 			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 		} finally {
@@ -326,6 +385,28 @@ public class LocalExecutorITCase extends TestLogger {
 		}
 	}
 
+	private void executeStreamQueryTable(
+			Map<String, String> replaceVars,
+			String query,
+			List<String> expectedResults) throws Exception {
+
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		try {
+			// start job and retrieval
+			final ResultDescriptor desc = executor.executeQuery(session, query);
+
+			assertTrue(desc.isMaterialized());
+
+			final List<String> actualResults = retrieveTableResult(executor, session, desc.getResultId());
+
+			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
+		} finally {
+			executor.stop(session);
+		}
+	}
+
 	private void verifySinkResult(String path) throws IOException {
 		final List<String> actualResults = new ArrayList<>();
 		TestBaseUtils.readAllResultLines(actualResults, path);
@@ -343,6 +424,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_2", "batch");
 		replaceVars.put("$VAR_UPDATE_MODE", "");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
 		return new LocalExecutor(
 			EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
 			Collections.emptyList(),

@@ -592,7 +592,7 @@ val output: DataSet[(Int, String, Double)] = input.sum(0).min(2)
       </td>
     </tr>
 
-    </tr>
+    <tr>
       <td><strong>Join</strong></td>
       <td>
         Joins two data sets by creating all pairs of elements that are equal on their keys.
@@ -608,7 +608,7 @@ val result = input1.join(input2).where(0).equalTo(1)
         describe whether the join happens through partitioning or broadcasting, and whether it uses
         a sort-based or a hash-based algorithm. Please refer to the
         <a href="dataset_transformations.html#join-algorithm-hints">Transformations Guide</a> for
-        a list of possible hints and an example.</br>
+        a list of possible hints and an example.<br />
         If no hint is specified, the system will try to make an estimate of the input sizes and
         pick the best strategy according to those estimates.
 {% highlight scala %}
@@ -699,7 +699,6 @@ val in: DataSet[(Int, String)] = // [...]
 val result = in.partitionByRange(0).mapPartition { ... }
 {% endhighlight %}
       </td>
-    </tr>
     </tr>
     <tr>
       <td><strong>Custom Partitioning</strong></td>
@@ -1615,7 +1614,7 @@ In object-reuse enabled mode, Flink's runtime minimizes the number of object ins
    <tr>
       <td><strong>Emitting Input Objects</strong></td>
       <td>
-        You <strong>must not</strong> emit input objects, except for input objects of MapFunction, FlatMapFunction, MapPartitionFunction, GroupReduceFunction, GroupCombineFunction, CoGroupFunction, and InputFormat.next(reuse).</td>
+        You <strong>must not</strong> emit input objects, except for input objects of MapFunction, FlatMapFunction, MapPartitionFunction, GroupReduceFunction, GroupCombineFunction, CoGroupFunction, and InputFormat.next(reuse).
       </td>
    </tr>
    <tr>

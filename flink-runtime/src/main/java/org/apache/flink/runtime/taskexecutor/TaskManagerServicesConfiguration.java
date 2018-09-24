@@ -85,8 +85,6 @@ public class TaskManagerServicesConfiguration {
 
 	private final boolean localRecoveryEnabled;
 
-	private boolean systemResourceMetricsEnabled;
-
 	private Optional<Time> systemResourceMetricsProbingInterval;
 
 	public TaskManagerServicesConfiguration(
@@ -121,7 +119,6 @@ public class TaskManagerServicesConfiguration {
 			"service shutdown timeout must be greater or equal to 0.");
 		this.timerServiceShutdownTimeout = timerServiceShutdownTimeout;
 
-		this.systemResourceMetricsEnabled = systemResourceMetricsEnabled;
 		this.systemResourceMetricsProbingInterval = checkNotNull(systemResourceMetricsProbingInterval);
 	}
 

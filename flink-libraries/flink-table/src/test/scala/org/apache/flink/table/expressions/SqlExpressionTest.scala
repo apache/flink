@@ -136,6 +136,8 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("TRIM(BOTH ' STRING ')", "STRING")
     testSqlApi("TRIM(LEADING 'x' FROM 'xxxxSTRINGxxxx')", "STRINGxxxx")
     testSqlApi("TRIM(TRAILING 'x' FROM 'xxxxSTRINGxxxx')", "xxxxSTRING")
+    testSqlApi("LTRIM(' This is a test String.')", "This is a test String.")
+    testSqlApi("RTRIM('This is a test String. ')", "This is a test String.")
     testSqlApi(
       "OVERLAY('This is an old string' PLACING ' new' FROM 10 FOR 5)",
       "This is a new string")
@@ -149,6 +151,10 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("RPAD('hi',4,'??')", "hi??")
     testSqlApi("FROM_BASE64('aGVsbG8gd29ybGQ=')", "hello world")
     testSqlApi("TO_BASE64('hello world')", "aGVsbG8gd29ybGQ=")
+    testSqlApi(
+      "REPEAT('This is a test String.', 2)",
+      "This is a test String.This is a test String.")
+    testSqlApi("REGEXP_REPLACE('foobar', 'oo|ar', '')", "fb")
   }
 
   @Test

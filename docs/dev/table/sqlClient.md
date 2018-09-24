@@ -61,7 +61,7 @@ By default, the SQL Client will read its configuration from the environment file
 Once the CLI has been started, you can use the `HELP` command to list all available SQL statements. For validating your setup and cluster connection, you can enter your first SQL query and press the `Enter` key to execute it:
 
 {% highlight sql %}
-SELECT 'Hello World'
+SELECT 'Hello World';
 {% endhighlight %}
 
 This query requires no table source and produces a single row result. The CLI will retrieve results from the cluster and visualize them. You can close the result view by pressing the `Q` key.
@@ -71,19 +71,19 @@ The CLI supports **two modes** for maintaining and visualizing results.
 The **table mode** materializes results in memory and visualizes them in a regular, paginated table representation. It can be enabled by executing the following command in the CLI:
 
 {% highlight text %}
-SET execution.result-mode=table
+SET execution.result-mode=table;
 {% endhighlight %}
 
 The **changelog mode** does not materialize results and visualizes the result stream that is produced by a [continuous query](streaming.html#dynamic-tables--continuous-queries) consisting of insertions (`+`) and retractions (`-`).
 
 {% highlight text %}
-SET execution.result-mode=changelog
+SET execution.result-mode=changelog;
 {% endhighlight %}
 
 You can use the following query to see both result modes in action:
 
 {% highlight sql %}
-SELECT name, COUNT(*) AS cnt FROM (VALUES ('Bob'), ('Alice'), ('Greg'), ('Bob')) AS NameTable(name) GROUP BY name 
+SELECT name, COUNT(*) AS cnt FROM (VALUES ('Bob'), ('Alice'), ('Greg'), ('Bob')) AS NameTable(name) GROUP BY name;
 {% endhighlight %}
 
 This query performs a bounded word count example.
@@ -106,7 +106,7 @@ Alice, 1
 Greg, 1
 {% endhighlight %}
 
-Both result modes can be useful during the prototyping of SQL queries.
+Both result modes can be useful during the prototyping of SQL queries. In both modes, results are stored in the Java heap memory of the SQL Client. In order to keep the CLI interface responsive, the changelog mode only shows the latest 1000 changes. The table mode allows for navigating through bigger results that are only limited by the available main memory and the configured [maximum number of rows](sqlClient.html#configuration) (`max-table-result-rows`).
 
 <span class="label label-danger">Attention</span> Queries that are executed in a batch environment, can only be retrieved using the `table` result mode.
 
@@ -162,11 +162,12 @@ A SQL query needs a configuration environment in which it is executed. The so-ca
 Every environment file is a regular [YAML file](http://yaml.org/). An example of such a file is presented below.
 
 {% highlight yaml %}
-# Define table sources here.
+# Define table sources and sinks here.
 
 tables:
   - name: MyTableSource
     type: source
+    update-mode: append
     connector:
       type: filesystem
       path: "/path/to/something.csv"
@@ -185,6 +186,12 @@ tables:
       - name: MyField2
         type: VARCHAR
 
+# Define table views here.
+
+views:
+  - name: MyCustomView
+    query: "SELECT MyField2 FROM MyTableSource"
+
 # Define user-defined functions here.
 
 functions:
@@ -200,6 +207,8 @@ functions:
 execution:
   type: streaming                   # required: execution mode either 'batch' or 'streaming'
   result-mode: table                # required: either 'table' or 'changelog'
+  max-table-result-rows: 1000000    # optional: maximum number of maintained rows in
+                                    #   'table' mode (1000000 by default, smaller 1 means unlimited)
   time-characteristic: event-time   # optional: 'processing-time' or 'event-time' (default)
   parallelism: 1                    # optional: Flink's parallelism (1 by default)
   periodic-watermarks-interval: 200 # optional: interval for periodic watermarks (200 ms by default)
@@ -207,7 +216,7 @@ execution:
   min-idle-state-retention: 0       # optional: table program's minimum idle state time
   max-idle-state-retention: 0       # optional: table program's maximum idle state time
   restart-strategy:                 # optional: restart strategy
-    type: fallback                  #           "fallback" to global restart strategy by default
+    type: fallback                  #   "fallback" to global restart strategy by default
 
 # Deployment properties allow for describing the cluster to which table programs are submitted to.
 
@@ -217,7 +226,8 @@ deployment:
 
 This configuration:
 
-- defines an environment with a table source `MyTableName` that reads from a CSV file,
+- defines an environment with a table source `MyTableSource` that reads from a CSV file,
+- defines a view `MyCustomView` that declares a virtual table using a SQL query,
 - defines a user-defined function `myUDF` that can be instantiated using the class name and two constructor parameters,
 - specifies a parallelism of 1 for queries executed in this streaming environment,
 - specifies an event-time characteristic, and
@@ -292,7 +302,7 @@ tables:
     format:
       property-version: 1
       type: json
-      schema: "ROW(rideId LONG, lon FLOAT, lat FLOAT, rideTime TIMESTAMP)"
+      schema: "ROW<rideId LONG, lon FLOAT, lat FLOAT, rideTime TIMESTAMP>"
     schema:
       - name: rideId
         type: LONG
@@ -404,7 +414,7 @@ This process can be recursively performed until all the constructor parameters a
 {% top %}
 
 Detached SQL Queries
-------------------------
+--------------------
 
 In order to define end-to-end SQL pipelines, SQL's `INSERT INTO` statement can be used for submitting long-running, detached queries to a Flink cluster. These queries produce their results into an external system instead of the SQL Client. This allows for dealing with higher parallelism and larger amounts of data. The CLI itself does not have any control over a detached query after submission.
 
@@ -456,6 +466,44 @@ Web interface: http://localhost:8081
 {% endhighlight %}
 
 <span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the detached query. Flink's [restart strategy]({{ site.baseurl }}/dev/restart_strategies.html) takes care of the fault-tolerance. A query can be cancelled using Flink's web interface, command-line, or REST API.
+
+{% top %}
+
+SQL Views
+---------
+
+Views allow to define virtual tables from SQL queries. The view definition is parsed and validated immediately. However, the actual execution happens when the view is accessed during the submission of a general `INSERT INTO` or `SELECT` statement.
+
+Views can either be defined in [environment files](sqlClient.html#environment-files) or within the CLI session.
+
+The following example shows how to define multiple views in a file:
+
+{% highlight yaml %}
+views:
+  - name: MyRestrictedView
+    query: "SELECT MyField2 FROM MyTableSource"
+  - name: MyComplexView
+    query: >
+      SELECT MyField2 + 42, CAST(MyField1 AS VARCHAR)
+      FROM MyTableSource
+      WHERE MyField2 > 200
+{% endhighlight %}
+
+Similar to table sources and sinks, views defined in a session environment file have highest precendence.
+
+Views can also be created within a CLI session using the `CREATE VIEW` statement:
+
+{% highlight text %}
+CREATE VIEW MyNewView AS SELECT MyField2 FROM MyTableSource;
+{% endhighlight %}
+
+Views created within a CLI session can also be removed again using the `DROP VIEW` statement:
+
+{% highlight text %}
+DROP VIEW MyNewView;
+{% endhighlight %}
+
+<span class="label label-danger">Attention</span> The definition of views is limited to the mentioned syntax above. Defining a schema for views or escape whitespaces in table names will be supported in future versions.
 
 {% top %}
 

@@ -20,6 +20,7 @@ package org.apache.flink.yarn.util;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FilenameFilter;
 
 /**
  * Utility methods for YARN tests.
@@ -32,5 +33,23 @@ public class YarnTestUtils {
 				+ "or build the jar using 'mvn process-test-classes' in flink-yarn-tests");
 		}
 		return f;
+	}
+
+	/**
+	 * Filename filter which finds the test jar for the given name.
+	 */
+	public static class TestJarFinder implements FilenameFilter {
+
+		private final String jarName;
+
+		public TestJarFinder(final String jarName) {
+			this.jarName = jarName;
+		}
+
+		@Override
+		public boolean accept(File dir, String name) {
+			return name.startsWith(jarName) && name.endsWith("-tests.jar") &&
+				dir.getAbsolutePath().contains(File.separator + jarName + File.separator);
+		}
 	}
 }

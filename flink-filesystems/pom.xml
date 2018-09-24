@@ -30,18 +30,45 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-
 	<artifactId>flink-filesystems</artifactId>
 	<name>flink-filesystems</name>
 	<packaging>pom</packaging>
 
+	<properties>
+		<fs.hadoopshaded.version>3.1.0</fs.hadoopshaded.version>
+	</properties>
+
 	<modules>
 		<module>flink-hadoop-fs</module>
 		<module>flink-mapr-fs</module>
+		<module>flink-fs-hadoop-shaded</module>
+		<module>flink-s3-fs-base</module>
 		<module>flink-s3-fs-hadoop</module>
 		<module>flink-s3-fs-presto</module>
 		<module>flink-swift-fs-hadoop</module>
 	</modules>
+
+	<!-- Common dependency setup for all filesystems -->
+	<dependencies>
+
+		<!-- The filesystems are extensions that can assume logger and JSR to be already provided -->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.google.code.findbugs</groupId>
+			<artifactId>jsr305</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Base testing tools -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils-junit</artifactId>
+		</dependency>
+	</dependencies>
 
 	<build>
 		<plugins>
@@ -62,12 +89,5 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
-
-	<dependencies>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils-junit</artifactId>
-		</dependency>
-	</dependencies>
 
 </project>

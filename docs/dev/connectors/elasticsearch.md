@@ -223,7 +223,7 @@ ElasticsearchSink.Builder<String> esSinkBuilder = new ElasticsearchSink.Builder<
 builder.setBulkFlushMaxActions(1);
 
 // provide a RestClientFactory for custom configuration on the internally created REST client
-builder.setRestClientBuilder(
+builder.setRestClientFactory(
   restClientBuilder -> {
     restClientBuilder.setDefaultHeaders(...)
     restClientBuilder.setMaxRetryTimeoutMillis(...)
@@ -360,7 +360,7 @@ val esSinkBuilder = new ElasticsearchSink.Builer[String](
 builder.setBulkFlushMaxActions(1)
 
 // provide a RestClientFactory for custom configuration on the internally created REST client
-builder.setRestClientBuilder(
+builder.setRestClientFactory(
   restClientBuilder -> {
     restClientBuilder.setDefaultHeaders(...)
     restClientBuilder.setMaxRetryTimeoutMillis(...)

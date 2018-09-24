@@ -43,6 +43,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
+import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -118,7 +119,7 @@ public class SlotManagerTest extends TestLogger {
 		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
 			slotManager.registerTaskManager(taskManagerConnection, slotReport);
 
-			assertTrue("The number registered slots does not equal the expected number.",2 == slotManager.getNumberRegisteredSlots());
+			assertTrue("The number registered slots does not equal the expected number.", 2 == slotManager.getNumberRegisteredSlots());
 
 			assertNotNull(slotManager.getSlot(slotId1));
 			assertNotNull(slotManager.getSlot(slotId2));
@@ -164,7 +165,7 @@ public class SlotManagerTest extends TestLogger {
 		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
 			slotManager.registerTaskManager(taskManagerConnection, slotReport);
 
-			assertTrue("The number registered slots does not equal the expected number.",2 == slotManager.getNumberRegisteredSlots());
+			assertTrue("The number registered slots does not equal the expected number.", 2 == slotManager.getNumberRegisteredSlots());
 
 			TaskManagerSlot slot1 = slotManager.getSlot(slotId1);
 			TaskManagerSlot slot2 = slotManager.getSlot(slotId2);
@@ -189,7 +190,7 @@ public class SlotManagerTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that a slot request with no free slots will trigger the resource allocation
+	 * Tests that a slot request with no free slots will trigger the resource allocation.
 	 */
 	@Test
 	public void testSlotRequestWithoutFreeSlots() throws Exception {
@@ -392,7 +393,7 @@ public class SlotManagerTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that freeing a slot will correctly reset the slot and mark it as a free slot
+	 * Tests that freeing a slot will correctly reset the slot and mark it as a free slot.
 	 */
 	@Test
 	public void testFreeSlot() throws Exception {
@@ -632,7 +633,6 @@ public class SlotManagerTest extends TestLogger {
 		final SlotID slotId1 = new SlotID(resourceId, 0);
 		final SlotID slotId2 = new SlotID(resourceId, 1);
 
-
 		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
 		final SlotStatus slotStatus1 = new SlotStatus(slotId1, resourceProfile);
 		final SlotStatus slotStatus2 = new SlotStatus(slotId2, resourceProfile);
@@ -766,7 +766,7 @@ public class SlotManagerTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that a slot request is retried if it times out on the task manager side
+	 * Tests that a slot request is retried if it times out on the task manager side.
 	 */
 	@Test
 	@SuppressWarnings("unchecked")
@@ -1061,7 +1061,7 @@ public class SlotManagerTest extends TestLogger {
 	 * A timeout should only trigger the {@link ResourceActions#releaseResource(InstanceID, Exception)}
 	 * callback. The receiver of the callback can then decide what to do with the TaskManager.
 	 *
-	 * FLINK-7793
+	 * <p>See FLINK-7793
 	 */
 	@Test
 	public void testTaskManagerTimeoutDoesNotRemoveSlots() throws Exception {
@@ -1213,6 +1213,71 @@ public class SlotManagerTest extends TestLogger {
 			final TaskManagerSlot slot = slotManager.getSlot(secondRequest.f0);
 			assertThat(slot.getState(), equalTo(TaskManagerSlot.State.ALLOCATED));
 			assertThat(slot.getAllocationId(), equalTo(secondRequest.f2));
+		}
+	}
+
+	/**
+	 * Tests that pending request is removed if task executor reports a slot with its allocation id.
+	 */
+	@Test
+	public void testSlotRequestRemovedIfTMReportAllocation() throws Exception {
+		try (final SlotManager slotManager = createSlotManager(ResourceManagerId.generate(),
+				new TestingResourceActionsBuilder().createTestingResourceActions())) {
+
+			final JobID jobID = new JobID();
+			final SlotRequest slotRequest1 = new SlotRequest(jobID, new AllocationID(), ResourceProfile.UNKNOWN, "foobar");
+			slotManager.registerSlotRequest(slotRequest1);
+
+			final BlockingQueue<Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId>> requestSlotQueue = new ArrayBlockingQueue<>(1);
+			final BlockingQueue<CompletableFuture<Acknowledge>> responseQueue = new ArrayBlockingQueue<>(1);
+
+			final TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
+					.setRequestSlotFunction(slotIDJobIDAllocationIDStringResourceManagerIdTuple5 -> {
+						requestSlotQueue.offer(slotIDJobIDAllocationIDStringResourceManagerIdTuple5);
+						try {
+							return responseQueue.take();
+						} catch (InterruptedException ignored) {
+							return FutureUtils.completedExceptionally(new FlinkException("Response queue was interrupted."));
+						}
+					})
+					.createTestingTaskExecutorGateway();
+
+			final ResourceID taskExecutorResourceId = ResourceID.generate();
+			final TaskExecutorConnection taskExecutionConnection = new TaskExecutorConnection(taskExecutorResourceId, testingTaskExecutorGateway);
+			final SlotReport slotReport = new SlotReport(new SlotStatus(new SlotID(taskExecutorResourceId, 0), ResourceProfile.UNKNOWN));
+
+			final CompletableFuture<Acknowledge> firstManualSlotRequestResponse = new CompletableFuture<>();
+			responseQueue.offer(firstManualSlotRequestResponse);
+
+			slotManager.registerTaskManager(taskExecutionConnection, slotReport);
+
+			final Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId> firstRequest = requestSlotQueue.take();
+
+			final CompletableFuture<Acknowledge> secondManualSlotRequestResponse = new CompletableFuture<>();
+			responseQueue.offer(secondManualSlotRequestResponse);
+
+			final SlotRequest slotRequest2 = new SlotRequest(jobID, new AllocationID(), ResourceProfile.UNKNOWN, "foobar");
+			slotManager.registerSlotRequest(slotRequest2);
+
+			// fail first request
+			firstManualSlotRequestResponse.completeExceptionally(new TimeoutException("Test exception to fail first allocation"));
+
+			final Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId> secondRequest = requestSlotQueue.take();
+
+			// fail second request
+			secondManualSlotRequestResponse.completeExceptionally(new SlotOccupiedException("Test exception", slotRequest1.getAllocationId(), jobID));
+
+			assertThat(firstRequest.f2, equalTo(slotRequest1.getAllocationId()));
+			assertThat(secondRequest.f2, equalTo(slotRequest2.getAllocationId()));
+			assertThat(secondRequest.f0, equalTo(firstRequest.f0));
+
+			secondManualSlotRequestResponse.complete(Acknowledge.get());
+
+			final TaskManagerSlot slot = slotManager.getSlot(secondRequest.f0);
+			assertThat(slot.getState(), equalTo(TaskManagerSlot.State.ALLOCATED));
+			assertThat(slot.getAllocationId(), equalTo(firstRequest.f2));
+
+			assertThat(slotManager.getNumberRegisteredSlots(), is(1));
 		}
 	}
 

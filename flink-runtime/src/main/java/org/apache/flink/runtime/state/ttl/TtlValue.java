@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.util.Preconditions;
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
 
@@ -28,15 +28,18 @@ import java.io.Serializable;
  * @param <T> Type of the user value of state with TTL
  */
 class TtlValue<T> implements Serializable {
+	private static final long serialVersionUID = 5221129704201125020L;
+
+	@Nullable
 	private final T userValue;
 	private final long lastAccessTimestamp;
 
-	TtlValue(T userValue, long lastAccessTimestamp) {
-		Preconditions.checkNotNull(userValue);
+	TtlValue(@Nullable T userValue, long lastAccessTimestamp) {
 		this.userValue = userValue;
 		this.lastAccessTimestamp = lastAccessTimestamp;
 	}
 
+	@Nullable
 	T getUserValue() {
 		return userValue;
 	}

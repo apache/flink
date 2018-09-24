@@ -2376,6 +2376,54 @@ TRIM([ BOTH | LEADING | TRAILING ] string1 FROM string2)
         <p>Returns a string that removes leading and/or trailing characters <i>string1</i> from <i>string2</i>. By default, whitespaces at both sides are removed.</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+LTRIM(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that removes the left whitespaces from <i>string</i>.</p> 
+        <p>E.g., <code>LTRIM(' This is a test String.')</code> returns "This is a test String.".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+RTRIM(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that removes the right whitespaces from <i>string</i>.</p> 
+        <p>E.g., <code>RTRIM('This is a test String. ')</code> returns "This is a test String.".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+REPEAT(string, integer)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that repeats the base <i>string</i> <i>integer</i> times.</p> 
+        <p>E.g., <code>REPEAT('This is a test String.', 2)</code> returns "This is a test String.This is a test String.".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+REGEXP_REPLACE(string1, string2, string3)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string from <i>string1</i> with all the substrings that match a regular expression <i>string2</i> consecutively being replaced with <i>string3</i>.</p> 
+        <p>E.g., <code>REGEXP_REPLACE('foobar', 'oo|ar', '')</code> returns "fb".</p>
+      </td>
+    </tr>
 
     <tr>
       <td>
@@ -2570,6 +2618,54 @@ STRING1.trim()
     <tr>
       <td>
         {% highlight java %}
+STRING.ltrim()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that removes the left whitespaces from <i>STRING</i>.</p> 
+        <p>E.g., <code>' This is a test String.'.ltrim()</code> returns "This is a test String.".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.rtrim()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that removes the right whitespaces from <i>STRING</i>.</p> 
+        <p>E.g., <code>'This is a test String. '.rtrim()</code> returns "This is a test String.".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.repeat(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that repeats the base <i>STRING</i> <i>INT</i> times.</p> 
+        <p>E.g., <code>'This is a test String.'.repeat(2)</code> returns "This is a test String.This is a test String.".</p>
+      </td>
+    </tr>    
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING1.regexpReplace(STRING2, STRING3)
+{% endhighlight %}
+      </td>
+       <td>
+         <p>Returns a string from <i>STRING1</i> with all the substrings that match a regular expression <i>STRING2</i> consecutively being replaced with <i>STRING3</i>.</p> 
+         <p>E.g., <code>'foobar'.regexpReplace('oo|ar', '')</code> returns "fb".</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight java %}
 STRING1.overlay(STRING2, INT1)
 STRING1.overlay(STRING2, INT1, INT2)
 {% endhighlight %}
@@ -2674,7 +2770,6 @@ STRING.toBase64()
          <p>E.g., <code>'hello world'.toBase64()</code> returns "aGVsbG8gd29ybGQ=".</p>
       </td>
     </tr>
-    
   </tbody>
 </table>
 </div>
@@ -2756,6 +2851,54 @@ STRING.trim(
       </td>
       <td>
         <p>Returns a string that removes leading and/or trailing characters from <i>STRING</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.ltrim()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that removes the left whitespaces from <i>STRING</i>.</p> 
+        <p>E.g., <code>" This is a test String.".ltrim()</code> returns "This is a test String.".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.rtrim()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that removes the right whitespaces from <i>STRING</i>.</p> 
+        <p>E.g., <code>"This is a test String. ".rtrim()</code> returns "This is a test String.".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.repeat(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that repeats the base <i>STRING</i> <i>INT</i> times.</p> 
+        <p>E.g., <code>"This is a test String.".repeat(2)</code> returns "This is a test String.This is a test String.".</p>
+      </td>
+    </tr> 
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING1.regexpReplace(STRING2, STRING3)
+{% endhighlight %}
+      </td>
+       <td>
+         <p>Returns a string from <i>STRING1</i> with all the substrings that match a regular expression <i>STRING2</i> consecutively being replaced with <i>STRING3</i>.</p> 
+         <p>E.g. <code>"foobar".regexpReplace("oo|ar", "")</code> returns "fb".</p>
       </td>
     </tr>
 

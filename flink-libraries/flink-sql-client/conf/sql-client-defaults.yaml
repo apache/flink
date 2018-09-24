@@ -25,7 +25,7 @@
 
 
 #==============================================================================
-# Table Sources
+# Table Sources & Sinks
 #==============================================================================
 
 # Define table sources and sinks here.
@@ -37,6 +37,17 @@ tables: [] # empty list
 #   connector: ...
 #   format: ...
 #   schema: ...
+
+#==============================================================================
+# Table Views
+#==============================================================================
+
+# Define frequently used SQL queries here that define a virtual table.
+
+views: [] # empty list
+# A typical view definition looks like:
+# - name: ...
+#   query: "SELECT ..."
 
 #==============================================================================
 # User-defined functions
@@ -65,7 +76,9 @@ execution:
   # interval in ms for emitting periodic watermarks
   periodic-watermarks-interval: 200
   # 'changelog' or 'table' presentation of results
-  result-mode: changelog
+  result-mode: table
+  # maximum number of maintained rows in 'table' presentation of results
+  max-table-result-rows: 1000000
   # parallelism of the program
   parallelism: 1
   # maximum parallelism

@@ -21,20 +21,23 @@ package org.apache.flink.table.utils
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.{DataSet => JDataSet, ExecutionEnvironment => JExecutionEnvironment}
+import org.apache.flink.api.java.{LocalEnvironment, DataSet => JDataSet, ExecutionEnvironment => JExecutionEnvironment}
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
-import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecutionEnvironment}
-import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
+import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment => JStreamExecutionEnvironment}
+import org.apache.flink.streaming.api.functions.source.SourceFunction
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{Table, TableEnvironment, TableSchema}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.junit.Assert.assertEquals
-import org.junit.Rule
+import org.junit.{ComparisonFailure, Rule}
 import org.junit.rules.ExpectedException
 import org.mockito.Mockito.{mock, when}
+
+import util.control.Breaks._
 
 /**
   * Test base for testing Table API / SQL plans.
@@ -98,16 +101,47 @@ abstract class TableTestUtil {
     // we remove the charset for testing because it
     // depends on the native machine (Little/Big Endian)
     val actualNoCharset = actual.replace("_UTF-16LE'", "'").replace("_UTF-16BE'", "'")
-    assertEquals(
-      expected.split("\n").map(_.trim).mkString("\n"),
-      actualNoCharset.split("\n").map(_.trim).mkString("\n"))
+
+    val expectedLines = expected.split("\n").map(_.trim)
+    val actualLines = actualNoCharset.split("\n").map(_.trim)
+
+    val expectedMessage = expectedLines.mkString("\n")
+    val actualMessage = actualLines.mkString("\n")
+
+    breakable {
+      for ((expectedLine, actualLine) <- expectedLines.zip(actualLines)) {
+        if (expectedLine == TableTestUtil.ANY_NODE) {
+        }
+        else if (expectedLine == TableTestUtil.ANY_SUBTREE) {
+          break
+        }
+        else if (expectedLine != actualLine) {
+          throw new ComparisonFailure(null, expectedMessage, actualMessage)
+        }
+      }
+    }
   }
+
+  def explain(resultTable: Table): String
 }
 
 object TableTestUtil {
+  val ANY_NODE = "%ANY_NODE%"
+
+  val ANY_SUBTREE = "%ANY_SUBTREE%"
 
   // this methods are currently just for simplifying string construction,
   // we could replace it with logic later
+
+  def unaryAnyNode(input: String): String = {
+    s"""$ANY_NODE
+       |$input
+       |""".stripMargin.stripLineEnd
+  }
+
+  def anySubtree(): String = {
+    ANY_SUBTREE
+  }
 
   def unaryNode(node: String, input: String, term: String*): String = {
     s"""$node(${term.mkString(", ")})
@@ -152,9 +186,9 @@ object TableTestUtil {
 }
 
 case class BatchTableTestUtil() extends TableTestUtil {
-  val javaEnv = mock(classOf[JExecutionEnvironment])
+  val javaEnv = new LocalEnvironment()
   val javaTableEnv = TableEnvironment.getTableEnvironment(javaEnv)
-  val env = mock(classOf[ExecutionEnvironment])
+  val env = new ExecutionEnvironment(javaEnv)
   val tableEnv = TableEnvironment.getTableEnvironment(env)
 
   def addTable[T: TypeInformation](
@@ -229,14 +263,18 @@ case class BatchTableTestUtil() extends TableTestUtil {
   def printSql(query: String): Unit = {
     printTable(tableEnv.sqlQuery(query))
   }
+
+  def explain(resultTable: Table): String = {
+    tableEnv.explain(resultTable)
+  }
 }
 
 case class StreamTableTestUtil() extends TableTestUtil {
-  val javaEnv = mock(classOf[JStreamExecutionEnvironment])
-  when(javaEnv.getStreamTimeCharacteristic).thenReturn(TimeCharacteristic.EventTime)
+  val javaEnv = new LocalStreamEnvironment()
+  javaEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+
   val javaTableEnv = TableEnvironment.getTableEnvironment(javaEnv)
-  val env = mock(classOf[StreamExecutionEnvironment])
-  when(env.getWrappedStreamExecutionEnvironment).thenReturn(javaEnv)
+  val env = new StreamExecutionEnvironment(javaEnv)
   val tableEnv = TableEnvironment.getTableEnvironment(env)
 
   def addTable[T: TypeInformation](
@@ -244,25 +282,16 @@ case class StreamTableTestUtil() extends TableTestUtil {
       fields: Expression*)
     : Table = {
 
-    val ds = mock(classOf[DataStream[T]])
-    val jDs = mock(classOf[JDataStream[T]])
-    when(ds.javaStream).thenReturn(jDs)
-    val typeInfo: TypeInformation[T] = implicitly[TypeInformation[T]]
-    when(jDs.getType).thenReturn(typeInfo)
-
-    val t = ds.toTable(tableEnv, fields: _*)
-    tableEnv.registerTable(name, t)
-    t
+    val table = env.fromElements().toTable(tableEnv, fields: _*)
+    tableEnv.registerTable(name, table)
+    table
   }
 
   def addJavaTable[T](typeInfo: TypeInformation[T], name: String, fields: String): Table = {
-
-    val jDs = mock(classOf[JDataStream[T]])
-    when(jDs.getType).thenReturn(typeInfo)
-
-    val t = javaTableEnv.fromDataStream(jDs, fields)
-    javaTableEnv.registerTable(name, t)
-    t
+    val stream = javaEnv.addSource(new EmptySource[T], typeInfo)
+    val table = javaTableEnv.fromDataStream(stream, fields)
+    javaTableEnv.registerTable(name, table)
+    table
   }
 
   def addFunction[T: TypeInformation](
@@ -325,5 +354,17 @@ case class StreamTableTestUtil() extends TableTestUtil {
 
   def printSql(query: String): Unit = {
     printTable(tableEnv.sqlQuery(query))
+  }
+
+  def explain(resultTable: Table): String = {
+    tableEnv.explain(resultTable)
+  }
+}
+
+class EmptySource[T]() extends SourceFunction[T] {
+  override def run(ctx: SourceFunction.SourceContext[T]): Unit = {
+  }
+
+  override def cancel(): Unit = {
   }
 }

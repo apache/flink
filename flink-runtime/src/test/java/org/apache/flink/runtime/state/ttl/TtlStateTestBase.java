@@ -69,6 +69,7 @@ public abstract class TtlStateTestBase {
 			new TtlListStateTestContext(),
 			new TtlMapStateAllEntriesTestContext(),
 			new TtlMapStatePerElementTestContext(),
+			new TtlMapStatePerNullElementTestContext(),
 			new TtlAggregatingStateTestContext(),
 			new TtlReducingStateTestContext(),
 			new TtlFoldingStateTestContext());

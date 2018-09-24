@@ -21,7 +21,7 @@ package org.apache.flink.contrib.streaming.state.iterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.contrib.streaming.state.RocksDBKeySerializationUtils;
 import org.apache.flink.contrib.streaming.state.RocksIteratorWrapper;
-import org.apache.flink.core.memory.ByteArrayDataInputView;
+import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nonnull;
@@ -53,7 +53,7 @@ public class RocksStateKeysIterator<K> implements Iterator<K>, AutoCloseable {
 
 	private final boolean ambiguousKeyPossible;
 	private final int keyGroupPrefixBytes;
-	private final ByteArrayDataInputView byteArrayDataInputView;
+	private final DataInputDeserializer byteArrayDataInputView;
 	private K nextKey;
 	private K previousKey;
 
@@ -72,7 +72,7 @@ public class RocksStateKeysIterator<K> implements Iterator<K>, AutoCloseable {
 		this.nextKey = null;
 		this.previousKey = null;
 		this.ambiguousKeyPossible = ambiguousKeyPossible;
-		this.byteArrayDataInputView = new ByteArrayDataInputView();
+		this.byteArrayDataInputView = new DataInputDeserializer();
 	}
 
 	@Override
@@ -107,8 +107,8 @@ public class RocksStateKeysIterator<K> implements Iterator<K>, AutoCloseable {
 		return tmpKey;
 	}
 
-	private K deserializeKey(byte[] keyBytes, ByteArrayDataInputView readView) throws IOException {
-		readView.setData(keyBytes, keyGroupPrefixBytes, keyBytes.length - keyGroupPrefixBytes);
+	private K deserializeKey(byte[] keyBytes, DataInputDeserializer readView) throws IOException {
+		readView.setBuffer(keyBytes, keyGroupPrefixBytes, keyBytes.length - keyGroupPrefixBytes);
 		return RocksDBKeySerializationUtils.readKey(
 			keySerializer,
 			byteArrayDataInputView,

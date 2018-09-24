@@ -75,6 +75,18 @@ function start_kafka_cluster {
 function stop_kafka_cluster {
   $KAFKA_DIR/bin/kafka-server-stop.sh
   $KAFKA_DIR/bin/zookeeper-server-stop.sh
+
+  PIDS=$(jps -vl | grep -i 'kafka\.Kafka' | grep java | grep -v grep | awk '{print $1}')
+
+  if [ ! -z "$PIDS" ]; then
+    kill -s TERM $PIDS
+  fi
+
+  PIDS=$(jps -vl | grep java | grep -i QuorumPeerMain | grep -v grep | awk '{print $1}')
+
+  if [ ! -z "$PIDS" ]; then
+    kill -s TERM $PIDS
+  fi
 }
 
 function create_kafka_topic {

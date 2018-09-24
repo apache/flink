@@ -96,7 +96,7 @@ class ExternalCatalogSchema(
 
   override def getFunctionNames: JSet[String] = JCollections.emptySet[String]
 
-  override def getTableNames: JSet[String] = JCollections.emptySet[String]
+  override def getTableNames: JSet[String] = new JLinkedHashSet(catalog.listTables())
 
   override def snapshot(v: SchemaVersion): Schema = this
 

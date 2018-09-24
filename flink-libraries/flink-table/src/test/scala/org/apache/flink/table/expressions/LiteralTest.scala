@@ -20,8 +20,8 @@ package org.apache.flink.table.expressions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.{ExpressionTestBase, Func3}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.types.Row
@@ -86,6 +86,91 @@ class LiteralTest extends ExpressionTestBase {
       s"Func3(42, '$hello')",
       s"Func3(42, '$hello')",
       s"42 and $hello")
+  }
+
+  @Test
+  def testStringLiterals(): Unit = {
+
+    // these tests use Java/Scala escaping for non-quoting unicode characters
+
+    testAllApis(
+      ">\n<",
+      "'>\n<'",
+      "'>\n<'",
+      ">\n<")
+
+    testAllApis(
+      ">\u263A<",
+      "'>\u263A<'",
+      "'>\u263A<'",
+      ">\u263A<")
+
+    testAllApis(
+      ">\u263A<",
+      "'>\u263A<'",
+      "'>\u263A<'",
+      ">\u263A<")
+
+    testAllApis(
+      ">\\<",
+      "'>\\<'",
+      "'>\\<'",
+      ">\\<")
+
+    testAllApis(
+      ">'<",
+      "'>''<'",
+      "'>''<'",
+      ">'<")
+
+    testAllApis(
+      " ",
+      "' '",
+      "' '",
+      " ")
+
+    testAllApis(
+      "",
+      "''",
+      "''",
+      "")
+
+    testAllApis(
+      ">foo([\\w]+)<",
+      "'>foo([\\w]+)<'",
+      "'>foo([\\w]+)<'",
+      ">foo([\\w]+)<")
+
+    testAllApis(
+      ">\\'\n<",
+      "\">\\'\n<\"",
+      "'>\\''\n<'",
+      ">\\'\n<")
+
+    testAllApis(
+      "It's me.",
+      "'It''s me.'",
+      "'It''s me.'",
+      "It's me.")
+
+    testTableApi(
+      """I "like" dogs.""",
+      """"I ""like"" dogs."""",
+      """I "like" dogs.""")
+
+    // these test use SQL for describing unicode characters
+
+    testSqlApi(
+      "U&'>\\263A<'", // default escape backslash
+      ">\u263A<")
+
+    testSqlApi(
+      "U&'>#263A<' UESCAPE '#'", // custom escape '#'
+      ">\u263A<")
+
+    testSqlApi(
+      """'>\\<'""",
+      ">\\\\<")
   }
 
   def testData: Any = {

@@ -27,7 +27,7 @@ under the License.
 
 ## Reading from file systems
 
-Flink has build-in support for the following file systems:
+Flink has built-in support for the following file systems:
 
 | Filesystem                            | Scheme       | Notes  |
 | ------------------------------------- |--------------| ------ |
@@ -86,7 +86,7 @@ This section shows some examples for connecting Flink to other systems.
 
 ## Avro support in Flink
 
-Flink has extensive build-in support for [Apache Avro](http://avro.apache.org/). This allows to easily read from Avro files with Flink.
+Flink has extensive built-in support for [Apache Avro](http://avro.apache.org/). This allows to easily read from Avro files with Flink.
 Also, the serialization framework of Flink is able to handle classes generated from Avro schemas. Be sure to include the Flink Avro dependency to the pom.xml of your project.
 
 {% highlight xml %}

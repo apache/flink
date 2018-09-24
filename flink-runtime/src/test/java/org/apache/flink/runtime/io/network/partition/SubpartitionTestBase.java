@@ -207,6 +207,8 @@ public abstract class SubpartitionTestBase extends TestLogger {
 			assertEquals("backlog", expectedBuffersInBacklog, bufferAndBacklog.buffersInBacklog());
 			assertEquals("next is event", expectedNextBufferIsEvent,
 				bufferAndBacklog.nextBufferIsEvent());
+			assertEquals("next is event", expectedNextBufferIsEvent,
+				readView.nextBufferIsEvent());
 
 			assertFalse("not recycled", bufferAndBacklog.buffer().isRecycled());
 		} finally {
@@ -215,7 +217,7 @@ public abstract class SubpartitionTestBase extends TestLogger {
 		assertEquals("recycled", expectedRecycledAfterRecycle, bufferAndBacklog.buffer().isRecycled());
 	}
 
-	protected void assertNoNextBuffer(ResultSubpartitionView readView) throws IOException, InterruptedException {
+	static void assertNoNextBuffer(ResultSubpartitionView readView) throws IOException, InterruptedException {
 		assertNull(readView.getNextBuffer());
 	}
 }
