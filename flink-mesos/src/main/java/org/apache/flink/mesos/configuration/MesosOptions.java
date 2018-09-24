@@ -136,7 +136,8 @@ public class MesosOptions {
 	/**
 	 * Config parameter to configure which configuration keys will dynamically get a port assigned through Mesos.
 	 */
-	public static final ConfigOption<String> PORT_ASSIGNMENTS = key("mesos.resourcemanager.tasks.port-assignments")
+	public static final ConfigOption<String> PORT_ASSIGNMENTS =
+		key("mesos.resourcemanager.tasks.port-assignments")
 		.noDefaultValue()
 		.withDescription(Description.builder()
 			.text("Comma-separated list of configuration keys which represent a configurable port. " +
