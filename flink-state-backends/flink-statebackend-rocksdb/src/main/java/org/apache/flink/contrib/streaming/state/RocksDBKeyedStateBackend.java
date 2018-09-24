@@ -37,7 +37,6 @@ import org.apache.flink.contrib.streaming.state.snapshot.RocksDBSnapshotStrategy
 import org.apache.flink.contrib.streaming.state.snapshot.RocksFullSnapshotStrategy;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksIncrementalSnapshotStrategy;
 import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -127,6 +126,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.contrib.streaming.state.RocksDbStateDataTransfer.transferAllStateDataToDirectory;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.END_OF_KEY_GROUP_MARK;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.SST_FILE_SUFFIX;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.clearMetaDataFollowsFlag;
@@ -217,6 +217,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** True if incremental checkpointing is enabled. */
 	private final boolean enableIncrementalCheckpointing;
 
+	/** Thread number used to download from DFS when restore. */
+	private final int restoringThreadNum;
+
 	/** The configuration of local recovery. */
 	private final LocalRecoveryConfig localRecoveryConfig;
 
@@ -251,6 +254,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		KeyGroupRange keyGroupRange,
 		ExecutionConfig executionConfig,
 		boolean enableIncrementalCheckpointing,
+		int restoringThreadNum,
 		LocalRecoveryConfig localRecoveryConfig,
 		RocksDBStateBackend.PriorityQueueStateType priorityQueueStateType,
 		TtlTimeProvider ttlTimeProvider,
@@ -264,6 +268,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.operatorIdentifier = Preconditions.checkNotNull(operatorIdentifier);
 
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
+		this.restoringThreadNum = restoringThreadNum;
 		this.rocksDBResourceGuard = new ResourceGuard();
 
 		// ensure that we use the right merge operator, because other code relies on this
@@ -494,7 +499,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		LOG.info("Initializing RocksDB keyed state backend.");
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Restoring snapshot from state handles: {}.", restoreState);
+			LOG.debug("Restoring snapshot from state handles: {}, will use {} thread(s) to download files from DFS.", restoreState, restoringThreadNum);
 		}
 
 		// clear all meta data
@@ -876,7 +881,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					IncrementalKeyedStateHandle restoreStateHandle = (IncrementalKeyedStateHandle) rawStateHandle;
 
 					// read state data.
-					transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath);
+					transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath, stateBackend.restoringThreadNum, stateBackend.cancelStreamRegistry);
 
 					stateMetaInfoSnapshots = readMetaData(restoreStateHandle.getMetaStateHandle());
 					columnFamilyDescriptors = createAndRegisterColumnFamilyDescriptors(stateMetaInfoSnapshots);
@@ -1029,7 +1034,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			IncrementalKeyedStateHandle restoreStateHandle,
 			Path temporaryRestoreInstancePath) throws Exception {
 
-			transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath);
+			transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath, stateBackend.restoringThreadNum, stateBackend.cancelStreamRegistry);
 
 			// read meta data
 			List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
@@ -1271,74 +1276,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			} finally {
 				if (stateBackend.cancelStreamRegistry.unregisterCloseable(inputStream)) {
 					inputStream.close();
-				}
-			}
-		}
-
-		private void transferAllStateDataToDirectory(
-			IncrementalKeyedStateHandle restoreStateHandle,
-			Path dest) throws IOException {
-
-			final Map<StateHandleID, StreamStateHandle> sstFiles =
-				restoreStateHandle.getSharedState();
-			final Map<StateHandleID, StreamStateHandle> miscFiles =
-				restoreStateHandle.getPrivateState();
-
-			transferAllDataFromStateHandles(sstFiles, dest);
-			transferAllDataFromStateHandles(miscFiles, dest);
-		}
-
-		/**
-		 * Copies all the files from the given stream state handles to the given path, renaming the files w.r.t. their
-		 * {@link StateHandleID}.
-		 */
-		private void transferAllDataFromStateHandles(
-			Map<StateHandleID, StreamStateHandle> stateHandleMap,
-			Path restoreInstancePath) throws IOException {
-
-			for (Map.Entry<StateHandleID, StreamStateHandle> entry : stateHandleMap.entrySet()) {
-				StateHandleID stateHandleID = entry.getKey();
-				StreamStateHandle remoteFileHandle = entry.getValue();
-				copyStateDataHandleData(new Path(restoreInstancePath, stateHandleID.toString()), remoteFileHandle);
-			}
-
-		}
-
-		/**
-		 * Copies the file from a single state handle to the given path.
-		 */
-		private void copyStateDataHandleData(
-			Path restoreFilePath,
-			StreamStateHandle remoteFileHandle) throws IOException {
-
-			FileSystem restoreFileSystem = restoreFilePath.getFileSystem();
-
-			FSDataInputStream inputStream = null;
-			FSDataOutputStream outputStream = null;
-
-			try {
-				inputStream = remoteFileHandle.openInputStream();
-				stateBackend.cancelStreamRegistry.registerCloseable(inputStream);
-
-				outputStream = restoreFileSystem.create(restoreFilePath, FileSystem.WriteMode.OVERWRITE);
-				stateBackend.cancelStreamRegistry.registerCloseable(outputStream);
-
-				byte[] buffer = new byte[8 * 1024];
-				while (true) {
-					int numBytes = inputStream.read(buffer);
-					if (numBytes == -1) {
-						break;
-					}
-
-					outputStream.write(buffer, 0, numBytes);
-				}
-			} finally {
-				if (stateBackend.cancelStreamRegistry.unregisterCloseable(inputStream)) {
-					inputStream.close();
-				}
-
-				if (stateBackend.cancelStreamRegistry.unregisterCloseable(outputStream)) {
-					outputStream.close();
 				}
 			}
 		}
