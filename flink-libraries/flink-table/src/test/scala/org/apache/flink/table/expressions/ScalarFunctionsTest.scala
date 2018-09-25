@@ -2248,6 +2248,139 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testTimestampDiff(): Unit = {
+    val dataMap = Map(
+      ("DAY", TimePointUnit.DAY, "SQL_TSI_DAY") -> Seq(
+        ("2018-07-03 11:11:11", "2018-07-05 11:11:11", "2"), //timestamp, timestamp
+        ("2016-06-15", "2016-06-16 11:11:11", "1"), //date, timestamp
+        ("2016-06-15 11:00:00", "2016-06-19", "3"), //timestamp, date
+        ("2016-06-15", "2016-06-18", "3") //date, date
+      ),
+      ("HOUR", TimePointUnit.HOUR, "SQL_TSI_HOUR") -> Seq(
+        ("2018-07-03 11:11:11", "2018-07-04 12:12:11", "25"),
+        ("2016-06-15", "2016-06-16 11:11:11", "35"),
+        ("2016-06-15 11:00:00", "2016-06-19", "85"),
+        ("2016-06-15", "2016-06-12", "-72")
+      ),
+      ("MINUTE", TimePointUnit.MINUTE, "SQL_TSI_MINUTE") -> Seq(
+        ("2018-07-03 11:11:11", "2018-07-03 12:10:11", "59"),
+        ("2016-06-15", "2016-06-16 11:11:11", "2111"),
+        ("2016-06-15 11:00:00", "2016-06-19", "5100"),
+        ("2016-06-15", "2016-06-18", "4320")
+      ),
+      ("SECOND", TimePointUnit.SECOND, "SQL_TSI_SECOND") -> Seq(
+        ("2018-07-03 11:11:11", "2018-07-03 11:12:12", "61"),
+        ("2016-06-15", "2016-06-16 11:11:11", "126671"),
+        ("2016-06-15 11:00:00", "2016-06-19", "306000"),
+        ("2016-06-15", "2016-06-18", "259200")
+      ),
+      ("WEEK", TimePointUnit.WEEK, "SQL_TSI_WEEK") -> Seq(
+        ("2018-05-03 11:11:11", "2018-07-03 11:12:12", "8"),
+        ("2016-04-15", "2016-07-16 11:11:11", "13"),
+        ("2016-04-15 11:00:00", "2016-09-19", "22"),
+        ("2016-08-15", "2016-06-18", "-8")
+      ),
+      ("MONTH", TimePointUnit.MONTH, "SQL_TSI_MONTH") -> Seq(
+        ("2018-07-03 11:11:11", "2018-09-05 11:11:11", "2"),
+        ("2016-06-15", "2018-06-16 11:11:11", "24"),
+        ("2016-06-15 11:00:00", "2018-05-19", "23"),
+        ("2016-06-15", "2018-03-18", "21")
+      ),
+      ("QUARTER", TimePointUnit.QUARTER, "SQL_TSI_QUARTER") -> Seq(
+        ("2018-01-03 11:11:11", "2018-09-05 11:11:11", "2"),
+        ("2016-06-15", "2018-06-16 11:11:11", "8"),
+        ("2016-06-15 11:00:00", "2018-05-19", "7"),
+        ("2016-06-15", "2018-03-18", "7")
+      ),
+      ("YEAR", TimePointUnit.YEAR, "SQL_TSI_YEAR") -> Seq(
+        ("2016-01-03 11:11:11", "2018-09-05 11:11:11", "2"),
+        ("2010-06-15", "2018-06-16 11:11:11", "8"),
+        ("2016-06-15 11:00:00", "2018-05-19", "1"),
+        ("2018-06-15", "2011-03-18", "-7")
+      )
+    )
+
+    for ((unitparts, dataparts) <- dataMap) {
+      for ((data,index) <- dataparts.zipWithIndex) {
+        index match {
+          case 0 => // timestamp, timestamp
+            testAllApis(
+              timestampDiff(unitparts._2, data._1.toTimestamp, data._2.toTimestamp),
+              s"timestampDiff(${unitparts._1}, '${data._1}'.toTimestamp, '${data._2}'.toTimestamp)",
+              s"TIMESTAMPDIFF(${unitparts._1}, TIMESTAMP '${data._1}', TIMESTAMP '${data._2}')",
+              data._3
+            )
+            testSqlApi(  // sql tsi
+              s"TIMESTAMPDIFF(${unitparts._3}, TIMESTAMP '${data._1}', TIMESTAMP '${data._2}')",
+              data._3
+            )
+          case 1 => // date, timestamp
+            testAllApis(
+              timestampDiff(unitparts._2, data._1.toDate, data._2.toTimestamp),
+              s"timestampDiff(${unitparts._1}, '${data._1}'.toDate, '${data._2}'.toTimestamp)",
+              s"TIMESTAMPDIFF(${unitparts._1}, DATE '${data._1}', TIMESTAMP '${data._2}')",
+              data._3
+            )
+            testSqlApi( // sql tsi
+              s"TIMESTAMPDIFF(${unitparts._3}, DATE '${data._1}', TIMESTAMP '${data._2}')",
+              data._3
+            )
+          case 2 => // timestamp, date
+            testAllApis(
+              timestampDiff(unitparts._2, data._1.toTimestamp, data._2.toDate),
+              s"timestampDiff(${unitparts._1}, '${data._1}'.toTimestamp, '${data._2}'.toDate)",
+              s"TIMESTAMPDIFF(${unitparts._1}, TIMESTAMP '${data._1}', DATE '${data._2}')",
+              data._3
+            )
+            testSqlApi( // sql tsi
+              s"TIMESTAMPDIFF(${unitparts._3}, TIMESTAMP '${data._1}', DATE '${data._2}')",
+              data._3
+            )
+          case 3 => // date, date
+            testAllApis(
+              timestampDiff(unitparts._2, data._1.toDate, data._2.toDate),
+              s"timestampDiff(${unitparts._1}, '${data._1}'.toDate, '${data._2}'.toDate)",
+              s"TIMESTAMPDIFF(${unitparts._1}, DATE '${data._1}', DATE '${data._2}')",
+              data._3
+            )
+            testSqlApi( // sql tsi
+              s"TIMESTAMPDIFF(${unitparts._3}, DATE '${data._1}', DATE '${data._2}')",
+              data._3
+            )
+        }
+      }
+    }
+
+    testTableApi(
+      "2018-07-05 11:11:11".toTimestamp - "2018-07-03 11:11:11".toTimestamp,
+      "'2018-07-05 11:11:11'.toTimestamp - '2018-07-03 11:11:11'.toTimestamp",
+      "172800000"
+    )
+
+    testTableApi(
+      "2018-07-05".toDate - "2018-07-03".toDate,
+      "'2018-07-05'.toDate - '2018-07-03'.toDate",
+      "2"
+    )
+
+    testAllApis(
+      timestampDiff(TimePointUnit.DAY, Null(Types.SQL_TIMESTAMP),
+        "2016-02-24 12:42:25".toTimestamp),
+      "timestampDiff(DAY, Null(SQL_TIMESTAMP), '2016-02-24 12:42:25'.toTimestamp)",
+      "TIMESTAMPDIFF(DAY, CAST(NULL AS TIMESTAMP), TIMESTAMP '2016-02-24 12:42:25')",
+      "null"
+    )
+
+    testAllApis(
+      timestampDiff(TimePointUnit.DAY, "2016-02-24 12:42:25".toTimestamp,
+        Null(Types.SQL_TIMESTAMP)),
+      "timestampDiff(DAY, '2016-02-24 12:42:25'.toTimestamp,  Null(SQL_TIMESTAMP))",
+      "TIMESTAMPDIFF(DAY, TIMESTAMP '2016-02-24 12:42:25',  CAST(NULL AS TIMESTAMP))",
+      "null"
+    )
+  }
+
+  @Test
   def testTimestampAdd(): Unit = {
     val data = Seq(
       (1, "2017-11-29 22:58:58.998"),

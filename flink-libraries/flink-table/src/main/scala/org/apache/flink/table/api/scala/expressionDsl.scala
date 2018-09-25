@@ -26,6 +26,7 @@ import org.apache.flink.table.api.{CurrentRange, CurrentRow, TableException, Unb
 import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
 import org.apache.flink.table.api.Table
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
+import org.apache.flink.table.expressions.TimePointUnit.TimePointUnit
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.{AggregateFunction, DistinctAggregateFunction}
 
@@ -1138,6 +1139,34 @@ object dateFormat {
     format: Expression
   ): Expression = {
     DateFormat(timestamp, format)
+  }
+}
+
+/**
+ * Returns the (signed) number of timeUnit intervals between timestamp1 and timestamp2.
+ *
+ * For example <code>timestampDiff(TimeIntervalUnit.DAY, `2016-06-15`.toDate,
+ *  `2016-06-18`.toDate</code> results in integer as 3
+ */
+object timestampDiff {
+
+  /**
+    * Returns the (signed) number of timeUnit intervals between timestamp1 and timestamp2.
+    *
+    * For example timestampDiff(TimeIntervalUnit.DAY, "2016-06-15".toDate,
+    *  "2016-06-18".toDate results in integer as 3
+    *
+    * @param timeIntervalUnit The unit to compute diff.
+    * @param timestamp1 The first time,
+    * @param timestamp2 The second time,
+    * @return The number of intervals.
+    */
+  def apply(
+    timePointUnit: TimePointUnit,
+    timestamp1: Expression,
+    timestamp2: Expression
+  ): Expression = {
+    TimestampDiff(timePointUnit, timestamp1, timestamp2)
   }
 }
 

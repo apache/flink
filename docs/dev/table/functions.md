@@ -3319,6 +3319,18 @@ TIMESTAMPADD(unit, interval, timevalue)
         <p>E.g., <code>TIMESTAMPADD(WEEK, 1, DATE '2003-01-02')</code> returns <code>2003-01-09</code>.</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+TIMESTAMPDIFF(unit, timestamp1, timestamp2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the (signed) number of timeUnit intervals between timestamp1 and timestamp2. The unit for the interval is given by the unit argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>WEEK</code>, <code>MONTH</code>, <code>QUARTER</code>, or <code>YEAR</code>. The unit for the interval could refer <a href="#time-interval-and-point-unit-specifiers">Time Interval and Point Unit Specifiers table</a>. E.g. <code>TIMESTAMPDIFF(DAY, TIMESTAMP '2003-01-02 10:00:00', TIMESTAMP '2003-01-03 10:00:00')</code> leads to <code>1</code>.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 </div>
@@ -3564,6 +3576,18 @@ dateFormat(TIMESTAMP, STRING)
         <p>E.g., <code>dateFormat(ts, '%Y, %d %M')</code> results in strings formatted as "2017, 05 May".</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+timestampDiff(TimeIntervalUnit, datetime1, datetime2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the (signed) number of timeUnit intervals between datetime1 and datetime2. The unit for the interval is given by the unit argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>MONTH</code>, or <code>YEAR</code>. The unit for the interval could refer <a href="#time-interval-and-point-unit-specifiers">Time Interval and Point Unit Specifiers table</a>. E.g. <code>timestampDiff(TimeIntervalUnit.DAY, '2003-01-02 10:00:00'.toTimestamp, '2003-01-03 10:00:00'.toTimestamp)</code> leads to <code>1</code>.</p>
+      </td>
+    </tr>
+
     </tbody>
 </table>
 </div>
@@ -3809,6 +3833,18 @@ dateFormat(TIMESTAMP, STRING)
         <p>E.g., <code>dateFormat('ts, "%Y, %d %M")</code> results in strings formatted as "2017, 05 May".</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+timestampDiff(TimeIntervalUnit, datetime1, datetime2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the (signed) number of timeUnit intervals between datetime1 and datetime2. The unit for the interval is given by the unit argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>MONTH</code>, or <code>YEAR</code>. The unit for the interval could refer <a href="#time-interval-and-point-unit-specifiers">Time Interval and Point Unit Specifiers table</a>. E.g. <code>timestampDiff(TimeIntervalUnit.DAY, '2003-01-02 10:00:00'.toTimestamp, '2003-01-03 10:00:00'.toTimestamp)</code> leads to <code>1</code>.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 </div>
@@ -5458,6 +5494,67 @@ The following table lists specifiers for date format functions.
   </tr>
   <tr><td>{% highlight text %}%x{% endhighlight %}</td>
   <td><code>x</code>, for any <code>x</code> not listed above</td>
+  </tr>
+  </tbody>
+</table>
+
+Time Interval and Point Unit Specifiers
+----------------------
+
+The following table lists specifiers for time interval and point unit.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Interval Unit</th>
+      <th class="text-center">Point Unit</th>
+    </tr>
+  </thead>
+  <tbody>
+  <tr><td>YEAR</td>
+  <td>YEAR</td>
+  </tr>
+  <tr><td>QUARTER</td>
+  <td>QUARTER</td>
+  </tr>
+  <tr><td>MONTH</td>
+  <td>MONTH</td>
+  </tr>
+  <tr><td>WEEK</td>
+  <td>WEEK</td>
+  </tr>
+  <tr><td>DAY</td>
+  <td>DAY</td>
+  </tr>
+  <tr><td>HOUR</td>
+  <td>HOUR</td>
+  </tr>
+  <tr><td>MINUTE</td>
+  <td>MINUTE</td>
+  </tr>
+  <tr><td>SECOND</td>
+  <td>SECOND</td>
+  </tr>
+  <tr><td>YEAR_TO_MONTH</td>
+  <td>MICROSECOND</td>
+  </tr>
+  <tr><td>DAY_TO_HOUR</td>
+  <td>MILLISECOND</td>
+  </tr>
+  <tr><td><DAY_TO_MINUTE/td>
+  <td></td>
+  </tr>
+  <tr><td>DAY_TO_SECOND</td>
+  <td></td>
+  </tr>
+  <tr><td>HOUR_TO_MINUTE</td>
+  <td></td>
+  </tr>
+  <tr><td>HOUR_TO_SECOND</td>
+  <td></td>
+  </tr>
+  <tr><td>MINUTE_TO_SECOND</td>
+  <td></td>
   </tr>
   </tbody>
 </table>
