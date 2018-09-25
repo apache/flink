@@ -1289,6 +1289,15 @@ For example, for a given pattern `b+ c` and a data stream `b1 b2 b3 c`, the diff
         <td>After found matching <code>b1 b2 b3 c</code>, the match process will not discard any result.</td>
     </tr>
     <tr>
+        <td><strong>SKIP_TO_NEXT</strong></td>
+        <td>
+            <code>b1 b2 b3 c</code><br>
+            <code>b2 b3 c</code><br>
+            <code>b3 c</code><br>
+        </td>
+        <td>After found matching <code>b1 b2 b3 c</code>, the match process will not discard any result, because no other match could start at b1.</td>
+    </tr>
+    <tr>
         <td><strong>SKIP_PAST_LAST_EVENT</strong></td>
         <td>
             <code>b1 b2 b3 c</code><br>
@@ -1296,7 +1305,7 @@ For example, for a given pattern `b+ c` and a data stream `b1 b2 b3 c`, the diff
         <td>After found matching <code>b1 b2 b3 c</code>, the match process will discard all started partial matches.</td>
     </tr>
     <tr>
-        <td><strong>SKIP_TO_FIRST</strong>[<code>b*</code>]</td>
+        <td><strong>SKIP_TO_FIRST</strong>[<code>b</code>]</td>
         <td>
             <code>b1 b2 b3 c</code><br>
             <code>b2 b3 c</code><br>
@@ -1340,7 +1349,35 @@ Pattern: `(a | c) (b | c) c+.greedy d` and sequence: `a b c1 c2 c3 d` Then the r
             <code>a b c1 c2 c3 d</code><br>
             <code>c1 c2 c3 d</code><br>
         </td>
-        <td>After found matching <code>a b c1 c2 c3 d</code>, the match process will try to discard all partial matches started before <code>c1</code>. There is one such match <code>b c1 c2 c3 d</code>.</td>
+        <td>After found matching <code>a b c1 c2 c3 d</code>, the match process will discard all partial matches started before <code>c1</code>. There is one such match <code>b c1 c2 c3 d</code>.</td>
+    </tr>
+</table>
+
+To better understand the difference between NO_SKIP and SKIP_TO_NEXT take a look at following example:
+Pattern: `a b+` and sequence: `a b1 b2 b3` Then the results will be:
+
+
+<table class="table table-bordered">
+    <tr>
+        <th class="text-left" style="width: 25%">Skip Strategy</th>
+        <th class="text-center" style="width: 25%">Result</th>
+        <th class="text-center"> Description</th>
+    </tr>
+    <tr>
+        <td><strong>NO_SKIP</strong></td>
+        <td>
+            <code>a b1</code><br>
+            <code>a b1 b2</code><br>
+            <code>a b1 b2 b3</code><br>
+        </td>
+        <td>After found matching <code>a b1</code>, the match process will not discard any result.</td>
+    </tr>
+    <tr>
+        <td><strong>SKIP_TO_NEXT</strong>[<code>b*</code>]</td>
+        <td>
+            <code>a b1</code><br>
+        </td>
+        <td>After found matching <code>a b1</code>, the match process will discard all partial matches started at <code>a</code>. This means neither <code>a b1 b2</code> nor <code>a b1 b2 b3</code> could be generated.</td>
     </tr>
 </table>
 
@@ -1353,6 +1390,10 @@ To specify which skip strategy to use, just create an `AfterMatchSkipStrategy` b
     <tr>
         <td><code>AfterMatchSkipStrategy.noSkip()</code></td>
         <td>Create a <strong>NO_SKIP</strong> skip strategy </td>
+    </tr>
+    <tr>
+        <td><code>AfterMatchSkipStrategy.skipToNext()</code></td>
+        <td>Create a <strong>SKIP_TO_NEXT</strong> skip strategy </td>
     </tr>
     <tr>
         <td><code>AfterMatchSkipStrategy.skipPastLastEvent()</code></td>

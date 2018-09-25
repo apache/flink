@@ -25,15 +25,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Discards every partial match that started before emitted match ended.
+ * Discards every partial match that started with the same event, emitted match was started.
  */
-public class SkipPastLastStrategy extends AfterMatchSkipStrategy {
+public class SkipToNextStrategy extends AfterMatchSkipStrategy {
 
-	public static final SkipPastLastStrategy INSTANCE = new SkipPastLastStrategy();
+	public static final SkipToNextStrategy INSTANCE = new SkipToNextStrategy();
 
 	private static final long serialVersionUID = -8450320065949093169L;
 
-	private SkipPastLastStrategy() {
+	private SkipToNextStrategy() {
 	}
 
 	@Override
@@ -51,7 +51,7 @@ public class SkipPastLastStrategy extends AfterMatchSkipStrategy {
 		EventId pruningId = null;
 		for (Map<String, List<EventId>> resultMap : match) {
 			for (List<EventId> eventList : resultMap.values()) {
-				pruningId = max(pruningId, eventList.get(eventList.size() - 1));
+				pruningId = min(pruningId, eventList.get(0));
 			}
 		}
 
@@ -60,6 +60,6 @@ public class SkipPastLastStrategy extends AfterMatchSkipStrategy {
 
 	@Override
 	public String toString() {
-		return "SkipPastLastStrategy{}";
+		return "SkipToNextStrategy{}";
 	}
 }
