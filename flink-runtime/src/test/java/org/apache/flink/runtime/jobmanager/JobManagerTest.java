@@ -68,9 +68,6 @@ import org.apache.flink.runtime.messages.JobManagerMessages.CancellationFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationResponse;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationSuccess;
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionProducerState;
-import org.apache.flink.runtime.messages.JobManagerMessages.StopJob;
-import org.apache.flink.runtime.messages.JobManagerMessages.StoppingFailure;
-import org.apache.flink.runtime.messages.JobManagerMessages.StoppingSuccess;
 import org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
@@ -98,7 +95,6 @@ import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.runtime.testutils.StoppableInvokable;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -108,7 +104,6 @@ import akka.actor.PoisonPill;
 import akka.actor.Status;
 import akka.testkit.JavaTestKit;
 import akka.testkit.TestProbe;
-import com.typesafe.config.Config;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -127,7 +122,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import scala.Option;
-import scala.Some;
 import scala.Tuple2;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -139,7 +133,6 @@ import scala.reflect.ClassTag$;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
 import static org.apache.flink.runtime.messages.JobManagerMessages.CancelJobWithSavepoint;
 import static org.apache.flink.runtime.messages.JobManagerMessages.JobResultFailure;
-import static org.apache.flink.runtime.messages.JobManagerMessages.JobResultSuccess;
 import static org.apache.flink.runtime.messages.JobManagerMessages.JobSubmitSuccess;
 import static org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.AllVerticesRunning;
@@ -182,22 +175,6 @@ public class JobManagerTest extends TestLogger {
 	public void tearDownTest() throws Exception {
 		highAvailabilityServices.closeAndCleanupAllData();
 		highAvailabilityServices = null;
-	}
-
-	@Test
-	public void testNullHostnameGoesToLocalhost() {
-		try {
-			Tuple2<String, Object> address = new Tuple2<String, Object>(null, 1772);
-			Config cfg = AkkaUtils.getAkkaConfig(new Configuration(),
-					new Some<Tuple2<String, Object>>(address));
-
-			String hostname = cfg.getString("akka.remote.netty.tcp.hostname");
-			assertTrue(InetAddress.getByName(hostname).isLoopbackAddress());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
 	}
 
 	/**
