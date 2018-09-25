@@ -28,10 +28,9 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
-import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.DecoderException;
 
 import org.junit.Test;
 
@@ -45,9 +44,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * This test validates that connections are failing when mutual auth is enabled but untrusted
@@ -60,6 +56,8 @@ public class RestServerSSLAuthITCase extends TestLogger {
 	private static final String UNTRUSTED_KEY_STORE_FILE = RestServerSSLAuthITCase.class.getResource("/untrusted.keystore").getFile();
 
 	private static final Time timeout = Time.seconds(10L);
+
+	private RestfulGateway restfulGateway;
 
 	@Test
 	public void testConnectFailure() throws Exception {
@@ -91,16 +89,10 @@ public class RestServerSSLAuthITCase extends TestLogger {
 			RestServerEndpointConfiguration restServerConfig = RestServerEndpointConfiguration.fromConfiguration(serverConfig);
 			RestClientConfiguration restClientConfig = RestClientConfiguration.fromConfiguration(clientConfig);
 
-			final String restAddress = "http://localhost:1234";
-			RestfulGateway mockRestfulGateway = mock(RestfulGateway.class);
-			when(mockRestfulGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(restAddress));
-
-			final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->
-				CompletableFuture.completedFuture(mockRestfulGateway);
-
+			RestfulGateway restfulGateway = TestingRestfulGateway.newBuilder().build();
 			RestServerEndpointITCase.TestVersionHandler testVersionHandler = new RestServerEndpointITCase.TestVersionHandler(
-				CompletableFuture.completedFuture(restAddress),
-				mockGatewayRetriever,
+				CompletableFuture.completedFuture("http://localhost:1234"),
+				() -> CompletableFuture.completedFuture(restfulGateway),
 				RpcUtils.INF_TIMEOUT);
 
 			serverEndpoint = new RestServerEndpointITCase.TestRestServerEndpoint(
@@ -120,11 +112,9 @@ public class RestServerSSLAuthITCase extends TestLogger {
 			response.get(60, TimeUnit.SECONDS);
 
 			fail("should never complete normally");
-		} catch (ExecutionException executionException) {
+		} catch (ExecutionException exception) {
 			// that is what we want
-			Throwable exception = executionException.getCause();
-			assertTrue(exception instanceof DecoderException);
-			assertTrue(exception.getCause() instanceof SSLHandshakeException);
+			assertTrue(ExceptionUtils.findThrowable(exception, SSLHandshakeException.class).isPresent());
 		} finally {
 			if (restClient != null) {
 				restClient.shutdown(timeout);
