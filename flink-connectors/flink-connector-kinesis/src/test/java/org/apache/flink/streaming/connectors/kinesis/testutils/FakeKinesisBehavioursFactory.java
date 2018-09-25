@@ -367,7 +367,7 @@ public class FakeKinesisBehavioursFactory {
 					if (streamNamesWithLastSeenShardIds.get(streamName) == null) {
 						result.addRetrievedShardToStream(streamName, shard);
 					} else {
-						if (StreamShardHandle.compareShardIds(
+						if (compareShardIds(
 							shard.getShard().getShardId(), streamNamesWithLastSeenShardIds.get(streamName)) > 0) {
 							result.addRetrievedShardToStream(streamName, shard);
 						}
@@ -385,6 +385,43 @@ public class FakeKinesisBehavioursFactory {
 		@Override
 		public GetRecordsResult getRecords(String shardIterator, int maxRecordsToGet) {
 			return null;
+		}
+
+		/**
+		 * Utility function to compare two shard ids.
+		 *
+		 * @param firstShardId first shard id to compare
+		 * @param secondShardId second shard id to compare
+		 * @return a value less than 0 if the first shard id is smaller than the second shard id,
+		 *         or a value larger than 0 the first shard is larger then the second shard id,
+		 *         or 0 if they are equal
+		 */
+		private static int compareShardIds(String firstShardId, String secondShardId) {
+			if (!isValidShardId(firstShardId)) {
+				throw new IllegalArgumentException("The first shard id has invalid format.");
+			}
+
+			if (!isValidShardId(secondShardId)) {
+				throw new IllegalArgumentException("The second shard id has invalid format.");
+			}
+
+			// digit segment of the shard id starts at index 8
+			return Long.compare(Long.parseLong(firstShardId.substring(8)), Long.parseLong(secondShardId.substring(8)));
+		}
+
+		/**
+		 * Checks if a shard id has valid format.
+		 * Kinesis stream shard ids have 12-digit numbers left-padded with 0's,
+		 * prefixed with "shardId-", ex. "shardId-000000000015".
+		 *
+		 * @param shardId the shard id to check
+		 * @return whether the shard id is valid
+		 */
+		private static boolean isValidShardId(String shardId) {
+			if (shardId == null) {
+				return false;
+			}
+			return shardId.matches("^shardId-\\d{12}");
 		}
 	}
 }

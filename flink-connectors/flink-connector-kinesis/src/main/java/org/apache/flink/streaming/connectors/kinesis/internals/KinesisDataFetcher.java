@@ -467,12 +467,10 @@ public class KinesisDataFetcher<T> {
 	public void advanceLastDiscoveredShardOfStream(String stream, String shardId) {
 		String lastSeenShardIdOfStream = this.subscribedStreamsToLastDiscoveredShardIds.get(stream);
 
-		// the update is valid only if the given shard id is greater
-		// than the previous last seen shard id of the stream
-		if (lastSeenShardIdOfStream == null) {
-			// if not previously set, simply put as the last seen shard id
-			this.subscribedStreamsToLastDiscoveredShardIds.put(stream, shardId);
-		} else if (StreamShardHandle.compareShardIds(shardId, lastSeenShardIdOfStream) > 0) {
+		// the update is valid only if the given shard id is not equal to
+		// the previous last seen shard id of the stream
+		// comparison is done by aws kinesis server
+		if (shardId != null && !shardId.equals(lastSeenShardIdOfStream)) {
 			this.subscribedStreamsToLastDiscoveredShardIds.put(stream, shardId);
 		}
 	}

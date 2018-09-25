@@ -49,7 +49,6 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -451,18 +450,6 @@ public class KinesisProxy implements KinesisProxyInterface {
 					// propagate if retries exceeded or not recoverable
 					// (otherwise would return null result and keep trying forever)
 					throw ex;
-				}
-			}
-		}
-		// Kinesalite (mock implementation of Kinesis) does not correctly exclude shards before
-		// the exclusive start shard id in the returned shards list; check if we need to remove
-		// these erroneously returned shards.
-		if (startShardId != null && listShardsResults != null) {
-			List<Shard> shards = listShardsResults.getShards();
-			Iterator<Shard> shardItr = shards.iterator();
-			while (shardItr.hasNext()) {
-				if (StreamShardHandle.compareShardIds(shardItr.next().getShardId(), startShardId) <= 0) {
-					shardItr.remove();
 				}
 			}
 		}
