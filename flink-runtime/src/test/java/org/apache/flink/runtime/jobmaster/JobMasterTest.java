@@ -72,6 +72,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
+import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultSlotPoolFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
@@ -901,9 +902,40 @@ public class JobMasterTest extends TestLogger {
 			jobMasterGateway.updateTaskExecutionState(new TaskExecutionState(producerConsumerJobGraph.getJobID(), executionAttemptId, ExecutionState.FINISHED)).get();
 
 			// request the state of the result partition of the producer
-			final CompletableFuture<ExecutionState> partitionStateFuture = jobMasterGateway.requestPartitionState(partition.getResultId(), new ResultPartitionID(partition.getPartitionId(), copiedExecutionAttemptId));
+			final ResultPartitionID partitionId = new ResultPartitionID(partition.getPartitionId(), copiedExecutionAttemptId);
+			CompletableFuture<ExecutionState> partitionStateFuture = jobMasterGateway.requestPartitionState(partition.getResultId(), partitionId);
 
 			assertThat(partitionStateFuture.get(), equalTo(ExecutionState.FINISHED));
+
+			// ask for unknown result partition
+			partitionStateFuture = jobMasterGateway.requestPartitionState(partition.getResultId(), new ResultPartitionID());
+
+			try {
+				partitionStateFuture.get();
+				fail("Expected failure.");
+			} catch (ExecutionException e) {
+				assertThat(ExceptionUtils.findThrowable(e, IllegalArgumentException.class).isPresent(), is(true));
+			}
+
+			// ask for wrong intermediate data set id
+			partitionStateFuture = jobMasterGateway.requestPartitionState(new IntermediateDataSetID(), partitionId);
+
+			try {
+				partitionStateFuture.get();
+				fail("Expected failure.");
+			} catch (ExecutionException e) {
+				assertThat(ExceptionUtils.findThrowable(e, IllegalArgumentException.class).isPresent(), is(true));
+			}
+
+			// ask for "old" execution
+			partitionStateFuture = jobMasterGateway.requestPartitionState(partition.getResultId(), new ResultPartitionID(partition.getPartitionId(), new ExecutionAttemptID()));
+
+			try {
+				partitionStateFuture.get();
+				fail("Expected failure.");
+			} catch (ExecutionException e) {
+				assertThat(ExceptionUtils.findThrowable(e, PartitionProducerDisposedException.class).isPresent(), is(true));
+			}
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
 		}
