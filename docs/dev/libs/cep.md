@@ -1385,6 +1385,23 @@ Pattern.begin("patternName", skipStrategy)
 </div>
 </div>
 
+{% warn Attention %} For SKIP_TO_FIRST/LAST there are two options how to handle cases when there are no elements mapped to
+the specified variable. By default a NO_SKIP strategy will be used in this case. The other option is to throw exception in such situation.
+One can enable this option by:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+AfterMatchSkipStrategy.skipToFirst(patternName).throwExceptionOnMiss()
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+AfterMatchSkipStrategy.skipToFirst(patternName).throwExceptionOnMiss()
+{% endhighlight %}
+</div>
+</div>
+
 ## Detecting Patterns
 
 After specifying the pattern sequence you are looking for, it is time to apply it to your input stream to detect

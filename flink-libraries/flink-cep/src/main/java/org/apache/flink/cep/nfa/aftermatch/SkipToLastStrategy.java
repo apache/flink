@@ -19,6 +19,7 @@
 package org.apache.flink.cep.nfa.aftermatch;
 
 import org.apache.flink.cep.nfa.sharedbuffer.EventId;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.Collection;
 import java.util.List;
@@ -33,6 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class SkipToLastStrategy extends AfterMatchSkipStrategy {
 	private static final long serialVersionUID = 7585116990619594531L;
 	private final String patternName;
+	private boolean shouldThrowException = false;
 
 	SkipToLastStrategy(String patternName) {
 		this.patternName = checkNotNull(patternName);
@@ -53,8 +55,14 @@ public class SkipToLastStrategy extends AfterMatchSkipStrategy {
 		EventId pruningId = null;
 		for (Map<String, List<EventId>> resultMap : match) {
 			List<EventId> pruningPattern = resultMap.get(patternName);
-
-			if (pruningPattern != null && !pruningPattern.isEmpty()) {
+			if (pruningPattern == null || pruningPattern.isEmpty()) {
+				if (shouldThrowException) {
+					throw new FlinkRuntimeException(String.format(
+						"Could not skip to %s. No such element in the found match %s",
+						patternName,
+						resultMap));
+				}
+			} else {
 				pruningId = max(pruningId, pruningPattern.get(pruningPattern.size() - 1));
 			}
 		}
@@ -65,6 +73,15 @@ public class SkipToLastStrategy extends AfterMatchSkipStrategy {
 	@Override
 	public Optional<String> getPatternName() {
 		return Optional.of(patternName);
+	}
+
+	/**
+	 * Enables throwing exception if no events mapped to the *PatternName*. If not enabled and no events were mapped,
+	 * {@link NoSkipStrategy} will be used
+	 */
+	public SkipToLastStrategy throwExceptionOnMiss() {
+		this.shouldThrowException = true;
+		return this;
 	}
 
 	@Override

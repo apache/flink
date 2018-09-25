@@ -43,7 +43,7 @@ public abstract class AfterMatchSkipStrategy implements Serializable {
 	 * @param patternName the pattern name to skip to
 	 * @return the created AfterMatchSkipStrategy
 	 */
-	public static AfterMatchSkipStrategy skipToFirst(String patternName) {
+	public static SkipToFirstStrategy skipToFirst(String patternName) {
 		return new SkipToFirstStrategy(patternName);
 	}
 
@@ -53,7 +53,7 @@ public abstract class AfterMatchSkipStrategy implements Serializable {
 	 * @param patternName the pattern name to skip to
 	 * @return the created AfterMatchSkipStrategy
 	 */
-	public static AfterMatchSkipStrategy skipToLast(String patternName) {
+	public static SkipToLastStrategy skipToLast(String patternName) {
 		return new SkipToLastStrategy(patternName);
 	}
 
@@ -62,7 +62,7 @@ public abstract class AfterMatchSkipStrategy implements Serializable {
 	 *
 	 * @return the created AfterMatchSkipStrategy
 	 */
-	public static AfterMatchSkipStrategy skipPastLastEvent() {
+	public static SkipPastLastStrategy skipPastLastEvent() {
 		return SkipPastLastStrategy.INSTANCE;
 	}
 
@@ -71,7 +71,7 @@ public abstract class AfterMatchSkipStrategy implements Serializable {
 	 *
 	 * @return the created AfterMatchSkipStrategy
 	 */
-	public static AfterMatchSkipStrategy noSkip() {
+	public static NoSkipStrategy noSkip() {
 		return NoSkipStrategy.INSTANCE;
 	}
 

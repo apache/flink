@@ -24,6 +24,7 @@ import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -430,6 +431,74 @@ public class AfterMatchSkipITCase extends TestLogger{
 			Lists.newArrayList(a2, b2),
 			Lists.newArrayList(a3, b4)
 		));
+	}
+
+	@Test(expected = FlinkRuntimeException.class)
+	public void testSkipToFirstNonExistentPosition() throws Exception {
+		MissedSkipTo.compute(AfterMatchSkipStrategy.skipToFirst("b").throwExceptionOnMiss());
+
+		//exception should be thrown
+	}
+
+	@Test
+	public void testSkipToFirstNonExistentPositionWithoutException() throws Exception {
+		List<List<Event>> resultingPatterns = MissedSkipTo.compute(AfterMatchSkipStrategy.skipToFirst("b"));
+
+		compareMaps(resultingPatterns, Collections.singletonList(
+			Lists.newArrayList(MissedSkipTo.a, MissedSkipTo.c)
+		));
+	}
+
+	@Test(expected = FlinkRuntimeException.class)
+	public void testSkipToLastNonExistentPosition() throws Exception {
+		MissedSkipTo.compute(AfterMatchSkipStrategy.skipToLast("b").throwExceptionOnMiss());
+
+		//exception should be thrown
+	}
+
+	@Test
+	public void testSkipToLastNonExistentPositionWithoutException() throws Exception {
+		List<List<Event>> resultingPatterns = MissedSkipTo.compute(AfterMatchSkipStrategy.skipToFirst("b"));
+
+		compareMaps(resultingPatterns, Collections.singletonList(
+			Lists.newArrayList(MissedSkipTo.a, MissedSkipTo.c)
+		));
+	}
+
+	static class MissedSkipTo {
+		static Event a = new Event(1, "a", 0.0);
+		static Event c = new Event(4, "c", 0.0);
+
+		static List<List<Event>> compute(AfterMatchSkipStrategy skipStrategy) throws Exception {
+			List<StreamRecord<Event>> streamEvents = new ArrayList<>();
+
+			streamEvents.add(new StreamRecord<>(a));
+			streamEvents.add(new StreamRecord<>(c));
+
+			Pattern<Event, ?> pattern = Pattern.<Event>begin("a").where(
+				new SimpleCondition<Event>() {
+
+					@Override
+					public boolean filter(Event value) throws Exception {
+						return value.getName().contains("a");
+					}
+				}
+			).next("b").where(new SimpleCondition<Event>() {
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("b");
+				}
+			}).oneOrMore().optional().consecutive()
+				.next("c").where(new SimpleCondition<Event>() {
+					@Override
+					public boolean filter(Event value) throws Exception {
+						return value.getName().contains("c");
+					}
+				});
+			NFA<Event> nfa = compile(pattern, false);
+
+			return feedNFA(streamEvents, nfa, skipStrategy);
+		}
 	}
 
 	@Test
