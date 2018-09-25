@@ -23,7 +23,6 @@ import java.util
 import org.apache.calcite.plan.RelOptPlanner
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -101,7 +100,10 @@ class ExpressionReducer(config: TableConfig)
         |""".stripMargin,
       resultType)
 
-    val clazz = compile(getClass.getClassLoader, generatedFunction.name, generatedFunction.code)
+    val clazz = compile(
+      Thread.currentThread().getContextClassLoader,
+      generatedFunction.name,
+      generatedFunction.code)
     val function = clazz.newInstance()
 
     // execute
