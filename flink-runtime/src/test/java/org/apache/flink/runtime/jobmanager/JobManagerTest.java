@@ -184,22 +184,6 @@ public class JobManagerTest extends TestLogger {
 		highAvailabilityServices = null;
 	}
 
-	@Test
-	public void testNullHostnameGoesToLocalhost() {
-		try {
-			Tuple2<String, Object> address = new Tuple2<String, Object>(null, 1772);
-			Config cfg = AkkaUtils.getAkkaConfig(new Configuration(),
-					new Some<Tuple2<String, Object>>(address));
-
-			String hostname = cfg.getString("akka.remote.netty.tcp.hostname");
-			assertTrue(InetAddress.getByName(hostname).isLoopbackAddress());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
 	/**
 	 * Tests responses to partition state requests.
 	 */
