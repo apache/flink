@@ -101,6 +101,17 @@ public class TaskManagerOptions {
 				" collisions when multiple TaskManagers are running on the same machine.");
 
 	/**
+	 * The default network port range the MetricQueryService expects incoming IPC connections. The {@code "0"} means that
+	 * the MetricQueryService searches for a free port.
+	 */
+	public static final ConfigOption<String> METRIC_QUERY_SERVICE_RPC_PORT =
+		key("taskmanager.metric-query-service.rpc.port")
+			.defaultValue("0")
+			.withDescription("The metric query service’s IPC port. Accepts a list of ports (“50100,50101”), ranges" +
+				" (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid" +
+				" collisions when multiple metric query service are running on the same machine.");
+
+	/**
 	 * The default network port the task manager expects to receive transfer envelopes on. The {@code 0} means that
 	 * the TaskManager searches for a free port.
 	 */
