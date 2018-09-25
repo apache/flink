@@ -49,12 +49,12 @@ import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaExecutorMode;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
-import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
@@ -89,7 +89,7 @@ import scala.concurrent.duration.FiniteDuration;
  *
  * <p>Specialization of this class can be used for the session mode and the per-job mode
  */
-public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErrorHandler {
+public abstract class ClusterEntrypoint implements FatalErrorHandler {
 
 	public static final ConfigOption<String> EXECUTION_MODE = ConfigOptions
 		.key("internal.cluster.execution-mode")
@@ -130,6 +130,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 	private RpcService commonRpcService;
 
 	@GuardedBy("lock")
+	private RpcService metricQueryRpcService;
+
+	@GuardedBy("lock")
 	private ArchivedExecutionGraphStore archivedExecutionGraphStore;
 
 	@GuardedBy("lock")
@@ -148,7 +151,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 		return terminationFuture;
 	}
 
-	public void startCluster() throws ClusterEntrypointException {
+	protected void startCluster() throws ClusterEntrypointException {
 		LOG.info("Starting {}.", getClass().getSimpleName());
 
 		try {
@@ -252,6 +255,13 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 			configuration.setString(JobManagerOptions.ADDRESS, commonRpcService.getAddress());
 			configuration.setInteger(JobManagerOptions.PORT, commonRpcService.getPort());
 
+			final String metricPortRange = getMetricQueryServiceRPCPortRange(configuration);
+			metricQueryRpcService = createRpcService(
+				configuration,
+				bindAddress,
+				metricPortRange,
+				AkkaExecutorMode.SINGLE_THREAD_EXECUTOR);
+
 			haServices = createHaServices(configuration, commonRpcService.getExecutor());
 			blobServer = new BlobServer(configuration, haServices.createBlobStore());
 			blobServer.start();
@@ -260,8 +270,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
 			// TODO: This is a temporary hack until we have ported the MetricQueryService to the new RpcEndpoint
 			// start the MetricQueryService
-			final ActorSystem actorSystem = ((AkkaRpcService) commonRpcService).getActorSystem();
-			metricRegistry.startQueryService(actorSystem, null);
+			final ActorSystem metricQueryServiceActorSystem = ((AkkaRpcService) metricQueryRpcService).getActorSystem();
+			metricRegistry.startQueryService(metricQueryServiceActorSystem, null);
 
 			archivedExecutionGraphStore = createSerializableExecutionGraphStore(configuration, commonRpcService.getScheduledExecutor());
 
@@ -287,13 +297,34 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 		}
 	}
 
+	/** Returns the port range for the metric query {@RpcService}.
+	 *
+	 * @param configuration configuration to extract the port range from
+	 * @return Port range for the metric query {@link RpcService}
+	 */
+	protected String getMetricQueryServiceRPCPortRange(Configuration configuration) {
+		if (ZooKeeperUtils.isZooKeeperRecoveryMode(configuration)) {
+			return configuration.getString(HighAvailabilityOptions.HA_JOB_MANAGER_METRIC_QUERY_PORT_RANGE);
+		} else {
+			return String.valueOf(configuration.getInteger(JobManagerOptions.METRIC_REGISTRY_SERVICE_PORT));
+		}
+	}
+
 	protected RpcService createRpcService(
-			Configuration configuration,
-			String bindAddress,
-			String portRange) throws Exception {
-		ActorSystem actorSystem = BootstrapTools.startActorSystem(configuration, bindAddress, portRange, LOG);
+		Configuration configuration,
+		String bindAddress,
+		String portRange,
+		AkkaExecutorMode executorMode) throws Exception {
+		ActorSystem actorSystem = BootstrapTools.startActorSystem(configuration, bindAddress, portRange, LOG, executorMode);
 		FiniteDuration duration = AkkaUtils.getTimeout(configuration);
 		return new AkkaRpcService(actorSystem, Time.of(duration.length(), duration.unit()));
+	}
+
+	protected RpcService createRpcService(
+		Configuration configuration,
+		String bindAddress,
+		String portRange) throws Exception {
+		return createRpcService(configuration, bindAddress, portRange, AkkaExecutorMode.FORK_JOIN_EXECUTOR);
 	}
 
 	protected HighAvailabilityServices createHaServices(
@@ -311,14 +342,6 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
 	protected MetricRegistryImpl createMetricRegistry(Configuration configuration) {
 		return new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(configuration));
-	}
-
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		return shutDownAsync(
-			ApplicationStatus.UNKNOWN,
-			"Cluster entrypoint has been closed externally.",
-			true).thenAccept(ignored -> {});
 	}
 
 	protected CompletableFuture<Void> stopClusterServices(boolean cleanupHaData) {
@@ -367,6 +390,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 				terminationFutures.add(metricRegistry.shutdown());
 			}
 
+			if (metricQueryRpcService != null) {
+				terminationFutures.add(metricQueryRpcService.stopService());
+			}
+
 			if (commonRpcService != null) {
 				terminationFutures.add(commonRpcService.stopService());
 			}
@@ -402,9 +429,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 	}
 
 	private CompletableFuture<ApplicationStatus> shutDownAsync(
-			ApplicationStatus applicationStatus,
-			@Nullable String diagnostics,
-			boolean cleanupHaData) {
+		ApplicationStatus applicationStatus,
+		@Nullable String diagnostics,
+		boolean cleanupHaData) {
 		if (isShutDown.compareAndSet(false, true)) {
 			LOG.info("Shutting {} down with application status {}. Diagnostics {}.",
 				getClass().getSimpleName(),
