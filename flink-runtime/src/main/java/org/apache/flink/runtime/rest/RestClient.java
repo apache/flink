@@ -33,7 +33,6 @@ import org.apache.flink.runtime.rest.util.RestConstants;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -309,12 +308,26 @@ public class RestClient implements AutoCloseableAsync {
 			.thenComposeAsync(
 				channel -> {
 					ClientHandler handler = channel.pipeline().get(ClientHandler.class);
-					CompletableFuture<JsonResponse> future = handler.getJsonFuture();
+
+					CompletableFuture<JsonResponse> future;
+					boolean success = false;
+
 					try {
-						httpRequest.writeTo(channel);
+						if (handler == null) {
+							throw new IOException("Netty pipeline was not properly initialized.");
+						} else {
+							httpRequest.writeTo(channel);
+							future = handler.getJsonFuture();
+							success = true;
+						}
 					} catch (IOException e) {
-						return FutureUtils.completedExceptionally(new FlinkException("Could not write request.", e));
+						future = FutureUtils.completedExceptionally(new ConnectionException("Could not write request.", e));
+					} finally {
+						if (!success) {
+							channel.close();
+						}
 					}
+
 					return future;
 				},
 				executor)
