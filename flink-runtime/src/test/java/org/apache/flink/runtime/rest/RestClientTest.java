@@ -81,8 +81,10 @@ public class RestClientTest extends TestLogger {
 	 */
 	@Test
 	public void testConnectionClosedHandling() throws Exception {
+		final Configuration config = new Configuration();
+		config.setLong(RestOptions.IDLENESS_TIMEOUT, 5000L);
 		try (final ServerSocket serverSocket = new ServerSocket(0);
-			final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(new Configuration()), TestingUtils.defaultExecutor())) {
+			final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(config), TestingUtils.defaultExecutor())) {
 
 			final String targetAddress = "localhost";
 			final int targetPort = serverSocket.getLocalPort();
@@ -127,11 +129,13 @@ public class RestClientTest extends TestLogger {
 	 */
 	@Test
 	public void testRestClientClosedHandling() throws Exception {
+		final Configuration config = new Configuration();
+		config.setLong(RestOptions.IDLENESS_TIMEOUT, 5000L);
 
 		Socket connectionSocket = null;
 
 		try (final ServerSocket serverSocket = new ServerSocket(0);
-			final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(new Configuration()), TestingUtils.defaultExecutor())) {
+			final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(config), TestingUtils.defaultExecutor())) {
 
 			final String targetAddress = "localhost";
 			final int targetPort = serverSocket.getLocalPort();
