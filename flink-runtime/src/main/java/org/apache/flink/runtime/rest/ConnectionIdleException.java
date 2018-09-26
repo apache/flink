@@ -18,13 +18,11 @@
 
 package org.apache.flink.runtime.rest;
 
-import java.io.IOException;
-
 /**
  * Exception which is thrown by the {@link RestClient} if a connection
  * becomes idle.
  */
-public class ConnectionIdleException extends IOException {
+public class ConnectionIdleException extends ConnectionException {
 
 	private static final long serialVersionUID = 5103778538635217293L;
 
