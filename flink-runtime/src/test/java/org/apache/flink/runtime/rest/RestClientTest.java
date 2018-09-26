@@ -55,8 +55,7 @@ public class RestClientTest extends TestLogger {
 	public void testConnectionTimeout() throws Exception {
 		final Configuration config = new Configuration();
 		config.setLong(RestOptions.CONNECTION_TIMEOUT, 1);
-		final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(config), Executors.directExecutor());
-		try {
+		try (final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(config), Executors.directExecutor())) {
 			restClient.sendRequest(
 				unroutableIp,
 				80,
@@ -73,9 +72,7 @@ public class RestClientTest extends TestLogger {
 
 	@Test
 	public void testInvalidVersionRejection() throws Exception {
-		final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(new Configuration()), Executors.directExecutor());
-
-		try {
+		try (final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(new Configuration()), Executors.directExecutor())) {
 			CompletableFuture<EmptyResponseBody> invalidVersionResponse = restClient.sendRequest(
 				unroutableIp,
 				80,
@@ -89,7 +86,6 @@ public class RestClientTest extends TestLogger {
 		} catch (IllegalArgumentException e) {
 			// expected
 		}
-
 	}
 
 	private static class TestMessageHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
