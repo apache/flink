@@ -418,6 +418,12 @@ public class RestClient implements AutoCloseableAsync {
 		}
 
 		@Override
+		public void channelInactive(ChannelHandlerContext ctx) {
+			jsonFuture.completeExceptionally(new ConnectionClosedException("Channel became inactive."));
+			ctx.close();
+		}
+
+		@Override
 		public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) {
 			if (cause instanceof TooLongFrameException) {
 				jsonFuture.completeExceptionally(new TooLongFrameException(String.format(
