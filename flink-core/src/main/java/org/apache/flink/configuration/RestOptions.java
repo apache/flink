@@ -94,6 +94,14 @@ public class RestOptions {
 			.withDescription("The maximum time in ms for the client to establish a TCP connection.");
 
 	/**
+	 * The maximum time in ms for a connection to stay idle before failing.
+	 */
+	public static final ConfigOption<Long> IDLENESS_TIMEOUT =
+		key("rest.idleness-timeout")
+			.defaultValue(5L * 60L * 1_000L) // 5 minutes
+			.withDescription("The maximum time in ms for a connection to stay idle before failing.");
+
+	/**
 	 * The maximum content length that the server will handle.
 	 */
 	public static final ConfigOption<Integer> SERVER_MAX_CONTENT_LENGTH =

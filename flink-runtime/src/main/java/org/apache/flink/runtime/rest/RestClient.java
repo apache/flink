@@ -34,6 +34,7 @@ import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -72,6 +73,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.Http
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.MemoryAttribute;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
+import org.apache.flink.shaded.netty4.io.netty.handler.timeout.IdleStateEvent;
+import org.apache.flink.shaded.netty4.io.netty.handler.timeout.IdleStateHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,16 +121,22 @@ public class RestClient implements AutoCloseableAsync {
 		ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
 			@Override
 			protected void initChannel(SocketChannel socketChannel) {
-				// SSL should be the first handler in the pipeline
-				if (sslEngineFactory != null) {
-					socketChannel.pipeline().addLast("ssl", new SslHandler(sslEngineFactory.createSSLEngine()));
-				}
+				try {
+					// SSL should be the first handler in the pipeline
+					if (sslEngineFactory != null) {
+						socketChannel.pipeline().addLast("ssl", new SslHandler(sslEngineFactory.createSSLEngine()));
+					}
 
-				socketChannel.pipeline()
-					.addLast(new HttpClientCodec())
-					.addLast(new HttpObjectAggregator(configuration.getMaxContentLength()))
-					.addLast(new ChunkedWriteHandler()) // required for multipart-requests
-					.addLast(new ClientHandler());
+					socketChannel.pipeline()
+						.addLast(new HttpClientCodec())
+						.addLast(new HttpObjectAggregator(configuration.getMaxContentLength()))
+						.addLast(new ChunkedWriteHandler()) // required for multipart-requests
+						.addLast(new IdleStateHandler(configuration.getIdlenessTimeout(), configuration.getIdlenessTimeout(), configuration.getIdlenessTimeout(), TimeUnit.MILLISECONDS))
+						.addLast(new ClientHandler());
+				} catch (Throwable t) {
+					t.printStackTrace();
+					ExceptionUtils.rethrow(t);
+				}
 			}
 		};
 		NioEventLoopGroup group = new NioEventLoopGroup(1, new ExecutorThreadFactory("flink-rest-client-netty"));
@@ -451,6 +460,16 @@ public class RestClient implements AutoCloseableAsync {
 		public void channelInactive(ChannelHandlerContext ctx) {
 			jsonFuture.completeExceptionally(new ConnectionClosedException("Channel became inactive."));
 			ctx.close();
+		}
+
+		@Override
+		public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+			if (evt instanceof IdleStateEvent) {
+				jsonFuture.completeExceptionally(new ConnectionIdleException("Channel became idle."));
+				ctx.close();
+			} else {
+				super.userEventTriggered(ctx, evt);
+			}
 		}
 
 		@Override
