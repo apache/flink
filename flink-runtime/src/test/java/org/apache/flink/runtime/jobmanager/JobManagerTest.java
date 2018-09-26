@@ -24,22 +24,15 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
-import org.apache.flink.runtime.checkpoint.CheckpointDeclineReason;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.clusterframework.messages.NotifyResourceStarted;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManager;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManagerSuccessful;
 import org.apache.flink.runtime.clusterframework.messages.TriggerRegistrationAtJobManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -49,14 +42,10 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.JobManagerHARecoveryTest.BlockingStatefulInvokable;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancellationFailure;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancellationResponse;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancellationSuccess;
 import org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
@@ -70,11 +59,9 @@ import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManager;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobStatus;
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunning;
 import org.apache.flink.runtime.testingUtils.TestingMemoryArchivist;
 import org.apache.flink.runtime.testingUtils.TestingTaskManager;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
@@ -102,7 +89,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -115,12 +101,10 @@ import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 import scala.reflect.ClassTag$;
 
-import static org.apache.flink.runtime.messages.JobManagerMessages.CancelJobWithSavepoint;
 import static org.apache.flink.runtime.messages.JobManagerMessages.JobSubmitSuccess;
 import static org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.JobStatusIs;
 import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenAtLeastNumTaskManagerAreRegistered;
-import static org.apache.flink.runtime.testingUtils.TestingUtils.TESTING_TIMEOUT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -372,330 +356,6 @@ public class JobManagerTest extends TestLogger {
 
 	}
 
-	@Test
-	public void testCancelWithSavepoint() throws Exception {
-		File defaultSavepointDir = tmpFolder.newFolder();
-
-		FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
-		Configuration config = new Configuration();
-		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, defaultSavepointDir.toURI().toString());
-
-		ActorSystem actorSystem = null;
-		ActorGateway jobManager = null;
-		ActorGateway archiver = null;
-		ActorGateway taskManager = null;
-		try {
-			actorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
-
-			Tuple2<ActorRef, ActorRef> master = JobManager.startJobManagerActors(
-				config,
-				actorSystem,
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
-				highAvailabilityServices,
-				NoOpMetricRegistry.INSTANCE,
-				Option.empty(),
-				Option.apply("jm"),
-				Option.apply("arch"),
-				TestingJobManager.class,
-				TestingMemoryArchivist.class);
-
-			UUID leaderId = LeaderRetrievalUtils.retrieveLeaderSessionId(
-				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
-				TestingUtils.TESTING_TIMEOUT());
-
-			jobManager = new AkkaActorGateway(master._1(), leaderId);
-			archiver = new AkkaActorGateway(master._2(), leaderId);
-
-			ActorRef taskManagerRef = TaskManager.startTaskManagerComponentsAndActor(
-				config,
-				ResourceID.generate(),
-				actorSystem,
-				highAvailabilityServices,
-				NoOpMetricRegistry.INSTANCE,
-				"localhost",
-				Option.apply("tm"),
-				true,
-				TestingTaskManager.class);
-
-			taskManager = new AkkaActorGateway(taskManagerRef, leaderId);
-
-			// Wait until connected
-			Object msg = new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManager.actor());
-			Await.ready(taskManager.ask(msg, timeout), timeout);
-
-			// Create job graph
-			JobVertex sourceVertex = new JobVertex("Source");
-			sourceVertex.setInvokableClass(BlockingStatefulInvokable.class);
-			sourceVertex.setParallelism(1);
-
-			JobGraph jobGraph = new JobGraph("TestingJob", sourceVertex);
-
-			JobCheckpointingSettings snapshottingSettings = new JobCheckpointingSettings(
-				Collections.singletonList(sourceVertex.getID()),
-				Collections.singletonList(sourceVertex.getID()),
-				Collections.singletonList(sourceVertex.getID()),
-				new CheckpointCoordinatorConfiguration(
-					3600000,
-					3600000,
-					0,
-					Integer.MAX_VALUE,
-					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-					true),
-					null);
-
-			jobGraph.setSnapshotSettings(snapshottingSettings);
-
-			// Submit job graph
-			msg = new SubmitJob(jobGraph, ListeningBehaviour.DETACHED);
-			Await.result(jobManager.ask(msg, timeout), timeout);
-
-			// Wait for all tasks to be running
-			msg = new TestingJobManagerMessages.WaitForAllVerticesToBeRunning(jobGraph.getJobID());
-			Await.result(jobManager.ask(msg, timeout), timeout);
-
-			// Notify when cancelled
-			msg = new NotifyWhenJobStatus(jobGraph.getJobID(), JobStatus.CANCELED);
-			Future<Object> cancelled = jobManager.ask(msg, timeout);
-
-			// Cancel with savepoint
-			String savepointPath = null;
-
-			for (int i = 0; i < 10; i++) {
-				msg = new CancelJobWithSavepoint(jobGraph.getJobID(), null);
-				CancellationResponse cancelResp = (CancellationResponse) Await.result(jobManager.ask(msg, timeout), timeout);
-
-				if (cancelResp instanceof CancellationFailure) {
-					CancellationFailure failure = (CancellationFailure) cancelResp;
-					if (failure.cause().getMessage().contains(CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING.message())) {
-						Thread.sleep(10); // wait and retry
-					} else {
-						failure.cause().printStackTrace();
-						fail("Failed to cancel job: " + failure.cause().getMessage());
-					}
-				} else {
-					savepointPath = ((CancellationSuccess) cancelResp).savepointPath();
-					break;
-				}
-			}
-
-			// Verify savepoint path
-			assertNotNull("Savepoint not triggered", savepointPath);
-
-			// Wait for job status change
-			Await.ready(cancelled, timeout);
-
-			File savepointFile = new File(new Path(savepointPath).getPath());
-			assertTrue(savepointFile.exists());
-		} finally {
-			if (actorSystem != null) {
-				actorSystem.terminate();
-			}
-
-			if (archiver != null) {
-				archiver.actor().tell(PoisonPill.getInstance(), ActorRef.noSender());
-			}
-
-			if (jobManager != null) {
-				jobManager.actor().tell(PoisonPill.getInstance(), ActorRef.noSender());
-			}
-
-			if (taskManager != null) {
-				taskManager.actor().tell(PoisonPill.getInstance(), ActorRef.noSender());
-			}
-
-			if (actorSystem != null) {
-				Await.result(actorSystem.whenTerminated(), TESTING_TIMEOUT());
-			}
-		}
-	}
-
-	/**
-	 * Tests that a failed savepoint does not cancel the job and new checkpoints are triggered
-	 * after the failed cancel-with-savepoint.
-	 */
-	@Test
-	public void testCancelJobWithSavepointFailurePeriodicCheckpoints() throws Exception {
-		File savepointTarget = tmpFolder.newFolder();
-
-		// A source that declines savepoints, simulating the behaviour of a
-		// failed savepoint.
-		JobVertex sourceVertex = new JobVertex("Source");
-		sourceVertex.setInvokableClass(FailOnSavepointSourceTask.class);
-		sourceVertex.setParallelism(1);
-		JobGraph jobGraph = new JobGraph("TestingJob", sourceVertex);
-
-		CheckpointCoordinatorConfiguration coordConfig = new CheckpointCoordinatorConfiguration(
-			50,
-			3600000,
-			0,
-			Integer.MAX_VALUE,
-			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-			true);
-
-		JobCheckpointingSettings snapshottingSettings = new JobCheckpointingSettings(
-			Collections.singletonList(sourceVertex.getID()),
-			Collections.singletonList(sourceVertex.getID()),
-			Collections.singletonList(sourceVertex.getID()),
-			coordConfig,
-			null);
-
-		jobGraph.setSnapshotSettings(snapshottingSettings);
-
-		final TestingCluster testingCluster = new TestingCluster(
-			new Configuration(),
-			highAvailabilityServices,
-			true,
-			false);
-
-		try {
-			testingCluster.start(true);
-
-			FiniteDuration askTimeout = new FiniteDuration(30, TimeUnit.SECONDS);
-			ActorGateway jobManager = testingCluster.getLeaderGateway(askTimeout);
-
-			testingCluster.submitJobDetached(jobGraph);
-
-			// Wait for the source to be running otherwise the savepoint
-			// barrier will not reach the task.
-			Future<Object> allTasksAlive = jobManager.ask(
-				new WaitForAllVerticesToBeRunning(jobGraph.getJobID()),
-				askTimeout);
-			Await.ready(allTasksAlive, askTimeout);
-
-			// Cancel with savepoint. The expected outcome is that cancellation
-			// fails due to a failed savepoint. After this, periodic checkpoints
-			// should resume.
-			Future<Object> cancellationFuture = jobManager.ask(
-				new CancelJobWithSavepoint(jobGraph.getJobID(), savepointTarget.getAbsolutePath()),
-				askTimeout);
-			Object cancellationResponse = Await.result(cancellationFuture, askTimeout);
-
-			if (cancellationResponse instanceof CancellationFailure) {
-				if (!FailOnSavepointSourceTask.CHECKPOINT_AFTER_SAVEPOINT_LATCH.await(30, TimeUnit.SECONDS)) {
-					fail("No checkpoint was triggered after failed savepoint within expected duration");
-				}
-			} else {
-				fail("Unexpected cancellation response from JobManager: " + cancellationResponse);
-			}
-		} finally {
-			testingCluster.stop();
-		}
-	}
-
-	/**
-	 * Tests that a meaningful exception is returned if no savepoint directory is
-	 * configured.
-	 */
-	@Test
-	public void testCancelWithSavepointNoDirectoriesConfigured() throws Exception {
-		FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
-		Configuration config = new Configuration();
-
-		ActorSystem actorSystem = null;
-		ActorGateway jobManager = null;
-		ActorGateway archiver = null;
-		ActorGateway taskManager = null;
-		try {
-			actorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
-
-			Tuple2<ActorRef, ActorRef> master = JobManager.startJobManagerActors(
-				config,
-				actorSystem,
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
-				highAvailabilityServices,
-				NoOpMetricRegistry.INSTANCE,
-				Option.empty(),
-				Option.apply("jm"),
-				Option.apply("arch"),
-				TestingJobManager.class,
-				TestingMemoryArchivist.class);
-
-			UUID leaderId = LeaderRetrievalUtils.retrieveLeaderSessionId(
-				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
-				TestingUtils.TESTING_TIMEOUT());
-
-			jobManager = new AkkaActorGateway(master._1(), leaderId);
-			archiver = new AkkaActorGateway(master._2(), leaderId);
-
-			ActorRef taskManagerRef = TaskManager.startTaskManagerComponentsAndActor(
-				config,
-				ResourceID.generate(),
-				actorSystem,
-				highAvailabilityServices,
-				NoOpMetricRegistry.INSTANCE,
-				"localhost",
-				Option.apply("tm"),
-				true,
-				TestingTaskManager.class);
-
-			taskManager = new AkkaActorGateway(taskManagerRef, leaderId);
-
-			// Wait until connected
-			Object msg = new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManager.actor());
-			Await.ready(taskManager.ask(msg, timeout), timeout);
-
-			// Create job graph
-			JobVertex sourceVertex = new JobVertex("Source");
-			sourceVertex.setInvokableClass(BlockingStatefulInvokable.class);
-			sourceVertex.setParallelism(1);
-
-			JobGraph jobGraph = new JobGraph("TestingJob", sourceVertex);
-
-			JobCheckpointingSettings snapshottingSettings = new JobCheckpointingSettings(
-				Collections.singletonList(sourceVertex.getID()),
-				Collections.singletonList(sourceVertex.getID()),
-				Collections.singletonList(sourceVertex.getID()),
-				new CheckpointCoordinatorConfiguration(
-					3600000,
-					3600000,
-					0,
-					Integer.MAX_VALUE,
-					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-					true),
-				null);
-
-			jobGraph.setSnapshotSettings(snapshottingSettings);
-
-			// Submit job graph
-			msg = new SubmitJob(jobGraph, ListeningBehaviour.DETACHED);
-			Await.result(jobManager.ask(msg, timeout), timeout);
-
-			// Wait for all tasks to be running
-			msg = new TestingJobManagerMessages.WaitForAllVerticesToBeRunning(jobGraph.getJobID());
-			Await.result(jobManager.ask(msg, timeout), timeout);
-
-			// Cancel with savepoint
-			msg = new CancelJobWithSavepoint(jobGraph.getJobID(), null);
-			CancellationResponse cancelResp = (CancellationResponse) Await.result(jobManager.ask(msg, timeout), timeout);
-
-			if (cancelResp instanceof CancellationFailure) {
-				CancellationFailure failure = (CancellationFailure) cancelResp;
-				assertTrue(failure.cause() instanceof IllegalStateException);
-				assertTrue(failure.cause().getMessage().contains("savepoint directory"));
-			} else {
-				fail("Unexpected cancellation response from JobManager: " + cancelResp);
-			}
-		} finally {
-			if (actorSystem != null) {
-				actorSystem.terminate();
-			}
-
-			if (archiver != null) {
-				archiver.actor().tell(PoisonPill.getInstance(), ActorRef.noSender());
-			}
-
-			if (jobManager != null) {
-				jobManager.actor().tell(PoisonPill.getInstance(), ActorRef.noSender());
-			}
-
-			if (taskManager != null) {
-				taskManager.actor().tell(PoisonPill.getInstance(), ActorRef.noSender());
-			}
-		}
-	}
-
 	/**
 	 * Tests that we can trigger a savepoint when periodic checkpoints are disabled.
 	 */
@@ -894,60 +554,6 @@ public class JobManagerTest extends TestLogger {
 			// cleanup the actor system and with it all of the started actors if not already terminated
 			actorSystem.terminate();
 			Await.ready(actorSystem.whenTerminated(), Duration.Inf());
-		}
-	}
-
-	/**
-	 * A blocking stateful source task that declines savepoints.
-	 */
-	public static class FailOnSavepointSourceTask extends AbstractInvokable {
-
-		private static final CountDownLatch CHECKPOINT_AFTER_SAVEPOINT_LATCH = new CountDownLatch(1);
-
-		private boolean receivedSavepoint;
-
-		/**
-		 * Create an Invokable task and set its environment.
-		 *
-		 * @param environment The environment assigned to this invokable.
-		 */
-		public FailOnSavepointSourceTask(Environment environment) {
-			super(environment);
-		}
-
-		@Override
-		public void invoke() throws Exception {
-			new CountDownLatch(1).await();
-		}
-
-		@Override
-		public boolean triggerCheckpoint(
-			CheckpointMetaData checkpointMetaData,
-			CheckpointOptions checkpointOptions) throws Exception {
-			if (checkpointOptions.getCheckpointType() == CheckpointType.SAVEPOINT) {
-				receivedSavepoint = true;
-				return false;
-			} else if (receivedSavepoint) {
-				CHECKPOINT_AFTER_SAVEPOINT_LATCH.countDown();
-				return true;
-			}
-			return true;
-		}
-
-		@Override
-		public void triggerCheckpointOnBarrier(
-			CheckpointMetaData checkpointMetaData,
-			CheckpointOptions checkpointOptions,
-			CheckpointMetrics checkpointMetrics) throws Exception {
-			throw new UnsupportedOperationException("This is meant to be used as a source");
-		}
-
-		@Override
-		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws Exception {
-		}
-
-		@Override
-		public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		}
 	}
 }
