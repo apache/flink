@@ -1391,6 +1391,45 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testCoth(): Unit = {
+    testAllApis(
+      'f2.coth(),
+      "f2.coth()",
+      "COTH(f2)",
+      (1.0d / math.tanh(42.toByte)).toString)
+
+    testAllApis(
+      'f3.coth(),
+      "f3.coth()",
+      "COTH(f3)",
+      (1.0d / math.tanh(43.toShort)).toString)
+
+    testAllApis(
+      'f4.coth(),
+      "f4.coth()",
+      "COTH(f4)",
+      (1.0d / math.tanh(44.toLong)).toString)
+
+    testAllApis(
+      'f5.coth(),
+      "f5.coth()",
+      "COTH(f5)",
+      (1.0d / math.tanh(4.5.toFloat)).toString)
+
+    testAllApis(
+      'f6.coth(),
+      "f6.coth()",
+      "COTH(f6)",
+      (1.0d / math.tanh(4.6)).toString)
+
+    testAllApis(
+      'f15.coth(),
+      "coth(f15)",
+      "COTH(f15)",
+      (1.0d / math.tanh(-1231.1231231321321321111)).toString)
+  }
+
+  @Test
   def testAsin(): Unit = {
     testAllApis(
       'f25.asin(),

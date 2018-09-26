@@ -34,6 +34,14 @@ object ScalarSqlFunctions {
     OperandTypes.NILADIC,
     SqlFunctionCategory.NUMERIC)
 
+  val COTH = new SqlFunction(
+    "COTH",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.DOUBLE_NULLABLE,
+    null,
+    OperandTypes.NUMERIC,
+    SqlFunctionCategory.NUMERIC)
+
   val BIN = new SqlFunction(
     "BIN",
     SqlKind.OTHER_FUNCTION,

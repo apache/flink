@@ -393,6 +393,11 @@ trait ImplicitExpressionOperations {
   def atan() = Atan(expr)
 
   /**
+    * Calculates the hyperbolic cotangent of a given number.
+    */
+  def coth() = Coth(expr)
+
+  /**
     * Converts numeric from radians to degrees.
     */
   def degrees() = Degrees(expr)

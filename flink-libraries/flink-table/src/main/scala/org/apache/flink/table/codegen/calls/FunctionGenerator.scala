@@ -320,6 +320,18 @@ object FunctionGenerator {
     BuiltInMethods.COT_DEC)
 
   addSqlFunctionMethod(
+    COTH,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.COTH)
+
+  addSqlFunctionMethod(
+    COTH,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.COTH_DEC)
+
+  addSqlFunctionMethod(
     ASIN,
     Seq(DOUBLE_TYPE_INFO),
     DOUBLE_TYPE_INFO,

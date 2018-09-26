@@ -75,6 +75,9 @@ object BuiltInMethods {
   val COT = Types.lookupMethod(classOf[SqlFunctions], "cot", classOf[Double])
   val COT_DEC = Types.lookupMethod(classOf[SqlFunctions], "cot", classOf[JBigDecimal])
 
+  val COTH = Types.lookupMethod(classOf[ScalarFunctions], "coth", classOf[Double])
+  val COTH_DEC = Types.lookupMethod(classOf[ScalarFunctions], "coth", classOf[JBigDecimal])
+
   val ASIN = Types.lookupMethod(classOf[Math], "asin", classOf[Double])
   val ASIN_DEC = Types.lookupMethod(classOf[SqlFunctions], "asin", classOf[JBigDecimal])
 

@@ -216,6 +216,19 @@ case class Cot(child: Expression) extends UnaryExpression {
   }
 }
 
+case class Coth(child: Expression) extends UnaryExpression {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "Coth")
+
+  override def toString: String = s"coth($child)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.COTH, child.toRexNode)
+  }
+}
+
 case class Asin(child: Expression) extends UnaryExpression {
   override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
 

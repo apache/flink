@@ -1233,6 +1233,17 @@ COT(numeric)
     <tr>
       <td>
         {% highlight text %}
+COTH(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic cotangent of a <i>numeric</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
 ASIN(numeric)
 {% endhighlight %}
       </td>
@@ -1662,6 +1673,17 @@ NUMERIC.cot()
       </td>
       <td>
         <p>Returns the cotangent of a <i>NUMERIC</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.coth()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic cotangent of a <i>NUMERIC</i>.</p>
       </td>
     </tr>
 
@@ -2098,6 +2120,17 @@ NUMERIC.cot()
       </td>
       <td>
         <p>Returns the cotangent of a <i>NUMERIC</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.coth()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic cotangent of a <i>NUMERIC</i>.</p>
       </td>
     </tr>
 

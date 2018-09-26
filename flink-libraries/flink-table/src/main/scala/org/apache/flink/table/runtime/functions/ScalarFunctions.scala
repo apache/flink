@@ -96,6 +96,20 @@ object ScalarFunctions {
   }
 
   /**
+    * Calculates the hyperbolic cotangent of a double number.
+    */
+  def coth(x: Double): Double = {
+    Math.pow(Math.tanh(x.doubleValue()), -1.0)
+  }
+
+  /**
+    * Calculates the hyperbolic cotangent of a big decimal number.
+    */
+  def coth(x: JBigDecimal): Double = {
+    Math.pow(Math.tanh(x.doubleValue()), -1.0)
+  }
+
+  /**
     * Returns the natural logarithm of "x".
     */
   def log(x: Double): Double = {
