@@ -49,13 +49,11 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.JobManagerHARecoveryTest.BlockingStatefulInvokable;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationResponse;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationSuccess;
@@ -118,7 +116,6 @@ import scala.concurrent.duration.FiniteDuration;
 import scala.reflect.ClassTag$;
 
 import static org.apache.flink.runtime.messages.JobManagerMessages.CancelJobWithSavepoint;
-import static org.apache.flink.runtime.messages.JobManagerMessages.JobResultFailure;
 import static org.apache.flink.runtime.messages.JobManagerMessages.JobSubmitSuccess;
 import static org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.JobStatusIs;
@@ -812,179 +809,6 @@ public class JobManagerTest extends TestLogger {
 
 			if (actorSystem != null) {
 				Await.result(actorSystem.whenTerminated(), TestingUtils.TESTING_TIMEOUT());
-			}
-		}
-	}
-
-	/**
-	 * Tests that configured {@link SavepointRestoreSettings} are respected.
-	 */
-	@Test
-	public void testSavepointRestoreSettings() throws Exception {
-		FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
-
-		ActorSystem actorSystem = null;
-		ActorGateway jobManager = null;
-		ActorGateway archiver = null;
-		ActorGateway taskManager = null;
-		try {
-			actorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
-
-			Tuple2<ActorRef, ActorRef> master = JobManager.startJobManagerActors(
-				new Configuration(),
-				actorSystem,
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
-				highAvailabilityServices,
-				NoOpMetricRegistry.INSTANCE,
-				Option.empty(),
-				Option.apply("jm"),
-				Option.apply("arch"),
-				TestingJobManager.class,
-				TestingMemoryArchivist.class);
-
-			UUID leaderId = LeaderRetrievalUtils.retrieveLeaderSessionId(
-				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
-				TestingUtils.TESTING_TIMEOUT());
-
-			jobManager = new AkkaActorGateway(master._1(), leaderId);
-			archiver = new AkkaActorGateway(master._2(), leaderId);
-
-			Configuration tmConfig = new Configuration();
-			tmConfig.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 4);
-
-			ActorRef taskManagerRef = TaskManager.startTaskManagerComponentsAndActor(
-				tmConfig,
-				ResourceID.generate(),
-				actorSystem,
-				highAvailabilityServices,
-				NoOpMetricRegistry.INSTANCE,
-				"localhost",
-				Option.apply("tm"),
-				true,
-				TestingTaskManager.class);
-
-			taskManager = new AkkaActorGateway(taskManagerRef, leaderId);
-
-			// Wait until connected
-			Object msg = new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManager.actor());
-			Await.ready(taskManager.ask(msg, timeout), timeout);
-
-			// Create job graph
-			JobVertex sourceVertex = new JobVertex("Source");
-			sourceVertex.setInvokableClass(BlockingStatefulInvokable.class);
-			sourceVertex.setParallelism(1);
-
-			JobGraph jobGraph = new JobGraph("TestingJob", sourceVertex);
-
-			JobCheckpointingSettings snapshottingSettings = new JobCheckpointingSettings(
-					Collections.singletonList(sourceVertex.getID()),
-					Collections.singletonList(sourceVertex.getID()),
-					Collections.singletonList(sourceVertex.getID()),
-					new CheckpointCoordinatorConfiguration(
-						Long.MAX_VALUE, // deactivated checkpointing
-						360000,
-						0,
-						Integer.MAX_VALUE,
-						CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-						true),
-					null);
-
-			jobGraph.setSnapshotSettings(snapshottingSettings);
-
-			// Submit job graph
-			msg = new SubmitJob(jobGraph, ListeningBehaviour.DETACHED);
-			Await.result(jobManager.ask(msg, timeout), timeout);
-
-			// Wait for all tasks to be running
-			msg = new TestingJobManagerMessages.WaitForAllVerticesToBeRunning(jobGraph.getJobID());
-			Await.result(jobManager.ask(msg, timeout), timeout);
-
-			// Trigger savepoint
-			File targetDirectory = tmpFolder.newFolder();
-			msg = new TriggerSavepoint(jobGraph.getJobID(), Option.apply(targetDirectory.getAbsolutePath()));
-			Future<Object> future = jobManager.ask(msg, timeout);
-			Object result = Await.result(future, timeout);
-
-			String savepointPath = ((TriggerSavepointSuccess) result).savepointPath();
-
-			// Cancel because of restarts
-			msg = new TestingJobManagerMessages.NotifyWhenJobRemoved(jobGraph.getJobID());
-			Future<?> removedFuture = jobManager.ask(msg, timeout);
-
-			Future<?> cancelFuture = jobManager.ask(new CancelJob(jobGraph.getJobID()), timeout);
-			Object response = Await.result(cancelFuture, timeout);
-			assertTrue("Unexpected response: " + response, response instanceof CancellationSuccess);
-
-			Await.ready(removedFuture, timeout);
-
-			// Adjust the job (we need a new operator ID)
-			JobVertex newSourceVertex = new JobVertex("NewSource");
-			newSourceVertex.setInvokableClass(BlockingStatefulInvokable.class);
-			newSourceVertex.setParallelism(1);
-
-			JobGraph newJobGraph = new JobGraph("NewTestingJob", newSourceVertex);
-
-			JobCheckpointingSettings newSnapshottingSettings = new JobCheckpointingSettings(
-					Collections.singletonList(newSourceVertex.getID()),
-					Collections.singletonList(newSourceVertex.getID()),
-					Collections.singletonList(newSourceVertex.getID()),
-					new CheckpointCoordinatorConfiguration(
-						Long.MAX_VALUE, // deactivated checkpointing
-						360000,
-						0,
-						Integer.MAX_VALUE,
-						CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-						true),
-					null);
-
-			newJobGraph.setSnapshotSettings(newSnapshottingSettings);
-
-			SavepointRestoreSettings restoreSettings = SavepointRestoreSettings.forPath(savepointPath, false);
-			newJobGraph.setSavepointRestoreSettings(restoreSettings);
-
-			msg = new SubmitJob(newJobGraph, ListeningBehaviour.DETACHED);
-			response = Await.result(jobManager.ask(msg, timeout), timeout);
-
-			assertTrue("Unexpected response: " + response, response instanceof JobResultFailure);
-
-			JobResultFailure failure = (JobResultFailure) response;
-			Throwable cause = failure.cause().deserializeError(ClassLoader.getSystemClassLoader());
-
-			assertTrue(cause instanceof IllegalStateException);
-			assertTrue(cause.getMessage().contains("allowNonRestoredState"));
-
-			// Wait until removed
-			msg = new TestingJobManagerMessages.NotifyWhenJobRemoved(newJobGraph.getJobID());
-			Await.ready(jobManager.ask(msg, timeout), timeout);
-
-			// Resubmit, but allow non restored state now
-			restoreSettings = SavepointRestoreSettings.forPath(savepointPath, true);
-			newJobGraph.setSavepointRestoreSettings(restoreSettings);
-
-			msg = new SubmitJob(newJobGraph, ListeningBehaviour.DETACHED);
-			response = Await.result(jobManager.ask(msg, timeout), timeout);
-
-			assertTrue("Unexpected response: " + response, response instanceof JobSubmitSuccess);
-		} finally {
-			if (actorSystem != null) {
-				actorSystem.terminate();
-			}
-
-			if (archiver != null) {
-				archiver.actor().tell(PoisonPill.getInstance(), ActorRef.noSender());
-			}
-
-			if (jobManager != null) {
-				jobManager.actor().tell(PoisonPill.getInstance(), ActorRef.noSender());
-			}
-
-			if (taskManager != null) {
-				taskManager.actor().tell(PoisonPill.getInstance(), ActorRef.noSender());
-			}
-
-			if (actorSystem != null) {
-				Await.ready(actorSystem.whenTerminated(), TestingUtils.TESTING_TIMEOUT());
 			}
 		}
 	}
