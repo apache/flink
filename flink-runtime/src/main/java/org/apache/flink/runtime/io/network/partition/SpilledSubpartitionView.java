@@ -36,6 +36,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -257,7 +258,8 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 
 			synchronized (buffers) {
 				for (int i = 0; i < numberOfBuffers; i++) {
-					buffers.add(new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(memorySegmentSize), this));
+					ByteBuffer memory = ByteBuffer.allocateDirect(memorySegmentSize);
+					buffers.add(new NetworkBuffer(MemorySegmentFactory.wrapPooledOffHeapMemory(memory, null), this));
 				}
 			}
 		}
