@@ -22,6 +22,15 @@ under the License.
 
 These release notes discuss important aspects, such as configuration, behavior, or dependencies, that changed between Flink 1.4 and Flink 1.5. Please read these notes carefully if you are planning to upgrade your Flink version to 1.5.
 
+### Changed syntax of jobmanager.sh script
+
+The `jobmanager.sh` script was reworked which removed the execution mode parameter (`local` vs. `cluster`).
+Now it has the following syntax: `jobmanager.sh ((start|start-foreground) [host] [webui-port])|stop|stop-all`.
+
+Consequently, all external scripts need to remove the execution mode parameter when calling `jobmanager.sh`.
+Otherwise, the execution mode (`local` or `cluster`) will be interpreted as the host name of the started process.
+This can lead to connectivity problems between Flink's components.
+
 ### Update Configuration for Reworked Job Deployment
 
 Flink’s reworked cluster and job deployment component improves the integration with resource managers and enables dynamic resource allocation. One result of these changes is, that you no longer have to specify the number of containers when submitting applications to YARN and Mesos. Flink will automatically determine the number of containers from the parallelism of the application.
