@@ -39,7 +39,6 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Assume;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -78,8 +77,7 @@ public class JobMasterTriggerSavepointIT extends AbstractTestBase {
 	private MiniClusterClient clusterClient;
 	private JobGraph jobGraph;
 
-	@Before
-	public void setUp() throws Exception {
+	private void before(long checkpointInterval) throws Exception {
 		invokeLatch = new CountDownLatch(1);
 		triggerCheckpointLatch = new CountDownLatch(1);
 		savepointDirectory = temporaryFolder.newFolder().toPath();
@@ -102,14 +100,13 @@ public class JobMasterTriggerSavepointIT extends AbstractTestBase {
 			Collections.singletonList(vertex.getID()),
 			Collections.singletonList(vertex.getID()),
 			new CheckpointCoordinatorConfiguration(
-				10,
+				checkpointInterval,
 				60_000,
 				10,
 				1,
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 				true),
-			null
-		));
+			null));
 
 		clusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
 		invokeLatch.await(60, TimeUnit.SECONDS);
@@ -118,6 +115,22 @@ public class JobMasterTriggerSavepointIT extends AbstractTestBase {
 
 	@Test
 	public void testStopJobAfterSavepoint() throws Exception {
+		before(10);
+
+		final String savepointLocation = cancelWithSavepoint();
+		final JobStatus jobStatus = clusterClient.getJobStatus(jobGraph.getJobID()).get(60, TimeUnit.SECONDS);
+
+		assertThat(jobStatus, isOneOf(JobStatus.CANCELED, JobStatus.CANCELLING));
+
+		final List<Path> savepoints = Files.list(savepointDirectory).map(Path::getFileName).collect(Collectors.toList());
+		assertThat(savepoints, hasItem(Paths.get(savepointLocation).getFileName()));
+	}
+
+	@Test
+	public void testStopJobAfterSavepointWithDeactivatedPeriodicCheckpointing() throws Exception {
+		// set checkpointInterval to Long.MAX_VALUE, which means deactivated checkpointing
+		before(Long.MAX_VALUE);
+
 		final String savepointLocation = cancelWithSavepoint();
 		final JobStatus jobStatus = clusterClient.getJobStatus(jobGraph.getJobID()).get(60, TimeUnit.SECONDS);
 
@@ -129,6 +142,8 @@ public class JobMasterTriggerSavepointIT extends AbstractTestBase {
 
 	@Test
 	public void testDoNotCancelJobIfSavepointFails() throws Exception {
+		before(10);
+
 		try {
 			Files.setPosixFilePermissions(savepointDirectory, Collections.emptySet());
 		} catch (IOException e) {
