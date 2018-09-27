@@ -16,26 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.entrypoint;
+package org.apache.flink.runtime.entrypoint.component;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
-import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.FlinkException;
 
 /**
- * Base class for per-job cluster entry points.
+ * Interface which allows to retrieve the {@link JobGraph}.
  */
-public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
+public interface JobGraphRetriever {
 
-	public JobClusterEntrypoint(Configuration configuration) {
-		super(configuration);
-	}
-
-	@Override
-	protected ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
-			Configuration configuration,
-			ScheduledExecutor scheduledExecutor) {
-		return new MemoryArchivedExecutionGraphStore();
-	}
+	/**
+	 * Retrieve the {@link JobGraph}.
+	 *
+	 * @param configuration cluster configuration
+	 * @return the retrieved {@link JobGraph}.
+	 * @throws FlinkException if the {@link JobGraph} could not be retrieved
+	 */
+	JobGraph retrieveJobGraph(Configuration configuration) throws FlinkException;
 }

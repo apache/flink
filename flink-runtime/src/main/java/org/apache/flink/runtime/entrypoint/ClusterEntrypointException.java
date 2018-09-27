@@ -18,24 +18,23 @@
 
 package org.apache.flink.runtime.entrypoint;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
-import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
+import org.apache.flink.util.FlinkException;
 
 /**
- * Base class for per-job cluster entry points.
+ * Exceptions thrown by the {@link ClusterEntrypoint}.
  */
-public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
+public class ClusterEntrypointException extends FlinkException {
+	private static final long serialVersionUID = -3855286807063809945L;
 
-	public JobClusterEntrypoint(Configuration configuration) {
-		super(configuration);
+	public ClusterEntrypointException(String message) {
+		super(message);
 	}
 
-	@Override
-	protected ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
-			Configuration configuration,
-			ScheduledExecutor scheduledExecutor) {
-		return new MemoryArchivedExecutionGraphStore();
+	public ClusterEntrypointException(Throwable cause) {
+		super(cause);
+	}
+
+	public ClusterEntrypointException(String message, Throwable cause) {
+		super(message, cause);
 	}
 }

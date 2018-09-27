@@ -32,24 +32,24 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for the {@link StandaloneJobClusterEntryPoint}.
+ * Tests for the {@link ClassPathJobGraphRetriever}.
  */
-public class StandaloneJobClusterEntryPointTest extends TestLogger {
+public class ClassPathJobGraphRetrieverTest extends TestLogger {
 
 	public static final String[] PROGRAM_ARGUMENTS = {"--arg", "suffix"};
 
 	@Test
 	public void testJobGraphRetrieval() throws FlinkException {
-		final Configuration configuration = new Configuration();
 		final int parallelism = 42;
+		final Configuration configuration = new Configuration();
 		configuration.setInteger(CoreOptions.DEFAULT_PARALLELISM, parallelism);
-		final StandaloneJobClusterEntryPoint standaloneJobClusterEntryPoint = new StandaloneJobClusterEntryPoint(
-			configuration,
+
+		final ClassPathJobGraphRetriever classPathJobGraphRetriever = new ClassPathJobGraphRetriever(
 			TestJob.class.getCanonicalName(),
 			SavepointRestoreSettings.none(),
 			PROGRAM_ARGUMENTS);
 
-		final JobGraph jobGraph = standaloneJobClusterEntryPoint.retrieveJobGraph(configuration);
+		final JobGraph jobGraph = classPathJobGraphRetriever.retrieveJobGraph(configuration);
 
 		assertThat(jobGraph.getName(), is(equalTo(TestJob.class.getCanonicalName() + "-suffix")));
 		assertThat(jobGraph.getMaximumParallelism(), is(parallelism));
@@ -59,13 +59,13 @@ public class StandaloneJobClusterEntryPointTest extends TestLogger {
 	public void testSavepointRestoreSettings() throws FlinkException {
 		final Configuration configuration = new Configuration();
 		final SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.forPath("foobar", true);
-		final StandaloneJobClusterEntryPoint jobClusterEntryPoint = new StandaloneJobClusterEntryPoint(
-			configuration,
+
+		final ClassPathJobGraphRetriever classPathJobGraphRetriever = new ClassPathJobGraphRetriever(
 			TestJob.class.getCanonicalName(),
 			savepointRestoreSettings,
 			PROGRAM_ARGUMENTS);
 
-		final JobGraph jobGraph = jobClusterEntryPoint.retrieveJobGraph(configuration);
+		final JobGraph jobGraph = classPathJobGraphRetriever.retrieveJobGraph(configuration);
 
 		assertThat(jobGraph.getSavepointRestoreSettings(), is(equalTo(savepointRestoreSettings)));
 	}
