@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -89,8 +88,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 		try {
 			for (int i = 0; i < numberOfSegmentsToAllocate; i++) {
-				ByteBuffer memory = ByteBuffer.allocateDirect(segmentSize);
-				availableMemorySegments.add(MemorySegmentFactory.wrapPooledOffHeapMemory(memory, null));
+				availableMemorySegments.add(MemorySegmentFactory.allocateUnpooledOffHeapMemory(segmentSize, null));
 			}
 		}
 		catch (OutOfMemoryError err) {

@@ -675,8 +675,7 @@ public class MemoryManager {
 
 		@Override
 		MemorySegment allocateNewSegment(Object owner) {
-			ByteBuffer memory = ByteBuffer.allocateDirect(segmentSize);
-			return MemorySegmentFactory.wrapPooledOffHeapMemory(memory, owner);
+			return MemorySegmentFactory.allocateUnpooledOffHeapMemory(segmentSize, owner);
 		}
 
 		@Override
