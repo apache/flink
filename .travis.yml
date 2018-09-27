@@ -1,0 +1,100 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# s3 deployment based on http://about.travis-ci.org/blog/2012-12-18-travis-artifacts/
+
+# send to fully-virtualized infrastructure: https://docs.travis-ci.com/user/trusty-ci-environment/
+sudo: required
+dist: trusty
+
+cache:
+  # default timeout is too low
+  timeout: 600
+  directories:
+  - $HOME/.m2
+  - $HOME/flink_cache
+
+# do not cache our own artifacts
+before_cache:
+  - rm -rf $HOME/.m2/repository/org/apache/flink/
+
+install: true
+
+language: java
+
+git:
+  depth: 100
+
+env:
+  global:
+    # Global variable to avoid hanging travis builds when downloading cache archives.
+    - MALLOC_ARENA_MAX=2
+    # Build artifacts like logs (variables for apache/flink repo)
+    - secure: "gL3QRn6/XyVK+Em9RmVqpM6nbTwlhjK4/JiRYZGGCkBgTq4ZnG+Eq2qKAO22TAsqRSi7g7WAoAhUulPt0SJqH7hjMe0LetbO0izbVXDefwf2PJlsNgBbuFG6604++VUaUEyfPYYw9ADjV59LWG7+B/fjbRsevqRBZ30b1gv/tQQ="
+    - secure: "eM9r8IglvnUKctxz/ga6hwGnCpdOvGyYdGj0H/UiNDEx3Lq1A6yp3gChEIXGJqRUXDI5TaIuidunUGY7KHml8urm8eG2Yk2ttxXehZqLpEaOU2jdNJCdLX8tlVfh14T9bxG5AYHQEV3qJUqDFtfXD3whvzuinrm1oEIA3qUxiA8="
+    - secure: "EQYDWgJM5ANJ/sAFwmSEwSTOe9CDN/ENyQAr5/ntM67XanhTZj2Amgt9LthCRUU4EEPl/OFUTwNHMpv/+wa3q7dwVFldSIg5wyCndzJSATPyPBVjYgsXIQZVIjsq4TwTyrTteT55V6Oz2+l27Fvung2FPuN83ovswsJePFzMBxI="
+    - DOCKER_COMPOSE_VERSION=1.22.0
+
+before_script:
+   - "gem install --no-document --version 0.8.9 faraday "
+   - "export -f travis_nanoseconds"
+   - "export -f travis_time_start"
+   - "export -f travis_time_finish"
+
+# Install maven 3.2.5 since trusty uses 3.3.9 for which shading is broken
+before_install:
+   - "wget https://archive.apache.org/dist/maven/maven-3/3.2.5/binaries/apache-maven-3.2.5-bin.zip"
+   - "unzip -qq apache-maven-3.2.5-bin.zip"
+   - "rm apache-maven-3.2.5-bin.zip"
+   - "export M2_HOME=$PWD/apache-maven-3.2.5"
+   - "export PATH=$M2_HOME/bin:$PATH"
+   - "export MAVEN_OPTS=\"-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS\""
+# just in case: clean up the .m2 home and remove invalid jar files
+   - 'test ! -d $HOME/.m2/repository/ || find $HOME/.m2/repository/ -name "*.jar" -exec sh -c ''if ! zip -T {} >/dev/null ; then echo "deleting invalid file: {}"; rm -f {} ; fi'' \;'
+# Installing the specified docker compose version
+   - sudo rm /usr/local/bin/docker-compose
+   - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+   - chmod +x docker-compose
+   - sudo mv docker-compose /usr/local/bin
+
+# When modifying the matrix you also have to modify travis_controller.sh#getCurrentStage
+jdk: "oraclejdk8"
+jobs:
+  include:
+    # main profile
+    - stage: compile
+      script: ./delegate.sh
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: compile
+    - stage: test
+      script: ./delegate.sh
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: core
+    - script: ./delegate.sh
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: libraries
+    - script: ./delegate.sh
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: connectors
+    - script: ./delegate.sh
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: tests
+    - script: ./delegate.sh
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: misc
+    - stage: cleanup
+      script: ./delegate.sh
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: cleanup
