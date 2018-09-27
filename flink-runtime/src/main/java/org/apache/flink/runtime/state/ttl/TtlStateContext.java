@@ -18,23 +18,27 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-/** Test suite for heap state TTL with asynchronous snapshotting. */
-public class HeapAsyncSnapshotTtlStateTest extends TtlStateTestBase {
-	@Override
-	protected StateBackendTestContext createStateBackendTestContext(TtlTimeProvider timeProvider) {
-		return new StateBackendTestContext(timeProvider) {
-			@Override
-			protected StateBackend createStateBackend() {
-				return new MemoryStateBackend(true);
-			}
-		};
-	}
+class TtlStateContext<T, SV> {
+	/** Wrapped original state handler. */
+	final T original;
+	final StateTtlConfig config;
+	final TtlTimeProvider timeProvider;
+	final TypeSerializer<SV> valueSerializer;
+	final Runnable accessCallback;
 
-	@Override
-	protected boolean incrementalCleanupSupported() {
-		return true;
+	TtlStateContext(
+		T original,
+		StateTtlConfig config,
+		TtlTimeProvider timeProvider,
+		TypeSerializer<SV> valueSerializer,
+		Runnable accessCallback) {
+		this.original = original;
+		this.config = config;
+		this.timeProvider = timeProvider;
+		this.valueSerializer = valueSerializer;
+		this.accessCallback = accessCallback;
 	}
 }

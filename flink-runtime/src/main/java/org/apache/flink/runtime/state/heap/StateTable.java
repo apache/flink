@@ -20,10 +20,12 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StateTransformationFunction;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -165,6 +167,8 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 	public abstract S get(K key, N namespace);
 
 	public abstract Stream<K> getKeys(N namespace);
+
+	public abstract CloseableIterator<Tuple2<N, K>> getNamespaceKeyIterator();
 
 	// Meta data setter / getter and toString -----------------------------------------------------
 

@@ -64,9 +64,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * - emits verification context in case of failure
  */
 class TtlVerifyUpdateFunction extends RichFlatMapFunction<TtlStateUpdate, String> implements CheckpointedFunction {
-
 	private static final long serialVersionUID = 1L;
-
 	private static final Logger LOG = LoggerFactory.getLogger(TtlVerifyUpdateFunction.class);
 
 	@Nonnull
@@ -154,6 +152,8 @@ class TtlVerifyUpdateFunction extends RichFlatMapFunction<TtlStateUpdate, String
 	}
 
 	private static class UpdateStat implements Serializable {
+		private static final long serialVersionUID = -4557720969995878873L;
+
 		final long reportStatAfterUpdatesNum;
 		long updates = 0;
 		long prevUpdatesNum = 0;

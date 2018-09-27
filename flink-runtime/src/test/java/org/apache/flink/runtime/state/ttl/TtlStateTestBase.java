@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.heap.CopyOnWriteStateTable;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.StateMigrationException;
 
@@ -41,6 +42,7 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeThat;
+import static org.junit.Assume.assumeTrue;
 
 /** State TTL base test suite. */
 @RunWith(Parameterized.class)
@@ -132,6 +134,10 @@ public abstract class TtlStateTestBase {
 		sbetc.restoreSnapshot(snapshot);
 		sbetc.setCurrentKey("defaultKey");
 		createState();
+	}
+
+	protected boolean incrementalCleanupSupported() {
+		return false;
 	}
 
 	@Test
@@ -401,6 +407,70 @@ public abstract class TtlStateTestBase {
 		sbetc.restoreSnapshot(snapshot);
 		sbetc.setCurrentKey("defaultKey");
 		sbetc.createState(ctx().createStateDescriptor(), "");
+	}
+
+	@Test
+	public void testIncrementalCleanup() throws Exception {
+		assumeTrue(incrementalCleanupSupported());
+
+		initTest(getConfBuilder(TTL).cleanupIncrementally(5, true).build());
+
+		final int allKeys = (CopyOnWriteStateTable.DEFAULT_CAPACITY >> 1) +
+			(CopyOnWriteStateTable.DEFAULT_CAPACITY >> 2) + 1;
+
+		timeProvider.time = 0;
+		// create enough keys to trigger incremental rehash
+		for (int i = 0; i < allKeys; i++) {
+			sbetc.setCurrentKey(Integer.toString(i));
+			ctx().update(ctx().updateEmpty);
+		}
+
+		timeProvider.time = 50;
+		// update some
+		for (int i = 0; i < 20; i++) {
+			sbetc.setCurrentKey(Integer.toString(i));
+			ctx().update(ctx().updateUnexpired);
+		}
+		// check rest unexpired
+		for (int i = 20; i < allKeys; i++) {
+			sbetc.setCurrentKey(Integer.toString(i));
+			assertEquals("Unexpired state should be available", ctx().getUpdateEmpty, ctx().get());
+		}
+
+		takeAndRestoreSnapshot();
+
+		timeProvider.time = 120;
+		// remove some
+		for (int i = 10; i < 30; i++) {
+			sbetc.setCurrentKey(Integer.toString(i));
+			ctx().ttlState.clear();
+		}
+		// check updated not expired
+		for (int i = 0; i < 10; i++) {
+			sbetc.setCurrentKey(Integer.toString(i));
+			assertEquals("Unexpired state should be available", ctx().getUnexpired, ctx().get());
+		}
+		// trigger more cleanup by doing something
+		for (int i = allKeys; i < allKeys * 2; i++) {
+			sbetc.setCurrentKey(Integer.toString(i));
+			if (i / 2 == 0) {
+				ctx().get();
+			} else {
+				ctx().update(ctx().updateEmpty);
+			}
+		}
+
+		timeProvider.time = 170;
+		// check rest expired and cleanup updated
+		for (int i = 10; i < allKeys; i++) {
+			sbetc.setCurrentKey(Integer.toString(i));
+			assertEquals("Original state should be cleared", ctx().emptyValue, ctx().getOriginal());
+		}
+		// check updated expired
+		for (int i = 0; i < 10; i++) {
+			sbetc.setCurrentKey(Integer.toString(i));
+			assertEquals("Original state should be cleared", ctx().emptyValue, ctx().getOriginal());
+		}
 	}
 
 	@After

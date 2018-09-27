@@ -20,8 +20,10 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateTransformationFunction;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -118,6 +120,12 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	private static final int MAXIMUM_CAPACITY = 1 << 30;
 
 	/**
+	 * Default capacity for a {@link CopyOnWriteStateTable}. Must be a power of two,
+	 * greater than {@code MINIMUM_CAPACITY} and less than {@code MAXIMUM_CAPACITY}.
+	 */
+	public static final int DEFAULT_CAPACITY = 1024;
+
+	/**
 	 * Minimum number of entries that one step of incremental rehashing migrates from the old to the new sub-table.
 	 */
 	private static final int MIN_TRANSFERRED_PER_INCREMENTAL_REHASH = 4;
@@ -199,13 +207,13 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	private int modCount;
 
 	/**
-	 * Constructs a new {@code StateTable} with default capacity of 1024.
+	 * Constructs a new {@code StateTable} with default capacity of {@code DEFAULT_CAPACITY}.
 	 *
 	 * @param keyContext the key context.
 	 * @param metaInfo   the meta information, including the type serializer for state copy-on-write.
 	 */
 	CopyOnWriteStateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
-		this(keyContext, metaInfo, 1024);
+		this(keyContext, metaInfo, DEFAULT_CAPACITY);
 	}
 
 	/**
@@ -1101,6 +1109,84 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 		@Override
 		public void remove() {
 			throw new UnsupportedOperationException("Read-only iterator");
+		}
+	}
+
+	@Override
+	public CloseableIterator<Tuple2<N, K>> getNamespaceKeyIterator() {
+		return CloseableIterator.adapterForIterator(new NamespaceKeyIterator());
+	}
+
+	/**
+	 * Iterator over (namespace, key) pairs in a {@link CopyOnWriteStateTable}.
+	 *
+	 * <p>This iterator is lazy and has relaxed consistency.
+	 * It outputs (namespace, key) pairs which existed at some point in time and there can be duplicates.
+	 * It tolerates concurrent modifications and
+	 * supports removing of underlying next key state if it currently exists otherwise nothing is done.
+	 */
+	class NamespaceKeyIterator implements Iterator<Tuple2<N, K>> {
+		private StateTableEntry<K, N, S>[] activeTable;
+		private int nextTablePosition;
+		private StateTableEntry<K, N, S> nextEntry;
+		private Tuple2<N, K> entryToReturn;
+
+		NamespaceKeyIterator() {
+			this.activeTable = primaryTable;
+			this.nextTablePosition = 0;
+			this.nextEntry = getBootstrapEntry();
+			next();
+		}
+
+		@Override
+		public boolean hasNext() {
+			return nextEntry != null;
+		}
+
+		@Override
+		public Tuple2<N, K> next() {
+			if (!hasNext()) {
+				entryToReturn = null;
+				return null;
+			}
+
+			entryToReturn = Tuple2.of(nextEntry.namespace, nextEntry.key);
+			StateTableEntry<K, N, S> next = nextEntry.next;
+
+			// consider both sub-tables to cover the case of rehash
+			while (next == null) {
+				// try get next in active table or
+				// iteration is done over primary and rehash table
+				// or primary was swapped with rehash when rehash is done
+				if ((next = nextActiveTableEntry()) != null ||
+					activeTable == incrementalRehashTable ||
+					activeTable != primaryTable) {
+					break;
+				} else {
+					// switch to rehash (empty if no rehash)
+					activeTable = incrementalRehashTable;
+					nextTablePosition = 0;
+				}
+			}
+
+			nextEntry = next;
+			return entryToReturn;
+		}
+
+		private StateTableEntry<K, N, S> nextActiveTableEntry() {
+			StateTableEntry<K, N, S>[] tab = activeTable;
+			while (nextTablePosition < tab.length) {
+				StateTableEntry<K, N, S> next = tab[nextTablePosition++];
+				if (next != null) {
+					return next;
+				}
+			}
+			return null;
+		}
+
+		@Override
+		public void remove() {
+			CopyOnWriteStateTable.this.remove(entryToReturn.f1, entryToReturn.f0);
 		}
 	}
 }

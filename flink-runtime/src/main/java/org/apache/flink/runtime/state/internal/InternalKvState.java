@@ -20,6 +20,8 @@ package org.apache.flink.runtime.state.internal;
 
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.util.CloseableIterator;
 
 /**
  * The {@code InternalKvState} is the root of the internal state type hierarchy, similar to the
@@ -83,6 +85,13 @@ public interface InternalKvState<K, N, V> extends State {
 	void setCurrentNamespace(N namespace);
 
 	/**
+	 * Gets the current namespace, which will be used when using the state access methods.
+	 *
+	 * @return the current namespace.
+	 */
+	N getCurrentNamespace();
+
+	/**
 	 * Returns the serialized value for the given key and namespace.
 	 *
 	 * <p>If no value is associated with key and namespace, <code>null</code>
@@ -105,4 +114,8 @@ public interface InternalKvState<K, N, V> extends State {
 			final TypeSerializer<K> safeKeySerializer,
 			final TypeSerializer<N> safeNamespaceSerializer,
 			final TypeSerializer<V> safeValueSerializer) throws Exception;
+
+	default CloseableIterator<Tuple2<N, K>> getNamespaceKeyIterator() {
+		return null;
+	}
 }

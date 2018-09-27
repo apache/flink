@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.util.Preconditions;
 
@@ -40,32 +38,34 @@ import java.util.NoSuchElementException;
 class TtlListState<K, N, T> extends
 	AbstractTtlState<K, N, List<T>, List<TtlValue<T>>, InternalListState<K, N, TtlValue<T>>>
 	implements InternalListState<K, N, T> {
-	TtlListState(
-		InternalListState<K, N, TtlValue<T>> originalState,
-		StateTtlConfig config,
-		TtlTimeProvider timeProvider,
-		TypeSerializer<List<T>> valueSerializer) {
-		super(originalState, config, timeProvider, valueSerializer);
+	TtlListState(TtlStateContext<InternalListState<K, N, TtlValue<T>>, List<T>> ttlStateContext) {
+		super(ttlStateContext);
 	}
 
 	@Override
 	public void update(List<T> values) throws Exception {
+		accessCallback.run();
 		updateInternal(values);
 	}
 
 	@Override
 	public void addAll(List<T> values) throws Exception {
+		accessCallback.run();
 		Preconditions.checkNotNull(values, "List of values to add cannot be null.");
 		original.addAll(withTs(values));
 	}
 
 	@Override
 	public Iterable<T> get() throws Exception {
+		accessCallback.run();
 		Iterable<TtlValue<T>> ttlValue = original.get();
 		ttlValue = ttlValue == null ? Collections.emptyList() : ttlValue;
 		if (updateTsOnRead) {
 			List<TtlValue<T>> collected = collect(ttlValue);
 			ttlValue = collected;
+			// the underlying state in backend is iterated in updateTs anyways
+			// to avoid reiterating backend in IteratorWithCleanup
+			// it is collected and iterated next time in memory
 			updateTs(collected);
 		}
 		final Iterable<TtlValue<T>> finalResult = ttlValue;
@@ -87,8 +87,30 @@ class TtlListState<K, N, T> extends
 
 	@Override
 	public void add(T value) throws Exception {
+		accessCallback.run();
 		Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
 		original.add(wrapWithTs(value));
+	}
+
+	@Override
+	public boolean cleanupIfExpired() throws Exception {
+		Iterable<TtlValue<T>> ttlValues = original.get();
+		if (ttlValues != null) {
+			long currentTimestamp = timeProvider.currentTimestamp();
+			List<TtlValue<T>> unexpired =  ttlValues instanceof List ?
+				new ArrayList<>(((List<?>) ttlValues).size()) : new ArrayList<>();
+			for (TtlValue<T> ttlValue : ttlValues) {
+				if (!TtlUtils.expired(ttlValue, ttl, currentTimestamp)) {
+					unexpired.add(ttlValue);
+				}
+			}
+			if (!unexpired.isEmpty()) {
+				original.update(unexpired);
+			} else {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@Override
