@@ -152,6 +152,10 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	}
 
+	@Override public String getMetricQueryServiceAddress() {
+		return address;
+	}
+
 	@Override
 	public String getAddress() {
 		return address;

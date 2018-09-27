@@ -59,6 +59,10 @@ public class YarnSessionClusterEntrypoint extends SessionClusterEntrypoint {
 		return configuration.getString(YarnConfigOptions.APPLICATION_MASTER_PORT);
 	}
 
+	@Override protected String getMetricQueryServiceRPCPortRange(Configuration configuration) {
+		return configuration.getString(YarnConfigOptions.APPLICATION_MASTER_METRIC_QUERY_PORT);
+	}
+
 	@Override
 	protected DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(Configuration configuration) {
 		return new SessionDispatcherResourceManagerComponentFactory(YarnResourceManagerFactory.INSTANCE);

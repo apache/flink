@@ -65,6 +65,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.BindException;
@@ -383,6 +384,8 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 		TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
 
+		String metricQueryServicePath = metricRegistry.getMetricQueryServicePath();
+
 		return new TaskExecutor(
 			rpcService,
 			taskManagerConfiguration,
@@ -390,6 +393,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			taskManagerServices,
 			heartbeatServices,
 			taskManagerMetricGroup,
+			metricQueryServicePath,
 			blobCacheService,
 			fatalErrorHandler);
 	}

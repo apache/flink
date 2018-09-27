@@ -270,6 +270,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			"",
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -358,6 +359,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			"",
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -507,6 +509,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			"",
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -585,6 +588,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			"",
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -648,6 +652,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			"",
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -770,6 +775,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			"",
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -870,6 +876,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			"",
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -985,6 +992,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			"",
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -1104,6 +1112,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			new HeartbeatServices(1000L, 1000L),
 			taskManagerMetricGroup,
+			"",
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -1219,6 +1228,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			heartbeatServicesMock,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			"",
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -1291,6 +1301,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			"",
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -1347,6 +1358,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			"",
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -1439,6 +1451,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			new HeartbeatServices(heartbeatInterval, 10L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			"",
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -1545,6 +1558,7 @@ public class TaskExecutorTest extends TestLogger {
 				.build(),
 			new HeartbeatServices(heartbeatInterval, 1000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			"",
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -1686,6 +1700,7 @@ public class TaskExecutorTest extends TestLogger {
                 taskManagerServices,
                 new HeartbeatServices(1000L, 1000L),
                 UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+                "",
                 dummyBlobCacheService,
                 testingFatalErrorHandler);
 	}

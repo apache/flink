@@ -142,6 +142,24 @@ public class YarnConfigOptions {
 			" allowed ports.");
 
 	/**
+	 * The config parameter defining the Akka actor system port for the Metric Query Service in
+	 * JobManager.
+	 * The port can either be a port, such as "9123",
+	 * a range of ports: "50100-50200"
+	 * or a list of ranges and or points: "50100-50200,50300-50400,51234".
+	 * Setting the port to 0 will let the OS choose an available port.
+	 */
+	public static final ConfigOption<String> APPLICATION_MASTER_METRIC_QUERY_PORT =
+		key("yarn.application-master.metric-query.port")
+			.defaultValue("0")
+			.withDescription("With this configuration option, users can specify a port, a range of ports or a list of ports" +
+				" for the Metric Query Service' port in JobManager. By default we recommend using the default value (0)" +
+				" to let the operating system choose an appropriate port. In particular when multiple AMs are running on" +
+				" the same physical host, fixed port assignments prevent the AM from starting. For example when running" +
+				" Flink on YARN on an environment with a restrictive firewall, this option allows specifying a range of" +
+				" allowed ports.");
+
+	/**
 	 * A comma-separated list of strings to use as YARN application tags.
 	 */
 	public static final ConfigOption<String> APPLICATION_TAGS =
