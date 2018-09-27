@@ -59,7 +59,6 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
@@ -124,7 +123,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -155,6 +153,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
@@ -181,20 +180,15 @@ public class StreamTaskTest extends TestLogger {
 		cfg.setStreamOperator(new SlowlyDeserializingOperator());
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
-		final CompletableFuture<Acknowledge> stateListener = new CompletableFuture<>();
-		final TaskManagerActions taskManagerActions = new NoOpTaskManagerActions() {
-			@Override
-			public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {
-				if (taskExecutionState.getExecutionState() == ExecutionState.RUNNING) {
-					stateListener.complete(Acknowledge.get());
-				}
-			}
-		};
-
+		final TaskManagerActions taskManagerActions = mock(TaskManagerActions.class);
 		final Task task = createTask(SourceStreamTask.class, cfg, new Configuration(), taskManagerActions);
+
+		final TaskExecutionState state = new TaskExecutionState(
+			task.getJobID(), task.getExecutionId(), ExecutionState.RUNNING);
+
 		task.startTaskThread();
 
-		stateListener.get(Duration.ofMinutes(2).toMillis(), TimeUnit.MILLISECONDS);
+		verify(taskManagerActions, timeout(2000L)).updateTaskExecutionState(eq(state));
 
 		// send a cancel. because the operator takes a long time to deserialize, this should
 		// hit the task before the operator is deserialized
@@ -883,21 +877,6 @@ public class StreamTaskTest extends TestLogger {
 			FINISH_CLOSE.await();
 			super.close();
 		}
-	}
-
-	private static class NoOpTaskManagerActions implements TaskManagerActions {
-
-		@Override
-		public void notifyFinalState(ExecutionAttemptID executionAttemptID) {}
-
-		@Override
-		public void notifyFatalError(String message, Throwable cause) {}
-
-		@Override
-		public void failTask(ExecutionAttemptID executionAttemptID, Throwable cause) {}
-
-		@Override
-		public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {}
 	}
 
 	public static Task createTask(
