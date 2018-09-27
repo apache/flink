@@ -20,10 +20,9 @@ package org.apache.flink.api.scala
 
 import java.io._
 
-import org.apache.flink.configuration.{Configuration, CoreOptions, RestOptions, TaskManagerOptions}
+import org.apache.flink.configuration.{Configuration, CoreOptions, RestOptions}
 import org.apache.flink.runtime.clusterframework.BootstrapTools
-import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration, StandaloneMiniCluster}
-import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration}
 import org.apache.flink.util.TestLogger
 import org.junit._
 import org.junit.rules.TemporaryFolder
@@ -312,7 +311,7 @@ class ScalaShellITCase extends TestLogger {
 object ScalaShellITCase {
 
   val configuration = new Configuration()
-  var cluster: Option[Either[MiniCluster, StandaloneMiniCluster]] = None
+  var cluster: Option[MiniCluster] = None
 
   var port: Int = _
   var hostname : String = _
@@ -333,7 +332,7 @@ object ScalaShellITCase {
     port = miniCluster.getRestAddress.getPort
     hostname = miniCluster.getRestAddress.getHost
 
-    cluster = Some(Left(miniCluster))
+    cluster = Some(miniCluster)
   }
 
   @AfterClass
@@ -342,8 +341,7 @@ object ScalaShellITCase {
     Thread.currentThread().setContextClassLoader(classOf[ScalaShellITCase].getClassLoader)
 
     cluster.foreach {
-      case Left(miniCluster) => miniCluster.close()
-      case Right(miniCluster) => miniCluster.close()
+      miniCluster => miniCluster.close()
     }
   }
 
