@@ -38,6 +38,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -59,6 +61,9 @@ public abstract class AbstractKeyedStateBackend<K> implements
 
 	/** The currently active key. */
 	private K currentKey;
+
+	/** Listeners to changes of keyed context ({@link #currentKey}). */
+	private final Set<KeySelectionListener<K>> keySelectionListeners;
 
 	/** The key group of the currently active key. */
 	private int currentKeyGroup;
@@ -115,6 +120,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		this.executionConfig = executionConfig;
 		this.keyGroupCompressionDecorator = determineStreamCompression(executionConfig);
 		this.ttlTimeProvider = Preconditions.checkNotNull(ttlTimeProvider);
+		this.keySelectionListeners = new HashSet<>();
 	}
 
 	private StreamCompressionDecorator determineStreamCompression(ExecutionConfig executionConfig) {
@@ -149,8 +155,23 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	 */
 	@Override
 	public void setCurrentKey(K newKey) {
+		notifyKeySelected(newKey);
 		this.currentKey = newKey;
 		this.currentKeyGroup = KeyGroupRangeAssignment.assignToKeyGroup(newKey, numberOfKeyGroups);
+	}
+
+	private void notifyKeySelected(K newKey) {
+		keySelectionListeners.forEach(listener -> listener.keySelected(newKey));
+	}
+
+	@Override
+	public void registerKeySelectionListener(KeySelectionListener<K> listener) {
+		keySelectionListeners.add(listener);
+	}
+
+	@Override
+	public boolean deregisterKeySelectionListener(KeySelectionListener<K> listener) {
+		return keySelectionListeners.remove(listener);
 	}
 
 	/**

@@ -235,4 +235,9 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
 			return null;
 		}
 	}
+
+	@Override
+	public StateIncrementalVisitor<K, N, V> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
+		throw new UnsupportedOperationException("Global state entry iterator is unsupported for RocksDb backend");
+	}
 }

@@ -24,6 +24,8 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.heap.CopyOnWriteStateTable;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.StateMigrationException;
 
@@ -35,17 +37,21 @@ import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.RunnableFuture;
 import java.util.function.Consumer;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeThat;
+import static org.junit.Assume.assumeTrue;
 
 /** State TTL base test suite. */
 @RunWith(Parameterized.class)
 public abstract class TtlStateTestBase {
 	private static final long TTL = 100;
+	private static final int INC_CLEANUP_ALL_KEYS =
+		(CopyOnWriteStateTable.DEFAULT_CAPACITY >> 1) + (CopyOnWriteStateTable.DEFAULT_CAPACITY >> 2) + 1;
 
 	private MockTtlTimeProvider timeProvider;
 	private StateBackendTestContext sbetc;
@@ -127,11 +133,18 @@ public abstract class TtlStateTestBase {
 	}
 
 	private void takeAndRestoreSnapshot() throws Exception {
-		KeyedStateHandle snapshot = sbetc.takeSnapshot();
+		restoreSnapshot(sbetc.takeSnapshot());
+	}
+
+	private void restoreSnapshot(KeyedStateHandle snapshot) throws Exception {
 		sbetc.createAndRestoreKeyedStateBackend();
 		sbetc.restoreSnapshot(snapshot);
 		sbetc.setCurrentKey("defaultKey");
 		createState();
+	}
+
+	protected boolean incrementalCleanupSupported() {
+		return false;
 	}
 
 	@Test
@@ -401,6 +414,92 @@ public abstract class TtlStateTestBase {
 		sbetc.restoreSnapshot(snapshot);
 		sbetc.setCurrentKey("defaultKey");
 		sbetc.createState(ctx().createStateDescriptor(), "");
+	}
+
+	@Test
+	public void testIncrementalCleanup() throws Exception {
+		assumeTrue(incrementalCleanupSupported());
+
+		initTest(getConfBuilder(TTL).cleanupIncrementally(5, true).build());
+
+		final int keysToUpdate = CopyOnWriteStateTable.DEFAULT_CAPACITY >> 3;
+
+		timeProvider.time = 0;
+		// create enough keys to trigger incremental rehash
+		updateKeys(0, INC_CLEANUP_ALL_KEYS, ctx().updateEmpty);
+
+		timeProvider.time = 50;
+		// update some
+		updateKeys(0, keysToUpdate, ctx().updateUnexpired);
+
+		RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotRunnableFuture = sbetc.triggerSnapshot();
+
+		// update more concurrently with snapshotting
+		updateKeys(keysToUpdate, keysToUpdate * 2, ctx().updateUnexpired);
+		timeProvider.time = 120; // expire rest
+		triggerMoreIncrementalCleanupByOtherOps();
+		// check rest expired and cleanup updated
+		checkExpiredKeys(keysToUpdate * 2, INC_CLEANUP_ALL_KEYS);
+
+		KeyedStateHandle snapshot = snapshotRunnableFuture.get().getJobManagerOwnedSnapshot();
+		// restore snapshot which should discard concurrent updates
+		timeProvider.time = 50;
+		restoreSnapshot(snapshot);
+
+		// check rest unexpired, also after restore which should discard concurrent updates
+		checkUnexpiredKeys(keysToUpdate, INC_CLEANUP_ALL_KEYS, ctx().getUpdateEmpty);
+
+		timeProvider.time = 120;
+
+		// remove some
+		for (int i = keysToUpdate >> 1; i < keysToUpdate + (keysToUpdate >> 2); i++) {
+			sbetc.setCurrentKey(Integer.toString(i));
+			ctx().ttlState.clear();
+		}
+		// check updated not expired
+		checkUnexpiredKeys(0, keysToUpdate >> 1, ctx().getUnexpired);
+		triggerMoreIncrementalCleanupByOtherOps();
+		// check that concurrently updated and then restored with original values are expired
+		checkExpiredKeys(keysToUpdate, keysToUpdate *2);
+
+		timeProvider.time = 170;
+		// check rest expired and cleanup updated
+		checkExpiredKeys(keysToUpdate >> 1, INC_CLEANUP_ALL_KEYS);
+		// check updated expired
+		checkExpiredKeys(0, keysToUpdate >> 1);
+	}
+
+	private <T> void updateKeys(int startKey, int endKey, T value) throws Exception {
+		for (int i = startKey; i < endKey; i++) {
+			sbetc.setCurrentKey(Integer.toString(i));
+			ctx().update(value);
+		}
+	}
+
+	private <T> void checkUnexpiredKeys(int startKey, int endKey, T value) throws Exception {
+		for (int i = startKey; i < endKey; i++) {
+			sbetc.setCurrentKey(Integer.toString(i));
+			assertEquals("Unexpired state should be available", value, ctx().get());
+		}
+	}
+
+	private void checkExpiredKeys(int startKey, int endKey) throws Exception {
+		for (int i = startKey; i < endKey; i++) {
+			sbetc.setCurrentKey(Integer.toString(i));
+			assertEquals("Original state should be cleared", ctx().emptyValue, ctx().getOriginal());
+		}
+	}
+
+	private void triggerMoreIncrementalCleanupByOtherOps() throws Exception {
+		// trigger more cleanup by doing something out side of INC_CLEANUP_ALL_KEYS
+		for (int i = INC_CLEANUP_ALL_KEYS; i < INC_CLEANUP_ALL_KEYS * 2; i++) {
+			sbetc.setCurrentKey(Integer.toString(i));
+			if (i / 2 == 0) {
+				ctx().get();
+			} else {
+				ctx().update(ctx().updateEmpty);
+			}
+		}
 	}
 
 	@After

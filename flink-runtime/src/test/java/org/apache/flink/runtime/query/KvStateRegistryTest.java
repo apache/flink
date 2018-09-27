@@ -323,6 +323,11 @@ public class KvStateRegistryTest extends TestLogger {
 		}
 
 		@Override
+		public StateIncrementalVisitor<Integer, VoidNamespace, String> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
 		public void clear() {
 			// noop
 		}

@@ -361,6 +361,8 @@ e.g. by calling `ValueState.value()`.
 <span class="label label-danger">Attention</span> This means that by default if expired state is not read, 
 it won't be removed, possibly leading to ever growing state. This might change in future releases. 
 
+##### Cleanup in full snapshot
+
 Additionally, you can activate the cleanup at the moment of taking the full state snapshot which 
 will reduce its size. The local state is not cleaned up under the current implementation 
 but it will not include the removed expired state in case of restoration from the previous snapshot.
@@ -393,6 +395,50 @@ val ttlConfig = StateTtlConfig
 </div>
 
 This option is not applicable for the incremental checkpointing in the RocksDB state backend.
+
+##### Incremental cleanup
+
+Another option is to trigger cleanup of some state entries incrementally.
+The trigger can be a callback from each state access or/and each record processing.
+If this cleanup strategy is active for certain state,
+The storage backend keeps a lazy global iterator for this state over all its entries.
+Every time incremental cleanup is triggered, the iterator is advanced.
+The traversed state entries are checked and expired ones are cleaned up.
+
+This feature can be activated in `StateTtlConfig`:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.api.common.state.StateTtlConfig;
+ StateTtlConfig ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
+    .cleanupIncrementally()
+    .build();
+{% endhighlight %}
+</div>
+ <div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.common.state.StateTtlConfig
+val ttlConfig = StateTtlCon fig
+    .newBuilder(Time.seconds(1))
+    .cleanupIncrementally
+    .build
+{% endhighlight %}
+</div>
+</div>
+
+This strategy has two parameters. The first one is number of checked state entries per each cleanup triggering.
+If enabled, it is always triggered per each state access.
+The second parameter defines whether to trigger cleanup additionally per each record processing.
+
+**Notes:**
+- If no access happens to the state or no records are processed, expired state will persist.
+- Time spent for the incremental cleanup increases record processing latency.
+- At the moment incremental cleanup is implemented only for Heap state backend. Setting it for RocksDB will have no effect.
+- If heap state backend is used with synchronous snapshotting, the global iterator keeps a copy of all keys 
+while iterating because of its specific implementation which does not support concurrent modifications. 
+Enabling of this feature will increase memory consumption then. Asynchronous snapshotting does not have this problem.
 
 More strategies will be added in the future for cleaning up expired state automatically in the background.
 
