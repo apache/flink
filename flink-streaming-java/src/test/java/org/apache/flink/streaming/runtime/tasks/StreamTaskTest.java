@@ -59,6 +59,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
@@ -86,6 +87,7 @@ import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.DirectExecutorService;
@@ -174,15 +176,25 @@ public class StreamTaskTest extends TestLogger {
 	 */
 	@Test
 	public void testEarlyCanceling() throws Exception {
-		StreamConfig cfg = new StreamConfig(new Configuration());
+		final StreamConfig cfg = new StreamConfig(new Configuration());
 		cfg.setOperatorID(new OperatorID(4711L, 42L));
 		cfg.setStreamOperator(new SlowlyDeserializingOperator());
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
-		Task task = createTask(SourceStreamTask.class, cfg, new Configuration());
+		final CompletableFuture<Acknowledge> stateListener = new CompletableFuture<>();
+		final TaskManagerActions taskManagerActions = new NoOpTaskManagerActions() {
+			@Override
+			public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {
+				if (taskExecutionState.getExecutionState() == ExecutionState.RUNNING) {
+					stateListener.complete(Acknowledge.get());
+				}
+			}
+		};
+
+		final Task task = createTask(SourceStreamTask.class, cfg, new Configuration(), taskManagerActions);
 		task.startTaskThread();
 
-		waitUntilExecutionState(task, ExecutionState.RUNNING, Deadline.fromNow(Duration.ofMinutes(2)));
+		stateListener.get(Duration.ofMinutes(2).toMillis(), TimeUnit.MILLISECONDS);
 
 		// send a cancel. because the operator takes a long time to deserialize, this should
 		// hit the task before the operator is deserialized
@@ -873,18 +885,42 @@ public class StreamTaskTest extends TestLogger {
 		}
 	}
 
+	private static class NoOpTaskManagerActions implements TaskManagerActions {
+
+		@Override
+		public void notifyFinalState(ExecutionAttemptID executionAttemptID) {}
+
+		@Override
+		public void notifyFatalError(String message, Throwable cause) {}
+
+		@Override
+		public void failTask(ExecutionAttemptID executionAttemptID, Throwable cause) {}
+
+		@Override
+		public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {}
+	}
+
 	public static Task createTask(
 		Class<? extends AbstractInvokable> invokable,
 		StreamConfig taskConfig,
 		Configuration taskManagerConfig) throws Exception {
-		return createTask(invokable, taskConfig, taskManagerConfig, new TestTaskStateManager());
+		return createTask(invokable, taskConfig, taskManagerConfig, new TestTaskStateManager(), mock(TaskManagerActions.class));
+	}
+
+	public static Task createTask(
+		Class<? extends AbstractInvokable> invokable,
+		StreamConfig taskConfig,
+		Configuration taskManagerConfig,
+		TaskManagerActions taskManagerActions) throws Exception {
+		return createTask(invokable, taskConfig, taskManagerConfig, new TestTaskStateManager(), taskManagerActions);
 	}
 
 	public static Task createTask(
 			Class<? extends AbstractInvokable> invokable,
 			StreamConfig taskConfig,
 			Configuration taskManagerConfig,
-			TestTaskStateManager taskStateManager) throws Exception {
+			TestTaskStateManager taskStateManager,
+			TaskManagerActions taskManagerActions) throws Exception {
 
 		BlobCacheService blobService =
 			new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
@@ -936,7 +972,7 @@ public class StreamTaskTest extends TestLogger {
 			network,
 			mock(BroadcastVariableManager.class),
 			taskStateManager,
-			mock(TaskManagerActions.class),
+			taskManagerActions,
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
 			blobService,
