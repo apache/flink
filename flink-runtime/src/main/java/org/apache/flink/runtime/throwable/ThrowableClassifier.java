@@ -18,51 +18,20 @@
 
 package org.apache.flink.runtime.throwable;
 
-import org.apache.flink.runtime.execution.SuppressRestartsException;
-import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
-
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
+import java.lang.annotation.Annotation;
 
 /**
- * given a exception do the classification.
+ * Helper class, given a exception do the classification.
  */
 public class ThrowableClassifier {
 
-	//TODO: add more NON_RECOVERABLE exception here
-	private static final Set<Class> NON_RECOVERABLE = new HashSet<>(Arrays.asList(
-		SuppressRestartsException.class,
-		NoResourceAvailableException.class
-	));
-
-	//TODO: add more PARTITION_MISSING_ERROR exception here
-	private static final Set<Class> PARTITION_MISSING_ERROR = new HashSet<>(Arrays.asList(
-	));
-
-	//TODO: add more ENVIRONMENT_ERROR exception here
-	private static final Set<Class> ENVIRONMENT_ERROR = new HashSet<>(Arrays.asList(
-	));
-
-	private static final boolean isInstanceOf(Set<Class> category, Throwable cause){
-		return category.contains(cause)
-			|| category.stream().anyMatch(c -> c.isAssignableFrom(cause.getClass()));
-	}
-
 	/**
-	 * classify the exceptions, that will be handled different failover logic.
+	 * classify the exceptions by extract the {@link ThrowableAnnotation} of it, that will be handled different failover logic.
 	 * @param cause
-	 * @return
+	 * @return ThrowableType.Other if there is no such annotation
 	 */
 	public static ThrowableType getThrowableType(Throwable cause) {
-
-		if (isInstanceOf(NON_RECOVERABLE, cause)) {
-			return ThrowableType.NonRecoverable;
-		} else if (isInstanceOf(PARTITION_MISSING_ERROR, cause)) {
-			return ThrowableType.PartitionDataMissingError;
-		} else if (isInstanceOf(ENVIRONMENT_ERROR, cause)) {
-			return ThrowableType.EnvironmentError;
-		}
-		return ThrowableType.Other;
+		final Annotation annotation = cause.getClass().getDeclaredAnnotation(ThrowableAnnotation.class);
+		return annotation == null ? ThrowableType.Other : ((ThrowableAnnotation) annotation).value();
 	}
 }
