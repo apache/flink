@@ -24,7 +24,6 @@ import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.StandaloneSessionClusterEntrypoint;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
@@ -101,9 +100,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 		jmConfig.setLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 10000L);
 		jmConfig.setInteger(RestOptions.PORT, restPort);
 
-		final StandaloneSessionClusterEntrypoint clusterEntrypoint = new StandaloneSessionClusterEntrypoint(jmConfig);
-
-		try {
+		try (final StandaloneSessionClusterEntrypoint clusterEntrypoint = new StandaloneSessionClusterEntrypoint(jmConfig)) {
 			// check that we run this test only if the java command
 			// is available on this machine
 			String javaCommand = getJavaCommandPath();
@@ -228,8 +225,6 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 			if (taskManagerProcess3 != null) {
 				taskManagerProcess3.destroy();
 			}
-
-			clusterEntrypoint.shutDownAsync(ApplicationStatus.SUCCEEDED, null, true).get();
 		}
 	}
 
