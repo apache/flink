@@ -30,7 +30,7 @@
 # automatically configure the host name based on the hostname of the node where the
 # JobManager runs.
 
-jobmanager.rpc.address: localhost
+rest.address: localhost
 
 # The RPC port where the JobManager is reachable.
 
