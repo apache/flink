@@ -399,9 +399,6 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 			null);
 
 		try {
-
-			keyedStateBackend.restore(null);
-
 			// register a state so that the state backend has to checkpoint something
 			keyedStateBackend.getPartitionedState(
 				"namespace",

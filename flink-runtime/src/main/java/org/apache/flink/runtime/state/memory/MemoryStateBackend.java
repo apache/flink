@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.TaskStateManager;
@@ -43,6 +44,7 @@ import org.apache.flink.util.TernaryBoolean;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -305,15 +307,16 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 
 	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry,
-			TtlTimeProvider ttlTimeProvider,
-			MetricGroup metricGroup) {
+		Environment env,
+		JobID jobID,
+		String operatorIdentifier,
+		TypeSerializer<K> keySerializer,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		TaskKvStateRegistry kvStateRegistry,
+		TtlTimeProvider ttlTimeProvider,
+		MetricGroup metricGroup,
+		Collection<KeyedStateHandle> stateHandles) {
 
 		TaskStateManager taskStateManager = env.getTaskStateManager();
 		HeapPriorityQueueSetFactory priorityQueueSetFactory =

@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
@@ -48,6 +49,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -458,7 +460,8 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 		KeyGroupRange keyGroupRange,
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
-		MetricGroup metricGroup) {
+		MetricGroup metricGroup,
+		Collection<KeyedStateHandle> stateHandles) {
 
 		TaskStateManager taskStateManager = env.getTaskStateManager();
 		LocalRecoveryConfig localRecoveryConfig = taskStateManager.createLocalRecoveryConfig();

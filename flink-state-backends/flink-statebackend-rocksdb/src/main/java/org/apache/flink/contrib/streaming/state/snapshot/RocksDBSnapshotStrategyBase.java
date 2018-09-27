@@ -56,7 +56,7 @@ public abstract class RocksDBSnapshotStrategyBase<K>
 
 	/** RocksDB instance from the backend. */
 	@Nonnull
-	protected final RocksDB db;
+	protected RocksDB db;
 
 	/** Resource guard for the RocksDB instance. */
 	@Nonnull

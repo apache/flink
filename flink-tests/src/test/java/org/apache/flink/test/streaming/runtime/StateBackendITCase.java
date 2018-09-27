@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
@@ -44,6 +45,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collection;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -115,7 +117,8 @@ public class StateBackendITCase extends AbstractTestBase {
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry,
 			TtlTimeProvider ttlTimeProvider,
-			MetricGroup metricGroup) throws IOException {
+			MetricGroup metricGroup,
+			Collection<KeyedStateHandle> stateHandles) throws IOException {
 			throw new SuccessException();
 		}
 

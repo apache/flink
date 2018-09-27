@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.contrib.streaming.state.PredefinedOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
-import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
+import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.queryablestate.client.VoidNamespace;
@@ -42,6 +42,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+
+import java.util.Collections;
 
 import static org.mockito.Mockito.mock;
 
@@ -69,28 +71,26 @@ public final class KVStateRequestSerializerRocksDBTest {
 		DBOptions dbOptions = PredefinedOptions.DEFAULT.createDBOptions();
 		dbOptions.setCreateIfMissing(true);
 		ColumnFamilyOptions columnFamilyOptions = PredefinedOptions.DEFAULT.createColumnOptions();
+		ExecutionConfig executionConfig = new ExecutionConfig();
 		final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend =
-			new RocksDBKeyedStateBackend<>(
+			new RocksDBKeyedStateBackendBuilder<>(
 				"no-op",
 				ClassLoader.getSystemClassLoader(),
 				temporaryFolder.getRoot(),
 				dbOptions,
-				stateName -> columnFamilyOptions,
+				columnFamilyOptions,
 				mock(TaskKvStateRegistry.class),
 				LongSerializer.INSTANCE,
 				1,
 				new KeyGroupRange(0, 0),
-				new ExecutionConfig(),
-				false,
-				1,
+				executionConfig,
 				TestLocalRecoveryConfig.disabled(),
 				RocksDBStateBackend.PriorityQueueStateType.HEAP,
 				TtlTimeProvider.DEFAULT,
-				false,
-				new RocksDBNativeMetricOptions(),
-				new UnregisteredMetricsGroup()
-			);
-		longHeapKeyedStateBackend.restore(null);
+				new UnregisteredMetricsGroup(),
+				Collections.emptyList(),
+				RocksDBStateBackend.getCompressionDecorator(executionConfig)
+			).build();
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
 		final InternalListState<Long, VoidNamespace, Long> listState = longHeapKeyedStateBackend.createInternalState(VoidNamespaceSerializer.INSTANCE,
@@ -115,28 +115,26 @@ public final class KVStateRequestSerializerRocksDBTest {
 		DBOptions dbOptions = PredefinedOptions.DEFAULT.createDBOptions();
 		dbOptions.setCreateIfMissing(true);
 		ColumnFamilyOptions columnFamilyOptions = PredefinedOptions.DEFAULT.createColumnOptions();
+		ExecutionConfig executionConfig = new ExecutionConfig();
 		final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend =
-			new RocksDBKeyedStateBackend<Long>(
+			new RocksDBKeyedStateBackendBuilder<>(
 				"no-op",
 				ClassLoader.getSystemClassLoader(),
 				temporaryFolder.getRoot(),
 				dbOptions,
-				stateName -> columnFamilyOptions,
+				columnFamilyOptions,
 				mock(TaskKvStateRegistry.class),
 				LongSerializer.INSTANCE,
 				1,
 				new KeyGroupRange(0, 0),
-				new ExecutionConfig(),
-				false,
-				1,
+				executionConfig,
 				TestLocalRecoveryConfig.disabled(),
 				RocksDBStateBackend.PriorityQueueStateType.HEAP,
 				TtlTimeProvider.DEFAULT,
-				false,
-				new RocksDBNativeMetricOptions(),
-				new UnregisteredMetricsGroup()
-			);
-		longHeapKeyedStateBackend.restore(null);
+				new UnregisteredMetricsGroup(),
+				Collections.emptyList(),
+				RocksDBStateBackend.getCompressionDecorator(executionConfig)
+			).build();
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
 		final InternalMapState<Long, VoidNamespace, Long, String> mapState =

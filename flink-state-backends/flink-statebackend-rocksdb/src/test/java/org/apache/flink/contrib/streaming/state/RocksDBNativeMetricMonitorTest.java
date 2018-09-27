@@ -71,9 +71,9 @@ public class RocksDBNativeMetricMonitorTest {
 		options.enableSizeAllMemTables();
 
 		RocksDBNativeMetricMonitor monitor = new RocksDBNativeMetricMonitor(
-			localRocksDBResource.getRocksDB(),
 			options,
-			group
+			group,
+			localRocksDBResource.getRocksDB()
 		);
 
 		ColumnFamilyHandle handle = localRocksDBResource.createNewColumnFamily(COLUMN_FAMILY_NAME);
@@ -116,9 +116,9 @@ public class RocksDBNativeMetricMonitorTest {
 		options.enableSizeAllMemTables();
 
 		RocksDBNativeMetricMonitor monitor = new RocksDBNativeMetricMonitor(
-			localRocksDBResource.getRocksDB(),
 			options,
-			group
+			group,
+			localRocksDBResource.getRocksDB()
 		);
 
 		ColumnFamilyHandle handle = rocksDBResource.createNewColumnFamily(COLUMN_FAMILY_NAME);
@@ -146,9 +146,9 @@ public class RocksDBNativeMetricMonitorTest {
 		options.enableSizeAllMemTables();
 
 		RocksDBNativeMetricMonitor monitor = new RocksDBNativeMetricMonitor(
-			rocksDBResource.getRocksDB(),
 			options,
-			group
+			group,
+			rocksDBResource.getRocksDB()
 		);
 
 		ColumnFamilyHandle handle = rocksDBResource.createNewColumnFamily(COLUMN_FAMILY_NAME);

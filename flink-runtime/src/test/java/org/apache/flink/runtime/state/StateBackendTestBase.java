@@ -18,6 +18,10 @@
 
 package org.apache.flink.runtime.state;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
@@ -72,17 +76,11 @@ import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
+import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
-
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -181,7 +179,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				env.getTaskKvStateRegistry(),
 				TtlTimeProvider.DEFAULT);
 
-		backend.restore(null);
+		backend.restore(Collections.emptyList());
 
 		return backend;
 	}
@@ -217,7 +215,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			numberOfKeyGroups,
 			keyGroupRange,
 			env.getTaskKvStateRegistry(),
-			TtlTimeProvider.DEFAULT);
+			TtlTimeProvider.DEFAULT,
+			state);
 
 		backend.restore(new StateObjectCollection<>(state));
 
@@ -3030,6 +3029,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			fail("should recognize wrong key serializer");
 		} catch (StateMigrationException ignored) {
 			// expected
+		} catch (BackendBuildingException ignored) {
+			assertTrue(ignored.getCause() instanceof StateMigrationException);
 		}
 	}
 

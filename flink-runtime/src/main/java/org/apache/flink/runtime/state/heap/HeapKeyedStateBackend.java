@@ -31,6 +31,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -151,7 +152,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TtlTimeProvider ttlTimeProvider) {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader,
-			numberOfKeyGroups, keyGroupRange, executionConfig, ttlTimeProvider);
+			numberOfKeyGroups, keyGroupRange, executionConfig, ttlTimeProvider, new CloseableRegistry());
 
 		this.registeredKVStates = new HashMap<>();
 		this.registeredPQStates = new HashMap<>();

@@ -770,6 +770,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 			new KeyGroupRange(0, 0),
 			registry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId()),
 			TtlTimeProvider.DEFAULT,
-			new UnregisteredMetricsGroup());
+			new UnregisteredMetricsGroup(),
+			null);
 	}
 }

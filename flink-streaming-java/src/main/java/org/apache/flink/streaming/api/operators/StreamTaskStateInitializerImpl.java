@@ -238,7 +238,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
 		BackendRestorerProcedure<OperatorStateBackend, OperatorStateHandle> backendRestorer =
 			new BackendRestorerProcedure<>(
-				() -> stateBackend.createOperatorStateBackend(environment, operatorIdentifierText),
+				(stateHandles) -> stateBackend.createOperatorStateBackend(environment, operatorIdentifierText),
 				backendCloseableRegistry,
 				logDescription);
 
@@ -268,7 +268,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
 		BackendRestorerProcedure<AbstractKeyedStateBackend<K>, KeyedStateHandle> backendRestorer =
 			new BackendRestorerProcedure<>(
-				() -> stateBackend.createKeyedStateBackend(
+				(stateHandles) -> stateBackend.createKeyedStateBackend(
 					environment,
 					environment.getJobID(),
 					operatorIdentifierText,
@@ -277,7 +277,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 					keyGroupRange,
 					environment.getTaskKvStateRegistry(),
 					TtlTimeProvider.DEFAULT,
-					metricGroup),
+					metricGroup,
+					stateHandles),
 				backendCloseableRegistry,
 				logDescription);
 

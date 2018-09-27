@@ -34,11 +34,13 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import javax.annotation.Nullable;
+import java.util.Collection;
 
 /** mack state backend. */
 public class MockStateBackend extends AbstractStateBackend {
@@ -120,7 +122,8 @@ public class MockStateBackend extends AbstractStateBackend {
 		KeyGroupRange keyGroupRange,
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
-		MetricGroup metricGroup) {
+		MetricGroup metricGroup,
+		Collection<KeyedStateHandle> stateHandles) {
 		return new MockKeyedStateBackend<>(
 			new KvStateRegistry().createTaskRegistry(jobID, new JobVertexID()),
 			keySerializer,
