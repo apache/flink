@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.entrypoint;
+package org.apache.flink.runtime.entrypoint.component;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
@@ -32,6 +31,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -46,102 +46,54 @@ import org.apache.flink.runtime.rest.RestEndpointFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
-import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.FlinkException;
 
 import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.GuardedBy;
+import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Component which starts a {@link Dispatcher}, {@link ResourceManager} and {@link WebMonitorEndpoint}
- * in the same process.
+ * Abstract class which implements the creation of the {@link DispatcherResourceManagerComponent} components.
+ *
+ * @param <T> type of the {@link Dispatcher}
+ * @param <U> type of the {@link RestfulGateway} given to the {@link WebMonitorEndpoint}
  */
-public class ClusterComponent<T extends Dispatcher> implements AutoCloseableAsync {
+public abstract class AbstractDispatcherResourceManagerComponentFactory<T extends Dispatcher, U extends RestfulGateway> implements DispatcherResourceManagerComponentFactory<T> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ClusterComponent.class);
+	private final Logger log = LoggerFactory.getLogger(getClass());
 
-	private final Object lock = new Object();
-
+	@Nonnull
 	private final DispatcherFactory<T> dispatcherFactory;
 
+	@Nonnull
 	private final ResourceManagerFactory<?> resourceManagerFactory;
 
-	private final RestEndpointFactory<?> restEndpointFactory;
+	@Nonnull
+	private final RestEndpointFactory<U> restEndpointFactory;
 
-	private final CompletableFuture<Void> terminationFuture;
-
-	private final CompletableFuture<ApplicationStatus> shutDownFuture;
-
-	@GuardedBy("lock")
-	private State state;
-
-	@GuardedBy("lock")
-	private ResourceManager<?> resourceManager;
-
-	@GuardedBy("lock")
-	private T dispatcher;
-
-	@GuardedBy("lock")
-	private LeaderRetrievalService dispatcherLeaderRetrievalService;
-
-	@GuardedBy("lock")
-	private LeaderRetrievalService resourceManagerRetrievalService;
-
-	@GuardedBy("lock")
-	private WebMonitorEndpoint<?> webMonitorEndpoint;
-
-	@GuardedBy("lock")
-	private JobManagerMetricGroup jobManagerMetricGroup;
-
-	public ClusterComponent(
-			DispatcherFactory<T> dispatcherFactory,
-			ResourceManagerFactory<?> resourceManagerFactory,
-			RestEndpointFactory<?> restEndpointFactory) {
+	public AbstractDispatcherResourceManagerComponentFactory(
+			@Nonnull DispatcherFactory<T> dispatcherFactory,
+			@Nonnull ResourceManagerFactory<?> resourceManagerFactory,
+			@Nonnull RestEndpointFactory<U> restEndpointFactory) {
 		this.dispatcherFactory = dispatcherFactory;
 		this.resourceManagerFactory = resourceManagerFactory;
 		this.restEndpointFactory = restEndpointFactory;
-		this.terminationFuture = new CompletableFuture<>();
-		this.shutDownFuture = new CompletableFuture<>();
-		this.state = State.CREATED;
-
-		terminationFuture.whenComplete(
-			(aVoid, throwable) -> {
-				if (throwable != null) {
-					shutDownFuture.completeExceptionally(throwable);
-				} else {
-					shutDownFuture.complete(ApplicationStatus.SUCCEEDED);
-				}
-			});
 	}
 
-	public T getDispatcher() {
-		synchronized (lock) {
-			return dispatcher;
-		}
-	}
-
-	public CompletableFuture<Void> getTerminationFuture() {
-		return terminationFuture;
-	}
-
-	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
-		return shutDownFuture;
-	}
-
-	public void startComponent(
+	@Override
+	public DispatcherResourceManagerComponent<T> create(
 			Configuration configuration,
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityServices,
@@ -150,22 +102,27 @@ public class ClusterComponent<T extends Dispatcher> implements AutoCloseableAsyn
 			MetricRegistry metricRegistry,
 			ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
-		synchronized (lock) {
-			Preconditions.checkState(state == State.CREATED);
-			state = State.RUNNING;
 
+		LeaderRetrievalService dispatcherLeaderRetrievalService = null;
+		LeaderRetrievalService resourceManagerRetrievalService = null;
+		WebMonitorEndpoint<U> webMonitorEndpoint = null;
+		ResourceManager<?> resourceManager = null;
+		JobManagerMetricGroup jobManagerMetricGroup = null;
+		T dispatcher = null;
+
+		try {
 			dispatcherLeaderRetrievalService = highAvailabilityServices.getDispatcherLeaderRetriever();
 
 			resourceManagerRetrievalService = highAvailabilityServices.getResourceManagerLeaderRetriever();
 
-			LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever = new RpcGatewayRetriever<>(
+			final LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever = new RpcGatewayRetriever<>(
 				rpcService,
 				DispatcherGateway.class,
 				DispatcherId::fromUuid,
 				10,
 				Time.milliseconds(50L));
 
-			LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever = new RpcGatewayRetriever<>(
+			final LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever = new RpcGatewayRetriever<>(
 				rpcService,
 				ResourceManagerGateway.class,
 				ResourceManagerId::fromUuid,
@@ -186,7 +143,7 @@ public class ClusterComponent<T extends Dispatcher> implements AutoCloseableAsyn
 				highAvailabilityServices.getWebMonitorLeaderElectionService(),
 				fatalErrorHandler);
 
-			LOG.debug("Starting Dispatcher REST endpoint.");
+			log.debug("Starting Dispatcher REST endpoint.");
 			webMonitorEndpoint.start();
 
 			resourceManager = resourceManagerFactory.createResourceManager(
@@ -221,127 +178,77 @@ public class ClusterComponent<T extends Dispatcher> implements AutoCloseableAsyn
 				webMonitorEndpoint.getRestBaseUrl(),
 				historyServerArchivist);
 
-			registerShutDownFuture(dispatcher, shutDownFuture);
-
-			LOG.debug("Starting ResourceManager.");
+			log.debug("Starting ResourceManager.");
 			resourceManager.start();
 			resourceManagerRetrievalService.start(resourceManagerGatewayRetriever);
 
-			LOG.debug("Starting Dispatcher.");
+			log.debug("Starting Dispatcher.");
 			dispatcher.start();
 			dispatcherLeaderRetrievalService.start(dispatcherGatewayRetriever);
-		}
-	}
 
-	protected void registerShutDownFuture(T dispatcher, CompletableFuture<ApplicationStatus> shutDownFuture) {
-			dispatcher
-				.getTerminationFuture()
-				.whenComplete(
-					(aVoid, throwable) -> {
-						if (throwable != null) {
-							shutDownFuture.completeExceptionally(throwable);
-						} else {
-							shutDownFuture.complete(ApplicationStatus.SUCCEEDED);
-						}
-					});
-	}
+			return createDispatcherResourceManagerComponent(
+				dispatcher,
+				resourceManager,
+				dispatcherLeaderRetrievalService,
+				resourceManagerRetrievalService,
+				webMonitorEndpoint,
+				jobManagerMetricGroup);
 
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		synchronized (lock) {
-			if (state == State.RUNNING) {
-				Exception exception = null;
-
-				final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(4);
-
-				if (dispatcherLeaderRetrievalService != null) {
-					try {
-						dispatcherLeaderRetrievalService.stop();
-					} catch (Exception e) {
-						exception = ExceptionUtils.firstOrSuppressed(e, exception);
-					}
+		} catch (Exception exception) {
+			// clean up all started components
+			if (dispatcherLeaderRetrievalService != null) {
+				try {
+					dispatcherLeaderRetrievalService.stop();
+				} catch (Exception e) {
+					exception = ExceptionUtils.firstOrSuppressed(e, exception);
 				}
-
-				if (resourceManagerRetrievalService != null) {
-					try {
-						resourceManagerRetrievalService.stop();
-					} catch (Exception e) {
-						exception = ExceptionUtils.firstOrSuppressed(e, exception);
-					}
-				}
-
-				if (webMonitorEndpoint != null) {
-					terminationFutures.add(webMonitorEndpoint.closeAsync());
-				}
-
-				if (dispatcher != null) {
-					dispatcher.shutDown();
-					terminationFutures.add(dispatcher.getTerminationFuture());
-				}
-
-				if (resourceManager != null) {
-					resourceManager.shutDown();
-					terminationFutures.add(resourceManager.getTerminationFuture());
-				}
-
-				if (exception != null) {
-					terminationFutures.add(FutureUtils.completedExceptionally(exception));
-				}
-
-				final CompletableFuture<Void> componentTerminationFuture = FutureUtils.completeAll(terminationFutures);
-
-				final CompletableFuture<Void> metricGroupTerminationFuture;
-
-				if (jobManagerMetricGroup != null) {
-					metricGroupTerminationFuture = FutureUtils.runAfterwards(
-						componentTerminationFuture,
-						() -> {
-							synchronized (lock) {
-								jobManagerMetricGroup.close();
-							}
-						});
-				} else {
-					metricGroupTerminationFuture = componentTerminationFuture;
-				}
-
-				metricGroupTerminationFuture.whenComplete((aVoid, throwable) -> {
-					if (throwable != null) {
-						terminationFuture.completeExceptionally(throwable);
-					} else {
-						terminationFuture.complete(aVoid);
-					}
-				});
-			} else if (state == State.CREATED) {
-				terminationFuture.complete(null);
 			}
 
-			state = State.TERMINATED;
-			return terminationFuture;
-		}
-	}
+			if (resourceManagerRetrievalService != null) {
+				try {
+					resourceManagerRetrievalService.stop();
+				} catch (Exception e) {
+					exception = ExceptionUtils.firstOrSuppressed(e, exception);
+				}
+			}
 
-	/**
-	 * Deregister the Flink application from the resource management system by signalling
-	 * the {@link ResourceManager}.
-	 *
-	 * @param applicationStatus to terminate the application with
-	 * @param diagnostics additional information about the shut down, can be {@code null}
-	 * @return Future which is completed once the shut down
-	 */
-	public CompletableFuture<Void> deregisterApplication(ApplicationStatus applicationStatus, @Nullable String diagnostics) {
-		synchronized (lock) {
+			final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(3);
+
+			if (webMonitorEndpoint != null) {
+				terminationFutures.add(webMonitorEndpoint.closeAsync());
+			}
+
 			if (resourceManager != null) {
-				final ResourceManagerGateway selfGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
-				return selfGateway.deregisterApplication(applicationStatus, diagnostics).thenApply(ack -> null);
-			} else {
-				return CompletableFuture.completedFuture(null);
+				resourceManager.shutDown();
+				terminationFutures.add(resourceManager.getTerminationFuture());
 			}
+
+			if (dispatcher != null) {
+				dispatcher.shutDown();
+				terminationFutures.add(dispatcher.getTerminationFuture());
+			}
+
+			final FutureUtils.ConjunctFuture<Void> terminationFuture = FutureUtils.completeAll(terminationFutures);
+
+			try {
+				terminationFuture.get();
+			} catch (Exception e) {
+				exception = ExceptionUtils.firstOrSuppressed(e, exception);
+			}
+
+			if (jobManagerMetricGroup != null) {
+				jobManagerMetricGroup.close();
+			}
+
+			throw new FlinkException("Could not create the DispatcherResourceManagerComponent.", exception);
 		}
 	}
 
-	enum State {
-		CREATED,
-		RUNNING,
-		TERMINATED
-	}
+	protected abstract DispatcherResourceManagerComponent<T> createDispatcherResourceManagerComponent(
+		T dispatcher,
+		ResourceManager<?> resourceManager,
+		LeaderRetrievalService dispatcherLeaderRetrievalService,
+		LeaderRetrievalService resourceManagerRetrievalService,
+		WebMonitorEndpoint<?> webMonitorEndpoint,
+		JobManagerMetricGroup jobManagerMetricGroup);
 }

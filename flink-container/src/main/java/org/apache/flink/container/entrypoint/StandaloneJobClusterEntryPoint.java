@@ -19,11 +19,11 @@
 package org.apache.flink.container.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.entrypoint.ClusterComponent;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
-import org.apache.flink.runtime.entrypoint.JobClusterComponent;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
+import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.entrypoint.component.JobDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
@@ -61,8 +61,8 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 	}
 
 	@Override
-	protected ClusterComponent<?> createClusterComponent(Configuration configuration) {
-		return new JobClusterComponent(
+	protected DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(Configuration configuration) {
+		return new JobDispatcherResourceManagerComponentFactory(
 			StandaloneResourceManagerFactory.INSTANCE,
 			new ClassPathJobGraphRetriever(jobClassName, savepointRestoreSettings, programArguments));
 	}
