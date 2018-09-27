@@ -628,14 +628,14 @@ Table result = left.join(right)
     </tr>
     <tr>
       <td>
-        <strong>Inner Join with User-Defined Table Functions (UDTF)</strong><br>
+        <strong>Inner Join with Table Function</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
         <p>Joins a table with a the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. A row of the left (outer) table is dropped, if its table function call returns an empty result.
         </p>
 {% highlight java %}
-// register function
+// register User-Defined Table Function
 TableFunction<String> split = new MySplitUDTF();
 tableEnv.registerFunction("split", split);
 
@@ -649,7 +649,7 @@ Table result = orders
     </tr>
     <tr>
       <td>
-        <strong>Left Outer Join with User-Defined Table Functions (UDTF)</strong><br>
+        <strong>Left Outer Join with Table Function</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
@@ -657,7 +657,7 @@ Table result = orders
         <p><b>Note:</b> Currently, the predicate of a table function left outer join can only be empty or literal <code>true</code>.</p>
         </p>
 {% highlight java %}
-// register function
+// register User-Defined Table Function
 TableFunction<String> split = new MySplitUDTF();
 tableEnv.registerFunction("split", split);
 
@@ -749,14 +749,14 @@ val result = left.join(right)
     </tr>
     <tr>
       <td>
-        <strong>Inner Join with User-Defined Table Functions (UDTF)</strong><br>
+        <strong>Inner Join with Table Function</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
         <p>Joins a table with a the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. A row of the left (outer) table is dropped, if its table function call returns an empty result.
         </p>
         {% highlight scala %}
-// instantiate function
+// instantiate User-Defined Table Function
 val split: TableFunction[_] = new MySplitUDTF()
 
 // join
@@ -768,14 +768,14 @@ val result: Table = table
     </tr>
     <tr>
       <td>
-        <strong>Left Outer Join with User-Defined Table Functions (UDTF)</strong><br>
+        <strong>Left Outer Join with Table Function</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
     	<td>
         <p>Joins a table with a the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. If a table function call returns an empty result, the corresponding outer row is preserved and the result padded with null values.
         <p><b>Note:</b> Currently, the predicate of a table function left outer join can only be empty or literal <code>true</code>.</p>
         </p>
 {% highlight scala %}
-// instantiate function
+// instantiate User-Defined Table Function
 val split: TableFunction[_] = new MySplitUDTF()
 
 // join
