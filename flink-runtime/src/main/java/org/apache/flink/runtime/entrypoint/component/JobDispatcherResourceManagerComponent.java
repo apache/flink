@@ -16,29 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.entrypoint;
+package org.apache.flink.runtime.entrypoint.component;
 
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.dispatcher.JobDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.MiniDispatcher;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
-import org.apache.flink.runtime.rest.JobRestEndpointFactory;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.resourcemanager.ResourceManager;
+import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@link ClusterComponent} for a job cluster. The dispatcher component starts
+ * {@link DispatcherResourceManagerComponent} for a job cluster. The dispatcher component starts
  * a {@link MiniDispatcher}.
  */
-public class JobClusterComponent extends ClusterComponent<MiniDispatcher> {
+class JobDispatcherResourceManagerComponent extends DispatcherResourceManagerComponent<MiniDispatcher> {
 
-	public JobClusterComponent(ResourceManagerFactory<?> resourceManagerFactory, JobGraphRetriever jobActions) {
-		super(new JobDispatcherFactory(jobActions), resourceManagerFactory, JobRestEndpointFactory.INSTANCE);
-	}
+	JobDispatcherResourceManagerComponent(
+			MiniDispatcher dispatcher,
+			ResourceManager<?> resourceManager,
+			LeaderRetrievalService dispatcherLeaderRetrievalService,
+			LeaderRetrievalService resourceManagerRetrievalService,
+			WebMonitorEndpoint<?> webMonitorEndpoint,
+			JobManagerMetricGroup jobManagerMetricGroup) {
+		super(dispatcher, resourceManager, dispatcherLeaderRetrievalService, resourceManagerRetrievalService, webMonitorEndpoint, jobManagerMetricGroup);
 
-	@Override
-	protected void registerShutDownFuture(MiniDispatcher dispatcher, CompletableFuture<ApplicationStatus> shutDownFuture) {
-		super.registerShutDownFuture(dispatcher, shutDownFuture);
+		final CompletableFuture<ApplicationStatus> shutDownFuture = getShutDownFuture();
 
 		dispatcher.getJobTerminationFuture().whenComplete((applicationStatus, throwable) -> {
 			if (throwable != null) {

@@ -16,19 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.entrypoint;
+package org.apache.flink.runtime.entrypoint.component;
 
-import org.apache.flink.runtime.dispatcher.Dispatcher;
-import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
-import org.apache.flink.runtime.rest.SessionRestEndpointFactory;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.FlinkException;
 
 /**
- * {@link ClusterComponent} used by session clusters.
+ * Interface which allows to retrieve the {@link JobGraph}.
  */
-public class SessionClusterComponent extends ClusterComponent<Dispatcher> {
+public interface JobGraphRetriever {
 
-	public SessionClusterComponent(ResourceManagerFactory<?> resourceManagerFactory) {
-		super(SessionDispatcherFactory.INSTANCE, resourceManagerFactory, SessionRestEndpointFactory.INSTANCE);
-	}
+	/**
+	 * Retrieve the {@link JobGraph}.
+	 *
+	 * @param configuration cluster configuration
+	 * @return the retrieved {@link JobGraph}.
+	 * @throws FlinkException if the {@link JobGraph} could not be retrieved
+	 */
+	JobGraph retrieveJobGraph(Configuration configuration) throws FlinkException;
 }
