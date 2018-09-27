@@ -155,42 +155,6 @@ public class LegacyTaskTest extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	@Test
-	public void testRegularExecution() {
-		try {
-			Task task = createTask(TestInvokableCorrect.class);
-
-			// task should be new and perfect
-			assertEquals(ExecutionState.CREATED, task.getExecutionState());
-			assertFalse(task.isCanceledOrFailed());
-			assertNull(task.getFailureCause());
-
-			task.registerExecutionListener(listener);
-
-			// go into the run method. we should switch to DEPLOYING, RUNNING, then
-			// FINISHED, and all should be good
-			task.run();
-
-			// verify final state
-			assertEquals(ExecutionState.FINISHED, task.getExecutionState());
-			assertFalse(task.isCanceledOrFailed());
-			assertNull(task.getFailureCause());
-			assertNull(task.getInvokable());
-
-			// verify listener messages
-			validateListenerMessage(ExecutionState.RUNNING, task, false);
-			validateListenerMessage(ExecutionState.FINISHED, task, false);
-
-			// make sure that the TaskManager received an message to unregister the task
-			validateTaskManagerStateChange(ExecutionState.RUNNING, task, false);
-			validateUnregisterTask(task.getExecutionId());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
 	public void testCancelRightAway() {
 		try {
 			Task task = createTask(TestInvokableCorrect.class);
