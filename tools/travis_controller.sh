@@ -53,42 +53,21 @@ function getCurrentStage() {
 			echo "$STAGE_COMPILE"
 			;;
 		(2)
-			echo "$STAGE_COMPILE"
+			echo "$STAGE_CORE"
 			;;
 		(3)
-			echo "$STAGE_CORE"
+			echo "$STAGE_LIBRARIES"
 			;;
 		(4)
-			echo "$STAGE_LIBRARIES"
+			echo "$STAGE_CONNECTORS"
 			;;
 		(5)
-			echo "$STAGE_CONNECTORS"
+			echo "$STAGE_TESTS"
 			;;
 		(6)
-			echo "$STAGE_TESTS"
+			echo "$STAGE_MISC"
 			;;
 		(7)
-			echo "$STAGE_MISC"
-			;;
-		(8)
-			echo "$STAGE_CORE"
-			;;
-		(9)
-			echo "$STAGE_LIBRARIES"
-			;;
-		(10)
-			echo "$STAGE_CONNECTORS"
-			;;
-		(11)
-			echo "$STAGE_TESTS"
-			;;
-		(12)
-			echo "$STAGE_MISC"
-			;;
-		(13)
-			echo "$STAGE_CLEANUP"
-			;;
-		(14)
 			echo "$STAGE_CLEANUP"
 			;;
 		(*)
