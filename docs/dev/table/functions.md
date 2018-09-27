@@ -1237,7 +1237,7 @@ COTH(numeric)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the hyperbolic cotangent of a <i>numeric</i>.</p>
+        <p>Returns the approximate value of the hyperbolic cotangent of a <i>numeric</i>. The return type is a <i>Double<i>.</p>
       </td>
     </tr>
 
@@ -1683,7 +1683,7 @@ NUMERIC.coth()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the hyperbolic cotangent of a <i>NUMERIC</i>.</p>
+        <p>Returns the approximate value of the hyperbolic cotangent of a <i>NUMERIC</i>. The return type is a <i>Double<i>.</p>
       </td>
     </tr>
 
@@ -2130,7 +2130,7 @@ NUMERIC.coth()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the hyperbolic cotangent of a <i>NUMERIC</i>.</p>
+        <p>Returns the approximate value of the hyperbolic cotangent of a <i>NUMERIC</i>. The return type is a <i>Double<i>.</p>
       </td>
     </tr>
 
