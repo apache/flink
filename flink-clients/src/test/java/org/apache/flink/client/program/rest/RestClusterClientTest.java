@@ -31,6 +31,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -122,6 +123,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -229,6 +231,7 @@ public class RestClusterClientTest extends TestLogger {
 		TestJobExecutionResultHandler testJobExecutionResultHandler =
 			new TestJobExecutionResultHandler(
 				JobExecutionResultResponseBody.created(new JobResult.Builder()
+					.applicationStatus(ApplicationStatus.SUCCEEDED)
 					.jobId(jobId)
 					.netRuntime(Long.MAX_VALUE)
 					.build()));
@@ -351,11 +354,13 @@ public class RestClusterClientTest extends TestLogger {
 				new RestHandlerException("should trigger retry", HttpResponseStatus.SERVICE_UNAVAILABLE),
 				JobExecutionResultResponseBody.inProgress(),
 				JobExecutionResultResponseBody.created(new JobResult.Builder()
+					.applicationStatus(ApplicationStatus.SUCCEEDED)
 					.jobId(jobId)
 					.netRuntime(Long.MAX_VALUE)
 					.accumulatorResults(Collections.singletonMap("testName", new SerializedValue<>(OptionalFailure.of(1.0))))
 					.build()),
 				JobExecutionResultResponseBody.created(new JobResult.Builder()
+					.applicationStatus(ApplicationStatus.FAILED)
 					.jobId(jobId)
 					.netRuntime(Long.MAX_VALUE)
 					.serializedThrowable(new SerializedThrowable(new RuntimeException("expected")))
@@ -385,8 +390,10 @@ public class RestClusterClientTest extends TestLogger {
 				restClusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
 				fail("Expected exception not thrown.");
 			} catch (final ProgramInvocationException e) {
-				assertThat(e.getCause(), instanceOf(RuntimeException.class));
-				assertThat(e.getCause().getMessage(), equalTo("expected"));
+				final Optional<RuntimeException> cause = ExceptionUtils.findThrowable(e, RuntimeException.class);
+
+				assertThat(cause.isPresent(), is(true));
+				assertThat(cause.get().getMessage(), equalTo("expected"));
 			}
 		}
 	}
