@@ -28,7 +28,7 @@ import org.apache.flink.runtime.throwable.ThrowableType;
  * job restarts. The JobManager will <strong>not</strong> restart a job, which
  * fails with this Exception.
  */
-@ThrowableAnnotation(ThrowableType.NonRecoverable)
+@ThrowableAnnotation(ThrowableType.NonRecoverableError)
 public class SuppressRestartsException extends RuntimeException {
 
 	private static final long serialVersionUID = 221873676920848349L;

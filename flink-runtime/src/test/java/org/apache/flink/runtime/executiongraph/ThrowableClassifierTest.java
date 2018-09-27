@@ -35,10 +35,10 @@ public class ThrowableClassifierTest extends TestLogger {
 
 	@Test
 	public void testThrowableType_NonRecoverable() {
-		assertEquals(ThrowableType.NonRecoverable,
+		assertEquals(ThrowableType.NonRecoverableError,
 			ThrowableClassifier.getThrowableType(new SuppressRestartsException(new Exception(""))));
 
-		assertEquals(ThrowableType.NonRecoverable,
+		assertEquals(ThrowableType.NonRecoverableError,
 			ThrowableClassifier.getThrowableType(new NoResourceAvailableException()));
 	}
 

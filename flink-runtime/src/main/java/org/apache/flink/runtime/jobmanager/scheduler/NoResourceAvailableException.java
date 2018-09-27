@@ -22,7 +22,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.throwable.ThrowableAnnotation;
 import org.apache.flink.runtime.throwable.ThrowableType;
 
-@ThrowableAnnotation(ThrowableType.NonRecoverable)
+@ThrowableAnnotation(ThrowableType.NonRecoverableError)
 public class NoResourceAvailableException extends JobException {
 
 	private static final long serialVersionUID = -2249953165298717803L;

@@ -23,23 +23,23 @@ package org.apache.flink.runtime.throwable;
 public enum ThrowableType {
 
 	/**
-	 * the issue indicate it will not success even retry, such as a DivideZeroException.
-	 * for this kind of exception, we shouldn't consider failover, or we should fail the job
+	 * this indicates error that would not succeed even with retry, such as DivideZeroExeception.
+	 * No failover should be attempted with such error. Instead, the job should fail immediately.
 	 */
-	NonRecoverable,
+	NonRecoverableError,
 
 	/**
-	 * indicate data consumption error, that we should revoke the producer.
+	 * data consumption error, which indicates that we should revoke the producer.
 	 * */
 	PartitionDataMissingError,
 
 	/**
-	 * this indicate errors such us Hardware error, service issue, that we should consider blacklist the machine.
+	 * this indicates error related to running environment, such as hardware error, service issue, in which case we should consider blacklist the machine.
 	 * */
 	EnvironmentError,
 
 	/**
-	 * this indicate other errors that recoverable.
+	 * this indicates other errors that is recoverable.
 	 * */
 	Other
 }
