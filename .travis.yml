@@ -1,0 +1,41 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# s3 deployment based on http://about.travis-ci.org/blog/2012-12-18-travis-artifacts/
+
+# send to fully-virtualized infrastructure: https://docs.travis-ci.com/user/trusty-ci-environment/
+sudo: required
+dist: trusty
+
+cache:
+    directories:
+     - /home/travis/.rvm/
+
+language: ruby
+rvm: 2.4.0
+script: "./docs.sh"
+
+env:
+  - REMOTE="apache" BRANCH="master"
+
+git:
+  depth: 100
+
+notifications:
+  slack:
+    rooms:
+      - secure: ikPQn5JTpkyzxVyOPm/jIl3FPm6hY8xAdG4pSwxGWjBqF+NmmNTp9YZsJ6fD8xPql6T5n1hNDbZSC14jVUw/vvXGvibDXLN+06f25ZQl+4LJBXaiR7gTG6y3nO8G90Vw7XpvCme6n5Md9tvjygb17a4FEgRJFfwzWnnyPA1yvK0=
+    on_success: never
+    on_pull_requests: false
