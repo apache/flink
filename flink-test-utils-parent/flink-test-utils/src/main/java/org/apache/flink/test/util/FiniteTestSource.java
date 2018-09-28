@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.parquet.testutils;
+package org.apache.flink.test.util;
 
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
