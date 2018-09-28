@@ -1014,6 +1014,7 @@ under the License.
 								<ignoredUsedUndeclaredDependency>org.apache.flink:*</ignoredUsedUndeclaredDependency>
 								<ignoredUsedUndeclaredDependency>org.powermock:powermock-core</ignoredUsedUndeclaredDependency>
 								<ignoredUsedUndeclaredDependency>org.powermock:powermock-reflect</ignoredUsedUndeclaredDependency>
+								<ignoredUsedUndeclaredDependency>org.hamcrest:hamcrest-core</ignoredUsedUndeclaredDependency>
 							</ignoredUsedUndeclaredDependencies>
 							<ignoredUnusedDeclaredDependencies>
 								<!-- Ignore inherited from the root POM -->
