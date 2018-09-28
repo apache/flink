@@ -282,18 +282,29 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 
 		// Check if we don't exceed YARN's maximum virtual cores.
-		// The number of cores can be configured in the config.
-		// If not configured, it is set to the number of task slots
-		int numYarnVcores = yarnConfiguration.getInt(YarnConfiguration.NM_VCORES, YarnConfiguration.DEFAULT_NM_VCORES);
+		// Fetch numYarnMaxVcores from all the RUNNING nodes via yarnClient
+		int numYarnMaxVcores = Integer.MIN_VALUE;
+		try {
+			List<NodeReport> nodes = yarnClient.getNodeReports(NodeState.RUNNING);
+			for (NodeReport rep : nodes) {
+				final Resource res = rep.getCapability();
+				if (res.getVirtualCores() > numYarnMaxVcores) {
+					numYarnMaxVcores = res.getVirtualCores();
+				}
+			}
+		} catch (Exception e) {
+			throw new YarnDeploymentException("Couldn't get cluster description, please check on the YarnConfiguration", e);
+		}
+
 		int configuredVcores = flinkConfiguration.getInteger(YarnConfigOptions.VCORES, clusterSpecification.getSlotsPerTaskManager());
 		// don't configure more than the maximum configured number of vcores
-		if (configuredVcores > numYarnVcores) {
+		if (configuredVcores > numYarnMaxVcores) {
 			throw new IllegalConfigurationException(
 				String.format("The number of virtual cores per node were configured with %d" +
-						" but Yarn only has %d virtual cores available. Please note that the number" +
+						" already exceeds the max vcores %d set on Yarn Cluster. Please note that the number" +
 						" of virtual cores is set to the number of task slots by default unless configured" +
 						" in the Flink config with '%s.'",
-					configuredVcores, numYarnVcores, YarnConfigOptions.VCORES.key()));
+					configuredVcores, numYarnMaxVcores, YarnConfigOptions.VCORES.key()));
 		}
 
 		// check if required Hadoop environment variables are set. If not, warn user
