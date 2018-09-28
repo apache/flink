@@ -23,7 +23,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableEnvironment, Types, ValidationException}
-import org.apache.flink.table.expressions.utils.{Func18, RichFunc2}
+import org.apache.flink.table.expressions.utils.{Func18, Func20, RichFunc2}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, _}
 import org.apache.flink.table.utils._
 import org.apache.flink.test.util.AbstractTestBase
@@ -255,6 +255,33 @@ class CorrelateITCase extends AbstractTestBase {
       "1,2,3,3",
       "1,2,3,3")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testTableFunctionCollectorOpenClose(): Unit = {
+    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val func0 = new TableFunc0
+    val func20 = new Func20
+
+    val result = t
+      .join(func0('c) as('d, 'e))
+      .where(func20('e))
+      .select('c, 'd, 'e)
+      .toAppendStream[Row]
+
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq (
+      "Jack#22,Jack,22",
+      "John#19,John,19",
+      "Anna#44,Anna,44"
+    )
+
+    assertEquals(
+      expected.sorted,
+      StreamITCase.testResults.sorted
+    )
   }
 
   private def testData(
