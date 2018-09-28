@@ -116,6 +116,16 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> implements
 		return shutDownFuture;
 	}
 
+	@Nonnull
+	public T getDispatcher() {
+		return dispatcher;
+	}
+
+	@Nonnull
+	public WebMonitorEndpoint<?> getWebMonitorEndpoint() {
+		return webMonitorEndpoint;
+	}
+
 	@Override
 	public CompletableFuture<Void> closeAsync() {
 		if (isRunning.compareAndSet(true, false)) {
