@@ -87,7 +87,7 @@ public class BootstrapTools {
 	 * @param portRangeDefinition The port range to choose a port from.
 	 * @param logger The logger to output log information.
 	 * @return The ActorSystem which has been started
-	 * @throws Exception
+	 * @throws Exception Thrown when actor system cannot be started in specified port range
 	 */
 	public static ActorSystem startActorSystem(
 		Configuration configuration,
@@ -104,13 +104,14 @@ public class BootstrapTools {
 
 	/**
 	 * Starts an ActorSystem with the given configuration listening at the address/ports.
+	 *
 	 * @param configuration The Flink configuration
 	 * @param listeningAddress The address to listen at.
 	 * @param portRangeDefinition The port range to choose a port from.
 	 * @param logger The logger to output log information.
 	 * @param executorMode The executor mode of Akka actor system.
 	 * @return The ActorSystem which has been started
-	 * @throws Exception
+	 * @throws Exception Thrown when actor system cannot be started in specified port range
 	 */
 	public static ActorSystem startActorSystem(
 			Configuration configuration,
@@ -162,6 +163,7 @@ public class BootstrapTools {
 
 	/**
 	 * Starts an Actor System at a specific port.
+	 *
 	 * @param configuration The Flink configuration.
 	 * @param listeningAddress The address to listen at.
 	 * @param listeningPort The port to listen at.

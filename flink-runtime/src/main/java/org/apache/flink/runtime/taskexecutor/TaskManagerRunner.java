@@ -59,6 +59,7 @@ import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.Preconditions;
 
 import akka.actor.ActorSystem;
 import org.slf4j.Logger;
@@ -473,6 +474,9 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		String taskManagerHostname,
 		String portRangeDefinition,
 		@Nonnull AkkaExecutorMode executorMode) throws Exception{
+
+		Preconditions.checkNotNull(executorMode);
+
 		// parse port range definition and create port iterator
 		Iterator<Integer> portsIterator;
 		try {
