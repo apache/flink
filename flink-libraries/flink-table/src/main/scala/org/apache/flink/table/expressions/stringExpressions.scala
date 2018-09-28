@@ -574,3 +574,19 @@ case class Replace(str: Expression,
     relBuilder.call(SqlStdOperatorTable.REPLACE, children.map(_.toRexNode))
   }
 }
+
+/**
+  * Returns the reversed string.
+  */
+case class Reverse(child: Expression) extends UnaryExpression with InputTypeSpec {
+
+  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = Seq(STRING_TYPE_INFO)
+
+  override def toString: String = s"($child).reverse()"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.REVERSE, child.toRexNode)
+  }
+}

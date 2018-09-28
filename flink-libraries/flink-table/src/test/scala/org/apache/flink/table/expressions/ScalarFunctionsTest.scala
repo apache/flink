@@ -128,6 +128,21 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testReverse(): Unit = {
+    testAllApis(
+      'f0.reverse(),
+      "f0.reverse()",
+      "REVERSE(f0)",
+      ".gnirtS tset a si sihT")
+
+    testAllApis(
+      'f33.reverse(),
+      "f33.reverse()",
+      "REVERSE(f33)",
+      "null")
+  }
+
+  @Test
   def testTrim(): Unit = {
     testAllApis(
       'f8.trim(),

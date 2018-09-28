@@ -285,4 +285,9 @@ object ScalarFunctions {
     */
   def repeat(base: String, n: Int): String = StringUtils.repeat(base, n)
 
+  /**
+    * Returns the reversed string.
+    */
+  def reverse(str: String): String = StringUtils.reverse(str)
+
 }

@@ -260,4 +260,12 @@ object ScalarSqlFunctions {
     OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
     SqlFunctionCategory.STRING)
 
+  val REVERSE = new SqlFunction(
+    "REVERSE",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+    InferTypes.RETURN_TYPE,
+    OperandTypes.STRING,
+    SqlFunctionCategory.STRING)
+
 }

@@ -172,6 +172,12 @@ object FunctionGenerator {
     BuiltInMethods.REGEXP_EXTRACT_WITHOUT_INDEX)
 
   addSqlFunctionMethod(
+    REVERSE,
+    Seq(STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.REVERSE)
+
+  addSqlFunctionMethod(
     FROM_BASE64,
     Seq(STRING_TYPE_INFO),
     STRING_TYPE_INFO,

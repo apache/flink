@@ -170,4 +170,6 @@ object BuiltInMethods {
     "repeat",
     classOf[String],
     classOf[Int])
+
+  val REVERSE: Method = Types.lookupMethod(classOf[ScalarFunctions], "reverse", classOf[String])
 }
