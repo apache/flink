@@ -44,7 +44,7 @@ public abstract class AfterMatchSkipStrategy implements Serializable {
 	 * @return the created AfterMatchSkipStrategy
 	 */
 	public static SkipToFirstStrategy skipToFirst(String patternName) {
-		return new SkipToFirstStrategy(patternName);
+		return new SkipToFirstStrategy(patternName, false);
 	}
 
 	/**
@@ -54,7 +54,7 @@ public abstract class AfterMatchSkipStrategy implements Serializable {
 	 * @return the created AfterMatchSkipStrategy
 	 */
 	public static SkipToLastStrategy skipToLast(String patternName) {
-		return new SkipToLastStrategy(patternName);
+		return new SkipToLastStrategy(patternName, false);
 	}
 
 	/**

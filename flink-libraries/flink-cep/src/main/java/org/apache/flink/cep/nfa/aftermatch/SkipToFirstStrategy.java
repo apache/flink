@@ -18,77 +18,30 @@
 
 package org.apache.flink.cep.nfa.aftermatch;
 
-import org.apache.flink.cep.nfa.sharedbuffer.EventId;
-import org.apache.flink.util.FlinkRuntimeException;
-
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * Discards every partial match that contains event of the match preceding the first of *PatternName*.
  */
-public class SkipToFirstStrategy extends AfterMatchSkipStrategy {
-
+public final class SkipToFirstStrategy extends SkipToElementStrategy {
 	private static final long serialVersionUID = 7127107527654629026L;
-	private final String patternName;
-	private boolean shouldThrowException = false;
 
-	SkipToFirstStrategy(String patternName) {
-		this.patternName = checkNotNull(patternName);
+	SkipToFirstStrategy(String patternName, boolean shouldThrowException) {
+		super(patternName, shouldThrowException);
 	}
 
 	@Override
-	public boolean isSkipStrategy() {
-		return true;
+	public SkipToElementStrategy throwExceptionOnMiss() {
+		return new SkipToFirstStrategy(getPatternName().get(), true);
 	}
 
 	@Override
-	protected boolean shouldPrune(EventId startEventID, EventId pruningId) {
-		return startEventID != null && startEventID.compareTo(pruningId) < 0;
-	}
-
-	@Override
-	protected EventId getPruningId(Collection<Map<String, List<EventId>>> match) {
-		EventId pruniningId = null;
-		for (Map<String, List<EventId>> resultMap : match) {
-			List<EventId> pruningPattern = resultMap.get(patternName);
-			if (pruningPattern == null || pruningPattern.isEmpty()) {
-				if (shouldThrowException) {
-					throw new FlinkRuntimeException(String.format(
-						"Could not skip to %s. No such element in the found match %s",
-						patternName,
-						resultMap));
-				}
-			} else {
-				pruniningId = max(pruniningId, pruningPattern.get(0));
-			}
-		}
-
-		return pruniningId;
-	}
-
-	@Override
-	public Optional<String> getPatternName() {
-		return Optional.of(patternName);
-	}
-
-	/**
-	 * Enables throwing exception if no events mapped to the *PatternName*. If not enabled and no events were mapped,
-	 * {@link NoSkipStrategy} will be used
-	 */
-	public SkipToFirstStrategy throwExceptionOnMiss() {
-		this.shouldThrowException = true;
-		return this;
+	int getIndex(int size) {
+		return 0;
 	}
 
 	@Override
 	public String toString() {
 		return "SkipToFirstStrategy{" +
-			"patternName='" + patternName + '\'' +
+			"patternName='" + getPatternName().get() + '\'' +
 			'}';
 	}
 }
