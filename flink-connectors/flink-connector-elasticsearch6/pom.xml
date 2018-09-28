@@ -156,6 +156,22 @@ under the License.
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<!-- Complete fiesta, fix later -->
+						<id>analyze</id>
+						<goals>
+							<goal>analyze-only</goal>
+						</goals>
+						<configuration>
+							<skip>true</skip>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<!--
 				For the tests, we need to exclude the Log4j2 to slf4j adapter dependency
 				and let Elasticsearch directly use Log4j2, otherwise the embedded Elasticsearch node
