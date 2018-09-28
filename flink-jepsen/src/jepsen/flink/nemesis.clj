@@ -86,6 +86,11 @@
     (take n)
     (reverse)))
 
+(defn- inc-by-factor
+  [n factor]
+  (assert (>= factor 1))
+  (int (* n factor)))
+
 (defn stop-generator
   [stop source job-running-healthy-threshold job-recovery-grace-period]
   (gen/concat source
@@ -105,9 +110,12 @@
                                                 (flink-checker/get-job-running-history)
                                                 (take-last-with-default job-running-healthy-threshold false))]
                       (if (or
-                            (and
-                              (every? true? job-running-history))
-                            (> (ju/relative-time-nanos) (+ @t (ju/secs->nanos job-recovery-grace-period))))
+                            (every? true? job-running-history)
+                            (> (ju/relative-time-nanos) (+ @t
+                                                           (ju/secs->nanos
+                                                             (inc-by-factor
+                                                               job-recovery-grace-period
+                                                               1.1)))))
                         (do
                           (reset! stop true)
                           nil)
@@ -122,14 +130,14 @@
 (defn kill-taskmanagers-bursts-gen
   [time-limit]
   (fgen/time-limit time-limit
-                  (gen/seq (cycle (concat (repeat 20 {:type :info, :f :kill-task-managers})
-                                          [(gen/sleep 300)])))))
+                   (gen/seq (cycle (concat (repeat 20 {:type :info, :f :kill-task-managers})
+                                           [(gen/sleep 300)])))))
 
 (defn kill-jobmanagers-gen
   [time-limit]
   (fgen/time-limit (+ time-limit job-submit-grace-period)
-                  (gen/seq (cons (gen/sleep job-submit-grace-period)
-                                 (cycle [{:type :info, :f :kill-job-manager}])))))
+                   (gen/seq (cons (gen/sleep job-submit-grace-period)
+                                  (cycle [{:type :info, :f :kill-job-manager}])))))
 
 (defn fail-name-node-during-recovery
   []

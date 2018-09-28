@@ -5,10 +5,11 @@ distributed coordination of Apache Flink®.
 
 ## Test Coverage
 Jepsen is a framework built to test the behavior of distributed systems
-under faults. The tests in this particular project deploy Flink on either YARN or Mesos, submit a
+under faults. The tests in this particular project deploy Flink on YARN, Mesos, or as a standalone cluster, submit a
 job, and examine the availability of the job after injecting faults.
 A job is said to be available if all the tasks of the job are running.
 The faults that can be currently introduced to the Flink cluster include:
+
 * Killing of TaskManager/JobManager processes
 * Stopping HDFS NameNode
 * Network partitions

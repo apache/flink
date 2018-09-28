@@ -47,6 +47,12 @@
   (info "Waiting for path" path "in ZK.")
   (wait-for-zk-operation zk-client zk/exists path))
 
+(defn get-only-application-id
+  [coll]
+  (assert (= 1 (count coll)) (str "Expected 1 application id, got " coll ". "
+                                  "Failed to deploy the Flink cluster, or there are lingering Flink clusters."))
+  (first coll))
+
 (defn wait-for-children-to-exist
   [zk-client path]
   (wait-for-zk-operation zk-client zk/children path))
@@ -60,7 +66,7 @@
     (->
       (wait-for-children-to-exist zk-client "/flink")
       (deref)
-      (first))))
+      (get-only-application-id))))
 
 (defn watch-node-bytes
   [zk-client path callback]
@@ -97,54 +103,100 @@
     :jobs
     (map :id)))
 
-(defn get-job-details!
-  [base-url job-id]
-  (assert base-url)
-  (assert job-id)
-  (let [job-details (->
-                      (http/get (str base-url "/jobs/" job-id) {:as :json})
-                      :body)]
-    (assert (:vertices job-details) "Job does not have vertices")
-    job-details))
-
 (defn job-running?
   [base-url job-id]
-  (->>
-    (get-job-details! base-url job-id)
-    :vertices
-    (map :status)
-    (every? #(= "RUNNING" %))))
+  (let [response (http/get (str base-url "/jobs/" job-id) {:as :json :throw-exceptions false})
+        body (:body response)
+        error (:errors body)]
+    (cond
+      (http/missing? response) false
+      (not (http/success? response)) (throw (ex-info "Could not determine if job is running" {:job-id job-id :error error}))
+      :else (do
+              (assert (:vertices body) "Job does not have vertices")
+              (->>
+                body
+                :vertices
+                (map :status)
+                (every? #(= "RUNNING" %)))))))
+
+(defn- cancel-job!
+  "Cancels the specified job. Returns true if the job could be canceled.
+  Returns false if the job does not exist. Throws an exception if the HTTP status
+  is not successful."
+  [base-url job-id]
+  (let [response (http/patch (str base-url "/jobs/" job-id) {:as :json :throw-exceptions false})
+        error (-> response :body :errors)]
+    (cond
+      (http/missing? response) false
+      (not (http/success? response)) (throw (ex-info "Job cancellation unsuccessful" {:job-id job-id :error error}))
+      :else true)))
+
+(defmacro dispatch-operation
+  [op & body]
+  `(try
+     (assoc ~op :type :ok :value ~@body)
+     (catch Exception e# (do
+                           (warn e# "An exception occurred while running" (quote ~@body))
+                           (assoc ~op :type :fail :error (.getMessage e#))))))
+
+(defmacro dispatch-operation-or-fatal
+  "Dispatches op by evaluating body, retrying a number of times if needed.
+  Fails fatally if all retries are exhausted."
+  [op & body]
+  `(assoc ~op :type :ok :value (fu/retry (fn [] ~@body) :fallback (fn [e#]
+                                                                    (fatal e# "Required operation did not succeed" (quote ~@body))
+                                                                    (System/exit 1)))))
+
+(defn- dispatch-rest-operation!
+  [rest-url job-id op]
+  (assert job-id)
+  (if-not rest-url
+    (assoc op :type :fail :error "Have not determined REST URL yet.")
+    (case (:f op)
+      :job-running? (dispatch-operation op (fu/retry
+                                             (partial job-running? rest-url job-id)
+                                             :retries 3
+                                             :fallback #(throw %)))
+      :cancel-job (dispatch-operation-or-fatal op (cancel-job! rest-url job-id)))))
 
 (defrecord Client
-  [deploy-cluster! closer rest-url init-future job-id]
+  [deploy-cluster!                                          ; function that starts a non-standalone cluster and submits the job
+   closer                                                   ; function that closes the ZK client
+   rest-url                                                 ; atom storing the current rest-url
+   init-future                                              ; future that completes if rest-url is set to an initial value
+   job-id                                                   ; atom storing the job-id
+   job-submitted?]                                          ; Has the job already been submitted? Used to avoid re-submission if the client is re-opened.
   client/Client
-  (open! [this test node]
+  (open! [this test _]
+    (info "Open client.")
     (let [{:keys [rest-url-atom closer init-future]} (make-job-manager-url test)]
-      (assoc this :closer closer :rest-url rest-url-atom :init-future init-future :job-id (atom nil))))
+      (assoc this :closer closer
+                  :rest-url rest-url-atom
+                  :init-future init-future)))
 
-  (setup! [this test] this)
+  (setup! [_ test]
+    (info "Setup client.")
+    (when (compare-and-set! job-submitted? false true)
+      (deploy-cluster! test)
+      (deref init-future)
+      (let [jobs (fu/retry (fn [] (list-jobs! @rest-url))
+                           :fallback (fn [e]
+                                       (fatal e "Could not get running jobs.")
+                                       (System/exit 1)))
+            num-jobs (count jobs)
+            job (first jobs)]
+        (assert (= 1 num-jobs) (str "Expected 1 job, was " num-jobs))
+        (info "Submitted job" job)
+        (reset! job-id job))))
 
-  (invoke! [this test op]
-    (case (:f op)
-      :submit (do
-                (deploy-cluster! test)
-                (deref init-future)
-                (let [jobs (fu/retry (fn [] (list-jobs! @rest-url))
-                                     :fallback (fn [e] (do
-                                                         (fatal e "Could not get running jobs.")
-                                                         (System/exit 1))))
-                      num-jobs (count jobs)]
-                  (assert (= 1 num-jobs) (str "Expected 1 job, was " num-jobs))
-                  (reset! job-id (first jobs)))
-                (assoc op :type :ok))
-      :job-running? (let [base-url @rest-url]
-                      (if base-url
-                        (try
-                          (assoc op :type :ok :value (job-running? base-url @job-id))
-                          (catch Exception e (do
-                                               (warn e "Get job details from" base-url "failed.")
-                                               (assoc op :type :fail))))
-                        (assoc op :type :fail :value "Cluster not deployed yet.")))))
+  (invoke! [_ _ op]
+    (dispatch-rest-operation! @rest-url @job-id op))
 
-  (teardown! [this test])
-  (close! [this test] (closer)))
+  (teardown! [_ _])
+  (close! [_ _]
+    (info "Closing client.")
+    (closer)))
+
+(defn create-client
+  [deploy-cluster!]
+  (Client. deploy-cluster! nil nil nil (atom nil) (atom false)))
