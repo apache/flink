@@ -961,6 +961,7 @@ public class JobMasterTest extends TestLogger {
 			InputSplit nullSplit1 = InstantiationUtil.deserializeObject(
 				gateway.requestNextInputSplit(vertexID, newExecution.getAttemptId()).get().getInputSplitData(), ClassLoader.getSystemClassLoader());
 			Assert.assertNull(nullSplit1);
+
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
 		}
