@@ -18,6 +18,7 @@
 package org.apache.flink.table.codegen
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForTypeInfo, newName}
 import org.apache.flink.table.codegen.Indenter.toISC
@@ -63,7 +64,8 @@ class CollectorCodeGenerator(
   def generateTableFunctionCollector(
       name: String,
       bodyCode: String,
-      collectedType: TypeInformation[Any])
+      collectedType: TypeInformation[Any],
+      codeGenerator: CodeGenerator)
     : GeneratedCollector = {
 
     val className = newName(name)
@@ -95,6 +97,11 @@ class CollectorCodeGenerator(
       |  }
       |
       |  @Override
+      |  public void open(${classOf[Configuration].getCanonicalName} parameters) throws Exception {
+      |    ${codeGenerator.reuseOpenCode()}
+      |  }
+      |
+      |  @Override
       |  public void collect(Object record) throws Exception {
       |    super.collect(record);
       |    $input1TypeClass $input1Term = ($input1TypeClass) getInput();
@@ -105,7 +112,8 @@ class CollectorCodeGenerator(
       |  }
       |
       |  @Override
-      |  public void close() {
+      |  public void close() throws Exception {
+      |    ${codeGenerator.reuseCloseCode()}
       |  }
       |}
       |""".stripMargin
