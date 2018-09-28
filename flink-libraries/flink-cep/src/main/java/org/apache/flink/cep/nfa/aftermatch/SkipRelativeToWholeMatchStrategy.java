@@ -20,36 +20,16 @@ package org.apache.flink.cep.nfa.aftermatch;
 
 import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+abstract class SkipRelativeToWholeMatchStrategy extends AfterMatchSkipStrategy {
+	private static final long serialVersionUID = -3214720554878479037L;
 
-/**
- * Discards every partial match that started with the same event, emitted match was started.
- */
-public final class SkipToNextStrategy extends SkipRelativeToWholeMatchStrategy {
-
-	public static final SkipToNextStrategy INSTANCE = new SkipToNextStrategy();
-
-	private static final long serialVersionUID = -6490314998588752621L;
-
-	private SkipToNextStrategy() {
+	@Override
+	public final boolean isSkipStrategy() {
+		return true;
 	}
 
 	@Override
-	protected EventId getPruningId(final Collection<Map<String, List<EventId>>> match) {
-		EventId pruningId = null;
-		for (Map<String, List<EventId>> resultMap : match) {
-			for (List<EventId> eventList : resultMap.values()) {
-				pruningId = min(pruningId, eventList.get(0));
-			}
-		}
-
-		return pruningId;
-	}
-
-	@Override
-	public String toString() {
-		return "SkipToNextStrategy{}";
+	protected final boolean shouldPrune(EventId startEventID, EventId pruningId) {
+		return startEventID != null && startEventID.compareTo(pruningId) <= 0;
 	}
 }
