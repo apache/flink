@@ -514,9 +514,10 @@ public final class InstantiationUtil {
 
 		final ClassLoader old = Thread.currentThread().getContextClassLoader();
 		// not using resource try to avoid AutoClosable's close() on the given stream
-		try (ObjectInputStream oois = isFailureTolerant
+		try {
+			ObjectInputStream oois = isFailureTolerant
 				? new InstantiationUtil.FailureTolerantObjectInputStream(in, cl)
-				: new InstantiationUtil.ClassLoaderObjectInputStream(in, cl)) {
+				: new InstantiationUtil.ClassLoaderObjectInputStream(in, cl);
 			Thread.currentThread().setContextClassLoader(cl);
 			return (T) oois.readObject();
 		}
