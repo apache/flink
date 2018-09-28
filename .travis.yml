@@ -61,31 +61,6 @@ matrix:
         - TEST="misc"
         - PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws"
         - CACHE_NAME=JDK8_H280_M
-    - jdk: "openjdk8"
-      env:
-        - TEST="core"
-        - PROFILE="-Dhadoop.version=2.4.1"
-        - CACHE_NAME=JDK8_H241_CO
-    - jdk: "openjdk8"
-      env:
-        - TEST="libraries"
-        - PROFILE="-Dhadoop.version=2.4.1"
-        - CACHE_NAME=JDK8_H241_L
-    - jdk: "openjdk8"
-      env:
-        - TEST="connectors"
-        - PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
-        - CACHE_NAME=JDK8_H241_CN
-    - jdk: "openjdk8"
-      env:
-        - TEST="tests"
-        - PROFILE="-Dhadoop.version=2.4.1"
-        - CACHE_NAME=JDK8_H241_T
-    - jdk: "openjdk8"
-      env:
-        - TEST="misc"
-        - PROFILE="-Dhadoop.version=2.4.1"
-        - CACHE_NAME=JDK8_H241_M
 
 git:
   depth: 100
