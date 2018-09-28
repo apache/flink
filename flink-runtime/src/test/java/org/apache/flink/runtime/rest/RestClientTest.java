@@ -33,6 +33,7 @@ import org.apache.flink.util.function.CheckedSupplier;
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -127,6 +128,7 @@ public class RestClientTest extends TestLogger {
 	/**
 	 * Tests that we fail the operation if the client closes.
 	 */
+	@Ignore("Ignored due to https://github.com/netty/netty/issues/3662")
 	@Test
 	public void testRestClientClosedHandling() throws Exception {
 		final Configuration config = new Configuration();
