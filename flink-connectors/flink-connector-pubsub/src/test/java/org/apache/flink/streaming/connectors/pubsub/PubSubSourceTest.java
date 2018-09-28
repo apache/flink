@@ -20,6 +20,9 @@ package org.apache.flink.streaming.connectors.pubsub;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
@@ -36,9 +39,11 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.Is.is;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.internal.verification.VerificationModeFactory.times;
 
@@ -65,30 +70,34 @@ public class PubSubSourceTest {
 	private OperatorStateStore operatorStateStore;
 	@Mock
 	private FunctionInitializationContext functionInitializationContext;
+	@Mock
+	private MetricGroup metricGroup;
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testOpenWithoutCheckpointing() throws Exception {
+		PubSubSource<String> pubSubSource = createTestSource();
+		pubSubSource.setRuntimeContext(runtimeContext);
+
+		pubSubSource.open(null);
+	}
 
 	@Test
 	public void testOpenWithCheckpointing() throws Exception {
 		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
+		when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
 
 		PubSubSource<String> pubSubSource = createTestSource();
 		pubSubSource.setRuntimeContext(streamingRuntimeContext);
 		pubSubSource.open(null);
 
-		verify(subscriberWrapper, times(1)).initialize(pubSubSource);
+		verify(subscriberWrapper, times(1)).initialize();
 	}
 
 	@Test
-	public void testRun() throws IOException {
-		PubSubSource<String> pubSubSource = createTestSource();
-		pubSubSource.run(sourceContext);
-
-		verify(subscriberWrapper, times(1)).startBlocking();
-	}
-
-	@Test
-	public void testWithCheckpoints() throws Exception {
+	public void testReceiveMessageAndStop() throws Exception {
 		when(deserializationSchema.deserialize(SERIALIZED_MESSAGE)).thenReturn(MESSAGE);
 		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
+		when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
 		when(sourceContext.getCheckpointLock()).thenReturn("some object to lock on");
 		when(functionInitializationContext.getOperatorStateStore()).thenReturn(operatorStateStore);
 		when(operatorStateStore.getSerializableListState(any(String.class))).thenReturn(null);
@@ -97,20 +106,27 @@ public class PubSubSourceTest {
 		pubSubSource.initializeState(functionInitializationContext);
 		pubSubSource.setRuntimeContext(streamingRuntimeContext);
 		pubSubSource.open(null);
-		verify(subscriberWrapper, times(1)).initialize(pubSubSource);
+
+		//process one message and then mark as 'done' to prevent run() from blocking
+		when(subscriberWrapper.isRunning()).thenReturn(true, false);
+		when(subscriberWrapper.take()).thenReturn(Tuple2.of(pubSubMessage(), ackReplyConsumer));
 
 		pubSubSource.run(sourceContext);
 
-		pubSubSource.receiveMessage(pubSubMessage(), ackReplyConsumer);
-
+		//verify handling message
 		verify(sourceContext, times(1)).getCheckpointLock();
 		verify(sourceContext, times(1)).collect(MESSAGE);
-		verifyZeroInteractions(ackReplyConsumer);
+
+		//verify stopping PubSubSource
+		verify(subscriberWrapper, times(1)).nackAllMessagesInBuffer();
+		verify(ackReplyConsumer, times(1)).nack();
+		verify(subscriberWrapper, times(1)).awaitTerminated();
 	}
 
 	@Test
 	public void testMessagesAcknowledged() throws Exception {
 		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
+		when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
 
 		PubSubSource<String> pubSubSource = createTestSource();
 		pubSubSource.setRuntimeContext(streamingRuntimeContext);
@@ -123,24 +139,80 @@ public class PubSubSourceTest {
 		verify(ackReplyConsumer, times(1)).ack();
 	}
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testOnceWithoutCheckpointing() throws Exception {
+	@Test
+	public void testCancel() throws Exception {
 		PubSubSource<String> pubSubSource = createTestSource();
-		pubSubSource.setRuntimeContext(runtimeContext);
+		pubSubSource.cancel();
 
+		verify(subscriberWrapper, times(1)).stop();
+	}
+
+	@Test
+	public void testStop() throws Exception {
+		PubSubSource<String> pubSubSource = createTestSource();
+		pubSubSource.stop();
+
+		verify(subscriberWrapper, times(1)).stop();
+	}
+
+	@Test
+	public void testProcessingMessageOnNonRunningPubSubSource() throws Exception {
+		PubSubSource<String> pubSubSource = createTestSource();
+		pubSubSource.processMessage(Tuple2.of(pubSubMessage(), ackReplyConsumer));
+
+		verify(ackReplyConsumer, times(1)).nack();
+	}
+
+	@Test
+	public void testDuplicateMessagesAreIgnored() throws Exception {
+		when(deserializationSchema.deserialize(SERIALIZED_MESSAGE)).thenReturn(MESSAGE);
+		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
+		when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
+		when(sourceContext.getCheckpointLock()).thenReturn("some object to lock on");
+		when(functionInitializationContext.getOperatorStateStore()).thenReturn(operatorStateStore);
+		when(operatorStateStore.getSerializableListState(any(String.class))).thenReturn(null);
+		PubSubSource<String> pubSubSource = createTestSource();
+		pubSubSource.initializeState(functionInitializationContext);
+		pubSubSource.setRuntimeContext(streamingRuntimeContext);
 		pubSubSource.open(null);
+		pubSubSource.run(sourceContext);
+
+		//Process first message
+		pubSubSource.processMessage(Tuple2.of(pubSubMessage(), ackReplyConsumer));
+		verify(sourceContext, times(1)).getCheckpointLock();
+		verify(sourceContext, times(1)).collect(MESSAGE);
+
+		//Ignore second message
+		pubSubSource.processMessage(Tuple2.of(pubSubMessage(), ackReplyConsumer));
+		verify(sourceContext, times(2)).getCheckpointLock();
+		verifyNoMoreInteractions(sourceContext);
+	}
+
+	@Test
+	public void testTypeInformationFromDeserializationSchema() throws Exception {
+		TypeInformation<String> schemaTypeInformation = TypeInformation.of(String.class);
+		when(deserializationSchema.getProducedType()).thenReturn(schemaTypeInformation);
+
+		PubSubSource<String> pubSubSource = createTestSource();
+		TypeInformation<String> actualTypeInformation = pubSubSource.getProducedType();
+
+		assertThat(actualTypeInformation, is(schemaTypeInformation));
+		verify(deserializationSchema, times(1)).getProducedType();
 	}
 
 	private PubSubSource<String> createTestSource() throws IOException {
-		return PubSubSource.<String>newBuilder()
-			.withoutCredentials()
-			.withSubscriberWrapper(subscriberWrapper)
-			.withDeserializationSchema(deserializationSchema)
-			.build();
+		PubSubSource pubSubSource = PubSubSource.<String>newBuilder()
+				.withoutCredentials()
+				.withDeserializationSchema(deserializationSchema)
+				.withProjectSubscriptionName("projectName", "subscriptionName")
+				.build();
+		pubSubSource.setSubscriberWrapper(subscriberWrapper);
+		return pubSubSource;
 	}
 
 	private PubsubMessage pubSubMessage() {
 		return PubsubMessage.newBuilder()
+			.setMessageId("some id")
 			.setData(ByteString.copyFrom(SERIALIZED_MESSAGE))
 			.build();
 	}

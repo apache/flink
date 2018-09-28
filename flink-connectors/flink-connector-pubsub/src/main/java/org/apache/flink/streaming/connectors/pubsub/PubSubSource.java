@@ -18,35 +18,41 @@
 package org.apache.flink.streaming.connectors.pubsub;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.MultipleIdsMessageAcknowledgingSourceBase;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.pubsub.common.PubSubSubscriberFactory;
 import org.apache.flink.streaming.connectors.pubsub.common.SerializableCredentialsProvider;
 
 import com.google.api.gax.core.CredentialsProvider;
 import com.google.auth.Credentials;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
-import com.google.cloud.pubsub.v1.MessageReceiver;
+import com.google.cloud.pubsub.v1.Subscriber;
 import com.google.pubsub.v1.ProjectSubscriptionName;
 import com.google.pubsub.v1.PubsubMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
-
 
 /**
  * PubSub Source, this Source will consume PubSub messages from a subscription and Acknowledge them as soon as they have been received.
  */
 public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OUT, String, AckReplyConsumer>
-		implements MessageReceiver, ResultTypeQueryable<OUT>, ParallelSourceFunction<OUT> {
-	private DeserializationSchema<OUT> deserializationSchema;
-	private SubscriberWrapper subscriberWrapper;
+		implements ResultTypeQueryable<OUT>, ParallelSourceFunction<OUT>, StoppableFunction {
+	private static final Logger LOG = LoggerFactory.getLogger(PubSubSource.class);
+	protected DeserializationSchema<OUT> deserializationSchema;
+	protected SubscriberWrapper subscriberWrapper;
 
-	protected transient SourceContext<OUT> sourceContext = null;
+	protected boolean running = true;
+	protected transient volatile SourceContext<OUT> sourceContext = null;
 
 	protected PubSubSource() {
 		super(String.class);
@@ -63,11 +69,14 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	@Override
 	public void open(Configuration configuration) throws Exception {
 		super.open(configuration);
-		subscriberWrapper.initialize(this);
+		subscriberWrapper.initialize();
 		if (hasNoCheckpointingEnabled(getRuntimeContext())) {
 			throw new IllegalArgumentException("The PubSubSource REQUIRES Checkpointing to be enabled and " +
 				"the checkpointing frequency must be MUCH lower than the PubSub timeout for it to retry a message.");
 		}
+
+		getRuntimeContext().getMetricGroup().gauge("PubSubMessagesProcessedNotAcked", this::getOutstandingMessagesToAck);
+		getRuntimeContext().getMetricGroup().gauge("PubSubMessagesReceivedNotProcessed", subscriberWrapper::amountOfMessagesInBuffer);
 	}
 
 	private boolean hasNoCheckpointingEnabled(RuntimeContext runtimeContext) {
@@ -80,22 +89,33 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	}
 
 	@Override
-	public void run(SourceContext<OUT> sourceContext) {
+	public void run(SourceContext<OUT> sourceContext) throws Exception {
 		this.sourceContext = sourceContext;
-		subscriberWrapper.startBlocking();
+		subscriberWrapper.start();
+
+		while (subscriberWrapper.isRunning()) {
+			try {
+				processMessage(subscriberWrapper.take());
+			} catch (InterruptedException e) {
+				LOG.debug("Interrupted - stop or cancel called?");
+			}
+		}
+
+		subscriberWrapper.nackAllMessagesInBuffer();
+		nackOutstandingMessages();
+
+		LOG.debug("Waiting for subscriber to terminate.");
+		subscriberWrapper.awaitTerminated();
 	}
 
-	@Override
-	public void receiveMessage(PubsubMessage message, AckReplyConsumer consumer) {
+	void processMessage(Tuple2<PubsubMessage, AckReplyConsumer> input) throws Exception {
+		PubsubMessage message = input.f0;
+		AckReplyConsumer ackReplyConsumer = input.f1;
 		if (sourceContext == null) {
-			consumer.nack();
+			ackReplyConsumer.nack();
 			return;
 		}
 
-		processMessage(message, consumer);
-	}
-
-	private void processMessage(PubsubMessage message, AckReplyConsumer ackReplyConsumer) {
 		synchronized (sourceContext.getCheckpointLock()) {
 			boolean alreadyProcessed = !addId(message.getMessageId());
 			if (alreadyProcessed) {
@@ -107,17 +127,37 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		}
 	}
 
-	@Override
-	public void cancel() {
-		subscriberWrapper.stop();
+	private Integer getOutstandingMessagesToAck() {
+		return this.sessionIdsPerSnapshot
+				.stream()
+				.mapToInt(tuple -> tuple.f1.size())
+				.sum() + this.sessionIds.size();
 	}
 
-	private OUT deserializeMessage(PubsubMessage message) {
-		try {
-			return deserializationSchema.deserialize(message.getData().toByteArray());
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+	private void nackOutstandingMessages() {
+		LOG.debug("Going to nack {} processed but not checkpointed pubsub messages.", getOutstandingMessagesToAck());
+		this.sessionIdsPerSnapshot.stream()
+									.flatMap(tuple -> tuple.f1.stream())
+									.forEach(AckReplyConsumer::nack);
+		this.sessionIds.forEach(AckReplyConsumer::nack);
+		LOG.debug("Finished nacking pubsub messages.");
+	}
+
+	@Override
+	public void cancel() {
+		sourceContext = null;
+		subscriberWrapper.stop();
+		running = false;
+	}
+
+	@Override
+	public void stop() {
+		subscriberWrapper.stop();
+		running = false;
+	}
+
+	private OUT deserializeMessage(PubsubMessage message) throws IOException {
+		return deserializationSchema.deserialize(message.getData().toByteArray());
 	}
 
 	@Override
@@ -140,7 +180,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	public static class PubSubSourceBuilder<OUT, PSS extends PubSubSource<OUT>, BUILDER extends PubSubSourceBuilder<OUT, PSS, BUILDER>> {
 		protected PSS sourceUnderConstruction;
 
-		private SubscriberWrapper subscriberWrapper = null;
+		private PubSubSubscriberFactory pubSubSubscriberFactory;
 		private SerializableCredentialsProvider serializableCredentialsProvider;
 		private DeserializationSchema<OUT> deserializationSchema;
 		private String projectName;
@@ -218,14 +258,15 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		}
 
 		/**
-		 * Set a complete SubscriberWrapper.
-		 * The ONLY reason to use this is during tests.
+		 * Set a PubSubSubscriberFactory
+		 * This allows for custom Subscriber options to be set.
+		 * Cannot be used in combination with withHostAndPort().
 		 *
-		 * @param subscriberWrapper The fully instantiated SubscriberWrapper
+		 * @param pubSubSubscriberFactory A factory to create a {@link Subscriber}
 		 * @return The current PubSubSourceBuilder instance
 		 */
-		public BUILDER withSubscriberWrapper(SubscriberWrapper subscriberWrapper) {
-			this.subscriberWrapper = subscriberWrapper;
+		public BUILDER withPubSubSubscriberFactory(PubSubSubscriberFactory pubSubSubscriberFactory) {
+			this.pubSubSubscriberFactory = pubSubSubscriberFactory;
 			return (BUILDER) this;
 		}
 
@@ -244,19 +285,22 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 				throw new IllegalArgumentException("The deserializationSchema has not been specified.");
 			}
 
-			if (subscriberWrapper == null) {
-				if (projectName == null || subscriptionName == null) {
-					throw new IllegalArgumentException("The ProjectName And SubscriptionName have not been specified.");
-				}
+			if (pubSubSubscriberFactory != null && hostAndPort != null) {
+				throw new IllegalArgumentException(("withPubSubSubscriberFactory() and withHostAndPort() both called, only one may be called."));
+			}
 
-				subscriberWrapper =
-					new SubscriberWrapper(serializableCredentialsProvider, ProjectSubscriptionName.of(projectName, subscriptionName));
+			if (projectName == null || subscriptionName == null) {
+				throw new IllegalArgumentException("ProjectName or SubscriptionName has not been specified.");
+			}
 
+			if (pubSubSubscriberFactory == null) {
+				pubSubSubscriberFactory = new DefaultPubSubSubscriberFactory();
 				if (hostAndPort != null) {
-					subscriberWrapper.withHostAndPort(hostAndPort);
+					((DefaultPubSubSubscriberFactory) pubSubSubscriberFactory).withHostAndPort(hostAndPort);
 				}
 			}
 
+			SubscriberWrapper subscriberWrapper = new SubscriberWrapper(serializableCredentialsProvider, ProjectSubscriptionName.of(projectName, subscriptionName), pubSubSubscriberFactory);
 			sourceUnderConstruction.setSubscriberWrapper(subscriberWrapper);
 			sourceUnderConstruction.setDeserializationSchema(deserializationSchema);
 

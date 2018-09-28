@@ -61,6 +61,7 @@ public class PubSubExample {
 
 	private static void runFlinkJob(String projectName, String subscriptionName, String outputTopicName) throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.enableCheckpointing(1000L);
 
 		env.addSource(PubSubSource.<Integer>newBuilder()
 										.withProjectSubscriptionName(projectName, subscriptionName)

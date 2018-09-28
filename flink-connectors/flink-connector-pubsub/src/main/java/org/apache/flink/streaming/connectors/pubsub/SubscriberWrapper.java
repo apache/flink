@@ -17,92 +17,87 @@
 
 package org.apache.flink.streaming.connectors.pubsub;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.connectors.pubsub.common.PubSubSubscriberFactory;
 import org.apache.flink.streaming.connectors.pubsub.common.SerializableCredentialsProvider;
 
 import com.google.api.core.ApiService;
-import com.google.api.gax.grpc.GrpcTransportChannel;
-import com.google.api.gax.rpc.FixedTransportChannelProvider;
-import com.google.api.gax.rpc.TransportChannel;
+import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsub.v1.Subscriber;
 import com.google.pubsub.v1.ProjectSubscriptionName;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
+import com.google.pubsub.v1.PubsubMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Wrapper class around a PubSub {@link Subscriber}.
  * This class makes it easier to connect to a Non Google PubSub service such as a local PubSub emulator or docker container.
  */
-class SubscriberWrapper implements Serializable {
+class SubscriberWrapper implements Serializable, MessageReceiver {
+	private static final Logger LOG = LoggerFactory.getLogger(PubSubSource.class);
+
 	private final SerializableCredentialsProvider serializableCredentialsProvider;
 	private final String projectId;
 	private final String subscriptionId;
-	private String hostAndPort = null;
+	private final PubSubSubscriberFactory pubSubSubscriberFactory;
 
 	private transient Subscriber subscriber;
-	private transient ManagedChannel managedChannel = null;
-	private transient TransportChannel channel = null;
+	private transient BlockingQueue<Tuple2<PubsubMessage, AckReplyConsumer>> messageQueue;
 
-	SubscriberWrapper(SerializableCredentialsProvider serializableCredentialsProvider, ProjectSubscriptionName projectSubscriptionName) {
+	SubscriberWrapper(SerializableCredentialsProvider serializableCredentialsProvider, ProjectSubscriptionName projectSubscriptionName, PubSubSubscriberFactory pubSubSubscriberFactory) {
 		this.serializableCredentialsProvider = serializableCredentialsProvider;
 		this.projectId = projectSubscriptionName.getProject();
 		this.subscriptionId = projectSubscriptionName.getSubscription();
+		this.pubSubSubscriberFactory = pubSubSubscriberFactory;
 	}
 
-	void initialize(MessageReceiver messageReceiver) {
-		Subscriber.Builder builder = Subscriber
-			.newBuilder(ProjectSubscriptionName.of(projectId, subscriptionId), messageReceiver)
-			.setCredentialsProvider(serializableCredentialsProvider);
-
-		if (hostAndPort != null) {
-			managedChannel = ManagedChannelBuilder
-				.forTarget(hostAndPort)
-				.usePlaintext(true) // This is 'Ok' because this is ONLY used for testing.
-				.build();
-			channel = GrpcTransportChannel.newBuilder().setManagedChannel(managedChannel).build();
-			builder.setChannelProvider(FixedTransportChannelProvider.create(channel));
-		}
-
-		this.subscriber = builder.build();
+	void initialize() {
+		this.subscriber = pubSubSubscriberFactory.getSubscriber(serializableCredentialsProvider, ProjectSubscriptionName.of(projectId, subscriptionId), this);
+		this.messageQueue = new LinkedBlockingQueue<>();
 	}
 
-	/**
-	 * Set the custom hostname/port combination of PubSub.
-	 * The ONLY reason to use this is during tests with the emulator provided by Google.
-	 *
-	 * @param hostAndPort The combination of hostname and port to connect to ("hostname:1234")
-	 * @return The current instance
-	 */
-	public SubscriberWrapper withHostAndPort(String hostAndPort) {
-		this.hostAndPort = hostAndPort;
-		return this;
-	}
-
-	void startBlocking() {
+	void start() {
 		ApiService apiService = subscriber.startAsync();
 		apiService.awaitRunning();
-
-		if (apiService.state() != ApiService.State.RUNNING) {
-			throw new IllegalStateException("Could not start PubSubSubscriber, ApiService.State: " + apiService.state());
-		}
-		apiService.awaitTerminated();
 	}
 
 	void stop() {
-		subscriber.stopAsync().awaitTerminated();
-		if (channel != null) {
-			try {
-				channel.close();
-				managedChannel.shutdownNow();
-			} catch (Exception e) {
-				// Ignore
-			}
+		if (subscriber != null) {
+			subscriber.stopAsync().awaitTerminated();
 		}
 	}
 
-	Subscriber getSubscriber() {
-		return subscriber;
+	Tuple2<PubsubMessage, AckReplyConsumer> take() throws InterruptedException {
+		return messageQueue.take();
+	}
+
+	void nackAllMessagesInBuffer() {
+		LOG.info("Going to nack {} messages.", amountOfMessagesInBuffer());
+		messageQueue.stream()
+					.map(tuple -> tuple.f1)
+					.forEach(AckReplyConsumer::nack);
+		LOG.info("Finished nacking messages in buffer.");
+	}
+
+	int amountOfMessagesInBuffer() {
+		return messageQueue.size();
+	}
+
+	boolean isRunning() {
+		return subscriber.isRunning();
+	}
+
+	void awaitTerminated() {
+		subscriber.awaitTerminated();
+	}
+
+	@Override
+	public void receiveMessage(PubsubMessage message, AckReplyConsumer consumer) {
+		messageQueue.offer(Tuple2.of(message, consumer));
 	}
 }

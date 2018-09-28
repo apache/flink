@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.pubsub;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.pubsub.v1.PubsubMessage;
 
@@ -38,14 +40,14 @@ public class BoundedPubSubSource<OUT> extends PubSubSource<OUT> {
 	}
 
 	@Override
-	public void run(SourceContext<OUT> sourceContext) {
+	public void run(SourceContext<OUT> sourceContext) throws Exception {
 		bound.start(this);
 		super.run(sourceContext);
 	}
 
 	@Override
-	public void receiveMessage(PubsubMessage message, AckReplyConsumer consumer) {
-		super.receiveMessage(message, consumer);
+	void processMessage(Tuple2<PubsubMessage, AckReplyConsumer> message) throws Exception {
+		super.processMessage(message);
 		bound.receivedMessage();
 	}
 
