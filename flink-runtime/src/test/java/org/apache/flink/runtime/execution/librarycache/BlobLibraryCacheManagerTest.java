@@ -64,7 +64,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 	 * BlobLibraryCacheManager#unregisterJob(JobID)}.
 	 */
 	@Test
-	public void testLibraryCacheManagerJobCleanup() throws IOException {
+	public void testLibraryCacheManagerJobCleanup() throws IOException, InterruptedException {
 
 		JobID jobId1 = new JobID();
 		JobID jobId2 = new JobID();
@@ -103,7 +103,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			checkFileCountForJob(1, jobId2, server);
 			checkFileCountForJob(0, jobId2, cache);
 
-			libCache.registerJob(jobId1, keys1, Collections.emptyList());
+			libCache.registerJob(jobId1, keys1, Collections.<URL>emptyList());
 			ClassLoader classLoader1 = libCache.getClassLoader(jobId1);
 
 			assertEquals(1, libCache.getNumberOfManagedJobs());
@@ -116,12 +116,12 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			checkFileCountForJob(1, jobId2, server);
 			checkFileCountForJob(0, jobId2, cache);
 
-			libCache.registerJob(jobId2, keys2, Collections.emptyList());
+			libCache.registerJob(jobId2, keys2, Collections.<URL>emptyList());
 			ClassLoader classLoader2 = libCache.getClassLoader(jobId2);
 			assertNotEquals(classLoader1, classLoader2);
 
 			try {
-				libCache.registerJob(jobId2, keys1, Collections.emptyList());
+				libCache.registerJob(jobId2, keys1, Collections.<URL>emptyList());
 				fail("Should fail with an IllegalStateException");
 			}
 			catch (IllegalStateException e) {
@@ -195,7 +195,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 	 * BlobLibraryCacheManager#unregisterTask(JobID, ExecutionAttemptID)}.
 	 */
 	@Test
-	public void testLibraryCacheManagerTaskCleanup() throws IOException {
+	public void testLibraryCacheManagerTaskCleanup() throws IOException, InterruptedException {
 
 		JobID jobId = new JobID();
 		ExecutionAttemptID attempt1 = new ExecutionAttemptID();
@@ -230,7 +230,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(0, jobId, cache);
 
-			libCache.registerTask(jobId, attempt1, keys, Collections.emptyList());
+			libCache.registerTask(jobId, attempt1, keys, Collections.<URL>emptyList());
 			ClassLoader classLoader1 = libCache.getClassLoader(jobId);
 
 			assertEquals(1, libCache.getNumberOfManagedJobs());
@@ -239,7 +239,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(2, jobId, cache);
 
-			libCache.registerTask(jobId, attempt2, keys, Collections.emptyList());
+			libCache.registerTask(jobId, attempt2, keys, Collections.<URL>emptyList());
 			ClassLoader classLoader2 = libCache.getClassLoader(jobId);
 			assertEquals(classLoader1, classLoader2);
 
@@ -308,7 +308,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 	 * BlobLibraryCacheManager#unregisterTask(JobID, ExecutionAttemptID)}.
 	 */
 	@Test
-	public void testLibraryCacheManagerMixedJobTaskCleanup() throws IOException {
+	public void testLibraryCacheManagerMixedJobTaskCleanup() throws IOException, InterruptedException {
 
 		JobID jobId = new JobID();
 		ExecutionAttemptID attempt1 = new ExecutionAttemptID();
@@ -342,7 +342,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(0, jobId, cache);
 
-			libCache.registerJob(jobId, keys, Collections.emptyList());
+			libCache.registerJob(jobId, keys, Collections.<URL>emptyList());
 			ClassLoader classLoader1 = libCache.getClassLoader(jobId);
 
 			assertEquals(1, libCache.getNumberOfManagedJobs());
@@ -351,7 +351,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(2, jobId, cache);
 
-			libCache.registerTask(jobId, attempt1, keys, Collections.emptyList());
+			libCache.registerTask(jobId, attempt1, keys, Collections.<URL>emptyList());
 			ClassLoader classLoader2 = libCache.getClassLoader(jobId);
 			assertEquals(classLoader1, classLoader2);
 
@@ -525,7 +525,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			try {
 				cache.registerJob(jobId);
 				libCache.registerTask(jobId, new ExecutionAttemptID(), Collections.singleton(dataKey2),
-					Collections.emptyList());
+					Collections.<URL>emptyList());
 				fail("This should fail with an IOException");
 			}
 			catch (IOException e) {
