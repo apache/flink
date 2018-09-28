@@ -77,7 +77,7 @@ public class JobMasterTriggerSavepointIT extends AbstractTestBase {
 	private MiniClusterClient clusterClient;
 	private JobGraph jobGraph;
 
-	private void before(long checkpointInterval) throws Exception {
+	private void setUpWithCheckpointInterval(long checkpointInterval) throws Exception {
 		invokeLatch = new CountDownLatch(1);
 		triggerCheckpointLatch = new CountDownLatch(1);
 		savepointDirectory = temporaryFolder.newFolder().toPath();
@@ -115,7 +115,7 @@ public class JobMasterTriggerSavepointIT extends AbstractTestBase {
 
 	@Test
 	public void testStopJobAfterSavepoint() throws Exception {
-		before(10);
+		setUpWithCheckpointInterval(10);
 
 		final String savepointLocation = cancelWithSavepoint();
 		final JobStatus jobStatus = clusterClient.getJobStatus(jobGraph.getJobID()).get(60, TimeUnit.SECONDS);
@@ -129,7 +129,7 @@ public class JobMasterTriggerSavepointIT extends AbstractTestBase {
 	@Test
 	public void testStopJobAfterSavepointWithDeactivatedPeriodicCheckpointing() throws Exception {
 		// set checkpointInterval to Long.MAX_VALUE, which means deactivated checkpointing
-		before(Long.MAX_VALUE);
+		setUpWithCheckpointInterval(Long.MAX_VALUE);
 
 		final String savepointLocation = cancelWithSavepoint();
 		final JobStatus jobStatus = clusterClient.getJobStatus(jobGraph.getJobID()).get(60, TimeUnit.SECONDS);
@@ -142,7 +142,7 @@ public class JobMasterTriggerSavepointIT extends AbstractTestBase {
 
 	@Test
 	public void testDoNotCancelJobIfSavepointFails() throws Exception {
-		before(10);
+		setUpWithCheckpointInterval(10);
 
 		try {
 			Files.setPosixFilePermissions(savepointDirectory, Collections.emptySet());
@@ -201,7 +201,7 @@ public class JobMasterTriggerSavepointIT extends AbstractTestBase {
 		}
 
 		@Override
-		public boolean triggerCheckpoint(final CheckpointMetaData checkpointMetaData, final CheckpointOptions checkpointOptions) throws Exception {
+		public boolean triggerCheckpoint(final CheckpointMetaData checkpointMetaData, final CheckpointOptions checkpointOptions) {
 			final TaskStateSnapshot checkpointStateHandles = new TaskStateSnapshot();
 			checkpointStateHandles.putSubtaskStateByOperatorID(
 				OperatorID.fromJobVertexID(getEnvironment().getJobVertexId()),
@@ -218,7 +218,7 @@ public class JobMasterTriggerSavepointIT extends AbstractTestBase {
 		}
 
 		@Override
-		public void notifyCheckpointComplete(final long checkpointId) throws Exception {
+		public void notifyCheckpointComplete(final long checkpointId) {
 		}
 	}
 
