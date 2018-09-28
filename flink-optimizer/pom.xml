@@ -66,6 +66,11 @@ under the License.
 			<artifactId>flink-shaded-jackson</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+		</dependency>
+
 		<!-- test dependencies -->
 
 		<dependency>
@@ -77,22 +82,6 @@ under the License.
 	<!-- Because flink-tests needs the CompilerTestBsae -->
 	<build>
 		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-dependency-plugin</artifactId>
-				<executions>
-					<execution>
-						<!-- Complete fiesta, fix later -->
-						<id>analyze</id>
-						<goals>
-							<goal>analyze-only</goal>
-						</goals>
-						<configuration>
-							<skip>true</skip>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
