@@ -104,16 +104,6 @@ under the License.
 		</dependency>
 
 		<!-- test dependencies -->
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<!-- use a dedicated Scala version to not depend on it -->
-			<artifactId>flink-runtime_2.11</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<!-- use a dedicated Scala version to not depend on it -->
