@@ -1076,6 +1076,19 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 							if (throwable instanceof TimeoutException) {
 								log.info("Slot offering to JobManager did not finish in time. Retrying the slot offering.");
 								// We ran into a timeout. Try again.
+								for (SlotOffer offer : reservedSlots) {
+									try {
+										if (!taskSlotTable.markSlotInactive(offer.getAllocationId(), taskManagerConfiguration.getTimeout())) {
+											// the slot is either free or releasing at the moment
+											final String message = "Could not mark slot " + jobId + " active.";
+											log.debug(message);
+											jobMasterGateway.failSlot(getResourceID(), offer.getAllocationId(), new Exception(message));
+										}
+									} catch (SlotNotFoundException e) {
+										final String message = "Not find slot " + offer.getAllocationId() + " in task executor.";
+										jobMasterGateway.failSlot(getResourceID(), offer.getAllocationId(), new Exception(message));
+									}
+								}
 								offerSlotsToJobManager(jobId);
 							} else {
 								log.warn("Slot offering to JobManager failed. Freeing the slots " +

@@ -78,6 +78,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
@@ -127,6 +128,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
 import static org.hamcrest.Matchers.contains;
@@ -960,7 +962,7 @@ public class TaskExecutorTest extends TestLogger {
 
 		when(jobMasterGateway.offerSlots(
 				any(ResourceID.class), any(Collection.class), any(Time.class)))
-			.thenReturn(CompletableFuture.completedFuture((Collection<SlotOffer>)Collections.singleton(offer1)));
+			.thenReturn(CompletableFuture.completedFuture((Collection<SlotOffer>) Collections.singleton(offer1)));
 
 		rpc.registerGateway(resourceManagerAddress, resourceManagerGateway);
 		rpc.registerGateway(jobManagerAddress, jobMasterGateway);
@@ -1677,6 +1679,87 @@ public class TaskExecutorTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that offers slots to job master timeout and retry.
+	 */
+	@Test
+	public void testOfferSlotToJobMasterTimeout() throws Exception {
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(
+				Arrays.asList(ResourceProfile.UNKNOWN, ResourceProfile.UNKNOWN),
+				timerService);
+		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+				.setTaskSlotTable(taskSlotTable)
+				.setTaskManagerLocation(taskManagerLocation)
+				.build();
+		final TaskExecutor taskExecutor = new TaskExecutor(
+				rpc,
+				taskManagerConfiguration,
+				haServices,
+				taskManagerServices,
+				new HeartbeatServices(10000, 60000),
+				UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+				dummyBlobCacheService,
+				testingFatalErrorHandler);
+
+		final UUID resourceManagerLeaderId = UUID.randomUUID();
+
+		final String jobManagerAddress = "jm";
+		final UUID jobManagerLeaderId = UUID.randomUUID();
+
+		final AllocationID allocationId = new AllocationID();
+		final SlotOffer offer = new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN);
+
+		final CompletableFuture<ResourceID> initailSlotReportFuture = new CompletableFuture<>();
+
+		final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+		testingResourceManagerGateway.setSendSlotReportFunction(resourceIDInstanceIDSlotReportTuple3 -> {
+			initailSlotReportFuture.complete(null);
+			return CompletableFuture.completedFuture(Acknowledge.get());
+
+		});
+		rpc.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
+		resourceManagerLeaderRetriever.notifyListener(testingResourceManagerGateway.getAddress(), resourceManagerLeaderId);
+
+		final ControlledJobMasterGateway jobMasterGateway =
+				new ControlledJobMasterGateway(jobManagerAddress, jobManagerLeaderId, offer);
+		rpc.registerGateway(jobManagerAddress, jobMasterGateway);
+		jobManagerLeaderRetriever.notifyListener(jobManagerAddress, jobManagerLeaderId);
+
+		taskExecutor.start();
+
+		try {
+
+			// wait for the connection to the ResourceManager
+			initailSlotReportFuture.get();
+
+			taskExecutor.requestSlot(
+					new SlotID(new ResourceID("tm"), 0),
+					jobId,
+					allocationId,
+					jobManagerAddress,
+					ResourceManagerId.fromUuid(resourceManagerLeaderId),
+					timeout).get();
+
+			long startTime = System.currentTimeMillis();
+			while (2 > jobMasterGateway.getOfferCount()) {
+				Thread.sleep(100);
+				if (System.currentTimeMillis() - startTime > 2000) {
+					fail("Didn't Offer slot to job master as expected");
+				}
+			}
+
+			assertTrue(taskSlotTable.existsActiveSlot(jobId, allocationId));
+			assertTrue(taskSlotTable.isSlotFree(1));
+			assertEquals(2, jobMasterGateway.getOfferCount());
+
+			// check if a concurrent error occurred
+			testingFatalErrorHandler.rethrowError();
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
+	}
+
 	@Nonnull
 	private TaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices) {
 		return new TaskExecutor(
@@ -1784,6 +1867,59 @@ public class TaskExecutorTest extends TestLogger {
 		public void monitorTarget(ResourceID resourceID, HeartbeatTarget<O> heartbeatTarget) {
 			super.monitorTarget(resourceID, heartbeatTarget);
 			monitoredTargets.offer(resourceID);
+		}
+	}
+
+	class ControlledJobMasterGateway extends TestingJobMasterGateway {
+
+		private int index = 0;
+
+		private final String jobManagerAddress;
+
+		private final UUID jobManagerLeaderId;
+
+		private SlotOffer offer;
+
+		ControlledJobMasterGateway(String jobManagerAddress, UUID jobManagerLeaderId, SlotOffer slotOffer) {
+			this.jobManagerAddress = jobManagerAddress;
+			this.jobManagerLeaderId = jobManagerLeaderId;
+			this.offer = slotOffer;
+		}
+
+		@Override
+		public CompletableFuture<RegistrationResponse> registerTaskManager(
+				final String taskManagerRpcAddress,
+				final TaskManagerLocation taskManagerLocation,
+				@RpcTimeout final Time timeout) {
+			return CompletableFuture.completedFuture(new JMTMRegistrationSuccess(ResourceID.generate()));
+		}
+
+		@Override
+		public String getHostname() {
+			return jobManagerAddress;
+		}
+
+		@Override
+		public CompletableFuture<Collection<SlotOffer>> offerSlots(ResourceID taskManagerId, Collection<SlotOffer> slots, Time timeout) {
+			if (index++ == 0) {
+				return FutureUtils.completedExceptionally(new TimeoutException());
+			} else {
+				return CompletableFuture.completedFuture(Collections.singleton(offer));
+			}
+		}
+
+		public int getOfferCount() {
+			return index;
+		}
+
+		@Override
+		public CompletableFuture<Acknowledge> disconnectTaskManager(ResourceID resourceID, Exception cause) {
+			return CompletableFuture.completedFuture(Acknowledge.get());
+		}
+
+		@Override
+		public JobMasterId getFencingToken() {
+			return new JobMasterId(jobManagerLeaderId);
 		}
 	}
 }
