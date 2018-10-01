@@ -18,30 +18,38 @@
 
 package org.apache.flink.cep.nfa.aftermatch;
 
+import org.apache.flink.cep.nfa.sharedbuffer.EventId;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+
 /**
- * Discards every partial match that started before the first event of emitted match mapped to *PatternName*.
+ * Discards every partial match that started with the same event, emitted match was started.
  */
-public final class SkipToFirstStrategy extends SkipToElementStrategy {
-	private static final long serialVersionUID = 7127107527654629026L;
+public final class SkipToNextStrategy extends SkipRelativeToWholeMatchStrategy {
 
-	SkipToFirstStrategy(String patternName, boolean shouldThrowException) {
-		super(patternName, shouldThrowException);
+	public static final SkipToNextStrategy INSTANCE = new SkipToNextStrategy();
+
+	private static final long serialVersionUID = -6490314998588752621L;
+
+	private SkipToNextStrategy() {
 	}
 
 	@Override
-	public SkipToElementStrategy throwExceptionOnMiss() {
-		return new SkipToFirstStrategy(getPatternName().get(), true);
-	}
+	protected EventId getPruningId(final Collection<Map<String, List<EventId>>> match) {
+		EventId pruningId = null;
+		for (Map<String, List<EventId>> resultMap : match) {
+			for (List<EventId> eventList : resultMap.values()) {
+				pruningId = min(pruningId, eventList.get(0));
+			}
+		}
 
-	@Override
-	int getIndex(int size) {
-		return 0;
+		return pruningId;
 	}
 
 	@Override
 	public String toString() {
-		return "SkipToFirstStrategy{" +
-			"patternName='" + getPatternName().get() + '\'' +
-			'}';
+		return "SkipToNextStrategy{}";
 	}
 }

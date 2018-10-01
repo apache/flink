@@ -19,7 +19,7 @@
 package org.apache.flink.cep.nfa.aftermatch;
 
 /**
- * Discards every partial match that contains event of the match preceding the last of *PatternName*.
+ * Discards every partial match that started before the last event of emitted match mapped to *PatternName*.
  */
 public final class SkipToLastStrategy extends SkipToElementStrategy {
 	private static final long serialVersionUID = 7585116990619594531L;
