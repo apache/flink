@@ -154,7 +154,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 	public void testFailedJobSubmission() throws Exception {
 		final String errorMessage = "test";
 		DispatcherGateway mockGateway = new TestingDispatcherGateway.Builder()
-			.setSubmitFunction(jobGraph -> FutureUtils.completedExceptionally(new Exception(errorMessage)))
+			.setSubmitFunction(jobgraph -> FutureUtils.completedExceptionally(new Exception(errorMessage)))
 			.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
@@ -171,7 +171,6 @@ public class JobSubmitHandlerTest extends TestLogger {
 		try (ObjectOutputStream objectOut = new ObjectOutputStream(Files.newOutputStream(jobGraphFile))) {
 			objectOut.writeObject(jobGraph);
 		}
-
 		JobSubmitRequestBody request = new JobSubmitRequestBody(jobGraphFile.getFileName().toString(), Collections.emptyList());
 
 		try {
@@ -184,11 +183,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 				.get();
 		} catch (Exception e) {
 			Throwable t = ExceptionUtils.stripExecutionException(e);
-			if (t instanceof RestHandlerException){
-				Assert.assertTrue(t.getMessage().equals("Job submission failed."));
-			} else {
-				throw e;
-			}
+			Assert.assertEquals(errorMessage, t.getMessage());
 		}
 	}
 
