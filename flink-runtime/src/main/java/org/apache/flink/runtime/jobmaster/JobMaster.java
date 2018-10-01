@@ -679,7 +679,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				try {
 					checkpointCoordinator.receiveAcknowledgeMessage(ackMessage);
 				} catch (Throwable t) {
-					log.warn("Error while processing checkpoint acknowledgement message");
+					log.warn("Error while processing checkpoint acknowledgement message", t);
 				}
 			});
 		} else {
