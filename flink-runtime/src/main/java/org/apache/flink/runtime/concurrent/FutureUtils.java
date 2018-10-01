@@ -211,7 +211,7 @@ public class FutureUtils {
 									(innerT, innerThrowable) -> scheduledFuture.cancel(false));
 							} else {
 								RetryException retryException = new RetryException(
-									"Could not complete the operation: number of retries has been exhausted.",
+									"Could not complete the operation. Number of retries has been exhausted.",
 									throwable);
 								resultFuture.completeExceptionally(retryException);
 							}
