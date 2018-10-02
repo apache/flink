@@ -21,6 +21,7 @@ import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{DataSet, GroupedDataSet}
+import org.apache.flink.util.Collector
 
 import scala.reflect.ClassTag
 
@@ -65,7 +66,7 @@ class OnGroupedDataSet[T](ds: GroupedDataSet[T]) {
   @PublicEvolving
   def reduceGroupWith[R: TypeInformation: ClassTag](fun: Stream[T] => R): DataSet[R] =
     ds.reduceGroup {
-      (it, out) =>
+      (it: Iterator[T], out: Collector[R]) =>
         out.collect(fun(it.toStream))
     }
 
@@ -80,7 +81,7 @@ class OnGroupedDataSet[T](ds: GroupedDataSet[T]) {
   @PublicEvolving
   def combineGroupWith[R: TypeInformation: ClassTag](fun: Stream[T] => R): DataSet[R] =
     ds.combineGroup {
-      (it, out) =>
+      (it: Iterator[T], out: Collector[R]) =>
         out.collect(fun(it.toStream))
     }
 

@@ -72,7 +72,9 @@ package object utils {
         BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]],
         implicitly[TypeInformation[T]]
       )
-      wrap(jutils.zipWithIndex(self.javaSet)).map { t => (t.f0.toLong, t.f1) }
+      wrap(jutils.zipWithIndex(self.javaSet)).map {
+        t: org.apache.flink.api.java.tuple.Tuple2[java.lang.Long, T] => (t.f0.toLong, t.f1)
+      }
     }
 
     /**
@@ -85,7 +87,9 @@ package object utils {
         BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]],
         implicitly[TypeInformation[T]]
       )
-      wrap(jutils.zipWithUniqueId(self.javaSet)).map { t => (t.f0.toLong, t.f1) }
+      wrap(jutils.zipWithUniqueId(self.javaSet)).map {
+        t: org.apache.flink.api.java.tuple.Tuple2[java.lang.Long, T]=> (t.f0.toLong, t.f1)
+      }
     }
 
     // --------------------------------------------------------------------------------------------
