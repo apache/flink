@@ -71,7 +71,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import javax.annotation.Nonnull;
+import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -126,6 +128,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
 	private final Configuration config;
 	private SSLContext defaultSSLContext;
+	private SSLSocketFactory defaultSSLSocketFactory;
 
 	public RestServerEndpointITCase(final Configuration config) {
 		this.config = requireNonNull(config);
@@ -151,8 +154,11 @@ public class RestServerEndpointITCase extends TestLogger {
 		sslConfig.setString(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, "password");
 		sslConfig.setString(SecurityOptions.SSL_REST_KEY_PASSWORD, "password");
 
+		final Configuration sslRestAuthConfig = new Configuration(sslConfig);
+		sslRestAuthConfig.setBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
+
 		return Arrays.asList(new Object[][]{
-			{config}, {sslConfig}
+			{config}, {sslConfig}, {sslRestAuthConfig}
 		});
 	}
 
@@ -170,9 +176,11 @@ public class RestServerEndpointITCase extends TestLogger {
 		config.setString(WebOptions.UPLOAD_DIR, temporaryFolder.newFolder().getCanonicalPath());
 
 		defaultSSLContext = SSLContext.getDefault();
+		defaultSSLSocketFactory = HttpsURLConnection.getDefaultSSLSocketFactory();
 		final SSLContext sslClientContext = SSLUtils.createRestClientSSLContext(config);
 		if (sslClientContext != null) {
 			SSLContext.setDefault(sslClientContext);
+			HttpsURLConnection.setDefaultSSLSocketFactory(sslClientContext.getSocketFactory());
 		}
 
 		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
@@ -235,6 +243,7 @@ public class RestServerEndpointITCase extends TestLogger {
 	public void teardown() throws Exception {
 		if (defaultSSLContext != null) {
 			SSLContext.setDefault(defaultSSLContext);
+			HttpsURLConnection.setDefaultSSLSocketFactory(defaultSSLSocketFactory);
 		}
 
 		if (restClient != null) {
@@ -541,7 +550,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		return sb.toString();
 	}
 
-	private static class TestRestServerEndpoint extends RestServerEndpoint {
+	static class TestRestServerEndpoint extends RestServerEndpoint {
 
 		private final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers;
 
@@ -602,7 +611,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		}
 	}
 
-	private static class TestRestClient extends RestClient {
+	static class TestRestClient extends RestClient {
 
 		TestRestClient(RestClientConfiguration configuration) {
 			super(configuration, TestingUtils.defaultExecutor());
@@ -803,9 +812,9 @@ public class RestServerEndpointITCase extends TestLogger {
 		}
 	}
 
-	private static class TestVersionHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+	static class TestVersionHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 
-		private TestVersionHandler(
+		TestVersionHandler(
 			final CompletableFuture<String> localRestAddress,
 			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout) {
@@ -818,7 +827,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		}
 	}
 
-	private enum TestVersionHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+	enum TestVersionHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 		INSTANCE;
 
 		@Override
