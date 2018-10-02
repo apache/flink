@@ -1109,6 +1109,17 @@ SQRT(numeric)
     <tr>
       <td>
         {% highlight text %}
+CBRT(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the approximate value of the cube root of a <code>NUMERIC</code>. The return type is a <code>DOUBLE<code>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
 LN(numeric)
 {% endhighlight %}
       </td>
@@ -1545,6 +1556,17 @@ NUMERIC.sqrt()
     <tr>
       <td>
         {% highlight java %}
+NUMERIC.cbrt()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the approximate value of the cube root of a <code>NUMERIC</code>. The return type is a <code>DOUBLE<code>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
 NUMERIC.ln()
 {% endhighlight %}
       </td>
@@ -1975,6 +1997,17 @@ NUMERIC.sqrt()
       </td>
       <td>
         <p>Returns the square root of <i>NUMERIC</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.cbrt()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the approximate value of the cube root of a <code>NUMERIC</code>. The return type is a <code>DOUBLE<code>.</p>
       </td>
     </tr>
 

@@ -63,6 +63,9 @@ object BuiltInMethods {
   val SIMILAR_WITH_ESCAPE = Types.lookupMethod(classOf[SqlFunctions], "similar",
     classOf[String], classOf[String], classOf[String])
 
+  val CBRT = Types.lookupMethod(classOf[Math], "cbrt", classOf[Double])
+  val CBRT_DEC = Types.lookupMethod(classOf[ScalarFunctions], "cbrt", classOf[JBigDecimal])
+
   val SIN = Types.lookupMethod(classOf[Math], "sin", classOf[Double])
   val SIN_DEC = Types.lookupMethod(classOf[SqlFunctions], "sin", classOf[JBigDecimal])
 

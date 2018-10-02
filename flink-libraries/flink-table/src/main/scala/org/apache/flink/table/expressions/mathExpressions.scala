@@ -164,6 +164,19 @@ case class Sqrt(child: Expression) extends UnaryExpression with InputTypeSpec {
   }
 }
 
+case class Cbrt(child: Expression) extends UnaryExpression with InputTypeSpec {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    Seq(DOUBLE_TYPE_INFO)
+
+  override def toString: String = s"cbrt($child)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.CBRT, child.toRexNode)
+  }
+}
+
 case class Sin(child: Expression) extends UnaryExpression {
   override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
 

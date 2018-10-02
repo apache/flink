@@ -272,6 +272,18 @@ object FunctionGenerator {
     new FloorCeilCallGen(BuiltInMethod.CEIL.method))
 
   addSqlFunctionMethod(
+    CBRT,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.CBRT)
+
+  addSqlFunctionMethod(
+    CBRT,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.CBRT_DEC)
+
+  addSqlFunctionMethod(
     SIN,
     Seq(DOUBLE_TYPE_INFO),
     DOUBLE_TYPE_INFO,

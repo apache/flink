@@ -1094,6 +1094,51 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testCbrt(): Unit = {
+    testAllApis(
+      'f6.cbrt(),
+      "f6.cbrt",
+      "CBRT(f6)",
+      math.cbrt(4.6D).toString)
+
+    testAllApis(
+      'f7.cbrt(),
+      "f7.cbrt",
+      "CBRT(f7)",
+      math.cbrt(3).toString)
+
+    testAllApis(
+      'f4.cbrt(),
+      "f4.cbrt",
+      "CBRT(f4)",
+      math.cbrt(44L).toString)
+
+    testAllApis(
+      'f22.cast(Types.DOUBLE).cbrt(),
+      "f22.cast(DOUBLE).cbrt",
+      "CBRT(CAST(f22 AS DOUBLE))",
+      math.cbrt(2.0).toString)
+
+    testAllApis(
+      'f5.cbrt(),
+      "f5.cbrt",
+      "CBRT(f5)",
+      math.pow(4.5F, 1.0 / 3.0).toString)
+
+    testAllApis(
+      125.cbrt(),
+      "125.cbrt()",
+      "CBRT(125)",
+      "5.0")
+
+    testAllApis(
+      2.2.cbrt(),
+      "2.2.cbrt()",
+      "POWER(CAST(2.2 AS DOUBLE), CAST((1.0 / 3.0) AS DOUBLE))", // TODO fix FLINK-4621
+      math.cbrt(2.2).toString)
+  }
+
+  @Test
   def testLn(): Unit = {
     testAllApis(
       'f2.ln(),

@@ -96,6 +96,13 @@ object ScalarFunctions {
   }
 
   /**
+    * Calculates the cube root of a big decimal number.
+    */
+  def cbrt(x: JBigDecimal): Double = {
+    Math.cbrt(x.doubleValue())
+  }
+
+  /**
     * Returns the natural logarithm of "x".
     */
   def log(x: Double): Double = {

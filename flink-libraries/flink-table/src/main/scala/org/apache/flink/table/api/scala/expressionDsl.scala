@@ -343,6 +343,11 @@ trait ImplicitExpressionOperations {
   def sqrt() = Sqrt(expr)
 
   /**
+    * Calculates the cube root of a given value.
+    */
+  def cbrt() = Cbrt(expr)
+
+  /**
     * Calculates the absolute value of given value.
     */
   def abs() = Abs(expr)
