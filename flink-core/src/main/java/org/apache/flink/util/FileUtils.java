@@ -28,6 +28,8 @@ import org.apache.flink.util.function.ThrowingConsumer;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
@@ -53,6 +55,14 @@ public final class FileUtils {
 
 	/** The length of the random part of the filename. */
 	private static final int RANDOM_FILE_NAME_LENGTH = 12;
+
+	// ------------------------------------------------------------------------
+
+	public static void writeCompletely(WritableByteChannel channel, ByteBuffer src) throws IOException {
+		while (src.hasRemaining()) {
+			channel.write(src);
+		}
+	}
 
 	// ------------------------------------------------------------------------
 
