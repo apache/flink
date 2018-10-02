@@ -124,7 +124,7 @@ check_shaded_artifacts_s3_fs() {
 	VARIANT=$1
 	jar tf flink-filesystems/flink-s3-fs-${VARIANT}/target/flink-s3-fs-${VARIANT}*.jar > allClasses
 
-	UNSHADED_CLASSES=`cat allClasses | grep -v -e '^META-INF' -e '^assets' -e "^org/apache/flink/fs/s3${VARIANT}/" | grep '\.class$'`
+	UNSHADED_CLASSES=`cat allClasses | grep -v -e '^META-INF' -e "^org/apache/flink/fs/" | grep '\.class$'`
 	if [ "$?" == "0" ]; then
 		echo "=============================================================================="
 		echo "${VARIANT}: Detected unshaded dependencies in fat jar:"
@@ -140,7 +140,7 @@ check_shaded_artifacts_s3_fs() {
 		return 1
 	fi
 
-	UNSHADED_SERVICES=`cat allClasses | grep '^META-INF/services/' | grep -v -e '^META-INF/services/org\.apache\.flink\.core\.fs\.FileSystemFactory$' -e "^META-INF/services/org\.apache\.flink\.fs\.s3${VARIANT}\.shaded" -e '^META-INF/services/'`
+	UNSHADED_SERVICES=`cat allClasses | grep '^META-INF/services/' | grep -v -e '^META-INF/services/org\.apache\.flink\.core\.fs\.FileSystemFactory$' -e "^META-INF/services/org\.apache\.flink\.fs.*shaded" -e '^META-INF/services/'`
 	if [ "$?" == "0" ]; then
 		echo "=============================================================================="
 		echo "${VARIANT}: Detected unshaded service files in fat jar:"
@@ -174,7 +174,7 @@ check_shaded_artifacts_connector_elasticsearch() {
 	VARIANT=$1
 	find flink-connectors/flink-connector-elasticsearch${VARIANT}/target/flink-connector-elasticsearch${VARIANT}*.jar ! -name "*-tests.jar" -exec jar tf {} \; > allClasses
 
-	UNSHADED_CLASSES=`cat allClasses | grep -v -e '^META-INF' -e '^assets' -e "^org/apache/flink/streaming/connectors/elasticsearch/" -e "^org/apache/flink/streaming/connectors/elasticsearch${VARIANT}/" -e "^org/elasticsearch/" | grep '\.class$'`
+	UNSHADED_CLASSES=`cat allClasses | grep -v -e '^META-INF' -e '^assets' -e "^org/apache/flink/streaming/connectors/elasticsearch/" -e "^org/apache/flink/streaming/connectors/elasticsearch${VARIANT}/" -e "^org/apache/flink/table/descriptors/" -e "^org/elasticsearch/" | grep '\.class$'`
 	if [ "$?" == "0" ]; then
 		echo "=============================================================================="
 		echo "Detected unshaded dependencies in flink-connector-elasticsearch${VARIANT}'s fat jar:"
@@ -183,7 +183,7 @@ check_shaded_artifacts_connector_elasticsearch() {
 		return 1
 	fi
 
-	UNSHADED_CLASSES=`cat allClasses | grep -v -e '^META-INF' -e '^assets' -e "^org/apache/flink/streaming/connectors/elasticsearch/" -e "^org/apache/flink/streaming/connectors/elasticsearch${VARIANT}/" -e "^org/apache/flink/table/descriptors/" -e "^org/elasticsearch/" | grep '\.class$'`
+	UNSHADED_SERVICES=`cat allClasses | grep '^META-INF/services/' | grep -v -e '^META-INF/services/org\.apache\.flink\.core\.fs\.FileSystemFactory$' -e "^META-INF/services/org\.apache\.flink\.fs\.s3${VARIANT}\.shaded" -e '^META-INF/services/'`
 	if [ "$?" == "0" ]; then
 		echo "=============================================================================="
 		echo "Detected unshaded service files in flink-connector-elasticsearch${VARIANT}'s fat jar:"
