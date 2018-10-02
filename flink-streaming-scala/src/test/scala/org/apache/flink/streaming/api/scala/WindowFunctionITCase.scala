@@ -71,7 +71,7 @@ class WindowFunctionITCase extends TestLogger {
       .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
       .apply(new CheckingIdentityRichWindowFunction[(String, Int), Tuple, TimeWindow]())
       .addSink(new SinkFunction[(String, Int)]() {
-        def invoke(value: (String, Int)) {
+        override def invoke(value: (String, Int)) {
           WindowFunctionITCase.testResults += value.toString
         }
       })
@@ -120,7 +120,7 @@ class WindowFunctionITCase extends TestLogger {
       .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
       .process(new CheckingIdentityRichProcessWindowFunction[(String, Int), Tuple, TimeWindow]())
       .addSink(new SinkFunction[(String, Int)]() {
-        def invoke(value: (String, Int)) {
+        override def invoke(value: (String, Int)) {
           WindowFunctionITCase.testResults += value.toString
         }
       })
@@ -168,7 +168,7 @@ class WindowFunctionITCase extends TestLogger {
       .windowAll(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
       .apply(new CheckingIdentityRichAllWindowFunction[(String, Int), TimeWindow]())
       .addSink(new SinkFunction[(String, Int)]() {
-        def invoke(value: (String, Int)) {
+        override def invoke(value: (String, Int)) {
           WindowFunctionITCase.testResults += value.toString
         }
       })
@@ -216,7 +216,7 @@ class WindowFunctionITCase extends TestLogger {
       .windowAll(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
       .process(new CheckingIdentityRichProcessAllWindowFunction[(String, Int), TimeWindow]())
       .addSink(new SinkFunction[(String, Int)]() {
-        def invoke(value: (String, Int)) {
+        override def invoke(value: (String, Int)) {
           WindowFunctionITCase.testResults += value.toString
         }
       })
