@@ -20,8 +20,11 @@ sudo: required
 dist: trusty
 
 cache:
+  # default timeout is too low
+  timeout: 600
   directories:
   - $HOME/.m2
+  - $HOME/flink_cache
 
 # do not cache our own artifacts
 before_cache:
@@ -30,62 +33,6 @@ before_cache:
 install: true
 
 language: java
-
-# - define unique cache names in case the auto-generated ones are not unique
-#  (see https://docs.travis-ci.com/user/caching/#Caches-and-build-matrices)
-# - See https://issues.apache.org/jira/browse/FLINK-1072
-matrix:
-  include:
-    - jdk: "oraclejdk8"
-      env:
-        - TEST="core"
-        - PROFILE="-Dhadoop.version=2.8.3"
-        - CACHE_NAME=JDK8_H280_CO
-    - jdk: "oraclejdk8"
-      env:
-        - TEST="libraries"
-        - PROFILE="-Dhadoop.version=2.8.3"
-        - CACHE_NAME=JDK8_H280_L
-    - jdk: "oraclejdk8"
-      env:
-        - TEST="connectors"
-        - PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis"
-        - CACHE_NAME=JDK8_H280_CN
-    - jdk: "oraclejdk8"
-      env:
-        - TEST="tests"
-        - PROFILE="-Dhadoop.version=2.8.3"
-        - CACHE_NAME=JDK8_H280_T
-    - jdk: "oraclejdk8"
-      env:
-        - TEST="misc"
-        - PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws"
-        - CACHE_NAME=JDK8_H280_M
-    - jdk: "openjdk8"
-      env:
-        - TEST="core"
-        - PROFILE="-Dhadoop.version=2.4.1"
-        - CACHE_NAME=JDK8_H241_CO
-    - jdk: "openjdk8"
-      env:
-        - TEST="libraries"
-        - PROFILE="-Dhadoop.version=2.4.1"
-        - CACHE_NAME=JDK8_H241_L
-    - jdk: "openjdk8"
-      env:
-        - TEST="connectors"
-        - PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
-        - CACHE_NAME=JDK8_H241_CN
-    - jdk: "openjdk8"
-      env:
-        - TEST="tests"
-        - PROFILE="-Dhadoop.version=2.4.1"
-        - CACHE_NAME=JDK8_H241_T
-    - jdk: "openjdk8"
-      env:
-        - TEST="misc"
-        - PROFILE="-Dhadoop.version=2.4.1"
-        - CACHE_NAME=JDK8_H241_M
 
 git:
   depth: 100
@@ -102,6 +49,9 @@ env:
 
 before_script:
    - "gem install --no-document --version 0.8.9 faraday "
+   - "export -f travis_nanoseconds"
+   - "export -f travis_time_start"
+   - "export -f travis_time_finish"
 
 # Install maven 3.2.5 since trusty uses 3.3.9 for which shading is broken
 before_install:
@@ -119,6 +69,57 @@ before_install:
    - chmod +x docker-compose
    - sudo mv docker-compose /usr/local/bin
 
-# We run mvn and monitor its output. If there is no output for the specified number of seconds, we
-# print the stack traces of all running Java processes.
-script: "./tools/travis_mvn_watchdog.sh 300"
+
+jdk: "oraclejdk8"
+jobs:
+  include:
+    # main profile
+    - stage: compile
+      script: ./tools/travis_controller.sh
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws"
+      name: compile
+    - stage: test
+      script: ./tools/travis_controller.sh
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws"
+      name: core
+    - script: ./tools/travis_controller.sh
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws"
+      name: libraries
+    - script: ./tools/travis_controller.sh
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws"
+      name: connectors
+    - script: ./tools/travis_controller.sh
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws"
+      name: tests
+    - script: ./tools/travis_controller.sh
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws"
+      name: misc
+    - stage: cleanup
+      script: ./tools/travis_controller.sh
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws"
+      name: cleanup
+    # legacy profile
+    - stage: compile
+      script: ./tools/travis_controller.sh
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -DlegacyCode"
+      name: compile(legacy)
+    - stage: test
+      script: ./tools/travis_controller.sh
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -DlegacyCode"
+      name: core(legacy)
+    - script: ./tools/travis_controller.sh
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -DlegacyCode"
+      name: libraries(legacy)
+    - script: ./tools/travis_controller.sh
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -DlegacyCode"
+      name: connectors(legacy)
+    - script: ./tools/travis_controller.sh
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -DlegacyCode"
+      name: tests(legacy)
+    - script: ./tools/travis_controller.sh
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -DlegacyCode"
+      name: misc(legacy)
+    - stage: cleanup
+      script: ./tools/travis_controller.sh
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -DlegacyCode"
+      name: cleanup(legacy)
