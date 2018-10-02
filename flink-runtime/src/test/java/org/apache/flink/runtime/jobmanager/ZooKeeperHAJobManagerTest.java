@@ -56,6 +56,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.util.Collection;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 import scala.Option;
@@ -152,9 +153,11 @@ public class ZooKeeperHAJobManagerTest extends TestLogger {
 
 				Await.result(jobManager.ask(TestingJobManagerMessages.getWaitForBackgroundTasksToFinish(), TIMEOUT), TIMEOUT);
 
+				//noinspection RedundantCast
 				final SubmittedJobGraph recoveredJobGraph = akka.serialization.JavaSerializer.currentSystem().withValue(
-					((ExtendedActorSystem) system),
-					() -> otherSubmittedJobGraphStore.recoverJobGraph(jobId));
+						((ExtendedActorSystem) system),
+						// we need the explicit cast to disambiguate the function call
+						(Callable<SubmittedJobGraph>) () -> otherSubmittedJobGraphStore.recoverJobGraph(jobId));
 
 				assertThat(recoveredJobGraph, is(notNullValue()));
 
