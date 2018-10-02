@@ -20,14 +20,15 @@ package org.apache.flink.mesos.scheduler
 
 import java.util.UUID
 
+import akka.actor.ActorSystem
 import akka.actor.FSM.StateTimeout
 import akka.testkit._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.mesos.TestFSMUtils
 import org.apache.flink.mesos.scheduler.ReconciliationCoordinator.Reconcile
-import org.apache.flink.mesos.scheduler.messages.{Disconnected, Connected, StatusUpdate}
+import org.apache.flink.mesos.scheduler.messages.{Connected, Disconnected, StatusUpdate}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.mesos.{SchedulerDriver, Protos}
+import org.apache.mesos.{Protos, SchedulerDriver}
 import org.apache.mesos.Protos.TaskState._
 import org.junit.runner.RunWith
 import org.mockito.Mockito
@@ -45,8 +46,8 @@ class TaskMonitorTest
 
   import TaskMonitor._
 
-  lazy val config = new Configuration()
-  implicit lazy val system = AkkaUtils.createLocalActorSystem(config)
+  lazy val config: Configuration = new Configuration()
+  implicit lazy val system: ActorSystem = AkkaUtils.createLocalActorSystem(config)
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
