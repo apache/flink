@@ -142,7 +142,7 @@ class SortITCase extends StreamingWithStateTestBase {
 object SortITCase {
 
   final class StringRowSelectorSink(private val field:Int) extends RichSinkFunction[Row]() {
-    def invoke(value: Row) {
+    override def invoke(value: Row) {
       testResults.synchronized {
         testResults += value.getField(field).toString
       }
