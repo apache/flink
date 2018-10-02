@@ -29,6 +29,9 @@ import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
 import org.apache.flink.shaded.guava18.com.google.common.cache.RemovalListener;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -55,6 +58,8 @@ class CompletedOperationCache<K extends OperationKey, R> implements AutoCloseabl
 
 	private static final long COMPLETED_OPERATION_RESULT_CACHE_DURATION_SECONDS = 300L;
 
+	private static final Logger LOGGER = LoggerFactory.getLogger(CompletedOperationCache.class);
+
 	/**
 	 * In-progress asynchronous operations.
 	 */
@@ -75,8 +80,18 @@ class CompletedOperationCache<K extends OperationKey, R> implements AutoCloseabl
 			.expireAfterWrite(COMPLETED_OPERATION_RESULT_CACHE_DURATION_SECONDS, TimeUnit.SECONDS)
 			.removalListener((RemovalListener<K, ResultAccessTracker<R>>) removalNotification -> {
 				if (removalNotification.wasEvicted()) {
+					Preconditions.checkState(removalNotification.getKey() != null);
 					Preconditions.checkState(removalNotification.getValue() != null);
+
+					// When shutting down the cache, we wait until all results are accessed.
+					// When a result gets evicted from the cache, it will not be possible to access
+					// it any longer, and we might be in the process of shutting down, so we mark
+					// the result as accessed to avoid waiting indefinitely.
 					removalNotification.getValue().markAccessed();
+
+					LOGGER.info("Evicted result with trigger id {} because its TTL of {}s has expired.",
+						removalNotification.getKey().getTriggerId(),
+						COMPLETED_OPERATION_RESULT_CACHE_DURATION_SECONDS);
 				}
 			})
 			.ticker(ticker)
@@ -113,13 +128,13 @@ class CompletedOperationCache<K extends OperationKey, R> implements AutoCloseabl
 	@Nullable
 	public Either<Throwable, R> get(
 			final K operationKey) throws UnknownOperationKeyException {
-		ResultAccessTracker<R> operationResultOrError;
-		if ((operationResultOrError = registeredOperationTriggers.get(operationKey)) == null
-			&& (operationResultOrError = completedOperations.getIfPresent(operationKey)) == null) {
+		ResultAccessTracker<R> resultAccessTracker;
+		if ((resultAccessTracker = registeredOperationTriggers.get(operationKey)) == null
+			&& (resultAccessTracker = completedOperations.getIfPresent(operationKey)) == null) {
 			throw new UnknownOperationKeyException(operationKey);
 		}
 
-		return operationResultOrError.accessOperationResultOrError();
+		return resultAccessTracker.accessOperationResultOrError();
 	}
 
 	@Override
