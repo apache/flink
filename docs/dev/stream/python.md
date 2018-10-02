@@ -227,7 +227,7 @@ Data transformations transform one or more DataStreams into a new DataStream. Pr
 multiple transformations into sophisticated assemblies.
 
 This section gives a brief overview of the available transformations. The [transformations
-documentation](dataset_transformations.html) has a full description of all transformations with
+documentation](operators.html) has a full description of all transformations with
 examples.
 
 <br />
@@ -322,7 +322,7 @@ data.reduce(Sum())
       <td>
         <p>Windows can be defined on already partitioned KeyedStreams. Windows group the data in each
         key according to some characteristic (e.g., the data that arrived within the last 5 seconds).
-        See <a href="windows.html">windows</a> for a complete description of windows.
+        See <a href="operators/windows.html">windows</a> for a complete description of windows.
     {% highlight python %}
 keyed_stream.count_window(10, 5)  # Last 10 elements, sliding (jumping) by 5 elements
 
