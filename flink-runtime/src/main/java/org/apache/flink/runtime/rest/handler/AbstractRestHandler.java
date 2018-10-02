@@ -123,6 +123,7 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 	 */
 	protected abstract CompletableFuture<P> handleRequest(@Nonnull HandlerRequest<R, M> request, @Nonnull T gateway) throws RestHandlerException;
 
+	@Override
 	public CompletableFuture<Void> closeAsync() {
 		return CompletableFuture.completedFuture(null);
 	}
