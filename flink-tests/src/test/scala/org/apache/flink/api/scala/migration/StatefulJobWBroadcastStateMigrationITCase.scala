@@ -318,7 +318,7 @@ private class AccumulatorCountingSink[T] extends RichSinkFunction[T] {
   }
 
   @throws[Exception]
-  def invoke(value: T) {
+  override def invoke(value: T) {
     count += 1
     getRuntimeContext.getAccumulator(
       AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR).add(1)

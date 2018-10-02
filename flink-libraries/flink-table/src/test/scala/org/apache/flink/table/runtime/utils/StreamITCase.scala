@@ -44,7 +44,7 @@ object StreamITCase {
   }
 
   final class StringSink[T] extends RichSinkFunction[T]() {
-    def invoke(value: T) {
+    override def invoke(value: T) {
       testResults.synchronized {
         testResults += value.toString
       }
@@ -52,7 +52,7 @@ object StreamITCase {
   }
 
   final class RetractMessagesSink extends RichSinkFunction[(Boolean, Row)]() {
-    def invoke(v: (Boolean, Row)) {
+    override def invoke(v: (Boolean, Row)) {
       testResults.synchronized {
         testResults += (if (v._1) "+" else "-") + v._2
       }
@@ -60,7 +60,7 @@ object StreamITCase {
   }
 
   final class RetractingSink() extends RichSinkFunction[(Boolean, Row)] {
-    def invoke(v: (Boolean, Row)) {
+    override def invoke(v: (Boolean, Row)) {
       retractedResults.synchronized {
         val value = v._2.toString
         if (v._1) {

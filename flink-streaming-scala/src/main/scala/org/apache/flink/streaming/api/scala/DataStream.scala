@@ -1112,7 +1112,7 @@ class DataStream[T](stream: JavaStream[T]) {
     }
     val cleanFun = clean(fun)
     val sinkFunction = new SinkFunction[T] {
-      def invoke(in: T) = cleanFun(in)
+      override def invoke(in: T) = cleanFun(in)
     }
     this.addSink(sinkFunction)
   }
