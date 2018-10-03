@@ -48,7 +48,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
 
 // SQL query with an inlined (unregistered) table
-Table table = tableEnv.toTable(ds, "user, product, amount");
+Table table = tableEnv.fromDataStream(ds, "user, product, amount");
 Table result = tableEnv.sqlQuery(
   "SELECT SUM(amount) FROM " + table + " WHERE product LIKE '%Rubber%'");
 
