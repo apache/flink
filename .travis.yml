@@ -101,25 +101,25 @@ jobs:
     # legacy profile
     - stage: compile
       script: ./tools/travis_controller.sh
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -DlegacyCode"
-      name: compile(legacy)
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: compile(hadoop2.4)
     - stage: test
       script: ./tools/travis_controller.sh
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -DlegacyCode"
-      name: core(legacy)
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: core(hadoop2.4)
     - script: ./tools/travis_controller.sh
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -DlegacyCode"
-      name: libraries(legacy)
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: libraries(hadoop2.4)
     - script: ./tools/travis_controller.sh
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -DlegacyCode"
-      name: connectors(legacy)
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: connectors(hadoop2.4)
     - script: ./tools/travis_controller.sh
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -DlegacyCode"
-      name: tests(legacy)
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: tests(hadoop2.4)
     - script: ./tools/travis_controller.sh
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -DlegacyCode"
-      name: misc(legacy)
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: misc(hadoop2.4)
     - stage: cleanup
       script: ./tools/travis_controller.sh
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -DlegacyCode"
-      name: cleanup(legacy)
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      name: cleanup(hadoop2.4)
