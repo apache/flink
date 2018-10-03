@@ -87,6 +87,12 @@ public class KinesisConfigUtil {
 
 		validateAwsConfiguration(config);
 
+		if (!(config.containsKey(AWSConfigConstants.AWS_REGION) ^ config.containsKey(ConsumerConfigConstants.AWS_ENDPOINT))) {
+			// per validation in AwsClientBuilder
+			throw new IllegalArgumentException(String.format("For FlinkKinesisConsumer either AWS region ('%s') or AWS endpoint ('%s') must be set in the config.",
+					AWSConfigConstants.AWS_REGION, AWSConfigConstants.AWS_ENDPOINT));
+		}
+
 		if (config.containsKey(ConsumerConfigConstants.STREAM_INITIAL_POSITION)) {
 			String initPosType = config.getProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION);
 
@@ -213,6 +219,11 @@ public class KinesisConfigUtil {
 
 		validateAwsConfiguration(config);
 
+		if (!config.containsKey(AWSConfigConstants.AWS_REGION)) {
+			// per requirement in Amazon Kinesis Producer Library
+			throw new IllegalArgumentException(String.format("For FlinkKinesisProducer AWS region ('%s') must be set in the config.", AWSConfigConstants.AWS_REGION));
+		}
+
 		KinesisProducerConfiguration kpc = KinesisProducerConfiguration.fromProperties(config);
 		kpc.setRegion(config.getProperty(AWSConfigConstants.AWS_REGION));
 
@@ -264,12 +275,6 @@ public class KinesisConfigUtil {
 						"and Secret Key ('" + AWSConfigConstants.AWS_SECRET_ACCESS_KEY + "') when using the BASIC AWS credential provider type.");
 				}
 			}
-		}
-
-		if (!(config.containsKey(AWSConfigConstants.AWS_REGION) ^ config.containsKey(ConsumerConfigConstants.AWS_ENDPOINT))) {
-			// per validation in AwsClientBuilder
-			throw new IllegalArgumentException(String.format("Either AWS region ('%s') or AWS endpoint ('%s') must be set in the config.",
-				AWSConfigConstants.AWS_REGION, AWSConfigConstants.AWS_REGION));
 		}
 
 		if (config.containsKey(AWSConfigConstants.AWS_REGION)) {
