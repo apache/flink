@@ -382,14 +382,14 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 	@Test
 	public void testCassandraTupleAtLeastOnceSink() throws Exception {
 		CassandraTupleSink<Tuple3<String, Integer, Integer>> sink = new CassandraTupleSink<>(injectTableName(INSERT_DATA_QUERY), builder);
-
-		sink.open(new Configuration());
-
-		for (Tuple3<String, Integer, Integer> value : collection) {
-			sink.send(value);
+		try {
+			sink.open(new Configuration());
+			for (Tuple3<String, Integer, Integer> value : collection) {
+				sink.send(value);
+			}
+		} finally {
+			sink.close();
 		}
-
-		sink.close();
 
 		ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
 		Assert.assertEquals(20, rs.all().size());
@@ -398,14 +398,14 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 	@Test
 	public void testCassandraRowAtLeastOnceSink() throws Exception {
 		CassandraRowSink sink = new CassandraRowSink(FIELD_TYPES.length, injectTableName(INSERT_DATA_QUERY), builder);
-
-		sink.open(new Configuration());
-
-		for (Row value : rowCollection) {
-			sink.send(value);
+		try {
+			sink.open(new Configuration());
+			for (Row value : rowCollection) {
+				sink.send(value);
+			}
+		} finally {
+			sink.close();
 		}
-
-		sink.close();
 
 		ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
 		Assert.assertEquals(20, rs.all().size());
@@ -416,14 +416,14 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		session.execute(CREATE_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, "test"));
 
 		CassandraPojoSink<Pojo> sink = new CassandraPojoSink<>(Pojo.class, builder);
-
-		sink.open(new Configuration());
-
-		for (int x = 0; x < 20; x++) {
-			sink.send(new Pojo(UUID.randomUUID().toString(), x, 0));
+		try {
+			sink.open(new Configuration());
+			for (int x = 0; x < 20; x++) {
+				sink.send(new Pojo(UUID.randomUUID().toString(), x, 0));
+			}
+		} finally {
+			sink.close();
 		}
-
-		sink.close();
 
 		ResultSet rs = session.execute(SELECT_DATA_QUERY.replace(TABLE_NAME_VARIABLE, "test"));
 		Assert.assertEquals(20, rs.all().size());
@@ -434,16 +434,15 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		session.execute(CREATE_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, "testPojoNoAnnotatedKeyspace"));
 
 		CassandraPojoSink<PojoNoAnnotatedKeyspace> sink = new CassandraPojoSink<>(PojoNoAnnotatedKeyspace.class, builder, "flink");
+		try {
+			sink.open(new Configuration());
+			for (int x = 0; x < 20; x++) {
+				sink.send(new PojoNoAnnotatedKeyspace(UUID.randomUUID().toString(), x, 0));
+			}
 
-		Configuration configuration = new Configuration();
-		sink.open(configuration);
-
-		for (int x = 0; x < 20; x++) {
-			sink.send(new PojoNoAnnotatedKeyspace(UUID.randomUUID().toString(), x, 0));
+		} finally {
+			sink.close();
 		}
-
-		sink.close();
-
 		ResultSet rs = session.execute(SELECT_DATA_QUERY.replace(TABLE_NAME_VARIABLE, "testPojoNoAnnotatedKeyspace"));
 		Assert.assertEquals(20, rs.all().size());
 	}
@@ -519,50 +518,55 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 	@Test
 	public void testCassandraBatchTupleFormat() throws Exception {
 		OutputFormat<Tuple3<String, Integer, Integer>> sink = new CassandraOutputFormat<>(injectTableName(INSERT_DATA_QUERY), builder);
-		sink.configure(new Configuration());
-		sink.open(0, 1);
-
-		for (Tuple3<String, Integer, Integer> value : collection) {
-			sink.writeRecord(value);
+		try {
+			sink.configure(new Configuration());
+			sink.open(0, 1);
+			for (Tuple3<String, Integer, Integer> value : collection) {
+				sink.writeRecord(value);
+			}
+		} finally {
+			sink.close();
 		}
-
-		sink.close();
 
 		sink = new CassandraTupleOutputFormat<>(injectTableName(INSERT_DATA_QUERY), builder);
-		sink.configure(new Configuration());
-		sink.open(0, 1);
-
-		for (Tuple3<String, Integer, Integer> value : collection) {
-			sink.writeRecord(value);
+		try {
+			sink.configure(new Configuration());
+			sink.open(0, 1);
+			for (Tuple3<String, Integer, Integer> value : collection) {
+				sink.writeRecord(value);
+			}
+		} finally {
+			sink.close();
 		}
-
-		sink.close();
 
 		InputFormat<Tuple3<String, Integer, Integer>, InputSplit> source = new CassandraInputFormat<>(injectTableName(SELECT_DATA_QUERY), builder);
-		source.configure(new Configuration());
-		source.open(null);
-
 		List<Tuple3<String, Integer, Integer>> result = new ArrayList<>();
-
-		while (!source.reachedEnd()) {
-			result.add(source.nextRecord(new Tuple3<String, Integer, Integer>()));
+		try {
+			source.configure(new Configuration());
+			source.open(null);
+			while (!source.reachedEnd()) {
+				result.add(source.nextRecord(new Tuple3<String, Integer, Integer>()));
+			}
+		} finally {
+			source.close();
 		}
 
-		source.close();
 		Assert.assertEquals(20, result.size());
 	}
 
 	@Test
 	public void testCassandraBatchRowFormat() throws Exception {
 		OutputFormat<Row> sink = new CassandraRowOutputFormat(injectTableName(INSERT_DATA_QUERY), builder);
-		sink.configure(new Configuration());
-		sink.open(0, 1);
+		try {
+			sink.configure(new Configuration());
+			sink.open(0, 1);
+			for (Row value : rowCollection) {
+				sink.writeRecord(value);
+			}
+		} finally {
 
-		for (Row value : rowCollection) {
-			sink.writeRecord(value);
+			sink.close();
 		}
-
-		sink.close();
 
 		ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
 		List<com.datastax.driver.core.Row> rows = rs.all();
@@ -603,12 +607,14 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		for (int i = 0; i < 20; i++) {
 			scalaTupleCollection.add(new scala.Tuple3<>(UUID.randomUUID().toString(), i, 0));
 		}
-
-		sink.open(new Configuration());
-		for (scala.Tuple3<String, Integer, Integer> value : scalaTupleCollection) {
-			sink.invoke(value, SinkContextUtil.forTimestamp(0));
+		try {
+			sink.open(new Configuration());
+			for (scala.Tuple3<String, Integer, Integer> value : scalaTupleCollection) {
+				sink.invoke(value, SinkContextUtil.forTimestamp(0));
+			}
+		} finally {
+			sink.close();
 		}
-		sink.close();
 
 		ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
 		List<com.datastax.driver.core.Row> rows = rs.all();
