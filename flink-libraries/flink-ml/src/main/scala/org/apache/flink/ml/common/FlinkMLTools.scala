@@ -376,7 +376,7 @@ object FlinkMLTools {
     partitionerOption: Option[Partitioner[Int]] = None)
   : DataSet[Block[T]] = {
     val blockIDInput = input map {
-      element =>
+      element: T =>
         val blockID = element.hashCode() % numBlocks
 
         val blockIDResult = if(blockID < 0){
