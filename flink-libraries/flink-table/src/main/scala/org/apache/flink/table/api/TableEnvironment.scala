@@ -33,6 +33,7 @@ import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
+import org.apache.calcite.sql2rel.SqlToRelConverter
 import org.apache.calcite.tools._
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -108,6 +109,15 @@ abstract class TableEnvironment(val config: TableConfig) {
   // registered external catalog names -> catalog
   private val externalCatalogs = new mutable.HashMap[String, ExternalCatalog]
 
+  // configuration for SqlToRelConverter
+  private[flink] lazy val sqlToRelConverterConfig: SqlToRelConverter.Config = {
+    val calciteConfig = config.getCalciteConfig
+    calciteConfig.getSqlToRelConverterConfig match {
+      case Some(c) => c
+      case None => getSqlToRelConverterConfig
+    }
+  }
+
   /** Returns the table config to define the runtime behavior of the Table API. */
   def getConfig: TableConfig = config
 
@@ -116,6 +126,17 @@ abstract class TableEnvironment(val config: TableConfig) {
     case _: BatchTableEnvironment => new BatchQueryConfig
     case _: StreamTableEnvironment => new StreamQueryConfig
     case _ => null
+  }
+
+  /**
+    * Returns the SqlToRelConverter config.
+    */
+  protected def getSqlToRelConverterConfig: SqlToRelConverter.Config = {
+    SqlToRelConverter.configBuilder()
+      .withTrimUnusedFields(false)
+      .withConvertTableAccess(false)
+      .withInSubQueryThreshold(Integer.MAX_VALUE)
+      .build()
   }
 
   /**
@@ -674,7 +695,8 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @return The result of the query as Table
     */
   def sqlQuery(query: String): Table = {
-    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
+    val planner = new FlinkPlannerImpl(
+      getFrameworkConfig, getPlanner, getTypeFactory, sqlToRelConverterConfig)
     // parse the sql query
     val parsed = planner.parse(query)
     if (null != parsed && parsed.getKind.belongsTo(SqlKind.QUERY)) {
@@ -734,7 +756,8 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param config The [[QueryConfig]] to use.
     */
   def sqlUpdate(stmt: String, config: QueryConfig): Unit = {
-    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
+    val planner = new FlinkPlannerImpl(
+      getFrameworkConfig, getPlanner, getTypeFactory, sqlToRelConverterConfig)
     // parse the sql query
     val parsed = planner.parse(stmt)
     parsed match {
