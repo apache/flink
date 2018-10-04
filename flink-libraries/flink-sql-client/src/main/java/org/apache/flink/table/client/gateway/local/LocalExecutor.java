@@ -235,6 +235,20 @@ public class LocalExecutor implements Executor {
 		}
 	}
 
+	public List<String> getCompletionHints(SessionContext session, String line, Integer pos) {
+		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
+				.createEnvironmentInstance()
+				.getTableEnvironment();
+
+		// complete
+		try {
+			return Arrays.asList(tableEnv.getCompletionHints(line, pos));
+		} catch (Exception e) {
+			//ignore completer exception
+		}
+		return Collections.emptyList();
+	}
+
 	@Override
 	public ResultDescriptor executeQuery(SessionContext session, String query) throws SqlExecutionException {
 		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
