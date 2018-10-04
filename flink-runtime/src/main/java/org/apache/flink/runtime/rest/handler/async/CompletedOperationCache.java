@@ -169,7 +169,6 @@ class CompletedOperationCache<K extends OperationKey, R> implements AutoCloseabl
 		/** Future that completes if a non-null {@link #operationResultOrError} is accessed. */
 		private final CompletableFuture<Void> accessed;
 
-
 		private static <R> ResultAccessTracker<R> inProgress() {
 			return new ResultAccessTracker<>();
 		}
