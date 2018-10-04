@@ -85,6 +85,7 @@ import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
@@ -180,7 +181,7 @@ public class StreamTaskTest extends TestLogger {
 		cfg.setStreamOperator(new SlowlyDeserializingOperator());
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
-		final TaskManagerActions taskManagerActions = mock(TaskManagerActions.class);
+		final TaskManagerActions taskManagerActions = spy(new NoOpTaskManagerActions());
 		final Task task = createTask(SourceStreamTask.class, cfg, new Configuration(), taskManagerActions);
 
 		final TaskExecutionState state = new TaskExecutionState(
