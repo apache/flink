@@ -22,8 +22,6 @@ import org.jline.reader.EOFError;
 import org.jline.reader.ParsedLine;
 import org.jline.reader.impl.DefaultParser;
 
-//import java.util.Collections;
-
 /**
  * Multi-line parser for parsing an arbitrary number of SQL lines until a line ends with ';'.
  */
