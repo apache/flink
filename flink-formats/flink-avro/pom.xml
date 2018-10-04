@@ -82,7 +82,7 @@ under the License.
 		<!-- TODO This could be dropped if we move the Table Avro IT Case -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table_2.11</artifactId>
+			<artifactId>flink-table_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -90,25 +90,22 @@ under the License.
 		<!-- TODO This could be dropped if we move the Table Avro IT Case -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table_2.11</artifactId>
+			<artifactId>flink-table_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
 		</dependency>
 
-		<!-- To avoid having to have the 'flink-avro' project dependent on a particular
-			Scala version, we hard-refer the flink-streaming-scala_2.11 here -->
-
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-scala_2.11</artifactId>
+			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_2.11</artifactId>
+			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>

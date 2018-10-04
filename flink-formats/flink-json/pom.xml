@@ -77,8 +77,7 @@ under the License.
 		<!-- TODO This could be dropped if we change JsonRowFormatFactoryTest -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<!-- use a dedicated Scala version to not depend on it -->
-			<artifactId>flink-table_2.11</artifactId>
+			<artifactId>flink-table_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
