@@ -80,7 +80,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 val ds: DataStream[(Long, String, Integer)] = env.addSource(...)
 
 // SQL query with an inlined (unregistered) table
-val table = tableEnv.fromDataStream(ds, 'user, 'product, 'amount)
+val table = ds.toTable(tableEnv, 'user, 'product, 'amount)
 val result = tableEnv.sqlQuery(
   s"SELECT SUM(amount) FROM $table WHERE product LIKE '%Rubber%'")
 

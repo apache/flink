@@ -53,8 +53,9 @@ object StreamSQLExample {
       Order(2L, "rubber", 3),
       Order(4L, "beer", 1)))
 
-    // register the DataStreams under the name "OrderA" and "OrderB"
+    // convert DataStream to Table
     var tableA = tEnv.fromDataStream(orderA, 'user, 'product, 'amount)
+    // register DataStream as Table
     tEnv.registerDataStream("OrderB", orderB, 'user, 'product, 'amount)
 
     // union the two tables

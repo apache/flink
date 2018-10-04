@@ -57,11 +57,12 @@ public class StreamSQLExample {
 			new Order(2L, "rubber", 3),
 			new Order(4L, "beer", 1)));
 
-		// register the DataSet as table "WordCount"
+		// convert DataStream to Table
 		Table tableA = tEnv.fromDataStream(orderA, "user, product, amount");
+		// register DataStream as Table
 		tEnv.registerDataStream("OrderB", orderB, "user, product, amount");
 
-		// run a SQL query on the Table and retrieve the result as a new Table
+		// union the two tables
 		Table result = tEnv.sqlQuery("SELECT * FROM " + tableA + " WHERE amount > 2 UNION ALL " +
 						"SELECT * FROM OrderB WHERE amount < 2");
 
