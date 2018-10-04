@@ -35,6 +35,8 @@ import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
@@ -56,6 +58,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -64,6 +67,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import scala.Option;
 
 /**
  * Executor that performs the Flink communication locally. The calls are blocking depending on the
@@ -233,6 +238,36 @@ public class LocalExecutor implements Executor {
 			// catch everything such that the query does not crash the executor
 			throw new SqlExecutionException("Invalid SQL statement.", t);
 		}
+	}
+
+	public org.apache.calcite.schema.Table getTable(SessionContext session, String name) throws SqlExecutionException {
+		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+
+		Class<?> clazz = Object.class;
+		if (tableEnv instanceof StreamTableEnvironment) {
+			StreamTableEnvironment tmpTableEnv = (StreamTableEnvironment) tableEnv;
+			clazz = tmpTableEnv.getClass();
+		} else if (tableEnv instanceof BatchTableEnvironment) {
+			BatchTableEnvironment tmpTableEnv = (BatchTableEnvironment) tableEnv;
+			clazz = tmpTableEnv.getClass();
+		}
+
+		for (; clazz != Object.class; clazz = clazz.getSuperclass()) {
+			try {
+				Method[] methods = clazz.getDeclaredMethods();
+
+				Method mt = clazz.getDeclaredMethod("getTable", String.class);
+				mt.setAccessible(true);
+				Option<org.apache.calcite.schema.Table> option =
+						(Option<org.apache.calcite.schema.Table>) mt.invoke(tableEnv, name);
+				return option.get();
+			} catch (Exception e) {
+				//ignore reflect get methods exception
+			}
+		}
+		return null;
 	}
 
 	@Override

@@ -20,33 +20,29 @@ package org.apache.flink.table.client.cli;
 
 import org.jline.reader.EOFError;
 import org.jline.reader.ParsedLine;
-import org.jline.reader.Parser;
 import org.jline.reader.impl.DefaultParser;
+//import org.jline.reader.Parser;
 
-import java.util.Collections;
+//import java.util.Collections;
 
 /**
  * Multi-line parser for parsing an arbitrary number of SQL lines until a line ends with ';'.
  */
-public class SqlMultiLineParser implements Parser {
-
+//public class SqlMultiLineParser implements Parser {
+public class SqlMultiLineParser extends DefaultParser {
 	private static final String EOF_CHARACTER = ";";
 	private static final String NEW_LINE_PROMPT = ""; // results in simple '>' output
 
 	@Override
 	public ParsedLine parse(String line, int cursor, ParseContext context) {
-		if (!line.trim().endsWith(EOF_CHARACTER)) {
+		if (!line.trim().endsWith(EOF_CHARACTER)
+			&& context != ParseContext.COMPLETE) {
 			throw new EOFError(
 				-1,
 				-1,
 				"New line without EOF character.",
 				NEW_LINE_PROMPT);
 		}
-		return new DefaultParser.ArgumentList(
-			line,
-			Collections.singletonList(line),
-			0,
-			0,
-			cursor);
+		return super.parse(line, cursor, context);
 	}
 }
