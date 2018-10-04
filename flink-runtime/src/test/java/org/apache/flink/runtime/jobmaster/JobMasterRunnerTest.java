@@ -61,9 +61,9 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link JobManagerRunner}
+ * Tests for the {@link JobMasterRunner}
  */
-public class JobManagerRunnerTest extends TestLogger {
+public class JobMasterRunnerTest extends TestLogger {
 
 	@ClassRule
 	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -76,7 +76,7 @@ public class JobManagerRunnerTest extends TestLogger {
 
 	private static HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
 
-	private static JobManagerSharedServices jobManagerSharedServices;
+	private static JobMasterSharedServices jobMasterSharedServices;
 
 	private static JobGraph jobGraph;
 
@@ -97,7 +97,7 @@ public class JobManagerRunnerTest extends TestLogger {
 			configuration,
 			new VoidBlobStore());
 
-		jobManagerSharedServices = JobManagerSharedServices.fromConfiguration(configuration, blobServer);
+		jobMasterSharedServices = JobMasterSharedServices.fromConfiguration(configuration, blobServer);
 
 		final JobVertex jobVertex = new JobVertex("Test vertex");
 		jobVertex.setInvokableClass(NoOpInvokable.class);
@@ -126,8 +126,8 @@ public class JobManagerRunnerTest extends TestLogger {
 
 	@AfterClass
 	public static void tearDownClass() throws Exception {
-		if (jobManagerSharedServices != null) {
-			jobManagerSharedServices.shutdown();
+		if (jobMasterSharedServices != null) {
+			jobMasterSharedServices.shutdown();
 		}
 
 		if (blobServer != null) {
@@ -141,35 +141,35 @@ public class JobManagerRunnerTest extends TestLogger {
 	
 	@Test
 	public void testJobCompletion() throws Exception {
-		final JobManagerRunner jobManagerRunner = createJobManagerRunner();
+		final JobMasterRunner jobMasterRunner = createJobManagerRunner();
 
 		try {
-			jobManagerRunner.start();
+			jobMasterRunner.start();
 
-			final CompletableFuture<ArchivedExecutionGraph> resultFuture = jobManagerRunner.getResultFuture();
+			final CompletableFuture<ArchivedExecutionGraph> resultFuture = jobMasterRunner.getResultFuture();
 
 			assertThat(resultFuture.isDone(), is(false));
 
-			jobManagerRunner.jobReachedGloballyTerminalState(archivedExecutionGraph);
+			jobMasterRunner.jobReachedGloballyTerminalState(archivedExecutionGraph);
 
 			assertThat(resultFuture.get(), is(archivedExecutionGraph));
 		} finally {
-			jobManagerRunner.close();
+			jobMasterRunner.close();
 		}
 	}
 
 	@Test
 	public void testJobFinishedByOther() throws Exception {
-		final JobManagerRunner jobManagerRunner = createJobManagerRunner();
+		final JobMasterRunner jobMasterRunner = createJobManagerRunner();
 
 		try {
-			jobManagerRunner.start();
+			jobMasterRunner.start();
 
-			final CompletableFuture<ArchivedExecutionGraph> resultFuture = jobManagerRunner.getResultFuture();
+			final CompletableFuture<ArchivedExecutionGraph> resultFuture = jobMasterRunner.getResultFuture();
 
 			assertThat(resultFuture.isDone(), is(false));
 
-			jobManagerRunner.jobFinishedByOther();
+			jobMasterRunner.jobFinishedByOther();
 
 			try {
 				resultFuture.get();
@@ -178,22 +178,22 @@ public class JobManagerRunnerTest extends TestLogger {
 				assertThat(ExceptionUtils.stripExecutionException(ee), instanceOf(JobNotFinishedException.class));
 			}
 		} finally {
-			jobManagerRunner.close();
+			jobMasterRunner.close();
 		}
 	}
 
 	@Test
 	public void testShutDown() throws Exception {
-		final JobManagerRunner jobManagerRunner = createJobManagerRunner();
+		final JobMasterRunner jobMasterRunner = createJobManagerRunner();
 
 		try {
-			jobManagerRunner.start();
+			jobMasterRunner.start();
 
-			final CompletableFuture<ArchivedExecutionGraph> resultFuture = jobManagerRunner.getResultFuture();
+			final CompletableFuture<ArchivedExecutionGraph> resultFuture = jobMasterRunner.getResultFuture();
 
 			assertThat(resultFuture.isDone(), is(false));
 
-			jobManagerRunner.closeAsync();
+			jobMasterRunner.closeAsync();
 
 			try {
 				resultFuture.get();
@@ -202,33 +202,33 @@ public class JobManagerRunnerTest extends TestLogger {
 				assertThat(ExceptionUtils.stripExecutionException(ee), instanceOf(JobNotFinishedException.class));
 			}
 		} finally {
-			jobManagerRunner.close();
+			jobMasterRunner.close();
 		}
 	}
 
 	@Test
 	public void testLibraryCacheManagerRegistration() throws Exception {
-		final JobManagerRunner jobManagerRunner = createJobManagerRunner();
+		final JobMasterRunner jobMasterRunner = createJobManagerRunner();
 
 		try {
-			jobManagerRunner.start();
+			jobMasterRunner.start();
 
-			final LibraryCacheManager libraryCacheManager = jobManagerSharedServices.getLibraryCacheManager();
+			final LibraryCacheManager libraryCacheManager = jobMasterSharedServices.getLibraryCacheManager();
 
 			final JobID jobID = jobGraph.getJobID();
 			assertThat(libraryCacheManager.hasClassLoader(jobID), is(true));
 
-			jobManagerRunner.close();
+			jobMasterRunner.close();
 
 			assertThat(libraryCacheManager.hasClassLoader(jobID), is(false));
 		} finally {
-			jobManagerRunner.close();
+			jobMasterRunner.close();
 		}
 	}
 
 	@Nonnull
-	private JobManagerRunner createJobManagerRunner() throws Exception {
-		return new JobManagerRunner(
+	private JobMasterRunner createJobManagerRunner() throws Exception {
+		return new JobMasterRunner(
 			ResourceID.generate(),
 			jobGraph,
 			configuration,
@@ -236,7 +236,7 @@ public class JobManagerRunnerTest extends TestLogger {
 			haServices,
 			heartbeatServices,
 			blobServer,
-			jobManagerSharedServices,
+			jobMasterSharedServices,
 			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
 			fatalErrorHandler);
 	}

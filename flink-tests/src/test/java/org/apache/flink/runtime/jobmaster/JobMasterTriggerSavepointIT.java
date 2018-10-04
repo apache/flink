@@ -158,7 +158,7 @@ public class JobMasterTriggerSavepointIT extends AbstractTestBase {
 					return;
 				}
 			} catch (ExecutionException ignored) {
-				// JobManagerRunner is not yet registered in Dispatcher
+				// JobMasterRunner is not yet registered in Dispatcher
 			}
 			Thread.sleep(1000);
 		}

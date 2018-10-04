@@ -243,13 +243,13 @@ public class JobMasterTest extends TestLogger {
 
 		rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
 
-		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+		final JobMasterSharedServices jobMasterSharedServices = new TestingJobManagerSharedServicesBuilder().build();
 
 		final JobMaster jobMaster = createJobMaster(
 			configuration,
 			jobGraph,
 			haServices,
-			jobManagerSharedServices);
+			jobMasterSharedServices);
 
 		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
 
@@ -276,7 +276,7 @@ public class JobMasterTest extends TestLogger {
 
 			assertThat(disconnectedJobManager, Matchers.equalTo(jobGraph.getJobID()));
 		} finally {
-			jobManagerSharedServices.shutdown();
+			jobMasterSharedServices.shutdown();
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
 		}
 	}
@@ -310,13 +310,13 @@ public class JobMasterTest extends TestLogger {
 
 		rpcService.registerGateway(resourceManagerAddress, resourceManagerGateway);
 
-		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+		final JobMasterSharedServices jobMasterSharedServices = new TestingJobManagerSharedServicesBuilder().build();
 
 		final JobMaster jobMaster = createJobMaster(
 			configuration,
 			jobGraph,
 			haServices,
-			jobManagerSharedServices);
+			jobMasterSharedServices);
 
 		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
 
@@ -344,7 +344,7 @@ public class JobMasterTest extends TestLogger {
 			// the JobMaster should try to reconnect to the RM
 			registrationAttempts.await();
 		} finally {
-			jobManagerSharedServices.shutdown();
+			jobMasterSharedServices.shutdown();
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
 		}
 	}
@@ -711,7 +711,7 @@ public class JobMasterTest extends TestLogger {
 		configuration.setLong(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
 		configuration.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
 
-		final JobManagerSharedServices jobManagerSharedServices =
+		final JobMasterSharedServices jobMasterSharedServices =
 			new TestingJobManagerSharedServicesBuilder()
 				.setRestartStrategyFactory(RestartStrategyFactory.createRestartStrategyFactory(configuration))
 				.build();
@@ -720,7 +720,7 @@ public class JobMasterTest extends TestLogger {
 			configuration,
 			testJobGraph,
 			haServices,
-			jobManagerSharedServices);
+			jobMasterSharedServices);
 
 		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
 
@@ -966,7 +966,7 @@ public class JobMasterTest extends TestLogger {
 	 */
 	@Test
 	public void testReleasingTaskExecutorIfNoMoreSlotsRegistered() throws Exception {
-		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+		final JobMasterSharedServices jobMasterSharedServices = new TestingJobManagerSharedServicesBuilder().build();
 
 		final JobGraph jobGraph = createSingleVertexJobWithRestartStrategy();
 
@@ -974,7 +974,7 @@ public class JobMasterTest extends TestLogger {
 			configuration,
 			jobGraph,
 			haServices,
-			jobManagerSharedServices,
+			jobMasterSharedServices,
 			heartbeatServices);
 
 		final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
@@ -1081,12 +1081,12 @@ public class JobMasterTest extends TestLogger {
 			Configuration configuration,
 			JobGraph jobGraph,
 			HighAvailabilityServices highAvailabilityServices,
-			JobManagerSharedServices jobManagerSharedServices) throws Exception {
+			JobMasterSharedServices jobMasterSharedServices) throws Exception {
 		return createJobMaster(
 			configuration,
 			jobGraph,
 			highAvailabilityServices,
-			jobManagerSharedServices,
+			jobMasterSharedServices,
 			fastHeartbeatServices);
 	}
 
@@ -1095,7 +1095,7 @@ public class JobMasterTest extends TestLogger {
 			Configuration configuration,
 			JobGraph jobGraph,
 			HighAvailabilityServices highAvailabilityServices,
-			JobManagerSharedServices jobManagerSharedServices,
+			JobMasterSharedServices jobMasterSharedServices,
 			HeartbeatServices heartbeatServices) throws Exception {
 
 		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
@@ -1107,7 +1107,7 @@ public class JobMasterTest extends TestLogger {
 			jobGraph,
 			highAvailabilityServices,
 			DefaultSlotPoolFactory.fromConfiguration(configuration, rpcService),
-			jobManagerSharedServices,
+			jobMasterSharedServices,
 			heartbeatServices,
 			blobServer,
 			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,

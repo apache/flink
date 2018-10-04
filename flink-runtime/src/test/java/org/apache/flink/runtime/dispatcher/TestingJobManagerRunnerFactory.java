@@ -25,8 +25,8 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmaster.JobManagerRunner;
-import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
+import org.apache.flink.runtime.jobmaster.JobMasterRunner;
+import org.apache.flink.runtime.jobmaster.JobMasterSharedServices;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -53,7 +53,7 @@ class TestingJobManagerRunnerFactory implements Dispatcher.JobManagerRunnerFacto
 	}
 
 	@Override
-	public JobManagerRunner createJobManagerRunner(
+	public JobMasterRunner createJobManagerRunner(
 			ResourceID resourceId,
 			JobGraph jobGraph,
 			Configuration configuration,
@@ -61,12 +61,12 @@ class TestingJobManagerRunnerFactory implements Dispatcher.JobManagerRunnerFacto
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
 			BlobServer blobServer,
-			JobManagerSharedServices jobManagerSharedServices,
+			JobMasterSharedServices jobMasterSharedServices,
 			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
 		jobGraphFuture.complete(jobGraph);
 
-		final JobManagerRunner mock = mock(JobManagerRunner.class);
+		final JobMasterRunner mock = mock(JobMasterRunner.class);
 		when(mock.getResultFuture()).thenReturn(resultFuture);
 		when(mock.closeAsync()).thenReturn(terminationFuture);
 		when(mock.getJobGraph()).thenReturn(jobGraph);
