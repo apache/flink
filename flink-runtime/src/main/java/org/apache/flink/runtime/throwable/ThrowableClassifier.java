@@ -31,7 +31,7 @@ public class ThrowableClassifier {
 	 * @return ThrowableType.Other if there is no such annotation
 	 */
 	public static ThrowableType getThrowableType(Throwable cause) {
-		final Annotation annotation = cause.getClass().getDeclaredAnnotation(ThrowableAnnotation.class);
+		final Annotation annotation = cause.getClass().getAnnotation(ThrowableAnnotation.class);
 		return annotation == null ? ThrowableType.Other : ((ThrowableAnnotation) annotation).value();
 	}
 }

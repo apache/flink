@@ -60,7 +60,12 @@ public class ThrowableClassifierTest extends TestLogger {
 	public void testThrowableType_PartitionDataMissingError() {
 		assertEquals(ThrowableType.PartitionDataMissingError,
 			ThrowableClassifier.getThrowableType(new ThrowableType_PartitionDataMissingError_Exception()));
+	}
 
+	@Test
+	public void testThrowableType_InheritError() {
+		assertEquals(ThrowableType.PartitionDataMissingError,
+			ThrowableClassifier.getThrowableType(new Sub_ThrowableType_PartitionDataMissingError_Exception()));
 	}
 
 	@ThrowableAnnotation(ThrowableType.PartitionDataMissingError)
@@ -73,5 +78,8 @@ public class ThrowableClassifierTest extends TestLogger {
 
 	@ThrowableAnnotation(ThrowableType.Other)
 	private class ThrowableType_Other_Exception extends Exception {
+	}
+
+	private class Sub_ThrowableType_PartitionDataMissingError_Exception extends ThrowableType_PartitionDataMissingError_Exception {
 	}
 }
