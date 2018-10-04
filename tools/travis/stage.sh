@@ -35,7 +35,6 @@ flink-optimizer,\
 flink-runtime,\
 flink-runtime-web,\
 flink-scala,\
-flink-scala-shell,\
 flink-streaming-java,\
 flink-streaming-scala"
 
@@ -74,7 +73,6 @@ flink-connectors/flink-connector-elasticsearch5,\
 flink-connectors/flink-connector-elasticsearch6,\
 flink-connectors/flink-connector-elasticsearch-base,\
 flink-connectors/flink-connector-filesystem,\
-flink-connectors/flink-connector-kafka-0.8,\
 flink-connectors/flink-connector-kafka-0.9,\
 flink-connectors/flink-connector-kafka-0.10,\
 flink-connectors/flink-connector-kafka-0.11,\
@@ -88,6 +86,16 @@ flink-tests"
 
 if [[ ${PROFILE} == *"include-kinesis"* ]]; then
     MODULES_CONNECTORS="$MODULES_CONNECTORS,flink-connectors/flink-connector-kinesis"
+fi
+
+# we can only build the Kafka 0.8 connector when building for Scala 2.11
+if [[ $PROFILE == *"scala-2.11"* ]]; then
+    MODULES_CONNECTORS="$MODULES_CONNECTORS,flink-connectors/flink-connector-kafka-0.8"
+fi
+
+# we can only build the Scala Shell when building for Scala 2.11
+if [[ $PROFILE == *"scala-2.11"* ]]; then
+    MODULES_CORE="$MODULES_CORE,flink-scala-shell"
 fi
 
 function get_compile_modules_for_stage() {

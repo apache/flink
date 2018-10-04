@@ -136,14 +136,6 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<!-- include 0.9 server for tests  -->
-			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka_${scala.binary.version}</artifactId>
-			<version>${kafka.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-metrics-jmx</artifactId>
 			<version>${project.version}</version>
@@ -191,6 +183,21 @@ under the License.
 	</dependencies>
 
 	<profiles>
+		<!-- The kafka_${...} dependency doesn't exist for Scala 2.12, so we need to exclude
+		this (test-)dependency when building for Scala 2.12. -->
+		<profile>
+			<id>scala-2.11</id>
+			<dependencies>
+				<dependency>
+					<!-- include 0.9 server for tests  -->
+					<groupId>org.apache.kafka</groupId>
+					<artifactId>kafka_${scala.binary.version}</artifactId>
+					<version>${kafka.version}</version>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
+		</profile>
+
 		<!-- Create SQL Client uber jars by default -->
 		<profile>
 			<id>sql-jars</id>

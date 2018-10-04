@@ -53,8 +53,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<!-- use a dedicated Scala version to not depend on it -->
-			<artifactId>flink-table_2.11</artifactId>
+			<artifactId>flink-table_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 			<!-- Projects depending on this project, won't depend on flink-table. -->
@@ -70,17 +69,23 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<!-- use a dedicated Scala version to not depend on it -->
-			<artifactId>flink-table_2.11</artifactId>
+			<artifactId>flink-table_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 
-		<!-- flink-table needs Scala -->
+		<!-- flink-table needs these -->
 		<dependency>
 			<groupId>org.scala-lang</groupId>
-			<artifactId>scala-compiler</artifactId>
+			<artifactId>scala-library</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- the reason things normally work out without this is that this is a transitive
+		depedency of flink-runtime via Akka -->
+		<dependency>
+			<groupId>org.scala-lang.modules</groupId>
+			<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
