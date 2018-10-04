@@ -31,6 +31,15 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   // ----------------------------------------------------------------------------------------------
 
   @Test(expected = classOf[IllegalArgumentException])
+  def testInvalidLogWithZeroBase(): Unit = {
+    // invalid arithmetic argument
+    testSqlApi(
+      "LOG(0, 100)",
+      "FAIL"
+    )
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
   def testInvalidLog1(): Unit = {
     // invalid arithmetic argument
     testSqlApi(

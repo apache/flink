@@ -1383,6 +1383,13 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "Log(10, 100)",
       "2.0"
     )
+
+    testAllApis(
+      0.01.log(0.1),
+      "0.01.log(0.1)",
+      "LOG(cast(0.1 as double), cast(0.01 as double))",
+      "2.0"
+    )
   }
 
   // ----------------------------------------------------------------------------------------------

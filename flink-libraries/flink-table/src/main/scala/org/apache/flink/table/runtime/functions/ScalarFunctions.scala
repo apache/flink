@@ -103,11 +103,13 @@ object ScalarFunctions {
     if (x <= 0.0) {
       throw new IllegalArgumentException(s"x of 'log(base, x)' must be > 0, but x = $x")
     }
-    if (base <= 1.0) {
-      throw new IllegalArgumentException(s"base of 'log(base, x)' must be > 1, but base = $base")
-    } else {
-      Math.log(x) / Math.log(base)
+    if (base == 1.0) {
+      throw new IllegalArgumentException(s"base of 'log(base, x)' can not be 1")
     }
+    if (base <= 0.0) {
+      throw new IllegalArgumentException(s"base of 'log(base, x)' must be > 0, but base = $base")
+    }
+    Math.log(x) / Math.log(base)
   }
 
   /**
