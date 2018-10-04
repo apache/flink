@@ -47,7 +47,8 @@ import scala.collection.JavaConversions._
 class FlinkPlannerImpl(
     config: FrameworkConfig,
     planner: RelOptPlanner,
-    typeFactory: FlinkTypeFactory) {
+    typeFactory: FlinkTypeFactory,
+    sqlToRelConverterConfig: SqlToRelConverter.Config) {
 
   val operatorTable: SqlOperatorTable = config.getOperatorTable
   /** Holds the trait definitions to be registered with planner. May be null. */
@@ -97,10 +98,13 @@ class FlinkPlannerImpl(
       assert(validatedSqlNode != null)
       val rexBuilder: RexBuilder = createRexBuilder
       val cluster: RelOptCluster = FlinkRelOptClusterFactory.create(planner, rexBuilder)
-      val config = SqlToRelConverter.configBuilder()
-        .withTrimUnusedFields(false).withConvertTableAccess(false).build()
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
-        new ViewExpanderImpl, validator, createCatalogReader, cluster, convertletTable, config)
+        new ViewExpanderImpl,
+        validator,
+        createCatalogReader,
+        cluster,
+        convertletTable,
+        sqlToRelConverterConfig)
       root = sqlToRelConverter.convertQuery(validatedSqlNode, false, true)
       // we disable automatic flattening in order to let composite types pass without modification
       // we might enable it again once Calcite has better support for structured types
@@ -142,10 +146,13 @@ class FlinkPlannerImpl(
       val validatedSqlNode: SqlNode = validator.validate(sqlNode)
       val rexBuilder: RexBuilder = createRexBuilder
       val cluster: RelOptCluster = FlinkRelOptClusterFactory.create(planner, rexBuilder)
-      val config: SqlToRelConverter.Config = SqlToRelConverter.configBuilder
-        .withTrimUnusedFields(false).withConvertTableAccess(false).build
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
-        new ViewExpanderImpl, validator, catalogReader, cluster, convertletTable, config)
+        new ViewExpanderImpl,
+        validator,
+        catalogReader,
+        cluster,
+        convertletTable,
+        sqlToRelConverterConfig)
       root = sqlToRelConverter.convertQuery(validatedSqlNode, true, false)
       root = root.withRel(sqlToRelConverter.flattenTypes(root.rel, true))
       root = root.withRel(RelDecorrelator.decorrelateQuery(root.rel))

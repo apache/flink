@@ -164,7 +164,11 @@ object FlinkRuleSets {
     WindowPropertiesHavingRule.INSTANCE,
 
     // expand distinct aggregate to normal aggregate with groupby
-    AggregateExpandDistinctAggregatesRule.JOIN
+    AggregateExpandDistinctAggregatesRule.JOIN,
+
+    // merge a cascade of predicates to IN or NOT_IN
+    MergeMultiEqualsToInRule.INSTANCE,
+    MergeMultiNotEqualsToNotInRule.INSTANCE
   )
 
   /**
@@ -201,7 +205,11 @@ object FlinkRuleSets {
     ReduceExpressionsRule.FILTER_INSTANCE,
     ReduceExpressionsRule.PROJECT_INSTANCE,
     ReduceExpressionsRule.CALC_INSTANCE,
-    ProjectToWindowRule.PROJECT
+    ProjectToWindowRule.PROJECT,
+
+    // merge a cascade of predicates to IN or NOT_IN
+    MergeMultiEqualsToInRule.INSTANCE,
+    MergeMultiNotEqualsToNotInRule.INSTANCE
   )
 
   /**
