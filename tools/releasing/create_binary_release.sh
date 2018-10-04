@@ -69,7 +69,16 @@ make_binary_release() {
     dir_name="flink-$RELEASE_VERSION-bin-$NAME-scala_${SCALA_VERSION}"
   fi
 
+  if [ $SCALA_VERSION = "2.12" ]; then
+      FLAGS="$FLAGS -Dscala-2.12"
+  elif [ $SCALA_VERSION = "2.11" ]; then
+      FLAGS="$FLAGS -Dscala-2.11"
+  else
+      echo "Invalid Scala version ${SCALA_VERSION}"
+  fi
+
   # enable release profile here (to check for the maven version)
+  tools/change-scala-version.sh ${SCALA_VERSION}
   $MVN clean package $FLAGS -Prelease -pl flink-shaded-hadoop/flink-shaded-hadoop2-uber,flink-dist -am -Dgpg.skip -Dcheckstyle.skip=true -DskipTests -Dmaven.test.skip=true
 
   cd flink-dist/target/flink-*-bin/
@@ -88,6 +97,11 @@ make_binary_release() {
 }
 
 if [ "$SCALA_VERSION" == "none" ] && [ "$HADOOP_VERSION" == "none" ]; then
+  make_binary_release "" "-DwithoutHadoop" "2.12"
+  make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "2.12"
+  make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "2.12"
+  make_binary_release "hadoop27" "-Dhadoop.version=2.7.5" "2.12"
+  make_binary_release "hadoop28" "-Dhadoop.version=2.8.3" "2.12"
   make_binary_release "" "-DwithoutHadoop" "2.11"
   make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "2.11"
   make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "2.11"
