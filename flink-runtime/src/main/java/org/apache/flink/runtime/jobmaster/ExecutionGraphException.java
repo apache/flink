@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.util.FlinkException;
 
 /**
  * Exceptions thrown by operations on the {@link ExecutionGraph} by the {@link JobMaster}.
