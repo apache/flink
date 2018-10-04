@@ -30,13 +30,13 @@ This means that Table API and SQL queries have the same semantics regardless whe
 Because the relational algebra and SQL were originally designed for batch processing,
 relational queries on unbounded streaming input are not as well understood as relational queries on bounded batch input.
 
+The following pages explain concepts, practical limitations, and stream-specific configuration parameters of Flink's relational APIs on streaming data.
+
 Where to go next?
 -----------------
 
-In the following pages, we explain concepts, practical limitations, and stream-specific configuration parameters of Flink's relational APIs on streaming data.
-
-* [Dynamic Tables]({{ site.baseurl }}/dev/table/streaming/dynamic_tables.html): Describes the concept of Dynamic Tables.
-* [Time attributes]({{ site.baseurl }}/dev/table/streaming/time_attributes.html): How time attributes are handled in Table API & SQL.
+* [Dynamic Tables]({{ site.baseurl }}/dev/table/streaming/dynamic_tables.html): Describes the concept of dynamic tables.
+* [Time attributes]({{ site.baseurl }}/dev/table/streaming/time_attributes.html): Explains time attributes and how time attributes are handled in Table API & SQL.
 * [Joins in Continuous Queries]({{ site.baseurl }}/dev/table/streaming/joins.html): Different supported types of Joins in Continuous Queries.
 * [Temporal Tables]({{ site.baseurl }}/dev/table/streaming/temporal_tables.html): Describes the Temporal Table concept.
 * [Query configuration]({{ site.baseurl }}/dev/table/streaming/query_configuration.html): Lists Table API & SQL specific configuration options.

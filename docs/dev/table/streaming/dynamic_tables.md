@@ -22,10 +22,17 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+SQL and the relational algebra have not been designed with streaming data in mind. As a consequence, there are few conceptual gaps between relational algebra (and SQL) and stream processing.
+
+This page discusses these differences and explains how Flink can achieve the same semantics on unbounded data as a regular database engine on bounded data.
+
+* This will be replaced by the TOC
+{:toc}
+
 Relational Queries on Data Streams
 ----------------------------------
 
-SQL and the relational algebra have not been designed with streaming data in mind. As a consequence, there are few conceptual gaps between relational algebra (and SQL) and stream processing.
+The following table compares traditional relational algebra and stream processing with respect to input data, execution, and output results.
 
 <table class="table table-bordered">
 	<tr>

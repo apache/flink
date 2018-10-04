@@ -483,17 +483,22 @@ FROM Orders CROSS JOIN UNNEST(tags) AS t (tag)
     </tr>
     <tr>
     	<td>
-        <strong>Join with User Defined Table Functions (UDTF)</strong><br>
+        <strong>Table Function Join</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
-        <p>UDTFs must be registered in the TableEnvironment. See the <a href="udfs.html">UDF documentation</a> for details on how to specify and register UDTFs. </p>
-        <p>Inner Join</p>
+        <p>Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function.</p>
+        <p>User-defined table functions (UDTFs) must be registered before. See the <a href="udfs.html">UDF documentation</a> for details on how to specify and register UDTFs. </p>
+
+        <p><b>Inner Join</b></p>
+        <p>A row of the left (outer) table is dropped, if its table function call returns an empty result.</p>
 {% highlight sql %}
 SELECT users, tag
 FROM Orders, LATERAL TABLE(unnest_udtf(tags)) t AS tag
 {% endhighlight %}
-        <p>Left Outer Join</p>
+
+        <p><b>Left Outer Join</b></p>
+        <p>If a table function call returns an empty result, the corresponding outer row is preserved and the result padded with null values.</p>
 {% highlight sql %}
 SELECT users, tag
 FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) t AS tag ON TRUE
@@ -508,12 +513,13 @@ FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) t AS tag ON TRUE
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><a href="streaming/temporal_tables.html">Temporal Tables</a> are tables that track changes over time.
-        A <a href="streaming/temporal_tables.html#temporal-table-functions">Temporal Table Function</a> provides access to the state of a temporal table at a specific point in time.
-        The syntax to join a table with a temporal table function is the same as in Join with Table Functions.</p>
+        <p><a href="streaming/temporal_tables.html">Temporal tables</a> are tables that track changes over time.</p>
+        <p>A <a href="streaming/temporal_tables.html#temporal-table-functions">Temporal table function</a> provides access to the state of a temporal table at a specific point in time.
+        The syntax to join a table with a temporal table function is the same as in <i>Table Function Join</i>.</p>
 
-        <p>Currently only inner joins with temporal tables are supported.</p>
-        Assuming <strong>Rates</strong> is a <a href="streaming/temporal_tables.html#temporal-table-functions">Temporal Table Function</a></p>
+        <p><b>Note:</b> Currently only inner joins with temporal tables are supported.</p>
+
+        <p>Assuming <i>Rates</i> is a <a href="streaming/temporal_tables.html#temporal-table-functions">temporal table function</a>, the join can be expressed in SQL as follows:</p>
 {% highlight sql %}
 SELECT
   o_amount, r_rate
@@ -523,7 +529,7 @@ FROM
 WHERE
   r_currency = o_currency
 {% endhighlight %}
-        <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">Temporal Tables concept description.</a></p>
+        <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">temporal tables concept description</a>.</p>
       </td>
     </tr>
 

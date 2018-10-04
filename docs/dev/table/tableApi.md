@@ -628,11 +628,11 @@ Table result = left.join(right)
     </tr>
     <tr>
     	<td>
-        <strong>TableFunction Inner Join</strong><br>
+        <strong>Table Function Inner Join</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
-        <p>Joins a table with a the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. A row of the left (outer) table is dropped, if its table function call returns an empty result.
+        <p>Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. A row of the left (outer) table is dropped, if its table function call returns an empty result.
         </p>
 {% highlight java %}
 // register function
@@ -649,13 +649,12 @@ Table result = orders
     </tr>
     <tr>
     	<td>
-        <strong>TableFunction Left Outer Join</strong><br>
+        <strong>Table Function Left Outer Join</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Joins a table with a the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. If a table function call returns an empty result, the corresponding outer row is preserved and the result padded with null values.
+        <p>Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. If a table function call returns an empty result, the corresponding outer row is preserved and the result padded with null values.</p>
         <p><b>Note:</b> Currently, the predicate of a table function left outer join can only be empty or literal <code>true</code>.</p>
-        </p>
 {% highlight java %}
 // register function
 TableFunction<String> split = new MySplitUDTF();
@@ -675,23 +674,26 @@ Table result = orders
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><a href="streaming/temporal_tables.html">Temporal Tables</a> are tables that track changes over time.
-        A <a href="streaming/temporal_tables.html#temporal-table-functions">Temporal Table Function</a> provides access to the state of a temporal table at a specific point in time.
-        The syntax to join a table with a Temporal Table Function is the same as in Join with Table Functions.</p>
+        <p><a href="streaming/temporal_tables.html">Temporal tables</a> are tables that track changes over time.</p>
+        <p>A <a href="streaming/temporal_tables.html#temporal-table-functions">temporal table function</a> provides access to the state of a temporal table at a specific point in time.
+        The syntax to join a table with a temporal table function is the same as in <i>Table Function Inner Join</i>.</p>
 
         <p>Currently only inner joins with temporal tables are supported.</p>
 {% highlight java %}
 Table ratesHistory = tableEnv.scan("RatesHistory");
-// register temporal table function
-TemporalTableFunction rates = ratesHistory.createTemporalTableFunction("r_proctime", "r_currency");
+
+// register temporal table function with a time attribute and primary key
+TemporalTableFunction rates = ratesHistory.createTemporalTableFunction(
+    "r_proctime",
+    "r_currency");
 tableEnv.registerFunction("rates", rates);
 
-// join
+// join with "Orders" based on the time attribute and key
 Table orders = tableEnv.scan("Orders");
 Table result = orders
     .join(new Table(tEnv, "rates(o_proctime)"), "o_currency = r_currency")
 {% endhighlight %}
-        <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">Temporal Tables concept description.</a></p>
+        <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">temporal tables concept description</a>.</p>
       </td>
     </tr>
 
@@ -774,11 +776,11 @@ val result = left.join(right)
     </tr>
     <tr>
     	<td>
-        <strong>TableFunction Inner Join</strong><br>
+        <strong>Table Function Inner Join</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
-        <p>Joins a table with a the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. A row of the left (outer) table is dropped, if its table function call returns an empty result.
+        <p>Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. A row of the left (outer) table is dropped, if its table function call returns an empty result.
         </p>
         {% highlight scala %}
 // instantiate function
@@ -793,12 +795,11 @@ val result: Table = table
     </tr>
     <tr>
     	<td>
-        <strong>TableFunction Left Outer Join</strong><br>
+        <strong>Table Function Left Outer Join</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
     	<td>
-        <p>Joins a table with a the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. If a table function call returns an empty result, the corresponding outer row is preserved and the result padded with null values.
+        <p>Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. If a table function call returns an empty result, the corresponding outer row is preserved and the result padded with null values.</p>
         <p><b>Note:</b> Currently, the predicate of a table function left outer join can only be empty or literal <code>true</code>.</p>
-        </p>
 {% highlight scala %}
 // instantiate function
 val split: TableFunction[_] = new MySplitUDTF()
@@ -817,22 +818,23 @@ val result: Table = table
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><a href="streaming/temporal_tables.html">Temporal Tables</a> are tables that track their changes over time.
-        A <a href="streaming/temporal_tables.html#temporal-table-functions">Temporal Table Function</a> provides access to the state of a temporal table at a specific point in time.
-        The syntax to join a table with a Temporal Table Function is the same as in Join with Table Functions.</p>
+        <p><a href="streaming/temporal_tables.html">Temporal tables</a> are tables that track their changes over time.</p>
+        <p>A <a href="streaming/temporal_tables.html#temporal-table-functions">temporal table function</a> provides access to the state of a temporal table at a specific point in time.
+        The syntax to join a table with a temporal table function is the same as in <i>Table Function Inner Join</i>.</p>
 
         <p>Currently only inner joins with temporal tables are supported.</p>
 {% highlight scala %}
 val ratesHistory = tableEnv.scan("RatesHistory")
-// register temporal table function
+
+// register temporal table function with a time attribute and primary key
 val rates = ratesHistory.createTemporalTableFunction('r_proctime, 'r_currency)
 
-// join
+// join with "Orders" based on the time attribute and key
 val orders = tableEnv.scan("Orders")
 val result = orders
     .join(rates('o_rowtime), 'r_currency === 'o_currency)
 {% endhighlight %}
-        <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">Temporal Tables concept description.</a></p>
+        <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">temporal tables concept description</a>.</p>
       </td>
     </tr>
 
