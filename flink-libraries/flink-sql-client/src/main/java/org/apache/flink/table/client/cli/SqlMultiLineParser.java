@@ -21,7 +21,6 @@ package org.apache.flink.table.client.cli;
 import org.jline.reader.EOFError;
 import org.jline.reader.ParsedLine;
 import org.jline.reader.impl.DefaultParser;
-//import org.jline.reader.Parser;
 
 //import java.util.Collections;
 
