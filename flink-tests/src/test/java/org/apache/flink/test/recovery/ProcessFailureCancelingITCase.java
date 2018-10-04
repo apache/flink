@@ -33,6 +33,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
@@ -249,7 +250,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 				clusterClient.shutdown();
 			}
 			if (dispatcherResourceManagerComponent != null) {
-				dispatcherResourceManagerComponent.close();
+				dispatcherResourceManagerComponent.deregisterApplicationAndClose(ApplicationStatus.SUCCEEDED, null);
 			}
 
 			fatalErrorHandler.rethrowError();

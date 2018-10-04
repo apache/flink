@@ -59,6 +59,12 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 
 	private final MessageHeaders<R, P, M> messageHeaders;
 
+	/**
+	 * Used to ensure that the handler is not closed while there are still in-flight requests
+	 * dispatched outside of Netty's {@link org.apache.flink.shaded.netty4.io.netty.util.concurrent.EventExecutor}.
+	 */
+	private final InFlightRequestTracker inFlightRequestTracker;
+
 	protected AbstractRestHandler(
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends T> leaderRetriever,
@@ -67,6 +73,7 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 			MessageHeaders<R, P, M> messageHeaders) {
 		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
 		this.messageHeaders = Preconditions.checkNotNull(messageHeaders);
+		this.inFlightRequestTracker = new InFlightRequestTracker();
 	}
 
 	public MessageHeaders<R, P, M> getMessageHeaders() {
@@ -75,19 +82,19 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 
 	@Override
 	protected CompletableFuture<Void> respondToRequest(ChannelHandlerContext ctx, HttpRequest httpRequest, HandlerRequest<R, M> handlerRequest, T gateway) {
-		CompletableFuture<P> response;
+		final CompletableFuture<P> response = handleRequestInternal(handlerRequest, gateway);
 
-		try {
-			response = handleRequest(handlerRequest, gateway);
-		} catch (RestHandlerException e) {
-			response = FutureUtils.completedExceptionally(e);
-		}
+		return response.whenCompleteAsync((P resp, Throwable throwable) -> {
+				inFlightRequestTracker.deregisterRequest();
 
-		return response.whenComplete((P resp, Throwable throwable) -> {
-			Tuple2<ResponseBody, HttpResponseStatus> r = throwable != null ?
-				errorResponse(throwable) : Tuple2.of(resp, messageHeaders.getResponseStatusCode());
-			HandlerUtils.sendResponse(ctx, httpRequest, r.f0, r.f1, responseHeaders);
-		}).thenApply(ignored -> null);
+				Tuple2<ResponseBody, HttpResponseStatus> r = throwable != null ?
+					errorResponse(throwable) : Tuple2.of(resp, messageHeaders.getResponseStatusCode());
+				HandlerUtils.sendResponse(ctx, httpRequest, r.f0, r.f1, responseHeaders);
+			},
+			// send response from Netty's EventExecutor so that the server channel
+			// does not close while we are responding to in-flight requests
+			ctx.executor())
+			.thenApply(ignored -> null);
 	}
 
 	private Tuple2<ResponseBody, HttpResponseStatus> errorResponse(Throwable throwable) {
@@ -104,6 +111,21 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 				new ErrorResponseBody(Arrays.asList("Internal server error.", stackTrace)),
 				HttpResponseStatus.INTERNAL_SERVER_ERROR);
 		}
+	}
+
+	private CompletableFuture<P> handleRequestInternal(final HandlerRequest<R, M> handlerRequest, final T gateway) {
+		inFlightRequestTracker.registerRequest();
+
+		CompletableFuture<P> response;
+		try {
+			response = handleRequest(handlerRequest, gateway);
+		} catch (RestHandlerException e) {
+			response = FutureUtils.completedExceptionally(e);
+		} catch (Throwable t) {
+			inFlightRequestTracker.deregisterRequest();
+			throw t;
+		}
+		return response;
 	}
 
 	/**
@@ -124,7 +146,11 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 	protected abstract CompletableFuture<P> handleRequest(@Nonnull HandlerRequest<R, M> request, @Nonnull T gateway) throws RestHandlerException;
 
 	@Override
-	public CompletableFuture<Void> closeAsync() {
+	public final CompletableFuture<Void> closeAsync() {
+		return FutureUtils.composeAfterwards(closeHandlerAsync(), inFlightRequestTracker::awaitAsync);
+	}
+
+	protected CompletableFuture<Void> closeHandlerAsync() {
 		return CompletableFuture.completedFuture(null);
 	}
 }

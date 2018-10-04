@@ -184,7 +184,7 @@ public abstract class AbstractAsynchronousOperationHandlers<K extends OperationK
 		}
 
 		@Override
-		public CompletableFuture<Void> closeAsync() {
+		public CompletableFuture<Void> closeHandlerAsync() {
 			return completedOperationCache.closeAsync();
 		}
 

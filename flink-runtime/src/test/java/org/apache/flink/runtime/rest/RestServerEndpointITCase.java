@@ -256,7 +256,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		}
 
 		if (serverEndpoint != null) {
-			serverEndpoint.close();
+			serverEndpoint.closeAsync().get(timeout.getSize(), timeout.getUnit());
 			serverEndpoint = null;
 		}
 	}
@@ -550,13 +550,15 @@ public class RestServerEndpointITCase extends TestLogger {
 
 	/**
 	 * Tests that after calling {@link RestServerEndpoint#closeAsync()}, the handlers are closed
-	 * first. As long as not all handlers are closed, HTTP requests should be served.
+	 * first, and we wait for in-flight requests to finish. As long as not all handlers are closed,
+	 * HTTP requests should be served.
 	 */
 	@Test
 	public void testShouldWaitForHandlersWhenClosing() throws Exception {
 		final CompletableFuture<Void> closeHandlerFuture = new CompletableFuture<>();
 		testHandler.closeFuture = closeHandlerFuture;
 
+		// Initiate closing RestServerEndpoint but the handler should block.
 		final CompletableFuture<Void> closeRestServerEndpointFuture = serverEndpoint.closeAsync();
 		assertThat(closeRestServerEndpointFuture.isDone(), is(false));
 
@@ -564,14 +566,28 @@ public class RestServerEndpointITCase extends TestLogger {
 		parameters.jobIDPathParameter.resolve(PATH_JOB_ID);
 		parameters.jobIDQueryParameter.resolve(Collections.singletonList(QUERY_JOB_ID));
 
-		restClient.sendRequest(
-			serverAddress.getHostName(),
-			serverAddress.getPort(),
-			new TestHeaders(),
-			parameters,
-			new TestRequest(1)).get(timeout.getSize(), timeout.getUnit());
+		final CompletableFuture<TestResponse> request;
+		synchronized (TestHandler.LOCK) {
+			request = restClient.sendRequest(
+				serverAddress.getHostName(),
+				serverAddress.getPort(),
+				new TestHeaders(),
+				parameters,
+				new TestRequest(1));
+			TestHandler.LOCK.wait();
+		}
 
+		// Allow handler to close but there is still one in-flight request which should prevent
+		// the RestServerEndpoint from closing.
 		closeHandlerFuture.complete(null);
+		assertThat(closeRestServerEndpointFuture.isDone(), is(false));
+
+		// Finish the in-flight request.
+		synchronized (TestHandler.LOCK) {
+			TestHandler.LOCK.notifyAll();
+		}
+
+		request.get(timeout.getSize(), timeout.getUnit());
 		closeRestServerEndpointFuture.get(timeout.getSize(), timeout.getUnit());
 	}
 
@@ -642,23 +658,29 @@ public class RestServerEndpointITCase extends TestLogger {
 
 			final int id = request.getRequestBody().id;
 			if (id == 1) {
-				synchronized (LOCK) {
-					try {
-						LOCK.notifyAll();
-						LOCK.wait();
-					} catch (InterruptedException ignored) {
+				// Intentionally schedule the work on a different thread. This is to simulate
+				// handlers where the CompletableFuture is finished by the RPC framework.
+				return CompletableFuture.supplyAsync(() -> {
+					synchronized (LOCK) {
+						try {
+							LOCK.notifyAll();
+							LOCK.wait();
+						} catch (InterruptedException ignored) {
+						}
 					}
-				}
+					return new TestResponse(id);
+				});
 			} else if (id == LARGE_RESPONSE_BODY_ID) {
 				return CompletableFuture.completedFuture(new TestResponse(
 					id,
 					createStringOfSize(TEST_REST_MAX_CONTENT_LENGTH)));
+			} else {
+				return CompletableFuture.completedFuture(new TestResponse(id));
 			}
-			return CompletableFuture.completedFuture(new TestResponse(id));
 		}
 
 		@Override
-		public CompletableFuture<Void> closeAsync() {
+		public CompletableFuture<Void> closeHandlerAsync() {
 			return closeFuture;
 		}
 	}
