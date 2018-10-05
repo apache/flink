@@ -33,5 +33,5 @@ import java.lang.annotation.Target;
 public @interface ThrowableAnnotation {
 
 	/** get ThrowableType.*/
-	ThrowableType value() default ThrowableType.Other;
+	ThrowableType value() default ThrowableType.RecoverableError;
 }

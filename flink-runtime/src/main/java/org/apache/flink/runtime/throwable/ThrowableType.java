@@ -41,5 +41,5 @@ public enum ThrowableType {
 	/**
 	 * this indicates other errors that is recoverable.
 	 * */
-	Other
+	RecoverableError
 }

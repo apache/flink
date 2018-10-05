@@ -43,11 +43,11 @@ public class ThrowableClassifierTest extends TestLogger {
 	}
 
 	@Test
-	public void testThrowableType_Other() {
-		assertEquals(ThrowableType.Other,
+	public void testThrowableType_Recoverable() {
+		assertEquals(ThrowableType.RecoverableError,
 			ThrowableClassifier.getThrowableType(new Exception("")));
-		assertEquals(ThrowableType.Other,
-			ThrowableClassifier.getThrowableType(new ThrowableType_Other_Exception()));
+		assertEquals(ThrowableType.RecoverableError,
+			ThrowableClassifier.getThrowableType(new ThrowableType_RecoverableFailure_Exception()));
 	}
 
 	@Test
@@ -76,8 +76,8 @@ public class ThrowableClassifierTest extends TestLogger {
 	private class ThrowableType_EnvironmentError_Exception extends Exception {
 	}
 
-	@ThrowableAnnotation(ThrowableType.Other)
-	private class ThrowableType_Other_Exception extends Exception {
+	@ThrowableAnnotation(ThrowableType.RecoverableError)
+	private class ThrowableType_RecoverableFailure_Exception extends Exception {
 	}
 
 	private class Sub_ThrowableType_PartitionDataMissingError_Exception extends ThrowableType_PartitionDataMissingError_Exception {

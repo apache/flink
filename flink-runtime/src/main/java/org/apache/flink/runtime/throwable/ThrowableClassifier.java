@@ -28,10 +28,10 @@ public class ThrowableClassifier {
 	/**
 	 * classify the exceptions by extract the {@link ThrowableAnnotation} of it, that will be handled different failover logic.
 	 * @param cause
-	 * @return ThrowableType.Other if there is no such annotation
+	 * @return ThrowableType.RecoverableError if there is no such annotation
 	 */
 	public static ThrowableType getThrowableType(Throwable cause) {
 		final Annotation annotation = cause.getClass().getAnnotation(ThrowableAnnotation.class);
-		return annotation == null ? ThrowableType.Other : ((ThrowableAnnotation) annotation).value();
+		return annotation == null ? ThrowableType.RecoverableError : ((ThrowableAnnotation) annotation).value();
 	}
 }
