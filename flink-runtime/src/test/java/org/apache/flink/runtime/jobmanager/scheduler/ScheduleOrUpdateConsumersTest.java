@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -44,6 +45,10 @@ import java.util.List;
 
 import static org.apache.flink.runtime.jobmanager.SlotCountExceedingParallelismTest.SubtaskIndexReceiver.CONFIG_KEY;
 
+/**
+ * Tests for the lazy scheduling/updating of consumers depending on the
+ * producers result.
+ */
 public class ScheduleOrUpdateConsumersTest extends TestLogger {
 
 	private static final int NUMBER_OF_TMS = 2;
@@ -55,6 +60,7 @@ public class ScheduleOrUpdateConsumersTest extends TestLogger {
 	@BeforeClass
 	public static void setUp() throws Exception {
 		final Configuration config = new Configuration();
+		config.setInteger(RestOptions.PORT, 0);
 		config.setString(AkkaOptions.ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
 
 		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
@@ -89,7 +95,7 @@ public class ScheduleOrUpdateConsumersTest extends TestLogger {
 	 *                             +----------+
 	 * </pre>
 	 *
-	 * The pipelined receiver gets deployed after the first buffer is available and the blocking
+	 * <p>The pipelined receiver gets deployed after the first buffer is available and the blocking
 	 * one after all subtasks are finished.
 	 */
 	@Test
@@ -136,9 +142,13 @@ public class ScheduleOrUpdateConsumersTest extends TestLogger {
 
 	// ---------------------------------------------------------------------------------------------
 
+	/**
+	 * Invokable which writes a configurable number of events to a pipelined
+	 * and blocking partition alternatingly.
+	 */
 	public static class BinaryRoundRobinSubtaskIndexSender extends AbstractInvokable {
 
-		public static final String CONFIG_KEY = "number-of-times-to-send";
+		static final String CONFIG_KEY = "number-of-times-to-send";
 
 		public BinaryRoundRobinSubtaskIndexSender(Environment environment) {
 			super(environment);

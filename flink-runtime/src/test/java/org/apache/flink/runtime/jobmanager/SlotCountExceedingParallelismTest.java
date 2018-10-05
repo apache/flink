@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
@@ -41,6 +42,11 @@ import org.junit.Test;
 
 import java.util.BitSet;
 
+/**
+ * Tests that Flink can execute jobs with a higher parallelism than available number
+ * of slots. This effectively tests that Flink can execute jobs with blocking results
+ * in a staged fashion.
+ */
 public class SlotCountExceedingParallelismTest extends TestLogger {
 
 	// Test configuration
@@ -55,6 +61,7 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
 	@BeforeClass
 	public static void setUp() throws Exception {
 		final Configuration config = new Configuration();
+		config.setInteger(RestOptions.PORT, 0);
 		config.setString(AkkaOptions.ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
 
 		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
