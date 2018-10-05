@@ -876,17 +876,13 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		validateRunsInMainThread();
 
 		List<CompletableFuture<Optional<SlotOffer>>> acceptedSlotOffers = offers.stream().map(
-			offer -> {
-				CompletableFuture<Optional<SlotOffer>> acceptedSlotOffer = offerSlot(
-						taskManagerLocation,
-						taskManagerGateway,
-						offer)
-					.thenApply(
-						(acceptedSlot) -> acceptedSlot ? Optional.of(offer) : Optional.empty()
-					);
-
-				return acceptedSlotOffer;
-			}
+			offer -> offerSlot(
+					taskManagerLocation,
+					taskManagerGateway,
+					offer)
+				.<Optional<SlotOffer>>thenApply(
+					(acceptedSlot) -> acceptedSlot ? Optional.of(offer) : Optional.empty()
+				)
 		).collect(Collectors.toList());
 
 		CompletableFuture<Collection<Optional<SlotOffer>>> optionalSlotOffers = FutureUtils.combineAll(acceptedSlotOffers);
@@ -1378,11 +1374,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		@VisibleForTesting
 		Set<AllocatedSlot> getSlotsForTaskManager(ResourceID resourceId) {
-			if (allocatedSlotsByTaskManager.containsKey(resourceId)) {
-				return allocatedSlotsByTaskManager.get(resourceId);
-			} else {
-				return Collections.emptySet();
-			}
+			return allocatedSlotsByTaskManager.getOrDefault(resourceId, Collections.emptySet());
 		}
 	}
 
@@ -1423,18 +1415,12 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				final ResourceID resourceID = slot.getTaskManagerLocation().getResourceID();
 				final String host = slot.getTaskManagerLocation().getFQDNHostname();
 
-				Set<AllocatedSlot> slotsForTaskManager = availableSlotsByTaskManager.get(resourceID);
-				if (slotsForTaskManager == null) {
-					slotsForTaskManager = new HashSet<>();
-					availableSlotsByTaskManager.put(resourceID, slotsForTaskManager);
-				}
+				Set<AllocatedSlot> slotsForTaskManager =
+					availableSlotsByTaskManager.computeIfAbsent(resourceID, k -> new HashSet<>());
 				slotsForTaskManager.add(slot);
 
-				Set<AllocatedSlot> slotsForHost = availableSlotsByHost.get(host);
-				if (slotsForHost == null) {
-					slotsForHost = new HashSet<>();
-					availableSlotsByHost.put(host, slotsForHost);
-				}
+				Set<AllocatedSlot> slotsForHost =
+					availableSlotsByHost.computeIfAbsent(host, k -> new HashSet<>());
 				slotsForHost.add(slot);
 			}
 			else {
