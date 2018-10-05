@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmaster.SlotContext;
+import org.apache.flink.runtime.jobmaster.SlotInfo;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -28,6 +29,7 @@ import javax.annotation.Nullable;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
@@ -53,8 +55,8 @@ public interface SchedulingStrategy {
 	@Nullable
 	<IN, OUT> OUT findMatchWithLocality(
 		@Nonnull SlotProfile slotProfile,
-		@Nonnull Stream<IN> candidates,
-		@Nonnull Function<IN, SlotContext> contextExtractor,
+		@Nonnull Supplier<Stream<IN>> candidates,
+		@Nonnull Function<IN, SlotInfo> contextExtractor,
 		@Nonnull Predicate<IN> additionalRequirementsFilter,
 		@Nonnull BiFunction<IN, Locality, OUT> resultProducer);
 }

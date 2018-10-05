@@ -124,18 +124,59 @@ public class SlotProfileTest extends TestLogger {
 	}
 
 	@Test
-	public void matchPreviousLocationNotAvailable() {
+	public void matchPreviousLocationNotAvailableButByLocality() {
 
 		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tml4), Collections.singletonList(aidX));
 		SlotContext match = runMatching(slotProfile);
 
-		Assert.assertEquals(null, match);
+		Assert.assertEquals(ssc4, match);
+	}
+
+	@Test
+	public void matchPreviousLocationNotAvailableAndAllOthersBlacklisted() {
+		HashSet<AllocationID> blacklisted = new HashSet<>(4);
+		blacklisted.add(aid1);
+		blacklisted.add(aid2);
+		blacklisted.add(aid3);
+		blacklisted.add(aid4);
+		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tml4), Collections.singletonList(aidX), blacklisted);
+		SlotContext match = runMatching(slotProfile);
+
+		// there should be no valid option left and we expect null as return
+		Assert.assertNull(match);
+	}
+
+	@Test
+	public void matchPreviousLocationNotAvailableAndSomeOthersBlacklisted() {
+		HashSet<AllocationID> blacklisted = new HashSet<>(3);
+		blacklisted.add(aid1);
+		blacklisted.add(aid3);
+		blacklisted.add(aid4);
+		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tml4), Collections.singletonList(aidX), blacklisted);
+		SlotContext match = runMatching(slotProfile);
+
+		// we expect that the candidate that is not blacklisted is returned
+		Assert.assertEquals(ssc2, match);
+	}
+
+	@Test
+	public void matchPreviousLocationAvailableButAlsoBlacklisted() {
+		HashSet<AllocationID> blacklisted = new HashSet<>(4);
+		blacklisted.add(aid1);
+		blacklisted.add(aid2);
+		blacklisted.add(aid3);
+		blacklisted.add(aid4);
+		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tml3), Collections.singletonList(aid3), blacklisted);
+		SlotContext match = runMatching(slotProfile);
+
+		// available previous allocation should override blacklisting
+		Assert.assertEquals(ssc3, match);
 	}
 
 	private SlotContext runMatching(SlotProfile slotProfile) {
 		return schedulingStrategy.findMatchWithLocality(
 			slotProfile,
-			candidates.stream(),
+			candidates::stream,
 			(candidate) -> candidate,
 			(candidate) -> true,
 			(candidate, locality) -> candidate);
