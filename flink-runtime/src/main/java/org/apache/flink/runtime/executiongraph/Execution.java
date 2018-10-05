@@ -58,6 +58,7 @@ import org.apache.flink.util.concurrent.FutureConsumerWithException;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
@@ -65,6 +66,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -385,7 +387,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		return scheduleForExecution(
 			resourceProvider,
 			allowQueued,
-			LocationPreferenceConstraint.ANY);
+			LocationPreferenceConstraint.ANY,
+			Collections.emptySet());
 	}
 
 	/**
@@ -397,18 +400,22 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param queued Flag to indicate whether the scheduler may queue this task if it cannot
 	 *               immediately deploy it.
 	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
+	 *                                                 Can be empty if the allocation ids are not required for scheduling.
 	 * @return Future which is completed once the Execution has been deployed
 	 */
 	public CompletableFuture<Void> scheduleForExecution(
 			SlotProvider slotProvider,
 			boolean queued,
-			LocationPreferenceConstraint locationPreferenceConstraint) {
+			LocationPreferenceConstraint locationPreferenceConstraint,
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 		final Time allocationTimeout = vertex.getExecutionGraph().getAllocationTimeout();
 		try {
 			final CompletableFuture<Execution> allocationFuture = allocateAndAssignSlotForExecution(
 				slotProvider,
 				queued,
 				locationPreferenceConstraint,
+				allPreviousExecutionGraphAllocationIds,
 				allocationTimeout);
 
 			// IMPORTANT: We have to use the synchronous handle operation (direct executor) here so
@@ -441,6 +448,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param slotProvider to obtain a new slot from
 	 * @param queued if the allocation can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
+	 *                                                 Can be empty if the allocation ids are not required for scheduling.
 	 * @param allocationTimeout rpcTimeout for allocating a new slot
 	 * @return Future which is completed with this execution once the slot has been assigned
 	 * 			or with an exception if an error occurred.
@@ -450,6 +459,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			SlotProvider slotProvider,
 			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint,
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds,
 			Time allocationTimeout) throws IllegalExecutionStateException {
 
 		checkNotNull(slotProvider);
@@ -495,7 +505,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 							new SlotProfile(
 								ResourceProfile.UNKNOWN,
 								preferredLocations,
-								previousAllocationIDs),
+								previousAllocationIDs,
+								allPreviousExecutionGraphAllocationIds),
 							allocationTimeout));
 
 			// register call back to cancel slot request in case that the execution gets canceled
@@ -739,7 +750,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 							consumerVertex.scheduleForExecution(
 								executionGraph.getSlotProvider(),
 								executionGraph.isQueuedSchedulingAllowed(),
-								LocationPreferenceConstraint.ANY); // there must be at least one known location
+								LocationPreferenceConstraint.ANY, // there must be at least one known location
+								Collections.emptySet());
 						} catch (Throwable t) {
 							consumerVertex.fail(new IllegalStateException("Could not schedule consumer " +
 									"vertex " + consumerVertex, t));

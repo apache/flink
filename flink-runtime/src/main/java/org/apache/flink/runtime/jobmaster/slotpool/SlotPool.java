@@ -54,6 +54,7 @@ import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
@@ -170,7 +171,9 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		this.pendingRequests = new DualKeyMap<>(16);
 		this.waitingForResourceManager = new HashMap<>(16);
 
-		this.providerAndOwner = new ProviderAndOwner(getSelfGateway(SlotPoolGateway.class));
+		this.providerAndOwner = new ProviderAndOwner(
+			getSelfGateway(SlotPoolGateway.class),
+			schedulingStrategy instanceof PreviousAllocationSchedulingStrategy);
 
 		this.slotSharingManagers = new HashMap<>(4);
 
@@ -325,76 +328,93 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		log.debug("Received slot request [{}] for task: {}", slotRequestId, task.getTaskToExecute());
 
-		final SlotSharingGroupId slotSharingGroupId = task.getSlotSharingGroupId();
-
-		if (slotSharingGroupId != null) {
-			// allocate slot with slot sharing
-			final SlotSharingManager multiTaskSlotManager = slotSharingManagers.computeIfAbsent(
-				slotSharingGroupId,
-				id -> new SlotSharingManager(
-					id,
-					this,
-					providerAndOwner));
-
-			final SlotSharingManager.MultiTaskSlotLocality multiTaskSlotLocality;
-
-			try {
-				if (task.getCoLocationConstraint() != null) {
-					multiTaskSlotLocality = allocateCoLocatedMultiTaskSlot(
-						task.getCoLocationConstraint(),
-						multiTaskSlotManager,
-						slotProfile,
-						allowQueuedScheduling,
-						allocationTimeout);
-				} else {
-					multiTaskSlotLocality = allocateMultiTaskSlot(
-						task.getJobVertexId(),
-						multiTaskSlotManager,
-						slotProfile,
-						allowQueuedScheduling,
-						allocationTimeout);
-				}
-			} catch (NoResourceAvailableException noResourceException) {
-				return FutureUtils.completedExceptionally(noResourceException);
-			}
-
-			// sanity check
-			Preconditions.checkState(!multiTaskSlotLocality.getMultiTaskSlot().contains(task.getJobVertexId()));
-
-			final SlotSharingManager.SingleTaskSlot leaf = multiTaskSlotLocality.getMultiTaskSlot().allocateSingleTaskSlot(
-				slotRequestId,
-				task.getJobVertexId(),
-				multiTaskSlotLocality.getLocality());
-
-			return leaf.getLogicalSlotFuture();
+		if (task.getSlotSharingGroupId() == null) {
+			return allocateSingleSlot(slotRequestId, slotProfile, allowQueuedScheduling, allocationTimeout);
 		} else {
-			// request an allocated slot to assign a single logical slot to
-			CompletableFuture<SlotAndLocality> slotAndLocalityFuture = requestAllocatedSlot(
-				slotRequestId,
-				slotProfile,
-				allowQueuedScheduling,
-				allocationTimeout);
-
-			return slotAndLocalityFuture.thenApply(
-				(SlotAndLocality slotAndLocality) -> {
-					final AllocatedSlot allocatedSlot = slotAndLocality.getSlot();
-
-					final SingleLogicalSlot singleTaskSlot = new SingleLogicalSlot(
-						slotRequestId,
-						allocatedSlot,
-						null,
-						slotAndLocality.getLocality(),
-						providerAndOwner);
-
-					if (allocatedSlot.tryAssignPayload(singleTaskSlot)) {
-						return singleTaskSlot;
-					} else {
-						final FlinkException flinkException = new FlinkException("Could not assign payload to allocated slot " + allocatedSlot.getAllocationId() + '.');
-						releaseSlot(slotRequestId, null, flinkException);
-						throw new CompletionException(flinkException);
-					}
-				});
+			return allocateSharedSlot(slotRequestId, task, slotProfile, allowQueuedScheduling, allocationTimeout);
 		}
+	}
+
+	private CompletableFuture<LogicalSlot> allocateSingleSlot(
+		SlotRequestId slotRequestId,
+		SlotProfile slotProfile,
+		boolean allowQueuedScheduling,
+		Time allocationTimeout) {
+		// request an allocated slot to assign a single logical slot to
+		CompletableFuture<SlotAndLocality> slotAndLocalityFuture = requestAllocatedSlot(
+			slotRequestId,
+			slotProfile,
+			allowQueuedScheduling,
+			allocationTimeout);
+
+		return slotAndLocalityFuture.thenApply(
+			(SlotAndLocality slotAndLocality) -> {
+				final AllocatedSlot allocatedSlot = slotAndLocality.getSlot();
+
+				final SingleLogicalSlot singleTaskSlot = new SingleLogicalSlot(
+					slotRequestId,
+					allocatedSlot,
+					null,
+					slotAndLocality.getLocality(),
+					providerAndOwner);
+
+				if (allocatedSlot.tryAssignPayload(singleTaskSlot)) {
+					return singleTaskSlot;
+				} else {
+					final FlinkException flinkException =
+						new FlinkException("Could not assign payload to allocated slot " + allocatedSlot.getAllocationId() + '.');
+					releaseSingleSlot(slotRequestId, flinkException);
+					throw new CompletionException(flinkException);
+				}
+			});
+	}
+
+	private CompletableFuture<LogicalSlot> allocateSharedSlot(
+		SlotRequestId slotRequestId,
+		ScheduledUnit task,
+		SlotProfile slotProfile,
+		boolean allowQueuedScheduling,
+		Time allocationTimeout) {
+
+		// allocate slot with slot sharing
+		final SlotSharingManager multiTaskSlotManager = slotSharingManagers.computeIfAbsent(
+			task.getSlotSharingGroupId(),
+			id -> new SlotSharingManager(
+				id,
+				this,
+				providerAndOwner));
+
+		final SlotSharingManager.MultiTaskSlotLocality multiTaskSlotLocality;
+
+		try {
+			if (task.getCoLocationConstraint() != null) {
+				multiTaskSlotLocality = allocateCoLocatedMultiTaskSlot(
+					task.getCoLocationConstraint(),
+					multiTaskSlotManager,
+					slotProfile,
+					allowQueuedScheduling,
+					allocationTimeout);
+			} else {
+				multiTaskSlotLocality = allocateMultiTaskSlot(
+					task.getJobVertexId(),
+					multiTaskSlotManager,
+					slotProfile,
+					allowQueuedScheduling,
+					allocationTimeout);
+			}
+		} catch (NoResourceAvailableException noResourceException) {
+			return FutureUtils.completedExceptionally(noResourceException);
+		}
+
+		// sanity check
+		Preconditions.checkState(!multiTaskSlotLocality.getMultiTaskSlot().contains(task.getJobVertexId()));
+
+		final SlotSharingManager.SingleTaskSlot leaf = multiTaskSlotLocality.getMultiTaskSlot().allocateSingleTaskSlot(
+			slotRequestId,
+			task.getJobVertexId(),
+			multiTaskSlotLocality.getLocality());
+
+		return leaf.getLogicalSlotFuture();
 	}
 
 	/**
@@ -438,12 +458,13 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			slotProfile = new SlotProfile(
 				slotProfile.getResourceProfile(),
 				Collections.singleton(coLocationConstraint.getLocation()),
-				slotProfile.getPriorAllocations());
+				slotProfile.getPreferredAllocations());
 		}
 
 		// get a new multi task slot
 		final SlotSharingManager.MultiTaskSlotLocality multiTaskSlotLocality = allocateMultiTaskSlot(
-			coLocationConstraint.getGroupId(), multiTaskSlotManager,
+			coLocationConstraint.getGroupId(),
+			multiTaskSlotManager,
 			slotProfile,
 			allowQueuedScheduling,
 			allocationTimeout);
@@ -548,9 +569,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		if (multiTaskSlotLocality != null) {
 			// prefer slot sharing group slots over unused slots
 			if (polledSlotAndLocality != null) {
-				releaseSlot(
+				releaseSingleSlot(
 					allocatedSlotRequestId,
-					null,
 					new FlinkException("Locality constraint is not better fulfilled by allocated slot."));
 			}
 			return multiTaskSlotLocality;
@@ -587,9 +607,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 								}
 							}
 						} else {
-							releaseSlot(
+							releaseSingleSlot(
 								allocatedSlotRequestId,
-								null,
 								new FlinkException("Could not find task slot with " + multiTaskSlotRequestId + '.'));
 						}
 					});
@@ -741,41 +760,56 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	// ------------------------------------------------------------------------
 
 	@Override
-	public CompletableFuture<Acknowledge> releaseSlot(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
+	public CompletableFuture<Acknowledge> releaseSlot(
+		SlotRequestId slotRequestId,
+		@Nullable SlotSharingGroupId slotSharingGroupId,
+		Throwable cause) {
+
 		log.debug("Releasing slot [{}] because: {}", slotRequestId, cause != null ? cause.getMessage() : "null");
 
 		if (slotSharingGroupId != null) {
-			final SlotSharingManager multiTaskSlotManager = slotSharingManagers.get(slotSharingGroupId);
-
-			if (multiTaskSlotManager != null) {
-				final SlotSharingManager.TaskSlot taskSlot = multiTaskSlotManager.getTaskSlot(slotRequestId);
-
-				if (taskSlot != null) {
-					taskSlot.release(cause);
-				} else {
-					log.debug("Could not find slot [{}] in slot sharing group {}. Ignoring release slot request.", slotRequestId, slotSharingGroupId);
-				}
-			} else {
-				log.debug("Could not find slot sharing group {}. Ignoring release slot request.", slotSharingGroupId);
-			}
+			releaseSharedSlot(slotRequestId, slotSharingGroupId, cause);
 		} else {
-			final PendingRequest pendingRequest = removePendingRequest(slotRequestId);
-
-			if (pendingRequest != null) {
-				failPendingRequest(pendingRequest, new FlinkException("Pending slot request with " + slotRequestId + " has been released."));
-			} else {
-				final AllocatedSlot allocatedSlot = allocatedSlots.remove(slotRequestId);
-
-				if (allocatedSlot != null) {
-					allocatedSlot.releasePayload(cause);
-					tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);
-				} else {
-					log.debug("There is no allocated slot [{}]. Ignoring the release slot request.", slotRequestId);
-				}
-			}
+			releaseSingleSlot(slotRequestId, cause);
 		}
 
 		return CompletableFuture.completedFuture(Acknowledge.get());
+	}
+
+	private void releaseSharedSlot(
+		SlotRequestId slotRequestId,
+		@Nonnull SlotSharingGroupId slotSharingGroupId, Throwable cause) {
+
+		final SlotSharingManager multiTaskSlotManager = slotSharingManagers.get(slotSharingGroupId);
+
+		if (multiTaskSlotManager != null) {
+			final SlotSharingManager.TaskSlot taskSlot = multiTaskSlotManager.getTaskSlot(slotRequestId);
+
+			if (taskSlot != null) {
+				taskSlot.release(cause);
+			} else {
+				log.debug("Could not find slot [{}] in slot sharing group {}. Ignoring release slot request.", slotRequestId, slotSharingGroupId);
+			}
+		} else {
+			log.debug("Could not find slot sharing group {}. Ignoring release slot request.", slotSharingGroupId);
+		}
+	}
+
+	private void releaseSingleSlot(SlotRequestId slotRequestId, Throwable cause) {
+		final PendingRequest pendingRequest = removePendingRequest(slotRequestId);
+
+		if (pendingRequest != null) {
+			failPendingRequest(pendingRequest, new FlinkException("Pending slot request with " + slotRequestId + " has been released."));
+		} else {
+			final AllocatedSlot allocatedSlot = allocatedSlots.remove(slotRequestId);
+
+			if (allocatedSlot != null) {
+				allocatedSlot.releasePayload(cause);
+				tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);
+			} else {
+				log.debug("There is no allocated slot [{}]. Ignoring the release slot request.", slotRequestId);
+			}
+		}
 	}
 
 	/**
@@ -875,17 +909,13 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		validateRunsInMainThread();
 
 		List<CompletableFuture<Optional<SlotOffer>>> acceptedSlotOffers = offers.stream().map(
-			offer -> {
-				CompletableFuture<Optional<SlotOffer>> acceptedSlotOffer = offerSlot(
-						taskManagerLocation,
-						taskManagerGateway,
-						offer)
-					.thenApply(
-						(acceptedSlot) -> acceptedSlot ? Optional.of(offer) : Optional.empty()
-					);
-
-				return acceptedSlotOffer;
-			}
+			offer -> offerSlot(
+					taskManagerLocation,
+					taskManagerGateway,
+					offer)
+				.<Optional<SlotOffer>>thenApply(
+					(acceptedSlot) -> acceptedSlot ? Optional.of(offer) : Optional.empty()
+				)
 		).collect(Collectors.toList());
 
 		CompletableFuture<Collection<Optional<SlotOffer>>> optionalSlotOffers = FutureUtils.combineAll(acceptedSlotOffers);
@@ -1359,11 +1389,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		@VisibleForTesting
 		Set<AllocatedSlot> getSlotsForTaskManager(ResourceID resourceId) {
-			if (allocatedSlotsByTaskManager.containsKey(resourceId)) {
-				return allocatedSlotsByTaskManager.get(resourceId);
-			} else {
-				return Collections.emptySet();
-			}
+			return allocatedSlotsByTaskManager.getOrDefault(resourceId, Collections.emptySet());
 		}
 	}
 
@@ -1404,18 +1430,12 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				final ResourceID resourceID = slot.getTaskManagerLocation().getResourceID();
 				final String host = slot.getTaskManagerLocation().getFQDNHostname();
 
-				Set<AllocatedSlot> slotsForTaskManager = availableSlotsByTaskManager.get(resourceID);
-				if (slotsForTaskManager == null) {
-					slotsForTaskManager = new HashSet<>();
-					availableSlotsByTaskManager.put(resourceID, slotsForTaskManager);
-				}
+				Set<AllocatedSlot> slotsForTaskManager =
+					availableSlotsByTaskManager.computeIfAbsent(resourceID, k -> new HashSet<>());
 				slotsForTaskManager.add(slot);
 
-				Set<AllocatedSlot> slotsForHost = availableSlotsByHost.get(host);
-				if (slotsForHost == null) {
-					slotsForHost = new HashSet<>();
-					availableSlotsByHost.put(host, slotsForHost);
-				}
+				Set<AllocatedSlot> slotsForHost =
+					availableSlotsByHost.computeIfAbsent(host, k -> new HashSet<>());
 				slotsForHost.add(slot);
 			}
 			else {
@@ -1456,7 +1476,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 			SlotAndLocality matchingSlotAndLocality = schedulingStrategy.findMatchWithLocality(
 				slotProfile,
-				slotAndTimestamps.stream(),
+				slotAndTimestamps::stream,
 				SlotAndTimestamp::slot,
 				(SlotAndTimestamp slot) -> slot.slot().getResourceProfile().isMatching(slotProfile.getResourceProfile()),
 				(SlotAndTimestamp slotAndTimestamp, Locality locality) -> {
@@ -1563,12 +1583,18 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	 * An implementation of the {@link SlotOwner} and {@link SlotProvider} interfaces
 	 * that delegates methods as RPC calls to the SlotPool's RPC gateway.
 	 */
-	private static class ProviderAndOwner implements SlotOwner, SlotProvider {
+	public static class ProviderAndOwner implements SlotOwner, SlotProvider {
 
 		private final SlotPoolGateway gateway;
+		private final boolean requiresPreviousAllocationsForScheduling;
 
-		ProviderAndOwner(SlotPoolGateway gateway) {
+		ProviderAndOwner(SlotPoolGateway gateway, boolean requiresPreviousAllocationsForScheduling) {
 			this.gateway = gateway;
+			this.requiresPreviousAllocationsForScheduling = requiresPreviousAllocationsForScheduling;
+		}
+
+		public boolean requiresPreviousAllocationsForScheduling() {
+			return requiresPreviousAllocationsForScheduling;
 		}
 
 		@Override

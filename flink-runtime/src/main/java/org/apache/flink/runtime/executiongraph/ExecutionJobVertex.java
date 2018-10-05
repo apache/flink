@@ -34,6 +34,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
@@ -54,6 +55,7 @@ import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -64,6 +66,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -474,12 +477,15 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * @param slotProvider to allocate the slots from
 	 * @param queued if the allocations can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
+	 *                                                 Can be empty if the allocation ids are not required for scheduling.
 	 * @return Future which is completed once all {@link Execution} could be deployed
 	 */
 	public CompletableFuture<Void> scheduleAll(
 			SlotProvider slotProvider,
 			boolean queued,
-			LocationPreferenceConstraint locationPreferenceConstraint) {
+			LocationPreferenceConstraint locationPreferenceConstraint,
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 
 		final ExecutionVertex[] vertices = this.taskVertices;
 
@@ -487,7 +493,11 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 		// kick off the tasks
 		for (ExecutionVertex ev : vertices) {
-			scheduleFutures.add(ev.scheduleForExecution(slotProvider, queued, locationPreferenceConstraint));
+			scheduleFutures.add(ev.scheduleForExecution(
+				slotProvider,
+				queued,
+				locationPreferenceConstraint,
+				allPreviousExecutionGraphAllocationIds));
 		}
 
 		return FutureUtils.waitForAll(scheduleFutures);
@@ -503,12 +513,14 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * @param resourceProvider The resource provider from whom the slots are requested.
 	 * @param queued if the allocation can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @param allPreviousExecutionGraphAllocationIds the allocation ids of all previous executions in the execution job graph.
 	 * @param allocationTimeout timeout for allocating the individual slots
 	 */
 	public Collection<CompletableFuture<Execution>> allocateResourcesForAll(
 			SlotProvider resourceProvider,
 			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint,
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds,
 			Time allocationTimeout) {
 		final ExecutionVertex[] vertices = this.taskVertices;
 		final CompletableFuture<Execution>[] slots = new CompletableFuture[vertices.length];
@@ -522,6 +534,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 				resourceProvider,
 				queued,
 				locationPreferenceConstraint,
+				allPreviousExecutionGraphAllocationIds,
 				allocationTimeout);
 			slots[i] = allocationFuture;
 		}
