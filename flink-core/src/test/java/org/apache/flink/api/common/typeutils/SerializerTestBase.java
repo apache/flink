@@ -99,26 +99,26 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 
 	@Test
 	public void testConfigSnapshotInstantiation() {
-		TypeSerializerConfigSnapshot configSnapshot = getSerializer().snapshotConfiguration();
+		TypeSerializerSnapshot<T> configSnapshot = getSerializer().snapshotConfiguration();
 
 		InstantiationUtil.instantiate(configSnapshot.getClass());
 	}
 
 	@Test
 	public void testSnapshotConfigurationAndReconfigure() throws Exception {
-		final TypeSerializerConfigSnapshot configSnapshot = getSerializer().snapshotConfiguration();
+		final TypeSerializerSnapshot<T> configSnapshot = getSerializer().snapshotConfiguration();
 
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
+			TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
 				new DataOutputViewStreamWrapper(out), configSnapshot, getSerializer());
 			serializedConfig = out.toByteArray();
 		}
 
-		TypeSerializerConfigSnapshot restoredConfig;
+		TypeSerializerSnapshot<T> restoredConfig;
 		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-			restoredConfig = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
-				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
+			restoredConfig = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader(), getSerializer());
 		}
 
 		CompatibilityResult strategy = getSerializer().ensureCompatibility(restoredConfig);

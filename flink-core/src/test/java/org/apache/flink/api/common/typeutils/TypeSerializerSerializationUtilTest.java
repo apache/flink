@@ -154,7 +154,7 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
+			TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
 				new DataOutputViewStreamWrapper(out),
 				configSnapshot1,
 				StringSerializer.INSTANCE);
@@ -162,10 +162,10 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 			serializedConfig = out.toByteArray();
 		}
 
-		TypeSerializerConfigSnapshot<?> restoredConfigs;
+		TypeSerializerSnapshot<?> restoredConfigs;
 		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-			restoredConfigs = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
-				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
+			restoredConfigs = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader(), null);
 		}
 
 		assertEquals(configSnapshot1, restoredConfigs);
@@ -174,11 +174,11 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 	/**
 	 * Verifies that deserializing config snapshots fail if the config class could not be found.
 	 */
-	@Test
+	@Test(expected = IOException.class)
 	public void testFailsWhenConfigurationSnapshotClassNotFound() throws Exception {
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
+			TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
 				new DataOutputViewStreamWrapper(out),
 				new TypeSerializerSerializationUtilTest.TestConfigSnapshot<>(123, "foobar"),
 				StringSerializer.INSTANCE);
@@ -187,12 +187,11 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 
 		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
 			// read using a dummy classloader
-			TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
-				new DataInputViewStreamWrapper(in), new URLClassLoader(new URL[0], null));
-			fail("Expected a ClassNotFoundException wrapped in IOException");
-		} catch (IOException expected) {
-			// test passes
+			TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+				new DataInputViewStreamWrapper(in), new URLClassLoader(new URL[0], null), null);
 		}
+
+		fail("Expected a ClassNotFoundException wrapped in IOException");
 	}
 
 	/**
@@ -201,10 +200,10 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 	 */
 	@Test
 	public void testSerializerAndConfigPairsSerializationWithSerializerDeserializationFailures() throws Exception {
-		List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs = Arrays.asList(
-			new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
+		List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> serializersAndConfigs = Arrays.asList(
+			new Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>(
 				IntSerializer.INSTANCE, IntSerializer.INSTANCE.snapshotConfiguration()),
-			new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
+			new Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>(
 				DoubleSerializer.INSTANCE, DoubleSerializer.INSTANCE.snapshotConfiguration()));
 
 		byte[] serializedSerializersAndConfigs;
@@ -218,7 +217,7 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 		cnfThrowingClassnames.add(IntSerializer.class.getName());
 		cnfThrowingClassnames.add(DoubleSerializer.class.getName());
 
-		List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> restored;
+		List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> restored;
 		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedSerializersAndConfigs)) {
 			restored = TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(
 				new DataInputViewStreamWrapper(in),
@@ -231,11 +230,11 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 		Assert.assertTrue(restored.get(0).f0 instanceof UnloadableDummyTypeSerializer);
 		Assert.assertEquals(
 			IntSerializer.INSTANCE.snapshotConfiguration(),
-			((BackwardsCompatibleConfigSnapshot) restored.get(0).f1).getWrappedConfigSnapshot());
+			restored.get(0).f1);
 		Assert.assertTrue(restored.get(1).f0 instanceof UnloadableDummyTypeSerializer);
 		Assert.assertEquals(
 			DoubleSerializer.INSTANCE.snapshotConfiguration(),
-			((BackwardsCompatibleConfigSnapshot) restored.get(1).f1).getWrappedConfigSnapshot());
+			restored.get(1).f1);
 	}
 
 	/**

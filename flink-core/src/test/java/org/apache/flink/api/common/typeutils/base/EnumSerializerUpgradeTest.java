@@ -19,8 +19,8 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshotSerializationUtil;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerializationUtil;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.TestLogger;
@@ -92,13 +92,13 @@ public class EnumSerializerUpgradeTest extends TestLogger {
 
 		EnumSerializer enumSerializer = new EnumSerializer(classLoader.loadClass(ENUM_NAME));
 
-		TypeSerializerConfigSnapshot snapshot = enumSerializer.snapshotConfiguration();
+		TypeSerializerSnapshot snapshot = enumSerializer.snapshotConfiguration();
 		byte[] snapshotBytes;
 		try (
 			ByteArrayOutputStream outBuffer = new ByteArrayOutputStream();
 			DataOutputViewStreamWrapper outputViewStreamWrapper = new DataOutputViewStreamWrapper(outBuffer)) {
 
-			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
+			TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
 				outputViewStreamWrapper, snapshot, enumSerializer);
 			snapshotBytes = outBuffer.toByteArray();
 		}
@@ -106,12 +106,13 @@ public class EnumSerializerUpgradeTest extends TestLogger {
 		ClassLoader classLoader2 = compileAndLoadEnum(
 			temporaryFolder.newFolder(), ENUM_NAME + ".java", enumSourceB);
 
-		TypeSerializerConfigSnapshot restoredSnapshot;
+		TypeSerializerSnapshot restoredSnapshot;
 		try (
 			ByteArrayInputStream inBuffer = new ByteArrayInputStream(snapshotBytes);
 			DataInputViewStreamWrapper inputViewStreamWrapper = new DataInputViewStreamWrapper(inBuffer)) {
 
-			restoredSnapshot = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(inputViewStreamWrapper, classLoader2);
+			restoredSnapshot = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+				inputViewStreamWrapper, classLoader2, enumSerializer);
 		}
 
 		EnumSerializer enumSerializer2 = new EnumSerializer(classLoader2.loadClass(ENUM_NAME));

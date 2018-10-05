@@ -147,20 +147,20 @@ public class TypeSerializerSerializationUtil {
 	 */
 	public static void writeSerializersAndConfigsWithResilience(
 			DataOutputView out,
-			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs) throws IOException {
+			List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> serializersAndConfigs) throws IOException {
 
 		try (
 			ByteArrayOutputStreamWithPos bufferWithPos = new ByteArrayOutputStreamWithPos();
 			DataOutputViewStreamWrapper bufferWrapper = new DataOutputViewStreamWrapper(bufferWithPos)) {
 
 			out.writeInt(serializersAndConfigs.size());
-			for (Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> serAndConfSnapshot : serializersAndConfigs) {
+			for (Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> serAndConfSnapshot : serializersAndConfigs) {
 				out.writeInt(bufferWithPos.getPosition());
 				writeSerializer(bufferWrapper, serAndConfSnapshot.f0);
 
 				out.writeInt(bufferWithPos.getPosition());
-				TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
-					bufferWrapper, serAndConfSnapshot.f1, serAndConfSnapshot.f0);
+				TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
+					bufferWrapper, (TypeSerializerSnapshot) serAndConfSnapshot.f1, serAndConfSnapshot.f0);
 			}
 
 			out.writeInt(bufferWithPos.getPosition());
@@ -182,7 +182,7 @@ public class TypeSerializerSerializationUtil {
 	 *
 	 * @throws IOException
 	 */
-	public static List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> readSerializersAndConfigsWithResilience(
+	public static List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> readSerializersAndConfigsWithResilience(
 			DataInputView in,
 			ClassLoader userCodeClassLoader) throws IOException {
 
@@ -199,11 +199,11 @@ public class TypeSerializerSerializationUtil {
 		byte[] buffer = new byte[totalBytes];
 		in.readFully(buffer);
 
-		List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigSnapshots =
+		List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> serializersAndConfigSnapshots =
 			new ArrayList<>(numSerializersAndConfigSnapshots);
 
 		TypeSerializer<?> serializer;
-		TypeSerializerConfigSnapshot<?> configSnapshot;
+		TypeSerializerSnapshot<?> configSnapshot;
 		try (
 			ByteArrayInputStreamWithPos bufferWithPos = new ByteArrayInputStreamWithPos(buffer);
 			DataInputViewStreamWrapper bufferWrapper = new DataInputViewStreamWrapper(bufferWithPos)) {
@@ -215,14 +215,8 @@ public class TypeSerializerSerializationUtil {
 
 				bufferWithPos.setPosition(offsets[i * 2 + 1]);
 
-				// the config snapshot is replaced with a dummy one, which wraps
-				// the actual config snapshot and the deserialized serializer.
-				// this is for backwards compatibility reasons, since before Flink 1.6, some serializers
-				// do not return config snapshots that can be used as a factory for themselves.
-				configSnapshot = new BackwardsCompatibleConfigSnapshot<>(
-					TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
-						bufferWrapper, userCodeClassLoader),
-					serializer);
+				configSnapshot = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+						bufferWrapper, userCodeClassLoader, serializer);
 
 				serializersAndConfigSnapshots.add(new Tuple2<>(serializer, configSnapshot));
 			}

@@ -32,11 +32,15 @@ import javax.annotation.Nullable;
  * resolved compatibility result, migration (i.e., reading bytes with the previous serializer and then writing
  * it again with the new serializer) may be required before the new serializer can be used.
  *
+ * @param <T> the type of data serialized by the serializer that was being checked.
+ *
+ * @param <NS> the type of serializer that was being checked.
+ *
  * @see TypeSerializer
  * @see TypeSerializerConfigSnapshot#resolveSchemaCompatibility(TypeSerializer)
  */
 @PublicEvolving
-public class TypeSerializerSchemaCompatibility<T> {
+public class TypeSerializerSchemaCompatibility<T, NS extends TypeSerializer<T>> {
 
 	/**
 	 * Enum for the type of the compatibility.
@@ -45,13 +49,6 @@ public class TypeSerializerSchemaCompatibility<T> {
 
 		/** This indicates that the new serializer continued to be used as is. */
 		COMPATIBLE_AS_IS,
-
-		/**
-		 * This indicates that it is required to reconfigure the new serializer before
-		 * it can be used. The reconfigured serializer should be provided as part of the
-		 * resolved {@link TypeSerializerSchemaCompatibility} result.
-		 */
-		COMPATIBLE_AFTER_RECONFIGURATION,
 
 		/**
 		 * This indicates that it is possible to use the new serializer after performing a
@@ -75,33 +72,13 @@ public class TypeSerializerSchemaCompatibility<T> {
 	private final Type resultType;
 
 	/**
-	 * The reconfigured new serializer to use. This is only relevant
-	 * in the case that the type of the compatibility is {@link Type#COMPATIBLE_AFTER_RECONFIGURATION}.
-	 */
-	private final TypeSerializer<T> reconfiguredNewSerializer;
-
-	/**
 	 * Returns a result that indicates that the new serializer is compatible and no migration is required.
 	 * The new serializer can continued to be used as is.
 	 *
 	 * @return a result that indicates migration is not required for the new serializer.
 	 */
-	public static <T> TypeSerializerSchemaCompatibility<T> compatibleAsIs() {
+	public static <T, NS extends TypeSerializer<T>> TypeSerializerSchemaCompatibility<T, NS> compatibleAsIs() {
 		return new TypeSerializerSchemaCompatibility<>(Type.COMPATIBLE_AS_IS, null);
-	}
-
-	/**
-	 * Returns a result that indicates that no migration is required, but the new serializer had to be
-	 * reconfigured in order for it to be compatible. A reconfigured serializer is provided and
-	 * should be used instead.
-	 *
-	 * @param reconfiguredSerializer the reconfigured new serializer that should be used.
-	 *
-	 * @return a result that indicates migration is not required, but a reconfigured version of the new
-	 * serializer should be used.
-	 */
-	public static <T> TypeSerializerSchemaCompatibility<T> compatibleAfterReconfiguration(TypeSerializer<T> reconfiguredSerializer) {
-		return new TypeSerializerSchemaCompatibility<>(Type.COMPATIBLE_AFTER_RECONFIGURATION, reconfiguredSerializer);
 	}
 
 	/**
@@ -110,8 +87,8 @@ public class TypeSerializerSchemaCompatibility<T> {
 	 *
 	 * @return a result that indicates that the new serializer can be used after migrating the written bytes.
 	 */
-	public static <T> TypeSerializerSchemaCompatibility<T> compatibleAfterMigration() {
-		return new TypeSerializerSchemaCompatibility<T>(Type.COMPATIBLE_AFTER_MIGRATION, null);
+	public static <T, NS extends TypeSerializer<T>> TypeSerializerSchemaCompatibility<T, NS> compatibleAfterMigration() {
+		return new TypeSerializerSchemaCompatibility<>(Type.COMPATIBLE_AFTER_MIGRATION, null);
 	}
 
 	/**
@@ -119,20 +96,17 @@ public class TypeSerializerSchemaCompatibility<T> {
 	 * This normally indicates that there is no common Java class between what the previous bytes can be
 	 * deserialized into and what can be written by the new serializer.
 	 *
+	 * <p>In this case, there is no possible way for the new serializer to continue to be used, even with
+	 * migration. Recovery of the Flink job will fail.
+	 *
 	 * @return a result that indicates incompatibility between the new and previous serializer.
 	 */
-	public static <T> TypeSerializerSchemaCompatibility<T> incompatible() {
-		return new TypeSerializerSchemaCompatibility<T>(Type.INCOMPATIBLE, null);
+	public static <T, NS extends TypeSerializer<T>> TypeSerializerSchemaCompatibility<T, NS> incompatible() {
+		return new TypeSerializerSchemaCompatibility<>(Type.INCOMPATIBLE, null);
 	}
 
-	private TypeSerializerSchemaCompatibility(Type resultType, @Nullable TypeSerializer<T> reconfiguredNewSerializer) {
+	private TypeSerializerSchemaCompatibility(Type resultType, @Nullable NS reconfiguredNewSerializer) {
 		this.resultType = Preconditions.checkNotNull(resultType);
-
-		if (resultType == Type.COMPATIBLE_AFTER_RECONFIGURATION && reconfiguredNewSerializer == null) {
-			throw new IllegalArgumentException(Type.COMPATIBLE_AFTER_RECONFIGURATION.name() +
-				" compatibility type must be provided with a new reconfigured serializer.");
-		}
-		this.reconfiguredNewSerializer = reconfiguredNewSerializer;
 	}
 
 	/**
@@ -142,15 +116,6 @@ public class TypeSerializerSchemaCompatibility<T> {
 	 */
 	public boolean isCompatibleAsIs() {
 		return resultType == Type.COMPATIBLE_AS_IS;
-	}
-
-	/**
-	 * Returns whether or not the type of the compatibility is {@link Type#COMPATIBLE_AFTER_RECONFIGURATION}.
-	 *
-	 * @return whether or not the type of the compatibility is {@link Type#COMPATIBLE_AFTER_RECONFIGURATION}.
-	 */
-	public boolean isCompatibleAfterReconfiguration() {
-		return resultType == Type.COMPATIBLE_AFTER_RECONFIGURATION;
 	}
 
 	/**
@@ -169,16 +134,5 @@ public class TypeSerializerSchemaCompatibility<T> {
 	 */
 	public boolean isIncompatible() {
 		return resultType == Type.INCOMPATIBLE;
-	}
-
-	/**
-	 * Returns the provided reconfigured version of the new serializer.
-	 * This only returns a non-null value if the type of the compatibility is {@link Type#COMPATIBLE_AFTER_RECONFIGURATION}.
-	 *
-	 * @return the reconfigured version of the new serializer.
-	 *         Returns {@code null} unless the type of the compatibility is {@link Type#COMPATIBLE_AFTER_RECONFIGURATION}.
-	 */
-	public TypeSerializer<T> getReconfiguredNewSerializer() {
-		return reconfiguredNewSerializer;
 	}
 }

@@ -21,7 +21,7 @@ package org.apache.flink.api.scala.typeutils
 import java.io._
 import java.net.{URL, URLClassLoader}
 
-import org.apache.flink.api.common.typeutils.{CompatibilityResult, TypeSerializerConfigSnapshotSerializationUtil}
+import org.apache.flink.api.common.typeutils.{CompatibilityResult, TypeSerializerSnapshotSerializationUtil}
 import org.apache.flink.core.memory.{DataInputViewStreamWrapper, DataOutputViewStreamWrapper}
 import org.apache.flink.util.TestLogger
 import org.junit.rules.TemporaryFolder
@@ -134,7 +134,7 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
 
     val baos = new ByteArrayOutputStream()
     val output = new DataOutputViewStreamWrapper(baos)
-    TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
+    TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
       output, snapshot, enumValueSerializer)
 
     output.close()
@@ -145,9 +145,10 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
 
     val classLoader2 = compileAndLoadEnum(tempFolder.newFolder(), s"$enumName.scala", enumSourceB)
 
-    val snapshot2 = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
+    val snapshot2 = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
       input,
-      classLoader2)
+      classLoader2,
+      enumValueSerializer)
     val enum2 = instantiateEnum[Enumeration](classLoader2, enumName)
 
     val enumValueSerializer2 = new EnumValueSerializer(enum2)

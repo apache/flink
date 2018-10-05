@@ -111,15 +111,15 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
     configSnapshot match {
       case optionSerializerConfigSnapshot
           : ScalaOptionSerializerConfigSnapshot[A] =>
-        ensureCompatibility(optionSerializerConfigSnapshot)
+        ensureCompatibilityInternal(optionSerializerConfigSnapshot)
       case legacyOptionSerializerConfigSnapshot
           : OptionSerializer.OptionSerializerConfigSnapshot[A] =>
-        ensureCompatibility(legacyOptionSerializerConfigSnapshot)
+        ensureCompatibilityInternal(legacyOptionSerializerConfigSnapshot)
       case _ => CompatibilityResult.requiresMigration()
     }
   }
 
-  private def ensureCompatibility(
+  private def ensureCompatibilityInternal(
       compositeConfigSnapshot: CompositeTypeSerializerConfigSnapshot[Option[A]])
       : CompatibilityResult[Option[A]] = {
 

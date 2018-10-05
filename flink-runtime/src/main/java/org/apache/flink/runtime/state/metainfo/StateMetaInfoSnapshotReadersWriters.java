@@ -19,9 +19,9 @@
 package org.apache.flink.runtime.state.metainfo;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshotSerializationUtil;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerializationUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -164,7 +164,7 @@ public class StateMetaInfoSnapshotReadersWriters {
 			@Nonnull StateMetaInfoSnapshot snapshot,
 			@Nonnull DataOutputView outputView) throws IOException {
 			final Map<String, String> optionsMap = snapshot.getOptionsImmutable();
-			final Map<String, TypeSerializerConfigSnapshot<?>> serializerConfigSnapshotsMap =
+			final Map<String, TypeSerializerSnapshot<?>> serializerConfigSnapshotsMap =
 				snapshot.getSerializerConfigSnapshotsImmutable();
 
 			outputView.writeUTF(snapshot.getName());
@@ -176,12 +176,12 @@ public class StateMetaInfoSnapshotReadersWriters {
 			}
 
 			outputView.writeInt(serializerConfigSnapshotsMap.size());
-			for (Map.Entry<String, TypeSerializerConfigSnapshot<?>> entry : serializerConfigSnapshotsMap.entrySet()) {
+			for (Map.Entry<String, TypeSerializerSnapshot<?>> entry : serializerConfigSnapshotsMap.entrySet()) {
 				final String key = entry.getKey();
 				outputView.writeUTF(entry.getKey());
 
-				TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
-					outputView, (TypeSerializerConfigSnapshot) entry.getValue(), snapshot.getTypeSerializer(key));
+				TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
+					outputView, (TypeSerializerSnapshot) entry.getValue(), snapshot.getTypeSerializer(key));
 			}
 		}
 	}
@@ -211,12 +211,13 @@ public class StateMetaInfoSnapshotReadersWriters {
 			}
 
 			final int numSerializerConfigSnapshots = inputView.readInt();
-			final HashMap<String, TypeSerializerConfigSnapshot<?>> serializerConfigsMap = new HashMap<>(numSerializerConfigSnapshots);
+			final HashMap<String, TypeSerializerSnapshot<?>> serializerConfigsMap = new HashMap<>(numSerializerConfigSnapshots);
 
 			for (int i = 0; i < numSerializerConfigSnapshots; ++i) {
 				serializerConfigsMap.put(
 					inputView.readUTF(),
-					TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(inputView, userCodeClassLoader));
+					TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+						inputView, userCodeClassLoader, null));
 			}
 
 			return new StateMetaInfoSnapshot(stateName, stateType, optionsMap, serializerConfigsMap);
@@ -252,17 +253,17 @@ public class StateMetaInfoSnapshotReadersWriters {
 			}
 			final int numSerializer = inputView.readInt();
 			final ArrayList<String> serializerKeys = new ArrayList<>(numSerializer);
-			final HashMap<String, TypeSerializerConfigSnapshot<?>> serializerConfigsMap = new HashMap<>(numSerializer);
+			final HashMap<String, TypeSerializerSnapshot<?>> serializerConfigsMap = new HashMap<>(numSerializer);
 
 			for (int i = 0; i < numSerializer; ++i) {
 				serializerKeys.add(inputView.readUTF());
 			}
-			final List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersWithConfig =
+			final List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> serializersWithConfig =
 				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(inputView, userCodeClassLoader);
 
 			for (int i = 0; i < numSerializer; ++i) {
 				String key = serializerKeys.get(i);
-				final Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> serializerConfigTuple =
+				final Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> serializerConfigTuple =
 					serializersWithConfig.get(i);
 				serializerConfigsMap.put(key, serializerConfigTuple.f1);
 			}

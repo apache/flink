@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
@@ -214,7 +215,7 @@ public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 	@Override
 	public CompatibilityResult<Map<K, V>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof MapSerializerConfigSnapshot) {
-			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousKvSerializersAndConfigs =
+			List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> previousKvSerializersAndConfigs =
 				((MapSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
 
 			CompatibilityResult<K> keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(

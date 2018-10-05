@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -175,11 +176,11 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 * serializer was registered to, the returned configuration snapshot can be used to ensure compatibility
 	 * of the new serializer and determine if state migration is required.
 	 *
-	 * @see TypeSerializerConfigSnapshot
+	 * @see TypeSerializerSnapshot
 	 *
 	 * @return snapshot of the serializer's current configuration (cannot be {@code null}).
 	 */
-	public abstract TypeSerializerConfigSnapshot<T> snapshotConfiguration();
+	public abstract TypeSerializerSnapshot<T> snapshotConfiguration();
 
 	/**
 	 * Ensure compatibility of this serializer with a preceding serializer that was registered for serialization of
@@ -214,9 +215,33 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 * @param configSnapshot configuration snapshot of a preceding serializer for the same managed state
 	 *
 	 * @return the determined compatibility result (cannot be {@code null}).
-	 *
-	 * @deprecated TODO this method will be removed in later follow-up commits (see FLINK-9377).
 	 */
 	@Deprecated
-	public abstract CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot);
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+		throw new IllegalStateException(
+			"Seems like that you are still using TypeSerializerConfigSnapshot; if so, this method must be implemented. " +
+				"Once you change to directly use TypeSerializerSnapshot, then you can safely remove the implementation " +
+				"of this method.");
+	}
+
+	@Internal
+	public final CompatibilityResult<T> ensureCompatibility(TypeSerializerSnapshot<?> configSnapshot) {
+		if (configSnapshot instanceof TypeSerializerConfigSnapshot) {
+			return ensureCompatibility((TypeSerializerConfigSnapshot<?>) configSnapshot);
+		} else {
+			@SuppressWarnings("unchecked")
+			TypeSerializerSnapshot<T> casted = (TypeSerializerSnapshot<T>) configSnapshot;
+
+			TypeSerializerSchemaCompatibility<T, ? extends TypeSerializer<T>> compat = casted.resolveSchemaCompatibility(this);
+			if (compat.isCompatibleAsIs()) {
+				return CompatibilityResult.compatible();
+			} else if (compat.isCompatibleAfterMigration()) {
+				return CompatibilityResult.requiresMigration();
+			} else if (compat.isIncompatible()) {
+				throw new IllegalStateException("The new serializer is incompatible.");
+			} else {
+				throw new IllegalStateException("Unidentifiable schema compatibility type. This is a bug, please file a JIRA.");
+			}
+		}
+	}
 }

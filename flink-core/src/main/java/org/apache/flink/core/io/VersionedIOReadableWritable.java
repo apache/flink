@@ -77,11 +77,6 @@ public abstract class VersionedIOReadableWritable implements IOReadableWritable,
 			}
 		}
 
-		// TODO this is a temporary workaround for FLINK-9377 that should be removed
-		if (readVersion == getVersion() + 1) {
-			return;
-		}
-
 		throw new VersionMismatchException(
 			"Incompatible version: found " + readVersion + ", compatible versions are " + Arrays.toString(compatibleVersions));
 	}

@@ -18,16 +18,14 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
 /**
- * A {@code TypeSerializerConfigSnapshot} is a point-in-time view of a {@link TypeSerializer's} configuration.
+ * A {@code TypeSerializerSnapshot} is a point-in-time view of a {@link TypeSerializer's} configuration.
  * The configuration snapshot of a serializer is persisted within checkpoints
  * as a single source of meta information about the schema of serialized data in the checkpoint.
  * This serves three purposes:
@@ -39,7 +37,7 @@ import java.io.IOException;
  *
  *   <li><strong>Compatibility checks for new serializers:</strong> when new serializers are available,
  *   they need to be checked whether or not they are compatible to read the data written by the previous serializer.
- *   This is performed by providing the new serializer to the corresponding serializer configuration
+ *   This is performed by providing the new serializer to the correspondibng serializer configuration
  *   snapshots in checkpoints.</li>
  *
  *   <li><strong>Factory for a read serializer when schema conversion is required:<strong> in the case that new
@@ -70,91 +68,60 @@ import java.io.IOException;
  * deserialize the configuration snapshot from its binary form.
  *
  * @param <T> The data type that the originating serializer of this configuration serializes.
- *
- * @deprecated This class has been deprecated since Flink 1.7, and will eventually be removed.
- *             Please refer to, and directly implement a {@link TypeSerializerSnapshot} instead.
- *             Class-level Javadocs of {@link TypeSerializerSnapshot} provides more details
- *             on migrating to the new interface.
  */
 @PublicEvolving
-@Deprecated
-public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadableWritable implements TypeSerializerSnapshot<T> {
-
-	/** The user code class loader; only relevant if this configuration instance was deserialized from binary form. */
-	private ClassLoader userCodeClassLoader;
+public interface TypeSerializerSnapshot<T> {
 
 	/**
-	 * The originating serializer of this configuration snapshot.
-	 */
-	private TypeSerializer<T> serializer;
-
-	/**
-	 * Creates a serializer using this configuration, that is capable of reading data
-	 * written by the serializer described by this configuration.
+	 * Returns the version of the current snapshot's written binary format.
 	 *
-	 * @return the restored serializer.
+	 * @return the version of the current snapshot's written binary format.
 	 */
-	public TypeSerializer<T> restoreSerializer() {
-		if (serializer != null) {
-			return this.serializer;
-		} else {
-			throw new IllegalStateException("Trying to restore the prior serializer via TypeSerializerConfigSnapshot, " +
-				"but the prior serializer has not been set.");
-		}
-	}
+	int getCurrentVersion();
 
 	/**
-	 * Set the originating serializer of this configuration snapshot.
+	 * Writes the serializer snapshot to the provided {@link DataOutputView}.
+	 * The current version of the written serializer snapshot's binary format
+	 * is specified by the {@link #getCurrentVersion()} method.
+	 *
+	 * @param out the {@link DataOutputView} to write the snapshot to.
+	 *
+	 * @throws IOException
 	 */
-	@Internal
-	public void setPriorSerializer(TypeSerializer<T> serializer) {
-		this.serializer = Preconditions.checkNotNull(serializer);
-	}
+	void write(DataOutputView out) throws IOException;
 
 	/**
-	 * Set the user code class loader.
-	 * Only relevant if this configuration instance was deserialized from binary form.
+	 * Reads the serializer snapshot from the provided {@link DataInputView}.
+	 * The version of the binary format that the serializer snapshot was written
+	 * with is provided. This version can be used to determine how the serializer
+	 * snapshot should be read.
 	 *
-	 * <p>This method is not part of the public user-facing API, and cannot be overriden.
+	 * @param readVersion version of the serializer snapshot's written binary format
+	 * @param in the {@link DataInputView} to read the snapshot from.
+	 * @param userCodeClassLoader the user code classloader
 	 *
-	 * @param userCodeClassLoader user code class loader.
+	 * @throws IOException
 	 */
-	@Internal
-	public final void setUserCodeClassLoader(ClassLoader userCodeClassLoader) {
-		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
-	}
+	void read(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException;
 
 	/**
-	 * Returns the user code class loader.
-	 * Only relevant if this configuration instance was deserialized from binary form.
+	 * Recreates a serializer instance from this snapshot. The returned
+	 * serializer can be safely used to read data written by the prior serializer
+	 * (i.e., the serializer that created this snapshot).
 	 *
-	 * @return the user code class loader
+	 * @return a serializer instance restored from this serializer snapshot.
 	 */
-	@Internal
-	public final ClassLoader getUserCodeClassLoader() {
-		return userCodeClassLoader;
-	}
+	TypeSerializer<T> restoreSerializer();
 
-	public abstract boolean equals(Object obj);
+	/**
+	 * Checks a new serializer's compatibility to read data written by the prior
+	 * serializer.
+	 *
+	 * @param newSerializer the new serializer to check.
+	 * @param <NS> the type of the new serializer
+	 *
+	 * @return the serializer compatibility result.
+	 */
+	<NS extends TypeSerializer<T>> TypeSerializerSchemaCompatibility<T, NS> resolveSchemaCompatibility(NS newSerializer);
 
-	public abstract int hashCode();
-
-	// ----------------------------------------------------------------------------
-	//  Irrelevant methods; these methods should only ever be used when the new interface is directly implemented.
-	// ----------------------------------------------------------------------------
-
-	@Override
-	public int getCurrentVersion() {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public final void read(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public final <NS extends TypeSerializer<T>> TypeSerializerSchemaCompatibility<T, NS> resolveSchemaCompatibility(NS newSerializer) {
-		throw new UnsupportedOperationException();
-	}
 }
