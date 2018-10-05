@@ -52,6 +52,12 @@ object BuiltInMethods {
   val POWER_DEC_DEC = Types.lookupMethod(
     classOf[SqlFunctions], "power", classOf[JBigDecimal], classOf[JBigDecimal])
 
+  val HYPOT = Types.lookupMethod(classOf[Math], "hypot", classOf[Double], classOf[Double])
+  val HYPOT_DEC = Types.lookupMethod(
+    classOf[ScalarFunctions], "hypot", classOf[Double], classOf[JBigDecimal])
+  val HYPOT_DEC_DEC = Types.lookupMethod(
+    classOf[ScalarFunctions], "hypot", classOf[JBigDecimal], classOf[JBigDecimal])
+
   val LN = Types.lookupMethod(classOf[Math], "log", classOf[Double])
 
   val ABS = Types.lookupMethod(classOf[SqlFunctions], "abs", classOf[Double])

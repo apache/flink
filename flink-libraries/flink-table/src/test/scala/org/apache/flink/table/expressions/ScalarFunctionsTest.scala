@@ -1016,6 +1016,87 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testHypot(): Unit = {
+    // f7: int , f4: long, f6: double
+    testAllApis(
+      'f2.hypot('f7),
+      "f2.hypot(f7)",
+      "HYPOT(f2, f7)",
+      math.hypot(42.toByte, 3).toString)
+
+    testAllApis(
+      'f3.hypot('f6),
+      "f3.hypot(f6)",
+      "HYPOT(f3, f6)",
+      math.hypot(43.toShort, 4.6D).toString)
+
+    testAllApis(
+      'f4.hypot('f5),
+      "f4.hypot(f5)",
+      "HYPOT(f4, f5)",
+      math.hypot(44.toLong, 4.5.toFloat).toString)
+
+    testAllApis(
+      'f4.hypot('f5),
+      "f4.hypot(f5)",
+      "HYPOT(f4, f5)",
+      math.hypot(44.toLong, 4.5.toFloat).toString)
+
+    // f5: float
+    testAllApis('f5.hypot('f5),
+      "f5.hypot(f5)",
+      "hypot(f5, f5)",
+      math.hypot(4.5F, 4.5F).toString)
+
+    testAllApis('f5.hypot('f6),
+      "f5.hypot(f6)",
+      "hypot(f5, f6)",
+      math.hypot(4.5F, 4.6D).toString)
+
+    testAllApis('f5.hypot('f7),
+      "f5.hypot(f7)",
+      "hypot(f5, f7)",
+      math.hypot(4.5F, 3).toString)
+
+    testAllApis('f5.hypot('f4),
+      "f5.hypot(f4)",
+      "hypot(f5, f4)",
+      math.hypot(4.5F, 44L).toString)
+
+    // f22: bigDecimal
+    // TODO delete casting in SQL when CALCITE-1467 is fixed
+    testAllApis(
+      'f22.cast(Types.DOUBLE).hypot('f5),
+      "f22.cast(DOUBLE).hypot(f5)",
+      "hypot(CAST(f22 AS DOUBLE), f5)",
+      math.hypot(2, 4.5F).toString)
+
+    testAllApis(
+      'f22.cast(Types.DOUBLE).hypot('f6),
+      "f22.cast(DOUBLE).hypot(f6)",
+      "hypot(CAST(f22 AS DOUBLE), f6)",
+      math.hypot(2, 4.6D).toString)
+
+    testAllApis(
+      'f22.cast(Types.DOUBLE).hypot('f7),
+      "f22.cast(DOUBLE).hypot(f7)",
+      "hypot(CAST(f22 AS DOUBLE), f7)",
+      math.hypot(2, 3).toString)
+
+    testAllApis(
+      'f22.cast(Types.DOUBLE).hypot('f4),
+      "f22.cast(DOUBLE).hypot(f4)",
+      "hypot(CAST(f22 AS DOUBLE), f4)",
+      math.hypot(2, 44L).toString)
+
+    testAllApis(
+      'f6.hypot('f22.cast(Types.DOUBLE)),
+      "f6.hypot(f22.cast(DOUBLE))",
+      "hypot(f6, f22)",
+      math.hypot(4.6D, 2).toString)
+  }
+
+  @Test
   def testSqrt(): Unit = {
     testAllApis(
       'f6.sqrt(),

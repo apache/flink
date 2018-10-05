@@ -151,6 +151,19 @@ case class Power(left: Expression, right: Expression) extends BinaryExpression w
   }
 }
 
+case class Hypot(left: Expression, right: Expression) extends BinaryExpression with InputTypeSpec {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    DOUBLE_TYPE_INFO :: DOUBLE_TYPE_INFO :: Nil
+
+  override def toString: String = s"hypot($left, $right)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.HYPOT, left.toRexNode, right.toRexNode)
+  }
+}
+
 case class Sqrt(child: Expression) extends UnaryExpression with InputTypeSpec {
   override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
 

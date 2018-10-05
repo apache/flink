@@ -234,6 +234,24 @@ object FunctionGenerator {
     DOUBLE_TYPE_INFO,
     BuiltInMethods.POWER_DEC_DEC)
 
+  addSqlFunctionMethod(
+    HYPOT,
+    Seq(DOUBLE_TYPE_INFO, DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.HYPOT)
+
+  addSqlFunctionMethod(
+    HYPOT,
+    Seq(DOUBLE_TYPE_INFO, BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.HYPOT_DEC)
+
+  addSqlFunctionMethod(
+    HYPOT,
+    Seq(BIG_DEC_TYPE_INFO, BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.HYPOT_DEC_DEC)
+
   addSqlFunction(
     ABS,
     Seq(DOUBLE_TYPE_INFO),

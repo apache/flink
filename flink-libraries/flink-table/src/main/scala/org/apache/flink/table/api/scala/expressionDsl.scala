@@ -337,6 +337,11 @@ trait ImplicitExpressionOperations {
   def power(other: Expression) = Power(expr, other)
 
   /**
+    * Calculates the hypotenuse from its arguments.
+    */
+  def hypot(other: Expression) = Hypot(expr, other)
+
+  /**
     * Calculates the square root of a given value.
     */
   def sqrt() = Sqrt(expr)

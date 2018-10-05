@@ -45,6 +45,20 @@ object ScalarFunctions {
   }
 
   /**
+    * Calculates the hypotenuse of double and big decimal numbers.
+    */
+  def hypot(x: Double, y: JBigDecimal): Double = {
+    Math.hypot(x, y.doubleValue())
+  }
+
+  /**
+    * Calculates the hypotenuse of two big decimal numbers.
+    */
+  def hypot(x: JBigDecimal, y: JBigDecimal): Double = {
+    Math.hypot(x.doubleValue(), y.doubleValue())
+  }
+
+  /**
     * Returns the string that results from concatenating the arguments.
     * Returns NULL if any argument is NULL.
     */

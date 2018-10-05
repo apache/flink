@@ -1076,6 +1076,18 @@ POWER(numeric1, numeric2)
     <tr>
       <td>
         {% highlight text %}
+HYPOT(numeric1, numeric2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns sqrt(<i>numeric1</i><sup>2</sup> + <i>numeric2</i><sup>2</sup>) without intermediate overflow or underflow.</p>
+        <p>The return type is a <i>DOUBLE</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
 ABS(numeric)
 {% endhighlight %}
       </td>
@@ -1506,6 +1518,18 @@ NUMERIC1.power(NUMERIC2)
       </td>
       <td>
         <p>Returns <i>NUMERIC1</i> raised to the power of <i>NUMERIC2</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+NUMERIC1.hypot(NUMERIC2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns sqrt(<i>NUMERIC1</i><sup>2</sup> + <i>NUMERIC2</i><sup>2</sup>) without intermediate overflow or underflow.</p>
+        <p>The return type is a <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
@@ -1942,6 +1966,18 @@ NUMERIC1.power(NUMERIC2)
       </td>
       <td>
         <p>Returns <i>NUMERIC1</i> raised to the power of <i>NUMERIC2</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+NUMERIC1.hypot(NUMERIC2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns sqrt(<i>NUMERIC1</i><sup>2</sup> + <i>NUMERIC2</i><sup>2</sup>) without intermediate overflow or underflow.</p>
+        <p>The return type is a <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
