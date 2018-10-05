@@ -186,7 +186,7 @@ public class SlotSharingManager {
 		Collection<Set<MultiTaskSlot>> resolvedRootSlotsValues = this.resolvedRootSlots.values();
 		return matcher.findMatchWithLocality(
 			slotProfile,
-			resolvedRootSlotsValues.stream().flatMap(Collection::stream),
+			() -> resolvedRootSlotsValues.stream().flatMap(Collection::stream),
 			(MultiTaskSlot multiTaskSlot) -> multiTaskSlot.getSlotContextFuture().join(),
 			(MultiTaskSlot multiTaskSlot) -> !multiTaskSlot.contains(groupId),
 			MultiTaskSlotLocality::of);

@@ -40,6 +40,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
@@ -60,6 +61,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -91,6 +93,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -902,14 +905,14 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	private CompletableFuture<Void> scheduleLazy(SlotProvider slotProvider) {
 
 		final ArrayList<CompletableFuture<Void>> schedulingFutures = new ArrayList<>(numVerticesTotal);
-
 		// simply take the vertices without inputs.
 		for (ExecutionJobVertex ejv : verticesInCreationOrder) {
 			if (ejv.getJobVertex().isInputVertex()) {
 				final CompletableFuture<Void> schedulingJobVertexFuture = ejv.scheduleAll(
 					slotProvider,
 					allowQueuedScheduling,
-					LocationPreferenceConstraint.ALL); // since it is an input vertex, the input based location preferences should be empty
+					LocationPreferenceConstraint.ALL,// since it is an input vertex, the input based location preferences should be empty
+					Collections.emptySet());
 
 				schedulingFutures.add(schedulingJobVertexFuture);
 			}
@@ -939,6 +942,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		// collecting all the slots may resize and fail in that operation without slots getting lost
 		final ArrayList<CompletableFuture<Execution>> allAllocationFutures = new ArrayList<>(getNumberOfExecutionJobVertices());
 
+		final Set<AllocationID> allPreviousAllocationIds =
+			Collections.unmodifiableSet(computeAllPriorAllocationIdsIfRequiredByScheduling());
+
 		// allocate the slots (obtain all their futures
 		for (ExecutionJobVertex ejv : getVerticesTopologically()) {
 			// these calls are not blocking, they only return futures
@@ -946,6 +952,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				slotProvider,
 				queued,
 				LocationPreferenceConstraint.ALL,
+				allPreviousAllocationIds,
 				timeout);
 
 			allAllocationFutures.addAll(allocationFutures);
@@ -1673,6 +1680,35 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			}
 		} catch (Exception e) {
 			LOG.error("Cannot update accumulators for job {}.", getJobID(), e);
+		}
+	}
+
+	/**
+	 * Computes and returns a set with the prior allocation ids from all execution vertices in the graph.
+	 */
+	private Set<AllocationID> computeAllPriorAllocationIds() {
+		HashSet<AllocationID> allPreviousAllocationIds = new HashSet<>(getNumberOfExecutionJobVertices());
+		for (ExecutionVertex executionVertex : getAllExecutionVertices()) {
+			AllocationID latestPriorAllocation = executionVertex.getLatestPriorAllocation();
+			if (latestPriorAllocation != null) {
+				allPreviousAllocationIds.add(latestPriorAllocation);
+			}
+		}
+		return allPreviousAllocationIds;
+	}
+
+	/**
+	 * Returns the result of {@link #computeAllPriorAllocationIds()}, but only if the scheduling really requires it.
+	 * Otherwise this method simply returns an empty set.
+	 */
+	private Set<AllocationID> computeAllPriorAllocationIdsIfRequiredByScheduling() {
+		// This is a temporary optimization to avoid computing all previous allocations if not required
+		// This can go away when we progress with the implementation of the Scheduler.
+		if (slotProvider instanceof SlotPool.ProviderAndOwner
+			&& ((SlotPool.ProviderAndOwner) slotProvider).requiresPreviousAllocationsForScheduling()) {
+			return computeAllPriorAllocationIds();
+		} else {
+			return Collections.emptySet();
 		}
 	}
 
