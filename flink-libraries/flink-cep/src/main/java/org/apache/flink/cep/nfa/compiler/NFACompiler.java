@@ -40,8 +40,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.Stack;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Compiler class containing methods to compile a {@link Pattern} into a {@link NFA} or a
@@ -72,6 +77,44 @@ public class NFACompiler {
 			nfaFactoryCompiler.compileFactory();
 			return new NFAFactoryImpl<>(nfaFactoryCompiler.getWindowTime(), nfaFactoryCompiler.getStates(), timeoutHandling);
 		}
+	}
+
+	/**
+	 * Verifies if the provided pattern can possibly generate empty match. Example of patterns that can possibly
+	 * generate empty matches are: A*, A?, A* B? etc.
+	 *
+	 * @param pattern pattern to check
+	 * @return true if empty match could potentially match the pattern, false otherwise
+	 */
+	public static boolean canProduceEmptyMatches(final Pattern<?, ?> pattern) {
+		NFAFactoryCompiler<?> compiler = new NFAFactoryCompiler<>(checkNotNull(pattern));
+		compiler.compileFactory();
+		State<?> startState = compiler.getStates().stream().filter(State::isStart).findFirst().orElseThrow(
+			() -> new IllegalStateException("Compiler produced no start state. It is a bug. File a jira."));
+
+		Set<State<?>> visitedStates = new HashSet<>();
+		final Stack<State<?>> statesToCheck = new Stack<>();
+		statesToCheck.push(startState);
+		while (!statesToCheck.isEmpty()) {
+			final State<?> currentState = statesToCheck.pop();
+			if (visitedStates.contains(currentState)) {
+				continue;
+			} else {
+				visitedStates.add(currentState);
+			}
+
+			for (StateTransition<?> transition : currentState.getStateTransitions()) {
+				if (transition.getAction() == StateTransitionAction.PROCEED) {
+					if (transition.getTargetState().isFinal()) {
+						return true;
+					} else {
+						statesToCheck.push(transition.getTargetState());
+					}
+				}
+			}
+		}
+
+		return false;
 	}
 
 	/**
