@@ -19,10 +19,9 @@
 package org.apache.flink.formats.avro.typeutils;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.BackwardsCompatibleConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -78,12 +77,12 @@ public class BackwardsCompatibleAvroSerializerTest {
 		// retrieve the old config snapshot
 
 		final TypeSerializer<SimpleUser> serializer;
-		final TypeSerializerConfigSnapshot configSnapshot;
+		final TypeSerializerSnapshot<SimpleUser> configSnapshot;
 
 		try (InputStream in = getClass().getClassLoader().getResourceAsStream(SNAPSHOT_RESOURCE)) {
 			DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(in);
 
-			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> deserialized =
+			List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> deserialized =
 					TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(
 							inView, getClass().getClassLoader());
 
@@ -93,31 +92,28 @@ public class BackwardsCompatibleAvroSerializerTest {
 			final TypeSerializer<SimpleUser> typedSerializer = (TypeSerializer<SimpleUser>) deserialized.get(0).f0;
 
 			serializer = typedSerializer;
-			configSnapshot = deserialized.get(0).f1;
+			configSnapshot = (TypeSerializerSnapshot<SimpleUser>) deserialized.get(0).f1;
 		}
 
 		assertNotNull(serializer);
 		assertNotNull(configSnapshot);
 
 		assertTrue(serializer instanceof PojoSerializer);
-		assertTrue(configSnapshot instanceof BackwardsCompatibleConfigSnapshot);
-
-		TypeSerializerConfigSnapshot<?> wrappedConfigSnapshot =
-			((BackwardsCompatibleConfigSnapshot) configSnapshot).getWrappedConfigSnapshot();
+		assertTrue(configSnapshot instanceof PojoSerializer.PojoSerializerConfigSnapshot);
 
 		// sanity check for the test: check that the test data works with the original serializer
 		validateDeserialization(serializer);
 
 		// sanity check for the test: check that a PoJoSerializer and the original serializer work together
-		assertFalse(serializer.ensureCompatibility(wrappedConfigSnapshot).isRequiresMigration());
+		assertFalse(serializer.ensureCompatibility(configSnapshot).isRequiresMigration());
 
 		final TypeSerializer<SimpleUser> newSerializer = new AvroTypeInfo<>(SimpleUser.class, true).createSerializer(new ExecutionConfig());
-		assertFalse(newSerializer.ensureCompatibility(wrappedConfigSnapshot).isRequiresMigration());
+		assertFalse(newSerializer.ensureCompatibility(configSnapshot).isRequiresMigration());
 
 		// deserialize the data and make sure this still works
 		validateDeserialization(newSerializer);
 
-		TypeSerializerConfigSnapshot nextSnapshot = newSerializer.snapshotConfiguration();
+		TypeSerializerSnapshot<SimpleUser> nextSnapshot = newSerializer.snapshotConfiguration();
 		final TypeSerializer<SimpleUser> nextSerializer = new AvroTypeInfo<>(SimpleUser.class, true).createSerializer(new ExecutionConfig());
 
 		assertFalse(nextSerializer.ensureCompatibility(nextSnapshot).isRequiresMigration());

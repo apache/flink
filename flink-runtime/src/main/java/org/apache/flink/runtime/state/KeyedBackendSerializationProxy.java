@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.typeutils.BackwardsCompatibleConfigSnapshot;
+import org.apache.flink.api.common.typeutils.BackwardsCompatibleSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshotSerializationUtil;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerializationUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
@@ -68,7 +68,7 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 
 	// TODO the keySerializer field should be removed, once all serializers have the restoreSerializer() method implemented
 	private TypeSerializer<K> keySerializer;
-	private TypeSerializerConfigSnapshot<K> keySerializerConfigSnapshot;
+	private TypeSerializerSnapshot<K> keySerializerConfigSnapshot;
 
 	private List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
 
@@ -102,7 +102,7 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 		return keySerializerConfigSnapshot.restoreSerializer();
 	}
 
-	public TypeSerializerConfigSnapshot getKeySerializerConfigSnapshot() {
+	public TypeSerializerSnapshot<K> getKeySerializerConfigSnapshot() {
 		return keySerializerConfigSnapshot;
 	}
 
@@ -127,7 +127,7 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 		// write the compression format used to write each key-group
 		out.writeBoolean(usingKeyGroupCompression);
 
-		TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(out, keySerializerConfigSnapshot, keySerializer);
+		TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(out, keySerializerConfigSnapshot, keySerializer);
 
 		// write individual registered keyed state metainfos
 		out.writeShort(stateMetaInfoSnapshots.size());
@@ -151,14 +151,14 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 
 		// only starting from version 3, we have the key serializer and its config snapshot written
 		if (readVersion >= 6) {
-			this.keySerializerConfigSnapshot = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(in, userCodeClassLoader);
+			this.keySerializerConfigSnapshot = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+				in, userCodeClassLoader, null);
 		} else if (readVersion >= 3) {
-			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> keySerializerAndConfig =
+			Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> keySerializerAndConfig =
 					TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader).get(0);
-			this.keySerializerConfigSnapshot = keySerializerAndConfig.f1;
+			this.keySerializerConfigSnapshot = (TypeSerializerSnapshot<K>) keySerializerAndConfig.f1;
 		} else {
-			this.keySerializerConfigSnapshot = new BackwardsCompatibleConfigSnapshot<>(
-				null,
+			this.keySerializerConfigSnapshot = new BackwardsCompatibleSerializerSnapshot<>(
 				TypeSerializerSerializationUtil.tryReadSerializer(in, userCodeClassLoader, true));
 		}
 		this.keySerializer = null;

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapsh
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
@@ -270,7 +271,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 	@Override
 	public CompatibilityResult<Row> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof RowSerializerConfigSnapshot) {
-			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousFieldSerializersAndConfigs =
+			List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> previousFieldSerializersAndConfigs =
 				((RowSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
 
 			if (previousFieldSerializersAndConfigs.size() == fieldSerializers.length) {
@@ -279,7 +280,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
 				CompatibilityResult<?> compatResult;
 				int i = 0;
-				for (Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> f : previousFieldSerializersAndConfigs) {
+				for (Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> f : previousFieldSerializersAndConfigs) {
 					compatResult = CompatibilityUtil.resolveCompatibilityResult(
 							f.f0,
 							UnloadableDummyTypeSerializer.class,

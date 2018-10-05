@@ -56,6 +56,10 @@ public abstract class VersionedIOReadableWritable implements IOReadableWritable,
 		return (readVersion == Integer.MIN_VALUE) ? getVersion() : readVersion;
 	}
 
+	protected void overwriteReadVersion(int readVersion) {
+		this.readVersion = readVersion;
+	}
+
 	/**
 	 * Returns the compatible version values.
 	 *
@@ -75,11 +79,6 @@ public abstract class VersionedIOReadableWritable implements IOReadableWritable,
 			if (compatibleVersion == readVersion) {
 				return;
 			}
-		}
-
-		// TODO this is a temporary workaround for FLINK-9377 that should be removed
-		if (readVersion == getVersion() + 1) {
-			return;
 		}
 
 		throw new VersionMismatchException(

@@ -114,15 +114,15 @@ class TrySerializer[A](
     configSnapshot match {
       case trySerializerConfigSnapshot
           : ScalaTrySerializerConfigSnapshot[A] =>
-        ensureCompatibility(trySerializerConfigSnapshot)
+        ensureCompatibilityInternal(trySerializerConfigSnapshot)
       case legacyTrySerializerConfigSnapshot
           : TrySerializer.TrySerializerConfigSnapshot[A] =>
-        ensureCompatibility(legacyTrySerializerConfigSnapshot)
+        ensureCompatibilityInternal(legacyTrySerializerConfigSnapshot)
       case _ => CompatibilityResult.requiresMigration()
     }
   }
 
-  private def ensureCompatibility(
+  private def ensureCompatibilityInternal(
       compositeConfigSnapshot: CompositeTypeSerializerConfigSnapshot[Try[A]])
         : CompatibilityResult[Try[A]] = {
 

@@ -41,8 +41,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
 import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.common.operators.Keys.IncompatibleKeysException;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshotSerializationUtil;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerializationUtil;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.DateSerializer;
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
@@ -294,10 +294,10 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 			TypeExtractor.getForClass(SubTestUserClassB.class).createSerializer(new ExecutionConfig());
 
 		// snapshot configuration and serialize to bytes
-		TypeSerializerConfigSnapshot pojoSerializerConfigSnapshot = pojoSerializer1.snapshotConfiguration();
+		TypeSerializerSnapshot pojoSerializerConfigSnapshot = pojoSerializer1.snapshotConfiguration();
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
+			TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
 				new DataOutputViewStreamWrapper(out), pojoSerializerConfigSnapshot, pojoSerializer1);
 			serializedConfig = out.toByteArray();
 		}
@@ -307,8 +307,8 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 
 		// read configuration again from bytes
 		try(ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-			pojoSerializerConfigSnapshot = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
-				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
+			pojoSerializerConfigSnapshot = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader(), pojoSerializer2);
 		}
 
 		CompatibilityResult<SubTestUserClassA> compatResult = pojoSerializer2.ensureCompatibility(pojoSerializerConfigSnapshot);
@@ -331,10 +331,10 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		int subClassBTag = pojoSerializer.getRegisteredClasses().get(SubTestUserClassB.class);
 
 		// snapshot configuration and serialize to bytes
-		TypeSerializerConfigSnapshot pojoSerializerConfigSnapshot = pojoSerializer.snapshotConfiguration();
+		TypeSerializerSnapshot pojoSerializerConfigSnapshot = pojoSerializer.snapshotConfiguration();
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
+			TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
 				new DataOutputViewStreamWrapper(out), pojoSerializerConfigSnapshot, pojoSerializer);
 			serializedConfig = out.toByteArray();
 		}
@@ -348,8 +348,8 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 
 		// read configuration from bytes
 		try(ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-			pojoSerializerConfigSnapshot = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
-				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
+			pojoSerializerConfigSnapshot = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader(), pojoSerializer);
 		}
 
 		CompatibilityResult<TestUserClass> compatResult = pojoSerializer.ensureCompatibility(pojoSerializerConfigSnapshot);
@@ -378,10 +378,10 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		assertTrue(pojoSerializer.getSubclassSerializerCache().containsKey(SubTestUserClassB.class));
 
 		// snapshot configuration and serialize to bytes
-		TypeSerializerConfigSnapshot pojoSerializerConfigSnapshot = pojoSerializer.snapshotConfiguration();
+		TypeSerializerSnapshot pojoSerializerConfigSnapshot = pojoSerializer.snapshotConfiguration();
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
+			TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
 				new DataOutputViewStreamWrapper(out), pojoSerializerConfigSnapshot, pojoSerializer);
 			serializedConfig = out.toByteArray();
 		}
@@ -392,8 +392,8 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 
 		// read configuration from bytes
 		try(ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-			pojoSerializerConfigSnapshot = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
-				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
+			pojoSerializerConfigSnapshot = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader(), pojoSerializer);
 		}
 
 		// reconfigure - check reconfiguration result and that subclass serializer cache is repopulated
@@ -437,10 +437,10 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		assertEquals(0, pojoSerializer.getRegisteredSerializers().length);
 
 		// snapshot configuration and serialize to bytes
-		TypeSerializerConfigSnapshot pojoSerializerConfigSnapshot = pojoSerializer.snapshotConfiguration();
+		TypeSerializerSnapshot pojoSerializerConfigSnapshot = pojoSerializer.snapshotConfiguration();
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
+			TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
 				new DataOutputViewStreamWrapper(out), pojoSerializerConfigSnapshot, pojoSerializer);
 			serializedConfig = out.toByteArray();
 		}
@@ -453,8 +453,8 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 
 		// read configuration from bytes
 		try(ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-			pojoSerializerConfigSnapshot = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
-				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
+			pojoSerializerConfigSnapshot = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader(), pojoSerializer);
 		}
 
 		// reconfigure - check reconfiguration result and that
@@ -487,36 +487,36 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		// creating this serializer just for generating config snapshots of the field serializers
 		PojoSerializer<TestUserClass> ser = (PojoSerializer<TestUserClass>) type.createSerializer(new ExecutionConfig());
 
-		LinkedHashMap<String, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> mockOriginalFieldToSerializerConfigSnapshot =
+		LinkedHashMap<String, Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> mockOriginalFieldToSerializerConfigSnapshot =
 			new LinkedHashMap<>(mockOriginalFieldOrder.length);
 		mockOriginalFieldToSerializerConfigSnapshot.put(
 			mockOriginalFieldOrder[0].getName(),
-			new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
+			new Tuple2<>(
 				ser.getFieldSerializers()[3],
 				ser.getFieldSerializers()[3].snapshotConfiguration()));
 		mockOriginalFieldToSerializerConfigSnapshot.put(
 			mockOriginalFieldOrder[1].getName(),
-			new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
+			new Tuple2<>(
 				ser.getFieldSerializers()[2],
 				ser.getFieldSerializers()[2].snapshotConfiguration()));
 		mockOriginalFieldToSerializerConfigSnapshot.put(
 			mockOriginalFieldOrder[2].getName(),
-			new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
+			new Tuple2<>(
 				ser.getFieldSerializers()[5],
 				ser.getFieldSerializers()[5].snapshotConfiguration()));
 		mockOriginalFieldToSerializerConfigSnapshot.put(
 			mockOriginalFieldOrder[3].getName(),
-			new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
+			new Tuple2<>(
 				ser.getFieldSerializers()[0],
 				ser.getFieldSerializers()[0].snapshotConfiguration()));
 		mockOriginalFieldToSerializerConfigSnapshot.put(
 			mockOriginalFieldOrder[4].getName(),
-			new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
+			new Tuple2<>(
 				ser.getFieldSerializers()[1],
 				ser.getFieldSerializers()[1].snapshotConfiguration()));
 		mockOriginalFieldToSerializerConfigSnapshot.put(
 			mockOriginalFieldOrder[5].getName(),
-			new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
+			new Tuple2<>(
 				ser.getFieldSerializers()[4],
 				ser.getFieldSerializers()[4].snapshotConfiguration()));
 
@@ -533,8 +533,8 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 			new PojoSerializer.PojoSerializerConfigSnapshot<>(
 				TestUserClass.class,
 				mockOriginalFieldToSerializerConfigSnapshot, // this mocks the previous field order
-				new LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>>(), // empty; irrelevant for this test
-				new HashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>>()); // empty; irrelevant for this test
+				new LinkedHashMap<>(), // empty; irrelevant for this test
+				new HashMap<>()); // empty; irrelevant for this test
 
 		// reconfigure - check reconfiguration result and that fields are reordered to the previous order
 		CompatibilityResult<TestUserClass> compatResult = pojoSerializer.ensureCompatibility(mockPreviousConfigSnapshot);
@@ -556,7 +556,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		byte[] serializedConfig;
 		try (
 			ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
+			TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
 				new DataOutputViewStreamWrapper(out), config, pojoSerializer);
 			serializedConfig = out.toByteArray();
 		}
@@ -572,11 +572,12 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		PojoSerializer.PojoSerializerConfigSnapshot<TestUserClass> deserializedConfig;
 		try(ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
 			deserializedConfig = (PojoSerializer.PojoSerializerConfigSnapshot<TestUserClass>)
-				TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
+				TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
 					new DataInputViewStreamWrapper(in),
 					new ArtificialCNFExceptionThrowingClassLoader(
 						Thread.currentThread().getContextClassLoader(),
-						cnfThrowingClassnames));
+						cnfThrowingClassnames),
+					pojoSerializer);
 		}
 
 		Assert.assertFalse(pojoSerializer.ensureCompatibility(deserializedConfig).isRequiresMigration());
@@ -587,9 +588,9 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 			PojoSerializer.PojoSerializerConfigSnapshot<?> original,
 			PojoSerializer.PojoSerializerConfigSnapshot<?> deserializedConfig) {
 
-		LinkedHashMap<String, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> originalFieldSerializersAndConfs =
+		LinkedHashMap<String, Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> originalFieldSerializersAndConfs =
 				original.getFieldToSerializerConfigSnapshot();
-		for (Map.Entry<String, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
+		for (Map.Entry<String, Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> entry
 				: deserializedConfig.getFieldToSerializerConfigSnapshot().entrySet()) {
 
 			Assert.assertTrue(entry.getValue().f0 instanceof UnloadableDummyTypeSerializer);
@@ -603,10 +604,10 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 			}
 		}
 
-		LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> originalRegistrations =
+		LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> originalRegistrations =
 				original.getRegisteredSubclassesToSerializerConfigSnapshots();
 
-		for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
+		for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> entry
 				: deserializedConfig.getRegisteredSubclassesToSerializerConfigSnapshots().entrySet()) {
 
 			Assert.assertTrue(entry.getValue().f0 instanceof UnloadableDummyTypeSerializer);
