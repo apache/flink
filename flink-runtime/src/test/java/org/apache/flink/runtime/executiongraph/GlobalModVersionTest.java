@@ -80,7 +80,7 @@ public class GlobalModVersionTest extends TestLogger {
 		}
 
 		// let a vertex fail
-		testVertex.getCurrentExecutionAttempt().failAsync(new Exception("test exception"));
+		testVertex.getCurrentExecutionAttempt().fail(new Exception("test exception"));
 
 		// all cancellations are done now
 		for (ExecutionVertex v : graph.getVerticesTopologically().iterator().next().getTaskVertices()) {
@@ -134,7 +134,7 @@ public class GlobalModVersionTest extends TestLogger {
 		}
 
 		// let a vertex fail
-		testVertex.getCurrentExecutionAttempt().failAsync(new Exception("test exception"));
+		testVertex.getCurrentExecutionAttempt().fail(new Exception("test exception"));
 
 		// all cancellations are done now
 		for (ExecutionVertex v : graph.getVerticesTopologically().iterator().next().getTaskVertices()) {

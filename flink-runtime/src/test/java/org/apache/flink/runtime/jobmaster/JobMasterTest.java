@@ -79,6 +79,7 @@ import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.DefaultSchedulerFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultSlotPoolFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -274,7 +275,8 @@ public class JobMasterTest extends TestLogger {
 				jmResourceId,
 				jobGraph,
 				haServices,
-				DefaultSlotPoolFactory.fromConfiguration(configuration, rpcService1),
+				DefaultSlotPoolFactory.fromConfiguration(configuration),
+				DefaultSchedulerFactory.fromConfiguration(configuration),
 				jobManagerSharedServices,
 				heartbeatServices,
 				UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
@@ -1317,7 +1319,8 @@ public class JobMasterTest extends TestLogger {
 			jmResourceId,
 			jobGraph,
 			haServices,
-			DefaultSlotPoolFactory.fromConfiguration(configuration, rpcService),
+			DefaultSlotPoolFactory.fromConfiguration(configuration),
+			DefaultSchedulerFactory.fromConfiguration(configuration),
 			new TestingJobManagerSharedServicesBuilder().build(),
 			heartbeatServices,
 			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
@@ -1665,7 +1668,8 @@ public class JobMasterTest extends TestLogger {
 			jmResourceId,
 			jobGraph,
 			highAvailabilityServices,
-			DefaultSlotPoolFactory.fromConfiguration(configuration, rpcService),
+			DefaultSlotPoolFactory.fromConfiguration(configuration),
+			DefaultSchedulerFactory.fromConfiguration(configuration),
 			jobManagerSharedServices,
 			heartbeatServices,
 			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,

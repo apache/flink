@@ -52,8 +52,6 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -478,37 +476,31 @@ public class ExecutionTest extends TestLogger {
 			}
 		);
 
-		final ExecutorService executorService = Executors.newFixedThreadPool(1);
+		slotRequestIdFuture.thenAcceptAsync(
+			(SlotRequestId slotRequestId) -> {
+				final SingleLogicalSlot singleLogicalSlot = ExecutionGraphSchedulingTest.createSingleLogicalSlot(
+					slotOwner,
+					taskManagerGateway,
+					slotRequestId);
+				slotProvider.complete(slotRequestId, singleLogicalSlot);
+			},
+			testMainThreadUtil.getMainThreadExecutor());
+
+		final CompletableFuture<Void> schedulingFuture = testMainThreadUtil.execute(
+			() -> execution.scheduleForExecution(
+				slotProvider,
+				false,
+				LocationPreferenceConstraint.ANY,
+				Collections.emptySet()));
 
 		try {
-			slotRequestIdFuture.thenAcceptAsync(
-				(SlotRequestId slotRequestId) -> {
-					final SingleLogicalSlot singleLogicalSlot = ExecutionGraphSchedulingTest.createSingleLogicalSlot(
-						slotOwner,
-						taskManagerGateway,
-						slotRequestId);
-					slotProvider.complete(slotRequestId, singleLogicalSlot);
-				},
-				executorService);
-
-			final CompletableFuture<Void> schedulingFuture = testMainThreadUtil.execute(
-				() -> execution.scheduleForExecution(
-					slotProvider,
-					false,
-					LocationPreferenceConstraint.ANY,
-					Collections.emptySet()));
-
-			try {
-				schedulingFuture.get();
-				// cancel the execution in case we could schedule the execution
-				testMainThreadUtil.execute(execution::cancel);
-			} catch (ExecutionException ignored) {
-			}
-
-			assertThat(returnedSlotFuture.get(), is(equalTo(slotRequestIdFuture.get())));
-		} finally {
-			executorService.shutdownNow();
+			schedulingFuture.get();
+			// cancel the execution in case we could schedule the execution
+			testMainThreadUtil.execute(execution::cancel);
+		} catch (ExecutionException ignored) {
 		}
+
+		assertThat(returnedSlotFuture.get(), is(equalTo(slotRequestIdFuture.get())));
 	}
 
 	@Nonnull
@@ -555,8 +547,8 @@ public class ExecutionTest extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
-			return CompletableFuture.completedFuture(returnedSlot.complete(logicalSlot));
+		public void returnLogicalSlot(LogicalSlot logicalSlot) {
+			returnedSlot.complete(logicalSlot);
 		}
 	}
 }

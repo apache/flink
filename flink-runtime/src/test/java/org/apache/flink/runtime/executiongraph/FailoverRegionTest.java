@@ -74,7 +74,7 @@ public class FailoverRegionTest extends TestLogger {
 
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev).getState());
 
-		ev.getCurrentExecutionAttempt().failAsync(new Exception("Test Exception"));
+		ev.getCurrentExecutionAttempt().fail(new Exception("Test Exception"));
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev).getState());
 
 		for (ExecutionVertex evs : eg.getAllExecutionVertices()) {
@@ -159,7 +159,7 @@ public class FailoverRegionTest extends TestLogger {
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev11).getState());
 
 		ev21.scheduleForExecution(slotProvider, true, LocationPreferenceConstraint.ALL, Collections.emptySet());
-		ev21.getCurrentExecutionAttempt().failAsync(new Exception("New fail"));
+		ev21.getCurrentExecutionAttempt().fail(new Exception("New fail"));
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev11).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev22).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev31).getState());
@@ -180,7 +180,7 @@ public class FailoverRegionTest extends TestLogger {
 		waitUntilExecutionState(ev31.getCurrentExecutionAttempt(), ExecutionState.DEPLOYING, 2000);
 		waitUntilExecutionState(ev32.getCurrentExecutionAttempt(), ExecutionState.DEPLOYING, 2000);
 
-		ev31.getCurrentExecutionAttempt().failAsync(new Exception("New fail"));
+		ev31.getCurrentExecutionAttempt().fail(new Exception("New fail"));
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev11).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev22).getState());
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev31).getState());
@@ -276,8 +276,8 @@ public class FailoverRegionTest extends TestLogger {
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev11).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev31).getState());
 
-		ev11.getCurrentExecutionAttempt().failAsync(new Exception("new fail"));
-		ev31.getCurrentExecutionAttempt().failAsync(new Exception("new fail"));
+		ev11.getCurrentExecutionAttempt().fail(new Exception("new fail"));
+		ev31.getCurrentExecutionAttempt().fail(new Exception("new fail"));
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev11).getState());
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev31).getState());
 
@@ -344,7 +344,7 @@ public class FailoverRegionTest extends TestLogger {
 
 		ExecutionVertex ev11 = eg.getJobVertex(v2.getID()).getTaskVertices()[0];
 		ExecutionVertex ev21 = eg.getJobVertex(v2.getID()).getTaskVertices()[0];
-		ev21.getCurrentExecutionAttempt().failAsync(new Exception("Fail with v1"));
+		ev21.getCurrentExecutionAttempt().fail(new Exception("Fail with v1"));
 
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev21).getState());
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev11).getState());
@@ -365,11 +365,11 @@ public class FailoverRegionTest extends TestLogger {
 		ev1.getCurrentExecutionAttempt().switchToRunning();
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev1).getState());
 
-		ev1.getCurrentExecutionAttempt().failAsync(new Exception("new fail"));
+		ev1.getCurrentExecutionAttempt().fail(new Exception("new fail"));
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev1).getState());
 
 		ExecutionVertex ev2 = iter.next();
-		ev2.getCurrentExecutionAttempt().failAsync(new Exception("new fail"));
+		ev2.getCurrentExecutionAttempt().fail(new Exception("new fail"));
 		assertEquals(JobStatus.RUNNING, eg.getState());
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev1).getState());
 	}
@@ -388,7 +388,7 @@ public class FailoverRegionTest extends TestLogger {
 		ExecutionVertex ev1 = iter.next();
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev1).getState());
 
-		ev1.getCurrentExecutionAttempt().failAsync(new Exception("new fail"));
+		ev1.getCurrentExecutionAttempt().fail(new Exception("new fail"));
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev1).getState());
 
 		for (ExecutionVertex evs : eg.getAllExecutionVertices()) {
@@ -396,7 +396,7 @@ public class FailoverRegionTest extends TestLogger {
 		}
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev1).getState());
 
-		ev1.getCurrentExecutionAttempt().failAsync(new Exception("new fail"));
+		ev1.getCurrentExecutionAttempt().fail(new Exception("new fail"));
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev1).getState());
 	}
 

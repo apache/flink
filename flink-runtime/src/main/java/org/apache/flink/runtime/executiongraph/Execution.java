@@ -525,12 +525,12 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 						slotProvider.allocateSlot(
 							slotRequestId,
 							toSchedule,
-							queued,
 							new SlotProfile(
 								ResourceProfile.UNKNOWN,
 								preferredLocations,
 								previousAllocationIDs,
 								allPreviousExecutionGraphAllocationIds),
+							queued,
 							allocationTimeout));
 
 			// register call back to cancel slot request in case that the execution gets canceled
@@ -545,9 +545,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				});
 
 			// This forces calls to the slot pool back into the main thread, for normal and exceptional completion
-			return FutureUtils.handleAsyncIfNotDone(
-				logicalSlotFuture,
-				mainThreadExecutor,
+			return logicalSlotFuture.handle(
 				(LogicalSlot logicalSlot, Throwable failure) -> {
 
 					if (failure != null) {
@@ -764,7 +762,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		final int numConsumers = allConsumers.size();
 
 		if (numConsumers > 1) {
-			failSync(new IllegalStateException("Currently, only a single consumer group per partition is supported."));
+			fail(new IllegalStateException("Currently, only a single consumer group per partition is supported."));
 		}
 		else if (numConsumers == 0) {
 			return;
@@ -884,20 +882,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param t The exception that caused the task to fail.
 	 */
 	@Override
-	public void failAsync(Throwable t) {
-		ComponentMainThreadExecutor mainThreadExecutor = vertex.getExecutionGraph().getJobMasterMainThreadExecutor();
-		mainThreadExecutor.execute(() -> failSync(t));
-	}
-
-	/**
-	 * This method fails the vertex due to an external condition. The task will move to state FAILED.
-	 * If the task was in state RUNNING or DEPLOYING before, it will send a cancel call to the TaskManager.
-	 * This method must be called from the current main thread, otherwise use {@link #failAsync(Throwable)}.
-	 *
-	 * @param t The exception that caused the task to fail.
-	 */
-	@Override
-	public void failSync(Throwable t) {
+	public void fail(Throwable t) {
 		processFail(t, false);
 	}
 
@@ -1262,7 +1247,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			cancelResultFuture.whenComplete(
 				(ack, failure) -> {
 					if (failure != null) {
-						failSync(new Exception("Task could not be canceled.", failure));
+						fail(new Exception("Task could not be canceled.", failure));
 					}
 				});
 		}
@@ -1299,7 +1284,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				(ack, failure) -> {
 					// fail if there was a failure
 					if (failure != null) {
-						failSync(new IllegalStateException("Update task on TaskManager " + taskManagerLocation +
+						fail(new IllegalStateException("Update task on TaskManager " + taskManagerLocation +
 							" failed due to:", failure));
 					}
 				}, getVertex().getExecutionGraph().getJobMasterMainThreadExecutor());

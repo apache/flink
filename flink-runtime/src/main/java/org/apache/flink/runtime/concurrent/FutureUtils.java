@@ -336,8 +336,28 @@ public class FutureUtils {
 	 * @return The timeout enriched future
 	 */
 	public static <T> CompletableFuture<T> orTimeout(CompletableFuture<T> future, long timeout, TimeUnit timeUnit) {
+		return orTimeout(future, timeout, timeUnit, Executors.directExecutor());
+	}
+
+	/**
+	 * Times the given future out after the timeout.
+	 *
+	 * @param future to time out
+	 * @param timeout after which the given future is timed out
+	 * @param timeUnit time unit of the timeout
+	 * @param timeoutFailExecutor executor that will complete the future exceptionally after the timeout is reached
+	 * @param <T> type of the given future
+	 * @return The timeout enriched future
+	 */
+	public static <T> CompletableFuture<T> orTimeout(
+		CompletableFuture<T> future,
+		long timeout,
+		TimeUnit timeUnit,
+		Executor timeoutFailExecutor) {
+
 		if (!future.isDone()) {
-			final ScheduledFuture<?> timeoutFuture = Delayer.delay(new Timeout(future), timeout, timeUnit);
+			final ScheduledFuture<?> timeoutFuture = Delayer.delay(
+				() -> timeoutFailExecutor.execute(new Timeout(future)), timeout, timeUnit);
 
 			future.whenComplete((T value, Throwable throwable) -> {
 				if (!timeoutFuture.isDone()) {

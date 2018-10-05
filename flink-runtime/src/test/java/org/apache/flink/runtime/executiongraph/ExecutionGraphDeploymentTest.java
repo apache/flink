@@ -293,7 +293,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 7, v2, 6).f1;
 
 			for (Execution e : executions.values()) {
-				e.failAsync(null);
+				e.fail(null);
 			}
 
 			assertEquals(0, executions.size());

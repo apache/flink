@@ -345,7 +345,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		finishedExecution.markFinished();
 
-		failedExecution.failSync(new Exception("Test Exception"));
+		failedExecution.fail(new Exception("Test Exception"));
 		failedExecution.cancelingComplete();
 
 		assertEquals(JobStatus.RUNNING, eg.getState());
@@ -357,7 +357,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		}
 
 		// fail old finished execution, this should not affect the execution
-		finishedExecution.failSync(new Exception("This should have no effect"));
+		finishedExecution.fail(new Exception("This should have no effect"));
 
 		for (ExecutionVertex vertex: eg.getAllExecutionVertices()) {
 			vertex.getCurrentExecutionAttempt().markFinished();
@@ -405,7 +405,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		eg.cancel();
 
 		for (ExecutionVertex v : eg.getAllExecutionVertices()) {
-			v.getCurrentExecutionAttempt().failSync(new Exception("Test Exception"));
+			v.getCurrentExecutionAttempt().fail(new Exception("Test Exception"));
 		}
 
 		assertEquals(JobStatus.CANCELED, eg.getTerminationFuture().get());
@@ -542,8 +542,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		final Execution last = vertex.getTaskVertices()[vertex.getParallelism() - 1].getCurrentExecutionAttempt();
 
 		// Have two executions fail
-		first.failSync(new Exception("intended test failure 1"));
-		last.failSync(new Exception("intended test failure 2"));
+		first.fail(new Exception("intended test failure 1"));
+		last.fail(new Exception("intended test failure 2"));
 
 		Assert.assertEquals(JobStatus.FAILING, eg.getState());
 
@@ -645,7 +645,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		switchToRunning(eg);
 
 		// fail into 'RESTARTING'
-		eg.getAllExecutionVertices().iterator().next().getCurrentExecutionAttempt().failAsync(
+		eg.getAllExecutionVertices().iterator().next().getCurrentExecutionAttempt().fail(
 			new Exception("intended test failure"));
 
 		assertEquals(JobStatus.FAILING, eg.getState());

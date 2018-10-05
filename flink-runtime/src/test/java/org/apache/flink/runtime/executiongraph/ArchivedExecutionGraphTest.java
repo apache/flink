@@ -141,7 +141,7 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 
 		runtimeGraph.setJsonPlan("{}");
 
-		runtimeGraph.getJobVertex(v2ID).getTaskVertices()[0].getCurrentExecutionAttempt().failAsync(new RuntimeException("This exception was thrown on purpose."));
+		runtimeGraph.getJobVertex(v2ID).getTaskVertices()[0].getCurrentExecutionAttempt().fail(new RuntimeException("This exception was thrown on purpose."));
 	}
 
 	@Test

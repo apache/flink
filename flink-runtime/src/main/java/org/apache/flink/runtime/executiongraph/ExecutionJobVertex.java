@@ -516,6 +516,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds,
 			Time allocationTimeout) {
 		final ExecutionVertex[] vertices = this.taskVertices;
+
+		@SuppressWarnings("unchecked")
 		final CompletableFuture<Execution>[] slots = new CompletableFuture[vertices.length];
 
 		// try to acquire a slot future for each execution.

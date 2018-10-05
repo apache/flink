@@ -40,7 +40,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.concurrent.CompletableFuture;
 
 import scala.concurrent.ExecutionContext;
 
@@ -315,11 +314,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			// scheduling after being canceled should be tolerated (no exception) because
 			// it can occur as the result of races
 			{
-				vertex.scheduleForExecution(
-					new TestingSlotProvider(ignore -> new CompletableFuture<>()),
-					false,
-					LocationPreferenceConstraint.ALL,
-					Collections.emptySet());
+				vertex.scheduleForExecution(new ProgrammedSlotProvider(1), false, LocationPreferenceConstraint.ALL, Collections.emptySet());
 
 				assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 			}
@@ -356,17 +351,11 @@ public class ExecutionVertexCancelTest extends TestLogger {
 				ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 						AkkaUtils.getDefaultTimeout());
 				setVertexState(vertex, ExecutionState.CANCELING);
-
-				vertex.scheduleForExecution(
-					new TestingSlotProvider(ignore -> new CompletableFuture<>()),
-					false,
-					LocationPreferenceConstraint.ALL,
-					Collections.emptySet());
+				vertex.scheduleForExecution(new ProgrammedSlotProvider(1), false, LocationPreferenceConstraint.ALL, Collections.emptySet());
 			}
 			catch (Exception e) {
 				fail("should not throw an exception");
 			}
-
 
 			// deploying while in canceling state is illegal (should immediately go to canceled)
 			try {
