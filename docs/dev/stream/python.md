@@ -54,7 +54,7 @@ existing Java streaming APIs.
 There are two main constraints for using Jython:
 
 * The latest Python supported version is 2.7
-* It is not straightforward to use Python C extensions, which may prevent reuse of some libraries
+* It is not straightforward to use Python C extensions, which may prevent use of some libraries
 
 (For more information please see <https://wiki.python.org/jython/JythonFaq/GeneralInfo>.)
 
