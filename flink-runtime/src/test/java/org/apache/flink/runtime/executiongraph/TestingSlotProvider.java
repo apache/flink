@@ -57,7 +57,7 @@ public final class TestingSlotProvider implements SlotProvider {
 	}
 
 	@Override
-	public CompletableFuture<LogicalSlot> allocateSlot(SlotRequestId slotRequestId, ScheduledUnit task, boolean allowQueued, SlotProfile slotProfile, Time timeout) {
+	public CompletableFuture<LogicalSlot> allocateSlot(SlotRequestId slotRequestId, ScheduledUnit task, SlotProfile slotProfile, boolean allowQueued, Time timeout) {
 		Preconditions.checkState(!slotFutures.containsKey(slotRequestId));
 		final CompletableFuture<LogicalSlot> slotFuture = slotFutureCreator.apply(slotRequestId);
 
@@ -72,7 +72,6 @@ public final class TestingSlotProvider implements SlotProvider {
 		slotFuture.cancel(false);
 
 		slotCanceller.accept(slotRequestId);
-
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 

@@ -61,7 +61,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
+import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -1775,8 +1775,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	private Set<AllocationID> computeAllPriorAllocationIdsIfRequiredByScheduling() {
 		// This is a temporary optimization to avoid computing all previous allocations if not required
 		// This can go away when we progress with the implementation of the Scheduler.
-		if (slotProvider instanceof SlotPool.ProviderAndOwner
-			&& ((SlotPool.ProviderAndOwner) slotProvider).requiresPreviousAllocationsForScheduling()) {
+		if (slotProvider instanceof Scheduler && ((Scheduler) slotProvider).requiresPreviousExecutionGraphAllocations()) {
 			return computeAllPriorAllocationIds();
 		} else {
 			return Collections.emptySet();

@@ -525,12 +525,12 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 						slotProvider.allocateSlot(
 							slotRequestId,
 							toSchedule,
-							queued,
 							new SlotProfile(
 								ResourceProfile.UNKNOWN,
 								preferredLocations,
 								previousAllocationIDs,
 								allPreviousExecutionGraphAllocationIds),
+							queued,
 							allocationTimeout));
 
 			// register call back to cancel slot request in case that the execution gets canceled
@@ -788,15 +788,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 				consumerVertex.cachePartitionInfo(PartialInputChannelDeploymentDescriptor.fromEdge(
 						partition, partitionExecution));
-
-				// When deploying a consuming task, its task deployment descriptor will contain all
-				// deployment information available at the respective time. It is possible that some
-				// of the partitions to be consumed have not been created yet. These are updated
-				// runtime via the update messages.
-				//
-				// TODO The current approach may send many update messages even though the consuming
-				// task has already been deployed with all necessary information. We have to check
-				// whether this is a problem and fix it, if it is.
 
 				// Schedule the consumer vertex if its inputs constraint is satisfied, otherwise skip the scheduling.
 				// A shortcut of input constraint check is added for InputDependencyConstraint.ANY since

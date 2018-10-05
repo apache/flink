@@ -115,8 +115,8 @@ class ProgrammedSlotProvider implements SlotProvider {
 	public CompletableFuture<LogicalSlot> allocateSlot(
 			SlotRequestId slotRequestId,
 			ScheduledUnit task,
-			boolean allowQueued,
 			SlotProfile slotProfile,
+			boolean allowQueued,
 			Time allocationTimeout) {
 		JobVertexID vertexId = task.getTaskToExecute().getVertex().getJobvertexId();
 		int subtask = task.getTaskToExecute().getParallelSubtaskIndex();
@@ -136,7 +136,10 @@ class ProgrammedSlotProvider implements SlotProvider {
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
+	public CompletableFuture<Acknowledge> cancelSlotRequest(
+			SlotRequestId slotRequestId,
+			@Nullable SlotSharingGroupId slotSharingGroupId,
+			Throwable cause) {
 		canceledSlotRequests.add(slotRequestId);
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}

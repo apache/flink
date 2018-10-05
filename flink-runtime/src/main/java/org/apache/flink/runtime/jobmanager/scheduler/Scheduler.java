@@ -147,8 +147,8 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 	public CompletableFuture<LogicalSlot> allocateSlot(
 			SlotRequestId slotRequestId,
 			ScheduledUnit task,
-			boolean allowQueued,
 			SlotProfile slotProfile,
+			boolean allowQueued,
 			Time allocationTimeout) {
 
 		try {

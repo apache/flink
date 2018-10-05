@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,23 +18,16 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.runtime.jobmaster.SlotRequestId;
-
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
- * Interface for components which have to perform actions on allocated slots.
+ * Factory interface for {@link Scheduler}.
  */
-public interface AllocatedSlotActions {
+public interface SchedulerFactory {
 
 	/**
-	 * Releases the slot with the given {@link SlotRequestId}. Additionally, one can provide a cause for the slot release.
-	 *
-	 * @param slotRequestId identifying the slot to release
-	 * @param cause of the slot release, null if none
+	 * Creates a new scheduler instance that uses the given {@link SlotPoolGateway} to allocate slots.
 	 */
-	void releaseSlot(
-		@Nonnull SlotRequestId slotRequestId,
-		@Nullable Throwable cause);
+	@Nonnull
+	Scheduler createScheduler(@Nonnull SlotPoolGateway slotPoolGateway);
 }

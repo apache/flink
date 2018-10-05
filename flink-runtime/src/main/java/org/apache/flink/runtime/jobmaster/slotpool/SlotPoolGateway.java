@@ -22,33 +22,32 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.clusterframework.types.SlotProfile;
-import org.apache.flink.runtime.instance.SlotSharingGroupId;
-import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.types.SerializableOptional;
 
+import javax.annotation.Nonnull;
+
 import java.util.Collection;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * The gateway for calls on the {@link SlotPool}.
  */
-public interface SlotPoolGateway extends AllocatedSlotActions, RpcGateway {
+public interface SlotPoolGateway extends AllocatedSlotActions {
 
 	// ------------------------------------------------------------------------
 	//  shutdown
 	// ------------------------------------------------------------------------
 
-	CompletableFuture<Acknowledge> suspend();
+	void suspend();
 
 	// ------------------------------------------------------------------------
 	//  resource manager connection
@@ -136,26 +135,39 @@ public interface SlotPoolGateway extends AllocatedSlotActions, RpcGateway {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Requests to allocate a slot for the given {@link ScheduledUnit}. The request
-	 * is uniquely identified by the provided {@link SlotRequestId} which can also
-	 * be used to release the slot via {@link #releaseSlot(SlotRequestId, SlotSharingGroupId, Throwable)}.
-	 * The allocated slot will fulfill the requested {@link ResourceProfile} and it
-	 * is tried to place it on one of the location preferences.
+	 * Returns a list of {@link SlotInfo} objects about all slots that are currently available in the slot
+	 * pool.
 	 *
-	 * <p>If the returned future must not be completed right away (a.k.a. the slot request
-	 * can be queued), allowQueuedScheduling must be set to true.
+	 * @return a list of {@link SlotInfo} objects about all slots that are currently available in the slot pool.
+	 */
+	@Nonnull
+	Collection<SlotInfo> getAvailableSlotsInformation();
+
+	/**
+	 * Allocates the available slot with the given allocation id under the given request id. This method returns
+	 * {@code null} if no slot with the given allocation id is available.
 	 *
 	 * @param slotRequestId identifying the requested slot
-	 * @param scheduledUnit for which to allocate slot
-	 * @param slotProfile profile that specifies the requirements for the requested slot
-	 * @param allowQueuedScheduling true if the slot request can be queued (e.g. the returned future must not be completed)
-	 * @param timeout for the operation
-	 * @return Future which is completed with the allocated {@link LogicalSlot}
+	 * @param allocationID the allocation id of the requested available slot
+	 * @return the previously available slot with the given allocation id or {@code null} if no such slot existed.
 	 */
-	CompletableFuture<LogicalSlot> allocateSlot(
-			SlotRequestId slotRequestId,
-			ScheduledUnit scheduledUnit,
-			SlotProfile slotProfile,
-			boolean allowQueuedScheduling,
-			@RpcTimeout Time timeout);
+	Optional<AllocatedSlotContext> allocateAvailableSlot(
+		@Nonnull SlotRequestId slotRequestId,
+		@Nonnull AllocationID allocationID);
+
+	/**
+	 * Request the allocation of a new slot from the resource manager. This method will not return a slot from the
+	 * already available slots from the pool, but instead will add a new slot to that pool that is immediately allocated
+	 * and returned.
+	 *
+	 * @param slotRequestId identifying the requested slot
+	 * @param resourceProfile resource profile that specifies the resource requirements for the requested slot
+	 * @param timeout timeout for the allocation procedure
+	 * @return a newly allocated slot that was previously not available.
+	 */
+	@Nonnull
+	CompletableFuture<AllocatedSlotContext> requestNewAllocatedSlot(
+		@Nonnull SlotRequestId slotRequestId,
+		@Nonnull ResourceProfile resourceProfile,
+		@RpcTimeout Time timeout);
 }

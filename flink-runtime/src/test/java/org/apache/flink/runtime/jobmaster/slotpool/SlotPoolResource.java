@@ -19,15 +19,19 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
-import org.apache.flink.runtime.rpc.RpcService;
 
 import org.junit.rules.ExternalResource;
 
 import javax.annotation.Nonnull;
 
+import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.function.Supplier;
 
 /**
  * {@link ExternalResource} which provides a {@link SlotPool}.
@@ -35,28 +39,26 @@ import java.util.concurrent.CompletableFuture;
 public class SlotPoolResource extends ExternalResource {
 
 	@Nonnull
-	private final RpcService rpcService;
-
-	@Nonnull
-	private final SchedulingStrategy schedulingStrategy;
+	private final SlotSelectionStrategy schedulingStrategy;
 
 	private SlotPool slotPool;
 
-	private SlotPoolGateway slotPoolGateway;
+	private Scheduler scheduler;
 
 	private TestingResourceManagerGateway testingResourceManagerGateway;
 
-	public SlotPoolResource(@Nonnull RpcService rpcService, @Nonnull SchedulingStrategy schedulingStrategy) {
-		this.rpcService = rpcService;
+	private final ScheduledExecutor mainThreadExecutor;
+
+	public SlotPoolResource(@Nonnull SlotSelectionStrategy schedulingStrategy) {
 		this.schedulingStrategy = schedulingStrategy;
+		this.mainThreadExecutor = new ScheduledExecutorServiceAdapter(Executors.newSingleThreadScheduledExecutor());
 		slotPool = null;
-		slotPoolGateway = null;
 		testingResourceManagerGateway = null;
 	}
 
 	public SlotProvider getSlotProvider() {
 		checkInitialized();
-		return slotPool.getSlotProvider();
+		return scheduler;
 	}
 
 	public TestingResourceManagerGateway getTestingResourceManagerGateway() {
@@ -66,7 +68,7 @@ public class SlotPoolResource extends ExternalResource {
 
 	public SlotPoolGateway getSlotPoolGateway() {
 		checkInitialized();
-		return slotPoolGateway;
+		return slotPool;
 	}
 
 	private void checkInitialized() {
@@ -81,15 +83,10 @@ public class SlotPoolResource extends ExternalResource {
 
 		testingResourceManagerGateway = new TestingResourceManagerGateway();
 
-		slotPool = new SlotPool(
-			rpcService,
-			new JobID(),
-			schedulingStrategy);
-
-		slotPool.start(JobMasterId.generate(), "foobar");
-
-		slotPoolGateway = slotPool.getSelfGateway(SlotPoolGateway.class);
-
+		slotPool = new SlotPool(new JobID());
+		scheduler = new Scheduler(new HashMap<>(), schedulingStrategy, slotPool);
+		slotPool.start(JobMasterId.generate(), "foobar", mainThreadExecutor);
+		scheduler.start(mainThreadExecutor);
 		slotPool.connectToResourceManager(testingResourceManagerGateway);
 	}
 
@@ -102,8 +99,10 @@ public class SlotPoolResource extends ExternalResource {
 	}
 
 	private void terminateSlotPool() {
-		slotPool.shutDown();
-		CompletableFuture<Void> terminationFuture = slotPool.getTerminationFuture();
-		terminationFuture.join();
+		slotPool.close();
+	}
+
+	public <V> V executeInMainThreadAndJoin(Supplier<V> supplier) throws Exception {
+		return CompletableFuture.supplyAsync(supplier, mainThreadExecutor).get();
 	}
 }

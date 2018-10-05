@@ -38,7 +38,7 @@ import java.util.function.Function;
 /**
  * Implementation of the {@link LogicalSlot} which is used by the {@link SlotPool}.
  */
-public class SingleLogicalSlot implements LogicalSlot, AllocatedSlot.Payload {
+public class SingleLogicalSlot implements LogicalSlot, AllocatedSlotContext.Payload {
 
 	private static final AtomicReferenceFieldUpdater<SingleLogicalSlot, Payload> PAYLOAD_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
 		SingleLogicalSlot.class,

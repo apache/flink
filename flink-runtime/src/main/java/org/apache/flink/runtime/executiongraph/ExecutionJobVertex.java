@@ -57,6 +57,7 @@ import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.ArrayList;

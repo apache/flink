@@ -56,8 +56,8 @@ public interface SlotProvider {
 	CompletableFuture<LogicalSlot> allocateSlot(
 		SlotRequestId slotRequestId,
 		ScheduledUnit task,
-		boolean allowQueued,
 		SlotProfile slotProfile,
+		boolean allowQueued,
 		Time timeout);
 
 	/**
@@ -77,8 +77,8 @@ public interface SlotProvider {
 		return allocateSlot(
 			new SlotRequestId(),
 			task,
-			allowQueued,
 			slotProfile,
+			allowQueued,
 			timeout);
 	}
 
