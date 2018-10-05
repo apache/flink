@@ -1248,6 +1248,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
 		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
 
@@ -1586,6 +1587,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
 		ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
 
@@ -2035,6 +2037,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
 		ReducingStateDescriptor<String> kvId = new ReducingStateDescriptor<>("id", new AppendingReduce(), String.class);
 
@@ -2653,6 +2656,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
 		FoldingStateDescriptor<Integer, String> kvId = new FoldingStateDescriptor<>("id",
 				"Fold-Initial:",
@@ -2757,6 +2761,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		AbstractKeyedStateBackend<String> backend = createKeyedBackend(StringSerializer.INSTANCE);
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
 		MapStateDescriptor<Integer, String> kvId = new MapStateDescriptor<>("id", Integer.class, String.class);
 
