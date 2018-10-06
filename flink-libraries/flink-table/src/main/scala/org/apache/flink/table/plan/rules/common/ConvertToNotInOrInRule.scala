@@ -32,8 +32,8 @@ import scala.collection.mutable
 /**
   * Common convert rule for converting a cascade of predicates to IN or NOT_IN.
   */
-abstract class ConvertToNotInOrInRule extends RelOptRule(
-  operand(classOf[Filter], any), "ConvertToNotInOrInRule") {
+abstract class ConvertToNotInOrInRule(description: String) extends RelOptRule(
+  operand(classOf[Filter], any), description) {
 
   /**
     * Returns a condition decomposed by AND or OR.
@@ -48,14 +48,14 @@ abstract class ConvertToNotInOrInRule extends RelOptRule(
   /**
     * Convert a cascade predicates to IN or NOT_IN.
     *
-    * @param builder         The [[RelBuilder]] to build the [[RexNode]].
-    * @param rex             The predicates to be converted.
-    * @param fromOperator    The fromOperator, for example, when convert to IN,
-    *                        fromOperator is EQUALS. We convert a cascade of EQUALS to IN.
-    * @param connectOperator The connect operator to connect the fromOperator.
-    * @param breakOperator   The break operator that break predicates into multi IN or NOT_IN.
-    * @param toOperator      The toOperator, for example, when convert to IN, toOperator is IN.
-    *                        We convert a cascade of EQUALS to IN.
+    * @param builder          The [[RelBuilder]] to build the [[RexNode]].
+    * @param rex              The predicates to be converted.
+    * @param fromOperator     The fromOperator, for example, when convert to IN,
+    *                         fromOperator is EQUALS. We convert a cascade of EQUALS to IN.
+    * @param connectOperator  The connect operator to connect the fromOperator.
+    * @param composedOperator The composed operator that may contains sub IN or NOT_IN.
+    * @param toOperator       The toOperator, for example, when convert to IN, toOperator is IN.
+    *                         We convert a cascade of EQUALS to IN.
     * @return The converted predicates.
     */
   protected def convertToNotInOrIn(
@@ -63,7 +63,7 @@ abstract class ConvertToNotInOrInRule extends RelOptRule(
     rex: RexNode,
     fromOperator: SqlBinaryOperator,
     connectOperator: SqlBinaryOperator,
-    breakOperator: SqlBinaryOperator,
+    composedOperator: SqlBinaryOperator,
     toOperator: SqlBinaryOperator): Option[RexNode] = {
 
     val decomposed = decomposedBy(rex, connectOperator)
@@ -87,17 +87,17 @@ abstract class ConvertToNotInOrInRule extends RelOptRule(
             }
 
           // process sub predicates
-          case `breakOperator` =>
-            val newRex = decomposedBy(call, breakOperator).map({ r =>
+          case `composedOperator` =>
+            val newRex = decomposedBy(call, composedOperator).map({ r =>
               convertToNotInOrIn(
-                builder, r, fromOperator, connectOperator, breakOperator, toOperator) match {
+                builder, r, fromOperator, connectOperator, composedOperator, toOperator) match {
                 case Some(newRex) =>
                   beenConverted = true
                   newRex
                 case None => r
               }
             })
-            breakOperator match {
+            composedOperator match {
               case AND => rexBuffer += builder.and(newRex)
               case OR => rexBuffer += builder.or(newRex)
             }

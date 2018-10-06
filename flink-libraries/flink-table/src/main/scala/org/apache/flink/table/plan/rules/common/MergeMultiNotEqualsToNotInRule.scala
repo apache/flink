@@ -27,7 +27,8 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable.{AND, NOT_EQUALS, NOT_IN, 
   * For example, convert predicate: (x <> 1 AND x <> 2 AND x <> 3) OR y <> 4 to
   * predicate: x NOT_IN (1, 2, 3) OR y <> 4.
   */
-class MergeMultiNotEqualsToNotInRule extends ConvertToNotInOrInRule {
+class MergeMultiNotEqualsToNotInRule
+  extends ConvertToNotInOrInRule("MergeMultiNotEqualsToNotInRule") {
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val filter: Filter = call.rel(0)
