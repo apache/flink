@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.akka
 
-import java.net.InetSocketAddress
+import java.net.{InetAddress, InetSocketAddress}
 
 import org.apache.flink.configuration.{AkkaOptions, Configuration, IllegalConfigurationException}
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
@@ -166,5 +166,13 @@ class AkkaUtilsTest
 
     akkaConfig.getString("akka.remote.netty.tcp.hostname") should
       equal(NetUtils.unresolvedHostToNormalizedString(hostname))
+  }
+
+  test("null hostname should go to localhost") {
+    val configure = AkkaUtils.getAkkaConfig(new Configuration(), Some((null, 1772)))
+
+    val hostname = configure.getString("akka.remote.netty.tcp.hostname")
+
+    InetAddress.getByName(hostname).isLoopbackAddress should be (true)
   }
 }
