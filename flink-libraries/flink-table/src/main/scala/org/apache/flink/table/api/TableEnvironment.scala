@@ -20,6 +20,7 @@ package org.apache.flink.table.api
 
 import _root_.java.lang.reflect.Modifier
 import _root_.java.util.concurrent.atomic.AtomicInteger
+import _root_.java.util.Collections
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.Lex
@@ -27,12 +28,16 @@ import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
 import org.apache.calcite.plan.{Convention, RelOptPlanner, RelOptUtil, RelTraitSet}
+import org.apache.calcite.plan.{RelOptPlanner, RelOptUtil, RelTraitSet}
+import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql._
+import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
+import org.apache.calcite.sql.validate.SqlConformance
 import org.apache.calcite.tools._
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -45,7 +50,7 @@ import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment =>
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
-import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.calcite.{CalciteConfig, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
 import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
@@ -210,6 +215,7 @@ abstract class TableEnvironment(val config: TableConfig) {
         SqlParser
           .configBuilder()
           .setLex(Lex.JAVA)
+          .setCaseSensitive(false)
           .build()
 
       case Some(sqlParserConfig) =>
@@ -655,6 +661,28 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param table The table for which the AST and execution plan will be returned.
     */
   def explain(table: Table): String
+
+  /**
+   *  Gets completion hints for the sql query
+   */
+  def getCompletionHints(query: String, pos: Integer) : Array[String] = {
+    val catalogReader = new CalciteCatalogReader(
+      CalciteSchema.from(rootSchema),
+      Collections.emptyList(),
+      typeFactory,
+      CalciteConfig.connectionConfig(getSqlParserConfig))
+    val validator : SqlAdvisorValidator = new SqlAdvisorValidator(
+      getSqlOperatorTable,
+      catalogReader,
+      typeFactory,
+      SqlConformance.DEFAULT)
+    val advisor: SqlAdvisor = new SqlAdvisor(validator)
+    val replaced: Array[String] = Array(null)
+    val hints = advisor.getCompletionHints(query, pos, replaced)
+      .asScala
+      .map(item => item.toIdentifier.toString)
+    hints.toArray
+  }
 
   /**
     * Evaluates a SQL query on registered tables and retrieves the result as a [[Table]].
