@@ -2517,6 +2517,7 @@ REVERSE(string)
       </td>
       <td>
         <p>Returns the reversed result from <i>string</i>.</p>
+        <p>E.g., <code>REVERSE("abc")</code> returns "cba".</p>
       </td>
     </tr>
 
@@ -2793,6 +2794,7 @@ STRING.reverse()
       </td>
       <td>
         <p>Returns the reversed result from <i>STRING</i>.</p>
+        <p>E.g., <code>'abc'.reverse()</code> returns 'cba'.</p>
       </td>
     </tr>
 
@@ -3068,6 +3070,7 @@ STRING.reverse()
       </td>
       <td>
         <p>Returns the reversed result from <i>STRING</i>.</p>
+        <p>E.g., <code>"abc".reverse()</code> returns "cba".</p>
       </td>
     </tr>
 
