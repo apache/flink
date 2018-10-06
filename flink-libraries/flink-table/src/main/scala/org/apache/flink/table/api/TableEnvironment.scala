@@ -28,7 +28,6 @@ import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
 import org.apache.calcite.plan.{Convention, RelOptPlanner, RelOptUtil, RelTraitSet}
-import org.apache.calcite.plan.{RelOptPlanner, RelOptUtil, RelTraitSet}
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.schema.SchemaPlus

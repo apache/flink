@@ -26,6 +26,7 @@ import org.jline.reader.impl.DefaultParser;
  * Multi-line parser for parsing an arbitrary number of SQL lines until a line ends with ';'.
  */
 public class SqlMultiLineParser extends DefaultParser {
+
 	private static final String EOF_CHARACTER = ";";
 	private static final String NEW_LINE_PROMPT = ""; // results in simple '>' output
 
