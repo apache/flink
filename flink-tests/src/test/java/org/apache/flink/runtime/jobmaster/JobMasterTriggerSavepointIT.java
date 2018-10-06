@@ -161,7 +161,24 @@ public class JobMasterTriggerSavepointIT extends AbstractTestBase {
 
 		// assert that checkpoints are continued to be triggered
 		triggerCheckpointLatch = new CountDownLatch(1);
-		assertThat(triggerCheckpointLatch.await(60, TimeUnit.SECONDS), equalTo(true));
+		assertThat(triggerCheckpointLatch.await(60L, TimeUnit.SECONDS), equalTo(true));
+	}
+
+	/**
+	 * Tests that cancel with savepoint without a properly configured savepoint
+	 * directory, will fail with a meaningful exception message.
+	 */
+	@Test
+	public void testCancelWithSavepointWithoutConfiguredSavepointDirectory() throws Exception {
+		setUpWithCheckpointInterval(10L);
+
+		try {
+			clusterClient.cancelWithSavepoint(jobGraph.getJobID(), null);
+		} catch (Exception e) {
+			if (!ExceptionUtils.findThrowableWithMessage(e, "savepoint directory").isPresent()) {
+				throw e;
+			}
+		}
 	}
 
 	private void waitForJob() throws Exception {
