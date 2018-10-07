@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -28,8 +29,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotatio
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.StdSerializer;
-
-import javax.xml.bind.DatatypeConverter;
 
 import java.io.IOException;
 
@@ -50,7 +49,7 @@ public final class TriggerId extends AbstractID {
 	}
 
 	public static TriggerId fromHexString(String hexString) {
-		return new TriggerId(DatatypeConverter.parseHexBinary(hexString));
+		return new TriggerId(StringUtils.hexStringToByte(hexString));
 	}
 
 	/**
