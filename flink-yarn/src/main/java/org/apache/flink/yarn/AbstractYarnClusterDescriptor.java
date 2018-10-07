@@ -300,10 +300,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// don't configure more than the maximum configured number of vcores
 		if (configuredVcores > numYarnMaxVcores) {
 			throw new IllegalConfigurationException(
-				String.format("The number of virtual cores per node were configured with %d" +
-						" already exceeds the max vcores %d set on Yarn Cluster. Please note that the number" +
-						" of virtual cores is set to the number of task slots by default unless configured" +
-						" in the Flink config with '%s.'",
+				String.format("The number of requested virtual cores per node %d" +
+						" exceeds the maximum number virtual cores %d available in the Yarn Cluster." +
+						" Please note that the number of virtual cores is set to the number of task slots by default" +
+						" unless configured in the Flink config with '%s.'",
 					configuredVcores, numYarnMaxVcores, YarnConfigOptions.VCORES.key()));
 		}
 
