@@ -47,7 +47,7 @@ import org.apache.flink.util.FlinkException;
 import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Base class for per-job cluster entry points.
@@ -64,7 +64,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever,
 			LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 			TransientBlobService transientBlobService,
-			Executor executor,
+			ExecutorService executor,
 			MetricQueryServiceRetriever metricQueryServiceRetriever,
 			LeaderElectionService leaderElectionService) throws Exception {
 		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(configuration);
