@@ -26,7 +26,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 public class NoOpTaskManagerActions implements TaskManagerActions {
 
 	@Override
-	public void notifyFinalState(ExecutionAttemptID executionAttemptID) {}
+	public void notifyFinalState(TaskExecutionState taskExecutionState) {}
 
 	@Override
 	public void notifyFatalError(String message, Throwable cause) {}

@@ -1553,8 +1553,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 
 		@Override
-		public void notifyFinalState(final ExecutionAttemptID executionAttemptID) {
-			runAsync(() -> unregisterTaskAndNotifyFinalState(jobMasterGateway, executionAttemptID));
+		public void notifyFinalState(TaskExecutionState taskExecutionState) {
+			runAsync(() -> unregisterTaskAndNotifyFinalState(jobMasterGateway, taskExecutionState.getID()));
 		}
 
 		@Override

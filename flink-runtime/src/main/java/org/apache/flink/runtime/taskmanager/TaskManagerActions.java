@@ -28,9 +28,9 @@ public interface TaskManagerActions {
 	/**
 	 * Notifies the task manager that the given task is in a final state.
 	 *
-	 * @param executionAttemptID Execution attempt ID of the task
+	 * @param taskExecutionState final task execution state
 	 */
-	void notifyFinalState(ExecutionAttemptID executionAttemptID);
+	void notifyFinalState(TaskExecutionState taskExecutionState);
 
 	/**
 	 * Notifies the task manager about a fatal error occurred in the task.

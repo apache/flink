@@ -36,8 +36,8 @@ public class ActorGatewayTaskManagerActions implements TaskManagerActions {
 	}
 
 	@Override
-	public void notifyFinalState(ExecutionAttemptID executionAttemptID) {
-		actorGateway.tell(new TaskMessages.TaskInFinalState(executionAttemptID));
+	public void notifyFinalState(TaskExecutionState taskExecutionState) {
+		actorGateway.tell(new TaskMessages.TaskInFinalState(taskExecutionState.getID()));
 	}
 
 	@Override
