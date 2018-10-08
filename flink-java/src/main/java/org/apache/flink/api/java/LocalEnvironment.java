@@ -77,6 +77,11 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
+	public JobExecutionResult execute(String jobName) throws Exception {
+		return super.execute(jobName);
+	}
+
+	@Override
 	public JobExecutionResult execute(String jobName, String jobDescription) throws Exception {
 		if (executor == null) {
 			startNewSession();

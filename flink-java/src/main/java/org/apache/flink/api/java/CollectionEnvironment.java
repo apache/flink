@@ -31,7 +31,7 @@ public class CollectionEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(String jobName, String jobDescription) throws Exception {
-		Plan p = createProgramPlan(jobName);
+		Plan p = createProgramPlan(jobName, jobDescription);
 
 		// We need to reverse here. Object-Reuse enabled, means safe mode is disabled.
 		CollectionExecutor exec = new CollectionExecutor(getConfig());

@@ -59,6 +59,11 @@ public class LegacyLocalStreamEnvironment extends LocalStreamEnvironment {
 		super(config);
 	}
 
+	@Override
+	public JobExecutionResult execute(String jobName) throws Exception {
+		return super.execute(jobName);
+	}
+
 	/**
 	 * Executes the JobGraph of the on a mini cluster of CLusterUtil with a user
 	 * specified name.
