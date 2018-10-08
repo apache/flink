@@ -516,7 +516,7 @@ Table result = ...
 TableSink<Row> sink = ...
 
 // emit result Table via a TableSink
-result.writeToSink(sink, qConfig);
+result.insertInto("outputTable", qConfig);
 
 // convert result Table into a DataStream<Row>
 DataStream<Row> stream = tableEnv.toAppendStream(result, Row.class, qConfig);
@@ -540,7 +540,7 @@ val result: Table = ???
 val sink: TableSink[Row] = ???
 
 // emit result Table via a TableSink
-result.writeToSink(sink, qConfig)
+result.insertInto("outputTable", qConfig)
 
 // convert result Table into a DataStream[Row]
 val stream: DataStream[Row] = result.toAppendStream[Row](qConfig)

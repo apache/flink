@@ -185,13 +185,23 @@ class TimeAttributesITCase extends AbstractTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     MemoryTableSourceSinkUtil.clear()
 
+    tEnv.registerTableSink(
+      "testSink",
+      (new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink).configure(
+        Array[String]("rowtime", "floorDay", "ceilDay"),
+        Array[TypeInformation[_]](Types.SQL_TIMESTAMP, Types.SQL_TIMESTAMP, Types.SQL_TIMESTAMP)
+      ))
+
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
     stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
       .filter('rowtime.cast(Types.LONG) > 4)
-      .select('rowtime, 'rowtime.floor(TimeIntervalUnit.DAY), 'rowtime.ceil(TimeIntervalUnit.DAY))
-      .writeToSink(new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink)
+      .select(
+        'rowtime,
+        'rowtime.floor(TimeIntervalUnit.DAY).as('floorDay),
+        'rowtime.ceil(TimeIntervalUnit.DAY).as('ceilDay))
+      .insertInto("testSink")
 
     env.execute()
 

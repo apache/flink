@@ -891,7 +891,13 @@ class Table(
     *
     * @param sink The [[TableSink]] to which the [[Table]] is written.
     * @tparam T The data type that the [[TableSink]] expects.
+    *
+    * @deprecated Will be removed in a future release. Please register the TableSink and use
+    *             [[insertInto()]].
     */
+  @deprecated("This method will be removed. Please register the TableSink and use " +
+    "Table.insertInto().", "1.7.0")
+  @Deprecated
   def writeToSink[T](sink: TableSink[T]): Unit = {
     val queryConfig = Option(this.tableEnv) match {
       case None => null
@@ -912,7 +918,13 @@ class Table(
     * @param sink The [[TableSink]] to which the [[Table]] is written.
     * @param conf The configuration for the query that writes to the sink.
     * @tparam T The data type that the [[TableSink]] expects.
+    *
+    * @deprecated Will be removed in a future release. Please register the TableSink and use
+    *             [[insertInto()]].
     */
+  @deprecated("This method will be removed. Please register the TableSink and use " +
+    "Table.insertInto().", "1.7.0")
+  @Deprecated
   def writeToSink[T](sink: TableSink[T], conf: QueryConfig): Unit = {
     // get schema information of table
     val rowType = getRelNode.getRowType
@@ -944,7 +956,12 @@ class Table(
     * @param tableName Name of the registered [[TableSink]] to which the [[Table]] is written.
     */
   def insertInto(tableName: String): Unit = {
-    tableEnv.insertInto(this, tableName, this.tableEnv.queryConfig)
+    this.logicalPlan match {
+      case _: LogicalTableFunctionCall =>
+        throw new ValidationException("TableFunction can only be used in join and leftOuterJoin.")
+      case _ =>
+        tableEnv.insertInto(this, tableName, this.tableEnv.queryConfig)
+    }
   }
 
   /**
@@ -960,7 +977,12 @@ class Table(
     * @param conf The [[QueryConfig]] to use.
     */
   def insertInto(tableName: String, conf: QueryConfig): Unit = {
-    tableEnv.insertInto(this, tableName, conf)
+    this.logicalPlan match {
+      case _: LogicalTableFunctionCall =>
+        throw new ValidationException("TableFunction can only be used in join and leftOuterJoin.")
+      case _ =>
+        tableEnv.insertInto(this, tableName, conf)
+    }
   }
 
   /**

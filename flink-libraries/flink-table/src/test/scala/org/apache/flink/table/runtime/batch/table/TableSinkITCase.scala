@@ -20,9 +20,10 @@ package org.apache.flink.table.runtime.batch.table
 
 import java.io.File
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
-import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.{TableEnvironment, Types}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
@@ -48,13 +49,18 @@ class TableSinkITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
     env.setParallelism(4)
 
+    tEnv.registerTableSink(
+      "testSink",
+      new CsvTableSink(path, fieldDelim = "|").configure(
+        Array[String]("c", "b"), Array[TypeInformation[_]](Types.STRING, Types.LONG)))
+
     val input = CollectionDataSets.get3TupleDataSet(env)
       .map(x => x).setParallelism(4) // increase DOP to 4
 
     val results = input.toTable(tEnv, 'a, 'b, 'c)
       .where('a < 5 || 'a > 17)
       .select('c, 'b)
-      .writeToSink(new CsvTableSink(path, fieldDelim = "|"))
+      .insertInto("testSink")
 
     env.execute()
 

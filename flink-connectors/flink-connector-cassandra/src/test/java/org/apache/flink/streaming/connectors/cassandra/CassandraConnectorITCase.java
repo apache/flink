@@ -24,6 +24,7 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -450,9 +451,13 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		DataStreamSource<Row> source = env.fromCollection(rowCollection);
 
 		tEnv.registerDataStreamInternal("testFlinkTable", source);
+		tEnv.registerTableSink("cassandraTable",
+			new CassandraAppendTableSink(builder, injectTableName(INSERT_DATA_QUERY))
+				.configure(
+					new String[]{"f0", "f1", "f2"},
+					new TypeInformation[]{Types.STRING, Types.INT, Types.INT}));
 
-		tEnv.sql("select * from testFlinkTable").writeToSink(
-			new CassandraAppendTableSink(builder, injectTableName(INSERT_DATA_QUERY)));
+		tEnv.sqlQuery("select * from testFlinkTable").insertInto("cassandraTable");
 
 		env.execute();
 		ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
