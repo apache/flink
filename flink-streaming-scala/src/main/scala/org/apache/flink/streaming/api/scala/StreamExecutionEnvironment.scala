@@ -241,7 +241,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    * In contrast, the [[org.apache.flink.runtime.state.filesystem.FsStateBackend]]
    * stores checkpoints of the state (also maintained as heap objects) in files.
-   * When using a replicated file system (like HDFS, S3, MapR FS, Tachyon, etc) this will guarantee
+   * When using a replicated file system (like HDFS, S3, MapR FS, Alluxio, etc) this will guarantee
    * that state is not lost upon failures of individual nodes and that streaming program can be
    * executed highly available and strongly consistent.
    */
