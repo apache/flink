@@ -92,6 +92,7 @@ class AllocatedSlot implements SlotContext {
 	 * 
 	 * @return The ID under which the slot is allocated
 	 */
+	@Override
 	public AllocationID getAllocationId() {
 		return allocationId;
 	}
@@ -112,6 +113,7 @@ class AllocatedSlot implements SlotContext {
 	 *
 	 * @return The resource profile of the slot.
 	 */
+	@Override
 	public ResourceProfile getResourceProfile() {
 		return resourceProfile;
 	}
@@ -121,6 +123,7 @@ class AllocatedSlot implements SlotContext {
 	 *
 	 * @return The location info of the TaskManager that offers this slot
 	 */
+	@Override
 	public TaskManagerLocation getTaskManagerLocation() {
 		return taskManagerLocation;
 	}
@@ -132,6 +135,7 @@ class AllocatedSlot implements SlotContext {
 	 *
 	 * @return The actor gateway that can be used to send messages to the TaskManager.
 	 */
+	@Override
 	public TaskManagerGateway getTaskManagerGateway() {
 		return taskManagerGateway;
 	}
@@ -142,6 +146,7 @@ class AllocatedSlot implements SlotContext {
 	 *
 	 * @return Physical slot number of the allocated slot
 	 */
+	@Override
 	public int getPhysicalSlotNumber() {
 		return physicalSlotNumber;
 	}
