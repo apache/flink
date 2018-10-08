@@ -21,7 +21,6 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
@@ -824,23 +823,6 @@ public class StreamTaskTest extends TestLogger {
 	// ------------------------------------------------------------------------
 	//  Test Utilities
 	// ------------------------------------------------------------------------
-
-	private static void waitUntilExecutionState(Task task, ExecutionState exceptedState, Deadline deadline) {
-		while (deadline.hasTimeLeft()) {
-			if (exceptedState == task.getExecutionState()) {
-				return;
-			}
-
-			try {
-				Thread.sleep(Math.min(deadline.timeLeft().toMillis(), 200));
-			} catch (InterruptedException e) {
-				// do nothing
-			}
-		}
-
-		throw new IllegalStateException("Task " + task + " does not arrive state " + exceptedState + "in time. "
-			+ "Current state is " + task.getExecutionState());
-	}
 
 	/**
 	 * Operator that does nothing.
