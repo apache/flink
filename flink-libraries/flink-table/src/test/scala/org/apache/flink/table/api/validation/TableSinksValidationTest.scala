@@ -34,11 +34,12 @@ class TableSinksValidationTest extends TableTestBase {
     val util = streamTestUtil()
 
     val t = util.addTable[(Int, Long, String)]("MyTable", 'id, 'num, 'text)
+    util.tableEnv.registerTableSink("testSink", new TestAppendSink)
 
     t.groupBy('text)
     .select('text, 'id.count, 'num.sum)
     // must fail because table is not append-only
-    .writeToSink(new TestAppendSink)
+    .insertInto("testSink")
   }
 
   @Test(expected = classOf[TableException])

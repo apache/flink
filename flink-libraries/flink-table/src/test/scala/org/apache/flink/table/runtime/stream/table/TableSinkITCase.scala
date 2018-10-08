@@ -54,7 +54,7 @@ class TableSinkITCase extends AbstractTestBase {
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    MemoryTableSourceSinkUtil.clear
+    MemoryTableSourceSinkUtil.clear()
 
     val input = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(r => r._2)
@@ -92,6 +92,12 @@ class TableSinkITCase extends AbstractTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     env.setParallelism(4)
 
+    tEnv.registerTableSink(
+      "csvSink",
+      new CsvTableSink(path).configure(
+        Array[String]("c", "b"),
+        Array[TypeInformation[_]](Types.STRING, Types.SQL_TIMESTAMP)))
+
     val input = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._2)
       .map(x => x).setParallelism(4) // increase DOP to 4
@@ -99,7 +105,7 @@ class TableSinkITCase extends AbstractTestBase {
     input.toTable(tEnv, 'a, 'b.rowtime, 'c)
       .where('a < 5 || 'a > 17)
       .select('c, 'b)
-      .writeToSink(new CsvTableSink(path))
+      .insertInto("csvSink")
 
     env.execute()
 
@@ -127,10 +133,16 @@ class TableSinkITCase extends AbstractTestBase {
         .assignAscendingTimestamps(_._1.toLong)
         .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
+    tEnv.registerTableSink(
+      "appendSink",
+      new TestAppendSink().configure(
+        Array[String]("t", "icnt", "nsum"),
+        Array[TypeInformation[_]](Types.SQL_TIMESTAMP, Types.LONG, Types.LONG)))
+
     t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w)
-      .select('w.end, 'id.count, 'num.sum)
-      .writeToSink(new TestAppendSink)
+      .select('w.end as 't, 'id.count as 'icnt, 'num.sum as 'nsum)
+      .insertInto("appendSink")
 
     env.execute()
 
@@ -155,9 +167,15 @@ class TableSinkITCase extends AbstractTestBase {
     val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
+    tEnv.registerTableSink(
+      "appendSink",
+      new TestAppendSink().configure(
+        Array[String]("c", "g"),
+        Array[TypeInformation[_]](Types.STRING, Types.STRING)))
+
     ds1.join(ds2).where('b === 'e)
       .select('c, 'g)
-      .writeToSink(new TestAppendSink)
+      .insertInto("appendSink")
 
     env.execute()
 
@@ -177,10 +195,16 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text)
 
+    tEnv.registerTableSink(
+      "retractSink",
+      new TestRetractSink().configure(
+        Array[String]("len", "icnt", "nsum"),
+        Array[TypeInformation[_]](Types.INT, Types.LONG, Types.LONG)))
+
     t.select('id, 'num, 'text.charLength() as 'len)
       .groupBy('len)
-      .select('len, 'id.count, 'num.sum)
-      .writeToSink(new TestRetractSink)
+      .select('len, 'id.count as 'icnt, 'num.sum as 'nsum)
+      .insertInto("retractSink")
 
     env.execute()
     val results = RowCollector.getAndClearValues
@@ -209,10 +233,16 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
+    tEnv.registerTableSink(
+      "retractSink",
+      new TestRetractSink().configure(
+        Array[String]("t", "icnt", "nsum"),
+        Array[TypeInformation[_]](Types.SQL_TIMESTAMP, Types.LONG, Types.LONG)))
+
     t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w)
-      .select('w.end, 'id.count, 'num.sum)
-      .writeToSink(new TestRetractSink)
+      .select('w.end as 't, 'id.count as 'icnt, 'num.sum as 'nsum)
+      .insertInto("retractSink")
 
     env.execute()
     val results = RowCollector.getAndClearValues
@@ -244,12 +274,18 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text)
 
+    tEnv.registerTableSink(
+      "upsertSink",
+      new TestUpsertSink(Array("cnt", "cTrue"), false).configure(
+        Array[String]("cnt", "lencnt", "cTrue"),
+        Array[TypeInformation[_]](Types.LONG, Types.LONG, Types.BOOLEAN)))
+
     t.select('id, 'num, 'text.charLength() as 'len, ('id > 0) as 'cTrue)
       .groupBy('len, 'cTrue)
       .select('len, 'id.count as 'cnt, 'cTrue)
       .groupBy('cnt, 'cTrue)
-      .select('cnt, 'len.count, 'cTrue)
-      .writeToSink(new TestUpsertSink(Array("cnt", "cTrue"), false))
+      .select('cnt, 'len.count as 'lencnt, 'cTrue)
+      .insertInto("upsertSink")
 
     env.execute()
     val results = RowCollector.getAndClearValues
@@ -279,10 +315,16 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
+    tEnv.registerTableSink(
+      "upsertSink",
+      new TestUpsertSink(Array("wend", "num"), true).configure(
+        Array[String]("num", "wend", "icnt"),
+        Array[TypeInformation[_]](Types.LONG, Types.SQL_TIMESTAMP, Types.LONG)))
+
     t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
-      .select('num, 'w.end as 'wend, 'id.count)
-      .writeToSink(new TestUpsertSink(Array("wend", "num"), true))
+      .select('num, 'w.end as 'wend, 'id.count as 'icnt)
+      .insertInto("upsertSink")
 
     env.execute()
     val results = RowCollector.getAndClearValues
@@ -317,10 +359,17 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
+    tEnv.registerTableSink(
+      "upsertSink",
+      new TestUpsertSink(Array("wstart", "wend", "num"), true).configure(
+        Array[String]("wstart", "wend", "num", "icnt"),
+        Array[TypeInformation[_]]
+          (Types.SQL_TIMESTAMP, Types.SQL_TIMESTAMP, Types.LONG, Types.LONG)))
+
     t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
-      .select('w.start as 'wstart, 'w.end as 'wend, 'num, 'id.count)
-      .writeToSink(new TestUpsertSink(Array("wstart", "wend", "num"), true))
+      .select('w.start as 'wstart, 'w.end as 'wend, 'num, 'id.count as 'icnt)
+      .insertInto("upsertSink")
 
     env.execute()
     val results = RowCollector.getAndClearValues
@@ -355,10 +404,16 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
+    tEnv.registerTableSink(
+      "upsertSink",
+      new TestUpsertSink(null, true).configure(
+        Array[String]("wend", "cnt"),
+        Array[TypeInformation[_]](Types.SQL_TIMESTAMP, Types.LONG)))
+
     t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
       .select('w.end as 'wend, 'id.count as 'cnt)
-      .writeToSink(new TestUpsertSink(null, true))
+      .insertInto("upsertSink")
 
     env.execute()
     val results = RowCollector.getAndClearValues
@@ -393,10 +448,16 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
+    tEnv.registerTableSink(
+      "upsertSink",
+      new TestUpsertSink(null, true).configure(
+        Array[String]("num", "cnt"),
+        Array[TypeInformation[_]](Types.LONG, Types.LONG)))
+
     t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
       .select('num, 'id.count as 'cnt)
-      .writeToSink(new TestUpsertSink(null, true))
+      .insertInto("upsertSink")
 
     env.execute()
     val results = RowCollector.getAndClearValues

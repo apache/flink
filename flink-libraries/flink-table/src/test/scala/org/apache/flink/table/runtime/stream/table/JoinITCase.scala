@@ -20,12 +20,13 @@ package org.apache.flink.table.runtime.stream.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment, TableException, Types}
+import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment, Types}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.junit.Assert._
 import org.junit.Test
 import org.apache.flink.api.common.time.Time
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.expressions.{Literal, Null}
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
@@ -77,6 +78,12 @@ class JoinITCase extends StreamingWithStateTestBase {
     val leftTable = env.fromCollection(data1).toTable(tEnv, 'a, 'b)
     val rightTable = env.fromCollection(data2).toTable(tEnv, 'bb, 'c)
 
+    tEnv.registerTableSink(
+      "upsertSink",
+      new TestUpsertSink(Array("a,b"), false).configure(
+        Array[String]("a", "b", "c"),
+        Array[TypeInformation[_]](Types.INT, Types.LONG, Types.LONG)))
+
     val leftTableWithPk = leftTable
       .groupBy('a)
       .select('a, 'b.count as 'b)
@@ -88,7 +95,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     leftTableWithPk
       .join(rightTableWithPk, 'b === 'bb)
       .select('a, 'b, 'c)
-      .writeToSink(new TestUpsertSink(Array("a,b"), false), queryConfig)
+      .insertInto("upsertSink", queryConfig)
 
     env.execute()
     val results = RowCollector.getAndClearValues
@@ -135,6 +142,12 @@ class JoinITCase extends StreamingWithStateTestBase {
     val leftTable = env.fromCollection(data1).toTable(tEnv, 'a, 'b)
     val rightTable = env.fromCollection(data2).toTable(tEnv, 'bb, 'c, 'd)
 
+    tEnv.registerTableSink(
+      "retractSink",
+      new TestRetractSink().configure(
+        Array[String]("a", "b", "c", "d"),
+        Array[TypeInformation[_]](Types.INT, Types.INT, Types.INT, Types.INT)))
+
     val leftTableWithPk = leftTable
       .groupBy('a)
       .select('a, 'b.max as 'b)
@@ -142,7 +155,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     leftTableWithPk
       .join(rightTable, 'a === 'bb && ('a < 4 || 'a > 4))
       .select('a, 'b, 'c, 'd)
-      .writeToSink(new TestRetractSink, queryConfig)
+      .insertInto("retractSink", queryConfig)
 
     env.execute()
     val results = RowCollector.getAndClearValues

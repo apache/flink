@@ -43,8 +43,15 @@ Table result = ...
 // create TableSink
 TableSink<Row> sink = ...
 
+// register TableSink
+tableEnv.registerTableSink(
+  "outputTable",               // table name
+  new String[]{...},           // field names
+  new TypeInformation[]{...},  // field types
+  sink);                       // table sink
+
 // emit result Table via a TableSink
-result.writeToSink(sink, qConfig);
+result.insertInto("outputTable", qConfig);
 
 // convert result Table into a DataStream<Row>
 DataStream<Row> stream = tableEnv.toAppendStream(result, Row.class, qConfig);
@@ -67,8 +74,15 @@ val result: Table = ???
 // create TableSink
 val sink: TableSink[Row] = ???
 
+// register TableSink
+tableEnv.registerTableSink(
+  "outputTable",                  // table name
+  Array[String](...),             // field names
+  Array[TypeInformation[_]](...), // field types
+  sink)                           // table sink
+
 // emit result Table via a TableSink
-result.writeToSink(sink, qConfig)
+result.insertInto("outputTable", qConfig)
 
 // convert result Table into a DataStream[Row]
 val stream: DataStream[Row] = result.toAppendStream[Row](qConfig)
