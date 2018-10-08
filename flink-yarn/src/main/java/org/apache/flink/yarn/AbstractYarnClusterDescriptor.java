@@ -283,15 +283,13 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		// Check if we don't exceed YARN's maximum virtual cores.
 		// Fetch numYarnMaxVcores from all the RUNNING nodes via yarnClient
-		int numYarnMaxVcores = Integer.MIN_VALUE;
+		final int numYarnMaxVcores;
 		try {
-			List<NodeReport> nodes = yarnClient.getNodeReports(NodeState.RUNNING);
-			for (NodeReport rep : nodes) {
-				final Resource res = rep.getCapability();
-				if (res.getVirtualCores() > numYarnMaxVcores) {
-					numYarnMaxVcores = res.getVirtualCores();
-				}
-			}
+			numYarnMaxVcores = yarnClient.getNodeReports(NodeState.RUNNING)
+				.stream()
+				.mapToInt(report -> report.getCapability().getVirtualCores())
+				.max()
+				.orElse(0);
 		} catch (Exception e) {
 			throw new YarnDeploymentException("Couldn't get cluster description, please check on the YarnConfiguration", e);
 		}
@@ -301,7 +299,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		if (configuredVcores > numYarnMaxVcores) {
 			throw new IllegalConfigurationException(
 				String.format("The number of requested virtual cores per node %d" +
-						" exceeds the maximum number virtual cores %d available in the Yarn Cluster." +
+						" exceeds the maximum number of virtual cores %d available in the Yarn Cluster." +
 						" Please note that the number of virtual cores is set to the number of task slots by default" +
 						" unless configured in the Flink config with '%s.'",
 					configuredVcores, numYarnMaxVcores, YarnConfigOptions.VCORES.key()));
