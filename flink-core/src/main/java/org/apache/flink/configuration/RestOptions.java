@@ -117,4 +117,8 @@ public class RestOptions {
 			.defaultValue(104_857_600)
 			.withDescription("The maximum content length in bytes that the client will handle.");
 
+	public static final ConfigOption<Integer> SERVER_NUM_THREADS =
+		key("rest.server.numThreads")
+			.defaultValue(4)
+			.withDescription("The number of threads for the asynchronous processing of requests.");
 }

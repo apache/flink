@@ -21,6 +21,7 @@ package org.apache.flink.runtime.entrypoint.component;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -138,7 +139,9 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				dispatcherGatewayRetriever,
 				resourceManagerGatewayRetriever,
 				blobServer,
-				rpcService.getExecutor(),
+				WebMonitorEndpoint.createExecutorService(
+					configuration.getInteger(RestOptions.SERVER_NUM_THREADS),
+					"DispatcherRestEndpoint"),
 				new AkkaQueryServiceRetriever(actorSystem, timeout),
 				highAvailabilityServices.getWebMonitorLeaderElectionService(),
 				fatalErrorHandler);

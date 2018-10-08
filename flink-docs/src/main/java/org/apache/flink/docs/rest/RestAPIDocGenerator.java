@@ -22,7 +22,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
@@ -69,7 +68,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.docs.util.Utils.escapeCharacters;
@@ -323,7 +322,6 @@ public class RestAPIDocGenerator {
 		private static final Configuration config;
 		private static final RestServerEndpointConfiguration restConfig;
 		private static final RestHandlerConfiguration handlerConfig;
-		private static final Executor executor;
 		private static final GatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever;
 		private static final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
 		private static final MetricQueryServiceRetriever metricQueryServiceRetriever;
@@ -339,7 +337,6 @@ public class RestAPIDocGenerator {
 				throw new RuntimeException("Implementation error. RestServerEndpointConfiguration#fromConfiguration failed for default configuration.");
 			}
 			handlerConfig = RestHandlerConfiguration.fromConfiguration(config);
-			executor = Executors.directExecutor();
 
 			dispatcherGatewayRetriever = () -> null;
 			resourceManagerGatewayRetriever = () -> null;
@@ -354,7 +351,7 @@ public class RestAPIDocGenerator {
 				handlerConfig,
 				resourceManagerGatewayRetriever,
 				NoOpTransientBlobService.INSTANCE,
-				executor,
+				Executors.newFixedThreadPool(1),
 				metricQueryServiceRetriever,
 				NoOpElectionService.INSTANCE,
 				NoOpFatalErrorHandler.INSTANCE);
