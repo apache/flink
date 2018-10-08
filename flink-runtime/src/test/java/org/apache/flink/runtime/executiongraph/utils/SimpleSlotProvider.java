@@ -38,7 +38,7 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -111,21 +111,21 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
+	public Acknowledge cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
 		synchronized (lock) {
 			final SlotContext slotContext = allocatedSlots.remove(slotRequestId);
 
 			if (slotContext != null) {
 				slots.add(slotContext);
-				return CompletableFuture.completedFuture(Acknowledge.get());
+				return Acknowledge.get();
 			} else {
-				return FutureUtils.completedExceptionally(new FlinkException("Unknown slot request id " + slotRequestId + '.'));
+				throw new FlinkRuntimeException("Unknown slot request id " + slotRequestId + '.'); //TODO: to !!!!
 			}
 		}
 	}
 
 	@Override
-	public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
+	public boolean returnAllocatedSlot(LogicalSlot logicalSlot) {
 		Preconditions.checkArgument(logicalSlot instanceof Slot);
 
 		final Slot slot = ((Slot) logicalSlot);
@@ -134,7 +134,7 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 			slots.add(slot.getSlotContext());
 			allocatedSlots.remove(logicalSlot.getSlotRequestId());
 		}
-		return CompletableFuture.completedFuture(true);
+		return true;
 	}
 
 	public int getNumberOfAvailableSlots() {

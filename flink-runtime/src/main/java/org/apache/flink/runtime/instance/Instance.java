@@ -36,7 +36,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -283,7 +282,7 @@ public class Instance implements SlotOwner {
 	 * @return Future which is completed with true, if the slot was returned, false if not.
 	 */
 	@Override
-	public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
+	public boolean returnAllocatedSlot(LogicalSlot logicalSlot) {
 		checkNotNull(logicalSlot);
 		checkArgument(logicalSlot instanceof Slot);
 
@@ -295,7 +294,7 @@ public class Instance implements SlotOwner {
 			LOG.debug("Return allocated slot {}.", slot);
 			synchronized (instanceLock) {
 				if (isDead) {
-					return CompletableFuture.completedFuture(false);
+					return false;
 				}
 
 				if (this.allocatedSlots.remove(slot)) {
@@ -305,7 +304,7 @@ public class Instance implements SlotOwner {
 						this.slotAvailabilityListener.newSlotAvailable(this);
 					}
 
-					return CompletableFuture.completedFuture(true);
+					return true;
 				}
 				else {
 					throw new IllegalArgumentException("Slot was not allocated from this TaskManager.");
@@ -313,7 +312,7 @@ public class Instance implements SlotOwner {
 			}
 		}
 		else {
-			return CompletableFuture.completedFuture(false);
+			return false;
 		}
 	}
 

@@ -172,8 +172,8 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
-		return CompletableFuture.completedFuture(Acknowledge.get());
+	public Acknowledge cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
+		return Acknowledge.get();
 	}
 
 	/**

@@ -90,7 +90,7 @@ public interface SlotProvider {
 	 * @param cause of the cancellation
 	 * @return Future which is completed once the slot request has been cancelled
 	 */
-	CompletableFuture<Acknowledge> cancelSlotRequest(
+	Acknowledge cancelSlotRequest(
 		SlotRequestId slotRequestId,
 		@Nullable SlotSharingGroupId slotSharingGroupId,
 		Throwable cause);

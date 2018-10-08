@@ -27,6 +27,7 @@ import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -35,7 +36,11 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.types.SerializableOptional;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -144,6 +149,11 @@ public interface SlotPoolGateway extends AllocatedSlotActions {
 	 * <p>If the returned future must not be completed right away (a.k.a. the slot request
 	 * can be queued), allowQueuedScheduling must be set to true.
 	 *
+	 * @deprecated this method will be removed once the handling of slot sharing is completely extracted from the slot
+	 * pool into a dedicated {@link Scheduler} component. The call is then replaced by calls to
+	 * {@link #getAvailableSlotsInformation()}, {@link #allocateAvailableSlot(SlotRequestId, AllocationID)}, and
+	 * {@link #requestNewAllocatedSlot(SlotRequestId, ResourceProfile, Time)}.
+	 *
 	 * @param slotRequestId identifying the requested slot
 	 * @param scheduledUnit for which to allocate slot
 	 * @param slotProfile profile that specifies the requirements for the requested slot
@@ -151,10 +161,49 @@ public interface SlotPoolGateway extends AllocatedSlotActions {
 	 * @param timeout for the operation
 	 * @return Future which is completed with the allocated {@link LogicalSlot}
 	 */
+	@Deprecated
 	CompletableFuture<LogicalSlot> allocateSlot(
 			SlotRequestId slotRequestId,
 			ScheduledUnit scheduledUnit,
 			SlotProfile slotProfile,
 			boolean allowQueuedScheduling,
 			@RpcTimeout Time timeout);
+
+	/**
+	 * Returns a list of {@link SlotInfo} objects about all slots that are currently available in the slot
+	 * pool.
+	 *
+	 * @return a list of {@link SlotInfo} objects about all slots that are currently available in the slot pool.
+	 */
+	@Nonnull
+	List<SlotInfo> getAvailableSlotsInformation();
+
+	/**
+	 * Allocates the available slot with the given allocation id under the given request id. This method returns
+	 * {@code null} if no slot with the given allocation id is available.
+	 *
+	 * @param slotRequestId identifying the requested slot
+	 * @param allocationID the allocation id of the requested available slot
+	 * @return the previously available slot with the given allocation id or {@code null} if no such slot existed.
+	 */
+	@Nullable
+	AllocatedSlot allocateAvailableSlot(
+		@Nonnull SlotRequestId slotRequestId,
+		@Nonnull AllocationID allocationID);
+
+	/**
+	 * Request the allocation of a new slot from the resource manager. This method will not return a slot from the
+	 * already available slots from the pool, but instead will add a new slot to that pool that is immediately allocated
+	 * and returned.
+	 *
+	 * @param slotRequestId identifying the requested slot
+	 * @param resourceProfile resource profile that specifies the resource requirements for the requested slot
+	 * @param timeout timeout for the allocation procedure
+	 * @return a newly allocated slot that was previously not available.
+	 */
+	@Nonnull
+	CompletableFuture<AllocatedSlot> requestNewAllocatedSlot(
+		@Nonnull SlotRequestId slotRequestId,
+		@Nonnull ResourceProfile resourceProfile,
+		@RpcTimeout Time timeout);
 }

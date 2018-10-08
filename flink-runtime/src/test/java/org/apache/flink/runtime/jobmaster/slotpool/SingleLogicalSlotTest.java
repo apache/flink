@@ -241,9 +241,9 @@ public class SingleLogicalSlotTest extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
+		public boolean returnAllocatedSlot(LogicalSlot logicalSlot) {
 			counter.incrementAndGet();
-			return CompletableFuture.completedFuture(true);
+			return true;
 		}
 	}
 
@@ -281,9 +281,8 @@ public class SingleLogicalSlotTest extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
-			returnAllocatedSlotFuture.complete(logicalSlot);
-			return returnAllocatedSlotResponse;
+		public boolean returnAllocatedSlot(LogicalSlot logicalSlot) {
+			return returnAllocatedSlotFuture.complete(logicalSlot);
 		}
 	}
 
@@ -318,7 +317,7 @@ public class SingleLogicalSlotTest extends TestLogger {
 
 		@Override
 		public ResourceProfile getResourceProfile() {
-			throw new UnsupportedOperationException();
+			throw new UnsupportedOperationException("Not implemented");
 		}
 
 		@Override

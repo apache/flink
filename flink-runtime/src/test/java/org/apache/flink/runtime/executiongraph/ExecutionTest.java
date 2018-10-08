@@ -538,8 +538,8 @@ public class ExecutionTest extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
-			return CompletableFuture.completedFuture(returnedSlot.complete(logicalSlot));
+		public boolean returnAllocatedSlot(LogicalSlot logicalSlot) {
+			return returnedSlot.complete(logicalSlot);
 		}
 	}
 }

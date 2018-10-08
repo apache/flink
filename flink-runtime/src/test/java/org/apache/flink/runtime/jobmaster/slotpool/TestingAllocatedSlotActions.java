@@ -23,9 +23,9 @@ import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 /**
@@ -40,13 +40,19 @@ public class TestingAllocatedSlotActions implements AllocatedSlotActions {
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> releaseSlot(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, @Nullable Throwable cause) {
+	public Acknowledge releaseSlot(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, @Nullable Throwable cause) {
 		Consumer<Tuple3<SlotRequestId, SlotSharingGroupId, Throwable>> currentReleaseSlotConsumer = this.releaseSlotConsumer;
 
 		if (currentReleaseSlotConsumer != null) {
 			currentReleaseSlotConsumer.accept(Tuple3.of(slotRequestId, slotSharingGroupId, cause));
 		}
 
-		return CompletableFuture.completedFuture(Acknowledge.get());
+		return Acknowledge.get();
+	}
+
+	@Nonnull
+	@Override
+	public Acknowledge releaseSlot(@Nonnull SlotRequestId slotRequestId, @Nullable Throwable cause) {
+		return releaseSlot(slotRequestId, null, cause);
 	}
 }

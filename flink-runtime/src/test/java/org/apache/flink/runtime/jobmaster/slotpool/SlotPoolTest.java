@@ -686,7 +686,7 @@ public class SlotPoolTest extends TestLogger {
 			assertThat(logicalSlot.getAllocationId(), Matchers.is(expiredAllocationId));
 
 			// return the slot
-			slotPool.getSlotOwner().returnAllocatedSlot(logicalSlot).get();
+			slotPool.getSlotOwner().returnAllocatedSlot(logicalSlot);
 
 			// advance the time so that the returned slot is now idling
 			clock.advanceTime(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);

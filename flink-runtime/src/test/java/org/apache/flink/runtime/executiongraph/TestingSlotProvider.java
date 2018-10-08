@@ -67,13 +67,13 @@ final class TestingSlotProvider implements SlotProvider {
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
+	public Acknowledge cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
 		final CompletableFuture<LogicalSlot> slotFuture = slotFutures.remove(slotRequestId);
 		slotFuture.cancel(false);
 
 		slotCanceller.accept(slotRequestId);
 
-		return CompletableFuture.completedFuture(Acknowledge.get());
+		return Acknowledge.get();
 	}
 
 	public void complete(SlotRequestId slotRequestId, LogicalSlot logicalSlot) {
