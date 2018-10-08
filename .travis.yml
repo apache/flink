@@ -69,7 +69,7 @@ before_install:
    - chmod +x docker-compose
    - sudo mv docker-compose /usr/local/bin
 
-
+# When modifying the matrix you also have to modify travis_controller.sh#getCurrentStage
 jdk: "oraclejdk8"
 jobs:
   include:
