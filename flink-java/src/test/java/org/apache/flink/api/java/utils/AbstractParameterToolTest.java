@@ -30,8 +30,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Properties;
 
-import static org.junit.Assert.fail;
-
 /**
  * Base class for tests for {@link ParameterTool}.
  */
@@ -45,14 +43,14 @@ public abstract class AbstractParameterToolTest {
 		internalValidate(parameter);
 
 		// -------- test behaviour after serialization ------------
-		ParameterTool copy = null;
 		try {
 			byte[] b = InstantiationUtil.serializeObject(parameter);
-			copy = InstantiationUtil.deserializeObject(b, getClass().getClassLoader());
+			final ParameterTool copy = InstantiationUtil.deserializeObject(b, getClass().getClassLoader());
+			internalValidate(copy);
 		} catch (Exception e) {
-			fail();
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
 		}
-		internalValidate(copy);
 	}
 
 	private void internalValidate(ParameterTool parameter) {
@@ -84,8 +82,8 @@ public abstract class AbstractParameterToolTest {
 			Assert.assertTrue(defaultProps.containsKey("input"));
 
 		} catch (IOException e) {
-			Assert.fail(e.getMessage());
 			e.printStackTrace();
+			Assert.fail(e.getMessage());
 		}
 	}
 }

@@ -70,8 +70,6 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	public static ParameterTool fromArgs(String[] args) {
 		final Map<String, String> map = new HashMap<>(args.length / 2);
 
-		final String errorMessage = "Error parsing arguments '%s' on '%s'.";
-
 		int i = 0;
 		while (i < args.length) {
 			final String key;
@@ -82,14 +80,13 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 				key = args[i].substring(1);
 			} else {
 				throw new IllegalArgumentException(
-					String.format(errorMessage + " Please prefix keys with -- or -.",
+					String.format("Error parsing arguments '%s' on '%s'. Please prefix keys with -- or -.",
 						Arrays.toString(args), args[i]));
 			}
 
 			if (key.length() == 0) {
 				throw new IllegalArgumentException(
-					String.format(errorMessage + " Keys should never be empty",
-						Arrays.toString(args), args[i]));
+					"The input " + Arrays.toString(args) + " contains an empty argument");
 			}
 
 			i += 1; // try to find the value
@@ -99,9 +96,9 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 			} else if (NumberUtils.isNumber(args[i])) {
 				map.put(key, args[i]);
 				i += 1;
-			} else if (args[i].startsWith("--")) {
-				map.put(key, NO_VALUE_KEY);
-			} else if (args[i].startsWith("-")) { // negate number guarded by precondition
+			} else if (args[i].startsWith("--") || args[i].startsWith("-")) {
+				// the argument cannot be a negative number because we checked earlier
+				// -> the next argument is a parameter name
 				map.put(key, NO_VALUE_KEY);
 			} else {
 				map.put(key, args[i]);
