@@ -187,7 +187,8 @@ object AkkaUtils {
   def getAkkaConfig(configuration: Configuration,
                     externalAddress: Option[(String, Int)],
                     executorMode: AkkaExecutorMode): Config = {
-    val defaultConfig = getBasicAkkaConfig(configuration, executorMode)
+    val executorConfig = getExecutorConfigByExecutorMode(configuration, executorMode)
+    val defaultConfig = getBasicAkkaConfig(configuration, executorConfig)
 
     externalAddress match {
 
@@ -219,12 +220,12 @@ object AkkaUtils {
    * Gets the basic Akka config which is shared by remote and local actor systems.
    *
    * @param configuration instance which contains the user specified values for the configuration
-   * @param executorMode the akka config for particular executor
+   * @param executorConfig the akka config for particular executor
    * @return Flink's basic Akka config
    */
   private def getBasicAkkaConfig(
     configuration: Configuration,
-    executorMode: AkkaExecutorMode): Config = {
+    executorConfig: String): Config = {
     val akkaThroughput = configuration.getInteger(AkkaOptions.DISPATCHER_THROUGHPUT)
     val lifecycleEvents = configuration.getBoolean(AkkaOptions.LOG_LIFECYCLE_EVENTS)
 
@@ -241,35 +242,6 @@ object AkkaUtils {
 
     val supervisorStrategy = classOf[StoppingSupervisorWithoutLoggingActorKilledExceptionStrategy]
       .getCanonicalName
-
-    val executorConfig= executorMode match {
-      case AkkaExecutorMode.FORK_JOIN_EXECUTOR =>
-        val forkJoinExecutorParallelismFactor =
-          configuration.getDouble(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR)
-
-        val forkJoinExecutorParallelismMin =
-          configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MIN)
-
-        val forkJoinExecutorParallelismMax =
-          configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MAX)
-
-        s"""
-           | fork-join-executor {
-           |   parallelism-factor = $forkJoinExecutorParallelismFactor
-           |   parallelism-min = $forkJoinExecutorParallelismMin
-           |   parallelism-max = $forkJoinExecutorParallelismMax
-           | }
-        """.stripMargin
-
-      case AkkaExecutorMode.SINGLE_THREAD_EXECUTOR =>
-        s"""
-             | single-thread-executor {
-             |   executor = "thread-pool-executor"
-             |   type = PinnedDispatcher
-             |   threads-priority = ${Thread.MIN_PRIORITY}
-             | }
-        """.stripMargin
-    }
 
     val config =
       s"""
@@ -305,6 +277,39 @@ object AkkaUtils {
       """.stripMargin
 
     ConfigFactory.parseString(config)
+  }
+
+  def getExecutorConfigByExecutorMode(
+    configuration: Configuration,
+    executorMode: AkkaExecutorMode): String = {
+    executorMode match {
+      case AkkaExecutorMode.FORK_JOIN_EXECUTOR =>
+        val forkJoinExecutorParallelismFactor =
+          configuration.getDouble(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR)
+
+        val forkJoinExecutorParallelismMin =
+          configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MIN)
+
+        val forkJoinExecutorParallelismMax =
+          configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MAX)
+
+        s"""
+           | fork-join-executor {
+           |   parallelism-factor = $forkJoinExecutorParallelismFactor
+           |   parallelism-min = $forkJoinExecutorParallelismMin
+           |   parallelism-max = $forkJoinExecutorParallelismMax
+           | }
+        """.stripMargin
+
+      case AkkaExecutorMode.SINGLE_THREAD_EXECUTOR =>
+        s"""
+           | single-thread-executor {
+           |   executor = "thread-pool-executor"
+           |   type = PinnedDispatcher
+           |   threads-priority = ${Thread.MIN_PRIORITY}
+           | }
+        """.stripMargin
+    }
   }
 
   def testDispatcherConfig: Config = {

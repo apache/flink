@@ -153,8 +153,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 	}
 
 	@Override
-	public String getMetricQueryServiceAddress() {
-		return address;
+	public CompletableFuture<String> getMetricQueryServiceAddress(Time timeout) {
+		return CompletableFuture.completedFuture(address);
 	}
 
 	@Override

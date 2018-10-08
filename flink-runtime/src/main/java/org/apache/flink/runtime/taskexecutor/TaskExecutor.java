@@ -853,8 +853,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	}
 
 	@Override
-	public String getMetricQueryServiceAddress() {
-		return metricQueryServicePath;
+	public CompletableFuture<String> getMetricQueryServiceAddress(Time timeout) {
+		return CompletableFuture.completedFuture(metricQueryServicePath);
 	}
 
 	// ----------------------------------------------------------------------

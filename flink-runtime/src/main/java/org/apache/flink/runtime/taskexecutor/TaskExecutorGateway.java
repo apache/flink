@@ -199,7 +199,7 @@ public interface TaskExecutorGateway extends RpcGateway {
 	/**
 	 * Returns the fully qualified address of Metric Query Service on the TaskManager.
 	 *
-	 * @return Fully qualified (RPC) address of Metric Query Service on the TaskManager.
+	 * @return Future String with Fully qualified (RPC) address of Metric Query Service on the TaskManager.
 	 */
-	String getMetricQueryServiceAddress();
+	CompletableFuture<String> getMetricQueryServiceAddress(@RpcTimeout Time timeout);
 }
