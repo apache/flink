@@ -90,6 +90,7 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import scala.concurrent.duration.FiniteDuration;
@@ -332,7 +333,9 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				dispatcherGatewayRetriever,
 				resourceManagerGatewayRetriever,
 				transientBlobCache,
-				rpcService.getExecutor(),
+				WebMonitorEndpoint.createExecutorService(
+					configuration.getInteger(RestOptions.SERVER_NUM_THREADS),
+					"DispatcherRestEndpoint"),
 				new AkkaQueryServiceRetriever(actorSystem, timeout),
 				highAvailabilityServices.getWebMonitorLeaderElectionService());
 
@@ -689,7 +692,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever,
 		LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 		TransientBlobService transientBlobService,
-		Executor executor,
+		ExecutorService executor,
 		MetricQueryServiceRetriever metricQueryServiceRetriever,
 		LeaderElectionService leaderElectionService) throws Exception;
 
