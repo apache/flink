@@ -590,7 +590,7 @@ Sample Result:
 
 ##### Cancel Job
 
-`DELETE` request to **`/jobs/:jobid/cancel`**.
+`GET` request to **`/jobs/:jobid/yarn-cancel`**.
 
 Triggers job cancellation, result on success is `{}`.
 
