@@ -344,7 +344,7 @@ public class MesosResourceManagerTest extends TestLogger {
 				doAnswer(new Answer<Object>() {
 					@Override
 					public Object answer(InvocationOnMock invocation) throws Throwable {
-						rmActions = invocation.getArgumentAt(2, ResourceActions.class);
+						rmActions = invocation.getArgument(2);
 						slotManagerStarted.complete(true);
 						return null;
 					}

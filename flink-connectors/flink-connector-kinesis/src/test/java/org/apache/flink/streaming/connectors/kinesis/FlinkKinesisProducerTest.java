@@ -48,6 +48,7 @@ import java.util.List;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
@@ -431,7 +432,7 @@ public class FlinkKinesisProducerTest {
 			// set up mock producer
 			this.mockProducer = mock(KinesisProducer.class);
 
-			when(mockProducer.addUserRecord(anyString(), anyString(), anyString(), any(ByteBuffer.class))).thenAnswer(new Answer<Object>() {
+			when(mockProducer.addUserRecord(anyString(), anyString(), nullable(String.class), any(ByteBuffer.class))).thenAnswer(new Answer<Object>() {
 				@Override
 				public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
 					SettableFuture<UserRecordResult> future = SettableFuture.create();

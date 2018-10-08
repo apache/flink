@@ -43,6 +43,7 @@ import java.util.List;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -81,13 +82,13 @@ public class HadoopInputFormatTest {
 	@Test
 	public void testOpen() throws Exception {
 		DummyInputFormat inputFormat = mock(DummyInputFormat.class);
-		when(inputFormat.createRecordReader(any(InputSplit.class), any(TaskAttemptContext.class))).thenReturn(new DummyRecordReader());
+		when(inputFormat.createRecordReader(nullable(InputSplit.class), any(TaskAttemptContext.class))).thenReturn(new DummyRecordReader());
 		HadoopInputSplit inputSplit = mock(HadoopInputSplit.class);
 
 		HadoopInputFormat<String, Long> hadoopInputFormat = setupHadoopInputFormat(inputFormat, Job.getInstance(), null);
 		hadoopInputFormat.open(inputSplit);
 
-		verify(inputFormat, times(1)).createRecordReader(any(InputSplit.class), any(TaskAttemptContext.class));
+		verify(inputFormat, times(1)).createRecordReader(nullable(InputSplit.class), any(TaskAttemptContext.class));
 		assertThat(hadoopInputFormat.fetched, is(false));
 	}
 

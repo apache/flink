@@ -143,9 +143,9 @@ public class RetryingRegistrationTest extends TestLogger {
 			when(rpc.getExecutor()).thenReturn(executor);
 			when(rpc.scheduleRunnable(any(Runnable.class), anyLong(), any(TimeUnit.class))).thenAnswer(
 				(InvocationOnMock invocation) -> {
-					final Runnable runnable = invocation.getArgumentAt(0, Runnable.class);
-					final long delay = invocation.getArgumentAt(1, Long.class);
-					final TimeUnit timeUnit = invocation.getArgumentAt(2, TimeUnit.class);
+					final Runnable runnable = invocation.getArgument(0);
+					final long delay = invocation.getArgument(1);
+					final TimeUnit timeUnit = invocation.getArgument(2);
 					return TestingUtils.defaultScheduledExecutor().schedule(runnable, delay, timeUnit);
 				});
 

@@ -37,7 +37,7 @@ import org.junit.runner.RunWith
 import org.mockito.Mockito.{verify, _}
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
-import org.mockito.{Matchers => MM, Mockito}
+import org.mockito.{ArgumentMatchers => MM, Mockito}
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 

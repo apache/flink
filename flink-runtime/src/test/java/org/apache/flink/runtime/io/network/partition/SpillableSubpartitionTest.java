@@ -56,7 +56,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -126,7 +126,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 
 		// Mock I/O manager returning the blocking spill writer
 		IOManager ioManager = mock(IOManager.class);
-		when(ioManager.createBufferFileWriter(any(FileIOChannel.ID.class)))
+		when(ioManager.createBufferFileWriter(nullable(FileIOChannel.ID.class)))
 			.thenReturn(spillWriter);
 
 		// The partition

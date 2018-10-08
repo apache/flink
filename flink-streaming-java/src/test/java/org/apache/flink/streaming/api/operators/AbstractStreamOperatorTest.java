@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.mock.Whitebox;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -46,7 +47,6 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.internal.util.reflection.Whitebox;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -61,6 +61,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyLong;
@@ -579,7 +580,14 @@ public class AbstractStreamOperatorTest {
 
 		OperatorSnapshotFutures operatorSnapshotResult = spy(new OperatorSnapshotFutures());
 
-		whenNew(StateSnapshotContextSynchronousImpl.class).withAnyArguments().thenReturn(context);
+		whenNew(StateSnapshotContextSynchronousImpl.class)
+			.withArguments(
+				anyLong(),
+				anyLong(),
+				any(CheckpointStreamFactory.class),
+				nullable(KeyGroupRange.class),
+				any(CloseableRegistry.class))
+			.thenReturn(context);
 		whenNew(OperatorSnapshotFutures.class).withAnyArguments().thenReturn(operatorSnapshotResult);
 
 		StreamTask<Void, AbstractStreamOperator<Void>> containingTask = mock(StreamTask.class);
