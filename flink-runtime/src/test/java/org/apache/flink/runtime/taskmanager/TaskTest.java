@@ -134,12 +134,6 @@ public class TaskTest extends TestLogger {
 				super.updateTaskExecutionState(taskExecutionState);
 				listenerMessages.add(taskExecutionState);
 			}
-
-			@Override
-			public void notifyFinalState(TaskExecutionState taskExecutionState) {
-				super.notifyFinalState(taskExecutionState);
-				listenerMessages.add(taskExecutionState);
-			}
 		};
 
 		awaitLatch = new OneShotLatch();
