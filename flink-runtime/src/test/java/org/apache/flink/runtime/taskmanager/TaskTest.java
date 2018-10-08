@@ -134,6 +134,12 @@ public class TaskTest extends TestLogger {
 				super.updateTaskExecutionState(taskExecutionState);
 				listenerMessages.add(taskExecutionState);
 			}
+
+			@Override
+			public void notifyFinalState(TaskExecutionState taskExecutionState) {
+				super.notifyFinalState(taskExecutionState);
+				listenerMessages.add(taskExecutionState);
+			}
 		};
 
 		awaitLatch = new OneShotLatch();
@@ -177,6 +183,7 @@ public class TaskTest extends TestLogger {
 
 			// verify listener messages
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
+			validateListenerMessage(ExecutionState.FINISHED, task, false);
 
 			// make sure that the TaskManager received an message to unregister the task
 			validateTaskManagerStateChange(ExecutionState.RUNNING, task, false);
@@ -252,6 +259,9 @@ public class TaskTest extends TestLogger {
 			assertNotNull(task.getFailureCause().getMessage());
 			assertTrue(task.getFailureCause().getMessage().contains("classloader"));
 
+			// verify listener messages
+			validateListenerMessage(ExecutionState.FAILED, task, true);
+
 			// make sure that the TaskManager received an message to unregister the task
 			validateUnregisterTask(task.getExecutionId());
 
@@ -292,6 +302,7 @@ public class TaskTest extends TestLogger {
 			assertTrue(task.getFailureCause().getMessage().contains("buffers"));
 
 			validateUnregisterTask(task.getExecutionId());
+			validateListenerMessage(ExecutionState.FAILED, task, true);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -311,6 +322,7 @@ public class TaskTest extends TestLogger {
 			assertTrue(task.getFailureCause().getMessage().contains("instantiate"));
 
 			validateUnregisterTask(task.getExecutionId());
+			validateListenerMessage(ExecutionState.FAILED, task, true);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -335,6 +347,7 @@ public class TaskTest extends TestLogger {
 			validateUnregisterTask(task.getExecutionId());
 
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
+			validateListenerMessage(ExecutionState.FAILED, task, true);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -359,6 +372,7 @@ public class TaskTest extends TestLogger {
 			validateUnregisterTask(task.getExecutionId());
 
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
+			validateListenerMessage(ExecutionState.FAILED, task, true);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -391,6 +405,7 @@ public class TaskTest extends TestLogger {
 			validateUnregisterTask(task.getExecutionId());
 
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
+			validateListenerMessage(ExecutionState.CANCELED, task, false);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -422,6 +437,7 @@ public class TaskTest extends TestLogger {
 			validateUnregisterTask(task.getExecutionId());
 
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
+			validateListenerMessage(ExecutionState.FAILED, task, true);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -447,6 +463,7 @@ public class TaskTest extends TestLogger {
 			validateUnregisterTask(task.getExecutionId());
 
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
+			validateListenerMessage(ExecutionState.FAILED, task, true);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -482,6 +499,7 @@ public class TaskTest extends TestLogger {
 			validateUnregisterTask(task.getExecutionId());
 
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
+			validateListenerMessage(ExecutionState.CANCELED, task, false);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -516,6 +534,7 @@ public class TaskTest extends TestLogger {
 			validateUnregisterTask(task.getExecutionId());
 
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
+			validateListenerMessage(ExecutionState.FAILED, task, true);
 		}
 		catch (Exception e) {
 			e.printStackTrace();

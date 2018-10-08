@@ -868,7 +868,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	}
 
 	private void notifyFinalState() {
-		taskManagerActions.notifyFinalState(executionId);
+		checkState(executionState.isTerminal());
+		taskManagerActions.notifyFinalState(new TaskExecutionState(jobId, executionId, executionState, failureCause));
 	}
 
 	private void notifyFatalError(String message, Throwable cause) {
