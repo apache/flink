@@ -88,14 +88,6 @@ public class HighAvailabilityOptions {
 			.withDescription("Optional port (range) used by the job manager in high-availability mode.");
 
 	/**
-	 * Optional port (range) used by the job manager in high-availability mode.
-	 */
-	public static final ConfigOption<String> HA_JOB_MANAGER_METRIC_QUERY_PORT_RANGE =
-		key("high-availability.jobmanager.metric-query.port")
-			.defaultValue("0")
-			.withDescription("Optional port (range) used by the job manager's metric query service in high-availability mode.");
-
-	/**
 	 * The time before a JobManager after a fail over recovers the current jobs.
 	 */
 	public static final ConfigOption<String> HA_JOB_DELAY =

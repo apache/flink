@@ -76,29 +76,6 @@ public class JobManagerOptions {
 			" leader from potentially multiple standby JobManagers.");
 
 	/**
-	 * The config parameter defining the network port to connect to
-	 * for communication with the job manager's metric query service.
-	 *
-	 * <p>Like {@link JobManagerOptions#ADDRESS}, this value is only interpreted in setups where
-	 * a single JobManager with static name/address and port exists (simple standalone setups,
-	 * or container setups with dynamic service name resolution).
-	 * This config option is not used in many high-availability setups, when a
-	 * leader-election service (like ZooKeeper) is used to elect and discover the JobManager
-	 * leader from potentially multiple standby JobManagers.
-	 */
-	public static final ConfigOption<Integer> METRIC_REGISTRY_SERVICE_PORT =
-		key("jobmanager.metric-query-service.rpc.port")
-			.defaultValue(6124)
-			.withDescription("The config parameter defining the network port to connect to" +
-				" for communication with the job manager's metric query service." +
-				" Like " + ADDRESS.key() + ", this value is only interpreted in setups where" +
-				" a single JobManager with static name/address and port exists (simple standalone setups," +
-				" or container setups with dynamic service name resolution)." +
-				" This config option is not used in many high-availability setups, when a" +
-				" leader-election service (like ZooKeeper) is used to elect and discover the JobManager" +
-				" leader from potentially multiple standby JobManagers.");
-
-	/**
 	 * JVM heap size for the JobManager with memory size.
 	 */
 	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
