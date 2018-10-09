@@ -63,6 +63,18 @@ abstract class SkipToElementStrategy extends AfterMatchSkipStrategy {
 			} else {
 				pruningId = max(pruningId, pruningPattern.get(getIndex(pruningPattern.size())));
 			}
+
+			if (shouldThrowException) {
+				EventId startEvent = resultMap.values()
+					.stream()
+					.flatMap(Collection::stream)
+					.min(EventId::compareTo)
+					.orElseThrow(() -> new IllegalStateException("Cannot prune based on empty match"));
+
+				if (pruningId != null && pruningId.equals(startEvent)) {
+					throw new FlinkRuntimeException("Could not skip to first element of a match.");
+				}
+			}
 		}
 
 		return pruningId;
