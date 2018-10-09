@@ -18,11 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.PackagedProgramUtils;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.client.ClientUtils;
@@ -34,29 +30,24 @@ import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.webmonitor.handlers.utils.JarHandlerUtils.JarHandlerContext;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-import org.slf4j.Logger;
-
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.net.InetSocketAddress;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.fromRequestBodyOrQueryParameter;
 import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.getQueryParameter;
-import static org.apache.flink.runtime.webmonitor.handlers.utils.JarHandlerUtils.tokenizeArguments;
 import static org.apache.flink.shaded.guava18.com.google.common.base.Strings.emptyToNull;
 
 /**
@@ -91,39 +82,11 @@ public class JarRunHandler extends
 	protected CompletableFuture<JarRunResponseBody> handleRequest(
 			@Nonnull final HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request,
 			@Nonnull final DispatcherGateway gateway) throws RestHandlerException {
-
-		final JarRunRequestBody requestBody = request.getRequestBody();
-
-		final String pathParameter = request.getPathParameter(JarIdPathParameter.class);
-		final Path jarFile = jarDir.resolve(pathParameter);
-
-		final String entryClass = fromRequestBodyOrQueryParameter(
-			emptyToNull(requestBody.getEntryClassName()),
-			() -> emptyToNull(getQueryParameter(request, EntryClassQueryParameter.class)),
-			null,
-			log);
-
-		final List<String> programArgs = tokenizeArguments(
-			fromRequestBodyOrQueryParameter(
-				emptyToNull(requestBody.getProgramArguments()),
-				() -> getQueryParameter(request, ProgramArgsQueryParameter.class),
-				null,
-				log));
-
-		final int parallelism = fromRequestBodyOrQueryParameter(
-			requestBody.getParallelism(),
-			() -> getQueryParameter(request, ParallelismQueryParameter.class),
-			ExecutionConfig.PARALLELISM_DEFAULT,
-			log);
+		final JarHandlerContext context = JarHandlerContext.fromRequest(request, jarDir, log);
 
 		final SavepointRestoreSettings savepointRestoreSettings = getSavepointRestoreSettings(request);
 
-		final CompletableFuture<JobGraph> jobGraphFuture = getJobGraphAsync(
-			jarFile,
-			entryClass,
-			programArgs,
-			savepointRestoreSettings,
-			parallelism);
+		final CompletableFuture<JobGraph> jobGraphFuture = getJobGraphAsync(context, savepointRestoreSettings);
 
 		CompletableFuture<Integer> blobServerPortFuture = gateway.getBlobServerPort(timeout);
 
@@ -181,52 +144,11 @@ public class JarRunHandler extends
 		return savepointRestoreSettings;
 	}
 
-	/**
-	 * Returns {@code requestValue} if it is not null, otherwise returns the query parameter value
-	 * if it is not null, otherwise returns the default value.
-	 */
-	private static <T> T fromRequestBodyOrQueryParameter(
-			T requestValue,
-			SupplierWithException<T, RestHandlerException> queryParameterExtractor,
-			T defaultValue,
-			Logger log) throws RestHandlerException {
-		if (requestValue != null) {
-			return requestValue;
-		} else {
-			T queryParameterValue = queryParameterExtractor.get();
-			if (queryParameterValue != null) {
-				log.warn("Configuring the job submission via query parameters is deprecated." +
-					" Please migrate to submitting a JSON request instead.");
-				return queryParameterValue;
-			} else {
-				return defaultValue;
-			}
-		}
-	}
-
 	private CompletableFuture<JobGraph> getJobGraphAsync(
-			final Path jarFile,
-			@Nullable final String entryClass,
-			final List<String> programArgs,
-			final SavepointRestoreSettings savepointRestoreSettings,
-			final int parallelism) {
-
+			JarHandlerContext context,
+			final SavepointRestoreSettings savepointRestoreSettings) {
 		return CompletableFuture.supplyAsync(() -> {
-			if (!Files.exists(jarFile)) {
-				throw new CompletionException(new RestHandlerException(
-					String.format("Jar file %s does not exist", jarFile), HttpResponseStatus.BAD_REQUEST));
-			}
-
-			final JobGraph jobGraph;
-			try {
-				final PackagedProgram packagedProgram = new PackagedProgram(
-					jarFile.toFile(),
-					entryClass,
-					programArgs.toArray(new String[programArgs.size()]));
-				jobGraph = PackagedProgramUtils.createJobGraph(packagedProgram, configuration, parallelism);
-			} catch (final ProgramInvocationException e) {
-				throw new CompletionException(e);
-			}
+			final JobGraph jobGraph = context.toJobGraph(configuration);
 			jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
 			return jobGraph;
 		}, executor);

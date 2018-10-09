@@ -18,24 +18,23 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.runtime.rest.messages.MessageParameter;
+
 import java.io.File;
 
 /**
- * Query parameter specifying the arguments for the program.
- * @deprecated please, use {@link JarRequestBody#FIELD_NAME_PROGRAM_ARGUMENTS_LIST}
+ * Query parameter specifying one or more arguments for the program.
  * @see org.apache.flink.client.program.PackagedProgram#PackagedProgram(File, String, String...)
  */
-@Deprecated
-public class ProgramArgsQueryParameter extends StringQueryParameter {
+public class ProgramArgQueryParameter extends StringQueryParameter {
+	static final String PROGRAM_ARG_PARAMETER_NAME = "programArg";
 
-	public ProgramArgsQueryParameter() {
-		super("program-args", MessageParameterRequisiteness.OPTIONAL);
+	public ProgramArgQueryParameter() {
+		super(PROGRAM_ARG_PARAMETER_NAME, MessageParameter.MessageParameterRequisiteness.OPTIONAL);
 	}
 
 	@Override
 	public String getDescription() {
-		return String.format("Deprecated, please use '%s' instead. " +
-			"String value that specifies the arguments for the program or plan",
-			ProgramArgQueryParameter.PROGRAM_ARG_PARAMETER_NAME);
+		return "Comma-separated list of program arguments.";
 	}
 }
