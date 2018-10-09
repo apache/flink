@@ -130,7 +130,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	@Test
 	public void testRestartAutomatically() throws Exception {
-		RestartStrategy restartStrategy = new FixedDelayRestartStrategy(1, 1000);
+		RestartStrategy restartStrategy = new FixedDelayRestartStrategy(1, 0L);
 		Tuple2<ExecutionGraph, Instance> executionGraphInstanceTuple = createExecutionGraph(restartStrategy);
 		ExecutionGraph eg = executionGraphInstanceTuple.f0;
 
@@ -333,7 +333,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		JobVertex sender = ExecutionGraphTestUtils.createJobVertex("Task1", 1, NoOpInvokable.class);
 		JobVertex receiver = ExecutionGraphTestUtils.createJobVertex("Task2", 1, NoOpInvokable.class);
 		JobGraph jobGraph = new JobGraph("Pointwise job", sender, receiver);
-		ExecutionGraph eg = newExecutionGraph(new FixedDelayRestartStrategy(1, 1000), scheduler);
+		ExecutionGraph eg = newExecutionGraph(new FixedDelayRestartStrategy(1, 0L), scheduler);
 		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
 
 		assertEquals(JobStatus.CREATED, eg.getState());
@@ -925,8 +925,10 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	private static void waitForAsyncRestart(ExecutionGraph eg, FiniteDuration timeout) throws InterruptedException {
 		Deadline deadline = timeout.fromNow();
+		long waitingTime = 10L;
 		while (deadline.hasTimeLeft() && eg.getState() != JobStatus.RUNNING) {
-			Thread.sleep(100);
+			Thread.sleep(waitingTime);
+			waitingTime = Math.min(waitingTime << 1, 100L);
 		}
 	}
 
