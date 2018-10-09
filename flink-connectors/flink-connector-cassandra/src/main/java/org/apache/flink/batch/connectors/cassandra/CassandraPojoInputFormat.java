@@ -17,38 +17,43 @@
 
 package org.apache.flink.batch.connectors.cassandra;
 
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
+import org.apache.flink.util.Preconditions;
 
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
+import com.datastax.driver.mapping.Mapper;
+import com.datastax.driver.mapping.MappingManager;
+import com.datastax.driver.mapping.Result;
 
 import java.io.IOException;
 
 /**
- * InputFormat to read data from Apache Cassandra and generate ${@link Tuple}.
- *
- * @param <OUT> type of Tuple
+ * InputFormat to read data from Apache Cassandra and generate a custom Cassandra annotated object.
+ * @param <OUT> type of inputClass
  */
-public class CassandraInputFormat<OUT extends Tuple> extends CassandraInputFormatBase<OUT> {
+public class CassandraPojoInputFormat<OUT> extends CassandraInputFormatBase<OUT> {
 
-	private transient ResultSet resultSet;
+	private static final long serialVersionUID = 1992091320180905115L;
 
-	public CassandraInputFormat(String query, ClusterBuilder builder) {
+	private transient Result<OUT> resultSet;
+	private Class<OUT> inputClass;
+
+	public CassandraPojoInputFormat(String query, ClusterBuilder builder, Class<OUT> inputClass) {
 		super(query, builder);
+
+		Preconditions.checkArgument(inputClass != null, "InputClass cannot be null");
+
+		this.inputClass = inputClass;
 	}
 
-	/**
-	 * Opens a Session and executes the query.
-	 *
-	 * @param ignored because parameter is not parallelizable.
-	 * @throws IOException
-	 */
 	@Override
-	public void open(InputSplit ignored) throws IOException {
+	public void open(InputSplit split) throws IOException {
 		this.session = cluster.connect();
-		this.resultSet = session.execute(query);
+		MappingManager manager = new MappingManager(session);
+
+		Mapper<OUT> mapper = manager.mapper(inputClass);
+
+		this.resultSet = mapper.map(session.execute(query));
 	}
 
 	@Override
@@ -58,10 +63,6 @@ public class CassandraInputFormat<OUT extends Tuple> extends CassandraInputForma
 
 	@Override
 	public OUT nextRecord(OUT reuse) throws IOException {
-		final Row item = resultSet.one();
-		for (int i = 0; i < reuse.getArity(); i++) {
-			reuse.setField(item.getObject(i), i);
-		}
-		return reuse;
+		return resultSet.one();
 	}
 }
