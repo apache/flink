@@ -92,9 +92,12 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.spy;
 
+/**
+ * Tests the restart behaviour of the {@link ExecutionGraph}.
+ */
 public class ExecutionGraphRestartTest extends TestLogger {
 
-	private final static int NUM_TASKS = 31;
+	private static final int NUM_TASKS = 31;
 
 	private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
 
