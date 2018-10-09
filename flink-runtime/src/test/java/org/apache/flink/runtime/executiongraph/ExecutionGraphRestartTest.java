@@ -90,7 +90,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.spy;
 
 /**
  * Tests the restart behaviour of the {@link ExecutionGraph}.
@@ -851,14 +850,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	}
 
 	private static Tuple2<ExecutionGraph, Instance> createExecutionGraph(RestartStrategy restartStrategy) throws Exception {
-		return createExecutionGraph(restartStrategy, false);
-	}
-
-	private static Tuple2<ExecutionGraph, Instance> createSpyExecutionGraph(RestartStrategy restartStrategy) throws Exception {
-		return createExecutionGraph(restartStrategy, true);
-	}
-
-	private static Tuple2<ExecutionGraph, Instance> createExecutionGraph(RestartStrategy restartStrategy, boolean isSpy) throws Exception {
 		Instance instance = ExecutionGraphTestUtils.getInstance(
 			new ActorTaskManagerGateway(
 				new SimpleActorGateway(TestingUtils.directExecutionContext())),
@@ -872,9 +863,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		JobGraph jobGraph = new JobGraph("Pointwise job", sender);
 
 		ExecutionGraph eg = newExecutionGraph(restartStrategy, scheduler);
-		if (isSpy) {
-			eg = spy(eg);
-		}
 		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
 
 		assertEquals(JobStatus.CREATED, eg.getState());
