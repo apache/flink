@@ -29,6 +29,8 @@ import org.apache.flink.container.entrypoint.JarManifestParser.JarFileWithEntryC
 import org.apache.flink.runtime.entrypoint.component.JobGraphRetriever;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
@@ -69,12 +71,22 @@ class ClassPathJobGraphRetriever implements JobGraphRetriever {
 	@Nonnull
 	private final Supplier<Iterable<File>> jarsOnClassPath;
 
+	@Nonnull
+	private final SubmittedJobGraphStore submittedJobGraphStore;
+
 	ClassPathJobGraphRetriever(
 			@Nonnull JobID jobId,
 			@Nonnull SavepointRestoreSettings savepointRestoreSettings,
 			@Nonnull String[] programArguments,
-			@Nullable String jobClassName) {
-		this(jobId, savepointRestoreSettings, programArguments, jobClassName, JarsOnClassPath.INSTANCE);
+			@Nullable String jobClassName,
+			@Nonnull SubmittedJobGraphStore submittedJobGraphStore) {
+
+		this(jobId,
+			savepointRestoreSettings,
+			programArguments,
+			jobClassName,
+			JarsOnClassPath.INSTANCE,
+			submittedJobGraphStore);
 	}
 
 	@VisibleForTesting
@@ -83,30 +95,44 @@ class ClassPathJobGraphRetriever implements JobGraphRetriever {
 			@Nonnull SavepointRestoreSettings savepointRestoreSettings,
 			@Nonnull String[] programArguments,
 			@Nullable String jobClassName,
-			@Nonnull Supplier<Iterable<File>> jarsOnClassPath) {
+			@Nonnull Supplier<Iterable<File>> jarsOnClassPath,
+			@Nonnull SubmittedJobGraphStore submittedJobGraphStore) {
 		this.jobId = requireNonNull(jobId, "jobId");
 		this.savepointRestoreSettings = requireNonNull(savepointRestoreSettings, "savepointRestoreSettings");
 		this.programArguments = requireNonNull(programArguments, "programArguments");
 		this.jobClassName = jobClassName;
 		this.jarsOnClassPath = requireNonNull(jarsOnClassPath, "jarsOnClassPath");
+		this.submittedJobGraphStore = requireNonNull(submittedJobGraphStore, "submittedJobGraphStore");
 	}
 
 	@Override
 	public JobGraph retrieveJobGraph(Configuration configuration) throws FlinkException {
-		final PackagedProgram packagedProgram = createPackagedProgram();
-		final int defaultParallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
+		SubmittedJobGraph submittedJobGraph;
 		try {
-			final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(
-				packagedProgram,
-				configuration,
-				defaultParallelism,
-				jobId);
-			jobGraph.setAllowQueuedScheduling(true);
-			jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
-
-			return jobGraph;
+			//firstly, fetch job graph from job graph store
+			submittedJobGraph = submittedJobGraphStore.recoverJobGraph(jobId);
 		} catch (Exception e) {
-			throw new FlinkException("Could not create the JobGraph from the provided user code jar.", e);
+			throw new FlinkException("Could not recover job graph from job graph store.", e);
+		}
+
+		if (submittedJobGraph != null) {
+			return submittedJobGraph.getJobGraph();
+		} else {
+			final PackagedProgram packagedProgram = createPackagedProgram();
+			final int defaultParallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
+			try {
+				final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(
+					packagedProgram,
+					configuration,
+					defaultParallelism,
+					jobId);
+				jobGraph.setAllowQueuedScheduling(true);
+				jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
+
+				return jobGraph;
+			} catch (Exception e) {
+				throw new FlinkException("Could not create the JobGraph from the provided user code jar.", e);
+			}
 		}
 	}
 

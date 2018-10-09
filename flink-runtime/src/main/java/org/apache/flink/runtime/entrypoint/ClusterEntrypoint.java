@@ -43,6 +43,7 @@ import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
@@ -126,6 +127,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 	private HighAvailabilityServices haServices;
 
 	@GuardedBy("lock")
+	private SubmittedJobGraphStore jobGraphStore;
+
+	@GuardedBy("lock")
 	private BlobServer blobServer;
 
 	@GuardedBy("lock")
@@ -207,12 +211,14 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 			configuration.setString(JobManagerOptions.ADDRESS, commonRpcService.getAddress());
 			configuration.setInteger(JobManagerOptions.PORT, commonRpcService.getPort());
 
-			final DispatcherResourceManagerComponentFactory<?> dispatcherResourceManagerComponentFactory = createDispatcherResourceManagerComponentFactory(configuration);
+			final DispatcherResourceManagerComponentFactory<?> dispatcherResourceManagerComponentFactory =
+				createDispatcherResourceManagerComponentFactory(configuration, jobGraphStore);
 
 			clusterComponent = dispatcherResourceManagerComponentFactory.create(
 				configuration,
 				commonRpcService,
 				haServices,
+				jobGraphStore,
 				blobServer,
 				heartbeatServices,
 				metricRegistry,
@@ -257,6 +263,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 				Hardware.getNumberCPUCores(),
 				new ExecutorThreadFactory("cluster-io"));
 			haServices = createHaServices(configuration, ioExecutor);
+			jobGraphStore = haServices.getSubmittedJobGraphStore();
 			blobServer = new BlobServer(configuration, haServices.createBlobStore());
 			blobServer.start();
 			heartbeatServices = createHeartbeatServices(configuration);
@@ -461,7 +468,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 	// Abstract methods
 	// --------------------------------------------------
 
-	protected abstract DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(Configuration configuration);
+	protected abstract DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(
+		Configuration configuration, SubmittedJobGraphStore submittedJobGraphStore);
 
 	protected abstract ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
 		Configuration configuration,

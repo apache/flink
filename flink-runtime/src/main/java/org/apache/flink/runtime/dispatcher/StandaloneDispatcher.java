@@ -23,6 +23,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -44,6 +45,7 @@ public class StandaloneDispatcher extends Dispatcher {
 			Configuration configuration,
 			HighAvailabilityServices highAvailabilityServices,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+			SubmittedJobGraphStore jobGraphStore,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
 			JobManagerMetricGroup jobManagerMetricGroup,
@@ -57,7 +59,7 @@ public class StandaloneDispatcher extends Dispatcher {
 			endpointId,
 			configuration,
 			highAvailabilityServices,
-			highAvailabilityServices.getSubmittedJobGraphStore(),
+			jobGraphStore,
 			resourceManagerGatewayRetriever,
 			blobServer,
 			heartbeatServices,

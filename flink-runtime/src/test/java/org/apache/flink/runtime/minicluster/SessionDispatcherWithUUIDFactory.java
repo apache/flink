@@ -28,6 +28,7 @@ import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -49,6 +50,7 @@ public enum SessionDispatcherWithUUIDFactory implements DispatcherFactory<Dispat
 		RpcService rpcService,
 		HighAvailabilityServices highAvailabilityServices,
 		GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+		SubmittedJobGraphStore submittedJobGraphStore,
 		BlobServer blobServer,
 		HeartbeatServices heartbeatServices,
 		JobManagerMetricGroup jobManagerMetricGroup,
@@ -63,6 +65,7 @@ public enum SessionDispatcherWithUUIDFactory implements DispatcherFactory<Dispat
 			configuration,
 			highAvailabilityServices,
 			resourceManagerGatewayRetriever,
+			highAvailabilityServices.getSubmittedJobGraphStore(),
 			blobServer,
 			heartbeatServices,
 			jobManagerMetricGroup,

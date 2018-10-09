@@ -116,6 +116,7 @@ public class TestingMiniCluster extends MiniCluster {
 					configuration,
 					rpcServiceFactory.createRpcService(),
 					haServices,
+					haServices.getSubmittedJobGraphStore(),
 					blobServer,
 					heartbeatServices,
 					metricRegistry,

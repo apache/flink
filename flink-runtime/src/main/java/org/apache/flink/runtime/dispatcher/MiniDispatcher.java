@@ -29,6 +29,8 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
@@ -64,6 +66,7 @@ public class MiniDispatcher extends Dispatcher {
 			Configuration configuration,
 			HighAvailabilityServices highAvailabilityServices,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+			SubmittedJobGraphStore submittedJobGraphStore,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
 			JobManagerMetricGroup jobManagerMetricGroup,
@@ -79,7 +82,7 @@ public class MiniDispatcher extends Dispatcher {
 			endpointId,
 			configuration,
 			highAvailabilityServices,
-			new SingleJobSubmittedJobGraphStore(jobGraph),
+			submittedJobGraphStore,
 			resourceManagerGatewayRetriever,
 			blobServer,
 			heartbeatServices,
@@ -90,6 +93,7 @@ public class MiniDispatcher extends Dispatcher {
 			fatalErrorHandler,
 			historyServerArchivist);
 
+		this.submittedJobGraphStore.putJobGraph(new SubmittedJobGraph(jobGraph));
 		this.executionMode = checkNotNull(executionMode);
 		this.jobTerminationFuture = new CompletableFuture<>();
 	}

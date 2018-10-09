@@ -36,6 +36,7 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.testutils.InMemorySubmittedJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
 
@@ -93,6 +94,8 @@ public class MiniDispatcherTest extends TestLogger {
 
 	private TestingHighAvailabilityServices highAvailabilityServices;
 
+	private InMemorySubmittedJobGraphStore jobGraphStore;
+
 	private TestingFatalErrorHandler testingFatalErrorHandler;
 
 	private TestingJobManagerRunnerFactory testingJobManagerRunnerFactory;
@@ -118,6 +121,9 @@ public class MiniDispatcherTest extends TestLogger {
 	public void setup() throws Exception {
 		dispatcherLeaderElectionService = new TestingLeaderElectionService();
 		highAvailabilityServices = new TestingHighAvailabilityServices();
+		jobGraphStore = new InMemorySubmittedJobGraphStore();
+		jobGraphStore.start(null);
+		highAvailabilityServices.setSubmittedJobGraphStore(jobGraphStore);
 		testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 		highAvailabilityServices.setDispatcherLeaderElectionService(dispatcherLeaderElectionService);
@@ -130,6 +136,7 @@ public class MiniDispatcherTest extends TestLogger {
 
 	@After
 	public void teardown() throws Exception {
+		jobGraphStore.stop();
 		testingFatalErrorHandler.rethrowError();
 	}
 
@@ -238,6 +245,7 @@ public class MiniDispatcherTest extends TestLogger {
 			configuration,
 			highAvailabilityServices,
 			() -> CompletableFuture.completedFuture(resourceManagerGateway),
+			highAvailabilityServices.getSubmittedJobGraphStore(),
 			blobServer,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),

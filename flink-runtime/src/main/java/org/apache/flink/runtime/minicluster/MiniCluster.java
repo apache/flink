@@ -47,6 +47,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -145,6 +146,9 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 	@GuardedBy("lock")
 	private HighAvailabilityServices haServices;
+
+	@GuardedBy("lock")
+	private SubmittedJobGraphStore jobGraphStore;
 
 	@GuardedBy("lock")
 	private BlobServer blobServer;
@@ -298,6 +302,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					new ExecutorThreadFactory("mini-cluster-io"));
 				haServices = createHighAvailabilityServices(configuration, ioExecutor);
 
+				jobGraphStore = haServices.getSubmittedJobGraphStore();
+
 				blobServer = new BlobServer(configuration, haServices.createBlobStore());
 				blobServer.start();
 
@@ -380,6 +386,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				configuration,
 				rpcServiceFactory.createRpcService(),
 				haServices,
+				jobGraphStore,
 				blobServer,
 				heartbeatServices,
 				metricRegistry,

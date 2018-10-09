@@ -35,6 +35,7 @@ import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
@@ -100,6 +101,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 			Configuration configuration,
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityServices,
+			SubmittedJobGraphStore submittedJobGraphStore,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
@@ -186,6 +188,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				rpcService,
 				highAvailabilityServices,
 				resourceManagerGatewayRetriever,
+				submittedJobGraphStore,
 				blobServer,
 				heartbeatServices,
 				jobManagerMetricGroup,
