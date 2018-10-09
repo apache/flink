@@ -139,8 +139,13 @@ public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadabl
 	public abstract int hashCode();
 
 	// ----------------------------------------------------------------------------
-	//  Irrelevant methods; these methods should only ever be used in the new interface.
+	//  Irrelevant methods; these methods should only ever be used when the new interface is directly implemented.
 	// ----------------------------------------------------------------------------
+
+	@Override
+	public int getCurrentVersion() {
+		throw new UnsupportedOperationException();
+	}
 
 	@Override
 	public final void read(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
