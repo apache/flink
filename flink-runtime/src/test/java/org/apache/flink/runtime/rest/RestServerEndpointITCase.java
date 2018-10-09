@@ -96,6 +96,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
+import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -539,7 +540,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		Request request = new Request.Builder().url(httpUrl).build();
 		try (final Response response = client.newCall(request).execute()) {
 			assertEquals(HttpResponseStatus.MOVED_PERMANENTLY.code(), response.code());
-			assertTrue(response.headers().names().contains("Location"));
+			assertThat(response.headers().names(), hasItems("Location"));
 			assertEquals(httpsUrl, response.header("Location"));
 		}
 	}
