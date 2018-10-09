@@ -95,7 +95,7 @@ else
 fi
 
 setup_elasticsearch "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.1.2.tar.gz"
-verify_elasticsearch_process_exist
+wait_elasticsearch_working
 
 function shutdownAndCleanup {
     # don't call ourselves again for another signal interruption
