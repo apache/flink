@@ -116,9 +116,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		eg.getAllExecutionVertices().iterator().next().fail(new Exception("Test Exception"));
 
-		for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
-			vertex.getCurrentExecutionAttempt().cancelingComplete();
-		}
+		completeCanceling(eg);
 
 		assertEquals(JobStatus.FAILED, eg.getState());
 
@@ -126,6 +124,16 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		eg.restart(eg.getGlobalModVersion());
 
 		assertEquals(JobStatus.FAILED, eg.getState());
+	}
+
+	private void completeCanceling(ExecutionGraph eg) {
+		executeOperationForAllExecutions(eg, Execution::cancelingComplete);
+	}
+
+	private void executeOperationForAllExecutions(ExecutionGraph eg, Consumer<Execution> operation) {
+		for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
+			operation.accept(vertex.getCurrentExecutionAttempt());
+		}
 	}
 
 	@Test
@@ -257,9 +265,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		assertEquals(JobStatus.CANCELLING, graph.getState());
 
 		// let all tasks finish cancelling
-		for (ExecutionVertex vertex : graph.getVerticesTopologically().iterator().next().getTaskVertices()) {
-			vertex.getCurrentExecutionAttempt().cancelingComplete();
-		}
+		completeCanceling(graph);
 
 		assertEquals(JobStatus.CANCELED, graph.getState());
 	}
@@ -270,11 +276,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		final ExecutionGraph graph = createExecutionGraph(restartStrategy).f0;
 
 		assertEquals(JobStatus.RUNNING, graph.getState());
-
-		// switch all tasks to running
-		for (ExecutionVertex vertex : graph.getVerticesTopologically().iterator().next().getTaskVertices()) {
-			vertex.getCurrentExecutionAttempt().switchToRunning();
-		}
+		switchAllTasksToRunning(graph);
 
 		graph.cancel();
 
@@ -285,11 +287,13 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		assertEquals(JobStatus.FAILING, graph.getState());
 
 		// let all tasks finish cancelling
-		for (ExecutionVertex vertex : graph.getVerticesTopologically().iterator().next().getTaskVertices()) {
-			vertex.getCurrentExecutionAttempt().cancelingComplete();
-		}
+		completeCanceling(graph);
 
 		assertEquals(JobStatus.FAILED, graph.getState());
+	}
+
+	private void switchAllTasksToRunning(ExecutionGraph graph) {
+		executeOperationForAllExecutions(graph, Execution::switchToRunning);
 	}
 
 	@Test
@@ -302,9 +306,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		assertEquals(JobStatus.FAILING, eg.getState());
 
-		for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
-			vertex.getCurrentExecutionAttempt().cancelingComplete();
-		}
+		completeCanceling(eg);
 
 		eg.waitUntilTerminal();
 		assertEquals(JobStatus.FAILED, eg.getState());
