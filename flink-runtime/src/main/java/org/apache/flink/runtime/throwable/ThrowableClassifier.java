@@ -16,26 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.execution;
+package org.apache.flink.runtime.throwable;
 
-import org.apache.flink.runtime.throwable.ThrowableAnnotation;
-import org.apache.flink.runtime.throwable.ThrowableType;
+import java.lang.annotation.Annotation;
 
 /**
- * Exception thrown in order to suppress job restarts.
- *
- * <p>This exception acts as a wrapper around the real cause and suppresses
- * job restarts. The JobManager will <strong>not</strong> restart a job, which
- * fails with this Exception.
+ * Helper class, given a exception do the classification.
  */
-@ThrowableAnnotation(ThrowableType.NonRecoverableError)
-public class SuppressRestartsException extends RuntimeException {
+public class ThrowableClassifier {
 
-	private static final long serialVersionUID = 221873676920848349L;
-
-	public SuppressRestartsException(Throwable cause) {
-		super("Unrecoverable failure. This suppresses job restarts. Please check the " +
-				"stack trace for the root cause.", cause);
+	/**
+	 * classify the exceptions by extract the {@link ThrowableAnnotation} of it, that will be handled different failover logic.
+	 * @param cause
+	 * @return ThrowableType.RecoverableError if there is no such annotation
+	 */
+	public static ThrowableType getThrowableType(Throwable cause) {
+		final Annotation annotation = cause.getClass().getAnnotation(ThrowableAnnotation.class);
+		return annotation == null ? ThrowableType.RecoverableError : ((ThrowableAnnotation) annotation).value();
 	}
-
 }
