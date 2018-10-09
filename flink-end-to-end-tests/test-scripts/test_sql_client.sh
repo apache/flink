@@ -109,7 +109,7 @@ ELASTICSEARCH_VERSION=6
 DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.1.tar.gz'
 
 setup_elasticsearch $DOWNLOAD_URL
-verify_elasticsearch_process_exist
+wait_elasticsearch_working
 
 ################################################################################
 # Run a SQL statement

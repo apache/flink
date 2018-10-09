@@ -26,7 +26,7 @@ DOWNLOAD_URL=$2
 mkdir -p $TEST_DATA_DIR
 
 setup_elasticsearch $DOWNLOAD_URL
-verify_elasticsearch_process_exist
+wait_elasticsearch_working
 
 start_cluster
 
