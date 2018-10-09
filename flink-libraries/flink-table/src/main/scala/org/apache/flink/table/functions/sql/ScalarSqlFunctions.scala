@@ -205,6 +205,18 @@ object ScalarSqlFunctions {
     SqlFunctionCategory.STRING
   )
 
+  val REGEXP_EXTRACT = new SqlFunction(
+    "REGEXP_EXTRACT",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.cascade(
+      ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.FORCE_NULLABLE),
+    InferTypes.RETURN_TYPE,
+    OperandTypes.or(OperandTypes.STRING_STRING_INTEGER,
+      OperandTypes.STRING_STRING
+    ),
+    SqlFunctionCategory.STRING
+  )
+
   val FROM_BASE64 = new SqlFunction(
     "FROM_BASE64",
     SqlKind.OTHER_FUNCTION,

@@ -383,6 +383,45 @@ case class RegexpReplace(str: Expression, regex: Expression, replacement: Expres
 }
 
 /**
+  * Returns a string extracted with a specified regular expression and a regex match group index.
+  */
+case class RegexpExtract(str: Expression, regex: Expression, extractIndex: Expression)
+  extends Expression with InputTypeSpec {
+  def this(str: Expression, regex: Expression) = this(str, regex, null)
+
+  override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = {
+    if (extractIndex == null) {
+      Seq(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO)
+    } else {
+      Seq(
+        BasicTypeInfo.STRING_TYPE_INFO,
+        BasicTypeInfo.STRING_TYPE_INFO,
+        BasicTypeInfo.INT_TYPE_INFO)
+    }
+  }
+
+  override private[flink] def children: Seq[Expression] = {
+    if (extractIndex == null) {
+      Seq(str, regex)
+    } else {
+      Seq(str, regex, extractIndex)
+    }
+  }
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.REGEXP_EXTRACT, children.map(_.toRexNode))
+  }
+
+  override def toString: String = s"($str).regexp_extract($regex, $extractIndex)"
+}
+
+object RegexpExtract {
+  def apply(str: Expression, regex: Expression): RegexpExtract = RegexpExtract(str, regex, null)
+}
+
+/**
   * Returns the base string decoded with base64.
   * Returns NULL If the input string is NULL.
   */

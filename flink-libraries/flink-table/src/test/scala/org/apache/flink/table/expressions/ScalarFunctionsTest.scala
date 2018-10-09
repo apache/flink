@@ -648,6 +648,58 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testRegexpExtract(): Unit = {
+    testAllApis(
+      "foothebar".regexpExtract("foo(.*?)(bar)", 2),
+      "'foothebar'.regexpExtract('foo(.*?)(bar)', 2)",
+      "REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)",
+      "bar")
+
+    testAllApis(
+      "foothebar".regexpExtract("foo(.*?)(bar)", 0),
+      "'foothebar'.regexpExtract('foo(.*?)(bar)', 0)",
+      "REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 0)",
+      "foothebar")
+
+    testAllApis(
+      "foothebar".regexpExtract("foo(.*?)(bar)", 1),
+      "'foothebar'.regexpExtract('foo(.*?)(bar)', 1)",
+      "REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 1)",
+      "the")
+
+    testAllApis(
+      "foothebar".regexpExtract("foo([\\w]+)", 1),
+      "'foothebar'.regexpExtract('foo([\\w]+)', 1)",
+      "REGEXP_EXTRACT('foothebar', 'foo([\\w]+)', 1)",
+      "thebar")
+
+    testAllApis(
+      "foothebar".regexpExtract("foo([\\d]+)", 1),
+      "'foothebar'.regexpExtract('foo([\\d]+)', 1)",
+      "REGEXP_EXTRACT('foothebar', 'foo([\\d]+)', 1)",
+      "null")
+
+    testAllApis(
+      'f33.regexpExtract("foo(.*?)(bar)", 2),
+      "f33.regexpExtract('foo(.*?)(bar)', 2)",
+      "REGEXP_EXTRACT(f33, 'foo(.*?)(bar)', 2)",
+      "null")
+
+    testAllApis(
+      "foothebar".regexpExtract('f33, 2),
+      "'foothebar'.regexpExtract(f33, 2)",
+      "REGEXP_EXTRACT('foothebar', f33, 2)",
+      "null")
+
+    //test optional regex match group
+    testAllApis(
+      "foothebar".regexpExtract("foo(.*?)(bar)"),
+      "'foothebar'.regexpExtract('foo(.*?)(bar)')",
+      "REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)')",
+      "foothebar")
+  }
+
+  @Test
   def testFromBase64(): Unit = {
     testAllApis(
       'f35.fromBase64(),

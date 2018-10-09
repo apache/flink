@@ -585,6 +585,18 @@ trait ImplicitExpressionOperations {
     RegexpReplace(expr, regex, replacement)
 
   /**
+    * Returns a string extracted with a specified regular expression and a regex match group index.
+    */
+  def regexpExtract(regex: Expression, extractIndex: Expression) =
+    RegexpExtract(expr, regex, extractIndex)
+
+  /**
+    * Returns a string extracted with a specified regular expression.
+    */
+  def regexpExtract(regex: Expression) =
+    RegexpExtract(expr, regex, null)
+
+  /**
     * Returns the base string decoded with base64.
     */
   def fromBase64() = FromBase64(expr)
