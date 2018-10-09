@@ -160,7 +160,7 @@ object EnumValueSerializer {
           // read null from input stream
           InstantiationUtil.deserializeObject(inViewWrapper, getUserCodeClassLoader)
           enumConstants = List()
-        } else if (getReadVersion >= ScalaEnumSerializerConfigSnapshot.VERSION) {
+        } else if (getReadVersion == ScalaEnumSerializerConfigSnapshot.VERSION) {
           enumClass = Class.forName(
             in.readUTF(), true, getUserCodeClassLoader).asInstanceOf[Class[E]]
 

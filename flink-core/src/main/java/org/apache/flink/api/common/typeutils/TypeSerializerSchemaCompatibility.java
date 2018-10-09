@@ -32,7 +32,7 @@ import javax.annotation.Nullable;
  * resolved compatibility result, migration (i.e., reading bytes with the previous serializer and then writing
  * it again with the new serializer) may be required before the new serializer can be used.
  *
- * @param <T> the type of data serialized bythe serializer that was being checked.
+ * @param <T> the type of data serialized by the serializer that was being checked.
  *
  * @param <NS> the type of serializer that was being checked.
  *

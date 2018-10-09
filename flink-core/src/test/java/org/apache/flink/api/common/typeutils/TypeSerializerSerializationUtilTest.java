@@ -174,7 +174,7 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 	/**
 	 * Verifies that deserializing config snapshots fail if the config class could not be found.
 	 */
-	@Test
+	@Test(expected = IOException.class)
 	public void testFailsWhenConfigurationSnapshotClassNotFound() throws Exception {
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
@@ -189,10 +189,9 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 			// read using a dummy classloader
 			TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
 				new DataInputViewStreamWrapper(in), new URLClassLoader(new URL[0], null), null);
-			fail("Expected a ClassNotFoundException wrapped in IOException");
-		} catch (IOException expected) {
-			// test passes
 		}
+
+		fail("Expected a ClassNotFoundException wrapped in IOException");
 	}
 
 	/**

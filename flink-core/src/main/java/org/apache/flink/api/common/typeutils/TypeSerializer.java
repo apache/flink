@@ -240,7 +240,7 @@ public abstract class TypeSerializer<T> implements Serializable {
 			} else if (compat.isIncompatible()) {
 				throw new IllegalStateException("The new serializer is incompatible.");
 			} else {
-				throw new IllegalStateException("Guard for future.");
+				throw new IllegalStateException("Unidentifiable schema compatibility type. This is a bug, please file a JIRA.");
 			}
 		}
 	}

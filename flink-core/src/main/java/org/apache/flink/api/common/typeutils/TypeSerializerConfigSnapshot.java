@@ -98,7 +98,8 @@ public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadabl
 		if (serializer != null) {
 			return this.serializer;
 		} else {
-			throw new IllegalStateException("Trying to return ");
+			throw new IllegalStateException("Trying to restore the prior serializer via TypeSerializerConfigSnapshot, " +
+				"but the prior serializer has not been set.");
 		}
 	}
 

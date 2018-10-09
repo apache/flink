@@ -159,6 +159,8 @@ public class TypeSerializerSnapshotSerializationUtil {
 			serializerSnapshot = InstantiationUtil.instantiate(serializerConfigSnapshotClass);
 
 			if (getReadVersion() >= 2) {
+				// Flink version after 1.7
+
 				boolean containsPriorSerializer = in.readBoolean();
 
 				TypeSerializer<T> priorSerializer = (containsPriorSerializer)
@@ -180,6 +182,8 @@ public class TypeSerializerSnapshotSerializationUtil {
 					serializerSnapshot.read(readVersion, in, userCodeClassLoader);
 				}
 			} else {
+				// Flink version before 1.7.x, and after 1.3.x
+
 				if (serializerSnapshot instanceof TypeSerializerConfigSnapshot) {
 					((TypeSerializerConfigSnapshot<T>) serializerSnapshot).setPriorSerializer(this.serializer);
 					((TypeSerializerConfigSnapshot<T>) serializerSnapshot).setUserCodeClassLoader(userCodeClassLoader);

@@ -56,10 +56,6 @@ public abstract class VersionedIOReadableWritable implements IOReadableWritable,
 		return (readVersion == Integer.MIN_VALUE) ? getVersion() : readVersion;
 	}
 
-	protected void overwriteReadVersion(int readVersion) {
-		this.readVersion = readVersion;
-	}
-
 	/**
 	 * Returns the compatible version values.
 	 *
