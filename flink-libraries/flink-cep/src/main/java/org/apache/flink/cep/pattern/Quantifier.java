@@ -124,12 +124,22 @@ public class Quantifier {
 		}
 		Quantifier that = (Quantifier) o;
 		return Objects.equals(properties, that.properties) &&
-				consumingStrategy == that.consumingStrategy;
+				consumingStrategy == that.consumingStrategy &&
+				innerConsumingStrategy == that.innerConsumingStrategy;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(properties, consumingStrategy);
+		return Objects.hash(properties, consumingStrategy, innerConsumingStrategy);
+	}
+
+	@Override
+	public String toString() {
+		return "Quantifier{" +
+			"properties=" + properties +
+			", consumingStrategy=" + consumingStrategy +
+			", innerConsumingStrategy=" + innerConsumingStrategy +
+			'}';
 	}
 
 	/**
@@ -183,6 +193,24 @@ public class Quantifier {
 
 		public static Times of(int times) {
 			return new Times(times, times);
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			Times times = (Times) o;
+			return from == times.from &&
+				to == times.to;
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(from, to);
 		}
 	}
 }
