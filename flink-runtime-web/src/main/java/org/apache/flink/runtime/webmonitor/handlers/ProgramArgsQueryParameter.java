@@ -20,8 +20,6 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import java.io.File;
 
-import static org.apache.flink.runtime.webmonitor.handlers.JarRequestBody.FIELD_NAME_PROGRAM_ARGUMENTS_LIST;
-
 /**
  * Query parameter specifying the arguments for the program.
  * @deprecated please, use {@link JarRequestBody#FIELD_NAME_PROGRAM_ARGUMENTS_LIST}
