@@ -47,9 +47,8 @@ public abstract class AbstractParameterToolTest {
 			byte[] b = InstantiationUtil.serializeObject(parameter);
 			final ParameterTool copy = InstantiationUtil.deserializeObject(b, getClass().getClassLoader());
 			internalValidate(copy);
-		} catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail(e.getMessage());
+		} catch (IOException | ClassNotFoundException e) {
+			throw new RuntimeException(e);
 		}
 	}
 
@@ -82,8 +81,7 @@ public abstract class AbstractParameterToolTest {
 			Assert.assertTrue(defaultProps.containsKey("input"));
 
 		} catch (IOException e) {
-			e.printStackTrace();
-			Assert.fail(e.getMessage());
+			throw new RuntimeException(e);
 		}
 	}
 }
