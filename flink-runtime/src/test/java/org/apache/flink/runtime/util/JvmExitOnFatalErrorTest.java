@@ -62,6 +62,7 @@ import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -249,21 +250,6 @@ public class JvmExitOnFatalErrorTest {
 			public void invoke() throws Exception {
 				throw new OutOfMemoryError();
 			}
-		}
-
-		private static final class NoOpTaskManagerActions implements TaskManagerActions {
-
-			@Override
-			public void notifyFinalState(ExecutionAttemptID executionAttemptID) {}
-
-			@Override
-			public void notifyFatalError(String message, Throwable cause) {}
-
-			@Override
-			public void failTask(ExecutionAttemptID executionAttemptID, Throwable cause) {}
-
-			@Override
-			public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {}
 		}
 
 		private static final class NoOpInputSplitProvider implements InputSplitProvider {

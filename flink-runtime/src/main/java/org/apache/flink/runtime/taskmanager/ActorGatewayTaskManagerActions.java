@@ -36,11 +36,6 @@ public class ActorGatewayTaskManagerActions implements TaskManagerActions {
 	}
 
 	@Override
-	public void notifyFinalState(ExecutionAttemptID executionAttemptID) {
-		actorGateway.tell(new TaskMessages.TaskInFinalState(executionAttemptID));
-	}
-
-	@Override
 	public void notifyFatalError(String message, Throwable cause) {
 		actorGateway.tell(new TaskManagerMessages.FatalError(message, cause));
 	}
@@ -52,8 +47,13 @@ public class ActorGatewayTaskManagerActions implements TaskManagerActions {
 
 	@Override
 	public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {
-		TaskMessages.UpdateTaskExecutionState actorMessage = new TaskMessages.UpdateTaskExecutionState(taskExecutionState);
+		final TaskMessages.TaskMessage taskMessage;
+		if (taskExecutionState.getExecutionState().isTerminal()) {
+			taskMessage = new TaskMessages.TaskInFinalState(taskExecutionState.getID());
+		} else {
+			taskMessage = new TaskMessages.UpdateTaskExecutionState(taskExecutionState);
+		}
 
-		actorGateway.tell(actorMessage);
+		actorGateway.tell(taskMessage);
 	}
 }

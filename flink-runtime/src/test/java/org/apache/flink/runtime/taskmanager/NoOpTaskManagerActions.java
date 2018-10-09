@@ -18,12 +18,19 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-public interface TaskExecutionStateListener {
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
-	/**
-	 * Called whenever the task's execution state changes
-	 *
-	 * @param taskExecutionState describing the task execution state change
-	 */
-	void notifyTaskExecutionStateChanged(TaskExecutionState taskExecutionState);
+/**
+ * Dummy implementation of {@link TaskManagerActions}.
+ */
+public class NoOpTaskManagerActions implements TaskManagerActions {
+
+	@Override
+	public void notifyFatalError(String message, Throwable cause) {}
+
+	@Override
+	public void failTask(ExecutionAttemptID executionAttemptID, Throwable cause) {}
+
+	@Override
+	public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {}
 }

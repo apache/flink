@@ -1553,11 +1553,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 
 		@Override
-		public void notifyFinalState(final ExecutionAttemptID executionAttemptID) {
-			runAsync(() -> unregisterTaskAndNotifyFinalState(jobMasterGateway, executionAttemptID));
-		}
-
-		@Override
 		public void notifyFatalError(String message, Throwable cause) {
 			try {
 				log.error(message, cause);
@@ -1574,7 +1569,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		@Override
 		public void updateTaskExecutionState(final TaskExecutionState taskExecutionState) {
-			TaskExecutor.this.updateTaskExecutionState(jobMasterGateway, taskExecutionState);
+			if (taskExecutionState.getExecutionState().isTerminal()) {
+				runAsync(() -> unregisterTaskAndNotifyFinalState(jobMasterGateway, taskExecutionState.getID()));
+			} else {
+				TaskExecutor.this.updateTaskExecutionState(jobMasterGateway, taskExecutionState);
+			}
 		}
 	}
 

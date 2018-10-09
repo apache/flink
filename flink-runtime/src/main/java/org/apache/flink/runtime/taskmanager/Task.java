@@ -86,10 +86,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -204,9 +202,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 	/** Checkpoint notifier used to communicate with the CheckpointCoordinator. */
 	private final CheckpointResponder checkpointResponder;
-
-	/** All listener that want to be notified about changes in the task's execution state. */
-	private final List<TaskExecutionStateListener> taskExecutionStateListeners;
 
 	/** The BLOB cache, from which the task can request BLOB files. */
 	private final BlobCacheService blobService;
@@ -348,7 +343,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		this.network = Preconditions.checkNotNull(networkEnvironment);
 		this.taskManagerConfig = Preconditions.checkNotNull(taskManagerConfig);
 
-		this.taskExecutionStateListeners = new CopyOnWriteArrayList<>();
 		this.metrics = metricGroup;
 
 		this.partitionProducerStateChecker = Preconditions.checkNotNull(partitionProducerStateChecker);
@@ -701,7 +695,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			}
 
 			// notify everyone that we switched to running
-			notifyObservers(ExecutionState.RUNNING, null);
 			taskManagerActions.updateTaskExecutionState(new TaskExecutionState(jobId, executionId, ExecutionState.RUNNING));
 
 			// make sure the user code classloader is accessible thread-locally
@@ -729,10 +722,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 			// try to mark the task as finished
 			// if that fails, the task was canceled/failed in the meantime
-			if (transitionState(ExecutionState.RUNNING, ExecutionState.FINISHED)) {
-				notifyObservers(ExecutionState.FINISHED, null);
-			}
-			else {
+			if (!transitionState(ExecutionState.RUNNING, ExecutionState.FINISHED)) {
 				throw new CancelTaskException();
 			}
 		}
@@ -772,26 +762,21 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 						if (t instanceof CancelTaskException) {
 							if (transitionState(current, ExecutionState.CANCELED)) {
 								cancelInvokable(invokable);
-
-								notifyObservers(ExecutionState.CANCELED, null);
 								break;
 							}
 						}
 						else {
 							if (transitionState(current, ExecutionState.FAILED, t)) {
 								// proper failure of the task. record the exception as the root cause
-								String errorMessage = String.format("Execution of %s (%s) failed.", taskNameWithSubtask, executionId);
 								failureCause = t;
 								cancelInvokable(invokable);
 
-								notifyObservers(ExecutionState.FAILED, new Exception(errorMessage, t));
 								break;
 							}
 						}
 					}
 					else if (current == ExecutionState.CANCELING) {
 						if (transitionState(current, ExecutionState.CANCELED)) {
-							notifyObservers(ExecutionState.CANCELED, null);
 							break;
 						}
 					}
@@ -883,7 +868,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	}
 
 	private void notifyFinalState() {
-		taskManagerActions.notifyFinalState(executionId);
+		checkState(executionState.isTerminal());
+		taskManagerActions.updateTaskExecutionState(new TaskExecutionState(jobId, executionId, executionState, failureCause));
 	}
 
 	private void notifyFatalError(String message, Throwable cause) {
@@ -1010,14 +996,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 					// if we manage this state transition, then the invokable gets never called
 					// we need not call cancel on it
 					this.failureCause = cause;
-					notifyObservers(
-						targetState,
-						new Exception(
-							String.format(
-								"Cancel or fail execution of %s (%s).",
-								taskNameWithSubtask,
-								executionId),
-							cause));
 					return;
 				}
 			}
@@ -1031,14 +1009,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 					if (invokable != null && invokableHasBeenCanceled.compareAndSet(false, true)) {
 						this.failureCause = cause;
-						notifyObservers(
-							targetState,
-							new Exception(
-								String.format(
-									"Cancel or fail execution of %s (%s).",
-									taskNameWithSubtask,
-									executionId),
-								cause));
 
 						LOG.info("Triggering cancellation of task code {} ({}).", taskNameWithSubtask, executionId);
 
@@ -1108,22 +1078,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				throw new IllegalStateException(String.format("Unexpected state: %s of task %s (%s).",
 					current, taskNameWithSubtask, executionId));
 			}
-		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  State Listeners
-	// ------------------------------------------------------------------------
-
-	public void registerExecutionListener(TaskExecutionStateListener listener) {
-		taskExecutionStateListeners.add(listener);
-	}
-
-	private void notifyObservers(ExecutionState newState, Throwable error) {
-		TaskExecutionState stateUpdate = new TaskExecutionState(jobId, executionId, newState, error);
-
-		for (TaskExecutionStateListener listener : taskExecutionStateListeners) {
-			listener.notifyTaskExecutionStateChanged(stateUpdate);
 		}
 	}
 
