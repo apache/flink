@@ -569,4 +569,18 @@ public class Pattern<T, F extends T> {
 			throw new MalformedPatternException("Optional pattern cannot be preceded by greedy pattern");
 		}
 	}
+
+	@Override
+	public String toString() {
+		return "Pattern{" +
+			"name='" + name + '\'' +
+			", previous=" + previous +
+			", condition=" + condition +
+			", windowTime=" + windowTime +
+			", quantifier=" + quantifier +
+			", untilCondition=" + untilCondition +
+			", times=" + times +
+			", afterMatchSkipStrategy=" + afterMatchSkipStrategy +
+			'}';
+	}
 }
