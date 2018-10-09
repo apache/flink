@@ -549,6 +549,35 @@ public class AfterMatchSkipITCase extends TestLogger{
 	}
 
 	@Test(expected = FlinkRuntimeException.class)
+	public void testSkipToFirstElementOfMatch() throws Exception {
+		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
+
+		Event a1 = new Event(1, "a1", 0.0);
+
+		streamEvents.add(new StreamRecord<Event>(a1));
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("a",
+			AfterMatchSkipStrategy.skipToFirst("a").throwExceptionOnMiss()
+		).where(
+			new SimpleCondition<Event>() {
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("a");
+				}
+			}
+		);
+		NFA<Event> nfa = compile(pattern, false);
+
+		feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+
+		//skip to first element of a match should throw exception if they are enabled,
+		//this mode is used in MATCH RECOGNIZE which assumes that skipping to first element
+		//would result in infinite loop. In CEP by default(with exceptions disabled), we use no skip
+		//strategy in this case.
+	}
+
+	@Test(expected = FlinkRuntimeException.class)
 	public void testSkipToFirstNonExistentPosition() throws Exception {
 		MissedSkipTo.compute(AfterMatchSkipStrategy.skipToFirst("b").throwExceptionOnMiss());
 
