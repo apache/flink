@@ -113,14 +113,12 @@ public class TaskTest extends TestLogger {
 
 	private ActorGateway taskManagerGateway;
 	private ActorGateway jobManagerGateway;
-	private ActorGateway listenerGateway;
 
-	private ActorGatewayTaskExecutionStateListener listener;
 	private ActorGatewayTaskManagerActions taskManagerConnection;
 
 	private BlockingQueue<Object> taskManagerMessages;
 	private BlockingQueue<Object> jobManagerMessages;
-	private BlockingQueue<Object> listenerMessages;
+	private BlockingQueue<TaskExecutionState> listenerMessages;
 
 	@Before
 	public void createQueuesAndActors() {
@@ -129,10 +127,14 @@ public class TaskTest extends TestLogger {
 		listenerMessages = new LinkedBlockingQueue<>();
 		taskManagerGateway = new ForwardingActorGateway(taskManagerMessages);
 		jobManagerGateway = new ForwardingActorGateway(jobManagerMessages);
-		listenerGateway = new ForwardingActorGateway(listenerMessages);
 
-		listener = new ActorGatewayTaskExecutionStateListener(listenerGateway);
-		taskManagerConnection = new ActorGatewayTaskManagerActions(taskManagerGateway);
+		taskManagerConnection = new ActorGatewayTaskManagerActions(taskManagerGateway) {
+			@Override
+			public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {
+				super.updateTaskExecutionState(taskExecutionState);
+				listenerMessages.add(taskExecutionState);
+			}
+		};
 
 		awaitLatch = new OneShotLatch();
 		triggerLatch = new OneShotLatch();
@@ -147,7 +149,6 @@ public class TaskTest extends TestLogger {
 
 		taskManagerGateway = null;
 		jobManagerGateway = null;
-		listenerGateway = null;
 	}
 
 	// ------------------------------------------------------------------------
@@ -164,8 +165,6 @@ public class TaskTest extends TestLogger {
 			assertFalse(task.isCanceledOrFailed());
 			assertNull(task.getFailureCause());
 
-			task.registerExecutionListener(listener);
-
 			// go into the run method. we should switch to DEPLOYING, RUNNING, then
 			// FINISHED, and all should be good
 			task.run();
@@ -178,7 +177,6 @@ public class TaskTest extends TestLogger {
 
 			// verify listener messages
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
-			validateListenerMessage(ExecutionState.FINISHED, task, false);
 
 			// make sure that the TaskManager received an message to unregister the task
 			validateTaskManagerStateChange(ExecutionState.RUNNING, task, false);
@@ -244,8 +242,6 @@ public class TaskTest extends TestLogger {
 			assertFalse(task.isCanceledOrFailed());
 			assertNull(task.getFailureCause());
 
-			task.registerExecutionListener(listener);
-
 			// should fail
 			task.run();
 
@@ -255,9 +251,6 @@ public class TaskTest extends TestLogger {
 			assertNotNull(task.getFailureCause());
 			assertNotNull(task.getFailureCause().getMessage());
 			assertTrue(task.getFailureCause().getMessage().contains("classloader"));
-
-			// verify listener messages
-			validateListenerMessage(ExecutionState.FAILED, task, true);
 
 			// make sure that the TaskManager received an message to unregister the task
 			validateUnregisterTask(task.getExecutionId());
@@ -292,8 +285,6 @@ public class TaskTest extends TestLogger {
 
 			Task task = createTask(TestInvokableCorrect.class, blobService, libCache, network, consumableNotifier, partitionProducerStateChecker, executor);
 
-			task.registerExecutionListener(listener);
-
 			task.run();
 
 			assertEquals(ExecutionState.FAILED, task.getExecutionState());
@@ -301,7 +292,6 @@ public class TaskTest extends TestLogger {
 			assertTrue(task.getFailureCause().getMessage().contains("buffers"));
 
 			validateUnregisterTask(task.getExecutionId());
-			validateListenerMessage(ExecutionState.FAILED, task, true);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -313,7 +303,6 @@ public class TaskTest extends TestLogger {
 	public void testInvokableInstantiationFailed() {
 		try {
 			Task task = createTask(InvokableNonInstantiable.class);
-			task.registerExecutionListener(listener);
 
 			task.run();
 
@@ -322,7 +311,6 @@ public class TaskTest extends TestLogger {
 			assertTrue(task.getFailureCause().getMessage().contains("instantiate"));
 
 			validateUnregisterTask(task.getExecutionId());
-			validateListenerMessage(ExecutionState.FAILED, task, true);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -334,7 +322,6 @@ public class TaskTest extends TestLogger {
 	public void testExecutionFailsInInvoke() {
 		try {
 			Task task = createTask(InvokableWithExceptionInInvoke.class);
-			task.registerExecutionListener(listener);
 
 			task.run();
 
@@ -348,7 +335,6 @@ public class TaskTest extends TestLogger {
 			validateUnregisterTask(task.getExecutionId());
 
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
-			validateListenerMessage(ExecutionState.FAILED, task, true);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -360,7 +346,6 @@ public class TaskTest extends TestLogger {
 	public void testFailWithWrappedException() {
 		try {
 			Task task = createTask(FailingInvokableWithChainedException.class);
-			task.registerExecutionListener(listener);
 
 			task.run();
 
@@ -374,7 +359,6 @@ public class TaskTest extends TestLogger {
 			validateUnregisterTask(task.getExecutionId());
 
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
-			validateListenerMessage(ExecutionState.FAILED, task, true);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -386,7 +370,6 @@ public class TaskTest extends TestLogger {
 	public void testCancelDuringInvoke() {
 		try {
 			Task task = createTask(InvokableBlockingInInvoke.class);
-			task.registerExecutionListener(listener);
 
 			// run the task asynchronous
 			task.startTaskThread();
@@ -408,7 +391,6 @@ public class TaskTest extends TestLogger {
 			validateUnregisterTask(task.getExecutionId());
 
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
-			validateCancelingAndCanceledListenerMessage(task);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -420,7 +402,6 @@ public class TaskTest extends TestLogger {
 	public void testFailExternallyDuringInvoke() {
 		try {
 			Task task = createTask(InvokableBlockingInInvoke.class);
-			task.registerExecutionListener(listener);
 
 			// run the task asynchronous
 			task.startTaskThread();
@@ -429,7 +410,7 @@ public class TaskTest extends TestLogger {
 			awaitLatch.await();
 
 			task.failExternally(new Exception("test"));
-			assertTrue(task.getExecutionState() == ExecutionState.FAILED);
+			assertEquals(ExecutionState.FAILED, task.getExecutionState());
 
 			task.getExecutingThread().join();
 
@@ -441,7 +422,6 @@ public class TaskTest extends TestLogger {
 			validateUnregisterTask(task.getExecutionId());
 
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
-			validateListenerMessage(ExecutionState.FAILED, task, true);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -453,7 +433,6 @@ public class TaskTest extends TestLogger {
 	public void testCanceledAfterExecutionFailedInInvoke() {
 		try {
 			Task task = createTask(InvokableWithExceptionInInvoke.class);
-			task.registerExecutionListener(listener);
 
 			task.run();
 
@@ -468,7 +447,6 @@ public class TaskTest extends TestLogger {
 			validateUnregisterTask(task.getExecutionId());
 
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
-			validateListenerMessage(ExecutionState.FAILED, task, true);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -477,10 +455,9 @@ public class TaskTest extends TestLogger {
 	}
 
 	@Test
-	public void testExecutionFailesAfterCanceling() {
+	public void testExecutionFailsAfterCanceling() {
 		try {
 			Task task = createTask(InvokableWithExceptionOnTrigger.class);
-			task.registerExecutionListener(listener);
 
 			// run the task asynchronous
 			task.startTaskThread();
@@ -505,7 +482,6 @@ public class TaskTest extends TestLogger {
 			validateUnregisterTask(task.getExecutionId());
 
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
-			validateCancelingAndCanceledListenerMessage(task);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -517,7 +493,6 @@ public class TaskTest extends TestLogger {
 	public void testExecutionFailsAfterTaskMarkedFailed() {
 		try {
 			Task task = createTask(InvokableWithExceptionOnTrigger.class);
-			task.registerExecutionListener(listener);
 
 			// run the task asynchronous
 			task.startTaskThread();
@@ -541,7 +516,6 @@ public class TaskTest extends TestLogger {
 			validateUnregisterTask(task.getExecutionId());
 
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
-			validateListenerMessage(ExecutionState.FAILED, task, true);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -1099,11 +1073,8 @@ public class TaskTest extends TestLogger {
 		try {
 			// we may have to wait for a bit to give the actors time to receive the message
 			// and put it into the queue
-			TaskMessages.UpdateTaskExecutionState message =
-					(TaskMessages.UpdateTaskExecutionState) listenerMessages.take();
-			assertNotNull("There is no additional listener message", message);
-
-			TaskExecutionState taskState =  message.taskExecutionState();
+			final TaskExecutionState taskState = listenerMessages.take();
+			assertNotNull("There is no additional listener message", state);
 
 			assertEquals(task.getJobID(), taskState.getJobID());
 			assertEquals(task.getExecutionId(), taskState.getID());
@@ -1114,45 +1085,6 @@ public class TaskTest extends TestLogger {
 			} else {
 				assertNull(taskState.getError(getClass().getClassLoader()));
 			}
-		}
-		catch (InterruptedException e) {
-			fail("interrupted");
-		}
-	}
-
-	private void validateCancelingAndCanceledListenerMessage(Task task) {
-		try {
-			// we may have to wait for a bit to give the actors time to receive the message
-			// and put it into the queue
-			TaskMessages.UpdateTaskExecutionState message1 =
-					(TaskMessages.UpdateTaskExecutionState) listenerMessages.take();
-			TaskMessages.UpdateTaskExecutionState message2 =
-					(TaskMessages.UpdateTaskExecutionState) listenerMessages.take();
-
-			assertNotNull("There is no additional listener message", message1);
-			assertNotNull("There is no additional listener message", message2);
-
-			TaskExecutionState taskState1 =  message1.taskExecutionState();
-			TaskExecutionState taskState2 =  message2.taskExecutionState();
-
-			assertEquals(task.getJobID(), taskState1.getJobID());
-			assertEquals(task.getJobID(), taskState2.getJobID());
-			assertEquals(task.getExecutionId(), taskState1.getID());
-			assertEquals(task.getExecutionId(), taskState2.getID());
-
-			ExecutionState state1 = taskState1.getExecutionState();
-			ExecutionState state2 = taskState2.getExecutionState();
-
-			// it may be (very rarely) that the following race happens:
-			//  - OUTSIDE THREAD: call to cancel()
-			//  - OUTSIDE THREAD: atomic state change from running to canceling
-			//  - TASK THREAD: finishes, atomic change from canceling to canceled
-			//  - TASK THREAD: send notification that state is canceled
-			//  - OUTSIDE THREAD: send notification that state is canceling
-
-			// for that reason, we allow the notification messages in any order.
-			assertTrue((state1 == ExecutionState.CANCELING && state2 == ExecutionState.CANCELED) ||
-						(state2 == ExecutionState.CANCELING && state1 == ExecutionState.CANCELED));
 		}
 		catch (InterruptedException e) {
 			fail("interrupted");
