@@ -84,7 +84,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 						Arrays.toString(args), args[i]));
 			}
 
-			if (key.length() == 0) {
+			if (key.isEmpty()) {
 				throw new IllegalArgumentException(
 					"The input " + Arrays.toString(args) + " contains an empty argument");
 			}
