@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.stream.table
 
 import org.apache.flink.api.common.time.Time
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
@@ -307,11 +308,16 @@ class AggregateITCase extends StreamingWithStateTestBase {
     data.+=((4, 3L, "C"))
     data.+=((5, 3L, "C"))
 
+    tEnv.registerTableSink(
+      "testSink",
+      new TestUpsertSink(Array("c"), false).configure(
+        Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG)))
+
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
             .groupBy('c)
-            .select('c, 'b.max)
+            .select('c, 'b.max as 'bMax)
 
-    t.writeToSink(new TestUpsertSink(Array("c"), false))
+    t.insertInto("testSink")
     env.execute()
 
     val expected = List("(true,A,1)", "(true,B,2)", "(true,C,3)")

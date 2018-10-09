@@ -1047,30 +1047,42 @@ The sink only supports append-only streaming tables. It cannot be used to emit a
 <div data-lang="java" markdown="1">
 {% highlight java %}
 
-Table table = ...
-
-table.writeToSink(
-  new CsvTableSink(
+CsvTableSink sink = new CsvTableSink(
     path,                  // output path 
     "|",                   // optional: delimit files by '|'
     1,                     // optional: write to a single file
-    WriteMode.OVERWRITE)); // optional: override existing files
+    WriteMode.OVERWRITE);  // optional: override existing files
 
+tableEnv.registerTableSink(
+  "csvOutputTable",
+  sink,
+  // specify table schema
+  new String[]{"f0", "f1"},
+  new TypeInformation[]{Types.STRING, Types.INT});
+
+Table table = ...
+table.insertInto("csvOutputTable");
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-val table: Table = ???
-
-table.writeToSink(
-  new CsvTableSink(
+val sink: CsvTableSink = new CsvTableSink(
     path,                             // output path 
     fieldDelim = "|",                 // optional: delimit files by '|'
     numFiles = 1,                     // optional: write to a single file
-    writeMode = WriteMode.OVERWRITE)) // optional: override existing files
+    writeMode = WriteMode.OVERWRITE), // optional: override existing files
 
+tableEnv.registerTableSink(
+  "csvOutputTable",
+  sink,
+  // specify table schema
+  Array[String]("f0", "f1"),
+  Array[TypeInformation[_]](Types.STRING, Types.INT))
+
+val table: Table = ???
+table.insertInto("csvOutputTable")
 {% endhighlight %}
 </div>
 </div>
@@ -1094,8 +1106,15 @@ JDBCAppendTableSink sink = JDBCAppendTableSink.builder()
   .setParameterTypes(INT_TYPE_INFO)
   .build();
 
+tableEnv.registerTableSink(
+  "jdbcOutputTable",
+  sink,
+  // specify table schema
+  new String[]{"id"},
+  new TypeInformation[]{Types.INT});
+
 Table table = ...
-table.writeToSink(sink);
+table.insertInto("jdbcOutputTable");
 {% endhighlight %}
 </div>
 
@@ -1108,8 +1127,15 @@ val sink: JDBCAppendTableSink = JDBCAppendTableSink.builder()
   .setParameterTypes(INT_TYPE_INFO)
   .build()
 
+tableEnv.registerTableSink(
+  "jdbcOutputTable",
+  sink,
+  // specify table schema
+  Array[String]("id"),
+  Array[TypeInformation[_]](Types.INT))
+
 val table: Table = ???
-table.writeToSink(sink)
+table.insertInto("jdbcTableSink")
 {% endhighlight %}
 </div>
 </div>
@@ -1137,8 +1163,15 @@ CassandraAppendTableSink sink = new CassandraAppendTableSink(
   // the query must match the schema of the table
   INSERT INTO flink.myTable (id, name, value) VALUES (?, ?, ?));
 
+tableEnv.registerTableSink(
+  "cassandraOutputTable",
+  sink,
+  // specify table schema
+  new String[]{"id", "name", "value"},
+  new TypeInformation[]{Types.INT, Types.STRING, Types.DOUBLE});
+
 Table table = ...
-table.writeToSink(sink);
+table.insertInto(cassandraOutputTable);
 {% endhighlight %}
 </div>
 
@@ -1151,8 +1184,15 @@ val sink: CassandraAppendTableSink = new CassandraAppendTableSink(
   // the query must match the schema of the table
   INSERT INTO flink.myTable (id, name, value) VALUES (?, ?, ?))
 
+tableEnv.registerTableSink(
+  "cassandraOutputTable",
+  sink,
+  // specify table schema
+  Array[String]("id", "name", "value"),
+  Array[TypeInformation[_]](Types.INT, Types.STRING, Types.DOUBLE))
+
 val table: Table = ???
-table.writeToSink(sink)
+table.insertInto(cassandraOutputTable)
 {% endhighlight %}
 </div>
 </div>
