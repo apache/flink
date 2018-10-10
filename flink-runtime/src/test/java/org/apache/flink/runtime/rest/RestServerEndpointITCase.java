@@ -96,6 +96,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
+import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -527,6 +528,20 @@ public class RestServerEndpointITCase extends TestLogger {
 
 		try (final Response response = client.newCall(request).execute()) {
 			assertEquals(HttpResponseStatus.ACCEPTED.code(), response.code());
+		}
+	}
+
+	@Test
+	public void testNonSslRedirectForEnabledSsl() throws Exception {
+		Assume.assumeTrue(config.getBoolean(SecurityOptions.SSL_REST_ENABLED));
+		OkHttpClient client = new OkHttpClient.Builder().followRedirects(false).build();
+		String httpsUrl = serverEndpoint.getRestBaseUrl() + "/path";
+		String httpUrl = httpsUrl.replace("https://", "http://");
+		Request request = new Request.Builder().url(httpUrl).build();
+		try (final Response response = client.newCall(request).execute()) {
+			assertEquals(HttpResponseStatus.MOVED_PERMANENTLY.code(), response.code());
+			assertThat(response.headers().names(), hasItems("Location"));
+			assertEquals(httpsUrl, response.header("Location"));
 		}
 	}
 

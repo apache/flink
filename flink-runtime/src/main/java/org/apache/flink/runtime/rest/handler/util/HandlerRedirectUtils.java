@@ -68,13 +68,16 @@ public class HandlerRedirectUtils {
 	}
 
 	public static HttpResponse getRedirectResponse(String redirectAddress, String path) {
+		return getRedirectResponse(redirectAddress, path, HttpResponseStatus.TEMPORARY_REDIRECT);
+	}
+
+	public static HttpResponse getRedirectResponse(String redirectAddress, String path, HttpResponseStatus code) {
 		checkNotNull(redirectAddress, "Redirect address");
 		checkNotNull(path, "Path");
 
 		String newLocation = String.format("%s%s", redirectAddress, path);
 
-		HttpResponse redirectResponse = new DefaultFullHttpResponse(
-				HttpVersion.HTTP_1_1, HttpResponseStatus.TEMPORARY_REDIRECT);
+		HttpResponse redirectResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, code);
 		redirectResponse.headers().set(HttpHeaders.Names.LOCATION, newLocation);
 		redirectResponse.headers().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
 

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.net.RedirectingSslHandler;
 import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
@@ -43,7 +44,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCodec;
-import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 
 import org.slf4j.Logger;
@@ -156,7 +156,8 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 					// SSL should be the first handler in the pipeline
 					if (sslEngineFactory != null) {
-						ch.pipeline().addLast("ssl", new SslHandler(sslEngineFactory.createSSLEngine()));
+						ch.pipeline().addLast("ssl",
+							new RedirectingSslHandler(restAddress, restAddressFuture, sslEngineFactory));
 					}
 
 					ch.pipeline()
