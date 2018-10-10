@@ -234,6 +234,11 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	protected boolean enumerateNestedFiles = false;
 
 	/**
+	 * The flag to specify whether to skip file splits with wrong schema.
+	 */
+	protected boolean skipWrongSchemaFileSplit = false;
+
+	/**
 	 * Files filter for determining what files/directories should be included.
 	 */
 	private FilePathFilter filesFilter = new GlobFilePathFilter();
@@ -462,6 +467,10 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 
 		if (!this.enumerateNestedFiles) {
 			this.enumerateNestedFiles = parameters.getBoolean(ENUMERATE_NESTED_FILES_FLAG, false);
+		}
+
+		if (!this.skipWrongSchemaFileSplit) {
+			this.skipWrongSchemaFileSplit = parameters.getBoolean(SKIP_WRONG_SCHEMA_SPLITS, false);
 		}
 	}
 
@@ -1077,4 +1086,9 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 * The config parameter which defines whether input directories are recursively traversed.
 	 */
 	public static final String ENUMERATE_NESTED_FILES_FLAG = "recursive.file.enumeration";
+
+	/**
+	 * The config paramter which defines whether to skip file split with wrong schema.
+	 */
+	public static final String SKIP_WRONG_SCHEMA_SPLITS = "skip.splits.wrong.schema";
 }

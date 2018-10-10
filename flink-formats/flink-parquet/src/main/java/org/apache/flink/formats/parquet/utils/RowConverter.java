@@ -26,8 +26,6 @@ import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.types.Row;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
-
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.io.api.Converter;
 import org.apache.parquet.io.api.GroupConverter;
@@ -40,6 +38,7 @@ import org.apache.parquet.schema.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
@@ -319,7 +318,7 @@ public class RowConverter extends GroupConverter implements ParentDataHolder {
 
 		@Override
 		public void end() {
-			parentDataHolder.add(pos, Iterables.<Row>toArray(list, Row.class));
+			parentDataHolder.add(pos, list.toArray((Row[]) Array.newInstance(Row.class, list.size())));
 		}
 
 		@Override
@@ -360,7 +359,7 @@ public class RowConverter extends GroupConverter implements ParentDataHolder {
 
 		@Override
 		public void end() {
-			parentDataHolder.add(pos, Iterables.<T>toArray(list, elementClass));
+			parentDataHolder.add(pos, list.toArray((T[]) Array.newInstance(elementClass, list.size())));
 		}
 
 		@Override

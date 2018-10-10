@@ -25,8 +25,11 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.Row;
 
+import org.apache.parquet.schema.MessageType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.sql.Timestamp;
 
 
 /**
@@ -36,24 +39,32 @@ import org.slf4j.LoggerFactory;
 public class ParquetRowInputFormat extends ParquetInputFormat<Row> implements ResultTypeQueryable<Row> {
 	private static final long serialVersionUID = 11L;
 	private static final Logger LOG = LoggerFactory.getLogger(ParquetRowInputFormat.class);
-	private RowTypeInfo returnType;
 	private boolean timeStampRewrite;
+	private RowTypeInfo returnType;
 	private int tsIndex;
 
-	public ParquetRowInputFormat(Path path, RowTypeInfo rowTypeInfo, boolean isStandard) {
-		super(path, rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames(), isStandard);
-		this.returnType = new RowTypeInfo(readType.getFieldTypes().clone(), readType.getFieldNames());
+	public ParquetRowInputFormat(Path path, MessageType messageType) {
+		super(path, messageType);
+		this.returnType = new RowTypeInfo(getFieldTypes(), getFieldNames());
 		this.timeStampRewrite = false;
-		LOG.debug(String.format("Created ParquetRowInputFormat with path [%s]", path.toString()));
+	}
+
+	public ParquetRowInputFormat(Path path, RowTypeInfo rowTypeInfo) {
+		super(path, rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames());
+		this.returnType = new RowTypeInfo(getFieldTypes(), getFieldNames());
+		this.timeStampRewrite = false;
 	}
 
 	@Override
 	public TypeInformation<Row> getProducedType() {
-		return returnType;
+		return new RowTypeInfo(getFieldTypes(), getFieldNames());
 	}
 
 	@Override
 	protected Row convert(Row row) {
+		if (timeStampRewrite) {
+			row.setField(tsIndex, new Timestamp((long) row.getField(tsIndex)));
+		}
 		return row;
 	}
 
@@ -68,12 +79,12 @@ public class ParquetRowInputFormat extends ParquetInputFormat<Row> implements Re
 		this.tsIndex = returnType.getFieldIndex(fieldName);
 		if (tsIndex == -1) {
 			throw new RuntimeException(String.format("Fail to extract timestamp field for row schema: [%s]",
-				readType.toString()));
+				returnType.toString()));
 		}
 
 		this.returnType.getFieldTypes()[tsIndex] = SqlTimeTypeInfo.TIMESTAMP;
 		this.timeStampRewrite = true;
-		LOG.debug("Read parquet record as row type: {}", readType.toString());
+		LOG.debug("Read parquet record as row type: {}", returnType.toString());
 	}
 
 	public boolean isTimeStampRewrite() {

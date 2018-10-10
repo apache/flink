@@ -39,14 +39,14 @@ import java.util.Map;
  */
 public class ParquetMapInputFormat extends ParquetInputFormat<Map> {
 
-	public ParquetMapInputFormat(Path path, TypeInformation[] fieldTypes, String[] fieldNames, boolean isStandard) {
-		super(path, fieldTypes, fieldNames, isStandard);
+	public ParquetMapInputFormat(Path path, TypeInformation[] fieldTypes, String[] fieldNames) {
+		super(path, fieldTypes, fieldNames);
 	}
 
 	@Override
 	protected Map convert(Row row) {
 		Map<String, Object> map = new HashMap<>();
-		convert(map, row, fieldTypes, fieldNames);
+		convert(map, row, getFieldTypes(), getFieldNames());
 		return map;
 	}
 

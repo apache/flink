@@ -18,11 +18,9 @@
 
 package org.apache.flink.formats.parquet.utils;
 
-import org.apache.flink.shaded.guava18.com.google.common.primitives.Ints;
-import org.apache.flink.shaded.guava18.com.google.common.primitives.Longs;
-
 import org.apache.parquet.io.api.Binary;
 
+import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -50,9 +48,9 @@ public final class ParquetTimestampUtils {
 		byte[] bytes = timestampBinary.getBytes();
 
 		// little endian encoding - need to invert byte order
-		long timeOfDayNanos = Longs.fromBytes(bytes[7], bytes[6], bytes[5], bytes[4],
-			bytes[3], bytes[2], bytes[1], bytes[0]);
-		int julianDay = Ints.fromBytes(bytes[11], bytes[10], bytes[9], bytes[8]);
+		long timeOfDayNanos = ByteBuffer.wrap(new byte[] {bytes[7], bytes[6], bytes[5], bytes[4],
+			bytes[3], bytes[2], bytes[1], bytes[0]}).getLong();
+		int julianDay = ByteBuffer.wrap(new byte[] {bytes[11], bytes[10], bytes[9], bytes[8]}).getInt();
 
 		return julianDayToMillis(julianDay) + (timeOfDayNanos / NANOS_PER_MILLISECOND);
 	}

@@ -48,13 +48,12 @@ public class ParquetPojoInputFormat<E> extends ParquetInputFormat<E> {
 	private final TypeSerializer<E> typeSerializer;
 	private transient Field[] pojoFields;
 
-	public ParquetPojoInputFormat(Path filePath, PojoTypeInfo<E> pojoTypeInfo, boolean isStandard) {
-		this(filePath, pojoTypeInfo, pojoTypeInfo.getFieldNames(), isStandard);
+	public ParquetPojoInputFormat(Path filePath, PojoTypeInfo<E> pojoTypeInfo) {
+		this(filePath, pojoTypeInfo, pojoTypeInfo.getFieldNames());
 	}
 
-	public ParquetPojoInputFormat(Path filePath, PojoTypeInfo<E> pojoTypeInfo, String[] fieldNames,
-		boolean isStandard) {
-		super(filePath, extractTypeInfos(pojoTypeInfo, fieldNames), fieldNames, isStandard);
+	public ParquetPojoInputFormat(Path filePath, PojoTypeInfo<E> pojoTypeInfo, String[] fieldNames) {
+		super(filePath, extractTypeInfos(pojoTypeInfo, fieldNames), fieldNames);
 		this.pojoTypeClass = pojoTypeInfo.getTypeClass();
 		this.typeSerializer = pojoTypeInfo.createSerializer(new ExecutionConfig());
 	}
@@ -62,13 +61,13 @@ public class ParquetPojoInputFormat<E> extends ParquetInputFormat<E> {
 	@Override
 	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
-		pojoFields = new Field[fieldNames.length];
+		pojoFields = new Field[getFieldNames().length];
 
 		final Map<String, Field> fieldMap = new HashMap<>();
 		findAllFields(pojoTypeClass, fieldMap);
 
-		for (int i = 0; i < fieldNames.length; ++i) {
-			String fieldName = fieldNames[i];
+		for (int i = 0; i < getFieldNames().length; ++i) {
+			String fieldName = getFieldNames()[i];
 			pojoFields[i] = fieldMap.get(fieldName);
 
 			if (pojoFields[i] != null) {
@@ -103,7 +102,7 @@ public class ParquetPojoInputFormat<E> extends ParquetInputFormat<E> {
 				}
 			} catch (IllegalAccessException e) {
 				throw new RuntimeException(
-					String.format("Parsed value could not be set in POJO field %s", fieldNames[i]));
+					String.format("Parsed value could not be set in POJO field %s", getFieldNames()[i]));
 			}
 		}
 

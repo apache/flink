@@ -50,13 +50,14 @@ import java.util.List;
  * The base InputFormat class to read from Parquet files.
  * For specific return types the {@link #convert(Row)} method need to be implemented.
  *
- * <P>Using {@link ParquetRecordReader} to Read files instead of {@link org.apache.flink.core.fs.FSDataInputStream},
+ * <P>Using {@link ParquetRecordReader} to read files instead of {@link org.apache.flink.core.fs.FSDataInputStream},
  * we override {@link #open(FileInputSplit)} and {@link #close()} to change the behaviors.
  *
  * @param <E> The type of record to read.
  */
-public abstract class ParquetInputFormat<E> extends FileInputFormat<E> implements
-	CheckpointableInputFormat<FileInputSplit, Tuple2<Long, Long>> {
+public abstract class ParquetInputFormat<E>
+	extends FileInputFormat<E>
+	implements CheckpointableInputFormat<FileInputSplit, Tuple2<Long, Long>> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -64,27 +65,47 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E> implement
 
 	private transient Counter recordConsumed;
 
-	protected RowTypeInfo readType;
+	private final TypeInformation[] fieldTypes;
 
-	protected boolean isStandard;
+	private final String[] fieldNames;
 
-	protected final TypeInformation[] fieldTypes;
+	private boolean skipThisSplit = false;
 
-	protected final String[] fieldNames;
+	private transient ParquetRecordReader<Row> parquetRecordReader;
 
-	protected transient ParquetRecordReader<Row> parquetRecordReader;
+	private transient long recordsReadSinceLastSync;
 
-	protected transient long recordsReadSinceLastSync;
+	private long lastSyncedBlock = -1L;
 
-	protected long lastSyncedBlock = -1L;
+	/**
+	 * Read parquet files with given result parquet schema.
+	 *
+	 * @param path The path of the file to read.
+	 * @param messageType schema of read result
+	 */
 
-	protected ParquetInputFormat(Path path, TypeInformation[] fieldTypes, String[] fieldNames, boolean isStandard) {
+	protected ParquetInputFormat(Path path, MessageType messageType) {
 		super(path);
-		this.readType = new RowTypeInfo(fieldTypes, fieldNames);
+		RowTypeInfo readType = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(messageType);
 		this.fieldTypes = readType.getFieldTypes();
 		this.fieldNames = readType.getFieldNames();
+		// read whole parquet file as one file split
 		this.unsplittable = true;
-		this.isStandard = isStandard;
+	}
+
+	/**
+	 * Read parquet files with given result field names and types.
+	 *
+	 * @param path The path of the file to read.
+	 * @param fieldTypes field types of read result of fields
+	 * @param fieldNames field names to read, which can be subset of the parquet schema
+	 */
+	protected ParquetInputFormat(Path path, TypeInformation[] fieldTypes, String[] fieldNames) {
+		super(path);
+		this.fieldTypes = fieldTypes;
+		this.fieldNames = fieldNames;
+		// read whole parquet file as one file split
+		this.unsplittable = true;
 	}
 
 	@Override
@@ -100,13 +121,21 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E> implement
 		ParquetReadOptions options = ParquetReadOptions.builder().build();
 		ParquetFileReader fileReader = new ParquetFileReader(inputFile, options);
 		MessageType schema = fileReader.getFileMetaData().getSchema();
+		this.skipThisSplit = false;
 		MessageType readSchema = getReadSchema(schema);
 		this.parquetRecordReader = new ParquetRecordReader<>(new RowReadSupport(), readSchema, FilterCompat.NOOP);
 		this.parquetRecordReader.initialize(fileReader, configuration);
 		if (this.recordConsumed == null) {
-			this.recordConsumed = getRuntimeContext().getMetricGroup().counter("parquet-record-consumed");
+			this.recordConsumed = getRuntimeContext().getMetricGroup().counter("parquet-records-consumed");
 		}
-		LOG.debug(String.format("Open ParquetRowInputFormat with FileInputSplit [%s]", split.getPath().toString()));
+
+		if (!skipThisSplit) {
+			LOG.debug(String.format("Open ParquetInputFormat with FileInputSplit [%s]", split.getPath().toString()));
+		} else {
+			LOG.warn(String.format(
+				"Escaped the file split [%s] due to mismatch of file schema to expected result schema",
+				split.getPath().toString()));
+		}
 	}
 
 	@Override
@@ -134,6 +163,14 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E> implement
 		}
 	}
 
+	protected String[] getFieldNames() {
+		return fieldNames;
+	}
+
+	protected TypeInformation[] getFieldTypes() {
+		return fieldTypes;
+	}
+
 	@Override
 	public void close() throws IOException {
 		if (parquetRecordReader != null) {
@@ -143,6 +180,9 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E> implement
 
 	@Override
 	public boolean reachedEnd() throws IOException {
+		if (skipThisSplit) {
+			return true;
+		}
 		return parquetRecordReader.reachEnd();
 	}
 
@@ -164,6 +204,7 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E> implement
 			return convert(parquetRecordReader.nextRecord());
 		}
 
+		LOG.warn(String.format("Try to read next record in the end of a split. This should not happen!"));
 		return null;
 	}
 
@@ -176,16 +217,25 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E> implement
 			String readFieldName = fieldNames[i];
 			TypeInformation<?> readFieldType = fieldTypes[i];
 			if (rootTypeInfo.getFieldIndex(readFieldName) < 0) {
-				throw new IllegalArgumentException(readFieldName + " can not be found in parquet schema");
+				if (!skipWrongSchemaFileSplit) {
+					throw new IllegalArgumentException(readFieldName + " can not be found in parquet schema");
+				} else {
+					this.skipThisSplit = true;
+					return schema;
+				}
 			}
 
 			if (!readFieldType.equals(rootTypeInfo.getTypeAt(readFieldName))) {
-				throw new IllegalArgumentException(readFieldName + " can not be converted to " + readFieldType);
+				if (!skipWrongSchemaFileSplit) {
+					throw new IllegalArgumentException(readFieldName + " can not be converted to " + readFieldType);
+				} else {
+					this.skipThisSplit = true;
+					return schema;
+				}
 			}
 			types.add(schema.getType(readFieldName));
 		}
 
-		MessageType readSchema = new MessageType(schema.getName(), types);
-		return readSchema;
+		return new MessageType(schema.getName(), types);
 	}
 }
