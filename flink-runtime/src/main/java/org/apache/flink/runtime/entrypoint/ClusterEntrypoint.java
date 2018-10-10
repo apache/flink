@@ -283,6 +283,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			// Start actor system for metric query service on any available port
 			metricQueryServiceActorSystem = BootstrapTools.startActorSystem(
 				configuration,
+				"metrics",
 				bindAddress,
 				0,
 				LOG,
