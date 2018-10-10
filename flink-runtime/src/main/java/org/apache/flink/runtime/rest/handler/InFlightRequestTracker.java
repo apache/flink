@@ -26,10 +26,10 @@ import java.util.concurrent.Phaser;
 /**
  * Tracks in-flight client requests.
  *
- * @see org.apache.flink.runtime.rest.AbstractHandler
+ * @see AbstractHandler
  */
 @ThreadSafe
-public class InFlightRequestTracker {
+class InFlightRequestTracker {
 
 	private final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
 
