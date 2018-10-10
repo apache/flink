@@ -43,6 +43,8 @@ import org.apache.flink.util.ShutdownHookUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -88,6 +90,7 @@ public class HistoryServer {
 
 	private final HistoryServerArchiveFetcher archiveFetcher;
 
+	@Nullable
 	private final SSLEngineFactory serverSSLFactory;
 	private WebFrontendBootstrap netty;
 
