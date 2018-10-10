@@ -20,15 +20,17 @@ package org.apache.flink.runtime.akka
 
 import java.io.IOException
 import java.net._
-import java.util.concurrent.{Callable, TimeUnit}
+import java.util.concurrent.{Callable, CompletableFuture, TimeUnit}
 
 import akka.actor._
 import akka.pattern.{ask => akkaAsk}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration.{AkkaOptions, Configuration, IllegalConfigurationException, SecurityOptions}
+import org.apache.flink.runtime.concurrent.FutureUtils
 import org.apache.flink.runtime.net.SSLUtils
 import org.apache.flink.util.NetUtils
+import org.apache.flink.util.function.FunctionUtils
 import org.jboss.netty.channel.ChannelException
 import org.jboss.netty.logging.{InternalLoggerFactory, Slf4JLoggerFactory}
 import org.slf4j.{Logger, LoggerFactory}
@@ -851,6 +853,16 @@ object AkkaUtils {
       }
       case f => f
     }
+  }
+
+  /**
+    * Terminates the given [[ActorSystem]] and returns its termination future.
+    *
+    * @param actorSystem to terminate
+    * @return Termination future
+    */
+  def terminateActorSystem(actorSystem: ActorSystem): CompletableFuture[Void] = {
+    FutureUtils.toJava(actorSystem.terminate).thenAccept(FunctionUtils.ignoreFn())
   }
 }
 
