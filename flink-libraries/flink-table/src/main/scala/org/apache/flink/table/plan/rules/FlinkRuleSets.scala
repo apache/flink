@@ -167,8 +167,8 @@ object FlinkRuleSets {
     AggregateExpandDistinctAggregatesRule.JOIN,
 
     // merge a cascade of predicates to IN or NOT_IN
-    MergeMultiEqualsToInRule.INSTANCE,
-    MergeMultiNotEqualsToNotInRule.INSTANCE
+    ConvertToNotInOrInRule.IN_INSTANCE,
+    ConvertToNotInOrInRule.NOT_IN_INSTANCE
   )
 
   /**
@@ -208,8 +208,8 @@ object FlinkRuleSets {
     ProjectToWindowRule.PROJECT,
 
     // merge a cascade of predicates to IN or NOT_IN
-    MergeMultiEqualsToInRule.INSTANCE,
-    MergeMultiNotEqualsToNotInRule.INSTANCE
+    ConvertToNotInOrInRule.IN_INSTANCE,
+    ConvertToNotInOrInRule.NOT_IN_INSTANCE
   )
 
   /**
