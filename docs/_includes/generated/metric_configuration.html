@@ -8,6 +8,11 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>metrics.internal.query-service.port</h5></td>
+            <td style="word-wrap: break-word;">"0"</td>
+            <td>The port range used for Flink's internal metric query service. Accepts a list of ports (“50100,50101”), ranges(“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid collisions when multiple Flink components are running on the same machine. Per default Flink will pick a random port.</td>
+        </tr>
+        <tr>
             <td><h5>metrics.latency.granularity</h5></td>
             <td style="word-wrap: break-word;">"subtask"</td>
             <td>Defines the granularity of latency metrics. Accepted values are "single"(Track latency without differentiating between sources and subtasks), "operator"(Track latency while differentiating between sources, but not subtasks) and "subtask"(Track latency while differentiating between sources and subtasks).</td>

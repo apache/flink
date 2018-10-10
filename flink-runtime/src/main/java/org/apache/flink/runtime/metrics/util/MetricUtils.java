@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.metrics.util;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
@@ -56,7 +57,7 @@ import static org.apache.flink.runtime.clusterframework.BootstrapTools.ActorSyst
 public class MetricUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricUtils.class);
 	private static final String METRIC_GROUP_STATUS_NAME = "Status";
-	private static final String METRICS = "flink-metrics";
+	private static final String METRICS_ACTOR_SYSTEM_NAME = "flink-metrics";
 
 	private MetricUtils() {
 	}
@@ -109,11 +110,12 @@ public class MetricUtils {
 	}
 
 	public static ActorSystem startMetricsActorSystem(Configuration configuration, String hostname, Logger logger) throws Exception {
+		final String portRange = configuration.getString(MetricOptions.QUERY_SERVICE_PORT);
 		return BootstrapTools.startActorSystem(
 			configuration,
-			METRICS,
+			METRICS_ACTOR_SYSTEM_NAME,
 			hostname,
-			0,
+			portRange,
 			logger,
 			FIXED_THREAD_POOL_EXECUTOR);
 	}
