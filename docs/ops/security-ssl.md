@@ -22,6 +22,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+* ToC
+{:toc}
+
 This page provides instructions on how to enable TLS/SSL authentication and encryption for network communication with and between Flink processes.
 
 ## Internal and External Connectivity
@@ -37,7 +40,7 @@ For more flexibility, security for internal and external connectivity can be ena
   <img src="{{ site.baseurl }}/fig/ssl_internal_external.svg" alt="Internal and External Connectivity" style="width:75%; padding-top:10px; padding-bottom:10px;" />
 </div>
 
-#### Internal Connectivity
+### Internal Connectivity
 
 Internal connectivity includes:
 
@@ -54,7 +57,7 @@ is not needed by any other party to interact with Flink, and can be simply added
 
 *Note: Because internal connections are mutually authenticated with shared certificates, Flink can skip hostname verification. This makes container-based setups easier.*
 
-#### External / REST Connectivity
+### External / REST Connectivity
 
 All external connectivity is exposed via an HTTP/REST endpoint, used for example by the web UI and the CLI:
 
@@ -71,7 +74,7 @@ Examples for proxies that Flink users have deployed are [Envoy Proxy](https://ww
 The rationale behind delegating authentication to a proxy is that such proxies offer a wide variety of authentication options and thus better integration into existing infrastructures.
 
 
-#### Queryable State
+### Queryable State
 
 Connections to the queryable state endpoints is currently not authenticated or encrypted.
 
@@ -92,13 +95,13 @@ When `security.ssl.internal.enabled` is set to `true`, you can set the following
   - `blob.service.ssl.enabled`: Transport of BLOBs from JobManager to TaskManager
   - `akka.ssl.enabled`: Akka-based RPC connections between JobManager / TaskManager / ResourceManager
 
-#### Keystores and Truststores
+### Keystores and Truststores
 
 The SSL configuration requires to configure a **keystore** and a **truststore**. The *keystore* contains the public certificate
 (public key) and the private key, while the truststore contains the trusted certificates or the trusted authorities. Both stores
 need to be set up such that the truststore trusts the keystore's certificate.
 
-**Internal Connectivity**
+#### Internal Connectivity
 
 Because internal communication is mutually authenticated, keystore and truststore typically contain the same dedicated certificate.
 The certificate can use wild card hostnames or addresses, because the certificate is expected to be a shared secret and host
@@ -112,7 +115,7 @@ security.ssl.internal.truststore: /path/to/file.truststore
 security.ssl.internal.truststore-password: truststore_password
 {% endhighlight %}
 
-**REST Endpoints (external connectivity)**
+#### REST Endpoints (external connectivity)
 
 For REST endpoints, by default the keystore is used by the server endpoint, and the truststore is used by the REST clients (including the CLI client)
 to accept the server's certificate. In the case where the REST keystore has a self-signed certificate, the truststore must trust that certificate directly.
@@ -130,8 +133,9 @@ security.ssl.rest.truststore-password: truststore_password
 security.ssl.rest.authentication-enabled: false
 {% endhighlight %}
 
-**IMPORTANT**
+### Cipher suites
 
+<span class="label label-danger">IMPORTANT</span>
 The [IETF RFC 7525](https://tools.ietf.org/html/rfc7525) recommends to use a specific set of cipher suites for strong security.
 Because these cipher suites were not available on many setups out of the box, Flink's default value is set to a slightly
 weaker but more compatible cipher suite.
