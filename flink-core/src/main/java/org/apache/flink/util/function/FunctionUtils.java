@@ -34,6 +34,8 @@ public class FunctionUtils {
 
 	private static final Function<Object, Void> NULL_FN = ignored -> null;
 
+	private static final Consumer<Object> IGNORE_FN = ignored -> {};
+
 	/**
 	 * Function which returns {@code null} (type: Void).
 	 *
@@ -43,6 +45,17 @@ public class FunctionUtils {
 	@SuppressWarnings("unchecked")
 	public static <T> Function<T, Void> nullFn() {
 		return (Function<T, Void>) NULL_FN;
+	}
+
+	/**
+	 * Consumer which ignores the input.
+	 *
+	 * @param <T> type of the input
+	 * @return Ignoring {@link Consumer}
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T> Consumer<T> ignoreFn() {
+		return (Consumer<T>) IGNORE_FN;
 	}
 
 	/**
