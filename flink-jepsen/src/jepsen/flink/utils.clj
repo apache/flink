@@ -17,7 +17,8 @@
 (ns jepsen.flink.utils
   (:require [clojure.tools.logging :refer :all]
             [jepsen
-             [control :as c]]
+             [control :as c]
+             [util :refer [meh]]]
             [jepsen.os.debian :as debian]))
 
 (defn retry
@@ -86,4 +87,7 @@
   []
   (info "Stop all supervised services.")
   (c/su
-    (c/exec :rm :-f (c/lit (str "/etc/service/*")))))
+    ;; HACK:
+    ;; Remove all symlinks in /etc/service except sshd.
+    ;; This is only relevant when tests are run in Docker because there sshd is started using runit.
+    (meh (c/exec :find (c/lit (str "/etc/service -maxdepth 1 -type l ! -name 'sshd' -delete"))))))
