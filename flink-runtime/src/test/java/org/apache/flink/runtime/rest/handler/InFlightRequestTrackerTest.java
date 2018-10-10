@@ -59,4 +59,10 @@ public class InFlightRequestTrackerTest {
 		assertTrue(inFlightRequestTracker.awaitAsync().isDone());
 		assertTrue(inFlightRequestTracker.awaitAsync().isDone());
 	}
+
+	@Test
+	public void testShouldTolerateRegisterAfterAwaitAsync() {
+		assertTrue(inFlightRequestTracker.awaitAsync().isDone());
+		inFlightRequestTracker.registerRequest();
+	}
 }
