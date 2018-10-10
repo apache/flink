@@ -144,6 +144,18 @@ public class MetricOptions {
 		key("metrics.system-resource-probing-interval")
 			.defaultValue(5000L);
 
+	/**
+	 * The default network port range for Flink's internal metric query service. The {@code "0"} means that
+	 * Flink searches for a free port.
+	 */
+	public static final ConfigOption<String> QUERY_SERVICE_PORT =
+		key("metrics.internal.query-service.port")
+		.defaultValue("0")
+		.withDescription("The port range used for Flink's internal metric query service. Accepts a list of ports " +
+			"(“50100,50101”), ranges(“50100-50200”) or a combination of both. It is recommended to set a range of " +
+			"ports to avoid collisions when multiple Flink components are running on the same machine. Per default " +
+			"Flink will pick a random port.");
+
 	private MetricOptions() {
 	}
 }
