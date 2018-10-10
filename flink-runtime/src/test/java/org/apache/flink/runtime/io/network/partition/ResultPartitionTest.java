@@ -21,21 +21,32 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.network.LocalConnectionManager;
+import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -202,6 +213,66 @@ public class ResultPartitionTest {
 						eq(partition.getPartitionId()),
 						any(TaskActions.class));
 			}
+		}
+	}
+
+	@Test
+	public void testReleaseMemoryOnBlockingPartition() throws Exception {
+		testReleaseMemory(ResultPartitionType.BLOCKING);
+	}
+
+	@Test
+	public void testReleaseMemoryOnPipelinedPartition() throws Exception {
+		testReleaseMemory(ResultPartitionType.PIPELINED);
+	}
+
+	/**
+	 * Tests {@link ResultPartition#releaseMemory(int)} on a working partition.
+	 *
+	 * @param resultPartitionType the result partition type to set up
+	 */
+	private void testReleaseMemory(final ResultPartitionType resultPartitionType) throws Exception {
+		final int numBuffers = 10;
+		final NetworkEnvironment network = new NetworkEnvironment(
+			new NetworkBufferPool(numBuffers, 128),
+			new LocalConnectionManager(),
+			new ResultPartitionManager(),
+			new TaskEventDispatcher(),
+			new KvStateRegistry(),
+			null,
+			null,
+			IOManager.IOMode.SYNC,
+			0,
+			0,
+			2,
+			8,
+			true);
+		final ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
+		final ResultPartition resultPartition = spy(createPartition(notifier, resultPartitionType, false));
+		final List<Buffer> buffers = new ArrayList<>(numBuffers);
+		try {
+			network.setupPartition(resultPartition);
+
+			// take all buffers (more than the minimum required)
+			for (int i = 0; i < numBuffers; ++i) {
+				Buffer buffer = resultPartition.getBufferPool().requestBuffer();
+				buffers.add(buffer);
+				assertNotNull(buffer);
+			}
+
+			// reset the pool size less than the number of requested buffers
+			resultPartition.getBufferPool().setNumBuffers(4);
+
+			// partition with blocking type should release excess buffers
+			if (!resultPartitionType.hasBackPressure()) {
+				verify(resultPartition, times(1)).releaseMemory(eq(numBuffers - 4));
+			}
+		} finally {
+			for (Buffer buffer : buffers) {
+				buffer.recycleBuffer();
+			}
+			resultPartition.release();
+			network.shutdown();
 		}
 	}
 
