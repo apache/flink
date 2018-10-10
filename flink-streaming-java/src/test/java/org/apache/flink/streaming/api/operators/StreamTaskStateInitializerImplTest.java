@@ -59,7 +59,6 @@ import org.junit.Test;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.Optional;
 import java.util.Random;
 
 import static org.mockito.Matchers.eq;
@@ -145,7 +144,7 @@ public class StreamTaskStateInitializerImplTest {
 				int numberOfKeyGroups, KeyGroupRange keyGroupRange,
 				TaskKvStateRegistry kvStateRegistry,
 				TtlTimeProvider ttlTimeProvider,
-				Optional<MetricGroup> operatorMetricGroup) throws Exception {
+				MetricGroup operatorMetricGroup) throws Exception {
 				return mock(AbstractKeyedStateBackend.class);
 			}
 

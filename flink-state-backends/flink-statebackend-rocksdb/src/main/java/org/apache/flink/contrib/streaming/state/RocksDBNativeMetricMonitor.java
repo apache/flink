@@ -19,9 +19,11 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.View;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.ResourceGuard;
 
@@ -35,13 +37,6 @@ import javax.annotation.Nonnull;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * A monitor which pull {{@link RocksDB}} native metrics
@@ -51,145 +46,109 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 @Internal
 public class RocksDBNativeMetricMonitor implements Closeable {
 
-	private final TimerTask task;
+	private final CloseableRegistry registeredGauges;
 
-	private final Timer timer;
+	private final RocksDB db;
 
-	private final ConcurrentLinkedQueue<Tuple2<String, ColumnFamilyHandle>> messageQueue;
+	private final ResourceGuard.Lease lease;
+
+	private final RocksDBNativeMetricOptions options;
+
+	private final MetricGroup metricGroup;
 
 	RocksDBNativeMetricMonitor(
 		@Nonnull RocksDB db,
-		@Nonnull ResourceGuard rocksDBResourceGuard,
-		@Nonnull RocksDBNativeMetricOptions rocksDBNativeProperyOptions,
+		@Nonnull ResourceGuard guard,
+		@Nonnull RocksDBNativeMetricOptions options,
 		@Nonnull MetricGroup metricGroup
 	) throws IOException {
-		this.messageQueue = new ConcurrentLinkedQueue<>();
+		this.db = db;
+		this.lease = guard.acquireResource();
+		this.options = options;
+		this.metricGroup = metricGroup;
 
-		this.task = new RocksDBNativeMetricTask(
-			db,
-			rocksDBResourceGuard,
-			rocksDBNativeProperyOptions.getProperties(),
-			metricGroup,
-			messageQueue
-		);
-
-		long frequency = rocksDBNativeProperyOptions.getFrequency();
-		this.timer = new Timer();
-		this.timer.schedule(task, frequency, frequency);
+		this.registeredGauges = new CloseableRegistry();
 	}
 
-	void watch(String columnFamilyName, ColumnFamilyHandle handle) {
-		this.messageQueue.add(Tuple2.of(columnFamilyName, handle));
+	/**
+	 * Register gauges to pull native metrics for the column family.
+	 * @param columnFamilyName group name for the new gauges
+	 * @param handle native handle to the column family
+	 */
+	void registerColumnFamily(String columnFamilyName, ColumnFamilyHandle handle) {
+		try {
+			MetricGroup group = metricGroup.addGroup(columnFamilyName);
+
+			for (String property : options.getProperties()) {
+				RocksDBNativeMetricView gauge = new RocksDBNativeMetricView(
+					property,
+					handle,
+					db
+				);
+
+				group.gauge(property, gauge);
+				registeredGauges.registerCloseable(gauge);
+			}
+		} catch (IOException e) {
+			throw new FlinkRuntimeException("Unable to register native metrics with RocksDB", e);
+		}
 	}
 
 	@Override
 	public void close() {
-		this.task.cancel();
-		this.timer.cancel();
+		IOUtils.closeQuietly(registeredGauges);
+		IOUtils.closeQuietly(lease);
 	}
 
-	static class RocksDBNativeMetricTask extends TimerTask {
-		private static final Logger LOG = LoggerFactory.getLogger(RocksDBNativeMetricTask.class);
+	static class RocksDBNativeMetricView implements Gauge<String>, View, Closeable {
+		private static final Logger LOG = LoggerFactory.getLogger(RocksDBNativeMetricView.class);
+
+		private final String property;
+
+		private final ColumnFamilyHandle handle;
 
 		private final RocksDB db;
 
-		private final ResourceGuard.Lease lease;
+		private volatile boolean open;
 
-		private final Map<String, ColumnFamilyHandle> kvStateInformation;
+		private long value;
 
-		private final MetricGroup metricGroup;
-
-		private final Map<String, Map<String, NativePropertyGauge>> cachedGaugesByColumnFamily;
-
-		private final Collection<String> properties;
-
-		private final ConcurrentLinkedQueue<Tuple2<String, ColumnFamilyHandle>> messageQueue;
-
-		RocksDBNativeMetricTask(
-			@Nonnull RocksDB db,
-			@Nonnull ResourceGuard rocksDBResourceGuard,
-			@Nonnull Collection<String> properties,
-			@Nonnull MetricGroup metricGroup,
-			@Nonnull ConcurrentLinkedQueue<Tuple2<String, ColumnFamilyHandle>> messageQueue
-		) throws IOException {
+		private RocksDBNativeMetricView(
+			@Nonnull String property,
+			@Nonnull ColumnFamilyHandle handle,
+			@Nonnull RocksDB db
+		) {
+			this.property = property;
+			this.handle = handle;
 			this.db = db;
-			this.lease = rocksDBResourceGuard.acquireResource();
-			this.kvStateInformation = new HashMap<>();
-			this.cachedGaugesByColumnFamily = new HashMap<>();
-			this.properties = properties;
-			this.metricGroup = metricGroup;
-			this.messageQueue = messageQueue;
-		}
-
-		@Override
-		public void run() {
-			collectNewMessages();
-
-			kvStateInformation.forEach((columnFamilyName, columnFamilyHandle) -> {
-				getGaugesForColumnFamily(columnFamilyName).forEach((property, gauge) -> {
-					try {
-						long value = db.getLongProperty(columnFamilyHandle, property);
-						gauge.setValue(value);
-					} catch (RocksDBException e) {
-						LOG.warn("Failed to read native metric %s for column family %s from RocksDB", property, columnFamilyName, e);
-					}
-				});
-			});
-		}
-
-		void collectNewMessages() {
-			Iterator<Tuple2<String, ColumnFamilyHandle>> iterator = messageQueue.iterator();
-			while (iterator.hasNext()) {
-				Tuple2<String, ColumnFamilyHandle> message = iterator.next();
-				iterator.remove();
-				kvStateInformation.put(message.f0, message.f1);
-			}
-		}
-
-		int numberOfColumnFamilies() {
-			return kvStateInformation.size();
-		}
-
-		Map<String, NativePropertyGauge> getGaugesForColumnFamily(String columnFamilyName) {
-			return cachedGaugesByColumnFamily.computeIfAbsent(columnFamilyName, key -> {
-				MetricGroup group = metricGroup.addGroup(key);
-				Map<String, NativePropertyGauge> newGauges = new HashMap<>(properties.size());
-
-				for (String property : properties) {
-					NativePropertyGauge gauge = new NativePropertyGauge();
-					group.gauge(property, gauge);
-					newGauges.put(property, gauge);
-				}
-
-				return newGauges;
-			});
-		}
-
-		@Override
-		public boolean cancel() {
-			IOUtils.closeQuietly(lease);
-			return super.cancel();
-		}
-	}
-
-	/**
-	 * A gauge which treats the value as an unsigned long.
-	 */
-	static class NativePropertyGauge implements Gauge<String> {
-		private volatile long value;
-
-		public void setValue(long value) {
-			this.value = value;
-		}
-
-		public long getLongValue() {
-			return this.value;
+			this.open = true;
 		}
 
 		@Override
 		public String getValue() {
 			return Long.toUnsignedString(value);
 		}
+
+		@Override
+		public void update() {
+			if (open) {
+				try {
+					value = db.getLongProperty(handle, property);
+				} catch (RocksDBException e) {
+					LOG.warn("Failed to read native metric %s from RocksDB", property, e);
+				}
+			}
+		}
+
+		public boolean isOpen() {
+			return open;
+		}
+
+		@Override
+		public void close() {
+			open = false;
+		}
 	}
+
 }
 

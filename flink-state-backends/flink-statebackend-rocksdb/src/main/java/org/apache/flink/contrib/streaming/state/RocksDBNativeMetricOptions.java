@@ -18,6 +18,9 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.configuration.Configuration;
+
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -31,13 +34,102 @@ import java.util.Set;
  * <a href="https://github.com/facebook/rocksdb/blob/64324e329eb0a9b4e77241a425a1615ff524c7f1/include/rocksdb/db.h#L429">
  * db.h</a> for more information.
  */
-public class RocksDBNativeMetricOptions {
-
-	private static final long TEN_SECONDS = 10 * 1000;
+public class RocksDBNativeMetricOptions implements Serializable {
 
 	private Set<String> properties;
 
-	private long frequency = TEN_SECONDS;
+	/**
+	 * Creates a {@link RocksDBNativeMetricOptions} based on an
+	 * external configuration.
+	 */
+	public static RocksDBNativeMetricOptions fromConfig(Configuration config) {
+		RocksDBNativeMetricOptions options = new RocksDBNativeMetricOptions();
+		if (config.getBoolean(RocksDBOptions.MONITOR_NUM_IMMUTABLE_MEM_TABLES)) {
+			options.enableNumImmutableMemTable();
+		}
+
+		if (config.getBoolean(RocksDBOptions.MONITOR_MEM_TABLE_FLUSH_PENDING)) {
+			options.enableMemTableFlushPending();
+		}
+
+		if (config.getBoolean(RocksDBOptions.MONITOR_COMPACTION_PENDING)) {
+			options.enableCompactionPending();
+		}
+
+		if (config.getBoolean(RocksDBOptions.MONITOR_BACKGROUND_ERRORS)) {
+			options.enableBackgroundErrors();
+		}
+
+		if (config.getBoolean(RocksDBOptions.MONITOR_CUR_SIZE_ACTIVE_MEM_TABLE)) {
+			options.enableCurSizeActiveMemTable();
+		}
+
+		if (config.getBoolean(RocksDBOptions.MONITOR_CUR_SIZE_ALL_MEM_TABLE)) {
+			options.enableCurSizeAllMemTables();
+		}
+
+		if (config.getBoolean(RocksDBOptions.MONITOR_SIZE_ALL_MEM_TABLES)) {
+			options.enableSizeAllMemTables();
+		}
+
+		if (config.getBoolean(RocksDBOptions.MONITOR_NUM_ENTRIES_ACTIVE_MEM_TABLE)) {
+			options.enableNumEntriesActiveMemTable();
+		}
+
+		if (config.getBoolean(RocksDBOptions.MONITOR_NUM_ENTRIES_IMM_MEM_TABLES)) {
+			options.enableNumEntriesImmMemTables();
+		}
+
+		if (config.getBoolean(RocksDBOptions.MONITOR_NUM_DELETES_ACTIVE_MEM_TABLE)) {
+			options.enableNumDeletesActiveMemTable();
+		}
+
+		if (config.getBoolean(RocksDBOptions.MONITOR_NUM_DELETES_IMM_MEM_TABLE)) {
+			options.enableNumDeletesImmMemTables();
+		}
+
+		if (config.getBoolean(RocksDBOptions.ESTIMATE_NUM_KEYS)) {
+			options.enableEstimateNumKeys();
+		}
+
+		if (config.getBoolean(RocksDBOptions.ESTIMATE_TABLE_READERS_MEM)) {
+			options.enableEstimateTableReadersMem();
+		}
+
+		if (config.getBoolean(RocksDBOptions.MONITOR_NUM_SNAPSHOTS)) {
+			options.enableNumSnapshots();
+		}
+
+		if (config.getBoolean(RocksDBOptions.MONITOR_NUM_LIVE_VERSIONS)) {
+			options.enableNumLiveVersions();
+		}
+
+		if (config.getBoolean(RocksDBOptions.ESTIMATE_LIVE_DATA_SIZE)) {
+			options.enableEstimateLiveDataSize();
+		}
+
+		if (config.getBoolean(RocksDBOptions.MONITOR_TOTAL_SST_FILES_SIZE)) {
+			options.enableTotalSstFilesSize();
+		}
+
+		if (config.getBoolean(RocksDBOptions.ESTIMATE_PENDING_COMPACTION_BYTES)) {
+			options.enableEstimatePendingCompactionBytes();
+		}
+
+		if (config.getBoolean(RocksDBOptions.MONITOR_NUM_RUNNING_COMPACTIONS)) {
+			options.enableNumRunningCompactions();
+		}
+
+		if (config.getBoolean(RocksDBOptions.MONITOR_NUM_RUNNING_FLUSHES)) {
+			options.enableNumRunningFlushes();
+		}
+
+		if (config.getBoolean(RocksDBOptions.MONITOR_ACTUAL_DELAYED_WRITE_RATE)) {
+			options.enableActualDelayedWriteRate();
+		}
+
+		return options;
+	}
 
 	public RocksDBNativeMetricOptions() {
 		this.properties = new HashSet<>();
@@ -47,84 +139,84 @@ public class RocksDBNativeMetricOptions {
 	 * Returns number of immutable memtables that have not yet been flushed.
 	 */
 	public void enableNumImmutableMemTable() {
-		this.properties.add("rocksdb.num-immutable-mem-table");
+		this.properties.add(RocksDBProperty.NumImmutableMemTable.getRocksDBProperty());
 	}
 
 	/**
 	 * Returns 1 if a memtable flush is pending; otherwise, returns 0.
 	 */
 	public void enableMemTableFlushPending() {
-		this.properties.add("rocksdb.mem-table-flush-pending");
+		this.properties.add(RocksDBProperty.MemTableFlushPending.getRocksDBProperty());
 	}
 
 	/**
 	 * Returns 1 if at least one compaction is pending; otherwise, returns 0.
 	 */
 	public void enableCompactionPending() {
-		this.properties.add("rocksdb.compaction-pending");
+		this.properties.add(RocksDBProperty.CompactionPending.getRocksDBProperty());
 	}
 
 	/**
 	 * Returns accumulated number of background errors.
 	 */
 	public void enableBackgroundErrors() {
-		this.properties.add("rocksdb.background-errors");
+		this.properties.add(RocksDBProperty.BackgroundErrors.getRocksDBProperty());
 	}
 
 	/**
 	 * Returns approximate size of active memtable (bytes).
 	 */
 	public void enableCurSizeActiveMemTable() {
-		this.properties.add("rocksdb.cur-size-active-mem-table");
+		this.properties.add(RocksDBProperty.CurSizeActiveMemTable.getRocksDBProperty());
 	}
 
 	/**
 	 * Returns approximate size of active and unflushed immutable memtables (bytes).
 	 */
 	public void enableCurSizeAllMemTables() {
-		this.properties.add("rocksdb.cur-size-all-mem-tables");
+		this.properties.add(RocksDBProperty.CurSizeAllMemTables.getRocksDBProperty());
 	}
 
 	/**
 	 * Returns approximate size of active, unflushed immutable, and pinned immutable memtables (bytes).
 	 */
 	public void enableSizeAllMemTables() {
-		this.properties.add("rocksdb.size-all-mem-tables");
+		this.properties.add(RocksDBProperty.SizeAllMemTables.getRocksDBProperty());
 	}
 
 	/**
 	 * Returns total number of entries in the active memtable.
 	 */
 	public void enableNumEntriesActiveMemTable() {
-		this.properties.add("rocksdb.num-entries-active-mem-table");
+		this.properties.add(RocksDBProperty.NumEntriesActiveMemTable.getRocksDBProperty());
 	}
 
 	/**
 	 * Returns total number of entries in the unflushed immutable memtables.
 	 */
 	public void enableNumEntriesImmMemTables() {
-		this.properties.add("rocksdb.num-entries-imm-mem-tables");
+		this.properties.add(RocksDBProperty.NumEntriesImmMemTables.getRocksDBProperty());
 	}
 
 	/**
 	 * Returns total number of delete entries in the active memtable.
 	 */
 	public void enableNumDeletesActiveMemTable() {
-		this.properties.add("rocksdb.num-deletes-active-mem-table");
+		this.properties.add(RocksDBProperty.NumDeletesActiveMemTable.getRocksDBProperty());
 	}
 
 	/**
 	 * Returns total number of delete entries in the unflushed immutable memtables.
 	 */
 	public void enableNumDeletesImmMemTables() {
-		this.properties.add("rocksdb.num-deletes-imm-mem-tables");
+		this.properties.add(RocksDBProperty.NumDeletesImmMemTables.getRocksDBProperty());
 	}
 
 	/**
 	 * Returns estimated number of total keys in the active and unflushed immutable memtables and storage.
 	 */
 	public void enableEstimateNumKeys() {
-		this.properties.add("rocksdb.estimate-num-keys");
+		this.properties.add(RocksDBProperty.EstimateNumKeys.getRocksDBProperty());
 	}
 
 	/**
@@ -132,21 +224,14 @@ public class RocksDBNativeMetricOptions {
 	 * used in block cache (e.g.,filter and index blocks).
 	 */
 	public void enableEstimateTableReadersMem() {
-		this.properties.add("rocksdb.estimate-table-readers-mem");
+		this.properties.add(RocksDBProperty.EstimateTableReadersMem.getRocksDBProperty());
 	}
 
 	/**
 	 * Returns number of unreleased snapshots of the database.
 	 */
 	public void enableNumSnapshots() {
-		this.properties.add("rocksdb.num-snapshots");
-	}
-
-	/**
-	 * Returns number representing unix timestamp of oldest unreleased snapshot.
-	 */
-	public void enableOldestSnapshotTime() {
-		this.properties.add("rocksdb.oldest-snapshot-time");
+		this.properties.add(RocksDBProperty.NumSnapshots.getRocksDBProperty());
 	}
 
 	/**
@@ -156,14 +241,14 @@ public class RocksDBNativeMetricOptions {
 	 * by iterators or unfinished compactions.
 	 */
 	public void enableNumLiveVersions() {
-		this.properties.add("rocksdb.num-live-versions");
+		this.properties.add(RocksDBProperty.NumLiveVersions.getRocksDBProperty());
 	}
 
 	/**
 	 * Returns an estimate of the amount of live data in bytes.
 	 */
 	public void enableEstimateLiveDataSize() {
-		this.properties.add("rocksdb.estimate-live-data-size");
+		this.properties.add(RocksDBProperty.EstimateLiveDataSize.getRocksDBProperty());
 	}
 
 	/**
@@ -171,21 +256,7 @@ public class RocksDBNativeMetricOptions {
 	 * <strong>WARNING</strong>: may slow down online queries if there are too many files.
 	 */
 	public void enableTotalSstFilesSize() {
-		this.properties.add("rocksdb.total-sst-files-size");
-	}
-
-	/**
-	 * Returns total size (bytes) of all SST files belong to the latest LSM tree.
-	 */
-	public void enableLiveSstFilesSize() {
-		this.properties.add("rocksdb.live-sst-files-size");
-	}
-
-	/**
-	 * Returns number of level to which L0 data will be compacted.
-	 */
-	public void enableBaseLevel() {
-		this.properties.add("rocksdb.base-level");
+		this.properties.add(RocksDBProperty.TotalSstFilesSize.getRocksDBProperty());
 	}
 
 	/**
@@ -193,71 +264,28 @@ public class RocksDBNativeMetricOptions {
 	 * to under target size. Not valid for other compactions than level-based.
 	 */
 	public void enableEstimatePendingCompactionBytes() {
-		this.properties.add("rocksdb.estimate-pending-compaction-bytes");
+		this.properties.add(RocksDBProperty.EstimatePendingCompactionBytes.getRocksDBProperty());
 	}
 
 	/**
 	 * Returns the number of currently running compactions.
 	 */
 	public void enableNumRunningCompactions() {
-		this.properties.add("rocksdb.num-running-compactions");
+		this.properties.add(RocksDBProperty.NumRunningCompactions.getRocksDBProperty());
 	}
 
 	/**
 	 * Returns the number of currently running flushes.
 	 */
 	public void enableNumRunningFlushes() {
-		this.properties.add("rocksdb.num-running-flushes");
+		this.properties.add(RocksDBProperty.NumRunningFlushes.getRocksDBProperty());
 	}
 
 	/**
 	 * Returns the current actual delayed write rate. 0 means no delay.
 	 */
 	public void enableActualDelayedWriteRate() {
-		this.properties.add("rocksdb.actual-delayed-write-rate");
-	}
-
-	/**
-	 * Returns 1 if write has been stopped.
-	 */
-	public void enableIsWriteStopped() {
-		this.properties.add("rocksdb.is-write-stopped");
-	}
-
-	/**
-	 * Returns block cache capacity (bytes).
-	 */
-	public void enableBlockCacheCapacity() {
-		this.properties.add("rocksdb.block-cache-capacity");
-	}
-
-	/**
-	 * Returns the memory size for the entries residing in block cache (bytes).
-	 */
-	public void enableBlockCacheUsage() {
-		this.properties.add("rocksdb.block-cache-usage");
-	}
-
-	/**
-	 * Returns the memory size for the entries being pinned.
-	 */
-	public void enableBlockCachePinnedUsage() {
-		this.properties.add("rocksdb.block-cache-pinned-usage");
-	}
-
-	/**
-	 * Set the refresh frequency from RocksDB metrics, default 10 seconds.
-	 * @param frequency refresh frequency in milliesconds.
-	 */
-	public void setFrequency(long frequency) {
-		this.frequency = frequency;
-	}
-
-	/**
-	 * @return the metric refresh frequency in milliseconds.
-	 */
-	public long getFrequency() {
-		return frequency;
+		this.properties.add(RocksDBProperty.ActualDelayedWriteRate.getRocksDBProperty());
 	}
 
 	/**
@@ -268,7 +296,7 @@ public class RocksDBNativeMetricOptions {
 	}
 
 	/**
-	 * {{RocksDBNativeMetricMonitor}} is enabled is any property is set.
+	 * {{@link RocksDBNativeMetricMonitor}} is enabled is any property is set.
 	 *
 	 * @return true if {{RocksDBNativeMetricMonitor}} should be enabled, false otherwise.
 	 */

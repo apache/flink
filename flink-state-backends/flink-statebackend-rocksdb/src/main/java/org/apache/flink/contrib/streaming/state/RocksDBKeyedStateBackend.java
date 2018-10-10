@@ -244,7 +244,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	private final RocksDBNativeMetricOptions metricOptions;
 
-	private final Optional<MetricGroup> metricGroup;
+	private final MetricGroup operatorMetricGroup;
 
 	/** The native metrics monitor. */
 	private RocksDBNativeMetricMonitor nativeMetricMonitor;
@@ -265,7 +265,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		RocksDBStateBackend.PriorityQueueStateType priorityQueueStateType,
 		TtlTimeProvider ttlTimeProvider,
 		RocksDBNativeMetricOptions metricOptions,
-		Optional<MetricGroup> metricGroup
+		MetricGroup operatorMetricGroup
 	) throws IOException {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader,
@@ -302,7 +302,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.writeOptions = new WriteOptions().setDisableWAL(true);
 
 		this.metricOptions = metricOptions;
-		this.metricGroup = metricGroup;
+		this.operatorMetricGroup = operatorMetricGroup;
 
 		switch (priorityQueueStateType) {
 			case HEAP:
@@ -375,7 +375,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		kvStateInformation.put(columnFamilyName, registeredColumn);
 
 		if (nativeMetricMonitor != null) {
-			nativeMetricMonitor.watch(columnFamilyName, registeredColumn.f0);
+			nativeMetricMonitor.registerColumnFamily(columnFamilyName, registeredColumn.f0);
 		}
 	}
 
@@ -628,18 +628,14 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			"Not all requested column family handles have been created");
 
 		if (this.metricOptions.isEnabled()) {
-			if (metricGroup.isPresent()) {
-				this.nativeMetricMonitor = new RocksDBNativeMetricMonitor(
-					dbRef,
-					rocksDBResourceGuard,
-					metricOptions,
-					metricGroup.get()
-				);
+			this.nativeMetricMonitor = new RocksDBNativeMetricMonitor(
+				dbRef,
+				rocksDBResourceGuard,
+				metricOptions,
+				operatorMetricGroup
+			);
 
-				this.cancelStreamRegistry.registerCloseable(nativeMetricMonitor);
-			} else {
-				LOG.warn("Unable to enable RocksDB native metrics, no metric group provided");
-			}
+			this.cancelStreamRegistry.registerCloseable(nativeMetricMonitor);
 		}
 
 		return dbRef;

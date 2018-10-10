@@ -173,7 +173,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry,
 			TtlTimeProvider ttlTimeProvider,
-			Optional<MetricGroup> operatorMetricGroup) throws Exception {
+			MetricGroup operatorMetricGroup) throws Exception {
 			throw new UnsupportedOperationException();
 		}
 

@@ -47,7 +47,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.Optional;
 import java.net.URI;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -459,7 +458,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 		KeyGroupRange keyGroupRange,
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
-		Optional<MetricGroup> operatorMetricGroup) {
+		MetricGroup operatorMetricGroup) {
 
 		TaskStateManager taskStateManager = env.getTaskStateManager();
 		LocalRecoveryConfig localRecoveryConfig = taskStateManager.createLocalRecoveryConfig();

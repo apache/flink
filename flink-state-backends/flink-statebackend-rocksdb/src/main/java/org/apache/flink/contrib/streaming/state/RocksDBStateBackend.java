@@ -58,7 +58,6 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 
@@ -123,6 +122,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 	/** This determines the type of priority queue state. */
 	private final PriorityQueueStateType priorityQueueStateType;
+
+	/** The default rocksdb metrics options. */
+	private final RocksDBNativeMetricOptions defaultMetricOptions;
 
 	// -- runtime values, set on TaskManager when initializing / using the backend
 
@@ -238,6 +240,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
 		// for now, we use still the heap-based implementation as default
 		this.priorityQueueStateType = PriorityQueueStateType.HEAP;
+		this.defaultMetricOptions = new RocksDBNativeMetricOptions();
 	}
 
 	/**
@@ -296,6 +299,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				}
 			}
 		}
+
+		// configure metric options
+		this.defaultMetricOptions = RocksDBNativeMetricOptions.fromConfig(config);
 
 		// copy remaining settings
 		this.predefinedOptions = original.predefinedOptions;
@@ -415,7 +421,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		KeyGroupRange keyGroupRange,
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
-		Optional<MetricGroup> operatorMetricGroup) throws IOException {
+		MetricGroup operatorMetricGroup) throws IOException {
 
 		// first, make sure that the RocksDB JNI library is loaded
 		// we do this explicitly here to have better error handling
@@ -673,7 +679,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	}
 
 	public RocksDBNativeMetricOptions getMemoryWatcherOptions() {
-		RocksDBNativeMetricOptions options = new RocksDBNativeMetricOptions();
+		RocksDBNativeMetricOptions options = this.defaultMetricOptions;
 		if (optionsFactory != null) {
 			options = optionsFactory.createNativeMetricsOptions(options);
 		}

@@ -44,7 +44,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.Optional;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -116,7 +115,7 @@ public class StateBackendITCase extends AbstractTestBase {
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry,
 			TtlTimeProvider ttlTimeProvider,
-			Optional<MetricGroup> operatorMetricGroup) throws IOException {
+			MetricGroup operatorMetricGroup) throws IOException {
 			throw new SuccessException();
 		}
 

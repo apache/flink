@@ -33,7 +33,6 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.util.Optional;
 
 import static org.powermock.api.mockito.PowerMockito.spy;
 
@@ -58,7 +57,7 @@ public class TestSpyWrapperStateBackend extends AbstractStateBackend {
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry,
 			TtlTimeProvider ttlTimeProvider,
-			Optional<MetricGroup> operatorMetricGroup) throws IOException {
+			MetricGroup operatorMetricGroup) throws IOException {
 			return spy(delegate.createKeyedStateBackend(
 				env,
 				jobID,

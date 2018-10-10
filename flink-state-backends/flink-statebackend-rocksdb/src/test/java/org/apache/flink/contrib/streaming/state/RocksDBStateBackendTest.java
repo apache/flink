@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -77,7 +78,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.RunnableFuture;
 
@@ -253,7 +253,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				RocksDBStateBackend.PriorityQueueStateType.HEAP,
 				TtlTimeProvider.DEFAULT,
 				new RocksDBNativeMetricOptions(),
-				Optional.empty()
+				UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup()
 			);
 
 			verify(columnFamilyOptions, Mockito.times(1))

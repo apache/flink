@@ -37,7 +37,6 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import javax.annotation.Nullable;
-import java.util.Optional;
 
 /** mack state backend. */
 public class MockStateBackend extends AbstractStateBackend {
@@ -96,7 +95,7 @@ public class MockStateBackend extends AbstractStateBackend {
 		KeyGroupRange keyGroupRange,
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
-		Optional<MetricGroup> operatorMetricGroup
+		MetricGroup operatorMetricGroup
 		) {
 		return new MockKeyedStateBackend<>(
 			new KvStateRegistry().createTaskRegistry(jobID, new JobVertexID()),

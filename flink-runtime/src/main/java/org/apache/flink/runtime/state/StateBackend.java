@@ -23,11 +23,11 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import java.io.IOException;
-import java.util.Optional;
 
 /**
  * A <b>State Backend</b> defines how the state of a streaming application is stored and
@@ -181,7 +181,7 @@ public interface StateBackend extends java.io.Serializable {
 			keyGroupRange,
 			kvStateRegistry,
 			ttlTimeProvider,
-			Optional.empty()
+			UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup()
 		);
 	}
 
@@ -206,7 +206,7 @@ public interface StateBackend extends java.io.Serializable {
 		KeyGroupRange keyGroupRange,
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
-		Optional<MetricGroup> operatorMetricGroup
+		MetricGroup operatorMetricGroup
 		) throws Exception;
 	
 	/**

@@ -43,7 +43,6 @@ import org.apache.flink.util.TernaryBoolean;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -312,7 +311,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry,
 			TtlTimeProvider ttlTimeProvider,
-			Optional<MetricGroup> operatorMetricGroup) {
+			MetricGroup operatorMetricGroup) {
 
 		TaskStateManager taskStateManager = env.getTaskStateManager();
 		HeapPriorityQueueSetFactory priorityQueueSetFactory =
