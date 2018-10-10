@@ -162,6 +162,16 @@ The configuration keys in this section are independent of the used resource mana
 
 {% include generated/metric_configuration.html %}
 
+### RocksDB Native Metrics
+Certain RocksDB native metrics may be forwarded to Flink's metrics reporter.
+All native metrics are scoped to operators and then further broken down by column family; values are reported as unsigned longs. 
+
+<div class="alert alert-warning">
+  <strong>Note:</strong> Enabling native metrics may cause degraded performance and should be set carefully. 
+</div>
+
+{% include generated/rocks_db_native_metric_configuration.html %}
+
 ### History Server
 
 You have to configure `jobmanager.archive.fs.dir` in order to archive terminated jobs and add it to the list of monitored directories via `historyserver.archive.fs.dir` if you want to display them via the HistoryServer's web frontend.
