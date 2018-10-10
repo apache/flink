@@ -118,6 +118,34 @@ public class BootstrapTools {
 			String portRangeDefinition,
 			Logger logger,
 			@Nonnull ActorSystemExecutorMode executorMode) throws Exception {
+		return startActorSystem(
+			configuration,
+			AkkaUtils.getFlinkActorSystemName(),
+			listeningAddress,
+			portRangeDefinition,
+			logger,
+			executorMode);
+	}
+
+	/**
+	 * Starts an ActorSystem with the given configuration listening at the address/ports.
+	 *
+	 * @param configuration The Flink configuration
+	 * @param actorSystemName Name of the started {@link ActorSystem}
+	 * @param listeningAddress The address to listen at.
+	 * @param portRangeDefinition The port range to choose a port from.
+	 * @param logger The logger to output log information.
+	 * @param executorMode The executor mode of Akka actor system.
+	 * @return The ActorSystem which has been started
+	 * @throws Exception Thrown when actor system cannot be started in specified port range
+	 */
+	public static ActorSystem startActorSystem(
+			Configuration configuration,
+			String actorSystemName,
+			String listeningAddress,
+			String portRangeDefinition,
+			Logger logger,
+			@Nonnull ActorSystemExecutorMode executorMode) throws Exception {
 
 		// parse port range definition and create port iterator
 		Iterator<Integer> portsIterator;
@@ -143,7 +171,13 @@ public class BootstrapTools {
 			}
 
 			try {
-				return startActorSystem(configuration, listeningAddress, port, logger, executorMode);
+				return startActorSystem(
+					configuration,
+					actorSystemName,
+					listeningAddress,
+					port,
+					logger,
+					executorMode);
 			}
 			catch (Exception e) {
 				// we can continue to try if this contains a netty channel exception
