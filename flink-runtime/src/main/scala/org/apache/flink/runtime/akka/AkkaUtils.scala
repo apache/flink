@@ -28,6 +28,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration.{AkkaOptions, Configuration, IllegalConfigurationException, SecurityOptions}
 import org.apache.flink.runtime.net.SSLUtils
+import org.apache.flink.runtime.rpc.akka.AkkaExecutorMode
 import org.apache.flink.util.NetUtils
 import org.jboss.netty.channel.ChannelException
 import org.jboss.netty.logging.{InternalLoggerFactory, Slf4JLoggerFactory}
@@ -117,7 +118,23 @@ object AkkaUtils {
   }
 
   /**
-    * Return a remote Akka config for the given configuration values.
+    * Returns a remote Akka config for the given configuration values.
+    *
+    * @param configuration containing the user provided configuration values
+    * @param hostname to bind against. If null, then the loopback interface is used
+    * @param port to bind against
+    * @param executorMode containing the user specified mode of executor
+    * @return A remote Akka config
+    */
+  def getAkkaConfig(configuration: Configuration,
+                    hostname: String,
+                    port: Int,
+                    executorMode: AkkaExecutorMode): Config = {
+    getAkkaConfig(configuration, Some((hostname, port)), executorMode)
+  }
+
+  /**
+    * Returns a remote Akka config for the given configuration values.
     *
     * @param configuration containing the user provided configuration values
     * @param hostname to bind against. If null, then the loopback interface is used
@@ -153,7 +170,25 @@ object AkkaUtils {
   @throws(classOf[UnknownHostException])
   def getAkkaConfig(configuration: Configuration,
                     externalAddress: Option[(String, Int)]): Config = {
-    val defaultConfig = getBasicAkkaConfig(configuration)
+    getAkkaConfig(configuration, externalAddress, AkkaExecutorMode.FORK_JOIN_EXECUTOR)
+  }
+
+  /**
+    * Creates an akka config with the provided configuration values. If the listening address is
+    * specified, then the actor system will listen on the respective address.
+    *
+    * @param configuration instance containing the user provided configuration values
+    * @param externalAddress optional tuple of bindAddress and port to be reachable at.
+    *                        If None is given, then an Akka config for local actor system
+    *                        will be returned
+    * @return Akka config
+    */
+  @throws(classOf[UnknownHostException])
+  def getAkkaConfig(configuration: Configuration,
+                    externalAddress: Option[(String, Int)],
+                    executorMode: AkkaExecutorMode): Config = {
+    val executorConfig = getExecutorConfigByExecutorMode(configuration, executorMode)
+    val defaultConfig = getBasicAkkaConfig(configuration, executorConfig)
 
     externalAddress match {
 
@@ -185,9 +220,12 @@ object AkkaUtils {
    * Gets the basic Akka config which is shared by remote and local actor systems.
    *
    * @param configuration instance which contains the user specified values for the configuration
+   * @param executorConfig the akka config for particular executor
    * @return Flink's basic Akka config
    */
-  private def getBasicAkkaConfig(configuration: Configuration): Config = {
+  private def getBasicAkkaConfig(
+    configuration: Configuration,
+    executorConfig: String): Config = {
     val akkaThroughput = configuration.getInteger(AkkaOptions.DISPATCHER_THROUGHPUT)
     val lifecycleEvents = configuration.getBoolean(AkkaOptions.LOG_LIFECYCLE_EVENTS)
 
@@ -204,24 +242,6 @@ object AkkaUtils {
 
     val supervisorStrategy = classOf[StoppingSupervisorWithoutLoggingActorKilledExceptionStrategy]
       .getCanonicalName
-
-    val forkJoinExecutorParallelismFactor =
-      configuration.getDouble(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR)
-
-    val forkJoinExecutorParallelismMin =
-      configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MIN)
-
-    val forkJoinExecutorParallelismMax =
-      configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MAX)
-
-    val forkJoinExecutorConfig =
-      s"""
-         | fork-join-executor {
-         |   parallelism-factor = $forkJoinExecutorParallelismFactor
-         |   parallelism-min = $forkJoinExecutorParallelismMin
-         |   parallelism-max = $forkJoinExecutorParallelismMax
-         | }
-       """.stripMargin
 
     val config =
       s"""
@@ -250,13 +270,46 @@ object AkkaUtils {
         |   default-dispatcher {
         |     throughput = $akkaThroughput
         |
-        |   $forkJoinExecutorConfig
+        |   $executorConfig
         |   }
         | }
         |}
       """.stripMargin
 
     ConfigFactory.parseString(config)
+  }
+
+  def getExecutorConfigByExecutorMode(
+    configuration: Configuration,
+    executorMode: AkkaExecutorMode): String = {
+    executorMode match {
+      case AkkaExecutorMode.FORK_JOIN_EXECUTOR =>
+        val forkJoinExecutorParallelismFactor =
+          configuration.getDouble(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR)
+
+        val forkJoinExecutorParallelismMin =
+          configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MIN)
+
+        val forkJoinExecutorParallelismMax =
+          configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MAX)
+
+        s"""
+           | fork-join-executor {
+           |   parallelism-factor = $forkJoinExecutorParallelismFactor
+           |   parallelism-min = $forkJoinExecutorParallelismMin
+           |   parallelism-max = $forkJoinExecutorParallelismMax
+           | }
+        """.stripMargin
+
+      case AkkaExecutorMode.SINGLE_THREAD_EXECUTOR =>
+        s"""
+           | single-thread-executor {
+           |   executor = "thread-pool-executor"
+           |   type = PinnedDispatcher
+           |   threads-priority = ${Thread.MIN_PRIORITY}
+           | }
+        """.stripMargin
+    }
   }
 
   def testDispatcherConfig: Config = {

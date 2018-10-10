@@ -35,6 +35,7 @@ import org.jboss.netty.channel.ChannelException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -71,7 +72,28 @@ public class AkkaRpcServiceUtils {
 	 * @throws Exception      Thrown is some other error occurs while creating akka actor system
 	 */
 	public static RpcService createRpcService(String hostname, int port, Configuration configuration) throws Exception {
+		return createRpcService(hostname, port, configuration, AkkaExecutorMode.FORK_JOIN_EXECUTOR);
+	}
+
+	/**
+	 * Utility method to create RPC service from configuration and hostname, port.
+	 *
+	 * @param hostname   The hostname/address that describes the TaskManager's data location.
+	 * @param port           If true, the TaskManager will not initiate the TCP network stack.
+	 * @param configuration                 The configuration for the TaskManager.
+	 * @param executorMode	The execution mode of Akka actor system.
+	 * @return   The rpc service which is used to start and connect to the TaskManager RpcEndpoint .
+	 * @throws IOException      Thrown, if the actor system can not bind to the address
+	 * @throws Exception      Thrown is some other error occurs while creating akka actor system
+	 */
+	public static RpcService createRpcService(
+		String hostname,
+		int port,
+		Configuration configuration,
+		@Nonnull AkkaExecutorMode executorMode) throws Exception {
 		LOG.info("Starting AkkaRpcService at {}.", NetUtils.unresolvedHostAndPortToNormalizedString(hostname, port));
+
+		Preconditions.checkNotNull(executorMode);
 
 		final ActorSystem actorSystem;
 
@@ -80,7 +102,7 @@ public class AkkaRpcServiceUtils {
 
 			if (hostname != null && !hostname.isEmpty()) {
 				// remote akka config
-				akkaConfig = AkkaUtils.getAkkaConfig(configuration, hostname, port);
+				akkaConfig = AkkaUtils.getAkkaConfig(configuration, hostname, port, executorMode);
 			} else {
 				// local akka config
 				akkaConfig = AkkaUtils.getAkkaConfig(configuration);

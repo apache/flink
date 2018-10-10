@@ -164,6 +164,7 @@ public class TaskExecutorITCase extends TestLogger {
 			taskManagerServices,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			"",
 			new BlobCacheService(
 				configuration,
 				new VoidBlobStore(),

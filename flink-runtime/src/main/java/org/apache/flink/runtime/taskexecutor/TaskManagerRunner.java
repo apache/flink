@@ -43,7 +43,8 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaActorSystemService;
+import org.apache.flink.runtime.rpc.akka.AkkaExecutorMode;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -58,10 +59,13 @@ import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.Preconditions;
 
 import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
@@ -102,6 +106,8 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 	private final RpcService rpcService;
 
+	private final AkkaActorSystemService metricQueryActorSystemService;
+
 	private final HighAvailabilityServices highAvailabilityServices;
 
 	private final MetricRegistryImpl metricRegistry;
@@ -133,13 +139,14 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION);
 
 		rpcService = createRpcService(configuration, highAvailabilityServices);
+		metricQueryActorSystemService = createMetricQueryActorSystemService(configuration, highAvailabilityServices);
 
 		HeartbeatServices heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
 
 		metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(configuration));
 
 		// TODO: Temporary hack until the MetricQueryService has been ported to RpcEndpoint
-		final ActorSystem actorSystem = ((AkkaRpcService) rpcService).getActorSystem();
+		final ActorSystem actorSystem = metricQueryActorSystemService.getActorSystem();
 		metricRegistry.startQueryService(actorSystem, resourceId);
 
 		blobCacheService = new BlobCacheService(
@@ -213,6 +220,10 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 				metricRegistry.shutdown();
 			} catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
+			}
+
+			if (metricQueryActorSystemService != null) {
+				terminationFutures.add(metricQueryActorSystemService.stopActorSystem());
 			}
 
 			try {
@@ -376,6 +387,8 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 		TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
 
+		String metricQueryServicePath = metricRegistry.getMetricQueryServicePath();
+
 		return new TaskExecutor(
 			rpcService,
 			taskManagerConfiguration,
@@ -383,6 +396,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			taskManagerServices,
 			heartbeatServices,
 			taskManagerMetricGroup,
+			metricQueryServicePath,
 			blobCacheService,
 			fatalErrorHandler);
 	}
@@ -419,6 +433,50 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 		final String portRangeDefinition = configuration.getString(TaskManagerOptions.RPC_PORT);
 
+		return bindWithPort(configuration, taskManagerHostname, portRangeDefinition, AkkaExecutorMode.FORK_JOIN_EXECUTOR);
+	}
+
+	/**
+	 * Create a actor system service for the metric query service.
+	 *
+	 * @param configuration The configuration for the TaskManager.
+	 * @param haServices to use for the task manager hostname retrieval
+	 */
+	public static AkkaActorSystemService createMetricQueryActorSystemService(
+		final Configuration configuration,
+		final HighAvailabilityServices haServices) throws Exception {
+
+		checkNotNull(configuration);
+		checkNotNull(haServices);
+
+		String taskManagerHostname = configuration.getString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, null);
+
+		if (taskManagerHostname != null) {
+			LOG.info("Using configured hostname/address for MetricQueryService: {}.", taskManagerHostname);
+		} else {
+			Time lookupTimeout = Time.milliseconds(AkkaUtils.getLookupTimeout(configuration).toMillis());
+
+			InetAddress taskManagerAddress = LeaderRetrievalUtils.findConnectingAddress(
+				haServices.getResourceManagerLeaderRetriever(),
+				lookupTimeout);
+
+			taskManagerHostname = taskManagerAddress.getHostName();
+
+			LOG.info("MetricQueryService will use hostname/address '{}' ({}) for communication.",
+				taskManagerHostname, taskManagerAddress.getHostAddress());
+		}
+
+		return new AkkaActorSystemService(configuration, taskManagerHostname, "0", AkkaExecutorMode.SINGLE_THREAD_EXECUTOR);
+	}
+
+	private static RpcService bindWithPort(
+		Configuration configuration,
+		String taskManagerHostname,
+		String portRangeDefinition,
+		@Nonnull AkkaExecutorMode executorMode) throws Exception{
+
+		Preconditions.checkNotNull(executorMode);
+
 		// parse port range definition and create port iterator
 		Iterator<Integer> portsIterator;
 		try {
@@ -429,7 +487,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 		while (portsIterator.hasNext()) {
 			try {
-				return AkkaRpcServiceUtils.createRpcService(taskManagerHostname, portsIterator.next(), configuration);
+				return AkkaRpcServiceUtils.createRpcService(taskManagerHostname, portsIterator.next(), configuration, executorMode);
 			}
 			catch (Exception e) {
 				// we can continue to try if this contains a netty channel exception

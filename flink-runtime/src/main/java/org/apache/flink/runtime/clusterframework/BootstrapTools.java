@@ -30,6 +30,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+import org.apache.flink.runtime.rpc.akka.AkkaExecutorMode;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
@@ -46,6 +47,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.File;
@@ -85,13 +87,38 @@ public class BootstrapTools {
 	 * @param portRangeDefinition The port range to choose a port from.
 	 * @param logger The logger to output log information.
 	 * @return The ActorSystem which has been started
-	 * @throws Exception
+	 * @throws Exception Thrown when actor system cannot be started in specified port range
+	 */
+	public static ActorSystem startActorSystem(
+		Configuration configuration,
+		String listeningAddress,
+		String portRangeDefinition,
+		Logger logger) throws Exception {
+		return startActorSystem(
+			configuration,
+			listeningAddress,
+			portRangeDefinition,
+			logger,
+			AkkaExecutorMode.FORK_JOIN_EXECUTOR);
+	}
+
+	/**
+	 * Starts an ActorSystem with the given configuration listening at the address/ports.
+	 *
+	 * @param configuration The Flink configuration
+	 * @param listeningAddress The address to listen at.
+	 * @param portRangeDefinition The port range to choose a port from.
+	 * @param logger The logger to output log information.
+	 * @param executorMode The executor mode of Akka actor system.
+	 * @return The ActorSystem which has been started
+	 * @throws Exception Thrown when actor system cannot be started in specified port range
 	 */
 	public static ActorSystem startActorSystem(
 			Configuration configuration,
 			String listeningAddress,
 			String portRangeDefinition,
-			Logger logger) throws Exception {
+			Logger logger,
+			@Nonnull AkkaExecutorMode executorMode) throws Exception {
 
 		// parse port range definition and create port iterator
 		Iterator<Integer> portsIterator;
@@ -117,7 +144,7 @@ public class BootstrapTools {
 			}
 
 			try {
-				return startActorSystem(configuration, listeningAddress, port, logger);
+				return startActorSystem(configuration, listeningAddress, port, logger, executorMode);
 			}
 			catch (Exception e) {
 				// we can continue to try if this contains a netty channel exception
@@ -136,6 +163,7 @@ public class BootstrapTools {
 
 	/**
 	 * Starts an Actor System at a specific port.
+	 *
 	 * @param configuration The Flink configuration.
 	 * @param listeningAddress The address to listen at.
 	 * @param listeningPort The port to listen at.
@@ -144,10 +172,29 @@ public class BootstrapTools {
 	 * @throws Exception
 	 */
 	public static ActorSystem startActorSystem(
+		Configuration configuration,
+		String listeningAddress,
+		int listeningPort,
+		Logger logger) throws Exception {
+		return startActorSystem(configuration, listeningAddress, listeningPort, logger, AkkaExecutorMode.FORK_JOIN_EXECUTOR);
+	}
+
+	/**
+	 * Starts an Actor System at a specific port.
+	 * @param configuration The Flink configuration.
+	 * @param listeningAddress The address to listen at.
+	 * @param listeningPort The port to listen at.
+	 * @param logger the logger to output log information.
+	 * @param executorMode The executor mode of Akka actor system.
+	 * @return The ActorSystem which has been started.
+	 * @throws Exception
+	 */
+	public static ActorSystem startActorSystem(
 				Configuration configuration,
 				String listeningAddress,
 				int listeningPort,
-				Logger logger) throws Exception {
+				Logger logger,
+				AkkaExecutorMode executorMode) throws Exception {
 
 		String hostPortUrl = NetUtils.unresolvedHostAndPortToNormalizedString(listeningAddress, listeningPort);
 		logger.info("Trying to start actor system at {}", hostPortUrl);

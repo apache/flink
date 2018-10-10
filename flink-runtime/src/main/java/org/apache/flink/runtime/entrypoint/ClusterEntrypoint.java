@@ -49,6 +49,8 @@ import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaActorSystemService;
+import org.apache.flink.runtime.rpc.akka.AkkaExecutorMode;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityContext;
@@ -128,6 +130,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
 	@GuardedBy("lock")
 	private RpcService commonRpcService;
+
+	@GuardedBy("lock")
+	private AkkaActorSystemService metricQueryActorSystemService;
 
 	@GuardedBy("lock")
 	private ArchivedExecutionGraphStore archivedExecutionGraphStore;
@@ -259,9 +264,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 			metricRegistry = createMetricRegistry(configuration);
 
 			// TODO: This is a temporary hack until we have ported the MetricQueryService to the new RpcEndpoint
-			// start the MetricQueryService
-			final ActorSystem actorSystem = ((AkkaRpcService) commonRpcService).getActorSystem();
-			metricRegistry.startQueryService(actorSystem, null);
+			// Start actor system for metric query service on any available port
+			metricQueryActorSystemService = new AkkaActorSystemService(configuration, bindAddress, "0", AkkaExecutorMode.SINGLE_THREAD_EXECUTOR);
+			metricRegistry.startQueryService(metricQueryActorSystemService.getActorSystem(), null);
 
 			archivedExecutionGraphStore = createSerializableExecutionGraphStore(configuration, commonRpcService.getScheduledExecutor());
 
@@ -288,12 +293,20 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 	}
 
 	protected RpcService createRpcService(
-			Configuration configuration,
-			String bindAddress,
-			String portRange) throws Exception {
-		ActorSystem actorSystem = BootstrapTools.startActorSystem(configuration, bindAddress, portRange, LOG);
+		Configuration configuration,
+		String bindAddress,
+		String portRange,
+		AkkaExecutorMode executorMode) throws Exception {
+		ActorSystem actorSystem = BootstrapTools.startActorSystem(configuration, bindAddress, portRange, LOG, executorMode);
 		FiniteDuration duration = AkkaUtils.getTimeout(configuration);
 		return new AkkaRpcService(actorSystem, Time.of(duration.length(), duration.unit()));
+	}
+
+	protected RpcService createRpcService(
+		Configuration configuration,
+		String bindAddress,
+		String portRange) throws Exception {
+		return createRpcService(configuration, bindAddress, portRange, AkkaExecutorMode.FORK_JOIN_EXECUTOR);
 	}
 
 	protected HighAvailabilityServices createHaServices(
@@ -365,6 +378,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
 			if (metricRegistry != null) {
 				terminationFutures.add(metricRegistry.shutdown());
+			}
+
+			if (metricQueryActorSystemService != null) {
+				terminationFutures.add(metricQueryActorSystemService.stopActorSystem());
 			}
 
 			if (commonRpcService != null) {
