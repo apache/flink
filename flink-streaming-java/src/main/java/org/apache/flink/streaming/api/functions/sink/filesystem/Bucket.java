@@ -124,8 +124,17 @@ public class Bucket<IN, BucketID> {
 		// we try to resume the previous in-progress file
 		if (state.hasInProgressResumableFile()) {
 			final RecoverableWriter.ResumeRecoverable resumable = state.getInProgressResumableFile();
-			inProgressPart = partFileFactory.resumeFrom(
-					bucketId, fsWriter, resumable, state.getInProgressFileCreationTime());
+
+			if (fsWriter.supportsResume()) {
+				inProgressPart = partFileFactory.resumeFrom(
+						bucketId, fsWriter, resumable, state.getInProgressFileCreationTime());
+			} else {
+
+				// if the writer does not support resume, then we close the
+				// in-progress part and commit it, as done in the case of pending files.
+
+				fsWriter.recoverForCommit(resumable).commitAfterRecovery();
+			}
 		}
 	}
 
