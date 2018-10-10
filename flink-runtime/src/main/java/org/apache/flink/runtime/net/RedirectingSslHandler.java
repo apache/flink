@@ -22,6 +22,7 @@ import org.apache.flink.runtime.rest.handler.util.HandlerRedirectUtils;
 import org.apache.flink.runtime.rest.handler.util.KeepAliveWrite;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdapter;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.ByteToMessageDecoder;
@@ -79,7 +80,7 @@ public class RedirectingSslHandler extends ByteToMessageDecoder {
 		SslHandler sslHandler = new SslHandler(sslEngineFactory.createSSLEngine());
 		try {
 			context.pipeline().replace(this, SSL_HANDLER_NAME, sslHandler);
-		} catch (Throwable t){
+		} catch (Throwable t) {
 			ReferenceCountUtil.safeRelease(sslHandler.engine());
 			throw t;
 		}
@@ -94,7 +95,11 @@ public class RedirectingSslHandler extends ByteToMessageDecoder {
 			log.trace("Received non-SSL request, redirecting to {}{}", redirectAddress, path);
 			HttpResponse response = HandlerRedirectUtils.getRedirectResponse(
 				redirectAddress, path, HttpResponseStatus.MOVED_PERMANENTLY);
-			KeepAliveWrite.flush(ctx, request, response);
+			if (request != null) {
+				KeepAliveWrite.flush(ctx, request, response);
+			} else {
+				ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+			}
 		}
 
 		private String getRedirectAddress(ChannelHandlerContext ctx) throws Exception {
