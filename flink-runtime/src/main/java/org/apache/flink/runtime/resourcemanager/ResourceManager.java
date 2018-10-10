@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
@@ -74,11 +73,13 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -585,25 +586,26 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	@Override
 	public CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(Time timeout) {
-		final ArrayList<Tuple2<ResourceID, String>> metricQueryServicePaths = new ArrayList<>(taskExecutors.size());
+		final ArrayList<CompletableFuture<Optional<Tuple2<ResourceID, String>>>> metricQueryServicePathFutures = new ArrayList<>(taskExecutors.size());
 
 		for (Map.Entry<ResourceID, WorkerRegistration<WorkerType>> workerRegistrationEntry : taskExecutors.entrySet()) {
 			final ResourceID tmResourceId = workerRegistrationEntry.getKey();
 			final WorkerRegistration<WorkerType> workerRegistration = workerRegistrationEntry.getValue();
 			final TaskExecutorGateway taskExecutorGateway = workerRegistration.getTaskExecutorGateway();
-			String tmMetricQueryServicePath = null;
-			try {
-				tmMetricQueryServicePath =
-					taskExecutorGateway.getMetricQueryServiceAddress(AkkaUtils.getDefaultTimeout()).get();
-			} catch (Exception e) {
-				log.info("Fail to get task manager's metric query service path for worker: {}", taskExecutorGateway.getAddress());
-				continue;
-			}
 
-			metricQueryServicePaths.add(Tuple2.of(tmResourceId, tmMetricQueryServicePath));
+			final CompletableFuture<Optional<Tuple2<ResourceID, String>>> metricQueryServicePathFuture = taskExecutorGateway
+				.requestMetricQueryServiceAddress(timeout)
+				.thenApply(optional -> optional.map(path -> Tuple2.of(tmResourceId, path)));
+
+			metricQueryServicePathFutures.add(metricQueryServicePathFuture);
 		}
 
-		return CompletableFuture.completedFuture(metricQueryServicePaths);
+		return FutureUtils.combineAll(metricQueryServicePathFutures).thenApply(
+			collection -> collection
+				.stream()
+				.filter(Optional::isPresent)
+				.map(Optional::get)
+				.collect(Collectors.toList()));
 	}
 
 	@Override

@@ -34,6 +34,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.CompletableFuture;
@@ -150,8 +151,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 	}
 
 	@Override
-	public CompletableFuture<String> getMetricQueryServiceAddress(Time timeout) {
-		return CompletableFuture.completedFuture(address);
+	public CompletableFuture<SerializableOptional<String>> requestMetricQueryServiceAddress(Time timeout) {
+		return CompletableFuture.completedFuture(SerializableOptional.of(address));
 	}
 
 	@Override
