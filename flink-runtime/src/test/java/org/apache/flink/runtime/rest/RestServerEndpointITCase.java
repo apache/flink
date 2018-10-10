@@ -56,8 +56,12 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.TooLongFrameException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.apache.commons.io.IOUtils;
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -88,6 +92,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
+import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -411,6 +416,20 @@ public class RestServerEndpointITCase extends TestLogger {
 		final String fileContents = IOUtils.toString(connection.getInputStream());
 
 		assertEquals("foobar", fileContents.trim());
+	}
+
+	@Test
+	public void testNonSslRedirectForEnabledSsl() throws Exception {
+		Assume.assumeTrue(config.getBoolean(SecurityOptions.SSL_ENABLED));
+		OkHttpClient client = new OkHttpClient.Builder().followRedirects(false).build();
+		String httpsUrl = serverEndpoint.getRestBaseUrl() + "/path";
+		String httpUrl = httpsUrl.replace("https://", "http://");
+		Request request = new Request.Builder().url(httpUrl).build();
+		try (final Response response = client.newCall(request).execute()) {
+			assertEquals(HttpResponseStatus.MOVED_PERMANENTLY.code(), response.code());
+			assertThat(response.headers().names(), hasItems("Location"));
+			assertEquals(httpsUrl, response.header("Location"));
+		}
 	}
 
 	private HttpURLConnection openHttpConnectionForUpload(final String boundary) throws IOException {
