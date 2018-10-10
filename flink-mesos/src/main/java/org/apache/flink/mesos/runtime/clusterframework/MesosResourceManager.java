@@ -678,7 +678,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			return CompletableFuture.completedFuture(true);
 		}
 
-		return FutureUtils.<Boolean>toJava(Patterns.gracefulStop(actorRef, timeout))
+		return FutureUtils.toJava(Patterns.gracefulStop(actorRef, timeout))
 			.exceptionally(
 				(Throwable throwable) -> {
 					// The actor did not stop gracefully in time, try to directly stop it
