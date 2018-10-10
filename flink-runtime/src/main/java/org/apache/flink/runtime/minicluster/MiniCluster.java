@@ -33,6 +33,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -98,6 +99,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.clusterframework.BootstrapTools.ActorSystemExecutorMode.FIXED_THREAD_POOL_EXECUTOR;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -132,6 +134,9 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 	@GuardedBy("lock")
 	private RpcService resourceManagerRpcService;
+
+	@GuardedBy("lock")
+	private ActorSystem metricQueryServiceActorSystem;
 
 	@GuardedBy("lock")
 	private HighAvailabilityServices haServices;
@@ -249,8 +254,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				commonRpcService = createRpcService(configuration, rpcTimeout, false, null);
 
 				// TODO: Temporary hack until the metric query service is ported to the RpcEndpoint
-				final ActorSystem actorSystem = ((AkkaRpcService) commonRpcService).getActorSystem();
-				metricRegistry.startQueryService(actorSystem, null);
+				metricQueryServiceActorSystem = BootstrapTools.startActorSystem(configuration, commonRpcService.getAddress(), 0, LOG, FIXED_THREAD_POOL_EXECUTOR);
+				metricRegistry.startQueryService(metricQueryServiceActorSystem, null);
 
 				if (useSingleRpcService) {
 					for (int i = 0; i < numTaskManagers; i++) {
@@ -344,7 +349,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					blobServer.getTransientBlobService(),
 					commonRpcService.getExecutor(),
 					new AkkaQueryServiceRetriever(
-						actorSystem,
+						metricQueryServiceActorSystem,
 						Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT))),
 					haServices.getWebMonitorLeaderElectionService(),
 					new ShutDownFatalErrorHandler());
@@ -441,24 +446,12 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 					final FutureUtils.ConjunctFuture<Void> componentsTerminationFuture = FutureUtils.completeAll(componentTerminationFutures);
 
-					final CompletableFuture<Void> metricRegistryTerminationFuture = FutureUtils.runAfterwards(
+					final CompletableFuture<Void> metricSystemTerminationFuture = FutureUtils.composeAfterwards(
 						componentsTerminationFuture,
-						() -> {
-							synchronized (lock) {
-								if (jobManagerMetricGroup != null) {
-									jobManagerMetricGroup.close();
-									jobManagerMetricGroup = null;
-								}
-								// metrics shutdown
-								if (metricRegistry != null) {
-									metricRegistry.shutdown();
-									metricRegistry = null;
-								}
-							}
-						});
+						this::closeMetricSystem);
 
 					// shut down the RpcServices
-					final CompletableFuture<Void> rpcServicesTerminationFuture = metricRegistryTerminationFuture
+					final CompletableFuture<Void> rpcServicesTerminationFuture = metricSystemTerminationFuture
 						.thenCompose((Void ignored) -> terminateRpcServices());
 
 					final CompletableFuture<Void> remainingServicesTerminationFuture = FutureUtils.runAfterwards(
@@ -479,6 +472,29 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			}
 
 			return terminationFuture;
+		}
+	}
+
+	private CompletableFuture<Void> closeMetricSystem() {
+		synchronized (lock) {
+			if (jobManagerMetricGroup != null) {
+				jobManagerMetricGroup.close();
+				jobManagerMetricGroup = null;
+			}
+
+			final ArrayList<CompletableFuture<Void>> terminationFutures = new ArrayList<>(2);
+
+			// metrics shutdown
+			if (metricRegistry != null) {
+				terminationFutures.add(metricRegistry.shutdown());
+				metricRegistry = null;
+			}
+
+			if (metricQueryServiceActorSystem != null) {
+				terminationFutures.add(AkkaUtils.terminateActorSystem(metricQueryServiceActorSystem));
+			}
+
+			return FutureUtils.completeAll(terminationFutures);
 		}
 	}
 
