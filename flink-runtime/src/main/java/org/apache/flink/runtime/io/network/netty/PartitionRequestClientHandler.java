@@ -417,32 +417,18 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 
 		// Called by the recycling thread (not network I/O thread)
 		@Override
-		public boolean notifyBufferAvailable(Buffer buffer) {
-			boolean success = false;
+		public NotificationResult notifyBufferAvailable(Buffer buffer) {
+			if (availableBuffer.compareAndSet(null, buffer)) {
+				ctx.channel().eventLoop().execute(this);
 
-			try {
-				if (availableBuffer.compareAndSet(null, buffer)) {
-					ctx.channel().eventLoop().execute(this);
-
-					success = true;
-				}
-				else {
-					throw new IllegalStateException("Received a buffer notification, " +
-							" but the previous one has not been handled yet.");
-				}
+				return NotificationResult.BUFFER_USED_FINISHED;
 			}
-			catch (Throwable t) {
-				ctx.channel().eventLoop().execute(new AsyncErrorNotificationTask(t));
+			else {
+				ctx.channel().eventLoop().execute(new AsyncErrorNotificationTask(
+					new IllegalStateException("Received a buffer notification, " +
+						" but the previous one has not been handled yet.")));
+				return NotificationResult.NONE;
 			}
-			finally {
-				if (!success) {
-					if (buffer != null) {
-						buffer.recycleBuffer();
-					}
-				}
-			}
-
-			return false;
 		}
 
 		/**
