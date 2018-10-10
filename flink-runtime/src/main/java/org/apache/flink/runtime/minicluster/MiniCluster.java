@@ -32,7 +32,6 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -97,7 +96,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.runtime.clusterframework.BootstrapTools.ActorSystemExecutorMode.FIXED_THREAD_POOL_EXECUTOR;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -252,13 +250,10 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				commonRpcService = createRpcService(configuration, rpcTimeout, false, null);
 
 				// TODO: Temporary hack until the metric query service is ported to the RpcEndpoint
-				metricQueryServiceActorSystem = BootstrapTools.startActorSystem(
+				metricQueryServiceActorSystem = MetricUtils.startMetricsActorSystem(
 					configuration,
-					"metrics",
 					commonRpcService.getAddress(),
-					0,
-					LOG,
-					FIXED_THREAD_POOL_EXECUTOR);
+					LOG);
 				metricRegistry.startQueryService(metricQueryServiceActorSystem, null);
 
 				if (useSingleRpcService) {

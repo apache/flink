@@ -95,7 +95,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import scala.concurrent.duration.FiniteDuration;
 
-import static org.apache.flink.runtime.clusterframework.BootstrapTools.ActorSystemExecutorMode.FIXED_THREAD_POOL_EXECUTOR;
 import static org.apache.flink.runtime.clusterframework.BootstrapTools.ActorSystemExecutorMode.FORK_JOIN_EXECUTOR;
 
 /**
@@ -282,13 +281,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 
 			// TODO: This is a temporary hack until we have ported the MetricQueryService to the new RpcEndpoint
 			// Start actor system for metric query service on any available port
-			metricQueryServiceActorSystem = BootstrapTools.startActorSystem(
-				configuration,
-				"metrics",
-				bindAddress,
-				0,
-				LOG,
-				FIXED_THREAD_POOL_EXECUTOR);
+			metricQueryServiceActorSystem = MetricUtils.startMetricsActorSystem(configuration, bindAddress, LOG);
 			metricRegistry.startQueryService(metricQueryServiceActorSystem, null);
 
 			archivedExecutionGraphStore = createSerializableExecutionGraphStore(configuration, commonRpcService.getScheduledExecutor());
