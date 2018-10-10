@@ -27,7 +27,6 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -70,7 +69,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.runtime.clusterframework.BootstrapTools.ActorSystemExecutorMode.FIXED_THREAD_POOL_EXECUTOR;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -131,7 +129,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION);
 
 		rpcService = createRpcService(configuration, highAvailabilityServices);
-		metricQueryServiceActorSystem = createMetricQueryServiceActorSystem(configuration, rpcService.getAddress());
+		metricQueryServiceActorSystem = MetricUtils.startMetricsActorSystem(configuration, rpcService.getAddress(), LOG);
 
 		HeartbeatServices heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
 
@@ -410,25 +408,6 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		final String portRangeDefinition = configuration.getString(TaskManagerOptions.RPC_PORT);
 
 		return bindWithPort(configuration, taskManagerHostname, portRangeDefinition);
-	}
-
-	/**
-	 * Create a actor system service for the metric query service.
-	 *
-	 * @param configuration The configuration for the TaskManager.
-	 * @param hostname to bind the {@link ActorSystem} to
-	 */
-	public static ActorSystem createMetricQueryServiceActorSystem(
-			final Configuration configuration,
-			final String hostname) throws Exception {
-
-		return BootstrapTools.startActorSystem(
-			configuration,
-			"metrics",
-			hostname,
-			0,
-			LOG,
-			FIXED_THREAD_POOL_EXECUTOR);
 	}
 
 	private static RpcService bindWithPort(
