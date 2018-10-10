@@ -26,12 +26,6 @@ import java.io.IOException;
 public interface BufferPool extends BufferProvider, BufferRecycler {
 
 	/**
-	 * The owner of this buffer pool to be called when memory needs to be released to avoid back
-	 * pressure.
-	 */
-	void setBufferPoolOwner(BufferPoolOwner owner);
-
-	/**
 	 * Destroys this buffer pool.
 	 *
 	 * <p> If not all buffers are available, they are recycled lazily as soon as they are recycled.
