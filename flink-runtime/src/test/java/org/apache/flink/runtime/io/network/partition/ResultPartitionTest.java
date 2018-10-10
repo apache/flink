@@ -21,6 +21,8 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.taskmanager.TaskActions;
@@ -30,6 +32,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -202,6 +205,54 @@ public class ResultPartitionTest {
 						eq(partition.getPartitionId()),
 						any(TaskActions.class));
 			}
+		}
+	}
+
+	@Test
+	public void testReleaseMemoryOnBlockingPartition() throws Exception {
+		testReleaseMemory(ResultPartitionType.BLOCKING);
+	}
+
+	@Test
+	public void testReleaseMemoryOnPipelinedPartition() throws Exception {
+		testReleaseMemory(ResultPartitionType.PIPELINED);
+	}
+
+	/**
+	 * Tests {@link ResultPartition#releaseMemory(int)} on a working partition.
+	 *
+	 * @param resultPartitionType the result partition type to set up
+	 */
+	private void testReleaseMemory(final ResultPartitionType resultPartitionType) throws Exception {
+		final int numAllBuffers = 10;
+		final NetworkEnvironment network = new NetworkEnvironment(numAllBuffers, 128, 0, 0, 2, 8, true);
+		final ResultPartitionConsumableNotifier notifier = new NoOpResultPartitionConsumableNotifier();
+		final ResultPartition resultPartition = createPartition(notifier, resultPartitionType, false);
+		try {
+			network.setupPartition(resultPartition);
+
+			// take all buffers (more than the minimum required)
+			for (int i = 0; i < numAllBuffers; ++i) {
+				BufferBuilder bufferBuilder = resultPartition.getBufferPool().requestBufferBuilderBlocking();
+				resultPartition.addBufferConsumer(bufferBuilder.createBufferConsumer(), 0);
+			}
+			resultPartition.finish();
+
+			assertEquals(0, resultPartition.getBufferPool().getNumberOfAvailableMemorySegments());
+
+			// reset the pool size less than the number of requested buffers
+			final int numLocalBuffers = 4;
+			resultPartition.getBufferPool().setNumBuffers(numLocalBuffers);
+
+			// partition with blocking type should release excess buffers
+			if (!resultPartitionType.hasBackPressure()) {
+				assertEquals(numLocalBuffers, resultPartition.getBufferPool().getNumberOfAvailableMemorySegments());
+			} else {
+				assertEquals(0, resultPartition.getBufferPool().getNumberOfAvailableMemorySegments());
+			}
+		} finally {
+			resultPartition.release();
+			network.shutdown();
 		}
 	}
 
