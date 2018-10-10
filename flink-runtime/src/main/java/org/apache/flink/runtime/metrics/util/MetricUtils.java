@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.metrics.util;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -29,6 +31,7 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
 
+import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +51,7 @@ import java.lang.management.ThreadMXBean;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.runtime.clusterframework.BootstrapTools.ActorSystemExecutorMode.FIXED_THREAD_POOL_EXECUTOR;
 import static org.apache.flink.runtime.metrics.util.SystemResourcesMetricsInitializer.instantiateSystemMetrics;
 
 /**
@@ -56,6 +60,7 @@ import static org.apache.flink.runtime.metrics.util.SystemResourcesMetricsInitia
 public class MetricUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricUtils.class);
 	private static final String METRIC_GROUP_STATUS_NAME = "Status";
+	private static final String METRICS = "flink-metrics";
 
 	private MetricUtils() {
 	}
@@ -113,6 +118,16 @@ public class MetricUtils {
 		instantiateMemoryMetrics(jvm.addGroup("Memory"));
 		instantiateThreadMetrics(jvm.addGroup("Threads"));
 		instantiateCPUMetrics(jvm.addGroup("CPU"));
+	}
+
+	public static ActorSystem startMetricsActorSystem(Configuration configuration, String hostname, Logger logger) throws Exception {
+		return BootstrapTools.startActorSystem(
+			configuration,
+			METRICS,
+			hostname,
+			0,
+			logger,
+			FIXED_THREAD_POOL_EXECUTOR);
 	}
 
 	private static void instantiateNetworkMetrics(
