@@ -628,7 +628,7 @@ public abstract class ClusterClient<T> {
 
 		Future<Object> response = jobManager.ask(JobManagerMessages.getRequestJobStatus(jobId), timeout);
 
-		CompletableFuture<Object> javaFuture = FutureUtils.<Object>toJava(response);
+		CompletableFuture<Object> javaFuture = FutureUtils.toJava(response);
 
 		return javaFuture.thenApply((responseMessage) -> {
 			if (responseMessage instanceof JobManagerMessages.CurrentJobStatus) {
@@ -735,7 +735,7 @@ public abstract class ClusterClient<T> {
 
 		Future<Object> response = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobId, Option.<String>apply(savepointDirectory)),
 			new FiniteDuration(1, TimeUnit.HOURS));
-		CompletableFuture<Object> responseFuture = FutureUtils.<Object>toJava(response);
+		CompletableFuture<Object> responseFuture = FutureUtils.toJava(response);
 
 		return responseFuture.thenApply((responseMessage) -> {
 			if (responseMessage instanceof JobManagerMessages.TriggerSavepointSuccess) {
@@ -755,7 +755,7 @@ public abstract class ClusterClient<T> {
 		final ActorGateway jobManager = getJobManagerGateway();
 
 		Object msg = new JobManagerMessages.DisposeSavepoint(savepointPath);
-		CompletableFuture<Object> responseFuture = FutureUtils.<Object>toJava(
+		CompletableFuture<Object> responseFuture = FutureUtils.toJava(
 			jobManager.ask(
 				msg,
 				timeout));
@@ -794,7 +794,7 @@ public abstract class ClusterClient<T> {
 		final ActorGateway jobManager = getJobManagerGateway();
 
 		Future<Object> response = jobManager.ask(new RequestJobDetails(true, false), timeout);
-		CompletableFuture<Object> responseFuture = FutureUtils.<Object>toJava(response);
+		CompletableFuture<Object> responseFuture = FutureUtils.toJava(response);
 
 		return responseFuture.thenApply((responseMessage) -> {
 			if (responseMessage instanceof MultipleJobsDetails) {
