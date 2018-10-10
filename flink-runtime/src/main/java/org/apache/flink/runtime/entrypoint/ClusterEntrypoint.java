@@ -268,6 +268,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 			// Start actor system for metric query service on any available port
 			metricQueryServiceActorSystem = BootstrapTools.startActorSystem(
 				configuration,
+				"metrics",
 				bindAddress,
 				0,
 				LOG,

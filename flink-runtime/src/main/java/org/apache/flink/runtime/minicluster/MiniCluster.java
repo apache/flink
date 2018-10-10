@@ -255,7 +255,13 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				commonRpcService = createRpcService(configuration, rpcTimeout, false, null);
 
 				// TODO: Temporary hack until the metric query service is ported to the RpcEndpoint
-				metricQueryServiceActorSystem = BootstrapTools.startActorSystem(configuration, commonRpcService.getAddress(), 0, LOG, FIXED_THREAD_POOL_EXECUTOR);
+				metricQueryServiceActorSystem = BootstrapTools.startActorSystem(
+					configuration,
+					"metrics",
+					commonRpcService.getAddress(),
+					0,
+					LOG,
+					FIXED_THREAD_POOL_EXECUTOR);
 				metricRegistry.startQueryService(metricQueryServiceActorSystem, null);
 
 				if (useSingleRpcService) {

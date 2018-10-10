@@ -194,6 +194,33 @@ public class BootstrapTools {
 				int listeningPort,
 				Logger logger,
 				ActorSystemExecutorMode executorMode) throws Exception {
+		return startActorSystem(
+			configuration,
+			AkkaUtils.getFlinkActorSystemName(),
+			listeningAddress,
+			listeningPort,
+			logger,
+			executorMode);
+	}
+
+	/**
+	 * Starts an Actor System at a specific port.
+	 * @param configuration The Flink configuration.
+	 * @param actorSystemName Name of the started {@link ActorSystem}
+	 * @param listeningAddress The address to listen at.
+	 * @param listeningPort The port to listen at.
+	 * @param logger the logger to output log information.
+	 * @param executorMode The executor mode of Akka actor system.
+	 * @return The ActorSystem which has been started.
+	 * @throws Exception
+	 */
+	public static ActorSystem startActorSystem(
+		Configuration configuration,
+		String actorSystemName,
+		String listeningAddress,
+		int listeningPort,
+		Logger logger,
+		ActorSystemExecutorMode executorMode) throws Exception {
 
 		String hostPortUrl = NetUtils.unresolvedHostAndPortToNormalizedString(listeningAddress, listeningPort);
 		logger.info("Trying to start actor system at {}", hostPortUrl);
@@ -207,7 +234,7 @@ public class BootstrapTools {
 
 			logger.debug("Using akka configuration\n {}", akkaConfig);
 
-			ActorSystem actorSystem = AkkaUtils.createActorSystem(akkaConfig);
+			ActorSystem actorSystem = AkkaUtils.createActorSystem(actorSystemName, akkaConfig);
 
 			logger.info("Actor system started at {}", AkkaUtils.getAddress(actorSystem));
 			return actorSystem;
@@ -217,7 +244,7 @@ public class BootstrapTools {
 				Throwable cause = t.getCause();
 				if (cause != null && t.getCause() instanceof BindException) {
 					throw new IOException("Unable to create ActorSystem at address " + hostPortUrl +
-							" : " + cause.getMessage(), t);
+						" : " + cause.getMessage(), t);
 				}
 			}
 			throw new Exception("Could not create actor system", t);

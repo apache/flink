@@ -444,6 +444,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 		return BootstrapTools.startActorSystem(
 			configuration,
+			"metrics",
 			hostname,
 			0,
 			LOG,

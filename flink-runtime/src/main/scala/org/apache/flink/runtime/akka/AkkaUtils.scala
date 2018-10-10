@@ -27,7 +27,6 @@ import akka.pattern.{ask => akkaAsk}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration.{AkkaOptions, Configuration, IllegalConfigurationException, SecurityOptions}
-import org.apache.flink.runtime.clusterframework.BootstrapTools.ActorSystemExecutorMode
 import org.apache.flink.runtime.concurrent.FutureUtils
 import org.apache.flink.runtime.net.SSLUtils
 import org.apache.flink.util.NetUtils
@@ -50,6 +49,12 @@ object AkkaUtils {
   val LOG: Logger = LoggerFactory.getLogger(AkkaUtils.getClass)
 
   val INF_TIMEOUT: FiniteDuration = 21474835 seconds
+
+  val FLINK_ACTOR_SYSTEM_NAME = "flink"
+
+  def getFlinkActorSystemName = {
+    FLINK_ACTOR_SYSTEM_NAME
+  }
 
   /**
    * Creates a local actor system without remoting.
@@ -104,9 +109,19 @@ object AkkaUtils {
    * @return created actor system
    */
   def createActorSystem(akkaConfig: Config): ActorSystem = {
+    createActorSystem(FLINK_ACTOR_SYSTEM_NAME, akkaConfig)
+  }
+
+  /**
+    * Creates an actor system with the given akka config.
+    *
+    * @param akkaConfig configuration for the actor system
+    * @return created actor system
+    */
+  def createActorSystem(actorSystemName: String, akkaConfig: Config): ActorSystem = {
     // Initialize slf4j as logger of Akka's Netty instead of java.util.logging (FLINK-1650)
     InternalLoggerFactory.setDefaultFactory(new Slf4JLoggerFactory)
-    RobustActorSystem.create("flink", akkaConfig)
+    RobustActorSystem.create(actorSystemName, akkaConfig)
   }
 
   /**
