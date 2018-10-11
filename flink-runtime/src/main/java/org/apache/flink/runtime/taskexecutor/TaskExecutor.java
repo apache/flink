@@ -102,6 +102,7 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
@@ -157,6 +158,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private final BlobCacheService blobCacheService;
 
+	/** The path to metric query service on this Task Manager. */
+	@Nullable
+	private final String metricQueryServicePath;
+
 	// --------- TaskManager services --------
 
 	/** The connection information of this task manager. */
@@ -211,6 +216,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			TaskManagerServices taskExecutorServices,
 			HeartbeatServices heartbeatServices,
 			TaskManagerMetricGroup taskManagerMetricGroup,
+			@Nullable String metricQueryServicePath,
 			BlobCacheService blobCacheService,
 			FatalErrorHandler fatalErrorHandler) {
 
@@ -224,6 +230,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 		this.taskManagerMetricGroup = checkNotNull(taskManagerMetricGroup);
 		this.blobCacheService = checkNotNull(blobCacheService);
+		this.metricQueryServicePath = metricQueryServicePath;
 
 		this.taskSlotTable = taskExecutorServices.getTaskSlotTable();
 		this.jobManagerTable = taskExecutorServices.getJobManagerTable();
@@ -845,6 +852,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			log.debug("The file {} is unavailable on the TaskExecutor {}.", fileType, getResourceID());
 			return FutureUtils.completedExceptionally(new FlinkException("The file " + fileType + " is not available on the TaskExecutor."));
 		}
+	}
+
+	@Override
+	public CompletableFuture<SerializableOptional<String>> requestMetricQueryServiceAddress(Time timeout) {
+		return CompletableFuture.completedFuture(SerializableOptional.ofNullable(metricQueryServicePath));
 	}
 
 	// ----------------------------------------------------------------------

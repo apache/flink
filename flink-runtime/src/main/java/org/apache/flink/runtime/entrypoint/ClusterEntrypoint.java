@@ -95,6 +95,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import scala.concurrent.duration.FiniteDuration;
 
+import static org.apache.flink.runtime.clusterframework.BootstrapTools.ActorSystemExecutorMode.FORK_JOIN_EXECUTOR;
+
 /**
  * Base class for the Flink cluster entry points.
  *
@@ -152,6 +154,9 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 
 	@GuardedBy("lock")
 	private WebMonitorEndpoint<?> webMonitorEndpoint;
+
+	@GuardedBy("lock")
+	private ActorSystem metricQueryServiceActorSystem;
 
 	@GuardedBy("lock")
 	private ArchivedExecutionGraphStore archivedExecutionGraphStore;
@@ -275,9 +280,9 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			metricRegistry = createMetricRegistry(configuration);
 
 			// TODO: This is a temporary hack until we have ported the MetricQueryService to the new RpcEndpoint
-			// start the MetricQueryService
-			final ActorSystem actorSystem = ((AkkaRpcService) commonRpcService).getActorSystem();
-			metricRegistry.startQueryService(actorSystem, null);
+			// Start actor system for metric query service on any available port
+			metricQueryServiceActorSystem = MetricUtils.startMetricsActorSystem(configuration, bindAddress, LOG);
+			metricRegistry.startQueryService(metricQueryServiceActorSystem, null);
 
 			archivedExecutionGraphStore = createSerializableExecutionGraphStore(configuration, commonRpcService.getScheduledExecutor());
 
@@ -392,7 +397,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			Configuration configuration,
 			String bindAddress,
 			String portRange) throws Exception {
-		ActorSystem actorSystem = BootstrapTools.startActorSystem(configuration, bindAddress, portRange, LOG);
+		ActorSystem actorSystem = BootstrapTools.startActorSystem(configuration, bindAddress, portRange, LOG, FORK_JOIN_EXECUTOR);
 		FiniteDuration duration = AkkaUtils.getTimeout(configuration);
 		return new AkkaRpcService(actorSystem, Time.of(duration.length(), duration.unit()));
 	}
@@ -458,6 +463,10 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 
 			if (metricRegistry != null) {
 				terminationFutures.add(metricRegistry.shutdown());
+			}
+
+			if (metricQueryServiceActorSystem != null) {
+				terminationFutures.add(AkkaUtils.terminateActorSystem(metricQueryServiceActorSystem));
 			}
 
 			if (commonRpcService != null) {

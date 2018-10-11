@@ -759,14 +759,15 @@ public class FutureUtils {
 	 *
 	 * @param scalaFuture to convert to a Java 8 CompletableFuture
 	 * @param <T> type of the future value
+	 * @param <U> type of the original future
 	 * @return Java 8 CompletableFuture
 	 */
-	public static <T> CompletableFuture<T> toJava(Future<T> scalaFuture) {
+	public static <T, U extends T> CompletableFuture<T> toJava(Future<U> scalaFuture) {
 		final CompletableFuture<T> result = new CompletableFuture<>();
 
-		scalaFuture.onComplete(new OnComplete<T>() {
+		scalaFuture.onComplete(new OnComplete<U>() {
 			@Override
-			public void onComplete(Throwable failure, T success) {
+			public void onComplete(Throwable failure, U success) {
 				if (failure != null) {
 					result.completeExceptionally(failure);
 				} else {
