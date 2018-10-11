@@ -67,12 +67,14 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.WrappingRuntimeException;
+
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
@@ -474,7 +476,6 @@ public class TaskTest extends TestLogger {
 		taskManagerActions.validateListenerMessage(ExecutionState.FAILED, task, new Exception("external"));
 	}
 
-
 	@Test
 	public void testCancelTaskException() throws Exception {
 		final Task task = new TaskBuilder()
@@ -577,7 +578,6 @@ public class TaskTest extends TestLogger {
 		when(network.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 			.thenReturn(mock(TaskKvStateRegistry.class));
 		when(network.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
-
 
 		// Test all branches of trigger partition state check
 		{
@@ -834,9 +834,9 @@ public class TaskTest extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Customized TaskManagerActions that queues all calls of updateTaskExecutionState
+	 * Customized TaskManagerActions that queues all calls of updateTaskExecutionState.
 	 */
-	private class QueuedNoOpTaskManagerActions extends NoOpTaskManagerActions {
+	private static class QueuedNoOpTaskManagerActions extends NoOpTaskManagerActions {
 		private final BlockingQueue<TaskExecutionState> queue = new LinkedBlockingDeque<>();
 
 		@Override
@@ -868,9 +868,9 @@ public class TaskTest extends TestLogger {
 	}
 
 	/**
-	 * Customized TaskManagerActions that ensures no call of notifyFatalError
+	 * Customized TaskManagerActions that ensures no call of notifyFatalError.
 	 */
-	private class ProhibitFatalErrorTaskManagerActions extends NoOpTaskManagerActions {
+	private static class ProhibitFatalErrorTaskManagerActions extends NoOpTaskManagerActions {
 		@Override
 		public void notifyFatalError(String message, Throwable cause) {
 			throw new RuntimeException("Unexpected FatalError notification");
@@ -878,9 +878,9 @@ public class TaskTest extends TestLogger {
 	}
 
 	/**
-	 * Customized TaskManagerActions that waits for a call of notifyFatalError
+	 * Customized TaskManagerActions that waits for a call of notifyFatalError.
 	 */
-	private class AwaitFatalErrorTaskManagerActions extends NoOpTaskManagerActions {
+	private static class AwaitFatalErrorTaskManagerActions extends NoOpTaskManagerActions {
 		private final OneShotLatch latch = new OneShotLatch();
 
 		@Override
@@ -892,7 +892,6 @@ public class TaskTest extends TestLogger {
 	// ------------------------------------------------------------------------
 	//  helper functions
 	// ------------------------------------------------------------------------
-
 
 	private void setInputGate(Task task, SingleInputGate inputGate) {
 		try {
@@ -1136,6 +1135,9 @@ public class TaskTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * {@link AbstractInvokable} which throws {@link RuntimeException} on invoke.
+	 */
 	public static final class InvokableWithExceptionOnTrigger extends AbstractInvokable {
 		public InvokableWithExceptionOnTrigger(Environment environment) {
 			super(environment);
@@ -1161,6 +1163,9 @@ public class TaskTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * {@link AbstractInvokable} which throws {@link CancelTaskException} on invoke.
+	 */
 	public static final class InvokableWithCancelTaskExceptionInInvoke extends AbstractInvokable {
 		public InvokableWithCancelTaskExceptionInInvoke(Environment environment) {
 			super(environment);
@@ -1179,6 +1184,9 @@ public class TaskTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * {@link AbstractInvokable} which blocks in cancel.
+	 */
 	public static final class InvokableBlockingInCancel extends AbstractInvokable {
 		public InvokableBlockingInCancel(Environment environment) {
 			super(environment);
@@ -1209,6 +1217,9 @@ public class TaskTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * {@link AbstractInvokable} which blocks in cancel and is interruptible.
+	 */
 	public static final class InvokableInterruptibleSharedLockInInvokeAndCancel extends AbstractInvokable {
 		private final Object lock = new Object();
 
@@ -1233,6 +1244,9 @@ public class TaskTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * {@link AbstractInvokable} which blocks in cancel and is not interruptible.
+	 */
 	public static final class InvokableUnInterruptibleBlockingInvoke extends AbstractInvokable {
 		public InvokableUnInterruptibleBlockingInvoke(Environment environment) {
 			super(environment);
