@@ -158,7 +158,7 @@ public class ClientTest {
 
 			List<CompletableFuture<KvStateResponse>> futures = new ArrayList<>();
 			for (long i = 0L; i < numQueries; i++) {
-				KvStateInternalRequest request = new KvStateInternalRequest(new KvStateID(), new byte[0]);
+				KvStateInternalRequest request = new KvStateInternalRequest(new KvStateID(), new byte[0], new byte[0]);
 				futures.add(client.sendRequest(serverAddress, request));
 			}
 
@@ -277,7 +277,7 @@ public class ClientTest {
 					InetAddress.getLocalHost(),
 					availablePort);
 
-			KvStateInternalRequest request = new KvStateInternalRequest(new KvStateID(), new byte[0]);
+			KvStateInternalRequest request = new KvStateInternalRequest(new KvStateID(), new byte[0], new byte[0]);
 			CompletableFuture<KvStateResponse> future = client.sendRequest(serverAddress, request);
 
 			try {
@@ -356,7 +356,7 @@ public class ClientTest {
 				List<CompletableFuture<KvStateResponse>> results = new ArrayList<>(numQueriesPerTask);
 
 				for (int i = 0; i < numQueriesPerTask; i++) {
-					KvStateInternalRequest request = new KvStateInternalRequest(new KvStateID(), new byte[0]);
+					KvStateInternalRequest request = new KvStateInternalRequest(new KvStateID(), new byte[0], new byte[0]);
 					results.add(finalClient.sendRequest(serverAddress, request));
 				}
 
@@ -446,7 +446,7 @@ public class ClientTest {
 
 			// Requests
 			List<Future<KvStateResponse>> futures = new ArrayList<>();
-			KvStateInternalRequest request = new KvStateInternalRequest(new KvStateID(), new byte[0]);
+			KvStateInternalRequest request = new KvStateInternalRequest(new KvStateID(), new byte[0], new byte[0]);
 
 			futures.add(client.sendRequest(serverAddress, request));
 			futures.add(client.sendRequest(serverAddress, request));
@@ -555,7 +555,7 @@ public class ClientTest {
 			InetSocketAddress serverAddress = getKvStateServerAddress(serverChannel);
 
 			// Requests
-			KvStateInternalRequest request = new KvStateInternalRequest(new KvStateID(), new byte[0]);
+			KvStateInternalRequest request = new KvStateInternalRequest(new KvStateID(), new byte[0], new byte[0]);
 			Future<KvStateResponse> future = client.sendRequest(serverAddress, request);
 
 			while (!received.get() && deadline.hasTimeLeft()) {
@@ -689,7 +689,7 @@ public class ClientTest {
 				InternalKvState<Integer, ?, Integer> kvState = (InternalKvState<Integer, ?, Integer>) state;
 
 				// Register KvState (one state instance for all server)
-				ids[i] = registry[i].registerKvState(new JobID(), new JobVertexID(), new KeyGroupRange(0, 0), "any", kvState);
+				ids[i] = registry[i].registerKvState(new JobID(), new JobVertexID(), new KeyGroupRange(0, 0), "any", kvState, desc);
 			}
 
 			final Client<KvStateInternalRequest, KvStateResponse> finalClient = client;
@@ -717,8 +717,10 @@ public class ClientTest {
 								IntSerializer.INSTANCE,
 								VoidNamespace.INSTANCE,
 								VoidNamespaceSerializer.INSTANCE);
+						byte[] serializedStateDescriptor = KvStateSerializer.serializedStateDescriptor(desc);
 
-						KvStateInternalRequest request = new KvStateInternalRequest(ids[targetServer], serializedKeyAndNamespace);
+						KvStateInternalRequest request = new KvStateInternalRequest(ids[targetServer],
+																serializedKeyAndNamespace, serializedStateDescriptor);
 						futures.add(finalClient.sendRequest(server[targetServer].getServerAddress(), request));
 					}
 

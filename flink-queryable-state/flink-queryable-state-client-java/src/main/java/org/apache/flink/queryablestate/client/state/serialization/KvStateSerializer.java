@@ -18,12 +18,17 @@
 
 package org.apache.flink.queryablestate.client.state.serialization;
 
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -263,5 +268,40 @@ public final class KvStateSerializer {
 		} else {
 			return null;
 		}
+	}
+
+	/**
+	 * Serialize a stateDescriptor to bytes[].
+	 * @param stateDescriptor the value will be serialized.
+	 *
+	 * @return The serialized values
+	 * @throws IOException On failure during serialization
+	 */
+	public static byte[] serializedStateDescriptor(StateDescriptor<?, ?> stateDescriptor) throws IOException {
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		try (ObjectOutputStream out = new ObjectOutputStream(bos)) {
+			out.writeObject(stateDescriptor);
+		}
+
+		byte[] buf = bos.toByteArray();
+		return buf;
+	}
+
+	/**
+	 * Deserialized StateDescriptor from byte[].
+	 * @param serializedValue the serializedValue
+	 *
+	 * @return The deserialized stateDescriptor
+	 * @throws IOException On failure during deserialization
+	 * @throws ClassNotFoundException on failure during deserialization
+	 */
+	public static StateDescriptor<?, ?> deserializeStateDescriptor(byte[] serializedValue) throws IOException, ClassNotFoundException {
+		if (serializedValue == null) {
+			return null;
+		}
+
+		ByteArrayInputStream bis = new ByteArrayInputStream(serializedValue);
+		ObjectInputStream in = new ObjectInputStream(bis);
+		return (StateDescriptor<?, ?>) in.readObject();
 	}
 }

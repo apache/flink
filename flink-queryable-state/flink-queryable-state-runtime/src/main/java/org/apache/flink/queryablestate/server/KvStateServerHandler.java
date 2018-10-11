@@ -19,6 +19,8 @@
 package org.apache.flink.queryablestate.server;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.queryablestate.exceptions.UnknownKeyOrNamespaceException;
 import org.apache.flink.queryablestate.exceptions.UnknownKvStateIdException;
 import org.apache.flink.queryablestate.messages.KvStateInternalRequest;
@@ -80,6 +82,14 @@ public class KvStateServerHandler extends AbstractServerHandler<KvStateInternalR
 				responseFuture.completeExceptionally(new UnknownKvStateIdException(getServerName(), request.getKvStateId()));
 			} else {
 				byte[] serializedKeyAndNamespace = request.getSerializedKeyAndNamespace();
+
+				StateDescriptor<?, ?> requestStateDescriptor = KvStateSerializer.deserializeStateDescriptor(request.getSerializedStateDescriptor());
+				StateDescriptor<?, ?> registStateDescriptor = kvState.getStateDescriptor();
+
+				Preconditions.checkArgument(requestStateDescriptor.getType().equals(registStateDescriptor.getType()),
+					"State type mismatch, need[%s] gotten[%s]", registStateDescriptor.getType(), requestStateDescriptor.getType());
+				Preconditions.checkArgument(requestStateDescriptor.getSerializer().equals(registStateDescriptor.getSerializer()),
+					"State value serializer mismatch, need [%s] gotten[%s]" , registStateDescriptor.getSerializer(), requestStateDescriptor.getSerializer());
 
 				byte[] serializedResult = getSerializedValue(kvState, serializedKeyAndNamespace);
 				if (serializedResult != null) {

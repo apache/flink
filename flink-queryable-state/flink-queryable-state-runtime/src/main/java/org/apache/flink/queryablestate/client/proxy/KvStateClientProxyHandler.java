@@ -171,7 +171,7 @@ public class KvStateClientProxyHandler extends AbstractServerHandler<KvStateRequ
 						// Query server
 						final KvStateID kvStateId = location.getKvStateID(keyGroupIndex);
 						final KvStateInternalRequest internalRequest = new KvStateInternalRequest(
-								kvStateId, request.getSerializedKeyAndNamespace());
+								kvStateId, request.getSerializedKeyAndNamespace(), request.getSerializedStateDescriptor());
 						return kvStateClient.sendRequest(serverAddress, internalRequest);
 					}
 				}, queryExecutor);

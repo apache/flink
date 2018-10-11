@@ -263,14 +263,16 @@ public class QueryableStateClient {
 		stateDescriptor.initializeSerializerUnlessSet(executionConfig);
 
 		final byte[] serializedKeyAndNamespace;
+		final byte[] serializedStateDescriptor;
 		try {
 			serializedKeyAndNamespace = KvStateSerializer
 					.serializeKeyAndNamespace(key, keySerializer, namespace, namespaceSerializer);
+			serializedStateDescriptor = KvStateSerializer.serializedStateDescriptor(stateDescriptor);
 		} catch (IOException e) {
 			return FutureUtils.getFailedFuture(e);
 		}
 
-		return getKvState(jobId, queryableStateName, key.hashCode(), serializedKeyAndNamespace)
+		return getKvState(jobId, queryableStateName, key.hashCode(), serializedKeyAndNamespace, serializedStateDescriptor)
 			.thenApply(stateResponse -> createState(stateResponse, stateDescriptor));
 	}
 
@@ -306,10 +308,12 @@ public class QueryableStateClient {
 			final JobID jobId,
 			final String queryableStateName,
 			final int keyHashCode,
-			final byte[] serializedKeyAndNamespace) {
+			final byte[] serializedKeyAndNamespace,
+			final byte[] serializedStateDescriptor) {
 		LOG.debug("Sending State Request to {}.", remoteAddress);
 		try {
-			KvStateRequest request = new KvStateRequest(jobId, queryableStateName, keyHashCode, serializedKeyAndNamespace);
+			KvStateRequest request = new KvStateRequest(jobId, queryableStateName, keyHashCode,
+											serializedKeyAndNamespace, serializedStateDescriptor);
 			return client.sendRequest(remoteAddress, request);
 		} catch (Exception e) {
 			LOG.error("Unable to send KVStateRequest: ", e);

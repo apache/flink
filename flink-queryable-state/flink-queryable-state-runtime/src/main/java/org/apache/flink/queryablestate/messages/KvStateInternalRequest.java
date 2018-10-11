@@ -38,13 +38,16 @@ public class KvStateInternalRequest extends MessageBody {
 
 	private final KvStateID kvStateId;
 	private final byte[] serializedKeyAndNamespace;
+	private final byte[] serializedStateDescriptor;
 
 	public KvStateInternalRequest(
 			final KvStateID stateId,
-			final byte[] serializedKeyAndNamespace) {
+			final byte[] serializedKeyAndNamespace,
+			final byte[] serializedStateDescriptor) {
 
 		this.kvStateId = Preconditions.checkNotNull(stateId);
 		this.serializedKeyAndNamespace = Preconditions.checkNotNull(serializedKeyAndNamespace);
+		this.serializedStateDescriptor = Preconditions.checkNotNull(serializedStateDescriptor);
 	}
 
 	public KvStateID getKvStateId() {
@@ -55,17 +58,25 @@ public class KvStateInternalRequest extends MessageBody {
 		return serializedKeyAndNamespace;
 	}
 
+	public byte[] getSerializedStateDescriptor() {
+		return serializedStateDescriptor;
+	}
+
 	@Override
 	public byte[] serialize() {
 
 		// KvStateId + sizeOf(serializedKeyAndNamespace) + serializedKeyAndNamespace
-		final int size = KvStateID.SIZE + Integer.BYTES + serializedKeyAndNamespace.length;
+		// + sizeOf(serializedStateDescriptor) + serializedStateDescriptor
+		final int size = KvStateID.SIZE + Integer.BYTES + serializedKeyAndNamespace.length
+						+ Integer.BYTES + serializedStateDescriptor.length;
 
 		return ByteBuffer.allocate(size)
 				.putLong(kvStateId.getLowerPart())
 				.putLong(kvStateId.getUpperPart())
 				.putInt(serializedKeyAndNamespace.length)
 				.put(serializedKeyAndNamespace)
+				.putInt(serializedStateDescriptor.length)
+				.put(serializedStateDescriptor)
 				.array();
 	}
 
@@ -87,7 +98,17 @@ public class KvStateInternalRequest extends MessageBody {
 			if (length > 0) {
 				buf.readBytes(serializedKeyAndNamespace);
 			}
-			return new KvStateInternalRequest(kvStateId, serializedKeyAndNamespace);
+
+			int descriptorLength = buf.readInt();
+			Preconditions.checkArgument(descriptorLength >= 0,
+							"Negative length for key and namespace. " +
+							"This indicates a serialization error.");
+			byte[] serializedStateDescriptor = new byte[descriptorLength];
+			if (descriptorLength > 0) {
+				buf.readBytes(serializedStateDescriptor);
+			}
+
+			return new KvStateInternalRequest(kvStateId, serializedKeyAndNamespace, serializedStateDescriptor);
 		}
 	}
 }

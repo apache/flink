@@ -20,6 +20,7 @@ package org.apache.flink.runtime.query;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.Preconditions;
 
@@ -38,13 +39,15 @@ public class KvStateEntry<K, N, V> {
 
 	private final InternalKvState<K, N, V> state;
 	private final KvStateInfo<K, N, V> stateInfo;
+	private final StateDescriptor<?, ?> stateDescriptor;
 
 	private final boolean areSerializersStateless;
 
 	private final ConcurrentMap<Thread, KvStateInfo<K, N, V>> serializerCache;
 
-	public KvStateEntry(final InternalKvState<K, N, V> state) {
+	public KvStateEntry(final InternalKvState<K, N, V> state, final StateDescriptor<?, ?> stateDescriptor) {
 		this.state = Preconditions.checkNotNull(state);
+		this.stateDescriptor = Preconditions.checkNotNull(stateDescriptor);
 		this.stateInfo = new KvStateInfo<>(
 				state.getKeySerializer(),
 				state.getNamespaceSerializer(),
@@ -62,6 +65,10 @@ public class KvStateEntry<K, N, V> {
 		return areSerializersStateless
 				? stateInfo
 				: serializerCache.computeIfAbsent(Thread.currentThread(), t -> stateInfo.duplicate());
+	}
+
+	public StateDescriptor getStateDescriptor() {
+		return this.stateDescriptor;
 	}
 
 	public void clear() {

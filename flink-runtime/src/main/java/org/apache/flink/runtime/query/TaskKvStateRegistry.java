@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.query;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -58,11 +59,12 @@ public class TaskKvStateRegistry {
 	 * @param registrationName The registration name (not necessarily the same
 	 *                         as the KvState name defined in the state
 	 *                         descriptor used to create the KvState instance)
-	 * @param kvState          The
+	 * @param kvState          The internal kv instate
+	 * @param stateDescriptor  The descriptor of the state
 	 */
-	public void registerKvState(KeyGroupRange keyGroupRange, String registrationName, InternalKvState<?, ?, ?> kvState) {
-		KvStateID kvStateId = registry.registerKvState(jobId, jobVertexId, keyGroupRange, registrationName, kvState);
-		registeredKvStates.add(new KvStateInfo(keyGroupRange, registrationName, kvStateId));
+	public void registerKvState(KeyGroupRange keyGroupRange, String registrationName, InternalKvState<?, ?, ?> kvState, StateDescriptor<?, ?> stateDescriptor) {
+		KvStateID kvStateId = registry.registerKvState(jobId, jobVertexId, keyGroupRange, registrationName, kvState, stateDescriptor);
+		registeredKvStates.add(new KvStateInfo(keyGroupRange, registrationName, kvStateId, stateDescriptor));
 	}
 
 	/**
@@ -85,7 +87,7 @@ public class TaskKvStateRegistry {
 
 		private final KvStateID kvStateId;
 
-		KvStateInfo(KeyGroupRange keyGroupRange, String registrationName, KvStateID kvStateId) {
+		KvStateInfo(KeyGroupRange keyGroupRange, String registrationName, KvStateID kvStateId, StateDescriptor stateDescriptor) {
 			this.keyGroupRange = keyGroupRange;
 			this.registrationName = registrationName;
 			this.kvStateId = kvStateId;
