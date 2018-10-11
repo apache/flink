@@ -88,52 +88,6 @@ class TableConversions(table: Table) {
     * types must match.
     * - POJO [[DataStream]] types: Fields are mapped by field name, field types must match.
     *
-    * NOTE: This method only supports conversion of append-only tables. In order to make this
-    * more explicit in the future, please use [[toAppendStream()]] instead.
-    * If add and retract messages are required, use [[toRetractStream()]].
-    *
-    * @tparam T The type of the resulting [[DataStream]].
-    * @return The converted [[DataStream]].
-    */
-  @deprecated("This method only supports conversion of append-only tables. In order to make this" +
-    " more explicit in the future, please use toAppendStream() instead.")
-  def toDataStream[T: TypeInformation]: DataStream[T] = toAppendStream
-
-  /**
-    * Converts the given [[Table]] into an append [[DataStream]] of a specified type.
-    *
-    * The [[Table]] must only have insert (append) changes. If the [[Table]] is also modified
-    * by update or delete changes, the conversion will fail.
-    *
-    * The fields of the [[Table]] are mapped to [[DataStream]] fields as follows:
-    * - [[org.apache.flink.types.Row]] and Scala Tuple types: Fields are mapped by position, field
-    * types must match.
-    * - POJO [[DataStream]] types: Fields are mapped by field name, field types must match.
-    *
-    * NOTE: This method only supports conversion of append-only tables. In order to make this
-    * more explicit in the future, please use [[toAppendStream()]] instead.
-    * If add and retract messages are required, use [[toRetractStream()]].
-    *
-    * @param queryConfig The configuration of the query to generate.
-    * @tparam T The type of the resulting [[DataStream]].
-    * @return The converted [[DataStream]].
-    */
-  @deprecated("This method only supports conversion of append-only tables. In order to make this" +
-    " more explicit in the future, please use toAppendStream() instead.")
-  def toDataStream[T: TypeInformation](queryConfig: StreamQueryConfig): DataStream[T] =
-    toAppendStream(queryConfig)
-
-  /**
-    * Converts the given [[Table]] into an append [[DataStream]] of a specified type.
-    *
-    * The [[Table]] must only have insert (append) changes. If the [[Table]] is also modified
-    * by update or delete changes, the conversion will fail.
-    *
-    * The fields of the [[Table]] are mapped to [[DataStream]] fields as follows:
-    * - [[org.apache.flink.types.Row]] and Scala Tuple types: Fields are mapped by position, field
-    * types must match.
-    * - POJO [[DataStream]] types: Fields are mapped by field name, field types must match.
-    *
     * @tparam T The type of the resulting [[DataStream]].
     * @return The converted [[DataStream]].
     */
