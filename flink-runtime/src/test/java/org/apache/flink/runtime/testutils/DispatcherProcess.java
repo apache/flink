@@ -25,7 +25,6 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.StandaloneSessionClusterEntrypoint;
-import org.apache.flink.runtime.jobmanager.JobManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,22 +40,22 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class DispatcherProcess extends TestJvmProcess {
 
-	private static final Logger LOG = LoggerFactory.getLogger(JobManagerProcess.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DispatcherProcess.class);
 
-	/** ID for this JobManager. */
+	/** ID for this Dispatcher. */
 	private final int id;
 
-	/** The configuration for the JobManager. */
+	/** The configuration for the Dispatcher. */
 	private final Configuration config;
 
-	/** Configuration parsed as args for {@link JobManagerProcess.JobManagerProcessEntryPoint}. */
+	/** Configuration parsed as args for {@link DispatcherProcess.DispatcherProcessEntryPoint}. */
 	private final String[] jvmArgs;
 
 	/**
-	 * Creates a {@link JobManager} running in a separate JVM.
+	 * Creates a {@link Dispatcher} running in a separate JVM.
 	 *
-	 * @param id     ID for the JobManager
-	 * @param config Configuration for the job manager process
+	 * @param id     ID for the Dispatcher
+	 * @param config Configuration for the dispatcher process
 	 *
 	 * @throws Exception
 	 */
@@ -78,7 +77,7 @@ public class DispatcherProcess extends TestJvmProcess {
 
 	@Override
 	public String getName() {
-		return "JobManager " + id;
+		return "Dispatcher " + id;
 	}
 
 	@Override
@@ -97,11 +96,11 @@ public class DispatcherProcess extends TestJvmProcess {
 
 	@Override
 	public String toString() {
-		return String.format("JobManagerProcess(id=%d)", id);
+		return String.format("DispatcherProcess(id=%d)", id);
 	}
 
 	/**
-	 * Entry point for the JobManager process.
+	 * Entry point for the Dispatcher process.
 	 */
 	public static class DispatcherProcessEntryPoint {
 
@@ -110,8 +109,8 @@ public class DispatcherProcess extends TestJvmProcess {
 		/**
 		 * Entrypoint of the DispatcherProcessEntryPoint.
 		 *
-		 * <p>Other arguments are parsed to a {@link Configuration} and passed to the
-		 * JobManager, for instance: <code>--high-availability ZOOKEEPER --high-availability.zookeeper.quorum
+		 * <p>Other arguments are parsed to a {@link Configuration} and passed to the Dispatcher,
+		 * for instance: <code>--high-availability ZOOKEEPER --high-availability.zookeeper.quorum
 		 * "xyz:123:456"</code>.
 		 */
 		public static void main(String[] args) {
@@ -128,7 +127,7 @@ public class DispatcherProcess extends TestJvmProcess {
 				ClusterEntrypoint.runClusterEntrypoint(clusterEntrypoint);
 			}
 			catch (Throwable t) {
-				LOG.error("Failed to start JobManager process", t);
+				LOG.error("Failed to start Dispatcher process", t);
 				System.exit(1);
 			}
 		}
