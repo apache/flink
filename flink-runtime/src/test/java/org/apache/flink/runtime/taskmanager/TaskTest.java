@@ -833,6 +833,9 @@ public class TaskTest extends TestLogger {
 	//  customized TaskManagerActions
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Customized TaskManagerActions that queues all calls of updateTaskExecutionState
+	 */
 	private class QueuedNoOpTaskManagerActions extends NoOpTaskManagerActions {
 		private final BlockingQueue<TaskExecutionState> queue = new LinkedBlockingDeque<>();
 
@@ -864,6 +867,9 @@ public class TaskTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Customized TaskManagerActions that ensures no call of notifyFatalError
+	 */
 	private class ProhibitFatalErrorTaskManagerActions extends NoOpTaskManagerActions {
 		@Override
 		public void notifyFatalError(String message, Throwable cause) {
@@ -871,6 +877,9 @@ public class TaskTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Customized TaskManagerActions that waits for a call of notifyFatalError
+	 */
 	private class AwaitFatalErrorTaskManagerActions extends NoOpTaskManagerActions {
 		private final OneShotLatch latch = new OneShotLatch();
 
