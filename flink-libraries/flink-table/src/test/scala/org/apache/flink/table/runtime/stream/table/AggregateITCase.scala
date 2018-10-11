@@ -315,7 +315,7 @@ class AggregateITCase extends StreamingWithStateTestBase {
 
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
             .groupBy('c)
-            .select('c, 'b.max as 'bMax)
+            .select('c, 'b.max)
 
     t.insertInto("testSink")
     env.execute()

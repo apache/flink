@@ -1072,7 +1072,7 @@ val sink: CsvTableSink = new CsvTableSink(
     path,                             // output path 
     fieldDelim = "|",                 // optional: delimit files by '|'
     numFiles = 1,                     // optional: write to a single file
-    writeMode = WriteMode.OVERWRITE), // optional: override existing files
+    writeMode = WriteMode.OVERWRITE)  // optional: override existing files
 
 tableEnv.registerTableSink(
   "csvOutputTable",
@@ -1135,7 +1135,7 @@ tableEnv.registerTableSink(
   Array[TypeInformation[_]](Types.INT))
 
 val table: Table = ???
-table.insertInto("jdbcTableSink")
+table.insertInto("jdbcOutputTable")
 {% endhighlight %}
 </div>
 </div>

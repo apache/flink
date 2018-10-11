@@ -34,7 +34,7 @@ class TableSinksValidationTest extends TableTestBase {
     val util = streamTestUtil()
 
     val t = util.addTable[(Int, Long, String)]("MyTable", 'id, 'num, 'text)
-    util.tableEnv.registerTableSink("testSink",new TestAppendSink)
+    util.tableEnv.registerTableSink("testSink", new TestAppendSink)
 
     t.groupBy('text)
     .select('text, 'id.count, 'num.sum)

@@ -54,7 +54,7 @@ class TableSinkITCase extends AbstractTestBase {
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    MemoryTableSourceSinkUtil.clear
+    MemoryTableSourceSinkUtil.clear()
 
     val input = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(r => r._2)

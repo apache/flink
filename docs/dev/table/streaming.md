@@ -515,6 +515,13 @@ Table result = ...
 // create TableSink
 TableSink<Row> sink = ...
 
+// register TableSink
+tableEnv.registerTableSink(
+  "outputTable",               // table name
+  new String[]{...},           // field names
+  new TypeInformation[]{...},  // field types
+  sink);                       // table sink
+
 // emit result Table via a TableSink
 result.insertInto("outputTable", qConfig);
 
@@ -538,6 +545,13 @@ val result: Table = ???
 
 // create TableSink
 val sink: TableSink[Row] = ???
+
+// register TableSink
+tableEnv.registerTableSink(
+  "outputTable",                  // table name
+  Array[String](...),             // field names
+  Array[TypeInformation[_]](...), // field types
+  sink)                           // table sink
 
 // emit result Table via a TableSink
 result.insertInto("outputTable", qConfig)

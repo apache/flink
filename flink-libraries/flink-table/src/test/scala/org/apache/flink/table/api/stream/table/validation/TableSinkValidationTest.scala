@@ -35,7 +35,7 @@ class TableSinkValidationTest extends TableTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     val t = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'id, 'num, 'text)
-    tEnv.registerTableSink("testSink",new TestAppendSink)
+    tEnv.registerTableSink("testSink", new TestAppendSink)
 
     t.groupBy('text)
     .select('text, 'id.count, 'num.sum)
@@ -72,7 +72,7 @@ class TableSinkValidationTest extends TableTestBase {
 
     val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
-    tEnv.registerTableSink("testSink",new TestAppendSink)
+    tEnv.registerTableSink("testSink", new TestAppendSink)
 
     ds1.leftOuterJoin(ds2, 'a === 'd && 'b === 'h)
       .select('c, 'g)

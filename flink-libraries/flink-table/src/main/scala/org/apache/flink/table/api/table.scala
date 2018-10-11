@@ -893,7 +893,7 @@ class Table(
     * @tparam T The data type that the [[TableSink]] expects.
     *
     * @deprecated Will be removed in a future release. Please register the TableSink and use
-    *             [[insertInto()]].
+    *             Table.insertInto().
     */
   @deprecated("This method will be removed. Please register the TableSink and use " +
     "Table.insertInto().", "1.7.0")
@@ -920,7 +920,7 @@ class Table(
     * @tparam T The data type that the [[TableSink]] expects.
     *
     * @deprecated Will be removed in a future release. Please register the TableSink and use
-    *             [[insertInto()]].
+    *             Table.insertInto().
     */
   @deprecated("This method will be removed. Please register the TableSink and use " +
     "Table.insertInto().", "1.7.0")
@@ -979,7 +979,7 @@ class Table(
   def insertInto(tableName: String, conf: QueryConfig): Unit = {
     this.logicalPlan match {
       case _: LogicalTableFunctionCall =>
-        throw new ValidationException("TableFunction can only be used in join and leftOuterJoin.")
+        throw ValidationException("TableFunction can only be used in join and leftOuterJoin.")
       case _ =>
         tableEnv.insertInto(this, tableName, conf)
     }

@@ -536,6 +536,9 @@ result.insertInto("CsvSinkTable");
 // get a TableEnvironment
 val tableEnv = TableEnvironment.getTableEnvironment(env)
 
+// create a TableSink
+val sink: TableSink = new CsvTableSink("/path/to/file", fieldDelim = "|")
+
 // register the TableSink with a specific schema
 val fieldNames: Array[String] = Array("a", "b", "c")
 val fieldTypes: Array[TypeInformation] = Array(Types.INT, Types.STRING, Types.LONG)
@@ -544,8 +547,6 @@ tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, sink)
 // compute a result Table using Table API operators and/or SQL queries
 val result: Table = ...
 
-// create a TableSink
-val sink: TableSink = new CsvTableSink("/path/to/file", fieldDelim = "|")
 // emit the result Table to the registered TableSink
 result.insertInto("CsvSinkTable")
 
