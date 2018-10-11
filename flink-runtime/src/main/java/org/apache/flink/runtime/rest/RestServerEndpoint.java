@@ -62,6 +62,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * An abstract class for netty-based REST server endpoints.
@@ -84,6 +85,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 	private final CompletableFuture<Void> terminationFuture;
 
+	private List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers;
 	private ServerBootstrap bootstrap;
 	private Channel serverChannel;
 	private String restBaseUrl;
@@ -130,7 +132,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 			final Router router = new Router();
 			final CompletableFuture<String> restAddressFuture = new CompletableFuture<>();
 
-			List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = initializeHandlers(restAddressFuture);
+			handlers = initializeHandlers(restAddressFuture);
 
 			/* sort the handlers such that they are ordered the following:
 			 * /jobs
@@ -264,7 +266,9 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 			log.info("Shutting down rest endpoint.");
 
 			if (state == State.RUNNING) {
-				final CompletableFuture<Void> shutDownFuture = shutDownInternal();
+				final CompletableFuture<Void> shutDownFuture = FutureUtils.composeAfterwards(
+					closeHandlersAsync(),
+					this::shutDownInternal);
 
 				shutDownFuture.whenComplete(
 					(Void ignored, Throwable throwable) -> {
@@ -282,6 +286,14 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 			return terminationFuture;
 		}
+	}
+
+	private FutureUtils.ConjunctFuture<Void> closeHandlersAsync() {
+		return FutureUtils.waitForAll(handlers.stream()
+			.map(tuple -> tuple.f1)
+			.filter(handler -> handler instanceof AutoCloseableAsync)
+			.map(handler -> ((AutoCloseableAsync) handler).closeAsync())
+			.collect(Collectors.toList()));
 	}
 
 	/**

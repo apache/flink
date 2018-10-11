@@ -33,7 +33,7 @@ import static java.util.Objects.requireNonNull;
  * A pair of {@link JobID} and {@link TriggerId} used as a key to a hash based
  * collection.
  *
- * @see AbstractAsynchronousOperationHandlers.CompletedOperationCache
+ * @see AbstractAsynchronousOperationHandlers
  */
 @Immutable
 public class AsynchronousJobOperationKey extends OperationKey {
