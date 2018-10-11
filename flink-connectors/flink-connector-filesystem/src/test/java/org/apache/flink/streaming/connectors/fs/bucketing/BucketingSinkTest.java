@@ -1183,6 +1183,8 @@ public class BucketingSinkTest extends TestLogger {
 
 	private static final class FileStateChangedCallbackImpl implements FileStateChangedCallback {
 
+		private static final long serialVersionUID = 4806217568474143413L;
+
 		private String basePath;
 
 		public FileStateChangedCallbackImpl(String basePath) {
