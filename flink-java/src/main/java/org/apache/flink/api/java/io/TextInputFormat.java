@@ -88,9 +88,9 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 	public String readRecord(String reusable, byte[] bytes, int offset, int numBytes) throws IOException {
 		//Check if \n is used as delimiter and the end of this line is a \r, then remove \r from the line
 		if (this.getDelimiter() != null && this.getDelimiter().length >= 1
-			&& this.getDelimiter()[this.delimiterNewLinePos] == NEW_LINE && offset + numBytes >= this.stepSize
+			&& this.getDelimiter()[this.delimiterNewLinePos] == NEW_LINE && offset + numBytes >= this.charsetStepSize
 			&& bytes[offset + numBytes - this.delimiterCarrageReturnPos] == CARRIAGE_RETURN) {
-			numBytes = numBytes - this.stepSize;
+			numBytes = numBytes - this.charsetStepSize;
 		}
 
 		return new String(bytes, offset, numBytes, this.getCharset());

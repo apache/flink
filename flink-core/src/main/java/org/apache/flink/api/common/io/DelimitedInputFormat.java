@@ -77,11 +77,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	/**
 	 * The stepSize to record different encoding formats
 	 * eg:
-	 * UTF-8  stepSize = 1
-	 * UTF-16 stepSize = 2
-	 * UTF-32 stepSize = 4
+	 * UTF-8  charsetStepSize = 1
+	 * UTF-16 charsetStepSize = 2
+	 * UTF-32 charsetStepSize = 4
 	 */
-	protected transient int stepSize = 1;
+	protected transient int charsetStepSize = 1;
 
 	/**
 	 * The default read buffer size = 1MB.
@@ -643,8 +643,8 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 				stepSize = 1;
 				break;
 		}
-		this.stepSize = stepSize;
-		this.delimiterCarrageReturnPos = this.delimiterNewLinePos == 0 ? this.stepSize : 1;
+		this.charsetStepSize = stepSize;
+		this.delimiterCarrageReturnPos = this.delimiterNewLinePos == 0 ? this.charsetStepSize : 1;
 	}
 
 	/**
