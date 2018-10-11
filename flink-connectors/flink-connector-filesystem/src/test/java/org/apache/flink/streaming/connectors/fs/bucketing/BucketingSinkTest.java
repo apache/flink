@@ -42,6 +42,7 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -63,7 +64,10 @@ import org.junit.rules.TemporaryFolder;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -71,11 +75,13 @@ import java.util.Map;
 
 import static org.apache.flink.streaming.connectors.fs.bucketing.BucketingSinkTestUtils.IN_PROGRESS_SUFFIX;
 import static org.apache.flink.streaming.connectors.fs.bucketing.BucketingSinkTestUtils.PART_PREFIX;
+import static org.apache.flink.streaming.connectors.fs.bucketing.BucketingSinkTestUtils.PART_SUFFIX;
 import static org.apache.flink.streaming.connectors.fs.bucketing.BucketingSinkTestUtils.PENDING_SUFFIX;
 import static org.apache.flink.streaming.connectors.fs.bucketing.BucketingSinkTestUtils.VALID_LENGTH_SUFFIX;
 import static org.apache.flink.streaming.connectors.fs.bucketing.BucketingSinkTestUtils.checkLocalFs;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 
 /**
  * Tests for the {@link BucketingSink}.
@@ -939,6 +945,170 @@ public class BucketingSinkTest extends TestLogger {
 		testThatPartIndexIsIncremented(null, "part-0-0");
 	}
 
+	@Test
+	public void testThatOnInProgressToPendingCallbackIsFiredWhenFilesAreMovedToPendingStateByTimeout()
+		throws Exception {
+
+		File outDir = tempFolder.newFolder();
+		long inactivityInterval = 100;
+
+		String basePath = outDir.getAbsolutePath();
+		BucketingSink<String> sink = new BucketingSink<String>(basePath)
+			.setBucketer(new NoopBucketer())
+			.setWriter(new StringWriter<>())
+			.setInactiveBucketCheckInterval(inactivityInterval)
+			.setInactiveBucketThreshold(inactivityInterval)
+			.setPartPrefix(PART_PREFIX)
+			.setInProgressPrefix("")
+			.setPendingPrefix("")
+			.setValidLengthPrefix("")
+			.setInProgressSuffix(IN_PROGRESS_SUFFIX)
+			.setPendingSuffix(PENDING_SUFFIX)
+			.setValidLengthSuffix(VALID_LENGTH_SUFFIX)
+			.registerFileStateChangedCallback(new FileStateChangedCallbackImpl(basePath));
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(sink, 1, 0);
+		testHarness.setup();
+		testHarness.open();
+
+		testHarness.setProcessingTime(0L);
+
+		testHarness.processElement(new StreamRecord<>("test1", 1L));
+		testHarness.processElement(new StreamRecord<>("test2", 1L));
+
+		java.nio.file.Path filesInPendingState = outDir.toPath().resolve("report-inProgressToPending.txt");
+		assertThat(Files.exists(filesInPendingState), is(false));
+
+		testHarness.setProcessingTime(101L);
+
+		assertThat(
+			Files.readAllLines(filesInPendingState),
+			containsInAnyOrder("/test1/part-0-0.pending", "/test2/part-0-0.pending")
+		);
+	}
+
+	@Test
+	public void testThatOnInProgressToPendingCallbackIsFiredWhenFilesAreMovedToPendingStateBySize() throws Exception {
+		File outDir = tempFolder.newFolder();
+		long inactivityInterval = 100;
+
+		String basePath = outDir.getAbsolutePath();
+		BucketingSink<String> sink = new BucketingSink<String>(basePath)
+			.setBucketer(new NoopBucketer())
+			.setInactiveBucketCheckInterval(inactivityInterval)
+			.setInactiveBucketThreshold(inactivityInterval)
+			.setPartPrefix(PART_PREFIX)
+			.setInProgressPrefix("")
+			.setPendingPrefix("")
+			.setValidLengthPrefix("")
+			.setInProgressSuffix(IN_PROGRESS_SUFFIX)
+			.setPendingSuffix(PENDING_SUFFIX)
+			.setValidLengthSuffix(VALID_LENGTH_SUFFIX)
+			.setBatchSize(0)
+			.registerFileStateChangedCallback(new FileStateChangedCallbackImpl(basePath));
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(sink, 1, 0);
+		testHarness.setup();
+		testHarness.open();
+
+		testHarness.setProcessingTime(0L);
+
+		testHarness.processElement(new StreamRecord<>("test1", 1L));
+		testHarness.processElement(new StreamRecord<>("test2", 1L));
+
+		java.nio.file.Path filesInPendingState = outDir.toPath().resolve("report-inProgressToPending.txt");
+		assertThat(Files.exists(filesInPendingState), is(false));
+
+		testHarness.processElement(new StreamRecord<>("test1", 1L));
+		testHarness.processElement(new StreamRecord<>("test2", 1L));
+
+		assertThat(
+			Files.readAllLines(filesInPendingState),
+			containsInAnyOrder("/test1/part-0-0.pending", "/test2/part-0-0.pending")
+		);
+	}
+
+	@Test
+	public void testThatOnInProgressToPendingCallbackIsFiredWhenFunctionIsClosed() throws Exception {
+		File outDir = tempFolder.newFolder();
+		long inactivityInterval = 100;
+
+		String basePath = outDir.getAbsolutePath();
+		@SuppressWarnings("unchecked")
+		BucketingSink<String> sink = new BucketingSink<String>(basePath)
+			.setBucketer(new NoopBucketer())
+			.setInactiveBucketCheckInterval(inactivityInterval)
+			.setInactiveBucketThreshold(inactivityInterval)
+			.setPartPrefix(PART_PREFIX)
+			.setInProgressPrefix("")
+			.setPendingPrefix("")
+			.setValidLengthPrefix("")
+			.setInProgressSuffix(IN_PROGRESS_SUFFIX)
+			.setPendingSuffix(PENDING_SUFFIX)
+			.setValidLengthSuffix(VALID_LENGTH_SUFFIX)
+			.setPartSuffix(PART_SUFFIX)
+			.setBatchSize(0)
+			.registerFileStateChangedCallback(new FileStateChangedCallbackImpl(basePath));
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(sink, 1, 0);
+		testHarness.setup();
+		testHarness.open();
+
+		testHarness.setProcessingTime(0L);
+
+		testHarness.processElement(new StreamRecord<>("test1", 1L));
+		testHarness.processElement(new StreamRecord<>("test2", 1L));
+
+		java.nio.file.Path filesInPendingState = outDir.toPath().resolve("report-inProgressToPending.txt");
+		assertThat(Files.exists(filesInPendingState), is(false));
+
+		sink.close();
+
+		assertThat(
+			Files.readAllLines(filesInPendingState),
+			containsInAnyOrder("/test1/part-0-0.my.pending", "/test2/part-0-0.my.pending")
+		);
+	}
+
+	@Test
+	public void testThatOnPendingToFinalCallbackIsFiredWhenCheckpointingIsCompleted() throws Exception {
+		File outDir = tempFolder.newFolder();
+		long inactivityInterval = 100;
+
+		String basePath = outDir.getAbsolutePath();
+		BucketingSink<String> sink = new BucketingSink<String>(basePath)
+			.setBucketer(new NoopBucketer())
+			.setWriter(new StringWriter<>())
+			.setInactiveBucketCheckInterval(inactivityInterval)
+			.setInactiveBucketThreshold(inactivityInterval)
+			.setPartPrefix(PART_PREFIX)
+			.setInProgressPrefix("")
+			.setPendingPrefix("")
+			.setValidLengthPrefix("")
+			.setInProgressSuffix(IN_PROGRESS_SUFFIX)
+			.setPendingSuffix(PENDING_SUFFIX)
+			.setValidLengthSuffix(VALID_LENGTH_SUFFIX)
+			.registerFileStateChangedCallback(new FileStateChangedCallbackImpl(basePath));
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(sink, 1, 0);
+		testHarness.setup();
+		testHarness.open();
+
+		testHarness.setProcessingTime(0L);
+
+		testHarness.processElement(new StreamRecord<>("test1", 1L));
+		testHarness.processElement(new StreamRecord<>("test2", 1L));
+
+		testHarness.setProcessingTime(101L);
+
+		testHarness.snapshot(0, 0);
+		java.nio.file.Path filesInFinalState = outDir.toPath().resolve("report-pendingToFinal.txt");
+		assertThat(Files.exists(filesInFinalState), is(false));
+
+		testHarness.notifyOfCompletedCheckpoint(0);
+		assertThat(Files.readAllLines(filesInFinalState), containsInAnyOrder("/test1/part-0-0", "/test2/part-0-0"));
+	}
+
 	private void testThatPartIndexIsIncremented(String partSuffix, String existingPartFile) throws Exception {
 		File outDir = tempFolder.newFolder();
 		long inactivityInterval = 100;
@@ -1001,4 +1171,48 @@ public class BucketingSinkTest extends TestLogger {
 		}
 	}
 
+	private static final class NoopBucketer implements Bucketer<String> {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Path getBucketPath(Clock clock, Path basePath, String element) {
+			return new Path(basePath, element);
+		}
+	}
+
+	private static final class FileStateChangedCallbackImpl implements FileStateChangedCallback {
+
+		private String basePath;
+
+		public FileStateChangedCallbackImpl(String basePath) {
+			this.basePath = basePath;
+		}
+
+		@Override
+		public void onInProgressToPending(FileSystem fs, Path path) throws IOException {
+			log(fs, path, "inProgressToPending");
+		}
+
+		@Override
+		public void onPendingToFinal(FileSystem fs, Path path) throws IOException {
+			log(fs, path, "pendingToFinal");
+		}
+
+		private void log(FileSystem fs, Path path, String state) throws IOException {
+			StringBuilder content = new StringBuilder();
+			Path result = new Path(new Path(basePath), String.format("report-%s.txt", state));
+			if (fs.exists(result)) {
+				try (InputStream stream = fs.open(result)) {
+					content.append(IOUtils.toString(stream, StandardCharsets.UTF_8));
+					content.append("\n");
+				}
+			}
+			content.append(path.toUri().getPath().replace(basePath, ""));
+
+			try (OutputStream output = fs.create(result, true)) {
+				output.write(content.toString().getBytes(StandardCharsets.UTF_8));
+			}
+		}
+	}
 }

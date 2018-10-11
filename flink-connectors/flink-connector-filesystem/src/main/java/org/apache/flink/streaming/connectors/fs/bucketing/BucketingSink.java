@@ -58,6 +58,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -113,6 +114,9 @@ import java.util.UUID;
  * a part file is closed for writing it becomes {@code pending}. When a checkpoint is successful the currently
  * pending files will be moved to {@code finished}.
  *
+ * <p>If it's necessary to perform any additional actions, when state of the file is changed, you need to register
+ * the list of callbacks using {@link #registerFileStateChangedCallback(FileStateChangedCallback...)} method.
+ * All of them will be called in accordance with the specified order.
  *
  * <p>If case of a failure, and in order to guarantee exactly-once semantics, the sink should roll back to the state it
  * had when that last successful checkpoint occurred. To this end, when restoring, the restored files in {@code pending}
@@ -324,6 +328,11 @@ public class BucketingSink<T>
 	private transient ProcessingTimeService processingTimeService;
 
 	/**
+	 * The list of callbacks, that should be called, when state of the file is changed.
+	 */
+	private List<FileStateChangedCallback> fileStateChangedCallbacks = new ArrayList<>();
+
+	/**
 	 * Creates a new {@code BucketingSink} that writes files to the given base directory.
 	 *
 	 *
@@ -366,6 +375,11 @@ public class BucketingSink<T>
 		if (this.writerTemplate instanceof InputTypeConfigurable) {
 			((InputTypeConfigurable) writerTemplate).setInputType(type, executionConfig);
 		}
+	}
+
+	public BucketingSink<T> registerFileStateChangedCallback(FileStateChangedCallback... callbacks) {
+		fileStateChangedCallbacks.addAll(Arrays.asList(callbacks));
+		return this;
 	}
 
 	@Override
@@ -598,10 +612,14 @@ public class BucketingSink<T>
 			Path inProgressPath = getInProgressPathFor(currentPartPath);
 			Path pendingPath = getPendingPathFor(currentPartPath);
 
+			LOG.debug("Moving in-progress bucket {} to pending file {}", inProgressPath, pendingPath);
 			fs.rename(inProgressPath, pendingPath);
-			LOG.debug("Moving in-progress bucket {} to pending file {}",
-				inProgressPath,
-				pendingPath);
+			for (FileStateChangedCallback callback : fileStateChangedCallbacks) {
+				callback.onInProgressToPending(fs, pendingPath);
+			}
+
+			LOG.debug("In-progress bucket {} successfully moved to pending file {}", inProgressPath, pendingPath);
+
 			bucketState.pendingFiles.add(currentPartPath.toString());
 			bucketState.currentFile = null;
 		}
@@ -702,11 +720,18 @@ public class BucketingSink<T>
 								Path finalPath = new Path(filename);
 								Path pendingPath = getPendingPathFor(finalPath);
 
-								fs.rename(pendingPath, finalPath);
 								LOG.debug(
 									"Moving pending file {} to final location having completed checkpoint {}.",
-									pendingPath,
-									pastCheckpointId);
+									pendingPath, pastCheckpointId
+								);
+								fs.rename(pendingPath, finalPath);
+								for (FileStateChangedCallback callback : fileStateChangedCallbacks) {
+									callback.onPendingToFinal(fs, finalPath);
+								}
+								LOG.debug(
+									"Pending file {} is moved into final location",
+									pendingPath, pastCheckpointId
+								);
 							}
 							pendingCheckpointsIt.remove();
 						}
