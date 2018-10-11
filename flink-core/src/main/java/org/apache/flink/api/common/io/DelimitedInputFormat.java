@@ -18,15 +18,15 @@
 
 package org.apache.flink.api.common.io;
 
-import com.esotericsoftware.minlog.Log;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.OptimizerOptions;
-import org.apache.flink.core.fs.*;
-import org.apache.flink.core.fs.local.LocalFileSystem;
+import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
