@@ -73,7 +73,7 @@ import org.apache.flink.util.Collector
   *
   *   // for SQL users
   *   tEnv.registerFunction("split", new Split())   // register table function first
-  *   tEnv.sql("SELECT a, s FROM MyTable, LATERAL TABLE(split(a)) as T(s)")
+  *   tEnv.sqlQuery("SELECT a, s FROM MyTable, LATERAL TABLE(split(a)) as T(s)")
   *
   * }}}
   *
