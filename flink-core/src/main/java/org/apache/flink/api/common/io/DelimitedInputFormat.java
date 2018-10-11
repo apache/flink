@@ -575,17 +575,17 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			this.bomCharset = Charset.forName(charsetName);
 		}
 
-		getSomeParaByCharset(this.bomCharset);
+		setParasByCharset(this.bomCharset);
 		LOG.info("charset:" + this.bomCharset);
 	}
 
 
 	/**
-	 * get stepSize, delimiterNewLinePos, delimiterCarrageReturnPos by charset
+	 * set stepSize, delimiterNewLinePos, delimiterCarrageReturnPos by charset
 	 *
 	 * @param charset
 	 */
-	private void getSomeParaByCharset(Charset charset) {
+	private void setParasByCharset(Charset charset) {
 		int stepSize;
 		switch (charset.toString()) {
 			case "UTF-8":
