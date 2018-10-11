@@ -21,9 +21,13 @@ package org.apache.flink.fs.s3presto;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory;
 import org.apache.flink.fs.s3.common.HadoopConfigLoader;
+import org.apache.flink.fs.s3.common.writer.S3MultiPartUploader;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import com.facebook.presto.hive.PrestoS3FileSystem;
+import org.apache.hadoop.fs.FileSystem;
+
+import javax.annotation.Nullable;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -84,6 +88,12 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
 			initUri = fsUri;
 		}
 		return initUri;
+	}
+
+	@Nullable
+	@Override
+	protected S3MultiPartUploader getS3AccessHelper(FileSystem fs) {
+		return null;
 	}
 
 	private URI createURI(String str) {

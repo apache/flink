@@ -19,9 +19,13 @@
 package org.apache.flink.fs.s3.common;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fs.s3.common.writer.S3MultiPartUploader;
 
+import org.apache.hadoop.fs.FileSystem;
 import org.junit.Test;
 import org.mockito.Mockito;
+
+import javax.annotation.Nullable;
 
 import java.net.URI;
 import java.util.Collections;
@@ -69,6 +73,12 @@ public class S3EntropyFsFactoryTest {
 		@Override
 		protected URI getInitURI(URI fsUri, org.apache.hadoop.conf.Configuration hadoopConfig) {
 			return fsUri;
+		}
+
+		@Nullable
+		@Override
+		protected S3MultiPartUploader getS3AccessHelper(FileSystem fs) {
+			return null;
 		}
 
 		@Override
