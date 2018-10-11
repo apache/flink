@@ -18,18 +18,19 @@
 
 package org.apache.flink.test.recovery;
 
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.StandaloneSessionClusterEntrypoint;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.BlobServerResource;
-import org.apache.flink.util.NetUtils;
+import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
@@ -42,6 +43,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClasspath;
@@ -76,6 +79,9 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 	@Rule
 	public final BlobServerResource blobServerResource = new BlobServerResource();
 
+	@Rule
+	public final ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
+
 	@Test
 	public void testTaskManagerProcessFailure() throws Exception {
 
@@ -89,18 +95,19 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 
 		File coordinateTempDir = null;
 
-		final int jobManagerPort = NetUtils.getAvailablePort();
-		final int restPort = NetUtils.getAvailablePort();
+		Configuration config = new Configuration();
+		config.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
+		config.setString(JobManagerOptions.ADDRESS, "localhost");
+		config.setLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 500L);
+		config.setLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 10000L);
+		config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getAbsolutePath());
+		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
+		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 100);
 
-		Configuration jmConfig = new Configuration();
-		jmConfig.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
-		jmConfig.setString(JobManagerOptions.ADDRESS, "localhost");
-		jmConfig.setInteger(JobManagerOptions.PORT, jobManagerPort);
-		jmConfig.setLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 500L);
-		jmConfig.setLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 10000L);
-		jmConfig.setInteger(RestOptions.PORT, restPort);
-
-		try (final StandaloneSessionClusterEntrypoint clusterEntrypoint = new StandaloneSessionClusterEntrypoint(jmConfig)) {
+		try (final StandaloneSessionClusterEntrypoint clusterEntrypoint = new StandaloneSessionClusterEntrypoint(config)) {
 			// check that we run this test only if the java command
 			// is available on this machine
 			String javaCommand = getJavaCommandPath();
@@ -119,21 +126,28 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 
 			clusterEntrypoint.startCluster();
 
+			final Map<String, String> keyValues = config.toMap();
+			final ArrayList<String> commands = new ArrayList<>((keyValues.size() << 1) + 8);
+
 			// the TaskManager java command
-			String[] command = new String[] {
-					javaCommand,
-					"-Dlog.level=DEBUG",
-					"-Dlog4j.configuration=file:" + tempLogFile.getAbsolutePath(),
-					"-Xms80m", "-Xmx80m",
-					"-classpath", getCurrentClasspath(),
-					TaskExecutorProcessEntryPoint.class.getName(),
-					String.valueOf(jobManagerPort)
-			};
+			commands.add(javaCommand);
+			commands.add("-Dlog.level=DEBUG");
+			commands.add("-Dlog4j.configuration=file:" + tempLogFile.getAbsolutePath());
+			commands.add("-Xms80m");
+			commands.add("-Xmx80m");
+			commands.add("-classpath");
+			commands.add(getCurrentClasspath());
+			commands.add(AbstractTaskManagerProcessFailureRecoveryTest.TaskExecutorProcessEntryPoint.class.getName());
+
+			for (Map.Entry<String, String> keyValue: keyValues.entrySet()) {
+				commands.add("--" + keyValue.getKey());
+				commands.add(keyValue.getValue());
+			}
 
 			// start the first two TaskManager processes
-			taskManagerProcess1 = new ProcessBuilder(command).start();
+			taskManagerProcess1 = new ProcessBuilder(commands).start();
 			new CommonTestUtils.PipeForwarder(taskManagerProcess1.getErrorStream(), processOutput1);
-			taskManagerProcess2 = new ProcessBuilder(command).start();
+			taskManagerProcess2 = new ProcessBuilder(commands).start();
 			new CommonTestUtils.PipeForwarder(taskManagerProcess2.getErrorStream(), processOutput2);
 
 			// the program will set a marker file in each of its parallel tasks once they are ready, so that
@@ -148,7 +162,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 				@Override
 				public void run() {
 					try {
-						testTaskManagerFailure(restPort, coordinateDirClosure);
+						testTaskManagerFailure(config, coordinateDirClosure);
 					}
 					catch (Throwable t) {
 						t.printStackTrace();
@@ -176,7 +190,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 			}
 
 			// start the third TaskManager
-			taskManagerProcess3 = new ProcessBuilder(command).start();
+			taskManagerProcess3 = new ProcessBuilder(commands).start();
 			new CommonTestUtils.PipeForwarder(taskManagerProcess3.getErrorStream(), processOutput3);
 
 			// kill one of the previous TaskManagers, triggering a failure and recovery
@@ -232,11 +246,11 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 	 * The test program should be implemented here in a form of a separate thread.
 	 * This provides a solution for checking that it has been terminated.
 	 *
-	 * @param jobManagerPort The port for submitting the topology to the local cluster
+	 * @param configuration the config to use
 	 * @param coordinateDir TaskManager failure will be triggered only after processes
 	 *                             have successfully created file under this directory
 	 */
-	public abstract void testTaskManagerFailure(int jobManagerPort, File coordinateDir) throws Exception;
+	public abstract void testTaskManagerFailure(Configuration configuration, File coordinateDir) throws Exception;
 
 	protected static void printProcessLog(String processName, String log) {
 		if (log == null || log.length() == 0) {
@@ -306,15 +320,8 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 
 		public static void main(String[] args) {
 			try {
-				int jobManagerPort = Integer.parseInt(args[0]);
-
-				Configuration cfg = new Configuration();
-				cfg.setString(JobManagerOptions.ADDRESS, "localhost");
-				cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
-				cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
-				cfg.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 100);
-				cfg.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
-				cfg.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
+				final ParameterTool parameterTool = ParameterTool.fromArgs(args);
+				Configuration cfg = parameterTool.getConfiguration();
 
 				TaskManagerRunner.runTaskManager(cfg, ResourceID.generate());
 			}
