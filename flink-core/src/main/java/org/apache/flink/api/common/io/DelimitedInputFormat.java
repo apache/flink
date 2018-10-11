@@ -574,17 +574,18 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			LOG.warn("Failed to get file bom encoding.");
 			this.bomCharset = Charset.forName(charsetName);
 		}
-		getStepSizeByCharsetName(this.bomCharset);
+
+		getSomeParaByCharset(this.bomCharset);
 		LOG.info("charset:" + this.bomCharset);
 	}
 
 
 	/**
-	 * get stepSize by charset
+	 * get stepSize, delimiterNewLinePos, delimiterCarrageReturnPos by charset
 	 *
 	 * @param charset
 	 */
-	private void getStepSizeByCharsetName(Charset charset) {
+	private void getSomeParaByCharset(Charset charset) {
 		int stepSize;
 		switch (charset.toString()) {
 			case "UTF-8":
