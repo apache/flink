@@ -30,10 +30,12 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
@@ -53,16 +55,20 @@ import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.StringWriter;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -84,6 +90,12 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 	@Rule
 	public final BlobServerResource blobServerResource = new BlobServerResource();
 
+	@Rule
+	public final ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
+
+	@Rule
+	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 	@Test
 	public void testCancelingOnProcessFailure() throws Exception {
 		final StringWriter processOutput = new StringWriter();
@@ -93,23 +105,30 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 		Process taskManagerProcess = null;
 		final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
 
-		Configuration jmConfig = new Configuration();
-		jmConfig.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
-		jmConfig.setString(JobManagerOptions.ADDRESS, "localhost");
-		jmConfig.setInteger(RestOptions.PORT, 0);
+		Configuration config = new Configuration();
+		config.setString(JobManagerOptions.ADDRESS, "localhost");
+		config.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
+		config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getAbsolutePath());
+		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
+		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 100);
 
-		final RpcService rpcService = AkkaRpcServiceUtils.createRpcService("localhost", 0, jmConfig);
+		final RpcService rpcService = AkkaRpcServiceUtils.createRpcService("localhost", 0, config);
 		final int jobManagerPort = rpcService.getPort();
-		jmConfig.setInteger(JobManagerOptions.PORT, jobManagerPort);
+		config.setInteger(JobManagerOptions.PORT, jobManagerPort);
 
 		final SessionDispatcherResourceManagerComponentFactory resourceManagerComponentFactory = new SessionDispatcherResourceManagerComponentFactory(
 			StandaloneResourceManagerFactory.INSTANCE);
 		DispatcherResourceManagerComponent<?> dispatcherResourceManagerComponent = null;
 
-		try (final HighAvailabilityServices haServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
-				jmConfig,
-				TestingUtils.defaultExecutor(),
-				HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION)) {
+		final HighAvailabilityServices haServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+			config,
+			TestingUtils.defaultExecutor(),
+			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+
+		try {
 
 			// check that we run this test only if the java command
 			// is available on this machine
@@ -125,7 +144,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 			CommonTestUtils.printLog4jDebugConfig(tempLogFile);
 
 			dispatcherResourceManagerComponent = resourceManagerComponentFactory.create(
-				jmConfig,
+				config,
 				rpcService,
 				haServices,
 				blobServerResource.getBlobServer(),
@@ -134,26 +153,26 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 				new MemoryArchivedExecutionGraphStore(),
 				fatalErrorHandler);
 
-			// update the rest ports
-			final int restPort = dispatcherResourceManagerComponent
-				.getWebMonitorEndpoint()
-				.getServerAddress()
-				.getPort();
-			jmConfig.setInteger(RestOptions.PORT, restPort);
+			final Map<String, String> keyValues = config.toMap();
+			final ArrayList<String> commands = new ArrayList<>((keyValues.size() << 1) + 8);
 
 			// the TaskManager java command
-			String[] command = new String[] {
-					javaCommand,
-					"-Dlog.level=DEBUG",
-					"-Dlog4j.configuration=file:" + tempLogFile.getAbsolutePath(),
-					"-Xms80m", "-Xmx80m",
-					"-classpath", getCurrentClasspath(),
-					AbstractTaskManagerProcessFailureRecoveryTest.TaskExecutorProcessEntryPoint.class.getName(),
-					String.valueOf(jobManagerPort)
-			};
+			commands.add(javaCommand);
+			commands.add("-Dlog.level=DEBUG");
+			commands.add("-Dlog4j.configuration=file:" + tempLogFile.getAbsolutePath());
+			commands.add("-Xms80m");
+			commands.add("-Xmx80m");
+			commands.add("-classpath");
+			commands.add(getCurrentClasspath());
+			commands.add(AbstractTaskManagerProcessFailureRecoveryTest.TaskExecutorProcessEntryPoint.class.getName());
+
+			for (Map.Entry<String, String> keyValue: keyValues.entrySet()) {
+				commands.add("--" + keyValue.getKey());
+				commands.add(keyValue.getValue());
+			}
 
 			// start the first two TaskManager processes
-			taskManagerProcess = new ProcessBuilder(command).start();
+			taskManagerProcess = new ProcessBuilder(commands).start();
 			new CommonTestUtils.PipeForwarder(taskManagerProcess.getErrorStream(), processOutput);
 
 			final Throwable[] errorRef = new Throwable[1];
@@ -163,7 +182,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 				@Override
 				public void run() {
 					try {
-						ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", restPort, new Configuration());
+						ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", 1337, config);
 						env.setParallelism(2);
 						env.setRestartStrategy(RestartStrategies.noRestart());
 						env.getConfig().disableSysoutLogging();
@@ -196,16 +215,10 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 			// kill the TaskManager
 			programThread.start();
 
-			final LeaderConnectionInfo leaderConnectionInfo = LeaderRetrievalUtils.retrieveLeaderConnectionInfo(haServices.getDispatcherLeaderRetriever(), Time.seconds(10L));
-
-			final DispatcherGateway dispatcherGateway = rpcService.connect(
-				leaderConnectionInfo.getAddress(),
-				DispatcherId.fromUuid(leaderConnectionInfo.getLeaderSessionID()),
-				DispatcherGateway.class).get();
-
+			final DispatcherGateway dispatcherGateway = retrieveDispatcherGateway(rpcService, haServices);
 			waitUntilAllSlotsAreUsed(dispatcherGateway, timeout);
 
-			clusterClient = new RestClusterClient<>(jmConfig, "standalone");
+			clusterClient = new RestClusterClient<>(config, "standalone");
 
 			final Collection<JobID> jobIds = waitForRunningJobs(clusterClient, timeout);
 
@@ -252,10 +265,29 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 				dispatcherResourceManagerComponent.close();
 			}
 
+			haServices.closeAndCleanupAllData();
+
 			fatalErrorHandler.rethrowError();
 
 			RpcUtils.terminateRpcService(rpcService, Time.seconds(10L));
 		}
+	}
+
+	/**
+	 * Helper method to wait until the {@link Dispatcher} has set its fencing token.
+	 *
+	 * @param rpcService to use to connect to the dispatcher
+	 * @param haServices high availability services to connect to the dispatcher
+	 * @return {@link DispatcherGateway}
+	 * @throws Exception if something goes wrong
+	 */
+	static DispatcherGateway retrieveDispatcherGateway(RpcService rpcService, HighAvailabilityServices haServices) throws Exception {
+		final LeaderConnectionInfo leaderConnectionInfo = LeaderRetrievalUtils.retrieveLeaderConnectionInfo(haServices.getDispatcherLeaderRetriever(), Time.seconds(10L));
+
+		return rpcService.connect(
+			leaderConnectionInfo.getAddress(),
+			DispatcherId.fromUuid(leaderConnectionInfo.getLeaderSessionID()),
+			DispatcherGateway.class).get();
 	}
 
 	private void waitUntilAllSlotsAreUsed(DispatcherGateway dispatcherGateway, Time timeout) throws ExecutionException, InterruptedException {
