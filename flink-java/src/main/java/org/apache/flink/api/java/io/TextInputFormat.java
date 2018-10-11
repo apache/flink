@@ -68,6 +68,7 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 		}
 
 		this.charsetName = charsetName;
+		this.setCharset(charsetName);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -86,13 +87,13 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 	@Override
 	public String readRecord(String reusable, byte[] bytes, int offset, int numBytes) throws IOException {
 		//Check if \n is used as delimiter and the end of this line is a \r, then remove \r from the line
-		if (this.getDelimiter() != null && this.getDelimiter().length == 1
-				&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 1
-				&& bytes[offset + numBytes - 1] == CARRIAGE_RETURN){
-			numBytes -= 1;
+		if (this.getDelimiter() != null && this.getDelimiter().length >= 1
+			&& this.getDelimiter()[this.delimiterNewLinePos] == NEW_LINE && offset + numBytes >= this.stepSize
+			&& bytes[offset + numBytes - this.delimiterCarrageReturnPos] == CARRIAGE_RETURN) {
+			numBytes = numBytes - this.stepSize;
 		}
 
-		return new String(bytes, offset, numBytes, this.charsetName);
+		return new String(bytes, offset, numBytes, this.getCharset());
 	}
 
 	// --------------------------------------------------------------------------------------------
