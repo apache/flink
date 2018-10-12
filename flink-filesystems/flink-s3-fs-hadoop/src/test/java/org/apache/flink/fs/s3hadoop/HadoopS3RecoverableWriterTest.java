@@ -91,8 +91,9 @@ public class HadoopS3RecoverableWriterTest extends TestLogger {
 
 	private static final String bigDataChunk = createBigDataChunk(testData1, PART_UPLOAD_MIN_SIZE_VALUE);
 
-
 	// ----------------------- Test Lifecycle -----------------------
+
+	private static boolean skipped = true;
 
 	@ClassRule
 	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
@@ -116,12 +117,15 @@ public class HadoopS3RecoverableWriterTest extends TestLogger {
 		conf.setString(CoreOptions.TMP_DIRS, defaultTmpDir);
 
 		FileSystem.initialize(conf);
+
+		skipped = false;
 	}
 
 	@AfterClass
 	public static void cleanUp() throws Exception {
-		getFileSystem().delete(basePath, true);
-
+		if (!skipped) {
+			getFileSystem().delete(basePath, true);
+		}
 		FileSystem.initialize(new Configuration());
 	}
 

@@ -48,7 +48,8 @@ import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.MAX_CONC
 import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.PART_UPLOAD_MIN_SIZE;
 
 /**
- * Javadoc.
+ * Tests for exception throwing in the
+ * {@link org.apache.flink.fs.s3.common.writer.S3RecoverableWriter S3RecoverableWriter}.
  */
 public class HadoopS3RecoverableWriterExceptionTest extends TestLogger {
 
@@ -80,6 +81,8 @@ public class HadoopS3RecoverableWriterExceptionTest extends TestLogger {
 	private static final String testData2 = "THIS IS A TEST 2.";
 	private static final String testData3 = "THIS IS A TEST 3.";
 
+	private static boolean skipped = true;
+
 	@ClassRule
 	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
@@ -102,12 +105,15 @@ public class HadoopS3RecoverableWriterExceptionTest extends TestLogger {
 		conf.setString(CoreOptions.TMP_DIRS, defaultTmpDir);
 
 		FileSystem.initialize(conf);
+
+		skipped = false;
 	}
 
 	@AfterClass
 	public static void cleanUp() throws Exception {
-		getFileSystem().delete(basePath, true);
-
+		if (!skipped) {
+			getFileSystem().delete(basePath, true);
+		}
 		FileSystem.initialize(new Configuration());
 	}
 
