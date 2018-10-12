@@ -235,18 +235,21 @@ public class LocalExecutor implements Executor {
 		}
 	}
 
-	public List<String> getCompletionHints(SessionContext session, String line, Integer pos) {
+	@Override
+	public List<String> completeStatement(SessionContext session, String statement, int position) {
 		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
 				.createEnvironmentInstance()
 				.getTableEnvironment();
 
-		// complete
 		try {
-			return Arrays.asList(tableEnv.getCompletionHints(line, pos));
-		} catch (Exception e) {
-			//ignore completer exception
+			return Arrays.asList(tableEnv.getCompletionHints(statement, position));
+		} catch (Throwable t) {
+			// catch everything such that the query does not crash the executor
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Could not complete statement at " + position + ":" + statement, t);
+			}
+			return Collections.emptyList();
 		}
-		return Collections.emptyList();
 	}
 
 	@Override

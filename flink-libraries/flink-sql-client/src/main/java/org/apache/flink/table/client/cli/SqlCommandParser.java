@@ -37,7 +37,7 @@ public final class SqlCommandParser {
 	public static Optional<SqlCommandCall> parse(String stmt) {
 		// normalize
 		stmt = stmt.trim();
-		// remove ';' at the end because many people type it intuitively
+		// remove ';' at the end
 		if (stmt.endsWith(";")) {
 			stmt = stmt.substring(0, stmt.length() - 1).trim();
 		}
@@ -150,6 +150,10 @@ public final class SqlCommandParser {
 		@Override
 		public String toString() {
 			return super.toString().replace('_', ' ');
+		}
+
+		public boolean hasOperands() {
+			return operandConverter != NO_OPERANDS;
 		}
 	}
 

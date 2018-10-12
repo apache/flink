@@ -19,7 +19,6 @@
 package org.apache.flink.table.api
 
 import _root_.java.lang.reflect.Modifier
-import _root_.java.util.Collections
 import _root_.java.util.concurrent.atomic.AtomicInteger
 
 import com.google.common.collect.ImmutableList
@@ -28,15 +27,12 @@ import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
 import org.apache.calcite.plan.{Convention, RelOptPlanner, RelOptUtil, RelTraitSet}
-import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql._
-import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
-import org.apache.calcite.sql.validate.SqlConformance
 import org.apache.calcite.sql2rel.SqlToRelConverter
 import org.apache.calcite.tools._
 import org.apache.flink.api.common.functions.MapFunction
@@ -50,7 +46,7 @@ import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment =>
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
-import org.apache.flink.table.calcite._
+import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
 import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
@@ -81,7 +77,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   // the catalog to hold all registered and translated tables
   // we disable caching here to prevent side effects
-  private val internalSchema: CalciteSchema = CalciteSchema.createRootSchema(true, false)
+  private val internalSchema: CalciteSchema = CalciteSchema.createRootSchema(false, false)
   private val rootSchema: SchemaPlus = internalSchema.plus()
 
   // Table API/SQL function catalog
@@ -235,7 +231,6 @@ abstract class TableEnvironment(val config: TableConfig) {
         SqlParser
           .configBuilder()
           .setLex(Lex.JAVA)
-          .setCaseSensitive(false)
           .build()
 
       case Some(sqlParserConfig) =>
@@ -683,25 +678,20 @@ abstract class TableEnvironment(val config: TableConfig) {
   def explain(table: Table): String
 
   /**
-   *  Gets completion hints for the sql query
-   */
-  def getCompletionHints(query: String, pos: Integer) : Array[String] = {
-    val catalogReader = new CalciteCatalogReader(
-      CalciteSchema.from(rootSchema),
-      Collections.emptyList(),
-      typeFactory,
-      CalciteConfig.connectionConfig(getSqlParserConfig))
-    val validator : SqlAdvisorValidator = new SqlAdvisorValidator(
-      getSqlOperatorTable,
-      catalogReader,
-      typeFactory,
-      SqlConformance.DEFAULT)
-    val advisor: SqlAdvisor = new SqlAdvisor(validator)
-    val replaced: Array[String] = Array(null)
-    val hints = advisor.getCompletionHints(query, pos, replaced)
-      .asScala
-      .map(item => item.toIdentifier.toString)
-    hints.toArray
+    * Returns completion hints for the given statement at the given cursor position.
+    * The completion happens case insensitively.
+    *
+    * @param statement Partial or slightly incorrect SQL statement
+    * @param position cursor position
+    * @return completion hints that fit at the current cursor position
+    */
+  def getCompletionHints(statement: String, position: Int): Array[String] = {
+    val planner = new FlinkPlannerImpl(
+      getFrameworkConfig,
+      getPlanner,
+      getTypeFactory,
+      sqlToRelConverterConfig)
+    planner.getCompletionHints(statement, position)
   }
 
   /**
