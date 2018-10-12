@@ -24,7 +24,7 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -37,7 +37,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -47,56 +46,35 @@ import java.io.IOException;
  */
 public class MiniClusterITCase extends TestLogger {
 
-	private static Configuration configuration;
-
-	@BeforeClass
-	public static void setup() {
-		configuration = new Configuration();
-		configuration.setInteger(WebOptions.PORT, 0);
-	}
-
-	// ------------------------------------------------------------------------
-	//  Simple Job Running Tests
-	// ------------------------------------------------------------------------
-
 	@Test
 	public void runJobWithSingleRpcService() throws Exception {
-		MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
+		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setRpcServiceSharing(RpcServiceSharing.SHARED)
-			.setConfiguration(configuration)
+			.setConfiguration(getDefaultConfiguration())
 			.build();
 
-		MiniCluster miniCluster = new MiniCluster(cfg);
-		try {
+		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
 			miniCluster.start();
 			executeJob(miniCluster);
-		}
-		finally {
-			miniCluster.close();
 		}
 	}
 
 	@Test
 	public void runJobWithMultipleRpcServices() throws Exception {
-		MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
+		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
-			.setConfiguration(configuration)
+			.setConfiguration(getDefaultConfiguration())
 			.build();
 
-		MiniCluster miniCluster = new MiniCluster(cfg);
-		try {
+		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
 			miniCluster.start();
 			executeJob(miniCluster);
-		}
-		finally {
-			miniCluster.close();
 		}
 	}
 
 	@Test
 	public void testHandleJobsWhenNotEnoughSlot() throws Exception {
-		final Configuration configuration = new Configuration();
-		configuration.setInteger(WebOptions.PORT, 0);
+		final Configuration configuration = getDefaultConfiguration();
 		configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 1000L);
 
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
@@ -140,6 +118,13 @@ public class MiniClusterITCase extends TestLogger {
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
+
+	private Configuration getDefaultConfiguration() {
+		final Configuration configuration = new Configuration();
+		configuration.setInteger(RestOptions.PORT, 0);
+
+		return configuration;
+	}
 
 	private static void executeJob(MiniCluster miniCluster) throws Exception {
 		JobGraph job = getSimpleJob();
