@@ -236,7 +236,7 @@ Data transformations transform one or more DataStreams into a new DataStream. Pr
 multiple transformations into sophisticated assemblies.
 
 This section gives a brief overview of the available transformations. The [transformations
-documentation](operators.html) has a full description of all transformations with
+documentation](./operators/index.html) has a full description of all transformations with
 examples.
 
 <br />

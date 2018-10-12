@@ -186,4 +186,4 @@ Line `(1)` creates a `rates` [temporal table function](#temporal-table-functions
 which allows us to use the function `rates` in the [Table API](../tableApi.html#joins).
 
 Line `(2)` registers this function under the name `Rates` in our table environment,
-which allows us to use the `Rates` function in [SQL](sql.html#joins).
+which allows us to use the `Rates` function in [SQL](../sql.html#joins).
