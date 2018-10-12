@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -290,7 +291,8 @@ public class BootstrapTools {
 			case FORK_JOIN_EXECUTOR:
 				return AkkaUtils.getForkJoinExecutorConfig(configuration);
 			case FIXED_THREAD_POOL_EXECUTOR:
-				return AkkaUtils.getThreadPoolExecutorConfig();
+				return AkkaUtils.getThreadPoolExecutorConfig(
+					configuration.getInteger(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY));
 			default:
 				throw new IllegalArgumentException(String.format("Unknown ActorSystemExecutorMode %s.", executorMode));
 		}

@@ -156,6 +156,18 @@ public class MetricOptions {
 			"ports to avoid collisions when multiple Flink components are running on the same machine. Per default " +
 			"Flink will pick a random port.");
 
+	/**
+	 * The thread priority for Flink's internal metric query service. The {@code 1} means the min priority and the
+	 * {@code 10} means the max priority.
+	 */
+	public static final ConfigOption<Integer> QUERY_SERVICE_THREAD_PRIORITY =
+		key("metrics.internal.query-service.thread-priority")
+		.defaultValue(1)
+		.withDescription("The thread priority used for Flink's internal metric query service. The thread is created" +
+			" by Akka's thread pool executor. " +
+			"The range of the priority is from 1 (MIN_PRIORITY) to 10 (MAX_PRIORITY). " +
+			"Warning, increasing this value may bring the main Flink components down.");
+
 	private MetricOptions() {
 	}
 }

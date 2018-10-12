@@ -26,7 +26,7 @@ import akka.actor._
 import akka.pattern.{ask => akkaAsk}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.configuration.{AkkaOptions, Configuration, IllegalConfigurationException, SecurityOptions}
+import org.apache.flink.configuration._
 import org.apache.flink.runtime.concurrent.FutureUtils
 import org.apache.flink.runtime.net.SSLUtils
 import org.apache.flink.util.NetUtils
@@ -291,12 +291,20 @@ object AkkaUtils {
     ConfigFactory.parseString(config)
   }
 
-  def getThreadPoolExecutorConfig: Config = {
+  def getThreadPoolExecutorConfig(threadPriority: Int): Config = {
+    if (threadPriority < Thread.MIN_PRIORITY || threadPriority > Thread.MAX_PRIORITY) {
+      throw new IllegalConfigurationException("The threadPriority must be between "
+        + Thread.MIN_PRIORITY + " and " + Thread.MAX_PRIORITY +
+        ", but it is " + threadPriority)
+    }
+
     val configString = s"""
        |akka {
        |  actor {
        |    default-dispatcher {
+       |      type = akka.dispatch.PriorityThreadsDispatcher
        |      executor = "thread-pool-executor"
+       |      thread-priority = $threadPriority
        |      thread-pool-executor {
        |        core-pool-size-min = 2
        |        core-pool-size-factor = 2.0
