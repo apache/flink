@@ -103,7 +103,7 @@ public abstract class ParquetInputFormat<E>
 	}
 
 	public void selectFields(String[] fieldNames) {
-		Preconditions.checkNotNull("Select field array can't be NULL");
+		checkNotNull(fieldNames, "fieldNames");
 		this.fieldNames = fieldNames;
 		RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(expectedFileSchema);
 		TypeInformation[] selectFieldTypes = new TypeInformation[fieldNames.length];
