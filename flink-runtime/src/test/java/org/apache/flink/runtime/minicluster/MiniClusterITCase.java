@@ -48,27 +48,37 @@ public class MiniClusterITCase extends TestLogger {
 
 	@Test
 	public void runJobWithSingleRpcService() throws Exception {
+		final int parallelism = 123;
+
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
+			.setNumTaskManagers(1)
+			.setNumSlotsPerTaskManager(parallelism)
 			.setRpcServiceSharing(RpcServiceSharing.SHARED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
 
 		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
 			miniCluster.start();
-			executeJob(miniCluster);
+
+			miniCluster.executeJobBlocking(getSimpleJob(parallelism));
 		}
 	}
 
 	@Test
 	public void runJobWithMultipleRpcServices() throws Exception {
+		final int parallelism = 123;
+
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
+			.setNumTaskManagers(1)
+			.setNumSlotsPerTaskManager(parallelism)
 			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
 
 		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
 			miniCluster.start();
-			executeJob(miniCluster);
+
+			miniCluster.executeJobBlocking(getSimpleJob(parallelism));
 		}
 	}
 
@@ -126,22 +136,17 @@ public class MiniClusterITCase extends TestLogger {
 		return configuration;
 	}
 
-	private static void executeJob(MiniCluster miniCluster) throws Exception {
-		JobGraph job = getSimpleJob();
-		miniCluster.executeJobBlocking(job);
-	}
-
-	private static JobGraph getSimpleJob() throws IOException {
-		JobVertex task = new JobVertex("Test task");
-		task.setParallelism(1);
-		task.setMaxParallelism(1);
+	private static JobGraph getSimpleJob(int parallelism) throws IOException {
+		final JobVertex task = new JobVertex("Test task");
+		task.setParallelism(parallelism);
+		task.setMaxParallelism(parallelism);
 		task.setInvokableClass(NoOpInvokable.class);
 
-		JobGraph jg = new JobGraph(new JobID(), "Test Job", task);
+		final JobGraph jg = new JobGraph(new JobID(), "Test Job", task);
 		jg.setAllowQueuedScheduling(true);
 		jg.setScheduleMode(ScheduleMode.EAGER);
 
-		ExecutionConfig executionConfig = new ExecutionConfig();
+		final ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000));
 		jg.setExecutionConfig(executionConfig);
 
