@@ -1193,19 +1193,18 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private void suspendExecutionGraph(Exception cause) {
 		executionGraph.suspend(cause);
+	}
 
+	private void clearExecutionGraphFields() {
 		if (jobManagerJobMetricGroup != null) {
 			jobManagerJobMetricGroup.close();
+			jobManagerJobMetricGroup = null;
 		}
 
 		if (jobStatusListener != null) {
 			jobStatusListener.stop();
+			jobStatusListener = null;
 		}
-	}
-
-	private void clearExecutionGraphFields() {
-		jobManagerJobMetricGroup = null;
-		jobStatusListener = null;
 	}
 
 	/**
