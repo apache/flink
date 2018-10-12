@@ -273,6 +273,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 				shutDownFuture.whenComplete(
 					(Void ignored, Throwable throwable) -> {
+						log.info("Shut down complete.");
 						if (throwable != null) {
 							terminationFuture.completeExceptionally(throwable);
 						} else {
