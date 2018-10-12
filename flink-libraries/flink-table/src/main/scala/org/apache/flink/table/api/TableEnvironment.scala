@@ -667,30 +667,6 @@ abstract class TableEnvironment(val config: TableConfig) {
     * {{{
     *   val table: Table = ...
     *   // the table is not registered to the table environment
-    *   tEnv.sql(s"SELECT * FROM $table")
-    * }}}
-    *
-    * @deprecated Use sqlQuery() instead.
-    * @param query The SQL query to evaluate.
-    * @return The result of the query as Table.
-    */
-  @Deprecated
-  @deprecated("Please use sqlQuery() instead.")
-  def sql(query: String): Table = {
-    sqlQuery(query)
-  }
-
-  /**
-    * Evaluates a SQL query on registered tables and retrieves the result as a [[Table]].
-    *
-    * All tables referenced by the query must be registered in the TableEnvironment.
-    * A [[Table]] is automatically registered when its [[toString]] method is called, for example
-    * when it is embedded into a String.
-    * Hence, SQL queries can directly reference a [[Table]] as follows:
-    *
-    * {{{
-    *   val table: Table = ...
-    *   // the table is not registered to the table environment
     *   tEnv.sqlQuery(s"SELECT * FROM $table")
     * }}}
     *

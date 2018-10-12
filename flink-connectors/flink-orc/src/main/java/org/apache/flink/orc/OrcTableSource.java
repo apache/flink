@@ -75,7 +75,7 @@ import java.util.List;
  *   .build();
  *
  * tEnv.registerTableSource("orcTable", orcSrc);
- * Table res = tableEnv.sql("SELECT * FROM orcTable");
+ * Table res = tableEnv.sqlQuery("SELECT * FROM orcTable");
  * }
  * </pre>
  */
