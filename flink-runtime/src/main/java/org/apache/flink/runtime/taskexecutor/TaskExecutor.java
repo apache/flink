@@ -445,7 +445,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				throw new TaskSubmissionException(message);
 			}
 
-			if (!taskSlotTable.existsActiveSlot(jobId, tdd.getAllocationId())) {
+			if (!taskSlotTable.tryMarkSlotActive(jobId, tdd.getAllocationId())) {
 				final String message = "No task slot allocated for job ID " + jobId +
 					" and allocation ID " + tdd.getAllocationId() + '.';
 				log.debug(message);
@@ -1056,18 +1056,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 				while (reservedSlotsIterator.hasNext()) {
 					SlotOffer offer = reservedSlotsIterator.next().generateSlotOffer();
-					try {
-						if (!taskSlotTable.markSlotActive(offer.getAllocationId())) {
-							// the slot is either free or releasing at the moment
-							final String message = "Could not mark slot " + jobId + " active.";
-							log.debug(message);
-							jobMasterGateway.failSlot(getResourceID(), offer.getAllocationId(), new Exception(message));
-						}
-					} catch (SlotNotFoundException e) {
-						final String message = "Could not mark slot " + jobId + " active.";
-						jobMasterGateway.failSlot(getResourceID(), offer.getAllocationId(), new Exception(message));
-						continue;
-					}
 					reservedSlots.add(offer);
 				}
 
@@ -1097,6 +1085,24 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 							if (isJobManagerConnectionValid(jobId, jobMasterId)) {
 								// mark accepted slots active
 								for (SlotOffer acceptedSlot : acceptedSlots) {
+									try {
+										if (!taskSlotTable.markSlotActive(acceptedSlot.getAllocationId())) {
+											// the slot is either free or releasing at the moment
+											final String message = "Could not mark slot " + jobId + " active.";
+											log.debug(message);
+											jobMasterGateway.failSlot(
+												getResourceID(),
+												acceptedSlot.getAllocationId(),
+												new FlinkException(message));
+										}
+									} catch (SlotNotFoundException e) {
+										final String message = "Could not mark slot " + jobId + " active.";
+										jobMasterGateway.failSlot(
+											getResourceID(),
+											acceptedSlot.getAllocationId(),
+											new FlinkException(message));
+									}
+
 									reservedSlots.remove(acceptedSlot);
 								}
 

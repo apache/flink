@@ -35,8 +35,6 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.execution.Environment;
@@ -69,9 +67,6 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
-import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
-import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -90,10 +85,10 @@ import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -728,7 +723,7 @@ public class TaskExecutorTest extends TestLogger {
 		jobManagerTable.put(jobId, jobManagerConnection);
 
 		final TaskSlotTable taskSlotTable = mock(TaskSlotTable.class);
-		when(taskSlotTable.existsActiveSlot(eq(jobId), eq(allocationId))).thenReturn(true);
+		when(taskSlotTable.tryMarkSlotActive(eq(jobId), eq(allocationId))).thenReturn(true);
 		when(taskSlotTable.addTask(any(Task.class))).thenReturn(true);
 
 		TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
@@ -993,8 +988,8 @@ public class TaskExecutorTest extends TestLogger {
 
 			assertThat(instanceIDSlotIDAllocationIDTuple3, equalTo(expectedResult));
 
-			assertTrue(taskSlotTable.existsActiveSlot(jobId, allocationId1));
-			assertFalse(taskSlotTable.existsActiveSlot(jobId, allocationId2));
+			assertTrue(taskSlotTable.tryMarkSlotActive(jobId, allocationId1));
+			assertFalse(taskSlotTable.tryMarkSlotActive(jobId, allocationId2));
 			assertTrue(taskSlotTable.isSlotFree(1));
 		} finally {
 			taskManager.shutDown();
@@ -1011,61 +1006,37 @@ public class TaskExecutorTest extends TestLogger {
 		final JobManagerTable jobManagerTable = new JobManagerTable();
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
 
-		final String resourceManagerAddress = "rm";
-		final UUID resourceManagerLeaderId = UUID.randomUUID();
-
-		final String jobManagerAddress = "jm";
-		final JobMasterId jobMasterId = JobMasterId.generate();
-
-		resourceManagerLeaderRetriever.notifyListener(resourceManagerAddress, resourceManagerLeaderId);
-		jobManagerLeaderRetriever.notifyListener(jobManagerAddress, jobMasterId.toUUID());
-
 		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+		resourceManagerLeaderRetriever.notifyListener(resourceManagerGateway.getAddress(), resourceManagerGateway.getFencingToken().toUUID());
 
 		final CompletableFuture<Tuple3<InstanceID, SlotID, AllocationID>> availableSlotFuture = new CompletableFuture<>();
 		resourceManagerGateway.setNotifySlotAvailableConsumer(availableSlotFuture::complete);
-
-		final ResourceID jmResourceId = new ResourceID(jobManagerAddress);
 
 		final AllocationID allocationId1 = new AllocationID();
 		final AllocationID allocationId2 = new AllocationID();
 
 		final SlotOffer offer1 = new SlotOffer(allocationId1, 0, ResourceProfile.UNKNOWN);
 
-		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
+		final OneShotLatch offerSlotsLatch = new OneShotLatch();
+		final OneShotLatch taskInTerminalState = new OneShotLatch();
+		final CompletableFuture<Collection<SlotOffer>> offerResultFuture = new CompletableFuture<>();
+		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
+			.setOfferSlotsFunction((resourceID, slotOffers) -> {
+				offerSlotsLatch.trigger();
+				return offerResultFuture;
+			})
+			.setUpdateTaskExecutionStateFunction(taskExecutionState -> {
+				if (taskExecutionState.getExecutionState().isTerminal()) {
+					taskInTerminalState.trigger();
+				}
+				return CompletableFuture.completedFuture(Acknowledge.get());
+			})
+			.build();
 
-		when(jobMasterGateway.registerTaskManager(
-			any(String.class),
-			eq(taskManagerLocation),
-			any(Time.class)
-		)).thenReturn(CompletableFuture.completedFuture(new JMTMRegistrationSuccess(jmResourceId)));
-		when(jobMasterGateway.getHostname()).thenReturn(jobManagerAddress);
-		when(jobMasterGateway.updateTaskExecutionState(any(TaskExecutionState.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
+		jobManagerLeaderRetriever.notifyListener(jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
 
-		rpc.registerGateway(resourceManagerAddress, resourceManagerGateway);
-		rpc.registerGateway(jobManagerAddress, jobMasterGateway);
-
-		final LibraryCacheManager libraryCacheManager = mock(LibraryCacheManager.class);
-		when(libraryCacheManager.getClassLoader(eq(jobId))).thenReturn(getClass().getClassLoader());
-
-		final JobManagerConnection jobManagerConnection = new JobManagerConnection(
-			jobId,
-			jmResourceId,
-			jobMasterGateway,
-			mock(TaskManagerActions.class),
-			mock(CheckpointResponder.class),
-			libraryCacheManager,
-			mock(ResultPartitionConsumableNotifier.class),
-			mock(PartitionProducerStateChecker.class));
-
-		final TaskManagerMetricGroup taskManagerMetricGroup = mock(TaskManagerMetricGroup.class);
-		TaskMetricGroup taskMetricGroup = mock(TaskMetricGroup.class);
-		when(taskMetricGroup.getIOMetricGroup()).thenReturn(mock(TaskIOMetricGroup.class));
-
-		when(taskManagerMetricGroup.addTaskForJob(
-			any(JobID.class), anyString(), any(JobVertexID.class), any(ExecutionAttemptID.class),
-			anyString(), anyInt(), anyInt())
-		).thenReturn(taskMetricGroup);
+		rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
+		rpc.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
 
 		final NetworkEnvironment networkMock = mock(NetworkEnvironment.class, Mockito.RETURNS_MOCKS);
 
@@ -1089,7 +1060,7 @@ public class TaskExecutorTest extends TestLogger {
 			haServices,
 			taskManagerServices,
 			new HeartbeatServices(1000L, 1000L),
-			taskManagerMetricGroup,
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
@@ -1117,7 +1088,7 @@ public class TaskExecutorTest extends TestLogger {
 				"test task",
 				1,
 				1,
-				TestInvokable.class.getName(),
+				NoOpInvokable.class.getName(),
 				new Configuration());
 
 			SerializedValue<JobInformation> serializedJobInformation = new SerializedValue<>(jobInformation);
@@ -1133,27 +1104,17 @@ public class TaskExecutorTest extends TestLogger {
 				0,
 				0,
 				null,
-				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-				Collections.<InputGateDeploymentDescriptor>emptyList());
-
-			CompletableFuture<Collection<SlotOffer>> offerResultFuture = new CompletableFuture<>();
-
-			// submit task first and then return acceptance response
-			when(
-				jobMasterGateway.offerSlots(
-					any(ResourceID.class),
-					any(Collection.class),
-					any(Time.class)))
-				.thenReturn(offerResultFuture);
+				Collections.emptyList(),
+				Collections.emptyList());
 
 			// we have to add the job after the TaskExecutor, because otherwise the service has not
 			// been properly started. This will also offer the slots to the job master
-			jobLeaderService.addJob(jobId, jobManagerAddress);
+			jobLeaderService.addJob(jobId, jobMasterGateway.getAddress());
 
-			verify(jobMasterGateway, Mockito.timeout(timeout.toMilliseconds())).offerSlots(any(ResourceID.class), any(Collection.class), any(Time.class));
+			offerSlotsLatch.await();
 
 			// submit the task without having acknowledge the offered slots
-			tmGateway.submitTask(tdd, jobMasterId, timeout);
+			tmGateway.submitTask(tdd, jobMasterGateway.getFencingToken(), timeout).get();
 
 			// acknowledge the offered slots
 			offerResultFuture.complete(Collections.singleton(offer1));
@@ -1161,9 +1122,12 @@ public class TaskExecutorTest extends TestLogger {
 			final Tuple3<InstanceID, SlotID, AllocationID> instanceIDSlotIDAllocationIDTuple3 = availableSlotFuture.get();
 			assertThat(instanceIDSlotIDAllocationIDTuple3.f1, equalTo(new SlotID(taskManagerLocation.getResourceID(), 1)));
 
-			assertTrue(taskSlotTable.existsActiveSlot(jobId, allocationId1));
-			assertFalse(taskSlotTable.existsActiveSlot(jobId, allocationId2));
+			assertTrue(taskSlotTable.tryMarkSlotActive(jobId, allocationId1));
+			assertFalse(taskSlotTable.tryMarkSlotActive(jobId, allocationId2));
 			assertTrue(taskSlotTable.isSlotFree(1));
+
+			// wait for the task completion
+			taskInTerminalState.await();
 		} finally {
 			taskManager.shutDown();
 			taskManager.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
