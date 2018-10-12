@@ -48,7 +48,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.stream.Collectors;
 
 import scala.Option;
 import scala.reflect.ClassTag$;
@@ -272,20 +271,15 @@ public class AkkaJobManagerGateway implements JobManagerGateway {
 
 	@Override
 	public CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(Time timeout) {
-		return requestTaskManagerInstances(timeout)
-			.thenApply(
-				(Collection<Instance> instances) ->
-					instances
-						.stream()
-						.map(
-							(Instance instance) -> {
-								final String taskManagerAddress = instance.getTaskManagerGateway().getAddress();
-								final String taskManagerMetricQuerServicePath = taskManagerAddress.substring(0, taskManagerAddress.lastIndexOf('/') + 1) +
-									MetricQueryService.METRIC_QUERY_SERVICE_NAME + '_' + instance.getTaskManagerID().getResourceIdString();
+		CompletableFuture<JobManagerMessages.TaskManagerMetricQueryServicePaths> taskManagerQueryPathsFuture =
+				FutureUtils.toJava(
+						jobManagerGateway
+								.ask(JobManagerMessages.getRequestTaskManagerMetricQueryServicePaths(), FutureUtils.toFiniteDuration(timeout))
+								.mapTo(ClassTag$.MODULE$.apply(JobManagerMessages.TaskManagerMetricQueryServicePaths.class)));
 
-								return Tuple2.of(instance.getTaskManagerID(), taskManagerMetricQuerServicePath);
-							})
-						.collect(Collectors.toList()));
+		return taskManagerQueryPathsFuture.thenApply(
+				JobManagerMessages.TaskManagerMetricQueryServicePaths::asJavaCollection
+		);
 	}
 
 	@Override

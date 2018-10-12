@@ -23,6 +23,7 @@ import java.util.UUID
 
 import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
+import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.blob.PermanentBlobKey
 import org.apache.flink.runtime.client.{JobStatusMessage, SerializedJobExecutionResult}
@@ -431,6 +432,27 @@ object JobManagerMessages {
   case class TaskManagerInstance(instance: Option[Instance])
 
   /**
+    * Requests the metric query service paths of the registered task manager.
+    */
+  case object RequestTaskManagerMetricQueryServicePaths
+
+  /**
+    * Returns the metric query service paths of the registered task manager. This is in response to
+    * [[RequestTaskManagerMetricQueryServicePaths]]
+    */
+  case class TaskManagerMetricQueryServicePaths(paths: Iterable[Tuple2[ResourceID, String]]) {
+    def asJavaIterable: java.lang.Iterable[Tuple2[ResourceID, String]] = {
+      import scala.collection.JavaConverters._
+      paths.asJava
+    }
+
+    def asJavaCollection: java.util.Collection[Tuple2[ResourceID, String]] = {
+      import scala.collection.JavaConverters._
+      paths.asJavaCollection
+    }
+  }
+
+  /**
    * Requests stack trace messages of the task manager
    *
    * @param instanceID Instance ID of the task manager
@@ -552,6 +574,10 @@ object JobManagerMessages {
 
   def getRequestRegisteredTaskManagers : AnyRef = {
     RequestRegisteredTaskManagers
+  }
+
+  def getRequestTaskManagerMetricQueryServicePaths : AnyRef = {
+    RequestTaskManagerMetricQueryServicePaths
   }
 
   def getRequestJobManagerStatus : AnyRef = {
