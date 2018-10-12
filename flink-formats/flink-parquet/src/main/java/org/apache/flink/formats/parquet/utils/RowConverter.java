@@ -65,9 +65,10 @@ public class RowConverter extends GroupConverter implements ParentDataHolder {
 
 	public RowConverter(GroupType schema, TypeInformation<?> typeInfo, ParentDataHolder parent, int pos) {
 		this.typeInfo = typeInfo;
-		this.converters = new Converter[schema.getFieldCount()];
 		this.parentDataHolder = parent;
 		this.posInParentRow = pos;
+		this.converters = new Converter[schema.getFieldCount()];
+
 		int i = 0;
 		if (typeInfo.getArity() >= 1 && (typeInfo instanceof CompositeType)) {
 			for (Type field : schema.getFields()) {

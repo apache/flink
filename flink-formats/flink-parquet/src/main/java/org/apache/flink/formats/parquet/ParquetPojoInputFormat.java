@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.parquet.schema.MessageType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,14 +49,13 @@ public class ParquetPojoInputFormat<E> extends ParquetInputFormat<E> {
 	private final TypeSerializer<E> typeSerializer;
 	private transient Field[] pojoFields;
 
-	public ParquetPojoInputFormat(Path filePath, PojoTypeInfo<E> pojoTypeInfo) {
-		this(filePath, pojoTypeInfo, pojoTypeInfo.getFieldNames());
-	}
-
-	public ParquetPojoInputFormat(Path filePath, PojoTypeInfo<E> pojoTypeInfo, String[] fieldNames) {
-		super(filePath, extractTypeInfos(pojoTypeInfo, fieldNames), fieldNames);
+	public ParquetPojoInputFormat(Path filePath, MessageType messageType, PojoTypeInfo<E> pojoTypeInfo) {
+		super(filePath, messageType);
 		this.pojoTypeClass = pojoTypeInfo.getTypeClass();
 		this.typeSerializer = pojoTypeInfo.createSerializer(new ExecutionConfig());
+		final Map<String, Field> fieldMap = new HashMap<>();
+		findAllFields(pojoTypeClass, fieldMap);
+		selectFields(fieldMap.keySet().toArray(new String[fieldMap.size()]));
 	}
 
 	@Override

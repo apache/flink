@@ -28,6 +28,8 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.Row;
 
+import org.apache.parquet.schema.MessageType;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -39,8 +41,8 @@ import java.util.Map;
  */
 public class ParquetMapInputFormat extends ParquetInputFormat<Map> {
 
-	public ParquetMapInputFormat(Path path, TypeInformation[] fieldTypes, String[] fieldNames) {
-		super(path, fieldTypes, fieldNames);
+	public ParquetMapInputFormat(Path path, MessageType messageType) {
+		super(path, messageType);
 	}
 
 	@Override

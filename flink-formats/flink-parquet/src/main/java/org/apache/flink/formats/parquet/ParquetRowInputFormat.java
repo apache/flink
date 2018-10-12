@@ -49,12 +49,6 @@ public class ParquetRowInputFormat extends ParquetInputFormat<Row> implements Re
 		this.timeStampRewrite = false;
 	}
 
-	public ParquetRowInputFormat(Path path, RowTypeInfo rowTypeInfo) {
-		super(path, rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames());
-		this.returnType = new RowTypeInfo(getFieldTypes(), getFieldNames());
-		this.timeStampRewrite = false;
-	}
-
 	@Override
 	public TypeInformation<Row> getProducedType() {
 		return new RowTypeInfo(getFieldTypes(), getFieldNames());

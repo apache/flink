@@ -29,6 +29,8 @@ import org.apache.parquet.schema.MessageType;
 
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A Parquet {@link ReadSupport} implementation for reading Parquet record as {@link Row}.
  */
@@ -38,6 +40,7 @@ public class RowReadSupport extends ReadSupport<Row> {
 
 	@Override
 	public ReadContext init(InitContext initContext) {
+		checkNotNull(initContext, "initContext");
 		returnTypeInfo = ParquetSchemaConverter.fromParquetType(initContext.getFileSchema());
 		return new ReadContext(initContext.getFileSchema());
 	}

@@ -25,6 +25,7 @@ import org.apache.parquet.io.api.GroupConverter;
 import org.apache.parquet.io.api.RecordMaterializer;
 import org.apache.parquet.schema.MessageType;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Row materializer for {@link RowReadSupport}.
  */
@@ -32,6 +33,8 @@ public class RowMaterializer extends RecordMaterializer<Row> {
 	private RowConverter root;
 
 	public RowMaterializer(MessageType messageType, TypeInformation<?> rowTypeInfo) {
+		checkNotNull(messageType, "messageType");
+		checkNotNull(rowTypeInfo, "rowTypeInfo");
 		this.root = new RowConverter(messageType, rowTypeInfo);
 	}
 

@@ -24,11 +24,9 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.PojoField;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.pojo.PojoSimpleRecord;
-import org.apache.flink.formats.parquet.utils.ParquetSchemaConverter;
 import org.apache.flink.formats.parquet.utils.TestUtil;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.types.Row;
@@ -67,8 +65,7 @@ public class ParquetInputFormatTest {
 		Path path = TestUtil.createTempParquetFile(temp, TestUtil.SIMPLE_SCHEMA, simple.f1, 1);
 		MessageType simpleType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
 
-		ParquetRowInputFormat rowInputFormat = new ParquetRowInputFormat(
-			path, (RowTypeInfo) ParquetSchemaConverter.fromParquetType(simpleType));
+		ParquetRowInputFormat rowInputFormat = new ParquetRowInputFormat(path, simpleType);
 
 		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
 		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())
@@ -91,9 +88,7 @@ public class ParquetInputFormatTest {
 		Path path = TestUtil.createTempParquetFile(temp, TestUtil.NESTED_SCHEMA, nested.f1, 1);
 		MessageType nestedType = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
 
-		ParquetRowInputFormat rowInputFormat = new ParquetRowInputFormat(
-			path, (RowTypeInfo) ParquetSchemaConverter.fromParquetType(nestedType));
-
+		ParquetRowInputFormat rowInputFormat = new ParquetRowInputFormat(path, nestedType);
 		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
 		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())
 			.when(mockContext).getMetricGroup();
@@ -119,6 +114,7 @@ public class ParquetInputFormatTest {
 	public void testReadPojoFromSimpleRecord() throws IOException, NoSuchFieldException {
 		temp.create();
 		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> simple = TestUtil.getSimpleRecordTestData();
+		MessageType messageType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
 		Path path = TestUtil.createTempParquetFile(temp, TestUtil.SIMPLE_SCHEMA, simple.f1, 1);
 
 		List<PojoField> fieldList = new ArrayList<>();
@@ -128,7 +124,7 @@ public class ParquetInputFormatTest {
 			BasicArrayTypeInfo.LONG_ARRAY_TYPE_INFO));
 
 		ParquetPojoInputFormat<PojoSimpleRecord> pojoInputFormat =
-			new ParquetPojoInputFormat<PojoSimpleRecord>(path, new PojoTypeInfo<PojoSimpleRecord>(
+			new ParquetPojoInputFormat<PojoSimpleRecord>(path, messageType, new PojoTypeInfo<PojoSimpleRecord>(
 				PojoSimpleRecord.class, fieldList));
 
 		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
@@ -153,10 +149,7 @@ public class ParquetInputFormatTest {
 		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();
 		Path path = TestUtil.createTempParquetFile(temp, TestUtil.NESTED_SCHEMA, nested.f1, 1);
 		MessageType nestedType = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
-		RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(nestedType);
-
-		ParquetMapInputFormat mapInputFormat = new ParquetMapInputFormat(
-			path, rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames());
+		ParquetMapInputFormat mapInputFormat = new ParquetMapInputFormat(path, nestedType);
 
 		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
 		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())
@@ -189,9 +182,7 @@ public class ParquetInputFormatTest {
 		Path path = TestUtil.createTempParquetFile(temp, TestUtil.SIMPLE_SCHEMA, simple.f1, 1);
 		MessageType simpleType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
 
-		ParquetRowInputFormat rowInputFormat = new ParquetRowInputFormat(
-			path, (RowTypeInfo) ParquetSchemaConverter.fromParquetType(simpleType));
-
+		ParquetRowInputFormat rowInputFormat = new ParquetRowInputFormat(path, simpleType);
 		byte[] bytes = InstantiationUtil.serializeObject(rowInputFormat);
 		ParquetRowInputFormat copy = InstantiationUtil.deserializeObject(bytes, getClass().getClassLoader());
 

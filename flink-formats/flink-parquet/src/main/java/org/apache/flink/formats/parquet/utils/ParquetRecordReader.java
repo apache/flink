@@ -41,11 +41,10 @@ import javax.annotation.meta.When;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import static org.apache.parquet.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Customized {@link org.apache.parquet.hadoop.ParquetRecordReader} that support start read from particular position.
@@ -55,11 +54,11 @@ public class ParquetRecordReader<T> {
 
 	private ColumnIOFactory columnIOFactory;
 	private Filter filter;
-
 	private MessageType readSchema;
 	private MessageType fileSchema;
 	private ReadSupport<T> readSupport;
 
+	// Parquet Materializer convert record to T
 	private RecordMaterializer<T> recordMaterializer;
 	private T currentValue;
 	private long total;
@@ -68,12 +67,14 @@ public class ParquetRecordReader<T> {
 	private ParquetFileReader reader;
 	private RecordReader<T> recordReader;
 	private boolean strictTypeChecking = true;
+	private boolean skipCorruptedRecord = true;
+	private long countLoadUntilLastGroup = 0;
 	private long totalCountLoadedSoFar = 0;
 
 	public ParquetRecordReader(ReadSupport<T> readSupport, MessageType readSchema, Filter filter) {
-		this.readSupport = readSupport;
-		this.readSchema = readSchema;
-		this.filter = checkNotNull(filter, "filter");
+		this.filter = checkNotNull(filter, "readSupport");
+		this.readSupport = checkNotNull(readSupport, "readSchema");
+		this.readSchema = checkNotNull(readSchema, "filter");
 	}
 
 	public ParquetRecordReader(ReadSupport<T> readSupport, MessageType readSchema) {
@@ -83,26 +84,16 @@ public class ParquetRecordReader<T> {
 	public void initialize(ParquetFileReader reader, Configuration configuration) {
 		this.reader = reader;
 		FileMetaData parquetFileMetadata = reader.getFooter().getFileMetaData();
+		// real schema of parquet file
 		this.fileSchema = parquetFileMetadata.getSchema();
 		Map<String, String> fileMetadata = parquetFileMetadata.getKeyValueMetaData();
 		ReadSupport.ReadContext readContext = readSupport.init(new InitContext(
 			configuration, toSetMultiMap(fileMetadata), readSchema));
 
 		this.columnIOFactory = new ColumnIOFactory(parquetFileMetadata.getCreatedBy());
-		this.readSchema = readContext.getRequestedSchema();
 		this.recordMaterializer = readSupport.prepareForRead(
 			configuration, fileMetadata, readSchema, readContext);
 		this.total = reader.getRecordCount();
-		reader.setRequestedSchema(readSchema);
-	}
-
-	private void checkRead() throws IOException {
-		if (current == totalCountLoadedSoFar) {
-			PageReadStore pages = reader.readNextRowGroup();
-			recordReader = createRecordReader(pages);
-			totalCountLoadedSoFar += pages.getRowCount();
-			currentBlock++;
-		}
 	}
 
 	public void close() throws  IOException {
@@ -111,18 +102,32 @@ public class ParquetRecordReader<T> {
 		}
 	}
 
-	@CheckReturnValue(when = When.NEVER)
-	public T nextRecord() {
-		return currentValue;
+	public void setSkipCorruptedRecord(boolean skipCorruptedRecord) {
+		this.skipCorruptedRecord = skipCorruptedRecord;
 	}
 
-	public void seek(long syncedBlock) throws IOException {
-		PageReadStore pages = null;
+	@CheckReturnValue(when = When.NEVER)
+	public T nextRecord() throws IOException {
+		if (hasNextRecord()) {
+			return currentValue;
+		}
+		return null;
+	}
+
+	public void seek(long syncedBlock, long recordsReadSinceLastSync) throws IOException {
 		while (syncedBlock > 0) {
-			pages = reader.readNextRowGroup();
+			// skip the record already processed
+			reader.skipNextRowGroup();
+			syncedBlock--;
 		}
 
+		PageReadStore pages = reader.readNextRowGroup();
 		recordReader = createRecordReader(pages);
+		for (int i = 0; i < recordsReadSinceLastSync; i++) {
+			// skip the record already processed
+			nextRecord();
+		}
+
 	}
 
 	private RecordReader<T> createRecordReader(PageReadStore pages) throws IOException {
@@ -130,13 +135,20 @@ public class ParquetRecordReader<T> {
 			throw new IOException("Expecting more rows but reached last block. Read " + current + " out of " + total);
 		}
 		MessageColumnIO columnIO = columnIOFactory.getColumnIO(readSchema, fileSchema, strictTypeChecking);
-		// TODO (hpeter) enable filter later
-		RecordReader<T> recordReader = columnIO.getRecordReader(pages, recordMaterializer, FilterCompat.NOOP);
+		RecordReader<T> recordReader = columnIO.getRecordReader(pages, recordMaterializer, filter);
 		return recordReader;
 	}
 
 	public long getCurrentBlock() {
 		return currentBlock;
+	}
+
+	public long getRecordInCurrentBlock() {
+		if (currentBlock == 0) {
+			return current;
+		} else {
+			return current - countLoadUntilLastGroup;
+		}
 	}
 
 	public boolean reachEnd() {
@@ -153,17 +165,26 @@ public class ParquetRecordReader<T> {
 			}
 
 			try {
-				checkRead();
+				if (current == totalCountLoadedSoFar) {
+					PageReadStore pages = reader.readNextRowGroup();
+					recordReader = createRecordReader(pages);
+					countLoadUntilLastGroup = totalCountLoadedSoFar;
+					totalCountLoadedSoFar += pages.getRowCount();
+					currentBlock++;
+				}
+
 				current++;
 				try {
 					currentValue = recordReader.read();
 				} catch (RecordMaterializationException e) {
-					LOG.debug("skipping a corrupt record");
-					continue;
-				}
+					String errorMessage = String.format("skipping a corrupt record in block number [%d] record"
+						+ "number [%s] of file %s", currentBlock, current - countLoadUntilLastGroup, reader.getFile());
 
-				if (recordReader.shouldSkipCurrentRecord()) {
-					LOG.debug("skipping record");
+					LOG.error(errorMessage);
+					if (!skipCorruptedRecord) {
+						throw new RuntimeException(errorMessage, e);
+					}
+					continue;
 				}
 
 				if (currentValue == null) {
@@ -176,7 +197,10 @@ public class ParquetRecordReader<T> {
 				LOG.debug("read value: {}", currentValue);
 			} catch (RuntimeException e) {
 				LOG.error(String.format("Can not read value at %d in block %d in file %s",
-					current, currentBlock, reader.getFile()), e);
+					current - countLoadUntilLastGroup, currentBlock, reader.getFile()), e);
+				if (!skipCorruptedRecord) {
+					throw e;
+				}
 				return false;
 			}
 		}
@@ -185,10 +209,9 @@ public class ParquetRecordReader<T> {
 	}
 
 	private static <K, V> Map<K, Set<V>> toSetMultiMap(Map<K, V> map) {
-		Map<K, Set<V>> setMultiMap = new HashMap<K, Set<V>>();
+		Map<K, Set<V>> setMultiMap = new HashMap<>();
 		for (Map.Entry<K, V> entry : map.entrySet()) {
-			Set<V> set = new HashSet<V>();
-			set.add(entry.getValue());
+			Set<V> set = Collections.singleton(entry.getValue());
 			setMultiMap.put(entry.getKey(), Collections.unmodifiableSet(set));
 		}
 		return Collections.unmodifiableMap(setMultiMap);
