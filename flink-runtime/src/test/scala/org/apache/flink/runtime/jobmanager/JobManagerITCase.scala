@@ -66,47 +66,6 @@ class JobManagerITCase(_system: ActorSystem)
 
   "The JobManager actor" must {
 
-    "handle jobs when not enough slots" in {
-      val vertex = new JobVertex("Test Vertex")
-      vertex.setParallelism(2)
-      vertex.setInvokableClass(classOf[BlockingNoOpInvokable])
-
-      val jobGraph = new JobGraph("Test Job", vertex)
-
-      val cluster = TestingUtils.startTestingCluster(1)
-      val jmGateway = cluster.getLeaderGateway(1 seconds)
-
-      try {
-        val response = jmGateway.ask(RequestTotalNumberOfSlots, timeout.duration).mapTo[Int]
-
-        val availableSlots = Await.result(response, duration)
-
-        availableSlots should equal(1)
-
-        within(2 second) {
-          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
-          expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
-        }
-
-        within(2 second) {
-          val response = expectMsgType[JobResultFailure]
-          val exception = response.cause.deserializeError(getClass.getClassLoader())
-          exception match {
-            case e: JobExecutionException =>
-              jobGraph.getJobID should equal(e.getJobID)
-              new NoResourceAvailableException(1,1,0) should equal(e.getCause())
-            case e => fail(s"Received wrong exception of type $e.")
-          }
-        }
-
-        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
-        expectMsg(true)
-      }
-      finally {
-        cluster.stop()
-      }
-    }
-
     "support immediate scheduling of a single vertex" in {
       val num_tasks = 133
       val vertex = new JobVertex("Test Vertex")

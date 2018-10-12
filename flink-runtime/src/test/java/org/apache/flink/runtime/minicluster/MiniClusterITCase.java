@@ -20,15 +20,23 @@ package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -82,6 +90,50 @@ public class MiniClusterITCase extends TestLogger {
 		}
 		finally {
 			miniCluster.close();
+		}
+	}
+
+	@Test
+	public void testHandleJobsWhenNotEnoughSlot() throws Exception {
+		final Configuration configuration = new Configuration();
+		configuration.setInteger(WebOptions.PORT, 0);
+		configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 1000L);
+
+		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
+			.setNumTaskManagers(1)
+			.setNumSlotsPerTaskManager(1)
+			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
+			.setConfiguration(configuration)
+			.build();
+
+		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
+			miniCluster.start();
+
+			final JobVertex vertex = new JobVertex("Test Vertex");
+			vertex.setParallelism(2);
+			vertex.setMaxParallelism(2);
+			vertex.setInvokableClass(BlockingNoOpInvokable.class);
+
+			final JobGraph graph = new JobGraph("Test Job", vertex);
+			graph.setAllowQueuedScheduling(true);
+			graph.setScheduleMode(ScheduleMode.EAGER);
+
+			final JobSubmissionResult submissionResult = miniCluster.submitJob(graph).get();
+			Assert.assertEquals(graph.getJobID(), submissionResult.getJobID());
+
+			final JobResult jobResult = miniCluster.requestJobResult(graph.getJobID()).get();
+
+			Assert.assertEquals(graph.getJobID(), jobResult.getJobId());
+			Assert.assertEquals(ApplicationStatus.FAILED, jobResult.getApplicationStatus());
+
+			Assert.assertTrue(jobResult.getSerializedThrowable().isPresent());
+
+			final Throwable cause = jobResult.getSerializedThrowable().get()
+				.deserializeError(getClass().getClassLoader());
+
+			Assert.assertTrue(ExceptionUtils.findThrowable(cause, NoResourceAvailableException.class).isPresent());
+			Assert.assertTrue(ExceptionUtils
+				.findThrowableWithMessage(cause, "Slots required: 2, slots allocated: 1").isPresent());
 		}
 	}
 
