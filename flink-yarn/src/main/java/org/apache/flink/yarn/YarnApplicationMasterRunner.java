@@ -27,6 +27,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
@@ -67,6 +68,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -162,6 +164,13 @@ public class YarnApplicationMasterRunner {
 			LOG.debug("YARN dynamic properties: {}", dynamicProperties);
 
 			final Configuration flinkConfig = createConfiguration(currDir, dynamicProperties, LOG);
+
+			// configure the filesystems
+			try {
+				FileSystem.initialize(flinkConfig);
+			} catch (IOException e) {
+				throw new IOException("Error while configuring the filesystems.", e);
+			}
 
 			File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
 			if (remoteKeytabPrincipal != null && f.exists()) {
