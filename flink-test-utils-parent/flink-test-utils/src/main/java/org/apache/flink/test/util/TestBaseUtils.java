@@ -456,7 +456,6 @@ public class TestBaseUtils extends TestLogger {
 	private static ExecutionContext defaultExecutionContext() {
 		return ExecutionContext$.MODULE$.global();
 	}
-
 	// --------------------------------------------------------------------------------------------
 	//  File helper methods
 	// --------------------------------------------------------------------------------------------
