@@ -70,16 +70,12 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	private transient Charset bomCharset;
 
 	/**
-	 * The Map to record the BOM encoding of all files
+	 * The Map to record the BOM encoding of all files.
 	 */
 	private transient final Map<String, Charset> fileBomCharsetMap;
 
 	/**
-	 * The stepSize to record different encoding formats
-	 * eg:
-	 * UTF-8  charsetStepSize = 1
-	 * UTF-16 charsetStepSize = 2
-	 * UTF-32 charsetStepSize = 4
+	 * The stepSize to record different encoding formats.
 	 */
 	protected transient int charsetStepSize = 1;
 
@@ -538,7 +534,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	}
 
 	/**
-	 * Get file bom encoding
+	 * Get file bom encoding.
 	 *
 	 * @param split
 	 */
@@ -585,9 +581,8 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		setParasByCharset(this.bomCharset);
 	}
 
-
 	/**
-	 * set stepSize, delimiterNewLinePos, delimiterCarrageReturnPos by charset
+	 * set stepSize, delimiterNewLinePos, delimiterCarrageReturnPos by charset.
 	 *
 	 * @param charset
 	 */

@@ -22,14 +22,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-
 import org.junit.Test;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.PrintStream;
 import java.io.OutputStreamWriter;
-import java.io.BufferedWriter;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -215,8 +214,7 @@ public class TextInputFormatTest {
 	}
 
 	/**
-	 * Test different file encodings,for example:
-	 * UTF-8, UTF-8 with bom, UTF-16LE, UTF-16BE, UTF-32LE, UTF-32BE
+	 * Test different file encodings,for example: UTF-8, UTF-8 with bom, UTF-16LE, UTF-16BE, UTF-32LE, UTF-32BE.
 	 */
 	@Test
 	public void testFileCharset() {
@@ -275,7 +273,7 @@ public class TextInputFormatTest {
 	}
 
 	/**
-	 * Test different file encodings
+	 * Test different file encodings.
 	 *
 	 * @param data
 	 * @param fileCharset   File itself encoding
@@ -376,7 +374,6 @@ public class TextInputFormatTest {
 			fail("Test erroneous");
 		}
 	}
-
 
 	@Test
 	public void testFileCharsetReadByMultiSplits() {
