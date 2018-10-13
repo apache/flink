@@ -219,116 +219,59 @@ public class TextInputFormatTest {
 	 * UTF-8, UTF-8 with bom, UTF-16LE, UTF-16BE, UTF-32LE, UTF-32BE
 	 */
 	@Test
-	public void testFileCharset() throws Exception {
-		final byte[] noBom = new byte[]{};
-		final byte[] utf8Bom = new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
-		final byte[] utf16LEBom = new byte[]{(byte) 0xFF, (byte) 0xFE};
-		final byte[] utf16BEBom = new byte[]{(byte) 0xFE, (byte) 0xFF};
-		final byte[] utf32LEBom = new byte[]{(byte) 0xFF, (byte) 0xFE, (byte) 0x00, (byte) 0x00};
-		final byte[] utf32BEBom = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0xFE, (byte) 0xFF};
-
+	public void testFileCharset() {
 		String first = "First line";
-		// test UTF-8 have bom
-		testFileCharset(first, "UTF-8", "UTF-32", 1, utf8Bom);
-		// test UTF-8 without bom
-		testFileCharset(first, "UTF-8", "UTF-8", 0, noBom);
-		// test UTF-16LE without bom
-		testFileCharset(first, "UTF-16LE", "UTF-16LE", 0, noBom);
-		// test UTF-16BE without bom
-		testFileCharset(first, "UTF-16BE", "UTF-16BE", 0, noBom);
-		// test UTF-16LE have bom
-		testFileCharset(first, "UTF-16LE", "UTF-16LE", 1, utf16LEBom);
-		// test UTF-16BE have bom
-		testFileCharset(first, "UTF-16BE", "UTF-16", 1, utf16BEBom);
-		// test UTF-32LE without bom
-		testFileCharset(first, "UTF-32LE", "UTF-32LE", 0, noBom);
-		// test UTF-32BE without bom
-		testFileCharset(first, "UTF-32BE", "UTF-32BE", 0, noBom);
-		// test UTF-32LE have bom
-		testFileCharset(first, "UTF-32LE", "UTF-32LE", 0, utf32LEBom);
-		// test UTF-32BE have bom
-		testFileCharset(first, "UTF-32BE", "UTF-32", 0, utf32BEBom);
 
-		first = "ボムのコンテンツ";
-		// test UTF-8 have bom
-		testFileCharset(first, "UTF-8", "UTF-32", 1, utf8Bom);
-		// test UTF-8 without bom
-		testFileCharset(first, "UTF-8", "UTF-8", 0, noBom);
-		// test UTF-16LE without bom
-		testFileCharset(first, "UTF-16LE", "UTF-16LE", 0, noBom);
-		// test UTF-16BE without bom
-		testFileCharset(first, "UTF-16BE", "UTF-16BE", 0, noBom);
-		// test UTF-16LE have bom
-		testFileCharset(first, "UTF-16LE", "UTF-16LE", 1, utf16LEBom);
-		// test UTF-16BE have bom
-		testFileCharset(first, "UTF-16BE", "UTF-16", 1, utf16BEBom);
-		// test UTF-32LE without bom
-		testFileCharset(first, "UTF-32LE", "UTF-32LE", 0, noBom);
-		// test UTF-32BE without bom
-		testFileCharset(first, "UTF-32BE", "UTF-32BE", 0, noBom);
-		// test UTF-32LE have bom
-		testFileCharset(first, "UTF-32LE", "UTF-32LE", 0, utf32LEBom);
-		// test UTF-32BE have bom
-		testFileCharset(first, "UTF-32BE", "UTF-32", 0, utf32BEBom);
+		// Test special different languages
+		for (final String data : new String[]{"Hello", "ハロー", "привет", "Bonjour", "Сайн байна уу", "안녕하세요."}) {
+			testAllFileCharsetNoDelimiter(data);
+		}
 
-
-		first = "First line";
-		String delimiter = "i";
-		// test UTF-8 have bom
-		testFileCharset(first, "UTF-8", "UTF-32", 1, utf8Bom, delimiter.getBytes("UTF-8"));
-		// test UTF-8 without bom
-		testFileCharset(first, "UTF-8", "UTF-8", 0, noBom, delimiter.getBytes("UTF-8"));
-		// test UTF-16LE without bom
-		testFileCharset(first, "UTF-16LE", "UTF-16LE", 0, noBom, delimiter.getBytes("UTF-16LE"));
-		// test UTF-16BE without bom
-		testFileCharset(first, "UTF-16BE", "UTF-16BE", 0, noBom, delimiter.getBytes("UTF-16BE"));
-		// test UTF-16LE have bom
-		testFileCharset(first, "UTF-16LE", "UTF-16LE", 1, utf16LEBom, delimiter.getBytes("UTF-16LE"));
-		// test UTF-16BE have bom
-		testFileCharset(first, "UTF-16BE", "UTF-16", 1, utf16BEBom, delimiter.getBytes("UTF-16BE"));
-		// test UTF-32LE without bom
-		testFileCharset(first, "UTF-32LE", "UTF-32LE", 0, noBom, delimiter.getBytes("UTF-32LE"));
-		// test UTF-32BE without bom
-		testFileCharset(first, "UTF-32BE", "UTF-32BE", 0, noBom, delimiter.getBytes("UTF-32BE"));
-		// test UTF-32LE have bom
-		testFileCharset(first, "UTF-32LE", "UTF-32LE", 0, utf32LEBom, delimiter.getBytes("UTF-32LE"));
-		// test UTF-32BE have bom
-		testFileCharset(first, "UTF-32BE", "UTF-32", 0, utf32BEBom, delimiter.getBytes("UTF-32BE"));
-
-		delimiter = "ist";
-		// test UTF-8 have bom
-		testFileCharset(first, "UTF-8", "UTF-32", 1, utf8Bom, delimiter.getBytes("UTF-8"));
-		// test UTF-8 without bom
-		testFileCharset(first, "UTF-8", "UTF-8", 0, noBom, delimiter.getBytes("UTF-8"));
-		// test UTF-16LE without bom
-		testFileCharset(first, "UTF-16LE", "UTF-16LE", 0, noBom, delimiter.getBytes("UTF-16LE"));
-		// test UTF-16BE without bom
-		testFileCharset(first, "UTF-16BE", "UTF-16BE", 0, noBom, delimiter.getBytes("UTF-16BE"));
-		// test UTF-16LE have bom
-		testFileCharset(first, "UTF-16LE", "UTF-16LE", 1, utf16LEBom, delimiter.getBytes("UTF-16LE"));
-		// test UTF-16BE have bom
-		testFileCharset(first, "UTF-16BE", "UTF-16", 1, utf16BEBom, delimiter.getBytes("UTF-16BE"));
-		// test UTF-32LE without bom
-		testFileCharset(first, "UTF-32LE", "UTF-32LE", 0, noBom, delimiter.getBytes("UTF-32LE"));
-		// test UTF-32BE without bom
-		testFileCharset(first, "UTF-32BE", "UTF-32BE", 0, noBom, delimiter.getBytes("UTF-32BE"));
-		// test UTF-32LE have bom
-		testFileCharset(first, "UTF-32LE", "UTF-32LE", 0, utf32LEBom, delimiter.getBytes("UTF-32LE"));
-		// test UTF-32BE have bom
-		testFileCharset(first, "UTF-32BE", "UTF-32", 0, utf32BEBom, delimiter.getBytes("UTF-32BE"));
+		// Test special symbol
+		for (final String delimiterStr : new String[]{"\\", "^", "|", "[", ".", "*"}) {
+			first = "Fir" + delimiterStr + "st li" + delimiterStr + "ne";
+			testAllFileCharsetWithDelimiter(first, delimiterStr);
+		}
 	}
 
-	/**
-	 * Test different file encodings
-	 *
-	 * @param data
-	 * @param fileCharset   File itself encoding
-	 * @param targetCharset User specified code
-	 * @param offset        Return result offset
-	 * @param bom           Bom content
-	 */
-	private void testFileCharset(String data, String fileCharset, String targetCharset, int offset, byte[] bom) {
-		testFileCharset(data, fileCharset, targetCharset, offset, bom, new byte[]{});
+	private void testAllFileCharsetNoDelimiter(String first) {
+		testAllFileCharsetWithDelimiter(first, "");
+	}
+
+	private void testAllFileCharsetWithDelimiter(String first, String delimiter) {
+		try {
+			final byte[] noBom = new byte[]{};
+			final byte[] utf8Bom = new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
+			final byte[] utf16LEBom = new byte[]{(byte) 0xFF, (byte) 0xFE};
+			final byte[] utf16BEBom = new byte[]{(byte) 0xFE, (byte) 0xFF};
+			final byte[] utf32LEBom = new byte[]{(byte) 0xFF, (byte) 0xFE, (byte) 0x00, (byte) 0x00};
+			final byte[] utf32BEBom = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0xFE, (byte) 0xFF};
+
+			// test UTF-8 have bom
+			testFileCharset(first, "UTF-8", "UTF-32", 1, utf8Bom, delimiter.getBytes("UTF-8"));
+			// test UTF-8 without bom
+			testFileCharset(first, "UTF-8", "UTF-8", 0, noBom, delimiter.getBytes("UTF-8"));
+			// test UTF-16LE without bom
+			testFileCharset(first, "UTF-16LE", "UTF-16LE", 0, noBom, delimiter.getBytes("UTF-16LE"));
+			// test UTF-16BE without bom
+			testFileCharset(first, "UTF-16BE", "UTF-16BE", 0, noBom, delimiter.getBytes("UTF-16BE"));
+			// test UTF-16LE have bom
+			testFileCharset(first, "UTF-16LE", "UTF-16LE", 1, utf16LEBom, delimiter.getBytes("UTF-16LE"));
+			// test UTF-16BE have bom
+			testFileCharset(first, "UTF-16BE", "UTF-16", 1, utf16BEBom, delimiter.getBytes("UTF-16BE"));
+			// test UTF-32LE without bom
+			testFileCharset(first, "UTF-32LE", "UTF-32LE", 0, noBom, delimiter.getBytes("UTF-32LE"));
+			// test UTF-32BE without bom
+			testFileCharset(first, "UTF-32BE", "UTF-32BE", 0, noBom, delimiter.getBytes("UTF-32BE"));
+			// test UTF-32LE have bom
+			testFileCharset(first, "UTF-32LE", "UTF-32LE", 0, utf32LEBom, delimiter.getBytes("UTF-32LE"));
+			// test UTF-32BE have bom
+			testFileCharset(first, "UTF-32BE", "UTF-32", 0, utf32BEBom, delimiter.getBytes("UTF-32BE"));
+		} catch (Throwable t) {
+			System.err.println("test failed with exception: " + t.getMessage());
+			t.printStackTrace(System.err);
+			fail("Test erroneous");
+		}
 	}
 
 	/**
@@ -348,7 +291,9 @@ public class TextInputFormatTest {
 		try {
 			// create input file
 			File tempFile = File.createTempFile("TextInputFormatTest", "tmp");
-			System.out.println(tempFile.toString());
+			tempFile.deleteOnExit();
+			tempFile.setWritable(true);
+//			System.out.println(tempFile.toString());
 			fos = new FileOutputStream(tempFile, true);
 
 			// write UTF8 BOM mark if file is empty
@@ -384,29 +329,37 @@ public class TextInputFormatTest {
 			String result = "";
 
 			if (delimiter.length <= 0) {
-				System.out.println("bomCharsetName:" + inputFormat.getCharset());
+//				System.out.println("bomCharsetName:" + inputFormat.getCharset());
 
 				assertFalse(inputFormat.reachedEnd());
 				result = inputFormat.nextRecord("");
-				System.out.println(result);
+//				System.out.println(result);
 				assertNotNull("Expecting first record here", result);
 				assertEquals(data, result.substring(offset));
 
 //				assertTrue(inputFormat.reachedEnd() || null == inputFormat.nextRecord(result));
 			} else {
-				System.out.println("bomCharsetName:" + inputFormat.getCharset());
+//				System.out.println("bomCharsetName:" + inputFormat.getCharset());
 				int i = 0;
 				data = data + java.security.AccessController.doPrivileged(
 					new sun.security.action.GetPropertyAction("line.separator"));
 				String delimiterStr = new String(delimiter, 0, delimiter.length, fileCharset);
-				String[] strArr = data.split(delimiterStr);
+				String[] strArr = data.split(delimiterStr
+					.replace("\\", "\\\\")
+					.replace("^", "\\^")
+					.replace("|", "\\|")
+					.replace("[", "\\[")
+					.replace("*", "\\*")
+					.replace(".", "\\.")
+				);
+
 				while (!inputFormat.reachedEnd()) {
 					if (i < strArr.length) {
 						result = inputFormat.nextRecord("");
 						if (i == 0) {
 							result = result.substring(offset);
 						}
-						System.out.println(result);
+//						System.out.println(result);
 						assertEquals(strArr[i], result);
 						i++;
 					} else {
@@ -415,6 +368,7 @@ public class TextInputFormatTest {
 				}
 				assertTrue(inputFormat.reachedEnd() || null == inputFormat.nextRecord(result));
 			}
+
 
 		} catch (Throwable t) {
 			System.err.println("test failed with exception: " + t.getMessage());
@@ -454,11 +408,10 @@ public class TextInputFormatTest {
 			assertTrue("expected at least one input split", splits.length >= 1);
 			for (FileInputSplit split : splits) {
 				inputFormat.open(split);
-//				System.out.println("bomCharsetName:" + inputFormat.getCharset());
+				System.out.println("bomCharsetName:" + inputFormat.getCharset());
 				String result = inputFormat.nextRecord("");
-//				System.out.println(result);
+				System.out.println(result);
 			}
-
 		} catch (Throwable t) {
 			System.err.println("test failed with exception: " + t.getMessage());
 			t.printStackTrace(System.err);

@@ -244,6 +244,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	public void setCharset(String charset) {
 		this.charsetName = Preconditions.checkNotNull(charset);
 		this.charset = null;
+		this.bomCharset = null;
 
 		if (this.delimiterString != null) {
 			this.delimiter = delimiterString.getBytes(getCharset());
@@ -498,10 +499,10 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
 		initBuffers();
-		getBomFileCharset(split);
 
 		this.offset = splitStart;
 		if (this.splitStart != 0) {
+			getBomFileCharset(split);
 			this.stream.seek(offset);
 			readLine();
 			// if the first partial record already pushes the stream over
@@ -511,7 +512,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			}
 		} else {
 			fillBuffer(0);
+			getBomFileCharset(split);
 		}
+
 	}
 
 	private void initBuffers() {
@@ -548,9 +551,13 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 				byte[] checkBytes = new byte[]{(byte) 0x00, (byte) 0xFE, (byte) 0xFF, (byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
 				byte[] bomBuffer = new byte[4];
 
-				this.stream.seek(0);
-				this.stream.read(bomBuffer, 0, 4);
-				this.stream.seek(split.getStart());
+				if (this.splitStart != 0) {
+					this.stream.seek(0);
+					this.stream.read(bomBuffer, 0, bomBuffer.length);
+					this.stream.seek(split.getStart());
+				} else {
+					System.arraycopy(this.readBuffer, 0, bomBuffer, 0, 3);
+				}
 
 				if ((bomBuffer[0] == checkBytes[0]) && (bomBuffer[1] == checkBytes[0]) && (bomBuffer[2] == checkBytes[1])
 					&& (bomBuffer[3] == checkBytes[2])) {
@@ -576,7 +583,6 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		}
 
 		setParasByCharset(this.bomCharset);
-		LOG.info("charset:" + this.bomCharset);
 	}
 
 

@@ -564,7 +564,7 @@ public class GenericCsvInputFormatTest {
 		};
 		format.setFilePath("file:///some/file/that/will/not/be/read");
 
-		for (String charset : new String[]{ "UTF-8", "UTF-16BE", "UTF-16LE" }) {
+		for (String charset : new String[]{"UTF-8", "UTF-16BE", "UTF-16LE", "UTF-32LE", "UTF-32BE"}) {
 			File tempFile = File.createTempFile("test_contents", "tmp");
 			tempFile.deleteOnExit();
 

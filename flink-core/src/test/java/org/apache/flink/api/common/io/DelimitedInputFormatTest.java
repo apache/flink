@@ -235,7 +235,7 @@ public class DelimitedInputFormatTest {
 
 		String fileContent = StringUtils.join(records, delimiter);
 
-		for (final String charset : new String[]{ "UTF-8", "UTF-16BE", "UTF-16LE" }) {
+		for (final String charset : new String[]{ "UTF-8", "UTF-16BE", "UTF-16LE", "UTF-32BE", "UTF-32LE" }) {
 			// use charset when instantiating the record String
 			DelimitedInputFormat<String> format = new DelimitedInputFormat<String>() {
 				@Override
