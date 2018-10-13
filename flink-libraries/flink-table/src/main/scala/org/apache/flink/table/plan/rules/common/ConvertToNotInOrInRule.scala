@@ -35,18 +35,11 @@ import scala.collection.mutable
   * For example, convert predicate: (x = 1 OR x = 2 OR x = 3) AND y = 4 to
   * predicate: x IN (1, 2, 3) AND y = 4.
   *
-  * @param fromOperator     The fromOperator, for example, when convert to [[IN]], fromOperator is
-  *                         [[EQUALS]]. We convert a cascade of [[EQUALS]] to [[IN]].
-  * @param connectOperator  The connect operator to connect the fromOperator.
-  * @param composedOperator The composed operator that may contains sub [[IN]] or [[NOT_IN]].
   * @param toOperator       The toOperator, for example, when convert to [[IN]], toOperator is
   *                         [[IN]]. We convert a cascade of [[EQUALS]] to [[IN]].
   * @param description      The description of the rule.
   */
 class ConvertToNotInOrInRule(
-    fromOperator: SqlBinaryOperator,
-    connectOperator: SqlBinaryOperator,
-    composedOperator: SqlBinaryOperator,
     toOperator: SqlBinaryOperator,
     description: String)
   extends RelOptRule(
@@ -69,7 +62,7 @@ class ConvertToNotInOrInRule(
   /**
     * Returns a condition decomposed by [[AND]] or [[OR]].
     */
-  def decomposedBy(rex: RexNode, operator: SqlBinaryOperator): Seq[RexNode] = {
+  private def decomposedBy(rex: RexNode, operator: SqlBinaryOperator): Seq[RexNode] = {
     operator match {
       case AND => RelOptUtil.conjunctions(rex)
       case OR => RelOptUtil.disjunctions(rex)
@@ -83,9 +76,18 @@ class ConvertToNotInOrInRule(
     * @param rex     The predicates to be converted.
     * @return The converted predicates.
     */
-  protected def convertToNotInOrIn(
+  private def convertToNotInOrIn(
     builder: RelBuilder,
     rex: RexNode): Option[RexNode] = {
+
+    // For example, when convert to [[IN]], fromOperator is [[EQUALS]].
+    // We convert a cascade of [[EQUALS]] to [[IN]].
+    // A connect operator is used to connect the fromOperator.
+    // A composed operator may contains sub [[IN]] or [[NOT_IN]].
+    val (fromOperator, connectOperator, composedOperator) = toOperator match {
+      case IN => (EQUALS, OR, AND)
+      case NOT_IN => (NOT_EQUALS, AND, OR)
+    }
 
     val decomposed = decomposedBy(rex, connectOperator)
     val combineMap = new mutable.HashMap[String, mutable.ListBuffer[RexCall]]
@@ -164,8 +166,7 @@ object ConvertToNotInOrInRule {
     * predicate: x IN (1, 2, 3) AND y = 4.
     *
     */
-  val IN_INSTANCE =
-    new ConvertToNotInOrInRule(EQUALS, OR, AND, IN, "MergeMultiEqualsToInRule")
+  val IN_INSTANCE = new ConvertToNotInOrInRule(IN, "MergeMultiEqualsToInRule")
 
   /**
     * Rule to convert multi [[NOT_EQUALS]] to [[NOT_IN]].
@@ -174,6 +175,5 @@ object ConvertToNotInOrInRule {
     * predicate: x NOT_IN (1, 2, 3) OR y <> 4.
     *
     */
-  val NOT_IN_INSTANCE =
-    new ConvertToNotInOrInRule(NOT_EQUALS, AND, OR, NOT_IN, "MergeMultiNotEqualsToNotInRule")
+  val NOT_IN_INSTANCE = new ConvertToNotInOrInRule(NOT_IN, "MergeMultiNotEqualsToNotInRule")
 }

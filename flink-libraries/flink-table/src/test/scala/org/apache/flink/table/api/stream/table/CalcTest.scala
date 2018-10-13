@@ -119,13 +119,13 @@ class CalcTest extends TableTestBase {
     val util = streamTestUtil()
     val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val resultTable = sourceTable.select('a, 'b, 'c)
-      .where("b = 1 || b = 3 || b = 4 || b = 5 || b = 6 && c = 'xx'")
+      .where(s"${(1 to 30).map("b = " + _).mkString(" || ")} && c = 'xx'")
 
     val expected = unaryNode(
       "DataStreamCalc",
       streamTableNode(0),
       term("select", "a", "b", "c"),
-      term("where", "AND(IN(b, 1, 3, 4, 5, 6), =(c, 'xx'))")
+      term("where", s"AND(IN(b, ${(1 to 30).mkString(", ")}), =(c, 'xx'))")
     )
 
     util.verifyTable(resultTable, expected)
@@ -136,13 +136,13 @@ class CalcTest extends TableTestBase {
     val util = streamTestUtil()
     val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val resultTable = sourceTable.select('a, 'b, 'c)
-      .where("b != 1 && b != 3 && b != 4 && b != 5 && b != 6 || c != 'xx'")
+      .where(s"${(1 to 30).map("b != " + _).mkString(" && ")} || c != 'xx'")
 
     val expected = unaryNode(
       "DataStreamCalc",
       streamTableNode(0),
       term("select", "a", "b", "c"),
-      term("where", "OR(NOT IN(b, 1, 3, 4, 5, 6), <>(c, 'xx'))")
+      term("where", s"OR(NOT IN(b, ${(1 to 30).mkString(", ")}), <>(c, 'xx'))")
     )
 
     util.verifyTable(resultTable, expected)
