@@ -36,6 +36,7 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 	public static final String CONNECTOR_VERSION_VALUE_09 = "0.9";
 	public static final String CONNECTOR_VERSION_VALUE_010 = "0.10";
 	public static final String CONNECTOR_VERSION_VALUE_011 = "0.11";
+	public static final String CONNECTOR_VERSION_VALUE_20 = "2.0";
 	public static final String CONNECTOR_TOPIC = "connector.topic";
 	public static final String CONNECTOR_STARTUP_MODE = "connector.startup-mode";
 	public static final String CONNECTOR_STARTUP_MODE_VALUE_EARLIEST = "earliest-offset";
@@ -73,7 +74,8 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 			CONNECTOR_VERSION_VALUE_08,
 			CONNECTOR_VERSION_VALUE_09,
 			CONNECTOR_VERSION_VALUE_010,
-			CONNECTOR_VERSION_VALUE_011);
+			CONNECTOR_VERSION_VALUE_011,
+			CONNECTOR_VERSION_VALUE_20);
 		properties.validateEnumValues(CONNECTOR_VERSION(), false, versions);
 		properties.validateString(CONNECTOR_TOPIC, false, 1, Integer.MAX_VALUE);
 	}
