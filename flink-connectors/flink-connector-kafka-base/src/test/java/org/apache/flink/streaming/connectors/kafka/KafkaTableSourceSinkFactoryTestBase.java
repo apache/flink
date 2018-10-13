@@ -133,7 +133,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 				.toRowType()
 		);
 
-		final KafkaTableSource expected = getExpectedKafkaTableSource(
+		final KafkaTableSourceBase expected = getExpectedKafkaTableSource(
 			schema,
 			Optional.of(PROC_TIME),
 			rowtimeAttributeDescriptors,
@@ -172,7 +172,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		assertEquals(expected, actualSource);
 
 		// test Kafka consumer
-		final KafkaTableSource actualKafkaSource = (KafkaTableSource) actualSource;
+		final KafkaTableSourceBase actualKafkaSource = (KafkaTableSourceBase) actualSource;
 		final StreamExecutionEnvironmentMock mock = new StreamExecutionEnvironmentMock();
 		actualKafkaSource.getDataStream(mock);
 		assertTrue(getExpectedFlinkKafkaConsumer().isAssignableFrom(mock.sourceFunction.getClass()));
@@ -191,7 +191,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 			.field(EVENT_TIME, Types.SQL_TIMESTAMP())
 			.build();
 
-		final KafkaTableSink expected = getExpectedKafkaTableSink(
+		final KafkaTableSinkBase expected = getExpectedKafkaTableSink(
 			schema,
 			TOPIC,
 			KAFKA_PROPERTIES,
@@ -222,7 +222,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		assertEquals(expected, actualSink);
 
 		// test Kafka producer
-		final KafkaTableSink actualKafkaSink = (KafkaTableSink) actualSink;
+		final KafkaTableSinkBase actualKafkaSink = (KafkaTableSinkBase) actualSink;
 		final DataStreamMock streamMock = new DataStreamMock(new StreamExecutionEnvironmentMock(), schema.toRowType());
 		actualKafkaSink.emitDataStream(streamMock);
 		assertTrue(getExpectedFlinkKafkaProducer().isAssignableFrom(streamMock.sinkFunction.getClass()));
@@ -286,7 +286,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 
 	protected abstract Class<?> getExpectedFlinkKafkaProducer();
 
-	protected abstract KafkaTableSource getExpectedKafkaTableSource(
+	protected abstract KafkaTableSourceBase getExpectedKafkaTableSource(
 		TableSchema schema,
 		Optional<String> proctimeAttribute,
 		List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
@@ -297,7 +297,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		StartupMode startupMode,
 		Map<KafkaTopicPartition, Long> specificStartupOffsets);
 
-	protected abstract KafkaTableSink getExpectedKafkaTableSink(
+	protected abstract KafkaTableSinkBase getExpectedKafkaTableSink(
 		TableSchema schema,
 		String topic,
 		Properties properties,

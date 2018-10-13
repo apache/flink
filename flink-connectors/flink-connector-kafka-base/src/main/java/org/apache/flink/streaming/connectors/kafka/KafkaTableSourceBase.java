@@ -57,7 +57,7 @@ import scala.Option;
  * override {@link #createKafkaConsumer(String, Properties, DeserializationSchema)}}.
  */
 @Internal
-public abstract class KafkaTableSource implements
+public abstract class KafkaTableSourceBase implements
 		StreamTableSource<Row>,
 		DefinedProctimeAttribute,
 		DefinedRowtimeAttributes,
@@ -110,7 +110,7 @@ public abstract class KafkaTableSource implements
 	 * @param specificStartupOffsets      Specific startup offsets; only relevant when startup
 	 *                                    mode is {@link StartupMode#SPECIFIC_OFFSETS}.
 	 */
-	protected KafkaTableSource(
+	protected KafkaTableSourceBase(
 			TableSchema schema,
 			Optional<String> proctimeAttribute,
 			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
@@ -141,7 +141,7 @@ public abstract class KafkaTableSource implements
 	 * @param properties            Properties for the Kafka consumer.
 	 * @param deserializationSchema Deserialization schema for decoding records from Kafka.
 	 */
-	protected KafkaTableSource(
+	protected KafkaTableSourceBase(
 			TableSchema schema,
 			String topic,
 			Properties properties,
@@ -225,10 +225,10 @@ public abstract class KafkaTableSource implements
 		}
 		// TODO force classes to be equal once we drop support for format-specific table sources
 		// if (o == null || getClass() != o.getClass()) {
-		if (o == null || !(o instanceof KafkaTableSource)) {
+		if (o == null || !(o instanceof KafkaTableSourceBase)) {
 			return false;
 		}
-		final KafkaTableSource that = (KafkaTableSource) o;
+		final KafkaTableSourceBase that = (KafkaTableSourceBase) o;
 		return Objects.equals(schema, that.schema) &&
 			Objects.equals(proctimeAttribute, that.proctimeAttribute) &&
 			Objects.equals(rowtimeAttributeDescriptors, that.rowtimeAttributeDescriptors) &&
@@ -398,18 +398,18 @@ public abstract class KafkaTableSource implements
 			DeserializationSchema<Row> deserializationSchema);
 
 	/**
-	 * Abstract builder for a {@link KafkaTableSource} to be extended by builders of subclasses of
-	 * KafkaTableSource.
+	 * Abstract builder for a {@link KafkaTableSourceBase} to be extended by builders of subclasses of
+	 * KafkaTableSourceBase.
 	 *
-	 * @param <T> Type of the KafkaTableSource produced by the builder.
-	 * @param <B> Type of the KafkaTableSource.Builder subclass.
+	 * @param <T> Type of the KafkaTableSourceBase produced by the builder.
+	 * @param <B> Type of the KafkaTableSourceBase.Builder subclass.
 	 * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
 	 *             with descriptors for schema and format instead. Descriptors allow for
 	 *             implementation-agnostic definition of tables. See also
 	 *             {@link org.apache.flink.table.api.TableEnvironment#connect(ConnectorDescriptor)}.
 	 */
 	@Deprecated
-	protected abstract static class Builder<T extends KafkaTableSource, B extends KafkaTableSource.Builder> {
+	protected abstract static class Builder<T extends KafkaTableSourceBase, B extends KafkaTableSourceBase.Builder> {
 
 		private String topic;
 
@@ -682,11 +682,11 @@ public abstract class KafkaTableSource implements
 		protected abstract B builder();
 
 		/**
-		 * Builds the configured {@link KafkaTableSource}.
-		 * @return The configured {@link KafkaTableSource}.
+		 * Builds the configured {@link KafkaTableSourceBase}.
+		 * @return The configured {@link KafkaTableSourceBase}.
 		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
 		@Deprecated
-		protected abstract KafkaTableSource build();
+		protected abstract KafkaTableSourceBase build();
 	}
 }
