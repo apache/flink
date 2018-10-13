@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 
 import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -32,12 +31,9 @@ import org.apache.flink.shaded.netty4.io.netty.channel.epoll.EpollServerSocketCh
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
-import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.net.ssl.SSLEngine;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -136,9 +132,9 @@ class NettyServer {
 		}
 
 		// SSL related configuration
-		final SSLEngineFactory sslEngineFactory;
+		final SSLHandlerFactory sslHandlerFactory;
 		try {
-			sslEngineFactory = config.createServerSSLEngineFactory();
+			sslHandlerFactory = config.createServerSSLEngineFactory();
 		} catch (Exception e) {
 			throw new IOException("Failed to initialize SSL Context for the Netty Server", e);
 		}
@@ -150,9 +146,8 @@ class NettyServer {
 		bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
 			@Override
 			public void initChannel(SocketChannel channel) throws Exception {
-				if (sslEngineFactory != null) {
-					SSLEngine sslEngine = sslEngineFactory.createSSLEngine();
-					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
+				if (sslHandlerFactory != null) {
+					channel.pipeline().addLast("ssl", sslHandlerFactory.createNettySSLHandler());
 				}
 
 				channel.pipeline().addLast(protocol.getServerChannelHandlers());
