@@ -50,7 +50,7 @@ import static org.mockito.Mockito.when;
  *             drop support for format-specific table sinks.
  */
 @Deprecated
-public abstract class KafkaTableSinkTestBase {
+public abstract class KafkaTableSinkBaseTestBase {
 
 	private static final String TOPIC = "testTopic";
 	private static final String[] FIELD_NAMES = new String[] {"field1", "field2"};
@@ -64,7 +64,7 @@ public abstract class KafkaTableSinkTestBase {
 		DataStream dataStream = mock(DataStream.class);
 		when(dataStream.addSink(any(SinkFunction.class))).thenReturn(mock(DataStreamSink.class));
 
-		KafkaTableSink kafkaTableSink = spy(createTableSink());
+		KafkaTableSinkBase kafkaTableSink = spy(createTableSink());
 		kafkaTableSink.emitDataStream(dataStream);
 
 		// verify correct producer class
@@ -80,8 +80,8 @@ public abstract class KafkaTableSinkTestBase {
 
 	@Test
 	public void testConfiguration() {
-		KafkaTableSink kafkaTableSink = createTableSink();
-		KafkaTableSink newKafkaTableSink = kafkaTableSink.configure(FIELD_NAMES, FIELD_TYPES);
+		KafkaTableSinkBase kafkaTableSink = createTableSink();
+		KafkaTableSinkBase newKafkaTableSink = kafkaTableSink.configure(FIELD_NAMES, FIELD_TYPES);
 		assertNotSame(kafkaTableSink, newKafkaTableSink);
 
 		assertArrayEquals(FIELD_NAMES, newKafkaTableSink.getFieldNames());
@@ -89,7 +89,7 @@ public abstract class KafkaTableSinkTestBase {
 		assertEquals(new RowTypeInfo(FIELD_TYPES), newKafkaTableSink.getOutputType());
 	}
 
-	protected abstract KafkaTableSink createTableSink(
+	protected abstract KafkaTableSinkBase createTableSink(
 		String topic,
 		Properties properties,
 		FlinkKafkaPartitioner<Row> partitioner);
@@ -98,8 +98,8 @@ public abstract class KafkaTableSinkTestBase {
 
 	protected abstract Class<? extends FlinkKafkaProducerBase> getProducerClass();
 
-	private KafkaTableSink createTableSink() {
-		KafkaTableSink sink = createTableSink(TOPIC, PROPERTIES, PARTITIONER);
+	private KafkaTableSinkBase createTableSink() {
+		KafkaTableSinkBase sink = createTableSink(TOPIC, PROPERTIES, PARTITIONER);
 		return sink.configure(FIELD_NAMES, FIELD_TYPES);
 	}
 

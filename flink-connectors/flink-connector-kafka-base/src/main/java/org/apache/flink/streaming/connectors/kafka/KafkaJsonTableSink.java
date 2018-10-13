@@ -28,13 +28,13 @@ import org.apache.flink.types.Row;
 import java.util.Properties;
 
 /**
- * Base class for {@link KafkaTableSink} that serializes data in JSON format.
+ * Base class for {@link KafkaTableSinkBase} that serializes data in JSON format.
  *
  * @deprecated Use table descriptors instead of implementation-specific classes.
  */
 @Deprecated
 @Internal
-public abstract class KafkaJsonTableSink extends KafkaTableSink {
+public abstract class KafkaJsonTableSink extends KafkaTableSinkBase {
 
 	/**
 	 * Creates KafkaJsonTableSink.
