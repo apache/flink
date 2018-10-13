@@ -25,6 +25,7 @@ import org.apache.parquet.filter2.compat.FilterCompat.Filter;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.api.InitContext;
 import org.apache.parquet.hadoop.api.ReadSupport;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.FileMetaData;
 import org.apache.parquet.io.ColumnIOFactory;
 import org.apache.parquet.io.MessageColumnIO;
@@ -41,8 +42,10 @@ import javax.annotation.meta.When;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -107,25 +110,25 @@ public class ParquetRecordReader<T> {
 	}
 
 	@CheckReturnValue(when = When.NEVER)
-	public T nextRecord() throws IOException {
-		if (hasNextRecord()) {
-			return currentValue;
-		}
-		return null;
+	public T nextRecord() {
+		return currentValue;
 	}
 
 	public void seek(long syncedBlock, long recordsReadSinceLastSync) throws IOException {
+		List<BlockMetaData> blockMetaData = reader.getRowGroups();
 		while (syncedBlock > 0) {
-			// skip the record already processed
+			currentBlock++;
 			reader.skipNextRowGroup();
+			countLoadUntilLastGroup = totalCountLoadedSoFar;
+			totalCountLoadedSoFar += blockMetaData.get(currentBlock).getRowCount();
 			syncedBlock--;
 		}
 
-		PageReadStore pages = reader.readNextRowGroup();
-		recordReader = createRecordReader(pages);
 		for (int i = 0; i < recordsReadSinceLastSync; i++) {
 			// skip the record already processed
-			nextRecord();
+			if (hasNextRecord()) {
+				nextRecord();
+			}
 		}
 
 	}
@@ -157,7 +160,6 @@ public class ParquetRecordReader<T> {
 
 	public boolean hasNextRecord() throws IOException {
 		boolean recordFound = false;
-
 		while (!recordFound) {
 			// no more records left
 			if (current >= total) {

@@ -127,8 +127,9 @@ public abstract class ParquetInputFormat<E>
 		ParquetReadOptions options = ParquetReadOptions.builder().build();
 		ParquetFileReader fileReader = new ParquetFileReader(inputFile, options);
 		MessageType schema = fileReader.getFileMetaData().getSchema();
-		this.skipThisSplit = false;
 		MessageType readSchema = getReadSchema(schema);
+
+		this.skipThisSplit = false;
 		this.parquetRecordReader = new ParquetRecordReader<>(new RowReadSupport(), readSchema, FilterCompat.NOOP);
 		this.parquetRecordReader.initialize(fileReader, configuration);
 		if (this.recordConsumed == null) {

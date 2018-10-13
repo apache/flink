@@ -21,17 +21,20 @@ package org.apache.flink.formats.parquet;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.PojoField;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.formats.parquet.generated.SimpleRecord;
 import org.apache.flink.formats.parquet.pojo.PojoSimpleRecord;
 import org.apache.flink.formats.parquet.utils.TestUtil;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
+import org.apache.avro.generic.IndexedRecord;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.parquet.avro.AvroSchemaConverter;
 import org.apache.parquet.schema.MessageType;
@@ -42,6 +45,8 @@ import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -62,7 +67,7 @@ public class ParquetInputFormatTest {
 	public void testReadRowFromSimpleRecord() throws IOException {
 		temp.create();
 		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> simple = TestUtil.getSimpleRecordTestData();
-		Path path = TestUtil.createTempParquetFile(temp, TestUtil.SIMPLE_SCHEMA, simple.f1, 1);
+		Path path = TestUtil.createTempParquetFile(temp, TestUtil.SIMPLE_SCHEMA, Collections.singletonList(simple.f1));
 		MessageType simpleType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
 
 		ParquetRowInputFormat rowInputFormat = new ParquetRowInputFormat(path, simpleType);
@@ -82,10 +87,53 @@ public class ParquetInputFormatTest {
 	}
 
 	@Test
+	public void testFailureRecoverySimpleRecord() throws IOException {
+		temp.create();
+		List<IndexedRecord> records = new ArrayList<>();
+		Long[] longArray = {1L};
+		for (long i = 0; i < 100; i++) {
+			final SimpleRecord simpleRecord = SimpleRecord.newBuilder()
+				.setBar("test_simple")
+				.setFoo(i)
+				.setArr(Arrays.asList(longArray)).build();
+			records.add(simpleRecord);
+		}
+
+		Path path = TestUtil.createTempParquetFile(temp, TestUtil.SIMPLE_SCHEMA, records);
+		MessageType simpleType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
+
+		ParquetRowInputFormat rowInputFormat = new ParquetRowInputFormat(path, simpleType);
+
+		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
+		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())
+			.when(mockContext).getMetricGroup();
+		rowInputFormat.setRuntimeContext(mockContext);
+
+		FileInputSplit[] splits = rowInputFormat.createInputSplits(1);
+		assertEquals(1, splits.length);
+
+		final Tuple2<Long, Long> checkpoint = new Tuple2<>();
+		checkpoint.f0 = 0L;
+		checkpoint.f1 = 51L;
+		rowInputFormat.reopen(splits[0], checkpoint);
+		Row row = rowInputFormat.nextRecord(null);
+		assertNotNull(row);
+		assertEquals(51L, row.getField(0));
+
+		for (int i = 0; i < 10; i++) {
+			rowInputFormat.nextRecord(null);
+		}
+
+		Tuple2<Long, Long> state = rowInputFormat.getCurrentState();
+		assertEquals(0L, state.f0.longValue());
+		assertEquals(62L, state.f1.longValue());
+	}
+
+	@Test
 	public void testReadRowFromNestedRecord() throws IOException {
 		temp.create();
 		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();
-		Path path = TestUtil.createTempParquetFile(temp, TestUtil.NESTED_SCHEMA, nested.f1, 1);
+		Path path = TestUtil.createTempParquetFile(temp, TestUtil.NESTED_SCHEMA, Collections.singletonList(nested.f1));
 		MessageType nestedType = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
 
 		ParquetRowInputFormat rowInputFormat = new ParquetRowInputFormat(path, nestedType);
@@ -115,7 +163,7 @@ public class ParquetInputFormatTest {
 		temp.create();
 		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> simple = TestUtil.getSimpleRecordTestData();
 		MessageType messageType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
-		Path path = TestUtil.createTempParquetFile(temp, TestUtil.SIMPLE_SCHEMA, simple.f1, 1);
+		Path path = TestUtil.createTempParquetFile(temp, TestUtil.SIMPLE_SCHEMA, Collections.singletonList(simple.f1));
 
 		List<PojoField> fieldList = new ArrayList<>();
 		fieldList.add(new PojoField(PojoSimpleRecord.class.getField("foo"), BasicTypeInfo.LONG_TYPE_INFO));
@@ -147,7 +195,7 @@ public class ParquetInputFormatTest {
 	public void testReadMapFromNestedRecord() throws IOException {
 		temp.create();
 		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();
-		Path path = TestUtil.createTempParquetFile(temp, TestUtil.NESTED_SCHEMA, nested.f1, 1);
+		Path path = TestUtil.createTempParquetFile(temp, TestUtil.NESTED_SCHEMA, Collections.singletonList(nested.f1));
 		MessageType nestedType = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
 		ParquetMapInputFormat mapInputFormat = new ParquetMapInputFormat(path, nestedType);
 
@@ -179,7 +227,7 @@ public class ParquetInputFormatTest {
 	public void testSerialization() throws Exception {
 		temp.create();
 		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> simple = TestUtil.getSimpleRecordTestData();
-		Path path = TestUtil.createTempParquetFile(temp, TestUtil.SIMPLE_SCHEMA, simple.f1, 1);
+		Path path = TestUtil.createTempParquetFile(temp, TestUtil.SIMPLE_SCHEMA, Collections.singletonList(simple.f1));
 		MessageType simpleType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
 
 		ParquetRowInputFormat rowInputFormat = new ParquetRowInputFormat(path, simpleType);

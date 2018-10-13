@@ -54,6 +54,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -155,14 +156,13 @@ public class TestUtil {
 	public static Path createTempParquetFile(
 		TemporaryFolder temporaryFolder,
 		Schema schema,
-		IndexedRecord record,
-		int recordNum) throws IOException {
+		List<IndexedRecord> records) throws IOException {
 		File root = temporaryFolder.getRoot();
 		Path path = new Path(root.getPath(), UUID.randomUUID().toString());
 		ParquetWriter<IndexedRecord> writer = AvroParquetWriter.<IndexedRecord>builder(
 			new org.apache.hadoop.fs.Path(path.toUri())).withSchema(schema).build();
 
-		for (int i = 0; i < recordNum; i++) {
+		for (IndexedRecord record : records) {
 			writer.write(record);
 		}
 
@@ -278,7 +278,7 @@ public class TestUtil {
 			.set("bar", "test")
 			.set("foo", 32L).build();
 
-		Path path = testUtil.createTempParquetFile(temp, SIMPLE_SCHEMA, record, 100);
+		Path path = testUtil.createTempParquetFile(temp, SIMPLE_SCHEMA, Collections.singletonList(record));
 		ParquetReader<Group> reader = ParquetReader.builder(
 			new GroupReadSupport(), new org.apache.hadoop.fs.Path(path.toUri())).withConf(new Configuration()).build();
 
