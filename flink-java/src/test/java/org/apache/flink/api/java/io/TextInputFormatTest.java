@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+
 import org.junit.Test;
 
 import java.io.BufferedWriter;
@@ -366,7 +367,6 @@ public class TextInputFormatTest {
 				}
 				assertTrue(inputFormat.reachedEnd() || null == inputFormat.nextRecord(result));
 			}
-
 
 		} catch (Throwable t) {
 			System.err.println("test failed with exception: " + t.getMessage());
