@@ -21,7 +21,7 @@ package org.apache.flink.runtime.rest;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.WebOptions;
-import org.apache.flink.runtime.net.SSLEngineFactory;
+import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
@@ -51,7 +51,7 @@ public final class RestServerEndpointConfiguration {
 	private final int restBindPort;
 
 	@Nullable
-	private final SSLEngineFactory sslEngineFactory;
+	private final SSLHandlerFactory sslHandlerFactory;
 
 	private final Path uploadDir;
 
@@ -63,7 +63,7 @@ public final class RestServerEndpointConfiguration {
 			final String restAddress,
 			@Nullable String restBindAddress,
 			int restBindPort,
-			@Nullable SSLEngineFactory sslEngineFactory,
+			@Nullable SSLHandlerFactory sslHandlerFactory,
 			final Path uploadDir,
 			final int maxContentLength,
 			final Map<String, String> responseHeaders) {
@@ -74,7 +74,7 @@ public final class RestServerEndpointConfiguration {
 		this.restAddress = requireNonNull(restAddress);
 		this.restBindAddress = restBindAddress;
 		this.restBindPort = restBindPort;
-		this.sslEngineFactory = sslEngineFactory;
+		this.sslHandlerFactory = sslHandlerFactory;
 		this.uploadDir = requireNonNull(uploadDir);
 		this.maxContentLength = maxContentLength;
 		this.responseHeaders = Collections.unmodifiableMap(requireNonNull(responseHeaders));
@@ -111,8 +111,8 @@ public final class RestServerEndpointConfiguration {
 	 * @return SSLEngine that the REST server endpoint should use, or null if SSL was disabled
 	 */
 	@Nullable
-	public SSLEngineFactory getSslEngineFactory() {
-		return sslEngineFactory;
+	public SSLHandlerFactory getSslHandlerFactory() {
+		return sslHandlerFactory;
 	}
 
 	/**
@@ -155,15 +155,15 @@ public final class RestServerEndpointConfiguration {
 		final String restBindAddress = config.getString(RestOptions.BIND_ADDRESS);
 		final int port = config.getInteger(RestOptions.PORT);
 
-		final SSLEngineFactory sslEngineFactory;
+		final SSLHandlerFactory sslHandlerFactory;
 		if (SSLUtils.isRestSSLEnabled(config)) {
 			try {
-				sslEngineFactory = SSLUtils.createRestServerSSLEngineFactory(config);
+				sslHandlerFactory = SSLUtils.createRestServerSSLEngineFactory(config);
 			} catch (Exception e) {
 				throw new ConfigurationException("Failed to initialize SSLEngineFactory for REST server endpoint.", e);
 			}
 		} else {
-			sslEngineFactory = null;
+			sslHandlerFactory = null;
 		}
 
 		final Path uploadDir = Paths.get(
@@ -180,7 +180,7 @@ public final class RestServerEndpointConfiguration {
 			restAddress,
 			restBindAddress,
 			port,
-			sslEngineFactory,
+			sslHandlerFactory,
 			uploadDir,
 			maxContentLength,
 			responseHeaders);
