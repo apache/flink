@@ -70,11 +70,11 @@ public abstract class KafkaTableSourceBuilderTestBase {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testKafkaConsumer() {
-		KafkaTableSource.Builder b = getBuilder();
+		KafkaTableSourceBase.Builder b = getBuilder();
 		configureBuilder(b);
 
 		// assert that correct
-		KafkaTableSource observed = spy(b.build());
+		KafkaTableSourceBase observed = spy(b.build());
 		StreamExecutionEnvironment env = mock(StreamExecutionEnvironment.class);
 		when(env.addSource(any(SourceFunction.class))).thenReturn(mock(DataStreamSource.class));
 		observed.getDataStream(env);
@@ -89,10 +89,10 @@ public abstract class KafkaTableSourceBuilderTestBase {
 
 	@Test
 	public void testTableSchema() {
-		KafkaTableSource.Builder b = getBuilder();
+		KafkaTableSourceBase.Builder b = getBuilder();
 		configureBuilder(b);
 
-		KafkaTableSource source = b.build();
+		KafkaTableSourceBase source = b.build();
 
 		// check table schema
 		TableSchema schema = source.getTableSchema();
@@ -113,10 +113,10 @@ public abstract class KafkaTableSourceBuilderTestBase {
 
 	@Test
 	public void testNoTimeAttributes() {
-		KafkaTableSource.Builder b = getBuilder();
+		KafkaTableSourceBase.Builder b = getBuilder();
 		configureBuilder(b);
 
-		KafkaTableSource source = b.build();
+		KafkaTableSourceBase source = b.build();
 
 		// assert no proctime
 		assertNull(source.getProctimeAttribute());
@@ -127,11 +127,11 @@ public abstract class KafkaTableSourceBuilderTestBase {
 
 	@Test
 	public void testProctimeAttribute() {
-		KafkaTableSource.Builder b = getBuilder();
+		KafkaTableSourceBase.Builder b = getBuilder();
 		configureBuilder(b);
 		b.withProctimeAttribute("time1");
 
-		KafkaTableSource source = b.build();
+		KafkaTableSourceBase source = b.build();
 
 		// assert correct proctime field
 		assertEquals(source.getProctimeAttribute(), "time1");
@@ -143,11 +143,11 @@ public abstract class KafkaTableSourceBuilderTestBase {
 
 	@Test
 	public void testRowtimeAttribute() {
-		KafkaTableSource.Builder b = getBuilder();
+		KafkaTableSourceBase.Builder b = getBuilder();
 		configureBuilder(b);
 		b.withRowtimeAttribute("time2", new ExistingField("time2"), new AscendingTimestamps());
 
-		KafkaTableSource source = b.build();
+		KafkaTableSourceBase source = b.build();
 
 		// assert no proctime
 		assertNull(source.getProctimeAttribute());
@@ -168,13 +168,13 @@ public abstract class KafkaTableSourceBuilderTestBase {
 
 	@Test
 	public void testRowtimeAttribute2() {
-		KafkaTableSource.Builder b = getBuilder();
+		KafkaTableSourceBase.Builder b = getBuilder();
 		configureBuilder(b);
 
 		try {
 			b.withKafkaTimestampAsRowtimeAttribute("time2", new AscendingTimestamps());
 
-			KafkaTableSource source = b.build();
+			KafkaTableSourceBase source = b.build();
 
 			// assert no proctime
 			assertNull(source.getProctimeAttribute());
@@ -201,11 +201,11 @@ public abstract class KafkaTableSourceBuilderTestBase {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testConsumerOffsets() {
-		KafkaTableSource.Builder b = getBuilder();
+		KafkaTableSourceBase.Builder b = getBuilder();
 		configureBuilder(b);
 
 		// test the default behavior
-		KafkaTableSource source = spy(b.build());
+		KafkaTableSourceBase source = spy(b.build());
 		when(source.createKafkaConsumer(TOPIC, PROPS, null))
 				.thenReturn(mock(getFlinkKafkaConsumer()));
 
@@ -241,13 +241,13 @@ public abstract class KafkaTableSourceBuilderTestBase {
 		verify(source.getKafkaConsumer(TOPIC, PROPS, null)).setStartFromSpecificOffsets(any(Map.class));
 	}
 
-	protected abstract KafkaTableSource.Builder getBuilder();
+	protected abstract KafkaTableSourceBase.Builder getBuilder();
 
 	protected abstract Class<DeserializationSchema<Row>> getDeserializationSchema();
 
 	protected abstract Class<FlinkKafkaConsumerBase<Row>> getFlinkKafkaConsumer();
 
-	protected void configureBuilder(KafkaTableSource.Builder builder) {
+	protected void configureBuilder(KafkaTableSourceBase.Builder builder) {
 		builder
 			.forTopic(TOPIC)
 			.withKafkaProperties(PROPS)

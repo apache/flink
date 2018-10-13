@@ -32,7 +32,7 @@ import org.apache.flink.types.Row;
 public class Kafka08AvroTableSourceTest extends KafkaAvroTableSourceTestBase {
 
 	@Override
-	protected KafkaTableSource.Builder getBuilder() {
+	protected KafkaTableSourceBase.Builder getBuilder() {
 		return Kafka08AvroTableSource.builder();
 	}
 
