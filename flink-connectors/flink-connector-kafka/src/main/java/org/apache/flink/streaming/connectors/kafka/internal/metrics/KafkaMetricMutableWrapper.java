@@ -27,10 +27,10 @@ import org.apache.kafka.common.Metric;
  * Gauge for getting the current value of a Kafka metric.
  */
 @Internal
-public class KafkaMetricMuttableWrapper implements Gauge<Double> {
-	private org.apache.kafka.common.Metric kafkaMetric;
+public class KafkaMetricMutableWrapper implements Gauge<Double> {
+	private Metric kafkaMetric;
 
-	public KafkaMetricMuttableWrapper(org.apache.kafka.common.Metric metric) {
+	public KafkaMetricMutableWrapper(Metric metric) {
 		this.kafkaMetric = metric;
 	}
 
