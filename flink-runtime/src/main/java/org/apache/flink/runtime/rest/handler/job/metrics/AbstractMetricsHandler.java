@@ -30,6 +30,7 @@ import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.job.metrics.Metric;
 import org.apache.flink.runtime.rest.messages.job.metrics.MetricCollectionResponseBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.MetricsFilterParameter;
+import org.apache.flink.runtime.rest.messages.job.metrics.SubtasksFilterQueryParameter;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
@@ -37,6 +38,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -91,8 +93,9 @@ public abstract class AbstractMetricsHandler<M extends MessageParameters> extend
 				new MetricCollectionResponseBody(Collections.emptyList()));
 		}
 
-		final Set<String> requestedMetrics = new HashSet<>(request.getQueryParameter(
-			MetricsFilterParameter.class));
+		final Set<String> requestedMetrics = new HashSet<>(getRequestMetricsList(
+			request.getQueryParameter(MetricsFilterParameter.class),
+			request.getQueryParameter(SubtasksFilterQueryParameter.class)));
 
 		if (requestedMetrics.isEmpty()) {
 			return CompletableFuture.completedFuture(
@@ -101,6 +104,10 @@ public abstract class AbstractMetricsHandler<M extends MessageParameters> extend
 			final List<Metric> metrics = getRequestedMetrics(componentMetricStore, requestedMetrics);
 			return CompletableFuture.completedFuture(new MetricCollectionResponseBody(metrics));
 		}
+	}
+
+	protected Collection<String>  getRequestMetricsList(Collection<String> metricNames, Collection<String> subtasks) {
+		return metricNames;
 	}
 
 	/**

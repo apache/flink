@@ -26,6 +26,9 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
@@ -45,6 +48,7 @@ import java.util.concurrent.Executor;
  * {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y", "value" : "T" } ] }
  */
 public abstract class AbstractMetricsHandler extends AbstractJsonRequestHandler {
+	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	public static final String PARAMETER_METRICS = "get";
 
@@ -60,7 +64,7 @@ public abstract class AbstractMetricsHandler extends AbstractJsonRequestHandler 
 		return CompletableFuture.supplyAsync(
 			() -> {
 				fetcher.update();
-				String requestedMetricsList = queryParams.get(PARAMETER_METRICS);
+				String requestedMetricsList = getRequestMetricsList(queryParams);
 				try {
 					return requestedMetricsList != null
 						? getMetricsValues(pathParams, requestedMetricsList)
@@ -71,6 +75,10 @@ public abstract class AbstractMetricsHandler extends AbstractJsonRequestHandler 
 			},
 			executor);
 
+	}
+
+	protected String getRequestMetricsList(Map<String, String> queryParams) {
+		return queryParams.get(PARAMETER_METRICS);
 	}
 
 	/**

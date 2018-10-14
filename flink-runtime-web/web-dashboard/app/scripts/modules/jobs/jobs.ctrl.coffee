@@ -107,8 +107,9 @@ angular.module('flinkApp')
       jid = $scope.job.jid
 
       # Request metrics for each subtask
-      metricIds = (i + ".currentInputWatermark" for i in [0..node.parallelism - 1])
-      MetricsService.getMetrics(jid, node.id, metricIds).then (metrics) ->
+      metricIds = ["currentInputWatermark"]
+      subtasks = "0-" + (node.parallelism - 1)
+      MetricsService.getMetrics(jid, node.id, metricIds, subtasks).then (metrics) ->
         minValue = NaN
         watermarks = {}
 
