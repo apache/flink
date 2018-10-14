@@ -25,9 +25,9 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
@@ -115,7 +115,7 @@ public class StateBackendITCase extends AbstractTestBase {
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry,
 			TtlTimeProvider ttlTimeProvider,
-			MetricGroup operatorMetricGroup) throws IOException {
+			OperatorMetricGroup operatorMetricGroup) throws IOException {
 			throw new SuccessException();
 		}
 

@@ -30,6 +30,8 @@ import org.apache.flink.runtime.checkpoint.savepoint.CheckpointTestUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -86,7 +88,6 @@ public class StreamTaskStateInitializerImplTest {
 
 		TypeSerializer<?> typeSerializer = new IntSerializer();
 		CloseableRegistry closeableRegistry = new CloseableRegistry();
-		MetricGroup operatorMetricGroup = mock(MetricGroup.class);
 
 		StreamOperatorStateContext stateContext = streamTaskStateManager.streamOperatorStateContext(
 			streamOperator.getOperatorID(),
@@ -94,7 +95,7 @@ public class StreamTaskStateInitializerImplTest {
 			streamOperator,
 			typeSerializer,
 			closeableRegistry,
-			operatorMetricGroup);
+			UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup());
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
@@ -144,7 +145,7 @@ public class StreamTaskStateInitializerImplTest {
 				int numberOfKeyGroups, KeyGroupRange keyGroupRange,
 				TaskKvStateRegistry kvStateRegistry,
 				TtlTimeProvider ttlTimeProvider,
-				MetricGroup operatorMetricGroup) throws Exception {
+				OperatorMetricGroup operatorMetricGroup) throws Exception {
 				return mock(AbstractKeyedStateBackend.class);
 			}
 
@@ -198,7 +199,7 @@ public class StreamTaskStateInitializerImplTest {
 			streamOperator,
 			typeSerializer,
 			closeableRegistry,
-			operatorMetricGroup);
+			UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup());
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();

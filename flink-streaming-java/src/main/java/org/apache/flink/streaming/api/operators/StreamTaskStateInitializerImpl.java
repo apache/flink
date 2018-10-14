@@ -23,11 +23,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -108,7 +108,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		@Nonnull KeyContext keyContext,
 		@Nullable TypeSerializer<?> keySerializer,
 		@Nonnull CloseableRegistry streamTaskCloseableRegistry,
-		@Nonnull MetricGroup operatorMetricGroup) throws Exception {
+		@Nonnull OperatorMetricGroup operatorMetricGroup) throws Exception {
 
 		TaskInfo taskInfo = environment.getTaskInfo();
 		OperatorSubtaskDescriptionText operatorSubtaskDescription =
@@ -251,7 +251,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		String operatorIdentifierText,
 		PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates,
 		CloseableRegistry backendCloseableRegistry,
-		MetricGroup operatorMetricGroup) throws Exception {
+		OperatorMetricGroup operatorMetricGroup) throws Exception {
 
 		if (keySerializer == null) {
 			return null;

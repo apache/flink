@@ -47,9 +47,9 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -244,7 +244,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	private final RocksDBNativeMetricOptions metricOptions;
 
-	private final MetricGroup operatorMetricGroup;
+	private final OperatorMetricGroup operatorMetricGroup;
 
 	/** The native metrics monitor. */
 	private RocksDBNativeMetricMonitor nativeMetricMonitor;
@@ -265,7 +265,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		RocksDBStateBackend.PriorityQueueStateType priorityQueueStateType,
 		TtlTimeProvider ttlTimeProvider,
 		RocksDBNativeMetricOptions metricOptions,
-		MetricGroup operatorMetricGroup
+		OperatorMetricGroup operatorMetricGroup
 	) throws IOException {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader,
@@ -395,6 +395,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		if (db != null) {
 
 			IOUtils.closeQuietly(writeBatchWrapper);
+
+			// Metric collection occurs on a background thread. When this method returns
+			// it is guaranteed that thr RocksDB reference has been invalidated
+			// and no more metric collection will be attempted against the database.
+			if (nativeMetricMonitor != null) {
+				nativeMetricMonitor.close();
+			}
 
 			// RocksDB's native memory management requires that *all* CFs (including default) are closed before the
 			// DB is closed. See:
@@ -630,12 +637,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		if (this.metricOptions.isEnabled()) {
 			this.nativeMetricMonitor = new RocksDBNativeMetricMonitor(
 				dbRef,
-				rocksDBResourceGuard,
 				metricOptions,
 				operatorMetricGroup
 			);
-
-			this.cancelStreamRegistry.registerCloseable(nativeMetricMonitor);
 		}
 
 		return dbRef;
@@ -1433,8 +1437,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		ColumnFamilyDescriptor columnDescriptor = new ColumnFamilyDescriptor(nameBytes, columnOptions);
 
 		try {
-			ColumnFamilyHandle handle = db.createColumnFamily(columnDescriptor);
-			return handle;
+			return db.createColumnFamily(columnDescriptor);
 		} catch (RocksDBException e) {
 			throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", e);
 		}

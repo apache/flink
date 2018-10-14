@@ -43,6 +43,7 @@ import org.apache.flink.queryablestate.network.stats.KvStateRequestStats;
 import org.apache.flink.queryablestate.server.KvStateServerHandler;
 import org.apache.flink.queryablestate.server.KvStateServerImpl;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateRegistryListener;
@@ -764,6 +765,6 @@ public class KvStateServerHandlerTest extends TestLogger {
 			new KeyGroupRange(0, 0),
 			registry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId()),
 			TtlTimeProvider.DEFAULT,
-			null);
+			UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup());
 	}
 }

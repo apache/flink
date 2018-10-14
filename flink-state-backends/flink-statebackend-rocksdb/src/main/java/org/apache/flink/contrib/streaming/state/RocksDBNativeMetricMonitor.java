@@ -19,13 +19,10 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.View;
-import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.IOUtils;
-import org.apache.flink.util.ResourceGuard;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
@@ -36,7 +33,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 
 import java.io.Closeable;
-import java.io.IOException;
 
 /**
  * A monitor which pull {{@link RocksDB}} native metrics
@@ -45,29 +41,26 @@ import java.io.IOException;
  */
 @Internal
 public class RocksDBNativeMetricMonitor implements Closeable {
-
-	private final CloseableRegistry registeredGauges;
-
-	private final RocksDB db;
-
-	private final ResourceGuard.Lease lease;
+	private static final Logger LOG = LoggerFactory.getLogger(RocksDBNativeMetricMonitor.class);
 
 	private final RocksDBNativeMetricOptions options;
 
-	private final MetricGroup metricGroup;
+	private final OperatorMetricGroup metricGroup;
+
+	private final Object lock;
+
+	private RocksDB rocksDB;
 
 	RocksDBNativeMetricMonitor(
-		@Nonnull RocksDB db,
-		@Nonnull ResourceGuard guard,
+		@Nonnull RocksDB rocksDB,
 		@Nonnull RocksDBNativeMetricOptions options,
-		@Nonnull MetricGroup metricGroup
-	) throws IOException {
-		this.db = db;
-		this.lease = guard.acquireResource();
+		@Nonnull OperatorMetricGroup metricGroup
+	) {
 		this.options = options;
 		this.metricGroup = metricGroup;
+		this.rocksDB = rocksDB;
 
-		this.registeredGauges = new CloseableRegistry();
+		this.lock = new Object();
 	}
 
 	/**
@@ -76,52 +69,55 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 	 * @param handle native handle to the column family
 	 */
 	void registerColumnFamily(String columnFamilyName, ColumnFamilyHandle handle) {
+		MetricGroup group = metricGroup.addGroup(columnFamilyName);
+
+		for (String property : options.getProperties()) {
+			RocksDBNativeMetricView gauge = new RocksDBNativeMetricView(handle, property);
+			group.gauge(property, gauge);
+		}
+	}
+
+	/**
+	 * Updates the value of metricView if the reference is still valid.
+	 */
+	private void setProperty(ColumnFamilyHandle handle, String property, RocksDBNativeMetricView metricView) {
 		try {
-			MetricGroup group = metricGroup.addGroup(columnFamilyName);
-
-			for (String property : options.getProperties()) {
-				RocksDBNativeMetricView gauge = new RocksDBNativeMetricView(
-					property,
-					handle,
-					db
-				);
-
-				group.gauge(property, gauge);
-				registeredGauges.registerCloseable(gauge);
+			synchronized (lock) {
+				if (rocksDB != null) {
+					long value = rocksDB.getLongProperty(handle, property);
+					metricView.setValue(value);
+				}
 			}
-		} catch (IOException e) {
-			throw new FlinkRuntimeException("Unable to register native metrics with RocksDB", e);
+		} catch (RocksDBException e) {
+			LOG.warn("Failed to read native metric %s from RocksDB", property, e);
 		}
 	}
 
 	@Override
 	public void close() {
-		IOUtils.closeQuietly(registeredGauges);
-		IOUtils.closeQuietly(lease);
+		synchronized (lock) {
+			this.rocksDB = null;
+		}
 	}
 
-	static class RocksDBNativeMetricView implements Gauge<String>, View, Closeable {
-		private static final Logger LOG = LoggerFactory.getLogger(RocksDBNativeMetricView.class);
-
+	class RocksDBNativeMetricView implements Gauge<String>, View {
 		private final String property;
 
 		private final ColumnFamilyHandle handle;
 
-		private final RocksDB db;
-
-		private volatile boolean open;
 
 		private long value;
 
 		private RocksDBNativeMetricView(
-			@Nonnull String property,
 			@Nonnull ColumnFamilyHandle handle,
-			@Nonnull RocksDB db
+			@Nonnull String property
 		) {
-			this.property = property;
 			this.handle = handle;
-			this.db = db;
-			this.open = true;
+			this.property = property;
+		}
+
+		public void setValue(long value) {
+			this.value = value;
 		}
 
 		@Override
@@ -131,24 +127,8 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 
 		@Override
 		public void update() {
-			if (open) {
-				try {
-					value = db.getLongProperty(handle, property);
-				} catch (RocksDBException e) {
-					LOG.warn("Failed to read native metric %s from RocksDB", property, e);
-				}
-			}
-		}
-
-		public boolean isOpen() {
-			return open;
-		}
-
-		@Override
-		public void close() {
-			open = false;
+			setProperty(handle, property, this);
 		}
 	}
-
 }
 

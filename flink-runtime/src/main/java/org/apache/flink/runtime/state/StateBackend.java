@@ -21,8 +21,8 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -193,6 +193,7 @@ public interface StateBackend extends java.io.Serializable {
 	 *
 	 * @param <K> The type of the keys by which the state is organized.
 	 *
+	 * @param operatorMetricGroup
 	 * @return The Keyed State Backend for the given job, operator, and key group range.
 	 *
 	 * @throws Exception This method may forward all exceptions that occur while instantiating the backend.
@@ -206,7 +207,7 @@ public interface StateBackend extends java.io.Serializable {
 		KeyGroupRange keyGroupRange,
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
-		MetricGroup operatorMetricGroup
+		OperatorMetricGroup operatorMetricGroup
 		) throws Exception;
 	
 	/**

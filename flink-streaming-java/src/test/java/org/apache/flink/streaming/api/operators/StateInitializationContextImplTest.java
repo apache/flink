@@ -28,14 +28,13 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
@@ -191,8 +190,6 @@ public class StateInitializationContextImplTest {
 		AbstractStreamOperator<?> mockOperator = mock(AbstractStreamOperator.class);
 		when(mockOperator.getOperatorID()).thenReturn(operatorID);
 
-		MetricGroup operatorMetricGroup = mock(OperatorMetricGroup.class);
-
 		StreamOperatorStateContext stateContext = streamTaskStateManager.streamOperatorStateContext(
 			operatorID,
 			"TestOperatorClass",
@@ -201,7 +198,7 @@ public class StateInitializationContextImplTest {
 			// consumed by the timer service.
 			IntSerializer.INSTANCE,
 			closableRegistry,
-			operatorMetricGroup);
+			UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup());
 
 		this.initializationContext =
 				new StateInitializationContextImpl(

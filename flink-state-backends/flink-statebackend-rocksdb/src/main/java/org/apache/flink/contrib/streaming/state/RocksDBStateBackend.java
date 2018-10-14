@@ -24,8 +24,8 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -421,7 +421,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		KeyGroupRange keyGroupRange,
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
-		MetricGroup operatorMetricGroup) throws IOException {
+		OperatorMetricGroup operatorMetricGroup) throws IOException {
 
 		// first, make sure that the RocksDB JNI library is loaded
 		// we do this explicitly here to have better error handling
