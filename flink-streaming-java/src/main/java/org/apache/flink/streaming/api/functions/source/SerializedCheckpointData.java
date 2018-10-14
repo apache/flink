@@ -25,8 +25,13 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * This class represents serialized checkpoint data for a collection of elements.
@@ -140,20 +145,21 @@ class SerializedCheckpointData implements java.io.Serializable {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * De-serializes an array of SerializedCheckpointData back into an ArrayDeque of element checkpoints.
+	 * De-serializes an array of SerializedCheckpointData back into
+	 * a Map of element checkpoints with the checkpointId as key.
 	 *
 	 * @param data The data to be deserialized.
 	 * @param serializer The serializer used to deserialize the data.
 	 * @param <T> The type of the elements.
-	 * @return An ArrayDeque of element checkpoints.
+	 * @return A Map of element checkpoints.
 	 *
 	 * @throws IOException Thrown, if the serialization fails.
 	 */
-	public static <T> ArrayDeque<Tuple2<Long, Set<T>>> toDeque(
+	public static <T> Map<Long, Set<T>> toDeque(
 			SerializedCheckpointData[] data,
 			TypeSerializer<T> serializer) throws IOException {
 
-		ArrayDeque<Tuple2<Long, Set<T>>> deque = new ArrayDeque<>(data.length);
+		Map<Long, Set<T>> map = new HashMap<>(data.length);
 		DataInputDeserializer deser = null;
 
 		for (SerializedCheckpointData checkpoint : data) {
@@ -172,9 +178,44 @@ class SerializedCheckpointData implements java.io.Serializable {
 				ids.add(serializer.deserialize(deser));
 			}
 
-			deque.addLast(new Tuple2<Long, Set<T>>(checkpoint.checkpointId, ids));
+			map.put(checkpoint.checkpointId, ids);
 		}
 
+		return map;
+	}
+
+	/**
+	 * Combines multiple ArrayDeques with checkpoint data by checkpointId.
+	 * This could happen when a job rescales to a lower parallelism and states are multiple tasks are combined.
+	 *
+	 * @param data The data to be combined.
+	 * @param <T> The type of the elements.
+	 * @return An ArrayDeque of combined element checkpoints.
+	 */
+	public static <T> ArrayDeque<Tuple2<Long, Set<T>>> combine(List<Map<Long, Set<T>>> data) {
+		Map<Long, Set<T>> accumulator = new HashMap<>();
+		for (Map<Long, Set<T>> element : data) {
+			accumulator = combine(accumulator, element);
+		}
+
+		//Convert map to deque sorted by checkpointId
+		ArrayDeque<Tuple2<Long, Set<T>>> deque = new ArrayDeque<>(accumulator.size());
+		accumulator.entrySet()
+				.stream()
+				.sequential()
+				.sorted(Comparator.comparing(Map.Entry::getKey))
+				.map(entry -> Tuple2.of(entry.getKey(), entry.getValue()))
+				.forEachOrdered(deque::addLast);
 		return deque;
+	}
+
+	private static <T> Map<Long, Set<T>> combine(
+			Map<Long, Set<T>> accumulator,
+			Map<Long, Set<T>> element) {
+		element.forEach((key, value) -> {
+			Set<T> data = accumulator.computeIfAbsent(key, k -> new TreeSet<>());
+			data.addAll(value);
+		});
+		return accumulator;
 	}
 }
