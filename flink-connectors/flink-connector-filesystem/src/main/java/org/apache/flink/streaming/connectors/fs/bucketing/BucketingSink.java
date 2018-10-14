@@ -772,8 +772,9 @@ public class BucketingSink<T>
 			bucketState.isWriterOpen = false;
 
 			handlePendingFilesForPreviousCheckpoints(bucketState.pendingFilesPerCheckpoint);
-
-			bucketState.pendingFilesPerCheckpoint.clear();
+			synchronized (bucketState.pendingFilesPerCheckpoint) {
+				bucketState.pendingFilesPerCheckpoint.clear();
+			}
 		}
 	}
 
