@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.View;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
@@ -31,11 +30,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.Closeable;
+import java.math.BigInteger;
 
 /**
- * A monitor which pull {{@link RocksDB}} native metrics
+ * A monitor which pulls {{@link RocksDB}} native metrics
  * and forwards them to Flink's metric group. All metrics are
  * unsigned longs and are reported at the column family level.
  */
@@ -45,16 +46,17 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 
 	private final RocksDBNativeMetricOptions options;
 
-	private final OperatorMetricGroup metricGroup;
+	private final MetricGroup metricGroup;
 
 	private final Object lock;
 
+	@GuardedBy("lock")
 	private RocksDB rocksDB;
 
 	RocksDBNativeMetricMonitor(
 		@Nonnull RocksDB rocksDB,
 		@Nonnull RocksDBNativeMetricOptions options,
-		@Nonnull OperatorMetricGroup metricGroup
+		@Nonnull MetricGroup metricGroup
 	) {
 		this.options = options;
 		this.metricGroup = metricGroup;
@@ -96,17 +98,25 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 	@Override
 	public void close() {
 		synchronized (lock) {
-			this.rocksDB = null;
+			rocksDB = null;
 		}
 	}
 
-	class RocksDBNativeMetricView implements Gauge<String>, View {
+	/**
+	 * A gauge which periodically pull a RocksDB native metric
+	 * for the specified column family / metric pair.
+	 *
+	 *<p><strong>Note</strong>: As the returned property is of type
+	 * {@code uint64_t} on C++ side the returning value can be negative.
+	 * Because java does not support unsigned long types, this gauge
+	 * wraps the result in a {@link BigInteger}.
+	 */
+	class RocksDBNativeMetricView implements Gauge<BigInteger>, View {
 		private final String property;
 
 		private final ColumnFamilyHandle handle;
 
-
-		private long value;
+		private BigInteger bigInteger;
 
 		private RocksDBNativeMetricView(
 			@Nonnull ColumnFamilyHandle handle,
@@ -117,12 +127,22 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 		}
 
 		public void setValue(long value) {
-			this.value = value;
+			if (value >= 0L) {
+				bigInteger = BigInteger.valueOf(value);
+			} else {
+				int upper = (int) (value >>> 32);
+				int lower = (int) value;
+
+				bigInteger = BigInteger
+					.valueOf(Integer.toUnsignedLong(upper))
+					.shiftLeft(32)
+					.add(BigInteger.valueOf(Integer.toUnsignedLong(lower)));
+			}
 		}
 
 		@Override
-		public String getValue() {
-			return Long.toUnsignedString(value);
+		public BigInteger getValue() {
+			return bigInteger;
 		}
 
 		@Override

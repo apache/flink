@@ -34,6 +34,7 @@ import org.rocksdb.ColumnFamilyHandle;
 
 import javax.annotation.Nullable;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 
 /**
@@ -45,12 +46,13 @@ public class RocksDBNativeMetricMonitorTest {
 
 	private static final String COLUMN_FAMILY_NAME = "column-family";
 
+	private static final BigInteger ZERO = new BigInteger(1, new byte[]{0, 0, 0, 0});
+
 	@Test
 	public void testMetricMonitorLifecycle() throws Throwable {
-		//created as a local variable instead of using @Rule
-		//we we can manually control the lifecycle. Using @Rule
-		//but manually calling after causes occasional segmentation
-		//faults.
+		//We use a local variable here to manually control the life-cycle.
+		// This allows us to verify that metrics do not try to access
+		// RocksDB after the monitor was closed.
 		RocksDBResource rocksDBResource = new RocksDBResource();
 		rocksDBResource.before();
 
@@ -83,18 +85,47 @@ public class RocksDBNativeMetricMonitorTest {
 
 		view.update();
 
-		Assert.assertNotEquals("Failed to pull metric from RocksDB", 0, Long.parseLong(view.getValue()));
+		Assert.assertNotEquals("Failed to pull metric from RocksDB", ZERO, view.getValue());
 
 		view.setValue(0L);
 
-		//removing this line reliably causes segmentation faults
+		//After the monitor is closed no metric should be accessing RocksDB anymore.
+		//If they do, then this test will likely fail with a segmentation fault.
 		monitor.close();
 
 		rocksDBResource.after();
 
 		view.update();
 
-		Assert.assertEquals("Failed to release RocksDB reference", 0, Long.parseLong(view.getValue()));
+		Assert.assertEquals("Failed to release RocksDB reference", ZERO, view.getValue());
+	}
+
+	@Test
+	public void testReturnsUnsigned() throws Throwable {
+		SimpleMetricRegistry registry = new SimpleMetricRegistry();
+		OperatorMetricGroup group = new OperatorMetricGroup(
+			registry,
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
+			new OperatorID(),
+			OPERATOR_NAME
+		);
+
+		RocksDBNativeMetricOptions options = new RocksDBNativeMetricOptions();
+		options.enableSizeAllMemTables();
+
+		RocksDBNativeMetricMonitor monitor = new RocksDBNativeMetricMonitor(
+			null,
+			options,
+			group
+		);
+
+		monitor.registerColumnFamily(COLUMN_FAMILY_NAME, null);
+		RocksDBNativeMetricMonitor.RocksDBNativeMetricView view = registry.metrics.get(0);
+
+		view.setValue(-1);
+		BigInteger result = view.getValue();
+
+		Assert.assertEquals("Failed to interpret RocksDB result as an unsigned long", 1, result.signum());
 	}
 
 	static class SimpleMetricRegistry implements MetricRegistry {

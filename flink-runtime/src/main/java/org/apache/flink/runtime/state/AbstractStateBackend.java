@@ -21,8 +21,8 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
@@ -52,7 +52,7 @@ public abstract class AbstractStateBackend implements StateBackend, java.io.Seri
 		KeyGroupRange keyGroupRange,
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
-		OperatorMetricGroup operatorMetricGroup) throws IOException;
+		MetricGroup metricGroup) throws IOException;
 
 	@Override
 	public abstract OperatorStateBackend createOperatorStateBackend(

@@ -20,8 +20,8 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -57,7 +57,7 @@ public class TestSpyWrapperStateBackend extends AbstractStateBackend {
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry,
 			TtlTimeProvider ttlTimeProvider,
-			OperatorMetricGroup operatorMetricGroup) throws IOException {
+			MetricGroup metricGroup) throws IOException {
 			return spy(delegate.createKeyedStateBackend(
 				env,
 				jobID,
@@ -67,7 +67,7 @@ public class TestSpyWrapperStateBackend extends AbstractStateBackend {
 				keyGroupRange,
 				kvStateRegistry,
 				ttlTimeProvider,
-				operatorMetricGroup));
+				metricGroup));
 		}
 
 		@Override

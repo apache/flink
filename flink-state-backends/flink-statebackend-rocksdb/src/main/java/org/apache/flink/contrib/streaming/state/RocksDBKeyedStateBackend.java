@@ -47,9 +47,9 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -244,7 +244,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	private final RocksDBNativeMetricOptions metricOptions;
 
-	private final OperatorMetricGroup operatorMetricGroup;
+	private final MetricGroup metricGroup;
 
 	/** The native metrics monitor. */
 	private RocksDBNativeMetricMonitor nativeMetricMonitor;
@@ -265,7 +265,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		RocksDBStateBackend.PriorityQueueStateType priorityQueueStateType,
 		TtlTimeProvider ttlTimeProvider,
 		RocksDBNativeMetricOptions metricOptions,
-		OperatorMetricGroup operatorMetricGroup
+		MetricGroup metricGroup
 	) throws IOException {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader,
@@ -302,7 +302,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.writeOptions = new WriteOptions().setDisableWAL(true);
 
 		this.metricOptions = metricOptions;
-		this.operatorMetricGroup = operatorMetricGroup;
+		this.metricGroup = metricGroup;
 
 		switch (priorityQueueStateType) {
 			case HEAP:
@@ -638,7 +638,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			this.nativeMetricMonitor = new RocksDBNativeMetricMonitor(
 				dbRef,
 				metricOptions,
-				operatorMetricGroup
+				metricGroup
 			);
 		}
 
