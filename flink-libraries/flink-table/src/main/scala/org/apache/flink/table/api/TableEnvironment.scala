@@ -747,7 +747,8 @@ abstract class TableEnvironment(val config: TableConfig) {
         val queryResult = new Table(this, LogicalRelNode(planner.rel(validatedQuery).rel))
 
         // get name of sink table
-        val targetTableName = insert.getTargetTable.asInstanceOf[SqlIdentifier].names.get(0)
+        val targetTableName =
+          insert.getTargetTable.asInstanceOf[SqlIdentifier].names.asScala.mkString(".")
 
         // insert query result into sink table
         insertInto(queryResult, targetTableName, config)
