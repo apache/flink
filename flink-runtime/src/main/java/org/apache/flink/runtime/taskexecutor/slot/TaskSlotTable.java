@@ -379,6 +379,20 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	}
 
 	/**
+	 * Check whether the slot for the given index is active for the given job and allocation id.
+	 *
+	 * @param index of the task slot
+	 * @param jobId for which the task slot should be allocated
+	 * @param allocationId which should match the task slot's allocation id
+	 * @return True if the given task slot is active for the given job and allocation id
+	 */
+	public boolean isActive(int index, JobID jobId, AllocationID allocationId) {
+		TaskSlot taskSlot = taskSlots.get(index);
+
+		return taskSlot.isActive(jobId, allocationId);
+	}
+
+	/**
 	 * Check whether there exists an active slot for the given job and allocation id.
 	 *
 	 * @param jobId of the allocated slot

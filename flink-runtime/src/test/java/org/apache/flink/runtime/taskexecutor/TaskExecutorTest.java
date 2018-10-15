@@ -744,7 +744,7 @@ public class TaskExecutorTest extends TestLogger {
 		jobManagerTable.put(jobId, jobManagerConnection);
 
 		final TaskSlotTable taskSlotTable = mock(TaskSlotTable.class);
-		when(taskSlotTable.existsActiveSlot(eq(jobId), eq(allocationId))).thenReturn(true);
+		when(taskSlotTable.markSlotActive(eq(allocationId))).thenReturn(true);
 		when(taskSlotTable.addTask(any(Task.class))).thenReturn(true);
 
 		TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
