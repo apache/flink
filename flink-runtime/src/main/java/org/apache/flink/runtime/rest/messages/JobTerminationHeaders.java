@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.legacy.JobCancellationHandler;
+import org.apache.flink.runtime.rest.handler.job.JobTerminationHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * Message headers for the {@link JobCancellationHandler}.
+ * Message headers for the {@link JobTerminationHandler}.
  */
 public class JobTerminationHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> {
 

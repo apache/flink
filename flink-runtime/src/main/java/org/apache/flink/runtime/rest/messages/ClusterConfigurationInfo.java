@@ -20,7 +20,7 @@ package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.runtime.rest.handler.legacy.ClusterConfigHandler;
+import org.apache.flink.runtime.rest.handler.cluster.ClusterConfigHandler;
 
 import java.util.ArrayList;
 

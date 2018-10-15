@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.rest.handler.legacy.JobCancellationHandler;
+import org.apache.flink.runtime.rest.handler.job.JobTerminationHandler;
 import org.apache.flink.util.StringUtils;
 
 /**
- * Termination mode for the {@link JobCancellationHandler}.
+ * Termination mode for the {@link JobTerminationHandler}.
  */
 public class TerminationModeQueryParameter extends MessageQueryParameter<TerminationModeQueryParameter.TerminationMode> {
 
