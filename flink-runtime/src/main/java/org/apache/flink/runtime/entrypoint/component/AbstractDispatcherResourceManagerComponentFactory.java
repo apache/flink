@@ -149,6 +149,11 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 			log.debug("Starting Dispatcher REST endpoint.");
 			webMonitorEndpoint.start();
 
+			jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(
+				metricRegistry,
+				rpcService.getAddress(),
+				ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
+
 			resourceManager = resourceManagerFactory.createResourceManager(
 				configuration,
 				ResourceID.generate(),
@@ -158,12 +163,8 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				metricRegistry,
 				fatalErrorHandler,
 				new ClusterInformation(rpcService.getAddress(), blobServer.getPort()),
-				webMonitorEndpoint.getRestBaseUrl());
-
-			jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(
-				metricRegistry,
-				rpcService.getAddress(),
-				ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
+				webMonitorEndpoint.getRestBaseUrl(),
+				jobManagerMetricGroup);
 
 			final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, webMonitorEndpoint);
 

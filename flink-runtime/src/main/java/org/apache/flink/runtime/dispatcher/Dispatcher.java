@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.client.JobSubmissionException;
@@ -53,6 +54,7 @@ import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
@@ -230,6 +232,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 		submittedJobGraphStore.start(this);
 		leaderElectionService.start(this);
+
+		registerDispatcherMetrics(jobManagerMetricGroup);
 	}
 
 	//------------------------------------------------------
@@ -907,6 +911,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	private void clearDispatcherState() {
 		terminateJobManagerRunners();
+	}
+
+	private void registerDispatcherMetrics(MetricGroup jobManagerMetricGroup) {
+		jobManagerMetricGroup.gauge(MetricNames.NUM_RUNNING_JOBS,
+			() -> (long) jobManagerRunnerFutures.size());
 	}
 
 	/**
