@@ -64,6 +64,7 @@ import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
+import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
@@ -248,8 +249,20 @@ public class TaskExecutorTest extends TestLogger {
 		final UUID jmLeaderId = UUID.randomUUID();
 
 		final ResourceID jmResourceId = ResourceID.generate();
-		final SimpleJobMasterGateway jobMasterGateway = new SimpleJobMasterGateway(
-			CompletableFuture.completedFuture(new JMTMRegistrationSuccess(jmResourceId)));
+		final CompletableFuture<TaskManagerLocation> taskManagerLocationFuture = new CompletableFuture<>();
+		final CompletableFuture<ResourceID> disconnectTaskManagerFuture = new CompletableFuture<>();
+		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
+			.setRegisterTaskManagerFunction((s, taskManagerLocation) -> {
+				taskManagerLocationFuture.complete(taskManagerLocation);
+				return CompletableFuture.completedFuture(new JMTMRegistrationSuccess(jmResourceId));
+			})
+			.setDisconnectTaskManagerFunction(
+				resourceID -> {
+					disconnectTaskManagerFuture.complete(resourceID);
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				}
+			)
+			.build();
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
 			false,
@@ -287,11 +300,11 @@ public class TaskExecutorTest extends TestLogger {
 			jobManagerLeaderRetriever.notifyListener(jobMasterAddress, jmLeaderId);
 
 			// register task manager success will trigger monitoring heartbeat target between tm and jm
-			final TaskManagerLocation taskManagerLocation1 = jobMasterGateway.getRegisterTaskManagerFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			final TaskManagerLocation taskManagerLocation1 = taskManagerLocationFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 			assertThat(taskManagerLocation1, equalTo(taskManagerLocation));
 
 			// the timeout should trigger disconnecting from the JobManager
-			final ResourceID resourceID = jobMasterGateway.getDisconnectTaskManagerFuture().get(heartbeatTimeout * 50L, TimeUnit.MILLISECONDS);
+			final ResourceID resourceID = disconnectTaskManagerFuture.get(heartbeatTimeout * 50L, TimeUnit.MILLISECONDS);
 			assertThat(resourceID, equalTo(taskManagerLocation.getResourceID()));
 
 		} finally {
@@ -382,41 +395,6 @@ public class TaskExecutorTest extends TestLogger {
 
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
-		}
-	}
-
-	private static final class SimpleJobMasterGateway extends TestingJobMasterGateway {
-
-		private final CompletableFuture<TaskManagerLocation> registerTaskManagerFuture = new CompletableFuture<>();
-
-		private final CompletableFuture<ResourceID> disconnectTaskManagerFuture = new CompletableFuture<>();
-
-		private final CompletableFuture<RegistrationResponse> registerTaskManagerResponseFuture;
-
-		private SimpleJobMasterGateway(CompletableFuture<RegistrationResponse> registerTaskManagerResponseFuture) {
-			this.registerTaskManagerResponseFuture = registerTaskManagerResponseFuture;
-		}
-
-		@Override
-		public CompletableFuture<RegistrationResponse> registerTaskManager(String taskManagerRpcAddress, TaskManagerLocation taskManagerLocation, Time timeout) {
-			registerTaskManagerFuture.complete(taskManagerLocation);
-
-			return registerTaskManagerResponseFuture;
-		}
-
-		@Override
-		public CompletableFuture<Acknowledge> disconnectTaskManager(ResourceID resourceID, Exception cause) {
-			disconnectTaskManagerFuture.complete(resourceID);
-
-			return CompletableFuture.completedFuture(Acknowledge.get());
-		}
-
-		CompletableFuture<TaskManagerLocation> getRegisterTaskManagerFuture() {
-			return registerTaskManagerFuture;
-		}
-
-		CompletableFuture<ResourceID> getDisconnectTaskManagerFuture() {
-			return disconnectTaskManagerFuture;
 		}
 	}
 
