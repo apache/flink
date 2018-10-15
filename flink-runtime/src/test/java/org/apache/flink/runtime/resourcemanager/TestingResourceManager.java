@@ -25,6 +25,7 @@ import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -47,7 +48,8 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
 			SlotManager slotManager,
 			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
-			FatalErrorHandler fatalErrorHandler) {
+			FatalErrorHandler fatalErrorHandler,
+			JobManagerMetricGroup jobManagerMetricGroup) {
 		super(
 			rpcService,
 			resourceManagerEndpointId,
@@ -59,7 +61,8 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
 			metricRegistry,
 			jobLeaderIdService,
 			new ClusterInformation("localhost", 1234),
-			fatalErrorHandler);
+			fatalErrorHandler,
+			jobManagerMetricGroup);
 	}
 
 	@Override

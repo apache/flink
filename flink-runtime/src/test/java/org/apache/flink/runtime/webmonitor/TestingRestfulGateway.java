@@ -29,6 +29,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
+import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 
@@ -222,6 +223,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 		protected Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction;
 		protected Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier;
 		protected Supplier<CompletableFuture<ClusterOverview>> requestClusterOverviewSupplier;
+		protected Supplier<CompletableFuture<JobsOverview>> requestOverviewForAllJobsSupplier;
 		protected Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServicePathsSupplier;
 		protected Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServicePathsSupplier;
 		protected BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction;

@@ -51,6 +51,7 @@ import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
@@ -165,7 +166,8 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			MesosConfiguration mesosConfig,
 			MesosTaskManagerParameters taskManagerParameters,
 			ContainerSpecification taskManagerContainerSpec,
-			@Nullable String webUiUrl) {
+			@Nullable String webUiUrl,
+			JobManagerMetricGroup jobManagerMetricGroup) {
 		super(
 			rpcService,
 			resourceManagerEndpointId,
@@ -177,7 +179,8 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			metricRegistry,
 			jobLeaderIdService,
 			clusterInformation,
-			fatalErrorHandler);
+			fatalErrorHandler,
+			jobManagerMetricGroup);
 
 		this.mesosServices = Preconditions.checkNotNull(mesosServices);
 		this.actorSystem = Preconditions.checkNotNull(mesosServices.getLocalActorSystem());

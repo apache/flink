@@ -36,6 +36,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
@@ -121,7 +122,8 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 			MetricRegistry metricRegistry,
 			FatalErrorHandler fatalErrorHandler,
 			ClusterInformation clusterInformation,
-			@Nullable String webInterfaceUrl) throws Exception {
+			@Nullable String webInterfaceUrl,
+			JobManagerMetricGroup jobManagerMetricGroup) throws Exception {
 		final ResourceManagerConfiguration resourceManagerConfiguration = ResourceManagerConfiguration.fromConfiguration(configuration);
 		final ResourceManagerRuntimeServicesConfiguration resourceManagerRuntimeServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
 		final ResourceManagerRuntimeServices resourceManagerRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
@@ -140,7 +142,8 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 			metricRegistry,
 			resourceManagerRuntimeServices.getJobLeaderIdService(),
 			clusterInformation,
-			fatalErrorHandler);
+			fatalErrorHandler,
+			jobManagerMetricGroup);
 	}
 
 	public static void main(String[] args) {
