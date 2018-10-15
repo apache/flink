@@ -93,7 +93,7 @@ import static org.junit.Assert.fail;
  */
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)
-public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
+public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
 
 	private static ZooKeeperTestEnvironment zooKeeper;
 
@@ -131,7 +131,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 
 	private final ExecutionMode executionMode;
 
-	public JobManagerHAProcessFailureBatchRecoveryITCase(ExecutionMode executionMode) {
+	public JobManagerHAProcessFailureRecoveryITCase(ExecutionMode executionMode) {
 		this.executionMode = executionMode;
 	}
 
@@ -325,6 +325,21 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 			dispatcherProcesses[1] = new DispatcherProcess(1, config);
 			dispatcherProcesses[1].startProcess();
 
+			// get new dispatcher gateway
+			leaderListener.waitForNewLeader(deadline.timeLeft().toMillis());
+
+			leaderAddress = leaderListener.getAddress();
+			leaderId = leaderListener.getLeaderSessionID();
+
+			final CompletableFuture<DispatcherGateway> newDispatcherGatewayFuture = rpcService.connect(
+				leaderAddress,
+				DispatcherId.fromUuid(leaderId),
+				DispatcherGateway.class);
+			final DispatcherGateway newDispatcherGateway = newDispatcherGatewayFuture.get();
+
+			// Wait for all task managers to connect to the new leading job manager
+			waitForTaskManagers(numberOfTaskManagers, newDispatcherGateway, deadline.timeLeft());
+
 			// we create the marker file which signals the program functions tasks that they can complete
 			AbstractTaskManagerProcessFailureRecoveryTest.touchFile(new File(coordinateTempDir, PROCEED_MARKER_FILE));
 
@@ -369,9 +384,9 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 				leaderRetrievalService.stop();
 			}
 
-			for (DispatcherProcess jmProces : dispatcherProcesses) {
-				if (jmProces != null) {
-					jmProces.destroy();
+			for (DispatcherProcess dispatcherProcess : dispatcherProcesses) {
+				if (dispatcherProcess != null) {
+					dispatcherProcess.destroy();
 				}
 			}
 
