@@ -123,6 +123,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
 import static org.hamcrest.Matchers.contains;
@@ -1628,6 +1629,76 @@ public class TaskExecutorTest extends TestLogger {
 
 			//wait for the second registration attempt
 			numberRegistrations.await();
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
+	}
+
+	/**
+	 * Tests that offers slots to job master timeout and retry.
+	 */
+	@Test
+	public void testOfferSlotToJobMasterAfterTimeout() throws Exception {
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(
+			Arrays.asList(ResourceProfile.UNKNOWN, ResourceProfile.UNKNOWN),
+			timerService);
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskSlotTable(taskSlotTable)
+			.build();
+
+		final TaskExecutor taskExecutor = createTaskExecutor(taskManagerServices);
+
+		final AllocationID allocationId = new AllocationID();
+
+		final CompletableFuture<ResourceID> initialSlotReportFuture = new CompletableFuture<>();
+
+		final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+		testingResourceManagerGateway.setSendSlotReportFunction(resourceIDInstanceIDSlotReportTuple3 -> {
+			initialSlotReportFuture.complete(null);
+			return CompletableFuture.completedFuture(Acknowledge.get());
+
+		});
+		rpc.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
+		resourceManagerLeaderRetriever.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
+
+		final CountDownLatch slotOfferings = new CountDownLatch(3);
+		final CompletableFuture<AllocationID> offeredSlotFuture = new CompletableFuture<>();
+		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
+			.setOfferSlotsFunction((resourceID, slotOffers) -> {
+				assertThat(slotOffers.size(), is(1));
+				slotOfferings.countDown();
+
+				if (slotOfferings.getCount() == 0) {
+					offeredSlotFuture.complete(slotOffers.iterator().next().getAllocationId());
+					return CompletableFuture.completedFuture(slotOffers);
+				} else {
+					return FutureUtils.completedExceptionally(new TimeoutException());
+				}
+			})
+			.build();
+		final String jobManagerAddress = jobMasterGateway.getAddress();
+		rpc.registerGateway(jobManagerAddress, jobMasterGateway);
+		jobManagerLeaderRetriever.notifyListener(jobManagerAddress, jobMasterGateway.getFencingToken().toUUID());
+
+		try {
+			taskExecutor.start();
+			final TaskExecutorGateway taskExecutorGateway = taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+
+			// wait for the connection to the ResourceManager
+			initialSlotReportFuture.get();
+
+			taskExecutorGateway.requestSlot(
+				new SlotID(taskExecutor.getResourceID(), 0),
+				jobId,
+				allocationId,
+				jobManagerAddress,
+				testingResourceManagerGateway.getFencingToken(),
+				timeout).get();
+
+			slotOfferings.await();
+
+			assertThat(offeredSlotFuture.get(), is(allocationId));
+			assertTrue(taskSlotTable.isSlotFree(1));
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
 		}
