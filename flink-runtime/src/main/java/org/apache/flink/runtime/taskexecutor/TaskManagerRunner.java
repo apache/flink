@@ -56,7 +56,6 @@ import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.NetUtils;
 
 import akka.actor.ActorSystem;
 import org.slf4j.Logger;
@@ -68,7 +67,6 @@ import java.net.BindException;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -426,39 +424,14 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		}
 
 		final String portRangeDefinition = configuration.getString(TaskManagerOptions.RPC_PORT);
-
-		return bindWithPort(configuration, taskManagerHostname, portRangeDefinition);
-	}
-
-	private static RpcService bindWithPort(
-		Configuration configuration,
-		String taskManagerHostname,
-		String portRangeDefinition) throws Exception{
-
-		// parse port range definition and create port iterator
-		Iterator<Integer> portsIterator;
 		try {
-			portsIterator = NetUtils.getPortRangeFromString(portRangeDefinition);
+			return AkkaRpcServiceUtils.createRpcService(taskManagerHostname, portRangeDefinition, configuration);
 		} catch (Exception e) {
-			throw new IllegalArgumentException("Invalid port range definition: " + portRangeDefinition);
-		}
-
-		while (portsIterator.hasNext()) {
-			try {
-				return AkkaRpcServiceUtils.createRpcService(taskManagerHostname, portsIterator.next(), configuration);
+			if (e instanceof BindException) {
+				throw new BindException("Could not start task manager on any port in port range "
+					+ portRangeDefinition);
 			}
-			catch (Exception e) {
-				// we can continue to try if this contains a netty channel exception
-				Throwable cause = e.getCause();
-				if (!(cause instanceof org.jboss.netty.channel.ChannelException ||
-					cause instanceof java.net.BindException)) {
-					throw e;
-				} // else fall through the loop and try the next port
-			}
+			throw e;
 		}
-
-		// if we come here, we have exhausted the port range
-		throw new BindException("Could not start task manager on any port in port range "
-			+ portRangeDefinition);
 	}
 }
