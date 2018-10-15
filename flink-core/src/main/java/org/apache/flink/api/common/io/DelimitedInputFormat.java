@@ -498,7 +498,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 
 		this.offset = splitStart;
 		if (this.splitStart != 0) {
-			getBomFileCharset(split);
+			setBomFileCharset(split);
 			this.stream.seek(offset);
 			readLine();
 			// if the first partial record already pushes the stream over
@@ -508,7 +508,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			}
 		} else {
 			fillBuffer(0);
-			getBomFileCharset(split);
+			setBomFileCharset(split);
 		}
 
 	}
@@ -534,11 +534,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	}
 
 	/**
-	 * Get file bom encoding.
+	 * Set file bom encoding.
 	 *
 	 * @param split
 	 */
-	private void getBomFileCharset(FileInputSplit split) {
+	private void setBomFileCharset(FileInputSplit split) {
 		try {
 			String filePath = split.getPath().toString();
 			if (this.fileBomCharsetMap.containsKey(filePath)) {
@@ -582,12 +582,13 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	}
 
 	/**
-	 * set stepSize, delimiterNewLinePos, delimiterCarrageReturnPos by charset.
+	 * Set stepSize, delimiterNewLinePos, delimiterCarrageReturnPos by charset.
 	 *
 	 * @param charset
 	 */
 	private void setParasByCharset(Charset charset) {
 		int stepSize;
+		byte[] delimiterBytes = new byte[]{'\n'};
 		switch (charset.toString()) {
 			case "UTF-8":
 				stepSize = 1;
@@ -595,54 +596,41 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			case "UTF-16":
 				stepSize = 2;
 				this.delimiterNewLinePos = 1;
-				if (this.getDelimiter() != null && this.getDelimiter().length == 1
-					&& this.getDelimiter()[0] == (byte) '\n') {
-					this.delimiter = new byte[]{(byte) 0x00, '\n'};
-				}
+				delimiterBytes = new byte[]{(byte) 0x00, '\n'};
 				break;
 			case "UTF-16LE":
 				stepSize = 2;
-				if (this.getDelimiter() != null && this.getDelimiter().length == 1
-					&& this.getDelimiter()[0] == (byte) '\n') {
-					this.delimiter = new byte[]{'\n', (byte) 0x00};
-				}
+				delimiterBytes = new byte[]{'\n', (byte) 0x00};
 				this.delimiterNewLinePos = 0;
 				break;
 			case "UTF-16BE":
 				stepSize = 2;
 				this.delimiterNewLinePos = 1;
-				if (this.getDelimiter() != null && this.getDelimiter().length == 1
-					&& this.getDelimiter()[0] == (byte) '\n') {
-					this.delimiter = new byte[]{(byte) 0x00, '\n'};
-				}
+				delimiterBytes = new byte[]{(byte) 0x00, '\n'};
 				break;
 			case "UTF-32":
 				stepSize = 4;
 				this.delimiterNewLinePos = 3;
-				if (this.getDelimiter() != null && this.getDelimiter().length == 1
-					&& this.getDelimiter()[0] == (byte) '\n') {
-					this.delimiter = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0x00, '\n'};
-				}
+				delimiterBytes = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0x00, '\n'};
 				break;
 			case "UTF-32LE":
 				stepSize = 4;
 				this.delimiterNewLinePos = 0;
-				if (this.getDelimiter() != null && this.getDelimiter().length == 1
-					&& this.getDelimiter()[0] == (byte) '\n') {
-					this.delimiter = new byte[]{'\n', (byte) 0x00, (byte) 0x00, (byte) 0x00};
-				}
+				delimiterBytes = new byte[]{'\n', (byte) 0x00, (byte) 0x00, (byte) 0x00};
 				break;
 			case "UTF-32BE":
 				stepSize = 4;
 				this.delimiterNewLinePos = 3;
-				if (this.getDelimiter() != null && this.getDelimiter().length == 1
-					&& this.getDelimiter()[0] == (byte) '\n') {
-					this.delimiter = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0x00, '\n'};
-				}
+				delimiterBytes = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0x00, '\n'};
 				break;
 			default:
 				stepSize = 1;
 				break;
+		}
+
+		if (this.getDelimiter() != null && this.getDelimiter().length == 1
+			&& this.getDelimiter()[0] == (byte) '\n') {
+			this.delimiter = delimiterBytes;
 		}
 		this.charsetStepSize = stepSize;
 		this.delimiterCarrageReturnPos = this.delimiterNewLinePos == 0 ? this.charsetStepSize : 1;
