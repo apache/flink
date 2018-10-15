@@ -442,15 +442,15 @@ public class TaskExecutorTest extends TestLogger {
 				new ClusterInformation("localhost", 1234)));
 
 		rmGateway.setRegisterTaskExecutorFunction(stringResourceIDIntegerHardwareDescriptionTuple4 -> {
-            taskExecutorRegistrationFuture.complete(stringResourceIDIntegerHardwareDescriptionTuple4.f1);
-            return registrationResponse;
-        });
+			taskExecutorRegistrationFuture.complete(stringResourceIDIntegerHardwareDescriptionTuple4.f1);
+			return registrationResponse;
+		});
 
 		final CompletableFuture<SlotReport> initialSlotReportFuture = new CompletableFuture<>();
 		rmGateway.setSendSlotReportFunction(resourceIDInstanceIDSlotReportTuple3 -> {
-            initialSlotReportFuture.complete(resourceIDInstanceIDSlotReportTuple3.f2);
-            return CompletableFuture.completedFuture(Acknowledge.get());
-        });
+			initialSlotReportFuture.complete(resourceIDInstanceIDSlotReportTuple3.f2);
+			return CompletableFuture.completedFuture(Acknowledge.get());
+		});
 
 		final CompletableFuture<SlotReport> heartbeatSlotReportFuture = new CompletableFuture<>();
 		rmGateway.setTaskExecutorHeartbeatConsumer((resourceID, slotReport) -> heartbeatSlotReportFuture.complete(slotReport));
@@ -486,10 +486,10 @@ public class TaskExecutorTest extends TestLogger {
 					return spy(new HeartbeatManagerImpl<>(
 						heartbeatTimeout,
 						taskManagerLocation.getResourceID(),
-						(HeartbeatListener<SlotReport, Void>)invocation.getArguments()[1],
-						(Executor)invocation.getArguments()[2],
-						(ScheduledExecutor)invocation.getArguments()[2],
-						(Logger)invocation.getArguments()[3]));
+						(HeartbeatListener<SlotReport, Void>) invocation.getArguments()[1],
+						(Executor) invocation.getArguments()[2],
+						(ScheduledExecutor) invocation.getArguments()[2],
+						(Logger) invocation.getArguments()[3]));
 				}
 			}
 		);
@@ -673,10 +673,10 @@ public class TaskExecutorTest extends TestLogger {
 					eq(taskManagerAddress), eq(taskManagerLocation.getResourceID()), anyInt(), any(HardwareDescription.class), any(Time.class));
 			assertNotNull(taskManager.getResourceManagerConnection());
 
-			// cancel the leader 
+			// cancel the leader
 			resourceManagerLeaderRetriever.notifyListener(null, null);
 
-			// set a new leader, see that a registration happens 
+			// set a new leader, see that a registration happens
 			resourceManagerLeaderRetriever.notifyListener(address2, leaderId2);
 
 			verify(rmGateway2, Mockito.timeout(timeout.toMilliseconds())).registerTaskExecutor(
@@ -789,7 +789,7 @@ public class TaskExecutorTest extends TestLogger {
 
 			tmGateway.submitTask(tdd, jobMasterId, timeout);
 
-			CompletableFuture<Boolean> completionFuture = TestInvokable.completableFuture;
+			CompletableFuture<Boolean> completionFuture = TestInvokable.COMPLETABLE_FUTURE;
 
 			completionFuture.get();
 		} finally {
@@ -803,7 +803,7 @@ public class TaskExecutorTest extends TestLogger {
 	 */
 	public static class TestInvokable extends AbstractInvokable {
 
-		static final CompletableFuture<Boolean> completableFuture = new CompletableFuture<>();
+		static final CompletableFuture<Boolean> COMPLETABLE_FUTURE = new CompletableFuture<>();
 
 		public TestInvokable(Environment environment) {
 			super(environment);
@@ -811,7 +811,7 @@ public class TaskExecutorTest extends TestLogger {
 
 		@Override
 		public void invoke() throws Exception {
-			completableFuture.complete(true);
+			COMPLETABLE_FUTURE.complete(true);
 		}
 	}
 
@@ -831,10 +831,9 @@ public class TaskExecutorTest extends TestLogger {
 		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		CompletableFuture<Void> initialSlotReportFuture = new CompletableFuture<>();
 		resourceManagerGateway.setSendSlotReportFunction(resourceIDInstanceIDSlotReportTuple3 -> {
-            initialSlotReportFuture.complete(null);
-            return CompletableFuture.completedFuture(Acknowledge.get());
-
-        });
+			initialSlotReportFuture.complete(null);
+			return CompletableFuture.completedFuture(Acknowledge.get());
+		});
 
 		final String jobManagerAddress = "jm";
 		final UUID jobManagerLeaderId = UUID.randomUUID();
@@ -944,10 +943,9 @@ public class TaskExecutorTest extends TestLogger {
 		final CompletableFuture<ResourceID> registrationFuture = new CompletableFuture<>();
 		resourceManagerGateway.setRegisterTaskExecutorFunction(
 			stringResourceIDIntegerHardwareDescriptionTuple4 -> {
-                registrationFuture.complete(stringResourceIDIntegerHardwareDescriptionTuple4.f1);
-                return CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(registrationId, resourceManagerResourceId, 1000L, new ClusterInformation("localhost", 1234)));
-            }
-		);
+				registrationFuture.complete(stringResourceIDIntegerHardwareDescriptionTuple4.f1);
+				return CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(registrationId, resourceManagerResourceId, 1000L, new ClusterInformation("localhost", 1234)));
+			});
 
 		final CompletableFuture<Tuple3<InstanceID, SlotID, AllocationID>> availableSlotFuture = new CompletableFuture<>();
 		resourceManagerGateway.setNotifySlotAvailableConsumer(availableSlotFuture::complete);
@@ -970,7 +968,7 @@ public class TaskExecutorTest extends TestLogger {
 
 		when(jobMasterGateway.offerSlots(
 				any(ResourceID.class), any(Collection.class), any(Time.class)))
-			.thenReturn(CompletableFuture.completedFuture((Collection<SlotOffer>)Collections.singleton(offer1)));
+			.thenReturn(CompletableFuture.completedFuture((Collection<SlotOffer>) Collections.singleton(offer1)));
 
 		rpc.registerGateway(resourceManagerAddress, resourceManagerGateway);
 		rpc.registerGateway(jobManagerAddress, jobMasterGateway);
@@ -1065,7 +1063,6 @@ public class TaskExecutorTest extends TestLogger {
 		)).thenReturn(CompletableFuture.completedFuture(new JMTMRegistrationSuccess(jmResourceId)));
 		when(jobMasterGateway.getHostname()).thenReturn(jobManagerAddress);
 		when(jobMasterGateway.updateTaskExecutionState(any(TaskExecutionState.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
-
 
 		rpc.registerGateway(resourceManagerAddress, resourceManagerGateway);
 		rpc.registerGateway(jobManagerAddress, jobMasterGateway);
@@ -1197,9 +1194,7 @@ public class TaskExecutorTest extends TestLogger {
 
 	/**
 	 * This tests makes sure that duplicate JobMaster gained leadership messages are filtered out
-	 * by the TaskExecutor.
-	 *
-	 * See FLINK-7526
+	 * by the TaskExecutor. See FLINK-7526.
 	 */
 	@Test
 	public void testFilterOutDuplicateJobMasterRegistrations() throws Exception {
@@ -1370,9 +1365,9 @@ public class TaskExecutorTest extends TestLogger {
 			final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 			final CompletableFuture<Void> initialSlotReport = new CompletableFuture<>();
 			resourceManagerGateway.setSendSlotReportFunction(resourceIDInstanceIDSlotReportTuple3 -> {
-                initialSlotReport.complete(null);
-                return CompletableFuture.completedFuture(Acknowledge.get());
-            });
+				initialSlotReport.complete(null);
+				return CompletableFuture.completedFuture(Acknowledge.get());
+			});
 			final ResourceManagerId resourceManagerId = resourceManagerGateway.getFencingToken();
 
 			rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
@@ -1519,9 +1514,9 @@ public class TaskExecutorTest extends TestLogger {
 			final CompletableFuture<ResourceID> taskExecutorResourceIdFuture = new CompletableFuture<>();
 
 			testingResourceManagerGateway.setRegisterTaskExecutorFunction(stringResourceIDSlotReportIntegerHardwareDescriptionTuple5 -> {
-                taskExecutorResourceIdFuture.complete(stringResourceIDSlotReportIntegerHardwareDescriptionTuple5.f1);
-                return registrationFuture;
-            });
+				taskExecutorResourceIdFuture.complete(stringResourceIDSlotReportIntegerHardwareDescriptionTuple5.f1);
+				return registrationFuture;
+			});
 
 			rpc.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
 			resourceManagerLeaderRetriever.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
@@ -1624,10 +1619,9 @@ public class TaskExecutorTest extends TestLogger {
 
 			testingResourceManagerGateway.setSendSlotReportFunction(
 				resourceIDInstanceIDSlotReportTuple3 -> {
-                    initialSlotReportFuture.complete(resourceIDInstanceIDSlotReportTuple3.f0);
-                    return CompletableFuture.completedFuture(Acknowledge.get());
-                }
-			);
+					initialSlotReportFuture.complete(resourceIDInstanceIDSlotReportTuple3.f0);
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				});
 
 			rpc.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
 			resourceManagerLeaderRetriever.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
@@ -1672,7 +1666,7 @@ public class TaskExecutorTest extends TestLogger {
 					new InstanceID(),
 					testingResourceManagerGateway.getOwnResourceId(),
 					1000L,
-					new ClusterInformation("foobar", 1234)	));
+					new ClusterInformation("foobar", 1234)));
 
 			final CountDownLatch numberRegistrations = new CountDownLatch(2);
 
@@ -1700,15 +1694,15 @@ public class TaskExecutorTest extends TestLogger {
 	@Nonnull
 	private TaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices) {
 		return new TaskExecutor(
-                rpc,
-                TaskManagerConfiguration.fromConfiguration(configuration),
-                haServices,
-                taskManagerServices,
-                new HeartbeatServices(1000L, 1000L),
-                UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-                null,
-                dummyBlobCacheService,
-                testingFatalErrorHandler);
+			rpc,
+			TaskManagerConfiguration.fromConfiguration(configuration),
+			haServices,
+			taskManagerServices,
+			new HeartbeatServices(1000L, 1000L),
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			null,
+			dummyBlobCacheService,
+			testingFatalErrorHandler);
 	}
 
 	private static final class StartStopNotifyingLeaderRetrievalService implements LeaderRetrievalService {
