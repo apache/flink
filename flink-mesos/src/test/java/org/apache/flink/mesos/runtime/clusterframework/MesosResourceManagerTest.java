@@ -57,6 +57,8 @@ import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
@@ -174,7 +176,8 @@ public class MesosResourceManagerTest extends TestLogger {
 			MesosServices mesosServices,
 			MesosConfiguration mesosConfig,
 			MesosTaskManagerParameters taskManagerParameters,
-			ContainerSpecification taskManagerContainerSpec) {
+			ContainerSpecification taskManagerContainerSpec,
+			JobManagerMetricGroup jobManagerMetricGroup) {
 			super(
 				rpcService,
 				resourceManagerEndpointId,
@@ -192,7 +195,8 @@ public class MesosResourceManagerTest extends TestLogger {
 				mesosConfig,
 				taskManagerParameters,
 				taskManagerContainerSpec,
-				null);
+				null,
+				jobManagerMetricGroup);
 		}
 
 		@Override
@@ -306,8 +310,8 @@ public class MesosResourceManagerTest extends TestLogger {
 					mesosServices,
 					rmServices.mesosConfig,
 					tmParams,
-					containerSpecification
-				);
+					containerSpecification,
+					UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup());
 
 			// TaskExecutors
 			task1Executor = mockTaskExecutor(task1);

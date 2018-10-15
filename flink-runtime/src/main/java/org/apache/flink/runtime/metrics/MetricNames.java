@@ -52,4 +52,9 @@ public class MetricNames {
 	public static final String IO_CURRENT_INPUT_1_WATERMARK = "currentInput1Watermark";
 	public static final String IO_CURRENT_INPUT_2_WATERMARK = "currentInput2Watermark";
 	public static final String IO_CURRENT_OUTPUT_WATERMARK = "currentOutputWatermark";
+
+	public static final String NUM_RUNNING_JOBS = "numRunningJobs";
+	public static final String TASK_SLOTS_AVAILABLE = "taskSlotsAvailable";
+	public static final String TASK_SLOTS_TOTAL = "taskSlotsTotal";
+	public static final String NUM_REGISTERED_TASK_MANAGERS = "numRegisteredTaskManagers";
 }
