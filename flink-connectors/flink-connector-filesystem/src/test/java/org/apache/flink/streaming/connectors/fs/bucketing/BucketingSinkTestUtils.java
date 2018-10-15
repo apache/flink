@@ -34,6 +34,7 @@ import java.io.IOException;
 public class BucketingSinkTestUtils {
 
 	public static final String PART_PREFIX = "part";
+	public static final String PART_SUFFIX = ".my";
 	public static final String PENDING_SUFFIX = ".pending";
 	public static final String IN_PROGRESS_SUFFIX = ".in-progress";
 	public static final String VALID_LENGTH_SUFFIX = ".valid";
