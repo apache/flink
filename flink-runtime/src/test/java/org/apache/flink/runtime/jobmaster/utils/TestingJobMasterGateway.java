@@ -20,6 +20,9 @@ package org.apache.flink.runtime.jobmaster.utils;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -48,165 +51,321 @@ import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.function.TriConsumer;
+import org.apache.flink.util.function.TriFunction;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * {@link JobMasterGateway} implementation for testing purposes.
  */
 public class TestingJobMasterGateway implements JobMasterGateway {
 
+	@Nonnull
+	private final String address;
+
+	@Nonnull
+	private final String hostname;
+
+	@Nonnull
+	private final Supplier<CompletableFuture<Acknowledge>> cancelFunction;
+
+	@Nonnull
+	private final Supplier<CompletableFuture<Acknowledge>> stopFunction;
+
+	@Nonnull
+	private final BiFunction<Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingJobFunction;
+
+	@Nonnull
+	private final TriFunction<Collection<JobVertexID>, Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingOperatorsFunction;
+
+	@Nonnull
+	private final Function<TaskExecutionState, CompletableFuture<Acknowledge>> updateTaskExecutionStateFunction;
+
+	@Nonnull
+	private final BiFunction<JobVertexID, ExecutionAttemptID, CompletableFuture<SerializedInputSplit>> requestNextInputSplitFunction;
+
+	@Nonnull
+	private final BiFunction<IntermediateDataSetID, ResultPartitionID, CompletableFuture<ExecutionState>> requestPartitionStateFunction;
+
+	@Nonnull
+	private final Function<ResultPartitionID, CompletableFuture<Acknowledge>> scheduleOrUpdateConsumersFunction;
+
+	@Nonnull
+	private final Function<ResourceID, CompletableFuture<Acknowledge>> disconnectTaskManagerFunction;
+
+	@Nonnull
+	private final Consumer<ResourceManagerId> disconnectResourceManagerConsumer;
+
+	@Nonnull
+	private final Supplier<CompletableFuture<ClassloadingProps>> classloadingPropsSupplier;
+
+	@Nonnull
+	private final BiFunction<ResourceID, Collection<SlotOffer>, CompletableFuture<Collection<SlotOffer>>> offerSlotsFunction;
+
+	@Nonnull
+	private final TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer;
+
+	@Nonnull
+	private final BiFunction<String, TaskManagerLocation, CompletableFuture<RegistrationResponse>> registerTaskManagerFunction;
+
+	@Nonnull
+	private final BiConsumer<ResourceID, AccumulatorReport> taskManagerHeartbeatConsumer;
+
+	@Nonnull
+	private final Consumer<ResourceID> resourceManagerHeartbeatConsumer;
+
+	@Nonnull
+	private final Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier;
+
+	@Nonnull
+	private final Supplier<CompletableFuture<ArchivedExecutionGraph>> requestJobSupplier;
+
+	@Nonnull
+	private final BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction;
+
+	@Nonnull
+	private final Function<JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction;
+
+	@Nonnull
+	private final BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer;
+
+	@Nonnull
+	private final Consumer<Tuple5<JobID, ExecutionAttemptID, Long, CheckpointMetrics, TaskStateSnapshot>> acknowledgeCheckpointConsumer;
+
+	@Nonnull
+	private final Consumer<Tuple4<JobID, ExecutionAttemptID, Long, Throwable>> declineCheckpointConsumer;
+
+	@Nonnull
+	private final Supplier<JobMasterId> fencingTokenSupplier;
+
+	@Nonnull
+	private final BiFunction<JobID, String, CompletableFuture<KvStateLocation>> requestKvStateLocationFunction;
+
+	@Nonnull
+	private final Function<Tuple6<JobID, JobVertexID, KeyGroupRange, String, KvStateID, InetSocketAddress>, CompletableFuture<Acknowledge>> notifyKvStateRegisteredFunction;
+
+	@Nonnull
+	private final Function<Tuple4<JobID, JobVertexID, KeyGroupRange, String>, CompletableFuture<Acknowledge>> notifyKvStateUnregisteredFunction;
+
+	public TestingJobMasterGateway(
+			@Nonnull String address,
+			@Nonnull String hostname,
+			@Nonnull Supplier<CompletableFuture<Acknowledge>> cancelFunction,
+			@Nonnull Supplier<CompletableFuture<Acknowledge>> stopFunction,
+			@Nonnull BiFunction<Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingJobFunction,
+			@Nonnull TriFunction<Collection<JobVertexID>, Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingOperatorsFunction,
+			@Nonnull Function<TaskExecutionState, CompletableFuture<Acknowledge>> updateTaskExecutionStateFunction,
+			@Nonnull BiFunction<JobVertexID, ExecutionAttemptID, CompletableFuture<SerializedInputSplit>> requestNextInputSplitFunction,
+			@Nonnull BiFunction<IntermediateDataSetID, ResultPartitionID, CompletableFuture<ExecutionState>> requestPartitionStateFunction,
+			@Nonnull Function<ResultPartitionID, CompletableFuture<Acknowledge>> scheduleOrUpdateConsumersFunction,
+			@Nonnull Function<ResourceID, CompletableFuture<Acknowledge>> disconnectTaskManagerFunction,
+			@Nonnull Consumer<ResourceManagerId> disconnectResourceManagerConsumer,
+			@Nonnull Supplier<CompletableFuture<ClassloadingProps>> classloadingPropsSupplier,
+			@Nonnull BiFunction<ResourceID, Collection<SlotOffer>, CompletableFuture<Collection<SlotOffer>>> offerSlotsFunction,
+			@Nonnull TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer,
+			@Nonnull BiFunction<String, TaskManagerLocation, CompletableFuture<RegistrationResponse>> registerTaskManagerFunction,
+			@Nonnull BiConsumer<ResourceID, AccumulatorReport> taskManagerHeartbeatConsumer,
+			@Nonnull Consumer<ResourceID> resourceManagerHeartbeatConsumer,
+			@Nonnull Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier,
+			@Nonnull Supplier<CompletableFuture<ArchivedExecutionGraph>> requestJobSupplier,
+			@Nonnull BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction,
+			@Nonnull Function<JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction,
+			@Nonnull BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer,
+			@Nonnull Consumer<Tuple5<JobID, ExecutionAttemptID, Long, CheckpointMetrics, TaskStateSnapshot>> acknowledgeCheckpointConsumer,
+			@Nonnull Consumer<Tuple4<JobID, ExecutionAttemptID, Long, Throwable>> declineCheckpointConsumer,
+			@Nonnull Supplier<JobMasterId> fencingTokenSupplier,
+			@Nonnull BiFunction<JobID, String, CompletableFuture<KvStateLocation>> requestKvStateLocationFunction,
+			@Nonnull Function<Tuple6<JobID, JobVertexID, KeyGroupRange, String, KvStateID, InetSocketAddress>, CompletableFuture<Acknowledge>> notifyKvStateRegisteredFunction,
+			@Nonnull Function<Tuple4<JobID, JobVertexID, KeyGroupRange, String>, CompletableFuture<Acknowledge>> notifyKvStateUnregisteredFunction) {
+		this.address = address;
+		this.hostname = hostname;
+		this.cancelFunction = cancelFunction;
+		this.stopFunction = stopFunction;
+		this.rescalingJobFunction = rescalingJobFunction;
+		this.rescalingOperatorsFunction = rescalingOperatorsFunction;
+		this.updateTaskExecutionStateFunction = updateTaskExecutionStateFunction;
+		this.requestNextInputSplitFunction = requestNextInputSplitFunction;
+		this.requestPartitionStateFunction = requestPartitionStateFunction;
+		this.scheduleOrUpdateConsumersFunction = scheduleOrUpdateConsumersFunction;
+		this.disconnectTaskManagerFunction = disconnectTaskManagerFunction;
+		this.disconnectResourceManagerConsumer = disconnectResourceManagerConsumer;
+		this.classloadingPropsSupplier = classloadingPropsSupplier;
+		this.offerSlotsFunction = offerSlotsFunction;
+		this.failSlotConsumer = failSlotConsumer;
+		this.registerTaskManagerFunction = registerTaskManagerFunction;
+		this.taskManagerHeartbeatConsumer = taskManagerHeartbeatConsumer;
+		this.resourceManagerHeartbeatConsumer = resourceManagerHeartbeatConsumer;
+		this.requestJobDetailsSupplier = requestJobDetailsSupplier;
+		this.requestJobSupplier = requestJobSupplier;
+		this.triggerSavepointFunction = triggerSavepointFunction;
+		this.requestOperatorBackPressureStatsFunction = requestOperatorBackPressureStatsFunction;
+		this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
+		this.acknowledgeCheckpointConsumer = acknowledgeCheckpointConsumer;
+		this.declineCheckpointConsumer = declineCheckpointConsumer;
+		this.fencingTokenSupplier = fencingTokenSupplier;
+		this.requestKvStateLocationFunction = requestKvStateLocationFunction;
+		this.notifyKvStateRegisteredFunction = notifyKvStateRegisteredFunction;
+		this.notifyKvStateUnregisteredFunction = notifyKvStateUnregisteredFunction;
+	}
+
 	@Override
 	public CompletableFuture<Acknowledge> cancel(Time timeout) {
-		throw new UnsupportedOperationException();
+		return cancelFunction.get();
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> stop(Time timeout) {
-		throw new UnsupportedOperationException();
+		return stopFunction.get();
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> rescaleJob(int newParallelism, RescalingBehaviour rescalingBehaviour, Time timeout) {
-		throw new UnsupportedOperationException();
+		return rescalingJobFunction.apply(newParallelism, rescalingBehaviour);
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> rescaleOperators(Collection<JobVertexID> operators, int newParallelism, RescalingBehaviour rescalingBehaviour, Time timeout) {
-		throw new UnsupportedOperationException();
+		return rescalingOperatorsFunction.apply(operators, newParallelism, rescalingBehaviour);
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> updateTaskExecutionState(TaskExecutionState taskExecutionState) {
-		throw new UnsupportedOperationException();
+		return updateTaskExecutionStateFunction.apply(taskExecutionState);
 	}
 
 	@Override
 	public CompletableFuture<SerializedInputSplit> requestNextInputSplit(JobVertexID vertexID, ExecutionAttemptID executionAttempt) {
-		throw new UnsupportedOperationException();
+		return requestNextInputSplitFunction.apply(vertexID, executionAttempt);
 	}
 
 	@Override
 	public CompletableFuture<ExecutionState> requestPartitionState(IntermediateDataSetID intermediateResultId, ResultPartitionID partitionId) {
-		throw new UnsupportedOperationException();
+		return requestPartitionStateFunction.apply(intermediateResultId, partitionId);
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> scheduleOrUpdateConsumers(ResultPartitionID partitionID, Time timeout) {
-		throw new UnsupportedOperationException();
+		return scheduleOrUpdateConsumersFunction.apply(partitionID);
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> disconnectTaskManager(ResourceID resourceID, Exception cause) {
-		throw new UnsupportedOperationException();
+		return disconnectTaskManagerFunction.apply(resourceID);
 	}
 
 	@Override
 	public void disconnectResourceManager(ResourceManagerId resourceManagerId, Exception cause) {
-		throw new UnsupportedOperationException();
+		disconnectResourceManagerConsumer.accept(resourceManagerId);
 	}
 
 	@Override
 	public CompletableFuture<ClassloadingProps> requestClassloadingProps() {
-		throw new UnsupportedOperationException();
+		return classloadingPropsSupplier.get();
 	}
 
 	@Override
 	public CompletableFuture<Collection<SlotOffer>> offerSlots(ResourceID taskManagerId, Collection<SlotOffer> slots, Time timeout) {
-		throw new UnsupportedOperationException();
+		return offerSlotsFunction.apply(taskManagerId, slots);
 	}
 
 	@Override
 	public void failSlot(ResourceID taskManagerId, AllocationID allocationId, Exception cause) {
-		throw new UnsupportedOperationException();
+		failSlotConsumer.accept(taskManagerId, allocationId, cause);
 	}
 
 	@Override
 	public CompletableFuture<RegistrationResponse> registerTaskManager(String taskManagerRpcAddress, TaskManagerLocation taskManagerLocation, Time timeout) {
-		throw new UnsupportedOperationException();
+		return registerTaskManagerFunction.apply(taskManagerRpcAddress, taskManagerLocation);
 	}
 
 	@Override
 	public void heartbeatFromTaskManager(ResourceID resourceID, AccumulatorReport accumulatorReport) {
-		throw new UnsupportedOperationException();
+		taskManagerHeartbeatConsumer.accept(resourceID, accumulatorReport);
 	}
 
 	@Override
 	public void heartbeatFromResourceManager(ResourceID resourceID) {
-		throw new UnsupportedOperationException();
+		resourceManagerHeartbeatConsumer.accept(resourceID);
 	}
 
 	@Override
 	public CompletableFuture<JobDetails> requestJobDetails(Time timeout) {
-		throw new UnsupportedOperationException();
+		return requestJobDetailsSupplier.get();
 	}
 
 	@Override
 	public CompletableFuture<JobStatus> requestJobStatus(Time timeout) {
-		throw new UnsupportedOperationException();
+		return requestJobDetailsSupplier.get().thenApply(JobDetails::getStatus);
 	}
 
 	@Override
 	public CompletableFuture<ArchivedExecutionGraph> requestJob(Time timeout) {
-		throw new UnsupportedOperationException();
+		return requestJobSupplier.get();
 	}
 
 	@Override
 	public CompletableFuture<String> triggerSavepoint(@Nullable final String targetDirectory, final boolean cancelJob, final Time timeout) {
-		throw new UnsupportedOperationException();
+		return triggerSavepointFunction.apply(targetDirectory, cancelJob);
 	}
 
 	@Override
 	public CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(JobVertexID jobVertexId) {
-		throw new UnsupportedOperationException();
+		return requestOperatorBackPressureStatsFunction.apply(jobVertexId);
 	}
 
 	@Override
 	public void notifyAllocationFailure(AllocationID allocationID, Exception cause) {
-		throw new UnsupportedOperationException();
+		notifyAllocationFailureConsumer.accept(allocationID, cause);
 	}
 
 	@Override
 	public void acknowledgeCheckpoint(JobID jobID, ExecutionAttemptID executionAttemptID, long checkpointId, CheckpointMetrics checkpointMetrics, TaskStateSnapshot subtaskState) {
-		throw new UnsupportedOperationException();
+		acknowledgeCheckpointConsumer.accept(Tuple5.of(jobID, executionAttemptID, checkpointId, checkpointMetrics, subtaskState));
 	}
 
 	@Override
 	public void declineCheckpoint(JobID jobID, ExecutionAttemptID executionAttemptID, long checkpointId, Throwable cause) {
-		throw new UnsupportedOperationException();
+		declineCheckpointConsumer.accept(Tuple4.of(jobID, executionAttemptID, checkpointId, cause));
 	}
 
 	@Override
 	public JobMasterId getFencingToken() {
-		throw new UnsupportedOperationException();
+		return fencingTokenSupplier.get();
 	}
 
 	@Override
 	public CompletableFuture<KvStateLocation> requestKvStateLocation(JobID jobId, String registrationName) {
-		throw new UnsupportedOperationException();
+		return requestKvStateLocationFunction.apply(jobId, registrationName);
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> notifyKvStateRegistered(JobID jobId, JobVertexID jobVertexId, KeyGroupRange keyGroupRange, String registrationName, KvStateID kvStateId, InetSocketAddress kvStateServerAddress) {
-		throw new UnsupportedOperationException();
+		return notifyKvStateRegisteredFunction.apply(Tuple6.of(jobId, jobVertexId, keyGroupRange, registrationName, kvStateId, kvStateServerAddress));
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> notifyKvStateUnregistered(JobID jobId, JobVertexID jobVertexId, KeyGroupRange keyGroupRange, String registrationName) {
-		throw new UnsupportedOperationException();
+		return notifyKvStateUnregisteredFunction.apply(Tuple4.of(jobId, jobVertexId, keyGroupRange, registrationName));
 	}
 
 	@Override
 	public String getAddress() {
-		return null;
+		return address;
 	}
 
 	@Override
 	public String getHostname() {
-		return null;
+		return hostname;
 	}
 }
