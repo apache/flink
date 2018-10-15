@@ -285,7 +285,7 @@ public class HistoryServer {
 		}
 	}
 
-	public static String createConfigJson(DashboardConfiguration dashboardConfiguration) throws IOException {
+	private static String createConfigJson(DashboardConfiguration dashboardConfiguration) throws IOException {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
