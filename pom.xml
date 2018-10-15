@@ -100,7 +100,7 @@ under the License.
 		<flink.forkCountTestPackage>${flink.forkCount}</flink.forkCountTestPackage>
 		<flink.reuseForks>true</flink.reuseForks>
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
-		<flink.shaded.version>4.0</flink.shaded.version>
+		<flink.shaded.version>5.0</flink.shaded.version>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.4.20</akka.version>
 		<java.version>1.8</java.version>
