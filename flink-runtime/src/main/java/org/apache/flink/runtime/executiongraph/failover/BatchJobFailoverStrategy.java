@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph.failover;
 
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -40,6 +39,8 @@ public class BatchJobFailoverStrategy extends RestartPipelinedRegionStrategy {
 	private static final Logger LOG = LoggerFactory.getLogger(BatchJobFailoverStrategy.class);
 
 	private int failLimit;
+
+	public static final int MAX_ATTEMPTS_EXECUTION_FAILURE_COUNT = 6;
 
 	/**
 	 * Creates a new failover strategy for batch job scenario, that aware throwable type and apply different logic
@@ -65,8 +66,9 @@ public class BatchJobFailoverStrategy extends RestartPipelinedRegionStrategy {
 			throw new FlinkRuntimeException("BatchJobFailoverStrategy can only work with NoRestartStrategy");
 		}
 
-		this.failLimit = executionGraph.getJobConfiguration()
-			.getInteger(JobManagerOptions.MAX_ATTEMPTS_EXECUTION_FAILURE_COUNT);
+		//TODO: use JobManagerOptions.MAX_ATTEMPTS_EXECUTION_FAILURE_COUNT when this feature complete
+		this.failLimit = MAX_ATTEMPTS_EXECUTION_FAILURE_COUNT;
+		// currently we use a hardcode value as we don't want to expose this configuration to public document to before we release it.
 	}
 
 	// ------------------------------------------------------------------------

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.testutils.ManuallyTriggeredDirectExecutor;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -146,8 +145,7 @@ public class BatchJobFailoverStrategyTest extends TestLogger {
 		assertEquals(JobStatus.RUNNING, graph.getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(vertex1).getState());
 
-		int failLimit = graph.getJobConfiguration()
-			.getInteger(JobManagerOptions.MAX_ATTEMPTS_EXECUTION_FAILURE_COUNT);
+		int failLimit = BatchJobFailoverStrategy.MAX_ATTEMPTS_EXECUTION_FAILURE_COUNT;
 
 		for (int i = 0; i < failLimit; i++) {
 			//fail with a normal exception, job will keep on running with failover

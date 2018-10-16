@@ -104,14 +104,6 @@ public class JobManagerOptions {
 			.withDescription("The maximum number of prior execution attempts kept in history.");
 
 	/**
-	 * The maximum number of failures a execution can try.
-	 */
-	public static final ConfigOption<Integer> MAX_ATTEMPTS_EXECUTION_FAILURE_COUNT =
-		key("jobmanager.execution.max-attempts-failure-count")
-			.defaultValue(6)
-			.withDescription("The maximum number of failure a execution can try.");
-
-	/**
 	 * This option specifies the failover strategy, i.e. how the job computation recovers from task failures.
 	 */
 	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
