@@ -95,8 +95,7 @@ public class MockStateBackend extends AbstractStateBackend {
 		KeyGroupRange keyGroupRange,
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
-		MetricGroup metricGroup
-		) {
+		MetricGroup metricGroup) {
 		return new MockKeyedStateBackend<>(
 			new KvStateRegistry().createTaskRegistry(jobID, new JobVertexID()),
 			keySerializer,
@@ -105,8 +104,7 @@ public class MockStateBackend extends AbstractStateBackend {
 			keyGroupRange,
 			env.getExecutionConfig(),
 			ttlTimeProvider,
-			metricGroup
-			);
+			metricGroup);
 	}
 
 	@Override

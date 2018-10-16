@@ -83,6 +83,9 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 	 * Updates the value of metricView if the reference is still valid.
 	 */
 	private void setProperty(ColumnFamilyHandle handle, String property, RocksDBNativeMetricView metricView) {
+		if (metricView.isClosed()) {
+			return;
+		}
 		try {
 			synchronized (lock) {
 				if (rocksDB != null) {
@@ -91,6 +94,7 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 				}
 			}
 		} catch (RocksDBException e) {
+			metricView.close();
 			LOG.warn("Failed to read native metric %s from RocksDB", property, e);
 		}
 	}
@@ -103,7 +107,7 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 	}
 
 	/**
-	 * A gauge which periodically pull a RocksDB native metric
+	 * A gauge which periodically pulls a RocksDB native metric
 	 * for the specified column family / metric pair.
 	 *
 	 *<p><strong>Note</strong>: As the returned property is of type
@@ -118,12 +122,16 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 
 		private BigInteger bigInteger;
 
+		private boolean closed;
+
 		private RocksDBNativeMetricView(
 			@Nonnull ColumnFamilyHandle handle,
 			@Nonnull String property
 		) {
 			this.handle = handle;
 			this.property = property;
+			this.bigInteger = BigInteger.ZERO;
+			this.closed = false;
 		}
 
 		public void setValue(long value) {
@@ -138,6 +146,14 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 					.shiftLeft(32)
 					.add(BigInteger.valueOf(Integer.toUnsignedLong(lower)));
 			}
+		}
+
+		public void close() {
+			closed = true;
+		}
+
+		public boolean isClosed() {
+			return closed;
 		}
 
 		@Override

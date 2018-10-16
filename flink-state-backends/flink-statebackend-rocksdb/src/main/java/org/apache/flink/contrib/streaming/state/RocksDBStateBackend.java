@@ -456,8 +456,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				priorityQueueStateType,
 				ttlTimeProvider,
 				getMemoryWatcherOptions(),
-			metricGroup
-			);
+				metricGroup);
 	}
 
 	@Override

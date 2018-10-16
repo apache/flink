@@ -52,6 +52,5 @@ public interface StreamTaskStateInitializer {
 		@Nonnull KeyContext keyContext,
 		@Nullable TypeSerializer<?> keySerializer,
 		@Nonnull CloseableRegistry streamTaskCloseableRegistry,
-		@Nonnull MetricGroup metricGroup
-	) throws Exception;
+		@Nonnull MetricGroup metricGroup) throws Exception;
 }

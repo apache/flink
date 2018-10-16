@@ -22,8 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
@@ -181,8 +181,7 @@ public interface StateBackend extends java.io.Serializable {
 			keyGroupRange,
 			kvStateRegistry,
 			ttlTimeProvider,
-			UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup()
-		);
+			new UnregisteredMetricsGroup());
 	}
 
 	/**
@@ -206,8 +205,7 @@ public interface StateBackend extends java.io.Serializable {
 		KeyGroupRange keyGroupRange,
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
-		MetricGroup metricGroup
-		) throws Exception;
+		MetricGroup metricGroup) throws Exception;
 	
 	/**
 	 * Creates a new {@link OperatorStateBackend} that can be used for storing operator state.
