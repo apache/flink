@@ -54,6 +54,7 @@ import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -491,7 +492,6 @@ public class BlobClientTest extends TestLogger {
 		}
 	}
 
-
 	/**
 	 * Tests the socket operation timeout.
 	 */
@@ -516,6 +516,14 @@ public class BlobClientTest extends TestLogger {
 		} finally {
 			clientConfig.setInteger(BlobServerOptions.SO_TIMEOUT, oldSoTimeout);
 			getBlobServer().setBlockingMillis(0);
+		}
+	}
+
+	@Test
+	public void testUnresolvedInetSocketAddress() throws Exception {
+		try (BlobClient client = new BlobClient(
+			InetSocketAddress.createUnresolved("localhost", getBlobServer().getPort()), getBlobClientConfig())) {
+			assertTrue(client.isConnected());
 		}
 	}
 
