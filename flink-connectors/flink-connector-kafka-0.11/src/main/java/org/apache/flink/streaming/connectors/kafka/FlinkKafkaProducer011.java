@@ -38,7 +38,7 @@ import org.apache.flink.streaming.api.functions.sink.TwoPhaseCommitSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.internal.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.internal.TransactionalIdsGenerator;
-import org.apache.flink.streaming.connectors.kafka.internal.metrics.KafkaMetricMuttableWrapper;
+import org.apache.flink.streaming.connectors.kafka.internal.metrics.KafkaMetricMutableWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaDelegatePartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
@@ -255,7 +255,7 @@ public class FlinkKafkaProducer011<IN>
 	private final AtomicLong pendingRecords = new AtomicLong();
 
 	/** Cache of metrics to replace already registered metrics instead of overwriting existing ones. */
-	private final Map<String, KafkaMetricMuttableWrapper> previouslyCreatedMetrics = new HashMap<>();
+	private final Map<String, KafkaMetricMutableWrapper> previouslyCreatedMetrics = new HashMap<>();
 
 	/**
 	 * Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to
@@ -986,12 +986,12 @@ public class FlinkKafkaProducer011<IN>
 					String name = entry.getKey().name();
 					Metric metric = entry.getValue();
 
-					KafkaMetricMuttableWrapper wrapper = previouslyCreatedMetrics.get(name);
+					KafkaMetricMutableWrapper wrapper = previouslyCreatedMetrics.get(name);
 					if (wrapper != null) {
 						wrapper.setKafkaMetric(metric);
 					} else {
 						// TODO: somehow merge metrics from all active producers?
-						wrapper = new KafkaMetricMuttableWrapper(metric);
+						wrapper = new KafkaMetricMutableWrapper(metric);
 						previouslyCreatedMetrics.put(name, wrapper);
 						kafkaMetricGroup.gauge(name, wrapper);
 					}

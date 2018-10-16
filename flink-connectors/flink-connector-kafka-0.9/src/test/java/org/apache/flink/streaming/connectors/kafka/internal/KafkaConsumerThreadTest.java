@@ -716,7 +716,7 @@ public class KafkaConsumerThreadTest {
 					handover,
 					new Properties(),
 					unassignedPartitionsQueue,
-					new KafkaConsumerCallBridge(),
+					new KafkaConsumerCallBridge09(),
 					"test-kafka-consumer-thread",
 					0,
 					false,

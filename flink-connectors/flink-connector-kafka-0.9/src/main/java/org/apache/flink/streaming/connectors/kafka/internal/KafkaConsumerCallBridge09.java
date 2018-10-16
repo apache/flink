@@ -36,7 +36,7 @@ import java.util.List;
  * are compiled against different dependencies.
  */
 @Internal
-public class KafkaConsumerCallBridge {
+public class KafkaConsumerCallBridge09 {
 
 	public void assignPartitions(KafkaConsumer<?, ?> consumer, List<TopicPartition> topicPartitions) throws Exception {
 		consumer.assign(topicPartitions);

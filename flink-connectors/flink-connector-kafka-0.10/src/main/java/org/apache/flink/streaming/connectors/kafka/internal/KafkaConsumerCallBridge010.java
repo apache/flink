@@ -35,7 +35,7 @@ import java.util.List;
  * <p>Because of that, we need two versions whose compiled code goes against different method signatures.
  */
 @Internal
-public class KafkaConsumerCallBridge010 extends KafkaConsumerCallBridge {
+public class KafkaConsumerCallBridge010 extends KafkaConsumerCallBridge09 {
 
 	@Override
 	public void assignPartitions(KafkaConsumer<?, ?> consumer, List<TopicPartition> topicPartitions) throws Exception {

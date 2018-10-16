@@ -33,7 +33,7 @@ import java.util.Properties;
  * Kafka 0.11 table sink for writing data into Kafka.
  */
 @Internal
-public class Kafka011TableSink extends KafkaTableSink {
+public class Kafka011TableSink extends KafkaTableSinkBase {
 
 	public Kafka011TableSink(
 			TableSchema schema,

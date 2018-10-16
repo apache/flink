@@ -83,7 +83,7 @@ import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
 
 /**
- * Factory for creating configured instances of {@link KafkaTableSource}.
+ * Factory for creating configured instances of {@link KafkaTableSourceBase}.
  */
 public abstract class KafkaTableSourceSinkFactoryBase implements
 		StreamTableSourceFactory<Row>,
@@ -213,7 +213,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	 * @param specificStartupOffsets      Specific startup offsets; only relevant when startup
 	 *                                    mode is {@link StartupMode#SPECIFIC_OFFSETS}.
 	 */
-	protected abstract KafkaTableSource createKafkaTableSource(
+	protected abstract KafkaTableSourceBase createKafkaTableSource(
 		TableSchema schema,
 		Optional<String> proctimeAttribute,
 		List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
@@ -232,7 +232,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	 * @param properties  Properties for the Kafka consumer.
 	 * @param partitioner Partitioner to select Kafka partition for each item.
 	 */
-	protected abstract KafkaTableSink createKafkaTableSink(
+	protected abstract KafkaTableSinkBase createKafkaTableSink(
 		TableSchema schema,
 		String topic,
 		Properties properties,

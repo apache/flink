@@ -43,7 +43,7 @@ import static org.junit.Assert.assertNull;
 public abstract class KafkaAvroTableSourceTestBase extends KafkaTableSourceBuilderTestBase {
 
 	@Override
-	protected void configureBuilder(KafkaTableSource.Builder builder) {
+	protected void configureBuilder(KafkaTableSourceBase.Builder builder) {
 		super.configureBuilder(builder);
 		((KafkaAvroTableSource.Builder) builder).forAvroRecordClass(SchemaRecord.class);
 	}

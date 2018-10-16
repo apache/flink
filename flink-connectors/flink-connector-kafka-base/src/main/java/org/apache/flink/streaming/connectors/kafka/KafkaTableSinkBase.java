@@ -43,7 +43,7 @@ import java.util.Properties;
  * override {@link #createKafkaProducer(String, Properties, SerializationSchema, Optional)}}.
  */
 @Internal
-public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
+public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 
 	// TODO make all attributes final and mandatory once we drop support for format-specific table sinks
 
@@ -66,7 +66,7 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 	protected String[] fieldNames;
 	protected TypeInformation[] fieldTypes;
 
-	protected KafkaTableSink(
+	protected KafkaTableSinkBase(
 			TableSchema schema,
 			String topic,
 			Properties properties,
@@ -81,7 +81,7 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 	}
 
 	/**
-	 * Creates KafkaTableSink.
+	 * Creates KafkaTableSinkBase.
 	 *
 	 * @param topic                 Kafka topic to write to.
 	 * @param properties            Properties for the Kafka producer.
@@ -89,7 +89,7 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 	 * @deprecated Use table descriptors instead of implementation-specific classes.
 	 */
 	@Deprecated
-	public KafkaTableSink(
+	public KafkaTableSinkBase(
 			String topic,
 			Properties properties,
 			FlinkKafkaPartitioner<Row> partitioner) {
@@ -133,7 +133,7 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 	 * @return Deep copy of this sink
 	 */
 	@Deprecated
-	protected KafkaTableSink createCopy() {
+	protected KafkaTableSinkBase createCopy() {
 		throw new UnsupportedOperationException("This method only exists for backwards compatibility.");
 	}
 
@@ -164,14 +164,14 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 	}
 
 	@Override
-	public KafkaTableSink configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+	public KafkaTableSinkBase configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
 		if (schema.isPresent()) {
 			// a fixed schema is defined so reconfiguration is not supported
 			throw new UnsupportedOperationException("Reconfiguration of this sink is not supported.");
 		}
 
 		// legacy code
-		KafkaTableSink copy = createCopy();
+		KafkaTableSinkBase copy = createCopy();
 		copy.fieldNames = Preconditions.checkNotNull(fieldNames, "fieldNames");
 		copy.fieldTypes = Preconditions.checkNotNull(fieldTypes, "fieldTypes");
 		Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
@@ -191,7 +191,7 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		KafkaTableSink that = (KafkaTableSink) o;
+		KafkaTableSinkBase that = (KafkaTableSinkBase) o;
 		return Objects.equals(schema, that.schema) &&
 			Objects.equals(topic, that.topic) &&
 			Objects.equals(properties, that.properties) &&
