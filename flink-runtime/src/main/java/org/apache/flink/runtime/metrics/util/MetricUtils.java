@@ -52,7 +52,6 @@ import java.lang.management.ThreadMXBean;
 import java.util.List;
 import java.util.Optional;
 
-import static org.apache.flink.runtime.clusterframework.BootstrapTools.ActorSystemExecutorMode.FIXED_THREAD_POOL_EXECUTOR;
 import static org.apache.flink.runtime.metrics.util.SystemResourcesMetricsInitializer.instantiateSystemMetrics;
 
 /**
@@ -123,13 +122,14 @@ public class MetricUtils {
 
 	public static ActorSystem startMetricsActorSystem(Configuration configuration, String hostname, Logger logger) throws Exception {
 		final String portRange = configuration.getString(MetricOptions.QUERY_SERVICE_PORT);
+		final int threadPriority = configuration.getInteger(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY);
 		return BootstrapTools.startActorSystem(
 			configuration,
 			METRICS_ACTOR_SYSTEM_NAME,
 			hostname,
 			portRange,
 			logger,
-			FIXED_THREAD_POOL_EXECUTOR);
+			new BootstrapTools.FixedThreadPoolExecutorConfiguration(1, 1, threadPriority));
 	}
 
 	private static void instantiateNetworkMetrics(

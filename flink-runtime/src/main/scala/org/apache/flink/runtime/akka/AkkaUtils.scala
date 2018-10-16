@@ -27,6 +27,7 @@ import akka.pattern.{ask => akkaAsk}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration._
+import org.apache.flink.runtime.clusterframework.BootstrapTools.{FixedThreadPoolExecutorConfiguration, ForkJoinExecutorConfiguration}
 import org.apache.flink.runtime.concurrent.FutureUtils
 import org.apache.flink.runtime.net.SSLUtils
 import org.apache.flink.util.NetUtils
@@ -187,7 +188,10 @@ object AkkaUtils {
   @throws(classOf[UnknownHostException])
   def getAkkaConfig(configuration: Configuration,
                     externalAddress: Option[(String, Int)]): Config = {
-    getAkkaConfig(configuration, externalAddress, getForkJoinExecutorConfig(configuration))
+    getAkkaConfig(
+      configuration,
+      externalAddress,
+      getForkJoinExecutorConfig(ForkJoinExecutorConfiguration.fromConfiguration(configuration)))
   }
 
   /**
@@ -291,13 +295,10 @@ object AkkaUtils {
     ConfigFactory.parseString(config)
   }
 
-  def getThreadPoolExecutorConfig(threadPriority: Int): Config = {
-    if (threadPriority < Thread.MIN_PRIORITY || threadPriority > Thread.MAX_PRIORITY) {
-      throw new IllegalConfigurationException("The config : " +
-        MetricOptions.QUERY_SERVICE_THREAD_PRIORITY.key() + "'s value must between "
-        + Thread.MIN_PRIORITY + " and " + Thread.MAX_PRIORITY +
-        ", but the value is " + threadPriority)
-    }
+  def getThreadPoolExecutorConfig(configuration: FixedThreadPoolExecutorConfiguration): Config = {
+    val threadPriority = configuration.getThreadPriority
+    val minNumThreads = configuration.getMinNumThreads
+    val maxNumThreads = configuration.getMaxNumThreads
 
     val configString = s"""
        |akka {
@@ -307,9 +308,8 @@ object AkkaUtils {
        |      executor = "thread-pool-executor"
        |      thread-priority = $threadPriority
        |      thread-pool-executor {
-       |        core-pool-size-min = 2
-       |        core-pool-size-factor = 2.0
-       |        core-pool-size-max = 4
+       |        core-pool-size-min = $minNumThreads
+       |        core-pool-size-max = $maxNumThreads
        |      }
        |    }
        |  }
@@ -320,15 +320,12 @@ object AkkaUtils {
     ConfigFactory.parseString(configString)
   }
 
-  def getForkJoinExecutorConfig(configuration: Configuration): Config = {
-    val forkJoinExecutorParallelismFactor =
-      configuration.getDouble(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR)
+  def getForkJoinExecutorConfig(configuration: ForkJoinExecutorConfiguration): Config = {
+    val forkJoinExecutorParallelismFactor = configuration.getParallelismFactor
 
-    val forkJoinExecutorParallelismMin =
-      configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MIN)
+    val forkJoinExecutorParallelismMin = configuration.getMinParallelism
 
-    val forkJoinExecutorParallelismMax =
-      configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MAX)
+    val forkJoinExecutorParallelismMax = configuration.getMaxParallelism
 
     val configString = s"""
        |akka {
