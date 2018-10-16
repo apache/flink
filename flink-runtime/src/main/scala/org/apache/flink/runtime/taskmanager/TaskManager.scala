@@ -1253,10 +1253,9 @@ class TaskManager(
 
       val execId = tdd.getExecutionAttemptId
       // add the task to the map
-      val prevTask = runningTasks.put(execId, task)
+      val prevTask = runningTasks.putIfAbsent(execId, task)
       if (prevTask != null) {
-        // already have a task for that ID, put if back and report an error
-        runningTasks.put(execId, prevTask)
+        // already have a task for that ID,report an error
         throw new IllegalStateException("TaskManager already contains a task for id " + execId)
       }
 
