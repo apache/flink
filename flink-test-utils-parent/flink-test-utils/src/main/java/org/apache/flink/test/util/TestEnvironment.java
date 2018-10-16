@@ -32,7 +32,7 @@ import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.JobExecutor;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.util.Preconditions;
 
 import java.net.URL;
@@ -42,7 +42,7 @@ import java.util.Collections;
 
 /**
  * A {@link ExecutionEnvironment} implementation which executes its jobs on a
- * {@link LocalFlinkMiniCluster}.
+ * {@link MiniCluster}.
  */
 public class TestEnvironment extends ExecutionEnvironment {
 
