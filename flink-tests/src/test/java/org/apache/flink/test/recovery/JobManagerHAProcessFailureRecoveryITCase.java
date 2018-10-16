@@ -325,21 +325,6 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
 			dispatcherProcesses[1] = new DispatcherProcess(1, config);
 			dispatcherProcesses[1].startProcess();
 
-			// get new dispatcher gateway
-			leaderListener.waitForNewLeader(deadline.timeLeft().toMillis());
-
-			leaderAddress = leaderListener.getAddress();
-			leaderId = leaderListener.getLeaderSessionID();
-
-			final CompletableFuture<DispatcherGateway> newDispatcherGatewayFuture = rpcService.connect(
-				leaderAddress,
-				DispatcherId.fromUuid(leaderId),
-				DispatcherGateway.class);
-			final DispatcherGateway newDispatcherGateway = newDispatcherGatewayFuture.get();
-
-			// Wait for all task managers to connect to the new leading job manager
-			waitForTaskManagers(numberOfTaskManagers, newDispatcherGateway, deadline.timeLeft());
-
 			// we create the marker file which signals the program functions tasks that they can complete
 			AbstractTaskManagerProcessFailureRecoveryTest.touchFile(new File(coordinateTempDir, PROCEED_MARKER_FILE));
 
