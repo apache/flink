@@ -27,8 +27,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.Collections;
 import java.util.Random;
@@ -52,12 +50,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the scheduler when scheduling tasks in slot sharing groups.
  */
-@RunWith(Parameterized.class)
 public class SchedulerSlotSharingTest extends SchedulerTestBase {
-
-	public SchedulerSlotSharingTest(SchedulerType schedulerType) {
-		super(schedulerType);
-	}
 
 	@Test
 	public void scheduleSingleVertexType() {
