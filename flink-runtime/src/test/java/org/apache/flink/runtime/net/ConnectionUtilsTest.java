@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.net;
 
+import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -25,11 +26,13 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
-import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketAddress;
 import java.net.UnknownHostException;
+import java.net.Inet4Address;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -51,12 +54,27 @@ public class ConnectionUtilsTest {
 			final long start = System.nanoTime();
 			InetAddress add = ConnectionUtils.findConnectingAddress(unreachable, 2000, 400);
 
+			// we should have found a heuristic address
+			assertNotNull(add);
+
+			// make sure that the InetAddress.getLocalHost is not a loopback address
+			Assume.assumeFalse(InetAddress.getLocalHost().isLoopbackAddress());
+
+			// make sure the connection address is not a loopback address
+			Assume.assumeFalse(add.isLoopbackAddress());
+
+			Socket socket = new Socket();
+
+			SocketAddress socketAddress = new InetSocketAddress(add, 0);
+
+			socket.bind(socketAddress);
+
+			// check whether can bind to this address
+			assertTrue(socket.isBound());
+
 			// check that it did not take forever (max 30 seconds)
 			// this check can unfortunately not be too tight, or it will be flaky on some CI infrastructure
 			assertTrue(System.nanoTime() - start < 30_000_000_000L);
-
-			// we should have found a heuristic address
-			assertNotNull(add);
 
 			// make sure that we returned the InetAddress.getLocalHost as a heuristic
 			assertEquals(InetAddress.getLocalHost(), add);
