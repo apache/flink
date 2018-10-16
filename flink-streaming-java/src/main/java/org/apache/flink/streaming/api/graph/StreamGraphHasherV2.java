@@ -67,7 +67,7 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 	 *
 	 * <p>The generated hash is deterministic with respect to:
 	 * <ul>
-	 *   <li>node-local properties (like parallelism, UDF, node ID),
+	 *   <li>node-local properties (node ID),
 	 *   <li>chained output nodes, and
 	 *   <li>input nodes hashes
 	 * </ul>
@@ -216,16 +216,15 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 		// hashes as the ID. We cannot use the node's ID, because it is
 		// assigned from a static counter. This will result in two identical
 		// programs having different hashes.
-		generateNodeLocalHash(node, hasher, hashes.size());
+		generateNodeLocalHash(hasher, hashes.size());
 
 		// Include chained nodes to hash
 		for (StreamEdge outEdge : node.getOutEdges()) {
 			if (isChainable(outEdge, isChainingEnabled)) {
-				StreamNode chainedNode = outEdge.getTargetVertex();
 
 				// Use the hash size again, because the nodes are chained to
 				// this node. This does not add a hash for the chained nodes.
-				generateNodeLocalHash(chainedNode, hasher, hashes.size());
+				generateNodeLocalHash(hasher, hashes.size());
 			}
 		}
 
@@ -265,15 +264,14 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 	}
 
 	/**
-	 * Applies the {@link Hasher} to the {@link StreamNode} (only node local
-	 * attributes are taken into account). The hasher encapsulates the current
-	 * state of the hash.
+	 * Applies the {@link Hasher} to the {@link StreamNode} . The hasher encapsulates
+	 * the current state of the hash.
 	 *
 	 * <p>The specified ID is local to this node. We cannot use the
 	 * {@link StreamNode#id}, because it is incremented in a static counter.
 	 * Therefore, the IDs for identical jobs will otherwise be different.
 	 */
-	private void generateNodeLocalHash(StreamNode node, Hasher hasher, int id) {
+	private void generateNodeLocalHash(Hasher hasher, int id) {
 		// This resolves conflicts for otherwise identical source nodes. BUT
 		// the generated hash codes depend on the ordering of the nodes in the
 		// stream graph.
