@@ -49,8 +49,7 @@ abstract class PatternTranslatorTestBase extends TestLogger{
   private val planner = new FlinkPlannerImpl(
     context._2.getFrameworkConfig,
     context._2.getPlanner,
-    context._2.getTypeFactory,
-    context._2.sqlToRelConverterConfig)
+    context._2.getTypeFactory)
 
   private def prepareContext(typeInfo: TypeInformation[Row])
   : (RelBuilder, StreamTableEnvironment, StreamExecutionEnvironment) = {
