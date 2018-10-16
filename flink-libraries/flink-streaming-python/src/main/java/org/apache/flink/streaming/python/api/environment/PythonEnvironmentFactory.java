@@ -20,7 +20,6 @@ package org.apache.flink.streaming.python.api.environment;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.environment.LegacyLocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
@@ -62,7 +61,7 @@ public class PythonEnvironmentFactory {
 	 * @return A local execution environment with the specified parallelism.
 	 */
 	public PythonStreamExecutionEnvironment create_local_execution_environment(Configuration config) {
-		return new PythonStreamExecutionEnvironment(new LegacyLocalStreamEnvironment(config), new Path(localTmpPath), scriptName);
+		return new PythonStreamExecutionEnvironment(new LocalStreamEnvironment(config), new Path(localTmpPath), scriptName);
 	}
 
 	/**
