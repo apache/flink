@@ -113,6 +113,40 @@ class CalcTest extends TableTestBase {
 
     util.verifyTable(resultTable, expected)
   }
+
+  @Test
+  def testIn(): Unit = {
+    val util = streamTestUtil()
+    val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val resultTable = sourceTable.select('a, 'b, 'c)
+      .where(s"${(1 to 30).map("b = " + _).mkString(" || ")} && c = 'xx'")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(0),
+      term("select", "a", "b", "c"),
+      term("where", s"AND(IN(b, ${(1 to 30).mkString(", ")}), =(c, 'xx'))")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testNotIn(): Unit = {
+    val util = streamTestUtil()
+    val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val resultTable = sourceTable.select('a, 'b, 'c)
+      .where(s"${(1 to 30).map("b != " + _).mkString(" && ")} || c != 'xx'")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(0),
+      term("select", "a", "b", "c"),
+      term("where", s"OR(NOT IN(b, ${(1 to 30).mkString(", ")}), <>(c, 'xx'))")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
 }
 
 

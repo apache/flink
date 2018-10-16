@@ -256,14 +256,15 @@ class CalcITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val sqlQuery = "SELECT * FROM MyTable WHERE a < 2 OR a > 20"
+    val sqlQuery = "SELECT * FROM MyTable WHERE a < 2 OR a > 20 OR a IN(3,4,5)"
 
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = "1,1,Hi\n" + "21,6,Comment#15\n"
+    val expected = "1,1,Hi\n" + "3,2,Hello world\n" + "4,3,Hello world, how are you?\n" +
+      "5,3,I am fine.\n" + "21,6,Comment#15\n"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -274,15 +275,14 @@ class CalcITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val sqlQuery = "SELECT * FROM MyTable WHERE MOD(a,2)<>0 AND MOD(b,2)=0"
+    val sqlQuery = "SELECT * FROM MyTable WHERE MOD(a,2)<>0 AND MOD(b,2)=0 AND b NOT IN(1,2,3)"
 
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = "3,2,Hello world\n" + "7,4,Comment#1\n" +
-      "9,4,Comment#3\n" + "17,6,Comment#11\n" +
+    val expected = "7,4,Comment#1\n" + "9,4,Comment#3\n" + "17,6,Comment#11\n" +
       "19,6,Comment#13\n" + "21,6,Comment#15\n"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)

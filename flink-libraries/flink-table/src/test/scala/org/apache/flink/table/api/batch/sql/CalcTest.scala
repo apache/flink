@@ -47,4 +47,40 @@ class CalcTest extends TableTestBase {
       "SELECT MyTable.a.*, c, MyTable.b.* FROM MyTable",
       expected)
   }
+
+  @Test
+  def testIn(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    val resultStr = (1 to 30).mkString(", ")
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchTableNode(0),
+      term("select", "a", "b", "c"),
+      term("where", s"IN(b, $resultStr)")
+    )
+
+    util.verifySql(
+      s"SELECT * FROM MyTable WHERE b in ($resultStr)",
+      expected)
+  }
+
+  @Test
+  def testNotIn(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    val resultStr = (1 to 30).mkString(", ")
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchTableNode(0),
+      term("select", "a", "b", "c"),
+      term("where", s"NOT IN(b, $resultStr)")
+    )
+
+    util.verifySql(
+      s"SELECT * FROM MyTable WHERE b NOT IN ($resultStr)",
+      expected)
+  }
 }

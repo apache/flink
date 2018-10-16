@@ -928,6 +928,11 @@ abstract class CodeGenerator(
         val right = operands.tail
         generateIn(this, left, right)
 
+      case NOT_IN =>
+        val left = operands.head
+        val right = operands.tail
+        generateNot(nullCheck, generateIn(this, left, right))
+
       // casting
       case CAST | REINTERPRET =>
         val operand = operands.head
