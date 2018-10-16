@@ -33,8 +33,10 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
@@ -1338,6 +1340,23 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		assertEquals("u3", getSerializedValue(restoredKvState2, 3, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
 
 		backend.dispose();
+	}
+
+	@Test
+	public void testValueStateWorkWithTtl() throws Exception {
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		try {
+			ValueStateDescriptor<MutableLong> kvId = new ValueStateDescriptor<>("id", MutableLong.class);
+			kvId.enableTimeToLive(StateTtlConfig.newBuilder(Time.seconds(1)).build());
+
+			ValueState<MutableLong> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+			backend.setCurrentKey(1);
+			state.update(new MutableLong());
+			state.value();
+		} finally {
+			backend.close();
+			backend.dispose();
+		}
 	}
 
 	/**
