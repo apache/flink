@@ -204,21 +204,9 @@ public class WebFrontendITCase extends TestLogger {
 		String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/log");
 		assertTrue(logs.contains("job manager log"));
 
-		String logList = TestBaseUtils.getFromHTTP("http://localhost:" + CLUSTER.getWebUIPort() + "/jobmanager/loglist");
-		assertTrue(logList.contains(logFiles.logFile.getName()));
-
-		String tenBytesLogs = TestBaseUtils.getFromHTTP("http://localhost:" + CLUSTER.getWebUIPort() + "/jobmanager/log/0-10");
-		assertTrue(tenBytesLogs.length() == 10);
-
-		logs = TestBaseUtils.getFromHTTP("http://localhost:" + CLUSTER.getWebUIPort() + "/jobmanager/logs/" +
-			logFiles.logFile.getName() + "/0-10");
-		assertTrue(logs.equals(tenBytesLogs));
-
 		FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
 		logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/stdout");
 		assertTrue(logs.contains("job manager out"));
-		tenBytesLogs = TestBaseUtils.getFromHTTP("http://localhost:" + CLUSTER.getWebUIPort() + "/jobmanager/stdout/0-10");
-		assertTrue(tenBytesLogs.length() == 10);
 	}
 
 	@Test
@@ -239,22 +227,9 @@ public class WebFrontendITCase extends TestLogger {
 			String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/" + id + "/log");
 			assertTrue(logs.contains("job manager log"));
 
-			logs = TestBaseUtils.getFromHTTP("http://localhost:" + CLUSTER.getWebUIPort() + "/taskmanagers/" + id + "/log/0-10");
-			assertTrue(logs.length() == 10);
-
-			String loglist = TestBaseUtils.getFromHTTP("http://localhost:" + CLUSTER.getWebUIPort() + "/taskmanagers/" + id + "/loglist");
-			assertTrue(loglist.contains(logFiles.logFile.getName()));
-
-			String tenBytesLogs = TestBaseUtils.getFromHTTP("http://localhost:" + CLUSTER.getWebUIPort() + "/taskmanagers/" + id + "/logs/" +
-				logFiles.logFile.getName() + "/0-10");
-			assertTrue(logs.equals(tenBytesLogs));
-
 			FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
 			logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/" + id + "/stdout");
 			assertTrue(logs.contains("job manager out"));
-
-			logs = TestBaseUtils.getFromHTTP("http://localhost:" + CLUSTER.getWebUIPort() + "/taskmanagers/" + id + "/stdout/-10");
-			assertTrue(logs.length() == 10);
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
