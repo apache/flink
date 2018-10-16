@@ -92,7 +92,13 @@ public final class BlobClient implements Closeable {
 				socket = new Socket();
 			}
 
-			socket.connect(serverAddress, clientConfig.getInteger(BlobServerOptions.CONNECT_TIMEOUT));
+			// Establish the socket using the hostname and port. This avoids a potential issue where the
+			// InetSocketAddress can cache a failure in hostname resolution forever.
+			socket.connect(
+				new InetSocketAddress(
+					serverAddress.getHostName(),
+					serverAddress.getPort()),
+				clientConfig.getInteger(BlobServerOptions.CONNECT_TIMEOUT));
 			socket.setSoTimeout(clientConfig.getInteger(BlobServerOptions.SO_TIMEOUT));
 		}
 		catch (Exception e) {
@@ -183,6 +189,10 @@ public final class BlobClient implements Closeable {
 
 	public boolean isClosed() {
 		return this.socket.isClosed();
+	}
+
+	public boolean isConnected() {
+		return socket.isConnected();
 	}
 
 	// --------------------------------------------------------------------------------------------
