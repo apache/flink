@@ -48,8 +48,7 @@ import scala.collection.JavaConversions._
 class FlinkPlannerImpl(
     config: FrameworkConfig,
     planner: RelOptPlanner,
-    typeFactory: FlinkTypeFactory,
-    sqlToRelConverterConfig: SqlToRelConverter.Config) {
+    typeFactory: FlinkTypeFactory) {
 
   val operatorTable: SqlOperatorTable = config.getOperatorTable
   /** Holds the trait definitions to be registered with planner. May be null. */
@@ -57,6 +56,7 @@ class FlinkPlannerImpl(
   val parserConfig: SqlParser.Config = config.getParserConfig
   val convertletTable: SqlRexConvertletTable = config.getConvertletTable
   val defaultSchema: SchemaPlus = config.getDefaultSchema
+  val sqlToRelConverterConfig: SqlToRelConverter.Config = config.getSqlToRelConverterConfig
 
   var validator: FlinkCalciteSqlValidator = _
   var root: RelRoot = _

@@ -91,6 +91,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     .costFactory(new DataSetCostFactory)
     .typeSystem(new FlinkTypeSystem)
     .operatorTable(getSqlOperatorTable)
+    .sqlToRelConverterConfig(getSqlToRelConverterConfig)
     // set the executor to evaluate constant expressions
     .executor(new ExpressionReducer(config))
     .build
@@ -109,15 +110,6 @@ abstract class TableEnvironment(val config: TableConfig) {
   // registered external catalog names -> catalog
   private val externalCatalogs = new mutable.HashMap[String, ExternalCatalog]
 
-  // configuration for SqlToRelConverter
-  private[flink] lazy val sqlToRelConverterConfig: SqlToRelConverter.Config = {
-    val calciteConfig = config.getCalciteConfig
-    calciteConfig.getSqlToRelConverterConfig match {
-      case Some(c) => c
-      case None => getSqlToRelConverterConfig
-    }
-  }
-
   /** Returns the table config to define the runtime behavior of the Table API. */
   def getConfig: TableConfig = config
 
@@ -132,11 +124,18 @@ abstract class TableEnvironment(val config: TableConfig) {
     * Returns the SqlToRelConverter config.
     */
   protected def getSqlToRelConverterConfig: SqlToRelConverter.Config = {
-    SqlToRelConverter.configBuilder()
-      .withTrimUnusedFields(false)
-      .withConvertTableAccess(false)
-      .withInSubQueryThreshold(Integer.MAX_VALUE)
-      .build()
+    val calciteConfig = config.getCalciteConfig
+    calciteConfig.getSqlToRelConverterConfig match {
+
+      case None =>
+        SqlToRelConverter.configBuilder()
+          .withTrimUnusedFields(false)
+          .withConvertTableAccess(false)
+          .withInSubQueryThreshold(Integer.MAX_VALUE)
+          .build()
+
+      case Some(c) => c
+    }
   }
 
   /**
@@ -689,8 +688,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     val planner = new FlinkPlannerImpl(
       getFrameworkConfig,
       getPlanner,
-      getTypeFactory,
-      sqlToRelConverterConfig)
+      getTypeFactory)
     planner.getCompletionHints(statement, position)
   }
 
@@ -712,8 +710,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @return The result of the query as Table
     */
   def sqlQuery(query: String): Table = {
-    val planner = new FlinkPlannerImpl(
-      getFrameworkConfig, getPlanner, getTypeFactory, sqlToRelConverterConfig)
+    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
     // parse the sql query
     val parsed = planner.parse(query)
     if (null != parsed && parsed.getKind.belongsTo(SqlKind.QUERY)) {
@@ -773,8 +770,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param config The [[QueryConfig]] to use.
     */
   def sqlUpdate(stmt: String, config: QueryConfig): Unit = {
-    val planner = new FlinkPlannerImpl(
-      getFrameworkConfig, getPlanner, getTypeFactory, sqlToRelConverterConfig)
+    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
     // parse the sql query
     val parsed = planner.parse(stmt)
     parsed match {

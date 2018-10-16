@@ -66,8 +66,7 @@ abstract class ExpressionTestBase {
   private val planner = new FlinkPlannerImpl(
     context._2.getFrameworkConfig,
     context._2.getPlanner,
-    context._2.getTypeFactory,
-    context._2.sqlToRelConverterConfig)
+    context._2.getTypeFactory)
   private val logicalOptProgram = Programs.ofRules(FlinkRuleSets.LOGICAL_OPT_RULES)
   private val dataSetOptProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
 
