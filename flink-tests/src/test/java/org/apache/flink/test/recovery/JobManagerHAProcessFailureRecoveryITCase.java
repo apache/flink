@@ -93,7 +93,7 @@ import static org.junit.Assert.fail;
  */
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)
-public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
+public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
 
 	private static ZooKeeperTestEnvironment zooKeeper;
 
@@ -131,7 +131,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 
 	private final ExecutionMode executionMode;
 
-	public JobManagerHAProcessFailureBatchRecoveryITCase(ExecutionMode executionMode) {
+	public JobManagerHAProcessFailureRecoveryITCase(ExecutionMode executionMode) {
 		this.executionMode = executionMode;
 	}
 
@@ -369,9 +369,9 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 				leaderRetrievalService.stop();
 			}
 
-			for (DispatcherProcess jmProces : dispatcherProcesses) {
-				if (jmProces != null) {
-					jmProces.destroy();
+			for (DispatcherProcess dispatcherProcess : dispatcherProcesses) {
+				if (dispatcherProcess != null) {
+					dispatcherProcess.destroy();
 				}
 			}
 
