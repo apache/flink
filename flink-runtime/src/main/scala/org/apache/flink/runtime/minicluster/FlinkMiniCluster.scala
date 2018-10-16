@@ -129,9 +129,9 @@ abstract class FlinkMiniCluster(
   def this(configuration: Configuration, useSingleActorSystem: Boolean) {
     this(
       configuration,
-      HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
-        configuration,
-        ExecutionContext.global),
+      HighAvailabilityServicesUtils.createHighAvailabilityServices(configuration,
+        org.apache.flink.runtime.concurrent.Executors.directExecutor,
+        HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION),
       useSingleActorSystem)
   }
 
