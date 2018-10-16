@@ -279,7 +279,6 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -370,7 +369,6 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -486,7 +484,6 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -565,7 +562,6 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -629,7 +625,6 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -752,7 +747,6 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -852,7 +846,6 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -884,7 +877,7 @@ public class TaskExecutorTest extends TestLogger {
 			// the job leader should get the allocation id offered
 			verify(jobMasterGateway, Mockito.timeout(timeout.toMilliseconds())).offerSlots(
 					any(ResourceID.class),
-					(Collection<SlotOffer>)Matchers.argThat(contains(slotOffer)),
+					(Collection<SlotOffer>) Matchers.argThat(contains(slotOffer)),
 					any(Time.class));
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
@@ -967,7 +960,6 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -1062,7 +1054,6 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -1169,7 +1160,6 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			heartbeatServicesMock,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -1243,7 +1233,6 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -1300,7 +1289,6 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -1393,7 +1381,6 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			new HeartbeatServices(heartbeatInterval, 10L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -1501,7 +1488,6 @@ public class TaskExecutorTest extends TestLogger {
 				.build(),
 			new HeartbeatServices(heartbeatInterval, 1000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 
@@ -1713,7 +1699,6 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerServices,
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
 	}
