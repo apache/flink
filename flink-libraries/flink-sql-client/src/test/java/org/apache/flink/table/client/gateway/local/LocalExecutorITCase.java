@@ -31,6 +31,8 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.client.cli.SqlCompleter;
+import org.apache.flink.table.client.cli.SqlMultiLineParser;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
@@ -45,6 +47,11 @@ import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
 
+import org.jline.reader.Candidate;
+import org.jline.reader.LineReader;
+import org.jline.reader.LineReaderBuilder;
+import org.jline.reader.ParsedLine;
+import org.jline.reader.Parser.ParseContext;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -220,6 +227,46 @@ public class LocalExecutorITCase extends TestLogger {
 			new TypeInformation[] {Types.INT, Types.STRING});
 
 		assertEquals(expectedTableSchema, actualTableSchema);
+	}
+
+	@Test
+	public void testSqlCompleter() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		SqlCompleter completer = new SqlCompleter(session, executor);
+		SqlMultiLineParser parser = new SqlMultiLineParser();
+		LineReader reader = LineReaderBuilder.builder().build();
+
+		String line = "SELECT * FROM Ta";
+		ParsedLine parsedLine = parser.parse(line, 16, ParseContext.COMPLETE);
+		List<Candidate> candidates = new ArrayList<Candidate>();
+		List<String> results = new ArrayList<String>();
+		completer.complete(reader, parsedLine, candidates);
+		candidates.forEach(item->results.add(item.value()));
+		List<String> expectedResults = Arrays.asList(
+				"TableNumber1",
+				"TableNumber2",
+				"TableSourceSink");
+		assertTrue(results.containsAll(expectedResults));
+
+		line = "SELECT * FROM TableNumber2 WH";
+		parsedLine = parser.parse(line, 29, ParseContext.COMPLETE);
+		candidates.clear();
+		results.clear();
+		completer.complete(reader, parsedLine, candidates);
+		candidates.forEach(item->results.add(item.value()));
+		expectedResults = Arrays.asList("WHERE");
+		assertEquals(expectedResults, results);
+
+		line = "SELECT * FROM TableNumber1 WHERE Inte";
+		parsedLine = parser.parse(line, 37, ParseContext.COMPLETE);
+		candidates.clear();
+		results.clear();
+		completer.complete(reader, parsedLine, candidates);
+		candidates.forEach(item->results.add(item.value()));
+		expectedResults = Arrays.asList("IntegerField1");
+		assertTrue(results.containsAll(expectedResults));
 	}
 
 	@Test(timeout = 30_000L)
