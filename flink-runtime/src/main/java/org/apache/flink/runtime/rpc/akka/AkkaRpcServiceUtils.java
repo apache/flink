@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution;
 import org.apache.flink.runtime.net.SSLUtils;
@@ -30,8 +31,6 @@ import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
 import akka.actor.ActorSystem;
-import com.typesafe.config.Config;
-import org.jboss.netty.channel.ChannelException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +63,25 @@ public class AkkaRpcServiceUtils {
 	 * Utility method to create RPC service from configuration and hostname, port.
 	 *
 	 * @param hostname   The hostname/address that describes the TaskManager's data location.
+	 * @param portRangeDefinition   The port range to start TaskManager on.
+	 * @param configuration                 The configuration for the TaskManager.
+	 * @return   The rpc service which is used to start and connect to the TaskManager RpcEndpoint .
+	 * @throws IOException      Thrown, if the actor system can not bind to the address
+	 * @throws Exception      Thrown is some other error occurs while creating akka actor system
+	 */
+	public static RpcService createRpcService(
+		String hostname,
+		String portRangeDefinition,
+		Configuration configuration) throws Exception {
+		final ActorSystem actorSystem = BootstrapTools.startActorSystem(configuration, hostname, portRangeDefinition, LOG);
+		final Time timeout = AkkaUtils.getTimeoutAsTime(configuration);
+		return new AkkaRpcService(actorSystem, timeout);
+	}
+
+	/**
+	 * Utility method to create RPC service from configuration and hostname, port.
+	 *
+	 * @param hostname   The hostname/address that describes the TaskManager's data location.
 	 * @param port           If true, the TaskManager will not initiate the TCP network stack.
 	 * @param configuration                 The configuration for the TaskManager.
 	 * @return   The rpc service which is used to start and connect to the TaskManager RpcEndpoint .
@@ -75,35 +93,7 @@ public class AkkaRpcServiceUtils {
 		int port,
 		Configuration configuration) throws Exception {
 		LOG.info("Starting AkkaRpcService at {}.", NetUtils.unresolvedHostAndPortToNormalizedString(hostname, port));
-
-		final ActorSystem actorSystem;
-
-		try {
-			Config akkaConfig;
-
-			if (hostname != null && !hostname.isEmpty()) {
-				// remote akka config
-				akkaConfig = AkkaUtils.getAkkaConfig(configuration, hostname, port);
-			} else {
-				// local akka config
-				akkaConfig = AkkaUtils.getAkkaConfig(configuration);
-			}
-
-			LOG.debug("Using akka configuration \n {}.", akkaConfig);
-
-			actorSystem = AkkaUtils.createActorSystem(akkaConfig);
-		} catch (Throwable t) {
-			if (t instanceof ChannelException) {
-				Throwable cause = t.getCause();
-				if (cause != null && t.getCause() instanceof java.net.BindException) {
-					String address = NetUtils.hostAndPortToUrlString(hostname, port);
-					throw new IOException("Unable to bind AkkaRpcService actor system to address " +
-						address + " - " + cause.getMessage(), t);
-				}
-			}
-			throw new Exception("Could not create TaskManager actor system", t);
-		}
-
+		final ActorSystem actorSystem = BootstrapTools.startActorSystem(configuration, hostname, port, LOG);
 		final Time timeout = AkkaUtils.getTimeoutAsTime(configuration);
 		return new AkkaRpcService(actorSystem, timeout);
 	}
@@ -144,7 +134,6 @@ public class AkkaRpcServiceUtils {
 	}
 
 	/**
-	 * 
 	 * @param hostname The hostname or address where the target RPC service is listening.
 	 * @param port The port where the target RPC service is listening.
 	 * @param endpointName The name of the RPC endpoint.
@@ -204,6 +193,6 @@ public class AkkaRpcServiceUtils {
 
 	// ------------------------------------------------------------------------
 
-	/** This class is not meant to be instantiated */
+	/** This class is not meant to be instantiated. */
 	private AkkaRpcServiceUtils() {}
 }

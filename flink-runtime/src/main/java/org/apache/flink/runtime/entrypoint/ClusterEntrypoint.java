@@ -33,7 +33,6 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
@@ -50,7 +49,7 @@ import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -82,10 +81,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import scala.concurrent.duration.FiniteDuration;
-
-import static org.apache.flink.runtime.clusterframework.BootstrapTools.ActorSystemExecutorMode.FORK_JOIN_EXECUTOR;
 
 /**
  * Base class for the Flink cluster entry points.
@@ -252,7 +247,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 			final String bindAddress = configuration.getString(JobManagerOptions.ADDRESS);
 			final String portRange = getRPCPortRange(configuration);
 
-			commonRpcService = createRpcService(configuration, bindAddress, portRange);
+			commonRpcService = AkkaRpcServiceUtils.createRpcService(bindAddress, portRange, configuration);
 
 			// update the configuration used to create the high availability services
 			configuration.setString(JobManagerOptions.ADDRESS, commonRpcService.getAddress());
@@ -291,15 +286,6 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 		} else {
 			return String.valueOf(configuration.getInteger(JobManagerOptions.PORT));
 		}
-	}
-
-	protected RpcService createRpcService(
-			Configuration configuration,
-			String bindAddress,
-			String portRange) throws Exception {
-		ActorSystem actorSystem = BootstrapTools.startActorSystem(configuration, bindAddress, portRange, LOG, FORK_JOIN_EXECUTOR);
-		FiniteDuration duration = AkkaUtils.getTimeout(configuration);
-		return new AkkaRpcService(actorSystem, Time.of(duration.length(), duration.unit()));
 	}
 
 	protected HighAvailabilityServices createHaServices(
