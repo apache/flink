@@ -62,5 +62,10 @@
             <td style="word-wrap: break-word;">4</td>
             <td>The number of threads for the asynchronous processing of requests.</td>
         </tr>
+        <tr>
+            <td><h5>rest.server.thread-priority</h5></td>
+            <td style="word-wrap: break-word;">5</td>
+            <td>Thread priority of the REST server's executor for processing asynchronous requests. Lowering the thread priority will give Flink's main components more CPU time whereas increasing will allocate more time for the REST server's processing.</td>
+        </tr>
     </tbody>
 </table>

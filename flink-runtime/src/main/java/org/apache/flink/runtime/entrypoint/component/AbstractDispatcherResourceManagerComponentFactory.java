@@ -141,6 +141,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				blobServer,
 				WebMonitorEndpoint.createExecutorService(
 					configuration.getInteger(RestOptions.SERVER_NUM_THREADS),
+					configuration.getInteger(RestOptions.SERVER_THREAD_PRIORITY),
 					"DispatcherRestEndpoint"),
 				new AkkaQueryServiceRetriever(actorSystem, timeout),
 				highAvailabilityServices.getWebMonitorLeaderElectionService(),
