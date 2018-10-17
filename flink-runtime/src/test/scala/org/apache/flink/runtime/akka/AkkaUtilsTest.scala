@@ -20,14 +20,17 @@ package org.apache.flink.runtime.akka
 
 import java.net.{InetAddress, InetSocketAddress}
 
-import org.apache.flink.configuration.{AkkaOptions, Configuration, IllegalConfigurationException}
+import org.apache.flink.configuration.{AkkaOptions, Configuration, IllegalConfigurationException, MetricOptions}
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
+import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils.AkkaProtocol
 import org.apache.flink.util.NetUtils
+import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
+import org.slf4j.LoggerFactory
 
 @RunWith(classOf[JUnitRunner])
 class AkkaUtilsTest
@@ -184,13 +187,44 @@ class AkkaUtilsTest
   }
 
   test("getAkkaConfig respects executor config") {
-    val akkaConfig = AkkaUtils.getAkkaConfig(
+    var akkaConfig = AkkaUtils.getAkkaConfig(
       new Configuration(),
       "localhost",
       1234,
-      AkkaUtils.getThreadPoolExecutorConfig)
+      AkkaUtils.getThreadPoolExecutorConfig(Thread.MIN_PRIORITY))
 
     akkaConfig.getString("akka.actor.default-dispatcher.executor") should
       equal("thread-pool-executor")
+
+    akkaConfig.getInt("akka.actor.default-dispatcher.thread-priority") should
+      equal(Thread.MIN_PRIORITY)
+
+    akkaConfig = AkkaUtils.getAkkaConfig(
+      new Configuration(),
+      "localhost",
+      1234,
+      AkkaUtils.getThreadPoolExecutorConfig(Thread.MAX_PRIORITY))
+
+    akkaConfig.getInt("akka.actor.default-dispatcher.thread-priority") should
+      equal(Thread.MAX_PRIORITY)
+  }
+
+  test("thread priority for metrics ActorSystem ") {
+    var actorSystem = MetricUtils.startMetricsActorSystem(
+      new Configuration, "localhost", LoggerFactory.getLogger("AkkaUtilsTest"))
+    //test default thread priority
+    val defaultThreadPriority = actorSystem.settings.config.getInt(
+      "akka.actor.default-dispatcher.thread-priority")
+    //check default value
+    assertEquals(Thread.MIN_PRIORITY, defaultThreadPriority)
+
+    val config = new Configuration()
+    config.setInteger(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY, Thread.MAX_PRIORITY)
+    actorSystem = MetricUtils.startMetricsActorSystem(
+      config, "localhost", LoggerFactory.getLogger("AkkaUtilsTest"))
+    val threadPriority = actorSystem.settings.config.getInt(
+      "akka.actor.default-dispatcher.thread-priority")
+    //check config value
+    assertEquals(Thread.MAX_PRIORITY, threadPriority)
   }
 }
