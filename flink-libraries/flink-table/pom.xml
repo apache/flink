@@ -299,11 +299,10 @@ under the License.
 									<shadedPattern>org.apache.flink.table.shaded.org.codehaus</shadedPattern>
 								</relocation>-->
 
-								<!-- commons-codec, commons-lang3 inherited from flink-parent, no need to relocation -->
-								<!-- relocation commons-lang (from Calcite) -->
+								<!-- commons-codec, commons-lang3, and commons-lang (from Calcite) -->
 								<relocation>
-									<pattern>org.apache.commons.lang</pattern>
-									<shadedPattern>org.apache.flink.table.shaded.org.apache.commons.lang</shadedPattern>
+									<pattern>org.apache.commons</pattern>
+									<shadedPattern>org.apache.flink.table.shaded.org.apache.commons</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

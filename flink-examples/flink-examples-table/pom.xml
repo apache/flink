@@ -97,8 +97,6 @@ under the License.
 										<include>org.codehaus.commons.compiler.properties</include>
 										<include>org/codehaus/janino/**</include>
 										<include>org/codehaus/commons/**</include>
-										<include>org/apache/commons/codec/**</include>
-										<include>org/apache/commons/lang3/**</include>
 									</includes>
 								</filter>
 							</filters>
