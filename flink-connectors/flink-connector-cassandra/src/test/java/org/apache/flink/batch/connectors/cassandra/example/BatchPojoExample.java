@@ -37,7 +37,7 @@ import java.util.stream.IntStream;
  * This is an example showing the to use the {@link CassandraPojoInputFormat}/{@link CassandraPojoOutputFormat} in the Batch API.
  *
  * <p>The example assumes that a table exists in a local cassandra database, according to the following queries:
- * CREATE KEYSPACE IF NOT EXISTS flink WITH replication = {'class': 'SimpleStrategy', 'replication_factor': ‘1’};
+ * CREATE KEYSPACE IF NOT EXISTS flink WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'};
  * CREATE TABLE IF NOT EXISTS flink.batches (id text, counter int, batch_id int, PRIMARY KEY(id, counter, batchId));
  */
 public class BatchPojoExample {

@@ -160,7 +160,7 @@ public class AkkaOptions {
 	public static final ConfigOption<Boolean> LOG_LIFECYCLE_EVENTS = ConfigOptions
 		.key("akka.log.lifecycle.events")
 		.defaultValue(false)
-		.withDescription("Turns on the Akka’s remote logging of events. Set this value to ‘true’ in case of debugging.");
+		.withDescription("Turns on the Akka’s remote logging of events. Set this value to 'true' in case of debugging.");
 
 	/**
 	 * Timeout for all blocking calls that look up remote actors.
