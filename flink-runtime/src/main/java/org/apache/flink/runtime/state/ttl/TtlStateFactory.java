@@ -224,7 +224,7 @@ public class TtlStateFactory<N, SV, S extends State, IS extends S> {
 			TypeSerializer<?> ... originalSerializers) {
 			Preconditions.checkNotNull(originalSerializers);
 			Preconditions.checkArgument(originalSerializers.length == 2);
-			return new TtlSerializer<>(precomputed, (TypeSerializer<T>) originalSerializers[0], (TypeSerializer<T>) originalSerializers[1]);
+			return new TtlSerializer<>(precomputed, originalSerializers);
 		}
 	}
 }
