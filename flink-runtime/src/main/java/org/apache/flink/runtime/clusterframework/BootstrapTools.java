@@ -54,7 +54,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.BindException;
-import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -156,19 +155,7 @@ public class BootstrapTools {
 		}
 
 		while (portsIterator.hasNext()) {
-			// first, we check if the port is available by opening a socket
-			// if the actor system fails to start on the port, we try further
-			ServerSocket availableSocket = NetUtils.createSocketFromPorts(portsIterator, ServerSocket::new);
-
-			int port;
-			if (availableSocket == null) {
-				throw new BindException("Unable to allocate further port in port range: " + portRangeDefinition);
-			} else {
-				port = availableSocket.getLocalPort();
-				try {
-					availableSocket.close();
-				} catch (IOException ignored) {}
-			}
+			final int port = portsIterator.next();
 
 			try {
 				return startActorSystem(
