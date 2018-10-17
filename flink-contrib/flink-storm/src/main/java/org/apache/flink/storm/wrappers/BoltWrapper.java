@@ -18,7 +18,6 @@
 package org.apache.flink.storm.wrappers;
 
 import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple25;
@@ -28,9 +27,6 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import org.apache.storm.generated.GlobalStreamId;
-import org.apache.storm.generated.Grouping;
-import org.apache.storm.generated.StormTopology;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.IRichBolt;
@@ -40,7 +36,6 @@ import org.apache.storm.utils.Utils;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Map;
 
 import static java.util.Arrays.asList;
 
@@ -68,15 +63,9 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 	/** Number of attributes of the bolt's output tuples per stream. */
 	private final HashMap<String, Integer> numberOfAttributes;
 
-	/** The original Storm topology. */
-	private StormTopology stormTopology;
 	/** The topology context of the bolt. */
 	private transient TopologyContext topologyContext;
 
-	/** The IDs of the input streams for this bolt per producer task ID. */
-	private final HashMap<Integer, String> inputStreamIds = new HashMap<Integer, String>();
-	/** The IDs of the producers for this bolt per producer task ID.. */
-	private final HashMap<Integer, String> inputComponentIds = new HashMap<Integer, String>();
 	/** The schema (ie, ordered field names) of the input streams per producer taskID. */
 	private final HashMap<Integer, Fields> inputSchemas = new HashMap<Integer, Fields>();
 
@@ -242,16 +231,6 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 		this.numberOfAttributes = WrapperSetupHelper.getNumberOfAttributes(bolt, rawOutputs);
 	}
 
-	/**
-	 * Sets the original Storm topology.
-	 *
-	 * @param stormTopology
-	 *            The original Storm topology.
-	 */
-	public void setStormTopology(StormTopology stormTopology) {
-		this.stormTopology = stormTopology;
-	}
-
 	@Override
 	public void open() throws Exception {
 		super.open();
@@ -270,24 +249,10 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 		}
 
 		this.topologyContext = WrapperSetupHelper.createTopologyContext(
-				getRuntimeContext(), this.bolt, this.name, this.stormTopology, stormConfig);
+				getRuntimeContext(), this.bolt, this.name, stormConfig);
 
 		final OutputCollector stormCollector = new OutputCollector(new BoltCollector<OUT>(
 				this.numberOfAttributes, this.topologyContext.getThisTaskId(), this.flinkCollector));
-
-		if (this.stormTopology != null) {
-			Map<GlobalStreamId, Grouping> inputs = this.topologyContext.getThisSources();
-
-			for (GlobalStreamId inputStream : inputs.keySet()) {
-				for (Integer tid : this.topologyContext.getComponentTasks(inputStream
-						.get_componentId())) {
-					this.inputComponentIds.put(tid, inputStream.get_componentId());
-					this.inputStreamIds.put(tid, inputStream.get_streamId());
-					this.inputSchemas.put(tid,
-							this.topologyContext.getComponentOutputFields(inputStream));
-				}
-			}
-		}
 
 		this.bolt.prepare(stormConfig, this.topologyContext, stormCollector);
 	}
@@ -304,17 +269,7 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 
 		IN value = element.getValue();
 
-		if (this.stormTopology != null) {
-			Tuple tuple = (Tuple) value;
-			Integer producerTaskId = tuple.getField(tuple.getArity() - 1);
-
-			this.bolt.execute(new StormTuple<>(value, this.inputSchemas.get(producerTaskId),
-					producerTaskId, this.inputStreamIds.get(producerTaskId), this.inputComponentIds
-					.get(producerTaskId), MessageId.makeUnanchored()));
-
-		} else {
-			this.bolt.execute(new StormTuple<>(value, this.inputSchemas.get(null), -1, null, null,
-					MessageId.makeUnanchored()));
-		}
+		this.bolt.execute(new StormTuple<>(value, this.inputSchemas.get(null), -1, null, null,
+			MessageId.makeUnanchored()));
 	}
 }

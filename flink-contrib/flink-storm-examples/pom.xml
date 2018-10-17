@@ -127,16 +127,6 @@ under the License.
 							<artifactItems>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
-									<version>${project.version}</version>
-									<type>jar</type>
-									<overWrite>false</overWrite>
-									<outputDirectory>${project.build.directory}/classes</outputDirectory>
-									<includes>org/apache/flink/examples/java/wordcount/util/WordCountData.class
-									</includes>
-								</artifactItem>
-								<artifactItem>
-									<groupId>org.apache.flink</groupId>
 									<artifactId>flink-storm_${scala.binary.version}</artifactId>
 									<version>${project.version}</version>
 									<type>jar</type>
@@ -276,109 +266,10 @@ under the License.
 						</configuration>
 					</execution>
 
-					<!-- WordCount Storm topology-->
-					<!-- Example for whole topologies (ie, if FlinkTopology is used) -->
-					<!-- We cannot use maven-jar-plugin because 'defaults.yaml' must be included in jar.
-					     However, we excluded 'defaults.yaml' in dependency-plugin to get clean Eclipse environment.
-					     Thus, 'defaults.yaml' is not available for maven-jar-plugin.
-					     Nevertheless, we register an empty jar with corresponding name, such that the final jar can be installed to local maven repository.
-					     We use maven-shade-plugin to build the actual jar (which will replace the empty jar). -->
-					<execution>
-						<id>WordCount-StormTopology</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<finalName>WordCount</finalName>
-							<classifier>StormTopology</classifier>
-						</configuration>
-					</execution>
-
 					<execution>
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
-					</execution>
-				</executions>
-			</plugin>
-
-			<!-- WordCount Storm topology-->
-			<!-- Cannot use maven-jar-plugin because 'defaults.yaml' must be included in jar -->
-			<!-- Build StormTopolgy jar to overwrite empty jar created with maven-jar-plugin. -->
-			<plugin>
-				<artifactId>maven-shade-plugin</artifactId>
-				<groupId>org.apache.maven.plugins</groupId>
-				<executions>
-					<execution>
-						<id>WordCount-StormTopology</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<finalName>WordCount-StormTopology</finalName>
-
-							<artifactSet>
-								<includes>
-									<include>org.apache.storm:storm-core</include>
-									<!-- Storm's recursive dependencies -->
-									<include>org.yaml:snakeyaml</include>
-									<include>com.googlecode.json-simple:json-simple</include>
-									<include>org.apache.flink:flink-storm_${scala.binary.version}</include>
-									<include>org.apache.flink:flink-storm-examples_${scala.binary.version}</include>
-								</includes>
-							</artifactSet>
-							<filters>
-								<filter>
-									<artifact>org.apache.storm:storm-core</artifact>
-									<includes>
-										<include>defaults.yaml</include>
-										<include>org/apache/storm/*.class</include>
-										<include>org/apache/storm/topology/*.class</include>
-										<include>org/apache/storm/spout/*.class</include>
-										<include>org/apache/storm/task/*.class</include>
-										<include>org/apache/storm/tuple/*.class</include>
-										<include>org/apache/storm/generated/*.class</include>
-										<include>org/apache/storm/metric/**/*.class</include>
-										<include>org/apache/storm/utils/*.class</include>
-										<include>org/apache/storm/serialization/*.class</include>
-										<include>org/apache/storm/curator/**/*.class</include>
-										<include>org/apache/storm/grouping/**/*.class</include>
-										<include>org/apache/storm/thrift/**/*.class</include>
-										<!-- Storm's recursive dependencies -->
-										<include>org/json/simple/**/*.class</include>
-										<include>org/yaml/snakeyaml/**/*.class</include>
-										<include>org/apache/storm/shade/**/*.class</include>
-									</includes>
-								</filter>
-								<filter>
-									<artifact>org.apache.flink:flink-storm-examples_${scala.binary.version}</artifact>
-									<includes>
-										<include>org/apache/flink/storm/wordcount/WordCountRemoteBySubmitter.class
-										</include>
-										<include>org/apache/flink/storm/wordcount/WordCountTopology.class</include>
-										<include>org/apache/flink/storm/wordcount/operators/*.class</include>
-										<include>org/apache/flink/storm/util/*.class</include>
-										<include>org/apache/flink/storm/wordcount/util/WordCountData.class</include>
-									</includes>
-								</filter>
-								<filter>
-									<artifact>org.apache.flink:flink-storm_${scala.binary.version}</artifact>
-									<includes>
-										<include>org/apache/flink/storm/api/*.class</include>
-										<include>org/apache/flink/storm/util/*.class</include>
-										<include>org/apache/flink/storm/wrappers/*.class</include>
-									</includes>
-								</filter>
-							</filters>
-							<transformers>
-								<transformer
-									implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>org.apache.flink.storm.wordcount.WordCountRemoteBySubmitter</mainClass>
-								</transformer>
-							</transformers>
-						</configuration>
 					</execution>
 				</executions>
 			</plugin>
