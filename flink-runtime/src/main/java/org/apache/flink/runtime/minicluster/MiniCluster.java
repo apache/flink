@@ -356,6 +356,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					blobServer.getTransientBlobService(),
 					WebMonitorEndpoint.createExecutorService(
 						configuration.getInteger(RestOptions.SERVER_NUM_THREADS, 1),
+						configuration.getInteger(RestOptions.SERVER_THREAD_PRIORITY),
 						"DispatcherRestEndpoint"),
 					new AkkaQueryServiceRetriever(
 						metricQueryServiceActorSystem,

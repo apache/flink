@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -121,4 +122,12 @@ public class RestOptions {
 		key("rest.server.numThreads")
 			.defaultValue(4)
 			.withDescription("The number of threads for the asynchronous processing of requests.");
+
+	public static final ConfigOption<Integer> SERVER_THREAD_PRIORITY = key("rest.server.thread-priority")
+		.defaultValue(Thread.NORM_PRIORITY)
+		.withDescription(Description.builder()
+			.text("Thread priority of the REST server's executor for processing asynchronous requests. " +
+				"Lowering the thread priority will give Flink's main components more CPU time whereas " +
+				"increasing will allocate more time for the REST server's processing.")
+			.build());
 }
