@@ -20,7 +20,6 @@ package org.apache.flink.table.typeutils
 
 import java.io.Serializable
 
-import org.apache.commons.codec.binary.Base64
 import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.{PrimitiveArrayTypeInfo, TypeInformation}
@@ -267,7 +266,7 @@ object TypeStringUtils extends JavaTokenParsers with PackratParsers {
   private def serialize(obj: Serializable): String = {
     try {
       val byteArray = InstantiationUtil.serializeObject(obj)
-      Base64.encodeBase64URLSafeString(byteArray)
+      new String(java.util.Base64.getUrlEncoder.encode(byteArray), "UTF-8")
     } catch {
       case e: Exception =>
         throw new ValidationException(s"Unable to serialize type information '$obj' with " +
@@ -276,7 +275,7 @@ object TypeStringUtils extends JavaTokenParsers with PackratParsers {
   }
 
   private def deserialize(data: String): TypeInformation[_] = {
-    val byteData = Base64.decodeBase64(data)
+    val byteData = java.util.Base64.getUrlDecoder.decode(data.getBytes("UTF-8"))
     InstantiationUtil
       .deserializeObject[TypeInformation[_]](byteData, Thread.currentThread.getContextClassLoader)
   }

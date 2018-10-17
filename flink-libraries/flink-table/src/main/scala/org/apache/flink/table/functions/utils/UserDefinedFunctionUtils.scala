@@ -24,7 +24,6 @@ import java.lang.{Integer => JInt, Long => JLong}
 import java.lang.reflect.{Method, Modifier}
 import java.sql.{Date, Time, Timestamp}
 
-import org.apache.commons.codec.binary.Base64
 import com.google.common.primitives.Primitives
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
@@ -736,12 +735,12 @@ object UserDefinedFunctionUtils {
   @throws[Exception]
   def serialize(function: UserDefinedFunction): String = {
     val byteArray = InstantiationUtil.serializeObject(function)
-    Base64.encodeBase64URLSafeString(byteArray)
+    new String(java.util.Base64.getUrlEncoder.encode(byteArray), "UTF-8")
   }
 
   @throws[Exception]
   def deserialize(data: String): UserDefinedFunction = {
-    val byteData = Base64.decodeBase64(data)
+    val byteData = java.util.Base64.getUrlDecoder.decode(data.getBytes("UTF-8"))
     InstantiationUtil
       .deserializeObject[UserDefinedFunction](byteData, Thread.currentThread.getContextClassLoader)
   }

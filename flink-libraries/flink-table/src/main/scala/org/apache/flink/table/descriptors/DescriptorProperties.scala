@@ -26,7 +26,6 @@ import java.util.function.{Consumer, Supplier}
 import java.util.regex.Pattern
 import java.util.{Optional, List => JList, Map => JMap}
 
-import org.apache.commons.codec.binary.Base64
 import org.apache.commons.lang.StringEscapeUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
@@ -1356,7 +1355,7 @@ object DescriptorProperties {
     }
     try {
       val byteArray = InstantiationUtil.serializeObject(obj)
-      Base64.encodeBase64URLSafeString(byteArray)
+      new String(java.util.Base64.getUrlEncoder.encode(byteArray), "UTF-8")
     } catch {
       case e: Exception =>
         throw new ValidationException(
@@ -1366,7 +1365,7 @@ object DescriptorProperties {
 
   def deserialize[T](data: String, expected: Class[T]): T = {
     try {
-      val byteData = Base64.decodeBase64(data)
+      val byteData = java.util.Base64.getUrlDecoder.decode(data.getBytes("UTF-8"))
       val obj = InstantiationUtil.deserializeObject[T](
         byteData,
         Thread.currentThread.getContextClassLoader)

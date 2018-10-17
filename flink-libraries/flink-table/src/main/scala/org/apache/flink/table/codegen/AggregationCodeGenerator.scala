@@ -21,7 +21,6 @@ import java.lang.reflect.Modifier
 import java.lang.{Iterable => JIterable}
 
 import org.apache.calcite.rex.RexLiteral
-import org.apache.commons.codec.binary.Base64
 import org.apache.flink.api.common.state.{ListStateDescriptor, MapStateDescriptor, State, StateDescriptor}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -330,7 +329,7 @@ class AggregationCodeGenerator(
         s"""
            |    $descClassQualifier $descFieldTerm = ($descClassQualifier)
            |      org.apache.flink.util.InstantiationUtil.deserializeObject(
-           |      org.apache.commons.codec.binary.Base64.decodeBase64("$serializedData"),
+           |      java.util.Base64.getUrlDecoder().decode("$serializedData".getBytes("UTF-8")),
            |      $contextTerm.getUserCodeClassLoader());
            |""".stripMargin
       val createDataView = if (dataViewField.getType == classOf[MapView[_, _]]) {
@@ -774,6 +773,6 @@ class AggregationCodeGenerator(
   @throws[Exception]
   def serializeStateDescriptor(stateDescriptor: StateDescriptor[_, _]): String = {
     val byteArray = InstantiationUtil.serializeObject(stateDescriptor)
-    Base64.encodeBase64URLSafeString(byteArray)
+    new String(java.util.Base64.getUrlEncoder.encode(byteArray), "UTF-8")
   }
 }
