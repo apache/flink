@@ -96,5 +96,11 @@ The Kinesis dependencies of Flink’s Kinesis connector have been updated to the
 <aws.kinesis-kpl.version>0.12.9</aws.kinesis-kcl.version>
 ```
 
+## Important changes in 1.5.5
+
+### Changed handling of savepoints while recovering
+
+Savepoints in version 1.5.5 are used while recovering. Previously when using exactly-once sink one can get into problems with duplicate output data when a failure occurs after a savepoint was taken but before the next checkpoint occured.
+This results in the fact that savepoints are no longer exclusively under the control of the user. Savepoint should not be moved nor deleted if there was no newer checkpoint or savepoint taken.
 
 {% top %}
