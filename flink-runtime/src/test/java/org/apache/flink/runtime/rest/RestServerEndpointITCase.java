@@ -91,6 +91,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -275,15 +276,13 @@ public class RestServerEndpointITCase extends TestLogger {
 		// send first request and wait until the handler blocks
 		CompletableFuture<TestResponse> response1;
 
-		synchronized (TestHandler.LOCK) {
-			response1 = restClient.sendRequest(
-				serverAddress.getHostName(),
-				serverAddress.getPort(),
-				new TestHeaders(),
-				parameters,
-				new TestRequest(1));
-			TestHandler.LOCK.wait();
-		}
+		response1 = restClient.sendRequest(
+			serverAddress.getHostName(),
+			serverAddress.getPort(),
+			new TestHeaders(),
+			parameters,
+			new TestRequest(1));
+		assertTrue(testHandler.requestArrivedLatch.await(timeout.getSize(), timeout.getUnit()));
 
 		// send second request and verify response
 		CompletableFuture<TestResponse> response2 = restClient.sendRequest(
@@ -295,9 +294,8 @@ public class RestServerEndpointITCase extends TestLogger {
 		assertEquals(2, response2.get().id);
 
 		// wake up blocked handler
-		synchronized (TestHandler.LOCK) {
-			TestHandler.LOCK.notifyAll();
-		}
+		testHandler.finishRequestLatch.countDown();
+
 		// verify response to first request
 		assertEquals(1, response1.get().id);
 	}
@@ -567,15 +565,13 @@ public class RestServerEndpointITCase extends TestLogger {
 		parameters.jobIDQueryParameter.resolve(Collections.singletonList(QUERY_JOB_ID));
 
 		final CompletableFuture<TestResponse> request;
-		synchronized (TestHandler.LOCK) {
-			request = restClient.sendRequest(
-				serverAddress.getHostName(),
-				serverAddress.getPort(),
-				new TestHeaders(),
-				parameters,
-				new TestRequest(1));
-			TestHandler.LOCK.wait();
-		}
+		request = restClient.sendRequest(
+			serverAddress.getHostName(),
+			serverAddress.getPort(),
+			new TestHeaders(),
+			parameters,
+			new TestRequest(1));
+		assertTrue(testHandler.requestArrivedLatch.await(timeout.getSize(), timeout.getUnit()));
 
 		// Allow handler to close but there is still one in-flight request which should prevent
 		// the RestServerEndpoint from closing.
@@ -583,9 +579,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		assertThat(closeRestServerEndpointFuture.isDone(), is(false));
 
 		// Finish the in-flight request.
-		synchronized (TestHandler.LOCK) {
-			TestHandler.LOCK.notifyAll();
-		}
+		testHandler.finishRequestLatch.countDown();
 
 		request.get(timeout.getSize(), timeout.getUnit());
 		closeRestServerEndpointFuture.get(timeout.getSize(), timeout.getUnit());
@@ -633,7 +627,9 @@ public class RestServerEndpointITCase extends TestLogger {
 
 	private static class TestHandler extends AbstractRestHandler<RestfulGateway, TestRequest, TestResponse, TestParameters> {
 
-		private static final Object LOCK = new Object();
+		private final CountDownLatch requestArrivedLatch = new CountDownLatch(1);
+
+		private final CountDownLatch finishRequestLatch = new CountDownLatch(1);
 
 		private static final int LARGE_RESPONSE_BODY_ID = 3;
 
@@ -661,12 +657,10 @@ public class RestServerEndpointITCase extends TestLogger {
 				// Intentionally schedule the work on a different thread. This is to simulate
 				// handlers where the CompletableFuture is finished by the RPC framework.
 				return CompletableFuture.supplyAsync(() -> {
-					synchronized (LOCK) {
-						try {
-							LOCK.notifyAll();
-							LOCK.wait();
-						} catch (InterruptedException ignored) {
-						}
+					try {
+						requestArrivedLatch.countDown();
+						assertTrue(finishRequestLatch.await(timeout.getSize(), timeout.getUnit()));
+					} catch (InterruptedException ignored) {
 					}
 					return new TestResponse(id);
 				});
