@@ -27,7 +27,6 @@ import org.apache.flink.storm.util.StormConfig;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
-import org.apache.storm.generated.StormTopology;
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.IRichSpout;
@@ -66,8 +65,6 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 	private volatile boolean isRunning = true;
 	/** The number of {@link IRichSpout#nextTuple()} calls. */
 	private Integer numberOfInvocations; // do not use int -> null indicates an infinite loop
-	/** The original Storm topology. */
-	private StormTopology stormTopology;
 
 	/**
 	 * Instantiates a new {@link SpoutWrapper} that calls the {@link IRichSpout#nextTuple() nextTuple()} method of
@@ -229,16 +226,6 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 		this.numberOfInvocations = numberOfInvocations;
 	}
 
-	/**
-	 * Sets the original Storm topology.
-	 *
-	 * @param stormTopology
-	 *            The original Storm topology.
-	 */
-	public void setStormTopology(StormTopology stormTopology) {
-		this.stormTopology = stormTopology;
-	}
-
 	@Override
 	public final void run(final SourceContext<OUT> ctx) throws Exception {
 		final GlobalJobParameters config = super.getRuntimeContext().getExecutionConfig()
@@ -255,7 +242,7 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 
 		final TopologyContext stormTopologyContext = WrapperSetupHelper.createTopologyContext(
 				(StreamingRuntimeContext) super.getRuntimeContext(), this.spout, this.name,
-				this.stormTopology, stormConfig);
+				stormConfig);
 
 		SpoutCollector<OUT> collector = new SpoutCollector<OUT>(this.numberOfAttributes,
 				stormTopologyContext.getThisTaskId(), ctx);
