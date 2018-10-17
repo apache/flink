@@ -29,6 +29,13 @@ The default value of the slot idle timeout `slot.idle.timeout` is set to the def
 ### Changed ElasticSearch 5.x Sink API
 
 Previous APIs in the Flink ElasticSearch 5.x Sink's `RequestIndexer` interface have been deprecated in favor of new signatures. 
-When adding requests to the `RequestIndexer`, the requests now must be of type `IndexRequest`, `DeleteRequest`, or `UpdateRequest`, instead of the base `ActionRequest`. 
+When adding requests to the `RequestIndexer`, the requests now must be of type `IndexRequest`, `DeleteRequest`, or `UpdateRequest`, instead of the base `ActionRequest`.
+
+## Important changes in 1.6.2
+
+### Changed handling of savepoints while recovering
+
+Savepoints in version 1.6.2 are used while recovering. Previously when using exactly-once sink one can get into problems with duplicate output data when a failure occurs after a savepoint was taken but before the next checkpoint occured.
+This results in the fact that savepoints are no longer exclusively under the control of the user. Savepoint should not be moved nor deleted if there was no newer checkpoint or savepoint taken. 
 
 {% top %}
