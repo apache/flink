@@ -43,7 +43,7 @@ public class RestOptions {
 	public static final ConfigOption<String> ADDRESS =
 		key("rest.address")
 			.noDefaultValue()
-			.withDeprecatedKeys(JobManagerOptions.ADDRESS.key())
+			.withFallbackKeys(JobManagerOptions.ADDRESS.key())
 			.withDescription("The address that should be used by clients to connect to the server.");
 
 	/**

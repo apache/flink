@@ -701,12 +701,14 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			if (this.confData.containsKey(configOption.key())) {
 				return true;
 			}
-			else if (configOption.hasDeprecatedKeys()) {
-				// try the deprecated keys
-				for (String deprecatedKey : configOption.deprecatedKeys()) {
-					if (this.confData.containsKey(deprecatedKey)) {
-						LOG.warn("Config uses deprecated configuration key '{}' instead of proper key '{}'",
-							deprecatedKey, configOption.key());
+			else if (configOption.hasFallbackKeys()) {
+				// try the fallback keys
+				for (FallbackKey fallbackKey : configOption.fallbackKeys()) {
+					if (this.confData.containsKey(fallbackKey.getKey())) {
+						if (fallbackKey.isDeprecated()) {
+							LOG.warn("Config uses deprecated configuration key '{}' instead of proper key '{}'",
+								fallbackKey.getKey(), configOption.key());
+						}
 						return true;
 					}
 				}
@@ -741,11 +743,13 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			// try the current key
 			Object oldValue = this.confData.remove(configOption.key());
 			if (oldValue == null){
-				for (String deprecatedKey : configOption.deprecatedKeys()){
-					oldValue = this.confData.remove(deprecatedKey);
+				for (FallbackKey fallbackKey : configOption.fallbackKeys()){
+					oldValue = this.confData.remove(fallbackKey.getKey());
 					if (oldValue != null){
-						LOG.warn("Config uses deprecated configuration key '{}' instead of proper key '{}'",
-							deprecatedKey, configOption.key());
+						if (fallbackKey.isDeprecated()) {
+							LOG.warn("Config uses deprecated configuration key '{}' instead of proper key '{}'",
+								fallbackKey.getKey(), configOption.key());
+						}
 						return true;
 					}
 				}
@@ -789,13 +793,15 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			// found a value for the current proper key
 			return o;
 		}
-		else if (configOption.hasDeprecatedKeys()) {
+		else if (configOption.hasFallbackKeys()) {
 			// try the deprecated keys
-			for (String deprecatedKey : configOption.deprecatedKeys()) {
-				Object oo = getRawValue(deprecatedKey);
+			for (FallbackKey fallbackKey : configOption.fallbackKeys()) {
+				Object oo = getRawValue(fallbackKey.getKey());
 				if (oo != null) {
-					LOG.warn("Config uses deprecated configuration key '{}' instead of proper key '{}'",
-							deprecatedKey, configOption.key());
+					if (fallbackKey.isDeprecated()) {
+						LOG.warn("Config uses deprecated configuration key '{}' instead of proper key '{}'",
+							fallbackKey.getKey(), configOption.key());
+					}
 					return oo;
 				}
 			}
