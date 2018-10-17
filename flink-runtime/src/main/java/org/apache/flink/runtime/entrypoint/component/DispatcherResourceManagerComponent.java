@@ -138,10 +138,10 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> {
 			final @Nullable String diagnostics) {
 
 		if (isRunning.compareAndSet(true, false)) {
-			final CompletableFuture<Void> closeWebMonitorAndRegisterAppFuture =
+			final CompletableFuture<Void> closeWebMonitorAndDeregisterAppFuture =
 				FutureUtils.composeAfterwards(webMonitorEndpoint.closeAsync(), () -> deregisterApplication(applicationStatus, diagnostics));
 
-			return FutureUtils.composeAfterwards(closeWebMonitorAndRegisterAppFuture, this::closeAsyncInternal);
+			return FutureUtils.composeAfterwards(closeWebMonitorAndDeregisterAppFuture, this::closeAsyncInternal);
 		} else {
 			return terminationFuture;
 		}
