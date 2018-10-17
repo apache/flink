@@ -63,7 +63,7 @@ cd ${CLONE_DIR}
 
 rsync -a \
   --exclude ".git" --exclude ".gitignore" --exclude ".gitattributes" --exclude ".travis.yml" \
-  --exclude "deploysettings.xml" --exclude "CHANGELOG" --exclude ".github" --exclude "target" \
+  --exclude "CHANGELOG" --exclude ".github" --exclude "target" \
   --exclude ".idea" --exclude "*.iml" --exclude ".DS_Store" --exclude "build-target" \
   --exclude "docs/content" --exclude ".rubydeps" \
   . flink-$RELEASE_VERSION
