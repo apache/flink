@@ -783,11 +783,20 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		return archivedJson;
 	}
 
-	public static ExecutorService createExecutorService(int numThreads, String componentName) {
+	public static ExecutorService createExecutorService(int numThreads, int threadPriority, String componentName) {
+		if (threadPriority < Thread.MIN_PRIORITY || threadPriority > Thread.MAX_PRIORITY) {
+			throw new IllegalArgumentException(
+				String.format(
+					"The thread priority must be within (%s, %s) but it was %s.",
+					Thread.MIN_PRIORITY,
+					Thread.MAX_PRIORITY,
+					threadPriority));
+		}
+
 		return Executors.newFixedThreadPool(
 			numThreads,
 			new ExecutorThreadFactory.Builder()
-				.setThreadPriority(Thread.MIN_PRIORITY)
+				.setThreadPriority(threadPriority)
 				.setPoolName("Flink-" + componentName)
 				.build());
 	}
