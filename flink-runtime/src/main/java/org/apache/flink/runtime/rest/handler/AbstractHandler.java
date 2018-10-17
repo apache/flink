@@ -71,8 +71,7 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 	private final UntypedResponseMessageHeaders<R, M> untypedResponseMessageHeaders;
 
 	/**
-	 * Used to ensure that the handler is not closed while there are still in-flight requests
-	 * dispatched outside of Netty's {@link org.apache.flink.shaded.netty4.io.netty.util.concurrent.EventExecutor}.
+	 * Used to ensure that the handler is not closed while there are still in-flight requests.
 	 */
 	private final InFlightRequestTracker inFlightRequestTracker;
 
