@@ -108,6 +108,7 @@ public class DataOutputSerializer implements DataOutputView {
 	}
 
 	public void pruneBuffer() {
+		clear();
 		if (this.buffer.length > PRUNE_BUFFER_THRESHOLD) {
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Releasing serialization buffer of " + this.buffer.length + " bytes.");
