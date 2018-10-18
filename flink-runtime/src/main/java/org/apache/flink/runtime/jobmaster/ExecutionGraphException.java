@@ -23,7 +23,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 /**
  * Exceptions thrown by operations on the {@link ExecutionGraph} by the {@link JobMaster}.
  */
-public class ExecutionGraphException extends JobManagerException {
+public class ExecutionGraphException extends JobMasterException {
 
 	private static final long serialVersionUID = -5439002256464886357L;
 

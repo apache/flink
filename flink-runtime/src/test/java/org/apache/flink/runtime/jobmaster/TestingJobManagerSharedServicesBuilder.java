@@ -31,7 +31,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import static org.mockito.Mockito.mock;
 
 /**
- * Builder for the {@link JobManagerSharedServices}.
+ * Builder for the {@link JobMasterSharedServices}.
  */
 public class TestingJobManagerSharedServicesBuilder {
 
@@ -80,8 +80,8 @@ public class TestingJobManagerSharedServicesBuilder {
 
 	}
 
-	public JobManagerSharedServices build() {
-		return new JobManagerSharedServices(
+	public JobMasterSharedServices build() {
+		return new JobMasterSharedServices(
 			scheduledExecutorService,
 			libraryCacheManager,
 			restartStrategyFactory,

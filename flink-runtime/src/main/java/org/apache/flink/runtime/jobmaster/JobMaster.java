@@ -229,7 +229,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			JobGraph jobGraph,
 			HighAvailabilityServices highAvailabilityService,
 			SlotPoolFactory slotPoolFactory,
-			JobManagerSharedServices jobManagerSharedServices,
+			JobMasterSharedServices jobMasterSharedServices,
 			HeartbeatServices heartbeatServices,
 			BlobServer blobServer,
 			JobManagerJobMetricGroupFactory jobMetricGroupFactory,
@@ -247,7 +247,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		this.rpcTimeout = jobMasterConfiguration.getRpcTimeout();
 		this.highAvailabilityServices = checkNotNull(highAvailabilityService);
 		this.blobServer = checkNotNull(blobServer);
-		this.scheduledExecutorService = jobManagerSharedServices.getScheduledExecutorService();
+		this.scheduledExecutorService = jobMasterSharedServices.getScheduledExecutorService();
 		this.jobCompletionActions = checkNotNull(jobCompletionActions);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 		this.userCodeLoader = checkNotNull(userCodeLoader);
@@ -276,7 +276,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 						.getRestartStrategy();
 
 		this.restartStrategy = RestartStrategyResolving.resolve(restartStrategyConfiguration,
-			jobManagerSharedServices.getRestartStrategyFactory(),
+			jobMasterSharedServices.getRestartStrategyFactory(),
 			jobGraph.isCheckpointingEnabled());
 
 		log.info("Using restart strategy {} for {} ({}).", this.restartStrategy, jobName, jid);
@@ -289,7 +289,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		this.registeredTaskManagers = new HashMap<>(4);
 
-		this.backPressureStatsTracker = checkNotNull(jobManagerSharedServices.getBackPressureStatsTracker());
+		this.backPressureStatsTracker = checkNotNull(jobMasterSharedServices.getBackPressureStatsTracker());
 		this.lastInternalSavepoint = null;
 
 		this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);

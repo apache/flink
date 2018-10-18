@@ -40,8 +40,8 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
-import org.apache.flink.runtime.jobmaster.JobManagerRunner;
-import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
+import org.apache.flink.runtime.jobmaster.JobMasterRunner;
+import org.apache.flink.runtime.jobmaster.JobMasterSharedServices;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
@@ -244,7 +244,7 @@ public class DispatcherTest extends TestLogger {
 
 	/**
 	 * Tests that we can submit a job to the Dispatcher which then spawns a
-	 * new JobManagerRunner.
+	 * new JobMasterRunner.
 	 */
 	@Test
 	public void testJobSubmission() throws Exception {
@@ -585,7 +585,7 @@ public class DispatcherTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that a blocking {@link JobManagerRunner} creation, e.g. due to blocking FileSystem access,
+	 * Tests that a blocking {@link JobMasterRunner} creation, e.g. due to blocking FileSystem access,
 	 * does not block the {@link Dispatcher}.
 	 *
 	 * <p>See FLINK-10314
@@ -618,7 +618,7 @@ public class DispatcherTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that a failing {@link JobManagerRunner} will be properly cleaned up.
+	 * Tests that a failing {@link JobMasterRunner} will be properly cleaned up.
 	 */
 	@Test
 	public void testFailingJobManagerRunnerCleanup() throws Exception {
@@ -649,7 +649,7 @@ public class DispatcherTest extends TestLogger {
 
 		try {
 			submissionFuture.get();
-			fail("Should fail because we could not instantiate the JobManagerRunner.");
+			fail("Should fail because we could not instantiate the JobMasterRunner.");
 		} catch (Exception e) {
 			assertThat(ExceptionUtils.findThrowable(e, t -> t.equals(testException)).isPresent(), is(true));
 		}
@@ -673,10 +673,10 @@ public class DispatcherTest extends TestLogger {
 		}
 
 		@Override
-		public JobManagerRunner createJobManagerRunner(ResourceID resourceId, JobGraph jobGraph, Configuration configuration, RpcService rpcService, HighAvailabilityServices highAvailabilityServices, HeartbeatServices heartbeatServices, BlobServer blobServer, JobManagerSharedServices jobManagerSharedServices, JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory, FatalErrorHandler fatalErrorHandler) throws Exception {
+		public JobMasterRunner createJobManagerRunner(ResourceID resourceId, JobGraph jobGraph, Configuration configuration, RpcService rpcService, HighAvailabilityServices highAvailabilityServices, HeartbeatServices heartbeatServices, BlobServer blobServer, JobMasterSharedServices jobMasterSharedServices, JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory, FatalErrorHandler fatalErrorHandler) throws Exception {
 			jobManagerRunnerCreationLatch.run();
 
-			return super.createJobManagerRunner(resourceId, jobGraph, configuration, rpcService, highAvailabilityServices, heartbeatServices, blobServer, jobManagerSharedServices, jobManagerJobMetricGroupFactory, fatalErrorHandler);
+			return super.createJobManagerRunner(resourceId, jobGraph, configuration, rpcService, highAvailabilityServices, heartbeatServices, blobServer, jobMasterSharedServices, jobManagerJobMetricGroupFactory, fatalErrorHandler);
 		}
 	}
 
@@ -723,7 +723,7 @@ public class DispatcherTest extends TestLogger {
 		}
 
 		@Override
-		public JobManagerRunner createJobManagerRunner(
+		public JobMasterRunner createJobManagerRunner(
 				ResourceID resourceId,
 				JobGraph jobGraph,
 				Configuration configuration,
@@ -731,7 +731,7 @@ public class DispatcherTest extends TestLogger {
 				HighAvailabilityServices highAvailabilityServices,
 				HeartbeatServices heartbeatServices,
 				BlobServer blobServer,
-				JobManagerSharedServices jobManagerSharedServices,
+				JobMasterSharedServices jobMasterSharedServices,
 				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
 				FatalErrorHandler fatalErrorHandler) throws Exception {
 			assertEquals(expectedJobId, jobGraph.getJobID());
@@ -746,7 +746,7 @@ public class DispatcherTest extends TestLogger {
 				highAvailabilityServices,
 				heartbeatServices,
 				blobServer,
-				jobManagerSharedServices,
+				jobMasterSharedServices,
 				jobManagerJobMetricGroupFactory,
 				fatalErrorHandler);
 		}

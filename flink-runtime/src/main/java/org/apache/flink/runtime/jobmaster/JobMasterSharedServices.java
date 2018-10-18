@@ -48,7 +48,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Utility class which holds all auxiliary shared services used by the {@link JobMaster}.
  * Consequently, the {@link JobMaster} should never shut these services down.
  */
-public class JobManagerSharedServices {
+public class JobMasterSharedServices {
 
 	private final ScheduledExecutorService scheduledExecutorService;
 
@@ -60,7 +60,7 @@ public class JobManagerSharedServices {
 
 	private final BackPressureStatsTracker backPressureStatsTracker;
 
-	public JobManagerSharedServices(
+	public JobMasterSharedServices(
 			ScheduledExecutorService scheduledExecutorService,
 			LibraryCacheManager libraryCacheManager,
 			RestartStrategyFactory restartStrategyFactory,
@@ -121,7 +121,7 @@ public class JobManagerSharedServices {
 	//  Creating the components from a configuration
 	// ------------------------------------------------------------------------
 
-	public static JobManagerSharedServices fromConfiguration(
+	public static JobMasterSharedServices fromConfiguration(
 			Configuration config,
 			BlobServer blobServer) throws Exception {
 
@@ -166,7 +166,7 @@ public class JobManagerSharedServices {
 			cleanUpInterval,
 			TimeUnit.MILLISECONDS);
 
-		return new JobManagerSharedServices(
+		return new JobMasterSharedServices(
 			futureExecutor,
 			libraryCacheManager,
 			RestartStrategyFactory.createRestartStrategyFactory(config),

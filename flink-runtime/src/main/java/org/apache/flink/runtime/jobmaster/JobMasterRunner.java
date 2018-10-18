@@ -58,9 +58,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The runner for the job manager. It deals with job level leader election and make underlying job manager
  * properly reacted.
  */
-public class JobManagerRunner implements LeaderContender, OnCompletionActions, AutoCloseableAsync {
+public class JobMasterRunner implements LeaderContender, OnCompletionActions, AutoCloseableAsync {
 
-	private static final Logger log = LoggerFactory.getLogger(JobManagerRunner.class);
+	private static final Logger log = LoggerFactory.getLogger(JobMasterRunner.class);
 
 	// ------------------------------------------------------------------------
 
@@ -76,7 +76,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 	/** Leader election for this job. */
 	private final LeaderElectionService leaderElectionService;
 
-	private final JobManagerSharedServices jobManagerSharedServices;
+	private final JobMasterSharedServices jobMasterSharedServices;
 
 	private final JobMaster jobMaster;
 
@@ -96,13 +96,13 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Exceptions that occur while creating the JobManager or JobManagerRunner are directly
+	 * Exceptions that occur while creating the JobManager or JobMasterRunner are directly
 	 * thrown and not reported to the given {@code FatalErrorHandler}.
 	 *
 	 * @throws Exception Thrown if the runner cannot be set up, because either one of the
 	 *                   required services could not be started, ot the Job could not be initialized.
 	 */
-	public JobManagerRunner(
+	public JobMasterRunner(
 			final ResourceID resourceId,
 			final JobGraph jobGraph,
 			final Configuration configuration,
@@ -110,7 +110,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 			final HighAvailabilityServices haServices,
 			final HeartbeatServices heartbeatServices,
 			final BlobServer blobServer,
-			final JobManagerSharedServices jobManagerSharedServices,
+			final JobMasterSharedServices jobMasterSharedServices,
 			final JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
 			final FatalErrorHandler fatalErrorHandler) throws Exception {
 
@@ -120,13 +120,13 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 		// make sure we cleanly shut down out JobManager services if initialization fails
 		try {
 			this.jobGraph = checkNotNull(jobGraph);
-			this.jobManagerSharedServices = checkNotNull(jobManagerSharedServices);
+			this.jobMasterSharedServices = checkNotNull(jobMasterSharedServices);
 			this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 
 			checkArgument(jobGraph.getNumberOfVertices() > 0, "The given job is empty");
 
 			// libraries and class loader first
-			final LibraryCacheManager libraryCacheManager = jobManagerSharedServices.getLibraryCacheManager();
+			final LibraryCacheManager libraryCacheManager = jobMasterSharedServices.getLibraryCacheManager();
 			try {
 				libraryCacheManager.registerJob(
 						jobGraph.getJobID(), jobGraph.getUserJarBlobKeys(), jobGraph.getClasspaths());
@@ -161,7 +161,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 				jobGraph,
 				haServices,
 				slotPoolFactory,
-				jobManagerSharedServices,
+				jobMasterSharedServices,
 				heartbeatServices,
 				blobServer,
 				jobManagerJobMetricGroupFactory,
@@ -226,12 +226,12 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 							throwable = ExceptionUtils.firstOrSuppressed(t, ExceptionUtils.stripCompletionException(throwable));
 						}
 
-						final LibraryCacheManager libraryCacheManager = jobManagerSharedServices.getLibraryCacheManager();
+						final LibraryCacheManager libraryCacheManager = jobMasterSharedServices.getLibraryCacheManager();
 						libraryCacheManager.unregisterJob(jobGraph.getJobID());
 
 						if (throwable != null) {
 							terminationFuture.completeExceptionally(
-								new FlinkException("Could not properly shut down the JobManagerRunner", throwable));
+								new FlinkException("Could not properly shut down the JobMasterRunner", throwable));
 						} else {
 							terminationFuture.complete(null);
 						}
@@ -307,7 +307,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 	public void grantLeadership(final UUID leaderSessionID) {
 		synchronized (lock) {
 			if (shutdown) {
-				log.info("JobManagerRunner already shutdown.");
+				log.info("JobMasterRunner already shutdown.");
 				return;
 			}
 
@@ -342,7 +342,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 						confirmLeaderSessionIdIfStillLeader(leaderSessionId, currentLeaderGatewayFuture);
 					}
 				},
-				jobManagerSharedServices.getScheduledExecutorService());
+				jobMasterSharedServices.getScheduledExecutorService());
 		}
 	}
 
@@ -359,7 +359,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 	public void revokeLeadership() {
 		synchronized (lock) {
 			if (shutdown) {
-				log.info("JobManagerRunner already shutdown.");
+				log.info("JobMasterRunner already shutdown.");
 				return;
 			}
 
@@ -376,7 +376,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 						handleJobManagerRunnerError(new FlinkException("Could not suspend the job manager.", throwable));
 					}
 				},
-				jobManagerSharedServices.getScheduledExecutorService());
+				jobMasterSharedServices.getScheduledExecutorService());
 		}
 	}
 

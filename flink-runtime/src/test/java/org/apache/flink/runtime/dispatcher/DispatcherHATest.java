@@ -169,7 +169,7 @@ public class DispatcherHATest extends TestLogger {
 	}
 
 	/**
-	 * Tests that all JobManagerRunner are terminated if the leadership of the
+	 * Tests that all JobMasterRunner are terminated if the leadership of the
 	 * Dispatcher is revoked.
 	 */
 	@Test
