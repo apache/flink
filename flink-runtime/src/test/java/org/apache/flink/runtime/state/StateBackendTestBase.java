@@ -131,6 +131,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -147,10 +148,20 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	@Rule
 	public final ExpectedException expectedException = ExpectedException.none();
 
+	/**
+	 * The serialization timeliness behaviour of the state backend under test.
+	 */
+	public enum BackendSerializationTimeliness {
+		ON_ACCESS,
+		ON_CHECKPOINTS
+	}
+
 	// lazily initialized stream storage
 	private CheckpointStorageLocation checkpointStorageLocation;
 
 	protected abstract B getStateBackend() throws Exception;
+
+	protected abstract BackendSerializationTimeliness getStateBackendSerializationTimeliness() throws Exception;
 
 	protected abstract boolean isSerializerPresenceRequiredOnRestore();
 
@@ -803,6 +814,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testKryoRestoreResilienceWithDifferentRegistrationOrder() throws Exception {
+
+		assumeThat(getStateBackendSerializationTimeliness(), is(BackendSerializationTimeliness.ON_ACCESS));
+
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		Environment env = new DummyEnvironment();
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
@@ -969,6 +983,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 	@Test
 	public void testStateSerializerReconfiguration() throws Exception {
+
+		assumeThat(getStateBackendSerializationTimeliness(), is(BackendSerializationTimeliness.ON_ACCESS));
+
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		Environment env = new DummyEnvironment();

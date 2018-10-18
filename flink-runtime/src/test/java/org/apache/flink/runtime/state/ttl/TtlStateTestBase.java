@@ -387,6 +387,8 @@ public abstract class TtlStateTestBase {
 	@Test(expected = StateMigrationException.class)
 	public void testRestoreTtlAndRegisterNonTtlStateCompatFailure() throws Exception {
 		assumeThat(this, not(instanceOf(MockTtlStateTest.class)));
+		assumeThat(this, not(instanceOf(HeapAsyncSnapshotTtlStateTest.class)));
+		assumeThat(this, not(instanceOf(HeapSyncSnapshotTtlStateTest.class)));
 
 		initTest();
 

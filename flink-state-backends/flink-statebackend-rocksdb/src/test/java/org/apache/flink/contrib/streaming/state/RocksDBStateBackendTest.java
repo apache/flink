@@ -135,6 +135,11 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	}
 
 	@Override
+	protected BackendSerializationTimeliness getStateBackendSerializationTimeliness() throws Exception {
+		return BackendSerializationTimeliness.ON_ACCESS;
+	}
+
+	@Override
 	protected boolean isSerializerPresenceRequiredOnRestore() {
 		return false;
 	}

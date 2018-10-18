@@ -42,6 +42,11 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 		return new FsStateBackend(checkpointPath.toURI(), useAsyncMode());
 	}
 
+	@Override
+	protected BackendSerializationTimeliness getStateBackendSerializationTimeliness() throws Exception {
+		return BackendSerializationTimeliness.ON_CHECKPOINTS;
+	}
+
 	protected boolean useAsyncMode() {
 		return false;
 	}

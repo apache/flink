@@ -269,10 +269,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				"Requested to check compatibility of a restored RegisteredKeyedBackendStateMetaInfo," +
 					" but its corresponding restored snapshot cannot be found.");
 
-			newMetaInfo = RegisteredKeyValueStateBackendMetaInfo.resolveKvStateCompatibility(
-				restoredMetaInfoSnapshot,
+			newMetaInfo = new RegisteredKeyValueStateBackendMetaInfo<>(
+				stateDesc.getType(),
+				stateDesc.getName(),
 				namespaceSerializer,
-				stateDesc,
+				stateDesc.getSerializer(),
 				snapshotTransformer);
 
 			stateTable.setMetaInfo(newMetaInfo);
