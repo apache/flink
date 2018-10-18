@@ -115,7 +115,7 @@ under the License.
 		<!-- Default scala versions, may be overwritten by build profiles -->
 		<scala.version>2.11.12</scala.version>
 		<scala.binary.version>2.11</scala.binary.version>
-		<chill.version>0.7.4</chill.version>
+		<chill.version>0.7.6</chill.version>
 		<zookeeper.version>3.4.10</zookeeper.version>
 		<curator.version>2.12.0</curator.version>
 		<jackson.version>2.7.9</jackson.version>
