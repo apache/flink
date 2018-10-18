@@ -19,7 +19,7 @@
 package org.apache.flink.configuration;
 
 /**
- * A class represents keys that fallback to another key.
+ * A key with FallbackKeys will fall back to the FallbackKeys if it itself is not configured.
  */
 public class FallbackKey {
 
