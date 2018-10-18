@@ -54,6 +54,7 @@ import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
+import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
@@ -219,6 +220,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 				heartbeatServices,
 				metricRegistry,
 				archivedExecutionGraphStore,
+				new AkkaQueryServiceRetriever(
+					metricQueryServiceActorSystem,
+					Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT))),
 				this);
 
 			clusterComponent.getShutDownFuture().whenComplete(

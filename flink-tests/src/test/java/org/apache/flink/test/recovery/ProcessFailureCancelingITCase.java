@@ -55,6 +55,7 @@ import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.runtime.webmonitor.retriever.impl.VoidMetricQueryServiceRetriever;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.CheckedSupplier;
@@ -151,6 +152,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 				new HeartbeatServices(100L, 1000L),
 				NoOpMetricRegistry.INSTANCE,
 				new MemoryArchivedExecutionGraphStore(),
+				VoidMetricQueryServiceRetriever.INSTANCE,
 				fatalErrorHandler);
 
 			final Map<String, String> keyValues = config.toMap();
