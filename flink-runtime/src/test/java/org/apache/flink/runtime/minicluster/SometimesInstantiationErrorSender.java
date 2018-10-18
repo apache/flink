@@ -21,9 +21,10 @@ package org.apache.flink.runtime.minicluster;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * {@link org.apache.flink.runtime.testtasks.BlockingNoOpInvokable} that sometimes fails on constructor.
@@ -43,10 +44,6 @@ public class SometimesInstantiationErrorSender extends BlockingNoOpInvokable {
 	}
 
 	static void configFailingSenders(int numOfTasks) {
-		failingSenders = new HashSet<>();
-
-		while (failingSenders.size() < 10) {
-			failingSenders.add(RANDOM.nextInt(numOfTasks));
-		}
+		failingSenders = Collections.singleton(ThreadLocalRandom.current().nextInt(numOfTasks));
 	}
 }

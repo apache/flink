@@ -25,7 +25,6 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -53,10 +52,10 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -67,7 +66,7 @@ public class MiniClusterITCase extends TestLogger {
 
 	@Test
 	public void runJobWithSingleRpcService() throws Exception {
-		final int parallelism = 123;
+		final int parallelism = 23;
 
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
@@ -85,7 +84,7 @@ public class MiniClusterITCase extends TestLogger {
 
 	@Test
 	public void runJobWithMultipleRpcServices() throws Exception {
-		final int parallelism = 123;
+		final int parallelism = 23;
 
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
@@ -326,7 +325,7 @@ public class MiniClusterITCase extends TestLogger {
 
 	@Test
 	public void testJobWithAFailingSenderVertex() throws Exception {
-		final int parallelism = 100;
+		final int parallelism = 11;
 
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
@@ -364,7 +363,7 @@ public class MiniClusterITCase extends TestLogger {
 
 	@Test
 	public void testJobWithAnOccasionallyFailingSenderVertex() throws Exception {
-		final int parallelism = 100;
+		final int parallelism = 11;
 
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
@@ -405,7 +404,7 @@ public class MiniClusterITCase extends TestLogger {
 
 	@Test
 	public void testJobWithAFailingReceiverVertex() throws Exception {
-		final int parallelism = 200;
+		final int parallelism = 11;
 
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
@@ -420,9 +419,6 @@ public class MiniClusterITCase extends TestLogger {
 			final JobVertex sender = new JobVertex("Sender");
 			sender.setInvokableClass(Sender.class);
 			sender.setParallelism(parallelism);
-
-			// set failing senders
-			SometimesExceptionSender.configFailingSenders(parallelism);
 
 			final JobVertex receiver = new JobVertex("Receiver");
 			receiver.setInvokableClass(ExceptionReceiver.class);
@@ -446,7 +442,7 @@ public class MiniClusterITCase extends TestLogger {
 
 	@Test
 	public void testJobWithAllVerticesFailingDuringInstantiation() throws Exception {
-		final int parallelism = 200;
+		final int parallelism = 11;
 
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
@@ -484,7 +480,7 @@ public class MiniClusterITCase extends TestLogger {
 
 	@Test
 	public void testJobWithSomeVerticesFailingDuringInstantiation() throws Exception {
-		final int parallelism = 200;
+		final int parallelism = 11;
 
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
@@ -525,7 +521,7 @@ public class MiniClusterITCase extends TestLogger {
 
 	@Test
 	public void testCallFinalizeOnMasterBeforeJobCompletes() throws Exception {
-		final int parallelism = 31;
+		final int parallelism = 11;
 
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
@@ -541,7 +537,7 @@ public class MiniClusterITCase extends TestLogger {
 			source.setInvokableClass(WaitingNoOpInvokable.class);
 			source.setParallelism(parallelism);
 
-			final WaitOnFinalizeJobVertex sink = new WaitOnFinalizeJobVertex("Sink", 500L);
+			final WaitOnFinalizeJobVertex sink = new WaitOnFinalizeJobVertex("Sink", 20L);
 			sink.setInvokableClass(NoOpInvokable.class);
 			sink.setParallelism(parallelism);
 
@@ -555,10 +551,9 @@ public class MiniClusterITCase extends TestLogger {
 			final CompletableFuture<JobResult> jobResultFuture = submissionFuture.thenCompose(
 				(JobSubmissionResult ignored) -> miniCluster.requestJobResult(jobGraph.getJobID()));
 
-			sink.latch.await();
-
-			assertFalse(jobResultFuture.isDone());
 			jobResultFuture.get().toJobExecutionResult(getClass().getClassLoader());
+
+			assertTrue(sink.finalizedOnMaster.get());
 		}
 	}
 
@@ -591,21 +586,22 @@ public class MiniClusterITCase extends TestLogger {
 
 	private static class WaitOnFinalizeJobVertex extends JobVertex {
 
-		private OneShotLatch latch;
+		private static final long serialVersionUID = -1179547322468530299L;
+
+		private final AtomicBoolean finalizedOnMaster = new AtomicBoolean(false);
 
 		private final long waitingTime;
 
 		WaitOnFinalizeJobVertex(String name, long waitingTime) {
 			super(name);
 
-			this.latch = new OneShotLatch();
 			this.waitingTime = waitingTime;
 		}
 
 		@Override
 		public void finalizeOnMaster(ClassLoader loader) throws Exception {
 			Thread.sleep(waitingTime);
-			latch.trigger();
+			finalizedOnMaster.set(true);
 		}
 	}
 }
