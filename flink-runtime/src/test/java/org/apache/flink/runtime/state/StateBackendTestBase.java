@@ -149,6 +149,14 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	@Rule
 	public final ExpectedException expectedException = ExpectedException.none();
 
+	/**
+	 * The serialization timeliness behaviour of the state backend under test.
+	 */
+	public enum BackendSerializationTimeliness {
+		ON_ACCESS,
+		ON_CHECKPOINTS
+	}
+
 	// lazily initialized stream storage
 	private CheckpointStorageLocation checkpointStorageLocation;
 
@@ -971,6 +979,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 	@Test
 	public void testStateSerializerReconfiguration() throws Exception {
+
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		Environment env = new DummyEnvironment();
