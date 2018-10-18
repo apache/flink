@@ -70,3 +70,15 @@ This change added tests and can be verified as follows:
 
   - Does this pull request introduce a new feature? (yes / no)
   - If yes, how is the feature documented? (not applicable / docs / JavaDocs / not documented)
+
+----
+
+# Review Progress <!-- NOTE: DO NOT REMOVE THIS SECTION! -->
+
+* [ ] 1. The contribution is well-described.
+* [ ] 2. There is consensus that the contribution should go into to Flink.
+* [ ] 3. [Does not need specific attention | Needs specific attention for X | Has attention for X by Y]
+* [ ] 4. The architectural approach is sound.
+* [ ] 5. Overall code quality is good.
+
+Please see the [Pull Request Review Guide](https://flink.apache.org/reviewing-prs.html) if you have questions about the review process.
