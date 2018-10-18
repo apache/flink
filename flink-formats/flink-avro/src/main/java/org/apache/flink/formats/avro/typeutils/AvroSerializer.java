@@ -22,7 +22,6 @@ import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.api.java.typeutils.runtime.KryoRegistrationSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.formats.avro.utils.DataInputDecoder;
@@ -288,14 +287,6 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 			return compatibility.getType() == SchemaCompatibilityType.COMPATIBLE ?
 				CompatibilityResult.compatible() : CompatibilityResult.requiresMigration();
 		}
-		else if (configSnapshot instanceof AvroSerializerConfigSnapshot) {
-			// old snapshot case, just compare the type
-			// we don't need to restore any Kryo stuff, since Kryo was never used for persistence,
-			// only for object-to-object copies.
-			final AvroSerializerConfigSnapshot<T> old = (AvroSerializerConfigSnapshot<T>) configSnapshot;
-			return type.equals(old.getTypeClass()) ?
-				CompatibilityResult.compatible() : CompatibilityResult.requiresMigration();
-		}
 		else {
 			return CompatibilityResult.requiresMigration();
 		}
@@ -491,47 +482,4 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		}
 	}
 
-	/**
-	 * The outdated config snapshot, retained for backwards compatibility.
-	 *
-	 * @deprecated The {@link AvroSchemaSerializerConfigSnapshot} should be used instead.
-	 */
-	@Deprecated
-	public static class AvroSerializerConfigSnapshot<T> extends KryoRegistrationSerializerConfigSnapshot<T> {
-
-		private static final int VERSION = 1;
-
-		private Class<? extends T> typeToInstantiate;
-
-		public AvroSerializerConfigSnapshot() {}
-
-		@Override
-		public void write(DataOutputView out) throws IOException {
-			super.write(out);
-
-			out.writeUTF(typeToInstantiate.getName());
-		}
-
-		@SuppressWarnings("unchecked")
-		@Override
-		public void read(DataInputView in) throws IOException {
-			super.read(in);
-
-			String classname = in.readUTF();
-			try {
-				typeToInstantiate = (Class<? extends T>) Class.forName(classname, true, getUserCodeClassLoader());
-			} catch (ClassNotFoundException e) {
-				throw new IOException("Cannot find requested class " + classname + " in classpath.", e);
-			}
-		}
-
-		@Override
-		public int getVersion() {
-			return VERSION;
-		}
-
-		public Class<? extends T> getTypeToInstantiate() {
-			return typeToInstantiate;
-		}
-	}
 }
