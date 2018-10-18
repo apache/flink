@@ -407,9 +407,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	/**
 	 * Sets the failover strategy. The failover strategy how the job computation recovers from task failures
-	 *
-	 * The default failover strategy mode is {@link FailoverStrategyType#FULL_RESTART_STRATEGY_NAME}.
-	 *
+	 * Set failover strategy here will overwrite cluster's default setting, which is {@link FailoverStrategyType#FULL_RESTART_STRATEGY_NAME}
 	 * @param strategy The strategy to use.
 	 */
 	@PublicEvolving
