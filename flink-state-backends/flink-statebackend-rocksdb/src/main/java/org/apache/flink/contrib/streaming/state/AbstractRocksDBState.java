@@ -27,6 +27,7 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StateMigrationException;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
@@ -152,6 +153,20 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State> implements 
 				tmpKeySerializationView);
 
 		return backend.db.get(columnFamily, tmpKeySerializationView.getCopyOfBuffer());
+	}
+
+	public void migrateSerializedValue(
+			DataInputDeserializer serializedOldValueInput,
+			DataOutputSerializer serializedMigratedValueOutput,
+			TypeSerializer<V> priorSerializer,
+			TypeSerializer<V> newSerializer) throws StateMigrationException {
+
+		try {
+			V value = priorSerializer.deserialize(serializedOldValueInput);
+			newSerializer.serialize(value, serializedMigratedValueOutput);
+		} catch (Exception e) {
+			throw new StateMigrationException("Error while trying to migration RocksDB state.", e);
+		}
 	}
 
 	byte[] getKeyBytes() {

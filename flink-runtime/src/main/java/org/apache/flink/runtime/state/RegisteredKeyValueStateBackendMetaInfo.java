@@ -20,11 +20,9 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.StateMigrationException;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -149,81 +147,42 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 		return result;
 	}
 
-	/**
-	 * Checks compatibility of a restored k/v state, with the new {@link StateDescriptor} provided to it.
-	 * This checks that the descriptor specifies identical names and state types, as well as
-	 * serializers that are compatible for the restored k/v state bytes.
-	 */
-	@Nonnull
-	public static <N, S> RegisteredKeyValueStateBackendMetaInfo<N, S> resolveKvStateCompatibility(
-		StateMetaInfoSnapshot restoredStateMetaInfoSnapshot,
-		TypeSerializer<N> newNamespaceSerializer,
-		StateDescriptor<?, S> newStateDescriptor,
-		@Nullable StateSnapshotTransformer<S> snapshotTransformer) throws StateMigrationException {
-
-		Preconditions.checkState(restoredStateMetaInfoSnapshot.getBackendStateType()
-				== StateMetaInfoSnapshot.BackendStateType.KEY_VALUE,
-			"Incompatible state types. " +
-				"Was [" + restoredStateMetaInfoSnapshot.getBackendStateType() + "], " +
-				"registered as [" + StateMetaInfoSnapshot.BackendStateType.KEY_VALUE + "].");
-
-		Preconditions.checkState(
-			Objects.equals(newStateDescriptor.getName(), restoredStateMetaInfoSnapshot.getName()),
-			"Incompatible state names. " +
-				"Was [" + restoredStateMetaInfoSnapshot.getName() + "], " +
-				"registered with [" + newStateDescriptor.getName() + "].");
-
-		final StateDescriptor.Type restoredType =
-			StateDescriptor.Type.valueOf(
-				restoredStateMetaInfoSnapshot.getOption(
-					StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE));
-
-		if (!Objects.equals(newStateDescriptor.getType(), StateDescriptor.Type.UNKNOWN)
-			&& !Objects.equals(restoredType, StateDescriptor.Type.UNKNOWN)) {
-
-			Preconditions.checkState(
-				newStateDescriptor.getType() == restoredType,
-				"Incompatible key/value state types. " +
-					"Was [" + restoredType + "], " +
-					"registered with [" + newStateDescriptor.getType() + "].");
-		}
-
-		// check compatibility results to determine if state migration is required
-		@SuppressWarnings("unchecked")
-		TypeSerializerSnapshot<N> namespaceSerializerSnapshot = Preconditions.checkNotNull(
-			(TypeSerializerSnapshot<N>) restoredStateMetaInfoSnapshot.getTypeSerializerConfigSnapshot(
-				StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER));
-
-		TypeSerializerSchemaCompatibility<N, ?> namespaceCompatibility =
-			namespaceSerializerSnapshot.resolveSchemaCompatibility(newNamespaceSerializer);
-
-		TypeSerializer<S> newStateSerializer = newStateDescriptor.getSerializer();
-
-		@SuppressWarnings("unchecked")
-		TypeSerializerSnapshot<S> stateSerializerSnapshot = Preconditions.checkNotNull(
-			(TypeSerializerSnapshot<S>) restoredStateMetaInfoSnapshot.getTypeSerializerConfigSnapshot(
-				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER));
-
-		TypeSerializerSchemaCompatibility<S, ?> stateCompatibility =
-			stateSerializerSnapshot.resolveSchemaCompatibility(newStateSerializer);
-
-		if (!namespaceCompatibility.isCompatibleAsIs() || !stateCompatibility.isCompatibleAsIs()) {
-			// TODO state migration currently isn't possible.
-			throw StateMigrationException.notSupported();
-		} else {
-			return new RegisteredKeyValueStateBackendMetaInfo<>(
-				newStateDescriptor.getType(),
-				newStateDescriptor.getName(),
-				newNamespaceSerializer,
-				newStateSerializer,
-				snapshotTransformer);
-		}
-	}
-
 	@Nonnull
 	@Override
 	public StateMetaInfoSnapshot snapshot() {
 		return computeSnapshot();
+	}
+
+	public static void checkStateMetaInfo(StateMetaInfoSnapshot stateMetaInfoSnapshot, StateDescriptor<?, ?> stateDesc) {
+		Preconditions.checkState(
+			stateMetaInfoSnapshot != null,
+			"Requested to check compatibility of a restored RegisteredKeyedBackendStateMetaInfo," +
+				" but its corresponding restored snapshot cannot be found.");
+
+		Preconditions.checkState(stateMetaInfoSnapshot.getBackendStateType()
+				== StateMetaInfoSnapshot.BackendStateType.KEY_VALUE,
+			"Incompatible state types. " +
+				"Was [" + stateMetaInfoSnapshot.getBackendStateType() + "], " +
+				"registered as [" + StateMetaInfoSnapshot.BackendStateType.KEY_VALUE + "].");
+
+		Preconditions.checkState(
+			Objects.equals(stateDesc.getName(), stateMetaInfoSnapshot.getName()),
+			"Incompatible state names. " +
+				"Was [" + stateMetaInfoSnapshot.getName() + "], " +
+				"registered with [" + stateDesc.getName() + "].");
+
+		final StateDescriptor.Type restoredType =
+			StateDescriptor.Type.valueOf(
+				stateMetaInfoSnapshot.getOption(
+					StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE));
+
+		if (stateDesc.getType() != StateDescriptor.Type.UNKNOWN && restoredType != StateDescriptor.Type.UNKNOWN) {
+			Preconditions.checkState(
+				stateDesc.getType() == restoredType,
+				"Incompatible key/value state types. " +
+					"Was [" + restoredType + "], " +
+					"registered with [" + stateDesc.getType() + "].");
+		}
 	}
 
 	@Nonnull

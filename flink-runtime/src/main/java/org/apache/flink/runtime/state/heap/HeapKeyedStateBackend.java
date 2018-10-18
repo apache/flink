@@ -257,7 +257,14 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		@SuppressWarnings("unchecked")
 		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) registeredKVStates.get(stateDesc.getName());
 
-		RegisteredKeyValueStateBackendMetaInfo<N, V> newMetaInfo;
+		TypeSerializer<V> newStateSerializer = stateDesc.getSerializer();
+		RegisteredKeyValueStateBackendMetaInfo<N, V> newMetaInfo = new RegisteredKeyValueStateBackendMetaInfo<>(
+			stateDesc.getType(),
+			stateDesc.getName(),
+			namespaceSerializer,
+			newStateSerializer,
+			snapshotTransformer);
+
 		if (stateTable != null) {
 			@SuppressWarnings("unchecked")
 			StateMetaInfoSnapshot restoredMetaInfoSnapshot =
@@ -269,21 +276,33 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				"Requested to check compatibility of a restored RegisteredKeyedBackendStateMetaInfo," +
 					" but its corresponding restored snapshot cannot be found.");
 
-			newMetaInfo = RegisteredKeyValueStateBackendMetaInfo.resolveKvStateCompatibility(
-				restoredMetaInfoSnapshot,
-				namespaceSerializer,
-				stateDesc,
-				snapshotTransformer);
+			@SuppressWarnings("unchecked")
+			TypeSerializerSnapshot<N> namespaceSerializerSnapshot = Preconditions.checkNotNull(
+				(TypeSerializerSnapshot<N>) restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(
+					StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString()));
+
+			TypeSerializerSchemaCompatibility<N, ?> namespaceCompatibility =
+				namespaceSerializerSnapshot.resolveSchemaCompatibility(namespaceSerializer);
+			if (namespaceCompatibility.isIncompatible()) {
+				throw new StateMigrationException("For heap backends, the new namespace serializer must not be incompatible.");
+			}
+
+			@SuppressWarnings("unchecked")
+			TypeSerializerSnapshot<V> stateSerializerSnapshot = Preconditions.checkNotNull(
+				(TypeSerializerSnapshot<V>) restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(
+					StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString()));
+
+			RegisteredKeyValueStateBackendMetaInfo.checkStateMetaInfo(restoredMetaInfoSnapshot, stateDesc);
+
+			TypeSerializerSchemaCompatibility<V, ?> stateCompatibility =
+				stateSerializerSnapshot.resolveSchemaCompatibility(newStateSerializer);
+
+			if (stateCompatibility.isIncompatible()) {
+				throw new StateMigrationException("For heap backends, the new state serializer must not be incompatible.");
+			}
 
 			stateTable.setMetaInfo(newMetaInfo);
 		} else {
-			newMetaInfo = new RegisteredKeyValueStateBackendMetaInfo<>(
-				stateDesc.getType(),
-				stateDesc.getName(),
-				namespaceSerializer,
-				stateDesc.getSerializer(),
-				snapshotTransformer);
-
 			stateTable = snapshotStrategy.newStateTable(newMetaInfo);
 			registeredKVStates.put(stateDesc.getName(), stateTable);
 		}

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StateMigrationException;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
@@ -239,6 +241,35 @@ class RocksDBListState<K, N, V>
 			} catch (IOException | RocksDBException e) {
 				throw new FlinkRuntimeException("Error while updating data to RocksDB", e);
 			}
+		}
+	}
+
+	@Override
+	public void migrateSerializedValue(
+			DataInputDeserializer serializedOldValueInput,
+			DataOutputSerializer serializedMigratedValueOutput,
+			TypeSerializer<List<V>> priorSerializer,
+			TypeSerializer<List<V>> newSerializer) throws StateMigrationException {
+
+		Preconditions.checkArgument(priorSerializer instanceof ListSerializer);
+		Preconditions.checkArgument(newSerializer instanceof ListSerializer);
+
+		TypeSerializer<V> priorElementSerializer =
+			((ListSerializer<V>) priorSerializer).getElementSerializer();
+
+		TypeSerializer<V> newElementSerializer =
+			((ListSerializer<V>) newSerializer).getElementSerializer();
+
+		try {
+			while (serializedOldValueInput.available() > 0) {
+				V element = deserializeNextElement(serializedOldValueInput, priorElementSerializer);
+				newElementSerializer.serialize(element, serializedMigratedValueOutput);
+				if (serializedOldValueInput.available() > 0) {
+					serializedMigratedValueOutput.write(DELIMITER);
+				}
+			}
+		} catch (Exception e) {
+			throw new StateMigrationException("Error while trying to migrate RocksDB list state.", e);
 		}
 	}
 
