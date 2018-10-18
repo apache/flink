@@ -70,6 +70,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
@@ -262,8 +263,9 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				// bring up all the RPC services
 				LOG.info("Starting RPC Service(s)");
 
+				AkkaRpcServiceConfiguration akkaRpcServiceConfig = AkkaRpcServiceConfiguration.fromConfiguration(configuration);
 				// we always need the 'commonRpcService' for auxiliary calls
-				commonRpcService = createRpcService(configuration, rpcTimeout, false, null);
+				commonRpcService = createRpcService(akkaRpcServiceConfig, false, null);
 
 				// TODO: Temporary hack until the metric query service is ported to the RpcEndpoint
 				metricQueryServiceActorSystem = MetricUtils.startMetricsActorSystem(
@@ -290,12 +292,11 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					final String taskManagerBindAddress = miniClusterConfiguration.getTaskManagerBindAddress();
 					final String resourceManagerBindAddress = miniClusterConfiguration.getResourceManagerBindAddress();
 
-					jobManagerRpcService = createRpcService(configuration, rpcTimeout, true, jobManagerBindAddress);
-					resourceManagerRpcService = createRpcService(configuration, rpcTimeout, true, resourceManagerBindAddress);
+					jobManagerRpcService = createRpcService(akkaRpcServiceConfig, true, jobManagerBindAddress);
+					resourceManagerRpcService = createRpcService(akkaRpcServiceConfig, true, resourceManagerBindAddress);
 
 					for (int i = 0; i < numTaskManagers; i++) {
-						taskManagerRpcServices[i] = createRpcService(
-								configuration, rpcTimeout, true, taskManagerBindAddress);
+						taskManagerRpcServices[i] = createRpcService(akkaRpcServiceConfig, true, taskManagerBindAddress);
 					}
 
 					this.jobManagerRpcService = jobManagerRpcService;
@@ -742,9 +743,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	/**
 	 * Factory method to instantiate the RPC service.
 	 *
-	 * @param configuration
-	 *            The configuration of the mini cluster
-	 * @param askTimeout
+	 * @param akkaRpcServiceConfig
 	 *            The default RPC timeout for asynchronous "ask" requests.
 	 * @param remoteEnabled
 	 *            True, if the RPC service should be reachable from other (remote) RPC services.
@@ -754,24 +753,23 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	 * @return The instantiated RPC service
 	 */
 	protected RpcService createRpcService(
-			Configuration configuration,
-			Time askTimeout,
+			AkkaRpcServiceConfiguration akkaRpcServiceConfig,
 			boolean remoteEnabled,
 			String bindAddress) {
 
 		final Config akkaConfig;
 
 		if (remoteEnabled) {
-			akkaConfig = AkkaUtils.getAkkaConfig(configuration, bindAddress, 0);
+			akkaConfig = AkkaUtils.getAkkaConfig(akkaRpcServiceConfig.getConfiguration(), bindAddress, 0);
 		} else {
-			akkaConfig = AkkaUtils.getAkkaConfig(configuration);
+			akkaConfig = AkkaUtils.getAkkaConfig(akkaRpcServiceConfig.getConfiguration());
 		}
 
 		final Config effectiveAkkaConfig = AkkaUtils.testDispatcherConfig().withFallback(akkaConfig);
 
 		final ActorSystem actorSystem = AkkaUtils.createActorSystem(effectiveAkkaConfig);
 
-		return new AkkaRpcService(actorSystem, askTimeout);
+		return new AkkaRpcService(actorSystem, akkaRpcServiceConfig);
 	}
 
 	protected ResourceManagerRunner startResourceManager(

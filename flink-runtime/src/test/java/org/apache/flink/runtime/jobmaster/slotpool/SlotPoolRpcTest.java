@@ -40,6 +40,7 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -85,7 +86,7 @@ public class SlotPoolRpcTest extends TestLogger {
 	@BeforeClass
 	public static void setup() {
 		ActorSystem actorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
-		rpcService = new AkkaRpcService(actorSystem, Time.seconds(10));
+		rpcService = new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
 	}
 
 	@AfterClass
