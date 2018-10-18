@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.minicluster;
+package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
@@ -32,45 +32,15 @@ import java.io.IOException;
 
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Testing the flink cluster using SSL transport for akka remoting.
+ * Testing a {@link BlobServer} would fail with improper SSL config.
  */
-public class MiniClusterSslITCase extends TestLogger {
+public class BlobServerSSLTest extends TestLogger {
 
 	@Test
-	public void testStartWithAkkaSslEnabled() throws Exception {
-		final Configuration config = new Configuration();
-
-		config.setString(JobManagerOptions.ADDRESS, "127.0.0.1");
-		config.setString(TaskManagerOptions.HOST, "127.0.0.1");
-		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
-
-		config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
-		config.setString(SecurityOptions.SSL_KEYSTORE,
-			getClass().getResource("/local127.keystore").getPath());
-		config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
-		config.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
-		config.setString(SecurityOptions.SSL_TRUSTSTORE,
-			getClass().getResource("/local127.truststore").getPath());
-
-		config.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
-
-		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setConfiguration(config)
-			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
-			.build();
-		try (final MiniCluster cluster = new MiniCluster(cfg)) {
-			cluster.start();
-			assertTrue(cluster.isRunning());
-		}
-	}
-
-	@Test
-	public void testFailedToStartSslEnabledAkkaWithTwoProtocolsSet() {
+	public void testFailedToInitWithTwoProtocolsSet() {
 		final Configuration config = new Configuration();
 
 		config.setString(JobManagerOptions.ADDRESS, "127.0.0.1");
@@ -89,12 +59,7 @@ public class MiniClusterSslITCase extends TestLogger {
 		config.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
 		config.setString(SecurityOptions.SSL_ALGORITHMS, "TLSv1,TLSv1.1");
 
-		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setConfiguration(config)
-			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
-			.build();
-		try (final MiniCluster cluster = new MiniCluster(cfg)) {
-			cluster.start();
+		try (final BlobServer blobServer = new BlobServer(config, new VoidBlobStore())) {
 			fail();
 		} catch (Exception e) {
 			findThrowable(e, IOException.class);
@@ -103,25 +68,7 @@ public class MiniClusterSslITCase extends TestLogger {
 	}
 
 	@Test
-	public void testStartWithAkkaSslDisabled() throws Exception {
-		final Configuration config = new Configuration();
-
-		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
-		config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, false);
-
-		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setConfiguration(config)
-			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
-			.build();
-		try (final MiniCluster cluster = new MiniCluster(cfg)) {
-			cluster.start();
-			assertTrue(cluster.isRunning());
-		}
-	}
-
-	@Test
-	public void testFailedToStartWithInvalidSslKeystoreConfigured() {
+	public void testFailedToInitWithInvalidSslKeystoreConfigured() {
 		final Configuration config = new Configuration();
 
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
@@ -135,12 +82,7 @@ public class MiniClusterSslITCase extends TestLogger {
 		config.setString(SecurityOptions.SSL_TRUSTSTORE, "invalid.keystore");
 		config.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
 
-		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setConfiguration(config)
-			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
-			.build();
-		try (final MiniCluster cluster = new MiniCluster(cfg)) {
-			cluster.start();
+		try (final BlobServer blobServer = new BlobServer(config, new VoidBlobStore())) {
 			fail();
 		} catch (Exception e) {
 			findThrowable(e, IOException.class);
@@ -149,7 +91,7 @@ public class MiniClusterSslITCase extends TestLogger {
 	}
 
 	@Test
-	public void testFailedToStartWithMissingMandatorySslConfiguration() {
+	public void testFailedToInitWithMissingMandatorySslConfiguration() {
 		final Configuration config = new Configuration();
 
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
@@ -158,12 +100,7 @@ public class MiniClusterSslITCase extends TestLogger {
 
 		config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
 
-		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setConfiguration(config)
-			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
-			.build();
-		try (final MiniCluster cluster = new MiniCluster(cfg)) {
-			cluster.start();
+		try (final BlobServer blobServer = new BlobServer(config, new VoidBlobStore())) {
 			fail();
 		} catch (Exception e) {
 			findThrowable(e, IOException.class);
