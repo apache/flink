@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.rpc;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 
 import java.io.Serializable;
 import java.util.concurrent.CompletableFuture;
@@ -66,12 +66,18 @@ public class TestingRpcService extends AkkaRpcService {
 	 * Creates a new {@code TestingRpcService}, using the given configuration. 
 	 */
 	public TestingRpcService(Configuration configuration) {
-		super(AkkaUtils.createLocalActorSystem(configuration), Time.seconds(10));
+		super(AkkaUtils.createLocalActorSystem(configuration),
+			AkkaRpcServiceConfiguration.fromConfiguration(configuration));
 
 		this.registeredConnections = new ConcurrentHashMap<>();
 	}
 
 	// ------------------------------------------------------------------------
+
+	@Override
+	protected Class getAkkaRpcActorClass() {
+		return TestingRemoteAkkaRpcActor.class;
+	}
 
 	@Override
 	public CompletableFuture<Void> stopService() {

@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
@@ -144,6 +146,68 @@ public class AkkaRpcActorTest extends TestLogger {
 		rpcEndpoint.shutDown();
 	}
 
+	@Test(expected = ExecutionException.class)
+	public void testOversizedResponseMsg() throws Exception {
+		Configuration configuration = new Configuration();
+		configuration.setString(AkkaOptions.FRAMESIZE, "10 b");
+		AkkaRpcService rpcService = null;
+		OversizedResponseRpcEndpoint rpcEndpoint = null;
+		try {
+			rpcService = new TestingRpcService(configuration);
+
+			rpcEndpoint = new OversizedResponseRpcEndpoint(rpcService);
+
+			OversizedResponseMsgRpcGateway rpcGateway = rpcEndpoint.getSelfGateway(OversizedResponseMsgRpcGateway.class);
+
+			rpcEndpoint.start();
+
+			CompletableFuture<Byte[]> result = rpcGateway.calculate();
+
+			result.get(timeout.getSize(), timeout.getUnit());
+
+			fail("Expected a ExecutionException about the oversize");
+		} finally {
+			if (rpcEndpoint != null) {
+				rpcEndpoint.shutDown();
+			}
+
+			if (rpcService != null) {
+				RpcUtils.terminateRpcService(rpcService, timeout);
+			}
+		}
+	}
+
+	@Test
+	public void testNonOversizedResponseMsg() throws Exception {
+		Configuration configuration = new Configuration();
+		configuration.setString(AkkaOptions.FRAMESIZE, "1000 kB");
+		AkkaRpcService rpcService = null;
+		OversizedResponseRpcEndpoint rpcEndpoint = null;
+		try {
+			rpcService = new TestingRpcService(configuration);
+
+			rpcEndpoint = new OversizedResponseRpcEndpoint(rpcService);
+
+			OversizedResponseMsgRpcGateway rpcGateway = rpcEndpoint.getSelfGateway(OversizedResponseMsgRpcGateway.class);
+
+			rpcEndpoint.start();
+
+			CompletableFuture<Byte[]> result = rpcGateway.calculate();
+
+			Byte[] actualBytes = result.get(timeout.getSize(), timeout.getUnit());
+
+			assertEquals(rpcEndpoint.getBytes(), actualBytes);
+		} finally {
+			if (rpcEndpoint != null) {
+				rpcEndpoint.shutDown();
+			}
+
+			if (rpcService != null) {
+				RpcUtils.terminateRpcService(rpcService, timeout);
+			}
+		}
+	}
+
 	/**
 	 * Tests that we can wait for a RpcEndpoint to terminate.
 	 *
@@ -248,7 +312,8 @@ public class AkkaRpcActorTest extends TestLogger {
 	@Test
 	public void testActorTerminationWhenServiceShutdown() throws Exception {
 		final ActorSystem rpcActorSystem = AkkaUtils.createDefaultActorSystem();
-		final RpcService rpcService = new AkkaRpcService(rpcActorSystem, timeout);
+		final RpcService rpcService = new AkkaRpcService(
+			rpcActorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
 
 		try {
 			SimpleRpcEndpoint rpcEndpoint = new SimpleRpcEndpoint(rpcService, SimpleRpcEndpoint.class.getSimpleName());
@@ -429,4 +494,33 @@ public class AkkaRpcActorTest extends TestLogger {
 			return postStopFuture;
 		}
 	}
+
+	// -------------------------------------------------------------------------
+
+	interface OversizedResponseMsgRpcGateway extends RpcGateway {
+		CompletableFuture<Byte[]> calculate();
+	}
+
+	static class OversizedResponseRpcEndpoint extends TestRpcEndpoint implements OversizedResponseMsgRpcGateway {
+
+		private volatile Byte[] bytes = new Byte[1024 * 10];
+
+		public OversizedResponseRpcEndpoint(RpcService rpcService) {
+			super(rpcService);
+		}
+
+		@Override
+		public CompletableFuture<Byte[]> calculate() {
+			return CompletableFuture.completedFuture(bytes);
+		}
+
+		public Byte[] getBytes() {
+			return bytes;
+		}
+
+		public void setBytes(Byte[] bytes) {
+			this.bytes = bytes;
+		}
+	}
+
 }

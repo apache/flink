@@ -56,7 +56,8 @@ public class AkkaRpcServiceTest extends TestLogger {
 
 	private static final Time TIMEOUT = Time.milliseconds(10000L);
 
-	private static final AkkaRpcService AKKA_RPC_SERVICE = new AkkaRpcService(ACTOR_SYSTEM, TIMEOUT);
+	private static final AkkaRpcService AKKA_RPC_SERVICE = new AkkaRpcService(ACTOR_SYSTEM,
+		AkkaRpcServiceConfiguration.defaultConfiguration());
 
 	@AfterClass
 	public static void shutdown() throws InterruptedException, ExecutionException, TimeoutException {
@@ -136,7 +137,8 @@ public class AkkaRpcServiceTest extends TestLogger {
 	@Test(timeout = 60000)
 	public void testTerminationFuture() throws Exception {
 		final ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
-		final AkkaRpcService rpcService = new AkkaRpcService(actorSystem, Time.milliseconds(1000));
+		final AkkaRpcService rpcService = new AkkaRpcService(
+			actorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
 
 		CompletableFuture<Void> terminationFuture = rpcService.getTerminationFuture();
 

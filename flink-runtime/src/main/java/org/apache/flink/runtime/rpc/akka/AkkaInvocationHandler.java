@@ -33,6 +33,7 @@ import org.apache.flink.runtime.rpc.messages.RemoteRpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RunAsync;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
 
 import akka.actor.ActorRef;
 import akka.pattern.Patterns;
@@ -48,6 +49,7 @@ import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -123,6 +125,21 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
 				"retrieve a properly FencedRpcGateway.");
 		} else {
 			result = invokeRpc(method, args);
+			if (result instanceof CompletableFuture) {
+				result = ((CompletableFuture) result).thenApply((Object o) -> {
+					if (o instanceof SerializedValue) {
+						try {
+							return  ((SerializedValue) o).deserializeValue(getClass().getClassLoader());
+						} catch (IOException e) {
+							throw new CompletionException(e);
+						} catch (ClassNotFoundException e) {
+							throw new CompletionException(e);
+						}
+					} else {
+						return o;
+					}
+				});
+			}
 		}
 
 		return result;
