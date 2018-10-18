@@ -20,8 +20,11 @@ package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
 
+import javax.annotation.Nonnull;
+
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -32,7 +35,13 @@ import java.util.concurrent.TimeoutException;
  * implementation which allows to dispatch local procedures to the main thread of the underlying
  * RPC endpoint.
  */
-public interface MainThreadExecutable {
+public interface MainThreadExecutable extends Executor {
+
+	@Override
+	default void execute(@Nonnull Runnable command) {
+		// TODO just consolidate interfaces/names
+		runAsync(command);
+	}
 
 	/**
 	 * Execute the runnable in the main thread of the underlying RPC endpoint.

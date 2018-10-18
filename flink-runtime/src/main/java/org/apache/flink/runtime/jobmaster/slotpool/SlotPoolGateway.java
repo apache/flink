@@ -30,7 +30,6 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -42,7 +41,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * The gateway for calls on the {@link SlotPool}.
  */
-public interface SlotPoolGateway extends AllocatedSlotActions, RpcGateway {
+public interface SlotPoolGateway extends AllocatedSlotActions {
 
 	// ------------------------------------------------------------------------
 	//  shutdown

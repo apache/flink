@@ -36,9 +36,6 @@ import javax.annotation.Nonnull;
 public class DefaultSlotPoolFactory implements SlotPoolFactory {
 
 	@Nonnull
-	private final RpcService rpcService;
-
-	@Nonnull
 	private final SchedulingStrategy schedulingStrategy;
 
 	@Nonnull
@@ -51,12 +48,10 @@ public class DefaultSlotPoolFactory implements SlotPoolFactory {
 	private final Time slotIdleTimeout;
 
 	public DefaultSlotPoolFactory(
-			@Nonnull RpcService rpcService,
 			@Nonnull SchedulingStrategy schedulingStrategy,
 			@Nonnull Clock clock,
 			@Nonnull Time rpcTimeout,
 			@Nonnull Time slotIdleTimeout) {
-		this.rpcService = rpcService;
 		this.schedulingStrategy = schedulingStrategy;
 		this.clock = clock;
 		this.rpcTimeout = rpcTimeout;
@@ -67,7 +62,6 @@ public class DefaultSlotPoolFactory implements SlotPoolFactory {
 	@Nonnull
 	public SlotPool createSlotPool(@Nonnull JobID jobId) {
 		return new SlotPool(
-			rpcService,
 			jobId,
 			schedulingStrategy,
 			clock,
@@ -85,7 +79,6 @@ public class DefaultSlotPoolFactory implements SlotPoolFactory {
 		final SchedulingStrategy schedulingStrategy = selectSchedulingStrategy(configuration);
 
 		return new DefaultSlotPoolFactory(
-			rpcService,
 			schedulingStrategy,
 			SystemClock.getInstance(),
 			rpcTimeout,

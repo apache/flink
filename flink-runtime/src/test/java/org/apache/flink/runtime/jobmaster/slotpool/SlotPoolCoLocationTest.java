@@ -60,7 +60,6 @@ public class SlotPoolCoLocationTest extends TestLogger {
 
 	@Rule
 	public final SlotPoolResource slotPoolResource = new SlotPoolResource(
-		rpcServiceResource.getTestingRpcService(),
 		PreviousAllocationSchedulingStrategy.getInstance());
 
 	/**

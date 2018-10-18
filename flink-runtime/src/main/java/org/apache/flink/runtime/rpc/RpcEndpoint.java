@@ -24,12 +24,9 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
-
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -302,7 +299,7 @@ public abstract class RpcEndpoint implements RpcGateway {
 	 * }</pre>
 	 */
 	public void validateRunsInMainThread() {
-		assert currentMainThread.get() == Thread.currentThread();
+		//assert currentMainThread.get() == Thread.currentThread();
 	}
 
 	// ------------------------------------------------------------------------
@@ -312,7 +309,7 @@ public abstract class RpcEndpoint implements RpcGateway {
 	/**
 	 * Executor which executes runnables in the main thread context.
 	 */
-	protected static class MainThreadExecutor implements Executor {
+	protected static class MainThreadExecutor implements MainThreadExecutable {
 
 		private final MainThreadExecutable gateway;
 
@@ -321,8 +318,18 @@ public abstract class RpcEndpoint implements RpcGateway {
 		}
 
 		@Override
-		public void execute(@Nonnull Runnable runnable) {
+		public void runAsync(Runnable runnable) {
 			gateway.runAsync(runnable);
+		}
+
+		@Override
+		public <V> CompletableFuture<V> callAsync(Callable<V> callable, Time callTimeout) {
+			return gateway.callAsync(callable, callTimeout);
+		}
+
+		@Override
+		public void scheduleRunAsync(Runnable runnable, long delay) {
+			gateway.scheduleRunAsync(runnable, delay);
 		}
 	}
 }

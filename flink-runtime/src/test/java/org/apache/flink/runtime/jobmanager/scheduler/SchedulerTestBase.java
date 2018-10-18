@@ -37,10 +37,8 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSharingManager;
+import org.apache.flink.runtime.jobmaster.slotpool.TestMainThreadExecutor;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -67,21 +65,17 @@ public class SchedulerTestBase extends TestLogger {
 
 	protected TestingSlotProvider testingSlotProvider;
 
-	private RpcService rpcService;
-
 	@Before
 	public void setup() throws Exception {
-		rpcService = new TestingRpcService();
 		final JobID jobId = new JobID();
 		final TestingSlotPool slotPool = new TestingSlotPool(
-			rpcService,
 			jobId,
 			LocationPreferenceSchedulingStrategy.getInstance());
 		testingSlotProvider = new TestingSlotPoolSlotProvider(slotPool);
 
 		final JobMasterId jobMasterId = JobMasterId.generate();
 		final String jobManagerAddress = "localhost";
-		slotPool.start(jobMasterId, jobManagerAddress);
+		slotPool.start(jobMasterId, jobManagerAddress, new TestMainThreadExecutor());
 	}
 
 	@After
@@ -89,11 +83,6 @@ public class SchedulerTestBase extends TestLogger {
 		if (testingSlotProvider != null) {
 			testingSlotProvider.shutdown();
 			testingSlotProvider = null;
-		}
-
-		if (rpcService != null) {
-			rpcService.stopService().get();
-			rpcService = null;
 		}
 	}
 
@@ -147,7 +136,7 @@ public class SchedulerTestBase extends TestLogger {
 		public TaskManagerLocation addTaskManager(int numberSlots) {
 			final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 			final ResourceID resourceId = taskManagerLocation.getResourceID();
-			final SlotPoolGateway slotPoolGateway = slotPool.getSelfGateway(SlotPoolGateway.class);
+			final SlotPoolGateway slotPoolGateway = slotPool;
 
 			try {
 				slotPoolGateway.registerTaskManager(resourceId).get();
@@ -240,8 +229,8 @@ public class SchedulerTestBase extends TestLogger {
 		}
 
 		@Override
-		public void shutdown() throws Exception {
-			RpcUtils.terminateRpcEndpoint(slotPool, TestingUtils.TIMEOUT());
+		public void shutdown() {
+			slotPool.close();
 		}
 
 		@Override
@@ -282,8 +271,8 @@ public class SchedulerTestBase extends TestLogger {
 
 	private static final class TestingSlotPool extends SlotPool {
 
-		public TestingSlotPool(RpcService rpcService, JobID jobId, SchedulingStrategy schedulingStrategy) {
-			super(rpcService, jobId, schedulingStrategy);
+		public TestingSlotPool(JobID jobId, SchedulingStrategy schedulingStrategy) {
+			super(jobId, schedulingStrategy);
 		}
 
 		CompletableFuture<Integer> getNumberOfAvailableSlots() {

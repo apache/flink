@@ -117,8 +117,8 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -285,7 +285,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		this.slotPool = checkNotNull(slotPoolFactory).createSlotPool(jobGraph.getJobID());
 
-		this.slotPoolGateway = slotPool.getSelfGateway(SlotPoolGateway.class);
+		this.slotPoolGateway = slotPool;//.getSelfGateway(SlotPoolGateway.class);
 
 		this.registeredTaskManagers = new HashMap<>(4);
 
@@ -367,7 +367,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		suspendExecution(new FlinkException("JobManager is shutting down."));
 
 		// shut down will internally release all registered slots
-		slotPool.shutDown();
+		slotPool.close();
 
 		final CompletableFuture<Void> disposeInternalSavepointFuture;
 
@@ -377,9 +377,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			disposeInternalSavepointFuture = CompletableFuture.completedFuture(null);
 		}
 
-		final CompletableFuture<Void> slotPoolTerminationFuture = slotPool.getTerminationFuture();
-
-		return FutureUtils.completeAll(Arrays.asList(disposeInternalSavepointFuture, slotPoolTerminationFuture));
+		return FutureUtils.completeAll(Collections.singletonList(disposeInternalSavepointFuture));
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -1036,7 +1034,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private void startJobMasterServices() throws Exception {
 		// start the slot pool make sure the slot pool now accepts messages for this leader
-		slotPool.start(getFencingToken(), getAddress());
+		slotPool.start(getFencingToken(), getAddress(), getMainThreadExecutor());
 
 		//TODO: Remove once the ZooKeeperLeaderRetrieval returns the stored address upon start
 		// try to reconnect to previously known leader

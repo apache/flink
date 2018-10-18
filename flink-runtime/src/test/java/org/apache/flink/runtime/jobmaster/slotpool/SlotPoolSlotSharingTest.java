@@ -61,7 +61,6 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 
 	@Rule
 	public final SlotPoolResource slotPoolResource = new SlotPoolResource(
-		testingRpcServiceResource.getTestingRpcService(),
 		PreviousAllocationSchedulingStrategy.getInstance());
 
 	@Test

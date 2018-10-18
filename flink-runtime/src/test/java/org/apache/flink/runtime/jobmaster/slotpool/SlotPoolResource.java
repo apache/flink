@@ -21,21 +21,15 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
-import org.apache.flink.runtime.rpc.RpcService;
 
 import org.junit.rules.ExternalResource;
 
 import javax.annotation.Nonnull;
 
-import java.util.concurrent.CompletableFuture;
-
 /**
  * {@link ExternalResource} which provides a {@link SlotPool}.
  */
 public class SlotPoolResource extends ExternalResource {
-
-	@Nonnull
-	private final RpcService rpcService;
 
 	@Nonnull
 	private final SchedulingStrategy schedulingStrategy;
@@ -46,8 +40,7 @@ public class SlotPoolResource extends ExternalResource {
 
 	private TestingResourceManagerGateway testingResourceManagerGateway;
 
-	public SlotPoolResource(@Nonnull RpcService rpcService, @Nonnull SchedulingStrategy schedulingStrategy) {
-		this.rpcService = rpcService;
+	public SlotPoolResource(@Nonnull SchedulingStrategy schedulingStrategy) {
 		this.schedulingStrategy = schedulingStrategy;
 		slotPool = null;
 		slotPoolGateway = null;
@@ -82,13 +75,12 @@ public class SlotPoolResource extends ExternalResource {
 		testingResourceManagerGateway = new TestingResourceManagerGateway();
 
 		slotPool = new SlotPool(
-			rpcService,
 			new JobID(),
 			schedulingStrategy);
 
-		slotPool.start(JobMasterId.generate(), "foobar");
+		slotPool.start(JobMasterId.generate(), "foobar", new TestMainThreadExecutor());
 
-		slotPoolGateway = slotPool.getSelfGateway(SlotPoolGateway.class);
+		slotPoolGateway = slotPool;
 
 		slotPool.connectToResourceManager(testingResourceManagerGateway);
 	}
@@ -102,8 +94,6 @@ public class SlotPoolResource extends ExternalResource {
 	}
 
 	private void terminateSlotPool() {
-		slotPool.shutDown();
-		CompletableFuture<Void> terminationFuture = slotPool.getTerminationFuture();
-		terminationFuture.join();
+		slotPool.close();
 	}
 }
