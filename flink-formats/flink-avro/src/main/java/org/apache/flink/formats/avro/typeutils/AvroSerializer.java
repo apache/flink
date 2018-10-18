@@ -21,6 +21,7 @@ package org.apache.flink.formats.avro.typeutils;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.typeutils.runtime.KryoRegistrationSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -78,7 +79,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	 * Because this flag is static final, a value of 'false' allows the JIT compiler to eliminate
 	 * the guarded code sections. */
 	private static final boolean CONCURRENT_ACCESS_CHECK =
-			LOG.isDebugEnabled() || AvroSerializerDebugInitHelper.setToDebug;
+		LOG.isDebugEnabled() || AvroSerializerDebugInitHelper.setToDebug;
 
 	// -------- configuration fields, serializable -----------
 
@@ -100,7 +101,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	private transient Schema schema;
 
 	/** The serializer configuration snapshot, cached for efficiency. */
-	private transient AvroSchemaSerializerConfigSnapshot<T> configSnapshot;
+	private transient TypeSerializerSnapshot<T> configSnapshot;
 
 	/** The currently accessing thread, set and checked on debug level only. */
 	private transient volatile Thread currentThread;
@@ -264,10 +265,10 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public TypeSerializerConfigSnapshot<T> snapshotConfiguration() {
+	public TypeSerializerSnapshot<T> snapshotConfiguration() {
 		if (configSnapshot == null) {
 			checkAvroInitialized();
-			configSnapshot = new AvroSchemaSerializerConfigSnapshot<>(schema.toString(false));
+			configSnapshot = new AvroSerializerSnapshot<>(schema, type);
 		}
 		return configSnapshot;
 	}
@@ -282,10 +283,10 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 			checkAvroInitialized();
 			final SchemaPairCompatibility compatibility =
-					SchemaCompatibility.checkReaderWriterCompatibility(schema, lastSchema);
+				SchemaCompatibility.checkReaderWriterCompatibility(schema, lastSchema);
 
 			return compatibility.getType() == SchemaCompatibilityType.COMPATIBLE ?
-					CompatibilityResult.compatible() : CompatibilityResult.requiresMigration();
+				CompatibilityResult.compatible() : CompatibilityResult.requiresMigration();
 		}
 		else if (configSnapshot instanceof AvroSerializerConfigSnapshot) {
 			// old snapshot case, just compare the type
@@ -293,7 +294,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 			// only for object-to-object copies.
 			final AvroSerializerConfigSnapshot<T> old = (AvroSerializerConfigSnapshot<T>) configSnapshot;
 			return type.equals(old.getTypeClass()) ?
-					CompatibilityResult.compatible() : CompatibilityResult.requiresMigration();
+				CompatibilityResult.compatible() : CompatibilityResult.requiresMigration();
 		}
 		else {
 			return CompatibilityResult.requiresMigration();
@@ -304,7 +305,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static boolean isGenericRecord(Class<?> type) {
+	static boolean isGenericRecord(Class<?> type) {
 		return !SpecificRecord.class.isAssignableFrom(type) &&
 			GenericRecord.class.isAssignableFrom(type);
 	}
@@ -403,13 +404,18 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		}
 		else if (previous != thisThread) {
 			throw new IllegalStateException(
-					"Concurrent access to KryoSerializer. Thread 1: " + thisThread.getName() +
-							" , Thread 2: " + previous.getName());
+				"Concurrent access to KryoSerializer. Thread 1: " + thisThread.getName() +
+					" , Thread 2: " + previous.getName());
 		}
 	}
 
 	private void exitExclusiveThread() {
 		currentThread = null;
+	}
+
+	Schema getAvroSchema() {
+		checkAvroInitialized();
+		return schema;
 	}
 
 	// ------------------------------------------------------------------------

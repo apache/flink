@@ -28,6 +28,7 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.formats.avro.generated.SimpleUser;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -71,6 +72,7 @@ public class BackwardsCompatibleAvroSerializerTest {
 
 	private static final int NUM_DATA_ENTRIES = 20;
 
+	@Ignore("This test is does not tests compatibility with Flink 1.3 anymore since the resource files were changed.")
 	@Test
 	public void testCompatibilityWithPojoSerializer() throws Exception {
 
@@ -83,8 +85,8 @@ public class BackwardsCompatibleAvroSerializerTest {
 			DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(in);
 
 			List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> deserialized =
-					TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(
-							inView, getClass().getClassLoader());
+				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(
+					inView, getClass().getClassLoader());
 
 			assertEquals(1, deserialized.size());
 
@@ -126,7 +128,7 @@ public class BackwardsCompatibleAvroSerializerTest {
 		final Random rnd = new Random(RANDOM_SEED);
 
 		try (InputStream in = BackwardsCompatibleAvroSerializerTest.class.getClassLoader()
-				.getResourceAsStream(DATA_RESOURCE)) {
+			.getResourceAsStream(DATA_RESOURCE)) {
 
 			final DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(in);
 
