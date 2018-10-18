@@ -23,6 +23,20 @@ package org.apache.flink.configuration;
  */
 public class FallbackKey {
 
+	// -------------------------
+	//  Factory methods
+	// -------------------------
+
+	static FallbackKey createFallbackKey(String key) {
+		return new FallbackKey(key, false);
+	}
+
+	static FallbackKey createDeprecatedKey(String key) {
+		return new FallbackKey(key, true);
+	}
+
+	// ------------------------------------------------------------------------
+
 	private final String key;
 
 	private final boolean isDeprecated;
@@ -35,7 +49,7 @@ public class FallbackKey {
 		return isDeprecated;
 	}
 
-	FallbackKey(String key, boolean isDeprecated) {
+	private FallbackKey(String key, boolean isDeprecated) {
 		this.key = key;
 		this.isDeprecated = isDeprecated;
 	}

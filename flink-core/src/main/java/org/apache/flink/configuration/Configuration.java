@@ -705,10 +705,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 				// try the fallback keys
 				for (FallbackKey fallbackKey : configOption.fallbackKeys()) {
 					if (this.confData.containsKey(fallbackKey.getKey())) {
-						if (fallbackKey.isDeprecated()) {
-							LOG.warn("Config uses deprecated configuration key '{}' instead of proper key '{}'",
-								fallbackKey.getKey(), configOption.key());
-						}
+						loggingFallback(fallbackKey, configOption);
 						return true;
 					}
 				}
@@ -746,10 +743,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 				for (FallbackKey fallbackKey : configOption.fallbackKeys()){
 					oldValue = this.confData.remove(fallbackKey.getKey());
 					if (oldValue != null){
-						if (fallbackKey.isDeprecated()) {
-							LOG.warn("Config uses deprecated configuration key '{}' instead of proper key '{}'",
-								fallbackKey.getKey(), configOption.key());
-						}
+						loggingFallback(fallbackKey, configOption);
 						return true;
 					}
 				}
@@ -798,10 +792,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			for (FallbackKey fallbackKey : configOption.fallbackKeys()) {
 				Object oo = getRawValue(fallbackKey.getKey());
 				if (oo != null) {
-					if (fallbackKey.isDeprecated()) {
-						LOG.warn("Config uses deprecated configuration key '{}' instead of proper key '{}'",
-							fallbackKey.getKey(), configOption.key());
-					}
+					loggingFallback(fallbackKey, configOption);
 					return oo;
 				}
 			}
@@ -813,6 +804,16 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	private Object getValueOrDefaultFromOption(ConfigOption<?> configOption) {
 		Object o = getRawValueFromOption(configOption);
 		return o != null ? o : configOption.defaultValue();
+	}
+
+	private void loggingFallback(FallbackKey fallbackKey, ConfigOption<?> configOption) {
+		if (fallbackKey.isDeprecated()) {
+			LOG.warn("Config uses deprecated configuration key '{}' instead of proper key '{}'",
+				fallbackKey.getKey(), configOption.key());
+		} else {
+			LOG.info("Config uses fallback configuration key '{}' instead of key '{}'",
+				fallbackKey.getKey(), configOption.key());
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

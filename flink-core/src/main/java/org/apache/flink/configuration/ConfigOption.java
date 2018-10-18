@@ -117,7 +117,7 @@ public class ConfigOption<T> {
 	 */
 	public ConfigOption<T> withFallbackKeys(String... fallbackKeys) {
 		FallbackKey[] fallbackKeyArray = Arrays.stream(fallbackKeys)
-			.map(fallbackKey -> new FallbackKey(fallbackKey, false))
+			.map(FallbackKey::createFallbackKey)
 			.toArray(FallbackKey[]::new);
 		return new ConfigOption<>(key, description, defaultValue, fallbackKeyArray);
 	}
@@ -135,7 +135,7 @@ public class ConfigOption<T> {
 	 */
 	public ConfigOption<T> withDeprecatedKeys(String... deprecatedKeys) {
 		FallbackKey[] fallbackKeys = Arrays.stream(deprecatedKeys)
-			.map(deprecatedKey -> new FallbackKey(deprecatedKey, true))
+			.map(FallbackKey::createDeprecatedKey)
 			.toArray(FallbackKey[]::new);
 		return new ConfigOption<>(key, description, defaultValue, fallbackKeys);
 	}

@@ -32,6 +32,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import static org.apache.flink.configuration.FallbackKey.createDeprecatedKey;
+
 /**
  * A configuration that manages a subset of keys with a common prefix from a given configuration.
  */
@@ -365,7 +367,7 @@ public final class DelegatingConfiguration extends Configuration {
 		if (option.hasFallbackKeys()) {
 			deprecatedKeys = new ArrayList<>();
 			for (FallbackKey dk : option.fallbackKeys()) {
-				deprecatedKeys.add(new FallbackKey(prefix + dk.getKey(), true));
+				deprecatedKeys.add(createDeprecatedKey(prefix + dk.getKey()));
 			}
 		} else {
 			deprecatedKeys = Collections.emptyList();
