@@ -70,6 +70,12 @@ public class MetricQueryService extends UntypedActor {
 	private final Map<Histogram, Tuple2<QueryScopeInfo, String>> histograms = new HashMap<>();
 	private final Map<Meter, Tuple2<QueryScopeInfo, String>> meters = new HashMap<>();
 
+	private final long messageSizeLimit;
+
+	public MetricQueryService(long messageSizeLimit) {
+		this.messageSizeLimit = messageSizeLimit;
+	}
+
 	@Override
 	public void postStop() {
 		serializer.close();
@@ -165,11 +171,16 @@ public class MetricQueryService extends UntypedActor {
 	 * @param resourceID resource ID to disambiguate the actor name
 	 * @return actor reference to the MetricQueryService
 	 */
-	public static ActorRef startMetricQueryService(ActorSystem actorSystem, ResourceID resourceID) {
+	public static ActorRef startMetricQueryService(
+		ActorSystem actorSystem,
+		ResourceID resourceID,
+		long maximumFramesize) {
+
 		String actorName = resourceID == null
 			? METRIC_QUERY_SERVICE_NAME
 			: METRIC_QUERY_SERVICE_NAME + "_" + resourceID.getResourceIdString();
-		return actorSystem.actorOf(Props.create(MetricQueryService.class), actorName);
+
+		return actorSystem.actorOf(Props.create(MetricQueryService.class, maximumFramesize), actorName);
 	}
 
 	/**
