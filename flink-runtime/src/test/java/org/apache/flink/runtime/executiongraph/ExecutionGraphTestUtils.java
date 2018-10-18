@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.FailoverStrategyType;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
@@ -454,6 +455,7 @@ public class ExecutionGraphTestUtils {
 			new StandaloneCheckpointRecoveryFactory(),
 			timeout,
 			restartStrategy,
+			FailoverStrategyType.None,
 			new UnregisteredMetricsGroup(),
 			1,
 			VoidBlobWriter.getInstance(),

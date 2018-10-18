@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.FailoverStrategyType;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.JobException;
@@ -74,6 +75,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			new StandaloneCheckpointRecoveryFactory(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
+			FailoverStrategyType.None,
 			new UnregisteredMetricsGroup(),
 			VoidBlobWriter.getInstance(),
 			AkkaUtils.getDefaultTimeout(),
@@ -103,6 +105,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			new StandaloneCheckpointRecoveryFactory(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
+			FailoverStrategyType.None,
 			new UnregisteredMetricsGroup(),
 			VoidBlobWriter.getInstance(),
 			AkkaUtils.getDefaultTimeout(),
@@ -132,6 +135,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			new StandaloneCheckpointRecoveryFactory(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
+			FailoverStrategyType.None,
 			new UnregisteredMetricsGroup(),
 			VoidBlobWriter.getInstance(),
 			AkkaUtils.getDefaultTimeout(),
@@ -174,6 +178,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 				new StandaloneCheckpointRecoveryFactory(),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy(),
+				FailoverStrategyType.None,
 				new UnregisteredMetricsGroup(),
 				VoidBlobWriter.getInstance(),
 				AkkaUtils.getDefaultTimeout(),

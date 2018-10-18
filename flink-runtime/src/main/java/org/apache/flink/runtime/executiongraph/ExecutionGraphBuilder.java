@@ -19,11 +19,13 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.FailoverStrategyType;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.JobException;
@@ -91,6 +93,7 @@ public class ExecutionGraphBuilder {
 			CheckpointRecoveryFactory recoveryFactory,
 			Time rpcTimeout,
 			RestartStrategy restartStrategy,
+			FailoverStrategyType failoverStrategyType,
 			MetricGroup metrics,
 			BlobWriter blobWriter,
 			Time allocationTimeout,
@@ -108,6 +111,7 @@ public class ExecutionGraphBuilder {
 			recoveryFactory,
 			rpcTimeout,
 			restartStrategy,
+			failoverStrategyType,
 			metrics,
 			-1,
 			blobWriter,
@@ -132,6 +136,7 @@ public class ExecutionGraphBuilder {
 			CheckpointRecoveryFactory recoveryFactory,
 			Time rpcTimeout,
 			RestartStrategy restartStrategy,
+			FailoverStrategyType failoverStrategyType,
 			MetricGroup metrics,
 			int parallelismForAutoMax,
 			BlobWriter blobWriter,
@@ -144,8 +149,13 @@ public class ExecutionGraphBuilder {
 		final String jobName = jobGraph.getName();
 		final JobID jobId = jobGraph.getJobID();
 
+		final String strategyParam =
+			failoverStrategyType != FailoverStrategyType.None
+			? failoverStrategyType.toString()
+			: jobManagerConfig.getString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY);
+
 		final FailoverStrategy.Factory failoverStrategy =
-				FailoverStrategyLoader.loadFailoverStrategy(jobManagerConfig, log);
+				FailoverStrategyLoader.loadFailoverStrategy(strategyParam, log);
 
 		final JobInformation jobInformation = new JobInformation(
 			jobId,

@@ -159,6 +159,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/** Determines if a task fails or not if there is an error in writing its checkpoint data. Default: true */
 	private boolean failTaskOnCheckpointError = true;
 
+	/** Failover strategy, default value is 'none', that will use cluster's configuration */
+	private FailoverStrategyType failoverStrategy = FailoverStrategyType.None;
+
 	// ------------------------------- User code values --------------------------------------------
 
 	private GlobalJobParameters globalJobParameters;
@@ -400,6 +403,29 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	@PublicEvolving
 	public void setRestartStrategy(RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
 		this.restartStrategyConfiguration = Preconditions.checkNotNull(restartStrategyConfiguration);
+	}
+
+	/**
+	 * Sets the failover strategy. The failover strategy how the job computation recovers from task failures
+	 *
+	 * The default failover strategy mode is {@link FailoverStrategyType#FULL_RESTART_STRATEGY_NAME}.
+	 *
+	 * @param strategy The strategy to use.
+	 */
+	@PublicEvolving
+	public ExecutionConfig setFailoverStrategy(FailoverStrategyType strategy) {
+		this.failoverStrategy = strategy;
+		return this;
+	}
+
+	/**
+	 * Returns the failover strategy which has been set for the current job.
+	 *
+	 * @return The specified failover strategy
+	 */
+	@PublicEvolving
+	public FailoverStrategyType getFailoverStrategy() {
+		return this.failoverStrategy;
 	}
 
 	/**

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph.failover;
 
+import org.apache.flink.api.common.FailoverStrategyType;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -639,6 +640,7 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 			new StandaloneCheckpointRecoveryFactory(),
 			timeout,
 			new NoRestartStrategy(),
+			FailoverStrategyType.None,
 			new UnregisteredMetricsGroup(),
 			1000,
 			VoidBlobWriter.getInstance(),

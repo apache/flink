@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.FailoverStrategyType;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.IntCounter;
@@ -709,6 +710,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			new StandaloneCheckpointRecoveryFactory(),
 			timeout,
 			new NoRestartStrategy(),
+			FailoverStrategyType.None,
 			new UnregisteredMetricsGroup(),
 			1,
 			blobWriter,

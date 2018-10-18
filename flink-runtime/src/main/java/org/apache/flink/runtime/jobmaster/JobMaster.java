@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.FailoverStrategyType;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
@@ -186,6 +188,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private final RestartStrategy restartStrategy;
 
+	private final FailoverStrategyType failoverStrategyType;
+
 	// --------- BackPressure --------
 
 	private final BackPressureStatsTracker backPressureStatsTracker;
@@ -270,9 +274,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		log.info("Initializing job {} ({}).", jobName, jid);
 
-		final RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration =
-				jobGraph.getSerializedExecutionConfig()
-						.deserializeValue(userCodeLoader)
+		final ExecutionConfig executionConfig = jobGraph.getSerializedExecutionConfig()
+			.deserializeValue(userCodeLoader);
+
+		final RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration = executionConfig
 						.getRestartStrategy();
 
 		this.restartStrategy = RestartStrategyResolving.resolve(restartStrategyConfiguration,
@@ -280,6 +285,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			jobGraph.isCheckpointingEnabled());
 
 		log.info("Using restart strategy {} for {} ({}).", this.restartStrategy, jobName, jid);
+
+		this.failoverStrategyType = executionConfig
+			.getFailoverStrategy();
 
 		resourceManagerLeaderRetriever = highAvailabilityServices.getResourceManagerLeaderRetriever();
 
@@ -1180,6 +1188,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			highAvailabilityServices.getCheckpointRecoveryFactory(),
 			rpcTimeout,
 			restartStrategy,
+			failoverStrategyType,
 			currentJobManagerJobMetricGroup,
 			blobServer,
 			jobMasterConfiguration.getSlotRequestTimeout(),

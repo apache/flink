@@ -18,11 +18,9 @@
 
 package org.apache.flink.runtime.executiongraph.failover;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.util.StringUtils;
-
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -46,8 +44,7 @@ public class FailoverStrategyLoader {
 	/**
 	 * Loads a FailoverStrategy Factory from the given configuration.
 	 */
-	public static FailoverStrategy.Factory loadFailoverStrategy(Configuration config, @Nullable Logger logger) {
-		final String strategyParam = config.getString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY);
+	public static FailoverStrategy.Factory loadFailoverStrategy(String strategyParam, @Nullable Logger logger) {
 
 		if (StringUtils.isNullOrWhitespaceOnly(strategyParam)) {
 			if (logger != null) {

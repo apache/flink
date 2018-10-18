@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.FailoverStrategyType;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -107,6 +108,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 			new StandaloneCheckpointRecoveryFactory(),
 			timeout,
 			new NoRestartStrategy(),
+			FailoverStrategyType.None,
 			new UnregisteredMetricsGroup(),
 			10,
 			VoidBlobWriter.getInstance(),

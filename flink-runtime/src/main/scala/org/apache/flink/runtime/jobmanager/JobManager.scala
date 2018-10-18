@@ -1251,15 +1251,20 @@ class JobManager(
           throw new JobSubmissionException(jobId, "The given job is empty")
         }
 
-        val restartStrategyConfiguration = jobGraph
+        val executionConfig = jobGraph
           .getSerializedExecutionConfig
           .deserializeValue(userCodeLoader)
+
+        val restartStrategyConfiguration = executionConfig
           .getRestartStrategy
 
         val restartStrategy = RestartStrategyResolving
           .resolve(restartStrategyConfiguration,
             restartStrategyFactory,
             jobGraph.isCheckpointingEnabled)
+
+        val failoverStrategy = executionConfig
+          .getFailoverStrategy
 
         log.info(s"Using restart strategy $restartStrategy for $jobId.")
 
@@ -1291,6 +1296,7 @@ class JobManager(
           checkpointRecoveryFactory,
           Time.of(timeout.length, timeout.unit),
           restartStrategy,
+          failoverStrategy,
           jobMetrics,
           numSlots,
           blobServer,

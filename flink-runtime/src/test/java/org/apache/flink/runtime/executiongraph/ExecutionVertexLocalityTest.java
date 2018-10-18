@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.FailoverStrategyType;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
@@ -221,6 +222,7 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 			new StandaloneCheckpointRecoveryFactory(),
 			timeout,
 			new FixedDelayRestartStrategy(10, 0L),
+			FailoverStrategyType.None,
 			new UnregisteredMetricsGroup(),
 			1,
 			VoidBlobWriter.getInstance(),
