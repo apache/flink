@@ -164,7 +164,7 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
 	@SuppressWarnings("unchecked")
 	public TypeInformation<T> getProducedType() {
 		if (SpecificRecord.class.isAssignableFrom(recordClazz)) {
-			return new AvroTypeInfo(recordClazz, false);
+			return new AvroTypeInfo(recordClazz);
 		} else {
 			return (TypeInformation<T>) new GenericRecordAvroTypeInfo(this.reader);
 		}
