@@ -21,6 +21,8 @@ package org.apache.flink.table.plan.rules.datastream
 import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.plan.logical.MatchRecognize
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamMatch
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalMatch
@@ -39,21 +41,31 @@ class DataStreamMatchRule
     val convertInput: RelNode =
       RelOptRule.convert(logicalMatch.getInput, FlinkConventions.DATASTREAM)
 
+    try {
+      Class.forName("org.apache.flink.cep.pattern.Pattern")
+    } catch {
+      case ex: ClassNotFoundException => throw new TableException(
+        "MATCH RECOGNIZE clause requires flink-cep dependency to be present on the classpath.",
+        ex)
+    }
+
     new DataStreamMatch(
       rel.getCluster,
       traitSet,
       convertInput,
-      logicalMatch.getPattern,
-      logicalMatch.isStrictStart,
-      logicalMatch.isStrictEnd,
-      logicalMatch.getPatternDefinitions,
-      logicalMatch.getMeasures,
-      logicalMatch.getAfter,
-      logicalMatch.getSubsets,
-      logicalMatch.isAllRows,
-      logicalMatch.getPartitionKeys,
-      logicalMatch.getOrderKeys,
-      logicalMatch.getInterval,
+      MatchRecognize(
+        logicalMatch.getInput,
+        logicalMatch.getRowType,
+        logicalMatch.getPattern,
+        logicalMatch.getPatternDefinitions,
+        logicalMatch.getMeasures,
+        logicalMatch.getAfter,
+        logicalMatch.getSubsets,
+        logicalMatch.isAllRows,
+        logicalMatch.getPartitionKeys,
+        logicalMatch.getOrderKeys,
+        logicalMatch.getInterval
+      ),
       new RowSchema(logicalMatch.getRowType),
       new RowSchema(logicalMatch.getInput.getRowType))
   }

@@ -18,13 +18,16 @@
 
 package org.apache.flink.table.runtime.`match`
 
+import java.io.{IOException, ObjectInputStream}
 import java.util
 
-import org.apache.flink.cep.PatternSelectFunction
+import org.apache.flink.cep.{PatternFlatSelectFunction, PatternSelectFunction}
+import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
-import org.slf4j.LoggerFactory
+import org.apache.flink.util.Collector
 
 /**
   * PatternSelectFunctionRunner with [[Row]] input and [[CRow]] output.
@@ -32,14 +35,13 @@ import org.slf4j.LoggerFactory
 class PatternSelectFunctionRunner(
     name: String,
     code: String)
-  extends PatternSelectFunction[Row, CRow]
-  with Compiler[PatternSelectFunction[Row, Row]] {
+  extends PatternFlatSelectFunction[Row, CRow]
+  with Compiler[PatternSelectFunction[Row, Row]]
+  with Logging {
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
+  @transient private var outCRow: CRow = _
 
-  private var outCRow: CRow = _
-
-  private var function: PatternSelectFunction[Row, Row] = _
+  @transient private var function: PatternSelectFunction[Row, Row] = _
 
   def init(): Unit = {
     LOG.debug(s"Compiling PatternSelectFunction: $name \n\n Code:\n$code")
@@ -48,7 +50,19 @@ class PatternSelectFunctionRunner(
     function = clazz.newInstance()
   }
 
-  override def select(pattern: util.Map[String, util.List[Row]]): CRow = {
+  override def flatSelect(
+      pattern: util.Map[String, util.List[Row]],
+      out: Collector[CRow])
+    : Unit = {
+    outCRow.row = function.select(pattern)
+    out.asInstanceOf[TimestampedCollector[_]].eraseTimestamp()
+    out.collect(outCRow)
+  }
+
+  @throws(classOf[IOException])
+  private def readObject(in: ObjectInputStream): Unit = {
+    in.defaultReadObject()
+
     if (outCRow == null) {
       outCRow = new CRow(null, true)
     }
@@ -56,8 +70,6 @@ class PatternSelectFunctionRunner(
     if (function == null) {
       init()
     }
-
-    outCRow.row = function.select(pattern)
-    outCRow
   }
 }
+

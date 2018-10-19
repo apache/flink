@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.plan.nodes
 
-import org.apache.calcite.rex.{RexLiteral, RexNode}
-import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel.`type`._
+import org.apache.calcite.rel.{RelCollation, RelWriter}
+import org.apache.calcite.rex.{RexLiteral, RexNode}
+import org.apache.flink.table.runtime.aggregate.SortUtil.directionToOrder
+
 import scala.collection.JavaConverters._
-import org.apache.flink.api.common.operators.Order
-import org.apache.calcite.rel.{RelWriter, RelCollation}
 
 /**
  * Common methods for Flink sort operators.
@@ -44,14 +44,6 @@ trait CommonSort {
     fieldCollations
       .map(col => s"${rowRelDataType.getFieldNames.get(col._1)} ${col._2.getShortName}" )
       .mkString(", ")
-  }
-  
-  private[flink] def directionToOrder(direction: Direction) = {
-    direction match {
-      case Direction.ASCENDING | Direction.STRICTLY_ASCENDING => Order.ASCENDING
-      case Direction.DESCENDING | Direction.STRICTLY_DESCENDING => Order.DESCENDING
-      case _ => throw new IllegalArgumentException("Unsupported direction.")
-    }
   }
   
   private def fetchToString(fetch: RexNode, offset: RexNode): String = {

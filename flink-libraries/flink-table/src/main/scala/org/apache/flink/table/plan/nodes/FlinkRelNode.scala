@@ -31,10 +31,15 @@ trait FlinkRelNode extends RelNode {
 
   private[flink] def getExpressionString(
       expr: RexNode,
-      inFields: List[String],
-      localExprsTable: Option[List[RexNode]]): String = {
+      inFields: Seq[String],
+      localExprsTable: Option[Seq[RexNode]]): String = {
 
     expr match {
+      case pr: RexPatternFieldRef =>
+        val alpha = pr.getAlpha
+        val field = inFields.get(pr.getIndex)
+        s"$alpha.$field"
+
       case i: RexInputRef =>
         inFields.get(i.getIndex)
 

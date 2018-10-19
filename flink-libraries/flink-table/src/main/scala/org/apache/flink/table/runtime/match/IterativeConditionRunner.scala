@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.runtime.`match`
 
+import java.io.{IOException, ObjectInputStream}
+
 import org.apache.flink.cep.pattern.conditions.IterativeCondition
 import org.apache.flink.table.codegen.Compiler
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
-import org.slf4j.LoggerFactory
 
 /**
   * IterativeConditionRunner with [[Row]] value.
@@ -30,13 +32,9 @@ class IterativeConditionRunner(
     name: String,
     code: String)
   extends IterativeCondition[Row]
-  with Compiler[IterativeCondition[Row]]{
+  with Compiler[IterativeCondition[Row]]
+  with Logging {
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
-
-  // IterativeCondition will be serialized as part of state,
-  // so make function as transient to avoid ClassNotFoundException when restore state,
-  // see FLINK-6939 for details
   @transient private var function: IterativeCondition[Row] = _
 
   def init(): Unit = {
@@ -48,11 +46,14 @@ class IterativeConditionRunner(
   }
 
   override def filter(value: Row, ctx: IterativeCondition.Context[Row]): Boolean = {
+    function.filter(value, ctx)
+  }
 
+  @throws(classOf[IOException])
+  private def readObject(in: ObjectInputStream): Unit = {
+    in.defaultReadObject()
     if (function == null) {
       init()
     }
-
-    function.filter(value, ctx)
   }
 }

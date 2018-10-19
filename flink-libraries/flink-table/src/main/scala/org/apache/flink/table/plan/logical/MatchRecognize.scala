@@ -16,17 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.`match`
+package org.apache.flink.table.plan.logical
 
-import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.table.runtime.types.CRow
-import org.apache.flink.types.Row
+import java.util
+
+import com.google.common.collect.ImmutableMap
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.{RelCollation, RelNode}
+import org.apache.calcite.rex.RexNode
 
 /**
-  * MapFunction convert CRow to Row.
+  * Describes MATCH RECOGNIZE clause.
   */
-class ConvertToRow extends MapFunction[CRow, Row] {
-  override def map(value: CRow): Row = {
-    value.row
-  }
-}
+case class MatchRecognize(
+  input: RelNode,
+  rowType: RelDataType,
+  pattern: RexNode,
+  patternDefinitions: ImmutableMap[String, RexNode],
+  measures: ImmutableMap[String, RexNode],
+  after: RexNode,
+  subsets: ImmutableMap[String, util.SortedSet[String]],
+  allRows: Boolean,
+  partitionKeys: util.List[RexNode],
+  orderKeys: RelCollation,
+  interval: RexNode)
