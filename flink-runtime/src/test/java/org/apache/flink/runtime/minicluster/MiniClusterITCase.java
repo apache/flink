@@ -108,7 +108,6 @@ public class MiniClusterITCase extends TestLogger {
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
 			.setNumSlotsPerTaskManager(1)
-			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(configuration)
 			.build();
 
@@ -143,7 +142,6 @@ public class MiniClusterITCase extends TestLogger {
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
 			.setNumSlotsPerTaskManager(parallelism)
-			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
 
@@ -174,7 +172,6 @@ public class MiniClusterITCase extends TestLogger {
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
 			.setNumSlotsPerTaskManager(parallelism)
-			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
 
@@ -205,7 +202,6 @@ public class MiniClusterITCase extends TestLogger {
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
 			.setNumSlotsPerTaskManager(6 * parallelism)
-			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
 
@@ -249,7 +245,6 @@ public class MiniClusterITCase extends TestLogger {
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
 			.setNumSlotsPerTaskManager(6 * parallelism)
-			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
 
@@ -281,12 +276,11 @@ public class MiniClusterITCase extends TestLogger {
 
 	@Test
 	public void testSchedulingAllAtOnce() throws Exception {
-		final int parallelism = 16;
+		final int parallelism = 11;
 
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
 			.setNumSlotsPerTaskManager(parallelism)
-			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
 
@@ -330,7 +324,6 @@ public class MiniClusterITCase extends TestLogger {
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
 			.setNumSlotsPerTaskManager(parallelism)
-			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
 
@@ -368,7 +361,6 @@ public class MiniClusterITCase extends TestLogger {
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
 			.setNumSlotsPerTaskManager(parallelism)
-			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
 
@@ -409,7 +401,6 @@ public class MiniClusterITCase extends TestLogger {
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
 			.setNumSlotsPerTaskManager(parallelism)
-			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
 
@@ -447,7 +438,6 @@ public class MiniClusterITCase extends TestLogger {
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
 			.setNumSlotsPerTaskManager(parallelism)
-			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
 
@@ -485,7 +475,6 @@ public class MiniClusterITCase extends TestLogger {
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
 			.setNumSlotsPerTaskManager(parallelism)
-			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
 
@@ -526,7 +515,6 @@ public class MiniClusterITCase extends TestLogger {
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setNumTaskManagers(1)
 			.setNumSlotsPerTaskManager(parallelism)
-			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
 
