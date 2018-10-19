@@ -256,14 +256,14 @@ object ScalarFunctions {
     * Returns the base string decoded with base64.
     */
   def fromBase64(str: String): String =
-    new String(java.util.Base64.getUrlDecoder.decode(str.getBytes("UTF-8")), "UTF-8")
+    new String(java.util.Base64.getDecoder.decode(str.getBytes("UTF-8")), "UTF-8")
 
   /**
     * Returns the base64-encoded result of the input string.
     */
   def toBase64(base: String): String =
     new String(
-      java.util.Base64.getUrlEncoder.withoutPadding().encode(base.getBytes("UTF-8")),
+      java.util.Base64.getEncoder.encode(base.getBytes("UTF-8")),
       "UTF-8")
 
   /**
