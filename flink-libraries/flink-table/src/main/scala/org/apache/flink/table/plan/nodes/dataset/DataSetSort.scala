@@ -27,9 +27,10 @@ import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvironment, TableException}
+import org.apache.flink.table.plan.nodes.CommonSort
+import org.apache.flink.table.runtime.aggregate.SortUtil.directionToOrder
 import org.apache.flink.table.runtime.{CountPartitionFunction, LimitFilterFunction}
 import org.apache.flink.types.Row
-import org.apache.flink.table.plan.nodes.CommonSort
 
 import scala.collection.JavaConverters._
 

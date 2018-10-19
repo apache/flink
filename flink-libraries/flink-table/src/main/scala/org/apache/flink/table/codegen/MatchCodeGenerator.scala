@@ -18,21 +18,23 @@
 
 package org.apache.flink.table.codegen
 
-import java.math.{BigDecimal => JBigDecimal}
+import java.lang.{Long => JLong}
 import java.util
 
-import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.fun.SqlStdOperatorTable.{CLASSIFIER, FINAL, FIRST, LAST, MATCH_NUMBER, NEXT, PREV, RUNNING}
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.cep.{PatternFlatSelectFunction, PatternSelectFunction}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable._
+import org.apache.commons.lang3.StringEscapeUtils.escapeJava
+import org.apache.flink.api.common.functions._
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.cep.pattern.conditions.IterativeCondition
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.cep.{PatternFlatSelectFunction, PatternSelectFunction}
+import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForTypeInfo, newName}
+import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.Indenter.toISC
-import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForTypeInfo, newName, primitiveDefaultValue}
 import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.types.Row
+import org.apache.flink.util.Collector
+import org.apache.flink.util.MathUtils.checkedDownCast
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -41,549 +43,403 @@ import scala.collection.mutable
   * A code generator for generating CEP related functions.
   *
   * @param config configuration that determines runtime behavior
-  * @param nullableInput input(s) can be null.
+  * @param patternNames sorted sequence of pattern variables
   * @param input type information about the first input of the Function
-  * @param patternNames the names of patterns
-  * @param generateCondition whether the code generator is generating [[IterativeCondition]]
-  * @param patternName the name of current pattern
+  * @param currentPattern if generating condition the name of pattern, which the condition will
+  *                       be applied to
   */
 class MatchCodeGenerator(
     config: TableConfig,
-    nullableInput: Boolean,
-    input: TypeInformation[_ <: Any],
+    input: TypeInformation[_],
     patternNames: Seq[String],
-    generateCondition: Boolean,
-    patternName: Option[String] = None)
-  extends CodeGenerator(config, nullableInput, input){
+    currentPattern: Option[String] = None)
+  extends CodeGenerator(config, false, input){
+
+  private case class GeneratedPatternList(resultTerm: String, code: String)
 
   /**
-    * @return term of pattern names
+    * Used to assign unique names for list of events per pattern variable name. Those lists
+    * are treated as inputs and are needed by input access code.
     */
-  private val patternNameListTerm = newName("patternNameList")
+  private val reusablePatternLists: mutable.HashMap[String, GeneratedPatternList] = mutable
+    .HashMap[String, GeneratedPatternList]()
 
   /**
-    * @return term of current pattern which is processing
+    * Context information used by Pattern reference variable to index rows mapped to it.
+    * Indexes element at offset either from beginning or the end based on the value of first.
     */
-  private val currPatternTerm = newName("currPattern")
+  private var offset: Int = 0
+  private var first : Boolean = false
+
+  /** Term for row for key extraction */
+  private val keyRowTerm = newName("keyRow")
+
+  /** Term for list of all pattern names */
+  private val patternNamesTerm = newName("patternNames")
 
   /**
-    * @return term of current event which is processing
+    * Sets the new reference variable indexing context. This should be used when resolving logical
+    * offsets = LAST/FIRST
+    *
+    * @param first  true if indexing from the beginning, false otherwise
+    * @param offset offset from either beginning or the end
     */
-  private val currEventTerm = newName("currEvent")
+  private def updateOffsets(first: Boolean, offset: Int): Unit = {
+    this.first = first
+    this.offset = offset
+  }
 
-  private val buildPatternNameList: String = {
-    for (patternName <- patternNames) yield
-      s"""
-        |$patternNameListTerm.add("$patternName");
-        |""".stripMargin
-  }.mkString("\n")
+  /** Resets indexing context of Pattern variable. */
+  private def resetOffsets(): Unit = {
+    first = false
+    offset = 0
+  }
 
-  def addReusableStatements(): Unit = {
-    val eventTypeTerm = boxedTypeTermForTypeInfo(input)
-    val memberStatement =
-      s"""
-        |$eventTypeTerm $currEventTerm = null;
-        |String $currPatternTerm = null;
-        |java.util.List<String> $patternNameListTerm = new java.util.ArrayList();
-        |""".stripMargin
-    addReusableMemberStatement(memberStatement)
+  private def reusePatternLists(): String = {
+    reusablePatternLists.values.map(_.code).mkString("\n")
+  }
 
-    addReusableInitStatement(buildPatternNameList)
+  private def addReusablePatternNames() : Unit = {
+    reusableMemberStatements
+      .add(s"private String[] $patternNamesTerm = new String[] { ${
+        patternNames.map(p => s""""${escapeJava(p)}"""").mkString(", ")
+      } };")
   }
 
   /**
-    * Generates a [[IterativeCondition]] that can be passed to Java compiler.
+    * Generates a [[org.apache.flink.api.common.functions.Function]] that can be passed to Java
+    * compiler.
     *
-    * @param name Class name of the function. Must not be unique but has to be a
-    *             valid Java class identifier.
-    * @param bodyCode body code for the function
-    * @return a GeneratedIterativeCondition
+    * This is a separate method from [[FunctionCodeGenerator.generateFunction()]] because as of
+    * now functions in CEP library do not support rich interfaces
+    *
+    * @param name Class name of the Function. Must not be unique but has to be a valid Java class
+    *             identifier.
+    * @param clazz Flink Function to be generated.
+    * @param bodyCode code contents of the SAM (Single Abstract Method). Inputs, collector, or
+    *                 output record can be accessed via the given term methods.
+    * @param returnType expected return type
+    * @tparam F Flink Function to be generated.
+    * @tparam T Return type of the Flink Function.
+    * @return instance of GeneratedFunction
     */
-  def generateIterativeCondition(
+  def generateMatchFunction[F <: Function, T <: Any](
       name: String,
-      bodyCode: String)
-    : GeneratedIterativeCondition = {
-
+      clazz: Class[F],
+      bodyCode: String,
+      returnType: TypeInformation[T])
+    : GeneratedFunction[F, T] = {
     val funcName = newName(name)
-    val inputTypeTerm = boxedTypeTermForTypeInfo(input)
+    val collectorTypeTerm = classOf[Collector[Any]].getCanonicalName
+    val (functionClass, signature, inputStatements, isInterface) =
+      if (clazz == classOf[IterativeCondition[_]]) {
+        val baseClass = classOf[IterativeCondition[_]]
+        val inputTypeTerm = boxedTypeTermForTypeInfo(input)
+        val contextType = classOf[IterativeCondition.Context[_]].getCanonicalName
 
-    val funcCode = j"""
-      public class $funcName
-          extends ${classOf[IterativeCondition[_]].getCanonicalName} {
+        (baseClass,
+          s"boolean filter(Object _in1, $contextType $contextTerm)",
+          List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"),
+          false)
+      } else if (clazz == classOf[PatternSelectFunction[_, _]]) {
+        val baseClass = classOf[PatternSelectFunction[_, _]]
+        val inputTypeTerm =
+          s"java.util.Map<String, java.util.List<${boxedTypeTermForTypeInfo(input)}>>"
 
-        ${reuseMemberCode()}
+        (baseClass,
+          s"Object select($inputTypeTerm $input1Term)",
+          List(),
+          true)
+      } else if (clazz == classOf[PatternFlatSelectFunction[_, _]]) {
+        val baseClass = classOf[PatternFlatSelectFunction[_, _]]
+        val inputTypeTerm =
+          s"java.util.Map<String, java.util.List<${boxedTypeTermForTypeInfo(input)}>>"
 
-        public $funcName() throws Exception {
-          ${reuseInitCode()}
-        }
-
-        @Override
-        public boolean filter(
-          Object _in1, ${classOf[IterativeCondition.Context[_]].getCanonicalName} $contextTerm)
-          throws Exception {
-
-          $inputTypeTerm $input1Term = ($inputTypeTerm) _in1;
-          ${reusePerRecordCode()}
-          ${reuseInputUnboxingCode()}
-          $bodyCode
-        }
+        (baseClass,
+          s"void flatSelect($inputTypeTerm $input1Term, $collectorTypeTerm $collectorTerm)",
+          List(),
+          true)
+      } else {
+        throw new CodeGenException("Unsupported Function.")
       }
+
+    if (!reuseOpenCode().trim.isEmpty || !reuseCloseCode().trim.isEmpty) {
+      throw new TableException(
+        "Match recognize does not support UDFs, nor other functions that require " +
+          "open/close methods yet.")
+    }
+
+    val extendsKeyword = if (isInterface) "implements" else "extends"
+    val funcCode = j"""
+      |public class $funcName $extendsKeyword ${functionClass.getCanonicalName} {
+      |
+      |  ${reuseMemberCode()}
+      |
+      |  public $funcName() throws Exception {
+      |    ${reuseInitCode()}
+      |  }
+      |
+      |  @Override
+      |  public $signature throws Exception {
+      |    ${inputStatements.mkString("\n")}
+      |    ${reusePatternLists()}
+      |    ${reuseInputUnboxingCode()}
+      |    ${reusePerRecordCode()}
+      |    $bodyCode
+      |  }
+      |}
     """.stripMargin
 
-    GeneratedIterativeCondition(funcName, funcCode)
+    GeneratedFunction(funcName, returnType, funcCode)
+  }
+
+  private def generateKeyRow() : GeneratedExpression = {
+    val exp = reusableInputUnboxingExprs
+      .get((keyRowTerm, 0)) match {
+      // input access and unboxing has already been generated
+      case Some(expr) =>
+        expr
+
+      case None =>
+
+        val eventTypeTerm = boxedTypeTermForTypeInfo(input)
+        val nullTerm = newName("isNull")
+
+        val keyCode = j"""
+           |$eventTypeTerm $keyRowTerm = null;
+           |boolean $nullTerm = true;
+           |for (java.util.Map.Entry entry : $input1Term.entrySet()) {
+           |  java.util.List value = (java.util.List) entry.getValue();
+           |  if (value != null && value.size() > 0) {
+           |    $keyRowTerm = ($eventTypeTerm) value.get(0);
+           |    $nullTerm = false;
+           |    break;
+           |  }
+           |}
+           """.stripMargin
+
+        val exp = GeneratedExpression(keyRowTerm, nullTerm, keyCode, input)
+        reusableInputUnboxingExprs((keyRowTerm, 0)) = exp
+        exp
+    }
+    exp.copy(code = NO_CODE)
   }
 
   /**
-    * Generates a [[PatternSelectFunction]] that can be passed to Java compiler.
+    * Extracts partition keys from any element of the match
     *
-    * @param name Class name of the function. Must not be unique but has to be a
-    *             valid Java class identifier.
-    * @param bodyCode body code for the function
-    * @return a GeneratedPatternSelectFunction
+    * @param partitionKey partition key to be extracted
+    * @return generated code for the given key
     */
-  def generatePatternSelectFunction(
-      name: String,
-      bodyCode: String)
-    : GeneratedPatternSelectFunction = {
+  private def generatePartitionKeyAccess(
+      partitionKey: RexInputRef)
+    : GeneratedExpression = {
 
-    val funcName = newName(name)
-    val inputTypeTerm =
-      classOf[java.util.Map[java.lang.String, java.util.List[Row]]].getCanonicalName
-
-    val funcCode = j"""
-      public class $funcName
-          implements ${classOf[PatternSelectFunction[_, _]].getCanonicalName} {
-
-        ${reuseMemberCode()}
-
-        public $funcName() throws Exception {
-          ${reuseInitCode()}
-        }
-
-        @Override
-        public Object select(java.util.Map<String, java.util.List<Object>> _in1)
-          throws Exception {
-
-          $inputTypeTerm $input1Term = ($inputTypeTerm) _in1;
-          ${reusePerRecordCode()}
-          ${reuseInputUnboxingCode()}
-          $bodyCode
-        }
-      }
-    """.stripMargin
-
-    GeneratedPatternSelectFunction(funcName, funcCode)
+    val keyRow = generateKeyRow()
+    generateFieldAccess(keyRow, partitionKey.getIndex)
   }
 
-  /**
-    * Generates a [[PatternFlatSelectFunction]] that can be passed to Java compiler.
-    *
-    * @param name Class name of the function. Must not be unique but has to be a
-    *             valid Java class identifier.
-    * @param bodyCode body code for the function
-    * @return a GeneratedPatternFlatSelectFunction
-    */
-  def generatePatternFlatSelectFunction(
-      name: String,
-      bodyCode: String)
-    : GeneratedPatternFlatSelectFunction = {
-
-    val funcName = newName(name)
-    val inputTypeTerm =
-      classOf[java.util.Map[java.lang.String, java.util.List[Row]]].getCanonicalName
-
-    val funcCode = j"""
-      public class $funcName
-          implements ${classOf[PatternFlatSelectFunction[_, _]].getCanonicalName} {
-
-        ${reuseMemberCode()}
-
-        public $funcName() throws Exception {
-          ${reuseInitCode()}
-        }
-
-        @Override
-        public void flatSelect(java.util.Map<String, java.util.List<Object>> _in1,
-            org.apache.flink.util.Collector $collectorTerm)
-          throws Exception {
-
-          $inputTypeTerm $input1Term = ($inputTypeTerm) _in1;
-          ${reusePerRecordCode()}
-          ${reuseInputUnboxingCode()}
-          $bodyCode
-        }
-      }
-    """.stripMargin
-
-    GeneratedPatternFlatSelectFunction(funcName, funcCode)
-  }
-
-  def generateSelectOutputExpression(
-    partitionKeys: util.List[RexNode],
-    measures: util.Map[String, RexNode],
-    returnType: RowSchema
-  ): GeneratedExpression = {
-
-    val eventNameTerm = newName("event")
-    val eventTypeTerm = boxedTypeTermForTypeInfo(input)
-
+  def generateOneRowPerMatchExpression(
+      partitionKeys: util.List[RexNode],
+      measures: util.Map[String, RexNode],
+      returnType: RowSchema)
+    : GeneratedExpression = {
     // For "ONE ROW PER MATCH", the output columns include:
     // 1) the partition columns;
     // 2) the columns defined in the measures clause.
     val resultExprs =
       partitionKeys.asScala.map { case inputRef: RexInputRef =>
-        generateFieldAccess(input, eventNameTerm, inputRef.getIndex)
+        generatePartitionKeyAccess(inputRef)
       } ++ returnType.fieldNames.filter(measures.containsKey(_)).map { fieldName =>
         generateExpression(measures.get(fieldName))
       }
 
-    val resultExpression = generateResultExpression(
+    generateResultExpression(
       resultExprs,
       returnType.typeInfo,
       returnType.fieldNames)
-
-    val resultCode =
-      s"""
-        |$eventTypeTerm $eventNameTerm = null;
-        |if (${partitionKeys.size()} > 0) {
-        |  for (java.util.Map.Entry entry : $input1Term.entrySet()) {
-        |    java.util.List<Row> value = (java.util.List<Row>) entry.getValue();
-        |    if (value != null && value.size() > 0) {
-        |      $eventNameTerm = ($eventTypeTerm) value.get(0);
-        |      break;
-        |    }
-        |  }
-        |}
-        |
-        |${resultExpression.code}
-        |""".stripMargin
-
-    resultExpression.copy(code = resultCode)
-  }
-
-  def generateFlatSelectOutputExpression(
-      partitionKeys: util.List[RexNode],
-      orderKeys: RelCollation,
-      measures: util.Map[String, RexNode],
-      returnType: RowSchema)
-    : GeneratedExpression = {
-
-    val patternNameTerm = newName("patternName")
-    val eventNameTerm = newName("event")
-    val eventNameListTerm = newName("eventList")
-    val eventTypeTerm = boxedTypeTermForTypeInfo(input)
-    val listTypeTerm = classOf[java.util.List[_]].getCanonicalName
-
-    // For "ALL ROWS PER MATCH", the output columns include:
-    // 1) the partition columns;
-    // 2) the ordering columns;
-    // 3) the columns defined in the measures clause;
-    // 4) any remaining columns defined of the input.
-    val fieldsAccessed = mutable.Set[Int]()
-    val resultExprs =
-      partitionKeys.asScala.map { case inputRef: RexInputRef =>
-        fieldsAccessed += inputRef.getIndex
-        generateFieldAccess(input, eventNameTerm, inputRef.getIndex)
-      } ++ orderKeys.getFieldCollations.asScala.map { fieldCollation =>
-        fieldsAccessed += fieldCollation.getFieldIndex
-        generateFieldAccess(input, eventNameTerm, fieldCollation.getFieldIndex)
-      } ++ (0 until input.getArity).filterNot(fieldsAccessed.contains).map { idx =>
-        generateFieldAccess(input, eventNameTerm, idx)
-      } ++ returnType.fieldNames.filter(measures.containsKey(_)).map { fieldName =>
-        generateExpression(measures.get(fieldName))
-      }
-
-    val resultExpression = generateResultExpression(
-      resultExprs,
-      returnType.typeInfo,
-      returnType.fieldNames)
-
-    val resultCode =
-      s"""
-        |for (String $patternNameTerm : $patternNameListTerm) {
-        |  $currPatternTerm = $patternNameTerm;
-        |  $listTypeTerm $eventNameListTerm = ($listTypeTerm) $input1Term.get($patternNameTerm);
-        |  if ($eventNameListTerm != null) {
-        |    for ($eventTypeTerm $eventNameTerm : $eventNameListTerm) {
-        |      $currEventTerm = $eventNameTerm;
-        |      ${resultExpression.code}
-        |      $collectorTerm.collect(${resultExpression.resultTerm});
-        |    }
-        |  }
-        |}
-        |$currPatternTerm = null;
-        |$currEventTerm = null;
-        |""".stripMargin
-
-    GeneratedExpression("", "false", resultCode, null)
   }
 
   override def visitCall(call: RexCall): GeneratedExpression = {
-    val resultType = FlinkTypeFactory.toTypeInfo(call.getType)
     call.getOperator match {
-      case PREV =>
+      case PREV | NEXT =>
         val countLiteral = call.operands.get(1).asInstanceOf[RexLiteral]
-        val count = countLiteral.getValue3.asInstanceOf[JBigDecimal].intValue()
-        generatePrev(
-          call.operands.get(0),
-          count,
-          resultType)
-
-      case NEXT | CLASSIFIER | MATCH_NUMBER =>
-        throw new CodeGenException(s"Unsupported call: $call")
+        val count = checkedDownCast(countLiteral.getValueAs(classOf[JLong]))
+        if (count != 0) {
+          throw new TableException("Flink does not support physical offsets within partition.")
+        } else {
+          updateOffsets(first = false, 0)
+          val exp = call.getOperands.get(0).accept(this)
+          resetOffsets()
+          exp
+        }
 
       case FIRST | LAST =>
         val countLiteral = call.operands.get(1).asInstanceOf[RexLiteral]
-        val count = countLiteral.getValue3.asInstanceOf[JBigDecimal].intValue()
-        generateFirstLast(
-          call.operands.get(0),
-          count,
-          resultType,
-          running = true,
-          call.getOperator == FIRST)
+        val offset = checkedDownCast(countLiteral.getValueAs(classOf[JLong]))
+        updateOffsets(call.getOperator == FIRST, offset)
+        val patternExp = call.operands.get(0).accept(this)
+        resetOffsets()
+        patternExp
 
-      case RUNNING | FINAL =>
-        generateRunningFinal(
-          call.operands.get(0),
-          resultType,
-          call.getOperator == RUNNING)
+      case FINAL =>
+        call.getOperands.get(0).accept(this)
 
       case _ => super.visitCall(call)
     }
   }
 
-  private def generatePrev(
-      rexNode: RexNode,
-      count: Int,
-      resultType: TypeInformation[_])
-    : GeneratedExpression = {
-    rexNode match {
-      case patternFieldRef: RexPatternFieldRef =>
-        if (count == 0 && patternFieldRef.getAlpha == patternName.get) {
-          // return current one
-          return visitInputRef(patternFieldRef)
-        }
+  override private[flink] def generateProctimeTimestamp() = {
+    val resultTerm = newName("result")
 
-        val listName = newName("patternEvents")
-        val resultTerm = newName("result")
-        val nullTerm = newName("isNull")
-        val indexTerm = newName("eventIndex")
-        val visitedEventNumberTerm = newName("visitedEventNumber")
-        val eventTerm = newName("event")
-        val resultTypeTerm = boxedTypeTermForTypeInfo(resultType)
-        val defaultValue = primitiveDefaultValue(resultType)
+    //TODO use timerService once it is available in PatternFlatSelectFunction
+    val resultCode =
+      j"""
+         |long $resultTerm = System.currentTimeMillis();
+         |""".stripMargin
+    GeneratedExpression(resultTerm, NEVER_NULL, resultCode, SqlTimeTypeInfo.TIMESTAMP)
+  }
 
-        val eventTypeTerm = boxedTypeTermForTypeInfo(input)
-
-        val patternNamesToVisit = patternNames
-          .take(patternNames.indexOf(patternFieldRef.getAlpha) + 1)
-          .reverse
-        def findEventByPhysicalPosition: String = {
-          val init: String =
-            s"""
-              |java.util.List $listName = new java.util.ArrayList();
-              |""".stripMargin
-
-          val getResult: String = {
-            for (tmpPatternName <- patternNamesToVisit) yield
-              s"""
-                |for ($eventTypeTerm $eventTerm : $contextTerm
-                |    .getEventsForPattern("$tmpPatternName")) {
-                |  $listName.add($eventTerm);
-                |}
-                |
-                |$indexTerm = $listName.size() - ($count - $visitedEventNumberTerm);
-                |if ($indexTerm >= 0) {
-                |  $resultTerm = ($resultTypeTerm) (($eventTypeTerm) $listName.get($indexTerm))
-                |    .getField(${patternFieldRef.getIndex});
-                |  $nullTerm = false;
-                |  break;
-                |}
-                |
-                |$visitedEventNumberTerm += $listName.size();
-                |$listName.clear();
-                |""".stripMargin
-          }.mkString("\n")
-
-          s"""
-            |$init
-            |$getResult
-            |""".stripMargin
-        }
-
-        val resultCode =
-          s"""
-            |int $visitedEventNumberTerm = 0;
-            |int $indexTerm;
-            |$resultTypeTerm $resultTerm = $defaultValue;
-            |boolean $nullTerm = true;
-            |do {
-            |  $findEventByPhysicalPosition
-            |} while (false);
-            |""".stripMargin
-
-        GeneratedExpression(resultTerm, nullTerm, resultCode, resultType)
-
-      case rexCall: RexCall =>
-        val operands = rexCall.operands.asScala.map {
-          operand => generatePrev(
-            operand,
-            count,
-            FlinkTypeFactory.toTypeInfo(operand.getType))
-        }
-
-        generateCallExpression(rexCall.getOperator, operands, resultType)
-
-      case _ =>
-        generateExpression(rexNode)
+  override def visitPatternFieldRef(fieldRef: RexPatternFieldRef): GeneratedExpression = {
+    if (fieldRef.getAlpha.equals("*") && currentPattern.isDefined && offset == 0 && !first) {
+      generateInputAccess(input, input1Term, fieldRef.getIndex)
+    } else {
+      generatePatternFieldRef(fieldRef)
     }
   }
 
-  private def generateFirstLast(
-      rexNode: RexNode,
-      count: Int,
-      resultType: TypeInformation[_],
-      running: Boolean,
-      first: Boolean)
-    : GeneratedExpression = {
-    rexNode match {
-      case patternFieldRef: RexPatternFieldRef =>
+  private def generateDefinePatternVariableExp(
+      patternName: String,
+      currentPattern: String)
+    : GeneratedPatternList = {
+    val listName = newName("patternEvents")
+    val eventTypeTerm = boxedTypeTermForTypeInfo(input)
+    val eventNameTerm = newName("event")
 
-        val eventNameTerm = newName("event")
-        val resultTerm = newName("result")
-        val listName = newName("patternEvents")
-        val nullTerm = newName("isNull")
-        val patternNameTerm = newName("patternName")
-        val eventNameListTerm = newName("eventNameList")
-        val resultTypeTerm = boxedTypeTermForTypeInfo(resultType)
-        val defaultValue = primitiveDefaultValue(resultType)
-
-        val eventTypeTerm = boxedTypeTermForTypeInfo(input)
-        val listTypeTerm = classOf[java.util.List[_]].getCanonicalName
-
-        def findEventByLogicalPosition: String = {
-          val init =
-            s"""
-              |java.util.List $listName = new java.util.ArrayList();
-              |""".stripMargin
-
-          val findEventsByPatterName = if (generateCondition) {
-            s"""
-              |for ($eventTypeTerm $eventNameTerm : $contextTerm
-              |    .getEventsForPattern("${patternFieldRef.getAlpha}")) {
-              |  $listName.add($eventNameTerm);
-              |}
-              |""".stripMargin
-          } else {
-            s"""
-              |for (String $patternNameTerm : $patternNameListTerm) {
-              |  if ($patternNameTerm.equals("${patternFieldRef.getAlpha}") ||
-              |      ${patternFieldRef.getAlpha.equals("*")}) {
-              |    boolean skipLoop = false;
-              |    $listTypeTerm $eventNameListTerm =
-              |      ($listTypeTerm) $input1Term.get($patternNameTerm);
-              |    if ($eventNameListTerm != null) {
-              |      for ($eventTypeTerm $eventNameTerm : $eventNameListTerm) {
-              |        $listName.add($eventNameTerm);
-              |        if ($running && $eventNameTerm == $currEventTerm) {
-              |          skipLoop = true;
-              |          break;
-              |        }
-              |      }
-              |    }
-              |
-              |    if (skipLoop) {
-              |      break;
-              |    }
-              |  }
-              |
-              |  if ($running && $patternNameTerm.equals($currPatternTerm)) {
-              |    break;
-              |  }
-              |}
-              |""".stripMargin
-          }
-
-          val getResult =
-            s"""
-              |if ($listName.size() > $count) {
-              |  if ($first) {
-              |    $resultTerm = ($resultTypeTerm) (($eventTypeTerm)
-              |      $listName.get($count))
-              |        .getField(${patternFieldRef.getIndex});
-              |  } else {
-              |    $resultTerm = ($resultTypeTerm) (($eventTypeTerm)
-              |      $listName.get($listName.size() - $count - 1))
-              |        .getField(${patternFieldRef.getIndex});
-              |  }
-              |  $nullTerm = false;
-              |}
-              |""".stripMargin
-
-          s"""
-            |$init
-            |$findEventsByPatterName
-            |$getResult
-            |""".stripMargin
-        }
-
-        val resultCode =
-          s"""
-            |$resultTypeTerm $resultTerm = $defaultValue;
-            |boolean $nullTerm = true;
-            |$findEventByLogicalPosition
-            |""".stripMargin
-
-        GeneratedExpression(resultTerm, nullTerm, resultCode, resultType)
-
-      case rexCall: RexCall =>
-        val operands = rexCall.operands.asScala.map {
-          operand => generateFirstLast(
-            operand,
-            count,
-            FlinkTypeFactory.toTypeInfo(operand.getType),
-            running,
-            first)
-        }
-
-        generateCallExpression(rexCall.getOperator, operands, resultType)
-
-      case _ =>
-        generateExpression(rexNode)
+    val addCurrent = if (currentPattern == patternName || patternName == "*") {
+      j"""
+         |$listName.add($input1Term);
+         """.stripMargin
+    } else {
+      ""
     }
+    val listCode = if (patternName == "*") {
+      addReusablePatternNames()
+      val patternTerm = newName("pattern")
+      j"""
+         |java.util.List $listName = new java.util.ArrayList();
+         |for (String $patternTerm : $patternNamesTerm) {
+         |  for ($eventTypeTerm $eventNameTerm :
+         |  $contextTerm.getEventsForPattern($patternTerm)) {
+         |    $listName.add($eventNameTerm);
+         |  }
+         |}
+         """.stripMargin
+    } else {
+      val escapedPatternName = escapeJava(patternName)
+      j"""
+         |java.util.List $listName = new java.util.ArrayList();
+         |for ($eventTypeTerm $eventNameTerm :
+         |  $contextTerm.getEventsForPattern("$escapedPatternName")) {
+         |    $listName.add($eventNameTerm);
+         |}
+         |""".stripMargin
+    }
+
+    val code =
+      j"""
+         |$listCode
+         |$addCurrent
+       """.stripMargin
+
+    GeneratedPatternList(listName, code)
   }
 
-  private def generateRunningFinal(
-      rexNode: RexNode,
-      resultType: TypeInformation[_],
-      running: Boolean)
-    : GeneratedExpression = {
-    rexNode match {
-      case _: RexPatternFieldRef =>
-        generateFirstLast(rexNode, 0, resultType, running, first = false)
+  private def generateMeasurePatternVariableExp(patternName: String): GeneratedPatternList = {
+    val listName = newName("patternEvents")
 
-      case rexCall: RexCall if rexCall.getOperator == FIRST || rexCall.getOperator == LAST =>
-        val countLiteral = rexCall.operands.get(1).asInstanceOf[RexLiteral]
-        val count = countLiteral.getValue3.asInstanceOf[JBigDecimal].intValue()
-        generateFirstLast(
-          rexCall.operands.get(0),
-          count,
-          resultType,
-          running,
-          rexCall.getOperator == FIRST)
+    val code = if (patternName == "*") {
+      addReusablePatternNames()
 
-      case rexCall: RexCall =>
-        val operands = rexCall.operands.asScala.map {
-          operand => generateRunningFinal(
-            operand,
-            FlinkTypeFactory.toTypeInfo(operand.getType),
-            running)
-        }
+      val patternTerm = newName("pattern")
 
-        generateCallExpression(rexCall.getOperator, operands, resultType)
-
-      case _ =>
-        generateExpression(rexNode)
+      j"""
+         |java.util.List $listName = new java.util.ArrayList();
+         |for (String $patternTerm : $patternNamesTerm) {
+         |  java.util.List rows = (java.util.List) $input1Term.get($patternTerm);
+         |  if (rows != null) {
+         |    $listName.addAll(rows);
+         |  }
+         |}
+         """.stripMargin
+    } else {
+      val escapedPatternName = escapeJava(patternName)
+      j"""
+         |java.util.List $listName = (java.util.List) $input1Term.get("$escapedPatternName");
+         |if ($listName == null) {
+         |  $listName = java.util.Collections.emptyList();
+         |}
+         |""".stripMargin
     }
+
+    GeneratedPatternList(listName, code)
+  }
+
+  private def findEventByLogicalPosition(
+      patternFieldAlpha: String)
+    : GeneratedExpression = {
+    val rowNameTerm = newName("row")
+    val eventTypeTerm = boxedTypeTermForTypeInfo(input)
+    val isRowNull = newName("isRowNull")
+
+    val findEventsByPatternName = reusablePatternLists.get(patternFieldAlpha) match {
+      // input access and unboxing has already been generated
+      case Some(expr) =>
+        expr
+
+      case None =>
+        val exp = currentPattern match {
+          case Some(p) => generateDefinePatternVariableExp(patternFieldAlpha, p)
+          case None => generateMeasurePatternVariableExp(patternFieldAlpha)
+        }
+        reusablePatternLists(patternFieldAlpha) = exp
+        exp
+    }
+
+    val listName = findEventsByPatternName.resultTerm
+    val resultIndex = if (first) {
+      j"""$offset"""
+    } else {
+      j"""$listName.size() - $offset - 1"""
+    }
+
+    val funcCode =
+      j"""
+         |$eventTypeTerm $rowNameTerm = null;
+         |boolean $isRowNull = true;
+         |if ($listName.size() > $offset) {
+         |  $rowNameTerm = (($eventTypeTerm) $listName.get($resultIndex));
+         |  $isRowNull = false;
+         |}
+         |""".stripMargin
+
+    GeneratedExpression(rowNameTerm, isRowNull, funcCode, input)
+  }
+
+  private def generatePatternFieldRef(fieldRef: RexPatternFieldRef): GeneratedExpression = {
+    val escapedAlpha = escapeJava(fieldRef.getAlpha)
+    val patternVariableRef = reusableInputUnboxingExprs
+      .get((s"$escapedAlpha#$first", offset)) match {
+      // input access and unboxing has already been generated
+      case Some(expr) =>
+        expr
+
+      case None =>
+        val exp = findEventByLogicalPosition(fieldRef.getAlpha)
+        reusableInputUnboxingExprs((s"$escapedAlpha#$first", offset)) = exp
+        exp
+    }
+
+    generateFieldAccess(patternVariableRef.copy(code = NO_CODE), fieldRef.getIndex)
   }
 }
