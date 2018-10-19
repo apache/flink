@@ -26,6 +26,7 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -111,7 +112,8 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 
 		assertEquals(5, testingSlotProvider.getNumberOfAvailableSlots());
 	}
-	
+
+	@Ignore
 	@Test
 	public void testScheduleQueueing() throws Exception {
 		final int NUM_INSTANCES = 50;

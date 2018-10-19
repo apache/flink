@@ -26,6 +26,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -817,7 +818,8 @@ public class SchedulerSlotSharingTest extends SchedulerTestBase {
 			fail(e.getMessage());
 		}
 	}
-	
+
+	@Ignore
 	@Test
 	public void testConcurrentAllocateAndRelease() {
 		final ExecutorService executor = Executors.newFixedThreadPool(20);
