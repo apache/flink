@@ -735,7 +735,7 @@ object UserDefinedFunctionUtils {
   @throws[Exception]
   def serialize(function: UserDefinedFunction): String = {
     val byteArray = InstantiationUtil.serializeObject(function)
-    new String(java.util.Base64.getUrlEncoder.encode(byteArray), "UTF-8")
+    new String(java.util.Base64.getUrlEncoder.withoutPadding().encode(byteArray), "UTF-8")
   }
 
   @throws[Exception]

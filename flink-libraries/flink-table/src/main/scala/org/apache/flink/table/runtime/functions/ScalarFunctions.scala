@@ -262,7 +262,7 @@ object ScalarFunctions {
     * Returns the base64-encoded result of the input string.
     */
   def toBase64(base: String): String =
-    new String(java.util.Base64.getUrlEncoder.encode(base.getBytes("UTF-8")), "UTF-8")
+    new String(java.util.Base64.getUrlEncoder.withoutPadding().encode(base.getBytes("UTF-8")), "UTF-8")
 
   /**
     * Returns the hex string of a long argument.

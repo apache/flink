@@ -266,7 +266,7 @@ object TypeStringUtils extends JavaTokenParsers with PackratParsers {
   private def serialize(obj: Serializable): String = {
     try {
       val byteArray = InstantiationUtil.serializeObject(obj)
-      new String(java.util.Base64.getUrlEncoder.encode(byteArray), "UTF-8")
+      new String(java.util.Base64.getUrlEncoder.withoutPadding().encode(byteArray), "UTF-8")
     } catch {
       case e: Exception =>
         throw new ValidationException(s"Unable to serialize type information '$obj' with " +

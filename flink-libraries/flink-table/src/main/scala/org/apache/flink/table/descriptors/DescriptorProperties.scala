@@ -1355,7 +1355,7 @@ object DescriptorProperties {
     }
     try {
       val byteArray = InstantiationUtil.serializeObject(obj)
-      new String(java.util.Base64.getUrlEncoder.encode(byteArray), "UTF-8")
+      new String(java.util.Base64.getUrlEncoder.withoutPadding().encode(byteArray), "UTF-8")
     } catch {
       case e: Exception =>
         throw new ValidationException(

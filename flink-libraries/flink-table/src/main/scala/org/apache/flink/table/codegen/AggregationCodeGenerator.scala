@@ -773,6 +773,6 @@ class AggregationCodeGenerator(
   @throws[Exception]
   def serializeStateDescriptor(stateDescriptor: StateDescriptor[_, _]): String = {
     val byteArray = InstantiationUtil.serializeObject(stateDescriptor)
-    new String(java.util.Base64.getUrlEncoder.encode(byteArray), "UTF-8")
+    new String(java.util.Base64.getUrlEncoder.withoutPadding().encode(byteArray), "UTF-8")
   }
 }
