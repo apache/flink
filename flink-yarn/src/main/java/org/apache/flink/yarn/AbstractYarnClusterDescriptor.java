@@ -46,6 +46,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
+import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
@@ -723,6 +724,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// initialize file system
 		// Copy the application master jar to the filesystem
 		// Create a local resource to point to the destination jar path
+		String flinkDefaultFs = org.apache.flink.core.fs.FileSystem.getDefaultFsUri().toString();
+		if (!flinkDefaultFs.startsWith("file:/")) {
+			yarnConfiguration.set(CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY, flinkDefaultFs);
+		}
 		final FileSystem fs = FileSystem.get(yarnConfiguration);
 		final Path homeDir = fs.getHomeDirectory();
 
