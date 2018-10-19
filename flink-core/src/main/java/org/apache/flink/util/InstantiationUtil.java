@@ -169,6 +169,7 @@ public final class InstantiationUtil {
 		scalaTypes.add("scala.Tuple2$mcDJ$sp");
 		scalaTypes.add("scala.Tuple2$mcDI$sp");
 		scalaTypes.add("scala.Tuple2$mcDD$sp");
+		scalaTypes.add("scala.Enumeration$ValueSet");
 	}
 
 	/**
