@@ -1160,6 +1160,7 @@ under the License.
 						<exclude>**/.idea/**</exclude>
 						<!-- Generated code via Avro -->
 						<exclude>flink-end-to-end-tests/flink-confluent-schema-registry/src/main/java/example/avro/**</exclude>
+						<exclude>flink-end-to-end-tests/flink-datastream-allround-test/src/main/java/org/apache/flink/streaming/tests/avro/**</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
