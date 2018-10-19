@@ -134,7 +134,7 @@ public final class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T
 				return TypeSerializerSchemaCompatibility.compatibleAsIs();
 			}
 			case INCOMPATIBLE: {
-				return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
+				return TypeSerializerSchemaCompatibility.incompatible();
 			}
 			case RECURSION_IN_PROGRESS:
 			default:

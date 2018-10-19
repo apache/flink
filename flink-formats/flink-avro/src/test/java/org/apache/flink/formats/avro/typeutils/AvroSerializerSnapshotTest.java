@@ -86,9 +86,9 @@ public class AvroSerializerSnapshotTest {
 	}
 
 	@Test
-	public void addingARequiredFieldRequiresMigration() {
+	public void addingARequiredMakesSerializersIncompatible() {
 		assertThat(AvroSerializerSnapshot.resolveSchemaCompatibility(FIRST_REQUIRED_LAST_OPTIONAL, BOTH_REQUIRED),
-			isCompatibleAfterMigration());
+			isIncompatible());
 	}
 
 	@Test
@@ -168,7 +168,7 @@ public class AvroSerializerSnapshotTest {
 
 		TypeSerializerSnapshot<GenericRecord> originalSnapshot = originalSerializer.snapshotConfiguration();
 
-		assertThat(originalSnapshot.resolveSchemaCompatibility(newSerializer), isCompatibleAfterMigration());
+		assertThat(originalSnapshot.resolveSchemaCompatibility(newSerializer), isIncompatible());
 	}
 
 	@Test
@@ -196,6 +196,11 @@ public class AvroSerializerSnapshotTest {
 	private Matcher<TypeSerializerSchemaCompatibility> isCompatibleAfterMigration() {
 		return matcher(TypeSerializerSchemaCompatibility::isCompatibleAfterMigration,
 			"compatible after migration");
+	}
+
+	private Matcher<TypeSerializerSchemaCompatibility> isIncompatible() {
+		return matcher(TypeSerializerSchemaCompatibility::isIncompatible,
+			"incompatible");
 	}
 
 	private static <T> Matcher<T> matcher(Function<T, Boolean> predicate, String message) {
