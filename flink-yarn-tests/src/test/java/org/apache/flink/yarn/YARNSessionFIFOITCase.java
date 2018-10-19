@@ -132,28 +132,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		// before checking any strings outputted by the CLI, first give it time to return
 		clusterRunner.join();
 
-		if (!isNewMode) {
-			checkForLogString("The Flink YARN client has been started in detached mode");
-
-			// in legacy mode we have to wait until the TMs are up until we can submit the job
-			LOG.info("Waiting until two containers are running");
-			// wait until two containers are running
-			while (getRunningContainers() < 2) {
-				sleep(500);
-			}
-
-			// additional sleep for the JM/TM to start and establish connection
-			long startTime = System.nanoTime();
-			while (System.nanoTime() - startTime < TimeUnit.NANOSECONDS.convert(10, TimeUnit.SECONDS) &&
-				!(verifyStringsInNamedLogFiles(
-					new String[]{"YARN Application Master started"}, "jobmanager.log") &&
-					verifyStringsInNamedLogFiles(
-						new String[]{"Starting TaskManager actor"}, "taskmanager.log"))) {
-				LOG.info("Still waiting for JM/TM to initialize...");
-				sleep(500);
-			}
-		}
-
 		// actually run a program, otherwise we wouldn't necessarily see any TaskManagers
 		// be brought up
 		Runner jobRunner = startWithArgs(new String[]{"run",
@@ -163,14 +141,12 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 		jobRunner.join();
 
-		if (isNewMode) {
-			// in "new" mode we can only wait after the job is submitted, because TMs
-			// are spun up lazily
-			LOG.info("Waiting until two containers are running");
-			// wait until two containers are running
-			while (getRunningContainers() < 2) {
-				sleep(500);
-			}
+		// in "new" mode we can only wait after the job is submitted, because TMs
+		// are spun up lazily
+		LOG.info("Waiting until two containers are running");
+		// wait until two containers are running
+		while (getRunningContainers() < 2) {
+			sleep(500);
 		}
 
 		// make sure we have two TMs running in either mode
