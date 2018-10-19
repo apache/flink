@@ -400,6 +400,15 @@ function tm_watchdog {
   done
 }
 
+function start_taskmanagers {
+    tmnum=$1
+    echo "Start ${tmnum} more task managers"
+    for (( c=0; c<tmnum; c++ ))
+    do
+        $FLINK_DIR/bin/taskmanager.sh start
+    done
+}
+
 # Kills all job manager.
 function jm_kill_all {
   kill_all 'StandaloneSessionClusterEntrypoint'
