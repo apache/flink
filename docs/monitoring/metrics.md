@@ -1205,6 +1205,9 @@ Thus, in order to infer the metric identifier:
   </tbody>
 </table>
 
+### RocksDB
+Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({{ site.baseurl }}/ops/config.html#rocksdb-native-metrics)
+
 ### IO
 <table class="table table-bordered">
   <thead>

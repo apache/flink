@@ -69,4 +69,16 @@ public interface OptionsFactory extends java.io.Serializable {
 	 */
 	ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions);
 
+	/**
+	 * This method should enable certain RocksDB metrics to be forwarded to
+	 * Flink's metrics reporter.
+	 *
+	 * <p>Enabling these monitoring options may degrade RockDB performance
+	 * and should be set with care.
+	 * @param nativeMetricOptions The options object with the pre-defined options.
+	 * @return The options object on which the additional options are set.
+	 */
+	default RocksDBNativeMetricOptions createNativeMetricsOptions(RocksDBNativeMetricOptions nativeMetricOptions) {
+		return nativeMetricOptions;
+	}
 }

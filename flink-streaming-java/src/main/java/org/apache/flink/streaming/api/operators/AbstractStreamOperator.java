@@ -252,7 +252,8 @@ public abstract class AbstractStreamOperator<OUT>
 				getClass().getSimpleName(),
 				this,
 				keySerializer,
-				streamTaskCloseableRegistry);
+				streamTaskCloseableRegistry,
+				metrics);
 
 		this.operatorStateBackend = context.operatorStateBackend();
 		this.keyedStateBackend = context.keyedStateBackend();
