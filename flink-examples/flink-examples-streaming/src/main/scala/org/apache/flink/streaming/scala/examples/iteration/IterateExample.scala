@@ -41,7 +41,7 @@ import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironm
  */
 object IterateExample {
 
-  private val Bound = 100
+  private final val Bound = 100
 
   def main(args: Array[String]): Unit = {
     // Checking input parameters
