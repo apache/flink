@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro.typeutils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
@@ -33,15 +34,10 @@ import org.apache.avro.SchemaCompatibility;
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType;
 import org.apache.avro.SchemaCompatibility.SchemaPairCompatibility;
 import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.reflect.ReflectData;
-import org.apache.avro.reflect.ReflectDatumReader;
-import org.apache.avro.reflect.ReflectDatumWriter;
-import org.apache.avro.specific.SpecificData;
-import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.reflect.Nullable;
 import org.apache.avro.specific.SpecificRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,19 +81,16 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	/** The class of the type that is serialized by this serializer. */
 	private final Class<T> type;
 
-	private final String schemaString;
-
 	// -------- runtime fields, non-serializable, lazily initialized -----------
 
-	private transient GenericDatumWriter<T> writer;
-	private transient GenericDatumReader<T> reader;
-
+	private transient GenericData avroData;
+	private transient DatumWriter<T> writer;
 	private transient DataOutputEncoder encoder;
 	private transient DataInputDecoder decoder;
-
-	private transient GenericData avroData;
+	private transient DatumReader<T> reader;
 
 	private transient Schema schema;
+	private transient Schema previousSchema;
 
 	/** The serializer configuration snapshot, cached for efficiency. */
 	private transient TypeSerializerSnapshot<T> configSnapshot;
@@ -116,7 +109,6 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		checkArgument(!isGenericRecord(type),
 			"For GenericData.Record use constructor with explicit schema.");
 		this.type = checkNotNull(type);
-		this.schemaString = null;
 	}
 
 	/**
@@ -130,7 +122,16 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 			"For classes other than GenericData.Record use constructor without explicit schema.");
 		this.type = checkNotNull(type);
 		this.schema = checkNotNull(schema);
-		this.schemaString = schema.toString();
+	}
+
+	/**
+	 * Creates a new AvroSerializer for the type indicated by the given class.
+	 */
+	@Internal
+	AvroSerializer(Class<T> type, @Nullable Schema newSchema, @Nullable Schema previousSchema) {
+		this.type = checkNotNull(type);
+		this.schema = newSchema;
+		this.previousSchema = previousSchema;
 	}
 
 	/**
@@ -303,12 +304,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public TypeSerializer<T> duplicate() {
-		if (schemaString != null) {
-			return new AvroSerializer<>(type, schema);
-		} else {
-			return new AvroSerializer<>(type);
-
-		}
+		return new AvroSerializer<>(type, schema, previousSchema);
 	}
 
 	@Override
@@ -351,32 +347,14 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	}
 
 	private void initializeAvro() {
-		final ClassLoader cl = Thread.currentThread().getContextClassLoader();
+		AvroFactory<T> factory = AvroFactory.create(type, schema, previousSchema);
 
-		if (SpecificRecord.class.isAssignableFrom(type)) {
-			SpecificData specificData = new SpecificData(cl);
-			this.avroData = specificData;
-			this.schema = specificData.getSchema(type);
-			this.reader = new SpecificDatumReader<>(schema, schema, specificData);
-			this.writer = new SpecificDatumWriter<>(schema, specificData);
-		} else if (GenericRecord.class.isAssignableFrom(type)) {
-			if (schema == null) {
-				this.schema = new Schema.Parser().parse(schemaString);
-			}
-			GenericData genericData = new GenericData(cl);
-			this.avroData = genericData;
-			this.reader = new GenericDatumReader<>(schema, schema, genericData);
-			this.writer = new GenericDatumWriter<>(schema, genericData);
-		} else {
-			final ReflectData reflectData = new ReflectData(cl);
-			this.avroData = reflectData;
-			this.schema = reflectData.getSchema(type);
-			this.reader = new ReflectDatumReader<>(schema, schema, reflectData);
-			this.writer = new ReflectDatumWriter<>(schema, reflectData);
-		}
-
-		this.encoder = new DataOutputEncoder();
-		this.decoder = new DataInputDecoder();
+		this.schema = factory.getSchema();
+		this.writer = factory.getWriter();
+		this.reader = factory.getReader();
+		this.encoder = factory.getEncoder();
+		this.decoder = factory.getDecoder();
+		this.avroData = factory.getAvroData();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -415,7 +393,9 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	/**
 	 * A config snapshot for the Avro Serializer that stores the Avro Schema to check compatibility.
+	 * This class is now deprecated and only kept for backward comparability.
 	 */
+	@Deprecated
 	public static final class AvroSchemaSerializerConfigSnapshot<T> extends TypeSerializerConfigSnapshot<T> {
 
 		private String schemaString;
@@ -424,8 +404,13 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		 * Default constructor for instantiation via reflection.
 		 */
 		@SuppressWarnings("unused")
-		public AvroSchemaSerializerConfigSnapshot() {}
+		public AvroSchemaSerializerConfigSnapshot() {
+		}
 
+		/**
+		 * AvroSerializer now uses the new {@link AvroSerializerSnapshot} class instead.
+		 */
+		@SuppressWarnings("unused")
 		public AvroSchemaSerializerConfigSnapshot(String schemaString) {
 			this.schemaString = checkNotNull(schemaString);
 		}
