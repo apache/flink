@@ -1606,11 +1606,13 @@ term = product , [ ( "+" | "-" ) , product ] ;
 
 product = unary , [ ( "*" | "/" | "%") , unary ] ;
 
-unary = [ "!" | "-" ] , composite ;
+unary = [ "!" | "-" | "+" ] , composite ;
 
-composite = over | nullLiteral | suffixed | atom ;
+composite = over | suffixed | nullLiteral | prefixed | atom ;
 
-suffixed = interval | cast | as | if | functionCall ;
+suffixed = interval | suffixAs | suffixCast | suffixIf | suffixDistinct | suffixFunctionCall ;
+
+prefixed = prefixAs | prefixCast | prefixIf | prefixDistinct | prefixFunctionCall ;
 
 interval = timeInterval | rowInterval ;
 
@@ -1618,15 +1620,27 @@ timeInterval = composite , "." , ("year" | "years" | "month" | "months" | "day" 
 
 rowInterval = composite , "." , "rows" ;
 
-cast = composite , ".cast(" , dataType , ")" ;
+suffixCast = composite , ".cast(" , dataType , ")" ;
+
+prefixCast = "cast(" , expression , dataType , ")" ;
 
 dataType = "BYTE" | "SHORT" | "INT" | "LONG" | "FLOAT" | "DOUBLE" | "BOOLEAN" | "STRING" | "DECIMAL" | "SQL_DATE" | "SQL_TIME" | "SQL_TIMESTAMP" | "INTERVAL_MONTHS" | "INTERVAL_MILLIS" | ( "MAP" , "(" , dataType , "," , dataType , ")" ) | ( "PRIMITIVE_ARRAY" , "(" , dataType , ")" ) | ( "OBJECT_ARRAY" , "(" , dataType , ")" ) ;
 
-as = composite , ".as(" , fieldReference , ")" ;
+suffixAs = composite , ".as(" , fieldReference , ")" ;
 
-if = composite , ".?(" , expression , "," , expression , ")" ;
+prefixAs = "as(" , expression, fieldReference , ")" ;
 
-functionCall = composite , "." , functionIdentifier , [ "(" , [ expression , { "," , expression } ] , ")" ] ;
+suffixIf = composite , ".?(" , expression , "," , expression , ")" ;
+
+prefixIf = "?(" , expression , "," , expression , "," , expression , ")" ;
+
+suffixDistinct = composite , "distinct.()" ;
+
+prefixDistinct = functionIdentifier , ".distinct" , [ "(" , [ expression , { "," , expression } ] , ")" ] ;
+
+suffixFunctionCall = composite , "." , functionIdentifier , [ "(" , [ expression , { "," , expression } ] , ")" ] ;
+
+prefixFunctionCall = functionIdentifier , [ "(" , [ expression , { "," , expression } ] , ")" ] ;
 
 atom = ( "(" , expression , ")" ) | literal | fieldReference ;
 

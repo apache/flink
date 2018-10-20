@@ -422,7 +422,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   // suffix/prefix composite
 
-  lazy val composite: PackratParser[Expression] = over | nullLiteral | suffixed | prefixed | atom |
+  lazy val composite: PackratParser[Expression] = over | suffixed | nullLiteral | prefixed | atom |
     failure("Composite expression expected.")
 
   // unary ops
