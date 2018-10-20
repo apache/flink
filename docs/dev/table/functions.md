@@ -4186,7 +4186,7 @@ CAST(value AS type)
       </td>
       <td>
         <p>Returns a new <i>value</i> being cast to type <i>type</i>. See the supported types <a href="sql.html#data-types">here</a>.</p>
-        <p>E.g., <code>CAST('42' AS INT)</code> returns 42.</p>
+        <p>E.g., <code>CAST('42' AS INT)</code> returns 42; <code>CAST(NULL AS VARCHAR)</code> returns NULL of type VARCHAR.</p>
       </td>
     </tr>
   </tbody>
@@ -4211,7 +4211,7 @@ ANY.cast(TYPE)
       </td>
       <td>
         <p>Returns a new <i>ANY</i> being cast to type <i>TYPE</i>. See the supported types <a href="tableApi.html#data-types">here</a>.</p>
-        <p>E.g., <code>'42'.cast(INT)</code> returns 42.</p>
+        <p>E.g., <code>'42'.cast(INT)</code> returns 42; <code>Null(STRING)</code> returns NULL of type STRING.</p>
       </td>
     </tr>
     </tbody>
@@ -4236,7 +4236,7 @@ ANY.cast(TYPE)
       </td>
       <td>
         <p>Returns a new <i>ANY</i> being cast to type <i>TYPE</i>. See the supported types <a href="tableApi.html#data-types">here</a>.</p>
-        <p>E.g., <code>"42".cast(Types.INT)</code> returns 42.</p>
+        <p>E.g., <code>"42".cast(Types.INT)</code> returns 42; <code>Null(Types.STRING)</code> returns NULL of type STRING.</p>
       </td>
     </tr>
   </tbody>
