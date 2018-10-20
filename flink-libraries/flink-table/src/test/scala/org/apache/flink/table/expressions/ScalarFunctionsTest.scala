@@ -645,6 +645,12 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "'foobar'.regexpReplace('oo|ar', f33)",
       "REGEXP_REPLACE('foobar', 'oo|ar', f33)",
       "null")
+
+    testAllApis(
+      Null(Types.STRING).regexpReplace("oo|ar", 'f33),
+      "Null(STRING).regexpReplace('oo|ar', f33)",
+      "REGEXP_REPLACE(CAST(NULL AS VARCHAR), 'oo|ar', f33)",
+      "null")
   }
 
   @Test
