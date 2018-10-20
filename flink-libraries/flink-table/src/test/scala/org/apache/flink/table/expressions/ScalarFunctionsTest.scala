@@ -645,6 +645,13 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "'foobar'.regexpReplace('oo|ar', f33)",
       "REGEXP_REPLACE('foobar', 'oo|ar', f33)",
       "null")
+
+    // This test was added for the null literal problem in string expression parsing (FLINK-10463).
+    testAllApis(
+      Null(Types.STRING).regexpReplace("oo|ar", 'f33),
+      "Null(STRING).regexpReplace('oo|ar', f33)",
+      "REGEXP_REPLACE(CAST(NULL AS VARCHAR), 'oo|ar', f33)",
+      "null")
   }
 
   @Test
