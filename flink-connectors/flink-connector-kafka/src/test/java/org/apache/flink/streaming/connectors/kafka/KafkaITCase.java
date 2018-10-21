@@ -63,7 +63,7 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 	//  Suite of Tests
 	// ------------------------------------------------------------------------
 
-	@Test(timeout = 120000)
+	@Test(timeout = 60000)
 	public void testFailOnNoBroker() throws Exception {
 		runFailOnNoBrokerTest();
 	}

@@ -168,6 +168,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			properties.setProperty("zookeeper.connect", "localhost:80");
 			properties.setProperty("group.id", "test");
 			properties.setProperty("request.timeout.ms", "3000"); // let the test fail fast
+			properties.setProperty("default.api.timeout.ms", "3000"); // KafkaProducer#partitionsFor
 			properties.setProperty("socket.timeout.ms", "3000");
 			properties.setProperty("session.timeout.ms", "2000");
 			properties.setProperty("fetch.max.wait.ms", "2000");
