@@ -80,6 +80,8 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	/** The class of the type that is serialized by this serializer. */
 	private final Class<T> type;
+	private final SerializableAvroSchema schema;
+	private final SerializableAvroSchema previousSchema;
 
 	// -------- runtime fields, non-serializable, lazily initialized -----------
 
@@ -88,9 +90,8 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	private transient DataOutputEncoder encoder;
 	private transient DataInputDecoder decoder;
 	private transient DatumReader<T> reader;
+	private transient Schema runtimeSchema;
 
-	private transient Schema schema;
-	private transient Schema previousSchema;
 
 	/** The serializer configuration snapshot, cached for efficiency. */
 	private transient TypeSerializerSnapshot<T> configSnapshot;
@@ -109,6 +110,8 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		checkArgument(!isGenericRecord(type),
 			"For GenericData.Record use constructor with explicit schema.");
 		this.type = checkNotNull(type);
+		this.schema = new SerializableAvroSchema();
+		this.previousSchema = new SerializableAvroSchema();
 	}
 
 	/**
@@ -121,7 +124,8 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		checkArgument(isGenericRecord(type),
 			"For classes other than GenericData.Record use constructor without explicit schema.");
 		this.type = checkNotNull(type);
-		this.schema = checkNotNull(schema);
+		this.schema = new SerializableAvroSchema(checkNotNull(schema));
+		this.previousSchema = new SerializableAvroSchema();
 	}
 
 	/**
@@ -130,8 +134,8 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	@Internal
 	AvroSerializer(Class<T> type, @Nullable Schema newSchema, @Nullable Schema previousSchema) {
 		this.type = checkNotNull(type);
-		this.schema = newSchema;
-		this.previousSchema = previousSchema;
+		this.schema = new SerializableAvroSchema(newSchema);
+		this.previousSchema = new SerializableAvroSchema(previousSchema);
 	}
 
 	/**
@@ -168,7 +172,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public T createInstance() {
+	public T createInstance()  {
 		return InstantiationUtil.instantiate(type);
 	}
 
@@ -238,7 +242,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 		try {
 			checkAvroInitialized();
-			return avroData.deepCopy(schema, from);
+			return avroData.deepCopy(runtimeSchema, from);
 		}
 		finally {
 			if (CONCURRENT_ACCESS_CHECK) {
@@ -268,7 +272,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	public TypeSerializerSnapshot<T> snapshotConfiguration() {
 		if (configSnapshot == null) {
 			checkAvroInitialized();
-			configSnapshot = new AvroSerializerSnapshot<>(schema, type);
+			configSnapshot = new AvroSerializerSnapshot<>(runtimeSchema, type);
 		}
 		return configSnapshot;
 	}
@@ -283,7 +287,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 			checkAvroInitialized();
 			final SchemaPairCompatibility compatibility =
-				SchemaCompatibility.checkReaderWriterCompatibility(schema, lastSchema);
+				SchemaCompatibility.checkReaderWriterCompatibility(runtimeSchema, lastSchema);
 
 			return compatibility.getType() == SchemaCompatibilityType.COMPATIBLE ?
 				CompatibilityResult.compatible() : CompatibilityResult.requiresMigration();
@@ -304,7 +308,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public TypeSerializer<T> duplicate() {
-		return new AvroSerializer<>(type, schema, previousSchema);
+		return new AvroSerializer<>(type, runtimeSchema, previousSchema.getAvroSchema());
 	}
 
 	@Override
@@ -347,9 +351,9 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	}
 
 	private void initializeAvro() {
-		AvroFactory<T> factory = AvroFactory.create(type, schema, previousSchema);
+		AvroFactory<T> factory = AvroFactory.create(type, schema.getAvroSchema(), previousSchema.getAvroSchema());
 
-		this.schema = factory.getSchema();
+		this.runtimeSchema = factory.getSchema();
 		this.writer = factory.getWriter();
 		this.reader = factory.getReader();
 		this.encoder = factory.getEncoder();
@@ -384,7 +388,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	Schema getAvroSchema() {
 		checkAvroInitialized();
-		return schema;
+		return runtimeSchema;
 	}
 
 	// ------------------------------------------------------------------------
