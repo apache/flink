@@ -80,6 +80,14 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
         <td>0.11.x</td>
         <td>Since 0.11.x Kafka does not support scala 2.10. This connector supports <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-98+-+Exactly+Once+Delivery+and+Transactional+Messaging">Kafka transactional messaging</a> to provide exactly once semantic for the producer.</td>
     </tr>
+    <tr>
+        <td>flink-connector-kafka_2.11</td>
+        <td>1.7.0</td>
+        <td>FlinkKafkaConsumer<br>
+        FlinkKafkaProducer</td>
+        <td>1.x,2.x</td>
+        <td>This is a modern kafka connector that does not bind to a fixed version of the Kafka client, it only tracks the latest version of the Kafka client.</td>
+        </tr>
   </tbody>
 </table>
 
@@ -88,7 +96,7 @@ Then, import the connector in your maven project:
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-kafka-0.8{{ site.scala_version_suffix }}</artifactId>
+  <artifactId>flink-connector-kafka{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 {% endhighlight %}
@@ -99,6 +107,31 @@ Note that the streaming connectors are currently not part of the binary distribu
 
 * Follow the instructions from [Kafka's quickstart](https://kafka.apache.org/documentation.html#quickstart) to download the code and launch a server (launching a Zookeeper and a Kafka server is required every time before starting the application).
 * If the Kafka and Zookeeper servers are running on a remote machine, then the `advertised.host.name` setting in the `config/server.properties` file must be set to the machine's IP address.
+
+## Modern Kafka Connector
+
+Starting with Flink 1.7, it will provide a new connector for the modern Kafka. It is different from any previous Kafka connector, it does not bind a fixed version of Kafka client, but it will track and support the latest version of Kafka Client.
+The modern Kafka connector does not rely on any older version of the kafka connector and relies only on the underlying implementation of the kafka connector, which allows it to get rid of the historical burden and keep up with the latest version of the Kafka client. 
+
+Note that if your version of Kafka Server exceeds 0.11, then we recommend you use the modern Kafka connector. The specific version of the kafka connector will continue to maintain and fix related issues. When you use the old version of Kafka (for example, 0.11, 0.10, 0.9, 0.8), we still recommend that you use the connector corresponding to the corresponding version, because they are precisely matched.
+
+### Compatibility
+
+The compatibility of the modern Kafka connector is completely dependent on the backward compatibility guarantee of the Kafka Client API (Kafka supports the latest Client API to access the old version of Kafka Server. For more details on Kafka compatibility, please refer to the [official Kafka documentation](https://kafka.apache.org/protocol.html#protocol_compatibility)). Therefore, as long as the connector is upgraded and supported to the latest Kafka Client version, it can provide the same compatibility guarantee as the Kafka Client.
+
+### Usage
+
+The use of the modern Kafka connector is very simple. We only need to introduce dependencies on it:
+
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-connector-kafka{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
+
+Then instantiate the new source (`FlinkKafkaConsumer`) and sink (`FlinkKafkaProducer`). As for the API, it is fully compatible with other Kafka connectors that already exist. So in theory, you don't need to make any changes to it to make your program work.
 
 ## Kafka Consumer
 
