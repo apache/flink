@@ -138,8 +138,7 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 					for (ConsumerRecord<byte[], byte[]> record : partitionRecords) {
 						final T value = deserializer.deserialize(
-							record.key(), record.value(),
-							record.topic(), record.partition(), record.offset());
+							createRecord(record));
 
 						if (deserializer.isEndOfStream(value)) {
 							// end of stream signaled
@@ -229,5 +228,9 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 		// record the work to be committed by the main consumer thread and make sure the consumer notices that
 		consumerThread.setOffsetsToCommit(offsetsToCommit, commitCallback);
+	}
+
+	private KeyedDeserializationSchema.Record createRecord(ConsumerRecord<byte[], byte[]> consumerRecord) {
+		return new KafkaConsumerRecord(consumerRecord);
 	}
 }

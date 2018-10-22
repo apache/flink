@@ -230,17 +230,6 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 		}
 	}
 
-	/**
-	 * Make sure that auto commit is disabled when our offset commit mode is ON_CHECKPOINTS.
-	 * This overwrites whatever setting the user configured in the properties.
-	 * @param offsetCommitMode
-	 */
-	protected void adjustAutoCommitConfig(OffsetCommitMode offsetCommitMode) {
-		if (offsetCommitMode == OffsetCommitMode.ON_CHECKPOINTS || offsetCommitMode == OffsetCommitMode.DISABLED) {
-			properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-		}
-	}
-
 	@Override
 	protected AbstractFetcher<T, ?> createFetcher(
 			SourceContext<T> sourceContext,
@@ -254,7 +243,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 
 		// make sure that auto commit is disabled when our offset commit mode is ON_CHECKPOINTS;
 		// this overwrites whatever setting the user configured in the properties
-		adjustAutoCommitConfig(offsetCommitMode);
+		adjustAutoCommitConfig(properties, offsetCommitMode);
 
 		return new Kafka09Fetcher<>(
 				sourceContext,
