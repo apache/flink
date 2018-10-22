@@ -71,7 +71,7 @@ public class ExecutionVertexSchedulingTest {
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
-			vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL);
+			vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL, null);
 
 			// will have failed
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
@@ -103,7 +103,7 @@ public class ExecutionVertexSchedulingTest {
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
-			vertex.scheduleForExecution(scheduler, true, LocationPreferenceConstraint.ALL);
+			vertex.scheduleForExecution(scheduler, true, LocationPreferenceConstraint.ALL, null);
 
 			// future has not yet a slot
 			assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
@@ -138,7 +138,7 @@ public class ExecutionVertexSchedulingTest {
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
 			// try to deploy to the slot
-			vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL);
+			vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL, null);
 			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 		}
 		catch (Exception e) {

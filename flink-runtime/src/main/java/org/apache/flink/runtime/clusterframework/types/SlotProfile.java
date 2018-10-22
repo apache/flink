@@ -25,6 +25,7 @@ import javax.annotation.Nonnull;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Set;
 
 /**
  * A slot profile describes the profile of a slot into which a task wants to be scheduled. The profile contains
@@ -47,16 +48,30 @@ public class SlotProfile {
 
 	/** This contains desired allocation ids of the slot. */
 	@Nonnull
-	private final Collection<AllocationID> priorAllocations;
+	private final Collection<AllocationID> preferredAllocations;
+
+	/** This contains all prior allocation ids from the whole execution graph. */
+	@Nonnull
+	private final Set<AllocationID> previousExecutionGraphAllocations;
 
 	public SlotProfile(
 		@Nonnull ResourceProfile resourceProfile,
 		@Nonnull Collection<TaskManagerLocation> preferredLocations,
-		@Nonnull Collection<AllocationID> priorAllocations) {
+		@Nonnull Collection<AllocationID> preferredAllocations) {
+
+		this(resourceProfile, preferredLocations, preferredAllocations, Collections.emptySet());
+	}
+
+	public SlotProfile(
+		@Nonnull ResourceProfile resourceProfile,
+		@Nonnull Collection<TaskManagerLocation> preferredLocations,
+		@Nonnull Collection<AllocationID> preferredAllocations,
+		@Nonnull Set<AllocationID> previousExecutionGraphAllocations) {
 
 		this.resourceProfile = resourceProfile;
 		this.preferredLocations = preferredLocations;
-		this.priorAllocations = priorAllocations;
+		this.preferredAllocations = preferredAllocations;
+		this.previousExecutionGraphAllocations = previousExecutionGraphAllocations;
 	}
 
 	/**
@@ -79,8 +94,18 @@ public class SlotProfile {
 	 * Returns the desired allocation ids for the slot.
 	 */
 	@Nonnull
-	public Collection<AllocationID> getPriorAllocations() {
-		return priorAllocations;
+	public Collection<AllocationID> getPreferredAllocations() {
+		return preferredAllocations;
+	}
+
+	/**
+	 * Returns a set of all previous allocation ids from the execution graph.
+	 *
+	 * This is optional and can be empty if unused.
+	 */
+	@Nonnull
+	public Set<AllocationID> getPreviousExecutionGraphAllocations() {
+		return previousExecutionGraphAllocations;
 	}
 
 	/**

@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
@@ -54,11 +55,26 @@ public class LocationPreferenceSchedulingStrategy implements SchedulingStrategy 
 	@Override
 	public <IN, OUT> OUT findMatchWithLocality(
 			@Nonnull SlotProfile slotProfile,
-			@Nonnull Stream<IN> candidates,
+			@Nonnull Supplier<Stream<IN>> candidates,
 			@Nonnull Function<IN, SlotInfo> contextExtractor,
 			@Nonnull Predicate<IN> additionalRequirementsFilter,
 			@Nonnull BiFunction<IN, Locality, OUT> resultProducer) {
 
+		return doFindMatchWithLocality(
+			slotProfile,
+			candidates.get(),
+			contextExtractor,
+			additionalRequirementsFilter,
+			resultProducer);
+	}
+
+	@Nullable
+	protected  <IN, OUT> OUT doFindMatchWithLocality(
+		@Nonnull SlotProfile slotProfile,
+		@Nonnull Stream<IN> candidates,
+		@Nonnull Function<IN, SlotInfo> contextExtractor,
+		@Nonnull Predicate<IN> additionalRequirementsFilter,
+		@Nonnull BiFunction<IN, Locality, OUT> resultProducer) {
 		Collection<TaskManagerLocation> locationPreferences = slotProfile.getPreferredLocations();
 
 		// if we have no location preferences, we can only filter by the additional requirements.

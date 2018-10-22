@@ -124,18 +124,31 @@ public class SlotProfileTest extends TestLogger {
 	}
 
 	@Test
-	public void matchPreviousLocationNotAvailable() {
+	public void matchPreviousLocationNotAvailableButByLocality() {
 
 		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tml4), Collections.singletonList(aidX));
 		SlotContext match = runMatching(slotProfile);
 
-		Assert.assertEquals(null, match);
+		Assert.assertEquals(ssc4, match);
+	}
+
+	@Test
+	public void matchPreviousLocationNotAvailableAndAllBlacklisted() {
+		HashSet<AllocationID> blacklisted = new HashSet<>(4);
+		blacklisted.add(aid1);
+		blacklisted.add(aid2);
+		blacklisted.add(aid3);
+		blacklisted.add(aid4);
+		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tml4), Collections.singletonList(aidX), blacklisted);
+		SlotContext match = runMatching(slotProfile);
+
+		Assert.assertNull(match);
 	}
 
 	private SlotContext runMatching(SlotProfile slotProfile) {
 		return schedulingStrategy.findMatchWithLocality(
 			slotProfile,
-			candidates.stream(),
+			candidates::stream,
 			(candidate) -> candidate,
 			(candidate) -> true,
 			(candidate, locality) -> candidate);

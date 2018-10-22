@@ -454,7 +454,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			// it can occur as the result of races
 			{
 				Scheduler scheduler = mock(Scheduler.class);
-				vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL);
+				vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL, null);
 
 				assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 			}
@@ -493,7 +493,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 				setVertexState(vertex, ExecutionState.CANCELING);
 
 				Scheduler scheduler = mock(Scheduler.class);
-				vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL);
+				vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL, null);
 			}
 			catch (Exception e) {
 				fail("should not throw an exception");

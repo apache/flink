@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.instance;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -61,6 +62,11 @@ public class SimpleSlotContext implements SlotContext {
 	@Override
 	public int getPhysicalSlotNumber() {
 		return physicalSlotNumber;
+	}
+
+	@Override
+	public ResourceProfile getResourceProfile() {
+		return ResourceProfile.UNKNOWN;
 	}
 
 	@Override
