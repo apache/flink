@@ -71,8 +71,8 @@ import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.exceptions.JobModificationException;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
-import org.apache.flink.runtime.jobmaster.slotpool.PreviousAllocationSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
+import org.apache.flink.runtime.jobmaster.slotpool.SchedulerFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolGateway;
@@ -233,6 +233,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			JobGraph jobGraph,
 			HighAvailabilityServices highAvailabilityService,
 			SlotPoolFactory slotPoolFactory,
+			SchedulerFactory schedulerFactory,
 			JobManagerSharedServices jobManagerSharedServices,
 			HeartbeatServices heartbeatServices,
 			BlobServer blobServer,
@@ -291,10 +292,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		this.slotPoolGateway = slotPool;
 
-		this.scheduler = new Scheduler(
-			new HashMap<>(),
-			PreviousAllocationSlotSelectionStrategy.INSTANCE,
-			slotPoolGateway);
+		this.scheduler = checkNotNull(schedulerFactory).createScheduler(slotPoolGateway);
 
 		this.registeredTaskManagers = new HashMap<>(4);
 

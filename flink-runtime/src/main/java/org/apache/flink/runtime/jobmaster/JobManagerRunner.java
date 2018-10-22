@@ -33,7 +33,9 @@ import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobScheduli
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.DefaultSchedulerFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultSlotPoolFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.SchedulerFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
@@ -153,6 +155,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 				configuration,
 				rpcService);
 
+			final SchedulerFactory schedulerFactory = DefaultSchedulerFactory.fromConfiguration(configuration);
+
 			// now start the JobManager
 			this.jobMaster = new JobMaster(
 				rpcService,
@@ -161,6 +165,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 				jobGraph,
 				haServices,
 				slotPoolFactory,
+				schedulerFactory,
 				jobManagerSharedServices,
 				heartbeatServices,
 				blobServer,
