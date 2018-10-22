@@ -141,12 +141,12 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
       .toTable(tEnv, 'currency, 'rate, 'rowtime.rowtime)
 
     tEnv.registerTable("Orders", orders)
-    tEnv.registerTable("RatesHistory", ratesHistory)
     tEnv.registerFunction(
       "Rates",
       ratesHistory.createTemporalTableFunction('rowtime, 'currency))
+    tEnv.registerTable("TemporalJoinResult", tEnv.sqlQuery(sqlQuery))
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.scan("TemporalJoinResult").toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
