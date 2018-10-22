@@ -59,7 +59,10 @@ public class BigUserProgramJobSubmitITCase extends TestLogger {
 
 	static {
 		try {
+			final Configuration config = new Configuration();
+			config.setInteger(RestOptions.PORT, 0);
 			MiniClusterConfiguration clusterConfiguration = new MiniClusterConfiguration.Builder()
+				.setConfiguration(config)
 				.setNumTaskManagers(1)
 				.setNumSlotsPerTaskManager(1)
 				.build();
