@@ -16,38 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.config;
+package org.apache.flink.table.client.config.entries;
 
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.TableDescriptor;
-
-import java.util.Map;
 
 /**
- * Configuration of a table sink.
+ * Configuration of a table source.
  */
-public class Sink implements TableDescriptor {
+public class SourceTableEntry extends TableEntry {
 
-	private String name;
-	private Map<String, String> properties;
-
-	protected Sink(String name, Map<String, String> properties) {
-		this.name = name;
-		this.properties = properties;
+	SourceTableEntry(String name, DescriptorProperties properties) {
+		super(name, properties);
 	}
-
-	public String getName() {
-		return name;
-	}
-
-	public Map<String, String> getProperties() {
-		return properties;
-	}
-
-	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public void addProperties(DescriptorProperties properties) {
-		this.properties.forEach(properties::putString);
+	protected void validate(DescriptorProperties properties) {
+		// validation is performed by the discovered factory
 	}
 }

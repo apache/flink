@@ -42,7 +42,10 @@ public class EnvironmentTest {
 	@Test
 	public void testMerging() throws Exception {
 		final Map<String, String> replaceVars1 = new HashMap<>();
-		replaceVars1.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars1.put("$VAR_EXECUTION_TYPE", "batch");
+		replaceVars1.put("$VAR_RESULT_MODE", "table");
+		replaceVars1.put("$VAR_UPDATE_MODE", "");
+		replaceVars1.put("$VAR_MAX_ROWS", "100");
 		final Environment env1 = EnvironmentFileUtil.parseModified(
 			DEFAULTS_ENVIRONMENT_FILE,
 			replaceVars1);
@@ -60,6 +63,8 @@ public class EnvironmentTest {
 		tables.add("TableNumber2");
 		tables.add("NewTable");
 		tables.add("TableSourceSink");
+		tables.add("TestView1");
+		tables.add("TestView2");
 
 		assertEquals(tables, merged.getTables().keySet());
 		assertTrue(merged.getExecution().isStreamingExecution());

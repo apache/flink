@@ -130,7 +130,7 @@ SQL_CONF=$TEST_DATA_DIR/sql-client-session.conf
 cat > $SQL_CONF << EOF
 tables:
   - name: JsonSourceTable
-    type: source
+    type: source-table
     update-mode: append
     schema:
       - name: rowtime
@@ -182,7 +182,7 @@ tables:
           }
         }
   - name: AvroBothTable
-    type: both
+    type: source-sink-table
     update-mode: append
     schema:
       - name: event_timestamp
@@ -218,7 +218,7 @@ tables:
             ]
         }
   - name: CsvSinkTable
-    type: sink
+    type: sink-table
     update-mode: append
     schema:
       - name: event_timestamp
@@ -248,7 +248,7 @@ tables:
         - name: constant
           type: VARCHAR
   - name: ElasticsearchUpsertSinkTable
-    type: sink
+    type: sink-table
     update-mode: upsert
     schema:
       - name: user_id
@@ -272,7 +272,7 @@ tables:
       type: json
       derive-schema: true
   - name: ElasticsearchAppendSinkTable
-    type: sink
+    type: sink-table
     update-mode: append
     schema:
       - name: user_id

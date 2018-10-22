@@ -16,44 +16,37 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.config;
+package org.apache.flink.table.client.config.entries;
 
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.TableDescriptor;
-
-import java.util.Map;
 
 /**
- * Common class for all descriptors describing a table source and sink together.
+ * Configuration of a table view.
  */
-public class SourceSink implements TableDescriptor {
+public class ViewEntry extends TableEntry {
 
-	private String name;
-	private Map<String, String> properties;
+	private static final String TABLES_QUERY = "query";
 
-	protected SourceSink(String name, Map<String, String> properties) {
-		this.name = name;
-		this.properties = properties;
+	private final String query;
+
+	ViewEntry(String name, DescriptorProperties properties) {
+		super(name, properties);
+
+		query = properties.getString(TABLES_QUERY);
 	}
 
-	public String getName() {
-		return name;
-	}
-
-	public Map<String, String> getProperties() {
-		return properties;
+	public String getQuery() {
+		return query;
 	}
 
 	@Override
-	public void addProperties(DescriptorProperties properties) {
-		this.properties.forEach(properties::putString);
+	protected void validate(DescriptorProperties properties) {
+		properties.validateString(TABLES_QUERY, false, 1);
 	}
 
-	public Source toSource() {
-		return new Source(name, properties);
-	}
-
-	public Sink toSink() {
-		return new Sink(name, properties);
+	public static ViewEntry create(String name, String query) {
+		final DescriptorProperties properties = new DescriptorProperties(true);
+		properties.putString(TABLES_QUERY, query);
+		return new ViewEntry(name, properties);
 	}
 }

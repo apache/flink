@@ -22,7 +22,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
-import org.apache.flink.table.client.gateway.local.DependencyTest;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
@@ -36,8 +35,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.client.gateway.local.DependencyTest.CONNECTOR_TEST_PROPERTY;
-import static org.apache.flink.table.client.gateway.local.DependencyTest.CONNECTOR_TYPE_VALUE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_FROM;
 import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_TYPE;
@@ -49,22 +46,30 @@ import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
 
 /**
- * Table sink factory for testing the classloading in {@link DependencyTest}.
+ * Table sink factory for testing.
  */
-public class TestTableSinkFactory implements StreamTableSinkFactory<Row> {
+public abstract class TestTableSinkFactoryBase implements StreamTableSinkFactory<Row> {
+
+	private String type;
+	private String testProperty;
+
+	public TestTableSinkFactoryBase(String type, String testProperty) {
+		this.type = type;
+		this.testProperty = testProperty;
+	}
 
 	@Override
 	public Map<String, String> requiredContext() {
 		final Map<String, String> context = new HashMap<>();
 		context.put(UPDATE_MODE(), UPDATE_MODE_VALUE_APPEND());
-		context.put(CONNECTOR_TYPE(), CONNECTOR_TYPE_VALUE);
+		context.put(CONNECTOR_TYPE(), type);
 		return context;
 	}
 
 	@Override
 	public List<String> supportedProperties() {
 		final List<String> properties = new ArrayList<>();
-		properties.add(CONNECTOR_TEST_PROPERTY);
+		properties.add("connector." + testProperty);
 		properties.add(SCHEMA() + ".#." + SCHEMA_TYPE());
 		properties.add(SCHEMA() + ".#." + SCHEMA_NAME());
 		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_TYPE());
@@ -79,7 +84,7 @@ public class TestTableSinkFactory implements StreamTableSinkFactory<Row> {
 		params.putProperties(properties);
 		return new TestTableSink(
 				SchemaValidator.deriveTableSinkSchema(params),
-				properties.get(CONNECTOR_TEST_PROPERTY));
+				properties.get(testProperty));
 	}
 
 	// --------------------------------------------------------------------------------------------

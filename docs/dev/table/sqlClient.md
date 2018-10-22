@@ -162,11 +162,11 @@ A SQL query needs a configuration environment in which it is executed. The so-ca
 Every environment file is a regular [YAML file](http://yaml.org/). An example of such a file is presented below.
 
 {% highlight yaml %}
-# Define table sources and sinks here.
+# Define tables here such as sources, sinks, views, or temporal tables.
 
 tables:
   - name: MyTableSource
-    type: source
+    type: source-table
     update-mode: append
     connector:
       type: filesystem
@@ -185,11 +185,8 @@ tables:
         type: INT
       - name: MyField2
         type: VARCHAR
-
-# Define table views here.
-
-views:
   - name: MyCustomView
+    type: view
     query: "SELECT MyField2 FROM MyTableSource"
 
 # Define user-defined functions here.
@@ -284,7 +281,7 @@ The following example shows an environment file that defines a table source read
 {% highlight yaml %}
 tables:
   - name: TaxiRides
-    type: source
+    type: source-table
     update-mode: append
     connector:
       property-version: 1
@@ -427,7 +424,7 @@ The table sink `MyTableSink` has to be declared in the environment file. See the
 {% highlight yaml %}
 tables:
   - name: MyTableSink
-    type: sink
+    type: sink-table
     update-mode: append
     connector:
       property-version: 1
@@ -476,13 +473,17 @@ Views allow to define virtual tables from SQL queries. The view definition is pa
 
 Views can either be defined in [environment files](sqlClient.html#environment-files) or within the CLI session.
 
-The following example shows how to define multiple views in a file:
+The following example shows how to define multiple views in a file. The views are registered in the order in which they are defined in the environment file. Reference chains such as _view A depends on view B depends on view C_ are supported.
 
 {% highlight yaml %}
-views:
+tables:
+  - name: MyTableSource
+    # ...
   - name: MyRestrictedView
+    type: view
     query: "SELECT MyField2 FROM MyTableSource"
   - name: MyComplexView
+    type: view
     query: >
       SELECT MyField2 + 42, CAST(MyField1 AS VARCHAR)
       FROM MyTableSource
@@ -503,7 +504,49 @@ Views created within a CLI session can also be removed again using the `DROP VIE
 DROP VIEW MyNewView;
 {% endhighlight %}
 
-<span class="label label-danger">Attention</span> The definition of views is limited to the mentioned syntax above. Defining a schema for views or escape whitespaces in table names will be supported in future versions.
+<span class="label label-danger">Attention</span> The definition of views in the CLI is limited to the mentioned syntax above. Defining a schema for views or escaping whitespaces in table names will be supported in future versions.
+
+{% top %}
+
+Temporal Tables
+---------------
+
+A [temporal table](./streaming/temporal_tables.html) allows for a (parameterized) view on a changing history table that returns the content of a table at a specific point in time. This is especially useful for joining a table with the content of another table at a particular timestamp. More information can be found in the [temporal table joins](./streaming/joins.html#join-with-a-temporal-table) page.
+
+The following example shows how to define a temporal table `SourceTemporalTable`:
+
+{% highlight yaml %}
+tables:
+
+  # Define the table source (or view) that contains updates to a temporal table
+  - name: HistorySource
+    type: source-table
+    update-mode: append
+    connector: # ...
+    format: # ...
+    schema:
+      - name: integerField
+        type: INT
+      - name: stringField
+        type: VARCHAR
+      - name: rowtimeField
+        type: TIMESTAMP
+        rowtime:
+          timestamps:
+            type: from-field
+            from: rowtimeField
+          watermarks:
+            type: from-source
+
+  # Define a temporal table over the changing history table with time attribute and primary key
+  - name: SourceTemporalTable
+    type: temporal-table
+    changing-table: HistorySource
+    primary-key: integerField
+    time-attribute: rowtimeField  # could also be a proctime field
+{% endhighlight %}
+
+As shown in the example, definitions of table sources, views, and temporal tables can be mixed with each other. They are registered in the order in which they are defined in the environment file. For example, a temporal table can reference a view which can depend on another view or table source.
 
 {% top %}
 

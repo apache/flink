@@ -18,19 +18,19 @@
 
 #==============================================================================
 # TEST ENVIRONMENT FILE
-# Intended for org.apache.flink.table.client.gateway.local.DependencyTest.
+# General purpose streaming environment file.
 #==============================================================================
 
 # this file has variables that can be filled with content by replacing $VAR_XXX
 
 tables:
-  - name: TableNumber1
-    type: source-sink-table
+  - name: EnrichmentSource
+    type: source-table
     update-mode: append
     schema:
-      - name: IntegerField1
+      - name: integerField
         type: INT
-      - name: StringField1
+      - name: stringField
         type: VARCHAR
       - name: rowtimeField
         type: TIMESTAMP
@@ -43,12 +43,46 @@ tables:
     connector:
       type: "$VAR_CONNECTOR_TYPE"
       $VAR_CONNECTOR_PROPERTY: "$VAR_CONNECTOR_PROPERTY_VALUE"
+  - name: HistorySource
+    type: source-table
+    update-mode: append
+    schema:
+      - name: integerField
+        type: INT
+      - name: stringField
+        type: VARCHAR
+      - name: rowtimeField
+        type: TIMESTAMP
+        rowtime:
+          timestamps:
+            type: from-field
+            from: rowtimeField
+          watermarks:
+            type: from-source
+    connector:
+      type: "$VAR_CONNECTOR_TYPE"
+      $VAR_CONNECTOR_PROPERTY: "$VAR_CONNECTOR_PROPERTY_VALUE"
+  - name: SourceTemporalTable
+    type: temporal-table
+    history-table: HistorySource
+    primary-key: integerField
+    time-attribute: rowtimeField
+  - name: HistoryView
+    type: view
+    query: SELECT * FROM HistorySource
+  - name: ViewTemporalTable
+    type: temporal-table
+    history-table: HistorySource
+    primary-key: integerField
+    time-attribute: rowtimeField
+  - name: TemporalTableUsage
+    type: view
+    query: >
+      SELECT *
+      FROM EnrichmentSource AS l, LATERAL TABLE (ViewTemporalTable(l.rowtimeField)) AS r
+      WHERE l.integerField = r.integerField
 
 execution:
   type: streaming
+  time-characteristic: event-time
   parallelism: 1
-
-deployment:
-  response-timeout: 5000
-
-

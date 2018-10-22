@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.entries.ViewEntry;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,7 +38,7 @@ public class SessionContext {
 
 	private final Map<String, String> sessionProperties;
 
-	private final Map<String, String> views;
+	private final Map<String, ViewEntry> views;
 
 	public SessionContext(String name, Environment defaultEnvironment) {
 		this.name = name;
@@ -56,15 +57,15 @@ public class SessionContext {
 		sessionProperties.clear();
 	}
 
-	public void addView(String name, String query) {
-		views.put(name, query);
+	public void addView(ViewEntry viewEntry) {
+		views.put(viewEntry.getName(), viewEntry);
 	}
 
 	public void removeView(String name) {
 		views.remove(name);
 	}
 
-	public Map<String, String> getViews() {
+	public Map<String, ViewEntry> getViews() {
 		return Collections.unmodifiableMap(views);
 	}
 
