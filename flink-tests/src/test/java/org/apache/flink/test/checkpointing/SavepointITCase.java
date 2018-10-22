@@ -43,6 +43,7 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
@@ -51,8 +52,7 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
@@ -142,7 +142,7 @@ public class SavepointITCase extends TestLogger {
 		final JobID jobId = jobGraph.getJobID();
 		StatefulCounter.resetForTest(parallelism);
 
-		MiniClusterResource cluster = clusterFactory.get();
+		MiniClusterWithClientResource cluster = clusterFactory.get();
 		cluster.before();
 		ClusterClient<?> client = cluster.getClusterClient();
 
@@ -184,7 +184,7 @@ public class SavepointITCase extends TestLogger {
 		final JobID jobId = jobGraph.getJobID();
 		StatefulCounter.resetForTest(parallelism);
 
-		MiniClusterResource cluster = clusterFactory.get();
+		MiniClusterWithClientResource cluster = clusterFactory.get();
 		cluster.before();
 		ClusterClient<?> client = cluster.getClusterClient();
 
@@ -230,7 +230,7 @@ public class SavepointITCase extends TestLogger {
 		final Configuration config = new Configuration();
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 
-		final MiniClusterResource cluster = new MiniClusterResource(
+		final MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()
 				.setConfiguration(config)
 				.setNumberTaskManagers(numTaskManagers)
@@ -261,7 +261,7 @@ public class SavepointITCase extends TestLogger {
 
 		final Configuration config = new Configuration();
 
-		final MiniClusterResource cluster = new MiniClusterResource(
+		final MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()
 				.setConfiguration(config)
 				.setNumberTaskManagers(numTaskManagers)
@@ -305,7 +305,7 @@ public class SavepointITCase extends TestLogger {
 		final Configuration config = new Configuration();
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 
-		MiniClusterResource cluster = new MiniClusterResource(
+		MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()
 				.setConfiguration(config)
 				.setNumberTaskManagers(numTaskManagers)
@@ -373,7 +373,7 @@ public class SavepointITCase extends TestLogger {
 		LOG.info("Flink configuration: " + config + ".");
 
 		// Start Flink
-		MiniClusterResource cluster = new MiniClusterResource(
+		MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()
 				.setConfiguration(config)
 				.setNumberTaskManagers(numTaskManagers)
@@ -417,7 +417,7 @@ public class SavepointITCase extends TestLogger {
 
 		// create a new TestingCluster to make sure we start with completely
 		// new resources
-		cluster = new MiniClusterResource(
+		cluster = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()
 				.setConfiguration(config)
 				.setNumberTaskManagers(numTaskManagers)
@@ -653,7 +653,7 @@ public class SavepointITCase extends TestLogger {
 		config.setInteger(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, 0);
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 
-		MiniClusterResource cluster = new MiniClusterResource(
+		MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()
 				.setConfiguration(config)
 				.setNumberTaskManagers(1)
@@ -789,8 +789,8 @@ public class SavepointITCase extends TestLogger {
 			this.config = config;
 		}
 
-		MiniClusterResource get() {
-			return new MiniClusterResource(
+		MiniClusterWithClientResource get() {
+			return new MiniClusterWithClientResource(
 				new MiniClusterResourceConfiguration.Builder()
 					.setConfiguration(config)
 					.setNumberTaskManagers(numTaskManagers)

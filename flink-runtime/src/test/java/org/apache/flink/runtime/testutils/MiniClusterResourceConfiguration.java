@@ -16,33 +16,65 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.util;
+package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
+import org.apache.flink.util.Preconditions;
 
 /**
- * Mirror of {@link org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration} which has been
- * introduced to avoid breaking changes with FLINK-10637.
- *
- * @deprecated This class should be replaced with {@link org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration}.
+ * Mini cluster resource configuration object.
  */
-@Deprecated
-public class MiniClusterResourceConfiguration extends org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration {
+public class MiniClusterResourceConfiguration {
 
-	MiniClusterResourceConfiguration(
-			Configuration configuration,
-			int numberTaskManagers,
-			int numberSlotsPerTaskManager,
-			Time shutdownTimeout,
-			RpcServiceSharing rpcServiceSharing) {
-		super(configuration, numberTaskManagers, numberSlotsPerTaskManager, shutdownTimeout, rpcServiceSharing);
+	private final UnmodifiableConfiguration configuration;
+
+	private final int numberTaskManagers;
+
+	private final int numberSlotsPerTaskManager;
+
+	private final Time shutdownTimeout;
+
+	private final RpcServiceSharing rpcServiceSharing;
+
+	protected MiniClusterResourceConfiguration(
+		Configuration configuration,
+		int numberTaskManagers,
+		int numberSlotsPerTaskManager,
+		Time shutdownTimeout,
+		RpcServiceSharing rpcServiceSharing) {
+		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
+		this.numberTaskManagers = numberTaskManagers;
+		this.numberSlotsPerTaskManager = numberSlotsPerTaskManager;
+		this.shutdownTimeout = Preconditions.checkNotNull(shutdownTimeout);
+		this.rpcServiceSharing = Preconditions.checkNotNull(rpcServiceSharing);
+	}
+
+	public Configuration getConfiguration() {
+		return configuration;
+	}
+
+	public int getNumberTaskManagers() {
+		return numberTaskManagers;
+	}
+
+	public int getNumberSlotsPerTaskManager() {
+		return numberSlotsPerTaskManager;
+	}
+
+	public Time getShutdownTimeout() {
+		return shutdownTimeout;
+	}
+
+	public RpcServiceSharing getRpcServiceSharing() {
+		return rpcServiceSharing;
 	}
 
 	/**
-	 * Builder for {@link org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration}.
+	 * Builder for {@link MiniClusterResourceConfiguration}.
 	 */
 	public static final class Builder {
 

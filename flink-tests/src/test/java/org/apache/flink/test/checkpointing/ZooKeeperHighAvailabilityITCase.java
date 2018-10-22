@@ -44,12 +44,12 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -104,7 +104,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 
 	private static TestingServer zkServer;
 
-	private static MiniClusterResource miniClusterResource;
+	private static MiniClusterWithClientResource miniClusterResource;
 
 	private static OneShotLatch waitForCheckpointLatch = new OneShotLatch();
 	private static OneShotLatch failInCheckpointLatch = new OneShotLatch();
@@ -131,7 +131,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 
 		// we have to manage this manually because we have to create the ZooKeeper server
 		// ahead of this
-		miniClusterResource = new MiniClusterResource(
+		miniClusterResource = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()
 				.setConfiguration(config)
 				.setNumberTaskManagers(NUM_TMS)

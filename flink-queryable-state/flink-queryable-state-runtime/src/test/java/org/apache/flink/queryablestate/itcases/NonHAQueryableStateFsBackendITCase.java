@@ -26,8 +26,8 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -52,7 +52,7 @@ public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTe
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@ClassRule
-	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
 		new MiniClusterResourceConfiguration.Builder()
 			.setConfiguration(getConfig())
 			.setNumberTaskManagers(NUM_TMS)

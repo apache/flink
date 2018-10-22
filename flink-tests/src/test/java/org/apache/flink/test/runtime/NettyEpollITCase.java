@@ -20,10 +20,10 @@ package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AssumptionViolatedException;
@@ -47,7 +47,7 @@ public class NettyEpollITCase extends TestLogger {
 
 	@Test
 	public void testNettyEpoll() throws Exception {
-		MiniClusterResource cluster = trySetUpCluster();
+		MiniClusterWithClientResource cluster = trySetUpCluster();
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(NUM_TASK_MANAGERS);
@@ -70,11 +70,11 @@ public class NettyEpollITCase extends TestLogger {
 		}
 	}
 
-	private MiniClusterResource trySetUpCluster() throws Exception {
+	private MiniClusterWithClientResource trySetUpCluster() throws Exception {
 		try {
 			Configuration config = new Configuration();
 			config.setString(TRANSPORT_TYPE, "epoll");
-			MiniClusterResource cluster = new MiniClusterResource(
+			MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
 				new MiniClusterResourceConfiguration.Builder()
 					.setConfiguration(config)
 					.setNumberTaskManagers(NUM_TASK_MANAGERS)

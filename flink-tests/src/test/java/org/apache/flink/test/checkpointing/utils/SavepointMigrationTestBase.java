@@ -30,9 +30,9 @@ import org.apache.flink.runtime.checkpoint.savepoint.SavepointSerializers;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.OptionalFailure;
 
@@ -72,7 +72,7 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
 	@Rule
-	public final MiniClusterResource miniClusterResource;
+	public final MiniClusterWithClientResource miniClusterResource;
 
 	private static final Logger LOG = LoggerFactory.getLogger(SavepointMigrationTestBase.class);
 	private static final Deadline DEADLINE = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
@@ -88,7 +88,7 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 	}
 
 	protected SavepointMigrationTestBase() throws Exception {
-		miniClusterResource = new MiniClusterResource(
+		miniClusterResource = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()
 				.setConfiguration(getConfiguration())
 				.setNumberTaskManagers(1)

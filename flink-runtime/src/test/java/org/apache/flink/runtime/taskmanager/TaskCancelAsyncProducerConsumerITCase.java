@@ -35,11 +35,13 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -61,6 +63,19 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 	private static volatile Thread ASYNC_PRODUCER_THREAD;
 	private static volatile Thread ASYNC_CONSUMER_THREAD;
 
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getFlinkConfiguration())
+			.build());
+
+	private static Configuration getFlinkConfiguration() {
+		Configuration config = new Configuration();
+		config.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, "4096");
+		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 9);
+		return config;
+	}
+
 	/**
 	 * Tests that a task waiting on an async producer/consumer that is stuck
 	 * in a blocking buffer request can be properly cancelled.
@@ -73,105 +88,92 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 	public void testCancelAsyncProducerAndConsumer() throws Exception {
 		Deadline deadline = Deadline.now().plus(Duration.ofMinutes(2));
 
-		// Cluster
-		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, "4096");
-		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 9);
+		// Job with async producer and consumer
+		JobVertex producer = new JobVertex("AsyncProducer");
+		producer.setParallelism(1);
+		producer.setInvokableClass(AsyncProducer.class);
 
-		MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
-			.setConfiguration(config)
-			.setNumTaskManagers(1)
-			.setNumSlotsPerTaskManager(1)
-			.build();
+		JobVertex consumer = new JobVertex("AsyncConsumer");
+		consumer.setParallelism(1);
+		consumer.setInvokableClass(AsyncConsumer.class);
+		consumer.connectNewDataSetAsInput(producer, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-		try (MiniCluster flink = new MiniCluster(miniClusterConfiguration)) {
-			flink.start();
+		SlotSharingGroup slot = new SlotSharingGroup(producer.getID(), consumer.getID());
+		producer.setSlotSharingGroup(slot);
+		consumer.setSlotSharingGroup(slot);
 
-			// Job with async producer and consumer
-			JobVertex producer = new JobVertex("AsyncProducer");
-			producer.setParallelism(1);
-			producer.setInvokableClass(AsyncProducer.class);
+		JobGraph jobGraph = new JobGraph(producer, consumer);
 
-			JobVertex consumer = new JobVertex("AsyncConsumer");
-			consumer.setParallelism(1);
-			consumer.setInvokableClass(AsyncConsumer.class);
-			consumer.connectNewDataSetAsInput(producer, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+		final MiniCluster flink = MINI_CLUSTER_RESOURCE.getMiniCluster();
 
-			SlotSharingGroup slot = new SlotSharingGroup(producer.getID(), consumer.getID());
-			producer.setSlotSharingGroup(slot);
-			consumer.setSlotSharingGroup(slot);
+		// Submit job and wait until running
+		flink.runDetached(jobGraph);
 
-			JobGraph jobGraph = new JobGraph(producer, consumer);
+		FutureUtils.retrySuccesfulWithDelay(
+			() -> flink.getJobStatus(jobGraph.getJobID()),
+			Time.milliseconds(10),
+			deadline,
+			status -> status == JobStatus.RUNNING,
+			TestingUtils.defaultScheduledExecutor()
+		).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
-			// Submit job and wait until running
-			flink.runDetached(jobGraph);
+		boolean producerBlocked = false;
+		for (int i = 0; i < 50; i++) {
+			Thread thread = ASYNC_PRODUCER_THREAD;
 
-			FutureUtils.retrySuccesfulWithDelay(
-				() -> flink.getJobStatus(jobGraph.getJobID()),
-				Time.milliseconds(10),
-				deadline,
-				status -> status == JobStatus.RUNNING,
-				TestingUtils.defaultScheduledExecutor()
-			).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-
-			boolean producerBlocked = false;
-			for (int i = 0; i < 50; i++) {
-				Thread thread = ASYNC_PRODUCER_THREAD;
-
-				if (thread != null && thread.isAlive()) {
-					StackTraceElement[] stackTrace = thread.getStackTrace();
-					producerBlocked = isInBlockingBufferRequest(stackTrace);
-				}
-
-				if (producerBlocked) {
-					break;
-				} else {
-					// Retry
-					Thread.sleep(500L);
-				}
+			if (thread != null && thread.isAlive()) {
+				StackTraceElement[] stackTrace = thread.getStackTrace();
+				producerBlocked = isInBlockingBufferRequest(stackTrace);
 			}
 
-			// Verify that async producer is in blocking request
-			assertTrue("Producer thread is not blocked: " + Arrays.toString(ASYNC_PRODUCER_THREAD.getStackTrace()), producerBlocked);
-
-			boolean consumerWaiting = false;
-			for (int i = 0; i < 50; i++) {
-				Thread thread = ASYNC_CONSUMER_THREAD;
-
-				if (thread != null && thread.isAlive()) {
-					consumerWaiting = thread.getState() == Thread.State.WAITING;
-				}
-
-				if (consumerWaiting) {
-					break;
-				} else {
-					// Retry
-					Thread.sleep(500L);
-				}
+			if (producerBlocked) {
+				break;
+			} else {
+				// Retry
+				Thread.sleep(500L);
 			}
-
-			// Verify that async consumer is in blocking request
-			assertTrue("Consumer thread is not blocked.", consumerWaiting);
-
-			flink.cancelJob(jobGraph.getJobID())
-				.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-
-			// wait until the job is canceled
-			FutureUtils.retrySuccesfulWithDelay(
-				() -> flink.getJobStatus(jobGraph.getJobID()),
-				Time.milliseconds(10),
-				deadline,
-				status -> status == JobStatus.CANCELED,
-				TestingUtils.defaultScheduledExecutor()
-			).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-
-			// Verify the expected Exceptions
-			assertNotNull(ASYNC_PRODUCER_EXCEPTION);
-			assertEquals(IllegalStateException.class, ASYNC_PRODUCER_EXCEPTION.getClass());
-
-			assertNotNull(ASYNC_CONSUMER_EXCEPTION);
-			assertEquals(IllegalStateException.class, ASYNC_CONSUMER_EXCEPTION.getClass());
 		}
+
+		// Verify that async producer is in blocking request
+		assertTrue("Producer thread is not blocked: " + Arrays.toString(ASYNC_PRODUCER_THREAD.getStackTrace()), producerBlocked);
+
+		boolean consumerWaiting = false;
+		for (int i = 0; i < 50; i++) {
+			Thread thread = ASYNC_CONSUMER_THREAD;
+
+			if (thread != null && thread.isAlive()) {
+				consumerWaiting = thread.getState() == Thread.State.WAITING;
+			}
+
+			if (consumerWaiting) {
+				break;
+			} else {
+				// Retry
+				Thread.sleep(500L);
+			}
+		}
+
+		// Verify that async consumer is in blocking request
+		assertTrue("Consumer thread is not blocked.", consumerWaiting);
+
+		flink.cancelJob(jobGraph.getJobID())
+			.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+
+		// wait until the job is canceled
+		FutureUtils.retrySuccesfulWithDelay(
+			() -> flink.getJobStatus(jobGraph.getJobID()),
+			Time.milliseconds(10),
+			deadline,
+			status -> status == JobStatus.CANCELED,
+			TestingUtils.defaultScheduledExecutor()
+		).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+
+		// Verify the expected Exceptions
+		assertNotNull(ASYNC_PRODUCER_EXCEPTION);
+		assertEquals(IllegalStateException.class, ASYNC_PRODUCER_EXCEPTION.getClass());
+
+		assertNotNull(ASYNC_CONSUMER_EXCEPTION);
+		assertEquals(IllegalStateException.class, ASYNC_CONSUMER_EXCEPTION.getClass());
 	}
 
 	/**
