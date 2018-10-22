@@ -33,10 +33,14 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.handler.legacy.files.FileOffsetRange;
 import org.apache.flink.runtime.rest.messages.FilenamePathParameter;
 import org.apache.flink.runtime.rest.messages.RangePathParameter;
+import org.apache.flink.runtime.rest.messages.LogFilenameQueryParameter;
+import org.apache.flink.runtime.rest.messages.LogSizeQueryParameter;
+import org.apache.flink.runtime.rest.messages.LogStartOffsetQueryParameter;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMessageParameters;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
+import org.apache.flink.runtime.util.FileOffsetRange;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
@@ -70,6 +74,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -120,14 +125,12 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 	@Override
 	protected CompletableFuture<Void> respondToRequest(ChannelHandlerContext ctx, HttpRequest httpRequest, HandlerRequest<EmptyRequestBody, M> handlerRequest, RestfulGateway gateway) throws RestHandlerException {
 		final ResourceID taskManagerId = handlerRequest.getPathParameter(TaskManagerIdPathParameter.class);
-		String filename = null;
-		FileOffsetRange range = FileOffsetRange.MAX_FILE_OFFSET_RANGE;
-		try {
-			filename = handlerRequest.getPathParameter(FilenamePathParameter.class);
-		} catch (Exception e) {}
-		try {
-			range = handlerRequest.getPathParameter(RangePathParameter.class);
-		} catch (Exception e) {}
+		List<String> filenames = handlerRequest.getQueryParameter(LogFilenameQueryParameter.class);
+		final String filename = filenames.isEmpty() ? null : filenames.get(0);
+		final List<Long> start = handlerRequest.getQueryParameter(LogStartOffsetQueryParameter.class);
+		final List<Long> size = handlerRequest.getQueryParameter(LogSizeQueryParameter.class);
+		FileOffsetRange range = (start.isEmpty() || size.isEmpty()) ?
+			FileOffsetRange.MAX_FILE_OFFSET_RANGE : new FileOffsetRange(start.get(0), size.get(0) + start.get(0));
 		final Tuple3<ResourceID, String, FileOffsetRange> resourceKey = new Tuple3<>(taskManagerId, filename, range);
 		final CompletableFuture<TransientBlobKey> blobKeyFuture;
 		try {

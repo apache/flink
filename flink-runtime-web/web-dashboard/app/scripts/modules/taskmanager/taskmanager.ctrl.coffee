@@ -50,21 +50,21 @@ angular.module('flinkApp')
     $scope.log = data
 
   $scope.searchLog = () ->
-    SingleTaskManagerService.loadOtherLogs($stateParams.taskmanagerid, $scope.filename, $scope.start * 1024, $scope.end * 1024).then (data) ->
+    SingleTaskManagerService.loadOtherLogs($stateParams.taskmanagerid, $scope.filename, $scope.start * 1024, $scope.size * 1024).then (data) ->
       $scope.log = data
 
   SingleTaskManagerService.loadLogList($stateParams.taskmanagerid).then (data) ->
     if !$scope.taskmanager?
       $scope.taskmanager = {}
-    $scope.taskmanager['loglist'] = data
+    $scope.taskmanager['loglist'] = data['loglist']
     $scope.filename = $scope.taskmanager['loglist'][0]
 
   $scope.loadLogList = () ->
     SingleTaskManagerService.loadLogList($stateParams.taskmanagerid).then (data) ->
-      $scope.taskmanager['loglist'] = data
+      $scope.taskmanager['loglist'] = data['loglist']
 
   $scope.reloadData = () ->
-    SingleTaskManagerService.loadLogs($stateParams.taskmanagerid, $scope.start * 1024, $scope.end * 1024).then (data) ->
+    SingleTaskManagerService.loadLogs($stateParams.taskmanagerid, $scope.start * 1024, $scope.size * 1024).then (data) ->
       $scope.log = data
 
 .controller 'SingleTaskManagerStdoutController', ($scope, $stateParams, SingleTaskManagerService, $interval, flinkConfig) ->

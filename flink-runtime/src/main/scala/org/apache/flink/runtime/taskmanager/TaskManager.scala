@@ -18,10 +18,9 @@
 
 package org.apache.flink.runtime.taskmanager
 
-import java.io.{File, FilenameFilter, InputStream, IOException, RandomAccessFile}
+import java.io.{File, FileInputStream, IOException}
 import java.lang.management.ManagementFactory
 import java.net.{BindException, InetAddress, InetSocketAddress, ServerSocket}
-import java.nio.channels.Channels
 import java.util
 import java.util.concurrent.{Callable, TimeUnit, TimeoutException}
 import java.util.{Collections, UUID}
@@ -67,7 +66,6 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
 import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistryImpl, MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.process.ProcessReaper
-import org.apache.flink.runtime.rest.handler.legacy.files.FileOffsetRange
 import org.apache.flink.runtime.security.{SecurityConfiguration, SecurityUtils}
 import org.apache.flink.runtime.state.{TaskExecutorLocalStateStoresManager, TaskStateManagerImpl}
 import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
@@ -82,61 +80,61 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 /**
- * The TaskManager is responsible for executing the individual tasks of a Flink job. It is
- * implemented as an actor. The TaskManager has the following phases:
- *
- * - "Waiting to be registered": In that phase, it periodically
- *   sends a [[RegisterTaskManager]] message to the JobManager.
- *   Upon successful registration, the JobManager replies with an [[AcknowledgeRegistration]]
- *   message. This stops the registration messages and initializes all fields
- *   that require the JobManager's actor reference.
- *
- * - "Operational": Here the TaskManager accepts and processes task messages, like
- *   [[SubmitTask]], [[CancelTask]], [[FailTask]].
- *   If the TaskManager disconnects from the JobManager (because the JobManager is no longer
- *   reachable), the TaskManager gets back to the "waiting to be registered" state.
- *
- *
- *  ========== Failure model of the TaskManager ==========
- *
- *  The TaskManager tries to compensate for task failures as far as possible by marking
- *  the task as failed and removing all its resources. This causes the JobManager to
- *  restart the task (on this same TaskManager or on a different TaskManager).
- *
- *  In certain cases, exceptions indicate that the TaskManager is unable to proceed.
- *  The most robust way to clean up is letting the OS/kernel do it, so we will trigger
- *  killing the process. In case of YARN (or resilient standalone mode), the process
- *  will be restarted, producing a clean state.
- *  To achieve this, we kill the TaskManager actor. The watch dog actor (process reaper)
- *  will recognize that and kill the TaskManager process.
- *
- *  Fatal errors that require TaskManager JVM restart include:
- *
- *    - Errors bringing up the Network Stack or Library Cache after the TaskManager
- *      has registered at the JobManager. The TaskManager cannot operate without.
- *
- *    - Exceptions while releasing the task resources from the network stack, intermediate
- *      results, or memory manager. Those situations indicate a critical leak in the
- *      resource management, which can only be reliably fixed through a JVM restart.
- *
- *    - Exceptions releasing intermediate result resources. Critical resource leak,
- *      requires a clean JVM.
- */
+  * The TaskManager is responsible for executing the individual tasks of a Flink job. It is
+  * implemented as an actor. The TaskManager has the following phases:
+  *
+  * - "Waiting to be registered": In that phase, it periodically
+  *   sends a [[RegisterTaskManager]] message to the JobManager.
+  *   Upon successful registration, the JobManager replies with an [[AcknowledgeRegistration]]
+  *   message. This stops the registration messages and initializes all fields
+  *   that require the JobManager's actor reference.
+  *
+  * - "Operational": Here the TaskManager accepts and processes task messages, like
+  *   [[SubmitTask]], [[CancelTask]], [[FailTask]].
+  *   If the TaskManager disconnects from the JobManager (because the JobManager is no longer
+  *   reachable), the TaskManager gets back to the "waiting to be registered" state.
+  *
+  *
+  *  ========== Failure model of the TaskManager ==========
+  *
+  *  The TaskManager tries to compensate for task failures as far as possible by marking
+  *  the task as failed and removing all its resources. This causes the JobManager to
+  *  restart the task (on this same TaskManager or on a different TaskManager).
+  *
+  *  In certain cases, exceptions indicate that the TaskManager is unable to proceed.
+  *  The most robust way to clean up is letting the OS/kernel do it, so we will trigger
+  *  killing the process. In case of YARN (or resilient standalone mode), the process
+  *  will be restarted, producing a clean state.
+  *  To achieve this, we kill the TaskManager actor. The watch dog actor (process reaper)
+  *  will recognize that and kill the TaskManager process.
+  *
+  *  Fatal errors that require TaskManager JVM restart include:
+  *
+  *    - Errors bringing up the Network Stack or Library Cache after the TaskManager
+  *      has registered at the JobManager. The TaskManager cannot operate without.
+  *
+  *    - Exceptions while releasing the task resources from the network stack, intermediate
+  *      results, or memory manager. Those situations indicate a critical leak in the
+  *      resource management, which can only be reliably fixed through a JVM restart.
+  *
+  *    - Exceptions releasing intermediate result resources. Critical resource leak,
+  *      requires a clean JVM.
+  */
 class TaskManager(
-    protected val config: TaskManagerConfiguration,
-    protected val resourceID: ResourceID,
-    protected val location: TaskManagerLocation,
-    protected val memoryManager: MemoryManager,
-    protected val ioManager: IOManager,
-    protected val network: NetworkEnvironment,
-    protected val taskManagerLocalStateStoresManager: TaskExecutorLocalStateStoresManager,
-    protected val numberOfSlots: Int,
-    protected val highAvailabilityServices: HighAvailabilityServices,
-    protected val taskManagerMetricGroup: TaskManagerMetricGroup)
+                   protected val config: TaskManagerConfiguration,
+                   protected val resourceID: ResourceID,
+                   protected val location: TaskManagerLocation,
+                   protected val memoryManager: MemoryManager,
+                   protected val ioManager: IOManager,
+                   protected val network: NetworkEnvironment,
+                   protected val taskManagerLocalStateStoresManager: TaskExecutorLocalStateStoresManager,
+                   protected val numberOfSlots: Int,
+                   protected val highAvailabilityServices: HighAvailabilityServices,
+                   protected val taskManagerMetricGroup: TaskManagerMetricGroup)
   extends FlinkActor
-  with LeaderSessionMessageFilter // Mixin order is important: We want to filter after logging
-  with LogMessages // Mixin order is important: first we want to support message logging
-  with LeaderRetrievalListener {
+    with LeaderSessionMessageFilter // Mixin order is important: We want to filter after logging
+    with LogMessages // Mixin order is important: first we want to support message logging
+    with LeaderRetrievalListener {
 
   override val log = Logger(getClass)
 
@@ -183,19 +181,19 @@ class TaskManager(
 
   private var connectionUtils: Option[(
     CheckpointResponder,
-    PartitionProducerStateChecker,
-    ResultPartitionConsumableNotifier,
-    TaskManagerActions)] = None
+      PartitionProducerStateChecker,
+      ResultPartitionConsumableNotifier,
+      TaskManagerActions)] = None
 
   // --------------------------------------------------------------------------
   //  Actor messages and life cycle
   // --------------------------------------------------------------------------
 
   /**
-   * Called prior to the actor receiving any messages.
-   * Logs some context info and triggers the initial attempt to register at the
-   * JobManager.
-   */
+    * Called prior to the actor receiving any messages.
+    * Logs some context info and triggers the initial attempt to register at the
+    * JobManager.
+    */
   override def preStart(): Unit = {
     log.info(s"Starting TaskManager actor at ${self.path.toSerializationFormat}.")
     log.info(s"TaskManager data connection information: $location")
@@ -216,10 +214,10 @@ class TaskManager(
   }
 
   /**
-   * Called after the actor is stopped.
-   * Makes sure all currently running tasks are cancelled and all components
-   * (like network stack, library cache, memory manager, ...) are properly shut down.
-   */
+    * Called after the actor is stopped.
+    * Makes sure all currently running tasks are cancelled and all components
+    * (like network stack, library cache, memory manager, ...) are properly shut down.
+    */
   override def postStop(): Unit = {
     log.info(s"Stopping TaskManager ${self.path.toSerializationFormat}.")
 
@@ -269,9 +267,9 @@ class TaskManager(
   }
 
   /**
-   * Central handling of actor messages. This method delegates to the more specialized
-   * methods for handling certain classes of messages.
-   */
+    * Central handling of actor messages. This method delegates to the more specialized
+    * methods for handling certain classes of messages.
+    */
   override def handleMessage: Receive = {
     // task messages are most common and critical, we handle them first
     case message: TaskMessage => handleTaskMessage(message)
@@ -308,11 +306,11 @@ class TaskManager(
     // this message indicates that some actor watched by this TaskManager has died
     case Terminated(actor: ActorRef) =>
       if (isConnected && actor == currentJobManager.orNull) {
-          handleJobManagerDisconnect("JobManager is no longer reachable")
-          triggerTaskManagerRegistration()
+        handleJobManagerDisconnect("JobManager is no longer reachable")
+        triggerTaskManagerRegistration()
       } else {
         log.warn(s"Received unrecognized disconnect message " +
-            s"from ${if (actor == null) null else actor.path}.")
+          s"from ${if (actor == null) null else actor.path}.")
       }
 
     case Disconnect(instanceIdToDisconnect, cause) =>
@@ -340,9 +338,6 @@ class TaskManager(
             "available. Cannot upload TaskManager logs."))
       }
 
-    case LogListRequest =>
-      handleRequestTaskManagerLogList(sender())
-
     case RequestBroadcastVariablesWithReferences =>
       sender ! decorateMessage(
         ResponseBroadcastVariablesWithReferences(
@@ -360,8 +355,8 @@ class TaskManager(
   }
 
   /**
-   * Handle unmatched messages with an exception.
-   */
+    * Handle unmatched messages with an exception.
+    */
   override def unhandled(message: Any): Unit = {
     val errorMessage = "Received unknown message " + message
     val error = new RuntimeException(errorMessage)
@@ -376,11 +371,11 @@ class TaskManager(
   }
 
   /**
-   * Handler for messages concerning the deployment and status updates of
-   * tasks.
-   *
-   * @param message The task message.
-   */
+    * Handler for messages concerning the deployment and status updates of
+    * tasks.
+    *
+    * @param message The task message.
+    */
   private def handleTaskMessage(message: TaskMessage): Unit = {
 
     // at very first, check that we are actually currently associated with a JobManager
@@ -409,7 +404,7 @@ class TaskManager(
             network.getResultPartitionManager.releasePartitionsProducedBy(executionID)
           } catch {
             case t: Throwable => killTaskManagerFatal(
-            "Fatal leak: Unable to release intermediate result partition data", t)
+              "Fatal leak: Unable to release intermediate result partition data", t)
           }
 
         // notifies the TaskManager that the state of a task has changed.
@@ -417,12 +412,12 @@ class TaskManager(
         // was into a terminal state, or in case the JobManager cannot be informed of the
         // state transition
 
-      case updateMsg @ UpdateTaskExecutionState(taskExecutionState: TaskExecutionState) =>
+        case updateMsg @ UpdateTaskExecutionState(taskExecutionState: TaskExecutionState) =>
 
           // we receive these from our tasks and forward them to the JobManager
           currentJobManager foreach {
             jobManager => {
-            val futureResponse = (jobManager ? decorateMessage(updateMsg))(askTimeout)
+              val futureResponse = (jobManager ? decorateMessage(updateMsg))(askTimeout)
 
               val executionID = taskExecutionState.getID
 
@@ -431,20 +426,20 @@ class TaskManager(
                 //            but only send messages to the TaskManager to do those changes
                 case Success(result) =>
                   if (!result) {
-                  self ! decorateMessage(
-                    FailTask(
-                      executionID,
-                      new Exception("Task has been cancelled on the JobManager."))
+                    self ! decorateMessage(
+                      FailTask(
+                        executionID,
+                        new Exception("Task has been cancelled on the JobManager."))
                     )
                   }
 
                 case Failure(t) =>
-                self ! decorateMessage(
-                  FailTask(
-                    executionID,
-                    new Exception(
-                      "Failed to send ExecutionStateChange notification to JobManager", t))
-                )
+                  self ! decorateMessage(
+                    FailTask(
+                      executionID,
+                      new Exception(
+                        "Failed to send ExecutionStateChange notification to JobManager", t))
+                  )
               }(context.dispatcher)
             }
           }
@@ -494,14 +489,14 @@ class TaskManager(
             sender ! decorateMessage(Acknowledge.get())
           }
       }
-      }
+    }
   }
 
   /**
-   * Handler for messages related to checkpoints.
-   *
-   * @param actorMessage The checkpoint message.
-   */
+    * Handler for messages related to checkpoints.
+    *
+    * @param actorMessage The checkpoint message.
+    */
   private def handleCheckpointingMessage(actorMessage: AbstractCheckpointMessage): Unit = {
 
     actorMessage match {
@@ -541,20 +536,20 @@ class TaskManager(
   }
 
   /**
-   * Handler for messages concerning the registration of the TaskManager at the JobManager.
-   *
-   * Errors must not propagate out of the handler, but need to be handled internally.
-   *
-   * @param message The registration message.
-   */
+    * Handler for messages concerning the registration of the TaskManager at the JobManager.
+    *
+    * Errors must not propagate out of the handler, but need to be handled internally.
+    *
+    * @param message The registration message.
+    */
   private def handleRegistrationMessage(message: RegistrationMessage): Unit = {
     message match {
       case TriggerTaskManagerRegistration(
-        jobManagerURL,
-        timeout,
-        deadline,
-        attempt,
-        registrationRun) =>
+      jobManagerURL,
+      timeout,
+      deadline,
+      attempt,
+      registrationRun) =>
 
         if (registrationRun.equals(this.currentRegistrationRun)) {
           if (isConnected) {
@@ -565,19 +560,19 @@ class TaskManager(
           } else if (deadline.exists(_.isOverdue())) {
             // we failed to register in time. that means we should quit
             log.error("Failed to register at the JobManager within the defined maximum " +
-                        "connect time. Shutting down ...")
+              "connect time. Shutting down ...")
 
             // terminate ourselves (hasta la vista)
             self ! decorateMessage(PoisonPill)
           } else {
             if (!jobManagerAkkaURL.equals(Option(jobManagerURL))) {
               throw new Exception("Invalid internal state: Trying to register at JobManager " +
-                                    s"$jobManagerURL even though the current JobManagerAkkaURL " +
-                                    s"is set to ${jobManagerAkkaURL.getOrElse("")}")
+                s"$jobManagerURL even though the current JobManagerAkkaURL " +
+                s"is set to ${jobManagerAkkaURL.getOrElse("")}")
             }
 
             log.info(s"Trying to register at JobManager $jobManagerURL " +
-                       s"(attempt $attempt, timeout: $timeout)")
+              s"(attempt $attempt, timeout: $timeout)")
 
             val jobManager = context.actorSelection(jobManagerURL)
 
@@ -714,34 +709,34 @@ class TaskManager(
 
       // Triggers the sampling of a task
       case TriggerStackTraceSample(
-        sampleId,
-        executionId,
-        numSamples,
-        delayBetweenSamples,
-        maxStackTraceDepth) =>
+      sampleId,
+      executionId,
+      numSamples,
+      delayBetweenSamples,
+      maxStackTraceDepth) =>
 
-          log.debug(s"Triggering stack trace sample $sampleId.")
+        log.debug(s"Triggering stack trace sample $sampleId.")
 
-          val senderRef = sender()
+        val senderRef = sender()
 
-          self ! SampleTaskStackTrace(
-            sampleId,
-            executionId,
-            delayBetweenSamples,
-            maxStackTraceDepth,
-            numSamples,
-            new java.util.ArrayList(),
-            senderRef)
+        self ! SampleTaskStackTrace(
+          sampleId,
+          executionId,
+          delayBetweenSamples,
+          maxStackTraceDepth,
+          numSamples,
+          new java.util.ArrayList(),
+          senderRef)
 
       // Repeatedly sent to self to sample a task
       case SampleTaskStackTrace(
-        sampleId,
-        executionId,
-        delayBetweenSamples,
-        maxStackTraceDepth,
-        remainingNumSamples,
-        currentTraces,
-        sender) =>
+      sampleId,
+      executionId,
+      delayBetweenSamples,
+      maxStackTraceDepth,
+      remainingNumSamples,
+      currentTraces,
+      sender) =>
 
         try {
           if (remainingNumSamples >= 1) {
@@ -802,8 +797,8 @@ class TaskManager(
       * @return Stack trace of the running task.
       */
     def getStackTrace(
-      executionId: ExecutionAttemptID,
-      maxStackTraceDepth: Int): Option[Array[StackTraceElement]] = {
+                       executionId: ExecutionAttemptID,
+                       maxStackTraceDepth: Int): Option[Array[StackTraceElement]] = {
 
       val task = runningTasks.get(executionId)
 
@@ -821,7 +816,11 @@ class TaskManager(
     }
   }
 
-  private def handleRequestTaskManagerLogList(sender: ActorRef) : Unit = {
+  private def handleRequestTaskManagerLog(
+                                           sender: ActorRef,
+                                           requestType: LogTypeRequest,
+                                           jobManager: ActorRef)
+  : Unit = {
     val logFilePathOption = Option(config.getConfiguration().getString(
       ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, System.getProperty("log.file")))
     logFilePathOption match {
@@ -830,59 +829,28 @@ class TaskManager(
           "Log file location not found in environment variable log.file or configuration key "
           + ConfigConstants.TASK_MANAGER_LOG_PATH_KEY + "."))
       case Some(logFilePath) =>
-        val file: File = new File(logFilePath)
-        sender ! file.getParentFile.list(
-          new FilenameFilter {
-            override def accept(dir: File, name: String): Boolean =
-              !(name.endsWith(".out") || name.endsWith(".err"))
-          })
-    }
-  }
-
-  private def handleRequestTaskManagerLog(
-      sender: ActorRef,
-      requestType: LogTypeRequest,
-      jobManager: ActorRef)
-    : Unit = {
-    val logFilePathOption = Option(config.getConfiguration().getString(
-      ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, System.getProperty("log.file")))
-    logFilePathOption match {
-      case None => sender ! akka.actor.Status.Failure(
-        new IOException("TaskManager log files are unavailable. " +
-        "Log file location not found in environment variable log.file or configuration key "
-        + ConfigConstants.TASK_MANAGER_LOG_PATH_KEY + "."))
-      case Some(logFilePath) =>
-        val (file: File, range: FileOffsetRange) = requestType match {
-          case LogFileRequest(filename, range) =>
-            if(filename == null) {
-              (new File(logFilePath), range);
-            } else {
-              (new File(new File(logFilePath).getParent.concat("/" + filename)), range);
-            }
-          case StdOutFileRequest(range) =>
-            (new File(logFilePath.substring(0, logFilePath.length - 4) + ".out"), range);
+        val file: File = requestType match {
+          case LogFileRequest => new File(logFilePath);
+          case StdOutFileRequest =>
+            new File(logFilePath.substring(0, logFilePath.length - 4) + ".out");
         }
         if (file.exists()) {
-          val raf = new RandomAccessFile(file, "r")
-          val inputStream: InputStream = Channels.newInputStream(
-            raf.getChannel
-              .position(range.getStartOffsetForFile(file)))
+          val fis = new FileInputStream(file);
           Future {
-            blobCache.get.getTransientBlobService
-              .putTransient(inputStream, range.getLengthForFile(file))
+            blobCache.get.getTransientBlobService.putTransient(fis)
           }(context.dispatcher)
             .onComplete {
               case Success(value) =>
                 sender ! value
-                inputStream.close()
+                fis.close()
               case Failure(e) =>
                 sender ! akka.actor.Status.Failure(e)
-                inputStream.close()
+                fis.close()
             }(context.dispatcher)
         } else {
           sender ! akka.actor.Status.Failure(
             new IOException("TaskManager log files are unavailable. " +
-            "Log file could not be found at " + file.getAbsolutePath + "."))
+              "Log file could not be found at " + file.getAbsolutePath + "."))
         }
     }
   }
@@ -899,20 +867,20 @@ class TaskManager(
   protected def isConnected : Boolean = currentJobManager.isDefined
 
   /**
-   * Associates the TaskManager with the given JobManager. After this
-   * method has completed, the TaskManager is ready to receive work
-   * from the given JobManager.
-   *
-   * @param jobManager The JobManager to associate with.
-   * @param id The instanceID under which the TaskManager is registered
-   *           at the JobManager.
-   * @param blobPort The JobManager's port for the BLOB server.
-   */
+    * Associates the TaskManager with the given JobManager. After this
+    * method has completed, the TaskManager is ready to receive work
+    * from the given JobManager.
+    *
+    * @param jobManager The JobManager to associate with.
+    * @param id The instanceID under which the TaskManager is registered
+    *           at the JobManager.
+    * @param blobPort The JobManager's port for the BLOB server.
+    */
   private def associateWithJobManager(
-      jobManager: ActorRef,
-      id: InstanceID,
-      blobPort: Int)
-    : Unit = {
+                                       jobManager: ActorRef,
+                                       id: InstanceID,
+                                       blobPort: Int)
+  : Unit = {
 
     if (jobManager == null) {
       throw new NullPointerException("jobManager must not be null.")
@@ -1044,10 +1012,10 @@ class TaskManager(
   }
 
   /**
-   * Disassociates the TaskManager from the JobManager. This cleans
-   * removes all tasks currently running, discards all intermediate
-   * results and all cached libraries.
-   */
+    * Disassociates the TaskManager from the JobManager. This cleans
+    * removes all tasks currently running, discards all intermediate
+    * results and all cached libraries.
+    */
   private def disassociateFromJobManager(): Unit = {
     if (!isConnected) {
       log.warn("TaskManager received message to disassociate from JobManager, even though " +
@@ -1144,12 +1112,12 @@ class TaskManager(
   // --------------------------------------------------------------------------
 
   /**
-   * Receives a [[TaskDeploymentDescriptor]] describing the task to be executed. It eagerly
-   * acknowledges the task reception to the sender and asynchronously starts the initialization of
-   * the task.
-   *
-   * @param tdd TaskDeploymentDescriptor describing the task to be executed on this [[TaskManager]]
-   */
+    * Receives a [[TaskDeploymentDescriptor]] describing the task to be executed. It eagerly
+    * acknowledges the task reception to the sender and asynchronously starts the initialization of
+    * the task.
+    *
+    * @param tdd TaskDeploymentDescriptor describing the task to be executed on this [[TaskManager]]
+    */
   private def submitTask(tdd: TaskDeploymentDescriptor): Unit = {
     try {
       // grab some handles and sanity check on the fly
@@ -1178,12 +1146,12 @@ class TaskManager(
       }
 
       val (checkpointResponder,
-        partitionStateChecker,
-        resultPartitionConsumableNotifier,
-        taskManagerConnection) = connectionUtils match {
+      partitionStateChecker,
+      resultPartitionConsumableNotifier,
+      taskManagerConnection) = connectionUtils match {
         case Some(x) => x
         case None => throw new IllegalStateException("The connection utils have not been " +
-                                                       "initialized.")
+          "initialized.")
       }
 
       // create the task. this does not grab any TaskManager resources or download
@@ -1208,7 +1176,7 @@ class TaskManager(
       if (tdd.getJobId != jobInformation.getJobId) {
         throw new IOException(
           "Inconsistent job ID information inside TaskDeploymentDescriptor (" +
-          tdd.getJobId + " vs. " + jobInformation.getJobId + ")")
+            tdd.getJobId + " vs. " + jobInformation.getJobId + ")")
       }
 
       val taskInformation = try {
@@ -1305,15 +1273,15 @@ class TaskManager(
   }
 
   /**
-   * Informs a task about additional locations of its input data partitions.
-   *
-   * @param executionId The execution attempt ID of the task.
-   * @param partitionInfos The descriptor of the intermediate result partitions.
-   */
+    * Informs a task about additional locations of its input data partitions.
+    *
+    * @param executionId The execution attempt ID of the task.
+    * @param partitionInfos The descriptor of the intermediate result partitions.
+    */
   private def updateTaskInputPartitions(
-       executionId: ExecutionAttemptID,
-       partitionInfos: java.lang.Iterable[PartitionInfo])
-    : Unit = {
+                                         executionId: ExecutionAttemptID,
+                                         partitionInfos: java.lang.Iterable[PartitionInfo])
+  : Unit = {
 
     Option(runningTasks.get(executionId)) match {
       case Some(task) =>
@@ -1365,11 +1333,11 @@ class TaskManager(
   }
 
   /**
-   * Marks all tasks currently registered as failed (with the given
-   * cause) and removes them.
-   *
-   * @param cause The exception given to the tasks as the failure reason.
-   */
+    * Marks all tasks currently registered as failed (with the given
+    * cause) and removes them.
+    *
+    * @param cause The exception given to the tasks as the failure reason.
+    */
   private def cancelAndClearEverything(cause: Throwable) {
     if (runningTasks.size > 0) {
       log.info("Cancelling all computations and discarding all cached data.")
@@ -1426,9 +1394,9 @@ class TaskManager(
   // --------------------------------------------------------------------------
 
   /**
-   * Sends a heartbeat message to the JobManager (if connected) with the current
-   * metrics report.
-   */
+    * Sends a heartbeat message to the JobManager (if connected) with the current
+    * metrics report.
+    */
   protected def sendHeartbeatToJobManager(): Unit = {
     try {
       log.debug("Sending heartbeat to JobManager")
@@ -1449,7 +1417,7 @@ class TaskManager(
           }
       }
 
-       currentJobManager foreach {
+      currentJobManager foreach {
         jm => jm ! decorateMessage(Heartbeat(instanceID, accumulatorEvents))
       }
     }
@@ -1459,10 +1427,10 @@ class TaskManager(
   }
 
   /**
-   * Sends a message with the stack trace of all threads to the given recipient.
-   *
-   * @param recipient The target of the stack trace message
-   */
+    * Sends a message with the stack trace of all threads to the given recipient.
+    *
+    * @param recipient The target of the stack trace message
+    */
   private def sendStackTrace(recipient: ActorRef): Unit = {
     if (recipient == null) {
       return
@@ -1473,7 +1441,7 @@ class TaskManager(
       val stackTraceStr = traces.map {
         case (thread: Thread, elements: Array[StackTraceElement]) =>
           "Thread: " + thread.getName + '\n' + elements.mkString("\n")
-        }.mkString("\n\n")
+      }.mkString("\n\n")
 
       recipient ! decorateMessage(new StackTrace(instanceID, stackTraceStr))
     }
@@ -1483,10 +1451,10 @@ class TaskManager(
   }
 
   /**
-   * Prints a big error message in the log and kills the TaskManager actor.
-   *
-   * @param cause The exception that caused the fatal problem.
-   */
+    * Prints a big error message in the log and kills the TaskManager actor.
+    *
+    * @param cause The exception that caused the fatal problem.
+    */
   private def killTaskManagerFatal(message: String, cause: Throwable): Unit = {
     log.error("\n" +
       "==============================================================\n" +
@@ -1510,9 +1478,9 @@ class TaskManager(
     * @param leaderSessionID New leader session ID associated with the leader
     */
   private def handleJobManagerLeaderAddress(
-      newJobManagerAkkaURL: String,
-      leaderSessionID: UUID)
-    : Unit = {
+                                             newJobManagerAkkaURL: String,
+                                             leaderSessionID: UUID)
+  : Unit = {
 
     currentJobManager match {
       case Some(jm) =>
@@ -1578,9 +1546,9 @@ class TaskManager(
 }
 
 /**
- * TaskManager companion object. Contains TaskManager executable entry point, command
- * line parsing, constants, and setup methods for the TaskManager.
- */
+  * TaskManager companion object. Contains TaskManager executable entry point, command
+  * line parsing, constants, and setup methods for the TaskManager.
+  */
 object TaskManager {
 
   /** TaskManager logger for synchronous logging (not through the logging actor) */
@@ -1608,10 +1576,10 @@ object TaskManager {
   // --------------------------------------------------------------------------
 
   /**
-   * Entry point (main method) to run the TaskManager in a standalone fashion.
-   *
-   * @param args The command line arguments.
-   */
+    * Entry point (main method) to run the TaskManager in a standalone fashion.
+    *
+    * @param args The command line arguments.
+    */
   def main(args: Array[String]): Unit = {
     // startup checks and logging
     EnvironmentInformation.logEnvironmentInfo(LOG.logger, "TaskManager", args)
@@ -1657,11 +1625,11 @@ object TaskManager {
   }
 
   /**
-   * Parse the command line arguments of the TaskManager and loads the configuration.
-   *
-   * @param args Command line arguments
-   * @return The parsed configuration.
-   */
+    * Parse the command line arguments of the TaskManager and loads the configuration.
+    *
+    * @param args Command line arguments
+    * @return The parsed configuration.
+    */
   @throws(classOf[Exception])
   def parseArgsAndLoadConfig(args: Array[String]): Configuration = {
 
@@ -1710,29 +1678,29 @@ object TaskManager {
   // --------------------------------------------------------------------------
 
   /**
-   * Starts and runs the TaskManager.
-   *
-   * This method first tries to select the network interface to use for the TaskManager
-   * communication. The network interface is used both for the actor communication
-   * (coordination) as well as for the data exchange between task managers. Unless
-   * the hostname/interface is explicitly configured in the configuration, this
-   * method will try out various interfaces and methods to connect to the JobManager
-   * and select the one where the connection attempt is successful.
-   *
-   * After selecting the network interface, this method brings up an actor system
-   * for the TaskManager and its actors, starts the TaskManager's services
-   * (library cache, shuffle network stack, ...), and starts the TaskManager itself.
-   *
-   * @param configuration The configuration for the TaskManager.
-   * @param taskManagerClass The actor class to instantiate.
-   *                         Allows to use TaskManager subclasses for example for YARN.
-   */
+    * Starts and runs the TaskManager.
+    *
+    * This method first tries to select the network interface to use for the TaskManager
+    * communication. The network interface is used both for the actor communication
+    * (coordination) as well as for the data exchange between task managers. Unless
+    * the hostname/interface is explicitly configured in the configuration, this
+    * method will try out various interfaces and methods to connect to the JobManager
+    * and select the one where the connection attempt is successful.
+    *
+    * After selecting the network interface, this method brings up an actor system
+    * for the TaskManager and its actors, starts the TaskManager's services
+    * (library cache, shuffle network stack, ...), and starts the TaskManager itself.
+    *
+    * @param configuration The configuration for the TaskManager.
+    * @param taskManagerClass The actor class to instantiate.
+    *                         Allows to use TaskManager subclasses for example for YARN.
+    */
   @throws(classOf[Exception])
   def selectNetworkInterfaceAndRunTaskManager(
-      configuration: Configuration,
-      resourceID: ResourceID,
-      taskManagerClass: Class[_ <: TaskManager])
-    : Unit = {
+                                               configuration: Configuration,
+                                               resourceID: ResourceID,
+                                               taskManagerClass: Class[_ <: TaskManager])
+  : Unit = {
 
     val highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
       configuration,
@@ -1763,9 +1731,9 @@ object TaskManager {
   @throws(classOf[IOException])
   @throws(classOf[IllegalConfigurationException])
   def selectNetworkInterfaceAndPortRange(
-      configuration: Configuration,
-      highAvailabilityServices: HighAvailabilityServices)
-    : (String, java.util.Iterator[Integer]) = {
+                                          configuration: Configuration,
+                                          highAvailabilityServices: HighAvailabilityServices)
+  : (String, java.util.Iterator[Integer]) = {
 
     var taskManagerHostname = configuration.getString(TaskManagerOptions.HOST)
 
@@ -1803,28 +1771,28 @@ object TaskManager {
   }
 
   /**
-   * Starts and runs the TaskManager. Brings up an actor system for the TaskManager and its
-   * actors, starts the TaskManager's services (library cache, shuffle network stack, ...),
-   * and starts the TaskManager itself.
-   *
-   * This method will also spawn a process reaper for the TaskManager (kill the process if
-   * the actor fails) and optionally start the JVM memory logging thread.
-   *
-   * @param taskManagerHostname The hostname/address of the interface where the actor system
-   *                         will communicate.
-   * @param resourceID The id of the resource which the task manager will run on.
-   * @param actorSystemPort The port at which the actor system will communicate.
-   * @param configuration The configuration for the TaskManager.
-   * @param highAvailabilityServices Service factory for high availability services
-   */
+    * Starts and runs the TaskManager. Brings up an actor system for the TaskManager and its
+    * actors, starts the TaskManager's services (library cache, shuffle network stack, ...),
+    * and starts the TaskManager itself.
+    *
+    * This method will also spawn a process reaper for the TaskManager (kill the process if
+    * the actor fails) and optionally start the JVM memory logging thread.
+    *
+    * @param taskManagerHostname The hostname/address of the interface where the actor system
+    *                         will communicate.
+    * @param resourceID The id of the resource which the task manager will run on.
+    * @param actorSystemPort The port at which the actor system will communicate.
+    * @param configuration The configuration for the TaskManager.
+    * @param highAvailabilityServices Service factory for high availability services
+    */
   @throws(classOf[Exception])
   def runTaskManager(
-      taskManagerHostname: String,
-      resourceID: ResourceID,
-      actorSystemPort: Int,
-      configuration: Configuration,
-      highAvailabilityServices: HighAvailabilityServices)
-    : Unit = {
+                      taskManagerHostname: String,
+                      resourceID: ResourceID,
+                      actorSystemPort: Int,
+                      configuration: Configuration,
+                      highAvailabilityServices: HighAvailabilityServices)
+  : Unit = {
 
     runTaskManager(
       taskManagerHostname,
@@ -1836,31 +1804,31 @@ object TaskManager {
   }
 
   /**
-   * Starts and runs the TaskManager. Brings up an actor system for the TaskManager and its
-   * actors, starts the TaskManager's services (library cache, shuffle network stack, ...),
-   * and starts the TaskManager itself.
-   *
-   * This method will also spawn a process reaper for the TaskManager (kill the process if
-   * the actor fails) and optionally start the JVM memory logging thread.
-   *
-   * @param taskManagerHostname The hostname/address of the interface where the actor system
-   *                         will communicate.
-   * @param resourceID The id of the resource which the task manager will run on.
-   * @param actorSystemPort The port at which the actor system will communicate.
-   * @param configuration The configuration for the TaskManager.
-   * @param highAvailabilityServices Service factory for high availability services
-   * @param taskManagerClass The actor class to instantiate. Allows the use of TaskManager
-   *                         subclasses for example for YARN.
-   */
+    * Starts and runs the TaskManager. Brings up an actor system for the TaskManager and its
+    * actors, starts the TaskManager's services (library cache, shuffle network stack, ...),
+    * and starts the TaskManager itself.
+    *
+    * This method will also spawn a process reaper for the TaskManager (kill the process if
+    * the actor fails) and optionally start the JVM memory logging thread.
+    *
+    * @param taskManagerHostname The hostname/address of the interface where the actor system
+    *                         will communicate.
+    * @param resourceID The id of the resource which the task manager will run on.
+    * @param actorSystemPort The port at which the actor system will communicate.
+    * @param configuration The configuration for the TaskManager.
+    * @param highAvailabilityServices Service factory for high availability services
+    * @param taskManagerClass The actor class to instantiate. Allows the use of TaskManager
+    *                         subclasses for example for YARN.
+    */
   @throws(classOf[Exception])
   def runTaskManager(
-      taskManagerHostname: String,
-      resourceID: ResourceID,
-      actorSystemPort: Int,
-      configuration: Configuration,
-      highAvailabilityServices: HighAvailabilityServices,
-      taskManagerClass: Class[_ <: TaskManager])
-    : Unit = {
+                      taskManagerHostname: String,
+                      resourceID: ResourceID,
+                      actorSystemPort: Int,
+                      configuration: Configuration,
+                      highAvailabilityServices: HighAvailabilityServices,
+                      taskManagerClass: Class[_ <: TaskManager])
+  : Unit = {
 
     LOG.info(s"Starting TaskManager with ResourceID: $resourceID")
 
@@ -1951,13 +1919,13 @@ object TaskManager {
     */
   @throws(classOf[Exception])
   def runTaskManager(
-    taskManagerHostname: String,
-    resourceID: ResourceID,
-    actorSystemPortRange: java.util.Iterator[Integer],
-    configuration: Configuration,
-    highAvailabilityServices: HighAvailabilityServices,
-    taskManagerClass: Class[_ <: TaskManager])
-    : Unit = {
+                      taskManagerHostname: String,
+                      resourceID: ResourceID,
+                      actorSystemPortRange: java.util.Iterator[Integer],
+                      configuration: Configuration,
+                      highAvailabilityServices: HighAvailabilityServices,
+                      taskManagerClass: Class[_ <: TaskManager])
+  : Unit = {
 
     val result = AkkaUtils.retryOnBindException({
       // Try all ports in the range until successful
@@ -1997,41 +1965,41 @@ object TaskManager {
   }
 
   /**
-   * Starts the task manager actor.
-   *
-   * @param configuration The configuration for the TaskManager.
-   * @param resourceID The id of the resource which the task manager will run on.
-   * @param actorSystem The actor system that should run the TaskManager actor.
-   * @param highAvailabilityServices Factory to create high availability services
-   * @param taskManagerHostname The hostname/address that describes the TaskManager's data location.
-   * @param taskManagerActorName Optionally the name of the TaskManager actor. If none is given,
-   *                             the actor will use a random name.
-   * @param localTaskManagerCommunication If true, the TaskManager will not initiate the
-   *                                      TCP network stack.
-   * @param taskManagerClass The class of the TaskManager actor. May be used to give
-   *                         subclasses that understand additional actor messages.
-   * @throws org.apache.flink.configuration.IllegalConfigurationException
-   *                              Thrown, if the given config contains illegal values.
-   * @throws java.io.IOException Thrown, if any of the I/O components (such as buffer pools,
-   *                             I/O manager, ...) cannot be properly started.
-   * @throws java.lang.Exception Thrown is some other error occurs while parsing the configuration
-   *                             or starting the TaskManager components.
-   * @return An ActorRef to the TaskManager actor.
-   */
+    * Starts the task manager actor.
+    *
+    * @param configuration The configuration for the TaskManager.
+    * @param resourceID The id of the resource which the task manager will run on.
+    * @param actorSystem The actor system that should run the TaskManager actor.
+    * @param highAvailabilityServices Factory to create high availability services
+    * @param taskManagerHostname The hostname/address that describes the TaskManager's data location.
+    * @param taskManagerActorName Optionally the name of the TaskManager actor. If none is given,
+    *                             the actor will use a random name.
+    * @param localTaskManagerCommunication If true, the TaskManager will not initiate the
+    *                                      TCP network stack.
+    * @param taskManagerClass The class of the TaskManager actor. May be used to give
+    *                         subclasses that understand additional actor messages.
+    * @throws org.apache.flink.configuration.IllegalConfigurationException
+    *                              Thrown, if the given config contains illegal values.
+    * @throws java.io.IOException Thrown, if any of the I/O components (such as buffer pools,
+    *                             I/O manager, ...) cannot be properly started.
+    * @throws java.lang.Exception Thrown is some other error occurs while parsing the configuration
+    *                             or starting the TaskManager components.
+    * @return An ActorRef to the TaskManager actor.
+    */
   @throws(classOf[IllegalConfigurationException])
   @throws(classOf[IOException])
   @throws(classOf[Exception])
   def startTaskManagerComponentsAndActor(
-      configuration: Configuration,
-      resourceID: ResourceID,
-      actorSystem: ActorSystem,
-      highAvailabilityServices: HighAvailabilityServices,
-      metricRegistry: FlinkMetricRegistry,
-      taskManagerHostname: String,
-      taskManagerActorName: Option[String],
-      localTaskManagerCommunication: Boolean,
-      taskManagerClass: Class[_ <: TaskManager])
-    : ActorRef = {
+                                          configuration: Configuration,
+                                          resourceID: ResourceID,
+                                          actorSystem: ActorSystem,
+                                          highAvailabilityServices: HighAvailabilityServices,
+                                          metricRegistry: FlinkMetricRegistry,
+                                          taskManagerHostname: String,
+                                          taskManagerActorName: Option[String],
+                                          localTaskManagerCommunication: Boolean,
+                                          taskManagerClass: Class[_ <: TaskManager])
+  : ActorRef = {
 
     val taskManagerAddress = InetAddress.getByName(taskManagerHostname)
 
@@ -2073,17 +2041,17 @@ object TaskManager {
   }
 
   def getTaskManagerProps(
-    taskManagerClass: Class[_ <: TaskManager],
-    taskManagerConfig: TaskManagerConfiguration,
-    resourceID: ResourceID,
-    taskManagerLocation: TaskManagerLocation,
-    memoryManager: MemoryManager,
-    ioManager: IOManager,
-    networkEnvironment: NetworkEnvironment,
-    taskStateManager: TaskExecutorLocalStateStoresManager,
-    highAvailabilityServices: HighAvailabilityServices,
-    taskManagerMetricGroup: TaskManagerMetricGroup
-  ): Props = {
+                           taskManagerClass: Class[_ <: TaskManager],
+                           taskManagerConfig: TaskManagerConfiguration,
+                           resourceID: ResourceID,
+                           taskManagerLocation: TaskManagerLocation,
+                           memoryManager: MemoryManager,
+                           ioManager: IOManager,
+                           networkEnvironment: NetworkEnvironment,
+                           taskStateManager: TaskExecutorLocalStateStoresManager,
+                           highAvailabilityServices: HighAvailabilityServices,
+                           taskManagerMetricGroup: TaskManagerMetricGroup
+                         ): Props = {
     Props(
       taskManagerClass,
       taskManagerConfig,
@@ -2103,20 +2071,20 @@ object TaskManager {
   // --------------------------------------------------------------------------
 
   /**
-   * Resolves the TaskManager actor reference in a blocking fashion.
-   *
-   * @param taskManagerUrl The akka URL of the JobManager.
-   * @param system The local actor system that should perform the lookup.
-   * @param timeout The maximum time to wait until the lookup fails.
-   * @throws java.io.IOException Thrown, if the lookup fails.
-   * @return The ActorRef to the TaskManager
-   */
+    * Resolves the TaskManager actor reference in a blocking fashion.
+    *
+    * @param taskManagerUrl The akka URL of the JobManager.
+    * @param system The local actor system that should perform the lookup.
+    * @param timeout The maximum time to wait until the lookup fails.
+    * @throws java.io.IOException Thrown, if the lookup fails.
+    * @return The ActorRef to the TaskManager
+    */
   @throws(classOf[IOException])
   def getTaskManagerRemoteReference(
-      taskManagerUrl: String,
-      system: ActorSystem,
-      timeout: FiniteDuration)
-    : ActorRef = {
+                                     taskManagerUrl: String,
+                                     system: ActorSystem,
+                                     timeout: FiniteDuration)
+  : ActorRef = {
     try {
       val future = AkkaUtils.getActorRefFuture(taskManagerUrl, system, timeout)
       Await.result(future, timeout)

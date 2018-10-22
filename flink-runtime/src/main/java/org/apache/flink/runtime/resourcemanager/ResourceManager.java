@@ -57,7 +57,7 @@ import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceActions;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerException;
-import org.apache.flink.runtime.rest.handler.legacy.files.FileOffsetRange;
+import org.apache.flink.runtime.util.FileOffsetRange;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
@@ -633,8 +633,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 	
 	@Override
-	public CompletableFuture<String[]> requestTaskManagerLogList(ResourceID taskManagerId, Time timeout){
-		log.debug("Request historical loglist from TaskExecutor {}.", taskManagerId);
+	public CompletableFuture<String[]> requestTaskManagerLogList(ResourceID taskManagerId, Time timeout) {
 		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
 		if (taskExecutor == null) {
 			log.debug("Requested historical loglist from unregistered TaskExecutor {}.", taskManagerId);

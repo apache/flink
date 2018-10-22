@@ -21,12 +21,15 @@ package org.apache.flink.runtime.rest.messages.taskmanager;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogListHandler;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
+import org.apache.flink.runtime.rest.messages.LogListInfo;
+import org.apache.flink.runtime.rest.messages.MessageHeaders;
+
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
  * Headers for the {@link TaskManagerLogListHandler}.
  */
-public class TaskManagerLogListHeaders implements UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerMessageParameters> {
+public class TaskManagerLogListHeaders implements MessageHeaders<EmptyRequestBody, LogListInfo, TaskManagerMessageParameters> {
 	private static final String URL = String.format("/taskmanagers/:%s/loglist", TaskManagerIdPathParameter.KEY);
 	public static final TaskManagerLogListHeaders INSTANCE = new TaskManagerLogListHeaders();
 
@@ -54,5 +57,20 @@ public class TaskManagerLogListHeaders implements UntypedResponseMessageHeaders<
 
 	public static TaskManagerLogListHeaders getInstance() {
 		return INSTANCE;
+	}
+
+	@Override
+	public Class<LogListInfo> getResponseClass() {
+		return LogListInfo.class;
+	}
+
+	@Override
+	public HttpResponseStatus getResponseStatusCode() {
+		return HttpResponseStatus.OK;
+	}
+
+	@Override
+	public String getDescription() {
+		return "Returns a list of historical log filename of a given task manager.";
 	}
 }

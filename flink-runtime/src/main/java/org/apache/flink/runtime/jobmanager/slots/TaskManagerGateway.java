@@ -31,7 +31,6 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTrace;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
-import org.apache.flink.runtime.rest.handler.legacy.files.FileOffsetRange;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 
 import java.util.concurrent.CompletableFuture;
@@ -180,7 +179,7 @@ public interface TaskManagerGateway {
 	 * @param timeout for the request
 	 * @return Future blob key under which the task manager log has been stored
 	 */
-	CompletableFuture<TransientBlobKey> requestTaskManagerLog(final Time timeout, String filename, FileOffsetRange range);
+	CompletableFuture<TransientBlobKey> requestTaskManagerLog(Time timeout);
 
 	/**
 	 * Request the task manager stdout from the task manager.
@@ -188,15 +187,7 @@ public interface TaskManagerGateway {
 	 * @param timeout for the request
 	 * @return Future blob key under which the task manager stdout file has been stored
 	 */
-	CompletableFuture<TransientBlobKey> requestTaskManagerStdout(final Time timeout, FileOffsetRange range);
-
-	/**
-	 * Request the list of task manager logs from the task manager.
-	 *
-	 * @param timeout for the request
-	 * @return Future flienames of all task manager logs 
-	 */
-	CompletableFuture<String[]> requestTaskManagerLogList(final Time timeout);
+	CompletableFuture<TransientBlobKey> requestTaskManagerStdout(final Time timeout);
 
 	/**
 	 * Frees the slot with the given allocation ID.

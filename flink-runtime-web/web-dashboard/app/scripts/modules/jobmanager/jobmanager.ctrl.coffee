@@ -28,7 +28,7 @@ angular.module('flinkApp')
   JobManagerLogsService.loadLogList().then (data) ->
     if !$scope.jobmanager?
       $scope.jobmanager = {}
-    $scope.jobmanager['loglist'] = data
+    $scope.jobmanager['loglist'] = data['loglist']
     $scope.filename = $scope.jobmanager['loglist'][0]
 
   JobManagerLogsService.loadLogs(0, 100 * 1024).then (data) ->
@@ -37,16 +37,16 @@ angular.module('flinkApp')
     $scope.jobmanager['log'] = data
 
   $scope.reloadData = () ->
-    JobManagerLogsService.loadLogs($scope.start * 1024, $scope.end * 1024).then (data) ->
+    JobManagerLogsService.loadLogs($scope.start * 1024, $scope.size * 1024).then (data) ->
       $scope.jobmanager['log'] = data
     
   $scope.searchLog = () ->
-    JobManagerLogsService.loadOtherLogs($scope.filename, $scope.start * 1024, $scope.end * 1024).then (data) ->
+    JobManagerLogsService.loadOtherLogs($scope.filename, $scope.start * 1024, $scope.size * 1024).then (data) ->
            $scope.jobmanager['log'] = data
 
   $scope.loadLogList = () ->
     JobManagerLogsService.loadLogList().then (data) ->
-      $scope.jobmanager['loglist'] = data
+      $scope.jobmanager['loglist'] = data['loglist']
 
 .controller 'JobManagerStdoutController', ($scope, JobManagerStdoutService) ->
   JobManagerStdoutService.loadStdout(0, 100 * 1024).then (data) ->
@@ -55,9 +55,9 @@ angular.module('flinkApp')
     $scope.jobmanager['stdout'] = data
 
   $scope.reloadData = () ->
-    JobManagerStdoutService.loadStdout($scope.start * 1024, $scope.end * 1024).then (data) ->
+    JobManagerStdoutService.loadStdout($scope.start * 1024, $scope.size * 1024).then (data) ->
       $scope.jobmanager['stdout'] = data
 
   $scope.searchStdout = () ->
-    JobManagerStdoutService.loadStdout($scope.start * 1024, $scope.end * 1024).then (data) ->
+    JobManagerStdoutService.loadStdout($scope.start * 1024, $scope.size * 1024).then (data) ->
       $scope.jobmanager['stdout'] = data

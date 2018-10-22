@@ -16,26 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.taskmanager;
+package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogFileHandler;
-import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.RangePathParameter;
-import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 
-import java.util.Arrays;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * Headers for the {@link TaskManagerLogFileHandler}.
+ * Headers for the {@link org.apache.flink.runtime.rest.handler.files.JobManagerLogListHandler}.
  */
-public class TaskManagerLogFileWithRangeHeaders implements UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerMessageParameters> {
+public class JobManagerLogListHeaders implements MessageHeaders<EmptyRequestBody, LogListInfo, MessageParameters> {
+	private static final JobManagerLogListHeaders INSTANCE = new JobManagerLogListHeaders();
 
-	private static final TaskManagerLogFileWithRangeHeaders INSTANCE = new TaskManagerLogFileWithRangeHeaders();
-
-	private static final String URL = String.format("/taskmanagers/:%s/log/:%s", TaskManagerIdPathParameter.KEY, RangePathParameter.KEY);
-
-	private TaskManagerLogFileWithRangeHeaders() {}
+	private static final String URL = String.format("/jobmanager/loglist");
 
 	@Override
 	public Class<EmptyRequestBody> getRequestClass() {
@@ -43,9 +36,8 @@ public class TaskManagerLogFileWithRangeHeaders implements UntypedResponseMessag
 	}
 
 	@Override
-	public TaskManagerMessageParameters getUnresolvedMessageParameters() {
-		return new TaskManagerMessageParameters(
-			Arrays.asList(new TaskManagerIdPathParameter(), new RangePathParameter()));
+	public MessageParameters getUnresolvedMessageParameters() {
+		return EmptyMessageParameters.getInstance();
 	}
 
 	@Override
@@ -58,7 +50,22 @@ public class TaskManagerLogFileWithRangeHeaders implements UntypedResponseMessag
 		return URL;
 	}
 
-	public static TaskManagerLogFileWithRangeHeaders getInstance() {
+	public static JobManagerLogListHeaders getInstance(){
 		return INSTANCE;
+	}
+
+	@Override
+	public Class<LogListInfo> getResponseClass() {
+		return LogListInfo.class;
+	}
+
+	@Override
+	public HttpResponseStatus getResponseStatusCode() {
+			return HttpResponseStatus.OK;
+	}
+
+	@Override
+	public String getDescription() {
+		return "Returns a list of historical log filename of a job manager.";
 	}
 }
