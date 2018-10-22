@@ -75,11 +75,6 @@ public class TestingRpcService extends AkkaRpcService {
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected Class getAkkaRpcActorClass() {
-		return TestingRemoteAkkaRpcActor.class;
-	}
-
-	@Override
 	public CompletableFuture<Void> stopService() {
 		final CompletableFuture<Void> terminationFuture = super.stopService();
 

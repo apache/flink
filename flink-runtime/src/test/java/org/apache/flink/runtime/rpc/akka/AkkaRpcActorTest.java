@@ -27,6 +27,7 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
+import org.apache.flink.runtime.rpc.TestingRemoteAkkaRpcActor;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
@@ -153,7 +154,7 @@ public class AkkaRpcActorTest extends TestLogger {
 		AkkaRpcService rpcService = null;
 		OversizedResponseRpcEndpoint rpcEndpoint = null;
 		try {
-			rpcService = new TestingRpcService(configuration);
+			rpcService = new TestingRemoteRpcService(configuration);
 
 			rpcEndpoint = new OversizedResponseRpcEndpoint(rpcService);
 
@@ -184,7 +185,7 @@ public class AkkaRpcActorTest extends TestLogger {
 		AkkaRpcService rpcService = null;
 		OversizedResponseRpcEndpoint rpcEndpoint = null;
 		try {
-			rpcService = new TestingRpcService(configuration);
+			rpcService = new TestingRemoteRpcService(configuration);
 
 			rpcEndpoint = new OversizedResponseRpcEndpoint(rpcService);
 
@@ -521,6 +522,19 @@ public class AkkaRpcActorTest extends TestLogger {
 		public void setBytes(Byte[] bytes) {
 			this.bytes = bytes;
 		}
+	}
+
+	static class TestingRemoteRpcService extends TestingRpcService {
+
+		public TestingRemoteRpcService(Configuration configuration) {
+			super(configuration);
+		}
+
+		@Override
+		protected Class getAkkaRpcActorClass() {
+			return TestingRemoteAkkaRpcActor.class;
+		}
+
 	}
 
 }

@@ -276,24 +276,32 @@ public class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedAct
 								if (throwable != null) {
 									promise.failure(throwable);
 								} else {
-									Either<SerializedValue, AkkaRpcException> serializedResult =
-										serializeResultAndVerifySize(value, remoteSender, method.getName());
-									if (serializedResult.isLeft()) {
-										promise.success(serializedResult.left());
+									if (!remoteSender) {
+										promise.success(value);
 									} else {
-										promise.failure(new Throwable(serializedResult.right()));
+										Either<SerializedValue, AkkaRpcException> serializedResult =
+											serializeRemoteResultAndVerifySize(value, method.getName());
+										if (serializedResult.isLeft()) {
+											promise.success(serializedResult.left());
+										} else {
+											promise.failure(new Throwable(serializedResult.right()));
+										}
 									}
 								}
 							});
 
 						Patterns.pipe(promise.future(), getContext().dispatcher()).to(getSender());
 					} else {
-						Either<SerializedValue, AkkaRpcException> serializedResult =
-							serializeResultAndVerifySize(result, remoteSender, method.getName());
-						if (serializedResult.isLeft()) {
-							getSender().tell(serializedResult.left(), getSelf());
+						if (!remoteSender) {
+							getSender().tell(result, getSelf());
 						} else {
-							getSender().tell(new Status.Failure(serializedResult.right()), getSelf());
+							Either<SerializedValue, AkkaRpcException> serializedResult =
+								serializeRemoteResultAndVerifySize(result, method.getName());
+							if (serializedResult.isLeft()) {
+								getSender().tell(serializedResult.left(), getSelf());
+							} else {
+								getSender().tell(new Status.Failure(serializedResult.right()), getSelf());
+							}
 						}
 					}
 				}
@@ -309,13 +317,10 @@ public class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedAct
 		return !getSender().path().address().hasLocalScope();
 	}
 
-	private Either<SerializedValue, AkkaRpcException> serializeResultAndVerifySize(
-		Object result, boolean isRemoteSender, String methodName) {
+	private Either<SerializedValue, AkkaRpcException> serializeRemoteResultAndVerifySize(
+		Object result, String methodName) {
 		try {
 			SerializedValue serializedResult = new SerializedValue(result);
-			if (!isRemoteSender) {
-				return Either.Left(serializedResult);
-			}
 
 			long resultSize = serializedResult.getByteArray().length;
 			if (resultSize > maximumFramesize) {
