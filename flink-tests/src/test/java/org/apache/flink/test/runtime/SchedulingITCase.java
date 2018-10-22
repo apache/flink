@@ -41,7 +41,6 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
@@ -75,7 +74,6 @@ public class SchedulingITCase extends TestLogger {
 	 * out tasks when recovering.
 	 */
 	@Test
-	@Ignore("The test should not pass until FLINK-9635 has been fixed")
 	public void testLocalRecovery() throws Exception {
 		final Configuration configuration = new Configuration();
 		configuration.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
