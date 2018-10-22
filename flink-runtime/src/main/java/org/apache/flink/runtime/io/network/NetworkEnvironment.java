@@ -90,19 +90,43 @@ public class NetworkEnvironment {
 	private boolean isShutdown;
 
 	public NetworkEnvironment(
-			NetworkBufferPool networkBufferPool,
-			ConnectionManager connectionManager,
-			ResultPartitionManager resultPartitionManager,
-			TaskEventDispatcher taskEventDispatcher,
-			KvStateRegistry kvStateRegistry,
-			KvStateServer kvStateServer,
-			KvStateClientProxy kvStateClientProxy,
-			IOMode defaultIOMode,
-			int partitionRequestInitialBackoff,
-			int partitionRequestMaxBackoff,
-			int networkBuffersPerChannel,
-			int extraNetworkBuffersPerGate,
-			boolean enableCreditBased) {
+		int numBuffers,
+		int memorySegmentSize,
+		int partitionRequestInitialBackoff,
+		int partitionRequestMaxBackoff,
+		int networkBuffersPerChannel,
+		int extraNetworkBuffersPerGate,
+		boolean enableCreditBased) {
+		this(
+			new NetworkBufferPool(numBuffers, memorySegmentSize),
+			new LocalConnectionManager(),
+			new ResultPartitionManager(),
+			new TaskEventDispatcher(),
+			new KvStateRegistry(),
+			null,
+			null,
+			IOManager.IOMode.SYNC,
+			partitionRequestInitialBackoff,
+			partitionRequestMaxBackoff,
+			networkBuffersPerChannel,
+			extraNetworkBuffersPerGate,
+			enableCreditBased);
+	}
+
+	public NetworkEnvironment(
+		NetworkBufferPool networkBufferPool,
+		ConnectionManager connectionManager,
+		ResultPartitionManager resultPartitionManager,
+		TaskEventDispatcher taskEventDispatcher,
+		KvStateRegistry kvStateRegistry,
+		KvStateServer kvStateServer,
+		KvStateClientProxy kvStateClientProxy,
+		IOMode defaultIOMode,
+		int partitionRequestInitialBackoff,
+		int partitionRequestMaxBackoff,
+		int networkBuffersPerChannel,
+		int extraNetworkBuffersPerGate,
+		boolean enableCreditBased) {
 
 		this.networkBufferPool = checkNotNull(networkBufferPool);
 		this.connectionManager = checkNotNull(connectionManager);
