@@ -25,29 +25,30 @@
 
 
 #==============================================================================
-# Table Sources & Sinks
+# Tables
 #==============================================================================
 
-# Define table sources and sinks here.
+# Define tables here such as sources, sinks, views, or temporal tables.
 
 tables: [] # empty list
 # A typical table source definition looks like:
 # - name: ...
-#   type: source
+#   type: source-table
 #   connector: ...
 #   format: ...
 #   schema: ...
 
-#==============================================================================
-# Table Views
-#==============================================================================
-
-# Define frequently used SQL queries here that define a virtual table.
-
-views: [] # empty list
 # A typical view definition looks like:
 # - name: ...
+#   type: view
 #   query: "SELECT ..."
+
+# A typical temporal table definition looks like:
+# - name: ...
+#   type: temporal-table
+#   history-table: ...
+#   time-attribute: ...
+#   primary-key: ...
 
 #==============================================================================
 # User-defined functions

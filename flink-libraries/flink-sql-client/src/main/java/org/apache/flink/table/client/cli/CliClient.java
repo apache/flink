@@ -21,6 +21,7 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommandCall;
+import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
@@ -425,15 +426,15 @@ public class CliClient {
 		final String name = cmdCall.operands[0];
 		final String query = cmdCall.operands[1];
 
-		final String previousQuery = context.getViews().get(name);
-		if (previousQuery != null) {
+		final ViewEntry previousView = context.getViews().get(name);
+		if (previousView != null) {
 			printExecutionError(CliStrings.MESSAGE_VIEW_ALREADY_EXISTS);
 			return;
 		}
 
 		try {
 			// perform and validate change
-			context.addView(name, query);
+			context.addView(ViewEntry.create(name, query));
 			executor.validateSession(context);
 			printInfo(CliStrings.MESSAGE_VIEW_CREATED);
 		} catch (SqlExecutionException e) {
@@ -445,9 +446,9 @@ public class CliClient {
 
 	private void callDropView(SqlCommandCall cmdCall) {
 		final String name = cmdCall.operands[0];
-		final String query = context.getViews().get(name);
+		final ViewEntry view = context.getViews().get(name);
 
-		if (query == null) {
+		if (view == null) {
 			printExecutionError(CliStrings.MESSAGE_VIEW_NOT_FOUND);
 			return;
 		}
@@ -459,7 +460,7 @@ public class CliClient {
 			printInfo(CliStrings.MESSAGE_VIEW_REMOVED);
 		} catch (SqlExecutionException e) {
 			// rollback change
-			context.addView(name, query);
+			context.addView(view);
 			printExecutionException(CliStrings.MESSAGE_VIEW_NOT_REMOVED, e);
 		}
 	}

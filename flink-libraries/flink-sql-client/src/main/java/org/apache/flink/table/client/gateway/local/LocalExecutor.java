@@ -183,8 +183,8 @@ public class LocalExecutor implements Executor {
 		final Environment env = getOrCreateExecutionContext(session)
 			.getMergedEnvironment();
 		final Map<String, String> properties = new HashMap<>();
-		properties.putAll(env.getExecution().toProperties());
-		properties.putAll(env.getDeployment().toProperties());
+		properties.putAll(env.getExecution().asTopLevelMap());
+		properties.putAll(env.getDeployment().asTopLevelMap());
 		return properties;
 	}
 
