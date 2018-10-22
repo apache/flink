@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskmanager;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
@@ -75,6 +76,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 
 		// Cluster
 		Configuration config = new Configuration();
+		config.setInteger(RestOptions.PORT, 0);
 		config.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, "4096");
 		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 9);
 
