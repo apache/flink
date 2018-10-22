@@ -623,11 +623,13 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	public CompletableFuture<Void> scheduleForExecution(
 			SlotProvider slotProvider,
 			boolean queued,
-			LocationPreferenceConstraint locationPreferenceConstraint) {
+			LocationPreferenceConstraint locationPreferenceConstraint,
+			@Nullable Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 		return this.currentExecution.scheduleForExecution(
 			slotProvider,
 			queued,
-			locationPreferenceConstraint);
+			locationPreferenceConstraint,
+			allPreviousExecutionGraphAllocationIds);
 	}
 
 	@VisibleForTesting

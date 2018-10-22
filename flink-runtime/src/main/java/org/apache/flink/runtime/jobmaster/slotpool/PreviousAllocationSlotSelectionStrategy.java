@@ -52,7 +52,7 @@ public class PreviousAllocationSlotSelectionStrategy implements SlotSelectionStr
 		@Nonnull List<SlotInfo> availableSlots,
 		@Nonnull SlotProfile slotProfile) {
 
-		Collection<AllocationID> priorAllocations = slotProfile.getPriorAllocations();
+		Collection<AllocationID> priorAllocations = slotProfile.getPreferredAllocations();
 
 		// First, if there was a prior allocation try to schedule to the same/old slot
 		if (!priorAllocations.isEmpty()) {
@@ -66,7 +66,7 @@ public class PreviousAllocationSlotSelectionStrategy implements SlotSelectionStr
 		}
 
 		// Second, select based on location preference, excluding blacklisted allocations
-		Set<AllocationID> blackListedAllocations = slotProfile.getExcludedAllocations();
+		Set<AllocationID> blackListedAllocations = slotProfile.getPreviousExecutionGraphAllocations();
 		if (blackListedAllocations.isEmpty()) {
 			return locationPreferenceSlotSelection.selectBestSlotForProfile(availableSlots, slotProfile);
 		} else {

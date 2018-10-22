@@ -46,7 +46,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
@@ -387,7 +386,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		return scheduleForExecution(
 			resourceProvider,
 			allowQueued,
-			LocationPreferenceConstraint.ANY);
+			LocationPreferenceConstraint.ANY,
+			null);
 	}
 
 	/**
@@ -404,13 +404,15 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	public CompletableFuture<Void> scheduleForExecution(
 			SlotProvider slotProvider,
 			boolean queued,
-			LocationPreferenceConstraint locationPreferenceConstraint) {
+			LocationPreferenceConstraint locationPreferenceConstraint,
+			@Nullable Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 		final Time allocationTimeout = vertex.getExecutionGraph().getAllocationTimeout();
 		try {
 			final CompletableFuture<Execution> allocationFuture = allocateAndAssignSlotForExecution(
 				slotProvider,
 				queued,
 				locationPreferenceConstraint,
+				allPreviousExecutionGraphAllocationIds,
 				allocationTimeout);
 
 			// IMPORTANT: We have to use the synchronous handle operation (direct executor) here so
@@ -452,6 +454,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			SlotProvider slotProvider,
 			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint,
+			@Nullable Set<AllocationID> allPreviousExecutionGraphAllocationIds,
 			Time allocationTimeout) throws IllegalExecutionStateException {
 
 		checkNotNull(slotProvider);
@@ -487,17 +490,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			final SlotRequestId slotRequestId = new SlotRequestId();
 
-			Set<AllocationID> blackListedAllocationIds;
-
-			// This is a temporary optimization to avoid computing all previous allocations if not required
-			// This can go away when we progress with the implementation of the Scheduler and we also need to observe
-			// if doing this for each execution can become a potential scalability problem for larger jobs.
-			if (slotProvider instanceof Scheduler && ((Scheduler) slotProvider).requiresPreviousAllocationBlacklist()) {
-				blackListedAllocationIds = getVertex().getExecutionGraph().computeAllPriorAllocationIds();
-				blackListedAllocationIds.removeAll(previousAllocationIDs);
-			} else {
-				blackListedAllocationIds = Collections.emptySet();
-			}
+			final Set<AllocationID> previousExecutionGraphAllocations = allPreviousExecutionGraphAllocationIds != null ?
+				allPreviousExecutionGraphAllocationIds :
+				getVertex().getExecutionGraph().computeAllPriorAllocationIdsIfRequiredByScheduling();
 
 			final CompletableFuture<LogicalSlot> logicalSlotFuture = preferredLocationsFuture
 				.thenCompose(
@@ -510,7 +505,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 								ResourceProfile.UNKNOWN,
 								preferredLocations,
 								previousAllocationIDs,
-								blackListedAllocationIds),
+								previousExecutionGraphAllocations),
 							allocationTimeout));
 
 			// register call back to cancel slot request in case that the execution gets canceled
@@ -754,7 +749,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 							consumerVertex.scheduleForExecution(
 								executionGraph.getSlotProvider(),
 								executionGraph.isQueuedSchedulingAllowed(),
-								LocationPreferenceConstraint.ANY); // there must be at least one known location
+								LocationPreferenceConstraint.ANY,
+								null); // there must be at least one known location
 						} catch (Throwable t) {
 							consumerVertex.fail(new IllegalStateException("Could not schedule consumer " +
 									"vertex " + consumerVertex, t));

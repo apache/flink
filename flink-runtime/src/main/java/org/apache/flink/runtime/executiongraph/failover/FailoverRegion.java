@@ -219,7 +219,8 @@ public class FailoverRegion {
 						ev.scheduleForExecution(
 							executionGraph.getSlotProvider(),
 							executionGraph.isQueuedSchedulingAllowed(),
-							LocationPreferenceConstraint.ANY); // some inputs not belonging to the failover region might have failed concurrently
+							LocationPreferenceConstraint.ANY,
+							null); // some inputs not belonging to the failover region might have failed concurrently
 					}
 					catch (Throwable e) {
 						failover(globalModVersionOfFailover);

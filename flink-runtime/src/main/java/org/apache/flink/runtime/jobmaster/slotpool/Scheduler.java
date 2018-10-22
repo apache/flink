@@ -319,7 +319,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 			slotProfile = new SlotProfile(
 				slotProfile.getResourceProfile(),
 				Collections.singleton(coLocationConstraint.getLocation()),
-				slotProfile.getPriorAllocations());
+				slotProfile.getPreferredAllocations());
 		}
 
 
@@ -510,7 +510,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 		return Acknowledge.get();
 	}
 
-	public boolean requiresPreviousAllocationBlacklist() {
+	public boolean requiresPreviousExecutionGraphAllocations() {
 		return slotSelectionStrategy instanceof PreviousAllocationSlotSelectionStrategy;
 	}
 }

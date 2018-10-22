@@ -157,7 +157,7 @@ public class FailoverRegionTest extends TestLogger {
 
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev11).getState());
 
-		ev21.scheduleForExecution(slotProvider, true, LocationPreferenceConstraint.ALL);
+		ev21.scheduleForExecution(slotProvider, true, LocationPreferenceConstraint.ALL, null);
 		ev21.getCurrentExecutionAttempt().fail(new Exception("New fail"));
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev11).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev22).getState());
@@ -170,7 +170,7 @@ public class FailoverRegionTest extends TestLogger {
 
 		ev11.getCurrentExecutionAttempt().markFinished();
 		ev21.getCurrentExecutionAttempt().markFinished();
-		ev22.scheduleForExecution(slotProvider, true, LocationPreferenceConstraint.ALL);
+		ev22.scheduleForExecution(slotProvider, true, LocationPreferenceConstraint.ALL, null);
 		ev22.getCurrentExecutionAttempt().markFinished();
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev11).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev22).getState());

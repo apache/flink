@@ -432,7 +432,7 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 			slotProfile = new SlotProfile(
 				slotProfile.getResourceProfile(),
 				Collections.singleton(coLocationConstraint.getLocation()),
-				slotProfile.getPriorAllocations());
+				slotProfile.getPreferredAllocations());
 		}
 
 		// get a new multi task slot

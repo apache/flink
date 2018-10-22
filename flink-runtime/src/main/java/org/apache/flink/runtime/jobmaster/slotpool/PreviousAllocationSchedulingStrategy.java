@@ -53,7 +53,7 @@ public class PreviousAllocationSchedulingStrategy extends LocationPreferenceSche
 			@Nonnull Predicate<IN> additionalRequirementsFilter,
 			@Nonnull BiFunction<IN, Locality, OUT> resultProducer) {
 
-		Collection<AllocationID> priorAllocations = slotProfile.getPriorAllocations();
+		Collection<AllocationID> priorAllocations = slotProfile.getPreferredAllocations();
 
 		if (priorAllocations.isEmpty()) {
 			return super.findMatchWithLocality(slotProfile, candidates, contextExtractor, additionalRequirementsFilter, resultProducer);
