@@ -39,8 +39,8 @@ import org.apache.flink.runtime.io.network.api.writer.RoundRobinChannelSelector;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
+import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -311,11 +311,5 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 
 		@Override
 		public void failExternally(Throwable cause) {}
-	}
-
-	private static final class NoOpResultPartitionConsumableNotifier implements ResultPartitionConsumableNotifier {
-
-		@Override
-		public void notifyPartitionConsumable(JobID j, ResultPartitionID p, TaskActions t) {}
 	}
 }

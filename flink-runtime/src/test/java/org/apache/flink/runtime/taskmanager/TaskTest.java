@@ -42,6 +42,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
+import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
@@ -280,7 +281,7 @@ public class TaskTest extends TestLogger {
 
 			// mock a network manager that rejects registration
 			ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
-			ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
+			ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
 			PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
 			TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 			Executor executor = mock(Executor.class);
@@ -642,7 +643,7 @@ public class TaskTest extends TestLogger {
 		PartitionProducerStateChecker partitionChecker = mock(PartitionProducerStateChecker.class);
 		TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 
-		ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
+		ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
 		NetworkEnvironment network = mock(NetworkEnvironment.class);
 		when(network.getResultPartitionManager()).thenReturn(mock(ResultPartitionManager.class));
 		when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
@@ -943,7 +944,7 @@ public class TaskTest extends TestLogger {
 			ExecutionConfig execConfig) throws IOException {
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
-		ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
+		ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
 		PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
 		TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 		Executor executor = mock(Executor.class);
