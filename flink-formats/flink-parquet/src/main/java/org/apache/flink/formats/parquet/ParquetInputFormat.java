@@ -66,6 +66,16 @@ public abstract class ParquetInputFormat<E>
 
 	private static final Logger LOG = LoggerFactory.getLogger(ParquetInputFormat.class);
 
+	/**
+	 * The flag to specify whether to skip file splits with wrong schema.
+	 */
+	private boolean skipWrongSchemaFileSplit = false;
+
+	/**
+	 * The flag to specify whether to skip corrupted record.
+	 */
+	private boolean skipCorruptedRecord = false;
+
 	private transient Counter recordConsumed;
 
 	private transient MessageType expectedFileSchema;
@@ -99,6 +109,15 @@ public abstract class ParquetInputFormat<E>
 	@Override
 	public void configure(Configuration parameters) {
 		super.configure(parameters);
+
+		if (!this.skipWrongSchemaFileSplit) {
+			this.skipWrongSchemaFileSplit = parameters.getBoolean(SKIP_WRONG_SCHEMA_SPLITS, false);
+		}
+
+		if (this.skipCorruptedRecord) {
+			this.skipCorruptedRecord = parameters.getBoolean(SKIP_CORRUPTED_RECORD, false);
+		}
+
 		parquetRecordReader.setSkipCorruptedRecord(this.skipCorruptedRecord);
 	}
 
@@ -108,7 +127,12 @@ public abstract class ParquetInputFormat<E>
 		RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(expectedFileSchema);
 		TypeInformation[] selectFieldTypes = new TypeInformation[fieldNames.length];
 		for (int i = 0; i < fieldNames.length; i++) {
-			selectFieldTypes[i] = rowTypeInfo.getTypeAt(fieldNames[i]);
+			try {
+				selectFieldTypes[i] = rowTypeInfo.getTypeAt(fieldNames[i]);
+			} catch (IndexOutOfBoundsException e) {
+				throw new IllegalArgumentException(String.format("Fail to access Field %s , "
+						+ "which is not contained in the file schema", fieldNames[i]), e);
+			}
 		}
 		this.fieldTypes = selectFieldTypes;
 	}
@@ -121,26 +145,27 @@ public abstract class ParquetInputFormat<E>
 
 	@Override
 	public void open(FileInputSplit split) throws IOException {
+		// reset the flag when open a new split
+		this.skipThisSplit = false;
 		org.apache.hadoop.conf.Configuration configuration = new org.apache.hadoop.conf.Configuration();
 		InputFile inputFile =
 			HadoopInputFile.fromPath(new org.apache.hadoop.fs.Path(split.getPath().toUri()), configuration);
 		ParquetReadOptions options = ParquetReadOptions.builder().build();
 		ParquetFileReader fileReader = new ParquetFileReader(inputFile, options);
-		MessageType schema = fileReader.getFileMetaData().getSchema();
-		MessageType readSchema = getReadSchema(schema);
-
-		this.skipThisSplit = false;
-		this.parquetRecordReader = new ParquetRecordReader<>(new RowReadSupport(), readSchema, FilterCompat.NOOP);
-		this.parquetRecordReader.initialize(fileReader, configuration);
-		if (this.recordConsumed == null) {
-			this.recordConsumed = getRuntimeContext().getMetricGroup().counter("parquet-records-consumed");
-		}
-
-		LOG.debug(String.format("Open ParquetInputFormat with FileInputSplit [%s]", split.getPath().toString()));
+		MessageType fileSchema = fileReader.getFileMetaData().getSchema();
+		MessageType readSchema = getReadSchema(fileSchema);
 		if (skipThisSplit) {
 			LOG.warn(String.format(
 				"Escaped the file split [%s] due to mismatch of file schema to expected result schema",
 				split.getPath().toString()));
+		} else {
+			this.parquetRecordReader = new ParquetRecordReader<>(new RowReadSupport(), readSchema, FilterCompat.NOOP);
+			this.parquetRecordReader.initialize(fileReader, configuration);
+			if (this.recordConsumed == null) {
+				this.recordConsumed = getRuntimeContext().getMetricGroup().counter("parquet-records-consumed");
+			}
+
+			LOG.debug(String.format("Open ParquetInputFormat with FileInputSplit [%s]", split.getPath().toString()));
 		}
 	}
 
@@ -153,8 +178,7 @@ public abstract class ParquetInputFormat<E>
 			this.open(split);
 		} finally {
 			if (state.f0 != -1) {
-				// open and read util the record we were before
-				// the checkpoint and discard the values
+				// seek to the read position in the split that we were at when the checkpoint was taken.
 				parquetRecordReader.seek(state.f0, state.f1);
 			}
 		}
@@ -245,4 +269,15 @@ public abstract class ParquetInputFormat<E>
 
 		return new MessageType(schema.getName(), types);
 	}
+
+	/**
+	 * The config parameter which defines whether to skip file split with wrong schema.
+	 */
+	public static final String SKIP_WRONG_SCHEMA_SPLITS = "skip.splits.wrong.schema";
+
+	/**
+	 * The config parameter which defines whether to skip corrupted record.
+	 */
+	public static final String SKIP_CORRUPTED_RECORD = "skip.corrupted.record";
+
 }

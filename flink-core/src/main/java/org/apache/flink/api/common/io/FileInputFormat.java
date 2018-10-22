@@ -234,16 +234,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	protected boolean enumerateNestedFiles = false;
 
 	/**
-	 * The flag to specify whether to skip file splits with wrong schema.
-	 */
-	protected boolean skipWrongSchemaFileSplit = false;
-
-	/**
-	 * The flag to specify whether to skip corrupted record.
-	 */
-	protected boolean skipCorruptedRecord = true;
-
-	/**
 	 * Files filter for determining what files/directories should be included.
 	 */
 	private FilePathFilter filesFilter = new GlobFilePathFilter();
@@ -472,14 +462,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 
 		if (!this.enumerateNestedFiles) {
 			this.enumerateNestedFiles = parameters.getBoolean(ENUMERATE_NESTED_FILES_FLAG, false);
-		}
-
-		if (!this.skipWrongSchemaFileSplit) {
-			this.skipWrongSchemaFileSplit = parameters.getBoolean(SKIP_WRONG_SCHEMA_SPLITS, false);
-		}
-
-		if (this.skipCorruptedRecord) {
-			this.skipCorruptedRecord = parameters.getBoolean(SKIP_CORRUPTED_RECORD, true);
 		}
 	}
 
@@ -1095,14 +1077,4 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 * The config parameter which defines whether input directories are recursively traversed.
 	 */
 	public static final String ENUMERATE_NESTED_FILES_FLAG = "recursive.file.enumeration";
-
-	/**
-	 * The config parameter which defines whether to skip file split with wrong schema.
-	 */
-	public static final String SKIP_WRONG_SCHEMA_SPLITS = "skip.splits.wrong.schema";
-
-	/**
-	 * The config parameter which defines whether to skip corrupted record.
-	 */
-	public static final String SKIP_CORRUPTED_RECORD = "skip.corrupted.record";
 }
