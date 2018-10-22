@@ -20,15 +20,20 @@ package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
+import org.apache.flink.cep.nfa.aftermatch.SkipPastLastStrategy;
+import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
+import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.cep.utils.TestSharedBuffer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
+import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -38,6 +43,7 @@ import java.util.List;
 import static org.apache.flink.cep.nfa.NFATestUtilities.compareMaps;
 import static org.apache.flink.cep.nfa.NFATestUtilities.feedNFA;
 import static org.apache.flink.cep.utils.NFAUtils.compile;
+import static org.junit.Assert.assertThat;
 
 /**
  * IT tests covering {@link AfterMatchSkipStrategy}.
@@ -935,5 +941,44 @@ public class AfterMatchSkipITCase extends TestLogger{
 			Lists.newArrayList(a1, c1, b2),
 			Lists.newArrayList(a2, c2, b1)
 		));
+	}
+
+	@Test
+	public void testSharedBufferIsProperlyCleared() throws Exception {
+		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+		for (int i = 0; i < 4; i++) {
+			inputEvents.add(new StreamRecord<>(new Event(1, "a", 1.0), i));
+		}
+
+		SkipPastLastStrategy matchSkipStrategy = AfterMatchSkipStrategy.skipPastLastEvent();
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start", matchSkipStrategy)
+			.where(new SimpleCondition<Event>() {
+				private static final long serialVersionUID = 5726188262756267490L;
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return true;
+				}
+			}).times(2);
+
+		NFA<Event> nfa = compile(pattern, false);
+
+		SharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
+		NFAState nfaState = nfa.createInitialNFAState();
+
+		for (StreamRecord<Event> inputEvent : inputEvents) {
+			try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
+				nfa.advanceTime(sharedBufferAccessor, nfaState, inputEvent.getTimestamp());
+				nfa.process(
+					sharedBufferAccessor,
+					nfaState,
+					inputEvent.getValue(),
+					inputEvent.getTimestamp(),
+					matchSkipStrategy);
+			}
+		}
+
+		assertThat(sharedBuffer.isEmpty(), Matchers.is(true));
 	}
 }
