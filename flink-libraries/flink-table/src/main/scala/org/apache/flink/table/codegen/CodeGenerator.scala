@@ -1061,13 +1061,13 @@ abstract class CodeGenerator(
 
         // declaration
         val resultTypeTerm = primitiveTypeTermForTypeInfo(expr.resultType)
-        if (nullCheck) {
+        if (nullCheck && !expr.nullTerm.equals(NEVER_NULL) && !expr.nullTerm.equals(ALWAYS_NULL)) {
           reusableMemberStatements.add(s"private boolean ${expr.nullTerm};")
         }
         reusableMemberStatements.add(s"private $resultTypeTerm ${expr.resultTerm};")
 
         // assignment
-        if (nullCheck) {
+        if (nullCheck && !expr.nullTerm.equals(NEVER_NULL) && !expr.nullTerm.equals(ALWAYS_NULL)) {
           reusablePerRecordStatements.add(s"this.${expr.nullTerm} = ${expr.nullTerm};")
         }
         reusablePerRecordStatements.add(s"this.${expr.resultTerm} = ${expr.resultTerm};")
