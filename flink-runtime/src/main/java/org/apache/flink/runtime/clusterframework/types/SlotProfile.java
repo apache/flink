@@ -25,6 +25,7 @@ import javax.annotation.Nonnull;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Set;
 
 /**
  * A slot profile describes the profile of a slot into which a task wants to be scheduled. The profile contains
@@ -49,14 +50,27 @@ public class SlotProfile {
 	@Nonnull
 	private final Collection<AllocationID> priorAllocations;
 
+	@Nonnull
+	private final Set<AllocationID> excludedAllocations;
+
 	public SlotProfile(
 		@Nonnull ResourceProfile resourceProfile,
 		@Nonnull Collection<TaskManagerLocation> preferredLocations,
 		@Nonnull Collection<AllocationID> priorAllocations) {
 
+		this(resourceProfile, preferredLocations, priorAllocations, Collections.emptySet());
+	}
+
+	public SlotProfile(
+		@Nonnull ResourceProfile resourceProfile,
+		@Nonnull Collection<TaskManagerLocation> preferredLocations,
+		@Nonnull Collection<AllocationID> priorAllocations,
+		@Nonnull Set<AllocationID> excludedAllocations) {
+
 		this.resourceProfile = resourceProfile;
 		this.preferredLocations = preferredLocations;
 		this.priorAllocations = priorAllocations;
+		this.excludedAllocations = excludedAllocations;
 	}
 
 	/**
@@ -81,6 +95,14 @@ public class SlotProfile {
 	@Nonnull
 	public Collection<AllocationID> getPriorAllocations() {
 		return priorAllocations;
+	}
+
+	/**
+	 * Returns a set of excluded/blacklisted allocation ids for slots which should not be used.
+	 */
+	@Nonnull
+	public Set<AllocationID> getExcludedAllocations() {
+		return excludedAllocations;
 	}
 
 	/**

@@ -40,6 +40,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
@@ -91,6 +92,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -1674,6 +1676,21 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		} catch (Exception e) {
 			LOG.error("Cannot update accumulators for job {}.", getJobID(), e);
 		}
+	}
+
+	/**
+	 * Computes and returns a set with the prior allocation ids from all execution vertices in the graph.
+	 */
+	public Set<AllocationID> computeAllPriorAllocationIds() {
+		HashSet<AllocationID> allPreviousAllocationIds = new HashSet<>();
+		Iterable<ExecutionJobVertex> ejvIterable = getVerticesTopologically();
+		for (ExecutionJobVertex executionJobVertex : ejvIterable) {
+			for (ExecutionVertex executionVertex : executionJobVertex.getTaskVertices()) {
+				AllocationID latestPriorAllocation = executionVertex.getLatestPriorAllocation();
+				allPreviousAllocationIds.add(latestPriorAllocation);
+			}
+		}
+		return allPreviousAllocationIds;
 	}
 
 	// --------------------------------------------------------------------------------------------

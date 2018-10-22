@@ -38,6 +38,11 @@ import java.util.function.BiFunction;
  */
 public class LocationPreferenceSlotSelection implements SlotSelectionStrategy {
 
+	public static final LocationPreferenceSlotSelection INSTANCE = new LocationPreferenceSlotSelection();
+
+	private LocationPreferenceSlotSelection() {
+	}
+
 	/**
 	 * Calculates the candidate's locality score.
 	 */

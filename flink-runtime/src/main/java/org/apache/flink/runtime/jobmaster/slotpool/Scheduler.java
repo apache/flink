@@ -509,4 +509,8 @@ public class Scheduler implements SlotProvider, SlotOwner {
 		}
 		return Acknowledge.get();
 	}
+
+	public boolean requiresPreviousAllocationBlacklist() {
+		return slotSelectionStrategy instanceof PreviousAllocationSlotSelectionStrategy;
+	}
 }

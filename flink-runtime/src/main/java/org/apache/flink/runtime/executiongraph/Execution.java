@@ -46,6 +46,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
@@ -65,6 +66,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -485,6 +487,18 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			final SlotRequestId slotRequestId = new SlotRequestId();
 
+			Set<AllocationID> blackListedAllocationIds;
+
+			// This is a temporary optimization to avoid computing all previous allocations if not required
+			// This can go away when we progress with the implementation of the Scheduler and we also need to observe
+			// if doing this for each execution can become a potential scalability problem for larger jobs.
+			if (slotProvider instanceof Scheduler && ((Scheduler) slotProvider).requiresPreviousAllocationBlacklist()) {
+				blackListedAllocationIds = getVertex().getExecutionGraph().computeAllPriorAllocationIds();
+				blackListedAllocationIds.removeAll(previousAllocationIDs);
+			} else {
+				blackListedAllocationIds = Collections.emptySet();
+			}
+
 			final CompletableFuture<LogicalSlot> logicalSlotFuture = preferredLocationsFuture
 				.thenCompose(
 					(Collection<TaskManagerLocation> preferredLocations) ->
@@ -495,7 +509,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 							new SlotProfile(
 								ResourceProfile.UNKNOWN,
 								preferredLocations,
-								previousAllocationIDs),
+								previousAllocationIDs,
+								blackListedAllocationIds),
 							allocationTimeout));
 
 			// register call back to cancel slot request in case that the execution gets canceled
