@@ -534,11 +534,6 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 	}
 
 	@Override
-	public TransientBlobKey putTransient(InputStream inputStream, long count) throws IOException {
-		return (TransientBlobKey) putInputStream(null, inputStream, TRANSIENT_BLOB, count);
-	}
-
-	@Override
 	public TransientBlobKey putTransient(JobID jobId, InputStream inputStream) throws IOException {
 		checkNotNull(jobId);
 		return (TransientBlobKey) putInputStream(jobId, inputStream, TRANSIENT_BLOB);
@@ -610,7 +605,7 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 
 
 	/**
-	 * Uploads a given size of the data from the given input stream for the given job to the BLOB server.
+	 * Uploads the data from the given input stream for the given job to the BLOB server.
 	 *
 	 * @param jobId
 	 * 		the ID of the job the BLOB belongs to
@@ -618,8 +613,6 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 	 * 		the input stream to read the data from
 	 * @param blobType
 	 * 		whether to make the data permanent or transient
-	 * @param count the size of data to upload to blob server. When count is"-1", the mount of data to upload
-	 *              is not limited.
 	 *
 	 * @return the computed BLOB key identifying the BLOB on the server
 	 *
@@ -628,7 +621,7 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 	 * 		local file, or uploading it to the HA store
 	 */
 	private BlobKey putInputStream(
-			@Nullable JobID jobId, InputStream inputStream, BlobKey.BlobType blobType, long count)
+			@Nullable JobID jobId, InputStream inputStream, BlobKey.BlobType blobType)
 			throws IOException {
 
 		if (LOG.isDebugEnabled()) {
@@ -638,27 +631,15 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 		File incomingFile = createTemporaryFilename();
 		MessageDigest md = BlobUtils.createMessageDigest();
 		BlobKey blobKey = null;
-		long remaining = count;
 		try (FileOutputStream fos = new FileOutputStream(incomingFile)) {
 			// read stream
 			byte[] buf = new byte[BUFFER_SIZE];
 			while (true) {
-				if (count != -1 && remaining < BUFFER_SIZE) {
-					break;
-				}
 				final int bytesRead = inputStream.read(buf);
 				if (bytesRead == -1) {
 					// done
 					break;
 				}
-				fos.write(buf, 0, bytesRead);
-				md.update(buf, 0, bytesRead);
-				remaining -= bytesRead;
-			}
-
-			if (count != -1 && remaining > 0) {
-				buf = new byte[Math.toIntExact(remaining)];
-				int bytesRead = inputStream.read(buf);
 				fos.write(buf, 0, bytesRead);
 				md.update(buf, 0, bytesRead);
 			}
@@ -673,28 +654,6 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 					incomingFile, blobKey, jobId);
 			}
 		}
-	}
-
-	/**
-	 * Uploads a infinite size of the data from the given input stream for the given job to the BLOB server.
-	 *
-	 * @param jobId
-	 * 		the ID of the job the BLOB belongs to
-	 * @param inputStream
-	 * 		the input stream to read the data from
-	 * @param blobType
-	 * 		whether to make the data permanent or transient
-	 *
-	 * @return the computed BLOB key identifying the BLOB on the server
-	 *
-	 * @throws IOException
-	 * 		thrown if an I/O error occurs while reading the data from the input stream, writing it to a
-	 * 		local file, or uploading it to the HA store
-	 */
-	private BlobKey putInputStream(
-		@Nullable JobID jobId, InputStream inputStream, BlobKey.BlobType blobType)
-		throws IOException {
-		return putInputStream(jobId, inputStream, blobType, -1);
 	}
 
 	/**

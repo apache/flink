@@ -70,7 +70,7 @@ import org.apache.flink.runtime.query.KvStateServer;
 import org.apache.flink.runtime.registration.RegistrationConnectionListener;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.rest.handler.legacy.files.FileOffsetRange;
+import org.apache.flink.runtime.util.FileOffsetRange;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -103,6 +103,7 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.shaded.guava18.com.google.common.io.ByteStreams;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -855,7 +856,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 					InputStream inputStream = Channels.newInputStream(
 						raf.getChannel()
 							.position(range.getStartOffsetForFile(file)));
-					transientBlobKey = transientBlobService.putTransient(inputStream, range.getLengthForFile(file));
+					transientBlobKey = transientBlobService.putTransient(ByteStreams.limit(inputStream, range.getLengthForFile(file)));
 				} catch (IOException e) {
 					log.debug("Could not upload file {}.", fileType, e);
 					return FutureUtils.completedExceptionally(new FlinkException("Could not upload file " + fileType + '.', e));

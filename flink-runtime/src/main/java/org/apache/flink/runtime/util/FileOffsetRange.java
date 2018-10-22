@@ -16,30 +16,37 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.util;
+
+import java.io.File;
+import java.io.Serializable;
 
 /**
- * Path parameter identifying the name of a historical log file.
+ * FileOffsetRange is used to decide which part of files to read.
  */
-public class FilenamePathParameter extends MessagePathParameter<String>{
-	public static final String KEY = "filename";
+public class FileOffsetRange implements Serializable{
+	public static final FileOffsetRange MAX_FILE_OFFSET_RANGE = new FileOffsetRange(0, Long.MAX_VALUE);
+	private final long start;
+	private final long end;
 
-	public FilenamePathParameter() {
-		super(KEY);
+	public FileOffsetRange(long start, long end) {
+		this.start = start;
+		this.end = end;
 	}
 
-	@Override
-	protected String convertFromString(String value) throws ConversionException {
-		return value;
+	public long getLengthForFile(File file) {
+		return Math.min(end, file.length()) - Math.min(start, file.length());
 	}
 
-	@Override
-	protected String convertToString(String value) {
-		return value;
+	public long getStartOffsetForFile(File file) {
+		return Math.min(start, file.length());
 	}
 
-	@Override
-	public String getDescription() {
-		return "a String that identifies the name of a historical log file ";
+	public long getEndOffsetForFile(File file) {
+		return Math.min(end, file.length());
+	}
+
+	public String toString() {
+		return "Range={start=" + start + ", end=" + end + "}";
 	}
 }

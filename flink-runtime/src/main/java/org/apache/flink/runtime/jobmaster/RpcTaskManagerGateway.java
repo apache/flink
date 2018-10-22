@@ -32,9 +32,9 @@ import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTrace;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
-import org.apache.flink.runtime.rest.handler.legacy.files.FileOffsetRange;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.util.FileOffsetRange;
 import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.CompletableFuture;
@@ -134,18 +134,13 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<TransientBlobKey> requestTaskManagerLog(Time timeout, String filename, FileOffsetRange range) {
-		return taskExecutorGateway.requestFileUpload(FileType.LOG, timeout, filename, range);
+	public CompletableFuture<TransientBlobKey> requestTaskManagerLog(Time timeout) {
+		return taskExecutorGateway.requestFileUpload(FileType.LOG, timeout, null, FileOffsetRange.MAX_FILE_OFFSET_RANGE);
 	}
 
 	@Override
-	public CompletableFuture<TransientBlobKey> requestTaskManagerStdout(Time timeout, FileOffsetRange range) {
-		return taskExecutorGateway.requestFileUpload(FileType.STDOUT, timeout, null, range);
-	}
-	
-	@Override
-	public CompletableFuture<String[]> requestTaskManagerLogList(Time timeout) {
-		return taskExecutorGateway.requestLogList(timeout);
+	public CompletableFuture<TransientBlobKey> requestTaskManagerStdout(Time timeout) {
+		return taskExecutorGateway.requestFileUpload(FileType.STDOUT, timeout, null, FileOffsetRange.MAX_FILE_OFFSET_RANGE);
 	}
 
 	@Override

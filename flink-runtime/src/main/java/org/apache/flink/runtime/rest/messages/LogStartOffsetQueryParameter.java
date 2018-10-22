@@ -18,30 +18,30 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.rest.handler.legacy.files.FileOffsetRange;
-
 /**
- * Path parameter identifying the offset range of a log file to read.
+ * Path parameter specifying the log file request.
  */
-public class RangePathParameter extends MessagePathParameter<FileOffsetRange> {
-	public static final String KEY = "range";
-
-	public RangePathParameter() {
-		super(KEY);
+public class LogStartOffsetQueryParameter extends MessageQueryParameter<Long> {
+	public LogStartOffsetQueryParameter() {
+		super("start", MessageParameterRequisiteness.OPTIONAL);
 	}
 
 	@Override
-	protected FileOffsetRange convertFromString(String value) throws ConversionException {
-		return FileOffsetRange.generateRange(value);
+	public Long convertStringToValue(String value) throws ConversionException {
+		try {
+			return Long.parseLong(value);
+		} catch (Exception e) {
+			return 0L;
+		}
 	}
 
 	@Override
-	protected String convertToString(FileOffsetRange value) {
-		return value.toString();
+	public String convertValueToString(Long value) {
+		return String.valueOf(value);
 	}
 
 	@Override
 	public String getDescription() {
-		return "{start offset}-{end offset} that identifies which part of files to read";
+		return "Long value that specifies the start offset of log to read";
 	}
 }

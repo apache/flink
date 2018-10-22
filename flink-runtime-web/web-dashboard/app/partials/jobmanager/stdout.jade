@@ -21,13 +21,15 @@ table.table.table-properties
     tr
       th(colspan="2")
         .row
-          .col-xs-6
+          .col-xs-5
             | Job Manager Output
-          .col-xs-3.text-right 
-            | range: 
+          .col-xs-2.text-right 
+            | start: 
             input(type="text" ng-model="start" ng-init="start=0" size="3")
-            |  - 
-            input(type="text" ng-model="end" ng-init="end=100" size="3")
+            |  kb
+          .col-xs-2.text-right 
+            | size:
+            input(type="text" ng-model="size" ng-init="size=100" size="3")
             |  kb
           .col-xs-1.text-right  
             button(ng-click="searchStdout()" ng-model="searchLogs" class="btn btn-default btn-xs") search  

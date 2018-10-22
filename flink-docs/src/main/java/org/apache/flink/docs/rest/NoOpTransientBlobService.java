@@ -58,11 +58,6 @@ enum NoOpTransientBlobService implements TransientBlobService {
 	}
 
 	@Override
-	public TransientBlobKey putTransient(InputStream inputStream, long count) throws IOException {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
 	public TransientBlobKey putTransient(JobID jobId, InputStream inputStream) throws IOException {
 		throw new UnsupportedOperationException();
 	}
