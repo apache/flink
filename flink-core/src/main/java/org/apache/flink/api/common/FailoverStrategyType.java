@@ -31,22 +31,22 @@ public enum FailoverStrategyType {
 	 * Restarts all tasks when a failure occurred
 	 *
 	 * */
-	FULL_RESTART_STRATEGY_NAME("full"),
+	FULL_RESTART_STRATEGY("full"),
 
 	/**
 	 *  Config name for the RestartIndividualStrategy
 	 *  Restarts only the failed task. Should only be used if all tasks are independent components
 	 * */
-	INDIVIDUAL_RESTART_STRATEGY_NAME("individual"),
+	INDIVIDUAL_RESTART_STRATEGY("individual"),
 
 	/**
 	 * Config name for the RestartPipelinedRegionStrategy
 	 * Restarts all tasks that could be affected by the task failure.
 	 * */
-	PIPELINED_REGION_RESTART_STRATEGY_NAME("region"),
+	PIPELINED_REGION_RESTART_STRATEGY("region"),
 
 	/**
-	 * faiolver strategy not defined, will use the default strategy of cluster configuration
+	 * Faiolver strategy not defined, will use the default strategy of cluster configuration
 	 * */
 	None("none");
 

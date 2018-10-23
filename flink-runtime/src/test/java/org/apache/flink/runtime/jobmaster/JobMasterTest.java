@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.FailoverStrategyType;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -27,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -1362,6 +1364,37 @@ public class JobMasterTest extends TestLogger {
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
 		}
+	}
+
+	private ExecutionGraph createExecutionGraphWithConfig(ExecutionConfig executionConfig) throws  Exception {
+		final JobVertex jobVertex = new JobVertex("Test vertex");
+		jobVertex.setInvokableClass(NoOpInvokable.class);
+
+		final JobGraph jobGraph = new JobGraph(jobVertex);
+		jobGraph.setAllowQueuedScheduling(true);
+		jobGraph.setExecutionConfig(executionConfig);
+
+		Configuration configuration = new Configuration();
+		configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
+		JobMaster jobMaster = createJobMaster(
+			configuration,
+			jobGraph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder().build());
+
+		return jobMaster.getExecutionGraph();
+	}
+
+	@Test
+	public void setFailoverStategyTypeTest() throws Exception{
+
+		ExecutionConfig executionConfig = new ExecutionConfig();
+		ExecutionGraph graph = createExecutionGraphWithConfig(executionConfig);
+		assertEquals("Pipelined Region Failover", graph.getFailoverStrategy().getStrategyName());
+
+		executionConfig.setFailoverStrategy(FailoverStrategyType.FULL_RESTART_STRATEGY);
+		graph = createExecutionGraphWithConfig(executionConfig);
+		assertEquals("full graph restart", graph.getFailoverStrategy().getStrategyName());
 	}
 
 	private JobGraph producerConsumerJobGraph() {
