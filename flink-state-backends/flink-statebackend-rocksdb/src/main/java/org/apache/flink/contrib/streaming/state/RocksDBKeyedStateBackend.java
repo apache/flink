@@ -1356,14 +1356,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		RegisteredKeyValueStateBackendMetaInfo<N, SV> newMetaInfo;
 		if (stateInfo != null) {
-
-			StateMetaInfoSnapshot restoredMetaInfoSnapshot = restoredKvStateMetaInfos.get(stateDesc.getName());
-
-			Preconditions.checkState(
-				restoredMetaInfoSnapshot != null,
-				"Requested to check compatibility of a restored RegisteredKeyedBackendStateMetaInfo," +
-					" but its corresponding restored snapshot cannot be found.");
-
 			newMetaInfo = migrateStateIfNecessary(
 				stateDesc,
 				namespaceSerializer,
@@ -1418,9 +1410,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				restoredMetaInfoSnapshot.getOption(
 					StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE));
 
-		if (!Objects.equals(stateDesc.getType(), StateDescriptor.Type.UNKNOWN)
-			&& !Objects.equals(restoredType, StateDescriptor.Type.UNKNOWN)) {
-
+		if (stateDesc.getType() != StateDescriptor.Type.UNKNOWN && restoredType != StateDescriptor.Type.UNKNOWN) {
 			Preconditions.checkState(
 				stateDesc.getType() == restoredType,
 				"Incompatible key/value state types. " +
@@ -1455,7 +1445,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		if (stateCompatibility.isRequiresMigration()) {
-			migrateStateValue(stateDesc, stateInfo, restoredMetaInfoSnapshot, newMetaInfo);
+			migrateStateValues(stateDesc, stateInfo, restoredMetaInfoSnapshot, newMetaInfo);
 		} else {
 			newMetaInfo = new RegisteredKeyValueStateBackendMetaInfo<>(
 				newMetaInfo.getStateType(),
@@ -1474,19 +1464,19 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * the key here, which is made up of key group, key, namespace and map key
 	 * (in case of MapState).
 	 */
-	private <N, S extends State, SV> void migrateStateValue(
+	private <N, S extends State, SV> void migrateStateValues(
 		StateDescriptor<S, SV> stateDesc,
 		Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> stateInfo,
 		StateMetaInfoSnapshot restoredMetaInfoSnapshot,
 		RegisteredKeyValueStateBackendMetaInfo<N, SV> newMetaInfo) throws Exception {
 
-		if (stateDesc.getType().equals(StateDescriptor.Type.MAP)) {
+		if (stateDesc.getType() == StateDescriptor.Type.MAP) {
 			throw new StateMigrationException("The new serializer for a MapState requires state migration in order for the job to proceed." +
 				" However, migration for MapState currently isn't supported.");
 		}
 
 		LOG.info(
-			"Performing state migration for state {} because the state serializer changed in an incompatible way.",
+			"Performing state migration for state {} because the state serializer's schema, i.e. serialization format, has changed.",
 			stateDesc);
 
 		// we need to get an actual state instance because migration is different
@@ -1524,10 +1514,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				iterator.next();
 			}
 		} finally {
-			if (rocksDBSnapshot != null) {
-				db.releaseSnapshot(rocksDBSnapshot);
-				rocksDBSnapshot.close();
-			}
+			db.releaseSnapshot(rocksDBSnapshot);
+			rocksDBSnapshot.close();
 		}
 	}
 
