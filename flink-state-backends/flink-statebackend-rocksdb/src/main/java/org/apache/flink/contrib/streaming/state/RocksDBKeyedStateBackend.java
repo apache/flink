@@ -30,6 +30,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -1501,18 +1502,34 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		AbstractRocksDBState<?, ?, SV, S> rocksDBState = (AbstractRocksDBState<?, ?, SV, S>) state;
 
 		Snapshot rocksDBSnapshot = db.getSnapshot();
-		try (RocksIteratorWrapper iterator = getRocksIterator(db, stateInfo.f0)) {
-
+		try (
+			RocksIteratorWrapper iterator = getRocksIterator(db, stateInfo.f0);
+			RocksDBWriteBatchWrapper batchWriter = new RocksDBWriteBatchWrapper(db)
+		) {
 			iterator.seekToFirst();
+
+			@SuppressWarnings("unchecked")
+			TypeSerializerSnapshot<SV> priorValueSerializerSnapshot = (TypeSerializerSnapshot<SV>)
+				Preconditions.checkNotNull(restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER));
+			TypeSerializer<SV> priorValueSerializer = priorValueSerializerSnapshot.restoreSerializer();
+
+			DataInputDeserializer serializedValueInput = new DataInputDeserializer();
+			DataOutputSerializer migratedSerializedValueOutput = new DataOutputSerializer(1);
 			while (iterator.isValid()) {
-				byte[] serializedValue = iterator.value();
-				byte[] migratedSerializedValue = rocksDBState.migrateSerializedValue(
-					serializedValue,
-					(TypeSerializer<SV>) restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER).restoreSerializer(),
+				serializedValueInput.setBuffer(iterator.value());
+
+				rocksDBState.migrateSerializedValue(
+					serializedValueInput,
+					migratedSerializedValueOutput,
+					priorValueSerializer,
 					stateDesc.getSerializer());
-				db.put(stateInfo.f0, iterator.key(), migratedSerializedValue);
+
+				batchWriter.put(stateInfo.f0, iterator.key(), migratedSerializedValueOutput.getCopyOfBuffer());
+
+				migratedSerializedValueOutput.clear();
 				iterator.next();
 			}
+			batchWriter.flush();
 		} finally {
 			db.releaseSnapshot(rocksDBSnapshot);
 			rocksDBSnapshot.close();

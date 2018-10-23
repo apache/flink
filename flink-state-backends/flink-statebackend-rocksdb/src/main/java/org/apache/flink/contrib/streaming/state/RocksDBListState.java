@@ -26,9 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputDeserializer;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -41,8 +39,6 @@ import org.rocksdb.RocksDBException;
 
 import javax.annotation.Nullable;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -249,8 +245,9 @@ class RocksDBListState<K, N, V>
 	}
 
 	@Override
-	public byte[] migrateSerializedValue(
-			byte[] serializedOldValue,
+	public void migrateSerializedValue(
+			DataInputDeserializer serializedOldValueInput,
+			DataOutputSerializer serializedMigratedValueOutput,
 			TypeSerializer<List<V>> priorSerializer,
 			TypeSerializer<List<V>> newSerializer) throws StateMigrationException {
 
@@ -263,30 +260,18 @@ class RocksDBListState<K, N, V>
 		TypeSerializer<V> newElementSerializer =
 			((ListSerializer<V>) newSerializer).getElementSerializer();
 
-		byte[] result;
-
-		try (
-			ByteArrayInputStream bais = new ByteArrayInputStream(serializedOldValue);
-			DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos)
-		) {
-
-			while (in.available() > 0) {
-				V element = priorElementSerializer.deserialize(in);
-				newElementSerializer.serialize(element, out);
-				if (in.available() > 0) {
-					in.readByte();
-					out.write(DELIMITER);
+		try {
+			while (serializedOldValueInput.available() > 0) {
+				V element = priorElementSerializer.deserialize(serializedOldValueInput);
+				newElementSerializer.serialize(element, serializedMigratedValueOutput);
+				if (serializedOldValueInput.available() > 0) {
+					serializedOldValueInput.readByte();
+					serializedMigratedValueOutput.write(DELIMITER);
 				}
 			}
-
-			result = baos.toByteArray();
 		} catch (Exception e) {
 			throw new StateMigrationException("Error while trying to migrate RocksDB list state.", e);
 		}
-
-		return result;
 	}
 
 	private static <V> byte[] getPreMergedValue(

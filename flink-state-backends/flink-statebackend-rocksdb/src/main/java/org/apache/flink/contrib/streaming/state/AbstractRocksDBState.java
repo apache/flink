@@ -21,9 +21,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputDeserializer;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.internal.InternalKvState;
@@ -35,8 +33,6 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 /**
@@ -159,24 +155,15 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State> implements 
 		return backend.db.get(columnFamily, tmpKeySerializationView.getCopyOfBuffer());
 	}
 
-	public byte[] migrateSerializedValue(
-			byte[] serializedOldValue,
+	public void migrateSerializedValue(
+			DataInputDeserializer serializedOldValueInput,
+			DataOutputSerializer serializedMigratedValueOutput,
 			TypeSerializer<V> priorSerializer,
 			TypeSerializer<V> newSerializer) throws StateMigrationException {
 
 		try {
-			V value = priorSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(serializedOldValue)));
-
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
-			newSerializer.serialize(value, out);
-
-			byte[] result = baos.toByteArray();
-
-			out.close();
-			baos.close();
-
-			return result;
+			V value = priorSerializer.deserialize(serializedOldValueInput);
+			newSerializer.serialize(value, serializedMigratedValueOutput);
 		} catch (Exception e) {
 			throw new StateMigrationException("Error while trying to migration RocksDB state.", e);
 		}
