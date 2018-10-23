@@ -97,7 +97,7 @@ Then, import the connector in your maven project:
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-connector-kafka{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
+  <version>{{ site.version }}</version>
 </dependency>
 {% endhighlight %}
 
@@ -116,7 +116,7 @@ If your Kafka broker version is 1.0.0 or newer, you should use this Kafka connec
 
 ### Compatibility
 
-The the modern Kafka connector is compatible with older and newer Kafka brokers through the compatibility guarantees of the Kafka client API and broker. The modern Kafka client is compatible with broker versions 0.10.0 or later, depending on the features used. Fo details on Kafka compatibility, please refer to the [Kafka documentation](https://kafka.apache.org/protocol.html#protocol_compatibility).
+The modern Kafka connector is compatible with older and newer Kafka brokers through the compatibility guarantees of the Kafka client API and broker. The modern Kafka client is compatible with broker versions 0.10.0 or later, depending on the features used. For details on Kafka compatibility, please refer to the [Kafka documentation](https://kafka.apache.org/protocol.html#protocol_compatibility).
 
 ### Usage
 
@@ -126,7 +126,7 @@ The use of the modern Kafka connector add a dependency to it:
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-connector-kafka{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
+  <version>{{ site.version }}</version>
 </dependency>
 {% endhighlight %}
 
