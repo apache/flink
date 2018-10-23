@@ -99,9 +99,11 @@ public final class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T
 		checkNotNull(schema);
 
 		if (runtimeSchema != null) {
-			return new AvroSerializer<>(runtimeType, runtimeSchema, schema);
+			return new AvroSerializer<>(runtimeType, new SerializableAvroSchema(runtimeSchema), new SerializableAvroSchema(schema));
 		}
-		return new AvroSerializer<>(runtimeType, schema, schema);
+		else {
+			return new AvroSerializer<>(runtimeType, new SerializableAvroSchema(schema), new SerializableAvroSchema(schema));
+		}
 	}
 
 	// ------------------------------------------------------------------------------------------------------------

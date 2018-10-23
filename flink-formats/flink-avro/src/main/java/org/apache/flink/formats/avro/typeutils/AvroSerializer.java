@@ -83,6 +83,14 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	private final SerializableAvroSchema schema;
 	private final SerializableAvroSchema previousSchema;
 
+	/** This field was present in this class prior to 1.7, and held the string representation of
+	 * a {@link Schema} (only in the case of an Avro GenericRecord). Since, {@code FsStateBackend} stores the serializer
+	 * (via Java serialization) within the checkpoint to later restore the state, we need to have this field here.
+	 * see {@link #initializeAvro()}.
+	 */
+	@Deprecated
+	private final String schemaString = null;
+
 	// -------- runtime fields, non-serializable, lazily initialized -----------
 
 	private transient GenericData avroData;
@@ -91,7 +99,6 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	private transient DataInputDecoder decoder;
 	private transient DatumReader<T> reader;
 	private transient Schema runtimeSchema;
-
 
 	/** The serializer configuration snapshot, cached for efficiency. */
 	private transient TypeSerializerSnapshot<T> configSnapshot;
@@ -107,11 +114,9 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	 * For serializing {@link GenericData.Record} use {@link AvroSerializer#AvroSerializer(Class, Schema)}
 	 */
 	public AvroSerializer(Class<T> type) {
+		this(checkNotNull(type), new SerializableAvroSchema(), new SerializableAvroSchema());
 		checkArgument(!isGenericRecord(type),
 			"For GenericData.Record use constructor with explicit schema.");
-		this.type = checkNotNull(type);
-		this.schema = new SerializableAvroSchema();
-		this.previousSchema = new SerializableAvroSchema();
 	}
 
 	/**
@@ -121,21 +126,19 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	 * {@link AvroSerializer#AvroSerializer(Class)}
 	 */
 	public AvroSerializer(Class<T> type, Schema schema) {
+		this(checkNotNull(type), new SerializableAvroSchema(checkNotNull(schema)), new SerializableAvroSchema());
 		checkArgument(isGenericRecord(type),
 			"For classes other than GenericData.Record use constructor without explicit schema.");
-		this.type = checkNotNull(type);
-		this.schema = new SerializableAvroSchema(checkNotNull(schema));
-		this.previousSchema = new SerializableAvroSchema();
 	}
 
 	/**
 	 * Creates a new AvroSerializer for the type indicated by the given class.
 	 */
 	@Internal
-	AvroSerializer(Class<T> type, @Nullable Schema newSchema, @Nullable Schema previousSchema) {
+	AvroSerializer(Class<T> type, @Nullable SerializableAvroSchema newSchema, @Nullable SerializableAvroSchema previousSchema) {
 		this.type = checkNotNull(type);
-		this.schema = new SerializableAvroSchema(newSchema);
-		this.previousSchema = new SerializableAvroSchema(previousSchema);
+		this.schema = newSchema;
+		this.previousSchema = previousSchema;
 	}
 
 	/**
@@ -308,7 +311,8 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public TypeSerializer<T> duplicate() {
-		return new AvroSerializer<>(type, runtimeSchema, previousSchema.getAvroSchema());
+		checkAvroInitialized();
+		return new AvroSerializer<>(type, new SerializableAvroSchema(runtimeSchema), previousSchema);
 	}
 
 	@Override
@@ -351,14 +355,26 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	}
 
 	private void initializeAvro() {
-		AvroFactory<T> factory = AvroFactory.create(type, schema.getAvroSchema(), previousSchema.getAvroSchema());
-
+		final AvroFactory<T> factory;
+		if (wasThisInstanceDeserializedFromAPre17Version()) {
+			// since schema is a final field that is initialized to a non null value,
+			// this can only have happened when restoring from a checkpoint in an FsStateBackend pre Flink 1.7.
+			// To maintain backwards compatibility we need to use the information stored at schemaString.
+			factory = AvroFactory.createFromTypeAndSchemaString(type, schemaString);
+		}
+		else {
+			factory = AvroFactory.create(type, schema.getAvroSchema(), previousSchema.getAvroSchema());
+		}
 		this.runtimeSchema = factory.getSchema();
 		this.writer = factory.getWriter();
 		this.reader = factory.getReader();
 		this.encoder = factory.getEncoder();
 		this.decoder = factory.getDecoder();
 		this.avroData = factory.getAvroData();
+	}
+
+	private boolean wasThisInstanceDeserializedFromAPre17Version() {
+		return (schema == null);
 	}
 
 	// --------------------------------------------------------------------------------------------
