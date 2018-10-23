@@ -98,6 +98,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("POWER(5, 5)", "3125.0")
     testSqlApi("ABS(-5)", "5")
     testSqlApi("MOD(-26, 5)", "-1")
+    testSqlApi("REMAINDER(-26, 5)", "-1.0")
     testSqlApi("SQRT(4)", "2.0")
     testSqlApi("LN(2)", "0.6931471805599453")
     testSqlApi("LOG10(10)", "1.0")

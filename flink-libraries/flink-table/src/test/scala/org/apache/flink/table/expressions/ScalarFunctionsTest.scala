@@ -915,6 +915,39 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testRemainder(): Unit = {
+    testAllApis(
+      -26.remainder(5.0),
+      "-26.remainder(5.0)",
+      "REMAINDER(-26, 5.0)",
+      math.IEEEremainder(-26, 5f).toString)
+
+    testAllApis(
+      15.0.remainder(5),
+      "remainder(15.0, 5)",
+      "REMAINDER(15.0, 5)",
+      math.IEEEremainder(15.0, 5).toString)
+
+    testAllApis(
+      15f.remainder(4f),
+      "remainder(15.0, 4.0)",
+      "REMAINDER(15.0, 4.0)",
+      math.IEEEremainder(15f, 4f).toString)
+
+    testAllApis(
+      11.6.remainder(2.1),
+      "remainder(11.6, 2.1)",
+      "REMAINDER(11.6, 2.1)",
+      math.IEEEremainder(11.6, 2.1).toString)
+
+    testAllApis(
+      -15.remainder(4),
+      "remainder(-15, 4)",
+      "REMAINDER(-15, 4)",
+      math.IEEEremainder(-15, 4).toString)
+  }
+
+  @Test
   def testExp(): Unit = {
     testAllApis(
       'f2.exp(),

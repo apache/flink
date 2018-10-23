@@ -493,3 +493,17 @@ case class UUID() extends LeafExpression {
     relBuilder.call(ScalarSqlFunctions.UUID)
   }
 }
+
+case class Remainder(left: Expression, right: Expression)
+  extends BinaryExpression with InputTypeSpec {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    DOUBLE_TYPE_INFO :: DOUBLE_TYPE_INFO :: Nil
+
+  override def toString: String = s"remainder($left, $right)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.REMAINDER, left.toRexNode, right.toRexNode)
+  }
+}

@@ -109,6 +109,14 @@ object ScalarSqlFunctions {
     OperandTypes.NUMERIC,
     SqlFunctionCategory.NUMERIC)
 
+  val REMAINDER = new SqlFunction(
+    "REMAINDER",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.DOUBLE_NULLABLE,
+    null,
+    OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC),
+    SqlFunctionCategory.NUMERIC)
+
   val LPAD = new SqlFunction(
     "LPAD",
     SqlKind.OTHER_FUNCTION,

@@ -693,6 +693,30 @@ object FunctionGenerator {
     STRING_TYPE_INFO,
     BuiltInMethods.RPAD)
 
+  addSqlFunctionMethod(
+    REMAINDER,
+    Seq(DOUBLE_TYPE_INFO, DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.REMAINDER)
+
+  addSqlFunctionMethod(
+    REMAINDER,
+    Seq(DOUBLE_TYPE_INFO, BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.REMAINDER_DEC)
+
+  addSqlFunctionMethod(
+    REMAINDER,
+    Seq(BIG_DEC_TYPE_INFO, DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.REMAINDER_DEC_DOUBLE)
+
+  addSqlFunctionMethod(
+    REMAINDER,
+    Seq(BIG_DEC_TYPE_INFO, BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.REMAINDER_DEC_DEC)
+
   // ----------------------------------------------------------------------------------------------
   // Cryptographic Hash functions
   // ----------------------------------------------------------------------------------------------

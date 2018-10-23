@@ -153,6 +153,12 @@ object ScalarFunctions {
     }
   }
 
+  def remainder(a: Double, b: JBigDecimal): Double = Math.IEEEremainder(a, b.doubleValue())
+
+  def remainder(a: JBigDecimal, b: Double): Double = Math.IEEEremainder(a.doubleValue(), b)
+
+  def remainder(a: JBigDecimal, b: JBigDecimal): Double = Math.IEEEremainder(a.doubleValue(), b.doubleValue())
+
   /**
     * Returns the string str left-padded with the string pad to a length of len characters.
     * If str is longer than len, the return value is shortened to len characters.

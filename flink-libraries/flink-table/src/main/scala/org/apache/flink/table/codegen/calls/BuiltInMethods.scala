@@ -176,4 +176,28 @@ object BuiltInMethods {
     "repeat",
     classOf[String],
     classOf[Int])
+
+  val REMAINDER = Types.lookupMethod(
+    classOf[Math],
+    "IEEEremainder",
+    classOf[Double],
+    classOf[Double])
+
+  val REMAINDER_DEC = Types.lookupMethod(
+    classOf[ScalarFunctions],
+    "remainder",
+    classOf[Double],
+    classOf[JBigDecimal])
+
+  val REMAINDER_DEC_DOUBLE = Types.lookupMethod(
+    classOf[ScalarFunctions],
+    "remainder",
+    classOf[JBigDecimal],
+    classOf[Double])
+
+  val REMAINDER_DEC_DEC = Types.lookupMethod(
+    classOf[ScalarFunctions],
+    "remainder",
+    classOf[JBigDecimal],
+    classOf[JBigDecimal])
 }
