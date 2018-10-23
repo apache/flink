@@ -23,21 +23,17 @@ import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import javax.tools.JavaCompiler;
-import javax.tools.ToolProvider;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.net.URL;
-import java.net.URLClassLoader;
 
 public class EnumSerializerUpgradeTest extends TestLogger {
 
@@ -87,7 +83,7 @@ public class EnumSerializerUpgradeTest extends TestLogger {
 	private static CompatibilityResult checkCompatibility(String enumSourceA, String enumSourceB)
 		throws IOException, ClassNotFoundException {
 
-		ClassLoader classLoader = compileAndLoadEnum(
+		ClassLoader classLoader = ClassLoaderUtils.compileAndLoadJava(
 			temporaryFolder.newFolder(), ENUM_NAME + ".java", enumSourceA);
 
 		EnumSerializer enumSerializer = new EnumSerializer(classLoader.loadClass(ENUM_NAME));
@@ -102,7 +98,7 @@ public class EnumSerializerUpgradeTest extends TestLogger {
 			snapshotBytes = outBuffer.toByteArray();
 		}
 
-		ClassLoader classLoader2 = compileAndLoadEnum(
+		ClassLoader classLoader2 = ClassLoaderUtils.compileAndLoadJava(
 			temporaryFolder.newFolder(), ENUM_NAME + ".java", enumSourceB);
 
 		TypeSerializerConfigSnapshot restoredSnapshot;
@@ -115,30 +111,5 @@ public class EnumSerializerUpgradeTest extends TestLogger {
 
 		EnumSerializer enumSerializer2 = new EnumSerializer(classLoader2.loadClass(ENUM_NAME));
 		return enumSerializer2.ensureCompatibility(restoredSnapshot);
-	}
-
-	private static ClassLoader compileAndLoadEnum(File root, String filename, String source) throws IOException {
-		File file = writeSourceFile(root, filename, source);
-
-		compileClass(file);
-
-		return new URLClassLoader(
-			new URL[]{root.toURI().toURL()},
-			Thread.currentThread().getContextClassLoader());
-	}
-
-	private static File writeSourceFile(File root, String filename, String source) throws IOException {
-		File file = new File(root, filename);
-		FileWriter fileWriter = new FileWriter(file);
-
-		fileWriter.write(source);
-		fileWriter.close();
-
-		return file;
-	}
-
-	private static int compileClass(File sourceFile) {
-		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-		return compiler.run(null, null, null, sourceFile.getPath());
 	}
 }
