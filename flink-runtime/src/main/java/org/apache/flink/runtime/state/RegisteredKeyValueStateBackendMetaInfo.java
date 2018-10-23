@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
@@ -30,6 +32,7 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Compound meta information for a registered state in a keyed state backend. This combines all serializers and the
@@ -150,6 +153,48 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 	@Override
 	public StateMetaInfoSnapshot snapshot() {
 		return computeSnapshot();
+	}
+
+	public static <T> CompatibilityResult<T> resolveStateCompatibiliity(
+			StateMetaInfoSnapshot stateMetaInfoSnapshot,
+			StateDescriptor<?, T> stateDesc,
+			TypeSerializer<T> newStateSerializer) {
+
+		Preconditions.checkState(
+			stateMetaInfoSnapshot != null,
+			"Requested to check compatibility of a restored RegisteredKeyedBackendStateMetaInfo," +
+				" but its corresponding restored snapshot cannot be found.");
+
+		Preconditions.checkState(stateMetaInfoSnapshot.getBackendStateType()
+				== StateMetaInfoSnapshot.BackendStateType.KEY_VALUE,
+			"Incompatible state types. " +
+				"Was [" + stateMetaInfoSnapshot.getBackendStateType() + "], " +
+				"registered as [" + StateMetaInfoSnapshot.BackendStateType.KEY_VALUE + "].");
+
+		Preconditions.checkState(
+			Objects.equals(stateDesc.getName(), stateMetaInfoSnapshot.getName()),
+			"Incompatible state names. " +
+				"Was [" + stateMetaInfoSnapshot.getName() + "], " +
+				"registered with [" + stateDesc.getName() + "].");
+
+		final StateDescriptor.Type restoredType =
+			StateDescriptor.Type.valueOf(
+				stateMetaInfoSnapshot.getOption(
+					StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE));
+
+		if (stateDesc.getType() != StateDescriptor.Type.UNKNOWN && restoredType != StateDescriptor.Type.UNKNOWN) {
+			Preconditions.checkState(
+				stateDesc.getType() == restoredType,
+				"Incompatible key/value state types. " +
+					"Was [" + restoredType + "], " +
+					"registered with [" + stateDesc.getType() + "].");
+		}
+
+		return CompatibilityUtil.resolveCompatibilityResult(
+			stateMetaInfoSnapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString()),
+			null,
+			stateMetaInfoSnapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString()),
+			newStateSerializer);
 	}
 
 	@Nonnull

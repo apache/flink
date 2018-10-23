@@ -257,7 +257,14 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		@SuppressWarnings("unchecked")
 		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) registeredKVStates.get(stateDesc.getName());
 
-		RegisteredKeyValueStateBackendMetaInfo<N, V> newMetaInfo;
+		TypeSerializer<V> newStateSerializer = stateDesc.getSerializer();
+		RegisteredKeyValueStateBackendMetaInfo<N, V> newMetaInfo = new RegisteredKeyValueStateBackendMetaInfo<>(
+			stateDesc.getType(),
+			stateDesc.getName(),
+			namespaceSerializer,
+			newStateSerializer,
+			snapshotTransformer);
+
 		if (stateTable != null) {
 			@SuppressWarnings("unchecked")
 			StateMetaInfoSnapshot restoredMetaInfoSnapshot =
@@ -269,22 +276,20 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				"Requested to check compatibility of a restored RegisteredKeyedBackendStateMetaInfo," +
 					" but its corresponding restored snapshot cannot be found.");
 
-			newMetaInfo = new RegisteredKeyValueStateBackendMetaInfo<>(
-				stateDesc.getType(),
-				stateDesc.getName(),
-				namespaceSerializer,
-				stateDesc.getSerializer(),
-				snapshotTransformer);
+			CompatibilityResult<N> namespaceCompatibility = CompatibilityUtil.resolveCompatibilityResult(
+				restoredMetaInfoSnapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString()),
+				null,
+				restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString()),
+				namespaceSerializer);
+
+			CompatibilityResult<V> stateCompatibility =
+				RegisteredKeyValueStateBackendMetaInfo.resolveStateCompatibiliity(restoredMetaInfoSnapshot, stateDesc, newStateSerializer);
+
+			// TODO: here we need to check if the namespace / state compatibility results are incompatible;
+			// TODO: this can't be done here because the old CompatibilityResult class does not reflect this
 
 			stateTable.setMetaInfo(newMetaInfo);
 		} else {
-			newMetaInfo = new RegisteredKeyValueStateBackendMetaInfo<>(
-				stateDesc.getType(),
-				stateDesc.getName(),
-				namespaceSerializer,
-				stateDesc.getSerializer(),
-				snapshotTransformer);
-
 			stateTable = snapshotStrategy.newStateTable(newMetaInfo);
 			registeredKVStates.put(stateDesc.getName(), stateTable);
 		}

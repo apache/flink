@@ -1389,36 +1389,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		StateMetaInfoSnapshot restoredMetaInfoSnapshot = restoredKvStateMetaInfos.get(stateDesc.getName());
 
-		Preconditions.checkState(
-			restoredMetaInfoSnapshot != null,
-			"Requested to check compatibility of a restored RegisteredKeyedBackendStateMetaInfo," +
-				" but its corresponding restored snapshot cannot be found.");
-
-		Preconditions.checkState(restoredMetaInfoSnapshot.getBackendStateType()
-				== StateMetaInfoSnapshot.BackendStateType.KEY_VALUE,
-			"Incompatible state types. " +
-				"Was [" + restoredMetaInfoSnapshot.getBackendStateType() + "], " +
-				"registered as [" + StateMetaInfoSnapshot.BackendStateType.KEY_VALUE + "].");
-
-		Preconditions.checkState(
-			Objects.equals(stateDesc.getName(), restoredMetaInfoSnapshot.getName()),
-			"Incompatible state names. " +
-				"Was [" + restoredMetaInfoSnapshot.getName() + "], " +
-				"registered with [" + stateDesc.getName() + "].");
-
-		final StateDescriptor.Type restoredType =
-			StateDescriptor.Type.valueOf(
-				restoredMetaInfoSnapshot.getOption(
-					StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE));
-
-		if (stateDesc.getType() != StateDescriptor.Type.UNKNOWN && restoredType != StateDescriptor.Type.UNKNOWN) {
-			Preconditions.checkState(
-				stateDesc.getType() == restoredType,
-				"Incompatible key/value state types. " +
-					"Was [" + restoredType + "], " +
-					"registered with [" + stateDesc.getType() + "].");
-		}
-
 		TypeSerializer<SV> stateSerializer = stateDesc.getSerializer();
 
 		RegisteredKeyValueStateBackendMetaInfo<N, SV> newMetaInfo = new RegisteredKeyValueStateBackendMetaInfo<>(
@@ -1434,11 +1404,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString()),
 			namespaceSerializer);
 
-		CompatibilityResult<SV> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-			restoredMetaInfoSnapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString()),
-			null,
-			restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString()),
-			stateSerializer);
+		CompatibilityResult<SV> stateCompatibility =
+			RegisteredKeyValueStateBackendMetaInfo.resolveStateCompatibiliity(restoredMetaInfoSnapshot, stateDesc, stateSerializer);
 
 		if (namespaceCompatibility.isRequiresMigration()) {
 			throw new UnsupportedOperationException("The new namespace serializer requires state migration in order for the job to proceed." +
