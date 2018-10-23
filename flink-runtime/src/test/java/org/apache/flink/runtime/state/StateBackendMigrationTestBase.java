@@ -99,8 +99,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>(
 			"id",
-			new CustomStringSerializer(
-				org.apache.flink.runtime.state.StateBackendMigrationTestBase.SerializerCompatibilityType.REQUIRES_MIGRATION, org.apache.flink.runtime.state.StateBackendMigrationTestBase.SerializerVersion.INITIAL));
+			new CustomStringSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION, SerializerVersion.INITIAL));
 		ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
 
 		// ============ Modifications to the state ============
@@ -163,8 +162,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		CustomStringSerializer.resetCountingMaps();
 
 		ValueStateDescriptor<String> newKvId = new ValueStateDescriptor<>("id",
-			new CustomStringSerializer(
-				org.apache.flink.runtime.state.StateBackendMigrationTestBase.SerializerCompatibilityType.COMPATIBLE_AS_IS, org.apache.flink.runtime.state.StateBackendMigrationTestBase.SerializerVersion.NEW));
+			new CustomStringSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS, SerializerVersion.NEW));
 
 		// ============ State registration that triggers state migration ============
 		//  For eager serialization backends:
@@ -236,9 +234,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		// on the file backend
 		ValueStateDescriptor<String> newKvId2 = new ValueStateDescriptor<>(
 			"id",
-			new CustomStringSerializer(
-				org.apache.flink.runtime.state.StateBackendMigrationTestBase.SerializerCompatibilityType.COMPATIBLE_AS_IS,
-				org.apache.flink.runtime.state.StateBackendMigrationTestBase.SerializerVersion.NEW));
+			new CustomStringSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS, SerializerVersion.NEW));
 
 		// ============ Restore from snapshot #2 ============
 		//  For eager serialization backends:
@@ -275,8 +271,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>(
 			"id",
-			new CustomStringSerializer(
-				org.apache.flink.runtime.state.StateBackendMigrationTestBase.SerializerCompatibilityType.COMPATIBLE_AS_IS, org.apache.flink.runtime.state.StateBackendMigrationTestBase.SerializerVersion.INITIAL));
+			new CustomStringSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS, SerializerVersion.INITIAL));
 		ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
 
 		// ============ Modifications to the state ============
@@ -339,8 +334,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		CustomStringSerializer.resetCountingMaps();
 
 		ValueStateDescriptor<String> newKvId = new ValueStateDescriptor<>("id",
-			new CustomStringSerializer(
-				org.apache.flink.runtime.state.StateBackendMigrationTestBase.SerializerCompatibilityType.COMPATIBLE_AS_IS, org.apache.flink.runtime.state.StateBackendMigrationTestBase.SerializerVersion.NEW));
+			new CustomStringSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS, SerializerVersion.NEW));
 		ValueState<String> restored1 = backend.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, newKvId);
 
 		// ============ More modifications to the state ============
@@ -395,8 +389,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		//  For lazy serialization backends:
 		//    This should result in serializer personality RESTORE having 2 deserialize calls
 		ValueStateDescriptor<String> newKvId2 = new ValueStateDescriptor<>("id",
-			new CustomStringSerializer(
-				org.apache.flink.runtime.state.StateBackendMigrationTestBase.SerializerCompatibilityType.COMPATIBLE_AS_IS, org.apache.flink.runtime.state.StateBackendMigrationTestBase.SerializerVersion.NEW));
+			new CustomStringSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS, SerializerVersion.NEW));
 		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2);
 
 		if (getStateBackendSerializationTimeliness() == BackendSerializationTimeliness.ON_ACCESS) {
@@ -534,7 +527,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 		@Override
 		public TypeSerializer<String> restoreSerializer() {
-			return new CustomStringSerializer(compatibilityType, org.apache.flink.runtime.state.StateBackendMigrationTestBase.SerializerVersion.RESTORE);
+			return new CustomStringSerializer(compatibilityType, SerializerVersion.RESTORE);
 
 		}
 
