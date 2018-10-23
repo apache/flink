@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.tests.artificialstate.ComplexPayload;
+import org.apache.flink.streaming.tests.artificialstate.StatefulComplexPayloadSerializer;
 import org.apache.flink.streaming.tests.avro.ComplexPayloadAvro;
 import org.apache.flink.streaming.tests.avro.InnerPayLoadAvro;
 import org.apache.flink.util.Collector;
@@ -91,11 +92,12 @@ public class DataStreamAllroundTestProgram {
 							}
 							return new ComplexPayload(event, KEYED_STATE_OPER_NAME);
 						},
-					Collections.singletonList(
-						new KryoSerializer<>(ComplexPayload.class, env.getConfig())), // custom KryoSerializer
+					Arrays.asList(
+						new KryoSerializer<>(ComplexPayload.class, env.getConfig()), // KryoSerializer
+						new StatefulComplexPayloadSerializer()), // custom stateful serializer
 					Collections.singletonList(ComplexPayload.class) // KryoSerializer via type extraction
 				)
-			).returns(Event.class).name(KEYED_STATE_OPER_NAME + "_Kryo");
+			).returns(Event.class).name(KEYED_STATE_OPER_NAME + "_Kryo_and_Custom_Stateful");
 
 		// add a keyed stateful map operator, which uses Avro for state serialization
 		eventStream = eventStream
