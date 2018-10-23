@@ -209,7 +209,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 				}
 
 				if (result.isBufferConsumed()) {
-					currentRecordDeserializer.getCurrentBuffer().recycleBuffer();
+					currentRecordDeserializer.resetCurrentBuffer().recycleBuffer();
 					currentRecordDeserializer = null;
 				}
 
@@ -299,7 +299,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 	public void cleanup() throws IOException {
 		// clear the buffers first. this part should not ever fail
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
-			Buffer buffer = deserializer.getCurrentBuffer();
+			Buffer buffer = deserializer.resetCurrentBuffer();
 			if (buffer != null && !buffer.isRecycled()) {
 				buffer.recycleBuffer();
 			}

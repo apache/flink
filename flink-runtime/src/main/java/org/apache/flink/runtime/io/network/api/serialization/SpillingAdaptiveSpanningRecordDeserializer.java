@@ -82,7 +82,7 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 	}
 
 	@Override
-	public Buffer getCurrentBuffer () {
+	public Buffer resetCurrentBuffer() {
 		Buffer tmp = currentBuffer;
 		currentBuffer = null;
 		return tmp;

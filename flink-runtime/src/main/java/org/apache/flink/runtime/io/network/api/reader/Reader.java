@@ -25,7 +25,7 @@ import java.io.IOException;
 /**
  * A record-oriented reader for immutable record types.
  */
-public interface Reader<T extends IOReadableWritable> extends ReaderBase {
+public interface Reader<T extends IOReadableWritable> extends TaskEventSender {
 
 	boolean hasNext() throws IOException, InterruptedException;
 

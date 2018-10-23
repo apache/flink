@@ -111,7 +111,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 					recordSerializer.copyToBufferBuilder(bufferBuilder);
 					bufferBuilder.finish();
 
-					// Call getCurrentBuffer to ensure size is set
+					// Call resetCurrentBuffer to ensure size is set
 					return Optional.of(new BufferAndAvailability(buildSingleBuffer(bufferBuilder), moreAvailable, 0));
 				} else if (input != null && input.isEvent()) {
 					AbstractEvent event = input.getEvent();

@@ -33,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * A basic reader implementation, which wraps an input gate and handles events.
  */
-public abstract class AbstractReader implements ReaderBase {
+public abstract class AbstractReader implements TaskEventSender, IterationReader {
 
 	/** The input gate to read from. */
 	protected final InputGate inputGate;

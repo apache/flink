@@ -58,7 +58,11 @@ public interface RecordDeserializer<T extends IOReadableWritable> {
 
 	void setNextBuffer(Buffer buffer) throws IOException;
 
-	Buffer getCurrentBuffer();
+	/**
+	 * Reset currentBuffer to null.
+	 * @return current buffer
+	 */
+	Buffer resetCurrentBuffer();
 
 	void clear();
 

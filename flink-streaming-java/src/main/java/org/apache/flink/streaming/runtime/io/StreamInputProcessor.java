@@ -172,7 +172,7 @@ public class StreamInputProcessor<IN> {
 				DeserializationResult result = currentRecordDeserializer.getNextRecord(deserializationDelegate);
 
 				if (result.isBufferConsumed()) {
-					currentRecordDeserializer.getCurrentBuffer().recycleBuffer();
+					currentRecordDeserializer.resetCurrentBuffer().recycleBuffer();
 					currentRecordDeserializer = null;
 				}
 
@@ -234,7 +234,7 @@ public class StreamInputProcessor<IN> {
 	public void cleanup() throws IOException {
 		// clear the buffers first. this part should not ever fail
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
-			Buffer buffer = deserializer.getCurrentBuffer();
+			Buffer buffer = deserializer.resetCurrentBuffer();
 			if (buffer != null && !buffer.isRecycled()) {
 				buffer.recycleBuffer();
 			}

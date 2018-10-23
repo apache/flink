@@ -35,7 +35,7 @@ import java.io.IOException;
  *
  * @param <T> The type of the record that can be read with this record reader.
  */
-abstract class AbstractRecordReader<T extends IOReadableWritable> extends AbstractReader implements ReaderBase {
+abstract class AbstractRecordReader<T extends IOReadableWritable> extends AbstractReader {
 
 	private final RecordDeserializer<T>[] recordDeserializers;
 
@@ -72,7 +72,7 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 				DeserializationResult result = currentRecordDeserializer.getNextRecord(target);
 
 				if (result.isBufferConsumed()) {
-					final Buffer currentBuffer = currentRecordDeserializer.getCurrentBuffer();
+					final Buffer currentBuffer = currentRecordDeserializer.resetCurrentBuffer();
 
 					currentBuffer.recycleBuffer();
 					currentRecordDeserializer = null;
@@ -116,7 +116,7 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 
 	public void clearBuffers() {
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
-			Buffer buffer = deserializer.getCurrentBuffer();
+			Buffer buffer = deserializer.resetCurrentBuffer();
 			if (buffer != null && !buffer.isRecycled()) {
 				buffer.recycleBuffer();
 			}
