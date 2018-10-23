@@ -99,7 +99,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>(
 			"id",
-			new CustomStringSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION, SerializerVersion.INITIAL));
+			new CustomStringSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS, SerializerVersion.INITIAL));
 		ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
 
 		// ============ Modifications to the state ============
@@ -162,7 +162,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		CustomStringSerializer.resetCountingMaps();
 
 		ValueStateDescriptor<String> newKvId = new ValueStateDescriptor<>("id",
-			new CustomStringSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS, SerializerVersion.NEW));
+			new CustomStringSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION, SerializerVersion.NEW));
 
 		// ============ State registration that triggers state migration ============
 		//  For eager serialization backends:
@@ -415,6 +415,8 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		private SerializerCompatibilityType compatibilityType;
 		private SerializerVersion serializerVersion;
 
+		private static final String CONFIG_PAYLOAD = "configPayload";
+
 		// for counting how often the methods were called from serializers of the different personalities
 		public static Map<SerializerVersion, Integer> serializeCalled = new HashMap<>();
 		public static Map<SerializerVersion, Integer> deserializeCalled = new HashMap<>();
@@ -501,42 +503,52 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 		@Override
 		public TypeSerializerSnapshot<String> snapshotConfiguration() {
-			return new CustomStringSerializerSnapshot(compatibilityType);
+			return new CustomStringSerializerSnapshot(CONFIG_PAYLOAD);
+		}
+
+		SerializerCompatibilityType getCompatibilityType() {
+			return compatibilityType;
 		}
 	}
 
 	public static class CustomStringSerializerSnapshot implements TypeSerializerSnapshot<String> {
 
-		private SerializerCompatibilityType compatibilityType;
+		private String configPayload;
 
 		public CustomStringSerializerSnapshot() {}
 
-		public CustomStringSerializerSnapshot(SerializerCompatibilityType compatibilityType) {
-			this.compatibilityType = compatibilityType;
+		public CustomStringSerializerSnapshot(String configPayload) {
+			this.configPayload = configPayload;
 		}
 
 		@Override
 		public void write(DataOutputView out) throws IOException {
-			out.writeUTF(compatibilityType.toString());
+			out.writeUTF(configPayload);
 		}
 
 		@Override
 		public void read(int readVersion, DataInputView in, ClassLoader classLoader) throws IOException {
-			compatibilityType = SerializerCompatibilityType.valueOf(in.readUTF());
+			configPayload = in.readUTF();
 		}
 
 		@Override
 		public TypeSerializer<String> restoreSerializer() {
-			return new CustomStringSerializer(compatibilityType, SerializerVersion.RESTORE);
+			return new CustomStringSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS, SerializerVersion.RESTORE);
 
 		}
 
 		@Override
 		public <NS extends TypeSerializer<String>> TypeSerializerSchemaCompatibility<String, NS> resolveSchemaCompatibility(NS newSerializer) {
-			if (compatibilityType == SerializerCompatibilityType.COMPATIBLE_AS_IS) {
-				return TypeSerializerSchemaCompatibility.compatibleAsIs();
+			if (newSerializer instanceof CustomStringSerializer) {
+				SerializerCompatibilityType compatibilityType = ((CustomStringSerializer) newSerializer).getCompatibilityType();
+
+				if (compatibilityType == SerializerCompatibilityType.COMPATIBLE_AS_IS) {
+					return TypeSerializerSchemaCompatibility.compatibleAsIs();
+				} else {
+					return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
+				}
 			} else {
-				return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
+				return TypeSerializerSchemaCompatibility.incompatible();
 			}
 		}
 
