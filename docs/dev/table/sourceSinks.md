@@ -88,7 +88,7 @@ The `BatchTableSource` interface extends the `TableSource` interface and defines
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-BatchTableSource<T> extends TableSource<T> {
+BatchTableSource<T> implements TableSource<T> {
 
   public DataSet<T> getDataSet(ExecutionEnvironment execEnv);
 }
@@ -116,7 +116,7 @@ The `StreamTableSource` interface extends the `TableSource` interface and define
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-StreamTableSource<T> extends TableSource<T> {
+StreamTableSource<T> implements TableSource<T> {
 
   public DataStream<T> getDataStream(StreamExecutionEnvironment execEnv);
 }
@@ -374,7 +374,7 @@ The interface looks as follows:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-BatchTableSink<T> extends TableSink<T> {
+BatchTableSink<T> implements TableSink<T> {
 
   public void emitDataSet(DataSet<T> dataSet);
 }
@@ -402,7 +402,7 @@ The interface looks as follows:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-AppendStreamTableSink<T> extends TableSink<T> {
+AppendStreamTableSink<T> implements TableSink<T> {
 
   public void emitDataStream(DataStream<T> dataStream);
 }
@@ -432,7 +432,7 @@ The interface looks as follows:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-RetractStreamTableSink<T> extends TableSink<Tuple2<Boolean, T>> {
+RetractStreamTableSink<T> implements TableSink<Tuple2<Boolean, T>> {
 
   public TypeInformation<T> getRecordType();
 
@@ -466,7 +466,7 @@ The interface looks as follows:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-UpsertStreamTableSink<T> extends TableSink<Tuple2<Boolean, T>> {
+UpsertStreamTableSink<T> implements TableSink<Tuple2<Boolean, T>> {
 
   public void setKeyFields(String[] keys);
 
@@ -572,7 +572,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-class MySystemTableSourceFactory extends StreamTableSourceFactory<Row> {
+class MySystemTableSourceFactory implements StreamTableSourceFactory<Row> {
 
   @Override
   public Map<String, String> requiredContext() {
