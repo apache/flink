@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.catalog
 
-import java.util.{List => JList}
+import java.util.{LinkedHashMap => JLinkedHashMap, List => JList}
 
-import org.apache.flink.table.api.{CatalogAlreadyExistException, CatalogNotExistException, TableAlreadyExistException, TableNotExistException}
+import org.apache.flink.table.api._
 
-import scala.collection.mutable
-import scala.collection.JavaConverters._
+import _root_.scala.collection.mutable
+import _root_.scala.collection.JavaConverters._
 
 /**
   * This class is an in-memory implementation of [[ExternalCatalog]].
@@ -36,6 +36,8 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
 
   private val databases = new mutable.HashMap[String, ExternalCatalog]
   private val tables = new mutable.HashMap[String, ExternalCatalogTable]
+  private val partitions = new mutable.HashMap[String,
+    mutable.HashMap[JLinkedHashMap[String, String], ExternalCatalogPartition]]
 
   @throws[TableAlreadyExistException]
   override def createTable(
@@ -119,5 +121,123 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
 
   override def listSubCatalogs(): JList[String] = synchronized {
     databases.keys.toList.asJava
+  }
+
+  /**
+    * Adds partition into an external Catalog table
+    *
+    * @param tableName      table name
+    * @param partition      partition description of partition which to create
+    * @param ignoreIfExists if partition already exists in the catalog, not throw exception and
+    *                       leave the existed partition if ignoreIfExists is true;
+    *                       else throw PartitionAlreadyExistException
+    * @throws TableNotExistException         if table does not exist in the catalog yet
+    * @throws PartitionAlreadyExistException if partition exists in the catalog and
+    *                                        ignoreIfExists is false
+    */
+  override def createPartition(
+    tableName: String,
+    partition: ExternalCatalogPartition,
+    ignoreIfExists: Boolean): Unit = synchronized {
+    val newPartSpec = partition.partitionSpec
+    val table = getTable(tableName)
+    val partitions = getPartitions(tableName, table)
+    if (partitions.contains(newPartSpec)) {
+      if (!ignoreIfExists) {
+        throw new PartitionAlreadyExistException(name, tableName, newPartSpec)
+      }
+    } else {
+      partitions.put(newPartSpec, partition)
+    }
+  }
+
+  private def getPartitions(tableName: String, table: ExternalCatalogTable)
+  : mutable.HashMap[JLinkedHashMap[String, String], ExternalCatalogPartition] = table match {
+    case t: ExternalCatalogPartitionedTable =>
+      partitions.getOrElseUpdate(
+        tableName, new mutable.HashMap[JLinkedHashMap[String, String], ExternalCatalogPartition])
+    case _ => throw new UnsupportedOperationException(
+      s"Cannot do any operation about partition on the non-partitioned table $tableName!")
+  }
+
+  /**
+    * Deletes partition of an external Catalog table
+    *
+    * @param tableName         table name
+    * @param partSpec          partition specification
+    * @param ignoreIfNotExists if partition not exist yet, not throw exception if ignoreIfNotExists
+    *                          is true; else throw PartitionNotExistException
+    * @throws TableNotExistException     if table does not exist in the catalog yet
+    * @throws PartitionNotExistException if partition does not exist in the catalog yet
+    */
+  override def dropPartition(
+    tableName: String,
+    partSpec: JLinkedHashMap[String, String],
+    ignoreIfNotExists: Boolean): Unit = synchronized {
+    val table = getTable(tableName)
+    val partitions = getPartitions(tableName, table)
+    if (partitions.remove(partSpec).isEmpty && !ignoreIfNotExists) {
+      throw new PartitionNotExistException(name, tableName, partSpec)
+    }
+  }
+
+  /**
+    * Alters an existed external Catalog table partition
+    *
+    * @param tableName         table name
+    * @param partition         description of partition which to alter
+    * @param ignoreIfNotExists if the partition not exist yet, not throw exception if
+    *                          ignoreIfNotExists is true; else throw PartitionNotExistException
+    * @throws TableNotExistException     if table does not exist in the catalog yet
+    * @throws PartitionNotExistException if partition does not exist in the catalog yet
+    */
+  override def alterPartition(
+    tableName: String,
+    partition: ExternalCatalogPartition,
+    ignoreIfNotExists: Boolean): Unit = synchronized {
+    val updatedPartSpec = partition.partitionSpec
+    val table = getTable(tableName)
+    val partitions = getPartitions(tableName, table)
+    if (partitions.contains(updatedPartSpec)) {
+      partitions.put(updatedPartSpec, partition)
+    } else if (!ignoreIfNotExists) {
+      throw new PartitionNotExistException(name, tableName, updatedPartSpec)
+    }
+  }
+
+
+  /**
+    * Gets the partition from external Catalog
+    *
+    * @param tableName table name
+    * @param partSpec  partition specification
+    * @throws TableNotExistException     if table does not exist in the catalog yet
+    * @throws PartitionNotExistException if partition does not exist in the catalog yet
+    * @return found partition
+    */
+  override def getPartition(
+    tableName: String,
+    partSpec: JLinkedHashMap[String, String]): ExternalCatalogPartition = synchronized {
+    val table = getTable(tableName)
+    val partitions = getPartitions(tableName, table)
+    partitions.get(partSpec) match {
+      case Some(part) => part
+      case None =>
+        throw new PartitionNotExistException(name, tableName, partSpec)
+    }
+  }
+
+  /**
+    * Gets the partition specification list of a table from external catalog
+    *
+    * @param tableName table name
+    * @throws TableNotExistException   if table does not exist in the catalog yet
+    * @return list of partition spec
+    */
+  override def listPartitions(tableName: String): JList[JLinkedHashMap[String, String]] =
+    synchronized {
+    val table = getTable(tableName)
+    val partitions = getPartitions(tableName, table)
+    partitions.keys.toList.asJava
   }
 }

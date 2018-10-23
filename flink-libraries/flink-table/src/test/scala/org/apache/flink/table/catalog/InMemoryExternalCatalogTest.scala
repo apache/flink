@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.catalog
 
+import java.util.{LinkedHashMap, LinkedHashSet}
+
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.api._
-import org.apache.flink.table.descriptors.{ConnectorDescriptor, DescriptorProperties, Schema}
+import org.apache.flink.table.descriptors.{ConnectorDescriptor, DescriptorProperties, Schema, Statistics}
 import org.junit.{Before, Test}
 import org.junit.Assert._
 
@@ -133,6 +135,162 @@ class InMemoryExternalCatalogTest {
     assertEquals("table", tables.get(0))
   }
 
+  @Test
+  def testCreatePartition(): Unit = {
+    val tableName = "t1"
+    catalog.createTable(
+      tableName,
+      createPartitionedTableInstance,
+      ignoreIfExists = false)
+    assertTrue(catalog.listPartitions(tableName).isEmpty)
+    val newPartitionSpec = new LinkedHashMap[String, String]()
+    newPartitionSpec.put("hour", "12")
+    newPartitionSpec.put("ds", "2016-02-01")
+    val newPartition = createPartition(newPartitionSpec)
+    catalog.createPartition(tableName, newPartition, false)
+    val partitionSpecs = catalog.listPartitions(tableName)
+    assertEquals(partitionSpecs.size(), 1)
+    assertEquals(partitionSpecs.get(0), newPartitionSpec)
+  }
+
+  @Test(expected = classOf[UnsupportedOperationException])
+  def testCreatePartitionOnUnPartitionedTable(): Unit = {
+    val tableName = "t1"
+    catalog.createTable(
+      tableName,
+      createTableInstance,
+      ignoreIfExists = false)
+    val newPartitionSpec = new LinkedHashMap[String, String]()
+    newPartitionSpec.put("hour", "12")
+    newPartitionSpec.put("ds", "2016-02-01")
+    val newPartition = createPartition(newPartitionSpec)
+    catalog.createPartition(tableName, newPartition, ignoreIfExists = false)
+  }
+
+  @Test(expected = classOf[PartitionAlreadyExistException])
+  def testCreateExistedPartition(): Unit = {
+    val tableName = "t1"
+    catalog.createTable(
+      tableName,
+      createPartitionedTableInstance,
+      ignoreIfExists = false)
+    val newPartitionSpec = new LinkedHashMap[String, String]()
+    newPartitionSpec.put("hour", "12")
+    newPartitionSpec.put("ds", "2016-02-01")
+    val newPartition = createPartition(newPartitionSpec)
+    catalog.createPartition(tableName, newPartition, false)
+    val newPartitionSpec1 = new LinkedHashMap[String, String]()
+    newPartitionSpec1.put("hour", "12")
+    newPartitionSpec1.put("ds", "2016-02-01")
+    val newPartition1 = createPartition(newPartitionSpec1)
+    catalog.createPartition(tableName, newPartition1, false)
+  }
+
+  @Test(expected = classOf[TableNotExistException])
+  def testCreatePartitionOnNotExistTable(): Unit = {
+    val newPartitionSpec = new LinkedHashMap[String, String]()
+    newPartitionSpec.put("hour", "12")
+    newPartitionSpec.put("ds", "2016-02-01")
+    val newPartition = createPartition(newPartitionSpec)
+    catalog.createPartition("notexistedTb", newPartition, false)
+  }
+
+  @Test
+  def testGetPartition(): Unit = {
+    val tableName = "t1"
+    catalog.createTable(
+      tableName,
+      createPartitionedTableInstance,
+      ignoreIfExists = false)
+    val newPartitionSpec = new LinkedHashMap[String, String]()
+    newPartitionSpec.put("hour", "12")
+    newPartitionSpec.put("ds", "2016-02-01")
+    val newPartition = createPartition(newPartitionSpec)
+    catalog.createPartition(tableName, newPartition, ignoreIfExists = false)
+    assertEquals(catalog.getPartition(tableName, newPartitionSpec), newPartition)
+  }
+
+  @Test(expected = classOf[PartitionNotExistException])
+  def testGetNotExistPartition(): Unit = {
+    val tableName = "t1"
+    catalog.createTable(
+      tableName,
+      createPartitionedTableInstance,
+      ignoreIfExists = false)
+    val newPartitionSpec = new LinkedHashMap[String, String]()
+    newPartitionSpec.put("hour", "12")
+    newPartitionSpec.put("ds", "2016-02-01")
+    val newPartition = createPartition(newPartitionSpec)
+    assertEquals(catalog.getPartition(tableName, newPartitionSpec), newPartition)
+  }
+
+  @Test
+  def testDropPartition(): Unit = {
+    val tableName = "t1"
+    catalog.createTable(
+      tableName,
+      createPartitionedTableInstance,
+      ignoreIfExists = false)
+    val newPartitionSpec = new LinkedHashMap[String, String]()
+    newPartitionSpec.put("hour", "12")
+    newPartitionSpec.put("ds", "2016-02-01")
+    val newPartition = createPartition(newPartitionSpec)
+    catalog.createPartition(tableName, newPartition, ignoreIfExists = false)
+    assertTrue(catalog.listPartitions(tableName).contains(newPartitionSpec))
+    catalog.dropPartition(tableName, newPartitionSpec, ignoreIfNotExists = false)
+    assertFalse(catalog.listPartitions(tableName).contains(newPartitionSpec))
+  }
+
+  @Test(expected = classOf[PartitionNotExistException])
+  def testDropNotExistPartition(): Unit = {
+    val tableName = "t1"
+    catalog.createTable(
+      tableName,
+      createPartitionedTableInstance,
+      ignoreIfExists = false)
+    val partitionSpec = new LinkedHashMap[String, String]()
+    partitionSpec.put("hour", "12")
+    partitionSpec.put("ds", "2016-02-01")
+    catalog.dropPartition(tableName, partitionSpec, ignoreIfNotExists = false)
+  }
+
+  @Test
+  def testListPartitionSpec(): Unit = {
+    val tableName = "t1"
+    catalog.createTable(
+      tableName,
+      createPartitionedTableInstance,
+      ignoreIfExists = false)
+    assertTrue(catalog.listPartitions(tableName).isEmpty)
+    val newPartitionSpec = new LinkedHashMap[String, String]()
+    newPartitionSpec.put("hour", "12")
+    newPartitionSpec.put("ds", "2016-02-01")
+    val newPartition = createPartition(newPartitionSpec)
+    catalog.createPartition(tableName, newPartition, false)
+    val partitionSpecs = catalog.listPartitions(tableName)
+    assertEquals(partitionSpecs.size(), 1)
+    assertEquals(partitionSpecs.get(0), newPartitionSpec)
+  }
+
+  @Test
+  def testAlterPartition(): Unit = {
+    val tableName = "t1"
+    catalog.createTable(
+      tableName,
+      createPartitionedTableInstance,
+      ignoreIfExists = false)
+    val newPartitionSpec = new LinkedHashMap[String, String]()
+    newPartitionSpec.put("hour", "12")
+    newPartitionSpec.put("ds", "2016-02-01")
+    val newPartition = createPartition(newPartitionSpec)
+    catalog.createPartition(tableName, newPartition, false)
+    val updatedPartition = createPartition(newPartitionSpec, Statistics().rowCount(10L))
+    catalog.alterPartition(tableName, updatedPartition, false)
+    val currentPartition = catalog.getPartition(tableName, newPartitionSpec)
+    assertEquals(currentPartition, updatedPartition)
+    assertNotEquals(currentPartition, newPartition)
+  }
+
   private def createTableInstance(): ExternalCatalogTable = {
     val connDesc = new TestConnectorDesc
     val schemaDesc = new Schema()
@@ -141,6 +299,20 @@ class InMemoryExternalCatalogTest {
     ExternalCatalogTable.builder(connDesc)
       .withSchema(schemaDesc)
       .asTableSource()
+  }
+
+  private def createPartitionedTableInstance(): ExternalCatalogTable = {
+    val connDesc = new TestConnectorDesc
+    val schemaDesc = new Schema()
+                     .field("first", BasicTypeInfo.STRING_TYPE_INFO)
+                     .field("second", BasicTypeInfo.INT_TYPE_INFO)
+    val partitionColumns = new LinkedHashSet[String]()
+    partitionColumns.add("ds")
+    partitionColumns.add("hour")
+    ExternalCatalogTable.builder(connDesc)
+    .withSchema(schemaDesc)
+    .withPartitionColumnNames(partitionColumns)
+    .asTableSource()
   }
 
   private def createTableInstance(
@@ -154,6 +326,16 @@ class InMemoryExternalCatalogTest {
     ExternalCatalogTable.builder(connDesc)
       .withSchema(schemaDesc)
       .asTableSource()
+  }
+
+  private def createPartition(
+    partitionSpec: LinkedHashMap[String, String],
+    statistics: Statistics = Statistics()): ExternalCatalogPartition = {
+    val connDesc = new TestConnectorDesc
+    ExternalCatalogPartition.builder(connDesc)
+      .withPartitionSpec(partitionSpec)
+      .withStatistics(statistics)
+      .build()
   }
 
   class TestConnectorDesc extends ConnectorDescriptor("test", version = 1, formatNeeded = false) {

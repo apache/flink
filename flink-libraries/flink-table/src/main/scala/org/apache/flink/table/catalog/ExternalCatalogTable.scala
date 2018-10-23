@@ -115,6 +115,19 @@ class ExternalCatalogTable(
   }
 }
 
+class ExternalCatalogPartitionedTable(
+  private val isBatch: Boolean,
+  private val isStreaming: Boolean,
+  private val isSource: Boolean,
+  private val isSink: Boolean,
+  private val partitionColumnNames: java.util.LinkedHashSet[String],
+  private val properties: java.util.Map[String, String])
+  extends ExternalCatalogTable(isBatch, isStreaming, isSource, isSink, properties) {
+
+  def getPartitionColumnNames: java.util.Set[String] = partitionColumnNames
+
+}
+
 object ExternalCatalogTable {
 
   /**
@@ -171,6 +184,7 @@ class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDesc
   private var statisticsDescriptor: Option[Statistics] = None
   private var metadataDescriptor: Option[Metadata] = None
   private var updateMode: Option[String] = None
+  private var partitionColumnNames: Option[java.util.LinkedHashSet[String]] = None
 
   /**
     * Specifies the format that defines how to read data from a connector.
@@ -283,19 +297,39 @@ class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDesc
   }
 
   /**
+    * Specifies the partition columns for this external table.
+    */
+  def withPartitionColumnNames(
+    partitionColumnNames: java.util.LinkedHashSet[String]): ExternalCatalogTableBuilder = {
+    require(partitionColumnNames != null && !partitionColumnNames.isEmpty)
+    this.partitionColumnNames = Some(partitionColumnNames)
+    this
+  }
+
+  /**
     * Declares this external table as a table source and returns the
     * configured [[ExternalCatalogTable]].
     *
     * @return External catalog table
     */
-  def asTableSource(): ExternalCatalogTable = {
-    new ExternalCatalogTable(
-      isBatch,
-      isStreaming,
-      isSource = true,
-      isSink = false,
-      DescriptorProperties.toJavaMap(this))
-  }
+  def asTableSource(): ExternalCatalogTable = this.partitionColumnNames match {
+      case Some(pc) =>
+        new ExternalCatalogPartitionedTable(
+          isBatch,
+          isStreaming,
+          isSource = true,
+          isSink = false,
+          pc,
+          DescriptorProperties.toJavaMap(this)
+        )
+      case None =>
+        new ExternalCatalogTable(
+          isBatch,
+          isStreaming,
+          isSource = true,
+          isSink = false,
+          DescriptorProperties.toJavaMap(this))
+   }
 
   /**
     * Declares this external table as a table sink and returns the
@@ -303,13 +337,22 @@ class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDesc
     *
     * @return External catalog table
     */
-  def asTableSink(): ExternalCatalogTable = {
-    new ExternalCatalogTable(
-      isBatch,
-      isStreaming,
-      isSource = false,
-      isSink = true,
-      DescriptorProperties.toJavaMap(this))
+  def asTableSink(): ExternalCatalogTable = this.partitionColumnNames match {
+    case Some(pc) =>
+      new ExternalCatalogPartitionedTable(
+        isBatch,
+        isStreaming,
+        isSource = false,
+        isSink = true,
+        pc,
+        DescriptorProperties.toJavaMap(this))
+    case None =>
+      new ExternalCatalogTable(
+        isBatch,
+        isStreaming,
+        isSource = false,
+        isSink = true,
+        DescriptorProperties.toJavaMap(this))
   }
 
   /**
@@ -318,13 +361,22 @@ class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDesc
     *
     * @return External catalog table
     */
-  def asTableSourceAndSink(): ExternalCatalogTable = {
-    new ExternalCatalogTable(
-      isBatch,
-      isStreaming,
-      isSource = true,
-      isSink = true,
-      DescriptorProperties.toJavaMap(this))
+  def asTableSourceAndSink(): ExternalCatalogTable = this.partitionColumnNames match {
+    case Some(pc) =>
+      new ExternalCatalogPartitionedTable(
+        isBatch,
+        isStreaming,
+        isSource = true,
+        isSink = true,
+        pc,
+        DescriptorProperties.toJavaMap(this))
+    case None =>
+      new ExternalCatalogTable(
+        isBatch,
+        isStreaming,
+        isSource = true,
+        isSink = true,
+        DescriptorProperties.toJavaMap(this))
   }
 
   // ----------------------------------------------------------------------------------------------

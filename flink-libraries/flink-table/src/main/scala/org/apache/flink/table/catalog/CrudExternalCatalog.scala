@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.catalog
 
+import java.util.{LinkedHashMap => JLinkedHashMap}
+
 import org.apache.flink.table.api._
 
 /**
@@ -102,5 +104,59 @@ trait CrudExternalCatalog extends ExternalCatalog {
     */
   @throws[CatalogNotExistException]
   def alterSubCatalog(name: String, catalog: ExternalCatalog, ignoreIfNotExists: Boolean): Unit
+
+
+  /**
+    * Adds partition into an external Catalog table
+    *
+    * @param tableName      table name
+    * @param partition      partition description of partition which to create
+    * @param ignoreIfExists if partition already exists in the catalog, not throw exception and
+    *                       leave the existed partition if ignoreIfExists is true;
+    *                       else throw PartitionAlreadyExistException
+    * @throws TableNotExistException         if table does not exist in the catalog yet
+    * @throws PartitionAlreadyExistException if partition exists in the catalog and
+    *                                        ignoreIfExists is false
+    */
+  @throws[TableNotExistException]
+  @throws[PartitionAlreadyExistException]
+  def createPartition(
+    tableName: String,
+    partition: ExternalCatalogPartition,
+    ignoreIfExists: Boolean): Unit
+
+  /**
+    * Deletes partition of an external Catalog table
+    *
+    * @param tableName         table name
+    * @param partSpec          partition specification
+    * @param ignoreIfNotExists if partition not exist yet, not throw exception if ignoreIfNotExists
+    *                          is true; else throw PartitionNotExistException
+    * @throws TableNotExistException     if table does not exist in the catalog yet
+    * @throws PartitionNotExistException if partition does not exist in the catalog yet
+    */
+  @throws[TableNotExistException]
+  @throws[PartitionNotExistException]
+  def dropPartition(
+    tableName: String,
+    partSpec: JLinkedHashMap[String, String],
+    ignoreIfNotExists: Boolean): Unit
+
+  /**
+    * Alters an existed external Catalog table partition
+    *
+    * @param tableName         table name
+    * @param partition         description of partition which to alter
+    * @param ignoreIfNotExists if the partition not exist yet, not throw exception if
+    *                          ignoreIfNotExists is true; else throw PartitionNotExistException
+    * @throws TableNotExistException     if table does not exist in the catalog yet
+    * @throws PartitionNotExistException if partition does not exist in the catalog yet
+    */
+  @throws[TableNotExistException]
+  @throws[PartitionNotExistException]
+  def alterPartition(
+    tableName: String,
+    partition: ExternalCatalogPartition,
+    ignoreIfNotExists: Boolean): Unit
 
 }
