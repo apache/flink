@@ -22,7 +22,7 @@ import java.io.Serializable
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Short => JShort}
 import java.math.{BigDecimal => JBigDecimal}
 import java.util
-import java.util.function.{Consumer, Supplier}
+import java.util.function.{BiConsumer, Consumer, Supplier, Function}
 import java.util.regex.Pattern
 import java.util.{Optional, List => JList, Map => JMap}
 
@@ -50,6 +50,8 @@ import scala.collection.mutable
   * E.g., connector.schema.start-from = from-earliest. Try not to use the higher level in a
   * key-name. E.g., instead of connector.kafka.kafka-version use connector.kafka.version.
   *
+  * Existing property keys can not be overwritten. This ensures a property is defined exactly once.
+  *
   * @param normalizeKeys flag that indicates if keys should be normalized (this flag is
   *                      necessary for backwards compatibility)
   */
@@ -62,6 +64,15 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     */
   def putProperties(properties: JMap[String, String]): Unit = {
     properties.asScala.foreach { case (k, v) =>
+      put(k, v)
+    }
+  }
+
+  /**
+    * Adds a set of descriptor properties.
+    */
+  def putProperties(properties: DescriptorProperties): Unit = {
+    properties.properties.foreach { case (k, v) =>
       put(k, v)
     }
   }
@@ -456,22 +467,8 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
 
     val keys = propertyKeys.asScala
 
-    // filter for index
-    val escapedKey = Pattern.quote(key)
-    val pattern = Pattern.compile(s"$escapedKey\\.(\\d+)\\.(.*)")
-
-    // extract index and property keys
-    val indexes = properties.keys.flatMap { k =>
-      val matcher = pattern.matcher(k)
-      if (matcher.find()) {
-        Some(JInt.parseInt(matcher.group(1)))
-      } else {
-        None
-      }
-    }
-
     // determine max index
-    val maxIndex = indexes.reduceOption(_ max _).getOrElse(-1)
+    val maxIndex = extractMaxIndex(key, "\\.(.*)")
 
     // validate and create result
     val list = new util.ArrayList[JMap[String, String]]()
@@ -563,6 +560,57 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
   def getIndexedProperty(key: String, property: String): JMap[String, String] = {
     val escapedKey = Pattern.quote(key)
     properties.filterKeys(k => k.matches(s"$escapedKey\\.\\d+\\.$property")).asJava
+  }
+
+  /**
+    * Returns all array elements under a given key if it exists.
+    *
+    * For example:
+    *
+    * primary-key.0 = field1
+    * primary-key.1 = field2
+    *
+    * leads to: List(field1, field2)
+    *
+    * or:
+    *
+    * primary-key = field1
+    *
+    * leads to: List(field1)
+    *
+    * The key mapper gets the key of the current value e.g. "primary-key.1".
+    */
+  def getOptionalArray[E](key: String, keyMapper: Function[String, E]): Optional[JList[E]] = {
+    // determine max index
+    val maxIndex = extractMaxIndex(key)
+
+    if (maxIndex < 0) {
+      // check for a single element array
+      if (containsKey(key)) {
+        val value = keyMapper.apply(key)
+        Optional.of(util.Collections.singletonList(value))
+      } else {
+        Optional.empty()
+      }
+    } else {
+      val list = new util.ArrayList[E]()
+      for (i <- 0 to maxIndex) {
+        val fullKey = s"$key.$i"
+        if (containsKey(fullKey)) {
+          list.add(keyMapper.apply(fullKey))
+        } else {
+          throw exceptionSupplier(fullKey).get()
+        }
+      }
+      Optional.of(list)
+    }
+  }
+
+  /**
+    * Returns all array elements under a given existing key.
+    */
+  def getArray[E](key: String, keyMapper: Function[String, E]): JList[E] = {
+    getOptionalArray(key, keyMapper).orElseThrow(exceptionSupplier(key))
   }
 
   /**
@@ -912,22 +960,8 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
 
     val keys = propertyKeys.asScala
 
-    // filter for index
-    val escapedKey = Pattern.quote(key)
-    val pattern = Pattern.compile(s"$escapedKey\\.(\\d+)\\.(.*)")
-
-    // extract index and property keys
-    val indexes = properties.keys.flatMap { k =>
-      val matcher = pattern.matcher(k)
-      if (matcher.find()) {
-        Some(JInt.parseInt(matcher.group(1)))
-      } else {
-        None
-      }
-    }
-
     // determine max index
-    val maxIndex = indexes.reduceOption(_ max _).getOrElse(-1)
+    val maxIndex = extractMaxIndex(key, "\\.(.*)")
 
     if (maxIndex < 0 && !allowEmpty) {
       throw new ValidationException(s"Property key '$key' must not be empty.")
@@ -1104,6 +1138,90 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
   }
 
   /**
+    * Validates an array of values.
+    *
+    * For example:
+    *
+    * primary-key.0 = field1
+    * primary-key.1 = field2
+    *
+    * or:
+    *
+    * primary-key = field1
+    *
+    * The validation consumer gets the key of the current value e.g. "primary-key.1".
+    */
+  def validateArray(
+      key: String,
+      validationConsumer: Consumer[String],
+      minLength: Int) // inclusive
+    : Unit = {
+    validateArray(key, validationConsumer, minLength, Integer.MAX_VALUE)
+  }
+
+  /**
+    * Validates an array of values.
+    *
+    * For example:
+    *
+    * primary-key.0 = field1
+    * primary-key.1 = field2
+    *
+    * or:
+    *
+    * primary-key = field1
+    *
+    * The validation consumer gets the key of the current value e.g. "primary-key.1".
+    */
+  def validateArray(
+      key: String,
+      validationConsumer: Consumer[String],
+      minLength: Int, // inclusive
+      maxLength: Int) // inclusive
+    : Unit = {
+
+    // determine max index
+    val maxIndex = extractMaxIndex(key)
+
+    if (maxIndex < 0) {
+      // check for a single element array
+      if (containsKey(key)) {
+        validationConsumer.accept(key)
+      } else if (minLength > 0) {
+        throw new ValidationException(s"Could not find required property array for key '$key'.")
+      }
+    } else {
+      // do not allow a single element array
+      if (containsKey(key)) {
+        throw new ValidationException(s"Invalid property array for key '$key'.")
+      }
+
+      val size = maxIndex + 1
+      if (size < minLength) {
+        throw new ValidationException(
+          s"Array for key '$key' must not have less than $minLength elements but was: $size")
+      }
+
+      if (size > maxLength) {
+        throw new ValidationException(
+          s"Array for key '$key' must not have more than $maxLength elements but was: $size")
+      }
+
+      // validate array elements
+      for (i <- 0 to maxIndex) {
+        val fullKey = s"$key.$i"
+        // only validate if it exists
+        if (containsKey(fullKey)) {
+          validationConsumer.accept(fullKey)
+        } else {
+          throw new ValidationException(
+            s"Required array element at index '$i' for key '$key' is missing.")
+        }
+      }
+    }
+  }
+
+  /**
     * Validates that the given prefix is not included in these properties.
     */
   def validatePrefixExclusion(prefix: String): Unit = {
@@ -1147,15 +1265,44 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
   }
 
   /**
-    * Returns a Scala Map.
+    * Returns the properties as a Map copy.
     */
   def asMap: JMap[String, String] = {
     properties.toMap.asJava
   }
 
+  /**
+    * Returns the properties as a Map copy with a prefix key.
+    */
+  def asPrefixedMap(prefixKey: String): JMap[String, String] = {
+    properties.map { case (key, value) =>
+      (prefixKey + key, value)
+    }.toMap.asJava
+  }
+
+  /**
+    * Returns a new properties instance with the given keys removed.
+    */
+  def withoutKeys(keys: JList[String]): DescriptorProperties = {
+    val copyProperties = new DescriptorProperties(true)
+    properties
+      .filterKeys(!keys.contains(_))
+      .foreach { case (k, v) =>
+        copyProperties.properties.put(k, v)
+      }
+    copyProperties
+  }
+
   override def toString: String = {
     DescriptorProperties.toString(properties.toMap)
   }
+
+  override def equals(other: Any): Boolean = other match {
+    case that: DescriptorProperties => properties == that.properties
+    case _ => false
+  }
+
+  override def hashCode(): Int = properties.hashCode()
 
   // ----------------------------------------------------------------------------------------------
 
@@ -1323,6 +1470,23 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
       min.getClass.getSimpleName,
       parseFunction)
   }
+
+  private def extractMaxIndex(key: String, suffixPattern: String = ""): Int = {
+    // extract index and property keys
+    val escapedKey = Pattern.quote(key)
+    val pattern = Pattern.compile(s"$escapedKey\\.(\\d+)$suffixPattern")
+    val indexes = properties.keys.flatMap { k =>
+      val matcher = pattern.matcher(k)
+      if (matcher.find()) {
+        Some(JInt.parseInt(matcher.group(1)))
+      } else {
+        None
+      }
+    }
+
+    // determine max index
+    indexes.reduceOption(_ max _).getOrElse(-1)
+  }
 }
 
 object DescriptorProperties {
@@ -1413,9 +1577,21 @@ object DescriptorProperties {
 
   def toScala[T](option: Optional[T]): Option[T] = Option(option.orElse(null.asInstanceOf[T]))
 
-  def toJava[T](func: Function[T, Unit]): Consumer[T] = new Consumer[T] {
+  def toJava[T](func: (T) => Unit): Consumer[T] = new Consumer[T] {
     override def accept(t: T): Unit = {
       func.apply(t)
+    }
+  }
+
+  def toJava[K, V](func: (K, V) => Unit): BiConsumer[K, V] = new BiConsumer[K, V] {
+    override def accept(k: K, v: V): Unit = {
+      func.apply(k ,v)
+    }
+  }
+
+  def toJava[I, O](func: (I) => O): Function[I, O] = new Function[I, O] {
+    override def apply(in: I): O = {
+      func.apply(in)
     }
   }
 
