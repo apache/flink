@@ -85,8 +85,8 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
         <td>1.7.0</td>
         <td>FlinkKafkaConsumer<br>
         FlinkKafkaProducer</td>
-        <td>1.x,2.x</td>
-        <td>This is a modern kafka connector that does not bind to a fixed version of the Kafka client, it only tracks the latest version of the Kafka client.</td>
+        <td>>= 1.x</td>
+        <td>This Kafka connector attempts to track the latest version of the Kafka client. The version of the client it uses may change between Flink releases. Modern Kafka clients are backwards compatible with broker versions 0.10.0 or later.</td>
         </tr>
   </tbody>
 </table>
@@ -110,18 +110,17 @@ Note that the streaming connectors are currently not part of the binary distribu
 
 ## Modern Kafka Connector
 
-Starting with Flink 1.7, it will provide a new connector for the modern Kafka. It is different from any previous Kafka connector, it does not bind a fixed version of Kafka client, but it will track and support the latest version of Kafka Client.
-The modern Kafka connector does not rely on any older version of the kafka connector and relies only on the underlying implementation of the kafka connector, which allows it to get rid of the historical burden and keep up with the latest version of the Kafka client. 
+Starting with Flink 1.7, there is a new Kafka connector that does not track a specific Kafka major version. Rather, it tracks the latest version of Kafka at the time of the Flink release.
 
-Note that if your version of Kafka Server exceeds 0.11, then we recommend you use the modern Kafka connector. The specific version of the kafka connector will continue to maintain and fix related issues. When you use the old version of Kafka (for example, 0.11, 0.10, 0.9, 0.8), we still recommend that you use the connector corresponding to the corresponding version, because they are precisely matched.
+If your Kafka broker version is 1.0.0 or newer, you should use this Kafka connector. If you use an older version of Kafka (0.11, 0.10, 0.9, or 0.8), you should use the connector corresponding to the broker version.
 
 ### Compatibility
 
-The compatibility of the modern Kafka connector is completely dependent on the backward compatibility guarantee of the Kafka Client API (Kafka supports the latest Client API to access the old version of Kafka Server. For more details on Kafka compatibility, please refer to the [official Kafka documentation](https://kafka.apache.org/protocol.html#protocol_compatibility)). Therefore, as long as the connector is upgraded and supported to the latest Kafka Client version, it can provide the same compatibility guarantee as the Kafka Client.
+The the modern Kafka connector is compatible with older and newer Kafka brokers through the compatibility guarantees of the Kafka client API and broker. The modern Kafka client is compatible with broker versions 0.10.0 or later, depending on the features used. Fo details on Kafka compatibility, please refer to the [Kafka documentation](https://kafka.apache.org/protocol.html#protocol_compatibility).
 
 ### Usage
 
-The use of the modern Kafka connector is very simple. We only need to introduce dependencies on it:
+The use of the modern Kafka connector add a dependency to it:
 
 {% highlight xml %}
 <dependency>
@@ -131,7 +130,7 @@ The use of the modern Kafka connector is very simple. We only need to introduce 
 </dependency>
 {% endhighlight %}
 
-Then instantiate the new source (`FlinkKafkaConsumer`) and sink (`FlinkKafkaProducer`). As for the API, it is fully compatible with other Kafka connectors that already exist. So in theory, you don't need to make any changes to it to make your program work.
+Then instantiate the new source (`FlinkKafkaConsumer`) and sink (`FlinkKafkaProducer`). The API is the backwards compatible with the older Kafka connectors.
 
 ## Kafka Consumer
 
