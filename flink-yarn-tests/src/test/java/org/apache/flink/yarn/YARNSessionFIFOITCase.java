@@ -30,12 +30,11 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.SecureTestEnvironment;
-import org.apache.flink.yarn.YARNITCase.NoDataSource;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
+import org.apache.flink.yarn.util.YarnTestUtils;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.flink.yarn.util.YarnTestUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
