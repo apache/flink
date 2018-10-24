@@ -22,15 +22,19 @@ limitations under the License.
     <tr>
       <th colspan="2">
         <div class="row">
-          <div class="col-xs-2">Job Manager Logs</div>
+          <div class="col-xs-3">Job Manager Logs</div>
           <div class="col-xs-4 text-right">
             <select ng-model="filename" ng-options="log for log in jobmanager.loglist" ng-change="loadLogList()"></select>
           </div>
-          <div class="col-xs-3 text-right">
+          <div class="col-xs-1 text-right">
              
-            range: 
-            <input type="text" ng-model="start" ng-init="start=0" size="3"/> - 
-            <input type="text" ng-model="end" ng-init="end=100" size="3"/> kb
+            start: 
+            <input type="text" ng-model="start" ng-init="start=0" size="3"/> kb
+          </div>
+          <div class="col-xs-1 text-right">
+             
+            size:
+            <input type="text" ng-model="size" ng-init="size=100" size="3"/> kb
           </div>
           <div class="col-xs-1 text-right"> 
             <button ng-click="searchLog()" ng-model="searchLogs" class="btn btn-default btn-xs">search</button>
