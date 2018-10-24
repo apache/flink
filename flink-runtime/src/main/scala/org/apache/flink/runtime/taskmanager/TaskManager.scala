@@ -1736,7 +1736,7 @@ object TaskManager {
     : (String, java.util.Iterator[Integer]) = {
 
     var taskManagerHostname = configuration.getString(
-      ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, null)
+      TaskManagerOptions.HOST, null)
 
     if (taskManagerHostname != null) {
       LOG.info("Using configured hostname/address for TaskManager: " + taskManagerHostname)
