@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -405,7 +404,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		checkNotNull(configuration);
 		checkNotNull(haServices);
 
-		String taskManagerHostname = configuration.getString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, null);
+		String taskManagerHostname = configuration.getString(TaskManagerOptions.HOST);
 
 		if (taskManagerHostname != null) {
 			LOG.info("Using configured hostname/address for TaskManager: {}.", taskManagerHostname);
