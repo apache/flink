@@ -110,7 +110,7 @@ private class MockedKeyedProcessFunction(queryConfig: StreamQueryConfig)
       out: Collector[String]): Unit = {
 
     val curTime = ctx.timerService().currentProcessingTime()
-    registerProcessingCleanupTimer(ctx, curTime)
+    processCleanupTimer(ctx, curTime)
     state.update(value._2)
   }
 
@@ -119,8 +119,12 @@ private class MockedKeyedProcessFunction(queryConfig: StreamQueryConfig)
       ctx: KeyedProcessFunction[String, (String, String), String]#OnTimerContext,
       out: Collector[String]): Unit = {
 
-    if (needToCleanupState(timestamp)) {
-      cleanupState(state)
+    if (stateCleaningEnabled) {
+      val cleanupTime = cleanupTimeState.value()
+      if (null != cleanupTime && timestamp == cleanupTime) {
+        // clean up
+        cleanupState(state)
+      }
     }
   }
 }
