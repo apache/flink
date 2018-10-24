@@ -29,6 +29,7 @@ import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.SecureTestEnvironment;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
+import org.apache.flink.yarn.util.YarnTestUtils;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.Path;

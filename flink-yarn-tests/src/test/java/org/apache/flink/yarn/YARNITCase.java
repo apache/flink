@@ -28,7 +28,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.yarn.util.YarnTestUtils;
 
 import org.apache.hadoop.fs.Path;
@@ -122,16 +121,5 @@ public class YARNITCase extends YarnTestBase {
 				}
 			}
 		}
-	}
-
-	private static class NoDataSource implements ParallelSourceFunction<Integer> {
-
-		private static final long serialVersionUID = 1642561062000662861L;
-
-		@Override
-		public void run(SourceContext<Integer> ctx) {}
-
-		@Override
-		public void cancel() {}
 	}
 }
