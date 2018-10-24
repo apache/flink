@@ -404,7 +404,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		checkNotNull(configuration);
 		checkNotNull(haServices);
 
-		String taskManagerHostname = configuration.getString(TaskManagerOptions.HOST, null);
+		String taskManagerHostname = configuration.getString(TaskManagerOptions.HOST);
 
 		if (taskManagerHostname != null) {
 			LOG.info("Using configured hostname/address for TaskManager: {}.", taskManagerHostname);
