@@ -58,6 +58,7 @@ import org.apache.flink.util.concurrent.FutureConsumerWithException;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
@@ -387,7 +388,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			resourceProvider,
 			allowQueued,
 			LocationPreferenceConstraint.ANY,
-			null);
+			Collections.emptySet());
 	}
 
 	/**
@@ -408,7 +409,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			SlotProvider slotProvider,
 			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint,
-			@Nullable Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 		final Time allocationTimeout = vertex.getExecutionGraph().getAllocationTimeout();
 		try {
 			final CompletableFuture<Execution> allocationFuture = allocateAndAssignSlotForExecution(
@@ -457,7 +458,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			SlotProvider slotProvider,
 			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint,
-			@Nullable Set<AllocationID> allPreviousExecutionGraphAllocationIds,
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds,
 			Time allocationTimeout) throws IllegalExecutionStateException {
 
 		checkNotNull(slotProvider);
@@ -493,10 +494,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			final SlotRequestId slotRequestId = new SlotRequestId();
 
-			final Set<AllocationID> previousExecutionGraphAllocations = allPreviousExecutionGraphAllocationIds != null ?
-				allPreviousExecutionGraphAllocationIds :
-				getVertex().getExecutionGraph().computeAllPriorAllocationIdsIfRequiredByScheduling();
-
 			final CompletableFuture<LogicalSlot> logicalSlotFuture = preferredLocationsFuture
 				.thenCompose(
 					(Collection<TaskManagerLocation> preferredLocations) ->
@@ -508,7 +505,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 								ResourceProfile.UNKNOWN,
 								preferredLocations,
 								previousAllocationIDs,
-								previousExecutionGraphAllocations),
+								allPreviousExecutionGraphAllocationIds),
 							allocationTimeout));
 
 			// register call back to cancel slot request in case that the execution gets canceled
@@ -752,8 +749,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 							consumerVertex.scheduleForExecution(
 								executionGraph.getSlotProvider(),
 								executionGraph.isQueuedSchedulingAllowed(),
-								LocationPreferenceConstraint.ANY,
-								null); // there must be at least one known location
+								LocationPreferenceConstraint.ANY, // there must be at least one known location
+								Collections.emptySet());
 						} catch (Throwable t) {
 							consumerVertex.fail(new IllegalStateException("Could not schedule consumer " +
 									"vertex " + consumerVertex, t));

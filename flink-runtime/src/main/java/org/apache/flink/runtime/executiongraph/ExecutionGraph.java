@@ -1691,7 +1691,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		HashSet<AllocationID> allPreviousAllocationIds = new HashSet<>(getNumberOfExecutionJobVertices());
 		for (ExecutionVertex executionVertex : getAllExecutionVertices()) {
 			AllocationID latestPriorAllocation = executionVertex.getLatestPriorAllocation();
-			allPreviousAllocationIds.add(latestPriorAllocation);
+			if (latestPriorAllocation != null) {
+				allPreviousAllocationIds.add(latestPriorAllocation);
+			}
 		}
 		return allPreviousAllocationIds;
 	}
@@ -1700,7 +1702,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * Returns the result of {@link #computeAllPriorAllocationIds()}, but only if the scheduling really requires it.
 	 * Otherwise this method simply returns an empty set.
 	 */
-	Set<AllocationID> computeAllPriorAllocationIdsIfRequiredByScheduling() {
+	private Set<AllocationID> computeAllPriorAllocationIdsIfRequiredByScheduling() {
 		// This is a temporary optimization to avoid computing all previous allocations if not required
 		// This can go away when we progress with the implementation of the Scheduler.
 		if (slotProvider instanceof Scheduler && ((Scheduler) slotProvider).requiresPreviousExecutionGraphAllocations()) {

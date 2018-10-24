@@ -56,6 +56,7 @@ import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -624,7 +625,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			SlotProvider slotProvider,
 			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint,
-			@Nullable Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 		return this.currentExecution.scheduleForExecution(
 			slotProvider,
 			queued,

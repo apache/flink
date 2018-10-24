@@ -55,6 +55,7 @@ import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -482,7 +483,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			SlotProvider slotProvider,
 			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint,
-			@Nullable Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 
 		final ExecutionVertex[] vertices = this.taskVertices;
 
@@ -510,13 +511,14 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * @param resourceProvider The resource provider from whom the slots are requested.
 	 * @param queued if the allocation can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @param allPreviousExecutionGraphAllocationIds the allocation ids of all previous executions in the execution job graph.
 	 * @param allocationTimeout timeout for allocating the individual slots
 	 */
 	public Collection<CompletableFuture<Execution>> allocateResourcesForAll(
 			SlotProvider resourceProvider,
 			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint,
-			@Nullable Set<AllocationID> allPreviousExecutionGraphAllocationIds,
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds,
 			Time allocationTimeout) {
 		final ExecutionVertex[] vertices = this.taskVertices;
 		final CompletableFuture<Execution>[] slots = new CompletableFuture[vertices.length];
