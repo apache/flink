@@ -20,7 +20,6 @@ package org.apache.flink.api.common.typeutils;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -121,12 +120,13 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader(), getSerializer());
 		}
 
-		CompatibilityResult strategy = getSerializer().ensureCompatibility(restoredConfig);
-		assertFalse(strategy.isRequiresMigration());
+		TypeSerializerSchemaCompatibility<T, ? extends TypeSerializer<T>> strategy = restoredConfig.resolveSchemaCompatibility(getSerializer());
+		assertTrue(strategy.isCompatibleAsIs());
 
 		// also verify that the serializer's reconfigure implementation detects incompatibility
-		strategy = getSerializer().ensureCompatibility(new TestIncompatibleSerializerConfigSnapshot<>());
-		assertTrue(strategy.isRequiresMigration());
+		TypeSerializerSnapshot<T> incompatibleSnapshot = new TestIncompatibleSerializerConfigSnapshot<>();
+		strategy = incompatibleSnapshot.resolveSchemaCompatibility(getSerializer());
+		assertTrue(strategy.isIncompatible());
 	}
 
 	@Test

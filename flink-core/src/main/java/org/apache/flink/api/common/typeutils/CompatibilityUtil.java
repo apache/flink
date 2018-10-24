@@ -68,7 +68,9 @@ public class CompatibilityUtil {
 		if (precedingSerializerConfigSnapshot != null
 			&& !(precedingSerializerConfigSnapshot instanceof BackwardsCompatibleSerializerSnapshot)) {
 
-			CompatibilityResult<T> initialResult = newSerializer.ensureCompatibility(precedingSerializerConfigSnapshot);
+			CompatibilityResult<T> initialResult = resolveCompatibilityResult(
+					(TypeSerializerSnapshot<T>) precedingSerializerConfigSnapshot,
+					newSerializer);
 
 			if (!initialResult.isRequiresMigration()) {
 				return initialResult;
@@ -89,4 +91,19 @@ public class CompatibilityUtil {
 		}
 	}
 
+	public static <T> CompatibilityResult<T> resolveCompatibilityResult(
+			TypeSerializerSnapshot<T> precedingSerializerConfigSnapshot,
+			TypeSerializer<T> newSerializer) {
+
+		TypeSerializerSchemaCompatibility<T, TypeSerializer<T>> compatibility =
+				precedingSerializerConfigSnapshot.resolveSchemaCompatibility(newSerializer);
+
+		// everything except "compatible" maps to "requires migration".
+		// at the entry point of the new-to-old-bridge (in the TypeSerializerConfigSnapshot), we
+		// interpret "requiresMigration" as 'incompatible'. That is a precaution because
+		// serializers could previously not specify the 'incompatible' case.
+		return compatibility.isCompatibleAsIs() ?
+				CompatibilityResult.compatible() :
+				CompatibilityResult.requiresMigration();
+	}
 }

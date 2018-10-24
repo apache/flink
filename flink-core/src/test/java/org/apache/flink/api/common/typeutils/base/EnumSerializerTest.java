@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerializationUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -106,8 +107,8 @@ public class EnumSerializerTest extends TestLogger {
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader(), serializer);
 		}
 
-		CompatibilityResult<PublicEnum> compatResult = serializer.ensureCompatibility(restoredConfig);
-		assertFalse(compatResult.isRequiresMigration());
+		TypeSerializerSchemaCompatibility<PublicEnum, ?> compatResult = restoredConfig.resolveSchemaCompatibility(serializer);
+		assertTrue(compatResult.isCompatibleAsIs());
 
 		assertEquals(PublicEnum.FOO.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.FOO).intValue());
 		assertEquals(PublicEnum.BAR.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.BAR).intValue());
