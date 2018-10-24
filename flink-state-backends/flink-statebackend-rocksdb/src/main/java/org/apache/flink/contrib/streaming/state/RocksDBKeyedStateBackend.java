@@ -1355,24 +1355,24 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> stateInfo =
 			kvStateInformation.get(stateDesc.getName());
 
-		RegisteredKeyValueStateBackendMetaInfo<N, SV> newMetaInfo;
+		TypeSerializer<SV> stateSerializer = stateDesc.getSerializer();
+		RegisteredKeyValueStateBackendMetaInfo<N, SV> newMetaInfo = new RegisteredKeyValueStateBackendMetaInfo<>(
+			stateDesc.getType(),
+			stateDesc.getName(),
+			namespaceSerializer,
+			stateSerializer,
+			snapshotTransformer);
+
 		if (stateInfo != null) {
-			newMetaInfo = migrateStateIfNecessary(
+			migrateStateIfNecessary(
+				newMetaInfo,
 				stateDesc,
 				namespaceSerializer,
-				stateInfo,
-				snapshotTransformer);
+				stateInfo);
+
+			stateInfo.f1 = newMetaInfo;
 		} else {
-			String stateName = stateDesc.getName();
-
-			newMetaInfo = new RegisteredKeyValueStateBackendMetaInfo<>(
-				stateDesc.getType(),
-				stateName,
-				namespaceSerializer,
-				stateDesc.getSerializer(),
-				snapshotTransformer);
-
-			ColumnFamilyHandle columnFamily = createColumnFamily(stateName);
+			ColumnFamilyHandle columnFamily = createColumnFamily(stateDesc.getName());
 
 			stateInfo = Tuple2.of(columnFamily, newMetaInfo);
 			kvStateInformation.put(stateDesc.getName(), stateInfo);
@@ -1381,22 +1381,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return Tuple2.of(stateInfo.f0, newMetaInfo);
 	}
 
-	private <N, S extends State, SV> RegisteredKeyValueStateBackendMetaInfo<N, SV> migrateStateIfNecessary(
+	private <N, S extends State, SV> void migrateStateIfNecessary(
+			RegisteredKeyValueStateBackendMetaInfo<N, SV> newMetaInfo,
 			StateDescriptor<S, SV> stateDesc,
 			TypeSerializer<N> namespaceSerializer,
-			Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> stateInfo,
-			@Nullable StateSnapshotTransformer<SV> snapshotTransformer) throws Exception {
+			Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> stateInfo) throws Exception {
 
 		StateMetaInfoSnapshot restoredMetaInfoSnapshot = restoredKvStateMetaInfos.get(stateDesc.getName());
-
-		TypeSerializer<SV> stateSerializer = stateDesc.getSerializer();
-
-		RegisteredKeyValueStateBackendMetaInfo<N, SV> newMetaInfo = new RegisteredKeyValueStateBackendMetaInfo<>(
-			stateDesc.getType(),
-			stateDesc.getName(),
-			namespaceSerializer,
-			stateSerializer,
-			snapshotTransformer);
 
 		CompatibilityResult<N> namespaceCompatibility = CompatibilityUtil.resolveCompatibilityResult(
 			restoredMetaInfoSnapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString()),
@@ -1404,8 +1395,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString()),
 			namespaceSerializer);
 
-		CompatibilityResult<SV> stateCompatibility =
-			RegisteredKeyValueStateBackendMetaInfo.resolveStateCompatibiliity(restoredMetaInfoSnapshot, stateDesc, stateSerializer);
+		CompatibilityResult<SV> stateCompatibility = RegisteredKeyValueStateBackendMetaInfo
+			.resolveStateCompatibiliity(restoredMetaInfoSnapshot, stateDesc, newMetaInfo.getStateSerializer());
 
 		if (namespaceCompatibility.isRequiresMigration()) {
 			throw new UnsupportedOperationException("The new namespace serializer requires state migration in order for the job to proceed." +
@@ -1414,17 +1405,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		if (stateCompatibility.isRequiresMigration()) {
 			migrateStateValues(stateDesc, stateInfo, restoredMetaInfoSnapshot, newMetaInfo);
-		} else {
-			newMetaInfo = new RegisteredKeyValueStateBackendMetaInfo<>(
-				newMetaInfo.getStateType(),
-				newMetaInfo.getName(),
-				newMetaInfo.getNamespaceSerializer(),
-				stateSerializer,
-				snapshotTransformer);
 		}
-
-		stateInfo.f1 = newMetaInfo;
-		return newMetaInfo;
 	}
 
 	/**
