@@ -19,8 +19,6 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
@@ -155,11 +153,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 		return computeSnapshot();
 	}
 
-	public static <T> CompatibilityResult<T> resolveStateCompatibiliity(
-			StateMetaInfoSnapshot stateMetaInfoSnapshot,
-			StateDescriptor<?, T> stateDesc,
-			TypeSerializer<T> newStateSerializer) {
-
+	public static void checkStateMetaInfo(StateMetaInfoSnapshot stateMetaInfoSnapshot, StateDescriptor<?, ?> stateDesc) {
 		Preconditions.checkState(
 			stateMetaInfoSnapshot != null,
 			"Requested to check compatibility of a restored RegisteredKeyedBackendStateMetaInfo," +
@@ -189,12 +183,6 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 					"Was [" + restoredType + "], " +
 					"registered with [" + stateDesc.getType() + "].");
 		}
-
-		return CompatibilityUtil.resolveCompatibilityResult(
-			stateMetaInfoSnapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString()),
-			null,
-			stateMetaInfoSnapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString()),
-			newStateSerializer);
 	}
 
 	@Nonnull

@@ -27,11 +27,9 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
@@ -696,16 +694,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			// check for key serializer compatibility; this also reconfigures the
 			// key serializer to be compatible, if it is required and is possible
-			if (CompatibilityUtil.resolveCompatibilityResult(
-				serializationProxy.restoreKeySerializer(),
-				UnloadableDummyTypeSerializer.class,
-				serializationProxy.getKeySerializerConfigSnapshot(),
-				rocksDBKeyedStateBackend.keySerializer)
-				.isRequiresMigration()) {
-
-				// TODO replace with state migration; note that key hash codes need to remain the same after migration
-				throw new StateMigrationException("The new key serializer is not compatible to read previous keys. " +
-					"Aborting now since state migration is currently not available");
+			if (!serializationProxy.getKeySerializerConfigSnapshot()
+					.resolveSchemaCompatibility(rocksDBKeyedStateBackend.keySerializer).isCompatibleAsIs()) {
+				throw new StateMigrationException("The new key serializer must be compatible.");
 			}
 
 			this.keygroupStreamCompressionDecorator = serializationProxy.isUsingKeyGroupCompression() ?
@@ -1247,16 +1238,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				// check for key serializer compatibility; this also reconfigures the
 				// key serializer to be compatible, if it is required and is possible
-				if (CompatibilityUtil.resolveCompatibilityResult(
-					serializationProxy.restoreKeySerializer(),
-					UnloadableDummyTypeSerializer.class,
-					serializationProxy.getKeySerializerConfigSnapshot(),
-					stateBackend.keySerializer)
-					.isRequiresMigration()) {
-
-					// TODO replace with state migration; note that key hash codes need to remain the same after migration
-					throw new StateMigrationException("The new key serializer is not compatible to read previous keys. " +
-						"Aborting now since state migration is currently not available");
+				if (!serializationProxy.getKeySerializerConfigSnapshot()
+						.resolveSchemaCompatibility(stateBackend.keySerializer).isCompatibleAsIs()) {
+					throw new StateMigrationException("The new key serializer must be compatible.");
 				}
 
 				return serializationProxy.getStateMetaInfoSnapshots();
@@ -1389,22 +1373,32 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		StateMetaInfoSnapshot restoredMetaInfoSnapshot = restoredKvStateMetaInfos.get(stateDesc.getName());
 
-		CompatibilityResult<N> namespaceCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-			restoredMetaInfoSnapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString()),
-			null,
-			restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString()),
-			namespaceSerializer);
+		RegisteredKeyValueStateBackendMetaInfo.checkStateMetaInfo(restoredMetaInfoSnapshot, stateDesc);
 
-		CompatibilityResult<SV> stateCompatibility = RegisteredKeyValueStateBackendMetaInfo
-			.resolveStateCompatibiliity(restoredMetaInfoSnapshot, stateDesc, newMetaInfo.getStateSerializer());
+		@SuppressWarnings("unchecked")
+		TypeSerializerSnapshot<N> namespaceSerializerSnapshot = Preconditions.checkNotNull(
+			(TypeSerializerSnapshot<N>) restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(
+				StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString()));
 
-		if (namespaceCompatibility.isRequiresMigration()) {
-			throw new UnsupportedOperationException("The new namespace serializer requires state migration in order for the job to proceed." +
-				" However, migration for state namespace currently isn't supported.");
+		TypeSerializerSchemaCompatibility<N, ?> namespaceCompatibility =
+			namespaceSerializerSnapshot.resolveSchemaCompatibility(namespaceSerializer);
+		if (!namespaceCompatibility.isCompatibleAsIs()) {
+			throw new StateMigrationException("The new namespace serializer must be compatible.");
 		}
 
-		if (stateCompatibility.isRequiresMigration()) {
+		@SuppressWarnings("unchecked")
+		TypeSerializerSnapshot<SV> stateSerializerSnapshot = Preconditions.checkNotNull(
+			(TypeSerializerSnapshot<SV>) restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(
+				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString()));
+
+		TypeSerializer<SV> newStateSerializer = stateDesc.getSerializer();
+		TypeSerializerSchemaCompatibility<SV, ?> stateCompatibility =
+			stateSerializerSnapshot.resolveSchemaCompatibility(newStateSerializer);
+
+		if (stateCompatibility.isCompatibleAfterMigration()) {
 			migrateStateValues(stateDesc, stateInfo, restoredMetaInfoSnapshot, newMetaInfo);
+		} else if (stateCompatibility.isIncompatible()) {
+			throw new StateMigrationException("The new state serializer is incompatible with previous state.");
 		}
 	}
 
@@ -1680,13 +1674,14 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TypeSerializer<?> metaInfoTypeSerializer = restoredMetaInfoSnapshot.restoreTypeSerializer(serializerKey);
 
 			if (metaInfoTypeSerializer != byteOrderedElementSerializer) {
-				CompatibilityResult<T> compatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
-					metaInfoTypeSerializer,
-					null,
-					restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(serializerKey),
-					byteOrderedElementSerializer);
+				@SuppressWarnings("unchecked")
+				TypeSerializerSnapshot<T> serializerSnapshot = Preconditions.checkNotNull(
+					(TypeSerializerSnapshot<T>) restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(serializerKey));
 
-				if (compatibilityResult.isRequiresMigration()) {
+				TypeSerializerSchemaCompatibility<T, ?> compatibilityResult =
+					serializerSnapshot.resolveSchemaCompatibility(byteOrderedElementSerializer);
+
+				if (compatibilityResult.isCompatibleAfterMigration()) {
 					throw new FlinkRuntimeException(StateMigrationException.notSupported());
 				}
 
