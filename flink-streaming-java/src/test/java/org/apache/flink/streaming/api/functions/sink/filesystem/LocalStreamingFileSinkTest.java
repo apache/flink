@@ -60,7 +60,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 	}
 
 	@Test
-	public void testClosingWithoutOpenShouldNotFail() throws Exception {
+	public void testClosingWithoutInitializingStateShouldNotFail() throws Exception {
 		final File outDir = TEMP_FOLDER.newFolder();
 
 		try (OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness =
