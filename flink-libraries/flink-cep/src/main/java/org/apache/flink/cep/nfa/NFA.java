@@ -390,6 +390,7 @@ public class NFA<T> {
 					sharedBuffer);
 
 				result.add(sharedBuffer.materializeMatch(matchedResult.get(0), eventsCache));
+				sharedBuffer.releaseNode(earliestMatch.getPreviousBufferEntry());
 				earliestMatch = nfaState.getCompletedMatches().peek();
 			}
 
