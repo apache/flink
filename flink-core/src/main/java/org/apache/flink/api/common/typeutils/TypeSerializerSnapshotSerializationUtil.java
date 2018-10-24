@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -27,6 +28,8 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Utility methods for serialization of {@link TypeSerializerSnapshot}.
@@ -43,8 +46,6 @@ public class TypeSerializerSnapshotSerializationUtil {
 	 * @param serializerSnapshot the serializer configuration snapshot to write
 	 * @param serializer the prior serializer. This needs to be written of the serializer snapshot
 	 *                   if the serializer snapshot is still the legacy {@link TypeSerializerConfigSnapshot}.
-	 *
-	 * @throws IOException
 	 */
 	public static <T> void writeSerializerSnapshot(
 		DataOutputView out,
@@ -64,8 +65,6 @@ public class TypeSerializerSnapshotSerializationUtil {
 	 *                                restoring from a snapshot taken with Flink version <= 1.6.
 	 *
 	 * @return the read serializer configuration snapshot
-	 *
-	 * @throws IOException
 	 */
 	public static <T> TypeSerializerSnapshot<T> readSerializerSnapshot(
 			DataInputView in,
@@ -88,8 +87,11 @@ public class TypeSerializerSnapshotSerializationUtil {
 
 		private ClassLoader userCodeClassLoader;
 		private TypeSerializerSnapshot<T> serializerSnapshot;
-		private TypeSerializer<T> serializer;
+		@Nullable private TypeSerializer<T> serializer;
 
+		/**
+		 * Constructor for reading serializers.
+		 */
 		TypeSerializerSnapshotSerializationProxy(
 			ClassLoader userCodeClassLoader,
 			@Nullable TypeSerializer<T> existingPriorSerializer) {
@@ -97,6 +99,9 @@ public class TypeSerializerSnapshotSerializationUtil {
 			this.serializer = existingPriorSerializer;
 		}
 
+		/**
+		 * Constructor for writing out serializers.
+		 */
 		TypeSerializerSnapshotSerializationProxy(
 			TypeSerializerSnapshot<T> serializerConfigSnapshot,
 			TypeSerializer<T> serializer) {
@@ -108,91 +113,43 @@ public class TypeSerializerSnapshotSerializationUtil {
 		 * Binary format layout of a written serializer snapshot is as follows:
 		 *
 		 * <ul>
-		 *     <li>1. Serializer snapshot classname (UTF).</li>
-		 *     <li>2. The originating serializer of the snapshot, if any, written via Java serialization.
-		 *         Presence of the serializer is indicated by a flag (boolean -> TypeSerializer).</li>
-		 *     <li>3. The version of the serializer snapshot's binary format.</li>
-		 *     <li>4. The actual serializer snapshot.</li>
+		 *     <li>1. Format version of this util.</li>
+		 *     <li>2. Name of the TypeSerializerSnapshot class.</li>
+		 *     <li>3. The version of the TypeSerializerSnapshot's binary format.</li>
+		 *     <li>4. The actual serializer snapshot data.</li>
 		 * </ul>
 		 */
+		@SuppressWarnings("deprecation")
 		@Override
 		public void write(DataOutputView out) throws IOException {
+			setSerializerForWriteIfOldPath(serializerSnapshot, serializer);
+
+			// write the format version of this utils format
 			super.write(out);
 
 			// config snapshot class, so that we can re-instantiate the
 			// correct type of config snapshot instance when deserializing
 			out.writeUTF(serializerSnapshot.getClass().getName());
-
-			if (serializerSnapshot instanceof TypeSerializerConfigSnapshot) {
-				// backwards compatible path, where the serializer snapshot is still using the
-				// deprecated interface; the originating serializer needs to be written to the byte stream
-				out.writeBoolean(true);
-				@SuppressWarnings("unchecked")
-				TypeSerializerConfigSnapshot<T> legacySerializerSnapshot = (TypeSerializerConfigSnapshot<T>) serializerSnapshot;
-				TypeSerializerSerializationUtil.writeSerializer(out, serializer);
-
-				// TypeSerializerConfigSnapshot includes the version number implicitly when it is written
-				legacySerializerSnapshot.write(out);
-			} else {
-				out.writeBoolean(false);
-
-				out.writeInt(serializerSnapshot.getCurrentVersion());
-				serializerSnapshot.writeSnapshot(out);
-			}
+			out.writeInt(serializerSnapshot.getCurrentVersion());
+			serializerSnapshot.writeSnapshot(out);
 		}
 
 		@SuppressWarnings("unchecked")
 		@Override
 		public void read(DataInputView in) throws IOException {
+			// read version
 			super.read(in);
+			final int version = getReadVersion();
 
-			String serializerConfigClassname = in.readUTF();
-			Class<? extends TypeSerializerSnapshot> serializerConfigSnapshotClass;
-			try {
-				serializerConfigSnapshotClass = (Class<? extends TypeSerializerSnapshot>)
-					Class.forName(serializerConfigClassname, false, userCodeClassLoader);
-			} catch (ClassNotFoundException e) {
-				throw new IOException(
-					"Could not find requested TypeSerializerConfigSnapshot class "
-						+ serializerConfigClassname +  " in classpath.", e);
-			}
-
-			serializerSnapshot = InstantiationUtil.instantiate(serializerConfigSnapshotClass);
-
-			if (getReadVersion() >= 2) {
-				// Flink version after 1.7
-
-				boolean containsPriorSerializer = in.readBoolean();
-
-				TypeSerializer<T> priorSerializer = (containsPriorSerializer)
-					? TypeSerializerSerializationUtil.tryReadSerializer(in, userCodeClassLoader, true)
-					: null;
-
-				if (serializerSnapshot instanceof TypeSerializerConfigSnapshot) {
-					if (priorSerializer != null) {
-						((TypeSerializerConfigSnapshot<T>) serializerSnapshot).setPriorSerializer(priorSerializer);
-						((TypeSerializerConfigSnapshot<T>) serializerSnapshot).setUserCodeClassLoader(userCodeClassLoader);
-						((TypeSerializerConfigSnapshot<T>) serializerSnapshot).read(in);
-					} else {
-						// this occurs if the user changed a TypeSerializerSnapshot to the
-						// legacy TypeSerializerConfigSnapshot, which isn't supported.
-						throw new IOException("Cannot read a legacy TypeSerializerConfigSnapshot without the prior serializer present. ");
-					}
-				} else {
-					int readVersion = in.readInt();
-					serializerSnapshot.readSnapshot(readVersion, in, userCodeClassLoader);
-				}
-			} else {
-				// Flink version before 1.7.x, and after 1.3.x
-
-				if (serializerSnapshot instanceof TypeSerializerConfigSnapshot) {
-					((TypeSerializerConfigSnapshot<T>) serializerSnapshot).setPriorSerializer(this.serializer);
-					((TypeSerializerConfigSnapshot<T>) serializerSnapshot).setUserCodeClassLoader(userCodeClassLoader);
-					((TypeSerializerConfigSnapshot<T>) serializerSnapshot).read(in);
-				} else {
-					int readVersion = in.readInt();
-					serializerSnapshot.readSnapshot(readVersion, in, userCodeClassLoader);
-				}
+			switch (version) {
+				case 2:
+					serializerSnapshot = deserializeV2(in, userCodeClassLoader);
+					break;
+				case 1:
+					serializerSnapshot = deserializeV1(in, userCodeClassLoader, serializer);
+					break;
+				default:
+					throw new IOException("Unrecognized version for TypeSerializerSnapshot format: " + version);
 			}
 		}
 
@@ -208,6 +165,86 @@ public class TypeSerializerSnapshotSerializationUtil {
 
 		TypeSerializerSnapshot<T> getSerializerSnapshot() {
 			return serializerSnapshot;
+		}
+
+		/**
+		 * Deserialization path for Flink versions 1.7+.
+		 */
+		@VisibleForTesting
+		static <T> TypeSerializerSnapshot<T> deserializeV2(DataInputView in, ClassLoader cl) throws IOException {
+			final TypeSerializerSnapshot<T> snapshot = readAndInstantiateSnapshotClass(in, cl);
+			final int version = in.readInt();
+			snapshot.readSnapshot(version, in, cl);
+			return snapshot;
+		}
+
+		/**
+		 * Deserialization path for Flink versions in [1.4, 1.6].
+		 */
+		@VisibleForTesting
+		@SuppressWarnings("deprecation")
+		static <T> TypeSerializerSnapshot<T> deserializeV1(
+				DataInputView in,
+				ClassLoader cl,
+				@Nullable TypeSerializer<T> serializer) throws IOException {
+
+			TypeSerializerSnapshot<T> snapshot = readAndInstantiateSnapshotClass(in, cl);
+
+			// if the snapshot was created before Flink 1.7, we need to distinguish the following cases:
+			//   - old snapshot type that needs serializer from the outside
+			//   - new snapshot type that understands the old format and can produce a restore serializer from it
+			if (snapshot instanceof TypeSerializerConfigSnapshot) {
+				TypeSerializerConfigSnapshot<T> oldTypeSnapshot = (TypeSerializerConfigSnapshot<T>) snapshot;
+
+				// old type, assume we need a serializer from the outside
+				if (serializer == null || serializer instanceof UnloadableDummyTypeSerializer) {
+					throw new IOException(
+							"Found serializer snapshot of pre-Flink-1.7 format (TypeSerializerConfigSnapshot) " +
+							"but could not Java-deserialize the corresponding TypeSerializer.");
+				}
+
+				oldTypeSnapshot.setPriorSerializer(serializer);
+				oldTypeSnapshot.setUserCodeClassLoader(cl);
+				oldTypeSnapshot.read(in);
+			}
+			else {
+				// new type, simple case
+				int readVersion = in.readInt();
+				snapshot.readSnapshot(readVersion, in, cl);
+			}
+
+			return snapshot;
+		}
+
+		@SuppressWarnings("unchecked")
+		private static <T> TypeSerializerSnapshot<T> readAndInstantiateSnapshotClass(DataInputView in, ClassLoader cl) throws IOException {
+			final String serializerConfigClassname = in.readUTF();
+			final Class<? extends TypeSerializerSnapshot<T>> serializerConfigSnapshotClass;
+
+			try {
+				serializerConfigSnapshotClass = (Class<? extends TypeSerializerSnapshot<T>>)
+						Class.forName(serializerConfigClassname, false, cl);
+			} catch (ClassNotFoundException e) {
+				throw new IOException(
+						"Could not find requested TypeSerializerSnapshot class "
+								+ serializerConfigClassname +  " in classpath.", e);
+			}
+
+			return InstantiationUtil.instantiate(serializerConfigSnapshotClass);
+		}
+
+		@SuppressWarnings("deprecation")
+		private static <T> void setSerializerForWriteIfOldPath(
+				TypeSerializerSnapshot<T> serializerSnapshot,
+				TypeSerializer<T> serializer) {
+
+			// for compatibility with non-upgraded serializers, put the serializer into the
+			// config snapshot if it of the old version
+			if (serializerSnapshot instanceof TypeSerializerConfigSnapshot) {
+				checkState(serializer != null);
+
+				((TypeSerializerConfigSnapshot<T>) serializerSnapshot).setPriorSerializer(serializer);
+			}
 		}
 	}
 }

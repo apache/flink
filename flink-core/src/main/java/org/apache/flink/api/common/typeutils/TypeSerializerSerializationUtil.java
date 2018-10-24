@@ -118,7 +118,7 @@ public class TypeSerializerSerializationUtil {
 		} catch (UnloadableTypeSerializerException e) {
 			if (useDummyPlaceholder) {
 				LOG.warn("Could not read a requested serializer. Replaced with a UnloadableDummyTypeSerializer.", e.getCause());
-				return new UnloadableDummyTypeSerializer<>(e.getSerializerBytes());
+				return new UnloadableDummyTypeSerializer<>(e.getSerializerBytes(), e);
 			} else {
 				throw e;
 			}

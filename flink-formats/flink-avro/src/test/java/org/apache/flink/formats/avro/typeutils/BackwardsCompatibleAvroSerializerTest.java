@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -105,10 +104,10 @@ public class BackwardsCompatibleAvroSerializerTest {
 		validateDeserialization(serializer);
 
 		// sanity check for the test: check that a PoJoSerializer and the original serializer work together
-		assertFalse(serializer.ensureCompatibility(configSnapshot).isRequiresMigration());
+		assertTrue(configSnapshot.resolveSchemaCompatibility(serializer).isCompatibleAsIs());
 
 		final TypeSerializer<SimpleUser> newSerializer = new AvroTypeInfo<>(SimpleUser.class, true).createSerializer(new ExecutionConfig());
-		assertFalse(newSerializer.ensureCompatibility(configSnapshot).isRequiresMigration());
+		assertTrue(configSnapshot.resolveSchemaCompatibility(newSerializer).isCompatibleAsIs());
 
 		// deserialize the data and make sure this still works
 		validateDeserialization(newSerializer);
@@ -116,7 +115,7 @@ public class BackwardsCompatibleAvroSerializerTest {
 		TypeSerializerSnapshot<SimpleUser> nextSnapshot = newSerializer.snapshotConfiguration();
 		final TypeSerializer<SimpleUser> nextSerializer = new AvroTypeInfo<>(SimpleUser.class, true).createSerializer(new ExecutionConfig());
 
-		assertFalse(nextSerializer.ensureCompatibility(nextSnapshot).isRequiresMigration());
+		assertTrue(nextSnapshot.resolveSchemaCompatibility(nextSerializer).isCompatibleAsIs());
 
 		// deserialize the data and make sure this still works
 		validateDeserialization(nextSerializer);
