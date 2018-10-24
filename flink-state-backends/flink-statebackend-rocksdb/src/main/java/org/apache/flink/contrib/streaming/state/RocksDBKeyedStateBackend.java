@@ -1452,7 +1452,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		Snapshot rocksDBSnapshot = db.getSnapshot();
 		try (
 			RocksIteratorWrapper iterator = getRocksIterator(db, stateInfo.f0);
-			RocksDBWriteBatchWrapper batchWriter = new RocksDBWriteBatchWrapper(db)
+			RocksDBWriteBatchWrapper batchWriter = new RocksDBWriteBatchWrapper(db, getWriteOptions())
 		) {
 			iterator.seekToFirst();
 
