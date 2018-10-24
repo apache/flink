@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.rest.messages;
 
 /**
- * Path parameter specifying the log file request.
+ * Filename Query parameter serves the log file request with a filename.
  */
 public class LogFilenameQueryParameter extends MessageQueryParameter<String> {
 
