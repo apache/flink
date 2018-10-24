@@ -60,6 +60,17 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 	}
 
 	@Test
+	public void testClosingWithoutOpenShouldNotFail() throws Exception {
+		final File outDir = TEMP_FOLDER.newFolder();
+
+		try (OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness =
+				 TestUtils.createRescalingTestSink(outDir, 1, 0, 100L, 124L)
+		) {
+			testHarness.setup();
+		}
+	}
+
+	@Test
 	public void testTruncateAfterRecoveryAndOverwrite() throws Exception {
 		final File outDir = TEMP_FOLDER.newFolder();
 		OperatorSubtaskState snapshot;
