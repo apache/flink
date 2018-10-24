@@ -119,7 +119,7 @@ private class MockedProcessFunction(queryConfig: StreamQueryConfig)
       ctx: ProcessFunction[(String, String), String]#OnTimerContext,
       out: Collector[String]): Unit = {
 
-    if (needToCleanupState(timestamp)) {
+    if (stateCleaningEnabled) {
       cleanupState(state)
     }
   }

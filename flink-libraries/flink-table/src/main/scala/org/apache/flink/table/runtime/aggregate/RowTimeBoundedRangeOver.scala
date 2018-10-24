@@ -143,7 +143,7 @@ class RowTimeBoundedRangeOver(
     out: Collector[CRow]): Unit = {
 
     if (isProcessingTimeTimer(ctx.asInstanceOf[OnTimerContext])) {
-      if (needToCleanupState(timestamp)) {
+      if (stateCleaningEnabled) {
 
         val keysIt = dataState.keys.iterator()
         val lastProcessedTime = lastTriggeringTsState.value
@@ -205,7 +205,7 @@ class RowTimeBoundedRangeOver(
             function.retract(accumulators, retractRow)
             dataListIndex += 1
           }
-          retractTsList.add(dataTs)
+          iter.remove()
         }
       }
 
@@ -227,13 +227,6 @@ class RowTimeBoundedRangeOver(
         aggregatesIndex = 0
         function.setForwardedFields(inputs.get(dataListIndex), output.row)
         out.collect(output)
-        dataListIndex += 1
-      }
-
-      // remove the data that has been retracted
-      dataListIndex = 0
-      while (dataListIndex < retractTsList.size) {
-        dataState.remove(retractTsList.get(dataListIndex))
         dataListIndex += 1
       }
 

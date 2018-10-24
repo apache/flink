@@ -18,8 +18,7 @@
 package org.apache.flink.table.runtime.join
 
 import org.apache.flink.api.common.functions.FlatJoinFunction
-import org.apache.flink.api.common.functions.util.FunctionUtils
-import org.apache.flink.api.common.state.{MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
+import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
@@ -66,10 +65,8 @@ abstract class NonWindowJoin(
   protected val maxRetentionTime: Long = queryConfig.getMaxIdleStateRetentionTime
   protected val stateCleaningEnabled: Boolean = minRetentionTime > 1
 
-  // state to record last timer of left stream, 0 means no timer
-  protected var leftTimer: ValueState[Long] = _
-  // state to record last timer of right stream, 0 means no timer
-  protected var rightTimer: ValueState[Long] = _
+  // state to record cleanup time for both left and right stream
+  protected var cleanupTimeState: ValueState[Long] = _
 
   // other condition function
   protected var joinFunction: FlatJoinFunction[Row, Row, Row] = _
@@ -78,16 +75,14 @@ abstract class NonWindowJoin(
   protected var curProcessTime: Long = _
 
   override def open(parameters: Configuration): Unit = {
-    LOG.debug(s"Compiling JoinFunction: $genJoinFuncName \n\n Code:\n$genJoinFuncCode")
+    LOG.debug(s"Compiling JoinFunction: $genJoinFuncName \n\n " +
+                s"Code:\n$genJoinFuncCode")
     val clazz = compile(
       getRuntimeContext.getUserCodeClassLoader,
       genJoinFuncName,
       genJoinFuncCode)
 
-    LOG.debug("Instantiating JoinFunction.")
     joinFunction = clazz.newInstance()
-    FunctionUtils.setFunctionRuntimeContext(joinFunction, getRuntimeContext)
-    FunctionUtils.openFunction(joinFunction, parameters)
 
     // initialize left and right state, the first element of tuple2 indicates how many rows of
     // this row, while the second element represents the expired time of this row.
@@ -100,10 +95,8 @@ abstract class NonWindowJoin(
     rightState = getRuntimeContext.getMapState(rightStateDescriptor)
 
     // initialize timer state
-    val valueStateDescriptor1 = new ValueStateDescriptor[Long]("timervaluestate1", classOf[Long])
-    leftTimer = getRuntimeContext.getState(valueStateDescriptor1)
-    val valueStateDescriptor2 = new ValueStateDescriptor[Long]("timervaluestate2", classOf[Long])
-    rightTimer = getRuntimeContext.getState(valueStateDescriptor2)
+    val cleanupTimeDescriptor = new ValueStateDescriptor[Long]("cleanupTimeState", classOf[Long])
+    cleanupTimeState = getRuntimeContext.getState(cleanupTimeDescriptor)
 
     cRowWrapper = new CRowWrappingMultiOutputCollector()
     LOG.debug("Instantiating NonWindowJoin.")
@@ -122,7 +115,7 @@ abstract class NonWindowJoin(
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       out: Collector[CRow]): Unit = {
 
-    processElement(valueC, ctx, out, leftTimer, leftState, rightState, isLeft = true)
+    processElement(valueC, ctx, out, leftState, rightState, isLeft = true)
   }
 
   /**
@@ -138,7 +131,7 @@ abstract class NonWindowJoin(
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       out: Collector[CRow]): Unit = {
 
-    processElement(valueC, ctx, out, rightTimer, rightState, leftState, isLeft = false)
+    processElement(valueC, ctx, out, rightState, leftState, isLeft = false)
   }
 
   /**
@@ -154,28 +147,13 @@ abstract class NonWindowJoin(
       ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext,
       out: Collector[CRow]): Unit = {
 
-    if (stateCleaningEnabled && leftTimer.value == timestamp) {
-      expireOutTimeRow(
-        timestamp,
-        leftState,
-        leftTimer,
-        isLeft = true,
-        ctx
-      )
-    }
-
-    if (stateCleaningEnabled && rightTimer.value == timestamp) {
-      expireOutTimeRow(
-        timestamp,
-        rightState,
-        rightTimer,
-        isLeft = false,
-        ctx
-      )
+    // expired timer has already been removed, delete state directly.
+    if (stateCleaningEnabled) {
+      cleanupState(leftState, rightState, cleanupTimeState)
     }
   }
 
-  def getNewExpiredTime(curProcessTime: Long, oldExpiredTime: Long): Long = {
+  protected def getNewExpiredTime(curProcessTime: Long, oldExpiredTime: Long): Long = {
     if (stateCleaningEnabled && curProcessTime + minRetentionTime > oldExpiredTime) {
       curProcessTime + maxRetentionTime
     } else {
@@ -184,52 +162,14 @@ abstract class NonWindowJoin(
   }
 
   /**
-    * Removes records which are expired from the state. Register a new timer if the state still
-    * holds records after the clean-up.
-    */
-  def expireOutTimeRow(
-      curTime: Long,
-      rowMapState: MapState[Row, JTuple2[Long, Long]],
-      timerState: ValueState[Long],
-      isLeft: Boolean,
-      ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext): Unit = {
-
-    val rowMapIter = rowMapState.iterator()
-    var validTimestamp: Boolean = false
-
-    while (rowMapIter.hasNext) {
-      val mapEntry = rowMapIter.next()
-      val recordExpiredTime = mapEntry.getValue.f1
-      if (recordExpiredTime <= curTime) {
-        rowMapIter.remove()
-      } else {
-        // we found a timestamp that is still valid
-        validTimestamp = true
-      }
-    }
-
-    // If the state has non-expired timestamps, register a new timer.
-    // Otherwise clean the complete state for this input.
-    if (validTimestamp) {
-      val cleanupTime = curTime + maxRetentionTime
-      ctx.timerService.registerProcessingTimeTimer(cleanupTime)
-      timerState.update(cleanupTime)
-    } else {
-      timerState.clear()
-      rowMapState.clear()
-    }
-  }
-
-  /**
     * Puts or Retract an element from the input stream into state and search the other state to
     * output records meet the condition. Records will be expired in state if state retention time
     * has been specified.
     */
-  def processElement(
+  protected def processElement(
       value: CRow,
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       out: Collector[CRow],
-      timerState: ValueState[Long],
       currentSideState: MapState[Row, JTuple2[Long, Long]],
       otherSideState: MapState[Row, JTuple2[Long, Long]],
       isLeft: Boolean): Unit
@@ -244,7 +184,7 @@ abstract class NonWindowJoin(
     * @param currentSideState The state to hold current side stream element
     * @return The row number and expired time for current input row
     */
-  def updateCurrentSide(
+  protected def updateCurrentSide(
       value: CRow,
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       timerState: ValueState[Long],
@@ -261,10 +201,7 @@ abstract class NonWindowJoin(
 
     cntAndExpiredTime.f1 = getNewExpiredTime(curProcessTime, cntAndExpiredTime.f1)
     // update timer if necessary
-    if (stateCleaningEnabled && timerState.value() == 0) {
-      timerState.update(cntAndExpiredTime.f1)
-      ctx.timerService().registerProcessingTimeTimer(cntAndExpiredTime.f1)
-    }
+    registerProcessingCleanupTimer(ctx, timerState)
 
     // update current side stream state
     if (!value.change) {
@@ -282,7 +219,29 @@ abstract class NonWindowJoin(
     cntAndExpiredTime
   }
 
-  def callJoinFunction(
+  protected def registerProcessingCleanupTimer(
+    ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
+    timerState: ValueState[Long]): Unit = {
+
+    if (stateCleaningEnabled) {
+      // last registered timer
+      val curCleanupTime = timerState.value()
+      // check if a cleanup timer is registered and
+      // that the current cleanup timer won't delete state we need to keep
+      if (curCleanupTime == 0 || (curProcessTime + minRetentionTime) > curCleanupTime) {
+        val cleanupTime = curProcessTime + maxRetentionTime
+        // we need to register a new (later) timer
+        ctx.timerService().registerProcessingTimeTimer(cleanupTime)
+        // delete expired timer
+        if (curCleanupTime != 0) {
+          ctx.timerService().deleteProcessingTimeTimer(curCleanupTime)
+        }
+        timerState.update(cleanupTime)
+      }
+    }
+  }
+
+  protected def callJoinFunction(
       inputRow: Row,
       inputRowFromLeft: Boolean,
       otherSideRow: Row,
@@ -295,7 +254,8 @@ abstract class NonWindowJoin(
     }
   }
 
-  override def close(): Unit = {
-    FunctionUtils.closeFunction(joinFunction)
+  protected def cleanupState(states: State*): Unit = {
+    // clear all state
+    states.foreach(_.clear())
   }
 }

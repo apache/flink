@@ -143,7 +143,7 @@ abstract class RowTimeUnboundedOver(
       out: Collector[CRow]): Unit = {
 
     if (isProcessingTimeTimer(ctx.asInstanceOf[OnTimerContext])) {
-      if (needToCleanupState(timestamp)) {
+      if (stateCleaningEnabled) {
 
         // we check whether there are still records which have not been processed yet
         val noRecordsToProcess = !rowMapState.keys.iterator().hasNext

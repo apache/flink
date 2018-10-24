@@ -152,7 +152,7 @@ class RowTimeBoundedRowsOver(
     out: Collector[CRow]): Unit = {
 
     if (isProcessingTimeTimer(ctx.asInstanceOf[OnTimerContext])) {
-      if (needToCleanupState(timestamp)) {
+      if (stateCleaningEnabled) {
 
         val keysIt = dataState.keys.iterator()
         val lastProcessedTime = lastTriggeringTsState.value

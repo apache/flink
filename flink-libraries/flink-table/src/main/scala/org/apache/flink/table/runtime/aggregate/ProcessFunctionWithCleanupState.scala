@@ -37,9 +37,9 @@ abstract class ProcessFunctionWithCleanupState[IN,OUT](queryConfig: StreamQueryC
 
   protected def initCleanupTimeState(stateName: String) {
     if (stateCleaningEnabled) {
-      val inputCntDescriptor: ValueStateDescriptor[JLong] =
+      val cleanupTimeDescriptor: ValueStateDescriptor[JLong] =
         new ValueStateDescriptor[JLong](stateName, Types.LONG)
-      cleanupTimeState = getRuntimeContext.getState(inputCntDescriptor)
+      cleanupTimeState = getRuntimeContext.getState(cleanupTimeDescriptor)
     }
   }
 
@@ -58,6 +58,10 @@ abstract class ProcessFunctionWithCleanupState[IN,OUT](queryConfig: StreamQueryC
         val cleanupTime = currentTime + maxRetentionTime
         // register timer and remember clean-up time
         ctx.timerService().registerProcessingTimeTimer(cleanupTime)
+        // delete expired timer
+        if (curCleanupTime != null) {
+          ctx.timerService().deleteProcessingTimeTimer(curCleanupTime)
+        }
         cleanupTimeState.update(cleanupTime)
       }
     }

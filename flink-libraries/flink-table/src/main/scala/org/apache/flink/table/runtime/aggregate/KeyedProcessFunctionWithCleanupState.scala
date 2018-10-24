@@ -56,6 +56,10 @@ abstract class KeyedProcessFunctionWithCleanupState[K, I, O](queryConfig: Stream
         val cleanupTime = currentTime + maxRetentionTime
         // register timer and remember clean-up time
         ctx.timerService().registerProcessingTimeTimer(cleanupTime)
+        // delete expired timer
+        if (curCleanupTime != null) {
+          ctx.timerService().deleteProcessingTimeTimer(curCleanupTime)
+        }
         cleanupTimeState.update(cleanupTime)
       }
     }
