@@ -23,38 +23,38 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.instance.InstanceID
 
 /**
-  * Miscellaneous actor messages exchanged with the TaskManager.
-  */
+ * Miscellaneous actor messages exchanged with the TaskManager.
+ */
 object TaskManagerMessages {
-
+  
   /**
-    * This message informs the TaskManager about a fatal error that prevents
-    * it from continuing.
-    *
-    * @param description The description of the problem
-    */
+   * This message informs the TaskManager about a fatal error that prevents
+   * it from continuing.
+   * 
+   * @param description The description of the problem
+   */
   case class FatalError(description: String, cause: Throwable)
-
+  
   /**
-    * Tells the task manager to send a heartbeat message to the job manager.
-    */
+   * Tells the task manager to send a heartbeat message to the job manager.
+   */
   case object SendHeartbeat {
 
     /**
-      * Accessor for the case object instance, to simplify Java interoperability.
-      *
-      * @return The SendHeartbeat case object instance.
-      */
+     * Accessor for the case object instance, to simplify Java interoperability.
+     *
+     * @return The SendHeartbeat case object instance.
+     */
     def get() : SendHeartbeat.type = SendHeartbeat
   }
 
   /**
-    * Reports liveliness of the TaskManager instance with the given instance ID to the
-    * This message is sent to the job.
-    *
-    * @param instanceID The instance ID of the reporting TaskManager.
-    * @param accumulators Accumulators of tasks serialized as Tuple2[internal, user-defined]
-    */
+   * Reports liveliness of the TaskManager instance with the given instance ID to the
+   * This message is sent to the job.
+   *
+   * @param instanceID The instance ID of the reporting TaskManager.
+   * @param accumulators Accumulators of tasks serialized as Tuple2[internal, user-defined]
+   */
   case class Heartbeat(instanceID: InstanceID, accumulators: Seq[AccumulatorSnapshot])
 
 
@@ -63,26 +63,26 @@ object TaskManagerMessages {
   // --------------------------------------------------------------------------
 
   /**
-    * Tells the TaskManager to send a stack trace of all threads to the sender.
-    * The response to this message is the [[StackTrace]] message.
-    */
+   * Tells the TaskManager to send a stack trace of all threads to the sender.
+   * The response to this message is the [[StackTrace]] message.
+   */
   case object SendStackTrace {
 
     /**
-      * Accessor for the case object instance, to simplify Java interoperability.
-      *
-      * @return The SendStackTrace case object instance.
-      */
+     * Accessor for the case object instance, to simplify Java interoperability.
+     *
+     * @return The SendStackTrace case object instance.
+     */
     def get() : SendStackTrace.type = SendStackTrace
   }
 
   /**
-    * Communicates the stack trace of the TaskManager with the given ID.
-    * This message is the response to [[SendStackTrace]].
-    *
-    * @param instanceID The ID of the responding task manager.
-    * @param stackTrace The stack trace, as a string.
-    */
+   * Communicates the stack trace of the TaskManager with the given ID.
+   * This message is the response to [[SendStackTrace]].
+   *
+   * @param instanceID The ID of the responding task manager.
+   * @param stackTrace The stack trace, as a string.
+   */
   case class StackTrace(instanceID: InstanceID, stackTrace: String)
 
 
@@ -91,17 +91,17 @@ object TaskManagerMessages {
   // --------------------------------------------------------------------------
 
   /**
-    * Requests a notification from the task manager as soon as the task manager has been
-    * registered at a job manager. Once the task manager is registered at a job manager a
-    * [[RegisteredAtJobManager]] message will be sent to the sender.
-    */
+   * Requests a notification from the task manager as soon as the task manager has been
+   * registered at a job manager. Once the task manager is registered at a job manager a
+   * [[RegisteredAtJobManager]] message will be sent to the sender.
+   */
   case object NotifyWhenRegisteredAtJobManager
 
   /**
-    * Acknowledges that the task manager has been successfully registered at any job manager. This
-    * message is a response to [[NotifyWhenRegisteredAtJobManager]] and contains the current leader
-    * session id.
-    */
+   * Acknowledges that the task manager has been successfully registered at any job manager. This
+   * message is a response to [[NotifyWhenRegisteredAtJobManager]] and contains the current leader
+   * session id.
+   */
   case class RegisteredAtJobManager(leaderId: UUID)
 
   /** Tells the address of the new leading [[org.apache.flink.runtime.jobmanager.JobManager]]
@@ -121,7 +121,7 @@ object TaskManagerMessages {
   /** Indicates a request for the .out file */
   case object StdOutFileRequest extends LogTypeRequest
 
-  /** Requests the TaskManager to upload either his log/stdout file to the Blob store
+  /** Requests the TaskManager to upload either his log/stdout file to the Blob store 
     * param requestType LogTypeRequest indicating which file is requested
     */
   case class RequestTaskManagerLog(requestType : LogTypeRequest)
@@ -142,10 +142,10 @@ object TaskManagerMessages {
   // --------------------------------------------------------------------------
 
   /**
-    * Accessor for the case object instance, to simplify Java interoperability.
-    *
-    * @return The NotifyWhenRegisteredAtJobManager case object instance.
-    */
+   * Accessor for the case object instance, to simplify Java interoperability.
+   *
+   * @return The NotifyWhenRegisteredAtJobManager case object instance.
+   */
   def getNotifyWhenRegisteredAtJobManagerMessage:
   NotifyWhenRegisteredAtJobManager.type = NotifyWhenRegisteredAtJobManager
 
