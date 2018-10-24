@@ -24,7 +24,6 @@ import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.messages.Acknowledge;
 
 import javax.annotation.Nullable;
 
@@ -88,9 +87,8 @@ public interface SlotProvider {
 	 * @param slotRequestId identifying the slot request to cancel
 	 * @param slotSharingGroupId identifying the slot request to cancel
 	 * @param cause of the cancellation
-	 * @return Future which is completed once the slot request has been cancelled
 	 */
-	Acknowledge cancelSlotRequest(
+	void cancelSlotRequest(
 		SlotRequestId slotRequestId,
 		@Nullable SlotSharingGroupId slotSharingGroupId,
 		Throwable cause);

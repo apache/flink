@@ -1720,11 +1720,11 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 		}
 
 		@Override
-		public Acknowledge cancelSlotRequest(
+		public void cancelSlotRequest(
 				SlotRequestId slotRequestId,
 				@Nullable SlotSharingGroupId slotSharingGroupId,
 				Throwable cause) {
-			return gateway.releaseSlot(slotRequestId, slotSharingGroupId, cause);
+			gateway.releaseSlot(slotRequestId, slotSharingGroupId, cause);
 		}
 	}
 

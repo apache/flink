@@ -36,7 +36,6 @@ import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -111,13 +110,12 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 	}
 
 	@Override
-	public Acknowledge cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
+	public void cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
 		synchronized (lock) {
 			final SlotContext slotContext = allocatedSlots.remove(slotRequestId);
 
 			if (slotContext != null) {
 				slots.add(slotContext);
-				return Acknowledge.get();
 			} else {
 				throw new FlinkRuntimeException("Unknown slot request id " + slotRequestId + '.'); //TODO: to !!!!
 			}

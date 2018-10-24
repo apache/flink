@@ -31,7 +31,6 @@ import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -134,15 +133,15 @@ public class Scheduler implements SlotProvider, SlotOwner {
 	}
 
 	@Override
-	public Acknowledge cancelSlotRequest(
+	public void cancelSlotRequest(
 		SlotRequestId slotRequestId,
 		@Nullable SlotSharingGroupId slotSharingGroupId,
 		Throwable cause) {
 
 		if (slotSharingGroupId != null) {
-			return releaseSharedSlot(slotRequestId, slotSharingGroupId, cause);
+			releaseSharedSlot(slotRequestId, slotSharingGroupId, cause);
 		} else {
-			return slotPoolGateway.releaseSlot(slotRequestId, cause);
+			slotPoolGateway.releaseSlot(slotRequestId, cause);
 		}
 	}
 
@@ -489,7 +488,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 		throw new NoResourceAvailableException("Could not allocate a shared slot for " + groupId + '.');
 	}
 
-	private Acknowledge releaseSharedSlot(
+	private void releaseSharedSlot(
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull SlotSharingGroupId slotSharingGroupId,
 		Throwable cause) {
@@ -507,7 +506,6 @@ public class Scheduler implements SlotProvider, SlotOwner {
 		} else {
 			log.debug("Could not find slot sharing group {}. Ignoring release slot request.", slotSharingGroupId);
 		}
-		return Acknowledge.get();
 	}
 
 	public boolean requiresPreviousExecutionGraphAllocations() {

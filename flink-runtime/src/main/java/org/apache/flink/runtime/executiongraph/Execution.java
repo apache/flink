@@ -399,6 +399,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param queued Flag to indicate whether the scheduler may queue this task if it cannot
 	 *               immediately deploy it.
 	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @param allPreviousExecutionGraphAllocationIds a set of all previous {@link AllocationID} from the whole
+	 *                                                  job graph. This can be null to signal that the set has not been
+	 *                                                  precomputed to differentiate from an actual empty set.
 	 * @return Future which is completed once the Execution has been deployed
 	 */
 	public CompletableFuture<Void> scheduleForExecution(

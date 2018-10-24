@@ -942,7 +942,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		// collecting all the slots may resize and fail in that operation without slots getting lost
 		final ArrayList<CompletableFuture<Execution>> allAllocationFutures = new ArrayList<>(getNumberOfExecutionJobVertices());
 
-		// this is a (temporary) to avoid collecting the previous allocations for all executions again and again
+		// a (temporary) optimization to avoid collecting the previous allocations for all executions again and again
 		final Set<AllocationID> allPreviousAllocationIds =
 			Collections.unmodifiableSet(computeAllPriorAllocationIdsIfRequiredByScheduling());
 
@@ -1688,13 +1688,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * Computes and returns a set with the prior allocation ids from all execution vertices in the graph.
 	 */
 	private Set<AllocationID> computeAllPriorAllocationIds() {
-		HashSet<AllocationID> allPreviousAllocationIds = new HashSet<>();
-		Iterable<ExecutionJobVertex> ejvIterable = getVerticesTopologically();
-		for (ExecutionJobVertex executionJobVertex : ejvIterable) {
-			for (ExecutionVertex executionVertex : executionJobVertex.getTaskVertices()) {
-				AllocationID latestPriorAllocation = executionVertex.getLatestPriorAllocation();
-				allPreviousAllocationIds.add(latestPriorAllocation);
-			}
+		HashSet<AllocationID> allPreviousAllocationIds = new HashSet<>(getNumberOfExecutionJobVertices());
+		for (ExecutionVertex executionVertex : getAllExecutionVertices()) {
+			AllocationID latestPriorAllocation = executionVertex.getLatestPriorAllocation();
+			allPreviousAllocationIds.add(latestPriorAllocation);
 		}
 		return allPreviousAllocationIds;
 	}

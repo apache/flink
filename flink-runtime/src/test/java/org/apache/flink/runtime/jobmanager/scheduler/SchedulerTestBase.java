@@ -38,7 +38,6 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSharingManager;
 import org.apache.flink.runtime.jobmaster.slotpool.TestMainThreadExecutor;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -264,8 +263,7 @@ public class SchedulerTestBase extends TestLogger {
 		}
 
 		@Override
-		public Acknowledge cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
-			return Acknowledge.get();
+		public void cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
 		}
 	}
 

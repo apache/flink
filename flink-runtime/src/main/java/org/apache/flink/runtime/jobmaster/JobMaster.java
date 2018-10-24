@@ -75,7 +75,6 @@ import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
 import org.apache.flink.runtime.jobmaster.slotpool.SchedulerFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -184,8 +183,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private final SlotPool slotPool;
 
-	private final SlotPoolGateway slotPoolGateway;
-
 	private final Scheduler scheduler;
 
 	private final RestartStrategy restartStrategy;
@@ -290,9 +287,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		this.slotPool = checkNotNull(slotPoolFactory).createSlotPool(jobGraph.getJobID());
 
-		this.slotPoolGateway = slotPool;
-
-		this.scheduler = checkNotNull(schedulerFactory).createScheduler(slotPoolGateway);
+		this.scheduler = checkNotNull(schedulerFactory).createScheduler(slotPool);
 
 		this.registeredTaskManagers = new HashMap<>(4);
 
@@ -651,7 +646,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		log.debug("Disconnect TaskExecutor {} because: {}", resourceID, cause.getMessage());
 
 		taskManagerHeartbeatManager.unmonitorTarget(resourceID);
-		CompletableFuture<Acknowledge> releaseFuture = slotPoolGateway.releaseTaskManager(resourceID, cause);
+		CompletableFuture<Acknowledge> releaseFuture = slotPool.releaseTaskManager(resourceID, cause);
 
 		Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManagerConnection = registeredTaskManagers.remove(resourceID);
 
@@ -827,7 +822,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		final RpcTaskManagerGateway rpcTaskManagerGateway = new RpcTaskManagerGateway(taskExecutorGateway, getFencingToken());
 
-		return slotPoolGateway.offerSlots(
+		return slotPool.offerSlots(
 			taskManagerLocation,
 			rpcTaskManagerGateway,
 			slots);
@@ -848,7 +843,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	private void internalFailAllocation(AllocationID allocationId, Exception cause) {
-		final CompletableFuture<SerializableOptional<ResourceID>> emptyTaskExecutorFuture = slotPoolGateway.failAllocation(allocationId, cause);
+		final CompletableFuture<SerializableOptional<ResourceID>> emptyTaskExecutorFuture = slotPool.failAllocation(allocationId, cause);
 
 		emptyTaskExecutorFuture.thenAcceptAsync(
 			resourceIdOptional -> resourceIdOptional.ifPresent(this::releaseEmptyTaskManager),
@@ -879,7 +874,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 							return new RegistrationResponse.Decline(throwable.getMessage());
 						}
 
-						slotPoolGateway.registerTaskManager(taskManagerId);
+						slotPool.registerTaskManager(taskManagerId);
 						registeredTaskManagers.put(taskManagerId, Tuple2.of(taskManagerLocation, taskExecutorGateway));
 
 						// monitor the task manager as heartbeat target
@@ -1097,7 +1092,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		suspendAndClearExecutionGraphFields(cause);
 
 		// the slot pool stops receiving messages and clears its pooled slots
-		slotPoolGateway.suspend();
+		slotPool.suspend();
 
 		// disconnect from resource manager:
 		closeResourceManagerConnection(cause);
@@ -1341,7 +1336,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				resourceManagerGateway,
 				resourceManagerResourceId);
 
-			slotPoolGateway.connectToResourceManager(resourceManagerGateway);
+			slotPool.connectToResourceManager(resourceManagerGateway);
 
 			resourceManagerHeartbeatManager.monitorTarget(resourceManagerResourceId, new HeartbeatTarget<Void>() {
 				@Override
@@ -1386,7 +1381,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		ResourceManagerGateway resourceManagerGateway = establishedResourceManagerConnection.getResourceManagerGateway();
 		resourceManagerGateway.disconnectJobManager(jobGraph.getJobID(), cause);
-		slotPoolGateway.disconnectResourceManager();
+		slotPool.disconnectResourceManager();
 	}
 
 	/**
