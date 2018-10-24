@@ -150,17 +150,9 @@ trait CommonCorrelate {
          |""".stripMargin
     } else {
 
-      // adjust indices of InputRefs to adhere to schema expected by generator
-      val changeInputRefIndexShuttle = new RexShuttle {
-        override def visitInputRef(inputRef: RexInputRef): RexNode = {
-          new RexInputRef(inputSchema.arity + inputRef.getIndex, inputRef.getType)
-        }
-      }
-      // Run generateExpression to add init statements (ScalarFunctions) of condition to generator.
-      //   The generated expression is discarded.
-      generator.generateExpression(condition.get.accept(changeInputRefIndexShuttle))
-
       filterGenerator.input1Term = filterGenerator.input2Term
+      // filterGenerator run generateExpression to add init statements and member fields
+      // then combine with existing statements in generator
       val filterCondition = filterGenerator.generateExpression(condition.get)
       s"""
          |${filterGenerator.reuseInputUnboxingCode()}

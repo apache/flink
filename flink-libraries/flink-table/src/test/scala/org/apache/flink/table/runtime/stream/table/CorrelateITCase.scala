@@ -23,6 +23,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableEnvironment, Types, ValidationException}
+import org.apache.flink.table.expressions.{CurrentTimestamp, DateFormat}
 import org.apache.flink.table.expressions.utils.{Func18, Func20, RichFunc2}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, _}
 import org.apache.flink.table.utils._
@@ -280,6 +281,27 @@ class CorrelateITCase extends AbstractTestBase {
 
     assertEquals(
       expected.sorted,
+      StreamITCase.testResults.sorted
+    )
+  }
+
+  @Test
+  def testTableFunctionCollectorInit(): Unit = {
+    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val func0 = new TableFunc0
+
+    // this case will generate 'timestamp' member field and 'DateFormatter'
+    val result = t
+      .join(func0('c) as('d, 'e))
+      .where(DateFormat(CurrentTimestamp(), "yyyyMMdd") === 'd)
+      .select('c, 'd, 'e)
+      .toAppendStream[Row]
+
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    assertEquals(
+      Seq(),
       StreamITCase.testResults.sorted
     )
   }

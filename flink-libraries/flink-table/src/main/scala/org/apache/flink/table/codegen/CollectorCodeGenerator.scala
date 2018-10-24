@@ -86,14 +86,24 @@ class CollectorCodeGenerator(
       s"$input2TypeClass $input2Term" // local variable
     }
 
+    val memberCodes = (reusableMemberStatements ++ codeGenerator.reusableMemberStatements)
+      .mkString("", "\n", "\n")
+
+    val initCodes = (reusableInitStatements ++ codeGenerator.reusableInitStatements)
+      .mkString("", "\n", "\n")
+
+    val reusePerRecordCodes =
+      (reusablePerRecordStatements ++ codeGenerator.reusablePerRecordStatements)
+      .mkString("", "\n", "\n")
+
     val funcCode = j"""
       |public class $className extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
       |
       |  $recordMember
-      |  ${reuseMemberCode()}
+      |  ${memberCodes}
       |
       |  public $className() throws Exception {
-      |    ${reuseInitCode()}
+      |    ${initCodes}
       |  }
       |
       |  @Override
@@ -107,7 +117,7 @@ class CollectorCodeGenerator(
       |    $input1TypeClass $input1Term = ($input1TypeClass) getInput();
       |    $recordAssignment = ($input2TypeClass) record;
       |    ${reuseInputUnboxingCode()}
-      |    ${reusePerRecordCode()}
+      |    ${reusePerRecordCodes}
       |    $bodyCode
       |  }
       |
