@@ -69,13 +69,12 @@ class NonWindowLeftRightJoin(
       value: CRow,
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       out: Collector[CRow],
-      timerState: ValueState[Long],
       currentSideState: MapState[Row, JTuple2[Long, Long]],
       otherSideState: MapState[Row, JTuple2[Long, Long]],
       recordFromLeft: Boolean): Unit = {
 
     val inputRow = value.row
-    updateCurrentSide(value, ctx, timerState, currentSideState)
+    updateCurrentSide(value, ctx, currentSideState)
 
     cRowWrapper.reset()
     cRowWrapper.setCollector(out)

@@ -86,7 +86,7 @@ class GroupAggProcessFunction(
 
     val currentTime = ctx.timerService().currentProcessingTime()
     // register state-cleanup timer
-    registerProcessingCleanupTimer(ctx, currentTime)
+    processCleanupTimer(ctx, currentTime)
 
     val input = inputC.row
 
@@ -172,7 +172,7 @@ class GroupAggProcessFunction(
       ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
       out: Collector[CRow]): Unit = {
 
-    if (needToCleanupState(timestamp)) {
+    if (stateCleaningEnabled) {
       cleanupState(state, cntState)
       function.cleanup()
     }
