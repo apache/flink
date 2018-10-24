@@ -69,5 +69,4 @@ public class TaskManagerStdoutFileHeaders implements UntypedResponseMessageHeade
 	public static TaskManagerStdoutFileHeaders getInstance() {
 		return INSTANCE;
 	}
-
 }

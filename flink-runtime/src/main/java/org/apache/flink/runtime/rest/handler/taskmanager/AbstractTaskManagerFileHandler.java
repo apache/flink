@@ -119,7 +119,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 					public CompletableFuture<TransientBlobKey> load(Tuple3<ResourceID, String, FileOffsetRange> resourceKey) throws Exception {
 						return loadTaskManagerFile(resourceKey);
 					}
-				});
+			});
 	}
 
 	@Override
