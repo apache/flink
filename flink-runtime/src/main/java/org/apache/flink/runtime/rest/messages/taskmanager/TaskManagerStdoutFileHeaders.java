@@ -34,9 +34,11 @@ import java.util.Collection;
  * Headers for the {@link TaskManagerLogFileHandler}.
  */
 public class TaskManagerStdoutFileHeaders implements UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerMessageParameters> {
+	private static final TaskManagerStdoutFileHeaders INSTANCE = new TaskManagerStdoutFileHeaders();
+
 	private static final String URL = String.format("/taskmanagers/:%s/stdout", TaskManagerIdPathParameter.KEY);
 
-	private static final TaskManagerStdoutFileHeaders INSTANCE = new TaskManagerStdoutFileHeaders();
+	private TaskManagerStdoutFileHeaders() {}
 
 	@Override
 	public Class<EmptyRequestBody> getRequestClass() {

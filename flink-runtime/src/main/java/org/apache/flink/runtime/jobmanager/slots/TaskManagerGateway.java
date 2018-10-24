@@ -179,7 +179,7 @@ public interface TaskManagerGateway {
 	 * @param timeout for the request
 	 * @return Future blob key under which the task manager log has been stored
 	 */
-	CompletableFuture<TransientBlobKey> requestTaskManagerLog(Time timeout);
+	CompletableFuture<TransientBlobKey> requestTaskManagerLog(final Time timeout);
 
 	/**
 	 * Request the task manager stdout from the task manager.

@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.rest.messages;
 
 /**
- * Path parameter specifying the log file request.
+ * Size query parameter serves the log file request.
  */
 public class LogSizeQueryParameter extends MessageQueryParameter<Long> {
 	public LogSizeQueryParameter() {

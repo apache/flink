@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.rest.messages;
 
 /**
- * Path parameter specifying the log file request.
+ * LogStartOffsetQueryParameter serves the log file request.
  */
 public class LogStartOffsetQueryParameter extends MessageQueryParameter<Long> {
 	public LogStartOffsetQueryParameter() {

@@ -36,7 +36,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * LogListHandler serves the request which gets the historical log file list of jobmanager.
+ * JobManagerLogListHandler serves the request which gets the historical log file list of jobmanager.
  */
 public class JobManagerLogListHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, LogListInfo, MessageParameters> {
 	private final File parentPath;
