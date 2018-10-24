@@ -145,7 +145,7 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 	 * Response when running with leading JobManager.
 	 */
 	private void respondToRequest(ChannelHandlerContext ctx, HttpRequest request, String requestPath)
-		throws IOException, ParseException, URISyntaxException {
+			throws IOException, ParseException, URISyntaxException {
 
 		// convert to absolute path
 		final File file = new File(rootPath, requestPath);
@@ -375,4 +375,3 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 		response.headers().set(CONTENT_TYPE, mimeFinal);
 	}
 }
-

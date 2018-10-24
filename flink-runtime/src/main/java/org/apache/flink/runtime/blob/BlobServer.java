@@ -643,6 +643,7 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 				fos.write(buf, 0, bytesRead);
 				md.update(buf, 0, bytesRead);
 			}
+
 			// persist file
 			blobKey = moveTempFileToStore(incomingFile, jobId, md.digest(), blobType);
 
