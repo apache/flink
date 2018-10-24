@@ -290,12 +290,12 @@ public class TypeSerializerSnapshotMigrationITCase extends SavepointMigrationTes
 		}
 
 		@Override
-		public void write(DataOutputView out) throws IOException {
+		public void writeSnapshot(DataOutputView out) throws IOException {
 			out.writeUTF(configPayload);
 		}
 
 		@Override
-		public void read(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+		public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
 			if (readVersion != 1) {
 				throw new IllegalStateException("Can not recognize read version: " + readVersion);
 			}

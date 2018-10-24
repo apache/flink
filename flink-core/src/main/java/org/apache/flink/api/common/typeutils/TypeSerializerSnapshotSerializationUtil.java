@@ -25,6 +25,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /**
@@ -136,7 +137,7 @@ public class TypeSerializerSnapshotSerializationUtil {
 				out.writeBoolean(false);
 
 				out.writeInt(serializerSnapshot.getCurrentVersion());
-				serializerSnapshot.write(out);
+				serializerSnapshot.writeSnapshot(out);
 			}
 		}
 
@@ -179,7 +180,7 @@ public class TypeSerializerSnapshotSerializationUtil {
 					}
 				} else {
 					int readVersion = in.readInt();
-					serializerSnapshot.read(readVersion, in, userCodeClassLoader);
+					serializerSnapshot.readSnapshot(readVersion, in, userCodeClassLoader);
 				}
 			} else {
 				// Flink version before 1.7.x, and after 1.3.x
@@ -190,7 +191,7 @@ public class TypeSerializerSnapshotSerializationUtil {
 					((TypeSerializerConfigSnapshot<T>) serializerSnapshot).read(in);
 				} else {
 					int readVersion = in.readInt();
-					serializerSnapshot.read(readVersion, in, userCodeClassLoader);
+					serializerSnapshot.readSnapshot(readVersion, in, userCodeClassLoader);
 				}
 			}
 		}

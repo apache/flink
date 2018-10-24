@@ -22,12 +22,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 
 /**
- * A {@code TypeSerializerConfigSnapshot} is a point-in-time view of a {@link TypeSerializer's} configuration.
+ * A {@code TypeSerializerConfigSnapshot} is a point-in-time view of a {@link TypeSerializer}'s configuration.
  * The configuration snapshot of a serializer is persisted within checkpoints
  * as a single source of meta information about the schema of serialized data in the checkpoint.
  * This serves three purposes:
@@ -42,7 +43,7 @@ import java.io.IOException;
  *   This is performed by providing the new serializer to the corresponding serializer configuration
  *   snapshots in checkpoints.</li>
  *
- *   <li><strong>Factory for a read serializer when schema conversion is required:<strong> in the case that new
+ *   <li><strong>Factory for a read serializer when schema conversion is required:</strong> in the case that new
  *   serializers are not compatible to read previous data, a schema conversion process executed across all data
  *   is required before the new serializer can be continued to be used. This conversion process requires a compatible
  *   read serializer to restore serialized bytes as objects, and then written back again using the new serializer.
@@ -149,7 +150,12 @@ public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadabl
 	}
 
 	@Override
-	public final void read(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+	public final void writeSnapshot(DataOutputView out) throws IOException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public final void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
 		throw new UnsupportedOperationException();
 	}
 

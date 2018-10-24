@@ -25,7 +25,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import java.io.IOException;
 
 /**
- * A {@code TypeSerializerSnapshot} is a point-in-time view of a {@link TypeSerializer's} configuration.
+ * A {@code TypeSerializerSnapshot} is a point-in-time view of a {@link TypeSerializer}'s configuration.
  * The configuration snapshot of a serializer is persisted within checkpoints
  * as a single source of meta information about the schema of serialized data in the checkpoint.
  * This serves three purposes:
@@ -40,7 +40,7 @@ import java.io.IOException;
  *   This is performed by providing the new serializer to the correspondibng serializer configuration
  *   snapshots in checkpoints.</li>
  *
- *   <li><strong>Factory for a read serializer when schema conversion is required:<strong> in the case that new
+ *   <li><strong>Factory for a read serializer when schema conversion is required:</strong> in the case that new
  *   serializers are not compatible to read previous data, a schema conversion process executed across all data
  *   is required before the new serializer can be continued to be used. This conversion process requires a compatible
  *   read serializer to restore serialized bytes as objects, and then written back again using the new serializer.
@@ -86,9 +86,9 @@ public interface TypeSerializerSnapshot<T> {
 	 *
 	 * @param out the {@link DataOutputView} to write the snapshot to.
 	 *
-	 * @throws IOException
+	 * @throws IOException Thrown if the snapshot data could not be written.
 	 */
-	void write(DataOutputView out) throws IOException;
+	void writeSnapshot(DataOutputView out) throws IOException;
 
 	/**
 	 * Reads the serializer snapshot from the provided {@link DataInputView}.
@@ -100,9 +100,9 @@ public interface TypeSerializerSnapshot<T> {
 	 * @param in the {@link DataInputView} to read the snapshot from.
 	 * @param userCodeClassLoader the user code classloader
 	 *
-	 * @throws IOException
+	 * * @throws IOException Thrown if the snapshot data could be read or parsed.
 	 */
-	void read(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException;
+	void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException;
 
 	/**
 	 * Recreates a serializer instance from this snapshot. The returned
