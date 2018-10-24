@@ -20,15 +20,15 @@ table.table.table-properties
     tr
       th(colspan="2")
         .row
-          .col-xs-2
+          .col-xs-3
             | Job Manager Logs
-          .col-xs-3.text-right
+          .col-xs-4.text-right
             select(ng-model="filename" ng-options="log for log in jobmanager.loglist" ng-change="loadLogList()")
-          .col-xs-2.text-right 
+          .col-xs-1.text-right 
             | start: 
             input(type="text" ng-model="start" ng-init="start=0" size="3")
             |  kb
-          .col-xs-2.text-right 
+          .col-xs-1.text-right 
             | size:
             input(type="text" ng-model="size" ng-init="size=100" size="3")
             |  kb
