@@ -24,7 +24,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.commons.logging.impl.Log4JLogger;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
@@ -36,10 +35,6 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.ZooKeeperConnectionException;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.ScannerCallable;
-import org.apache.hadoop.hbase.ipc.AbstractRpcClient;
-import org.apache.hadoop.hbase.ipc.RpcServer;
-import org.apache.log4j.Level;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
@@ -149,9 +144,6 @@ public class HBaseTestingClusterAutostarter extends TestLogger implements Serial
 	@BeforeClass
 	public static void setUp() throws Exception {
 		LOG.info("HBase minicluster: Starting");
-		((Log4JLogger) RpcServer.LOG).getLogger().setLevel(Level.ALL);
-		((Log4JLogger) AbstractRpcClient.LOG).getLogger().setLevel(Level.ALL);
-		((Log4JLogger) ScannerCallable.LOG).getLogger().setLevel(Level.ALL);
 
 		TEST_UTIL.startMiniCluster(1);
 
