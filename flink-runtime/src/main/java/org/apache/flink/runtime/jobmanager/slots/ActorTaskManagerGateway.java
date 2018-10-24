@@ -211,14 +211,12 @@ public class ActorTaskManagerGateway implements TaskManagerGateway {
 
 	@Override
 	public CompletableFuture<TransientBlobKey> requestTaskManagerLog(Time timeout) {
-		return requestTaskManagerLog(
-			(TaskManagerMessages.RequestTaskManagerLog) TaskManagerMessages.getRequestTaskManagerLog(), timeout);
+		return requestTaskManagerLog((TaskManagerMessages.RequestTaskManagerLog) TaskManagerMessages.getRequestTaskManagerLog(), timeout);
 	}
 
 	@Override
 	public CompletableFuture<TransientBlobKey> requestTaskManagerStdout(Time timeout) {
-		return requestTaskManagerLog(
-			(TaskManagerMessages.RequestTaskManagerLog) TaskManagerMessages.getRequestTaskManagerStdout(), timeout);
+		return requestTaskManagerLog((TaskManagerMessages.RequestTaskManagerLog) TaskManagerMessages.getRequestTaskManagerStdout(), timeout);
 	}
 
 	@Override
