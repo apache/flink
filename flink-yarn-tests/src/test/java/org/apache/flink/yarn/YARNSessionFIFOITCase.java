@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,19 +18,24 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.SecureTestEnvironment;
+import org.apache.flink.yarn.YARNITCase.NoDataSource;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.flink.yarn.util.YarnTestUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
@@ -276,19 +281,21 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 */
 	@Test
 	public void testJavaAPI() throws Exception {
-		final int waitTime = 15;
 		LOG.info("Starting testJavaAPI()");
 
-		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
-		Configuration configuration = GlobalConfiguration.loadConfiguration();
+		final String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
+		final Configuration configuration = GlobalConfiguration.loadConfiguration();
+		final YarnClient yarnClient = getYarnClient();
 
-		try (final AbstractYarnClusterDescriptor clusterDescriptor = new LegacyYarnClusterDescriptor(
+		try (final AbstractYarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
 			configuration,
 			getYarnConfiguration(),
 			confDirPath,
-			getYarnClient(),
+			yarnClient,
 			true)) {
+
 			Assert.assertNotNull("unable to get yarn client", clusterDescriptor);
+
 			clusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
 			clusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
 
@@ -298,32 +305,33 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				.setNumberTaskManagers(1)
 				.setSlotsPerTaskManager(1)
 				.createClusterSpecification();
+
 			// deploy
 			ClusterClient<ApplicationId> yarnClusterClient = null;
 			try {
 				yarnClusterClient = clusterDescriptor.deploySessionCluster(clusterSpecification);
+				yarnClusterClient.setDetached(false);
 
-				GetClusterStatusResponse expectedStatus = new GetClusterStatusResponse(1, 1);
-				for (int second = 0; second < waitTime * 2; second++) { // run "forever"
-					try {
-						Thread.sleep(1000);
-					} catch (InterruptedException e) {
-						LOG.warn("Interrupted", e);
-					}
-					GetClusterStatusResponse status = yarnClusterClient.getClusterStatus();
-					if (status != null && status.equals(expectedStatus)) {
-						LOG.info("ClusterClient reached status " + status);
-						break; // all good, cluster started
-					}
-					if (second > waitTime) {
-						// we waited for 15 seconds. cluster didn't come up correctly
-						Assert.fail("The custer didn't start after " + waitTime + " seconds");
-					}
-				}
+				StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+				env.setParallelism(2);
 
-				// use the cluster
-				Assert.assertNotNull(yarnClusterClient.getClusterConnectionInfo());
-				Assert.assertNotNull(yarnClusterClient.getWebInterfaceURL());
+				env.addSource(new NoDataSource())
+					.shuffle()
+					.addSink(new DiscardingSink<>());
+
+				final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+
+				File testingJar = YarnTestBase.findFile("..", new YarnTestUtils.TestJarFinder("flink-yarn-tests"));
+
+				jobGraph.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
+
+				JobExecutionResult result =
+					yarnClusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader()).getJobExecutionResult();
+
+				Assert.assertNotNull(result);
+				Assert.assertTrue(result.getNetRuntime() > 0);
+				Assert.assertEquals(jobGraph.getJobID(), result.getJobID());
+
 				LOG.info("All tests passed.");
 			} finally {
 				if (yarnClusterClient != null) {

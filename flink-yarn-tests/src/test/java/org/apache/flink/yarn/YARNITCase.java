@@ -124,7 +124,7 @@ public class YARNITCase extends YarnTestBase {
 		}
 	}
 
-	private static class NoDataSource implements ParallelSourceFunction<Integer> {
+	public static class NoDataSource implements ParallelSourceFunction<Integer> {
 
 		private static final long serialVersionUID = 1642561062000662861L;
 
