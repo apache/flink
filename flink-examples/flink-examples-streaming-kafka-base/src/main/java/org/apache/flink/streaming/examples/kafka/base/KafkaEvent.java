@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.kafka;
+package org.apache.flink.streaming.examples.kafka.base;
 
 /**
  * The event type used in the {@link Kafka010Example}.

@@ -17,6 +17,8 @@
 # limitations under the License.
 ################################################################################
 
+set -e
+set -u
 set -o pipefail
 
 if [[ -z $TEST_DATA_DIR ]]; then
@@ -24,15 +26,19 @@ if [[ -z $TEST_DATA_DIR ]]; then
   exit 1
 fi
 
-KAFKA_DIR=$TEST_DATA_DIR/kafka_2.11-0.10.2.0
-CONFLUENT_DIR=$TEST_DATA_DIR/confluent-3.2.0
+KAFKA_VERSION="$1"
+CONFLUENT_VERSION="$2"
+CONFLUENT_MAJOR_VERSION="$3"
+
+KAFKA_DIR=$TEST_DATA_DIR/kafka_2.11-$KAFKA_VERSION
+CONFLUENT_DIR=$TEST_DATA_DIR/confluent-$CONFLUENT_VERSION
 SCHEMA_REGISTRY_PORT=8082
 SCHEMA_REGISTRY_URL=http://localhost:${SCHEMA_REGISTRY_PORT}
 
 function setup_kafka_dist {
   # download Kafka
   mkdir -p $TEST_DATA_DIR
-  KAFKA_URL="https://archive.apache.org/dist/kafka/0.10.2.0/kafka_2.11-0.10.2.0.tgz"
+  KAFKA_URL="https://archive.apache.org/dist/kafka/$KAFKA_VERSION/kafka_2.11-$KAFKA_VERSION.tgz"
   echo "Downloading Kafka from $KAFKA_URL"
   curl "$KAFKA_URL" > $TEST_DATA_DIR/kafka.tgz
 
@@ -46,7 +52,7 @@ function setup_kafka_dist {
 function setup_confluent_dist {
   # download confluent
   mkdir -p $TEST_DATA_DIR
-  CONFLUENT_URL="http://packages.confluent.io/archive/3.2/confluent-oss-3.2.0-2.11.tar.gz"
+  CONFLUENT_URL="http://packages.confluent.io/archive/$CONFLUENT_MAJOR_VERSION/confluent-oss-$CONFLUENT_VERSION-2.11.tar.gz"
   echo "Downloading confluent from $CONFLUENT_URL"
   curl "$CONFLUENT_URL" > $TEST_DATA_DIR/confluent.tgz
 
@@ -76,13 +82,15 @@ function stop_kafka_cluster {
   $KAFKA_DIR/bin/kafka-server-stop.sh
   $KAFKA_DIR/bin/zookeeper-server-stop.sh
 
-  PIDS=$(jps -vl | grep -i 'kafka\.Kafka' | grep java | grep -v grep | awk '{print $1}')
+  # Terminate Kafka process if it still exists
+  PIDS=$(jps -vl | grep -i 'kafka\.Kafka' | grep java | grep -v grep | awk '{print $1}'|| echo "")
 
   if [ ! -z "$PIDS" ]; then
     kill -s TERM $PIDS
   fi
 
-  PIDS=$(jps -vl | grep java | grep -i QuorumPeerMain | grep -v grep | awk '{print $1}')
+  # Terminate QuorumPeerMain process if it still exists
+  PIDS=$(jps -vl | grep java | grep -i QuorumPeerMain | grep -v grep | awk '{print $1}'|| echo "")
 
   if [ ! -z "$PIDS" ]; then
     kill -s TERM $PIDS
@@ -120,14 +128,7 @@ function get_partition_end_offset {
   local topic=$1
   local partition=$2
 
-  # first, use the console consumer to produce a dummy consumer group
-  read_messages_from_kafka 0 $topic dummy-consumer
-
-  # then use the consumer offset utility to get the LOG_END_OFFSET value for the specified partition
-  $KAFKA_DIR/bin/kafka-consumer-groups.sh --describe --group dummy-consumer --bootstrap-server localhost:9092 2> /dev/null \
-    | grep "$topic \+$partition" \
-    | tr -s " " \
-    | cut -d " " -f 4
+  $KAFKA_DIR/bin/kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic $topic --partitions $partition --time -1 | cut -d ":" -f 3
 }
 
 function start_confluent_schema_registry {
