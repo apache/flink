@@ -375,6 +375,8 @@ public class StreamingFileSink<IN>
 
 	@Override
 	public void close() throws Exception {
-		buckets.close();
+		if (buckets != null) {
+			buckets.close();
+		}
 	}
 }
