@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.apache.flink.util.Preconditions.checkState;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A CompositeSerializerSnapshot represents the snapshots of multiple serializers that are used
@@ -35,16 +35,16 @@ import static org.apache.flink.util.Preconditions.checkState;
  * format serializer, an the CompositeSerializerSnapshot holds the serializers for the
  * different tuple fields.
  *
- * <p>The serializers and their snapshots are always passed in the order in which they are
- * first given to the constructor.
+ * <p>The CompositeSerializerSnapshot does not implement the {@link TypeSerializerSnapshot} interface.
+ * It is not meant to be inherited from, but to be composed with a serializer snapshot implementation.
  *
  * <p>The CompositeSerializerSnapshot has its own versioning internally, it does not couple its
  * versioning to the versioning of the TypeSerializerSnapshot that builds on top of this class.
  * That way, the CompositeSerializerSnapshot and enclosing TypeSerializerSnapshot the can evolve
  * their formats independently.
  */
-@Internal
-public abstract class CompositeSerializerSnapshot<T, S extends TypeSerializer<T>> implements TypeSerializerSnapshot<T> {
+@PublicEvolving
+public class CompositeSerializerSnapshot {
 
 	/** Magic number for integrity checks during deserialization. */
 	private static final int MAGIC_NUMBER = 1333245;
@@ -52,120 +52,68 @@ public abstract class CompositeSerializerSnapshot<T, S extends TypeSerializer<T>
 	/** Current version of the new serialization format. */
 	private static final int VERSION = 1;
 
-	/** The snapshots of the serializers in the composition, in order. */
-	private TypeSerializerSnapshot<?>[] nestedSnapshots;
+	/** The snapshots from the serializer that make up this composition. */
+	private final TypeSerializerSnapshot<?>[] nestedSnapshots;
 
 	/**
-	 * Constructor for read instantiation.
+	 * Constructor to create a snapshot for writing.
 	 */
-	protected CompositeSerializerSnapshot() {}
-
-	/**
-	 * Constructor for writing snapshot.
-	 */
-	protected CompositeSerializerSnapshot(TypeSerializer<?>... serializers) {
+	public CompositeSerializerSnapshot(TypeSerializer<?>... serializers) {
 		this.nestedSnapshots = TypeSerializerUtils.snapshotBackwardsCompatible(serializers);
 	}
 
-	// ------------------------------------------------------------------------
-	//  Methods to bridge between outer serializer and composition
-	//  of nested serializers
-	// ------------------------------------------------------------------------
-
-	protected abstract TypeSerializer<T> createSerializer(TypeSerializer<?>... nestedSerializers);
-
-	protected abstract TypeSerializer<?>[] getNestedSerializersFromSerializer(S serializer);
-
-	protected abstract TypeSerializerSchemaCompatibility<T> outerCompatibility(S serializer);
-
-	protected abstract Class<?> outerSerializerType();
+	/**
+	 * Constructor to create a snapshot during deserialization.
+	 */
+	private CompositeSerializerSnapshot(TypeSerializerSnapshot<?>[] snapshots) {
+		this.nestedSnapshots = snapshots;
+	}
 
 	// ------------------------------------------------------------------------
-	//  Serialization
+	//  Nested Serializers and Compatibility
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Writes the composite snapshot of all the contained serializers.
+	 * Produces a restore serializer from each contained serializer configuration snapshot.
+	 * The serializers are returned in the same order as the snapshots are stored.
 	 */
-	public final void writeProductSnapshots(DataOutputView out) throws IOException {
-		out.writeInt(MAGIC_NUMBER);
-		out.writeInt(VERSION);
-
-		out.writeInt(nestedSnapshots.length);
-		for (TypeSerializerSnapshot<?> snap : nestedSnapshots) {
-			TypeSerializerSnapshot.writeVersionedSnapshot(out, snap);
-		}
+	public TypeSerializer<?>[] getRestoreSerializers() {
+		return snapshotsToRestoreSerializers(nestedSnapshots);
 	}
 
 	/**
-	 * Reads the composite snapshot of all the contained serializers.
+	 * Creates the restore serializer from the pos-th config snapshot.
 	 */
-	public final void readProductSnapshots(DataInputView in, ClassLoader cl) throws IOException {
-		final int magicNumber = in.readInt();
-		if (magicNumber != MAGIC_NUMBER) {
-			throw new IOException(String.format("Corrupt data, magic number mismatch. Expected %8x, found %8x",
-					MAGIC_NUMBER, magicNumber));
-		}
-
-		final int version = in.readInt();
-		if (version != VERSION) {
-			throw new IOException("Unrecognized version: " + version);
-		}
-
-		final int numSnapshots = in.readInt();
-		nestedSnapshots = new TypeSerializerSnapshot<?>[numSnapshots];
-
-		for (int i = 0; i < numSnapshots; i++) {
-			nestedSnapshots[i] = TypeSerializerSnapshot.readVersionedSnapshot(in, cl);
-		}
-	}
-
-	public final void legacyReadProductSnapshots(DataInputView in, ClassLoader cl) throws IOException {
-		@SuppressWarnings("deprecation")
-		final List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> serializersAndSnapshots =
-				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, cl);
-
-		nestedSnapshots = serializersAndSnapshots.stream()
-				.map(t -> t.f1)
-				.toArray(TypeSerializerSnapshot<?>[]::new);
-	}
-
-	// ------------------------------------------------------------------------
-	//  Type Serializer Snapshot
-	// ------------------------------------------------------------------------
-
-	@Override
-	public TypeSerializer<T> restoreSerializer() {
-		TypeSerializer<?>[] nestedSerializers = snapshotsToRestoreSerializers(nestedSnapshots);
-		return createSerializer(nestedSerializers);
-	}
-
-	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
-
-		// class compatibility
-		if (!outerSerializerType().isInstance(newSerializer)) {
-			return TypeSerializerSchemaCompatibility.incompatible();
-		}
-
-		// compatibility of the outer serializer's format
+	public <T> TypeSerializer<T> getRestoreSerializer(int pos) {
+		checkArgument(pos < nestedSnapshots.length);
 
 		@SuppressWarnings("unchecked")
-		final S castedSerializer = (S) newSerializer;
-		final TypeSerializerSchemaCompatibility<T> outerCompatibility = outerCompatibility(castedSerializer);
+		TypeSerializerSnapshot<T> snapshot = (TypeSerializerSnapshot<T>) nestedSnapshots[pos];
 
+		return snapshot.restoreSerializer();
+	}
+
+	/**
+	 * Resolves the compatibility of the nested serializer snapshots with the nested
+	 * serializers of the new outer serializer.
+	 */
+	public <T> TypeSerializerSchemaCompatibility<T> resolveCompatibilityWithNested(
+			TypeSerializerSchemaCompatibility<?> outerCompatibility,
+			TypeSerializer<?>... newNestedSerializers) {
+
+		checkArgument(newNestedSerializers.length == nestedSnapshots.length,
+				"Different number of new serializers and existing serializer configuration snapshots");
+
+		// compatibility of the outer serializer's format
 		if (outerCompatibility.isIncompatible()) {
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 
 		// check nested serializers for compatibility
-
-		final TypeSerializer<?>[] nestedSerializers = getNestedSerializersFromSerializer(castedSerializer);
-		checkState(nestedSerializers.length == nestedSnapshots.length);
-
 		boolean nestedSerializerRequiresMigration = false;
 		for (int i = 0; i < nestedSnapshots.length; i++) {
 			TypeSerializerSchemaCompatibility<?> compatibility =
-					resolveCompatibility(nestedSerializers[i], nestedSnapshots[i]);
+					resolveCompatibility(newNestedSerializers[i], nestedSnapshots[i]);
 
 			if (compatibility.isIncompatible()) {
 				return TypeSerializerSchemaCompatibility.incompatible();
@@ -178,6 +126,64 @@ public abstract class CompositeSerializerSnapshot<T, S extends TypeSerializer<T>
 		return (nestedSerializerRequiresMigration || !outerCompatibility.isCompatibleAsIs()) ?
 				TypeSerializerSchemaCompatibility.compatibleAfterMigration() :
 				TypeSerializerSchemaCompatibility.compatibleAsIs();
+	}
+
+	// ------------------------------------------------------------------------
+	//  Serialization
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Writes the composite snapshot of all the contained serializers.
+	 */
+	public final void writeCompositeSnapshot(DataOutputView out) throws IOException {
+		out.writeInt(MAGIC_NUMBER);
+		out.writeInt(VERSION);
+
+		out.writeInt(nestedSnapshots.length);
+		for (TypeSerializerSnapshot<?> snap : nestedSnapshots) {
+			TypeSerializerSnapshot.writeVersionedSnapshot(out, snap);
+		}
+	}
+
+	/**
+	 * Reads the composite snapshot of all the contained serializers.
+	 */
+	public static CompositeSerializerSnapshot readCompositeSnapshot(DataInputView in, ClassLoader cl) throws IOException {
+		final int magicNumber = in.readInt();
+		if (magicNumber != MAGIC_NUMBER) {
+			throw new IOException(String.format("Corrupt data, magic number mismatch. Expected %8x, found %8x",
+					MAGIC_NUMBER, magicNumber));
+		}
+
+		final int version = in.readInt();
+		if (version != VERSION) {
+			throw new IOException("Unrecognized version: " + version);
+		}
+
+		final int numSnapshots = in.readInt();
+		final TypeSerializerSnapshot<?>[] nestedSnapshots = new TypeSerializerSnapshot<?>[numSnapshots];
+
+		for (int i = 0; i < numSnapshots; i++) {
+			nestedSnapshots[i] = TypeSerializerSnapshot.readVersionedSnapshot(in, cl);
+		}
+
+		return new CompositeSerializerSnapshot(nestedSnapshots);
+	}
+
+	/**
+	 * Reads the composite snapshot of all the contained serializers in a way that is compatible
+	 * with Version 1 of the deprecated {@link CompositeTypeSerializerConfigSnapshot}.
+	 */
+	public static CompositeSerializerSnapshot legacyReadProductSnapshots(DataInputView in, ClassLoader cl) throws IOException {
+		@SuppressWarnings("deprecation")
+		final List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> serializersAndSnapshots =
+				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, cl);
+
+		final TypeSerializerSnapshot<?>[] nestedSnapshots = serializersAndSnapshots.stream()
+				.map(t -> t.f1)
+				.toArray(TypeSerializerSnapshot<?>[]::new);
+
+		return new CompositeSerializerSnapshot(nestedSnapshots);
 	}
 
 	// ------------------------------------------------------------------------

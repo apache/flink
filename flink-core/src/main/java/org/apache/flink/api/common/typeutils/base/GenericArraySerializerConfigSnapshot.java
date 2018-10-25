@@ -22,14 +22,17 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Point-in-time configuration of a {@link GenericArraySerializer}.
@@ -37,25 +40,32 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * @param <C> The component type.
  */
 @Internal
-public final class GenericArraySerializerConfigSnapshot<C>
-		extends CompositeSerializerSnapshot<C[], GenericArraySerializer<C>> {
+public final class GenericArraySerializerConfigSnapshot<C> implements TypeSerializerSnapshot<C[]> {
 
 	private static final int CURRENT_VERSION = 2;
 
+	/** The class of the components of the serializer's array type. */
+	@Nullable
 	private Class<C> componentClass;
 
-	/** Ctor for read instantiation. */
+	/** Snapshot handling for the component serializer snapshot. */
+	@Nullable
+	private CompositeSerializerSnapshot nestedSnapshot;
+
+	/**
+	 * Constructor for read instantiation.
+	 */
 	@SuppressWarnings("unused")
 	public GenericArraySerializerConfigSnapshot() {}
 
-	/** Ctor for writing snapshot. */
+	/**
+	 * Constructor to create the snapshot for writing.
+	 */
 	public GenericArraySerializerConfigSnapshot(GenericArraySerializer<C> serializer) {
-		super(serializer.getComponentSerializer());
 		this.componentClass = serializer.getComponentClass();
+		this.nestedSnapshot = new CompositeSerializerSnapshot(serializer.getComponentSerializer());
 	}
 
-	// ------------------------------------------------------------------------
-	//  Serialization
 	// ------------------------------------------------------------------------
 
 	@Override
@@ -65,8 +75,9 @@ public final class GenericArraySerializerConfigSnapshot<C>
 
 	@Override
 	public void writeSnapshot(DataOutputView out) throws IOException {
+		checkState(componentClass != null && nestedSnapshot != null);
 		out.writeUTF(componentClass.getName());
-		writeProductSnapshots(out);
+		nestedSnapshot.writeCompositeSnapshot(out);
 	}
 
 	@Override
@@ -84,7 +95,7 @@ public final class GenericArraySerializerConfigSnapshot<C>
 	}
 
 	private void readV1(DataInputView in, ClassLoader classLoader) throws IOException {
-		legacyReadProductSnapshots(in, classLoader);
+		nestedSnapshot = CompositeSerializerSnapshot.legacyReadProductSnapshots(in, classLoader);
 
 		try (DataInputViewStream inViewWrapper = new DataInputViewStream(in)) {
 			componentClass = InstantiationUtil.deserializeObject(inViewWrapper, classLoader);
@@ -95,40 +106,31 @@ public final class GenericArraySerializerConfigSnapshot<C>
 	}
 
 	private void readV2(DataInputView in, ClassLoader classLoader) throws IOException {
-		this.componentClass = InstantiationUtil.resolveClassByName(in, classLoader);
-		readProductSnapshots(in, classLoader);
-	}
-
-	// ------------------------------------------------------------------------
-	//  Product Serializer Snapshot Methods
-	// ------------------------------------------------------------------------
-
-	@Override
-	protected Class<?> outerSerializerType() {
-		return GenericArraySerializer.class;
+		componentClass = InstantiationUtil.resolveClassByName(in, classLoader);
+		nestedSnapshot = CompositeSerializerSnapshot.readCompositeSnapshot(in, classLoader);
 	}
 
 	@Override
-	protected TypeSerializer<C[]> createSerializer(TypeSerializer<?>... nestedSerializers) {
-		checkArgument(nestedSerializers.length == 1);
-
-		@SuppressWarnings("unchecked")
-		TypeSerializer<C> componentSerializer = (TypeSerializer<C>) nestedSerializers[0];
-
-		return new GenericArraySerializer<>(componentClass, componentSerializer);
+	public TypeSerializer<C[]> restoreSerializer() {
+		checkState(componentClass != null && nestedSnapshot != null);
+		return new GenericArraySerializer<>(componentClass, nestedSnapshot.getRestoreSerializer(0));
 	}
 
 	@Override
-	protected TypeSerializer<?>[] getNestedSerializersFromSerializer(GenericArraySerializer<C> serializer) {
-		return new TypeSerializer<?>[] { serializer.getComponentSerializer() };
-	}
+	public TypeSerializerSchemaCompatibility<C[]> resolveSchemaCompatibility(TypeSerializer<C[]> newSerializer) {
+		checkState(componentClass != null && nestedSnapshot != null);
 
-	@Override
-	protected TypeSerializerSchemaCompatibility<C[]>
-	outerCompatibility(GenericArraySerializer<C> serializer) {
+		if (newSerializer instanceof GenericArraySerializer) {
+			GenericArraySerializer<C> serializer = (GenericArraySerializer<C>) newSerializer;
+			TypeSerializerSchemaCompatibility<C> compat = serializer.getComponentClass() == componentClass ?
+					TypeSerializerSchemaCompatibility.compatibleAsIs() :
+					TypeSerializerSchemaCompatibility.incompatible();
 
-		return serializer.getComponentClass() == componentClass ?
-				TypeSerializerSchemaCompatibility.compatibleAsIs() :
-				TypeSerializerSchemaCompatibility.incompatible();
+			return nestedSnapshot.resolveCompatibilityWithNested(
+					compat, serializer.getComponentSerializer());
+		}
+		else {
+			return TypeSerializerSchemaCompatibility.incompatible();
+		}
 	}
 }
