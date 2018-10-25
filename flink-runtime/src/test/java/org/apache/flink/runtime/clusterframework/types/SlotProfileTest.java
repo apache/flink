@@ -75,7 +75,7 @@ public class SlotProfileTest extends TestLogger {
 	@Test
 	public void matchNoRequirements() {
 
-		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.emptyList(), Collections.emptyList());
+		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.emptyList(), Collections.emptySet());
 		SlotContext match = runMatching(slotProfile);
 
 		Assert.assertTrue(candidates.contains(match));
@@ -84,7 +84,7 @@ public class SlotProfileTest extends TestLogger {
 	@Test
 	public void matchPreferredLocationNotAvailable() {
 
-		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tmlX), Collections.emptyList());
+		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tmlX), Collections.emptySet());
 		SlotContext match = runMatching(slotProfile);
 
 		Assert.assertTrue(candidates.contains(match));
@@ -93,17 +93,17 @@ public class SlotProfileTest extends TestLogger {
 	@Test
 	public void matchPreferredLocation() {
 
-		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tml2), Collections.emptyList());
+		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tml2), Collections.emptySet());
 		SlotContext match = runMatching(slotProfile);
 
 		Assert.assertEquals(ssc2, match);
 
-		slotProfile = new SlotProfile(resourceProfile, Arrays.asList(tmlX, tml4), Collections.emptyList());
+		slotProfile = new SlotProfile(resourceProfile, Arrays.asList(tmlX, tml4), Collections.emptySet());
 		match = runMatching(slotProfile);
 
 		Assert.assertEquals(ssc4, match);
 
-		slotProfile = new SlotProfile(resourceProfile, Arrays.asList(tml3, tml1, tml3, tmlX), Collections.emptyList());
+		slotProfile = new SlotProfile(resourceProfile, Arrays.asList(tml3, tml1, tml3, tmlX), Collections.emptySet());
 		match = runMatching(slotProfile);
 
 		Assert.assertEquals(ssc3, match);
@@ -112,12 +112,12 @@ public class SlotProfileTest extends TestLogger {
 	@Test
 	public void matchPreviousAllocationOverridesPreferredLocation() {
 
-		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tml2), Collections.singletonList(aid3));
+		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tml2), Collections.singleton(aid3));
 		SlotContext match = runMatching(slotProfile);
 
 		Assert.assertEquals(ssc3, match);
 
-		slotProfile = new SlotProfile(resourceProfile, Arrays.asList(tmlX, tml1), Arrays.asList(aidX, aid2));
+		slotProfile = new SlotProfile(resourceProfile, Arrays.asList(tmlX, tml1), new HashSet<>(Arrays.asList(aidX, aid2)));
 		match = runMatching(slotProfile);
 
 		Assert.assertEquals(ssc2, match);
@@ -126,7 +126,7 @@ public class SlotProfileTest extends TestLogger {
 	@Test
 	public void matchPreviousLocationNotAvailable() {
 
-		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tml4), Collections.singletonList(aidX));
+		SlotProfile slotProfile = new SlotProfile(resourceProfile, Collections.singletonList(tml4), Collections.singleton(aidX));
 		SlotContext match = runMatching(slotProfile);
 
 		Assert.assertEquals(null, match);

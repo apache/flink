@@ -29,19 +29,16 @@ import javax.annotation.Nonnull;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiFunction;
 
 /**
  * This class implements a {@link SlotSelectionStrategy} that is based on location preference hints.
  */
-public class LocationPreferenceSlotSelection implements SlotSelectionStrategy {
+public enum LocationPreferenceSlotSelection implements SlotSelectionStrategy {
 
-	public static final LocationPreferenceSlotSelection INSTANCE = new LocationPreferenceSlotSelection();
-
-	private LocationPreferenceSlotSelection() {
-	}
+	INSTANCE;
 
 	/**
 	 * Calculates the candidate's locality score.
@@ -49,29 +46,43 @@ public class LocationPreferenceSlotSelection implements SlotSelectionStrategy {
 	private static final BiFunction<Integer, Integer, Integer> LOCALITY_EVALUATION_FUNCTION =
 		(localWeigh, hostLocalWeigh) -> localWeigh * 10 + hostLocalWeigh;
 
-	@Nonnull
 	@Override
-	public SlotInfoAndLocality selectBestSlotForProfile(
-		@Nonnull List<SlotInfo> availableSlots,
+	public Optional<SlotInfoAndLocality> selectBestSlotForProfile(
+		@Nonnull Collection<SlotInfo> availableSlots,
 		@Nonnull SlotProfile slotProfile) {
 
 		Collection<TaskManagerLocation> locationPreferences = slotProfile.getPreferredLocations();
 
 		if (availableSlots.isEmpty()) {
-			return SlotInfoAndLocality.of(null, Locality.UNKNOWN);
+			return Optional.empty();
 		}
 
 		final ResourceProfile resourceProfile = slotProfile.getResourceProfile();
 
 		// if we have no location preferences, we can only filter by the additional requirements.
-		if (locationPreferences.isEmpty()) {
-			for (SlotInfo candidate : availableSlots) {
-				if (candidate.getResourceProfile().isMatching(resourceProfile)) {
-					return SlotInfoAndLocality.of(candidate, Locality.UNCONSTRAINED);
-				}
+		return locationPreferences.isEmpty() ?
+			selectWithoutLocationPreference(availableSlots, resourceProfile) :
+			selectWitLocationPreference(availableSlots, locationPreferences, resourceProfile);
+	}
+
+	@Nonnull
+	private Optional<SlotInfoAndLocality> selectWithoutLocationPreference(
+		@Nonnull Collection<SlotInfo> availableSlots,
+		@Nonnull ResourceProfile resourceProfile) {
+
+		for (SlotInfo candidate : availableSlots) {
+			if (candidate.getResourceProfile().isMatching(resourceProfile)) {
+				return Optional.of(SlotInfoAndLocality.of(candidate, Locality.UNCONSTRAINED));
 			}
-			return SlotInfoAndLocality.of(null, Locality.UNKNOWN);
 		}
+		return Optional.empty();
+	}
+
+	@Nonnull
+	private Optional<SlotInfoAndLocality> selectWitLocationPreference(
+		@Nonnull Collection<SlotInfo> availableSlots,
+		@Nonnull Collection<TaskManagerLocation> locationPreferences,
+		@Nonnull ResourceProfile resourceProfile) {
 
 		// we build up two indexes, one for resource id and one for host names of the preferred locations.
 		final Map<ResourceID, Integer> preferredResourceIDs = new HashMap<>(locationPreferences.size());
@@ -91,21 +102,27 @@ public class LocationPreferenceSlotSelection implements SlotSelectionStrategy {
 			if (candidate.getResourceProfile().isMatching(resourceProfile)) {
 
 				// this gets candidate is local-weigh
-				Integer localWeigh = preferredResourceIDs.getOrDefault(candidate.getTaskManagerLocation().getResourceID(), 0);
+				Integer localWeigh = preferredResourceIDs.getOrDefault(
+					candidate.getTaskManagerLocation().getResourceID(), 0);
 
 				// this gets candidate is host-local-weigh
-				Integer hostLocalWeigh = preferredFQHostNames.getOrDefault(candidate.getTaskManagerLocation().getFQDNHostname(), 0);
+				Integer hostLocalWeigh = preferredFQHostNames.getOrDefault(
+					candidate.getTaskManagerLocation().getFQDNHostname(), 0);
 
 				int candidateScore = LOCALITY_EVALUATION_FUNCTION.apply(localWeigh, hostLocalWeigh);
 				if (candidateScore > bestCandidateScore) {
 					bestCandidateScore = candidateScore;
 					bestCandidate = candidate;
-					bestCandidateLocality = localWeigh > 0 ? Locality.LOCAL : hostLocalWeigh > 0 ? Locality.HOST_LOCAL : Locality.NON_LOCAL;
+					bestCandidateLocality = localWeigh > 0 ?
+						Locality.LOCAL : hostLocalWeigh > 0 ?
+						Locality.HOST_LOCAL : Locality.NON_LOCAL;
 				}
 			}
 		}
 
 		// at the end of the iteration, we return the candidate with best possible locality or null.
-		return SlotInfoAndLocality.of(bestCandidate, bestCandidateLocality);
+		return bestCandidate != null ?
+			Optional.of(SlotInfoAndLocality.of(bestCandidate, bestCandidateLocality)) :
+			Optional.empty();
 	}
 }

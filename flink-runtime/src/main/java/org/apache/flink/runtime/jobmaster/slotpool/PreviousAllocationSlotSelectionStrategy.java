@@ -27,56 +27,56 @@ import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
  * This class implements a {@link SlotSelectionStrategy} that is based on previous allocations and
  * falls back to using location preference hints if there is no previous allocation.
  */
-public class PreviousAllocationSlotSelectionStrategy implements SlotSelectionStrategy {
+public enum PreviousAllocationSlotSelectionStrategy implements SlotSelectionStrategy {
 
-	public static final PreviousAllocationSlotSelectionStrategy INSTANCE =
-		new PreviousAllocationSlotSelectionStrategy();
+	INSTANCE;
 
-	private final LocationPreferenceSlotSelection locationPreferenceSlotSelection;
-
-	private PreviousAllocationSlotSelectionStrategy() {
-		this.locationPreferenceSlotSelection = LocationPreferenceSlotSelection.INSTANCE;
-	}
-
-	@Nonnull
 	@Override
-	public SlotInfoAndLocality selectBestSlotForProfile(
-		@Nonnull List<SlotInfo> availableSlots,
+	public Optional<SlotInfoAndLocality> selectBestSlotForProfile(
+		@Nonnull Collection<SlotInfo> availableSlots,
 		@Nonnull SlotProfile slotProfile) {
 
 		Collection<AllocationID> priorAllocations = slotProfile.getPreferredAllocations();
 
 		// First, if there was a prior allocation try to schedule to the same/old slot
 		if (!priorAllocations.isEmpty()) {
-
-			HashSet<AllocationID> priorAllocationsSet = new HashSet<>(priorAllocations);
 			for (SlotInfo availableSlot : availableSlots) {
-				if (priorAllocationsSet.contains(availableSlot.getAllocationId())) {
-					return SlotInfoAndLocality.of(availableSlot, Locality.LOCAL);
+				if (priorAllocations.contains(availableSlot.getAllocationId())) {
+					return Optional.of(
+						SlotInfoAndLocality.of(availableSlot, Locality.LOCAL));
 				}
 			}
 		}
 
 		// Second, select based on location preference, excluding blacklisted allocations
 		Set<AllocationID> blackListedAllocations = slotProfile.getPreviousExecutionGraphAllocations();
-		if (blackListedAllocations.isEmpty()) {
-			return locationPreferenceSlotSelection.selectBestSlotForProfile(availableSlots, slotProfile);
-		} else {
-			ArrayList<SlotInfo> availableAndAllowedSlots = new ArrayList<>(availableSlots.size());
-			for (SlotInfo availableSlot : availableSlots) {
-				if (!blackListedAllocations.contains(availableSlot.getAllocationId())) {
-					availableAndAllowedSlots.add(availableSlot);
-				}
-			}
-			return locationPreferenceSlotSelection.selectBestSlotForProfile(availableAndAllowedSlots, slotProfile);
+		Collection<SlotInfo> availableAndAllowedSlots = computeWithoutBlacklistedSlots(availableSlots, blackListedAllocations);
+		return LocationPreferenceSlotSelection.INSTANCE.selectBestSlotForProfile(availableAndAllowedSlots, slotProfile);
+	}
+
+	@Nonnull
+	private Collection<SlotInfo> computeWithoutBlacklistedSlots(
+		@Nonnull Collection<SlotInfo> availableSlots,
+		@Nonnull Set<AllocationID> blacklistedAllocations) {
+
+		if (blacklistedAllocations.isEmpty()) {
+			return availableSlots;
 		}
+
+		ArrayList<SlotInfo> availableAndAllowedSlots = new ArrayList<>(availableSlots.size());
+		for (SlotInfo availableSlot : availableSlots) {
+			if (!blacklistedAllocations.contains(availableSlot.getAllocationId())) {
+				availableAndAllowedSlots.add(availableSlot);
+			}
+		}
+
+		return availableAndAllowedSlots;
 	}
 }

@@ -303,6 +303,6 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 	}
 
 	private static SlotProfile slotProfileForLocation(TaskManagerLocation... location) {
-		return new SlotProfile(ResourceProfile.UNKNOWN, Arrays.asList(location), Collections.emptyList());
+		return new SlotProfile(ResourceProfile.UNKNOWN, Arrays.asList(location), Collections.emptySet());
 	}
 }

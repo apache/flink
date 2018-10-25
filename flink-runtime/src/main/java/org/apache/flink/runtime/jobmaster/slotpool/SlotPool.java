@@ -77,6 +77,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -556,7 +557,7 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 
 			if (multiTaskSlotFuture == null) {
 				// it seems as if we have to request a new slot from the resource manager, this is always the last resort!!!
-				final CompletableFuture<AllocatedSlot> futureSlot = requestNewAllocatedSlot(
+				final CompletableFuture<AllocatedSlot> futureSlot = requestNewAllocatedSlotInternal(
 					allocatedSlotRequestId,
 					slotProfile.getResourceProfile(),
 					allocationTimeout);
@@ -618,7 +619,7 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 			allocatedSlotLocalityFuture = CompletableFuture.completedFuture(slotFromPool);
 		} else if (allowQueuedScheduling) {
 			// we have to request a new allocated slot
-			CompletableFuture<AllocatedSlot> allocatedSlotFuture = requestNewAllocatedSlot(
+			CompletableFuture<AllocatedSlot> allocatedSlotFuture = requestNewAllocatedSlotInternal(
 				slotRequestId,
 				slotProfile.getResourceProfile(),
 				allocationTimeout);
@@ -632,6 +633,8 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 		return allocatedSlotLocalityFuture;
 	}
 
+
+
 	/**
 	 * Requests a new slot with the given {@link ResourceProfile} from the ResourceManager. If there is
 	 * currently not ResourceManager connected, then the request is stashed and send once a new
@@ -642,9 +645,8 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 	 * @param timeout timeout before the slot allocation times out
 	 * @return An {@link AllocatedSlot} future which is completed once the slot is offered to the {@link SlotPool}
 	 */
-	@Override
 	@Nonnull
-	public CompletableFuture<AllocatedSlot> requestNewAllocatedSlot(
+	public CompletableFuture<AllocatedSlot> requestNewAllocatedSlotInternal(
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull ResourceProfile resourceProfile,
 		Time timeout) {
@@ -735,25 +737,26 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 	// ------------------------------------------------------------------------
 
 	@Override
-	public Acknowledge releaseSlot(
+	public void releaseSlot(
 		SlotRequestId slotRequestId,
 		@Nullable SlotSharingGroupId slotSharingGroupId,
 		Throwable cause) {
 
 		log.debug("Releasing slot [{}] because: {}", slotRequestId, cause != null ? cause.getMessage() : "null");
-		return (slotSharingGroupId != null) ?
-			releaseSharedSlot(slotRequestId, slotSharingGroupId, cause) :
+		if (slotSharingGroupId != null) {
+			releaseSharedSlot(slotRequestId, slotSharingGroupId, cause);
+		} else {
 			releaseSingleSlot(slotRequestId, cause);
+		}
 	}
 
-	@Nonnull
 	@Override
-	public Acknowledge releaseSlot(@Nonnull SlotRequestId slotRequestId, @Nullable Throwable cause) {
+	public void releaseSlot(@Nonnull SlotRequestId slotRequestId, @Nullable Throwable cause) {
 		log.debug("Releasing slot [{}] because: {}", slotRequestId, cause != null ? cause.getMessage() : "null");
-		return releaseSingleSlot(slotRequestId, cause);
+		releaseSingleSlot(slotRequestId, cause);
 	}
 
-	private Acknowledge releaseSharedSlot(
+	private void releaseSharedSlot(
 		SlotRequestId slotRequestId,
 		@Nonnull SlotSharingGroupId slotSharingGroupId,
 		Throwable cause) {
@@ -771,10 +774,9 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 		} else {
 			log.debug("Could not find slot sharing group {}. Ignoring release slot request.", slotSharingGroupId);
 		}
-		return Acknowledge.get();
 	}
 
-	private Acknowledge releaseSingleSlot(SlotRequestId slotRequestId, Throwable cause) {
+	private void releaseSingleSlot(SlotRequestId slotRequestId, Throwable cause) {
 		final PendingRequest pendingRequest = removePendingRequest(slotRequestId);
 
 		if (pendingRequest != null) {
@@ -789,7 +791,6 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 				log.debug("There is no allocated slot [{}]. Ignoring the release slot request.", slotRequestId);
 			}
 		}
-		return Acknowledge.get();
 	}
 
 	/**
@@ -835,26 +836,33 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 		return slotFromPool;
 	}
 
-	@Nullable
-	private AllocatedSlot allocateSlotWithID(@Nonnull SlotRequestId slotRequestId, @Nonnull AllocationID allocationID) {
+	@Override
+	public Optional<AllocatedSlot> allocateAvailableSlot(
+		@Nonnull SlotRequestId slotRequestId,
+		@Nonnull AllocationID allocationID) {
 		AllocatedSlot allocatedSlot = availableSlots.tryRemove(allocationID);
 		if (allocatedSlot != null) {
 			allocatedSlots.add(slotRequestId, allocatedSlot);
+			return Optional.of(allocatedSlot);
+		} else {
+			return Optional.empty();
 		}
-		return allocatedSlot;
 	}
 
+	@Nonnull
 	@Override
-	@Nullable
-	public AllocatedSlot allocateAvailableSlot(
+	public CompletableFuture<AllocatedSlot> requestNewAllocatedSlot(
 		@Nonnull SlotRequestId slotRequestId,
-		@Nonnull AllocationID allocationID) {
-		return allocateSlotWithID(slotRequestId, allocationID);
+		@Nonnull ResourceProfile resourceProfile,
+		Time timeout) {
+
+		return requestNewAllocatedSlotInternal(slotRequestId, resourceProfile, timeout)
+			.thenApply((Function.identity()));
 	}
 
 	@Override
 	@Nonnull
-	public List<SlotInfo> getAvailableSlotsInformation() {
+	public Collection<SlotInfo> getAvailableSlotsInformation() {
 		return availableSlots.listSlotInfo();
 	}
 

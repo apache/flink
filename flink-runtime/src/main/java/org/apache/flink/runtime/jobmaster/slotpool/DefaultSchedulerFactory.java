@@ -40,7 +40,7 @@ public class DefaultSchedulerFactory implements SchedulerFactory {
 	@Nonnull
 	@Override
 	public Scheduler createScheduler(@Nonnull SlotPoolGateway slotPoolGateway) {
-		return new Scheduler(new HashMap<>(), slotSelectionStrategy, slotPoolGateway);
+		return new Scheduler(new HashMap<>(128), slotSelectionStrategy, slotPoolGateway);
 	}
 
 	@Nonnull

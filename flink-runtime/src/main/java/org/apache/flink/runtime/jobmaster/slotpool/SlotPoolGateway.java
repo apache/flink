@@ -37,10 +37,9 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.types.SerializableOptional;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.util.Collection;
-import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -176,7 +175,7 @@ public interface SlotPoolGateway extends AllocatedSlotActions {
 	 * @return a list of {@link SlotInfo} objects about all slots that are currently available in the slot pool.
 	 */
 	@Nonnull
-	List<SlotInfo> getAvailableSlotsInformation();
+	Collection<SlotInfo> getAvailableSlotsInformation();
 
 	/**
 	 * Allocates the available slot with the given allocation id under the given request id. This method returns
@@ -186,8 +185,7 @@ public interface SlotPoolGateway extends AllocatedSlotActions {
 	 * @param allocationID the allocation id of the requested available slot
 	 * @return the previously available slot with the given allocation id or {@code null} if no such slot existed.
 	 */
-	@Nullable
-	AllocatedSlot allocateAvailableSlot(
+	Optional<AllocatedSlot> allocateAvailableSlot(
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull AllocationID allocationID);
 

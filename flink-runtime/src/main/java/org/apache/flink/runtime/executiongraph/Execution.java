@@ -485,8 +485,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			ExecutionVertex executionVertex = getVertex();
 			AllocationID lastAllocation = executionVertex.getLatestPriorAllocation();
 
-			Collection<AllocationID> previousAllocationIDs =
-				lastAllocation != null ? Collections.singletonList(lastAllocation) : Collections.emptyList();
+			Set<AllocationID> previousAllocationIDs =
+				lastAllocation != null ? Collections.singleton(lastAllocation) : Collections.emptySet();
 
 			// calculate the preferred locations
 			final CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture =

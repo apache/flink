@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.messages.Acknowledge;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -38,10 +37,9 @@ public interface AllocatedSlotActions {
 	 * @param slotRequestId identifying the slot to release
 	 * @param slotSharingGroupId identifying the slot sharing group to which the slot belongs, null if none
 	 * @param cause of the slot release, null if none
-	 * @return Acknowledge after the slot has been released
 	 */
 	@Deprecated
-	Acknowledge releaseSlot(
+	void releaseSlot(
 		SlotRequestId slotRequestId,
 		@Nullable SlotSharingGroupId slotSharingGroupId,
 		@Nullable Throwable cause);
@@ -51,10 +49,8 @@ public interface AllocatedSlotActions {
 	 *
 	 * @param slotRequestId identifying the slot to release
 	 * @param cause of the slot release, null if none
-	 * @return Acknowledge after the slot has been released
 	 */
-	@Nonnull
-	Acknowledge releaseSlot(
+	void releaseSlot(
 		@Nonnull SlotRequestId slotRequestId,
 		@Nullable Throwable cause);
 }

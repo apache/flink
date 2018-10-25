@@ -536,6 +536,6 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 	}
 
 	private static SlotProfile slotProfileForLocation(TaskManagerLocation location) {
-		return new SlotProfile(ResourceProfile.UNKNOWN, Collections.singletonList(location), Collections.emptyList());
+		return new SlotProfile(ResourceProfile.UNKNOWN, Collections.singletonList(location), Collections.emptySet());
 	}
 }

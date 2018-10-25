@@ -107,7 +107,7 @@ public class ExecutionTest extends TestLogger {
 			slotProvider,
 			false,
 			LocationPreferenceConstraint.ALL,
-			null,
+			Collections.emptySet(),
 			TestingUtils.infiniteTime());
 
 		assertFalse(allocationFuture.isDone());
@@ -157,7 +157,7 @@ public class ExecutionTest extends TestLogger {
 			slotProvider,
 			false,
 			LocationPreferenceConstraint.ALL,
-			null,
+			Collections.emptySet(),
 			TestingUtils.infiniteTime());
 
 		assertTrue(allocationFuture.isDone());
@@ -207,7 +207,7 @@ public class ExecutionTest extends TestLogger {
 			slotProvider,
 			false,
 			LocationPreferenceConstraint.ALL,
-			null,
+			Collections.emptySet(),
 			TestingUtils.infiniteTime());
 
 		assertTrue(allocationFuture.isDone());
@@ -257,7 +257,7 @@ public class ExecutionTest extends TestLogger {
 			slotProvider,
 			false,
 			LocationPreferenceConstraint.ALL,
-			null,
+			Collections.emptySet(),
 			TestingUtils.infiniteTime());
 
 		assertThat(allocationFuture.isDone(), is(false));

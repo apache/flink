@@ -27,6 +27,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Implementation of {@link MainThreadExecutable} for tests.
+ */
 public class TestMainThreadExecutor implements MainThreadExecutable {
 
 	private final ScheduledExecutorService scheduledExecutor;

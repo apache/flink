@@ -23,9 +23,9 @@ import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
-import java.util.List;
+import java.util.Collection;
+import java.util.Optional;
 
 /**
  * Interface for slot selection strategies to be used in the {@link Scheduler}.
@@ -40,9 +40,8 @@ public interface SlotSelectionStrategy {
 	 * @param slotProfile a slot profile, describing requirements for the slot selection.
 	 * @return the selected slot info with the corresponding locality hint.
 	 */
-	@Nonnull
-	SlotInfoAndLocality selectBestSlotForProfile(
-		@Nonnull List<SlotInfo> availableSlots,
+	Optional<SlotInfoAndLocality> selectBestSlotForProfile(
+		@Nonnull Collection<SlotInfo> availableSlots,
 		@Nonnull SlotProfile slotProfile);
 
 
@@ -51,18 +50,18 @@ public interface SlotSelectionStrategy {
 	 */
 	class SlotInfoAndLocality {
 
-		@Nullable
+		@Nonnull
 		private final SlotInfo slotInfo;
 
 		@Nonnull
 		private final Locality locality;
 
-		private SlotInfoAndLocality(@Nullable SlotInfo slotInfo, @Nonnull Locality locality) {
+		private SlotInfoAndLocality(@Nonnull SlotInfo slotInfo, @Nonnull Locality locality) {
 			this.slotInfo = slotInfo;
 			this.locality = locality;
 		}
 
-		@Nullable
+		@Nonnull
 		public SlotInfo getSlotInfo() {
 			return slotInfo;
 		}
@@ -72,7 +71,7 @@ public interface SlotSelectionStrategy {
 			return locality;
 		}
 
-		public static SlotInfoAndLocality of(@Nullable SlotInfo slotInfo, @Nonnull Locality locality) {
+		public static SlotInfoAndLocality of(@Nonnull SlotInfo slotInfo, @Nonnull Locality locality) {
 			return new SlotInfoAndLocality(slotInfo, locality);
 		}
 	}

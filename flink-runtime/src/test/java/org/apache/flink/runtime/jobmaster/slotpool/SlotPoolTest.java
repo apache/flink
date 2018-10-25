@@ -412,7 +412,7 @@ public class SlotPoolTest extends TestLogger {
 			SlotProfile slotProfile = new SlotProfile(
 				ResourceProfile.UNKNOWN,
 				Collections.emptyList(),
-				Collections.emptyList());
+				Collections.emptySet());
 
 			CompletableFuture<LogicalSlot> slotFuture = slotPoolGateway.allocateSlot(
 				new SlotRequestId(),
@@ -448,7 +448,7 @@ public class SlotPoolTest extends TestLogger {
 	 */
 	@Test
 	public void testFulfillingSlotRequestsWithUnusedOfferedSlots() throws Exception {
-		final SlotPool slotPool = new SlotPool( jobId, LocationPreferenceSchedulingStrategy.getInstance());
+		final SlotPool slotPool = new SlotPool(jobId, LocationPreferenceSchedulingStrategy.getInstance());
 
 		final ArrayBlockingQueue<AllocationID> allocationIds = new ArrayBlockingQueue<>(2);
 

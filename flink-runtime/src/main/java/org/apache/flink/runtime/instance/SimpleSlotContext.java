@@ -20,8 +20,8 @@ package org.apache.flink.runtime.instance;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
 
@@ -71,6 +71,6 @@ public class SimpleSlotContext implements SlotContext {
 
 	@Override
 	public ResourceProfile getResourceProfile() {
-		throw new UnsupportedOperationException("Cannot provide ResourceProfile for SimpleSlot.");
+		return ResourceProfile.UNKNOWN;
 	}
 }
