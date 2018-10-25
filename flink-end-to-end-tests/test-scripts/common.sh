@@ -33,6 +33,7 @@ case "$(uname -s)" in
 esac
 
 export EXIT_CODE=0
+export TASK_SLOTS_PER_TM_HA=4
 
 echo "Flink dist directory: $FLINK_DIR"
 
@@ -123,7 +124,7 @@ function create_ha_config() {
     jobmanager.rpc.port: 6123
     jobmanager.heap.mb: 1024
     taskmanager.heap.mb: 1024
-    taskmanager.numberOfTaskSlots: 4
+    taskmanager.numberOfTaskSlots: ${TASK_SLOTS_PER_TM_HA}
 
     #==============================================================================
     # High Availability
@@ -238,9 +239,7 @@ function start_local_zk {
     done < <(grep "^server\." "${FLINK_DIR}/conf/zoo.cfg")
 }
 
-function start_cluster {
-  "$FLINK_DIR"/bin/start-cluster.sh
-
+function wait_dispatcher_running {
   # wait at most 10 seconds until the dispatcher is up
   local QUERY_URL
   if [ "x$USE_SSL" = "xON" ]; then
@@ -262,6 +261,11 @@ function start_cluster {
     echo "Waiting for dispatcher REST endpoint to come up..."
     sleep 1
   done
+}
+
+function start_cluster {
+  "$FLINK_DIR"/bin/start-cluster.sh
+  wait_dispatcher_running
 }
 
 function start_taskmanagers {
@@ -592,6 +596,33 @@ function wait_oper_metric_num_in_records {
 
       if (( $NUM_RECORDS < $MAX_NUM_METRICS )); then
         echo "Waiting for job to process up to ${MAX_NUM_METRICS} records, current progress: ${NUM_RECORDS} records ..."
+        sleep 1
+      else
+        break
+      fi
+    done
+}
+
+function wait_num_of_occurence_in_logs {
+    local text=$1
+    local number=$2
+    local logs
+    if [ -z "$3" ]; then
+        logs="standalonesession"
+    else
+        logs="$3"
+    fi
+
+    echo "Waiting for text ${text} to appear ${number} of times in logs..."
+
+    while : ; do
+      N=$(grep -o "${text}" $FLINK_DIR/log/*${logs}*.log | wc -l)
+
+      if [ -z $N ]; then
+        N=0
+      fi
+
+      if (( N < number )); then
         sleep 1
       else
         break
