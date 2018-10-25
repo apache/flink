@@ -18,20 +18,24 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
+
+/**
+ * Type serializer for {@code Float}.
+ */
 @Internal
 public final class FloatSerializer extends TypeSerializerSingleton<Float> {
 
 	private static final long serialVersionUID = 1L;
-	
+
+	/** Sharable instance of the FloatSerializer. */
 	public static final FloatSerializer INSTANCE = new FloatSerializer();
-	
-	private static final Float ZERO = Float.valueOf(0);
+
+	private static final Float ZERO = 0f;
 
 	@Override
 	public boolean isImmutableType() {
@@ -47,7 +51,7 @@ public final class FloatSerializer extends TypeSerializerSingleton<Float> {
 	public Float copy(Float from) {
 		return from;
 	}
-	
+
 	@Override
 	public Float copy(Float from, Float reuse) {
 		return from;
@@ -60,14 +64,14 @@ public final class FloatSerializer extends TypeSerializerSingleton<Float> {
 
 	@Override
 	public void serialize(Float record, DataOutputView target) throws IOException {
-		target.writeFloat(record.floatValue());
+		target.writeFloat(record);
 	}
 
 	@Override
 	public Float deserialize(DataInputView source) throws IOException {
-		return Float.valueOf(source.readFloat());
+		return source.readFloat();
 	}
-	
+
 	@Override
 	public Float deserialize(Float reuse, DataInputView source) throws IOException {
 		return deserialize(source);

@@ -18,17 +18,21 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
+
+/**
+ * Serializer for {@code Void}.
+ */
 @Internal
 public final class VoidSerializer extends TypeSerializerSingleton<Void> {
 
 	private static final long serialVersionUID = 1L;
-	
+
+	/** Sharable instance of the VoidSerializer. */
 	public static final VoidSerializer INSTANCE = new VoidSerializer();
 
 	@Override
@@ -45,7 +49,7 @@ public final class VoidSerializer extends TypeSerializerSingleton<Void> {
 	public Void copy(Void from) {
 		return null;
 	}
-	
+
 	@Override
 	public Void copy(Void from, Void reuse) {
 		return null;
@@ -60,7 +64,6 @@ public final class VoidSerializer extends TypeSerializerSingleton<Void> {
 	public void serialize(Void record, DataOutputView target) throws IOException {
 		// make progress in the stream, write one byte
 		target.write(0);
-		
 	}
 
 	@Override
@@ -68,7 +71,7 @@ public final class VoidSerializer extends TypeSerializerSingleton<Void> {
 		source.readByte();
 		return null;
 	}
-	
+
 	@Override
 	public Void deserialize(Void reuse, DataInputView source) throws IOException {
 		source.readByte();

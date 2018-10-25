@@ -31,18 +31,18 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A serializer for {@link List Lists}. The serializer relies on an element serializer
  * for teh serialization of the list's elements.
- * 
+ *
  * <p>The serialization format for the list is as follows: four bytes for the length of the lost,
  * followed by the serialized representation of each element.
- * 
+ *
  * @param <T> The type of element in the list.
  */
 @Internal
@@ -50,12 +50,12 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 
 	private static final long serialVersionUID = 1119562170939152304L;
 
-	/** The serializer for the elements of the list */
+	/** The serializer for the elements of the list. */
 	private final TypeSerializer<T> elementSerializer;
 
 	/**
 	 * Creates a list serializer that uses the given serializer to serialize the list's elements.
-	 * 
+	 *
 	 * @param elementSerializer The serializer for the elements of the list
 	 */
 	public ListSerializer(TypeSerializer<T> elementSerializer) {
