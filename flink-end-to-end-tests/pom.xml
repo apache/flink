@@ -54,6 +54,7 @@ under the License.
 		<module>flink-stream-state-ttl-test</module>
 		<module>flink-sql-client-test</module>
 		<module>flink-streaming-file-sink-test</module>
+		<module>flink-state-evolution-test</module>
 	</modules>
 
 	<build>
