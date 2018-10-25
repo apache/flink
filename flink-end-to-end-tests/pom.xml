@@ -55,6 +55,7 @@ under the License.
 		<module>flink-sql-client-test</module>
 		<module>flink-streaming-file-sink-test</module>
 		<module>flink-state-evolution-test</module>
+		<module>flink-e2e-test-utils</module>
 	</modules>
 
 	<build>
