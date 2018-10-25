@@ -405,10 +405,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			try {
 				DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(fsDataInputStream);
 
-				// isSerializerPresenceRequired flag is set to true, since for the heap state backend,
-				// deserialization of state happens eagerly at restore time
 				KeyedBackendSerializationProxy<K> serializationProxy =
-						new KeyedBackendSerializationProxy<>(userCodeClassLoader, true);
+						new KeyedBackendSerializationProxy<>(userCodeClassLoader);
 
 				serializationProxy.read(inView);
 

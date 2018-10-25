@@ -723,7 +723,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			// that the new serializer for states could be compatible, and therefore the restore can continue
 			// without old serializers required to be present.
 			KeyedBackendSerializationProxy<K> serializationProxy =
-				new KeyedBackendSerializationProxy<>(rocksDBKeyedStateBackend.userCodeClassLoader, false);
+				new KeyedBackendSerializationProxy<>(rocksDBKeyedStateBackend.userCodeClassLoader);
 
 			serializationProxy.read(currentStateHandleInView);
 
@@ -753,15 +753,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						nameBytes,
 						rocksDBKeyedStateBackend.columnOptions);
 
-					RegisteredStateMetaInfoBase stateMetaInfo =
-						RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(restoredMetaInfo);
-
 					rocksDBKeyedStateBackend.restoredKvStateMetaInfos.put(restoredMetaInfo.getName(), restoredMetaInfo);
 
 					ColumnFamilyHandle columnFamily = rocksDBKeyedStateBackend.db.createColumnFamily(columnFamilyDescriptor);
 
-					registeredColumn = new Tuple2<>(columnFamily, stateMetaInfo);
-					rocksDBKeyedStateBackend.registerKvStateInformation(stateMetaInfo.getName(), registeredColumn);
+					registeredColumn = new Tuple2<>(columnFamily, null);
+					rocksDBKeyedStateBackend.kvStateInformation.put(restoredMetaInfo.getName(), registeredColumn);
 
 				} else {
 					// TODO with eager state registration in place, check here for serializer migration strategies
@@ -1071,13 +1068,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateBackend.kvStateInformation.get(stateMetaInfoSnapshot.getName());
 
 			if (null == registeredStateMetaInfoEntry) {
-				RegisteredStateMetaInfoBase stateMetaInfo =
-					RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(stateMetaInfoSnapshot);
-
 				registeredStateMetaInfoEntry =
 					new Tuple2<>(
 						columnFamilyHandle != null ? columnFamilyHandle : stateBackend.db.createColumnFamily(columnFamilyDescriptor),
-						stateMetaInfo);
+						null);
 
 				stateBackend.registerKvStateInformation(
 					stateMetaInfoSnapshot.getName(),
@@ -1205,12 +1199,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				StateMetaInfoSnapshot stateMetaInfoSnapshot = stateMetaInfoSnapshots.get(i);
 
 				ColumnFamilyHandle columnFamilyHandle = columnFamilyHandles.get(i);
-				RegisteredStateMetaInfoBase stateMetaInfo =
-					RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(stateMetaInfoSnapshot);
 
 				stateBackend.registerKvStateInformation(
 					stateMetaInfoSnapshot.getName(),
-					new Tuple2<>(columnFamilyHandle, stateMetaInfo));
+					new Tuple2<>(columnFamilyHandle, null));
 			}
 
 			// use the restore sst files as the base for succeeding checkpoints
@@ -1267,7 +1259,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				// that the new serializer for states could be compatible, and therefore the restore can continue
 				// without old serializers required to be present.
 				KeyedBackendSerializationProxy<T> serializationProxy =
-					new KeyedBackendSerializationProxy<>(stateBackend.userCodeClassLoader, false);
+					new KeyedBackendSerializationProxy<>(stateBackend.userCodeClassLoader);
 				DataInputView in = new DataInputViewStreamWrapper(inputStream);
 				serializationProxy.read(in);
 
