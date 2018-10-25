@@ -404,3 +404,31 @@ wait_job_terminal_state "$JOB_ID" "FINISHED"
 
 # 3 upsert results and 6 append results
 verify_result_line_number 9 "$ELASTICSEARCH_INDEX"
+
+echo "Executing SQL: Match recognize -> Elasticsearch"
+
+read -r -d '' SQL_STATEMENT_5 << EOF
+INSERT INTO ElasticsearchAppendSinkTable
+  SELECT 1 as user_id, T.userName as user_name, cast(1 as BIGINT) as user_count
+  FROM (
+    SELECT user, rowtime
+    FROM JsonSourceTable
+    WHERE user IS NOT NULL)
+  MATCH_RECOGNIZE (
+    ORDER BY rowtime
+    MEASURES
+        user as userName
+    PATTERN (A)
+    DEFINE
+        A as user = 'Alice'
+  ) T
+EOF
+
+JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
+  --library $SQL_JARS_DIR \
+  --jar $SQL_TOOLBOX_JAR \
+  --environment $SQL_CONF \
+  --update "$SQL_STATEMENT_5" | grep "Job ID:" | sed 's/.* //g')
+
+# 3 upsert results and 6 append results and 3 match_recognize results
+verify_result_line_number 12 "$ELASTICSEARCH_INDEX"
