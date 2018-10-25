@@ -169,6 +169,9 @@ under the License.
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.12.2</version>
 				<configuration>
+					<systemPropertyVariables>
+						<jna.nosys>true</jna.nosys>
+					</systemPropertyVariables>
 					<classpathDependencyExcludes>
 						<classpathDependencyExclude>org.apache.logging.log4j:log4j-to-slf4j</classpathDependencyExclude>
 					</classpathDependencyExcludes>
