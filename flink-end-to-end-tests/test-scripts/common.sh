@@ -462,43 +462,6 @@ function check_result_hash {
   fi
 }
 
-function s3_put {
-  local_file=$1
-  bucket=$2
-  s3_file=$3
-  resource="/${bucket}/${s3_file}"
-  contentType="application/octet-stream"
-  dateValue=`date -R`
-  stringToSign="PUT\n\n${contentType}\n${dateValue}\n${resource}"
-  s3Key=$ARTIFACTS_AWS_ACCESS_KEY
-  s3Secret=$ARTIFACTS_AWS_SECRET_KEY
-  signature=`echo -en ${stringToSign} | openssl sha1 -hmac ${s3Secret} -binary | base64`
-  curl -X PUT -T "${local_file}" \
-    -H "Host: ${bucket}.s3.amazonaws.com" \
-    -H "Date: ${dateValue}" \
-    -H "Content-Type: ${contentType}" \
-    -H "Authorization: AWS ${s3Key}:${signature}" \
-    https://${bucket}.s3.amazonaws.com/${s3_file}
-}
-
-function s3_delete {
-  bucket=$1
-  s3_file=$2
-  resource="/${bucket}/${s3_file}"
-  contentType="application/octet-stream"
-  dateValue=`date -R`
-  stringToSign="DELETE\n\n${contentType}\n${dateValue}\n${resource}"
-  s3Key=$ARTIFACTS_AWS_ACCESS_KEY
-  s3Secret=$ARTIFACTS_AWS_SECRET_KEY
-  signature=`echo -en ${stringToSign} | openssl sha1 -hmac ${s3Secret} -binary | base64`
-  curl -X DELETE \
-    -H "Host: ${bucket}.s3.amazonaws.com" \
-    -H "Date: ${dateValue}" \
-    -H "Content-Type: ${contentType}" \
-    -H "Authorization: AWS ${s3Key}:${signature}" \
-    https://${bucket}.s3.amazonaws.com/${s3_file}
-}
-
 # This function starts the given number of task managers and monitors their processes.
 # If a task manager process goes away a replacement is started.
 function tm_watchdog {
@@ -689,6 +652,23 @@ function expect_in_taskmanager_logs {
         if ((i > timeout)); then
             echo "A timeout occurred waiting for '${expected}' to appear in the taskmanager logs"
             exit 1
+        fi
+    done
+}
+
+function wait_for_restart_to_complete {
+    local base_num_restarts=$1
+    local jobid=$2
+
+    local current_num_restarts=${base_num_restarts}
+    local expected_num_restarts=$((current_num_restarts + 1))
+
+    echo "Waiting for restart to happen"
+    while ! [[ ${current_num_restarts} -eq ${expected_num_restarts} ]]; do
+        sleep 5
+        current_num_restarts=$(get_job_metric ${jobid} "fullRestarts")
+        if [[ -z ${current_num_restarts} ]]; then
+            current_num_restarts=${base_num_restarts}
         fi
     done
 }

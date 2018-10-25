@@ -17,27 +17,37 @@
 # limitations under the License.
 ################################################################################
 
+OUT_TYPE="${1:-local}" # other type: s3
+
 source "$(dirname "$0")"/common.sh
+source "$(dirname "$0")"/common_s3.sh
+
+OUT=out
+OUTPUT_PATH="$TEST_DATA_DIR/$OUT"
+S3_OUTPUT_PATH="s3://$ARTIFACTS_AWS_BUCKET/$OUT"
+
+mkdir -p $OUTPUT_PATH
+
+if [ "${OUT_TYPE}" == "local" ]; then
+  echo "Use local output"
+  JOB_OUTPUT_PATH=${OUTPUT_PATH}
+elif [ "${OUT_TYPE}" == "s3" ]; then
+  echo "Use s3 output"
+  JOB_OUTPUT_PATH=${S3_OUTPUT_PATH}
+else
+  echo "Unknown output type: ${OUT_TYPE}"
+  exit 1
+fi
+
+# make sure we delete the file at the end
+function out_cleanup {
+  s3_delete_by_full_path_prefix $OUT
+}
+if [ "${OUT_TYPE}" == "s3" ]; then
+  trap out_cleanup EXIT
+fi
 
 TEST_PROGRAM_JAR="${END_TO_END_DIR}/flink-streaming-file-sink-test/target/StreamingFileSinkProgram.jar"
-
-OUTPUT_PATH="$TEST_DATA_DIR/out"
-
-function wait_for_restart {
-    local base_num_restarts=$1
-
-    local current_num_restarts=${base_num_restarts}
-    local expected_num_restarts=$((current_num_restarts + 1))
-
-    echo "Waiting for restart to happen"
-    while ! [[ ${current_num_restarts} -eq ${expected_num_restarts} ]]; do
-        sleep 5
-        current_num_restarts=$(get_job_metric ${JOB_ID} "fullRestarts")
-        if [[ -z ${current_num_restarts} ]]; then
-            current_num_restarts=${base_num_restarts}
-        fi
-    done
-}
 
 ###################################
 # Get all lines in part files and sort them numerically.
@@ -47,10 +57,32 @@ function wait_for_restart {
 # Arguments:
 #   None
 # Returns:
-#   None
+#   sorted content of part files
 ###################################
 function get_complete_result {
-    find "${OUTPUT_PATH}" -type f \( -iname "part-*" \) -exec cat {} + | sort -g
+  if [ "${OUT_TYPE}" == "s3" ]; then
+    rm -rf $OUTPUT_PATH; mkdir -p $OUTPUT_PATH
+    s3_get_by_full_path_and_filename_prefix ${TEST_DATA_DIR} "${OUT}" "part-"
+  fi
+  find "${OUTPUT_PATH}" -type f \( -iname "part-*" \) -exec cat {} + | sort -g
+}
+
+###################################
+# Get total number of lines in part files.
+#
+# Globals:
+#   OUT
+# Arguments:
+#   None
+# Returns:
+#   line number in part files
+###################################
+function get_total_number_of_valid_lines {
+  if [ "${OUT_TYPE}" == "local" ]; then
+    get_complete_result | wc -l | tr -d '[:space:]'
+  elif [ "${OUT_TYPE}" == "s3" ]; then
+    s3_get_number_of_lines_by_prefix "${OUT}" "part-"
+  fi
 }
 
 ###################################
@@ -83,7 +115,7 @@ function wait_for_complete_result {
         sleep ${polling_interval}
         ((seconds_elapsed += ${polling_interval}))
 
-        number_of_values=$(get_complete_result | wc -l | tr -d '[:space:]')
+        number_of_values=$(get_total_number_of_valid_lines)
         if [[ ${previous_number_of_values} -ne ${number_of_values} ]]; then
             echo "Number of produced values ${number_of_values}/${expected_number_of_values}"
             previous_number_of_values=${number_of_values}
@@ -98,7 +130,7 @@ start_cluster
 "${FLINK_DIR}/bin/taskmanager.sh" start
 
 echo "Submitting job."
-CLIENT_OUTPUT=$("$FLINK_DIR/bin/flink" run -d "${TEST_PROGRAM_JAR}" --outputPath "${OUTPUT_PATH}")
+CLIENT_OUTPUT=$("$FLINK_DIR/bin/flink" run -d "${TEST_PROGRAM_JAR}" --outputPath "${JOB_OUTPUT_PATH}")
 JOB_ID=$(echo "${CLIENT_OUTPUT}" | grep "Job has been submitted with JobID" | sed 's/.* //g')
 
 if [[ -z $JOB_ID ]]; then
@@ -117,7 +149,7 @@ kill_random_taskmanager
 echo "Starting TM"
 "$FLINK_DIR/bin/taskmanager.sh" start
 
-wait_for_restart 0
+wait_for_restart_to_complete 0 ${JOB_ID}
 
 echo "Killing 2 TMs"
 kill_random_taskmanager
@@ -127,7 +159,7 @@ echo "Starting 2 TMs"
 "$FLINK_DIR/bin/taskmanager.sh" start
 "$FLINK_DIR/bin/taskmanager.sh" start
 
-wait_for_restart 1
+wait_for_restart_to_complete 1 ${JOB_ID}
 
 echo "Waiting until all values have been produced"
 wait_for_complete_result 60000 300
