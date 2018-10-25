@@ -1606,7 +1606,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				TypeSerializerSchemaCompatibility<T, ?> compatibilityResult =
 					serializerSnapshot.resolveSchemaCompatibility(byteOrderedElementSerializer);
 
-				if (compatibilityResult.isCompatibleAfterMigration()) {
+				// TODO implement proper migration for priority queue state
+				if (compatibilityResult.isIncompatible()) {
 					throw new FlinkRuntimeException(StateMigrationException.notSupported());
 				}
 

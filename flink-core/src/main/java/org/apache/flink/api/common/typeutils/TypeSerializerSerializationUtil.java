@@ -299,4 +299,35 @@ public class TypeSerializerSerializationUtil {
 			return VERSION;
 		}
 	}
+
+	// ------------------------------------------------------------------------
+	//  utility exception
+	// ------------------------------------------------------------------------
+
+	/**
+	 * An exception thrown to indicate that a serializer cannot be read.
+	 * It wraps the cause of the read error, as well as the original bytes of the written serializer.
+	 */
+	@Internal
+	private static class UnloadableTypeSerializerException extends IOException {
+
+		private static final long serialVersionUID = 1L;
+
+		private final byte[] serializerBytes;
+
+		/**
+		 * Creates a new exception, with the cause of the read error and the original serializer bytes.
+		 *
+		 * @param cause the cause of the read error.
+		 * @param serializerBytes the original serializer bytes.
+		 */
+		public UnloadableTypeSerializerException(Exception cause, byte[] serializerBytes) {
+			super(cause);
+			this.serializerBytes = Preconditions.checkNotNull(serializerBytes);
+		}
+
+		public byte[] getSerializerBytes() {
+			return serializerBytes;
+		}
+	}
 }
