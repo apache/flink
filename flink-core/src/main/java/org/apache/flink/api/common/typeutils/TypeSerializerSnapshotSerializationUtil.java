@@ -78,6 +78,30 @@ public class TypeSerializerSnapshotSerializationUtil {
 		return proxy.getSerializerSnapshot();
 	}
 
+
+	public static <T> TypeSerializerSnapshot<T> readAndInstantiateSnapshotClass(DataInputView in, ClassLoader cl) throws IOException {
+		final String className = in.readUTF();
+
+		final Class<? extends TypeSerializerSnapshot> rawClazz;
+		try {
+			rawClazz = Class
+					.forName(className, false, cl)
+					.asSubclass(TypeSerializerSnapshot.class);
+		}
+		catch (ClassNotFoundException e) {
+			throw new IOException(
+					"Could not find requested TypeSerializerSnapshot class '" + className +  "' in classpath.", e);
+		}
+		catch (ClassCastException e) {
+			throw new IOException("The class '" + className + "' is not a subclass of TypeSerializerSnapshot.", e);
+		}
+
+		@SuppressWarnings("unchecked")
+		final Class<? extends TypeSerializerSnapshot<T>> clazz = (Class<? extends TypeSerializerSnapshot<T>>) rawClazz;
+
+		return InstantiationUtil.instantiate(clazz);
+	}
+
 	/**
 	 * Utility serialization proxy for a {@link TypeSerializerSnapshot}.
 	 */
@@ -127,11 +151,7 @@ public class TypeSerializerSnapshotSerializationUtil {
 			// write the format version of this utils format
 			super.write(out);
 
-			// config snapshot class, so that we can re-instantiate the
-			// correct type of config snapshot instance when deserializing
-			out.writeUTF(serializerSnapshot.getClass().getName());
-			out.writeInt(serializerSnapshot.getCurrentVersion());
-			serializerSnapshot.writeSnapshot(out);
+			TypeSerializerSnapshot.writeVersionedSnapshot(out, serializerSnapshot);
 		}
 
 		@SuppressWarnings("unchecked")
@@ -172,10 +192,7 @@ public class TypeSerializerSnapshotSerializationUtil {
 		 */
 		@VisibleForTesting
 		static <T> TypeSerializerSnapshot<T> deserializeV2(DataInputView in, ClassLoader cl) throws IOException {
-			final TypeSerializerSnapshot<T> snapshot = readAndInstantiateSnapshotClass(in, cl);
-			final int version = in.readInt();
-			snapshot.readSnapshot(version, in, cl);
-			return snapshot;
+			return TypeSerializerSnapshot.readVersionedSnapshot(in, cl);
 		}
 
 		/**
@@ -195,14 +212,6 @@ public class TypeSerializerSnapshotSerializationUtil {
 			//   - new snapshot type that understands the old format and can produce a restore serializer from it
 			if (snapshot instanceof TypeSerializerConfigSnapshot) {
 				TypeSerializerConfigSnapshot<T> oldTypeSnapshot = (TypeSerializerConfigSnapshot<T>) snapshot;
-
-				// old type, assume we need a serializer from the outside
-				if (serializer == null || serializer instanceof UnloadableDummyTypeSerializer) {
-					throw new IOException(
-							"Found serializer snapshot of pre-Flink-1.7 format (TypeSerializerConfigSnapshot) " +
-							"but could not Java-deserialize the corresponding TypeSerializer.");
-				}
-
 				oldTypeSnapshot.setPriorSerializer(serializer);
 				oldTypeSnapshot.setUserCodeClassLoader(cl);
 				oldTypeSnapshot.read(in);
@@ -214,23 +223,6 @@ public class TypeSerializerSnapshotSerializationUtil {
 			}
 
 			return snapshot;
-		}
-
-		@SuppressWarnings("unchecked")
-		private static <T> TypeSerializerSnapshot<T> readAndInstantiateSnapshotClass(DataInputView in, ClassLoader cl) throws IOException {
-			final String serializerConfigClassname = in.readUTF();
-			final Class<? extends TypeSerializerSnapshot<T>> serializerConfigSnapshotClass;
-
-			try {
-				serializerConfigSnapshotClass = (Class<? extends TypeSerializerSnapshot<T>>)
-						Class.forName(serializerConfigClassname, false, cl);
-			} catch (ClassNotFoundException e) {
-				throw new IOException(
-						"Could not find requested TypeSerializerSnapshot class "
-								+ serializerConfigClassname +  " in classpath.", e);
-			}
-
-			return InstantiationUtil.instantiate(serializerConfigSnapshotClass);
 		}
 
 		@SuppressWarnings("deprecation")

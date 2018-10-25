@@ -118,7 +118,7 @@ public class TypeSerializerSerializationUtil {
 		} catch (UnloadableTypeSerializerException e) {
 			if (useDummyPlaceholder) {
 				LOG.warn("Could not read a requested serializer. Replaced with a UnloadableDummyTypeSerializer.", e.getCause());
-				return new UnloadableDummyTypeSerializer<>(e.getSerializerBytes(), e);
+				return new UnloadableDummyTypeSerializer<>(e.getSerializerBytes(), e.getCause());
 			} else {
 				throw e;
 			}
@@ -231,8 +231,6 @@ public class TypeSerializerSerializationUtil {
 	 * Utility serialization proxy for a {@link TypeSerializer}.
 	 */
 	public static final class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWritable {
-
-		private static final Logger LOG = LoggerFactory.getLogger(TypeSerializerSerializationProxy.class);
 
 		private static final int VERSION = 1;
 

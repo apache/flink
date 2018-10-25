@@ -132,4 +132,35 @@ public interface TypeSerializerSnapshot<T> {
 	 */
 	<NS extends TypeSerializer<T>> TypeSerializerSchemaCompatibility<T, NS> resolveSchemaCompatibility(NS newSerializer);
 
+	// ------------------------------------------------------------------------
+	//  read / write utilities
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Writes the given snapshot to the out stream. One should always use this method to write
+	 * snapshots out, rather than directly calling {@link #writeSnapshot(DataOutputView)}.
+	 *
+	 * <p>The snapshot written with this method can be read via {@link #readVersionedSnapshot(DataInputView, ClassLoader)}.
+	 */
+	static void writeVersionedSnapshot(DataOutputView out, TypeSerializerSnapshot<?> snapshot) throws IOException {
+		out.writeUTF(snapshot.getClass().getName());
+		out.writeInt(snapshot.getCurrentVersion());
+		snapshot.writeSnapshot(out);
+	}
+
+
+	/**
+	 * Reads a snapshot from the stream, performing resolving
+	 *
+	 * <p>This method reads snapshots written by {@link #writeVersionedSnapshot(DataOutputView, TypeSerializerSnapshot)}.
+	 */
+	static <T> TypeSerializerSnapshot<T> readVersionedSnapshot(DataInputView in, ClassLoader cl) throws IOException {
+		final TypeSerializerSnapshot<T> snapshot =
+				TypeSerializerSnapshotSerializationUtil.readAndInstantiateSnapshotClass(in, cl);
+
+		final int version = in.readInt();
+		snapshot.readSnapshot(version, in, cl);
+
+		return snapshot;
+	}
 }
