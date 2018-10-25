@@ -122,11 +122,6 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 
 		TypeSerializerSchemaCompatibility<T, ? extends TypeSerializer<T>> strategy = restoredConfig.resolveSchemaCompatibility(getSerializer());
 		assertTrue(strategy.isCompatibleAsIs());
-
-		// also verify that the serializer's reconfigure implementation detects incompatibility
-		TypeSerializerSnapshot<T> incompatibleSnapshot = new TestIncompatibleSerializerConfigSnapshot<>();
-		strategy = incompatibleSnapshot.resolveSchemaCompatibility(getSerializer());
-		assertTrue(strategy.isIncompatible());
 	}
 
 	@Test
@@ -540,23 +535,6 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 				int skipped = skipBytes(numBytes);
 				numBytes -= skipped;
 			}
-		}
-	}
-
-	public static final class TestIncompatibleSerializerConfigSnapshot<T> extends TypeSerializerConfigSnapshot<T> {
-		@Override
-		public int getVersion() {
-			return 0;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			return obj instanceof TestIncompatibleSerializerConfigSnapshot;
-		}
-
-		@Override
-		public int hashCode() {
-			return getClass().hashCode();
 		}
 	}
 
