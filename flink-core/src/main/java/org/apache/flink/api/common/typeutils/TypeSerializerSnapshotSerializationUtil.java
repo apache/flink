@@ -80,24 +80,8 @@ public class TypeSerializerSnapshotSerializationUtil {
 
 
 	public static <T> TypeSerializerSnapshot<T> readAndInstantiateSnapshotClass(DataInputView in, ClassLoader cl) throws IOException {
-		final String className = in.readUTF();
-
-		final Class<? extends TypeSerializerSnapshot> rawClazz;
-		try {
-			rawClazz = Class
-					.forName(className, false, cl)
-					.asSubclass(TypeSerializerSnapshot.class);
-		}
-		catch (ClassNotFoundException e) {
-			throw new IOException(
-					"Could not find requested TypeSerializerSnapshot class '" + className +  "' in classpath.", e);
-		}
-		catch (ClassCastException e) {
-			throw new IOException("The class '" + className + "' is not a subclass of TypeSerializerSnapshot.", e);
-		}
-
-		@SuppressWarnings("unchecked")
-		final Class<? extends TypeSerializerSnapshot<T>> clazz = (Class<? extends TypeSerializerSnapshot<T>>) rawClazz;
+		Class<TypeSerializerSnapshot<T>> clazz =
+				InstantiationUtil.resolveClassByName(in, cl, TypeSerializerSnapshot.class);
 
 		return InstantiationUtil.instantiate(clazz);
 	}

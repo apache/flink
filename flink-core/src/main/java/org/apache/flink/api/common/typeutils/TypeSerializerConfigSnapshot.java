@@ -144,7 +144,7 @@ public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadabl
 	}
 
 	@Override
-	public final <NS extends TypeSerializer<T>> TypeSerializerSchemaCompatibility<T, NS> resolveSchemaCompatibility(
+	public <NS extends TypeSerializer<T>> TypeSerializerSchemaCompatibility<T, NS> resolveSchemaCompatibility(
 			NS newSerializer) {
 
 		// in prior versions, the compatibility check was in the serializer itself, so we
