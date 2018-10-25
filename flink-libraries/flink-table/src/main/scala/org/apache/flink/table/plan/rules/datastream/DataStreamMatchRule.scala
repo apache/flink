@@ -42,11 +42,13 @@ class DataStreamMatchRule
       RelOptRule.convert(logicalMatch.getInput, FlinkConventions.DATASTREAM)
 
     try {
-      Class.forName("org.apache.flink.cep.pattern.Pattern")
+      Class
+        .forName("org.apache.flink.cep.pattern.Pattern",
+          false,
+          Thread.currentThread().getContextClassLoader)
     } catch {
       case ex: ClassNotFoundException => throw new TableException(
-        "MATCH RECOGNIZE clause requires flink-cep dependency to be present on the classpath.",
-        ex)
+        "MATCH RECOGNIZE clause requires flink-cep dependency to be present on the classpath.", ex)
     }
 
     new DataStreamMatch(
