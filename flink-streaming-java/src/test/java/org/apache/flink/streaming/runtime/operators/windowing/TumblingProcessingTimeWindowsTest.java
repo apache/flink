@@ -63,7 +63,7 @@ public class TumblingProcessingTimeWindowsTest extends TestLogger {
 	}
 
 	@Test
-	public void testWindowAssignmentWithOffset() {
+	public void testWindowAssignmentWithPositiveOffset() {
 		WindowAssigner.WindowAssignerContext mockContext =
 				mock(WindowAssigner.WindowAssignerContext.class);
 
@@ -77,6 +77,23 @@ public class TumblingProcessingTimeWindowsTest extends TestLogger {
 
 		when(mockContext.getCurrentProcessingTime()).thenReturn(5100L);
 		assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext), contains(timeWindow(5100, 10100)));
+	}
+
+	@Test
+	public void testWindowAssignmentWithNegativeOffset() {
+		WindowAssigner.WindowAssignerContext mockContext =
+			mock(WindowAssigner.WindowAssignerContext.class);
+
+		TumblingProcessingTimeWindows assigner = TumblingProcessingTimeWindows.of(Time.milliseconds(5000), Time.milliseconds(-100));
+
+		when(mockContext.getCurrentProcessingTime()).thenReturn(5000L);
+		assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext), contains(timeWindow(4900, 9900)));
+
+		when(mockContext.getCurrentProcessingTime()).thenReturn(9899L);
+		assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext), contains(timeWindow(4900, 9900)));
+
+		when(mockContext.getCurrentProcessingTime()).thenReturn(9900L);
+		assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext), contains(timeWindow(9900, 14900)));
 	}
 
 	@Test
@@ -104,22 +121,18 @@ public class TumblingProcessingTimeWindowsTest extends TestLogger {
 			TumblingProcessingTimeWindows.of(Time.seconds(-1));
 			fail("should fail");
 		} catch (IllegalArgumentException e) {
-			assertThat(e.toString(), containsString("0 <= offset < size"));
+			assertThat(e.toString(), containsString("0 <= abs(offset) < size"));
 		}
 
 		try {
 			TumblingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(20));
 			fail("should fail");
 		} catch (IllegalArgumentException e) {
-			assertThat(e.toString(), containsString("0 <= offset < size"));
+			assertThat(e.toString(), containsString("0 <= abs(offset) < size"));
 		}
 
-		try {
-			TumblingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(-1));
-			fail("should fail");
-		} catch (IllegalArgumentException e) {
-			assertThat(e.toString(), containsString("0 <= offset < size"));
-		}
+		// should not failed
+		TumblingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(-1));
 	}
 
 	@Test

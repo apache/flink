@@ -57,7 +57,7 @@ public class TumblingEventTimeWindowsTest extends TestLogger {
 	}
 
 	@Test
-	public void testWindowAssignmentWithOffset() {
+	public void testWindowAssignmentWithPositiveOffset() {
 		WindowAssigner.WindowAssignerContext mockContext =
 				mock(WindowAssigner.WindowAssignerContext.class);
 
@@ -66,6 +66,18 @@ public class TumblingEventTimeWindowsTest extends TestLogger {
 		assertThat(assigner.assignWindows("String", 100L, mockContext), contains(timeWindow(100, 5100)));
 		assertThat(assigner.assignWindows("String", 5099L, mockContext), contains(timeWindow(100, 5100)));
 		assertThat(assigner.assignWindows("String", 5100L, mockContext), contains(timeWindow(5100, 10100)));
+	}
+
+	@Test
+	public void testWindowAssignmentWithNegativeOffset() {
+		WindowAssigner.WindowAssignerContext mockContext =
+			mock(WindowAssigner.WindowAssignerContext.class);
+
+		TumblingEventTimeWindows assigner = TumblingEventTimeWindows.of(Time.milliseconds(5000), Time.milliseconds(-100));
+
+		assertThat(assigner.assignWindows("String", 5000L, mockContext), contains(timeWindow(4900, 9900)));
+		assertThat(assigner.assignWindows("String", 9899L, mockContext), contains(timeWindow(4900, 9900)));
+		assertThat(assigner.assignWindows("String", 9900L, mockContext), contains(timeWindow(9900, 14900)));
 	}
 
 	@Test
@@ -88,22 +100,18 @@ public class TumblingEventTimeWindowsTest extends TestLogger {
 			TumblingEventTimeWindows.of(Time.seconds(-1));
 			fail("should fail");
 		} catch (IllegalArgumentException e) {
-			assertThat(e.toString(), containsString("0 <= offset < size"));
+			assertThat(e.toString(), containsString("0 <= abs(offset) < size"));
 		}
 
 		try {
 			TumblingEventTimeWindows.of(Time.seconds(10), Time.seconds(20));
 			fail("should fail");
 		} catch (IllegalArgumentException e) {
-			assertThat(e.toString(), containsString("0 <= offset < size"));
+			assertThat(e.toString(), containsString("0 <= abs(offset) < size"));
 		}
 
-		try {
-			TumblingEventTimeWindows.of(Time.seconds(10), Time.seconds(-1));
-			fail("should fail");
-		} catch (IllegalArgumentException e) {
-			assertThat(e.toString(), containsString("0 <= offset < size"));
-		}
+		// should not fail
+		TumblingEventTimeWindows.of(Time.seconds(10), Time.seconds(-1));
 	}
 
 	@Test
