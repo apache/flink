@@ -85,7 +85,7 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
         <td>1.7.0</td>
         <td>FlinkKafkaConsumer<br>
         FlinkKafkaProducer</td>
-        <td>>= 1.x</td>
+        <td>>= 1.0.0</td>
         <td>This Kafka connector attempts to track the latest version of the Kafka client. The version of the client it uses may change between Flink releases. Modern Kafka clients are backwards compatible with broker versions 0.10.0 or later.</td>
         </tr>
   </tbody>
@@ -108,7 +108,7 @@ Note that the streaming connectors are currently not part of the binary distribu
 * Follow the instructions from [Kafka's quickstart](https://kafka.apache.org/documentation.html#quickstart) to download the code and launch a server (launching a Zookeeper and a Kafka server is required every time before starting the application).
 * If the Kafka and Zookeeper servers are running on a remote machine, then the `advertised.host.name` setting in the `config/server.properties` file must be set to the machine's IP address.
 
-## Modern Kafka Connector
+## Kafka 0.11+ Connector
 
 Starting with Flink 1.7, there is a new Kafka connector that does not track a specific Kafka major version. Rather, it tracks the latest version of Kafka at the time of the Flink release.
 
@@ -116,7 +116,7 @@ If your Kafka broker version is 1.0.0 or newer, you should use this Kafka connec
 
 ### Compatibility
 
-The modern Kafka connector is compatible with older and newer Kafka brokers through the compatibility guarantees of the Kafka client API and broker. The modern Kafka client is compatible with broker versions 0.10.0 or later, depending on the features used. For details on Kafka compatibility, please refer to the [Kafka documentation](https://kafka.apache.org/protocol.html#protocol_compatibility).
+The modern Kafka connector is compatible with older and newer Kafka brokers through the compatibility guarantees of the Kafka client API and broker. The modern Kafka connector is compatible with broker versions 0.11.0 or later, depending on the features used. For details on Kafka compatibility, please refer to the [Kafka documentation](https://kafka.apache.org/protocol.html#protocol_compatibility).
 
 ### Usage
 
@@ -134,7 +134,7 @@ Then instantiate the new source (`FlinkKafkaConsumer`) and sink (`FlinkKafkaProd
 
 ## Kafka Consumer
 
-Flink's Kafka consumer is called `FlinkKafkaConsumer08` (or `09` for Kafka 0.9.0.x versions, etc.). It provides access to one or more Kafka topics.
+Flink's Kafka consumer is called `FlinkKafkaConsumer08` (or `09` for Kafka 0.9.0.x versions, etc. Note that since modern Kafka connector, it will not carry the version number of Kafka.). It provides access to one or more Kafka topics.
 
 The constructor accepts the following arguments:
 
@@ -524,7 +524,7 @@ In the meanwhile, a possible workaround is to send *heartbeat messages* to all c
 
 ## Kafka Producer
 
-Flink’s Kafka Producer is called `FlinkKafkaProducer011` (or `010` for Kafka 0.10.0.x versions, etc.).
+Flink’s Kafka Producer is called `FlinkKafkaProducer011` (or `010` for Kafka 0.10.0.x versions, etc. Note that since modern Kafka connector, it will not carry the version number of Kafka.).
 It allows writing a stream of records to one or more Kafka topics.
 
 Example:
@@ -650,13 +650,13 @@ into a Kafka topic.
   for more explanation.
 </div>
 
-#### Kafka 0.11
+#### Kafka 0.11 and newer
 
-With Flink's checkpointing enabled, the `FlinkKafkaProducer011` can provide
+With Flink's checkpointing enabled, the `FlinkKafkaProducer011` (for modern Kafka connector, it is `FlinkKafkaProducer`.) can provide
 exactly-once delivery guarantees.
 
 Besides enabling Flink's checkpointing, you can also choose three different modes of operating
-chosen by passing appropriate `semantic` parameter to the `FlinkKafkaProducer011`:
+chosen by passing appropriate `semantic` parameter to the `FlinkKafkaProducer011` (for modern Kafka connector, it is `FlinkKafkaProducer`.):
 
  * `Semantic.NONE`: Flink will not guarantee anything. Produced records can be lost or they can
  be duplicated.
