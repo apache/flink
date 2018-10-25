@@ -348,7 +348,7 @@ public class BootstrapToolsTest extends TestLogger {
 									"localhost",
 									"0",
 									LOG);
-							})))
+							}), executorService))
 				.map(
 					// terminate ActorSystems
 					actorSystemFuture ->
