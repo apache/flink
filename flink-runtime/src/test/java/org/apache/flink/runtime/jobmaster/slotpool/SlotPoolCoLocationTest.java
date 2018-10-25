@@ -59,8 +59,8 @@ public class SlotPoolCoLocationTest extends TestLogger {
 	public static final TestingRpcServiceResource rpcServiceResource = new TestingRpcServiceResource();
 
 	@Rule
-	public final SlotPoolResource slotPoolResource = new SlotPoolResource(
-		PreviousAllocationSchedulingStrategy.getInstance());
+	public final SlotPoolResource slotPoolResource =
+		new SlotPoolResource(PreviousAllocationSlotSelectionStrategy.INSTANCE);
 
 	/**
 	 * Tests the scheduling of two tasks with a parallelism of 2 and a co-location constraint.

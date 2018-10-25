@@ -500,12 +500,12 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 						slotProvider.allocateSlot(
 							slotRequestId,
 							toSchedule,
-							queued,
 							new SlotProfile(
 								ResourceProfile.UNKNOWN,
 								preferredLocations,
 								previousAllocationIDs,
 								allPreviousExecutionGraphAllocationIds),
+							queued,
 							allocationTimeout));
 
 			// register call back to cancel slot request in case that the execution gets canceled

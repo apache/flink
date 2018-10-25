@@ -80,7 +80,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 
 			CompletableFuture<LogicalSlot> slotFuture1 = CompletableFuture.completedFuture(new TestingLogicalSlot());
 			CompletableFuture<LogicalSlot> slotFuture2 = CompletableFuture.completedFuture(new TestingLogicalSlot());
-			when(scheduler.allocateSlot(any(SlotRequestId.class), any(ScheduledUnit.class), anyBoolean(), any(SlotProfile.class), any(Time.class))).thenReturn(slotFuture1, slotFuture2);
+			when(scheduler.allocateSlot(any(SlotRequestId.class), any(ScheduledUnit.class), any(SlotProfile.class), anyBoolean(), any(Time.class))).thenReturn(slotFuture1, slotFuture2);
 
 			TestingRestartStrategy testingRestartStrategy = new TestingRestartStrategy();
 

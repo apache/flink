@@ -49,7 +49,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
-import java.util.function.BooleanSupplier;
 
 /**
  * Scheduler that assigns tasks to slots. This class is currently work in progress, comments will be updated as we
@@ -64,10 +63,6 @@ public class Scheduler implements SlotProvider, SlotOwner {
 	@Nonnull
 	private final SlotSelectionStrategy slotSelectionStrategy;
 
-	/** Managers for the different slot sharing groups. */
-	@Nonnull
-	private final Map<SlotSharingGroupId, SlotSharingManager> slotSharingManagersMap;
-
 	/** The slot pool from which slots are allocated. */
 	@Nonnull
 	private final SlotPoolGateway slotPoolGateway;
@@ -76,10 +71,9 @@ public class Scheduler implements SlotProvider, SlotOwner {
 	@Nonnull
 	private Executor componentMainThreadExecutor;
 
-	/** Predicate to check if the current thread is the job master's main thread. */
+	/** Managers for the different slot sharing groups. */
 	@Nonnull
-	private BooleanSupplier componentMainThreadCheck;
-
+	private final Map<SlotSharingGroupId, SlotSharingManager> slotSharingManagersMap;
 
 	public Scheduler(
 		@Nonnull Map<SlotSharingGroupId, SlotSharingManager> slotSharingManagersMap,
@@ -92,14 +86,10 @@ public class Scheduler implements SlotProvider, SlotOwner {
 		this.componentMainThreadExecutor = (runnable) -> {
 			throw new IllegalStateException("Main thread executor not initialized.");
 		};
-		this.componentMainThreadCheck = () -> {
-			throw new IllegalStateException("Main thread checker not initialized");
-		};
 	}
 
-	public void start(@Nonnull Executor mainThreadExecutor, @Nonnull BooleanSupplier mainThreadCheck) {
+	public void start(@Nonnull Executor mainThreadExecutor) {
 		this.componentMainThreadExecutor = mainThreadExecutor;
-		this.componentMainThreadCheck = mainThreadCheck;
 	}
 
 	//---------------------------
@@ -108,8 +98,8 @@ public class Scheduler implements SlotProvider, SlotOwner {
 	public CompletableFuture<LogicalSlot> allocateSlot(
 		SlotRequestId slotRequestId,
 		ScheduledUnit scheduledUnit,
-		boolean allowQueuedScheduling,
 		SlotProfile slotProfile,
+		boolean allowQueuedScheduling,
 		Time allocationTimeout) {
 		log.debug("Received slot request [{}] for task: {}", slotRequestId, scheduledUnit.getTaskToExecute());
 

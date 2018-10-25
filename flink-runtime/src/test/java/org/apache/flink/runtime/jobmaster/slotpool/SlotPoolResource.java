@@ -26,30 +26,31 @@ import org.junit.rules.ExternalResource;
 
 import javax.annotation.Nonnull;
 
+import java.util.HashMap;
+
 /**
  * {@link ExternalResource} which provides a {@link SlotPool}.
  */
 public class SlotPoolResource extends ExternalResource {
 
 	@Nonnull
-	private final SchedulingStrategy schedulingStrategy;
+	private final SlotSelectionStrategy schedulingStrategy;
 
 	private SlotPool slotPool;
 
-	private SlotPoolGateway slotPoolGateway;
+	private Scheduler scheduler;
 
 	private TestingResourceManagerGateway testingResourceManagerGateway;
 
-	public SlotPoolResource(@Nonnull SchedulingStrategy schedulingStrategy) {
+	public SlotPoolResource(@Nonnull SlotSelectionStrategy schedulingStrategy) {
 		this.schedulingStrategy = schedulingStrategy;
 		slotPool = null;
-		slotPoolGateway = null;
 		testingResourceManagerGateway = null;
 	}
 
 	public SlotProvider getSlotProvider() {
 		checkInitialized();
-		return slotPool.getSlotProvider();
+		return scheduler;
 	}
 
 	public TestingResourceManagerGateway getTestingResourceManagerGateway() {
@@ -59,7 +60,7 @@ public class SlotPoolResource extends ExternalResource {
 
 	public SlotPoolGateway getSlotPoolGateway() {
 		checkInitialized();
-		return slotPoolGateway;
+		return slotPool;
 	}
 
 	private void checkInitialized() {
@@ -74,14 +75,11 @@ public class SlotPoolResource extends ExternalResource {
 
 		testingResourceManagerGateway = new TestingResourceManagerGateway();
 
-		slotPool = new SlotPool(
-			new JobID(),
-			schedulingStrategy);
-
-		slotPool.start(JobMasterId.generate(), "foobar", new TestMainThreadExecutor());
-
-		slotPoolGateway = slotPool;
-
+		slotPool = new SlotPool(new JobID());
+		scheduler = new Scheduler(new HashMap<>(), schedulingStrategy, slotPool);
+		TestMainThreadExecutor testMainThreadExecutor = new TestMainThreadExecutor();
+		slotPool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor);
+		scheduler.start(testMainThreadExecutor);
 		slotPool.connectToResourceManager(testingResourceManagerGateway);
 	}
 

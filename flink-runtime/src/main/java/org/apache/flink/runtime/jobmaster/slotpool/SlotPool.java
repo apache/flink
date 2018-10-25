@@ -30,17 +30,11 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.instance.SlotSharingGroupId;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
-import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
-import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -51,7 +45,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.clock.Clock;
 import org.apache.flink.runtime.util.clock.SystemClock;
 import org.apache.flink.types.SerializableOptional;
-import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -68,13 +61,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
@@ -106,10 +96,6 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 
 	private final JobID jobId;
 
-	private final SchedulingStrategy schedulingStrategy;
-
-	private final ProviderAndOwner providerAndOwner;
-
 	/** All registered TaskManagers, slots will be accepted and used only if the resource is registered. */
 	private final HashSet<ResourceID> registeredTaskManagers;
 
@@ -133,9 +119,6 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 
 	private final Clock clock;
 
-	/** Managers for the different slot sharing groups. */
-	protected final Map<SlotSharingGroupId, SlotSharingManager> slotSharingManagers;
-
 	/** the fencing token of the job manager. */
 	private JobMasterId jobMasterId;
 
@@ -149,10 +132,9 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 	// ------------------------------------------------------------------------
 
 	@VisibleForTesting
-	protected SlotPool(JobID jobId, SchedulingStrategy schedulingStrategy) {
+	public SlotPool(JobID jobId) {
 		this(
 			jobId,
-			schedulingStrategy,
 			SystemClock.getInstance(),
 			AkkaUtils.getDefaultTimeout(),
 			Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue()));
@@ -160,13 +142,11 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 
 	public SlotPool(
 			JobID jobId,
-			SchedulingStrategy schedulingStrategy,
 			Clock clock,
 			Time rpcTimeout,
 			Time idleSlotTimeout) {
 
 		this.jobId = checkNotNull(jobId);
-		this.schedulingStrategy = checkNotNull(schedulingStrategy);
 		this.clock = checkNotNull(clock);
 		this.rpcTimeout = checkNotNull(rpcTimeout);
 		this.idleSlotTimeout = checkNotNull(idleSlotTimeout);
@@ -176,10 +156,6 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 		this.availableSlots = new AvailableSlots();
 		this.pendingRequests = new DualKeyMap<>(16);
 		this.waitingForResourceManager = new HashMap<>(16);
-
-		this.providerAndOwner = new ProviderAndOwner(this);
-
-		this.slotSharingManagers = new HashMap<>(4);
 
 		this.jobMasterId = null;
 		this.resourceManagerGateway = null;
@@ -199,13 +175,13 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 	 * @param newJobManagerAddress for the slot requests which are sent to the resource manager
 	 */
 	public void start(
-		JobMasterId jobMasterId,
-		String newJobManagerAddress,
-		MainThreadExecutable jmMainThreadScheduledExecutor) throws Exception {
+		@Nonnull JobMasterId jobMasterId,
+		@Nonnull String newJobManagerAddress,
+		@Nonnull MainThreadExecutable jmMainThreadScheduledExecutor) throws Exception {
 
-		this.jobMasterId = checkNotNull(jobMasterId);
-		this.jobManagerAddress = checkNotNull(newJobManagerAddress);
-		this.jmMainThreadScheduledExecutor = checkNotNull(jmMainThreadScheduledExecutor);
+		this.jobMasterId = jobMasterId;
+		this.jobManagerAddress = newJobManagerAddress;
+		this.jmMainThreadScheduledExecutor = jmMainThreadScheduledExecutor;
 
 		scheduleRunAsync(this::checkIdleSlot, idleSlotTimeout);
 
@@ -239,32 +215,6 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 	}
 
 	// ------------------------------------------------------------------------
-	//  Getting PoolOwner and PoolProvider
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Gets the slot owner implementation for this pool.
-	 *
-	 * <p>This method does not mutate state and can be called directly (no RPC indirection)
-	 *
-	 * @return The slot owner implementation for this pool.
-	 */
-	public SlotOwner getSlotOwner() {
-		return providerAndOwner;
-	}
-
-	/**
-	 * Gets the slot provider implementation for this pool.
-	 *
-	 * <p>This method does not mutate state and can be called directly (no RPC indirection)
-	 *
-	 * @return The slot provider implementation for this pool.
-	 */
-	public SlotProvider getSlotProvider() {
-		return providerAndOwner;
-	}
-
-	// ------------------------------------------------------------------------
 	//  Resource Manager Connection
 	// ------------------------------------------------------------------------
 
@@ -290,351 +240,6 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 	//  Slot Allocation
 	// ------------------------------------------------------------------------
 
-	@Override
-	public CompletableFuture<LogicalSlot> allocateSlot(
-			SlotRequestId slotRequestId,
-			ScheduledUnit task,
-			SlotProfile slotProfile,
-			boolean allowQueuedScheduling,
-			Time allocationTimeout) {
-
-		return CompletableFuture.completedFuture(null).thenComposeAsync((i) -> {
-
-			log.debug("Received slot request [{}] for task: {}", slotRequestId, task.getTaskToExecute());
-
-			if (task.getSlotSharingGroupId() == null) {
-				return allocateSingleSlot(slotRequestId, slotProfile, allowQueuedScheduling, allocationTimeout);
-			} else {
-				return allocateSharedSlot(slotRequestId, task, slotProfile, allowQueuedScheduling, allocationTimeout);
-			}
-		}, jmMainThreadScheduledExecutor);
-	}
-
-	private CompletableFuture<LogicalSlot> allocateSingleSlot(
-		SlotRequestId slotRequestId,
-		SlotProfile slotProfile,
-		boolean allowQueuedScheduling,
-		Time allocationTimeout) {
-		// request an allocated slot to assign a single logical slot to
-		CompletableFuture<SlotAndLocality> slotAndLocalityFuture = requestAllocatedSlot(
-			slotRequestId,
-			slotProfile,
-			allowQueuedScheduling,
-			allocationTimeout);
-
-			return slotAndLocalityFuture.thenApply(
-			(SlotAndLocality slotAndLocality) -> {
-				final AllocatedSlot allocatedSlot = slotAndLocality.getSlot();
-
-				final SingleLogicalSlot singleTaskSlot = new SingleLogicalSlot(
-					slotRequestId,
-					allocatedSlot,
-					null,
-					slotAndLocality.getLocality(),
-					providerAndOwner);
-
-				if (allocatedSlot.tryAssignPayload(singleTaskSlot)) {
-					return singleTaskSlot;
-				} else {
-					final FlinkException flinkException =
-						new FlinkException("Could not assign payload to allocated slot " + allocatedSlot.getAllocationId() + '.');
-					releaseSingleSlot(slotRequestId, flinkException);
-					throw new CompletionException(flinkException);
-				}
-			});
-	}
-
-	private CompletableFuture<LogicalSlot> allocateSharedSlot(
-		SlotRequestId slotRequestId,
-		ScheduledUnit task,
-		SlotProfile slotProfile,
-		boolean allowQueuedScheduling,
-		Time allocationTimeout) {
-
-		// allocate slot with slot sharing
-		final SlotSharingManager multiTaskSlotManager = slotSharingManagers.computeIfAbsent(
-			task.getSlotSharingGroupId(),
-			id -> new SlotSharingManager(
-				id,
-				this,
-				providerAndOwner));
-
-		final SlotSharingManager.MultiTaskSlotLocality multiTaskSlotLocality;
-
-		try {
-			if (task.getCoLocationConstraint() != null) {
-				multiTaskSlotLocality = allocateCoLocatedMultiTaskSlot(
-					task.getCoLocationConstraint(),
-					multiTaskSlotManager,
-					slotProfile,
-					allowQueuedScheduling,
-					allocationTimeout);
-			} else {
-				multiTaskSlotLocality = allocateMultiTaskSlot(
-					task.getJobVertexId(),
-					multiTaskSlotManager,
-					slotProfile,
-					allowQueuedScheduling,
-					allocationTimeout);
-			}
-		} catch (NoResourceAvailableException noResourceException) {
-			return FutureUtils.completedExceptionally(noResourceException);
-		}
-
-		// sanity check
-		Preconditions.checkState(!multiTaskSlotLocality.getMultiTaskSlot().contains(task.getJobVertexId()));
-
-		final SlotSharingManager.SingleTaskSlot leaf = multiTaskSlotLocality.getMultiTaskSlot().allocateSingleTaskSlot(
-			slotRequestId,
-			task.getJobVertexId(),
-			multiTaskSlotLocality.getLocality());
-
-		return leaf.getLogicalSlotFuture();
-	}
-
-	/**
-	 * Allocates a co-located {@link SlotSharingManager.MultiTaskSlot} for the given {@link CoLocationConstraint}.
-	 *
-	 * <p>If allowQueuedScheduling is true, then the returned {@link SlotSharingManager.MultiTaskSlot} can be
-	 * uncompleted.
-	 *
-	 * @param coLocationConstraint for which to allocate a {@link SlotSharingManager.MultiTaskSlot}
-	 * @param multiTaskSlotManager responsible for the slot sharing group for which to allocate the slot
-	 * @param slotProfile specifying the requirements for the requested slot
-	 * @param allowQueuedScheduling true if queued scheduling (the returned task slot must not be completed yet) is allowed, otherwise false
-	 * @param allocationTimeout timeout before the slot allocation times out
-	 * @return A {@link SlotSharingManager.MultiTaskSlotLocality} which contains the allocated{@link SlotSharingManager.MultiTaskSlot}
-	 * 		and its locality wrt the given location preferences
-	 * @throws NoResourceAvailableException if no task slot could be allocated
-	 */
-	private SlotSharingManager.MultiTaskSlotLocality allocateCoLocatedMultiTaskSlot(
-			CoLocationConstraint coLocationConstraint,
-			SlotSharingManager multiTaskSlotManager,
-			SlotProfile slotProfile,
-			boolean allowQueuedScheduling,
-			Time allocationTimeout) throws NoResourceAvailableException {
-		final SlotRequestId coLocationSlotRequestId = coLocationConstraint.getSlotRequestId();
-
-		if (coLocationSlotRequestId != null) {
-			// we have a slot assigned --> try to retrieve it
-			final SlotSharingManager.TaskSlot taskSlot = multiTaskSlotManager.getTaskSlot(coLocationSlotRequestId);
-
-			if (taskSlot != null) {
-				Preconditions.checkState(taskSlot instanceof SlotSharingManager.MultiTaskSlot);
-				return SlotSharingManager.MultiTaskSlotLocality.of(((SlotSharingManager.MultiTaskSlot) taskSlot), Locality.LOCAL);
-			} else {
-				// the slot may have been cancelled in the mean time
-				coLocationConstraint.setSlotRequestId(null);
-			}
-		}
-
-		if (coLocationConstraint.isAssigned()) {
-			// refine the preferred locations of the slot profile
-			slotProfile = new SlotProfile(
-				slotProfile.getResourceProfile(),
-				Collections.singleton(coLocationConstraint.getLocation()),
-				slotProfile.getPreferredAllocations());
-		}
-
-		// get a new multi task slot
-		final SlotSharingManager.MultiTaskSlotLocality multiTaskSlotLocality = allocateMultiTaskSlot(
-			coLocationConstraint.getGroupId(),
-			multiTaskSlotManager,
-			slotProfile,
-			allowQueuedScheduling,
-			allocationTimeout);
-
-		// check whether we fulfill the co-location constraint
-		if (coLocationConstraint.isAssigned() && multiTaskSlotLocality.getLocality() != Locality.LOCAL) {
-			multiTaskSlotLocality.getMultiTaskSlot().release(
-				new FlinkException("Multi task slot is not local and, thus, does not fulfill the co-location constraint."));
-
-			throw new NoResourceAvailableException("Could not allocate a local multi task slot for the " +
-				"co location constraint " + coLocationConstraint + '.');
-		}
-
-		final SlotRequestId slotRequestId = new SlotRequestId();
-		final SlotSharingManager.MultiTaskSlot coLocationSlot = multiTaskSlotLocality.getMultiTaskSlot().allocateMultiTaskSlot(
-			slotRequestId,
-			coLocationConstraint.getGroupId());
-
-		// mark the requested slot as co-located slot for other co-located tasks
-		coLocationConstraint.setSlotRequestId(slotRequestId);
-
-		// lock the co-location constraint once we have obtained the allocated slot
-		coLocationSlot.getSlotContextFuture().whenComplete(
-			(SlotContext slotContext, Throwable throwable) -> {
-				if (throwable == null) {
-					// check whether we are still assigned to the co-location constraint
-					if (Objects.equals(coLocationConstraint.getSlotRequestId(), slotRequestId)) {
-						coLocationConstraint.lockLocation(slotContext.getTaskManagerLocation());
-					} else {
-						log.debug("Failed to lock colocation constraint {} because assigned slot " +
-							"request {} differs from fulfilled slot request {}.",
-							coLocationConstraint.getGroupId(),
-							coLocationConstraint.getSlotRequestId(),
-							slotRequestId);
-					}
-				} else {
-					log.debug("Failed to lock colocation constraint {} because the slot " +
-						"allocation for slot request {} failed.",
-						coLocationConstraint.getGroupId(),
-						coLocationConstraint.getSlotRequestId(),
-						throwable);
-				}
-			});
-
-		return SlotSharingManager.MultiTaskSlotLocality.of(coLocationSlot, multiTaskSlotLocality.getLocality());
-	}
-
-	/**
-	 * Allocates a {@link SlotSharingManager.MultiTaskSlot} for the given groupId which is in the
-	 * slot sharing group for which the given {@link SlotSharingManager} is responsible.
-	 *
-	 * <p>If allowQueuedScheduling is true, then the method can return an uncompleted {@link SlotSharingManager.MultiTaskSlot}.
-	 *
-	 * @param groupId for which to allocate a new {@link SlotSharingManager.MultiTaskSlot}
-	 * @param slotSharingManager responsible for the slot sharing group for which to allocate the slot
-	 * @param slotProfile slot profile that specifies the requirements for the slot
-	 * @param allowQueuedScheduling true if queued scheduling (the returned task slot must not be completed yet) is allowed, otherwise false
-	 * @param allocationTimeout timeout before the slot allocation times out
-	 * @return A {@link SlotSharingManager.MultiTaskSlotLocality} which contains the allocated {@link SlotSharingManager.MultiTaskSlot}
-	 * 		and its locality wrt the given location preferences
-	 * @throws NoResourceAvailableException if no task slot could be allocated
-	 */
-	private SlotSharingManager.MultiTaskSlotLocality allocateMultiTaskSlot(
-			AbstractID groupId,
-			SlotSharingManager slotSharingManager,
-			SlotProfile slotProfile,
-			boolean allowQueuedScheduling,
-			Time allocationTimeout) throws NoResourceAvailableException {
-
-		// check first whether we have a resolved root slot which we can use
-		SlotSharingManager.MultiTaskSlotLocality multiTaskSlotLocality = slotSharingManager.getResolvedRootSlot(
-			groupId,
-			schedulingStrategy,
-			slotProfile);
-
-		if (multiTaskSlotLocality != null && multiTaskSlotLocality.getLocality() == Locality.LOCAL) {
-			return multiTaskSlotLocality;
-		}
-
-		final SlotRequestId allocatedSlotRequestId = new SlotRequestId();
-		final SlotRequestId multiTaskSlotRequestId = new SlotRequestId();
-
-		// check whether we have an allocated slot available which we can use to create a new multi task slot in
-		final SlotAndLocality polledSlotAndLocality = pollAndAllocateSlot(allocatedSlotRequestId, slotProfile);
-
-		if (polledSlotAndLocality != null && (polledSlotAndLocality.getLocality() == Locality.LOCAL || multiTaskSlotLocality == null)) {
-
-			final AllocatedSlot allocatedSlot = polledSlotAndLocality.getSlot();
-			final SlotSharingManager.MultiTaskSlot multiTaskSlot = slotSharingManager.createRootSlot(
-				multiTaskSlotRequestId,
-				CompletableFuture.completedFuture(polledSlotAndLocality.getSlot()),
-				allocatedSlotRequestId);
-
-			if (allocatedSlot.tryAssignPayload(multiTaskSlot)) {
-				return SlotSharingManager.MultiTaskSlotLocality.of(multiTaskSlot, polledSlotAndLocality.getLocality());
-			} else {
-				multiTaskSlot.release(new FlinkException("Could not assign payload to allocated slot " +
-					allocatedSlot.getAllocationId() + '.'));
-			}
-		}
-
-		if (multiTaskSlotLocality != null) {
-			// prefer slot sharing group slots over unused slots
-			if (polledSlotAndLocality != null) {
-				releaseSingleSlot(
-					allocatedSlotRequestId,
-					new FlinkException("Locality constraint is not better fulfilled by allocated slot."));
-			}
-			return multiTaskSlotLocality;
-		}
-
-		if (allowQueuedScheduling) {
-			// there is no slot immediately available --> check first for uncompleted slots at the slot sharing group
-			SlotSharingManager.MultiTaskSlot multiTaskSlotFuture = slotSharingManager.getUnresolvedRootSlot(groupId);
-
-			if (multiTaskSlotFuture == null) {
-				// it seems as if we have to request a new slot from the resource manager, this is always the last resort!!!
-				final CompletableFuture<AllocatedSlot> futureSlot = requestNewAllocatedSlotInternal(
-					allocatedSlotRequestId,
-					slotProfile.getResourceProfile(),
-					allocationTimeout);
-
-				multiTaskSlotFuture = slotSharingManager.createRootSlot(
-					multiTaskSlotRequestId,
-					futureSlot,
-					allocatedSlotRequestId);
-
-				futureSlot.whenComplete(
-					(AllocatedSlot allocatedSlot, Throwable throwable) -> {
-						final SlotSharingManager.TaskSlot taskSlot = slotSharingManager.getTaskSlot(multiTaskSlotRequestId);
-
-						if (taskSlot != null) {
-							// still valid
-							if (!(taskSlot instanceof SlotSharingManager.MultiTaskSlot) || throwable != null) {
-								taskSlot.release(throwable);
-							} else {
-								if (!allocatedSlot.tryAssignPayload(((SlotSharingManager.MultiTaskSlot) taskSlot))) {
-									taskSlot.release(new FlinkException("Could not assign payload to allocated slot " +
-										allocatedSlot.getAllocationId() + '.'));
-								}
-							}
-						} else {
-							releaseSingleSlot(
-								allocatedSlotRequestId,
-								new FlinkException("Could not find task slot with " + multiTaskSlotRequestId + '.'));
-						}
-					});
-			}
-			return SlotSharingManager.MultiTaskSlotLocality.of(multiTaskSlotFuture, Locality.UNKNOWN);
-
-		} else {
-			throw new NoResourceAvailableException("Could not allocate a shared slot for " + groupId + '.');
-		}
-	}
-
-	/**
-	 * Allocates an allocated slot first by polling from the available slots and then requesting a new
-	 * slot from the ResourceManager if no fitting slot could be found.
-	 *
-	 * @param slotProfile slot profile that specifies the requirements for the slot
-	 * @param allowQueuedScheduling true if the slot allocation can be completed in the future
-	 * @param allocationTimeout timeout before the slot allocation times out
-	 * @return Future containing the allocated simple slot
-	 */
-	private CompletableFuture<SlotAndLocality> requestAllocatedSlot(
-			SlotRequestId slotRequestId,
-			SlotProfile slotProfile,
-			boolean allowQueuedScheduling,
-			Time allocationTimeout) {
-
-		final CompletableFuture<SlotAndLocality> allocatedSlotLocalityFuture;
-
-		// (1) do we have a slot available already?
-		SlotAndLocality slotFromPool = pollAndAllocateSlot(slotRequestId, slotProfile);
-
-		if (slotFromPool != null) {
-			allocatedSlotLocalityFuture = CompletableFuture.completedFuture(slotFromPool);
-		} else if (allowQueuedScheduling) {
-			// we have to request a new allocated slot
-			CompletableFuture<AllocatedSlot> allocatedSlotFuture = requestNewAllocatedSlotInternal(
-				slotRequestId,
-				slotProfile.getResourceProfile(),
-				allocationTimeout);
-
-			allocatedSlotLocalityFuture = allocatedSlotFuture.thenApply((AllocatedSlot allocatedSlot) -> new SlotAndLocality(allocatedSlot, Locality.UNKNOWN));
-		} else {
-			allocatedSlotLocalityFuture = FutureUtils.completedExceptionally(new NoResourceAvailableException("Could not allocate a simple slot for " +
-				slotRequestId + '.'));
-		}
-
-		return allocatedSlotLocalityFuture;
-	}
-
-
-
 	/**
 	 * Requests a new slot with the given {@link ResourceProfile} from the ResourceManager. If there is
 	 * currently not ResourceManager connected, then the request is stashed and send once a new
@@ -646,10 +251,10 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 	 * @return An {@link AllocatedSlot} future which is completed once the slot is offered to the {@link SlotPool}
 	 */
 	@Nonnull
-	public CompletableFuture<AllocatedSlot> requestNewAllocatedSlotInternal(
+	private CompletableFuture<AllocatedSlot> requestNewAllocatedSlotInternal(
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull ResourceProfile resourceProfile,
-		Time timeout) {
+		@Nonnull Time timeout) {
 
 		final PendingRequest pendingRequest = new PendingRequest(
 			slotRequestId,
@@ -737,43 +342,9 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void releaseSlot(
-		SlotRequestId slotRequestId,
-		@Nullable SlotSharingGroupId slotSharingGroupId,
-		Throwable cause) {
-
-		log.debug("Releasing slot [{}] because: {}", slotRequestId, cause != null ? cause.getMessage() : "null");
-		if (slotSharingGroupId != null) {
-			releaseSharedSlot(slotRequestId, slotSharingGroupId, cause);
-		} else {
-			releaseSingleSlot(slotRequestId, cause);
-		}
-	}
-
-	@Override
 	public void releaseSlot(@Nonnull SlotRequestId slotRequestId, @Nullable Throwable cause) {
 		log.debug("Releasing slot [{}] because: {}", slotRequestId, cause != null ? cause.getMessage() : "null");
 		releaseSingleSlot(slotRequestId, cause);
-	}
-
-	private void releaseSharedSlot(
-		SlotRequestId slotRequestId,
-		@Nonnull SlotSharingGroupId slotSharingGroupId,
-		Throwable cause) {
-
-		final SlotSharingManager multiTaskSlotManager = slotSharingManagers.get(slotSharingGroupId);
-
-		if (multiTaskSlotManager != null) {
-			final SlotSharingManager.TaskSlot taskSlot = multiTaskSlotManager.getTaskSlot(slotRequestId);
-
-			if (taskSlot != null) {
-				taskSlot.release(cause);
-			} else {
-				log.debug("Could not find slot [{}] in slot sharing group {}. Ignoring release slot request.", slotRequestId, slotSharingGroupId);
-			}
-		} else {
-			log.debug("Could not find slot sharing group {}. Ignoring release slot request.", slotSharingGroupId);
-		}
 	}
 
 	private void releaseSingleSlot(SlotRequestId slotRequestId, Throwable cause) {
@@ -823,17 +394,6 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 			log.info("Failing pending slot request [{}]: {}", pendingRequest.getSlotRequestId(), e.getMessage());
 			pendingRequest.getAllocatedSlotFuture().completeExceptionally(e);
 		}
-	}
-
-	@Nullable
-	private SlotAndLocality pollAndAllocateSlot(SlotRequestId slotRequestId, SlotProfile slotProfile) {
-		SlotAndLocality slotFromPool = availableSlots.poll(schedulingStrategy, slotProfile);
-
-		if (slotFromPool != null) {
-			allocatedSlots.add(slotRequestId, slotFromPool.getSlot());
-		}
-
-		return slotFromPool;
 	}
 
 	@Override
@@ -1201,7 +761,6 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 		pendingRequests.clear();
 		waitingForResourceManager.clear();
 		registeredTaskManagers.clear();
-		slotSharingManagers.clear();
 	}
 
 	// ------------------------------------------------------------------------
@@ -1233,11 +792,6 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 
 		builder.append("\tpending requests: ").append(pendingRequests.values()).append('\n');
 
-		builder.append("\tsharing groups: {\n");
-		for (Entry<SlotSharingGroupId, SlotSharingManager> manager : slotSharingManagers.entrySet()) {
-			builder.append("\t -------- ").append(manager.getKey()).append(" --------\n");
-			builder.append(manager.getValue());
-		}
 		builder.append("\t}\n");
 		return builder.toString();
 	}
@@ -1673,66 +1227,6 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 			availableSlots.clear();
 			availableSlotsByTaskManager.clear();
 			availableSlotsByHost.clear();
-		}
-	}
-
-	// ------------------------------------------------------------------------
-
-	/**
-	 * An implementation of the {@link SlotOwner} and {@link SlotProvider} interfaces
-	 * that delegates methods as RPC calls to the SlotPool's RPC gateway.
-	 */
-	private static class ProviderAndOwner implements SlotOwner, SlotProvider {
-
-		private final SlotPoolGateway gateway;
-
-		ProviderAndOwner(SlotPoolGateway gateway) {
-			this.gateway = gateway;
-		}
-
-		@Override
-		public boolean returnAllocatedSlot(LogicalSlot slot) {
-			gateway.releaseSlot(
-				slot.getSlotRequestId(),
-				slot.getSlotSharingGroupId(),
-				new FlinkException("Slot is being returned to the SlotPool."));
-			return true;
-		}
-
-		@Override
-		public CompletableFuture<LogicalSlot> allocateSlot(
-				SlotRequestId slotRequestId,
-				ScheduledUnit task,
-				boolean allowQueued,
-				SlotProfile slotProfile,
-				Time timeout) {
-
-			CompletableFuture<LogicalSlot> slotFuture = gateway.allocateSlot(
-				slotRequestId,
-				task,
-				slotProfile,
-				allowQueued,
-				timeout);
-
-			slotFuture.whenComplete(
-				(LogicalSlot slot, Throwable failure) -> {
-					if (failure != null) {
-						gateway.releaseSlot(
-							slotRequestId,
-							task.getSlotSharingGroupId(),
-							failure);
-					}
-			});
-
-			return slotFuture;
-		}
-
-		@Override
-		public void cancelSlotRequest(
-				SlotRequestId slotRequestId,
-				@Nullable SlotSharingGroupId slotSharingGroupId,
-				Throwable cause) {
-			gateway.releaseSlot(slotRequestId, slotSharingGroupId, cause);
 		}
 	}
 

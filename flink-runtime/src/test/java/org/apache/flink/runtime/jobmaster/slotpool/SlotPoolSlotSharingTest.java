@@ -60,8 +60,8 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 	public static final TestingRpcServiceResource testingRpcServiceResource = new TestingRpcServiceResource();
 
 	@Rule
-	public final SlotPoolResource slotPoolResource = new SlotPoolResource(
-		PreviousAllocationSchedulingStrategy.getInstance());
+	public final SlotPoolResource slotPoolResource =
+		new SlotPoolResource(PreviousAllocationSlotSelectionStrategy.INSTANCE);
 
 	@Test
 	public void testSingleQueuedSharedSlotScheduling() throws Exception {

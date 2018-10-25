@@ -36,6 +36,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
+import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -64,6 +65,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -103,16 +105,16 @@ public class SlotPoolTest extends TestLogger {
 	@Test
 	public void testAllocateSimpleSlot() throws Exception {
 		CompletableFuture<SlotRequest> slotRequestFuture = new CompletableFuture<>();
-		resourceManagerGateway.setRequestSlotConsumer(slotRequest -> slotRequestFuture.complete(slotRequest));
+		resourceManagerGateway.setRequestSlotConsumer(slotRequestFuture::complete);
 
-		final SlotPool slotPool = new SlotPool(jobId, LocationPreferenceSchedulingStrategy.getInstance());
-
-		try {
-			SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway);
+		try (SlotPool slotPool = new SlotPool(jobId)) {
+			TestMainThreadExecutor mainThreadExecutor = new TestMainThreadExecutor();
+			SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
+			Scheduler scheduler = setupScheduler(slotPoolGateway, mainThreadExecutor);
 			slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID());
 
 			SlotRequestId requestId = new SlotRequestId();
-			CompletableFuture<LogicalSlot> future = slotPoolGateway.allocateSlot(
+			CompletableFuture<LogicalSlot> future = scheduler.allocateSlot(
 				requestId,
 				new DummyScheduledUnit(),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
@@ -133,8 +135,6 @@ public class SlotPoolTest extends TestLogger {
 			assertTrue(future.isDone());
 			assertTrue(slot.isAlive());
 			assertEquals(taskManagerLocation, slot.getTaskManagerLocation());
-		} finally {
-			slotPool.close();
 		}
 	}
 
@@ -148,19 +148,19 @@ public class SlotPoolTest extends TestLogger {
 			}
 		});
 
-		final SlotPool slotPool = new SlotPool(jobId, LocationPreferenceSchedulingStrategy.getInstance());
-
-		try {
-			SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway);
+		try (SlotPool slotPool = new SlotPool(jobId)) {
+			TestMainThreadExecutor mainThreadExecutor = new TestMainThreadExecutor();
+			SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
+			Scheduler scheduler = setupScheduler(slotPoolGateway, mainThreadExecutor);
 			slotPool.registerTaskManager(taskManagerLocation.getResourceID());
 
-			CompletableFuture<LogicalSlot> future1 = slotPoolGateway.allocateSlot(
+			CompletableFuture<LogicalSlot> future1 = scheduler.allocateSlot(
 				new SlotRequestId(),
 				new DummyScheduledUnit(),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
 				true,
 				timeout);
-			CompletableFuture<LogicalSlot> future2 = slotPoolGateway.allocateSlot(
+			CompletableFuture<LogicalSlot> future2 = scheduler.allocateSlot(
 				new SlotRequestId(),
 				new DummyScheduledUnit(),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
@@ -200,23 +200,21 @@ public class SlotPoolTest extends TestLogger {
 			assertEquals(slot1.getTaskManagerLocation(), slot2.getTaskManagerLocation());
 			assertEquals(slot1.getPhysicalSlotNumber(), slot2.getPhysicalSlotNumber());
 			assertEquals(slot1.getAllocationId(), slot2.getAllocationId());
-		} finally {
-			slotPool.close();
 		}
 	}
 
 	@Test
 	public void testAllocateWithFreeSlot() throws Exception {
 		final CompletableFuture<SlotRequest> slotRequestFuture = new CompletableFuture<>();
-		resourceManagerGateway.setRequestSlotConsumer(slotRequest -> slotRequestFuture.complete(slotRequest));
+		resourceManagerGateway.setRequestSlotConsumer(slotRequestFuture::complete);
 
-		final SlotPool slotPool = new SlotPool(jobId, LocationPreferenceSchedulingStrategy.getInstance());
-
-		try {
-			SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway);
+		try (SlotPool slotPool = new SlotPool(jobId)) {
+			TestMainThreadExecutor mainThreadExecutor = new TestMainThreadExecutor();
+			SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
+			Scheduler scheduler = setupScheduler(slotPoolGateway, mainThreadExecutor);
 			slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID());
 
-			CompletableFuture<LogicalSlot> future1 = slotPoolGateway.allocateSlot(
+			CompletableFuture<LogicalSlot> future1 = scheduler.allocateSlot(
 				new SlotRequestId(),
 				new DummyScheduledUnit(),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
@@ -239,7 +237,7 @@ public class SlotPoolTest extends TestLogger {
 			// return this slot to pool
 			slot1.releaseSlot();
 
-			CompletableFuture<LogicalSlot> future2 = slotPoolGateway.allocateSlot(
+			CompletableFuture<LogicalSlot> future2 = scheduler.allocateSlot(
 				new SlotRequestId(),
 				new DummyScheduledUnit(),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
@@ -255,8 +253,6 @@ public class SlotPoolTest extends TestLogger {
 			assertTrue(slot2.isAlive());
 			assertEquals(slot1.getTaskManagerLocation(), slot2.getTaskManagerLocation());
 			assertEquals(slot1.getPhysicalSlotNumber(), slot2.getPhysicalSlotNumber());
-		} finally {
-			slotPool.close();
 		}
 	}
 
@@ -264,15 +260,15 @@ public class SlotPoolTest extends TestLogger {
 	public void testOfferSlot() throws Exception {
 		final CompletableFuture<SlotRequest> slotRequestFuture = new CompletableFuture<>();
 
-		resourceManagerGateway.setRequestSlotConsumer(slotRequest -> slotRequestFuture.complete(slotRequest));
+		resourceManagerGateway.setRequestSlotConsumer(slotRequestFuture::complete);
 
-		final SlotPool slotPool = new SlotPool(jobId, LocationPreferenceSchedulingStrategy.getInstance());
-
-		try {
-			SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway);
+		try (SlotPool slotPool = new SlotPool(jobId)) {
+			TestMainThreadExecutor mainThreadExecutor = new TestMainThreadExecutor();
+			SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
+			Scheduler scheduler = setupScheduler(slotPoolGateway, mainThreadExecutor);
 			slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID());
 
-			CompletableFuture<LogicalSlot> future = slotPoolGateway.allocateSlot(
+			CompletableFuture<LogicalSlot> future = scheduler.allocateSlot(
 				new SlotRequestId(),
 				new DummyScheduledUnit(),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
@@ -310,9 +306,9 @@ public class SlotPoolTest extends TestLogger {
 			assertTrue(slot.isAlive());
 
 			final SlotOffer anotherSlotOfferWithSameAllocationId = new SlotOffer(
-					slotRequest.getAllocationId(),
-					1,
-					DEFAULT_TESTING_PROFILE);
+				slotRequest.getAllocationId(),
+				1,
+				DEFAULT_TESTING_PROFILE);
 			assertFalse(slotPoolGateway.offerSlot(taskManagerLocation, taskManagerGateway, anotherSlotOfferWithSameAllocationId).get());
 
 			TaskManagerLocation anotherTaskManagerLocation = new LocalTaskManagerLocation();
@@ -323,8 +319,6 @@ public class SlotPoolTest extends TestLogger {
 			assertTrue(slotPoolGateway.offerSlot(taskManagerLocation, taskManagerGateway, slotOffer).get());
 			assertFalse(slotPoolGateway.offerSlot(taskManagerLocation, taskManagerGateway, anotherSlotOfferWithSameAllocationId).get());
 			assertFalse(slotPoolGateway.offerSlot(anotherTaskManagerLocation, taskManagerGateway, slotOffer).get());
-		} finally {
-			slotPool.close();
 		}
 	}
 
@@ -332,15 +326,15 @@ public class SlotPoolTest extends TestLogger {
 	public void testReleaseResource() throws Exception {
 		final CompletableFuture<SlotRequest> slotRequestFuture = new CompletableFuture<>();
 
-		resourceManagerGateway.setRequestSlotConsumer(slotRequest -> slotRequestFuture.complete(slotRequest));
+		resourceManagerGateway.setRequestSlotConsumer(slotRequestFuture::complete);
 
-		final SlotPool slotPool = new SlotPool(jobId, LocationPreferenceSchedulingStrategy.getInstance());
-
-		try {
-			SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway);
+		try (SlotPool slotPool = new SlotPool(jobId)) {
+			TestMainThreadExecutor mainThreadExecutor = new TestMainThreadExecutor();
+			SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
+			Scheduler scheduler = setupScheduler(slotPoolGateway, mainThreadExecutor);
 			slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID());
 
-			CompletableFuture<LogicalSlot> future1 = slotPoolGateway.allocateSlot(
+			CompletableFuture<LogicalSlot> future1 = scheduler.allocateSlot(
 				new SlotRequestId(),
 				new DummyScheduledUnit(),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
@@ -349,7 +343,7 @@ public class SlotPoolTest extends TestLogger {
 
 			final SlotRequest slotRequest = slotRequestFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
-			CompletableFuture<LogicalSlot> future2 = slotPoolGateway.allocateSlot(
+			CompletableFuture<LogicalSlot> future2 = scheduler.allocateSlot(
 				new SlotRequestId(),
 				new DummyScheduledUnit(),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
@@ -380,8 +374,6 @@ public class SlotPoolTest extends TestLogger {
 			// slot released and not usable, second allocation still not fulfilled
 			Thread.sleep(10);
 			assertFalse(future2.isDone());
-		} finally {
-			slotPool.close();
 		}
 	}
 
@@ -392,29 +384,28 @@ public class SlotPoolTest extends TestLogger {
 	 */
 	@Test
 	public void testSlotRequestCancellationUponFailingRequest() throws Exception {
-		final SlotPool slotPool = new SlotPool( jobId, LocationPreferenceSchedulingStrategy.getInstance());
-		final CompletableFuture<Acknowledge> requestSlotFuture = new CompletableFuture<>();
-		final CompletableFuture<AllocationID> cancelSlotFuture = new CompletableFuture<>();
-		final CompletableFuture<AllocationID> requestSlotFutureAllocationId = new CompletableFuture<>();
 
-		resourceManagerGateway.setRequestSlotFuture(requestSlotFuture);
-		resourceManagerGateway.setRequestSlotConsumer(slotRequest -> requestSlotFutureAllocationId.complete(slotRequest.getAllocationId()));
-		resourceManagerGateway.setCancelSlotConsumer(allocationID -> cancelSlotFuture.complete(allocationID));
-
-		final ScheduledUnit scheduledUnit = new ScheduledUnit(
-			new JobVertexID(),
-			null,
-			null);
-
-		try {
-			final SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway);
+		try (SlotPool slotPool = new SlotPool(jobId)) {
+			final CompletableFuture<Acknowledge> requestSlotFuture = new CompletableFuture<>();
+			final CompletableFuture<AllocationID> cancelSlotFuture = new CompletableFuture<>();
+			final CompletableFuture<AllocationID> requestSlotFutureAllocationId = new CompletableFuture<>();
+			resourceManagerGateway.setRequestSlotFuture(requestSlotFuture);
+			resourceManagerGateway.setRequestSlotConsumer(slotRequest -> requestSlotFutureAllocationId.complete(slotRequest.getAllocationId()));
+			resourceManagerGateway.setCancelSlotConsumer(cancelSlotFuture::complete);
+			final ScheduledUnit scheduledUnit = new ScheduledUnit(
+				new JobVertexID(),
+				null,
+				null);
+			TestMainThreadExecutor mainThreadExecutor = new TestMainThreadExecutor();
+			SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
+			Scheduler scheduler = setupScheduler(slotPoolGateway, mainThreadExecutor);
 
 			SlotProfile slotProfile = new SlotProfile(
 				ResourceProfile.UNKNOWN,
 				Collections.emptyList(),
 				Collections.emptySet());
 
-			CompletableFuture<LogicalSlot> slotFuture = slotPoolGateway.allocateSlot(
+			CompletableFuture<LogicalSlot> slotFuture = scheduler.allocateSlot(
 				new SlotRequestId(),
 				scheduledUnit,
 				slotProfile,
@@ -433,8 +424,6 @@ public class SlotPoolTest extends TestLogger {
 			// check that a failure triggered the slot request cancellation
 			// with the correct allocation id
 			assertEquals(requestSlotFutureAllocationId.get(), cancelSlotFuture.get());
-		} finally {
-			slotPool.close();
 		}
 	}
 
@@ -448,28 +437,25 @@ public class SlotPoolTest extends TestLogger {
 	 */
 	@Test
 	public void testFulfillingSlotRequestsWithUnusedOfferedSlots() throws Exception {
-		final SlotPool slotPool = new SlotPool(jobId, LocationPreferenceSchedulingStrategy.getInstance());
 
-		final ArrayBlockingQueue<AllocationID> allocationIds = new ArrayBlockingQueue<>(2);
-
-		resourceManagerGateway.setRequestSlotConsumer(
-			(SlotRequest slotRequest) -> allocationIds.offer(slotRequest.getAllocationId()));
-
-		final ArrayBlockingQueue<AllocationID> canceledAllocations = new ArrayBlockingQueue<>(2);
-		resourceManagerGateway.setCancelSlotConsumer(canceledAllocations::offer);
-
-		final SlotRequestId slotRequestId1 = new SlotRequestId();
-		final SlotRequestId slotRequestId2 = new SlotRequestId();
-
-		try {
-			final SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway);
+		try (SlotPool slotPool = new SlotPool(jobId)) {
+			final ArrayBlockingQueue<AllocationID> allocationIds = new ArrayBlockingQueue<>(2);
+			resourceManagerGateway.setRequestSlotConsumer(
+				(SlotRequest slotRequest) -> allocationIds.offer(slotRequest.getAllocationId()));
+			final ArrayBlockingQueue<AllocationID> canceledAllocations = new ArrayBlockingQueue<>(2);
+			resourceManagerGateway.setCancelSlotConsumer(canceledAllocations::offer);
+			final SlotRequestId slotRequestId1 = new SlotRequestId();
+			final SlotRequestId slotRequestId2 = new SlotRequestId();
+			final TestMainThreadExecutor mainThreadExecutor = new TestMainThreadExecutor();
+			final SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
+			final Scheduler scheduler = setupScheduler(slotPoolGateway, mainThreadExecutor);
 
 			final ScheduledUnit scheduledUnit = new ScheduledUnit(
 				new JobVertexID(),
 				null,
 				null);
 
-			CompletableFuture<LogicalSlot> slotFuture1 = slotPoolGateway.allocateSlot(
+			CompletableFuture<LogicalSlot> slotFuture1 = scheduler.allocateSlot(
 				slotRequestId1,
 				scheduledUnit,
 				SlotProfile.noRequirements(),
@@ -479,7 +465,7 @@ public class SlotPoolTest extends TestLogger {
 			// wait for the first slot request
 			final AllocationID allocationId1 = allocationIds.take();
 
-			CompletableFuture<LogicalSlot> slotFuture2 = slotPoolGateway.allocateSlot(
+			CompletableFuture<LogicalSlot> slotFuture2 = scheduler.allocateSlot(
 				slotRequestId2,
 				scheduledUnit,
 				SlotProfile.noRequirements(),
@@ -489,7 +475,7 @@ public class SlotPoolTest extends TestLogger {
 			// wait for the second slot request
 			final AllocationID allocationId2 = allocationIds.take();
 
-			slotPoolGateway.releaseSlot(slotRequestId1, null, null);
+			slotPoolGateway.releaseSlot(slotRequestId1, null);
 
 			try {
 				// this should fail with a CancellationException
@@ -513,8 +499,6 @@ public class SlotPoolTest extends TestLogger {
 
 			// check that the second slot allocation has been canceled
 			assertEquals(allocationId2, canceledAllocations.take());
-		} finally {
-			slotPool.close();
 		}
 	}
 
@@ -523,10 +507,10 @@ public class SlotPoolTest extends TestLogger {
 	 */
 	@Test
 	public void testShutdownReleasesAllSlots() throws Exception {
-		final SlotPool slotPool = new SlotPool( jobId, LocationPreferenceSchedulingStrategy.getInstance());
 
-		try {
-			final SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway);
+		try (SlotPool slotPool = new SlotPool(jobId)) {
+			TestMainThreadExecutor mainThreadExecutor = new TestMainThreadExecutor();
+			SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
 
 			slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID());
 
@@ -571,22 +555,18 @@ public class SlotPoolTest extends TestLogger {
 			}
 
 			assertThat(freedSlots, Matchers.containsInAnyOrder(slotOffers.stream().map(SlotOffer::getAllocationId).toArray()));
-		} finally {
-			slotPool.close();
 		}
 	}
 
 	@Test
 	public void testCheckIdleSlot() throws Exception {
 		final ManualClock clock = new ManualClock();
-		final SlotPool slotPool = new SlotPool(
+
+		try (SlotPool slotPool = new SlotPool(
 			jobId,
-			LocationPreferenceSchedulingStrategy.getInstance(),
 			clock,
 			TestingUtils.infiniteTime(),
-			timeout);
-
-		try {
+			timeout)) {
 			final BlockingQueue<AllocationID> freedSlots = new ArrayBlockingQueue<>(1);
 			taskManagerGateway.setFreeSlotFunction(
 				(AllocationID allocationId, Throwable cause) ->
@@ -599,7 +579,8 @@ public class SlotPoolTest extends TestLogger {
 					}
 				});
 
-			final SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway);
+			TestMainThreadExecutor mainThreadExecutor = new TestMainThreadExecutor();
+			SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
 
 			final AllocationID expiredSlotID = new AllocationID();
 			final AllocationID freshSlotID = new AllocationID();
@@ -628,8 +609,6 @@ public class SlotPoolTest extends TestLogger {
 
 			assertThat(freedSlot, Matchers.is(expiredSlotID));
 			assertThat(freedSlots.isEmpty(), Matchers.is(true));
-		} finally {
-			slotPool.close();
 		}
 	}
 
@@ -640,15 +619,16 @@ public class SlotPoolTest extends TestLogger {
 	@Test
 	public void testReleasingIdleSlotFailed() throws Exception {
 		final ManualClock clock = new ManualClock();
-		final SlotPool slotPool = new SlotPool(
+
+		try (SlotPool slotPool = new SlotPool(
 			jobId,
-			LocationPreferenceSchedulingStrategy.getInstance(),
 			clock,
 			TestingUtils.infiniteTime(),
-			timeout);
+			timeout)) {
 
-		try {
-			final SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway);
+			TestMainThreadExecutor mainThreadExecutor = new TestMainThreadExecutor();
+			SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
+			Scheduler scheduler = setupScheduler(slotPoolGateway, mainThreadExecutor);
 
 			final AllocationID expiredAllocationId = new AllocationID();
 			final SlotOffer slotToExpire = new SlotOffer(expiredAllocationId, 0, ResourceProfile.UNKNOWN);
@@ -679,14 +659,14 @@ public class SlotPoolTest extends TestLogger {
 
 			slotPool.triggerCheckIdleSlot();
 
-			CompletableFuture<LogicalSlot> allocatedSlotFuture = allocateSlot(slotPoolGateway, new SlotRequestId());
+			CompletableFuture<LogicalSlot> allocatedSlotFuture = allocateSlot(scheduler, new SlotRequestId());
 
 			// wait until the slot has been fulfilled with the previously idling slot
 			final LogicalSlot logicalSlot = allocatedSlotFuture.get();
 			assertThat(logicalSlot.getAllocationId(), Matchers.is(expiredAllocationId));
 
 			// return the slot
-			slotPool.getSlotOwner().returnAllocatedSlot(logicalSlot);
+			scheduler.returnAllocatedSlot(logicalSlot);
 
 			// advance the time so that the returned slot is now idling
 			clock.advanceTime(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
@@ -694,7 +674,7 @@ public class SlotPoolTest extends TestLogger {
 			slotPool.triggerCheckIdleSlot();
 
 			// request a new slot after the idling slot has been released
-			allocatedSlotFuture = allocateSlot(slotPoolGateway, new SlotRequestId());
+			allocatedSlotFuture = allocateSlot(scheduler, new SlotRequestId());
 
 			// release the TaskExecutor before we get a response from the slot releasing
 			slotPoolGateway.releaseTaskManager(taskManagerLocation.getResourceID(), null).get();
@@ -711,8 +691,6 @@ public class SlotPoolTest extends TestLogger {
 				// expected
 			}
 
-		} finally {
-			slotPool.close();
 		}
 	}
 
@@ -721,21 +699,22 @@ public class SlotPoolTest extends TestLogger {
 	 */
 	@Test
 	public void testFreeFailedSlots() throws Exception {
-		final SlotPool slotPool = new SlotPool( jobId, LocationPreferenceSchedulingStrategy.getInstance());
 
-		try {
+		try (SlotPool slotPool = new SlotPool(jobId)) {
 			final int parallelism = 5;
 			final ArrayBlockingQueue<AllocationID> allocationIds = new ArrayBlockingQueue<>(parallelism);
 			resourceManagerGateway.setRequestSlotConsumer(
 				slotRequest -> allocationIds.offer(slotRequest.getAllocationId()));
 
-			final SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway);
+			TestMainThreadExecutor mainThreadExecutor = new TestMainThreadExecutor();
+			SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
+			Scheduler scheduler = setupScheduler(slotPoolGateway, mainThreadExecutor);
 
 			final Map<SlotRequestId, CompletableFuture<LogicalSlot>> slotRequestFutures = new HashMap<>(parallelism);
 
 			for (int i = 0; i < parallelism; i++) {
 				final SlotRequestId slotRequestId = new SlotRequestId();
-				slotRequestFutures.put(slotRequestId, allocateSlot(slotPoolGateway, slotRequestId));
+				slotRequestFutures.put(slotRequestId, allocateSlot(scheduler, slotRequestId));
 			}
 
 			final List<SlotOffer> slotOffers = new ArrayList<>(parallelism);
@@ -776,8 +755,6 @@ public class SlotPoolTest extends TestLogger {
 			assertThat(emptyTaskExecutorFuture.get().get(), is(equalTo(taskManagerLocation.getResourceID())));
 			assertThat(freedSlots.take(), is(equalTo(slotOffer.getAllocationId())));
 
-		} finally {
-			slotPool.close();
 		}
 	}
 
@@ -786,14 +763,15 @@ public class SlotPoolTest extends TestLogger {
 	 */
 	@Test
 	public void testFailingAllocationFailsPendingSlotRequests() throws Exception {
-		final SlotPool slotPool = new SlotPool( jobId, LocationPreferenceSchedulingStrategy.getInstance());
 
-		try {
+		try (SlotPool slotPool = new SlotPool(jobId)) {
 			final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
 			resourceManagerGateway.setRequestSlotConsumer(slotRequest -> allocationIdFuture.complete(slotRequest.getAllocationId()));
-			final SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway);
+			TestMainThreadExecutor mainThreadExecutor = new TestMainThreadExecutor();
+			SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
+			Scheduler scheduler = setupScheduler(slotPoolGateway, mainThreadExecutor);
 
-			final CompletableFuture<LogicalSlot> slotFuture = allocateSlot(slotPoolGateway, new SlotRequestId());
+			final CompletableFuture<LogicalSlot> slotFuture = allocateSlot(scheduler, new SlotRequestId());
 
 			final AllocationID allocationId = allocationIdFuture.get();
 
@@ -810,12 +788,10 @@ public class SlotPoolTest extends TestLogger {
 			} catch (ExecutionException ee) {
 				assertThat(ExceptionUtils.stripExecutionException(ee), equalTo(cause));
 			}
-		} finally {
-			slotPool.close();
 		}
 	}
 
-	private CompletableFuture<LogicalSlot> allocateSlot(SlotPoolGateway slotPoolGateway, SlotRequestId slotRequestId) {
+	private CompletableFuture<LogicalSlot> allocateSlot(Scheduler slotPoolGateway, SlotRequestId slotRequestId) {
 		return slotPoolGateway.allocateSlot(
 			slotRequestId,
 			new DummyScheduledUnit(),
@@ -825,14 +801,21 @@ public class SlotPoolTest extends TestLogger {
 	}
 
 	private static SlotPoolGateway setupSlotPool(
-			SlotPool slotPool,
-			ResourceManagerGateway resourceManagerGateway) throws Exception {
+		SlotPool slotPool,
+		ResourceManagerGateway resourceManagerGateway,
+		MainThreadExecutable mainThreadExecutable) throws Exception {
 		final String jobManagerAddress = "foobar";
 
-		slotPool.start(JobMasterId.generate(), jobManagerAddress, new TestMainThreadExecutor());
+		slotPool.start(JobMasterId.generate(), jobManagerAddress, mainThreadExecutable);
 
 		slotPool.connectToResourceManager(resourceManagerGateway);
 
 		return slotPool;
+	}
+
+	private static Scheduler setupScheduler(SlotPoolGateway slotPoolGateway, Executor mainThreadExecutable) {
+		Scheduler scheduler = new Scheduler(new HashMap<>(16), LocationPreferenceSlotSelection.INSTANCE, slotPoolGateway);
+		scheduler.start(mainThreadExecutable);
+		return scheduler;
 	}
 }

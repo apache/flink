@@ -87,8 +87,8 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 	public CompletableFuture<LogicalSlot> allocateSlot(
 			SlotRequestId slotRequestId,
 			ScheduledUnit task,
-			boolean allowQueued,
 			SlotProfile slotProfile,
+			boolean allowQueued,
 			Time allocationTimeout) {
 		final SlotContext slot;
 

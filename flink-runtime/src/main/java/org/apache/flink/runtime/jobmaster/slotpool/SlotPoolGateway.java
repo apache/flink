@@ -22,11 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.clusterframework.types.SlotProfile;
-import org.apache.flink.runtime.instance.SlotSharingGroupId;
-import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -137,36 +133,6 @@ public interface SlotPoolGateway extends AllocatedSlotActions {
 	// ------------------------------------------------------------------------
 	//  allocating and disposing slots
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Requests to allocate a slot for the given {@link ScheduledUnit}. The request
-	 * is uniquely identified by the provided {@link SlotRequestId} which can also
-	 * be used to release the slot via {@link #releaseSlot(SlotRequestId, SlotSharingGroupId, Throwable)}.
-	 * The allocated slot will fulfill the requested {@link ResourceProfile} and it
-	 * is tried to place it on one of the location preferences.
-	 *
-	 * <p>If the returned future must not be completed right away (a.k.a. the slot request
-	 * can be queued), allowQueuedScheduling must be set to true.
-	 *
-	 * @deprecated this method will be removed once the handling of slot sharing is completely extracted from the slot
-	 * pool into a dedicated {@link Scheduler} component. The call is then replaced by calls to
-	 * {@link #getAvailableSlotsInformation()}, {@link #allocateAvailableSlot(SlotRequestId, AllocationID)}, and
-	 * {@link #requestNewAllocatedSlot(SlotRequestId, ResourceProfile, Time)}.
-	 *
-	 * @param slotRequestId identifying the requested slot
-	 * @param scheduledUnit for which to allocate slot
-	 * @param slotProfile profile that specifies the requirements for the requested slot
-	 * @param allowQueuedScheduling true if the slot request can be queued (e.g. the returned future must not be completed)
-	 * @param timeout for the operation
-	 * @return Future which is completed with the allocated {@link LogicalSlot}
-	 */
-	@Deprecated
-	CompletableFuture<LogicalSlot> allocateSlot(
-			SlotRequestId slotRequestId,
-			ScheduledUnit scheduledUnit,
-			SlotProfile slotProfile,
-			boolean allowQueuedScheduling,
-			@RpcTimeout Time timeout);
 
 	/**
 	 * Returns a list of {@link SlotInfo} objects about all slots that are currently available in the slot

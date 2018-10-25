@@ -151,10 +151,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 
 			this.leaderGatewayFuture = new CompletableFuture<>();
 
-			final SlotPoolFactory slotPoolFactory = DefaultSlotPoolFactory.fromConfiguration(
-				configuration,
-				rpcService);
-
+			final SlotPoolFactory slotPoolFactory = DefaultSlotPoolFactory.fromConfiguration(configuration);
 			final SchedulerFactory schedulerFactory = DefaultSchedulerFactory.fromConfiguration(configuration);
 
 			// now start the JobManager

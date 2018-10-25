@@ -18,8 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 
 import javax.annotation.Nonnull;
@@ -32,23 +31,18 @@ import java.util.function.Consumer;
  */
 public class TestingAllocatedSlotActions implements AllocatedSlotActions {
 
-	private volatile Consumer<Tuple3<SlotRequestId, SlotSharingGroupId, Throwable>> releaseSlotConsumer;
+	private volatile Consumer<Tuple2<SlotRequestId, Throwable>> releaseSlotConsumer;
 
-	public void setReleaseSlotConsumer(@Nullable Consumer<Tuple3<SlotRequestId, SlotSharingGroupId, Throwable>> releaseSlotConsumer) {
+	public void setReleaseSlotConsumer(@Nullable Consumer<Tuple2<SlotRequestId, Throwable>> releaseSlotConsumer) {
 		this.releaseSlotConsumer = releaseSlotConsumer;
 	}
 
 	@Override
-	public void releaseSlot(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, @Nullable Throwable cause) {
-		Consumer<Tuple3<SlotRequestId, SlotSharingGroupId, Throwable>> currentReleaseSlotConsumer = this.releaseSlotConsumer;
+	public void releaseSlot(@Nonnull SlotRequestId slotRequestId, @Nullable Throwable cause) {
+		Consumer<Tuple2<SlotRequestId, Throwable>> currentReleaseSlotConsumer = this.releaseSlotConsumer;
 
 		if (currentReleaseSlotConsumer != null) {
-			currentReleaseSlotConsumer.accept(Tuple3.of(slotRequestId, slotSharingGroupId, cause));
+			currentReleaseSlotConsumer.accept(Tuple2.of(slotRequestId, cause));
 		}
-	}
-
-	@Override
-	public void releaseSlot(@Nonnull SlotRequestId slotRequestId, @Nullable Throwable cause) {
-		releaseSlot(slotRequestId, null, cause);
 	}
 }
