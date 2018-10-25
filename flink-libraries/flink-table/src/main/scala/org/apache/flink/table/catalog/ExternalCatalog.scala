@@ -36,10 +36,12 @@ trait ExternalCatalog {
     *
     * @param tableName table name
     * @param partSpec  partition specification
+    * @throws TableNotPartitionedException   if get partition on a non-partitioned table.
     * @throws TableNotExistException     if table does not exist in the catalog yet
     * @throws PartitionNotExistException if partition does not exist in the catalog yet
     * @return found partition
     */
+  @throws[TableNotPartitionedException]
   @throws[TableNotExistException]
   @throws[PartitionNotExistException]
   def getPartition(
@@ -50,10 +52,11 @@ trait ExternalCatalog {
     * Gets the partition specification list of a table from external catalog
     *
     * @param tableName table name
-    * @throws CatalogNotExistException  if database does not exist in the catalog yet
+    * @throws TableNotPartitionedException   if alter partition on a non-partitioned table.
     * @throws TableNotExistException    if table does not exist in the catalog yet
     * @return list of partition spec
     */
+  @throws[TableNotPartitionedException]
   @throws[TableNotExistException]
   def listPartitions(tableName: String): JList[JLinkedHashMap[String, String]]
 

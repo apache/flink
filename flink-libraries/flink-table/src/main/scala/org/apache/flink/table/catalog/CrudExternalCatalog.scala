@@ -114,10 +114,12 @@ trait CrudExternalCatalog extends ExternalCatalog {
     * @param ignoreIfExists if partition already exists in the catalog, not throw exception and
     *                       leave the existed partition if ignoreIfExists is true;
     *                       else throw PartitionAlreadyExistException
+    * @throws TableNotPartitionedException   if add partition on a non-partitioned table.
     * @throws TableNotExistException         if table does not exist in the catalog yet
     * @throws PartitionAlreadyExistException if partition exists in the catalog and
     *                                        ignoreIfExists is false
     */
+  @throws[TableNotPartitionedException]
   @throws[TableNotExistException]
   @throws[PartitionAlreadyExistException]
   def createPartition(
@@ -132,9 +134,11 @@ trait CrudExternalCatalog extends ExternalCatalog {
     * @param partSpec          partition specification
     * @param ignoreIfNotExists if partition not exist yet, not throw exception if ignoreIfNotExists
     *                          is true; else throw PartitionNotExistException
+    * @throws TableNotPartitionedException   if drop partition on a non-partitioned table.
     * @throws TableNotExistException     if table does not exist in the catalog yet
     * @throws PartitionNotExistException if partition does not exist in the catalog yet
     */
+  @throws[TableNotPartitionedException]
   @throws[TableNotExistException]
   @throws[PartitionNotExistException]
   def dropPartition(
@@ -149,9 +153,11 @@ trait CrudExternalCatalog extends ExternalCatalog {
     * @param partition         description of partition which to alter
     * @param ignoreIfNotExists if the partition not exist yet, not throw exception if
     *                          ignoreIfNotExists is true; else throw PartitionNotExistException
+    * @throws TableNotPartitionedException   if alter partition on a non-partitioned table.
     * @throws TableNotExistException     if table does not exist in the catalog yet
     * @throws PartitionNotExistException if partition does not exist in the catalog yet
     */
+  @throws[TableNotPartitionedException]
   @throws[TableNotExistException]
   @throws[PartitionNotExistException]
   def alterPartition(

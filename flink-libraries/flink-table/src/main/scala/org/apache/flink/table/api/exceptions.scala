@@ -162,6 +162,25 @@ case class TableAlreadyExistException(
 }
 
 /**
+  * Exception for do operation about partition on a non-partitioned table.
+  *
+  * @param catalog    catalog name
+  * @param table      table name
+  * @param cause      the cause
+  */
+case class TableNotPartitionedException(
+    catalog: String,
+    table: String,
+    cause: Throwable)
+  extends UnsupportedOperationException(
+    s"Cannot do any operation about partition on the non-partitioned table $catalog.$table!",
+    cause) {
+
+  def this(catalog: String, table: String) = this(catalog, table, null)
+
+}
+
+/**
   * Exception for operation on a nonexistent catalog
   *
   * @param catalog catalog name

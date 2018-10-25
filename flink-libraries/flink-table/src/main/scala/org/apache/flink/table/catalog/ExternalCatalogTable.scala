@@ -312,24 +312,7 @@ class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDesc
     *
     * @return External catalog table
     */
-  def asTableSource(): ExternalCatalogTable = this.partitionColumnNames match {
-      case Some(pc) =>
-        new ExternalCatalogPartitionedTable(
-          isBatch,
-          isStreaming,
-          isSource = true,
-          isSink = false,
-          pc,
-          DescriptorProperties.toJavaMap(this)
-        )
-      case None =>
-        new ExternalCatalogTable(
-          isBatch,
-          isStreaming,
-          isSource = true,
-          isSink = false,
-          DescriptorProperties.toJavaMap(this))
-   }
+  def asTableSource(): ExternalCatalogTable = build(true, false)
 
   /**
     * Declares this external table as a table sink and returns the
@@ -337,23 +320,7 @@ class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDesc
     *
     * @return External catalog table
     */
-  def asTableSink(): ExternalCatalogTable = this.partitionColumnNames match {
-    case Some(pc) =>
-      new ExternalCatalogPartitionedTable(
-        isBatch,
-        isStreaming,
-        isSource = false,
-        isSink = true,
-        pc,
-        DescriptorProperties.toJavaMap(this))
-    case None =>
-      new ExternalCatalogTable(
-        isBatch,
-        isStreaming,
-        isSource = false,
-        isSink = true,
-        DescriptorProperties.toJavaMap(this))
-  }
+  def asTableSink(): ExternalCatalogTable = build(false, true)
 
   /**
     * Declares this external table as both a table source and sink. It returns the
@@ -361,23 +328,33 @@ class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDesc
     *
     * @return External catalog table
     */
-  def asTableSourceAndSink(): ExternalCatalogTable = this.partitionColumnNames match {
-    case Some(pc) =>
-      new ExternalCatalogPartitionedTable(
-        isBatch,
-        isStreaming,
-        isSource = true,
-        isSink = true,
-        pc,
-        DescriptorProperties.toJavaMap(this))
-    case None =>
-      new ExternalCatalogTable(
-        isBatch,
-        isStreaming,
-        isSource = true,
-        isSink = true,
-        DescriptorProperties.toJavaMap(this))
-  }
+  def asTableSourceAndSink(): ExternalCatalogTable = build(true, true)
+
+  /**
+    * Build an ExternalCatalogTable.
+    * @param isSource Flag to create an external table whether could be declared as table source.
+    * @param isSink   Flag to create an external table whether could be declared as table sink.
+    *
+    * @return External catalog table
+    */
+  private def build(isSource: Boolean, isSink: Boolean): ExternalCatalogTable =
+    this.partitionColumnNames match {
+      case Some(pc) =>
+        new ExternalCatalogPartitionedTable(
+          isBatch,
+          isStreaming,
+          isSource,
+          isSink,
+          pc,
+          DescriptorProperties.toJavaMap(this))
+      case None =>
+        new ExternalCatalogTable(
+          isBatch,
+          isStreaming,
+          isSource,
+          isSink,
+          DescriptorProperties.toJavaMap(this))
+    }
 
   // ----------------------------------------------------------------------------------------------
 

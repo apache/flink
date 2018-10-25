@@ -153,7 +153,7 @@ class InMemoryExternalCatalogTest {
     assertEquals(partitionSpecs.get(0), newPartitionSpec)
   }
 
-  @Test(expected = classOf[UnsupportedOperationException])
+  @Test(expected = classOf[TableNotPartitionedException])
   def testCreatePartitionOnUnPartitionedTable(): Unit = {
     val tableName = "t1"
     catalog.createTable(
@@ -165,6 +165,20 @@ class InMemoryExternalCatalogTest {
     newPartitionSpec.put("ds", "2016-02-01")
     val newPartition = createPartition(newPartitionSpec)
     catalog.createPartition(tableName, newPartition, ignoreIfExists = false)
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testCreateInvalidPartitionSpec(): Unit = {
+    val tableName = "t1"
+    catalog.createTable(
+      tableName,
+      createPartitionedTableInstance,
+      ignoreIfExists = false)
+    val newPartitionSpec = new LinkedHashMap[String, String]
+    newPartitionSpec.put("h", "12")
+    newPartitionSpec.put("ds", "2016-02-01")
+    val newPartition = createPartition(newPartitionSpec)
+    catalog.createPartition(tableName, newPartition, false)
   }
 
   @Test(expected = classOf[PartitionAlreadyExistException])

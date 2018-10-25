@@ -23,7 +23,7 @@ import java.util.{LinkedHashMap => JLinkedHashMap, List => JList}
 import org.apache.flink.table.api._
 
 import _root_.scala.collection.mutable
-import _root_.scala.collection.JavaConverters._
+import _root_.scala.collection.JavaConversions._
 
 /**
   * This class is an in-memory implementation of [[ExternalCatalog]].
@@ -108,7 +108,7 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
   }
 
   override def listTables(): JList[String] = synchronized {
-    tables.keys.toList.asJava
+    tables.keys.toList
   }
 
   @throws[CatalogNotExistException]
@@ -120,7 +120,7 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
   }
 
   override def listSubCatalogs(): JList[String] = synchronized {
-    databases.keys.toList.asJava
+    databases.keys.toList
   }
 
   /**
@@ -140,7 +140,8 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
     partition: ExternalCatalogPartition,
     ignoreIfExists: Boolean): Unit = synchronized {
     val newPartSpec = partition.partitionSpec
-    val table = getTable(tableName)
+    val table = getPartitionedTable(tableName)
+    checkPartitionSpec(newPartSpec, table)
     val partitions = getPartitions(tableName, table)
     if (partitions.contains(newPartSpec)) {
       if (!ignoreIfExists) {
@@ -149,15 +150,6 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
     } else {
       partitions.put(newPartSpec, partition)
     }
-  }
-
-  private def getPartitions(tableName: String, table: ExternalCatalogTable)
-  : mutable.HashMap[JLinkedHashMap[String, String], ExternalCatalogPartition] = table match {
-    case t: ExternalCatalogPartitionedTable =>
-      partitions.getOrElseUpdate(
-        tableName, new mutable.HashMap[JLinkedHashMap[String, String], ExternalCatalogPartition])
-    case _ => throw new UnsupportedOperationException(
-      s"Cannot do any operation about partition on the non-partitioned table $tableName!")
   }
 
   /**
@@ -174,7 +166,8 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
     tableName: String,
     partSpec: JLinkedHashMap[String, String],
     ignoreIfNotExists: Boolean): Unit = synchronized {
-    val table = getTable(tableName)
+    val table = getPartitionedTable(tableName)
+    checkPartitionSpec(partSpec, table)
     val partitions = getPartitions(tableName, table)
     if (partitions.remove(partSpec).isEmpty && !ignoreIfNotExists) {
       throw new PartitionNotExistException(name, tableName, partSpec)
@@ -196,7 +189,8 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
     partition: ExternalCatalogPartition,
     ignoreIfNotExists: Boolean): Unit = synchronized {
     val updatedPartSpec = partition.partitionSpec
-    val table = getTable(tableName)
+    val table = getPartitionedTable(tableName)
+    checkPartitionSpec(updatedPartSpec, table)
     val partitions = getPartitions(tableName, table)
     if (partitions.contains(updatedPartSpec)) {
       partitions.put(updatedPartSpec, partition)
@@ -218,7 +212,7 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
   override def getPartition(
     tableName: String,
     partSpec: JLinkedHashMap[String, String]): ExternalCatalogPartition = synchronized {
-    val table = getTable(tableName)
+    val table = getPartitionedTable(tableName)
     val partitions = getPartitions(tableName, table)
     partitions.get(partSpec) match {
       case Some(part) => part
@@ -231,13 +225,46 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
     * Gets the partition specification list of a table from external catalog
     *
     * @param tableName table name
-    * @throws TableNotExistException   if table does not exist in the catalog yet
+    * @throws TableNotExistException if table does not exist in the catalog yet
     * @return list of partition spec
     */
   override def listPartitions(tableName: String): JList[JLinkedHashMap[String, String]] =
     synchronized {
-    val table = getTable(tableName)
-    val partitions = getPartitions(tableName, table)
-    partitions.keys.toList.asJava
+      val table = getPartitionedTable(tableName)
+      val partitions = getPartitions(tableName, table)
+      partitions.keys.toList
+    }
+
+  private def getPartitionedTable(tableName: String): ExternalCatalogPartitionedTable =
+    getTable(tableName) match {
+      case t: ExternalCatalogPartitionedTable => t
+      case _ => throw new TableNotPartitionedException(name, tableName)
+    }
+
+  private def getPartitions(
+    tableName: String,
+    table: ExternalCatalogPartitionedTable):
+  mutable.HashMap[JLinkedHashMap[String, String], ExternalCatalogPartition] =
+    partitions.getOrElseUpdate(
+      tableName, new mutable.HashMap[JLinkedHashMap[String, String], ExternalCatalogPartition])
+
+  /**
+    * Checks whether partitionSpec contains same partition columns with table partition columns.
+    *
+    * @param partSpec partition specification
+    * @param table    external catalog table
+    */
+  private def checkPartitionSpec(
+    partSpec: JLinkedHashMap[String, String],
+    table: ExternalCatalogPartitionedTable): Unit = {
+    val partitionColumns = partSpec.keySet
+    val allPartitionColumns = table.getPartitionColumnNames
+    if (partitionColumns.size() != allPartitionColumns.size() ||
+      !partitionColumns.containsAll(allPartitionColumns)) {
+      throw new IllegalArgumentException(
+        s"Input partition specification has wrong partition columns, " +
+          s"which should be ${allPartitionColumns.mkString(",")}!")
+    }
   }
+
 }
