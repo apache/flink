@@ -35,6 +35,9 @@ under the License.
 	<modules>
 		<module>flink-examples-batch</module>
 		<module>flink-examples-streaming</module>
+		<module>flink-examples-streaming-kafka-base</module>
+		<module>flink-examples-streaming-kafka</module>
+		<module>flink-examples-streaming-kafka-0.10</module>
 		<module>flink-examples-table</module>
 	</modules>
 
