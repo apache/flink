@@ -64,6 +64,12 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-cep_2.11</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<!-- logging utilities -->
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -156,6 +162,7 @@ under the License.
 										<include>org/apache/calcite/**</include>
 										<include>org/apache/flink/calcite/shaded/**</include>
 										<include>org/apache/flink/table/**</include>
+										<include>org/apache/flink/cep/**</include>
 										<include>org.codehaus.commons.compiler.properties</include>
 										<include>org/codehaus/janino/**</include>
 										<include>org/codehaus/commons/**</include>
