@@ -155,12 +155,12 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 	}
 
 	public String[] getFieldNames() {
-		return schema.map(TableSchema::getColumnNames).orElse(fieldNames);
+		return schema.map(TableSchema::getFieldNames).orElse(fieldNames);
 	}
 
 	@Override
 	public TypeInformation<?>[] getFieldTypes() {
-		return schema.map(TableSchema::getTypes).orElse(fieldTypes);
+		return schema.map(TableSchema::getFieldTypes).orElse(fieldTypes);
 	}
 
 	@Override

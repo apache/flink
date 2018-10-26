@@ -90,7 +90,7 @@ abstract class CsvTableSinkFactoryBase extends TableFactory {
     val csvTableSink = new CsvTableSink(path, fieldDelimiter)
 
     csvTableSink
-      .configure(formatSchema.getColumnNames, formatSchema.getTypes)
+      .configure(formatSchema.getFieldNames, formatSchema.getFieldTypes)
       .asInstanceOf[CsvTableSink]
   }
 }

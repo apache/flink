@@ -249,7 +249,7 @@ public class CliChangelogResultView extends CliResultView<CliChangelogResultView
 		schemaHeader.append("+/-");
 		schemaHeader.style(AttributedStyle.DEFAULT);
 
-		Arrays.stream(resultDescriptor.getResultSchema().getColumnNames()).forEach(s -> {
+		Arrays.stream(resultDescriptor.getResultSchema().getFieldNames()).forEach(s -> {
 			schemaHeader.append(' ');
 			schemaHeader.style(AttributedStyle.DEFAULT.underline());
 			normalizeColumn(schemaHeader, s, MAX_COLUMN_WIDTH);

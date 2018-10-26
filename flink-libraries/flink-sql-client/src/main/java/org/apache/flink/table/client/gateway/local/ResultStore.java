@@ -61,7 +61,7 @@ public class ResultStore {
 	 */
 	public <T> DynamicResult<T> createResult(Environment env, TableSchema schema, ExecutionConfig config) {
 
-		final TypeInformation<Row> outputType = Types.ROW_NAMED(schema.getColumnNames(), schema.getTypes());
+		final TypeInformation<Row> outputType = Types.ROW_NAMED(schema.getFieldNames(), schema.getFieldTypes());
 
 		if (env.getExecution().isStreamingExecution()) {
 			// determine gateway address (and port if possible)

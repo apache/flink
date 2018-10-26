@@ -75,7 +75,7 @@ class InsertIntoValidationTest {
     tEnv.registerTable("sourceTable", t)
 
     val fieldNames = Array("d", "e", "f")
-    val fieldTypes = tEnv.scan("sourceTable").getSchema.getTypes
+    val fieldTypes = tEnv.scan("sourceTable").getSchema.getFieldTypes
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
     tEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
 

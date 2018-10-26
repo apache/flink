@@ -19,6 +19,8 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendParser;
@@ -35,6 +37,7 @@ import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
@@ -404,7 +407,7 @@ public class LocalExecutor implements Executor {
 		// initialize result
 		final DynamicResult<C> result = resultStore.createResult(
 			context.getMergedEnvironment(),
-			table.getSchema().withoutTimeAttributes(),
+			removeTimeAttributes(table.getSchema()),
 			envInst.getExecutionConfig());
 
 		// create job graph with dependencies
@@ -438,7 +441,7 @@ public class LocalExecutor implements Executor {
 
 		return new ResultDescriptor(
 			resultId,
-			table.getSchema().withoutTimeAttributes(),
+			removeTimeAttributes(table.getSchema()),
 			result.isMaterialized());
 	}
 
@@ -539,5 +542,20 @@ public class LocalExecutor implements Executor {
 		return CliFrontendParser.mergeOptions(
 			CliFrontendParser.getRunCommandOptions(),
 			customOptions);
+	}
+
+	private static TableSchema removeTimeAttributes(TableSchema schema) {
+		final TableSchema.Builder builder = TableSchema.builder();
+		for (int i = 0; i < schema.getFieldCount(); i++) {
+			final TypeInformation<?> type = schema.getFieldTypes()[i];
+			final TypeInformation<?> convertedType;
+			if (FlinkTypeFactory.isTimeIndicatorType(type)) {
+				convertedType = Types.SQL_TIMESTAMP;
+			} else {
+				convertedType = type;
+			}
+			builder.field(schema.getFieldNames()[i], convertedType);
+		}
+		return builder.build();
 	}
 }

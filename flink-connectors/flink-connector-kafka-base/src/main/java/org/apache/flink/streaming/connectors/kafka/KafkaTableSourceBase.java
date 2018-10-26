@@ -48,8 +48,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 
-import scala.Option;
-
 /**
  * A version-agnostic Kafka {@link StreamTableSource}.
  *
@@ -197,7 +195,7 @@ public abstract class KafkaTableSourceBase implements
 
 	@Override
 	public String explainSource() {
-		return TableConnectorUtil.generateRuntimeName(this.getClass(), schema.getColumnNames());
+		return TableConnectorUtil.generateRuntimeName(this.getClass(), schema.getFieldNames());
 	}
 
 	/**
@@ -295,8 +293,8 @@ public abstract class KafkaTableSourceBase implements
 	private Optional<String> validateProctimeAttribute(Optional<String> proctimeAttribute) {
 		return proctimeAttribute.map((attribute) -> {
 			// validate that field exists and is of correct type
-			Option<TypeInformation<?>> tpe = schema.getType(attribute);
-			if (tpe.isEmpty()) {
+			Optional<TypeInformation<?>> tpe = schema.getFieldType(attribute);
+			if (!tpe.isPresent()) {
 				throw new ValidationException("Processing time attribute '" + attribute + "' is not present in TableSchema.");
 			} else if (tpe.get() != Types.SQL_TIMESTAMP()) {
 				throw new ValidationException("Processing time attribute '" + attribute + "' is not of type SQL_TIMESTAMP.");
@@ -315,8 +313,8 @@ public abstract class KafkaTableSourceBase implements
 		// validate that all declared fields exist and are of correct type
 		for (RowtimeAttributeDescriptor desc : rowtimeAttributeDescriptors) {
 			String rowtimeAttribute = desc.getAttributeName();
-			Option<TypeInformation<?>> tpe = schema.getType(rowtimeAttribute);
-			if (tpe.isEmpty()) {
+			Optional<TypeInformation<?>> tpe = schema.getFieldType(rowtimeAttribute);
+			if (!tpe.isPresent()) {
 				throw new ValidationException("Rowtime attribute '" + rowtimeAttribute + "' is not present in TableSchema.");
 			} else if (tpe.get() != Types.SQL_TIMESTAMP()) {
 				throw new ValidationException("Rowtime attribute '" + rowtimeAttribute + "' is not of type SQL_TIMESTAMP.");

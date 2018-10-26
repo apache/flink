@@ -346,7 +346,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		final Map<String, String> fieldMapping = SchemaValidator.deriveFieldMapping(
 			descriptorProperties,
 			Optional.of(schema.toRowType())); // until FLINK-9870 is fixed we assume that the table schema is the output type
-		return fieldMapping.size() != schema.getColumnNames().length ||
+		return fieldMapping.size() != schema.getFieldNames().length ||
 			!fieldMapping.entrySet().stream().allMatch(mapping -> mapping.getKey().equals(mapping.getValue()));
 	}
 

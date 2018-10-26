@@ -163,10 +163,10 @@ class TemporalTableJoinTest extends TableTestBase {
       if (proctime) "proctime" else "rowtime",
       rates.getTimeAttribute.asInstanceOf[ResolvedFieldReference].name)
     assertArrayEquals(
-      expectedSchema.getColumnNames.asInstanceOf[Array[Object]],
+      expectedSchema.getFieldNames.asInstanceOf[Array[Object]],
       rates.getResultType.getFieldNames.asInstanceOf[Array[Object]])
     assertArrayEquals(
-      expectedSchema.getTypes.asInstanceOf[Array[Object]],
+      expectedSchema.getFieldTypes.asInstanceOf[Array[Object]],
       rates.getResultType.getFieldTypes.asInstanceOf[Array[Object]])
   }
 }

@@ -100,7 +100,7 @@ abstract class CsvTableSourceFactoryBase extends TableFactory {
     toScala(params.getOptionalString(FORMAT_LINE_DELIMITER))
       .foreach(csvTableSourceBuilder.lineDelimiter)
 
-    formatSchema.getColumnNames.zip(formatSchema.getTypes).foreach { case (name, tpe) =>
+    formatSchema.getFieldNames.zip(formatSchema.getFieldTypes).foreach { case (name, tpe) =>
       csvTableSourceBuilder.field(name, tpe)
     }
     toScala(params.getOptionalCharacter(FORMAT_QUOTE_CHARACTER))
