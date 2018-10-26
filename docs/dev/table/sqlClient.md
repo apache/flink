@@ -490,7 +490,7 @@ tables:
       WHERE MyField2 > 200
 {% endhighlight %}
 
-Similar to table sources and sinks, views defined in a session environment file have highest precendence.
+Similar to table sources and sinks, views defined in a session environment file have highest precedence.
 
 Views can also be created within a CLI session using the `CREATE VIEW` statement:
 

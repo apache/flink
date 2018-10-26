@@ -114,7 +114,7 @@ Each query to `Rates(timeAttribute)` would return the state of the `Rates` for t
 **Note**: Currently, Flink doesn't support directly querying the temporal table functions with a constant time attribute parameter. At the moment, temporal table functions can only be used in joins.
 The example above was used to provide an intuition about what the function `Rates(timeAttribute)` returns.
 
-See also the [joining page for continous queries](joins.html) for more information about how to join with a temporal table.
+See also the [joining page for continuous queries](joins.html) for more information about how to join with a temporal table.
 
 ### Defining Temporal Table Function
 

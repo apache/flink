@@ -77,7 +77,7 @@ The following configuration methods can be used:
     * Allows exactly-once processing for non-deterministic algorithms.
 6. _setFailureHandler([CassandraFailureHandler failureHandler])_
     * An __optional__ setting
-    * Sets the custom failur handler.
+    * Sets the custom failure handler.
 7. _build()_
     * Finalizes the configuration and constructs the CassandraSink instance.
 
