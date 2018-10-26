@@ -184,7 +184,7 @@ public class MultipartUploadResource extends ExternalResource {
 	public void assertUploadDirectoryIsEmpty() throws IOException {
 		Path actualUploadDir;
 		try (Stream<Path> containedFiles = Files.list(configuredUploadDir)) {
-			Collection<Path> files = containedFiles.collect(Collectors.toList());
+			List<Path> files = containedFiles.collect(Collectors.toList());
 			Preconditions.checkArgument(
 				1 == files.size(),
 				"Directory structure in rest upload directory has changed. Test must be adjusted");
