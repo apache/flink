@@ -32,7 +32,16 @@ class EitherSerializer[A, B](
     val rightSerializer: TypeSerializer[B])
   extends TypeSerializer[Either[A, B]] {
 
-  override def duplicate: EitherSerializer[A,B] = this
+  override def duplicate: EitherSerializer[A,B] = {
+    val leftDup = leftSerializer.duplicate()
+    val rightDup = rightSerializer.duplicate()
+
+    if (leftDup.eq(leftSerializer) && rightDup.eq(rightSerializer)) {
+      this
+    } else {
+      new EitherSerializer[A, B](leftDup, rightDup)
+    }
+  }
 
   override def createInstance: Either[A, B] = {
     Left(null).asInstanceOf[Left[A, B]]
