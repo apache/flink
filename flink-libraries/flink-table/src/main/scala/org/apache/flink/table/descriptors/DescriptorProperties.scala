@@ -1507,7 +1507,7 @@ object DescriptorProperties {
   }
 
   def normalizeTableSchema(schema: TableSchema): Seq[(String, String)] = {
-    schema.getColumnNames.zip(schema.getTypes).map { case (n, t) =>
+    schema.getFieldNames.zip(schema.getFieldTypes).map { case (n, t) =>
       (n, normalizeTypeInfo(t))
     }
   }

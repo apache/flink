@@ -195,12 +195,12 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 
 	@Override
 	public String[] getFieldNames() {
-		return schema.getColumnNames();
+		return schema.getFieldNames();
 	}
 
 	@Override
 	public TypeInformation<?>[] getFieldTypes() {
-		return schema.getTypes();
+		return schema.getFieldTypes();
 	}
 
 	@Override

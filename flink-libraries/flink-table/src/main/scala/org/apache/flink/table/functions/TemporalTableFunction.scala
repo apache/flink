@@ -74,7 +74,7 @@ object TemporalTableFunction {
       timeAttribute,
       primaryKey,
       new RowTypeInfo(
-        table.getSchema.getTypes,
-        table.getSchema.getColumnNames))
+        table.getSchema.getFieldTypes,
+        table.getSchema.getFieldNames))
   }
 }

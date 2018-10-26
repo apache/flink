@@ -97,18 +97,18 @@ public abstract class KafkaTableSourceBuilderTestBase {
 		// check table schema
 		TableSchema schema = source.getTableSchema();
 		assertNotNull(schema);
-		assertEquals(5, schema.getColumnNames().length);
+		assertEquals(5, schema.getFieldNames().length);
 		// check table fields
-		assertEquals("field1", schema.getColumnNames()[0]);
-		assertEquals("field2", schema.getColumnNames()[1]);
-		assertEquals("time1", schema.getColumnNames()[2]);
-		assertEquals("time2", schema.getColumnNames()[3]);
-		assertEquals("field3", schema.getColumnNames()[4]);
-		assertEquals(Types.LONG(), schema.getTypes()[0]);
-		assertEquals(Types.STRING(), schema.getTypes()[1]);
-		assertEquals(Types.SQL_TIMESTAMP(), schema.getTypes()[2]);
-		assertEquals(Types.SQL_TIMESTAMP(), schema.getTypes()[3]);
-		assertEquals(Types.DOUBLE(), schema.getTypes()[4]);
+		assertEquals("field1", schema.getFieldNames()[0]);
+		assertEquals("field2", schema.getFieldNames()[1]);
+		assertEquals("time1", schema.getFieldNames()[2]);
+		assertEquals("time2", schema.getFieldNames()[3]);
+		assertEquals("field3", schema.getFieldNames()[4]);
+		assertEquals(Types.LONG(), schema.getFieldTypes()[0]);
+		assertEquals(Types.STRING(), schema.getFieldTypes()[1]);
+		assertEquals(Types.SQL_TIMESTAMP(), schema.getFieldTypes()[2]);
+		assertEquals(Types.SQL_TIMESTAMP(), schema.getFieldTypes()[3]);
+		assertEquals(Types.DOUBLE(), schema.getFieldTypes()[4]);
 	}
 
 	@Test

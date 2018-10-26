@@ -97,19 +97,19 @@ public class ExecutionContextTest {
 
 		assertArrayEquals(
 			new String[]{"IntegerField1", "StringField1"},
-			sources.get("TableNumber1").getTableSchema().getColumnNames());
+			sources.get("TableNumber1").getTableSchema().getFieldNames());
 
 		assertArrayEquals(
 			new TypeInformation[]{Types.INT(), Types.STRING()},
-			sources.get("TableNumber1").getTableSchema().getTypes());
+			sources.get("TableNumber1").getTableSchema().getFieldTypes());
 
 		assertArrayEquals(
 			new String[]{"IntegerField2", "StringField2"},
-			sources.get("TableNumber2").getTableSchema().getColumnNames());
+			sources.get("TableNumber2").getTableSchema().getFieldNames());
 
 		assertArrayEquals(
 			new TypeInformation[]{Types.INT(), Types.STRING()},
-			sources.get("TableNumber2").getTableSchema().getTypes());
+			sources.get("TableNumber2").getTableSchema().getFieldTypes());
 
 		assertArrayEquals(
 			new String[]{"BooleanField", "StringField"},
@@ -146,7 +146,7 @@ public class ExecutionContextTest {
 
 		assertArrayEquals(
 			new String[]{"integerField", "stringField", "rowtimeField", "integerField0", "stringField0", "rowtimeField0"},
-			tableEnv.scan("TemporalTableUsage").getSchema().getColumnNames());
+			tableEnv.scan("TemporalTableUsage").getSchema().getFieldNames());
 	}
 
 	private <T> ExecutionContext<T> createExecutionContext(String file, Map<String, String> replaceVars) throws Exception {

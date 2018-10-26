@@ -828,13 +828,13 @@ abstract class TableEnvironment(val config: TableConfig) {
       case Some(s: TableSourceSinkTable[_, _]) if s.tableSinkTable.isDefined =>
         val tableSink = s.tableSinkTable.get.tableSink
         // validate schema of source table and table sink
-        val srcFieldTypes = table.getSchema.getTypes
+        val srcFieldTypes = table.getSchema.getFieldTypes
         val sinkFieldTypes = tableSink.getFieldTypes
 
         if (srcFieldTypes.length != sinkFieldTypes.length ||
           srcFieldTypes.zip(sinkFieldTypes).exists { case (srcF, snkF) => srcF != snkF }) {
 
-          val srcFieldNames = table.getSchema.getColumnNames
+          val srcFieldNames = table.getSchema.getFieldNames
           val sinkFieldNames = tableSink.getFieldNames
 
           // format table and table sink schema strings

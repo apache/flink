@@ -144,8 +144,8 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
 		}
 		final CliRowView view = new CliRowView(
 			client,
-			resultDescriptor.getResultSchema().getColumnNames(),
-			CliUtils.typesToString(resultDescriptor.getResultSchema().getTypes()),
+			resultDescriptor.getResultSchema().getFieldNames(),
+			CliUtils.typesToString(resultDescriptor.getResultSchema().getFieldTypes()),
 			getRow(results.get(selectedRow)));
 		view.open(); // enter view
 	}

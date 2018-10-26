@@ -124,7 +124,7 @@ public abstract class TestTableSourceFactoryBase implements StreamTableSourceFac
 
 		@Override
 		public TypeInformation<Row> getReturnType() {
-			return Types.ROW(schema.getColumnNames(), schema.getTypes());
+			return Types.ROW(schema.getFieldNames(), schema.getFieldTypes());
 		}
 
 		@Override

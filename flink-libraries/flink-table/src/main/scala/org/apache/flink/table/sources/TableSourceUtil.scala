@@ -59,8 +59,8 @@ object TableSourceUtil {
   def validateTableSource(tableSource: TableSource[_]): Unit = {
 
     val schema = tableSource.getTableSchema
-    val tableFieldNames = schema.getColumnNames
-    val tableFieldTypes = schema.getTypes
+    val tableFieldNames = schema.getFieldNames
+    val tableFieldTypes = schema.getFieldTypes
 
     // get rowtime and proctime attributes
     val rowtimeAttributes = getRowtimeAttributes(tableSource)
@@ -111,14 +111,14 @@ object TableSourceUtil {
         } else if (descriptors.size() == 1) {
           val descriptor = descriptors.get(0)
           val rowtimeAttribute = descriptor.getAttributeName
-          val rowtimeIdx = schema.getColumnNames.indexOf(rowtimeAttribute)
+          val rowtimeIdx = schema.getFieldNames.indexOf(rowtimeAttribute)
           // ensure that field exists
           if (rowtimeIdx < 0) {
             throw new ValidationException(s"Found a RowtimeAttributeDescriptor for field " +
               s"'$rowtimeAttribute' but field '$rowtimeAttribute' does not exist in table.")
           }
           // ensure that field is of type TIMESTAMP
-          if (schema.getTypes(rowtimeIdx) != Types.SQL_TIMESTAMP) {
+          if (schema.getFieldTypes()(rowtimeIdx) != Types.SQL_TIMESTAMP) {
             throw new ValidationException(s"Found a RowtimeAttributeDescriptor for field " +
               s"'$rowtimeAttribute' but field '$rowtimeAttribute' is not of type TIMESTAMP.")
           }
@@ -135,14 +135,14 @@ object TableSourceUtil {
     tableSource match {
       case p: DefinedProctimeAttribute if p.getProctimeAttribute != null =>
         val proctimeAttribute = p.getProctimeAttribute
-        val proctimeIdx = schema.getColumnNames.indexOf(proctimeAttribute)
+        val proctimeIdx = schema.getFieldNames.indexOf(proctimeAttribute)
         // ensure that field exists
         if (proctimeIdx < 0) {
           throw new ValidationException(s"Found a RowtimeAttributeDescriptor for field " +
             s"'$proctimeAttribute' but field '$proctimeAttribute' does not exist in table.")
         }
         // ensure that field is of type TIMESTAMP
-        if (schema.getTypes(proctimeIdx) != Types.SQL_TIMESTAMP) {
+        if (schema.getFieldTypes()(proctimeIdx) != Types.SQL_TIMESTAMP) {
           throw new ValidationException(s"Found a RowtimeAttributeDescriptor for field " +
             s"'$proctimeAttribute' but field '$proctimeAttribute' is not of type TIMESTAMP.")
         }
@@ -177,18 +177,18 @@ object TableSourceUtil {
 
     // get names of selected fields
     val tableFieldNames = if (selectedFields.isDefined) {
-      val names = tableSchema.getColumnNames
+      val names = tableSchema.getFieldNames
       selectedFields.get.map(names(_))
     } else {
-      tableSchema.getColumnNames
+      tableSchema.getFieldNames
     }
 
     // get types of selected fields
     val tableFieldTypes = if (selectedFields.isDefined) {
-      val types = tableSchema.getTypes
+      val types = tableSchema.getFieldTypes
       selectedFields.get.map(types(_))
     } else {
-      tableSchema.getTypes
+      tableSchema.getFieldTypes
     }
 
     // get rowtime and proctime attributes
@@ -255,8 +255,8 @@ object TableSourceUtil {
       streaming: Boolean,
       typeFactory: FlinkTypeFactory): RelDataType = {
 
-    val fieldNames = tableSource.getTableSchema.getColumnNames
-    var fieldTypes = tableSource.getTableSchema.getTypes
+    val fieldNames = tableSource.getTableSchema.getFieldNames
+    var fieldTypes = tableSource.getTableSchema.getFieldTypes
 
     if (streaming) {
       // adjust the type of time attributes for streaming tables
@@ -312,7 +312,7 @@ object TableSourceUtil {
           } else {
             val descriptor = descriptors.get(0)
             // look up index of row time attribute in schema
-            val fieldIdx = tableSource.getTableSchema.getColumnNames.indexOf(
+            val fieldIdx = tableSource.getTableSchema.getFieldNames.indexOf(
               descriptor.getAttributeName)
             // is field among selected fields?
             if (selectedFields.get.contains(fieldIdx)) {

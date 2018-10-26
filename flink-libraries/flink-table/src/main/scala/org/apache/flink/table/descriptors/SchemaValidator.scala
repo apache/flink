@@ -190,7 +190,7 @@ object SchemaValidator {
 
     val schema = properties.getTableSchema(SCHEMA)
 
-    schema.getColumnNames.zip(schema.getTypes).zipWithIndex.foreach { case ((n, t), i) =>
+    schema.getFieldNames.zip(schema.getFieldTypes).zipWithIndex.foreach { case ((n, t), i) =>
       val isProctime = properties
         .getOptionalBoolean(s"$SCHEMA.$i.$SCHEMA_PROCTIME")
         .orElse(false)
@@ -247,7 +247,7 @@ object SchemaValidator {
     columnNames.foreach(name => mapping.put(name, name))
 
     // add all schema fields first for implicit mappings
-    schema.getColumnNames.foreach { name =>
+    schema.getFieldNames.foreach { name =>
       mapping.put(name, name)
     }
 
@@ -292,7 +292,7 @@ object SchemaValidator {
 
     val schema = properties.getTableSchema(SCHEMA)
 
-    schema.getColumnNames.zip(schema.getTypes).zipWithIndex.foreach { case ((n, t), i) =>
+    schema.getFieldNames.zip(schema.getFieldTypes).zipWithIndex.foreach { case ((n, t), i) =>
       val isProctime = properties
         .getOptionalBoolean(s"$SCHEMA.$i.$SCHEMA_PROCTIME")
         .orElse(false)
