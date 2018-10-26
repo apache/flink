@@ -29,6 +29,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
@@ -39,7 +40,6 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
-import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.clock.Clock;
@@ -63,7 +63,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -127,7 +126,7 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 
 	private String jobManagerAddress;
 
-	private MainThreadExecutable jmMainThreadScheduledExecutor;
+	private ScheduledExecutor jmMainThreadScheduledExecutor;
 
 	// ------------------------------------------------------------------------
 
@@ -177,7 +176,7 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 	public void start(
 		@Nonnull JobMasterId jobMasterId,
 		@Nonnull String newJobManagerAddress,
-		@Nonnull MainThreadExecutable jmMainThreadScheduledExecutor) throws Exception {
+		@Nonnull ScheduledExecutor jmMainThreadScheduledExecutor) throws Exception {
 
 		this.jobMasterId = jobMasterId;
 		this.jobManagerAddress = newJobManagerAddress;
@@ -827,7 +826,7 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 	 * @param runnable Runnable to be executed in the main thread of the underlying RPC endpoint
 	 */
 	protected void runAsync(Runnable runnable) {
-		jmMainThreadScheduledExecutor.runAsync(runnable);
+		jmMainThreadScheduledExecutor.execute(runnable);
 	}
 
 	/**
@@ -849,22 +848,24 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 	 * @param delay    The delay after which the runnable will be executed
 	 */
 	protected void scheduleRunAsync(Runnable runnable, long delay, TimeUnit unit) {
-		jmMainThreadScheduledExecutor.scheduleRunAsync(runnable, unit.toMillis(delay));
+		jmMainThreadScheduledExecutor.schedule(runnable, delay, unit);
 	}
 
-	/**
-	 * Execute the callable in the main thread of the underlying RPC service, returning a future for
-	 * the result of the callable. If the callable is not completed within the given timeout, then
-	 * the future will be failed with a {@link TimeoutException}.
-	 *
-	 * @param callable Callable to be executed in the main thread of the underlying rpc server
-	 * @param timeout Timeout for the callable to be completed
-	 * @param <V> Return type of the callable
-	 * @return Future for the result of the callable.
-	 */
-	protected <V> CompletableFuture<V> callAsync(Callable<V> callable, Time timeout) {
-		return jmMainThreadScheduledExecutor.callAsync(callable, timeout);
-	}
+//	/**
+//	 * Execute the callable in the main thread of the underlying RPC service, returning a future for
+//	 * the result of the callable. If the callable is not completed within the given timeout, then
+//	 * the future will be failed with a {@link TimeoutException}.
+//	 *
+//	 * @param callable Callable to be executed in the main thread of the underlying rpc server
+//	 * @param timeout Timeout for the callable to be completed
+//	 * @param <V> Return type of the callable
+//	 * @return Future for the result of the callable.
+//	 */
+//	protected <V> CompletableFuture<V> callAsync(Callable<V> callable, Time timeout) {
+//		CompletableFuture<V> resultFuture = new CompletableFuture<>();
+//		jmMainThreadScheduledExecutor.schedule(() -> resultFuture.complete(callable.call()), 0L, TimeUnit.MILLISECONDS);
+//		return resultFuture;
+//	}
 
 	@Override
 	public void close() {

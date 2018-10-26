@@ -19,14 +19,20 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.ScheduledFutureAdapter;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -313,7 +319,7 @@ public abstract class RpcEndpoint implements RpcGateway {
 	/**
 	 * Executor which executes runnables in the main thread context.
 	 */
-	protected static class MainThreadExecutor implements MainThreadExecutable {
+	protected static class MainThreadExecutor implements ScheduledExecutor {
 
 		private final MainThreadExecutable gateway;
 
@@ -321,19 +327,43 @@ public abstract class RpcEndpoint implements RpcGateway {
 			this.gateway = Preconditions.checkNotNull(gateway);
 		}
 
-		@Override
 		public void runAsync(Runnable runnable) {
 			gateway.runAsync(runnable);
 		}
 
-		@Override
 		public <V> CompletableFuture<V> callAsync(Callable<V> callable, Time callTimeout) {
 			return gateway.callAsync(callable, callTimeout);
 		}
 
-		@Override
 		public void scheduleRunAsync(Runnable runnable, long delay) {
 			gateway.scheduleRunAsync(runnable, delay);
+		}
+
+		public void execute(@Nonnull Runnable command) {
+			runAsync(command);
+		}
+
+		@Override
+		public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+			FutureTask<Void> ft = new FutureTask<>(command, null);
+			scheduleRunAsync(ft, TimeUnit.MILLISECONDS.convert(delay, unit));
+			return new ScheduledFutureAdapter<>(ft, delay, unit);
+		}
+
+		@Override
+		public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
+			CompletableFuture<V> cf = callAsync(callable, Time.of(delay, unit));
+			return new ScheduledFutureAdapter<>(cf, delay, unit);
+		}
+
+		@Override
+		public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
+			throw new UnsupportedOperationException("Not implemented because the method is currently not required.");
+		}
+
+		@Override
+		public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit) {
+			throw new UnsupportedOperationException("Not implemented because the method is currently not required.");
 		}
 	}
 }
