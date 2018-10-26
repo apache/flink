@@ -188,7 +188,7 @@ public class MultipartUploadResource extends ExternalResource {
 			Preconditions.checkArgument(
 				1 == containedFiles.count(),
 				"Directory structure in rest upload directory has changed. Test must be adjusted");
-		    actualUploadDir = containedFiles.findAny();
+			actualUploadDir = containedFiles.findAny();
 		}
 		Preconditions.checkArgument(
 			actualUploadDir.isPresent(),
