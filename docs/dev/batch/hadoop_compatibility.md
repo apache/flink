@@ -75,7 +75,7 @@ if you only want to use your Hadoop data types. See the
 
 To use Hadoop `InputFormats` with Flink the format must first be wrapped
 using either `readHadoopFile` or `createHadoopInput` of the
-`HadoopInputs` utilty class. 
+`HadoopInputs` utility class.
 The former is used for input formats derived
 from `FileInputFormat` while the latter has to be used for general purpose
 input formats.
