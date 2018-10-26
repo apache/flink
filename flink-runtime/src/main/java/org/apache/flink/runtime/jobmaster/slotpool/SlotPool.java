@@ -397,7 +397,7 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 	}
 
 	@Override
-	public Optional<AllocatedSlot> allocateAvailableSlot(
+	public Optional<AllocatedSlotContext> allocateAvailableSlot(
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull AllocationID allocationID) {
 		AllocatedSlot allocatedSlot = availableSlots.tryRemove(allocationID);
@@ -411,7 +411,7 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 
 	@Nonnull
 	@Override
-	public CompletableFuture<AllocatedSlot> requestNewAllocatedSlot(
+	public CompletableFuture<AllocatedSlotContext> requestNewAllocatedSlot(
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull ResourceProfile resourceProfile,
 		Time timeout) {
@@ -1129,7 +1129,7 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 				});
 
 			if (matchingSlotAndLocality != null) {
-				AllocatedSlot slot = matchingSlotAndLocality.getSlot();
+				AllocatedSlotContext slot = matchingSlotAndLocality.getSlot();
 				remove(slot.getAllocationId());
 			}
 

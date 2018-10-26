@@ -111,7 +111,7 @@ public class SingleLogicalSlotTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the {@link AllocatedSlot.Payload#release(Throwable)} does not wait
+	 * Tests that the {@link AllocatedSlotContext.Payload#release(Throwable)} does not wait
 	 * for the payload to reach a terminal state.
 	 */
 	@Test

@@ -319,7 +319,7 @@ public class SlotSharingManager {
 	/**
 	 * {@link TaskSlot} implementation which can have multiple other task slots assigned as children.
 	 */
-	public final class MultiTaskSlot extends TaskSlot implements AllocatedSlot.Payload {
+	public final class MultiTaskSlot extends TaskSlot implements AllocatedSlotContext.Payload {
 
 		private final Map<AbstractID, TaskSlot> children;
 

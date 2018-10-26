@@ -151,7 +151,7 @@ public interface SlotPoolGateway extends AllocatedSlotActions {
 	 * @param allocationID the allocation id of the requested available slot
 	 * @return the previously available slot with the given allocation id or {@code null} if no such slot existed.
 	 */
-	Optional<AllocatedSlot> allocateAvailableSlot(
+	Optional<AllocatedSlotContext> allocateAvailableSlot(
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull AllocationID allocationID);
 
@@ -166,7 +166,7 @@ public interface SlotPoolGateway extends AllocatedSlotActions {
 	 * @return a newly allocated slot that was previously not available.
 	 */
 	@Nonnull
-	CompletableFuture<AllocatedSlot> requestNewAllocatedSlot(
+	CompletableFuture<AllocatedSlotContext> requestNewAllocatedSlot(
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull ResourceProfile resourceProfile,
 		@RpcTimeout Time timeout);

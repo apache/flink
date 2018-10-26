@@ -173,7 +173,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 			// we allocate by requesting a new slot
 			return slotPoolGateway
 				.requestNewAllocatedSlot(slotRequestId, slotProfile.getResourceProfile(), allocationTimeout)
-				.thenApply((AllocatedSlot allocatedSlot) ->
+				.thenApply((AllocatedSlotContext allocatedSlot) ->
 				{
 					try {
 						return completeAllocationByAssigningPayload(slotRequestId, new SlotAndLocality(allocatedSlot, Locality.UNKNOWN));
@@ -193,7 +193,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull SlotAndLocality slotAndLocality) throws FlinkException {
 
-		final AllocatedSlot allocatedSlot = slotAndLocality.getSlot();
+		final AllocatedSlotContext allocatedSlot = slotAndLocality.getSlot();
 
 		final SingleLogicalSlot singleTaskSlot = new SingleLogicalSlot(
 			slotRequestId,
@@ -226,7 +226,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 			SlotSelectionStrategy.SlotInfoAndLocality slotInfoAndLocality = selectedAvailableSlot.get();
 			SlotInfo selectedSlotInfo = slotInfoAndLocality.getSlotInfo();
 
-			Optional<AllocatedSlot> allocatedSlot =
+			Optional<AllocatedSlotContext> allocatedSlot =
 				slotPoolGateway.allocateAvailableSlot(slotRequestId, selectedSlotInfo.getAllocationId());
 
 			if (allocatedSlot.isPresent()) {
@@ -426,7 +426,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 			SlotAndLocality poolSlotAndLocality = optionalPoolSlotAndLocality.get();
 			if (poolSlotAndLocality.getLocality() == Locality.LOCAL || bestResolvedRootSlotWithLocality == null) {
 
-				final AllocatedSlot allocatedSlot = poolSlotAndLocality.getSlot();
+				final AllocatedSlotContext allocatedSlot = poolSlotAndLocality.getSlot();
 				final SlotSharingManager.MultiTaskSlot multiTaskSlot = slotSharingManager.createRootSlot(
 					multiTaskSlotRequestId,
 					CompletableFuture.completedFuture(poolSlotAndLocality.getSlot()),
@@ -457,7 +457,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 
 			if (multiTaskSlot == null) {
 				// it seems as if we have to request a new slot from the resource manager, this is always the last resort!!!
-				final CompletableFuture<AllocatedSlot> slotAllocationFuture = slotPoolGateway.requestNewAllocatedSlot(
+				final CompletableFuture<AllocatedSlotContext> slotAllocationFuture = slotPoolGateway.requestNewAllocatedSlot(
 					allocatedSlotRequestId,
 					slotProfile.getResourceProfile(),
 					allocationTimeout);
@@ -468,7 +468,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 					allocatedSlotRequestId);
 
 				slotAllocationFuture.whenCompleteAsync(
-					(AllocatedSlot allocatedSlot, Throwable throwable) -> {
+					(AllocatedSlotContext allocatedSlot, Throwable throwable) -> {
 						final SlotSharingManager.TaskSlot taskSlot = slotSharingManager.getTaskSlot(multiTaskSlotRequestId);
 
 						if (taskSlot != null) {

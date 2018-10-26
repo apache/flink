@@ -23,7 +23,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -42,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * an AllocatedSlot was allocated to the JobManager as soon as the TaskManager registered at the
  * JobManager. All slots had a default unknown resource profile. 
  */
-class AllocatedSlot implements SlotContext {
+class AllocatedSlot implements AllocatedSlotContext {
 
 	/** The ID under which the slot is allocated. Uniquely identifies the slot. */
 	private final AllocationID allocationId;
@@ -87,11 +86,6 @@ class AllocatedSlot implements SlotContext {
 		return new SlotID(getTaskManagerId(), physicalSlotNumber);
 	}
 
-	/**
-	 * Gets the ID under which the slot is allocated, which uniquely identifies the slot.
-	 * 
-	 * @return The ID under which the slot is allocated
-	 */
 	@Override
 	public AllocationID getAllocationId() {
 		return allocationId;
@@ -160,13 +154,7 @@ class AllocatedSlot implements SlotContext {
 		return payloadReference.get() != null;
 	}
 
-	/**
-	 * Tries to assign the given payload to this allocated slot. This only works if there has not
-	 * been another payload assigned to this slot.
-	 *
-	 * @param payload to assign to this slot
-	 * @return true if the payload could be assigned, otherwise false
-	 */
+	@Override
 	public boolean tryAssignPayload(Payload payload) {
 		return payloadReference.compareAndSet(null, payload);
 	}
@@ -213,16 +201,4 @@ class AllocatedSlot implements SlotContext {
 	// Interfaces
 	// -----------------------------------------------------------------------
 
-	/**
-	 * Payload which can be assigned to an {@link AllocatedSlot}.
-	 */
-	interface Payload {
-
-		/**
-		 * Releases the payload
-		 *
-		 * @param cause of the payload release
-		 */
-		void release(Throwable cause);
-	}
 }
