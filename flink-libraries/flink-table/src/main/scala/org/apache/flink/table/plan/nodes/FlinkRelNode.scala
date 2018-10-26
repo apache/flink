@@ -103,6 +103,6 @@ trait FlinkRelNode extends RelNode {
       // 16 is an arbitrary estimate
       (estimateDataTypeSize(t.getKeyType) + estimateDataTypeSize(t.getValueType)) * 16
     case SqlTypeName.ANY => 128 // 128 is an arbitrary estimate
-    case _ => throw TableException(s"Unsupported data type encountered: $t")
+    case _ => throw new TableException(s"Unsupported data type encountered: $t")
   }
 }

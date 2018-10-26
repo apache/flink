@@ -138,7 +138,7 @@ object ExpressionUtils {
         if (array.length > 0 && array.head.isInstanceOf[Array[_]]) {
           ArrayConstructor(array.map { na => convertArray(na.asInstanceOf[Array[_]]) })
         } else {
-          throw ValidationException("Unsupported array type.")
+          throw new ValidationException("Unsupported array type.")
         }
     }
   }

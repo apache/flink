@@ -115,7 +115,7 @@ class CsvTableSource private (
   }
 
   if (fieldNames.length != fieldTypes.length) {
-    throw TableException("Number of field names and field types must be equal.")
+    throw new TableException("Number of field names and field types must be equal.")
   }
 
   private val selectedFieldTypes = selectedFields.map(fieldTypes(_))

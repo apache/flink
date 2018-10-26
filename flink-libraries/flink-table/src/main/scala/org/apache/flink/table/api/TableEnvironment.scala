@@ -356,7 +356,7 @@ abstract class TableEnvironment(val config: TableConfig) {
         throw new TableException(
           s"Cannot generate a valid execution plan for the given query: \n\n" +
             s"${RelOptUtil.toString(input)}\n" +
-            s"${t.msg}\n" +
+            s"${t.getMessage}\n" +
             s"Please check the documentation for the set of currently supported SQL features.")
       case a: AssertionError =>
         // keep original exception stack for caller
@@ -817,13 +817,13 @@ abstract class TableEnvironment(val config: TableConfig) {
   private[flink] def insertInto(table: Table, sinkTableName: String, conf: QueryConfig): Unit = {
 
     // check that sink table exists
-    if (null == sinkTableName) throw TableException("Name of TableSink must not be null.")
-    if (sinkTableName.isEmpty) throw TableException("Name of TableSink must not be empty.")
+    if (null == sinkTableName) throw new TableException("Name of TableSink must not be null.")
+    if (sinkTableName.isEmpty) throw new TableException("Name of TableSink must not be empty.")
 
     getTable(sinkTableName) match {
 
       case None =>
-        throw TableException(s"No table was registered under the name $sinkTableName.")
+        throw new TableException(s"No table was registered under the name $sinkTableName.")
 
       case Some(s: TableSourceSinkTable[_, _]) if s.tableSinkTable.isDefined =>
         val tableSink = s.tableSinkTable.get.tableSink
@@ -845,7 +845,7 @@ abstract class TableEnvironment(val config: TableConfig) {
             .map { case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}" }
             .mkString("[", ", ", "]")
 
-          throw ValidationException(
+          throw new ValidationException(
             s"Field types of query result and registered TableSink " +
               s"$sinkTableName do not match.\n" +
               s"Query result schema: $srcSchema\n" +
@@ -855,7 +855,7 @@ abstract class TableEnvironment(val config: TableConfig) {
         writeToSink(table, tableSink, conf)
 
       case Some(_) =>
-        throw TableException(s"The table registered as $sinkTableName is not a TableSink. " +
+        throw new TableException(s"The table registered as $sinkTableName is not a TableSink. " +
           s"You can only emit query results to a registered TableSink.")
     }
   }
@@ -1119,7 +1119,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     // validate that at least the field types of physical and logical type match
     // we do that here to make sure that plan translation was correct
     if (schema.typeInfo != inputTypeInfo) {
-      throw TableException(
+      throw new TableException(
         s"The field types of physical and logical row types do not match. " +
         s"Physical type is [${schema.typeInfo}], Logical type is [$inputTypeInfo]. " +
         s"This is a bug and should not happen. Please file an issue.")
@@ -1350,7 +1350,8 @@ object TableEnvironment {
     if ((clazz.isMemberClass && !Modifier.isStatic(clazz.getModifiers)) ||
       !Modifier.isPublic(clazz.getModifiers) ||
       clazz.getCanonicalName == null) {
-      throw TableException(s"Class '$clazz' described in type information '$typeInfo' must be " +
+      throw new TableException(
+        s"Class '$clazz' described in type information '$typeInfo' must be " +
         s"static and globally accessible.")
     }
   }
