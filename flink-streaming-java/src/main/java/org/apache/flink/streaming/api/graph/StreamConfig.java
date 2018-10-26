@@ -233,7 +233,7 @@ public class StreamConfig implements Serializable {
 							"\nClass was actually found in classloader - deserialization issue." :
 							"\nClass not resolvable through given classloader.");
 
-			throw new StreamTaskException(exceptionMessage);
+			throw new StreamTaskException(exceptionMessage, e);
 		}
 		catch (Exception e) {
 			throw new StreamTaskException("Cannot instantiate user function.", e);
