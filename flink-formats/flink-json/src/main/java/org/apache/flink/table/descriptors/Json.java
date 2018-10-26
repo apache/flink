@@ -19,7 +19,7 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.typeutils.TypeStringUtils;
+import org.apache.flink.table.utils.TypeStringUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 

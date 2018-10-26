@@ -22,7 +22,7 @@ import java.io.Serializable
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Short => JShort}
 import java.math.{BigDecimal => JBigDecimal}
 import java.util
-import java.util.function.{BiConsumer, Consumer, Supplier, Function}
+import java.util.function.{BiConsumer, Consumer, Function, Supplier}
 import java.util.regex.Pattern
 import java.util.{Optional, List => JList, Map => JMap}
 
@@ -34,9 +34,9 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.MemorySize
 import org.apache.flink.table.api.{TableException, TableSchema, ValidationException}
 import org.apache.flink.table.descriptors.DescriptorProperties.{NAME, TYPE, normalizeTableSchema, toJava}
-import org.apache.flink.table.typeutils.TypeStringUtils
-import org.apache.flink.util.{InstantiationUtil, Preconditions}
+import org.apache.flink.table.utils.TypeStringUtils
 import org.apache.flink.util.Preconditions.checkNotNull
+import org.apache.flink.util.{InstantiationUtil, Preconditions}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable

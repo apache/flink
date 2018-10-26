@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, TypeExtractor}
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.runtime.utils.CommonTestData.{NonPojo, Person}
+import org.apache.flink.table.utils.TypeStringUtils
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 
@@ -103,13 +104,18 @@ class TypeStringUtilsTest {
 
     // test escaping
     assertTrue(
-      TypeStringUtils.readTypeInfo("ROW<\"he         \\nllo\" DECIMAL, world TINYINT>")
+      TypeStringUtils.readTypeInfo("ROW<`he         \nllo` DECIMAL, world TINYINT>")
         .asInstanceOf[RowTypeInfo].getFieldNames
         .sameElements(Array[String]("he         \nllo", "world")))
 
+    assertTrue(
+      TypeStringUtils.readTypeInfo("ROW<`he``llo` DECIMAL, world TINYINT>")
+        .asInstanceOf[RowTypeInfo].getFieldNames
+        .sameElements(Array[String]("he`llo", "world")))
+
     // test backward compatibility with brackets ()
     assertTrue(
-      TypeStringUtils.readTypeInfo("ROW(\"he         \\nllo\" DECIMAL, world TINYINT)")
+      TypeStringUtils.readTypeInfo("ROW(`he         \nllo` DECIMAL, world TINYINT)")
         .asInstanceOf[RowTypeInfo].getFieldNames
         .sameElements(Array[String]("he         \nllo", "world")))
   }
