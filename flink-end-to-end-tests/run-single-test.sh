@@ -47,6 +47,10 @@ FLINK_DIR="`( cd \"$FLINK_DIR\" && pwd -P )`" # absolutized and normalized
 echo "flink-end-to-end-test directory: $END_TO_END_DIR"
 echo "Flink distribution directory: $FLINK_DIR"
 
-run_test "$*" "$*"
+if [[ "$1" = "skip" ]]; then
+    run_test "${*:2}" "${*:2}" "skip_check_exceptions"
+else
+    run_test "$*" "$*"
+fi
 
 exit 0
