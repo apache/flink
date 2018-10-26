@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.concurrent;
 
-import com.google.common.primitives.Longs;
-
 import javax.annotation.Nonnull;
 
 import java.util.concurrent.Delayed;
@@ -30,8 +28,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- *
- * @param <V>
+ * Adapter from {@link Future} to {@link ScheduledFuture}.
+ * @param <V> value type of the future.
  */
 public class ScheduledFutureAdapter<V> implements ScheduledFuture<V> {
 
@@ -59,7 +57,7 @@ public class ScheduledFutureAdapter<V> implements ScheduledFuture<V> {
 
 	@Override
 	public int compareTo(@Nonnull Delayed o) {
-		return Longs.compare(delay, o.getDelay(timeUnit));
+		return Long.compare(delay, o.getDelay(timeUnit));
 	}
 
 	@Override
