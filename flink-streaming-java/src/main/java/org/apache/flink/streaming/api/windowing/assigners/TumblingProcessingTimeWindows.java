@@ -50,7 +50,7 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 
 	private TumblingProcessingTimeWindows(long size, long offset) {
 		if (size <= 0 || Math.abs(offset) >= size) {
-			throw new IllegalArgumentException("TumblingEventTimeWindows parameters must satisfy 0 <= abs(offset) < size");
+			throw new IllegalArgumentException("TumblingProcessingTimeWindows parameters must satisfy 0 <= abs(offset) < size");
 		}
 
 		this.size = size;
