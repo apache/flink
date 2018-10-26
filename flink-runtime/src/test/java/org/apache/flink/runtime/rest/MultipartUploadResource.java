@@ -67,6 +67,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
 import static org.junit.Assert.assertArrayEquals;
@@ -182,14 +183,19 @@ public class MultipartUploadResource extends ExternalResource {
 	}
 
 	public void assertUploadDirectoryIsEmpty() throws IOException {
-		Preconditions.checkArgument(
-			1 == Files.list(configuredUploadDir).count(),
-			"Directory structure in rest upload directory has changed. Test must be adjusted");
-		Optional<Path> actualUploadDir = Files.list(configuredUploadDir).findAny();
+		Optional<Path> actualUploadDir;
+		try (Stream<Path> containedFiles = Files.list(configuredUploadDir)) {
+			Preconditions.checkArgument(
+				1 == containedFiles.count(),
+				"Directory structure in rest upload directory has changed. Test must be adjusted");
+		    actualUploadDir = containedFiles.findAny();
+		}
 		Preconditions.checkArgument(
 			actualUploadDir.isPresent(),
 			"Expected upload directory does not exist.");
-		assertEquals("Not all files were cleaned up.", 0, Files.list(actualUploadDir.get()).count());
+		try (Stream<Path> containedFiles = Files.list(actualUploadDir.get())) {
+			assertEquals("Not all files were cleaned up.", 0, containedFiles.count());
+		}
 	}
 
 	/**

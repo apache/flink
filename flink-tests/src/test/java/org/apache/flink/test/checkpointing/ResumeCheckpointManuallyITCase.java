@@ -54,6 +54,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.assertNotNull;
 
@@ -326,16 +327,20 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 	}
 
 	private static Optional<Path> findExternalizedCheckpoint(File checkpointDir, JobID jobId) throws IOException {
-		return Files.list(checkpointDir.toPath().resolve(jobId.toString()))
-			.filter(path -> path.getFileName().toString().startsWith("chk-"))
-			.filter(path -> {
-				try {
-					return Files.list(path).anyMatch(child -> child.getFileName().toString().contains("meta"));
-				} catch (IOException ignored) {
-					return false;
-				}
-			})
-			.findAny();
+		try (Stream<Path> checkpoints = Files.list(checkpointDir.toPath().resolve(jobId.toString()))) {
+			return checkpoints
+				.filter(path -> path.getFileName().toString().startsWith("chk-"))
+				.filter(path -> {
+					try {
+						try (Stream<Path> checkpointFiles = Files.list(path)) {
+							return checkpointFiles.anyMatch(child -> child.getFileName().toString().contains("meta"));
+						}
+					} catch (IOException ignored) {
+						return false;
+					}
+				})
+				.findAny();
+		}
 	}
 
 	private static void waitUntilCanceled(JobID jobId, ClusterClient<?> client) throws ExecutionException, InterruptedException {
