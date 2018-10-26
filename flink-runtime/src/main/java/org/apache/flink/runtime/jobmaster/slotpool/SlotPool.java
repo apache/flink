@@ -851,22 +851,6 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 		jmMainThreadScheduledExecutor.schedule(runnable, delay, unit);
 	}
 
-//	/**
-//	 * Execute the callable in the main thread of the underlying RPC service, returning a future for
-//	 * the result of the callable. If the callable is not completed within the given timeout, then
-//	 * the future will be failed with a {@link TimeoutException}.
-//	 *
-//	 * @param callable Callable to be executed in the main thread of the underlying rpc server
-//	 * @param timeout Timeout for the callable to be completed
-//	 * @param <V> Return type of the callable
-//	 * @return Future for the result of the callable.
-//	 */
-//	protected <V> CompletableFuture<V> callAsync(Callable<V> callable, Time timeout) {
-//		CompletableFuture<V> resultFuture = new CompletableFuture<>();
-//		jmMainThreadScheduledExecutor.schedule(() -> resultFuture.complete(callable.call()), 0L, TimeUnit.MILLISECONDS);
-//		return resultFuture;
-//	}
-
 	@Override
 	public void close() {
 		log.info("Stopping SlotPool.");

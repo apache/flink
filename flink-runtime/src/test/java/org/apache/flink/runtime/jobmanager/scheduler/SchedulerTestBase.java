@@ -81,7 +81,6 @@ public class SchedulerTestBase extends TestLogger {
 
 		testingSlotProvider = new TestingSlotPoolSlotProvider(slotPool, testingScheduler);
 
-
 		final JobMasterId jobMasterId = JobMasterId.generate();
 		final String jobManagerAddress = "localhost";
 		ScheduledExecutor executor = new ScheduledExecutorServiceAdapter(Executors.newSingleThreadScheduledExecutor());

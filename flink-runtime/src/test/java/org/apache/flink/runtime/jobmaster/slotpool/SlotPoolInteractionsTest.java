@@ -56,6 +56,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.jobmaster.slotpool.AvailableSlotsTest.DEFAULT_TESTING_PROFILE;
 import static org.junit.Assert.assertEquals;
@@ -68,6 +69,8 @@ import static org.junit.Assert.fail;
 public class SlotPoolInteractionsTest extends TestLogger {
 
 	private static final Time fastTimeout = Time.milliseconds(1L);
+
+	private final ScheduledExecutor testMainThreadExecutor = new ScheduledExecutorServiceAdapter(Executors.newSingleThreadScheduledExecutor());
 
 	// ------------------------------------------------------------------------
 	//  tests
@@ -83,7 +86,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime()
 		)) {
-			ScheduledExecutor testMainThreadExecutor = createTestExecutor();
+
 			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor);
 			Scheduler scheduler = new Scheduler(new HashMap<>(), LocationPreferenceSlotSelection.INSTANCE, pool);
 			scheduler.start(testMainThreadExecutor);
@@ -114,7 +117,6 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime())) {
 
-			ScheduledExecutor testMainThreadExecutor = createTestExecutor();
 			final CompletableFuture<SlotRequestId> timeoutFuture = new CompletableFuture<>();
 			pool.setTimeoutPendingSlotRequestConsumer(timeoutFuture::complete);
 			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor);
@@ -156,7 +158,6 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime())) {
 
-			ScheduledExecutor testMainThreadExecutor = createTestExecutor();
 			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor);
 
 			final CompletableFuture<SlotRequestId> slotRequestTimeoutFuture = new CompletableFuture<>();
@@ -202,8 +203,6 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			SystemClock.getInstance(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime())) {
-
-			ScheduledExecutor testMainThreadExecutor = createTestExecutor();
 
 			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor);
 
@@ -271,14 +270,11 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime())) {
 
-			ScheduledExecutor testMainThreadExecutor = new ScheduledExecutorServiceAdapter(Executors.newSingleThreadScheduledExecutor());
-
 			final CompletableFuture<SlotRequestId> releaseSlotFuture = new CompletableFuture<>();
 
-			pool.setReleaseSlotConsumer(
-				releaseSlotFuture::complete);
+			pool.setReleaseSlotConsumer(releaseSlotFuture::complete);
 
-			pool.start(JobMasterId.generate(), "foobar", createTestExecutor());
+			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor);
 			ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 			pool.connectToResourceManager(resourceManagerGateway);
 
@@ -291,7 +287,6 @@ public class SlotPoolInteractionsTest extends TestLogger {
 				true,
 				SlotProfile.noRequirements(),
 				fastTimeout);
-
 			try {
 				future.get();
 				fail("We expected a TimeoutException.");
@@ -379,7 +374,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 		}
 	}
 
-	private static ScheduledExecutor createTestExecutor() {
-		return new ScheduledExecutorServiceAdapter(Executors.newSingleThreadScheduledExecutor());
+	private <V> V executeInMainThreadAndJoin(Supplier<V> supplier) throws Exception {
+		return CompletableFuture.supplyAsync(supplier, testMainThreadExecutor).get();
 	}
 }
