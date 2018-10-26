@@ -26,24 +26,16 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Collections;
-import java.util.Random;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.areAllDistinct;
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getRandomInstance;
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getTestVertex;
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getTestVertexWithLocation;
-import static org.apache.flink.runtime.testutils.CommonTestUtils.sleepUninterruptibly;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -819,175 +811,6 @@ public class SchedulerSlotSharingTest extends SchedulerTestBase {
 		}
 	}
 
-	@Ignore
-	@Test
-	public void testConcurrentAllocateAndRelease() {
-		final ExecutorService executor = Executors.newFixedThreadPool(20);
-
-		try {
-			testingSlotProvider.addTaskManager(4);
-
-			for (int run = 0; run < 50; run++) {
-				final JobVertexID jid1 = new JobVertexID();
-				final JobVertexID jid2 = new JobVertexID();
-				final JobVertexID jid3 = new JobVertexID();
-				final JobVertexID jid4 = new JobVertexID();
-				
-				final SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2, jid3, jid4);
-
-				final AtomicInteger enumerator1 = new AtomicInteger();
-				final AtomicInteger enumerator2 = new AtomicInteger();
-				final AtomicBoolean flag3 = new AtomicBoolean();
-				final AtomicInteger enumerator4 = new AtomicInteger();
-				
-				final Random rnd = new Random();
-				
-				// use atomic boolean as a mutable boolean reference
-				final AtomicBoolean failed = new AtomicBoolean(false);
-				
-				// use atomic integer as a mutable integer reference
-				final AtomicInteger completed = new AtomicInteger();
-				
-				final Runnable deploy4 = new Runnable() {
-					@Override
-					public void run() {
-						try {
-							LogicalSlot slot = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid4, enumerator4.getAndIncrement(), 4, sharingGroup), sharingGroup.getSlotSharingGroupId()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-							sleepUninterruptibly(rnd.nextInt(5));
-							slot.releaseSlot();
-
-							if (completed.incrementAndGet() == 13) {
-								synchronized (completed) {
-									completed.notifyAll();
-								}
-							}
-						}
-						catch (Throwable t) {
-							t.printStackTrace();
-							failed.set(true);
-						}
-					}
-				};
-				
-				final Runnable deploy3 = new Runnable() {
-					@Override
-					public void run() {
-						try {
-							if (flag3.compareAndSet(false, true)) {
-								LogicalSlot slot = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid3, 0, 1, sharingGroup), sharingGroup.getSlotSharingGroupId()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-								sleepUninterruptibly(5);
-								
-								executor.execute(deploy4);
-								executor.execute(deploy4);
-								executor.execute(deploy4);
-								executor.execute(deploy4);
-								
-								slot.releaseSlot();
-								
-								if (completed.incrementAndGet() == 13) {
-									synchronized (completed) {
-										completed.notifyAll();
-									}
-								}
-							}
-						}
-						catch (Throwable t) {
-							t.printStackTrace();
-							failed.set(true);
-						}
-					}
-				};
-				
-				final Runnable deploy2 = new Runnable() {
-					@Override
-					public void run() {
-						try {
-							LogicalSlot slot = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid2, enumerator2.getAndIncrement(), 4, sharingGroup), sharingGroup.getSlotSharingGroupId()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-
-							// wait a bit till scheduling the successor
-							sleepUninterruptibly(rnd.nextInt(5));
-							executor.execute(deploy3);
-							
-							// wait a bit until release
-							sleepUninterruptibly(rnd.nextInt(5));
-							slot.releaseSlot();
-							
-							if (completed.incrementAndGet() == 13) {
-								synchronized (completed) {
-									completed.notifyAll();
-								}
-							}
-						}
-						catch (Throwable t) {
-							t.printStackTrace();
-							failed.set(true);
-						}
-					}
-				};
-				
-				final Runnable deploy1 = new Runnable() {
-					@Override
-					public void run() {
-						try {
-							LogicalSlot slot = testingSlotProvider.allocateSlot(new ScheduledUnit(getTestVertex(jid1, enumerator1.getAndIncrement(), 4, sharingGroup), sharingGroup.getSlotSharingGroupId()), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
-
-							// wait a bit till scheduling the successor
-							sleepUninterruptibly(rnd.nextInt(5));
-							executor.execute(deploy2);
-							
-							// wait a bit until release
-							sleepUninterruptibly(rnd.nextInt(5));
-							slot.releaseSlot();
-							
-							if (completed.incrementAndGet() == 13) {
-								synchronized (completed) {
-									completed.notifyAll();
-								}
-							}
-						}
-						catch (Throwable t) {
-							t.printStackTrace();
-							failed.set(true);
-						}
-					}
-				};
-				
-				final Runnable deploy0 = new Runnable() {
-					@Override
-					public void run() {
-						sleepUninterruptibly(rnd.nextInt(10));
-						executor.execute(deploy1);
-					}
-				};
-				executor.execute(deploy0);
-				executor.execute(deploy0);
-				executor.execute(deploy0);
-				executor.execute(deploy0);
-				
-				// wait until all tasks have finished
-				//noinspection SynchronizationOnLocalVariableOrMethodParameter
-				synchronized (completed) {
-					while (!failed.get() && completed.get() < 13) {
-						completed.wait(1000);
-					}
-				}
-				
-				assertFalse("Thread failed", failed.get());
-				
-				while (testingSlotProvider.getNumberOfAvailableSlots() < 4) {
-					sleepUninterruptibly(5);
-				}
-				
-				assertEquals(4, testingSlotProvider.getNumberOfAvailableSlots());
-				assertEquals(13 * (run + 1), testingSlotProvider.getNumberOfUnconstrainedAssignments());
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-	
 	@Test
 	public void testDopIncreases() {
 		try {
