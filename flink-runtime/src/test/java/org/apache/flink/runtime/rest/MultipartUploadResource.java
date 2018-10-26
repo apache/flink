@@ -188,7 +188,7 @@ public class MultipartUploadResource extends ExternalResource {
 			Preconditions.checkArgument(
 				1 == files.size(),
 				"Directory structure in rest upload directory has changed. Test must be adjusted");
-			actualUploadDir = containedFiles.get(0);
+			actualUploadDir = files.get(0);
 		}
 		try (Stream<Path> containedFiles = Files.list(actualUploadDir)) {
 			assertEquals("Not all files were cleaned up.", 0, containedFiles.count());
