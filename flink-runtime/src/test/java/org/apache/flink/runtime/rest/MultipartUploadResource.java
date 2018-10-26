@@ -63,7 +63,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -183,17 +182,15 @@ public class MultipartUploadResource extends ExternalResource {
 	}
 
 	public void assertUploadDirectoryIsEmpty() throws IOException {
-		Optional<Path> actualUploadDir;
+		Path actualUploadDir;
 		try (Stream<Path> containedFiles = Files.list(configuredUploadDir)) {
+			Collection<Path> files = containedFiles.collect(Collectors.toList());
 			Preconditions.checkArgument(
-				1 == containedFiles.count(),
+				1 == files.size(),
 				"Directory structure in rest upload directory has changed. Test must be adjusted");
-			actualUploadDir = containedFiles.findAny();
+			actualUploadDir = containedFiles.get(0);
 		}
-		Preconditions.checkArgument(
-			actualUploadDir.isPresent(),
-			"Expected upload directory does not exist.");
-		try (Stream<Path> containedFiles = Files.list(actualUploadDir.get())) {
+		try (Stream<Path> containedFiles = Files.list(actualUploadDir)) {
 			assertEquals("Not all files were cleaned up.", 0, containedFiles.count());
 		}
 	}
