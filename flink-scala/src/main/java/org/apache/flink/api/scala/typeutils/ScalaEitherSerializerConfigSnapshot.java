@@ -27,8 +27,8 @@ import scala.util.Either;
  * Configuration snapshot for serializers of Scala's {@link Either} type,
  * containing configuration snapshots of the Left and Right serializers.
  */
-public class ScalaEitherSerializerConfigSnapshot<E extends Either<L, R>, L, R>
-		extends CompositeTypeSerializerConfigSnapshot<E> {
+public class ScalaEitherSerializerConfigSnapshot<L, R>
+		extends CompositeTypeSerializerConfigSnapshot<Either<L, R>> {
 
 	private static final int VERSION = 1;
 
