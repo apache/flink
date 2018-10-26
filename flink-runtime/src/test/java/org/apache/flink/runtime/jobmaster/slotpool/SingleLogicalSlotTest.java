@@ -241,9 +241,9 @@ public class SingleLogicalSlotTest extends TestLogger {
 		}
 
 		@Override
-		public boolean returnAllocatedSlot(LogicalSlot logicalSlot) {
+		public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
 			counter.incrementAndGet();
-			return true;
+			return CompletableFuture.completedFuture(true);
 		}
 	}
 
@@ -281,8 +281,8 @@ public class SingleLogicalSlotTest extends TestLogger {
 		}
 
 		@Override
-		public boolean returnAllocatedSlot(LogicalSlot logicalSlot) {
-			return returnAllocatedSlotFuture.complete(logicalSlot);
+		public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
+			return CompletableFuture.completedFuture(returnAllocatedSlotFuture.complete(logicalSlot));
 		}
 	}
 

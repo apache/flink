@@ -239,12 +239,14 @@ public class SimpleSlot extends Slot implements LogicalSlot {
 					if (getParent() == null) {
 						// we have to give back the slot to the owning instance
 						if (markCancelled()) {
-							try {
-								getOwner().returnAllocatedSlot(this);
-								releaseFuture.complete(null);
-							} catch (Exception ex) {
-								releaseFuture.completeExceptionally(ex);
-							}
+							getOwner().returnAllocatedSlot(this).whenComplete(
+								(value, t) -> {
+									if (t != null) {
+										releaseFuture.completeExceptionally(t);
+									} else {
+										releaseFuture.complete(null);
+									}
+								});
 						}
 					} else {
 						// we have to ask our parent to dispose us

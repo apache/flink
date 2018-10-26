@@ -179,7 +179,7 @@ public class SingleLogicalSlot implements LogicalSlot, AllocatedSlotContext.Payl
 	private void returnSlotToOwner(CompletableFuture<?> terminalStateFuture) {
 		final CompletableFuture<Boolean> slotReturnFuture = terminalStateFuture.handle((Object ignored, Throwable throwable) -> {
 			if (state == State.RELEASING) {
-				return CompletableFuture.completedFuture(slotOwner.returnAllocatedSlot(this));
+				return slotOwner.returnAllocatedSlot(this);
 			} else {
 				return CompletableFuture.completedFuture(true);
 			}

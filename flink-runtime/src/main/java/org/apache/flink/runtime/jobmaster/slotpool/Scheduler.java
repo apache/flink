@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -127,27 +128,29 @@ public class Scheduler implements SlotProvider, SlotOwner {
 	}
 
 	@Override
-	public void cancelSlotRequest(
+	public CompletableFuture<Acknowledge> cancelSlotRequest(
 		SlotRequestId slotRequestId,
 		@Nullable SlotSharingGroupId slotSharingGroupId,
 		Throwable cause) {
 
-		if (slotSharingGroupId != null) {
-			releaseSharedSlot(slotRequestId, slotSharingGroupId, cause);
-		} else {
-			slotPoolGateway.releaseSlot(slotRequestId, cause);
-		}
+		return CompletableFuture.supplyAsync(() -> {
+			if (slotSharingGroupId != null) {
+				releaseSharedSlot(slotRequestId, slotSharingGroupId, cause);
+			} else {
+				slotPoolGateway.releaseSlot(slotRequestId, cause);
+			}
+			return Acknowledge.get();
+		}, componentMainThreadExecutor);
 	}
 
 	@Override
-	public boolean returnAllocatedSlot(LogicalSlot logicalSlot) {
+	public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
 
 		SlotRequestId slotRequestId = logicalSlot.getSlotRequestId();
 		SlotSharingGroupId slotSharingGroupId = logicalSlot.getSlotSharingGroupId();
 		FlinkException cause = new FlinkException("Slot is being returned to the SlotPool.");
 
-		cancelSlotRequest(slotRequestId, slotSharingGroupId, cause);
-		return true;
+		return cancelSlotRequest(slotRequestId, slotSharingGroupId, cause).thenApply((ack) -> true);
 	}
 
 	//---------------------------
