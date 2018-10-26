@@ -46,7 +46,7 @@ class DataStreamGroupAggregateRule
     // check if we have grouping sets
     val groupSets = agg.getGroupSets.size() != 1 || agg.getGroupSets.get(0) != agg.getGroupSet
     if (groupSets || agg.indicator) {
-      throw TableException("GROUPING SETS are currently not supported.")
+      throw new TableException("GROUPING SETS are currently not supported.")
     }
 
     !groupSets && !agg.indicator

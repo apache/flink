@@ -274,7 +274,7 @@ abstract class CodeGenerator(
           generateExpression(rowtimeExpression.get)
       case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER |
            TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER =>
-          throw TableException("Rowtime extraction expression missing. Please report a bug.")
+          throw new TableException("Rowtime extraction expression missing. Please report a bug.")
       case TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER =>
         // attribute is proctime indicator.
         // we use a null literal and generate a timestamp when we need it.

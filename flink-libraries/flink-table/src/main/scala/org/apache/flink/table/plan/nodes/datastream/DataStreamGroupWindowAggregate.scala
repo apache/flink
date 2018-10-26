@@ -147,7 +147,7 @@ class DataStreamGroupWindowAggregate(
       val timeAttribute = window.timeAttribute.asInstanceOf[ResolvedFieldReference].name
       val timeIdx = inputSchema.fieldNames.indexOf(timeAttribute)
       if (timeIdx < 0) {
-        throw TableException("Time attribute could not be found. This is a bug.")
+        throw new TableException("Time attribute could not be found. This is a bug.")
       }
 
       inputDS

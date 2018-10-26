@@ -89,14 +89,14 @@ object TableSourceUtil {
         val (physicalName, _, tpe) = resolveInputField(name, tableSource)
         // validate that mapped fields are are same type
         if (tpe != t) {
-          throw ValidationException(s"Type $t of table field '$name' does not " +
+          throw new ValidationException(s"Type $t of table field '$name' does not " +
             s"match with type $tpe of the field '$physicalName' of the TableSource return type.")
         }
         mappedFieldCnt += 1
     }
     // ensure that only one field is mapped to an atomic type
     if (!tableSource.getReturnType.isInstanceOf[CompositeType[_]] && mappedFieldCnt > 1) {
-      throw ValidationException(
+      throw new ValidationException(
         s"More than one table field matched to atomic input type ${tableSource.getReturnType}.")
     }
 
@@ -105,7 +105,8 @@ object TableSourceUtil {
       case r: DefinedRowtimeAttributes =>
         val descriptors = r.getRowtimeAttributeDescriptors
         if (descriptors.size() > 1) {
-          throw ValidationException("Currently, only a single rowtime attribute is supported. " +
+          throw new ValidationException(
+            "Currently, only a single rowtime attribute is supported. " +
             s"Please remove all but one RowtimeAttributeDescriptor.")
         } else if (descriptors.size() == 1) {
           val descriptor = descriptors.get(0)
@@ -113,12 +114,12 @@ object TableSourceUtil {
           val rowtimeIdx = schema.getColumnNames.indexOf(rowtimeAttribute)
           // ensure that field exists
           if (rowtimeIdx < 0) {
-            throw ValidationException(s"Found a RowtimeAttributeDescriptor for field " +
+            throw new ValidationException(s"Found a RowtimeAttributeDescriptor for field " +
               s"'$rowtimeAttribute' but field '$rowtimeAttribute' does not exist in table.")
           }
           // ensure that field is of type TIMESTAMP
           if (schema.getTypes(rowtimeIdx) != Types.SQL_TIMESTAMP) {
-            throw ValidationException(s"Found a RowtimeAttributeDescriptor for field " +
+            throw new ValidationException(s"Found a RowtimeAttributeDescriptor for field " +
               s"'$rowtimeAttribute' but field '$rowtimeAttribute' is not of type TIMESTAMP.")
           }
           // look up extractor input fields in return type
@@ -137,12 +138,12 @@ object TableSourceUtil {
         val proctimeIdx = schema.getColumnNames.indexOf(proctimeAttribute)
         // ensure that field exists
         if (proctimeIdx < 0) {
-          throw ValidationException(s"Found a RowtimeAttributeDescriptor for field " +
+          throw new ValidationException(s"Found a RowtimeAttributeDescriptor for field " +
             s"'$proctimeAttribute' but field '$proctimeAttribute' does not exist in table.")
         }
         // ensure that field is of type TIMESTAMP
         if (schema.getTypes(proctimeIdx) != Types.SQL_TIMESTAMP) {
-          throw ValidationException(s"Found a RowtimeAttributeDescriptor for field " +
+          throw new ValidationException(s"Found a RowtimeAttributeDescriptor for field " +
             s"'$proctimeAttribute' but field '$proctimeAttribute' is not of type TIMESTAMP.")
         }
       case _ => // nothing to validate
@@ -224,7 +225,7 @@ object TableSourceUtil {
         val (physicalName, idx, tpe) = resolveInputField(name, tableSource)
         // validate that mapped fields are are same type
         if (tpe != t) {
-          throw ValidationException(s"Type $t of table field '$name' does not " +
+          throw new ValidationException(s"Type $t of table field '$name' does not " +
             s"match with type $tpe of the field '$physicalName' of the TableSource return type.")
         }
         idx
@@ -232,7 +233,7 @@ object TableSourceUtil {
 
     // ensure that only one field is mapped to an atomic type
     if (!inputType.isInstanceOf[CompositeType[_]] && mapping.count(_ >= 0) > 1) {
-      throw ValidationException(
+      throw new ValidationException(
         s"More than one table field matched to atomic input type $inputType.")
     }
 
@@ -302,7 +303,7 @@ object TableSourceUtil {
         if (descriptors.size() == 0) {
           None
         } else if (descriptors.size > 1) {
-          throw ValidationException("Table with has more than a single rowtime attribute..")
+          throw new ValidationException("Table with has more than a single rowtime attribute.")
         } else {
           // exactly one rowtime attribute descriptor
           if (selectedFields.isEmpty) {
@@ -418,7 +419,7 @@ object TableSourceUtil {
         val accessedFields = if (rowtimeAttributeDescriptor.isDefined) {
           rowtimeAttributeDescriptor.get.getTimestampExtractor.getArgumentFields
         } else {
-          throw TableException("Computed field mapping includes a rowtime marker but the " +
+          throw new TableException("Computed field mapping includes a rowtime marker but the " +
             "TableSource does not provide a RowtimeAttributeDescriptor. " +
             "This is a bug and should be reported.")
         }
@@ -471,7 +472,7 @@ object TableSourceUtil {
           // get and check field index
           val idx = c.getFieldIndex(fieldName)
           if (idx < 0) {
-            throw ValidationException(failMsg)
+            throw new ValidationException(failMsg)
           }
           // return field name, index, and field type
           (fieldName, idx, c.getTypeAt(idx))
@@ -487,7 +488,7 @@ object TableSourceUtil {
         // resolve field name in field mapping
         val resolvedFieldName = d.getFieldMapping.get(fieldName)
         if (resolvedFieldName == null) {
-          throw ValidationException(
+          throw new ValidationException(
             s"Field '$fieldName' could not be resolved by the field mapping.")
         }
         // look up resolved field in return type

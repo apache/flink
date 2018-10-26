@@ -62,7 +62,7 @@ class LiteralValueValidator(keyPrefix: String) extends HierarchyDescriptorValida
         case Types.LONG => properties.validateLong(valueKey, isOptional = false)
         case Types.SHORT => properties.validateShort(valueKey, isOptional = false)
         case Types.STRING => properties.validateString(valueKey, isOptional = false)
-        case _ => throw TableException(s"Unsupported type '$typeInfo'.")
+        case _ => throw new TableException(s"Unsupported type '$typeInfo'.")
       }
     }
     // implicit type
@@ -107,7 +107,7 @@ object LiteralValueValidator {
         case Types.LONG => properties.getLong(valueKey)
         case Types.SHORT => properties.getShort(valueKey)
         case Types.STRING => properties.getString(valueKey)
-        case _ => throw TableException(s"Unsupported type '${typeInfo.getTypeClass}'.")
+        case _ => throw new TableException(s"Unsupported type '${typeInfo.getTypeClass}'.")
       }
     }
     // implicit type

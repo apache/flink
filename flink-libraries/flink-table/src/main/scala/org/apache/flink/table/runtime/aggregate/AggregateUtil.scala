@@ -1146,15 +1146,18 @@ object AggregateUtil {
         case NamedWindowProperty(_, prop) =>
           prop match {
             case WindowStart(_) if s.isDefined =>
-              throw TableException("Duplicate window start property encountered. This is a bug.")
+              throw new TableException(
+                "Duplicate window start property encountered. This is a bug.")
             case WindowStart(_) =>
               (Some(i), e, rt, i - 1)
             case WindowEnd(_) if e.isDefined =>
-              throw TableException("Duplicate window end property encountered. This is a bug.")
+              throw new TableException(
+                "Duplicate window end property encountered. This is a bug.")
             case WindowEnd(_) =>
               (s, Some(i), rt, i - 1)
             case RowtimeAttribute(_) if rt.isDefined =>
-              throw TableException("Duplicate window rowtime property encountered. This is a bug.")
+              throw new TableException(
+                "Duplicate window rowtime property encountered. This is a bug.")
             case RowtimeAttribute(_) =>
               (s, e, Some(i), i - 1)
             case ProctimeAttribute(_) =>
@@ -1550,10 +1553,10 @@ object AggregateUtil {
         if (relDataType.length == 1) {
           relDataType.head.getIndex
         } else {
-          throw TableException(
+          throw new TableException(
             s"Encountered more than one time attribute with the same name: '$relDataType'")
         }
-      case e => throw TableException(
+      case e => throw new TableException(
         "The time attribute of window in batch environment should be " +
           s"ResolvedFieldReference, but is $e")
     }

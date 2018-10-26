@@ -128,7 +128,7 @@ class DataSetJoin(
     val rightKeys = ArrayBuffer.empty[Int]
     if (keyPairs.isEmpty) {
       // if no equality keys => not supported
-      throw TableException(
+      throw new TableException(
         "Joins should have at least one equality condition.\n" +
           s"\tLeft: ${left.toString},\n" +
           s"\tRight: ${right.toString},\n" +
@@ -151,7 +151,7 @@ class DataSetJoin(
           leftKeys.add(pair.source)
           rightKeys.add(pair.target)
         } else {
-          throw TableException(
+          throw new TableException(
             "Equality join predicate on incompatible types.\n" +
               s"\tLeft: ${left.toString},\n" +
               s"\tRight: ${right.toString},\n" +
@@ -255,7 +255,7 @@ class DataSetJoin(
       config: TableConfig): DataSet[Row] = {
 
     if (!config.getNullCheck) {
-      throw TableException("Null check in TableConfig must be enabled for outer joins.")
+      throw new TableException("Null check in TableConfig must be enabled for outer joins.")
     }
 
     val joinOpName = getJoinOpName
@@ -311,7 +311,7 @@ class DataSetJoin(
       config: TableConfig): DataSet[Row] = {
 
     if (!config.getNullCheck) {
-      throw TableException("Null check in TableConfig must be enabled for outer joins.")
+      throw new TableException("Null check in TableConfig must be enabled for outer joins.")
     }
 
     val joinOpName = getJoinOpName
@@ -367,7 +367,7 @@ class DataSetJoin(
       config: TableConfig): DataSet[Row] = {
 
     if (!config.getNullCheck) {
-      throw TableException("Null check in TableConfig must be enabled for outer joins.")
+      throw new TableException("Null check in TableConfig must be enabled for outer joins.")
     }
 
     val joinOpName = getJoinOpName

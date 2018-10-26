@@ -39,43 +39,6 @@ case class SqlParserException(
 }
 
 /**
-  * General Exception for all errors during table handling.
-  *
-  * This exception indicates that an internal error occurred or that a feature is not supported
-  * yet. Usually, this exception does not indicate a fault of the user.
-  */
-case class TableException(
-    msg: String,
-    cause: Throwable)
-  extends RuntimeException(msg, cause) {
-
-  def this(msg: String) = this(msg, null)
-
-}
-
-object TableException {
-  def apply(msg: String): TableException = new TableException(msg)
-}
-
-/**
-  * Exception for all errors occurring during validation phase.
-  *
-  * This exception indicates that the user did something wrong.
-  */
-case class ValidationException(
-    msg: String,
-    cause: Throwable)
-  extends RuntimeException(msg, cause) {
-
-  def this(msg: String) = this(msg, null)
-
-}
-
-object ValidationException {
-  def apply(msg: String): ValidationException = new ValidationException(msg)
-}
-
-/**
   * Exception for unwanted method calling on unresolved expression.
   */
 case class UnresolvedException(msg: String) extends RuntimeException(msg)

@@ -99,7 +99,7 @@ trait CommonCorrelate {
            |}
            |""".stripMargin
     } else if (joinType != SemiJoinType.INNER) {
-      throw TableException(s"Unsupported SemiJoinType: $joinType for correlate join.")
+      throw new TableException(s"Unsupported SemiJoinType: $joinType for correlate join.")
     }
 
     functionGenerator.generateFunction(

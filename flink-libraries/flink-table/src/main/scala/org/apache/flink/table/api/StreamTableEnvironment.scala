@@ -120,7 +120,7 @@ abstract class StreamTableEnvironment(
         // check that event-time is enabled if table source includes rowtime attributes
         if (TableSourceUtil.hasRowtimeAttribute(streamTableSource) &&
           execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {
-            throw TableException(
+            throw new TableException(
               s"A rowtime attribute requires an EventTime time characteristic in stream " +
                 s"environment. But is: ${execEnv.getStreamTimeCharacteristic}")
         }
@@ -230,8 +230,8 @@ abstract class StreamTableEnvironment(
       tableSink: TableSink[_]): Unit = {
 
     checkValidTableName(name)
-    if (fieldNames == null) throw TableException("fieldNames must not be null.")
-    if (fieldTypes == null) throw TableException("fieldTypes must not be null.")
+    if (fieldNames == null) throw new TableException("fieldNames must not be null.")
+    if (fieldTypes == null) throw new TableException("fieldTypes must not be null.")
     if (fieldNames.length == 0) throw new TableException("fieldNames must not be empty.")
     if (fieldNames.length != fieldTypes.length) {
       throw new TableException("Same number of field names and types required.")
@@ -550,7 +550,7 @@ abstract class StreamTableEnvironment(
 
     // check if event-time is enabled
     if (rowtime.isDefined && execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {
-      throw TableException(
+      throw new TableException(
         s"A rowtime attribute requires an EventTime time characteristic in stream environment. " +
           s"But is: ${execEnv.getStreamTimeCharacteristic}")
     }
@@ -966,7 +966,7 @@ abstract class StreamTableEnvironment(
       case node: DataStreamRel =>
         node.translateToPlan(this, queryConfig)
       case _ =>
-        throw TableException("Cannot generate DataStream due to an invalid logical plan. " +
+        throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
     }
   }

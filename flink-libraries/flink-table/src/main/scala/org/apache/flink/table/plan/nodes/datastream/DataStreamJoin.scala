@@ -134,7 +134,7 @@ class DataStreamJoin(
       val rightKeyType = rightFields.get(pair.target).getType.getSqlTypeName
       // check if keys are compatible
       if (leftKeyType != rightKeyType) {
-        throw TableException(
+        throw new TableException(
           "Equality join predicate on incompatible types.\n" +
             s"\tLeft: $left,\n" +
             s"\tRight: $right,\n" +

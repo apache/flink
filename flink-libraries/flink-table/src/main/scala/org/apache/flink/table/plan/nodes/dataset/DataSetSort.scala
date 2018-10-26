@@ -84,7 +84,7 @@ class DataSetSort(
       queryConfig: BatchQueryConfig): DataSet[Row] = {
 
     if (fieldCollations.isEmpty) {
-      throw TableException("Limiting the result without sorting is not allowed " +
+      throw new TableException("Limiting the result without sorting is not allowed " +
         "as it could lead to arbitrary results.")
     }
 

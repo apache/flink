@@ -53,15 +53,16 @@ object UserDefinedFunctionUtils {
     */
   def checkForInstantiation(clazz: Class[_]): Unit = {
     if (!InstantiationUtil.isPublic(clazz)) {
-      throw ValidationException(s"Function class ${clazz.getCanonicalName} is not public.")
+      throw new ValidationException(s"Function class ${clazz.getCanonicalName} is not public.")
     }
     else if (!InstantiationUtil.isProperClass(clazz)) {
-      throw ValidationException(s"Function class ${clazz.getCanonicalName} is no proper class," +
+      throw new ValidationException(
+        s"Function class ${clazz.getCanonicalName} is no proper class," +
         " it is either abstract, an interface, or a primitive type.")
     }
     else if (InstantiationUtil.isNonStaticInnerClass(clazz)) {
-      throw ValidationException(s"The class ${clazz.getCanonicalName} is an inner class, but" +
-        " not statically accessible.")
+      throw new ValidationException(
+        s"The class ${clazz.getCanonicalName} is an inner class, but not statically accessible.")
     }
   }
 

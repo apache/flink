@@ -292,16 +292,16 @@ private[flink] class PatternVisitor(
         applyQuantifier(pattern, startNum, endNum, isGreedy)
 
       case PATTERN_ALTER =>
-        throw TableException(s"Expression not supported: $call. Currently, CEP doesn't support " +
-          s"branching patterns.")
+        throw new TableException(
+          s"Expression not supported: $call. Currently, CEP doesn't support branching patterns.")
 
       case PATTERN_PERMUTE =>
-        throw TableException(s"Expression not supported: $call. Currently, CEP doesn't support " +
-          s"PERMUTE patterns.")
+        throw new TableException(
+          s"Expression not supported: $call. Currently, CEP doesn't support PERMUTE patterns.")
 
       case PATTERN_EXCLUDE =>
-        throw TableException(s"Expression not supported: $call. Currently, CEP doesn't support " +
-          s"'{-' '-}' patterns.")
+        throw new TableException(
+          s"Expression not supported: $call. Currently, CEP doesn't support '{-' '-}' patterns.")
     }
   }
 

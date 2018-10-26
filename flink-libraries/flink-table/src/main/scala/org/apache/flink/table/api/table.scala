@@ -118,7 +118,7 @@ class Table(
     val expandedFields = expandProjectList(fields, logicalPlan, tableEnv)
     val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, tableEnv)
     if (propNames.nonEmpty) {
-      throw ValidationException("Window properties can only be used on windowed tables.")
+      throw new ValidationException("Window properties can only be used on windowed tables.")
     }
 
     if (aggNames.nonEmpty) {
@@ -822,14 +822,14 @@ class Table(
     */
   def fetch(fetch: Int): Table = {
     if (fetch < 0) {
-      throw ValidationException("FETCH count must be equal or larger than 0.")
+      throw new ValidationException("FETCH count must be equal or larger than 0.")
     }
     this.logicalPlan match {
       case Limit(o, -1, c) =>
         // replace LIMIT without FETCH by LIMIT with FETCH
         new Table(tableEnv, Limit(o, fetch, c).validate(tableEnv))
       case Limit(_, _, _) =>
-        throw ValidationException("FETCH is already defined.")
+        throw new ValidationException("FETCH is already defined.")
       case _ =>
         new Table(tableEnv, Limit(0, fetch, logicalPlan).validate(tableEnv))
     }
@@ -934,7 +934,7 @@ class Table(
   def insertInto(tableName: String, conf: QueryConfig): Unit = {
     this.logicalPlan match {
       case _: LogicalTableFunctionCall =>
-        throw ValidationException("TableFunction can only be used in join and leftOuterJoin.")
+        throw new ValidationException("TableFunction can only be used in join and leftOuterJoin.")
       case _ =>
         tableEnv.insertInto(this, tableName, conf)
     }
@@ -989,11 +989,11 @@ class Table(
   def window(overWindows: OverWindow*): OverWindowedTable = {
 
     if (tableEnv.isInstanceOf[BatchTableEnvironment]) {
-      throw TableException("Over-windows for batch tables are currently not supported.")
+      throw new TableException("Over-windows for batch tables are currently not supported.")
     }
 
     if (overWindows.size != 1) {
-      throw TableException("Over-Windows are currently only supported single window.")
+      throw new TableException("Over-Windows are currently only supported single window.")
     }
 
     new OverWindowedTable(this, overWindows.toArray)
@@ -1049,7 +1049,7 @@ class GroupedTable(
     val expandedFields = expandProjectList(fields, table.logicalPlan, table.tableEnv)
     val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, table.tableEnv)
     if (propNames.nonEmpty) {
-      throw ValidationException("Window properties can only be used on windowed tables.")
+      throw new ValidationException("Window properties can only be used on windowed tables.")
     }
 
     val projectsOnAgg = replaceAggregationsAndProperties(
@@ -1145,7 +1145,7 @@ class OverWindowedTable(
       table.tableEnv)
 
     if(fields.exists(_.isInstanceOf[WindowProperty])){
-      throw ValidationException(
+      throw new ValidationException(
         "Window start and end properties are not available for Over windows.")
     }
 
