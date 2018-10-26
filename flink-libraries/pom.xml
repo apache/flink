@@ -39,6 +39,7 @@ under the License.
 		<module>flink-gelly-examples</module>
 		<module>flink-python</module>
 		<module>flink-table</module>
+		<module>flink-table-common</module>
 		<module>flink-sql-client</module>
 		<module>flink-ml</module>
 		<module>flink-cep</module>
