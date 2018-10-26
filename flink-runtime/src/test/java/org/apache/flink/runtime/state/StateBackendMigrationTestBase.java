@@ -18,6 +18,10 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.BroadcastState;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -30,21 +34,23 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
-import org.apache.flink.types.StringValue;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.TestLogger;
+import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.RunnableFuture;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
 /**
  * Tests for the {@link KeyedStateBackend} and {@link OperatorStateBackend} as produced
@@ -56,6 +62,8 @@ import static org.junit.Assert.assertNull;
 @SuppressWarnings("serial")
 public abstract class StateBackendMigrationTestBase<B extends AbstractStateBackend> extends TestLogger {
 
+	protected abstract B getStateBackend() throws Exception;
+
 	@Rule
 	public final TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -63,407 +71,835 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 	private CheckpointStorageLocation checkpointStorageLocation;
 
 	/**
-	 * Different "personalities" of {@link CustomStringSerializer}. Instead of creating
-	 * different classes we parameterize the serializer with this and
-	 * {@link CustomStringSerializerSnapshot} will instantiate serializers with the correct
-	 * personality.
-	 */
-	public enum SerializerVersion {
-		INITIAL,
-		RESTORE,
-		NEW
-	}
-
-	/**
-	 * The compatibility behaviour of {@link CustomStringSerializer}. This controls what
-	 * type of serializer {@link CustomStringSerializerSnapshot} will create for
-	 * the different methods that return/create serializers.
+	 * The compatibility behaviour of {@link TestSerializer}.
+	 * This controls what format the serializer writes in, as well as
+	 * the result of the compatibility check against the prior serializer snapshot.
 	 */
 	public enum SerializerCompatibilityType {
 		COMPATIBLE_AS_IS,
-		REQUIRES_MIGRATION
+		REQUIRES_MIGRATION,
+		INCOMPATIBLE
 	}
+
+	// -------------------------------------------------------------------------------
+	//  Keyed state backend migration tests
+	// -------------------------------------------------------------------------------
+
+	@Test
+	public void testKeyedValueStateMigration() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+
+		final String stateName = "test-name";
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		try {
+			ValueStateDescriptor<TestType> kvId = new ValueStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+			ValueState<TestType> valueState = backend
+				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+
+			backend.setCurrentKey(1);
+			valueState.update(new TestType("foo", 1456));
+			backend.setCurrentKey(2);
+			valueState.update(new TestType("bar", 478));
+			backend.setCurrentKey(3);
+			valueState.update(new TestType("hello", 189));
+
+			KeyedStateHandle snapshot = runSnapshot(
+				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				sharedStateRegistry);
+			backend.dispose();
+
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
+
+			// the new serializer is REQUIRES_MIGRATION, and has a completely new serialization schema.
+			kvId = new ValueStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION));
+			valueState = backend
+				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+
+			snapshot.discardState();
+
+			// the state backend should have decided whether or not it needs to perform state migration;
+			// make sure that reading and writing each key state works with the new serializer
+			backend.setCurrentKey(1);
+			Assert.assertEquals(new TestType("foo", 1456), valueState.value());
+			valueState.update(new TestType("newValue1", 751));
+
+			backend.setCurrentKey(2);
+			Assert.assertEquals(new TestType("bar", 478), valueState.value());
+			valueState.update(new TestType("newValue2", 167));
+
+			backend.setCurrentKey(3);
+			Assert.assertEquals(new TestType("hello", 189), valueState.value());
+			valueState.update(new TestType("newValue3", 444));
+		} finally {
+			backend.dispose();
+		}
+	}
+
+	@Ignore("This won't pass until the ListSerializer snapshot has been upgraded to the new TypeSerializerSnapshot interface")
+	@Test
+	public void testKeyedListStateMigration() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+
+		final String stateName = "test-name";
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		try {
+			ListStateDescriptor<TestType> kvId = new ListStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+			ListState<TestType> listState = backend
+				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+
+			backend.setCurrentKey(1);
+			listState.add(new TestType("key-1", 1));
+			listState.add(new TestType("key-1", 2));
+			listState.add(new TestType("key-1", 3));
+
+			backend.setCurrentKey(2);
+			listState.add(new TestType("key-2", 1));
+
+			backend.setCurrentKey(3);
+			listState.add(new TestType("key-3", 1));
+			listState.add(new TestType("key-3", 2));
+
+			KeyedStateHandle snapshot = runSnapshot(
+				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				sharedStateRegistry);
+			backend.dispose();
+
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
+
+			// the new serializer is REQUIRES_MIGRATION, and has a completely new serialization schema.
+			kvId = new ListStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION));
+			listState = backend
+				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+
+			snapshot.discardState();
+
+			// the state backend should have decided whether or not it needs to perform state migration;
+			// make sure that reading and writing each key state works with the new serializer
+			backend.setCurrentKey(1);
+			Iterator<TestType> iterable1 = listState.get().iterator();
+			Assert.assertEquals(new TestType("key-1", 1), iterable1.next());
+			Assert.assertEquals(new TestType("key-1", 2), iterable1.next());
+			Assert.assertEquals(new TestType("key-1", 3), iterable1.next());
+			Assert.assertFalse(iterable1.hasNext());
+			listState.add(new TestType("new-key-1", 123));
+
+			backend.setCurrentKey(2);
+			Iterator<TestType> iterable2 = listState.get().iterator();
+			Assert.assertEquals(new TestType("key-2", 1), iterable2.next());
+			Assert.assertFalse(iterable1.hasNext());
+			listState.add(new TestType("new-key-2", 456));
+
+			backend.setCurrentKey(3);
+			Iterator<TestType> iterable3 = listState.get().iterator();
+			Assert.assertEquals(new TestType("key-3", 1), iterable3.next());
+			Assert.assertEquals(new TestType("key-3", 2), iterable3.next());
+			Assert.assertFalse(iterable1.hasNext());
+			listState.add(new TestType("new-key-3", 777));
+		} finally {
+			backend.dispose();
+		}
+	}
+
+	@Test
+	public void testKeyedValueStateRegistrationFailsIfNewStateSerializerIsIncompatible() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+
+		final String stateName = "test-name";
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		try {
+			ValueStateDescriptor<TestType> kvId = new ValueStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+			ValueState<TestType> valueState = backend
+				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+
+			backend.setCurrentKey(1);
+			valueState.update(new TestType("foo", 1456));
+			backend.setCurrentKey(2);
+			valueState.update(new TestType("bar", 478));
+			backend.setCurrentKey(3);
+			valueState.update(new TestType("hello", 189));
+
+			KeyedStateHandle snapshot = runSnapshot(
+				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				sharedStateRegistry);
+			backend.dispose();
+
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
+
+			kvId = new ValueStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.INCOMPATIBLE));
+
+			// the new serializer is INCOMPATIBLE, so registering the state should fail
+			backend.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+		} catch (Exception e) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
+		}finally {
+			backend.dispose();
+		}
+	}
+
+	@Test
+	public void testKeyedListStateRegistrationFailsIfNewStateSerializerIsIncompatible() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+
+		final String stateName = "test-name";
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		try {
+			ListStateDescriptor<TestType> kvId = new ListStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+			ListState<TestType> listState = backend
+				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+
+			backend.setCurrentKey(1);
+			listState.add(new TestType("key-1", 1));
+			listState.add(new TestType("key-1", 2));
+			listState.add(new TestType("key-1", 3));
+
+			backend.setCurrentKey(2);
+			listState.add(new TestType("key-2", 1));
+
+			backend.setCurrentKey(3);
+			listState.add(new TestType("key-3", 1));
+			listState.add(new TestType("key-3", 2));
+
+			KeyedStateHandle snapshot = runSnapshot(
+				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				sharedStateRegistry);
+			backend.dispose();
+
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
+
+			kvId = new ListStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION));
+
+			// the new serializer is INCOMPATIBLE, so registering the state should fail
+			backend.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+		} catch (Exception e) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
+		} finally {
+			backend.dispose();
+		}
+	}
+
+	@Test
+	public void testPriorityQueueStateCreationFailsIfNewSerializerIsNotCompatible() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		try {
+			InternalPriorityQueue<TestType> internalPriorityQueue = backend.create(
+				"testPriorityQueue", new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+
+			internalPriorityQueue.add(new TestType("key-1", 123));
+			internalPriorityQueue.add(new TestType("key-2", 346));
+			internalPriorityQueue.add(new TestType("key-1", 777));
+
+			KeyedStateHandle snapshot = runSnapshot(
+				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				sharedStateRegistry);
+			backend.dispose();
+
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
+			backend.create(
+				"testPriorityQueue", new TestSerializer(SerializerCompatibilityType.INCOMPATIBLE));
+
+			Assert.fail("should have failed");
+		} catch (Exception e) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
+		} finally {
+			backend.dispose();
+		}
+	}
+
+	@Test
+	public void testStateBackendCreationFailsIfNewKeySerializerIsNotCompatible() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+
+		AbstractKeyedStateBackend<TestType> backend = createKeyedBackend(
+			new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+
+		final String stateName = "test-name";
+		try {
+			ValueStateDescriptor<Integer> kvId = new ValueStateDescriptor<>(stateName, Integer.class);
+			ValueState<Integer> valueState = backend
+				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+
+			backend.setCurrentKey(new TestType("foo", 123));
+			valueState.update(1);
+			backend.setCurrentKey(new TestType("bar", 456));
+			valueState.update(5);
+
+			KeyedStateHandle snapshot = runSnapshot(
+				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				sharedStateRegistry);
+			backend.dispose();
+
+			try {
+				// the new key serializer is incompatible; this should fail the restore
+				restoreKeyedBackend(new TestSerializer(SerializerCompatibilityType.INCOMPATIBLE), snapshot);
+			} catch (Exception e) {
+				Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
+			}
+
+			try {
+				// the new key serializer requires migration; this should fail the restore
+				restoreKeyedBackend(new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION), snapshot);
+			} catch (Exception e) {
+				Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
+			}
+		} finally {
+			backend.dispose();
+		}
+	}
+
+	@Test
+	public void testKeyedStateRegistrationFailsIfNewNamespaceSerializerIsNotCompatible() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		final String stateName = "test-name";
+		try {
+			ValueStateDescriptor<Integer> kvId = new ValueStateDescriptor<>(stateName, Integer.class);
+			ValueState<Integer> valueState = backend
+				.getPartitionedState(
+					new TestType("namespace", 123),
+					new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS),
+					kvId);
+
+			backend.setCurrentKey(1);
+			valueState.update(10);
+			backend.setCurrentKey(5);
+			valueState.update(50);
+
+			KeyedStateHandle snapshot = runSnapshot(
+				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				sharedStateRegistry);
+			backend.dispose();
+
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
+
+			try {
+				// the new namespace serializer is incompatible; this should fail the restore
+				backend.getPartitionedState(
+					new TestType("namespace", 123),
+					new TestSerializer(SerializerCompatibilityType.INCOMPATIBLE),
+					kvId);
+			} catch (Exception e) {
+				Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
+			}
+
+			try {
+				// the new namespace serializer requires migration; this should fail the restore
+				backend.getPartitionedState(
+					new TestType("namespace", 123),
+					new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION),
+					kvId);
+			} catch (Exception e) {
+				Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
+			}
+		} finally {
+			backend.dispose();
+		}
+	}
+
+	// -------------------------------------------------------------------------------
+	//  Operator state backend migration tests
+	// -------------------------------------------------------------------------------
+
+	@Test
+	public void testOperatorParitionableListStateMigration() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+
+		OperatorStateBackend backend = createOperatorStateBackend();
+
+		final String stateName = "partitionable-list-state";
+		try {
+			ListStateDescriptor<TestType> descriptor = new ListStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+			ListState<TestType> state = backend.getListState(descriptor);
+
+			state.add(new TestType("foo", 13));
+			state.add(new TestType("bar", 278));
+
+			OperatorStateHandle snapshot = runSnapshot(
+				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+			backend.dispose();
+
+			backend = restoreOperatorStateBackend(snapshot);
+
+			descriptor = new ListStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION));
+			state = backend.getListState(descriptor);
+
+			// the state backend should have decided whether or not it needs to perform state migration;
+			// make sure that reading and writing each state partition works with the new serializer
+			Iterator<TestType> iterator = state.get().iterator();
+			Assert.assertEquals(new TestType("foo", 13), iterator.next());
+			Assert.assertEquals(new TestType("bar", 278), iterator.next());
+			Assert.assertFalse(iterator.hasNext());
+			state.add(new TestType("new-entry", 777));
+		} finally {
+			backend.dispose();
+		}
+	}
+
+	@Test
+	public void testUnionListStateMigration() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+
+		OperatorStateBackend backend = createOperatorStateBackend();
+
+		final String stateName = "union-list-state";
+		try {
+			ListStateDescriptor<TestType> descriptor = new ListStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+			ListState<TestType> state = backend.getUnionListState(descriptor);
+
+			state.add(new TestType("foo", 13));
+			state.add(new TestType("bar", 278));
+
+			OperatorStateHandle snapshot = runSnapshot(
+				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+			backend.dispose();
+
+			backend = restoreOperatorStateBackend(snapshot);
+
+			descriptor = new ListStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION));
+			state = backend.getUnionListState(descriptor);
+
+			// the state backend should have decided whether or not it needs to perform state migration;
+			// make sure that reading and writing each state partition works with the new serializer
+			Iterator<TestType> iterator = state.get().iterator();
+			Assert.assertEquals(new TestType("foo", 13), iterator.next());
+			Assert.assertEquals(new TestType("bar", 278), iterator.next());
+			Assert.assertFalse(iterator.hasNext());
+			state.add(new TestType("new-entry", 777));
+		} finally {
+			backend.dispose();
+		}
+	}
+
+	@Test
+	public void testBroadcastStateValueMigration() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+
+		OperatorStateBackend backend = createOperatorStateBackend();
+
+		final String stateName = "broadcast-state";
+		try {
+			MapStateDescriptor<Integer, TestType> descriptor = new MapStateDescriptor<>(
+				stateName,
+				IntSerializer.INSTANCE,
+				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+			BroadcastState<Integer, TestType> state = backend.getBroadcastState(descriptor);
+
+			state.put(3, new TestType("foo", 13));
+			state.put(5, new TestType("bar", 278));
+
+			OperatorStateHandle snapshot = runSnapshot(
+				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+			backend.dispose();
+
+			backend = restoreOperatorStateBackend(snapshot);
+
+			descriptor = new MapStateDescriptor<>(
+				stateName,
+				IntSerializer.INSTANCE,
+				new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION));
+			state = backend.getBroadcastState(descriptor);
+
+			// the state backend should have decided whether or not it needs to perform state migration;
+			// make sure that reading and writing each broadcast entry works with the new serializer
+			Assert.assertEquals(new TestType("foo", 13), state.get(3));
+			Assert.assertEquals(new TestType("bar", 278), state.get(5));
+			state.put(17, new TestType("new-entry", 777));
+		} finally {
+			backend.dispose();
+		}
+	}
+
+	@Test
+	public void testBroadcastStateKeyMigration() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+
+		OperatorStateBackend backend = createOperatorStateBackend();
+
+		final String stateName = "broadcast-state";
+		try {
+			MapStateDescriptor<TestType, Integer> descriptor = new MapStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS),
+				IntSerializer.INSTANCE);
+			BroadcastState<TestType, Integer> state = backend.getBroadcastState(descriptor);
+
+			state.put(new TestType("foo", 13), 3);
+			state.put(new TestType("bar", 278), 5);
+
+			OperatorStateHandle snapshot = runSnapshot(
+				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+			backend.dispose();
+
+			backend = restoreOperatorStateBackend(snapshot);
+
+			descriptor = new MapStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION),
+				IntSerializer.INSTANCE);
+			state = backend.getBroadcastState(descriptor);
+
+			// the state backend should have decided whether or not it needs to perform state migration;
+			// make sure that reading and writing each broadcast entry works with the new serializer
+			Assert.assertEquals((Integer) 3, state.get(new TestType("foo", 13)));
+			Assert.assertEquals((Integer) 5, state.get(new TestType("bar", 278)));
+			state.put(new TestType("new-entry", 777), 17);
+		} finally {
+			backend.dispose();
+		}
+	}
+
+	@Test
+	public void testOperatorParitionableListStateRegistrationFailsIfNewSerializerIsIncompatible() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+
+		OperatorStateBackend backend = createOperatorStateBackend();
+
+		final String stateName = "partitionable-list-state";
+		try {
+			ListStateDescriptor<TestType> descriptor = new ListStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+			ListState<TestType> state = backend.getListState(descriptor);
+
+			state.add(new TestType("foo", 13));
+			state.add(new TestType("bar", 278));
+
+			OperatorStateHandle snapshot = runSnapshot(
+				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+			backend.dispose();
+
+			backend = restoreOperatorStateBackend(snapshot);
+
+			descriptor = new ListStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.INCOMPATIBLE));
+
+			// the new serializer is INCOMPATIBLE, so registering the state should fail
+			backend.getListState(descriptor);
+
+			Assert.fail("should have failed.");
+		} catch (Exception e) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
+		} finally {
+			backend.dispose();
+		}
+	}
+
+	@Test
+	public void testUnionListStateRegistrationFailsIfNewSerializerIsIncompatible() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+
+		OperatorStateBackend backend = createOperatorStateBackend();
+
+		final String stateName = "union-list-state";
+		try {
+			ListStateDescriptor<TestType> descriptor = new ListStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+			ListState<TestType> state = backend.getUnionListState(descriptor);
+
+			state.add(new TestType("foo", 13));
+			state.add(new TestType("bar", 278));
+
+			OperatorStateHandle snapshot = runSnapshot(
+				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+			backend.dispose();
+
+			backend = restoreOperatorStateBackend(snapshot);
+
+			descriptor = new ListStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.INCOMPATIBLE));
+
+			// the new serializer is INCOMPATIBLE, so registering the state should fail
+			backend.getUnionListState(descriptor);
+
+			Assert.fail("should have failed.");
+		} catch (Exception e) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
+		} finally {
+			backend.dispose();
+		}
+	}
+
+	@Test
+	public void testBroadcastStateRegistrationFailsIfNewValueSerializerIsIncompatible() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+
+		OperatorStateBackend backend = createOperatorStateBackend();
+
+		final String stateName = "broadcast-state";
+		try {
+			MapStateDescriptor<Integer, TestType> descriptor = new MapStateDescriptor<>(
+				stateName,
+				IntSerializer.INSTANCE,
+				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+			BroadcastState<Integer, TestType> state = backend.getBroadcastState(descriptor);
+
+			state.put(3, new TestType("foo", 13));
+			state.put(5, new TestType("bar", 278));
+
+			OperatorStateHandle snapshot = runSnapshot(
+				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+			backend.dispose();
+
+			backend = restoreOperatorStateBackend(snapshot);
+
+			descriptor = new MapStateDescriptor<>(
+				stateName,
+				IntSerializer.INSTANCE,
+				new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION));
+
+			// the new value serializer is INCOMPATIBLE, so registering the state should fail
+			backend.getBroadcastState(descriptor);
+		} catch (Exception e) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
+		} finally {
+			backend.dispose();
+		}
+	}
+
+	@Test
+	public void testBroadcastStateRegistrationFailsIfNewKeySerializerIsIncompatible() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+
+		OperatorStateBackend backend = createOperatorStateBackend();
+
+		final String stateName = "broadcast-state";
+		try {
+			MapStateDescriptor<TestType, Integer> descriptor = new MapStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS),
+				IntSerializer.INSTANCE);
+			BroadcastState<TestType, Integer> state = backend.getBroadcastState(descriptor);
+
+			state.put(new TestType("foo", 13), 3);
+			state.put(new TestType("bar", 278), 5);
+
+			OperatorStateHandle snapshot = runSnapshot(
+				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+			backend.dispose();
+
+			backend = restoreOperatorStateBackend(snapshot);
+
+			descriptor = new MapStateDescriptor<>(
+				stateName,
+				new TestSerializer(SerializerCompatibilityType.INCOMPATIBLE),
+				IntSerializer.INSTANCE);
+
+			// the new key serializer is INCOMPATIBLE, so registering the state should fail
+			backend.getBroadcastState(descriptor);
+		} catch (Exception e) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
+		} finally {
+			backend.dispose();
+		}
+	}
+
+	// -------------------------------------------------------------------------------
+	//  Test types, serializers, and serializer snapshots
+	// -------------------------------------------------------------------------------
 
 	/**
-	 * The serialization timeliness behaviour of the state backend under test.
-	 * This is used by the test base to decide what serialization behaviour should be verified for.
+	 * The type used as state under tests.
+	 *
+	 * <p>This is implemented so that the type can also be used as keyed priority queue state.
 	 */
-	public enum BackendSerializationTimeliness {
-		/** This corresponds to off-heap backends which requires de-/serialization on each state access, e.g. RocksDB. */
-		ON_ACCESS,
+	private static class TestType implements HeapPriorityQueueElement, PriorityComparable<TestType>, Keyed<String> {
 
-		/** This corresponds to heap-based backends which only performs state serialization on checkpointing. */
-		ON_CHECKPOINTS
-	}
+		private int index;
 
-	@Test
-	@SuppressWarnings("unchecked")
-	public void testValueStateWithSerializerRequiringMigration() throws Exception {
-		CustomStringSerializer.resetCountingMaps();
+		private final int value;
+		private final String key;
 
-		CheckpointStreamFactory streamFactory = createStreamFactory();
-		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		public TestType(String key, int value) {
+			this.key = key;
+			this.value = value;
+		}
 
-		try {
-			ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>(
-				"id",
-				new CustomStringSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS, SerializerVersion.INITIAL));
-			ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+		@Override
+		public String getKey() {
+			return key;
+		}
 
-			// ============ Modifications to the state ============
-			//  For eager serialization backends:
-			//    This should result in serializer personality INITIAL having 2 serialize calls
-			//
-			//  For lazy serialization backends:
-			//    This should not result in any serialize / deserialize calls
+		@Override
+		public int comparePriorityTo(@Nonnull TestType other) {
+			return Integer.compare(value, other.value);
+		}
 
-			backend.setCurrentKey(1);
-			state.update("1");
-			backend.setCurrentKey(2);
-			state.update("2");
-			backend.setCurrentKey(1);
+		@Override
+		public int getInternalIndex() {
+			return index;
+		}
 
-			if (getStateBackendSerializationTimeliness() == BackendSerializationTimeliness.ON_ACCESS) {
-				assertEquals((Integer) 2, CustomStringSerializer.serializeCalled.get(SerializerVersion.INITIAL));
-				assertEquals(null, CustomStringSerializer.deserializeCalled.get(SerializerVersion.INITIAL));
-			} else {
-				assertEquals(null, CustomStringSerializer.serializeCalled.get(SerializerVersion.INITIAL));
-				assertEquals(null, CustomStringSerializer.deserializeCalled.get(SerializerVersion.INITIAL));
+		@Override
+		public void setInternalIndex(int newIndex) {
+			this.index = newIndex;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj == null || !(obj instanceof StateBackendMigrationTestBase.TestType)) {
+				return false;
 			}
-			CustomStringSerializer.resetCountingMaps();
 
-			// ============ Snapshot #1 ============
-			//  For eager serialization backends:
-			//    This should not result in any serialize / deserialize calls
-			//
-			//  For lazy serialization backends:
-			//    This should result in serializer personality INITIAL having 2 serialize calls
-			KeyedStateHandle snapshot1 = runSnapshot(
-				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
-				sharedStateRegistry);
-			backend.dispose();
-
-			if (getStateBackendSerializationTimeliness() == BackendSerializationTimeliness.ON_ACCESS) {
-				assertEquals(null, CustomStringSerializer.serializeCalled.get(SerializerVersion.INITIAL));
-				assertEquals(null, CustomStringSerializer.deserializeCalled.get(SerializerVersion.INITIAL));
-			} else {
-				assertEquals((Integer) 2, CustomStringSerializer.serializeCalled.get(SerializerVersion.INITIAL));
-				assertEquals(null, CustomStringSerializer.deserializeCalled.get(SerializerVersion.INITIAL));
+			if (obj == this) {
+				return true;
 			}
-			CustomStringSerializer.resetCountingMaps();
 
-			// ============ Restore from snapshot #1 ============
-			//  For eager serialization backends:
-			//    This should not result in any serialize / deserialize calls
-			//
-			//  For lazy serialization backends:
-			//    This should result in serializer personality RESTORE having 2 deserialize calls
-			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot1);
+			TestType other = (TestType) obj;
+			return Objects.equals(key, other.key) && value == other.value;
+		}
 
-			if (getStateBackendSerializationTimeliness() == BackendSerializationTimeliness.ON_ACCESS) {
-				assertEquals(null, CustomStringSerializer.serializeCalled.get(SerializerVersion.INITIAL));
-				assertEquals(null, CustomStringSerializer.deserializeCalled.get(SerializerVersion.INITIAL));
-			} else {
-				assertEquals(null, CustomStringSerializer.serializeCalled.get(SerializerVersion.RESTORE));
-				assertEquals((Integer) 2, CustomStringSerializer.deserializeCalled.get(SerializerVersion.RESTORE));
-			}
-			CustomStringSerializer.resetCountingMaps();
-
-			ValueStateDescriptor<String> newKvId = new ValueStateDescriptor<>("id",
-				new CustomStringSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION, SerializerVersion.NEW));
-
-			// ============ State registration that triggers state migration ============
-			//  For eager serialization backends:
-			//    This should result in serializer personality RESTORE having 2 deserialize calls, and NEW having 2 serialize calls
-			//
-			//  For lazy serialization backends:
-			//    This should not result in any serialize / deserialize calls
-			ValueState<String> restored1 = backend.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, newKvId);
-
-			if (getStateBackendSerializationTimeliness() == BackendSerializationTimeliness.ON_ACCESS) {
-				assertEquals(null, CustomStringSerializer.serializeCalled.get(SerializerVersion.RESTORE));
-				assertEquals((Integer) 2, CustomStringSerializer.deserializeCalled.get(SerializerVersion.RESTORE));
-
-				assertEquals((Integer) 2, CustomStringSerializer.serializeCalled.get(SerializerVersion.NEW));
-				assertEquals(null, CustomStringSerializer.deserializeCalled.get(SerializerVersion.NEW));
-			} else {
-				assertEquals(null, CustomStringSerializer.serializeCalled.get(SerializerVersion.RESTORE));
-				assertEquals(null, CustomStringSerializer.deserializeCalled.get(SerializerVersion.RESTORE));
-
-				assertEquals(null, CustomStringSerializer.serializeCalled.get(SerializerVersion.NEW));
-				assertEquals(null, CustomStringSerializer.deserializeCalled.get(SerializerVersion.NEW));
-			}
-			CustomStringSerializer.resetCountingMaps();
-
-			// ============ More modifications to the state ============
-			//  For eager serialization backends:
-			//    This should result in serializer personality NEW having 2 serialize calls and 3 deserialize calls
-			//
-			//  For lazy serialization backends:
-			//    This should not result in any serialize / deserialize calls
-			backend.setCurrentKey(1);
-			assertEquals("1", restored1.value());
-			restored1.update("1"); // s, NEW
-			backend.setCurrentKey(2);
-			assertEquals("2", restored1.value());
-			restored1.update("3"); // s, NEW
-			assertEquals("3", restored1.value());
-
-			if (getStateBackendSerializationTimeliness() == BackendSerializationTimeliness.ON_ACCESS) {
-				assertEquals((Integer) 2, CustomStringSerializer.serializeCalled.get(SerializerVersion.NEW));
-				assertEquals((Integer) 3, CustomStringSerializer.deserializeCalled.get(SerializerVersion.NEW));
-			} else {
-				assertEquals(null, CustomStringSerializer.serializeCalled.get(SerializerVersion.NEW));
-				assertEquals(null, CustomStringSerializer.deserializeCalled.get(SerializerVersion.NEW));
-			}
-			CustomStringSerializer.resetCountingMaps();
-
-			// ============ Snapshot #2 ============
-			//  For eager serialization backends:
-			//    This should not result in any serialize / deserialize calls
-			//
-			//  For lazy serialization backends:
-			//    This should result in serializer personality NEW having 2 serialize calls
-			KeyedStateHandle snapshot2 = runSnapshot(
-				backend.snapshot(2L, 3L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
-				sharedStateRegistry);
-			backend.dispose();
-
-			if (getStateBackendSerializationTimeliness() == BackendSerializationTimeliness.ON_ACCESS) {
-				assertEquals(null, CustomStringSerializer.serializeCalled.get(SerializerVersion.NEW));
-				assertEquals(null, CustomStringSerializer.deserializeCalled.get(SerializerVersion.NEW));
-			} else {
-				assertEquals((Integer) 2, CustomStringSerializer.serializeCalled.get(SerializerVersion.NEW));
-				assertEquals(null, CustomStringSerializer.deserializeCalled.get(SerializerVersion.NEW));
-			}
-			CustomStringSerializer.resetCountingMaps();
-
-			// and restore once with NEW from NEW so that we see a read using the NEW serializer
-			// on the file backend
-			ValueStateDescriptor<String> newKvId2 = new ValueStateDescriptor<>(
-				"id",
-				new CustomStringSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS, SerializerVersion.NEW));
-
-			// ============ Restore from snapshot #2 ============
-			//  For eager serialization backends:
-			//    This should not result in any serialize / deserialize calls
-			//
-			//  For lazy serialization backends:
-			//    This should result in serializer personality RESTORE having 2 deserialize calls
-			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2);
-
-			if (getStateBackendSerializationTimeliness() == BackendSerializationTimeliness.ON_ACCESS) {
-				assertEquals(null, CustomStringSerializer.serializeCalled.get(SerializerVersion.RESTORE));
-				assertEquals(null, CustomStringSerializer.deserializeCalled.get(SerializerVersion.RESTORE));
-			} else {
-				assertEquals(null, CustomStringSerializer.serializeCalled.get(SerializerVersion.RESTORE));
-				assertEquals((Integer) 2, CustomStringSerializer.deserializeCalled.get(SerializerVersion.RESTORE));
-			}
-			CustomStringSerializer.resetCountingMaps();
-
-			backend.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, newKvId2);
-			snapshot2.discardState();
-			snapshot1.discardState();
-		} finally {
-			backend.dispose();
+		@Override
+		public int hashCode() {
+			return 31 * key.hashCode() + value;
 		}
 	}
 
-	@Test
-	@SuppressWarnings("unchecked")
-	public void testValueStateWithNewSerializer() throws Exception {
-		CustomStringSerializer.resetCountingMaps();
+	private static class TestSerializer extends TypeSerializer<TestType> {
 
-		CheckpointStreamFactory streamFactory = createStreamFactory();
-		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		private static final String MIGRATION_PAYLOAD = "random-migration-payload";
 
-		try {
-			ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>(
-				"id",
-				new CustomStringSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS, SerializerVersion.INITIAL));
-			ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+		private final SerializerCompatibilityType compatibilityType;
 
-			// ============ Modifications to the state ============
-			//  For eager serialization backends:
-			//    This should result in serializer personality INITIAL having 2 serialize calls
-			//
-			//  For lazy serialization backends:
-			//    This should not result in any serialize / deserialize calls
-
-			backend.setCurrentKey(1);
-			state.update("1");
-			backend.setCurrentKey(2);
-			state.update("2");
-			backend.setCurrentKey(1);
-
-			if (getStateBackendSerializationTimeliness() == BackendSerializationTimeliness.ON_ACCESS) {
-				assertEquals((Integer) 2, CustomStringSerializer.serializeCalled.get(SerializerVersion.INITIAL));
-				assertNull(CustomStringSerializer.deserializeCalled.get(SerializerVersion.INITIAL));
-			} else {
-				assertNull(CustomStringSerializer.serializeCalled.get(SerializerVersion.INITIAL));
-				assertNull(CustomStringSerializer.deserializeCalled.get(SerializerVersion.INITIAL));
-			}
-			CustomStringSerializer.resetCountingMaps();
-
-			// ============ Snapshot #1 ============
-			//  For eager serialization backends:
-			//    This should not result in any serialize / deserialize calls
-			//
-			//  For lazy serialization backends:
-			//    This should result in serializer personality INITIAL having 2 serialize calls
-			KeyedStateHandle snapshot1 = runSnapshot(
-				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
-				sharedStateRegistry);
-			backend.dispose();
-
-			if (getStateBackendSerializationTimeliness() == BackendSerializationTimeliness.ON_ACCESS) {
-				assertNull(CustomStringSerializer.serializeCalled.get(SerializerVersion.INITIAL));
-				assertNull(CustomStringSerializer.deserializeCalled.get(SerializerVersion.INITIAL));
-			} else {
-				assertEquals((Integer) 2, CustomStringSerializer.serializeCalled.get(SerializerVersion.INITIAL));
-				assertNull(CustomStringSerializer.deserializeCalled.get(SerializerVersion.INITIAL));
-			}
-			CustomStringSerializer.resetCountingMaps();
-
-			// ============ Restore from snapshot #1 ============
-			//  For eager serialization backends:
-			//    This should not result in any serialize / deserialize calls
-			//
-			//  For lazy serialization backends:
-			//    This should result in serializer personality RESTORE having 2 deserialize calls
-			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot1);
-
-			if (getStateBackendSerializationTimeliness() == BackendSerializationTimeliness.ON_ACCESS) {
-				assertNull(CustomStringSerializer.serializeCalled.get(SerializerVersion.INITIAL));
-				assertNull(CustomStringSerializer.deserializeCalled.get(SerializerVersion.INITIAL));
-			} else {
-				assertNull(CustomStringSerializer.serializeCalled.get(SerializerVersion.RESTORE));
-				assertEquals((Integer) 2, CustomStringSerializer.deserializeCalled.get(SerializerVersion.RESTORE));
-			}
-			CustomStringSerializer.resetCountingMaps();
-
-			ValueStateDescriptor<String> newKvId = new ValueStateDescriptor<>("id",
-				new CustomStringSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS, SerializerVersion.NEW));
-			ValueState<String> restored1 = backend.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, newKvId);
-
-			// ============ More modifications to the state ============
-			//  For eager serialization backends:
-			//    This should result in serializer personality NEW having 2 serialize calls and 3 deserialize calls
-			//
-			//  For lazy serialization backends:
-			//    This should not result in any serialize / deserialize calls
-
-			backend.setCurrentKey(1);
-			assertEquals("1", restored1.value());
-			restored1.update("1");
-			backend.setCurrentKey(2);
-			assertEquals("2", restored1.value());
-			restored1.update("3");
-			assertEquals("3", restored1.value());
-
-			if (getStateBackendSerializationTimeliness() == BackendSerializationTimeliness.ON_ACCESS) {
-				assertEquals((Integer) 2, CustomStringSerializer.serializeCalled.get(SerializerVersion.NEW));
-				assertEquals((Integer) 3, CustomStringSerializer.deserializeCalled.get(SerializerVersion.NEW));
-			} else {
-				assertNull(CustomStringSerializer.serializeCalled.get(SerializerVersion.NEW));
-				assertNull(CustomStringSerializer.deserializeCalled.get(SerializerVersion.NEW));
-			}
-			CustomStringSerializer.resetCountingMaps();
-
-			// ============ Snapshot #2 ============
-			//  For eager serialization backends:
-			//    This should not result in any serialize / deserialize calls
-			//
-			//  For lazy serialization backends:
-			//    This should result in serializer personality NEW having 2 serialize calls
-			KeyedStateHandle snapshot2 = runSnapshot(
-				backend.snapshot(2L, 3L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
-				sharedStateRegistry);
-			snapshot1.discardState();
-			backend.dispose();
-
-			if (getStateBackendSerializationTimeliness() == BackendSerializationTimeliness.ON_ACCESS) {
-				assertNull(CustomStringSerializer.serializeCalled.get(SerializerVersion.NEW));
-				assertNull(CustomStringSerializer.deserializeCalled.get(SerializerVersion.NEW));
-			} else {
-				assertEquals((Integer) 2, CustomStringSerializer.serializeCalled.get(SerializerVersion.NEW));
-				assertNull(CustomStringSerializer.deserializeCalled.get(SerializerVersion.NEW));
-			}
-			CustomStringSerializer.resetCountingMaps();
-
-			// ============ Restore from snapshot #2 ============
-			//  For eager serialization backends:
-			//    This should not result in any serialize / deserialize calls
-			//
-			//  For lazy serialization backends:
-			//    This should result in serializer personality RESTORE having 2 deserialize calls
-			ValueStateDescriptor<String> newKvId2 = new ValueStateDescriptor<>("id",
-				new CustomStringSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS, SerializerVersion.NEW));
-			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2);
-
-			if (getStateBackendSerializationTimeliness() == BackendSerializationTimeliness.ON_ACCESS) {
-				assertNull(CustomStringSerializer.serializeCalled.get(SerializerVersion.RESTORE));
-				assertNull(CustomStringSerializer.deserializeCalled.get(SerializerVersion.RESTORE));
-			} else {
-				assertNull(CustomStringSerializer.serializeCalled.get(SerializerVersion.RESTORE));
-				assertEquals((Integer) 2, CustomStringSerializer.deserializeCalled.get(SerializerVersion.RESTORE));
-			}
-			CustomStringSerializer.resetCountingMaps();
-
-			backend.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, newKvId2);
-			snapshot2.discardState();
-		} finally {
-			backend.dispose();
-		}
-	}
-
-	public static class CustomStringSerializer extends TypeSerializer<String> {
-
-		private static final long serialVersionUID = 1L;
-
-		private static final String EMPTY = "";
-
-		private SerializerCompatibilityType compatibilityType;
-		private SerializerVersion serializerVersion;
-
-		private static final String CONFIG_PAYLOAD = "configPayload";
-
-		// for counting how often the methods were called from serializers of the different personalities
-		public static Map<SerializerVersion, Integer> serializeCalled = new HashMap<>();
-		public static Map<SerializerVersion, Integer> deserializeCalled = new HashMap<>();
-
-		static void resetCountingMaps() {
-			serializeCalled = new HashMap<>();
-			deserializeCalled = new HashMap<>();
-		}
-
-		CustomStringSerializer(
-			SerializerCompatibilityType compatibilityType,
-			SerializerVersion serializerVersion) {
+		TestSerializer(SerializerCompatibilityType compatibilityType) {
 			this.compatibilityType = compatibilityType;
-			this.serializerVersion = serializerVersion;
+		}
+
+		// --------------------------------------------------------------------------------
+		//  State serialization relevant methods
+		// --------------------------------------------------------------------------------
+
+		@Override
+		public void serialize(TestType record, DataOutputView target) throws IOException {
+			switch (compatibilityType) {
+				case COMPATIBLE_AS_IS:
+					target.writeUTF(record.getKey());
+					target.writeInt(record.value);
+					break;
+
+				case REQUIRES_MIGRATION:
+					target.writeUTF(record.getKey());
+					target.writeUTF(MIGRATION_PAYLOAD);
+					target.writeInt(record.value);
+					target.writeBoolean(true);
+					break;
+
+				case INCOMPATIBLE:
+					// the serializer shouldn't be used in this case
+					throw new UnsupportedOperationException();
+			}
+		}
+
+		@Override
+		public TestType deserialize(DataInputView source) throws IOException {
+			String key;
+			int value;
+
+			switch (compatibilityType) {
+				case COMPATIBLE_AS_IS:
+					key = source.readUTF();
+					value = source.readInt();
+					break;
+
+				case REQUIRES_MIGRATION:
+					key = source.readUTF();
+					Assert.assertEquals(MIGRATION_PAYLOAD, source.readUTF());
+					value = source.readInt();
+					Assert.assertTrue(source.readBoolean());
+					break;
+
+				default:
+				case INCOMPATIBLE:
+					// the serializer shouldn't be used in this case
+					throw new UnsupportedOperationException();
+			}
+
+			return new TestType(key, value);
+		}
+
+		@Override
+		public TestType copy(TestType from) {
+			return new TestType(from.key, from.value);
+		}
+
+		@Override
+		public TypeSerializerSnapshot<TestType> snapshotConfiguration() {
+			return new TestSerializerSnapshot();
+		}
+
+		// --------------------------------------------------------------------------------
+		//  Miscellaneous serializer methods
+		// --------------------------------------------------------------------------------
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			serialize(deserialize(source), target);
+		}
+
+		@Override
+		public TestType deserialize(TestType reuse, DataInputView source) throws IOException {
+			return deserialize(source);
+		}
+
+		@Override
+		public TestType copy(TestType from, TestType reuse) {
+			return copy(from);
+		}
+
+		@Override
+		public TestType createInstance() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public TypeSerializer<TestType> duplicate() {
+			return this;
 		}
 
 		@Override
 		public boolean isImmutableType() {
-			return true;
-		}
-
-		@Override
-		public String createInstance() {
-			return EMPTY;
-		}
-
-		@Override
-		public String copy(String from) {
-			return from;
-		}
-
-		@Override
-		public String copy(String from, String reuse) {
-			return from;
+			return false;
 		}
 
 		@Override
@@ -472,41 +908,8 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		}
 
 		@Override
-		public void serialize(String record, DataOutputView target) throws IOException {
-			serializeCalled.compute(serializerVersion, (k, v) -> v == null ? 1 : v + 1);
-			StringValue.writeString(record, target);
-		}
-
-		@Override
-		public String deserialize(DataInputView source) throws IOException {
-			deserializeCalled.compute(serializerVersion, (k, v) -> v == null ? 1 : v + 1);
-			return StringValue.readString(source);
-		}
-
-		@Override
-		public String deserialize(String record, DataInputView source) throws IOException {
-			deserializeCalled.compute(serializerVersion, (k, v) -> v == null ? 1 : v + 1);
-			return deserialize(source);
-		}
-
-		@Override
-		public void copy(DataInputView source, DataOutputView target) throws IOException {
-			StringValue.copyString(source, target);
-		}
-
-		@Override
 		public boolean canEqual(Object obj) {
-			return obj instanceof CustomStringSerializer;
-		}
-
-		@Override
-		public TypeSerializer<String> duplicate() {
-			return this;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			return obj instanceof CustomStringSerializer;
+			return getClass().equals(obj.getClass());
 		}
 
 		@Override
@@ -515,70 +918,42 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		}
 
 		@Override
-		public TypeSerializerSnapshot<String> snapshotConfiguration() {
-			return new CustomStringSerializerSnapshot(CONFIG_PAYLOAD);
-		}
-
-		SerializerCompatibilityType getCompatibilityType() {
-			return compatibilityType;
+		public boolean equals(Object obj) {
+			return obj == this;
 		}
 	}
 
-	public static class CustomStringSerializerSnapshot implements TypeSerializerSnapshot<String> {
+	public static class TestSerializerSnapshot implements TypeSerializerSnapshot<TestType> {
 
-		private String configPayload;
-
-		public CustomStringSerializerSnapshot() {}
-
-		public CustomStringSerializerSnapshot(String configPayload) {
-			this.configPayload = configPayload;
+		@Override
+		public int getCurrentVersion() {
+			return 1;
 		}
 
 		@Override
-		public void writeSnapshot(DataOutputView out) throws IOException {
-			out.writeUTF(configPayload);
+		public TypeSerializer<TestType> restoreSerializer() {
+			return new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS);
 		}
 
 		@Override
-		public void readSnapshot(int readVersion, DataInputView in, ClassLoader classLoader) throws IOException {
-			configPayload = in.readUTF();
-		}
-
-		@Override
-		public TypeSerializer<String> restoreSerializer() {
-			return new CustomStringSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS, SerializerVersion.RESTORE);
-
-		}
-
-		@Override
-		public <NS extends TypeSerializer<String>> TypeSerializerSchemaCompatibility<String, NS> resolveSchemaCompatibility(NS newSerializer) {
-			if (newSerializer instanceof CustomStringSerializer) {
-				SerializerCompatibilityType compatibilityType = ((CustomStringSerializer) newSerializer).getCompatibilityType();
-
-				if (compatibilityType == SerializerCompatibilityType.COMPATIBLE_AS_IS) {
+		public <NS extends TypeSerializer<TestType>> TypeSerializerSchemaCompatibility<TestType, NS> resolveSchemaCompatibility(NS newSerializer) {
+			switch (((TestSerializer) newSerializer).compatibilityType) {
+				case COMPATIBLE_AS_IS:
 					return TypeSerializerSchemaCompatibility.compatibleAsIs();
-				} else {
+				case REQUIRES_MIGRATION:
 					return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
-				}
-			} else {
-				return TypeSerializerSchemaCompatibility.incompatible();
+				case INCOMPATIBLE:
+					return TypeSerializerSchemaCompatibility.incompatible();
+				default:
+					throw new UnsupportedOperationException();
 			}
 		}
 
 		@Override
-		public boolean equals(Object obj) {
-			return obj instanceof CustomStringSerializerSnapshot;
-		}
+		public void writeSnapshot(DataOutputView out) throws IOException {}
 
 		@Override
-		public int hashCode() {
-			return 0;
-		}
-
-		@Override
-		public int getCurrentVersion() {
-			return 0;
-		}
+		public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {}
 	}
 
 	public static class CustomVoidNamespaceSerializer extends TypeSerializer<VoidNamespace> {
@@ -699,10 +1074,6 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		}
 	}
 
-	protected abstract B getStateBackend() throws Exception;
-
-	protected abstract BackendSerializationTimeliness getStateBackendSerializationTimeliness();
-
 	private CheckpointStreamFactory createStreamFactory() throws Exception {
 		if (checkpointStorageLocation == null) {
 			checkpointStorageLocation = getStateBackend()
@@ -712,11 +1083,15 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		return checkpointStorageLocation;
 	}
 
+	// -------------------------------------------------------------------------------
+	//  Keyed state backend utilities
+	// -------------------------------------------------------------------------------
+
 	private <K> AbstractKeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer) throws Exception {
 		return createKeyedBackend(keySerializer, new DummyEnvironment());
 	}
 
-	private  <K> AbstractKeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer, Environment env) throws Exception {
+	private <K> AbstractKeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer, Environment env) throws Exception {
 		return createKeyedBackend(
 			keySerializer,
 			10,
@@ -724,7 +1099,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			env);
 	}
 
-	private  <K> AbstractKeyedStateBackend<K> createKeyedBackend(
+	private <K> AbstractKeyedStateBackend<K> createKeyedBackend(
 		TypeSerializer<K> keySerializer,
 		int numberOfKeyGroups,
 		KeyGroupRange keyGroupRange,
@@ -741,7 +1116,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		return backend;
 	}
 
-	private  <K> AbstractKeyedStateBackend<K> restoreKeyedBackend(TypeSerializer<K> keySerializer, KeyedStateHandle state) throws Exception {
+	private <K> AbstractKeyedStateBackend<K> restoreKeyedBackend(TypeSerializer<K> keySerializer, KeyedStateHandle state) throws Exception {
 		return restoreKeyedBackend(keySerializer, state, new DummyEnvironment());
 	}
 
@@ -757,7 +1132,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			env);
 	}
 
-	private  <K> AbstractKeyedStateBackend<K> restoreKeyedBackend(
+	private <K> AbstractKeyedStateBackend<K> restoreKeyedBackend(
 		TypeSerializer<K> keySerializer,
 		int numberOfKeyGroups,
 		KeyGroupRange keyGroupRange,
@@ -789,5 +1164,29 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			jobManagerOwnedSnapshot.registerSharedStates(sharedStateRegistry);
 		}
 		return jobManagerOwnedSnapshot;
+	}
+
+	// -------------------------------------------------------------------------------
+	//  Operator state backend utilities
+	// -------------------------------------------------------------------------------
+
+	private OperatorStateBackend createOperatorStateBackend() throws Exception {
+		return getStateBackend().createOperatorStateBackend(new DummyEnvironment(), "test_op");
+	}
+
+	private OperatorStateBackend restoreOperatorStateBackend(OperatorStateHandle state) throws Exception {
+		OperatorStateBackend operatorStateBackend = createOperatorStateBackend();
+		operatorStateBackend.restore(StateObjectCollection.singleton(state));
+		return operatorStateBackend;
+	}
+
+	private OperatorStateHandle runSnapshot(
+		RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshotRunnableFuture) throws Exception {
+
+		if (!snapshotRunnableFuture.isDone()) {
+			snapshotRunnableFuture.run();
+		}
+
+		return snapshotRunnableFuture.get().getJobManagerOwnedSnapshot();
 	}
 }

@@ -1718,9 +1718,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				TypeSerializerSchemaCompatibility<T, ?> compatibilityResult =
 					serializerSnapshot.resolveSchemaCompatibility(byteOrderedElementSerializer);
 
-				// TODO implement proper migration for priority queue state
+				// Since priority queue elements are written into RocksDB
+				// as keys prefixed with the key group and namespace, we do not support
+				// migrating them. Therefore, here we only check for incompatibility.
 				if (compatibilityResult.isIncompatible()) {
-					throw new FlinkRuntimeException(StateMigrationException.notSupported());
+					throw new FlinkRuntimeException(
+						new StateMigrationException("The new priority queue serializer must not be incompatible."));
 				}
 
 				// update meta info with new serializer
