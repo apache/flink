@@ -135,16 +135,29 @@ function start_confluent_schema_registry {
 
   # wait until the schema registry REST endpoint is up
   for i in {1..30}; do
-    QUERY_RESULT=$(curl "${SCHEMA_REGISTRY_URL}/subjects" 2> /dev/null || true)
-
-    if [[ ${QUERY_RESULT} =~ \[.*\] ]]; then
+    if get_and_verify_schema_subjects_exist; then
         echo "Schema registry is up."
-        break
+        return 0
     fi
 
     echo "Waiting for schema registry..."
     sleep 1
   done
+
+  if ! get_and_verify_schema_subjects_exist; then
+      echo "Could not start confluent schema registry"
+      exit 1
+  fi
+}
+
+function get_schema_subjects {
+    curl "${SCHEMA_REGISTRY_URL}/subjects" 2> /dev/null || true
+}
+
+function get_and_verify_schema_subjects_exist {
+    QUERY_RESULT=$(get_schema_subjects)
+
+    [[ ${QUERY_RESULT} =~ \[.*\] ]]
 }
 
 function stop_confluent_schema_registry {
