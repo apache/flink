@@ -287,7 +287,15 @@ class OverWindowTest extends TableTestBase {
       "sum(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding) as cnt2 " +
       "FROM MyTable " +
       "WINDOW w AS (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding)"
+
+    val sql3 = "SELECT " +
+      "c, " +
+      "count(a) OVER (PARTITION BY c ORDER BY proctime) as cnt1, " +
+      "sum(a) OVER (PARTITION BY c ORDER BY proctime) as cnt2 " +
+      "from MyTable"
+
     streamUtil.verifySqlPlansIdentical(sql, sql2)
+    streamUtil.verifySqlPlansIdentical(sql, sql3)
 
     val expected =
       unaryNode(
@@ -522,6 +530,13 @@ class OverWindowTest extends TableTestBase {
       "count(a) OVER (PARTITION BY c ORDER BY rowtime RANGE UNBOUNDED preceding) as cnt1, " +
       "sum(a) OVER (PARTITION BY c ORDER BY rowtime RANGE UNBOUNDED preceding) as cnt2 " +
       "from MyTable"
+
+    val sql1 = "SELECT " +
+      "c, " +
+      "count(a) OVER (PARTITION BY c ORDER BY rowtime) as cnt1, " +
+      "sum(a) OVER (PARTITION BY c ORDER BY rowtime) as cnt2 " +
+      "from MyTable"
+    streamUtil.verifySqlPlansIdentical(sql, sql1)
 
     val expected =
       unaryNode(
