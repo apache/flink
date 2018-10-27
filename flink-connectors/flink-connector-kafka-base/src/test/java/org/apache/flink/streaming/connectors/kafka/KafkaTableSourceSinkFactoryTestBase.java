@@ -52,7 +52,6 @@ import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceUtil;
 import org.apache.flink.table.sources.tsextractors.ExistingField;
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps;
-import org.apache.flink.table.util.JavaScalaConversionUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
 
@@ -165,7 +164,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 					.field(PROC_TIME, Types.SQL_TIMESTAMP()).proctime())
 			.inAppendMode();
 
-		final Map<String, String> propertiesMap = JavaScalaConversionUtil.toJavaMap(testDesc);
+		final Map<String, String> propertiesMap = testDesc.toProperties();
 		final TableSource<?> actualSource = TableFactoryService.find(StreamTableSourceFactory.class, propertiesMap)
 			.createStreamTableSource(propertiesMap);
 
@@ -215,7 +214,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 					.field(EVENT_TIME, Types.SQL_TIMESTAMP()))
 			.inAppendMode();
 
-		final Map<String, String> propertiesMap = JavaScalaConversionUtil.toJavaMap(testDesc);
+		final Map<String, String> propertiesMap = testDesc.toProperties();
 		final TableSink<?> actualSink = TableFactoryService.find(StreamTableSinkFactory.class, propertiesMap)
 			.createStreamTableSink(propertiesMap);
 

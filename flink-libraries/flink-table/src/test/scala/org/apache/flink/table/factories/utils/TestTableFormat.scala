@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.factories.utils
 
+import java.util
+
 import org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA
 import org.apache.flink.table.descriptors.{DescriptorProperties, FormatDescriptor}
 import org.apache.flink.table.factories.TableFormatFactoryServiceTest._
@@ -27,8 +29,12 @@ import org.apache.flink.table.factories.TableFormatFactoryServiceTest._
   */
 class TestTableFormat extends FormatDescriptor(TEST_FORMAT_TYPE, 1) {
 
-  override protected def addFormatProperties(properties: DescriptorProperties): Unit = {
+  override protected def toFormatProperties: util.Map[String, String] = {
+    val properties = new DescriptorProperties()
+
     properties.putString(COMMON_PATH, "/path/to/sth")
     properties.putString(FORMAT_DERIVE_SCHEMA, "true")
+
+    properties.asMap()
   }
 }

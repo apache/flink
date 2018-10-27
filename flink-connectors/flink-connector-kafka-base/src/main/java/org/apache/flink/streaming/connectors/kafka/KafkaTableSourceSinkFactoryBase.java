@@ -93,9 +93,9 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	public Map<String, String> requiredContext() {
 		Map<String, String> context = new HashMap<>();
 		context.put(UPDATE_MODE(), UPDATE_MODE_VALUE_APPEND()); // append mode
-		context.put(CONNECTOR_TYPE(), CONNECTOR_TYPE_VALUE_KAFKA); // kafka
-		context.put(CONNECTOR_VERSION(), kafkaVersion()); // version
-		context.put(CONNECTOR_PROPERTY_VERSION(), "1"); // backwards compatibility
+		context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_KAFKA); // kafka
+		context.put(CONNECTOR_VERSION, kafkaVersion()); // version
+		context.put(CONNECTOR_PROPERTY_VERSION, "1"); // backwards compatibility
 		return context;
 	}
 
@@ -131,7 +131,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_DELAY());
 
 		// format wildcard
-		properties.add(FORMAT() + ".*");
+		properties.add(FORMAT + ".*");
 
 		return properties;
 	}

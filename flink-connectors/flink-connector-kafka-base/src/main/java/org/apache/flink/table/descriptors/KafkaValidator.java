@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.descriptors;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 
 import java.util.Arrays;
@@ -31,6 +32,7 @@ import static org.apache.flink.table.descriptors.DescriptorProperties.noValidati
 /**
  * The validator for {@link Kafka}.
  */
+@Internal
 public class KafkaValidator extends ConnectorDescriptorValidator {
 
 	public static final String CONNECTOR_TYPE_VALUE_KAFKA = "kafka";
@@ -60,7 +62,7 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 	@Override
 	public void validate(DescriptorProperties properties) {
 		super.validate(properties);
-		properties.validateValue(CONNECTOR_TYPE(), CONNECTOR_TYPE_VALUE_KAFKA, false);
+		properties.validateValue(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_KAFKA, false);
 
 		validateVersion(properties);
 
@@ -78,7 +80,7 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 			CONNECTOR_VERSION_VALUE_010,
 			CONNECTOR_VERSION_VALUE_011,
 			CONNECTOR_VERSION_VALUE_20);
-		properties.validateEnumValues(CONNECTOR_VERSION(), false, versions);
+		properties.validateEnumValues(CONNECTOR_VERSION, false, versions);
 		properties.validateString(CONNECTOR_TOPIC, false, 1, Integer.MAX_VALUE);
 	}
 

@@ -25,16 +25,15 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.{TableEnvironment, Types}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.descriptors.{DescriptorProperties, Rowtime, Schema}
-import org.apache.flink.table.expressions.utils.SplitUDF
+import org.apache.flink.table.api.{TableEnvironment, Types}
+import org.apache.flink.table.descriptors.{Rowtime, Schema}
 import org.apache.flink.table.expressions.utils.Func15
 import org.apache.flink.table.runtime.stream.sql.SqlITCase.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.runtime.utils.{JavaUserDefinedTableFunctions, StreamITCase, StreamTestData, StreamingWithStateTestBase}
-import org.apache.flink.types.Row
 import org.apache.flink.table.utils.{InMemoryTableFactory, MemoryTableSourceSinkUtil}
+import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit._
 
@@ -727,8 +726,7 @@ class SqlITCase extends StreamingWithStateTestBase {
       .field("t", Types.SQL_TIMESTAMP)
         .rowtime(Rowtime().timestampsFromField("t").watermarksPeriodicAscending())
       .field("proctime", Types.SQL_TIMESTAMP).proctime()
-    val props = new DescriptorProperties()
-    desc.addProperties(props)
+    val properties = desc.toProperties
 
     val t = StreamTestData.getSmall3TupleDataStream(env)
       .assignAscendingTimestamps(x => x._2)
@@ -736,9 +734,9 @@ class SqlITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("sourceTable", t)
 
     tEnv.registerTableSource("targetTable",
-      new InMemoryTableFactory(3).createStreamTableSource(props.asMap))
+      new InMemoryTableFactory(3).createStreamTableSource(properties))
     tEnv.registerTableSink("targetTable",
-      new InMemoryTableFactory(3).createStreamTableSink(props.asMap))
+      new InMemoryTableFactory(3).createStreamTableSink(properties))
 
     tEnv.sqlUpdate("INSERT INTO targetTable SELECT a, b, c, rowtime FROM sourceTable")
     tEnv.sqlQuery("SELECT a, e, f, t from targetTable")

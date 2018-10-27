@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.List;
 
 /**
@@ -29,6 +31,7 @@ import java.util.List;
  *
  * @param <T> record type that the format produces or consumes.
  */
+@PublicEvolving
 public interface TableFormatFactory<T> extends TableFactory {
 
 	/**

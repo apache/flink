@@ -18,12 +18,10 @@
 
 package org.apache.flink.table.util
 
-import java.util
 import java.util.Optional
 import java.util.function.{BiConsumer, Consumer, Function}
 
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.table.descriptors.{Descriptor, DescriptorProperties}
 
 /**
   * Utilities for interoperability between Scala and Java classes.
@@ -59,11 +57,5 @@ object JavaScalaConversionUtil {
 
   def toJava[T0, T1](tuple: (T0, T1)): JTuple2[T0, T1] = {
     new JTuple2[T0, T1](tuple._1, tuple._2)
-  }
-
-  def toJavaMap(descriptor: Descriptor): util.Map[String, String] = {
-    val descriptorProperties = new DescriptorProperties()
-    descriptor.addProperties(descriptorProperties)
-    descriptorProperties.asMap
   }
 }

@@ -19,31 +19,33 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.ValidationException;
 
 /**
- * Validator for {@link Avro}.
+ * Validator for {@link ConnectorDescriptor}.
  */
 @Internal
-public class AvroValidator extends FormatDescriptorValidator {
+public abstract class ConnectorDescriptorValidator implements DescriptorValidator {
 
-	public static final String FORMAT_TYPE_VALUE = "avro";
-	public static final String FORMAT_RECORD_CLASS = "format.record-class";
-	public static final String FORMAT_AVRO_SCHEMA = "format.avro-schema";
+	/**
+	 * Key for describing the type of the connector. Usually used for factory discovery.
+	 */
+	public static final String CONNECTOR_TYPE = "connector.type";
+
+	/**
+	 * Key for describing the property version. This property can be used for backwards
+	 * compatibility in case the property format changes.
+	 */
+	public static final String CONNECTOR_PROPERTY_VERSION = "connector.property-version";
+
+	/**
+	 * Key for describing the version of the connector. This property can be used for different
+	 * connector versions (e.g. Kafka 0.8 or Kafka 0.11).
+	 */
+	public static final String CONNECTOR_VERSION = "connector.version";
 
 	@Override
 	public void validate(DescriptorProperties properties) {
-		super.validate(properties);
-		final boolean hasRecordClass = properties.containsKey(FORMAT_RECORD_CLASS);
-		final boolean hasAvroSchema = properties.containsKey(FORMAT_AVRO_SCHEMA);
-		if (hasRecordClass && hasAvroSchema) {
-			throw new ValidationException("A definition of both a schema and Avro schema is not allowed.");
-		} else if (hasRecordClass) {
-			properties.validateString(FORMAT_RECORD_CLASS, false, 1);
-		} else if (hasAvroSchema) {
-			properties.validateString(FORMAT_AVRO_SCHEMA, false, 1);
-		} else {
-			throw new ValidationException("A definition of an Avro specific record class or Avro schema is required.");
-		}
+		properties.validateString(CONNECTOR_TYPE, false, 1);
+		properties.validateInt(CONNECTOR_PROPERTY_VERSION, true, 0);
 	}
 }

@@ -22,8 +22,6 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.table.descriptors.Avro;
-import org.apache.flink.table.descriptors.Descriptor;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.DeserializationSchemaFactory;
 import org.apache.flink.table.factories.SerializationSchemaFactory;
 import org.apache.flink.table.factories.TableFactoryService;
@@ -46,7 +44,7 @@ public class AvroRowFormatFactoryTest extends TestLogger {
 
 	@Test
 	public void testRecordClass() {
-		final Map<String, String> properties = toMap(new Avro().recordClass(AVRO_SPECIFIC_RECORD));
+		final Map<String, String> properties = new Avro().recordClass(AVRO_SPECIFIC_RECORD).toProperties();
 
 		testRecordClassDeserializationSchema(properties);
 
@@ -55,7 +53,7 @@ public class AvroRowFormatFactoryTest extends TestLogger {
 
 	@Test
 	public void testAvroSchema() {
-		final Map<String, String> properties = toMap(new Avro().avroSchema(AVRO_SCHEMA));
+		final Map<String, String> properties = new Avro().avroSchema(AVRO_SCHEMA).toProperties();
 
 		testAvroSchemaSerializationSchema(properties);
 
@@ -92,13 +90,5 @@ public class AvroRowFormatFactoryTest extends TestLogger {
 			.createSerializationSchema(properties);
 		final SerializationSchema<?> expected1 = new AvroRowSerializationSchema(AVRO_SCHEMA);
 		assertEquals(expected1, actual1);
-	}
-
-	private static Map<String, String> toMap(Descriptor... desc) {
-		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
-		for (Descriptor d : desc) {
-			d.addProperties(descriptorProperties);
-		}
-		return descriptorProperties.asMap();
 	}
 }

@@ -16,17 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors
+package org.apache.flink.table.descriptors;
+
+import org.apache.flink.annotation.Internal;
 
 /**
-  * Validator for a descriptor. We put the validation methods and utilities in separate classes
-  * to keep the descriptor interfaces clean.
-  */
-trait DescriptorValidator {
+ * Validator for a descriptor. We put the validation methods and utilities in separate classes
+ * to keep the descriptor interfaces clean.
+ */
+@Internal
+public interface DescriptorValidator {
 
-  /**
-    * Performs basic validation such as completeness tests.
-    */
-  def validate(properties: DescriptorProperties): Unit
-
+	/**
+	 * Performs basic validation such as completeness tests.
+	 */
+	void validate(DescriptorProperties properties);
 }

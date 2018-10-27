@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.descriptors
 
+import java.util
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.Types
 
@@ -194,10 +196,12 @@ class ClassInstance extends HierarchyDescriptor {
   }
 
   /**
-    * Internal method for properties conversion.
+    * Converts this descriptor into a set of properties.
     */
-  override private[flink] def addProperties(properties: DescriptorProperties): Unit =  {
+  override def toProperties: util.Map[String, String] = {
+    val properties = new DescriptorProperties()
     addPropertiesWithPrefix(HierarchyDescriptorValidator.EMPTY_PREFIX, properties)
+    properties.asMap()
   }
 
   /**
@@ -233,6 +237,9 @@ object ClassInstance {
   /**
     * Descriptor for a class instance. A class instance is a Java/Scala object created from a class
     * with a public constructor (with or without parameters).
+    *
+    * @deprecated Use `new ClassInstance()`.
     */
+  @deprecated
   def apply() = new ClassInstance
 }

@@ -26,6 +26,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
@@ -71,7 +72,7 @@ public class Elasticsearch extends ConnectorDescriptor {
 	 * @param version Elasticsearch version. E.g., "6".
 	 */
 	public Elasticsearch version(String version) {
-		internalProperties.putString(CONNECTOR_VERSION(), version);
+		internalProperties.putString(CONNECTOR_VERSION, version);
 		return this;
 	}
 
@@ -301,8 +302,9 @@ public class Elasticsearch extends ConnectorDescriptor {
 	}
 
 	@Override
-	public void addConnectorProperties(DescriptorProperties properties) {
-		properties.putProperties(internalProperties.asMap());
+	protected Map<String, String> toConnectorProperties() {
+		final DescriptorProperties properties = new DescriptorProperties();
+		properties.putProperties(internalProperties);
 
 		final List<List<String>> hostValues = hosts.stream()
 			.map(host -> Arrays.asList(host.hostname, String.valueOf(host.port), host.protocol))
@@ -311,5 +313,7 @@ public class Elasticsearch extends ConnectorDescriptor {
 			CONNECTOR_HOSTS,
 			Arrays.asList(CONNECTOR_HOSTS_HOSTNAME, CONNECTOR_HOSTS_PORT, CONNECTOR_HOSTS_PROTOCOL),
 			hostValues);
+
+		return properties.asMap();
 	}
 }

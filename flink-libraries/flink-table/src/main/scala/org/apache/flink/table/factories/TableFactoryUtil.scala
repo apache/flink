@@ -22,7 +22,6 @@ import org.apache.flink.table.api.{BatchTableEnvironment, StreamTableEnvironment
 import org.apache.flink.table.descriptors.Descriptor
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
-import org.apache.flink.table.util.JavaScalaConversionUtil
 
 /**
   * Utility for dealing with [[TableFactory]] using the [[TableFactoryService]].
@@ -37,7 +36,7 @@ object TableFactoryUtil {
       descriptor: Descriptor)
     : TableSource[T] = {
 
-    val javaMap = JavaScalaConversionUtil.toJavaMap(descriptor)
+    val javaMap = descriptor.toProperties
 
     tableEnvironment match {
       case _: BatchTableEnvironment =>
@@ -63,7 +62,7 @@ object TableFactoryUtil {
       descriptor: Descriptor)
     : TableSink[T] = {
 
-    val javaMap = JavaScalaConversionUtil.toJavaMap(descriptor)
+    val javaMap = descriptor.toProperties
 
     tableEnvironment match {
       case _: BatchTableEnvironment =>

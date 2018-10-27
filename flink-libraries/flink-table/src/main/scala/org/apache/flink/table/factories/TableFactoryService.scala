@@ -26,7 +26,7 @@ import org.apache.flink.table.descriptors.FormatDescriptorValidator._
 import org.apache.flink.table.descriptors.MetadataValidator._
 import org.apache.flink.table.descriptors.StatisticsValidator._
 import org.apache.flink.table.descriptors._
-import org.apache.flink.table.util.{JavaScalaConversionUtil, Logging}
+import org.apache.flink.table.util.Logging
 import org.apache.flink.util.Preconditions
 
 import _root_.scala.collection.JavaConverters._
@@ -50,7 +50,7 @@ object TableFactoryService extends Logging {
   def find[T](factoryClass: Class[T], descriptor: Descriptor): T = {
     Preconditions.checkNotNull(descriptor)
 
-    findInternal(factoryClass, JavaScalaConversionUtil.toJavaMap(descriptor), None)
+    findInternal(factoryClass, descriptor.toProperties, None)
   }
 
   /**
@@ -66,7 +66,7 @@ object TableFactoryService extends Logging {
     Preconditions.checkNotNull(descriptor)
     Preconditions.checkNotNull(classLoader)
 
-    findInternal(factoryClass, JavaScalaConversionUtil.toJavaMap(descriptor), Some(classLoader))
+    findInternal(factoryClass, descriptor.toProperties, Some(classLoader))
   }
 
   /**

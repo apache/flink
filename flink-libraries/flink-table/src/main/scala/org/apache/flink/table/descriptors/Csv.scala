@@ -31,7 +31,7 @@ import scala.collection.JavaConverters._
 /**
   * Format descriptor for comma-separated values (CSV).
   */
-class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, version = 1) {
+class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, 1) {
 
   private var fieldDelim: Option[String] = None
   private var lineDelim: Option[String] = None
@@ -143,10 +143,9 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, version = 1) {
     this
   }
 
-  /**
-    * Internal method for format properties conversion.
-    */
-  override protected def addFormatProperties(properties: DescriptorProperties): Unit = {
+  override protected def toFormatProperties: util.Map[String, String] = {
+    val properties = new DescriptorProperties()
+
     fieldDelim.foreach(properties.putString(FORMAT_FIELD_DELIMITER, _))
     lineDelim.foreach(properties.putString(FORMAT_LINE_DELIMITER, _))
 
@@ -164,6 +163,8 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, version = 1) {
     commentPrefix.foreach(properties.putString(FORMAT_COMMENT_PREFIX, _))
     isIgnoreFirstLine.foreach(properties.putBoolean(FORMAT_IGNORE_FIRST_LINE, _))
     lenient.foreach(properties.putBoolean(FORMAT_IGNORE_PARSE_ERRORS, _))
+
+    properties.asMap()
   }
 }
 
@@ -174,7 +175,10 @@ object Csv {
 
   /**
     * Format descriptor for comma-separated values (CSV).
+    *
+    * @deprecated Use `new Csv()`.
     */
+  @deprecated
   def apply(): Csv = new Csv()
 
 }

@@ -21,7 +21,7 @@ package org.apache.flink.table.descriptors
 /**
   * A trait for descriptors that allow to register table source and/or sinks.
   */
-trait RegistrableDescriptor extends TableDescriptor {
+trait RegistrableDescriptor extends Descriptor {
 
   /**
     * Searches for the specified table source, configures it accordingly, and registers it as

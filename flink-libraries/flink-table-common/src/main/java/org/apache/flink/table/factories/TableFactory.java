@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.List;
 import java.util.Map;
 
@@ -33,6 +35,7 @@ import java.util.Map;
  *
  * @see TableFormatFactory
  */
+@PublicEvolving
 public interface TableFactory {
 
 	/**
