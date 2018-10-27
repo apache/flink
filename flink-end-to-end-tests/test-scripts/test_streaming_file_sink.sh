@@ -144,6 +144,9 @@ cancel_job "${JOB_ID}"
 
 wait_job_terminal_state "${JOB_ID}" "CANCELED"
 
+# remove logs cause they contain a lot exceptions that shouldn't fail the test
+rm $FLINK_DIR/log/*
+
 # get all lines in part files and sort them numerically
 find "${OUTPUT_PATH}" -type f \( -iname "part-*" \) -exec cat {} + | sort -g > "${TEST_DATA_DIR}/complete_result"
 
