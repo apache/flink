@@ -228,7 +228,9 @@ object FlinkShell {
       repl.closeInterpreter()
       cluster match {
         case Some(Left(miniCluster)) => miniCluster.close()
-        case Some(Right(yarnCluster)) => yarnCluster.shutdown()
+        case Some(Right(yarnCluster)) =>
+          yarnCluster.shutDownCluster()
+          yarnCluster.shutdown()
         case _ =>
       }
     }
