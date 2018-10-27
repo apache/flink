@@ -16,26 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.factories
+package org.apache.flink.table.factories;
 
-import java.util
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 
-import org.apache.flink.api.common.serialization.SerializationSchema
+import java.util.Map;
 
 /**
-  * Factory for creating configured instances of [[SerializationSchema]].
-  *
-  * @tparam T record type that the format produces or consumes
-  */
-trait SerializationSchemaFactory[T] extends TableFormatFactory[T] {
+ * Factory for creating configured instances of {@link DeserializationSchema}.
+ *
+ * @param <T> record type that the format produces or consumes.
+ */
+public interface DeserializationSchemaFactory<T> extends TableFormatFactory<T> {
 
-  /**
-    * Creates and configures a [[SerializationSchema]] using the given properties.
-    *
-    * @param properties normalized properties describing the format
-    * @return the configured serialization schema or null if the factory cannot provide an
-    *         instance of this class
-    */
-  def createSerializationSchema(properties: util.Map[String, String]): SerializationSchema[T]
+	/**
+	 * Creates and configures a {@link DeserializationSchema} using the given properties.
+	 *
+	 * @param properties normalized properties describing the format
+	 * @return the configured serialization schema or null if the factory cannot provide an
+	 *         instance of this class
+	 */
+	DeserializationSchema<T> createDeserializationSchema(Map<String, String> properties);
 
 }
