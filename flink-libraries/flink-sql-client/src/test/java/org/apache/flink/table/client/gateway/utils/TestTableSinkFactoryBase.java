@@ -62,7 +62,7 @@ public abstract class TestTableSinkFactoryBase implements StreamTableSinkFactory
 	public Map<String, String> requiredContext() {
 		final Map<String, String> context = new HashMap<>();
 		context.put(UPDATE_MODE(), UPDATE_MODE_VALUE_APPEND());
-		context.put(CONNECTOR_TYPE(), type);
+		context.put(CONNECTOR_TYPE, type);
 		return context;
 	}
 

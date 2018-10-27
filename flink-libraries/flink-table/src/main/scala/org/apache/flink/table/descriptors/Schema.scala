@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.descriptors
 
+import java.util
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{TableSchema, ValidationException}
 import org.apache.flink.table.descriptors.SchemaValidator._
@@ -131,24 +133,24 @@ class Schema extends Descriptor {
     lastField match {
       case None => throw new ValidationException("No field defined previously. Use field() before.")
       case Some(f) =>
-        val fieldProperties = new DescriptorProperties()
-        rowtime.addProperties(fieldProperties)
-        tableSchema(f) ++= fieldProperties.asMap.asScala
+        tableSchema(f) ++= rowtime.toProperties.asScala
         lastField = None
     }
     this
   }
 
   /**
-    * Internal method for properties conversion.
+    * Converts this descriptor into a set of properties.
     */
-  final override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
+  final override def toProperties: util.Map[String, String] = {
+    val properties = new DescriptorProperties()
     properties.putIndexedVariableProperties(
       SCHEMA,
       tableSchema.toSeq.map { case (name, props) =>
         (Map(SCHEMA_NAME -> name) ++ props).asJava
       }.asJava
     )
+    properties.asMap()
   }
 }
 
@@ -159,6 +161,9 @@ object Schema {
 
   /**
     * Describes a schema of a table.
+    *
+    * @deprecated Use `new Schema()`.
     */
+  @deprecated
   def apply(): Schema = new Schema()
 }

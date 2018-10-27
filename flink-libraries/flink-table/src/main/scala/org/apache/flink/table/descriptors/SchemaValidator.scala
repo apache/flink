@@ -282,36 +282,4 @@ object SchemaValidator {
 
     mapping.toMap.asJava
   }
-
-  /**
-    * Finds the fields that can be used for a format schema (without time attributes).
-    */
-  def deriveFormatFields(properties: DescriptorProperties): TableSchema = {
-
-    val builder = TableSchema.builder()
-
-    val schema = properties.getTableSchema(SCHEMA)
-
-    schema.getFieldNames.zip(schema.getFieldTypes).zipWithIndex.foreach { case ((n, t), i) =>
-      val isProctime = properties
-        .getOptionalBoolean(s"$SCHEMA.$i.$SCHEMA_PROCTIME")
-        .orElse(false)
-      val tsType = s"$SCHEMA.$i.$ROWTIME_TIMESTAMPS_TYPE"
-      val isRowtime = properties.containsKey(tsType)
-      if (!isProctime && !isRowtime) {
-        // check for a aliasing
-        val fieldName = properties.getOptionalString(s"$SCHEMA.$i.$SCHEMA_FROM")
-          .orElse(n)
-        builder.field(fieldName, t)
-      }
-      // only use the rowtime attribute if it references a field
-      else if (isRowtime &&
-          properties.getString(tsType) == ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD) {
-        val field = properties.getString(s"$SCHEMA.$i.$ROWTIME_TIMESTAMPS_FROM")
-        builder.field(field, t)
-      }
-    }
-
-    builder.build()
-  }
 }

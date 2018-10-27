@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.descriptors
 
+import java.util
+
 import org.apache.flink.table.api.{TableEnvironment, ValidationException}
 import org.apache.flink.table.factories.TableFactoryUtil
 
@@ -86,23 +88,26 @@ abstract class ConnectTableDescriptor[D <: ConnectTableDescriptor[D]](
   // ----------------------------------------------------------------------------------------------
 
   /**
-    * Internal method for properties conversion.
+    * Converts this descriptor into a set of properties.
     */
-  override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
+  override def toProperties: util.Map[String, String] = {
+    val properties = new DescriptorProperties()
 
     // this performs only basic validation
     // more validation can only happen within a factory
-    if (connectorDescriptor.needsFormat() && formatDescriptor.isEmpty) {
+    if (connectorDescriptor.isFormatNeeded && formatDescriptor.isEmpty) {
       throw new ValidationException(
         s"The connector '$connectorDescriptor' requires a format description.")
-    } else if (!connectorDescriptor.needsFormat() && formatDescriptor.isDefined) {
+    } else if (!connectorDescriptor.isFormatNeeded && formatDescriptor.isDefined) {
       throw new ValidationException(
         s"The connector '$connectorDescriptor' does not require a format description " +
           s"but '${formatDescriptor.get}' found.")
     }
 
-    connectorDescriptor.addProperties(properties)
-    formatDescriptor.foreach(_.addProperties(properties))
-    schemaDescriptor.foreach(_.addProperties(properties))
+    properties.putProperties(connectorDescriptor.toProperties)
+    formatDescriptor.foreach(d => properties.putProperties(d.toProperties))
+    schemaDescriptor.foreach(d => properties.putProperties(d.toProperties))
+
+    properties.asMap()
   }
 }

@@ -56,18 +56,18 @@ object FunctionService extends Logging {
       performValidation: Boolean = true)
     : UserDefinedFunction = {
 
-    val descriptorProperties = new DescriptorProperties(true)
-    descriptor.addProperties(descriptorProperties)
+    val properties = new DescriptorProperties(true)
+    properties.putProperties(descriptor.toProperties)
 
     // validate
     if (performValidation) {
-      new FunctionDescriptorValidator().validate(descriptorProperties)
+      new FunctionDescriptorValidator().validate(properties)
     }
 
     // instantiate
     val (instanceClass, instance) = generateInstance[AnyRef](
       HierarchyDescriptorValidator.EMPTY_PREFIX,
-      descriptorProperties,
+      properties,
       classLoader)
 
     if (!classOf[UserDefinedFunction].isAssignableFrom(instanceClass)) {

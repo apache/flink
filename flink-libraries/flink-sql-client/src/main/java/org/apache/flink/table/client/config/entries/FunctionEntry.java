@@ -73,8 +73,8 @@ public class FunctionEntry extends ConfigEntry {
 	private class FunctionEntryDescriptor extends FunctionDescriptor {
 
 		@Override
-		public void addProperties(DescriptorProperties properties) {
-			properties.putProperties(FunctionEntry.this.properties);
+		public Map<String, String> toProperties() {
+			return FunctionEntry.this.properties.asMap();
 		}
 	}
 }

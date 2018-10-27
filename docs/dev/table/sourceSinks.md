@@ -672,7 +672,8 @@ A connector for `MySystem` in our example can extend `ConnectorDescriptor` as sh
 <div data-lang="java" markdown="1">
 {% highlight java %}
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.descriptors.DescriptorProperties;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
   * Connector to MySystem with debug mode.
@@ -687,8 +688,10 @@ public class MySystemConnector extends ConnectorDescriptor {
   }
 
   @Override
-  public void addConnectorProperties(DescriptorProperties properties) {
-    properties.putString("connector.debug", Boolean.toString(isDebug));
+  protected Map<String, String> toConnectorProperties() {
+    Map<String, String> properties = new HashMap<>();
+    properties.put("connector.debug", Boolean.toString(isDebug));
+    return properties;
   }
 }
 {% endhighlight %}
@@ -697,15 +700,18 @@ public class MySystemConnector extends ConnectorDescriptor {
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 import org.apache.flink.table.descriptors.ConnectorDescriptor
-import org.apache.flink.table.descriptors.DescriptorProperties
+import java.util.HashMap
+import java.util.Map
 
 /**
   * Connector to MySystem with debug mode.
   */
-class MySystemConnector(isDebug: Boolean) extends ConnectorDescriptor("my-system", 1, formatNeeded = false) {
+class MySystemConnector(isDebug: Boolean) extends ConnectorDescriptor("my-system", 1, false) {
   
-  override protected def addConnectorProperties(properties: DescriptorProperties): Unit = {
-    properties.putString("connector.debug", isDebug.toString)
+  override protected def toConnectorProperties(): Map[String, String] = {
+    val properties = new HashMap[String, String]
+    properties.put("connector.debug", isDebug.toString)
+    properties
   }
 }
 {% endhighlight %}

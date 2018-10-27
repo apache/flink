@@ -16,26 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors
+package org.apache.flink.table.descriptors;
+
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
-  * A trait that adds a set of string-based, normalized properties for describing DDL information.
-  *
-  * Typical characteristics of a descriptor are:
-  * - descriptors have a default constructor and a default 'apply()' method for Scala
-  * - descriptors themselves contain very little logic
-  * - corresponding validators validate the correctness (goal: have a single point of validation)
-  */
-trait Descriptor {
+ * Base class for {@link Descriptor}s.
+ */
+@PublicEvolving
+public abstract class DescriptorBase implements Descriptor {
 
-  /**
-    * Internal method for properties conversion.
-    */
-  private[flink] def addProperties(properties: DescriptorProperties): Unit
-
-  override def toString: String = {
-    val descriptorProperties = new DescriptorProperties()
-    addProperties(descriptorProperties)
-    descriptorProperties.toString
-  }
+	@Override
+	public String toString() {
+		return DescriptorProperties.toString(toProperties());
+	}
 }

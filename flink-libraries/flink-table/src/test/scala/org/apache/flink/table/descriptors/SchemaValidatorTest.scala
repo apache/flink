@@ -43,7 +43,7 @@ class SchemaValidatorTest {
       .field("r", Types.SQL_TIMESTAMP).rowtime(
         Rowtime().timestampsFromSource().watermarksFromSource())
     val props = new DescriptorProperties()
-    desc1.addProperties(props)
+    props.putProperties(desc1.toProperties)
 
     val inputSchema = TableSchema.builder()
       .field("csvField", Types.STRING)
@@ -69,14 +69,6 @@ class SchemaValidatorTest {
     assertEquals(
       expectedMapping,
       SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema.toRowType)))
-
-    // test field format
-    val formatSchema = SchemaValidator.deriveFormatFields(props)
-    val expectedFormatSchema = TableSchema.builder()
-      .field("csvField", Types.STRING) // aliased
-      .field("abcField", Types.STRING)
-      .build()
-    assertEquals(expectedFormatSchema, formatSchema)
   }
 
   @Test(expected = classOf[TableException])
@@ -88,7 +80,7 @@ class SchemaValidatorTest {
       .field("r", Types.SQL_TIMESTAMP).rowtime(
         Rowtime().timestampsFromSource().watermarksFromSource())
     val props = new DescriptorProperties()
-    desc1.addProperties(props)
+    props.putProperties(desc1.toProperties)
 
     SchemaValidator.deriveTableSinkSchema(props)
   }
@@ -102,7 +94,7 @@ class SchemaValidatorTest {
       .field("r", Types.SQL_TIMESTAMP).rowtime(
         Rowtime().timestampsFromField("myTime").watermarksFromSource())
     val props = new DescriptorProperties()
-    desc1.addProperties(props)
+    props.putProperties(desc1.toProperties)
 
     val expectedTableSinkSchema = TableSchema.builder()
       .field("csvField", Types.STRING) // aliased
@@ -122,7 +114,7 @@ class SchemaValidatorTest {
       .field("r", Types.SQL_TIMESTAMP).rowtime(
         Rowtime().timestampsFromField("myTime").watermarksFromSource())
     val props = new DescriptorProperties()
-    desc1.addProperties(props)
+    props.putProperties(desc1.toProperties)
 
     val inputSchema = TableSchema.builder()
       .field("csvField", Types.STRING)
@@ -150,15 +142,6 @@ class SchemaValidatorTest {
     assertEquals(
       expectedMapping,
       SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema.toRowType)))
-
-    // test field format
-    val formatSchema = SchemaValidator.deriveFormatFields(props)
-    val expectedFormatSchema = TableSchema.builder()
-      .field("csvField", Types.STRING) // aliased
-      .field("abcField", Types.STRING)
-      .field("myTime", Types.SQL_TIMESTAMP)
-      .build()
-    assertEquals(expectedFormatSchema, formatSchema)
   }
 
   @Test
@@ -171,7 +154,7 @@ class SchemaValidatorTest {
         Rowtime().timestampsFromExtractor(new CustomExtractor("f3"))
           .watermarksPeriodicBounded(1000L))
     val properties = new DescriptorProperties()
-    descriptor.addProperties(properties)
+    properties.putProperties(descriptor.toProperties)
 
     val rowtime = SchemaValidator.deriveRowtimeAttributes(properties).get(0)
     assertEquals("rt", rowtime.getAttributeName)
