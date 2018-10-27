@@ -22,7 +22,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
-import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.test.testdata.WordCountData;
@@ -123,7 +122,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	@Test
 	public void perJobYarnCluster() throws IOException {
 		LOG.info("Starting perJobYarnCluster()");
-		addTestAppender(JobClient.class, Level.INFO);
 		File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
 		runWithArgs(new String[]{"run", "-m", "yarn-cluster",
 				"-yj", flinkUberjar.getAbsolutePath(), "-yt", flinkLibFolder.getAbsolutePath(),
@@ -136,7 +134,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			/* prohibited strings: (to verify the parallelism) */
 			// (we should see "DataSink (...) (1/2)" and "DataSink (...) (2/2)" instead)
 			new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
-			RunTypes.CLI_FRONTEND, 0, true);
+			RunTypes.CLI_FRONTEND, 0, false);
 		LOG.info("Finished perJobYarnCluster()");
 	}
 
@@ -151,7 +149,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	@Test
 	public void perJobYarnClusterOffHeap() throws IOException {
 		LOG.info("Starting perJobYarnCluster()");
-		addTestAppender(JobClient.class, Level.INFO);
 		File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
 
 		// set memory constraints (otherwise this is the same test as perJobYarnCluster() above)
@@ -182,7 +179,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			/* prohibited strings: (to verify the parallelism) */
 			// (we should see "DataSink (...) (1/2)" and "DataSink (...) (2/2)" instead)
 			new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
-			RunTypes.CLI_FRONTEND, 0, true);
+			RunTypes.CLI_FRONTEND, 0, false);
 		LOG.info("Finished perJobYarnCluster()");
 	}
 
@@ -392,7 +389,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		LOG.info("Starting perJobYarnClusterWithParallelism()");
 		// write log messages to stdout as well, so that the runWithArgs() method
 		// is catching the log output
-		addTestAppender(JobClient.class, Level.INFO);
 		File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
 		runWithArgs(new String[]{"run",
 				"-p", "2", //test that the job is executed with a DOP of 2
@@ -407,7 +403,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			"Program execution finished",
 			/* prohibited strings: (we want to see "DataSink (...) (2/2) switched to FINISHED") */
 			new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
-			RunTypes.CLI_FRONTEND, 0, true);
+			RunTypes.CLI_FRONTEND, 0, false);
 		LOG.info("Finished perJobYarnClusterWithParallelism()");
 	}
 
