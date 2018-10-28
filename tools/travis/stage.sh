@@ -78,6 +78,7 @@ flink-connectors/flink-connector-kafka-0.8,\
 flink-connectors/flink-connector-kafka-0.9,\
 flink-connectors/flink-connector-kafka-0.10,\
 flink-connectors/flink-connector-kafka-0.11,\
+flink-connectors/flink-connector-kafka,\
 flink-connectors/flink-connector-kafka-base,\
 flink-connectors/flink-connector-nifi,\
 flink-connectors/flink-connector-rabbitmq,\
