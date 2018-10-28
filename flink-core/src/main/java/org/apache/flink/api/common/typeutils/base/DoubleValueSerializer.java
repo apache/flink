@@ -21,6 +21,8 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.DoubleValue;
@@ -85,8 +87,19 @@ public final class DoubleValueSerializer extends TypeSerializerSingleton<DoubleV
 	}
 
 	@Override
-	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
-		return super.isCompatibleSerializationFormatIdentifier(identifier)
-			|| identifier.equals(DoubleSerializer.class.getCanonicalName());
+	public TypeSerializerSnapshot<DoubleValue> snapshotConfiguration() {
+		return new DoubleValueSerializerSnapshot();
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Serializer configuration snapshot for compatibility and format evolution.
+	 */
+	public static final class DoubleValueSerializerSnapshot extends SimpleTypeSerializerSnapshot<DoubleValue> {
+
+		public DoubleValueSerializerSnapshot() {
+			super(DoubleValueSerializer.class);
+		}
 	}
 }

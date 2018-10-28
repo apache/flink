@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -351,7 +352,7 @@ public class OperatorStateBackendTest {
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot<Integer> snapshotConfiguration() {
+		public TypeSerializerSnapshot<Integer> snapshotConfiguration() {
 			return IntSerializer.INSTANCE.snapshotConfiguration();
 		}
 

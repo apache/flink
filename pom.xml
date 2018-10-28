@@ -1156,6 +1156,7 @@ under the License.
 						<exclude>flink-runtime-web/web-dashboard/tmp/**</exclude>
 
 						<!-- Test Data. -->
+						<exclude>**/src/test/resources/*-data</exclude>
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
                         <exclude>flink-formats/flink-avro/src/test/resources/flink_11-kryo_registrations</exclude>
 						<exclude>flink-runtime/src/test/resources/flink_11-kryo_registrations</exclude>

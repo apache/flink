@@ -21,6 +21,8 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.FloatValue;
@@ -85,8 +87,19 @@ public class FloatValueSerializer extends TypeSerializerSingleton<FloatValue> {
 	}
 
 	@Override
-	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
-		return super.isCompatibleSerializationFormatIdentifier(identifier)
-			|| identifier.equals(FloatSerializer.class.getCanonicalName());
+	public TypeSerializerSnapshot<FloatValue> snapshotConfiguration() {
+		return new FloatValueSerializerSnapshot();
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Serializer configuration snapshot for compatibility and format evolution.
+	 */
+	public static final class FloatValueSerializerSnapshot extends SimpleTypeSerializerSnapshot<FloatValue> {
+
+		public FloatValueSerializerSnapshot() {
+			super(FloatValueSerializer.class);
+		}
 	}
 }

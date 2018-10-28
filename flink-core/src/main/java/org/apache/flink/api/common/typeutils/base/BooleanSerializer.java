@@ -19,6 +19,8 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -88,8 +90,19 @@ public final class BooleanSerializer extends TypeSerializerSingleton<Boolean> {
 	}
 
 	@Override
-	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
-		return super.isCompatibleSerializationFormatIdentifier(identifier)
-			|| identifier.equals(BooleanValueSerializer.class.getCanonicalName());
+	public TypeSerializerSnapshot<Boolean> snapshotConfiguration() {
+		return new BooleanSerializerSnapshot();
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Serializer configuration snapshot for compatibility and format evolution.
+	 */
+	public static final class BooleanSerializerSnapshot extends SimpleTypeSerializerSnapshot<Boolean> {
+
+		public BooleanSerializerSnapshot() {
+			super(BooleanSerializer.class);
+		}
 	}
 }

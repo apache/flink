@@ -21,6 +21,8 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 import java.sql.Time;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -103,14 +105,24 @@ public final class SqlTimeSerializer extends TypeSerializerSingleton<Time> {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & reconfiguring
+	// Serializer configuration snapshotting
 	// --------------------------------------------------------------------------------------------
 
-
 	@Override
-	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
-		return super.isCompatibleSerializationFormatIdentifier(identifier)
-			|| identifier.equals(DateSerializer.class.getCanonicalName())
-			|| identifier.equals(SqlDateSerializer.class.getCanonicalName());
+	public TypeSerializerSnapshot<Time> snapshotConfiguration() {
+		return new SqlTimeSerializerSnapshot();
+	}
+
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Serializer configuration snapshot for compatibility and format evolution.
+	 */
+	public static final class SqlTimeSerializerSnapshot extends SimpleTypeSerializerSnapshot<Time> {
+
+		public SqlTimeSerializerSnapshot() {
+			super(SqlTimeSerializer.class);
+		}
 	}
 }

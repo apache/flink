@@ -75,7 +75,8 @@ public class SerializationProxiesTest {
 		}
 
 		Assert.assertTrue(serializationProxy.isUsingKeyGroupCompression());
-		Assert.assertEquals(keySerializer.snapshotConfiguration(), serializationProxy.getKeySerializerConfigSnapshot());
+		Assert.assertTrue(serializationProxy.getKeySerializerConfigSnapshot() instanceof IntSerializer.IntSerializerSnapshot);
+
 		assertEqualStateMetaInfoSnapshotsLists(stateMetaInfoList, serializationProxy.getStateMetaInfoSnapshots());
 	}
 

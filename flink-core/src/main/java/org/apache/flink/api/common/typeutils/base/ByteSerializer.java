@@ -19,6 +19,8 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -88,8 +90,19 @@ public final class ByteSerializer extends TypeSerializerSingleton<Byte> {
 	}
 
 	@Override
-	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
-		return super.isCompatibleSerializationFormatIdentifier(identifier)
-			|| identifier.equals(ByteValueSerializer.class.getCanonicalName());
+	public TypeSerializerSnapshot<Byte> snapshotConfiguration() {
+		return new ByteSerializerSnapshot();
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Serializer configuration snapshot for compatibility and format evolution.
+	 */
+	public static final class ByteSerializerSnapshot extends SimpleTypeSerializerSnapshot<Byte> {
+
+		public ByteSerializerSnapshot() {
+			super(ByteSerializer.class);
+		}
 	}
 }

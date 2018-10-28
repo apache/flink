@@ -4578,23 +4578,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot<TestCustomStateClass> snapshotConfiguration() {
-			return new ParameterlessTypeSerializerConfig<>(getClass().getName());
-		}
-
-		@Override
-		public CompatibilityResult<TestCustomStateClass> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-			if (configSnapshot instanceof ParameterlessTypeSerializerConfig &&
-					((ParameterlessTypeSerializerConfig<?>) configSnapshot).getSerializationFormatIdentifier().equals(getClass().getName())) {
-
-				this.reconfigured = true;
-				return CompatibilityResult.compatible();
-			} else {
-				return CompatibilityResult.requiresMigration();
-			}
-		}
-
-		@Override
 		public TypeSerializer<TestCustomStateClass> duplicate() {
 			return new TestReconfigurableCustomTypeSerializer(reconfigured);
 		}
@@ -4701,8 +4684,29 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			return Objects.hash(getClass().getName(), reconfigured);
 		}
 
+		// -- reconfiguration --
+
 		public boolean isReconfigured() {
 			return reconfigured;
+		}
+
+		// -- config snapshot --
+
+		@Override
+		public TypeSerializerConfigSnapshot<TestCustomStateClass> snapshotConfiguration() {
+			return new ParameterlessTypeSerializerConfig<>(getClass().getName());
+		}
+
+		@Override
+		public CompatibilityResult<TestCustomStateClass> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+			if (configSnapshot instanceof ParameterlessTypeSerializerConfig &&
+					((ParameterlessTypeSerializerConfig<?>) configSnapshot).getSerializationFormatIdentifier().equals(getClass().getName())) {
+
+				this.reconfigured = true;
+				return CompatibilityResult.compatible();
+			} else {
+				return CompatibilityResult.requiresMigration();
+			}
 		}
 	}
 
