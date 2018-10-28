@@ -109,8 +109,8 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 	}
 
 	@Override
-	public <NS extends TypeSerializer<T>> TypeSerializerSchemaCompatibility<T, NS>
-	resolveSchemaCompatibility(NS newSerializer) {
+	public TypeSerializerSchemaCompatibility<T>
+	resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
 		if (!(newSerializer instanceof AvroSerializer)) {
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
@@ -143,7 +143,7 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 	 * (@see <a href="https://avro.apache.org/docs/current/spec.html#Schema+Resolution">Schema Resolution</a>).
 	 */
 	@VisibleForTesting
-	static <T, NS extends TypeSerializer<T>> TypeSerializerSchemaCompatibility<T, NS> resolveSchemaCompatibility(
+	static <T> TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
 		Schema writerSchema,
 		Schema readerSchema) {
 
@@ -157,7 +157,7 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 		return avroCompatibilityToFlinkCompatibility(compatibility);
 	}
 
-	private static <T, NS extends TypeSerializer<T>> TypeSerializerSchemaCompatibility<T, NS>
+	private static <T> TypeSerializerSchemaCompatibility<T>
 	avroCompatibilityToFlinkCompatibility(SchemaPairCompatibility compatibility) {
 
 		switch (compatibility.getType()) {

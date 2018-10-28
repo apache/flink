@@ -76,7 +76,7 @@ public abstract class CompositeSerializerSnapshot<T, S extends TypeSerializer<T>
 
 	protected abstract TypeSerializer<?>[] getNestedSerializersFromSerializer(S serializer);
 
-	protected abstract TypeSerializerSchemaCompatibility<T, S> outerCompatibility(S serializer);
+	protected abstract TypeSerializerSchemaCompatibility<T> outerCompatibility(S serializer);
 
 	protected abstract Class<?> outerSerializerType();
 
@@ -140,8 +140,7 @@ public abstract class CompositeSerializerSnapshot<T, S extends TypeSerializer<T>
 		return createSerializer(nestedSerializers);
 	}
 
-	public <NS extends TypeSerializer<T>> TypeSerializerSchemaCompatibility<T, NS>
-	resolveSchemaCompatibility(NS newSerializer) {
+	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
 
 		// class compatibility
 		if (!outerSerializerType().isInstance(newSerializer)) {
@@ -152,7 +151,7 @@ public abstract class CompositeSerializerSnapshot<T, S extends TypeSerializer<T>
 
 		@SuppressWarnings("unchecked")
 		final S castedSerializer = (S) newSerializer;
-		final TypeSerializerSchemaCompatibility<T, S> outerCompatibility = outerCompatibility(castedSerializer);
+		final TypeSerializerSchemaCompatibility<T> outerCompatibility = outerCompatibility(castedSerializer);
 
 		if (outerCompatibility.isIncompatible()) {
 			return TypeSerializerSchemaCompatibility.incompatible();
@@ -165,7 +164,7 @@ public abstract class CompositeSerializerSnapshot<T, S extends TypeSerializer<T>
 
 		boolean nestedSerializerRequiresMigration = false;
 		for (int i = 0; i < nestedSnapshots.length; i++) {
-			TypeSerializerSchemaCompatibility<?, ?> compatibility =
+			TypeSerializerSchemaCompatibility<?> compatibility =
 					resolveCompatibility(nestedSerializers[i], nestedSnapshots[i]);
 
 			if (compatibility.isIncompatible()) {
@@ -189,11 +188,11 @@ public abstract class CompositeSerializerSnapshot<T, S extends TypeSerializer<T>
 	 * Utility method to conjure up a new scope for the generic parameters.
 	 */
 	@SuppressWarnings("unchecked")
-	private static <E, X extends TypeSerializer<E>> TypeSerializerSchemaCompatibility<E, X> resolveCompatibility(
+	private static <E> TypeSerializerSchemaCompatibility<E> resolveCompatibility(
 			TypeSerializer<?> serializer,
 			TypeSerializerSnapshot<?> snapshot) {
 
-		X typedSerializer = (X) serializer;
+		TypeSerializer<E> typedSerializer = (TypeSerializer<E>) serializer;
 		TypeSerializerSnapshot<E> typedSnapshot = (TypeSerializerSnapshot<E>) snapshot;
 
 		return typedSnapshot.resolveSchemaCompatibility(typedSerializer);

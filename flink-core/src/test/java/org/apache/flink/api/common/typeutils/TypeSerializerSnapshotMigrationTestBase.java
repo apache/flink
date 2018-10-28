@@ -79,7 +79,7 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 	public void snapshotIsCompatibleWithTheCurrentSerializer() {
 		TypeSerializerSnapshot<ElementT> snapshot = snapshotUnderTest();
 
-		TypeSerializerSchemaCompatibility<ElementT, TypeSerializer<ElementT>> result = snapshot.resolveSchemaCompatibility(testSpecification.createSerializer());
+		TypeSerializerSchemaCompatibility<ElementT> result = snapshot.resolveSchemaCompatibility(testSpecification.createSerializer());
 
 		assertTrue(result.isCompatibleAsIs());
 	}

@@ -278,7 +278,7 @@ public class TypeSerializerSnapshotMigrationITCase extends SavepointMigrationTes
 		}
 
 		@Override
-		public <NS extends TypeSerializer<Long>> TypeSerializerSchemaCompatibility<Long, NS> resolveSchemaCompatibility(NS newSerializer) {
+		public TypeSerializerSchemaCompatibility<Long> resolveSchemaCompatibility(TypeSerializer<Long> newSerializer) {
 			return (newSerializer instanceof TestSerializer)
 				? TypeSerializerSchemaCompatibility.compatibleAsIs()
 				: TypeSerializerSchemaCompatibility.incompatible();

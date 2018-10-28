@@ -122,7 +122,7 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
   }
 
   def checkCompatibility(enumSourceA: String, enumSourceB: String)
-    : TypeSerializerSchemaCompatibility[Enumeration#Value, _] = {
+    : TypeSerializerSchemaCompatibility[Enumeration#Value] = {
     import EnumValueSerializerUpgradeTest._
 
     val classLoader = compileAndLoadEnum(tempFolder.newFolder(), s"$enumName.scala", enumSourceA)

@@ -124,7 +124,7 @@ public final class GenericArraySerializerConfigSnapshot<C>
 	}
 
 	@Override
-	protected TypeSerializerSchemaCompatibility<C[], GenericArraySerializer<C>>
+	protected TypeSerializerSchemaCompatibility<C[]>
 	outerCompatibility(GenericArraySerializer<C> serializer) {
 
 		return serializer.getComponentClass() == componentClass ?

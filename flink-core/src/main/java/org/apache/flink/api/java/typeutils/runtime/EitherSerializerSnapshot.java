@@ -103,7 +103,7 @@ public final class EitherSerializerSnapshot<L, R>
 	}
 
 	@Override
-	protected TypeSerializerSchemaCompatibility<Either<L, R>, EitherSerializer<L, R>> outerCompatibility(EitherSerializer<L, R> serializer) {
+	protected TypeSerializerSchemaCompatibility<Either<L, R>> outerCompatibility(EitherSerializer<L, R> serializer) {
 		return TypeSerializerSchemaCompatibility.compatibleAsIs();
 	}
 }

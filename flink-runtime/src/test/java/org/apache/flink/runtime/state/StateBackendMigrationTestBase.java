@@ -936,7 +936,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		}
 
 		@Override
-		public <NS extends TypeSerializer<TestType>> TypeSerializerSchemaCompatibility<TestType, NS> resolveSchemaCompatibility(NS newSerializer) {
+		public TypeSerializerSchemaCompatibility<TestType> resolveSchemaCompatibility(TypeSerializer<TestType> newSerializer) {
 			switch (((TestSerializer) newSerializer).compatibilityType) {
 				case COMPATIBLE_AS_IS:
 					return TypeSerializerSchemaCompatibility.compatibleAsIs();
@@ -1048,7 +1048,8 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		}
 
 		@Override
-		public <NS extends TypeSerializer<VoidNamespace>> TypeSerializerSchemaCompatibility<VoidNamespace, NS> resolveSchemaCompatibility(NS newSerializer) {
+		public TypeSerializerSchemaCompatibility<VoidNamespace>
+		resolveSchemaCompatibility(TypeSerializer<VoidNamespace> newSerializer) {
 			return TypeSerializerSchemaCompatibility.compatibleAsIs();
 		}
 

@@ -209,7 +209,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TypeSerializerSnapshot<T> serializerSnapshot = Preconditions.checkNotNull(
 				(TypeSerializerSnapshot<T>) restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(serializerKey));
 
-			TypeSerializerSchemaCompatibility<T, ?> compatibilityResult =
+			TypeSerializerSchemaCompatibility<T> compatibilityResult =
 				serializerSnapshot.resolveSchemaCompatibility(byteOrderedElementSerializer);
 
 			if (compatibilityResult.isIncompatible()) {
@@ -281,7 +281,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				(TypeSerializerSnapshot<N>) restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(
 					StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString()));
 
-			TypeSerializerSchemaCompatibility<N, ?> namespaceCompatibility =
+			TypeSerializerSchemaCompatibility<N> namespaceCompatibility =
 				namespaceSerializerSnapshot.resolveSchemaCompatibility(namespaceSerializer);
 			if (namespaceCompatibility.isIncompatible()) {
 				throw new StateMigrationException("For heap backends, the new namespace serializer must not be incompatible.");
@@ -294,7 +294,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			RegisteredKeyValueStateBackendMetaInfo.checkStateMetaInfo(restoredMetaInfoSnapshot, stateDesc);
 
-			TypeSerializerSchemaCompatibility<V, ?> stateCompatibility =
+			TypeSerializerSchemaCompatibility<V> stateCompatibility =
 				stateSerializerSnapshot.resolveSchemaCompatibility(newStateSerializer);
 
 			if (stateCompatibility.isIncompatible()) {

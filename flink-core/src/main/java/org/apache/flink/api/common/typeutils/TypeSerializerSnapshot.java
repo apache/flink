@@ -126,11 +126,10 @@ public interface TypeSerializerSnapshot<T> {
 	 * the format during the restore operation.
 	 *
 	 * @param newSerializer the new serializer to check.
-	 * @param <NS> the type of the new serializer
 	 *
 	 * @return the serializer compatibility result.
 	 */
-	<NS extends TypeSerializer<T>> TypeSerializerSchemaCompatibility<T, NS> resolveSchemaCompatibility(NS newSerializer);
+	TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer);
 
 	// ------------------------------------------------------------------------
 	//  read / write utilities

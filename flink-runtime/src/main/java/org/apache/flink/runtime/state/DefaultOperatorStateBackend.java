@@ -232,7 +232,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			TypeSerializerSnapshot<K> keySerializerSnapshot = Preconditions.checkNotNull(
 				(TypeSerializerSnapshot<K>) metaInfoSnapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER));
 
-			TypeSerializerSchemaCompatibility<K, ?> keyCompatibility =
+			TypeSerializerSchemaCompatibility<K> keyCompatibility =
 				keySerializerSnapshot.resolveSchemaCompatibility(broadcastStateKeySerializer);
 			if (keyCompatibility.isIncompatible()) {
 				throw new StateMigrationException("The new key serializer for broadcast state must not be incompatible.");
@@ -241,7 +241,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			TypeSerializerSnapshot<V> valueSerializerSnapshot = Preconditions.checkNotNull(
 				(TypeSerializerSnapshot<V>) metaInfoSnapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER));
 
-			TypeSerializerSchemaCompatibility<V, ?> valueCompatibility =
+			TypeSerializerSchemaCompatibility<V> valueCompatibility =
 				valueSerializerSnapshot.resolveSchemaCompatibility(broadcastStateValueSerializer);
 			if (valueCompatibility.isIncompatible()) {
 				throw new StateMigrationException("The new value serializer for broadcast state must not be incompatible.");
@@ -601,7 +601,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			TypeSerializerSnapshot<S> stateSerializerSnapshot = Preconditions.checkNotNull(
 				(TypeSerializerSnapshot<S>) restoredSnapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER));
 
-			TypeSerializerSchemaCompatibility<S, ?> stateCompatibility =
+			TypeSerializerSchemaCompatibility<S> stateCompatibility =
 				stateSerializerSnapshot.resolveSchemaCompatibility(newPartitionStateSerializer);
 			if (stateCompatibility.isIncompatible()) {
 				throw new StateMigrationException("The new state serializer for operator state must not be incompatible.");

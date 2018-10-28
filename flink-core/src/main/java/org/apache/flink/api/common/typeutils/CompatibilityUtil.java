@@ -95,7 +95,7 @@ public class CompatibilityUtil {
 			TypeSerializerSnapshot<T> precedingSerializerConfigSnapshot,
 			TypeSerializer<T> newSerializer) {
 
-		TypeSerializerSchemaCompatibility<T, TypeSerializer<T>> compatibility =
+		TypeSerializerSchemaCompatibility<T> compatibility =
 				precedingSerializerConfigSnapshot.resolveSchemaCompatibility(newSerializer);
 
 		// everything except "compatible" maps to "requires migration".

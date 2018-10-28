@@ -176,11 +176,11 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & compatibility
+	// Serializer configuration snapshot & compatibility
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public CollectionSerializerConfigSnapshot<List<T>, T> snapshotConfiguration() {
+	public TypeSerializerSnapshot<List<T>> snapshotConfiguration() {
 		return new CollectionSerializerConfigSnapshot<>(elementSerializer);
 	}
 

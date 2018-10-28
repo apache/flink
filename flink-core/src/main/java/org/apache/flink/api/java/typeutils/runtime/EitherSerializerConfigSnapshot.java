@@ -45,8 +45,8 @@ public final class EitherSerializerConfigSnapshot<L, R> extends CompositeTypeSer
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public <NS extends TypeSerializer<Either<L, R>>> TypeSerializerSchemaCompatibility<Either<L, R>, NS>
-	resolveSchemaCompatibility(NS newSerializer) {
+	public TypeSerializerSchemaCompatibility<Either<L, R>> resolveSchemaCompatibility(
+			TypeSerializer<Either<L, R>> newSerializer) {
 
 		// this class was shared between the Java Either Serializer and the
 		// Scala Either serializer
@@ -61,7 +61,7 @@ public final class EitherSerializerConfigSnapshot<L, R> extends CompositeTypeSer
 	}
 
 	@SuppressWarnings("unchecked")
-	private <NS extends TypeSerializer<Either<L, R>>> TypeSerializerSchemaCompatibility<Either<L, R>, NS> checkJavaSerializerCompatibility(
+	private TypeSerializerSchemaCompatibility<Either<L, R>> checkJavaSerializerCompatibility(
 			EitherSerializer<L, R> serializer) {
 
 		TypeSerializer<L> leftSerializer = serializer.getLeftSerializer();
@@ -70,8 +70,8 @@ public final class EitherSerializerConfigSnapshot<L, R> extends CompositeTypeSer
 		TypeSerializerSnapshot<L> leftSnapshot = (TypeSerializerSnapshot<L>) getNestedSerializersAndConfigs().get(0).f1;
 		TypeSerializerSnapshot<R> rightSnapshot = (TypeSerializerSnapshot<R>) getNestedSerializersAndConfigs().get(1).f1;
 
-		TypeSerializerSchemaCompatibility<?, ?> leftCompatibility = leftSnapshot.resolveSchemaCompatibility(leftSerializer);
-		TypeSerializerSchemaCompatibility<?, ?> rightCompatibility = rightSnapshot.resolveSchemaCompatibility(rightSerializer);
+		TypeSerializerSchemaCompatibility<?> leftCompatibility = leftSnapshot.resolveSchemaCompatibility(leftSerializer);
+		TypeSerializerSchemaCompatibility<?> rightCompatibility = rightSnapshot.resolveSchemaCompatibility(rightSerializer);
 
 		if (leftCompatibility.isCompatibleAsIs() && rightCompatibility.isCompatibleAsIs()) {
 			return TypeSerializerSchemaCompatibility.compatibleAsIs();

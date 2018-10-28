@@ -68,7 +68,7 @@ public class KryoSerializerCompatibilityTest {
 		}
 
 		@SuppressWarnings("unchecked")
-		TypeSerializerSchemaCompatibility<TestClass, ?> compatResult =
+		TypeSerializerSchemaCompatibility<TestClass> compatResult =
 			kryoSerializerConfigSnapshot.resolveSchemaCompatibility(kryoSerializerForA);
 		assertTrue(compatResult.isCompatibleAsIs());
 	}
@@ -114,7 +114,7 @@ public class KryoSerializerCompatibilityTest {
 		}
 
 		@SuppressWarnings("unchecked")
-		TypeSerializerSchemaCompatibility<TestClassB, ?> compatResult =
+		TypeSerializerSchemaCompatibility<TestClassB> compatResult =
 			kryoSerializerConfigSnapshot.resolveSchemaCompatibility(kryoSerializerForB);
 		assertTrue(compatResult.isIncompatible());
 	}
@@ -277,7 +277,7 @@ public class KryoSerializerCompatibilityTest {
 
 		// reconfigure - check reconfiguration result and that registration id remains the same
 		@SuppressWarnings("unchecked")
-		TypeSerializerSchemaCompatibility<TestClass, ?> compatResult =
+		TypeSerializerSchemaCompatibility<TestClass> compatResult =
 			kryoSerializerConfigSnapshot.resolveSchemaCompatibility(kryoSerializer);
 		assertTrue(compatResult.isCompatibleAsIs());
 		assertEquals(testClassId, kryoSerializer.getKryo().getRegistration(TestClass.class).getId());

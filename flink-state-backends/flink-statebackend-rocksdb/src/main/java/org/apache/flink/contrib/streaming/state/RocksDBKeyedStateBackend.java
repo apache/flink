@@ -1414,7 +1414,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			(TypeSerializerSnapshot<N>) restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(
 				StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString()));
 
-		TypeSerializerSchemaCompatibility<N, ?> namespaceCompatibility =
+		TypeSerializerSchemaCompatibility<N> namespaceCompatibility =
 			namespaceSerializerSnapshot.resolveSchemaCompatibility(namespaceSerializer);
 		if (!namespaceCompatibility.isCompatibleAsIs()) {
 			throw new StateMigrationException("The new namespace serializer must be compatible.");
@@ -1427,7 +1427,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		RegisteredKeyValueStateBackendMetaInfo.checkStateMetaInfo(restoredMetaInfoSnapshot, stateDesc);
 
-		TypeSerializerSchemaCompatibility<SV, ?> stateCompatibility =
+		TypeSerializerSchemaCompatibility<SV> stateCompatibility =
 			stateSerializerSnapshot.resolveSchemaCompatibility(stateSerializer);
 
 		if (stateCompatibility.isCompatibleAfterMigration()) {
@@ -1715,7 +1715,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				TypeSerializerSnapshot<T> serializerSnapshot = Preconditions.checkNotNull(
 					(TypeSerializerSnapshot<T>) restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(serializerKey));
 
-				TypeSerializerSchemaCompatibility<T, ?> compatibilityResult =
+				TypeSerializerSchemaCompatibility<T> compatibilityResult =
 					serializerSnapshot.resolveSchemaCompatibility(byteOrderedElementSerializer);
 
 				// Since priority queue elements are written into RocksDB
