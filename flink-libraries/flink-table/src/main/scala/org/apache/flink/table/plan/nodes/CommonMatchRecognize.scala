@@ -77,6 +77,8 @@ trait CommonMatchRecognize {
         case AfterOption.SKIP_PAST_LAST_ROW => "SKIP PAST LAST ROW"
         case AfterOption.SKIP_TO_NEXT_ROW => "SKIP TO NEXT ROW"
       }
+      case _ => throw new IllegalStateException(s"Corrupted query tree. Unexpected $after for " +
+        s"after match strategy.")
     }
 
   private[flink] def matchToString(
