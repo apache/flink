@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import static org.apache.flink.table.descriptors.DescriptorProperties.noValidation;
+
 /**
  * The validator for {@link Kafka}.
  */
@@ -84,26 +86,26 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 		final Map<String, Consumer<String>> specificOffsetValidators = new HashMap<>();
 		specificOffsetValidators.put(
 			CONNECTOR_SPECIFIC_OFFSETS_PARTITION,
-			(prefix) -> properties.validateInt(
-				prefix + CONNECTOR_SPECIFIC_OFFSETS_PARTITION,
+			(key) -> properties.validateInt(
+				key,
 				false,
 				0,
 				Integer.MAX_VALUE));
 		specificOffsetValidators.put(
 			CONNECTOR_SPECIFIC_OFFSETS_OFFSET,
-			(prefix) -> properties.validateLong(
-				prefix + CONNECTOR_SPECIFIC_OFFSETS_OFFSET,
+			(key) -> properties.validateLong(
+				key,
 				false,
 				0,
 				Long.MAX_VALUE));
 
 		final Map<String, Consumer<String>> startupModeValidation = new HashMap<>();
-		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_GROUP_OFFSETS, properties.noValidation());
-		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_EARLIEST, properties.noValidation());
-		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_LATEST, properties.noValidation());
+		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_GROUP_OFFSETS, noValidation());
+		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_EARLIEST, noValidation());
+		startupModeValidation.put(CONNECTOR_STARTUP_MODE_VALUE_LATEST, noValidation());
 		startupModeValidation.put(
 			CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS,
-			prefix -> properties.validateFixedIndexedProperties(CONNECTOR_SPECIFIC_OFFSETS, false, specificOffsetValidators));
+			key -> properties.validateFixedIndexedProperties(CONNECTOR_SPECIFIC_OFFSETS, false, specificOffsetValidators));
 		properties.validateEnum(CONNECTOR_STARTUP_MODE, true, startupModeValidation);
 	}
 
@@ -111,20 +113,20 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 		final Map<String, Consumer<String>> propertyValidators = new HashMap<>();
 		propertyValidators.put(
 			CONNECTOR_PROPERTIES_KEY,
-			prefix -> properties.validateString(prefix + CONNECTOR_PROPERTIES_KEY, false, 1));
+			key -> properties.validateString(key, false, 1));
 		propertyValidators.put(
 			CONNECTOR_PROPERTIES_VALUE,
-			prefix -> properties.validateString(prefix + CONNECTOR_PROPERTIES_VALUE, false, 0));
+			key -> properties.validateString(key, false, 0));
 		properties.validateFixedIndexedProperties(CONNECTOR_PROPERTIES, true, propertyValidators);
 	}
 
 	private void validateSinkPartitioner(DescriptorProperties properties) {
 		final Map<String, Consumer<String>> sinkPartitionerValidators = new HashMap<>();
-		sinkPartitionerValidators.put(CONNECTOR_SINK_PARTITIONER_VALUE_FIXED, properties.noValidation());
-		sinkPartitionerValidators.put(CONNECTOR_SINK_PARTITIONER_VALUE_ROUND_ROBIN, properties.noValidation());
+		sinkPartitionerValidators.put(CONNECTOR_SINK_PARTITIONER_VALUE_FIXED, noValidation());
+		sinkPartitionerValidators.put(CONNECTOR_SINK_PARTITIONER_VALUE_ROUND_ROBIN, noValidation());
 		sinkPartitionerValidators.put(
 			CONNECTOR_SINK_PARTITIONER_VALUE_CUSTOM,
-			prefix -> properties.validateString(CONNECTOR_SINK_PARTITIONER_CLASS, false, 1));
+			key -> properties.validateString(CONNECTOR_SINK_PARTITIONER_CLASS, false, 1));
 		properties.validateEnum(CONNECTOR_SINK_PARTITIONER, true, sinkPartitionerValidators);
 	}
 

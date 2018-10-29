@@ -26,8 +26,8 @@ import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROP
 class FormatDescriptorValidator extends DescriptorValidator {
 
   override def validate(properties: DescriptorProperties): Unit = {
-    properties.validateString(FORMAT_TYPE, isOptional = false, minLen = 1)
-    properties.validateInt(FORMAT_PROPERTY_VERSION, isOptional = true, 0, Integer.MAX_VALUE)
+    properties.validateString(FORMAT_TYPE, false, 1)
+    properties.validateInt(FORMAT_PROPERTY_VERSION, true, 0, Integer.MAX_VALUE)
   }
 }
 

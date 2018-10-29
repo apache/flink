@@ -24,7 +24,6 @@ import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTa
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.Elasticsearch;
 import org.apache.flink.table.descriptors.Json;
 import org.apache.flink.table.descriptors.Schema;
@@ -32,6 +31,7 @@ import org.apache.flink.table.descriptors.TestTableDescriptor;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.sinks.TableSink;
+import org.apache.flink.table.util.JavaScalaConversionUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
 
@@ -113,7 +113,7 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 					.field(FIELD_TS, Types.SQL_TIMESTAMP()))
 			.inUpsertMode();
 
-		final Map<String, String> propertiesMap = DescriptorProperties.toJavaMap(testDesc);
+		final Map<String, String> propertiesMap = JavaScalaConversionUtil.toJavaMap(testDesc);
 		final TableSink<?> actualSink = TableFactoryService.find(StreamTableSinkFactory.class, propertiesMap)
 			.createStreamTableSink(propertiesMap);
 

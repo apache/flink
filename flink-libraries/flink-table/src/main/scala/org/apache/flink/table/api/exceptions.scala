@@ -21,6 +21,8 @@ package org.apache.flink.table.api
 import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.factories.TableFactory
 
+import _root_.scala.collection.JavaConverters._
+
 /**
   * Exception for all errors occurring during expression parsing.
   */
@@ -127,7 +129,7 @@ case class NoMatchingTableFactoryException(
         |Reason: $message
         |
         |The following properties are requested:
-        |${DescriptorProperties.toString(properties)}
+        |${DescriptorProperties.toString(properties.asJava)}
         |
         |The following factories have been considered:
         |${factories.map(_.getClass.getName).mkString("\n")}
@@ -166,7 +168,7 @@ case class AmbiguousTableFactoryException(
         |${matchingFactories.map(_.getClass.getName).mkString("\n")}
         |
         |The following properties are requested:
-        |${DescriptorProperties.toString(properties)}
+        |${DescriptorProperties.toString(properties.asJava)}
         |
         |The following factories have been considered:
         |${factories.map(_.getClass.getName).mkString("\n")}

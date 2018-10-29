@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.descriptors
 
+import java.util.Collections
+
 import org.apache.flink.table.descriptors.StreamTableDescriptorValidator.{UPDATE_MODE, UPDATE_MODE_VALUE_APPEND, UPDATE_MODE_VALUE_RETRACT, UPDATE_MODE_VALUE_UPSERT}
 import org.apache.flink.util.Preconditions
 import org.junit.Assert.assertEquals
@@ -73,15 +75,15 @@ abstract class DescriptorTestBase {
       invalidValue: String): Unit = {
     val properties = new DescriptorProperties
     descriptor.addProperties(properties)
-    properties.unsafePut(property, invalidValue)
-    validator().validate(properties)
+    val copy = properties.withoutKeys(Collections.singletonList(property))
+    copy.putString(property, invalidValue)
+    validator().validate(copy)
   }
 
   def removePropertyAndVerify(descriptor: Descriptor, removeProperty: String): Unit = {
     val properties = new DescriptorProperties
     descriptor.addProperties(properties)
-    properties.unsafeRemove(removeProperty)
-    validator().validate(properties)
+    validator().validate(properties.withoutKeys(Collections.singletonList(removeProperty)))
   }
 }
 

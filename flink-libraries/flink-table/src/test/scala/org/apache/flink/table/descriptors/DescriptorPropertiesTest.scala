@@ -22,7 +22,7 @@ import java.util
 import java.util.Collections
 
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.descriptors.DescriptorProperties.toJava
+import org.apache.flink.table.util.JavaScalaConversionUtil.toJava
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -66,9 +66,9 @@ class DescriptorPropertiesTest {
   def testArrayValues(): Unit = {
     val properties = new DescriptorProperties()
 
-    properties.unsafePut(s"$ARRAY_KEY.0", "12")
-    properties.unsafePut(s"$ARRAY_KEY.1", "42")
-    properties.unsafePut(s"$ARRAY_KEY.2", "66")
+    properties.putString(s"$ARRAY_KEY.0", "12")
+    properties.putString(s"$ARRAY_KEY.1", "42")
+    properties.putString(s"$ARRAY_KEY.2", "66")
 
     testArrayValidation(properties, 1, Integer.MAX_VALUE)
 
@@ -82,7 +82,7 @@ class DescriptorPropertiesTest {
   @Test
   def testArraySingleValue(): Unit = {
     val properties = new DescriptorProperties()
-    properties.unsafePut(ARRAY_KEY, "12")
+    properties.putString(ARRAY_KEY, "12")
 
     testArrayValidation(properties, 1, Integer.MAX_VALUE)
 
@@ -96,9 +96,9 @@ class DescriptorPropertiesTest {
   @Test(expected = classOf[ValidationException])
   def testArrayInvalidValues(): Unit = {
     val properties = new DescriptorProperties()
-    properties.unsafePut(s"$ARRAY_KEY.0", "12")
-    properties.unsafePut(s"$ARRAY_KEY.1", "INVALID")
-    properties.unsafePut(s"$ARRAY_KEY.2", "66")
+    properties.putString(s"$ARRAY_KEY.0", "12")
+    properties.putString(s"$ARRAY_KEY.1", "INVALID")
+    properties.putString(s"$ARRAY_KEY.2", "66")
 
     testArrayValidation(properties, 1, Integer.MAX_VALUE)
   }
@@ -106,7 +106,7 @@ class DescriptorPropertiesTest {
   @Test(expected = classOf[ValidationException])
   def testArrayInvalidSingleValue(): Unit = {
     val properties = new DescriptorProperties()
-    properties.unsafePut(ARRAY_KEY, "INVALID")
+    properties.putString(ARRAY_KEY, "INVALID")
 
     testArrayValidation(properties, 1, Integer.MAX_VALUE)
   }
@@ -156,7 +156,7 @@ class DescriptorPropertiesTest {
       maxLength: Int)
     : Unit = {
     val validator: (String) => Unit = (key: String) => {
-      properties.validateInt(key, isOptional = false)
+      properties.validateInt(key, false)
     }
 
     properties.validateArray(

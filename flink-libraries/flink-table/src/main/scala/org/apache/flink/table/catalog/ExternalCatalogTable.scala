@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.catalog
 
-import org.apache.flink.table.descriptors.DescriptorProperties.toScala
 import org.apache.flink.table.descriptors.StatisticsValidator.{STATISTICS_COLUMNS, STATISTICS_ROW_COUNT, readColumnStats}
 import org.apache.flink.table.descriptors.StreamTableDescriptorValidator.{UPDATE_MODE, UPDATE_MODE_VALUE_APPEND, UPDATE_MODE_VALUE_RETRACT, UPDATE_MODE_VALUE_UPSERT}
 import org.apache.flink.table.descriptors._
 import org.apache.flink.table.factories.TableFactory
 import org.apache.flink.table.plan.stats.TableStats
+import org.apache.flink.table.util.JavaScalaConversionUtil
+import org.apache.flink.table.util.JavaScalaConversionUtil.toScala
 
 import scala.collection.JavaConverters._
 
@@ -294,7 +295,7 @@ class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDesc
       isStreaming,
       isSource = true,
       isSink = false,
-      DescriptorProperties.toJavaMap(this))
+      JavaScalaConversionUtil.toJavaMap(this))
   }
 
   /**
@@ -309,7 +310,7 @@ class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDesc
       isStreaming,
       isSource = false,
       isSink = true,
-      DescriptorProperties.toJavaMap(this))
+      JavaScalaConversionUtil.toJavaMap(this))
   }
 
   /**
@@ -324,7 +325,7 @@ class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDesc
       isStreaming,
       isSource = true,
       isSink = true,
-      DescriptorProperties.toJavaMap(this))
+      JavaScalaConversionUtil.toJavaMap(this))
   }
 
   // ----------------------------------------------------------------------------------------------

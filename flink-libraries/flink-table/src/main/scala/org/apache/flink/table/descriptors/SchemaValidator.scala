@@ -24,10 +24,10 @@ import java.util.Optional
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{TableException, TableSchema, ValidationException}
-import org.apache.flink.table.descriptors.DescriptorProperties.{toJava, toScala}
 import org.apache.flink.table.descriptors.RowtimeValidator._
 import org.apache.flink.table.descriptors.SchemaValidator._
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor
+import org.apache.flink.table.util.JavaScalaConversionUtil.{toJava, toScala}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -54,11 +54,11 @@ class SchemaValidator(
 
     for (i <- 0 until Math.max(names.size, types.size)) {
       properties
-        .validateString(s"$SCHEMA.$i.$SCHEMA_NAME", isOptional = false, minLen = 1)
+        .validateString(s"$SCHEMA.$i.$SCHEMA_NAME", false, 1)
       properties
-        .validateType(s"$SCHEMA.$i.$SCHEMA_TYPE", requireRow = false, isOptional = false)
+        .validateType(s"$SCHEMA.$i.$SCHEMA_TYPE", false, false)
       properties
-        .validateString(s"$SCHEMA.$i.$SCHEMA_FROM", isOptional = true, minLen = 1)
+        .validateString(s"$SCHEMA.$i.$SCHEMA_FROM", true, 1)
       // either proctime or rowtime
       val proctime = s"$SCHEMA.$i.$SCHEMA_PROCTIME"
       val rowtime = s"$SCHEMA.$i.$ROWTIME"
@@ -73,7 +73,7 @@ class SchemaValidator(
           throw new ValidationException("A proctime attribute must only be defined once.")
         }
         // check proctime
-        properties.validateBoolean(proctime, isOptional = false)
+        properties.validateBoolean(proctime, false)
         proctimeFound = properties.getBoolean(proctime)
         // no rowtime
         properties.validatePrefixExclusion(rowtime)
