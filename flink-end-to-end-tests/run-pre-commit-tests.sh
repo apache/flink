@@ -42,6 +42,8 @@ echo "Flink distribution directory: $FLINK_DIR"
 # Template for adding a test:
 # run_test "<description>" "$END_TO_END_DIR/test-scripts/<script_name>"
 
+# to verify the sql end-to-end test
+run_test "SQL Client end-to-end test" "$END_TO_END_DIR/test-scripts/test_sql_client.sh"
 run_test "Batch Python Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_python_wordcount.sh"
 run_test "Streaming Python Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_python_wordcount.sh"
 run_test "Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh"
