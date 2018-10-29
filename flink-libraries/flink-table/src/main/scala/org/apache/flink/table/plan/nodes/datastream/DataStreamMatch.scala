@@ -322,6 +322,8 @@ private[flink] class PatternVisitor(
         AfterMatchSkipStrategy.skipToFirst(getPatternTarget()).throwExceptionOnMiss()
       case SqlKind.SKIP_TO_LAST =>
         AfterMatchSkipStrategy.skipToLast(getPatternTarget()).throwExceptionOnMiss()
+      case _ => throw new IllegalStateException(s"Corrupted query tree. Unexpected " +
+        s"${logicalMatch.after} for after match strategy.")
     }
   }
 
