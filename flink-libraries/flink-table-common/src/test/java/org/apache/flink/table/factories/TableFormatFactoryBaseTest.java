@@ -56,4 +56,30 @@ public class TableFormatFactoryBaseTest {
 			.build();
 		assertEquals(expectedSchema, actualSchema);
 	}
+
+	@Test
+	public void testSchemaDerivationWithRowtime() {
+		final Map<String, String> properties = new HashMap<>();
+		properties.put("schema.0.name", "otherField");
+		properties.put("schema.0.type", "VARCHAR");
+		properties.put("schema.0.from", "csvField");
+		properties.put("schema.1.name", "abcField");
+		properties.put("schema.1.type", "VARCHAR");
+		properties.put("schema.2.name", "p");
+		properties.put("schema.2.type", "TIMESTAMP");
+		properties.put("schema.2.proctime", "true");
+		properties.put("schema.3.name", "r");
+		properties.put("schema.3.type", "TIMESTAMP");
+		properties.put("schema.3.rowtime.timestamps.type", "from-field"); // from-field strategy
+		properties.put("schema.3.rowtime.timestamps.from", "myTime");
+		properties.put("schema.3.rowtime.watermarks.type", "from-source");
+
+		final TableSchema actualSchema = TableFormatFactoryBase.deriveSchema(properties);
+		final TableSchema expectedSchema = TableSchema.builder()
+			.field("csvField", Types.STRING) // aliased
+			.field("abcField", Types.STRING)
+			.field("myTime", Types.SQL_TIMESTAMP)
+			.build();
+		assertEquals(expectedSchema, actualSchema);
+	}
 }
