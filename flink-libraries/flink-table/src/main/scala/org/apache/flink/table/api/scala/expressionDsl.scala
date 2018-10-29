@@ -308,6 +308,12 @@ trait ImplicitExpressionOperations {
     * integer closest to the exact value of the quotient f1/f2, and if two
     * integers are equally close to f1/f2, then <i>n</i> is the integer that
     * is even.
+    *
+    * e.g. remainder(3, 2) => -1; mod(3, 2) => 1
+    *      3 - 2 * n, n=2 (3/2=1.5, 1.5 is equally close to 1 and 2 so n=2)
+    *
+    *      remainder(5, 2) => 1; mod(5, 2) => 1
+    *      5 - 2 * n, n=2 (5/2=2.5, n=2)
     */
   def remainder(other: Expression) = Remainder(expr, other)
 
