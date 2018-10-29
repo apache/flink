@@ -33,7 +33,7 @@ limitations under the License.
       <tr ng-repeat="accumulator in accumulators">
         <td width="30%">{{ accumulator.name }}</td>
         <td width="30%">{{ accumulator.type }}</td>
-        <td width="30%">{{ accumulator.value }}</td>
+        <td width="30%">{{ accumulator.value | number | toLocaleString }}</td>
       </tr>
     </tbody>
   </table>
@@ -60,7 +60,7 @@ limitations under the License.
         <tr ng-repeat="accumulator in subtask['user-accumulators']">
           <td width="30%">{{ accumulator.name }}</td>
           <td width="30%">{{ accumulator.type }}</td>
-          <td width="30%">{{ accumulator.value }}</td>
+          <td width="30%">{{ accumulator.value | number | toLocaleString }}</td>
         </tr>
       </tbody>
     </table>
