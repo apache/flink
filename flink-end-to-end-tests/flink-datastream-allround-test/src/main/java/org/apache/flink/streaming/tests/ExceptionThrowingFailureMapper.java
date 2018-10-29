@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.runtime.state.CheckpointListener;
 
 /**
@@ -55,9 +56,7 @@ public class ExceptionThrowingFailureMapper<T> extends RichMapFunction<T, T> imp
 	public T map(T value) throws Exception {
 		numProcessedRecords++;
 
-		if (isReachedFailureThreshold()) {
-			throw new Exception("Artificial failure.");
-		}
+		considerTriggerArtificialFailure();
 
 		return value;
 	}
@@ -66,14 +65,21 @@ public class ExceptionThrowingFailureMapper<T> extends RichMapFunction<T, T> imp
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		numCompleteCheckpoints++;
 
-		if (isReachedFailureThreshold()) {
-			throw new Exception("Artificial failure.");
-		}
+		considerTriggerArtificialFailure();
 	}
 
 	private boolean isReachedFailureThreshold() {
 		return numProcessedRecords >= numProcessedRecordsFailureThreshold
 			&& numCompleteCheckpoints >= numCompleteCheckpointsFailureThreshold
 			&& getRuntimeContext().getAttemptNumber() < maxNumFailures;
+	}
+
+	private void considerTriggerArtificialFailure() throws Exception {
+		if (isReachedFailureThreshold()) {
+			final RuntimeContext runtimeContext = getRuntimeContext();
+			if(runtimeContext.getAttemptNumber() % runtimeContext.getNumberOfParallelSubtasks() ==
+				runtimeContext.getIndexOfThisSubtask())
+			throw new Exception("Artificial failure.");
+		}
 	}
 }
