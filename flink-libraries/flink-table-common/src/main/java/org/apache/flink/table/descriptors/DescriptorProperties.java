@@ -1326,7 +1326,7 @@ public class DescriptorProperties {
 	}
 
 	public static String toString(String str) {
-		return EncodingUtils.escapeJava(str).replace("\\/", "/"); // '/' must not be escaped
+		return EncodingUtils.escapeJava(str);
 	}
 
 	public static String toString(String key, String value) {

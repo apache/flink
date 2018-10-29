@@ -23,7 +23,6 @@ import java.util
 
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.commons.lang3.StringEscapeUtils.escapeJava
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.cep.pattern.conditions.IterativeCondition
@@ -33,6 +32,7 @@ import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForTypeInfo, ne
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.util.Collector
 import org.apache.flink.util.MathUtils.checkedDownCast
 
@@ -102,7 +102,7 @@ class MatchCodeGenerator(
   private def addReusablePatternNames() : Unit = {
     reusableMemberStatements
       .add(s"private String[] $patternNamesTerm = new String[] { ${
-        patternNames.map(p => s""""${escapeJava(p)}"""").mkString(", ")
+        patternNames.map(p => s""""${EncodingUtils.escapeJava(p)}"""").mkString(", ")
       } };")
   }
 
@@ -336,7 +336,7 @@ class MatchCodeGenerator(
          |}
          """.stripMargin
     } else {
-      val escapedPatternName = escapeJava(patternName)
+      val escapedPatternName = EncodingUtils.escapeJava(patternName)
       j"""
          |java.util.List $listName = new java.util.ArrayList();
          |for ($eventTypeTerm $eventNameTerm :
@@ -373,7 +373,7 @@ class MatchCodeGenerator(
          |}
          """.stripMargin
     } else {
-      val escapedPatternName = escapeJava(patternName)
+      val escapedPatternName = EncodingUtils.escapeJava(patternName)
       j"""
          |java.util.List $listName = (java.util.List) $input1Term.get("$escapedPatternName");
          |if ($listName == null) {
@@ -427,7 +427,7 @@ class MatchCodeGenerator(
   }
 
   private def generatePatternFieldRef(fieldRef: RexPatternFieldRef): GeneratedExpression = {
-    val escapedAlpha = escapeJava(fieldRef.getAlpha)
+    val escapedAlpha = EncodingUtils.escapeJava(fieldRef.getAlpha)
     val patternVariableRef = reusableInputUnboxingExprs
       .get((s"$escapedAlpha#$first", offset)) match {
       // input access and unboxing has already been generated

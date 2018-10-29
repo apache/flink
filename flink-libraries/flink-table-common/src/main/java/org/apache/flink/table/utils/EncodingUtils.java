@@ -19,6 +19,7 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -26,8 +27,11 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.io.StringWriter;
 import java.io.Writer;
-import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * General utilities for string-encoding. This class is used to avoid additional dependencies
@@ -40,6 +44,8 @@ public abstract class EncodingUtils {
 
 	private static final Base64.Decoder BASE64_DECODER = java.util.Base64.getUrlDecoder();
 
+	private static final char[] HEX_CHARS = "0123456789abcdef".toCharArray();
+
 	private EncodingUtils() {
 		// do not instantiate
 	}
@@ -47,7 +53,7 @@ public abstract class EncodingUtils {
 	public static String encodeObjectToString(Serializable obj) {
 		try {
 			final byte[] bytes = InstantiationUtil.serializeObject(obj);
-			return new String(BASE64_ENCODER.encode(bytes), StandardCharsets.UTF_8);
+			return new String(BASE64_ENCODER.encode(bytes), UTF_8);
 		} catch (Exception e) {
 			throw new ValidationException(
 				"Unable to serialize object '" + obj.toString() + "' of class '" + obj.getClass().getName() + "'.");
@@ -60,7 +66,7 @@ public abstract class EncodingUtils {
 
 	public static <T extends Serializable> T decodeStringToObject(String base64String, Class<T> baseClass, ClassLoader classLoader) {
 		try {
-			final byte[] bytes = BASE64_DECODER.decode(base64String.getBytes(StandardCharsets.UTF_8));
+			final byte[] bytes = BASE64_DECODER.decode(base64String.getBytes(UTF_8));
 			final T instance = InstantiationUtil.deserializeObject(bytes, classLoader);
 			if (instance != null && !baseClass.isAssignableFrom(instance.getClass())) {
 				throw new ValidationException(
@@ -87,10 +93,138 @@ public abstract class EncodingUtils {
 		return loadClass(qualifiedName, Thread.currentThread().getContextClassLoader());
 	}
 
+	public static String encodeStringToBase64(String string) {
+		return new String(java.util.Base64.getEncoder().encode(string.getBytes(UTF_8)), UTF_8);
+	}
+
+	public static String decodeBase64ToString(String base64) {
+		return new String(java.util.Base64.getDecoder().decode(base64.getBytes(UTF_8)), UTF_8);
+	}
+
+	public static byte[] md5(String string) {
+		try {
+			return MessageDigest.getInstance("MD5").digest(string.getBytes(UTF_8));
+		} catch (NoSuchAlgorithmException e) {
+			throw new TableException("Unsupported MD5 algorithm.", e);
+		}
+	}
+
+	public static String hex(String string) {
+		return hex(string.getBytes(UTF_8));
+	}
+
+	public static String hex(byte[] bytes) {
+		// adopted from https://stackoverflow.com/a/9855338
+		final char[] hexChars = new char[bytes.length * 2];
+		for (int j = 0; j < bytes.length; j++) {
+			final int v = bytes[j] & 0xFF;
+			hexChars[j * 2] = HEX_CHARS[v >>> 4];
+			hexChars[j * 2 + 1] = HEX_CHARS[v & 0x0F];
+		}
+		return new String(hexChars);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Java String Repetition
+	//
+	// copied from o.a.commons.lang3.StringUtils (commons-lang3:3.3.2)
+	// --------------------------------------------------------------------------------------------
+
+	private static final String EMPTY = "";
+
+	/**
+	 * The maximum size to which the padding constant(s) can expand.
+	 */
+	private static final int PAD_LIMIT = 8192;
+
+	/**
+	 * Repeat a String {@code repeat} times to form a new String.
+	 *
+	 * <pre>
+	 * StringUtils.repeat(null, 2) = null
+	 * StringUtils.repeat("", 0)   = ""
+	 * StringUtils.repeat("", 2)   = ""
+	 * StringUtils.repeat("a", 3)  = "aaa"
+	 * StringUtils.repeat("ab", 2) = "abab"
+	 * StringUtils.repeat("a", -2) = ""
+	 * </pre>
+	 *
+	 * @param str    the String to repeat, may be null
+	 * @param repeat number of times to repeat str, negative treated as zero
+	 * @return a new String consisting of the original String repeated, {@code null} if null String input
+	 */
+	public static String repeat(final String str, final int repeat) {
+		// Performance tuned for 2.0 (JDK1.4)
+
+		if (str == null) {
+			return null;
+		}
+		if (repeat <= 0) {
+			return EMPTY;
+		}
+		final int inputLength = str.length();
+		if (repeat == 1 || inputLength == 0) {
+			return str;
+		}
+		if (inputLength == 1 && repeat <= PAD_LIMIT) {
+			return repeat(str.charAt(0), repeat);
+		}
+
+		final int outputLength = inputLength * repeat;
+		switch (inputLength) {
+			case 1:
+				return repeat(str.charAt(0), repeat);
+			case 2:
+				final char ch0 = str.charAt(0);
+				final char ch1 = str.charAt(1);
+				final char[] output2 = new char[outputLength];
+				for (int i = repeat * 2 - 2; i >= 0; i--, i--) {
+					output2[i] = ch0;
+					output2[i + 1] = ch1;
+				}
+				return new String(output2);
+			default:
+				final StringBuilder buf = new StringBuilder(outputLength);
+				for (int i = 0; i < repeat; i++) {
+					buf.append(str);
+				}
+				return buf.toString();
+		}
+	}
+
+	/**
+	 * Returns padding using the specified delimiter repeated to a given length.
+	 *
+	 * <pre>
+	 * StringUtils.repeat('e', 0)  = ""
+	 * StringUtils.repeat('e', 3)  = "eee"
+	 * StringUtils.repeat('e', -2) = ""
+	 * </pre>
+	 *
+	 * <p>Note: this method doesn't not support padding with
+	 * <a href="http://www.unicode.org/glossary/#supplementary_character">Unicode Supplementary Characters</a>
+	 * as they require a pair of {@code char}s to be represented.
+	 * If you are needing to support full I18N of your applications
+	 * consider using {@link #repeat(String, int)} instead.
+	 *
+	 * @param ch     character to repeat
+	 * @param repeat number of times to repeat char, negative treated as zero
+	 * @return String with repeated character
+	 * @see #repeat(String, int)
+	 */
+	public static String repeat(final char ch, final int repeat) {
+		final char[] buf = new char[repeat];
+		for (int i = repeat - 1; i >= 0; i--) {
+			buf[i] = ch;
+		}
+		return new String(buf);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Java String Escaping
 	//
-	// copied from o.a.commons.lang.StringEscapeUtils (commons-lang:commons-lang:2.4)
+	// copied from o.a.commons.lang.StringEscapeUtils (commons-lang:2.4)
+	// but without escaping forward slashes.
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -197,10 +331,11 @@ public abstract class EncodingUtils {
 						out.write('\\');
 						out.write('\\');
 						break;
-					case '/':
-						out.write('\\');
-						out.write('/');
-						break;
+					// MODIFICATION: Flink removes invalid escaping of forward slashes!
+					// case '/':
+					//	out.write('\\');
+					//	out.write('/');
+					//	break;
 					default:
 						out.write(ch);
 						break;
