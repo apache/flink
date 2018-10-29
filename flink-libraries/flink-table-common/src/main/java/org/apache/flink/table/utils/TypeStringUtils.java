@@ -103,11 +103,11 @@ public class TypeStringUtils {
 			result.append(ROW);
 			result.append('<');
 			for (int i = 0; i < fieldNames.length; i++) {
-				// escape field name if it contains spaces
-				if (!fieldNames[i].matches("\\S+")) {
-					result.append('\"');
-					result.append(EncodingUtils.escapeJava(fieldNames[i]));
-					result.append('\"');
+				// escape field name if it contains delimiters
+				if (containsDelimiter(fieldNames[i])) {
+					result.append('`');
+					result.append(fieldNames[i].replace("`", "``"));
+					result.append('`');
 				} else {
 					result.append(fieldNames[i]);
 				}
@@ -157,11 +157,21 @@ public class TypeStringUtils {
 
 	public static TypeInformation<?> readTypeInfo(String typeString) {
 		final List<Token> tokens = tokenize(typeString);
-		final TokenConverter converter = new TokenConverter(tokens);
+		final TokenConverter converter = new TokenConverter(typeString, tokens);
 		return converter.convert();
 	}
 
 	// --------------------------------------------------------------------------------------------
+
+	private static boolean containsDelimiter(String string) {
+		final char[] charArray = string.toCharArray();
+		for (char c : charArray) {
+			if (isDelimiter(c)) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	private static boolean isDelimiter(char character) {
 		return Character.isWhitespace(character) || character == ',' ||
@@ -226,11 +236,13 @@ public class TypeStringUtils {
 
 	private static class TokenConverter {
 
+		private String inputString;
 		private List<Token> tokens;
 		private int lastValidToken;
 		private int currentToken;
 
-		public TokenConverter(List<Token> tokens) {
+		public TokenConverter(String inputString, List<Token> tokens) {
+			this.inputString = inputString;
 			this.tokens = tokens;
 			this.lastValidToken = -1;
 			this.currentToken = -1;
@@ -443,7 +455,7 @@ public class TypeStringUtils {
 			nextToken();
 			final Token nextToken = tokens.get(currentToken);
 			if (nextToken.type != type) {
-				throw parsingError(type.name() + " expected but was: " + nextToken.type);
+				throw parsingError(type.name() + " expected but was " + nextToken.type + '.');
 			}
 		}
 
@@ -464,11 +476,12 @@ public class TypeStringUtils {
 			if (lastValidToken < 0) {
 				return 0;
 			}
-			return tokens.get(lastValidToken).cursorPosition;
+			return tokens.get(lastValidToken).cursorPosition + 1;
 		}
 
 		private ValidationException parsingError(String cause) {
-			throw new ValidationException("Could not parse type information at " + lastCursor() + ": " + cause);
+			throw new ValidationException("Could not parse type information at position " + lastCursor() + ": " + cause + "\n" +
+				"Input type string: " + inputString);
 		}
 
 		private Token token() {
