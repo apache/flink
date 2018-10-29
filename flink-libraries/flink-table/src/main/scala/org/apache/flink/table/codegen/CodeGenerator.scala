@@ -26,7 +26,6 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{ROW, _}
-import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -40,10 +39,10 @@ import org.apache.flink.table.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NU
 import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.codegen.calls.{CurrentTimePointCallGen, FunctionGenerator}
 import org.apache.flink.table.functions.sql.{ProctimeSqlFunction, ScalarSqlFunctions, StreamRecordTimestampSqlFunction}
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils._
+import org.apache.flink.table.utils.EncodingUtils
 import org.joda.time.format.DateTimeFormatter
 
 import scala.collection.JavaConversions._
@@ -681,7 +680,7 @@ abstract class CodeGenerator(
         generateNonNullLiteral(resultType, decimalField)
 
       case VARCHAR | CHAR =>
-        val escapedValue = StringEscapeUtils.ESCAPE_JAVA.translate(value.toString)
+        val escapedValue = EncodingUtils.escapeJava(value.toString)
         generateNonNullLiteral(resultType, "\"" + escapedValue + "\"")
 
       case SYMBOL =>
@@ -1610,7 +1609,7 @@ abstract class CodeGenerator(
     */
   def addReusableFunction(function: UserDefinedFunction, contextTerm: String = null): String = {
     val classQualifier = function.getClass.getCanonicalName
-    val functionSerializedData = UserDefinedFunctionUtils.serialize(function)
+    val functionSerializedData = EncodingUtils.encodeObjectToString(function)
     val fieldTerm = s"function_${function.functionIdentifier}"
 
     val fieldFunction =
@@ -1622,8 +1621,9 @@ abstract class CodeGenerator(
     val functionDeserialization =
       s"""
          |$fieldTerm = ($classQualifier)
-         |${UserDefinedFunctionUtils.getClass.getName.stripSuffix("$")}
-         |.deserialize("$functionSerializedData");
+         |${classOf[EncodingUtils].getCanonicalName}.decodeStringToObject(
+         |  "$functionSerializedData",
+         |  ${classOf[UserDefinedFunction].getCanonicalName}.class);
        """.stripMargin
 
     reusableInitStatements.add(functionDeserialization)

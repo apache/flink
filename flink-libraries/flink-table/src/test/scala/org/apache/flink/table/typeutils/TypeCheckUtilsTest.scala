@@ -22,6 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.{Types => ScalaTypes}
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.typeutils.TypeCheckUtils.validateEqualsHashCode
+import org.junit.Assert.{assertFalse, assertTrue}
 import org.junit.Test
 
 class TypeCheckUtilsTest {
@@ -50,5 +51,25 @@ class TypeCheckUtilsTest {
   @Test(expected = classOf[ValidationException])
   def testInvalidType3(): Unit = {
     validateEqualsHashCode("", Types.OBJECT_ARRAY[Nothing](ScalaTypes.NOTHING))
+  }
+
+  @Test
+  def testPrimitiveWrapper (): Unit = {
+    assertTrue(TypeCheckUtils.isPrimitiveWrapper(classOf[java.lang.Double]))
+    assertFalse(TypeCheckUtils.isPrimitiveWrapper(classOf[Double]))
+  }
+
+  @Test
+  def testAssignability(): Unit = {
+    assertTrue(TypeCheckUtils.isAssignable(classOf[Double], classOf[Double]))
+    assertFalse(TypeCheckUtils.isAssignable(classOf[Boolean], classOf[Double]))
+    assertTrue(TypeCheckUtils.isAssignable(
+      classOf[java.util.HashMap[_, _]], classOf[java.util.Map[_, _]]))
+    assertFalse(TypeCheckUtils.isAssignable(
+      classOf[java.util.Map[_, _]], classOf[java.util.HashMap[_, _]]))
+
+    assertTrue(TypeCheckUtils.isAssignable(
+      Array[Class[_]](classOf[Double], classOf[Double]),
+      Array[Class[_]](classOf[Double], classOf[Double])))
   }
 }
