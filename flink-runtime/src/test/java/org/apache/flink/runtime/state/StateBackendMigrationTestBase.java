@@ -39,7 +39,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -141,7 +140,6 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		}
 	}
 
-	@Ignore("This won't pass until the ListSerializer snapshot has been upgraded to the new TypeSerializerSnapshot interface")
 	@Test
 	public void testKeyedListStateMigration() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
@@ -198,14 +196,14 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			backend.setCurrentKey(2);
 			Iterator<TestType> iterable2 = listState.get().iterator();
 			Assert.assertEquals(new TestType("key-2", 1), iterable2.next());
-			Assert.assertFalse(iterable1.hasNext());
+			Assert.assertFalse(iterable2.hasNext());
 			listState.add(new TestType("new-key-2", 456));
 
 			backend.setCurrentKey(3);
 			Iterator<TestType> iterable3 = listState.get().iterator();
 			Assert.assertEquals(new TestType("key-3", 1), iterable3.next());
 			Assert.assertEquals(new TestType("key-3", 2), iterable3.next());
-			Assert.assertFalse(iterable1.hasNext());
+			Assert.assertFalse(iterable3.hasNext());
 			listState.add(new TestType("new-key-3", 777));
 		} finally {
 			backend.dispose();

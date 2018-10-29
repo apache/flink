@@ -214,17 +214,17 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 			this.snapshotClass = snapshotClass;
 		}
 
-		public TestSpecification withSerializerProvider(Supplier<? extends TypeSerializer<T>> serializerProvider) {
+		public TestSpecification<T> withSerializerProvider(Supplier<? extends TypeSerializer<T>> serializerProvider) {
 			this.serializerProvider = serializerProvider;
 			return this;
 		}
 
-		public TestSpecification withSnapshotDataLocation(String snapshotDataLocation) {
+		public TestSpecification<T> withSnapshotDataLocation(String snapshotDataLocation) {
 			this.snapshotDataLocation = snapshotDataLocation;
 			return this;
 		}
 
-		public TestSpecification withTestData(String testDataLocation, int testDataCount) {
+		public TestSpecification<T> withTestData(String testDataLocation, int testDataCount) {
 			this.testDataLocation = testDataLocation;
 			this.testDataCount = testDataCount;
 			return this;

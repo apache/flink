@@ -142,15 +142,19 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & compatibility
+	// Serializer snapshots
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public TypeSerializerConfigSnapshot<ArrayList<T>> snapshotConfiguration() {
-		return new CollectionSerializerConfigSnapshot<>(elementSerializer);
+	public TypeSerializerSnapshot<ArrayList<T>> snapshotConfiguration() {
+		return new ArrayListSerializerSnapshot<>(elementSerializer);
 	}
 
+	/**
+	 * NOTE: this method cannot be removed until {@link CollectionSerializerConfigSnapshot} is fully removed.
+	 */
 	@Override
+	@SuppressWarnings("deprecation")
 	public CompatibilityResult<ArrayList<T>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
 			Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> previousElemSerializerAndConfig =

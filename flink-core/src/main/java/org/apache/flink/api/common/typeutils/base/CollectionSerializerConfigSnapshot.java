@@ -21,6 +21,7 @@ package org.apache.flink.api.common.typeutils.base;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 
 import java.util.Collection;
 
@@ -28,8 +29,11 @@ import java.util.Collection;
  * Configuration snapshot of a serializer for collection types.
  *
  * @param <T> Type of the element.
+ *
+ * @deprecated this snapshot class should no longer be used by any serializers as their snapshot.
  */
 @Internal
+@Deprecated
 public final class CollectionSerializerConfigSnapshot<C extends Collection<T>, T>
 		extends CompositeTypeSerializerConfigSnapshot<C> {
 
@@ -40,6 +44,18 @@ public final class CollectionSerializerConfigSnapshot<C extends Collection<T>, T
 
 	public CollectionSerializerConfigSnapshot(TypeSerializer<T> elementSerializer) {
 		super(elementSerializer);
+	}
+
+	@Override
+	public TypeSerializerSchemaCompatibility<C> resolveSchemaCompatibility(TypeSerializer<C> newSerializer) {
+		if (newSerializer instanceof ListSerializer) {
+			ListSerializerSnapshot<T> listSerializerSnapshot =
+				new ListSerializerSnapshot<>(((ListSerializer<T>) newSerializer).getElementSerializer());
+
+			return listSerializerSnapshot.resolveSchemaCompatibility((ListSerializer) newSerializer);
+		} else {
+			return super.resolveSchemaCompatibility(newSerializer);
+		}
 	}
 
 	@Override
