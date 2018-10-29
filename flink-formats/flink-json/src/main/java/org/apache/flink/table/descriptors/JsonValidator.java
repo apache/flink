@@ -45,7 +45,7 @@ public class JsonValidator extends FormatDescriptorValidator {
 		} else if (!deriveSchema && !hasSchema && !hasSchemaString) {
 			throw new ValidationException("A definition of a schema or JSON schema is required.");
 		} else if (hasSchema) {
-			properties.validateType(FORMAT_SCHEMA, true, false);
+			properties.validateType(FORMAT_SCHEMA, false, true);
 		} else if (hasSchemaString) {
 			properties.validateString(FORMAT_JSON_SCHEMA, false, 1);
 		}

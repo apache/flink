@@ -26,8 +26,8 @@ import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTO
 class ConnectorDescriptorValidator extends DescriptorValidator {
 
   override def validate(properties: DescriptorProperties): Unit = {
-    properties.validateString(CONNECTOR_TYPE, isOptional = false, minLen = 1)
-    properties.validateInt(CONNECTOR_PROPERTY_VERSION, isOptional = true, 0, Integer.MAX_VALUE)
+    properties.validateString(CONNECTOR_TYPE, false, 1)
+    properties.validateInt(CONNECTOR_PROPERTY_VERSION, true, 0, Integer.MAX_VALUE)
   }
 }
 

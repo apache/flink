@@ -20,11 +20,11 @@ package org.apache.flink.table.descriptors
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{TableSchema, ValidationException}
-import org.apache.flink.table.descriptors.DescriptorProperties.{normalizeTableSchema, normalizeTypeInfo}
 import org.apache.flink.table.descriptors.SchemaValidator._
+import org.apache.flink.table.utils.TypeStringUtils
 
-import scala.collection.mutable
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /**
   * Describes a schema of a table.
@@ -48,8 +48,8 @@ class Schema extends Descriptor {
   def schema(schema: TableSchema): Schema = {
     tableSchema.clear()
     lastField = None
-    normalizeTableSchema(schema).foreach {
-      case (n, t) => field(n, t)
+    schema.getFieldNames.zip(schema.getFieldTypes).foreach { case (n, t) =>
+      field(n, t)
     }
     this
   }
@@ -63,7 +63,7 @@ class Schema extends Descriptor {
     * @param fieldType the type information of the field
     */
   def field(fieldName: String, fieldType: TypeInformation[_]): Schema = {
-    field(fieldName, normalizeTypeInfo(fieldType))
+    field(fieldName, TypeStringUtils.writeTypeInfo(fieldType))
     this
   }
 

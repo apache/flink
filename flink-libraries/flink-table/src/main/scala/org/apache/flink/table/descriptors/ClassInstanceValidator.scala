@@ -30,7 +30,7 @@ class ClassInstanceValidator(keyPrefix: String = EMPTY_PREFIX)
 
   override def validateWithPrefix(keyPrefix: String, properties: DescriptorProperties): Unit = {
     // check class name
-    properties.validateString(s"$keyPrefix${ClassInstanceValidator.CLASS}", isOptional = false, 1)
+    properties.validateString(s"$keyPrefix${ClassInstanceValidator.CLASS}", false, 1)
 
     // check constructor
     val constructorPrefix = s"$keyPrefix${ClassInstanceValidator.CONSTRUCTOR}"

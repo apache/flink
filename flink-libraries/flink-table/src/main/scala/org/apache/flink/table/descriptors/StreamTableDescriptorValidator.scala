@@ -44,7 +44,7 @@ class StreamTableDescriptorValidator(
     }
     properties.validateEnumValues(
       UPDATE_MODE,
-      isOptional = false,
+      false,
       modeList
     )
   }
