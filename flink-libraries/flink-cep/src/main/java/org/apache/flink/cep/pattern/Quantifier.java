@@ -83,16 +83,16 @@ public class Quantifier {
 
 	public void combinations() {
 		checkPattern(!hasProperty(QuantifierProperty.SINGLE), "Combinations not applicable to " + this + "!");
-		checkPattern(innerConsumingStrategy != ConsumingStrategy.STRICT, "You can apply apply either combinations or consecutive, not both!");
+		checkPattern(innerConsumingStrategy != ConsumingStrategy.STRICT, "You can apply either combinations or consecutive, not both!");
 		checkPattern(innerConsumingStrategy != ConsumingStrategy.SKIP_TILL_ANY, "Combinations already applied!");
 
 		innerConsumingStrategy = ConsumingStrategy.SKIP_TILL_ANY;
 	}
 
 	public void consecutive() {
-		checkPattern(hasProperty(QuantifierProperty.LOOPING) || hasProperty(QuantifierProperty.TIMES), "Combinations not applicable to " + this + "!");
-		checkPattern(innerConsumingStrategy != ConsumingStrategy.SKIP_TILL_ANY, "You can apply apply either combinations or consecutive, not both!");
-		checkPattern(innerConsumingStrategy != ConsumingStrategy.STRICT, "Combinations already applied!");
+		checkPattern(hasProperty(QuantifierProperty.LOOPING) || hasProperty(QuantifierProperty.TIMES), "Consecutive not applicable to " + this + "!");
+		checkPattern(innerConsumingStrategy != ConsumingStrategy.SKIP_TILL_ANY, "You can apply either combinations or consecutive, not both!");
+		checkPattern(innerConsumingStrategy != ConsumingStrategy.STRICT, "Consecutive already applied!");
 
 		innerConsumingStrategy = ConsumingStrategy.STRICT;
 	}
