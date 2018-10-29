@@ -331,10 +331,8 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 			return checkpoints
 				.filter(path -> path.getFileName().toString().startsWith("chk-"))
 				.filter(path -> {
-					try {
-						try (Stream<Path> checkpointFiles = Files.list(path)) {
-							return checkpointFiles.anyMatch(child -> child.getFileName().toString().contains("meta"));
-						}
+					try (Stream<Path> checkpointFiles = Files.list(path)) {
+						return checkpointFiles.anyMatch(child -> child.getFileName().toString().contains("meta"));
 					} catch (IOException ignored) {
 						return false;
 					}
