@@ -144,7 +144,7 @@ public class KinesisDataFetcher<T> {
 	/** The last discovered shard ids of each subscribed stream, updated as the fetcher discovers new shards in.
 	 * Note: this state will be updated if new shards are found when {@link KinesisDataFetcher#discoverNewShardsToSubscribe()} is called.
 	 */
-	private final Map<String, String> subscribedStreamsToLastDiscoveredShardIds;
+	protected final Map<String, String> subscribedStreamsToLastDiscoveredShardIds;
 
 	/**
 	 * The shards, along with their last processed sequence numbers, that this fetcher is subscribed to. The fetcher

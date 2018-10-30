@@ -73,7 +73,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 	private static final Logger LOG = LoggerFactory.getLogger(KinesisProxy.class);
 
 	/** The actual Kinesis client from the AWS SDK that we will be using to make calls. */
-	private final AmazonKinesis kinesisClient;
+	protected final AmazonKinesis kinesisClient;
 
 	/** Random seed used to calculate backoff jitter for Kinesis operations. */
 	private static final Random seed = new Random();
