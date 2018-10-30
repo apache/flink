@@ -113,7 +113,6 @@ class AllocatedSlot implements SlotContext {
 	 *
 	 * @return The resource profile of the slot.
 	 */
-	@Override
 	public ResourceProfile getResourceProfile() {
 		return resourceProfile;
 	}

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
@@ -314,11 +313,6 @@ public class SingleLogicalSlotTest extends TestLogger {
 		@Override
 		public int getPhysicalSlotNumber() {
 			return 0;
-		}
-
-		@Override
-		public ResourceProfile getResourceProfile() {
-			return ResourceProfile.UNKNOWN;
 		}
 
 		@Override
