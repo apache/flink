@@ -282,6 +282,7 @@ under the License.
 									<include>commons-lang:*</include>
 
 									<!-- flink-table dependencies -->
+									<include>org.apache.flink:flink-table-common</include>
 									<include>commons-codec:*</include>
 									<include>org.apache.commons:commons-lang3</include>
 									<include>org.codehaus.janino:*</include>
