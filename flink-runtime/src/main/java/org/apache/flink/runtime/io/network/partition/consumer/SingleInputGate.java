@@ -477,26 +477,28 @@ public class SingleInputGate implements InputGate {
 
 	@Override
 	public void requestPartitions() throws IOException, InterruptedException {
+		if (requestedPartitionsFlag) {
+			return;
+		}
+
 		synchronized (requestLock) {
-			if (!requestedPartitionsFlag) {
-				if (isReleased) {
-					throw new IllegalStateException("Already released.");
-				}
-
-				// Sanity checks
-				if (numberOfInputChannels != inputChannels.size()) {
-					throw new IllegalStateException("Bug in input gate setup logic: mismatch between" +
-							"number of total input channels and the currently set number of input " +
-							"channels.");
-				}
-
-				for (InputChannel inputChannel : inputChannels.values()) {
-					inputChannel.requestSubpartition(consumedSubpartitionIndex);
-				}
+			if (isReleased) {
+				throw new IllegalStateException("Already released.");
 			}
 
-			requestedPartitionsFlag = true;
+			// Sanity checks
+			if (numberOfInputChannels != inputChannels.size()) {
+				throw new IllegalStateException("Bug in input gate setup logic: mismatch between" +
+						"number of total input channels and the currently set number of input " +
+						"channels.");
+			}
+
+			for (InputChannel inputChannel : inputChannels.values()) {
+				inputChannel.requestSubpartition(consumedSubpartitionIndex);
+			}
 		}
+
+		requestedPartitionsFlag = true;
 	}
 
 	// ------------------------------------------------------------------------
