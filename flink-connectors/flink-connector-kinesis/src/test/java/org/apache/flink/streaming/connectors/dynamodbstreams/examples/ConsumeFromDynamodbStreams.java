@@ -21,7 +21,7 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
+import org.apache.flink.streaming.connectors.dynamodbstreams.FlinkDynamodbStreamsConsumer;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 
 import java.util.Properties;
@@ -47,7 +47,7 @@ public class ConsumeFromDynamodbStreams {
 		dynamodbStreamsConsumerConfig.setProperty(
 				ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, pt.getRequired("secretkey"));
 
-		DataStream<String> dynamodbStreams = see.addSource(new FlinkKinesisConsumer<>(
+		DataStream<String> dynamodbStreams = see.addSource(new FlinkDynamodbStreamsConsumer<>(
 				streamName,
 				new SimpleStringSchema(),
 				dynamodbStreamsConsumerConfig));

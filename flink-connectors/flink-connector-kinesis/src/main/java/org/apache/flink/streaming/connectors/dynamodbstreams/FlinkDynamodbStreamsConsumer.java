@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.dynamodbstreams;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.dynamodbstreams.internals.DynamodbStreamsDataFetcher;
 import org.apache.flink.streaming.connectors.dynamodbstreams.serialization.DynamodbStreamsSchema;
@@ -29,6 +30,7 @@ import com.amazonaws.services.dynamodbv2.model.Record;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
@@ -49,7 +51,7 @@ public class FlinkDynamodbStreamsConsumer<T> extends FlinkKinesisConsumer<T> {
 	 */
 	public FlinkDynamodbStreamsConsumer(
 			String stream,
-			KinesisDeserializationSchema<T> deserializer,
+			DeserializationSchema<T> deserializer,
 			Properties config) {
 		super(stream, deserializer, config);
 	}
@@ -69,7 +71,7 @@ public class FlinkDynamodbStreamsConsumer<T> extends FlinkKinesisConsumer<T> {
 	}
 
 	public static <T> FlinkDynamodbStreamsConsumer<T> create(String stream,
-			KinesisDeserializationSchema<T> deserializer,
+			DeserializationSchema<T> deserializer,
 			Properties config) {
 		return new FlinkDynamodbStreamsConsumer<>(stream, deserializer, config);
 	}
@@ -82,7 +84,7 @@ public class FlinkDynamodbStreamsConsumer<T> extends FlinkKinesisConsumer<T> {
 
 	public static FlinkDynamodbStreamsConsumer<Record> create(String stream,
 			Properties config) {
-		return create(stream, new DynamodbStreamsSchema(), config);
+		return create(Collections.singletonList(stream), new DynamodbStreamsSchema(), config);
 	}
 
 	public static FlinkDynamodbStreamsConsumer<Record> create(List<String> streams,
