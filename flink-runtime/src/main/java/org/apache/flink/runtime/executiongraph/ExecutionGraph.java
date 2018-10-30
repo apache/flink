@@ -912,7 +912,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 					slotProvider,
 					allowQueuedScheduling,
 					LocationPreferenceConstraint.ALL,// since it is an input vertex, the input based location preferences should be empty
-					Collections.emptySet()); // we provide empty set because we currently don't want to trigger a computation in the batch case
+					Collections.emptySet());
 
 				schedulingFutures.add(schedulingJobVertexFuture);
 			}
@@ -942,7 +942,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		// collecting all the slots may resize and fail in that operation without slots getting lost
 		final ArrayList<CompletableFuture<Execution>> allAllocationFutures = new ArrayList<>(getNumberOfExecutionJobVertices());
 
-		// a (temporary) optimization to avoid collecting the previous allocations for all executions again and again
 		final Set<AllocationID> allPreviousAllocationIds =
 			Collections.unmodifiableSet(computeAllPriorAllocationIdsIfRequiredByScheduling());
 

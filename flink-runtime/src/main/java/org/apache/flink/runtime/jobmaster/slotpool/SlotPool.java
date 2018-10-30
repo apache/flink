@@ -767,12 +767,17 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		Throwable cause) {
 
 		log.debug("Releasing slot [{}] because: {}", slotRequestId, cause != null ? cause.getMessage() : "null");
-		return (slotSharingGroupId != null) ?
-			releaseSharedSlot(slotRequestId, slotSharingGroupId, cause) :
+
+		if (slotSharingGroupId != null) {
+			releaseSharedSlot(slotRequestId, slotSharingGroupId, cause);
+		} else {
 			releaseSingleSlot(slotRequestId, cause);
+		}
+
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
-	private CompletableFuture<Acknowledge> releaseSharedSlot(
+	private void releaseSharedSlot(
 		SlotRequestId slotRequestId,
 		@Nonnull SlotSharingGroupId slotSharingGroupId, Throwable cause) {
 
@@ -789,10 +794,9 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		} else {
 			log.debug("Could not find slot sharing group {}. Ignoring release slot request.", slotSharingGroupId);
 		}
-		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
-	private CompletableFuture<Acknowledge> releaseSingleSlot(SlotRequestId slotRequestId, Throwable cause) {
+	private void releaseSingleSlot(SlotRequestId slotRequestId, Throwable cause) {
 		final PendingRequest pendingRequest = removePendingRequest(slotRequestId);
 
 		if (pendingRequest != null) {
@@ -807,7 +811,6 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				log.debug("There is no allocated slot [{}]. Ignoring the release slot request.", slotRequestId);
 			}
 		}
-		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
 	/**

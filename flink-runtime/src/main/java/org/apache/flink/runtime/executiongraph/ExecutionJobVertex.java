@@ -477,6 +477,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * @param slotProvider to allocate the slots from
 	 * @param queued if the allocations can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
+	 *                                                 Can be empty if the allocation ids are not required for scheduling.
 	 * @return Future which is completed once all {@link Execution} could be deployed
 	 */
 	public CompletableFuture<Void> scheduleAll(

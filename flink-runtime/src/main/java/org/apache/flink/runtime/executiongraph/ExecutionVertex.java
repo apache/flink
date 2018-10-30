@@ -618,6 +618,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 * @param slotProvider to allocate the slots from
 	 * @param queued if the allocation can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
+	 *                                                 Can be empty if the allocation ids are not required for scheduling.
 	 * @return Future which is completed once the execution is deployed. The future
 	 * can also completed exceptionally.
 	 */

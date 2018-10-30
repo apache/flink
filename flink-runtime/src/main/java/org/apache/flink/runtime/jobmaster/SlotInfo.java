@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 /**
@@ -48,11 +47,4 @@ public interface SlotInfo {
 	 * @return The number of the slot on the TaskManager.
 	 */
 	int getPhysicalSlotNumber();
-
-	/**
-	 * Returns the resource profile of the slot.
-	 *
-	 * @return the resource profile of the slot.
-	 */
-	ResourceProfile getResourceProfile();
 }
