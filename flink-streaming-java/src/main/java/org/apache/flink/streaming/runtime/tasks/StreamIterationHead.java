@@ -76,8 +76,10 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 
 			// If timestamps are enabled we make sure to remove cyclic watermark dependencies
 			if (isSerializingTimestamps()) {
-				for (RecordWriterOutput<OUT> output : outputs) {
-					output.emitWatermark(new Watermark(Long.MAX_VALUE));
+				synchronized (getCheckpointLock()) {
+					for (RecordWriterOutput<OUT> output : outputs) {
+						output.emitWatermark(new Watermark(Long.MAX_VALUE));
+					}
 				}
 			}
 
@@ -87,8 +89,10 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 					dataChannel.take();
 
 				if (nextRecord != null) {
-					for (RecordWriterOutput<OUT> output : outputs) {
-						output.collect(nextRecord);
+					synchronized (getCheckpointLock()) {
+						for (RecordWriterOutput<OUT> output : outputs) {
+							output.collect(nextRecord);
+						}
 					}
 				}
 				else {
