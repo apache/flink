@@ -198,7 +198,7 @@ public final class Lockable<T> {
 					snapshot.getSingleNestedSerializerAndConfig();
 
 				CompatibilityResult<E> inputCompatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
-					nestedSerializerAndConfig.f1.restoreSerializer(),
+					nestedSerializerAndConfig.f0,
 					UnloadableDummyTypeSerializer.class,
 					nestedSerializerAndConfig.f1,
 					elementSerializer);
