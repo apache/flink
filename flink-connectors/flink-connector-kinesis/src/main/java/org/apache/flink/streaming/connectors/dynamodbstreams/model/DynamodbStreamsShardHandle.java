@@ -50,14 +50,10 @@ public class DynamodbStreamsShardHandle extends StreamShardHandle{
 	 * Dynamodb streams shard ID is a char string ranging from 28 characters to 65 characters.
 	 * (See https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_streams_Shard.html)
 	 *
-	 * The shardId observed shall take the form of: "shardId-00000001536805703746-69688cb1",
-	 * where "shardId-" is a prefix, followed by a 20-digit string (timestamp) and 0-36 or more
-	 * characters, separated by '-'.
-	 *
-	 * As long as the shardId conforms to this format, it is expected the new shards created
-	 * during the re-sharding event has shardIds bigger than their parents.
-	 *
-	 * We would like to treat shardIds which do not conform to this format as invalid.
+	 * The shardId observed usually takes the format of: "shardId-00000001536805703746-69688cb1",
+	 * where "shardId-" is a prefix, followed by a 20-digit timestamp string and 0-36 or more
+	 * characters, separated by '-'. Following this format, it is expected the child shards created
+	 * during a re-sharding event have shardIds bigger than their parents.
 	 * </p>
 	 * @param shardId shard Id
 	 * @return boolean indicate if the given shard Id is valid
