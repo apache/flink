@@ -71,7 +71,7 @@ function wait_for_complete_result {
     local polling_interval=1
     local seconds_elapsed=0
 
-    local number_of_values=$(get_complete_result | tail -1)
+    local number_of_values=0
     local previous_number_of_values=-1
 
     while [[ ${number_of_values} -lt ${expected_number_of_values} ]]; do
