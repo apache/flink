@@ -20,10 +20,11 @@ package org.apache.flink.table.catalog
 
 import java.util.{List => JList}
 
-import org.apache.flink.table.api.{CatalogAlreadyExistException, CatalogNotExistException, TableAlreadyExistException, TableNotExistException}
+import org.apache.flink.table.api._
+import org.apache.flink.table.functions.UserDefinedFunction
 
-import scala.collection.mutable
-import scala.collection.JavaConverters._
+import _root_.scala.collection.mutable
+import _root_.scala.collection.JavaConverters._
 
 /**
   * This class is an in-memory implementation of [[ExternalCatalog]].
@@ -36,6 +37,8 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
 
   private val databases = new mutable.HashMap[String, ExternalCatalog]
   private val tables = new mutable.HashMap[String, ExternalCatalogTable]
+  private val views = new mutable.HashMap[String, String]
+  private val functions = new mutable.HashMap[String, UserDefinedFunction]
 
   @throws[TableAlreadyExistException]
   override def createTable(
@@ -98,6 +101,77 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
     }
   }
 
+  @throws[ViewAlreadyExistException]
+  override def createView(
+    viewName: String,
+    view: String,
+    ignoreIfExists: Boolean): Unit = synchronized {
+
+    views.get(viewName) match {
+      case Some(_) if !ignoreIfExists => throw new ViewAlreadyExistException(name, viewName)
+      case _ => views.put(viewName, view)
+    }
+  }
+
+  @throws[ViewNotExistException]
+  override def dropView(
+    viewName: String,
+    ignoreIfNotExists: Boolean): Unit = synchronized {
+
+    if (views.remove(viewName).isEmpty && !ignoreIfNotExists) {
+      throw new ViewNotExistException(name, viewName)
+    }
+  }
+
+  @throws[ViewNotExistException]
+  override def alterView(
+    viewName: String,
+    view: String,
+    ignoreIfNotExists: Boolean): Unit = synchronized {
+
+    if (views.contains(viewName)) {
+      views.put(viewName, view)
+    } else if (!ignoreIfNotExists) {
+      throw new ViewNotExistException(name, viewName)
+    }
+  }
+
+  @throws[FunctionAlreadyExistException]
+  override def createFunction(
+    functionName: String,
+    function: UserDefinedFunction,
+    ignoreIfExists: Boolean): Unit = synchronized {
+
+    functions.get(functionName) match {
+      case Some(_) if !ignoreIfExists => throw new FunctionAlreadyExistException(name, functionName)
+      case _ => functions.put(functionName, function)
+    }
+  }
+
+  @throws[FunctionNotExistException]
+  override def dropFunction(
+    functionName: String,
+    ignoreIfNotExists: Boolean): Unit = synchronized {
+
+    if (functions.remove(functionName).isEmpty && !ignoreIfNotExists) {
+      throw new FunctionNotExistException(name, functionName)
+    }
+  }
+
+  @throws[FunctionNotExistException]
+  override def alterFunction(
+    functionName: String,
+    function: UserDefinedFunction,
+    ignoreIfNotExists: Boolean): Unit = synchronized {
+
+    if (functions.contains(functionName)) {
+      functions.put(functionName, function)
+    } else if (!ignoreIfNotExists) {
+      throw new FunctionNotExistException(name, functionName)
+    }
+  }
+
+  @throws[TableNotExistException]
   override def getTable(tableName: String): ExternalCatalogTable = synchronized {
     tables.get(tableName) match {
       case Some(t) => t
@@ -119,5 +193,29 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
 
   override def listSubCatalogs(): JList[String] = synchronized {
     databases.keys.toList.asJava
+  }
+
+  @throws[ViewNotExistException]
+  override def getView(viewName: String): String = synchronized {
+    views.get(viewName) match {
+      case Some(v) => v
+      case _ => throw ViewNotExistException(name, viewName, null)
+    }
+  }
+
+  override def listViews(): JList[String] = synchronized {
+    views.keys.toList.asJava
+  }
+
+  @throws[FunctionNotExistException]
+  override def getFunction(functionName: String): UserDefinedFunction = synchronized {
+    functions.get(functionName) match {
+      case Some(f) => f
+      case _ => throw new FunctionNotExistException(name, functionName, null)
+    }
+  }
+
+  override def listFunctions(): JList[String] = synchronized {
+    functions.keys.toList.asJava
   }
 }

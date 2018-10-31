@@ -108,6 +108,70 @@ case class CatalogAlreadyExistException(
 }
 
 /**
+  * Exception for operation on a nonexistent view
+  *
+  * @param catalog catalog name
+  * @param view view name
+  * @param cause the cause
+  */
+case class ViewNotExistException(
+      catalog: String,
+      view: String,
+      cause: Throwable)
+  extends RuntimeException(s"View $view does not exist.", cause) {
+
+  def this(catalog: String, view: String) = this(catalog, view, null)
+}
+
+/**
+  * Exception for adding an already existent view
+  *
+  * @param catalog catalog name
+  * @param view view name
+  * @param cause the cause
+  */
+case class ViewAlreadyExistException(
+      catalog: String,
+      view: String,
+      cause: Throwable)
+  extends RuntimeException(s"View $view already exists.", cause) {
+
+  def this(catalog: String, view: String) = this(catalog, view, null)
+}
+
+/**
+  * Exception for operation on a nonexistent function
+  *
+  * @param catalog catalog name
+  * @param function function name
+  * @param cause the cause
+  */
+case class FunctionNotExistException(
+      catalog: String,
+      function: String,
+      cause: Throwable)
+  extends RuntimeException(s"Function $function does not exist.", cause) {
+
+  def this(catalog: String, function: String) = this(catalog, function, null)
+}
+
+/**
+  * Exception for adding an already existent function
+  *
+  * @param catalog catalog name
+  * @param function function name
+  * @param cause the cause
+  */
+case class FunctionAlreadyExistException(
+      catalog: String,
+      function: String,
+      cause: Throwable)
+  extends RuntimeException(s"Function $function already exists.", cause) {
+
+  def this(catalog: String, function: String) = this(catalog, function, null)
+}
+
+/**
   * Exception for not finding a [[TableFactory]] for the given properties.
   *
   * @param message message that indicates the current matching step
