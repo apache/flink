@@ -42,6 +42,8 @@ echo "Flink distribution directory: $FLINK_DIR"
 # Template for adding a test:
 # run_test "<description>" "$END_TO_END_DIR/test-scripts/<script_name>"
 
+run_test "State Migration end-to-end test from 1.6" "$END_TO_END_DIR/test-scripts/test_state_migration.sh"
+run_test "State Evolution end-to-end test" "$END_TO_END_DIR/test-scripts/test_state_evolution.sh"
 run_test "Batch Python Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_python_wordcount.sh"
 run_test "Streaming Python Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_python_wordcount.sh"
 run_test "Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh"
@@ -52,8 +54,6 @@ run_test "Shaded Presto S3 end-to-end test" "$END_TO_END_DIR/test-scripts/test_s
 run_test "Hadoop-free Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_hadoop_free.sh"
 run_test "Distributed cache end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_distributed_cache_via_blob.sh"
 run_test "Wordcount end-to-end test in docker env" "$END_TO_END_DIR/test-scripts/test_docker_embedded_job.sh"
-run_test "State Evolution end-to-end test " "$END_TO_END_DIR/test-scripts/test_state_evolution.sh"
-run_test "State Migration end-to-end test from 1.6 " "$END_TO_END_DIR/test-scripts/test_state_migration.sh"
 
 printf "\n[PASS] All tests passed\n"
 exit 0

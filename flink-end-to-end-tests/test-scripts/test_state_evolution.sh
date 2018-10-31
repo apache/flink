@@ -65,31 +65,14 @@ function run_test {
     start_cluster
 
     # restart the job from the savepoint from Flink 1.7 with the old Avro Schema
-    local JOB_ID=$(${FLINK_DIR}/bin/flink run \
-        -s ${SAVEPOINT_DIR} \
-        -p ${PARALLELISM} \
-        -d ${TEST_JOB_JAR} --checkpoint.dir ${CHECKPOINT_DIR} \
-        | awk '{print $NF}' | tail -n 1)
+    JOB_ID=$($FLINK_DIR/bin/flink run -s $SAVEPOINT_DIR -p $PARALLELISM -d $TEST_JOB_JAR --checkpoint.dir $CHECKPOINT_DIR \
+        | grep "Job has been submitted with JobID" | sed 's/.* //g')
 
     wait_job_running ${JOB_ID}
     wait_num_checkpoints ${JOB_ID} 3
 
-    SECOND_SAVEPOINT_DIR=$(${FLINK_DIR}/bin/flink cancel -s ${SAVEPOINT_PARENT_DIR} ${JOB_ID} | awk '{print $NF}' | tail -n 1 | sed 's/\.$//')
+    SECOND_SAVEPOINT_DIR=$($FLINK_DIR/bin/flink cancel -s $SAVEPOINT_PARENT_DIR $JOB_ID | grep "Savepoint stored in file" | sed 's/.* //g' | sed 's/\.$//')
     echo "Took Savepoint @ ${SECOND_SAVEPOINT_DIR}"
 }
 
-function cleanup_log_files {
-    rm ${FLINK_DIR}/log/*.log
-    echo "Deleted all log files under ${FLINK_DIR}/log/"
-}
-
-function cleanup {
-    echo "Cleaning up after termination."
-
-    # This is bad but it is the only way to
-    # not fail the test because of an expected exception.
-    cleanup_log_files
-}
-
-trap cleanup EXIT
-run_test $1
+run_test 1
