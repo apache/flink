@@ -54,6 +54,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -123,7 +124,10 @@ public class JobMasterTriggerSavepointIT extends AbstractTestBase {
 
 		assertThat(jobStatus, isOneOf(JobStatus.CANCELED, JobStatus.CANCELLING));
 
-		final List<Path> savepoints = Files.list(savepointDirectory).map(Path::getFileName).collect(Collectors.toList());
+		final List<Path> savepoints;
+		try (Stream<Path> savepointFiles = Files.list(savepointDirectory)) {
+			savepoints = savepointFiles.map(Path::getFileName).collect(Collectors.toList());
+		}
 		assertThat(savepoints, hasItem(Paths.get(savepointLocation).getFileName()));
 	}
 
