@@ -128,5 +128,7 @@ run_test "Running Kerberized YARN on Docker test " "$END_TO_END_DIR/test-scripts
 
 run_test "SQL Client end-to-end test" "$END_TO_END_DIR/test-scripts/test_sql_client.sh"
 
+run_test "Heavy deployment end-to-end test" "$END_TO_END_DIR/test-scripts/test_heavy_deployment.sh"
+
 printf "\n[PASS] All tests passed\n"
 exit 0
