@@ -83,8 +83,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 
 		store.shutdown(JobStatus.SUSPENDED);
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
-		assertTrue(checkpoint.isDiscarded());
-		verifyCheckpointDiscarded(taskStates);
+		assertFalse(checkpoint.isDiscarded());
 	}
 	
 	/**

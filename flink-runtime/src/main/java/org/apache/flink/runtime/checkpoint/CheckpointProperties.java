@@ -246,7 +246,7 @@ public class CheckpointProperties implements Serializable {
 			true,  // Delete on success
 			true,  // Delete on cancellation
 			true,  // Delete on failure
-			true); // Delete on suspension
+			false); // Retain on suspension
 
 	private static final CheckpointProperties CHECKPOINT_RETAINED_ON_FAILURE = new CheckpointProperties(
 			false,
@@ -255,7 +255,7 @@ public class CheckpointProperties implements Serializable {
 			true,  // Delete on success
 			true,  // Delete on cancellation
 			false, // Retain on failure
-			true); // Delete on suspension
+			false); // Retain on suspension
 
 	private static final CheckpointProperties CHECKPOINT_RETAINED_ON_CANCELLATION = new CheckpointProperties(
 			false,
@@ -265,7 +265,6 @@ public class CheckpointProperties implements Serializable {
 			false,  // Retain on cancellation
 			false,  // Retain on failure
 			false); // Retain on suspension
-
 
 	/**
 	 * Creates the checkpoint properties for a (manually triggered) savepoint.

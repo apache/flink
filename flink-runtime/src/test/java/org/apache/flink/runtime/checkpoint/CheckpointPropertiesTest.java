@@ -42,7 +42,7 @@ public class CheckpointPropertiesTest {
 		assertTrue(props.discardOnJobFinished());
 		assertTrue(props.discardOnJobCancelled());
 		assertFalse(props.discardOnJobFailed());
-		assertTrue(props.discardOnJobSuspended());
+		assertFalse(props.discardOnJobSuspended());
 
 		props = CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION);
 
