@@ -330,7 +330,7 @@ class AggregationCodeGenerator(
         s"""
            |    $descClassQualifier $descFieldTerm = ($descClassQualifier)
            |      org.apache.flink.util.InstantiationUtil.deserializeObject(
-           |      org.apache.commons.codec.binary.Base64.decodeBase64("$serializedData"),
+           |      ${classOf[Base64].getCanonicalName}.decodeBase64("$serializedData"),
            |      $contextTerm.getUserCodeClassLoader());
            |""".stripMargin
       val createDataView = if (dataViewField.getType == classOf[MapView[_, _]]) {
