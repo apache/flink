@@ -73,7 +73,7 @@ class DataStreamJoinRule
     val remainingPredsAccessTime = remainingPreds.isDefined &&
       accessesTimeAttribute(remainingPreds.get, join.getRowType)
 
-    // Check that no event-time attributes are in the input because non-window join is unbounded
+    // Check that no event-time attributes are in the output because non-window join is unbounded
     // and we don't know how much to hold back watermarks.
     val rowTimeAttrInOutput = join.getRowType.getFieldList.asScala
       .exists(f => FlinkTypeFactory.isRowtimeIndicatorType(f.getType))
