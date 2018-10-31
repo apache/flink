@@ -19,9 +19,11 @@
 package org.apache.flink.table.catalog
 
 import org.apache.flink.table.api._
+import org.apache.flink.table.functions.UserDefinedFunction
 
 /**
-  * The CrudExternalCatalog provides methods to create, drop, and alter (sub-)catalogs or tables.
+  * The CrudExternalCatalog provides methods to create, drop, and alter (sub-)catalogs, tables,
+  * views and UDFs.
   */
 trait CrudExternalCatalog extends ExternalCatalog {
 
@@ -103,4 +105,86 @@ trait CrudExternalCatalog extends ExternalCatalog {
   @throws[CatalogNotExistException]
   def alterSubCatalog(name: String, catalog: ExternalCatalog, ignoreIfNotExists: Boolean): Unit
 
+  /**
+    * Adds a view to this catalog.
+    *
+    * @param viewName      The name of the view to add.
+    * @param view          The view to add.
+    * @param ignoreIfExists Flag to specify behavior if a view with the given name already exists:
+    *                       if set to false, throw an exception,
+    *                       if set to true, nothing happens.
+    * @throws ViewAlreadyExistException thrown if view already exists and ignoreIfExists is false
+    */
+  @throws[ViewAlreadyExistException]
+  def createView(viewName: String, view: String, ignoreIfExists: Boolean): Unit
+
+  /**
+    * Deletes a view from this catalog.
+    *
+    * @param viewName         Name of the view to delete.
+    * @param ignoreIfNotExists Flag to specify behavior if the view does not exist:
+    *                          if set to false, throw an exception,
+    *                          if set to true, nothing happens.
+    * @throws ViewNotExistException    thrown if the view does not exist in the catalog
+    */
+  @throws[ViewNotExistException]
+  def dropView(viewName: String, ignoreIfNotExists: Boolean): Unit
+
+  /**
+    * Modifies an existing view of this catalog.
+    *
+    * @param viewName         The name of the view to modify.
+    * @param view             The new view which replaces the existing table.
+    * @param ignoreIfNotExists Flag to specify behavior if the view does not exist:
+    *                          if set to false, throw an exception,
+    *                          if set to true, nothing happens.
+    * @throws ViewNotExistException   thrown if the view does not exist in the catalog
+    */
+  @throws[ViewNotExistException]
+  def alterView(viewName: String, view: String, ignoreIfNotExists: Boolean): Unit
+
+  /**
+    * Adds a UDF to this catalog.
+    *
+    * @param functionName      The name of the function to add.
+    * @param function          The function to add.
+    * @param ignoreIfExists Flag to specify behavior if function with the given name already exists:
+    *                       if set to false, throw an exception,
+    *                       if set to true, nothing happens.
+    * @throws FunctionAlreadyExistException thrown if function already exists and ignoreIfExists
+    *                                       is false
+    */
+  @throws[FunctionAlreadyExistException]
+  def createFunction(
+    functionName: String,
+    function: UserDefinedFunction,
+    ignoreIfExists: Boolean): Unit
+
+  /**
+    * Deletes a UDF from this catalog.
+    *
+    * @param functionName         Name of the function to delete.
+    * @param ignoreIfNotExists Flag to specify behavior if the function does not exist:
+    *                          if set to false, throw an exception,
+    *                          if set to true, nothing happens.
+    * @throws FunctionNotExistException    thrown if the function does not exist in the catalog
+    */
+  @throws[FunctionNotExistException]
+  def dropFunction(functionName: String, ignoreIfNotExists: Boolean): Unit
+
+  /**
+    * Modifies an existing UDF of this catalog.
+    *
+    * @param functionName         The name of the function to modify.
+    * @param function             The new function which replaces the existing table.
+    * @param ignoreIfNotExists Flag to specify behavior if the function does not exist:
+    *                          if set to false, throw an exception,
+    *                          if set to true, nothing happens.
+    * @throws FunctionNotExistException   thrown if the function does not exist in the catalog
+    */
+  @throws[FunctionNotExistException]
+  def alterFunction(
+    functionName: String,
+    function: UserDefinedFunction,
+    ignoreIfNotExists: Boolean): Unit
 }

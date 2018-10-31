@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.api._
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, Schema}
+import org.apache.flink.table.functions.UserDefinedFunction
 import org.junit.Assert._
 import org.junit.{Before, Test}
 
@@ -34,6 +35,8 @@ class InMemoryExternalCatalogTest {
   def setUp(): Unit = {
     catalog = new InMemoryExternalCatalog(databaseName)
   }
+
+  // ------ Table ------
 
   @Test
   def testCreateTable(): Unit = {
@@ -96,6 +99,8 @@ class InMemoryExternalCatalogTest {
     catalog.dropTable("nonexisted", ignoreIfNotExists = false)
   }
 
+  // ------ SubCatalog ------
+
   @Test(expected = classOf[CatalogNotExistException])
   def testGetNotExistDatabase(): Unit = {
     catalog.getSubCatalog("notexistedDb")
@@ -133,6 +138,136 @@ class InMemoryExternalCatalogTest {
     assertEquals("table", tables.get(0))
   }
 
+  // ------ View ------
+
+  @Test
+  def testCreateView(): Unit = {
+    assertTrue(catalog.listViews().isEmpty)
+    catalog.createView("v1", createViewInstance(), ignoreIfExists = false)
+    val views = catalog.listViews()
+    assertEquals(1, views.size())
+    assertEquals("v1", views.get(0))
+  }
+
+  @Test(expected = classOf[ViewAlreadyExistException])
+  def testCreateExistedView(): Unit = {
+    val viewName = "v1"
+    catalog.createView(viewName, createViewInstance(), ignoreIfExists = false)
+    catalog.createView(viewName, createViewInstance(), ignoreIfExists = false)
+  }
+
+  @Test
+  def testGetView(): Unit = {
+    val originView = createViewInstance()
+    catalog.createView("v1", originView, ignoreIfExists = false)
+    assertEquals(catalog.getView("v1"), originView)
+  }
+
+  @Test(expected = classOf[ViewNotExistException])
+  def testGetNotExistView(): Unit = {
+    catalog.getView("nonexisted")
+  }
+
+  @Test
+  def testAlterView(): Unit = {
+    val viewName = "v1"
+    val view = createViewInstance()
+    catalog.createView(viewName, view, ignoreIfExists = false)
+    assertEquals(catalog.getView(viewName), view)
+
+    val newView = createNewViewInstance()
+    catalog.alterView(viewName, newView, ignoreIfNotExists = false)
+    val currentView = catalog.getView(viewName)
+    // validate the view is really replaced after alter view
+    assertNotEquals(view, currentView)
+    assertEquals(newView, currentView)
+  }
+
+  @Test(expected = classOf[ViewNotExistException])
+  def testAlterNotExistView(): Unit = {
+    catalog.alterView("nonexisted", createViewInstance(), ignoreIfNotExists = false)
+  }
+
+  @Test
+  def testDropView(): Unit = {
+    val viewName = "v1"
+    catalog.createView(viewName, createViewInstance(), ignoreIfExists = false)
+    assertTrue(catalog.listViews().contains(viewName))
+    catalog.dropView(viewName, ignoreIfNotExists = false)
+    assertFalse(catalog.listViews().contains(viewName))
+  }
+
+  @Test(expected = classOf[ViewNotExistException])
+  def testDropNotExistView(): Unit = {
+    catalog.dropView("nonexisted", ignoreIfNotExists = false)
+  }
+
+  // ------ UDF ------
+
+  @Test
+  def testCreateFunction(): Unit = {
+    assertTrue(catalog.listFunctions().isEmpty)
+    catalog.createFunction("f1", createFunctionInstance(), ignoreIfExists = false)
+    val functions = catalog.listFunctions()
+    assertEquals(1, functions.size())
+    assertEquals("f1", functions.get(0))
+  }
+
+  @Test(expected = classOf[FunctionAlreadyExistException])
+  def testCreateExistedFunction(): Unit = {
+    val functionName = "f1"
+    catalog.createFunction(functionName, createFunctionInstance(), ignoreIfExists = false)
+    catalog.createFunction(functionName, createFunctionInstance(), ignoreIfExists = false)
+  }
+
+  @Test
+  def testGetFunction(): Unit = {
+    val originFunction = createFunctionInstance()
+    catalog.createFunction("f1", originFunction, ignoreIfExists = false)
+    assertEquals(catalog.getFunction("f1"), originFunction)
+  }
+
+  @Test(expected = classOf[FunctionNotExistException])
+  def testGetNotExistFunction(): Unit = {
+    catalog.getFunction("nonexisted")
+  }
+
+  @Test
+  def testAlterFunction(): Unit = {
+    val functionName = "f1"
+    val function = createFunctionInstance()
+    catalog.createFunction(functionName, function, ignoreIfExists = false)
+    assertEquals(catalog.getFunction(functionName), function)
+
+    val newFunction = createNewFunctionInstance()
+    catalog.alterFunction(functionName, newFunction, ignoreIfNotExists = false)
+    val currentFunction = catalog.getFunction(functionName)
+    // validate the function is really replaced after alter view
+    assertNotEquals(function, currentFunction)
+    assertEquals(newFunction, currentFunction)
+  }
+
+  @Test(expected = classOf[FunctionNotExistException])
+  def testAlterNotExistFunction(): Unit = {
+    catalog.alterFunction("nonexisted", createFunctionInstance(), ignoreIfNotExists = false)
+  }
+
+  @Test
+  def testDropFunction(): Unit = {
+    val functionName = "f1"
+    catalog.createFunction(functionName, createFunctionInstance(), ignoreIfExists = false)
+    assertTrue(catalog.listFunctions().contains(functionName))
+    catalog.dropFunction(functionName, ignoreIfNotExists = false)
+    assertFalse(catalog.listFunctions().contains(functionName))
+  }
+
+  @Test(expected = classOf[FunctionNotExistException])
+  def testDropNotExistFunction(): Unit = {
+    catalog.dropFunction("nonexisted", ignoreIfNotExists = false)
+  }
+
+  // ------ Utils ------
+
   private def createTableInstance(): ExternalCatalogTable = {
     val connDesc = new TestConnectorDesc
     val schemaDesc = new Schema()
@@ -156,9 +291,33 @@ class InMemoryExternalCatalogTest {
       .asTableSource()
   }
 
+  private def createViewInstance(): String = {
+    "select a from b"
+  }
+
+  private def createNewViewInstance(): String = {
+    "select c from d"
+  }
+
+  private def createFunctionInstance(): UserDefinedFunction = {
+    new TestFunction1
+  }
+
+  private def createNewFunctionInstance(): UserDefinedFunction = {
+    new TestFunction2
+  }
+
   class TestConnectorDesc extends ConnectorDescriptor("test", 1, false) {
     override protected def toConnectorProperties: _root_.java.util.Map[String, String] = {
       _root_.java.util.Collections.emptyMap()
     }
+  }
+
+  class TestFunction1 extends UserDefinedFunction {
+
+  }
+
+  class TestFunction2 extends UserDefinedFunction {
+
   }
 }

@@ -21,13 +21,14 @@ package org.apache.flink.table.catalog
 import java.util.{List => JList}
 
 import org.apache.flink.table.api._
+import org.apache.flink.table.functions.UserDefinedFunction
 
 /**
   * An [[ExternalCatalog]] is the connector between an external database catalog and Flink's
   * Table API.
   *
-  * It provides information about catalogs, databases and tables such as names, schema, statistics,
-  * and access information.
+  * It provides information about catalogs, databases, tables, views, UDFs, such as names, schema,
+  * statistics, and access information.
   */
 trait ExternalCatalog {
 
@@ -63,4 +64,37 @@ trait ExternalCatalog {
     */
   def listSubCatalogs(): JList[String]
 
+  /**
+    * Gets a view's definition, which is a string such as "select xxx from yyy", from this catalog.
+    * This might be an oversimplification, but we should be okay for now. In the future,
+    * we may have a class representation such as ExternalCatalogView.
+    *
+    * @param viewName The view's name
+    * @return The view's definition, which is a string such as "select xxx from yyy".
+    */
+  @throws[ViewNotExistException]
+  def getView(viewName: String): String
+
+  /**
+    * Gets the names of all views registered in this catalog.
+    *
+    * @return The list of names of all registered views.
+    */
+  def listViews(): JList[String]
+
+  /**
+    * Gets a UDF from this catalog.
+    *
+    * @param functionName The function's name
+    * @return The requested UDF
+    */
+  @throws[FunctionNotExistException]
+  def getFunction(functionName: String): UserDefinedFunction
+
+  /**
+    * Gets the names of all UDFs registered in this catalog.
+    *
+    * @return The list of names of all registered UDFs.
+    */
+  def listFunctions(): JList[String]
 }
