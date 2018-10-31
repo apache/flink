@@ -187,6 +187,10 @@ public class Buckets<IN, BucketID> {
 	}
 
 	private void updateActiveBucketId(final BucketID bucketId, final Bucket<IN, BucketID> restoredBucket) throws IOException {
+		if (!restoredBucket.isActive()) {
+			return;
+		}
+
 		final Bucket<IN, BucketID> bucket = activeBuckets.get(bucketId);
 		if (bucket != null) {
 			bucket.merge(restoredBucket);

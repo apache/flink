@@ -99,7 +99,6 @@ public class RollingPolicyTest {
 
 		rollingPolicy.verifyCallCounters(0L, 0L, 0L, 0L, 0L, 0L);
 
-		// the following 2 elements will close a part file because of size...
 		buckets.onElement("test1", new TestUtils.MockSinkContext(1L, 1L, 2L));
 		buckets.onElement("test1", new TestUtils.MockSinkContext(2L, 1L, 2L));
 		buckets.onElement("test1", new TestUtils.MockSinkContext(3L, 1L, 3L));

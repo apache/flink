@@ -27,6 +27,8 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 
+import org.hamcrest.Description;
+import org.hamcrest.TypeSafeMatcher;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -35,6 +37,8 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * Tests for {@link Buckets}.
@@ -49,9 +53,9 @@ public class BucketsTest {
 		final File outDir = TEMP_FOLDER.newFolder();
 		final Path path = new Path(outDir.toURI());
 
-		final RollingPolicy<String, String> onCheckpointRP = OnCheckpointRollingPolicy.build();
+		final RollingPolicy<String, String> onCheckpointRollingPolicy = OnCheckpointRollingPolicy.build();
 
-		final Buckets<String, String> buckets = createBuckets(path, onCheckpointRP, 0);
+		final Buckets<String, String> buckets = createBuckets(path, onCheckpointRollingPolicy, 0);
 
 		final ListState<byte[]> bucketStateContainer = new MockListState<>();
 		final ListState<Long> partCounterContainer = new MockListState<>();
@@ -59,34 +63,41 @@ public class BucketsTest {
 		buckets.onElement("test1", new TestUtils.MockSinkContext(null, 1L, 2L));
 		buckets.snapshotState(0L, bucketStateContainer, partCounterContainer);
 
+		assertThat(buckets.getActiveBuckets().get("test1"), hasSinglePartFileToBeCommittedOnCheckpointAck(path, "test1"));
+
 		buckets.onElement("test2", new TestUtils.MockSinkContext(null, 1L, 2L));
 		buckets.snapshotState(1L, bucketStateContainer, partCounterContainer);
 
+		assertThat(buckets.getActiveBuckets().get("test1"), hasSinglePartFileToBeCommittedOnCheckpointAck(path, "test1"));
+		assertThat(buckets.getActiveBuckets().get("test2"), hasSinglePartFileToBeCommittedOnCheckpointAck(path, "test2"));
+
 		Buckets<String, String> restoredBuckets =
-				restoreBuckets(path, onCheckpointRP, 0, bucketStateContainer, partCounterContainer);
+				restoreBuckets(path, onCheckpointRollingPolicy, 0, bucketStateContainer, partCounterContainer);
 
 		final Map<String, Bucket<String, String>> activeBuckets = restoredBuckets.getActiveBuckets();
-		Assert.assertEquals(2L, activeBuckets.size());
-		Assert.assertTrue(activeBuckets.keySet().contains("test1"));
-		Assert.assertTrue(activeBuckets.keySet().contains("test2"));
 
-		final Bucket<String, String> test1Bucket = activeBuckets.get("test1");
-		Assert.assertEquals("test1", test1Bucket.getBucketId());
-		Assert.assertEquals(new Path(path, "test1"), test1Bucket.getBucketPath());
+		// because we commit pending files for previous checkpoints upon recovery
+		Assert.assertTrue(activeBuckets.isEmpty());
+	}
 
-		Assert.assertNull(test1Bucket.getInProgressPart());
-		Assert.assertTrue(test1Bucket.getPendingPartsForCurrentCheckpoint().isEmpty());
+	private static TypeSafeMatcher<Bucket<String, String>> hasSinglePartFileToBeCommittedOnCheckpointAck(final Path testTmpPath, final String bucketId) {
+		return new TypeSafeMatcher<Bucket<String, String>>() {
+			@Override
+			protected boolean matchesSafely(Bucket<String, String> bucket) {
+				return bucket.getBucketId().equals(bucketId) &&
+						bucket.getBucketPath().equals(new Path(testTmpPath, bucketId)) &&
+						bucket.getInProgressPart() == null &&
+						bucket.getPendingPartsForCurrentCheckpoint().isEmpty() &&
+						bucket.getPendingPartsPerCheckpoint().size() == 1;
+			}
 
-		// because we commit files pending for checkpoints previous to the one we are restoring from
-		Assert.assertTrue(test1Bucket.getPendingPartsPerCheckpoint().isEmpty());
-
-		final Bucket<String, String> test2Bucket = activeBuckets.get("test2");
-		Assert.assertEquals("test2", test2Bucket.getBucketId());
-		Assert.assertEquals(new Path(path, "test2"), test2Bucket.getBucketPath());
-
-		Assert.assertNull(test2Bucket.getInProgressPart());
-		Assert.assertTrue(test2Bucket.getPendingPartsForCurrentCheckpoint().isEmpty());
-		Assert.assertTrue(test2Bucket.getPendingPartsPerCheckpoint().isEmpty());
+			@Override
+			public void describeTo(Description description) {
+				description.appendText("a Bucket with a single pending part file @ ")
+						.appendValue(new Path(testTmpPath, bucketId))
+						.appendText("'");
+			}
+		};
 	}
 
 	@Test
