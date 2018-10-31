@@ -164,7 +164,9 @@ public class HadoopS3RecoverableWriterTest extends TestLogger {
 
 		// delete local tmp dir.
 		Assert.assertTrue(Files.exists(localTmpDir));
-		Assert.assertEquals(0L, Files.list(localTmpDir).count());
+		try (Stream<java.nio.file.Path> files = Files.list(localTmpDir)) {
+			Assert.assertEquals(0L, files.count());
+		}
 		Files.delete(localTmpDir);
 
 		// delete also S3 dir.
