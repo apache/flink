@@ -836,9 +836,11 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 							false,
 							executor);
 
-					Tuple2<Integer, Long> value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get(key);
-					assertEquals("Key mismatch", key, value.f0.intValue());
-					if (expected == value.f1) {
+					Tuple2<Integer, Long> value =
+						future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get(key);
+
+					if (value != null && value.f0 != null && expected == value.f1) {
+						assertEquals("Key mismatch", key, value.f0.intValue());
 						success = true;
 					} else {
 						// Retry
