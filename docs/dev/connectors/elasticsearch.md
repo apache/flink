@@ -194,7 +194,7 @@ import java.util.Map;
 
 DataStream<String> input = ...;
 
-List<HttpHost> httpHost = new ArrayList<>();
+List<HttpHost> httpHosts = new ArrayList<>();
 httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
 httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"));
 
