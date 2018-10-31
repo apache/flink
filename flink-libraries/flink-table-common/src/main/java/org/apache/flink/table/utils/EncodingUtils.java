@@ -44,8 +44,6 @@ public abstract class EncodingUtils {
 
 	private static final Base64.Decoder BASE64_DECODER = java.util.Base64.getUrlDecoder();
 
-	private static final MessageDigest MD5_MESSAGE_DIGEST = getMd5MessageDigest();
-
 	private static final char[] HEX_CHARS = "0123456789abcdef".toCharArray();
 
 	private EncodingUtils() {
@@ -104,10 +102,11 @@ public abstract class EncodingUtils {
 	}
 
 	public static byte[] md5(String string) {
-		if (MD5_MESSAGE_DIGEST == null) {
-			throw new TableException("Unsupported MD5 algorithm.");
+		try {
+			return MessageDigest.getInstance("MD5").digest(string.getBytes(UTF_8));
+		} catch (NoSuchAlgorithmException e) {
+			throw new TableException("Unsupported MD5 algorithm.", e);
 		}
-		return MD5_MESSAGE_DIGEST.digest(string.getBytes(UTF_8));
 	}
 
 	public static String hex(String string) {
@@ -123,14 +122,6 @@ public abstract class EncodingUtils {
 			hexChars[j * 2 + 1] = HEX_CHARS[v & 0x0F];
 		}
 		return new String(hexChars);
-	}
-
-	private static MessageDigest getMd5MessageDigest() {
-		try {
-			return MessageDigest.getInstance("MD5");
-		} catch (NoSuchAlgorithmException e) {
-			return null;
-		}
 	}
 
 	// --------------------------------------------------------------------------------------------
