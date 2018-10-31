@@ -45,6 +45,7 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartiti
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -647,6 +648,9 @@ public class FlinkKafkaProducer011<IN>
 
 	@Override
 	public void close() throws FlinkKafka011Exception {
+		pendingTransactions().values().forEach(transaction ->
+			IOUtils.closeQuietly(transaction.producer)
+		);
 		final KafkaTransactionState currentTransaction = currentTransaction();
 		if (currentTransaction != null) {
 			// to avoid exceptions on aborting transactions with some pending records
@@ -713,8 +717,11 @@ public class FlinkKafkaProducer011<IN>
 	@Override
 	protected void commit(KafkaTransactionState transaction) {
 		if (transaction.isTransactional()) {
-			transaction.producer.commitTransaction();
-			recycleTransactionalProducer(transaction.producer);
+			try {
+				transaction.producer.commitTransaction();
+			} finally {
+				recycleTransactionalProducer(transaction.producer);
+			}
 		}
 	}
 
