@@ -56,6 +56,7 @@ under the License.
 		<module>flink-streaming-file-sink-test</module>
 		<module>flink-state-evolution-test</module>
 		<module>flink-e2e-test-utils</module>
+		<module>flink-heavy-deployment-stress-test</module>
 	</modules>
 
 	<build>

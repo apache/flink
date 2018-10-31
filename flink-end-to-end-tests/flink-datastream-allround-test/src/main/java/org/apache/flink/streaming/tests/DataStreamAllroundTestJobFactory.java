@@ -88,7 +88,7 @@ import java.util.List;
  *         Total duration is (sliding_window_operator.num_events) * (sequence_generator_source.event_time.clock_progress).</li>
  * </ul>
  */
-class DataStreamAllroundTestJobFactory {
+public class DataStreamAllroundTestJobFactory {
 	private static final ConfigOption<String> TEST_SEMANTICS = ConfigOptions
 		.key("test.semantics")
 		.defaultValue("exactly-once")
@@ -201,7 +201,7 @@ class DataStreamAllroundTestJobFactory {
 		.key("tumbling_window_operator.num_events")
 		.defaultValue(20L);
 
-	static void setupEnvironment(StreamExecutionEnvironment env, ParameterTool pt) throws Exception {
+	public static void setupEnvironment(StreamExecutionEnvironment env, ParameterTool pt) throws Exception {
 
 		// set checkpointing semantics
 		String semantics = pt.get(TEST_SEMANTICS.key(), TEST_SEMANTICS.defaultValue());
