@@ -57,7 +57,7 @@
    :taskmanager.numberOfTaskSlots      taskmanager-slots
    :yarn.application-attempts          99999
    :slotmanager.taskmanager-timeout    10000
-   :state.backend.local-recovery       "false"
+   :state.backend.local-recovery       "true"
    :taskmanager.registration.timeout   "30 s"})
 
 (defn write-configuration!
