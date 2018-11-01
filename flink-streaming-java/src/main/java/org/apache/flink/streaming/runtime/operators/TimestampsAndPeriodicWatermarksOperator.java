@@ -17,6 +17,12 @@
 
 package org.apache.flink.streaming.runtime.operators;
 
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -41,6 +47,10 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 
 	private transient long currentWatermark;
 
+	private static final String WATERMARK_STATE_NAME = "period-watermark-states";
+
+	private ListState<Long> restoreWatermarks;
+
 	public TimestampsAndPeriodicWatermarksOperator(AssignerWithPeriodicWatermarks<T> assigner) {
 		super(assigner);
 		this.chainingStrategy = ChainingStrategy.ALWAYS;
@@ -50,7 +60,6 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 	public void open() throws Exception {
 		super.open();
 
-		currentWatermark = Long.MIN_VALUE;
 		watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
 
 		if (watermarkInterval > 0) {
@@ -94,6 +103,38 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 			currentWatermark = Long.MAX_VALUE;
 			output.emitWatermark(mark);
 		}
+	}
+
+	@Override
+	public void snapshotState(StateSnapshotContext context) throws Exception {
+		super.snapshotState(context);
+		restoreWatermarks.clear();
+		restoreWatermarks.add(currentWatermark);
+	}
+
+	@Override
+	public void initializeState(StateInitializationContext context) throws Exception {
+		super.initializeState(context);
+
+		OperatorStateStore operatorStateStore = context.getOperatorStateStore();
+		restoreWatermarks = operatorStateStore.getUnionListState(new ListStateDescriptor<>(WATERMARK_STATE_NAME,
+			BasicTypeInfo.LONG_TYPE_INFO));
+
+		// find the lowest watermark
+		if (context.isRestored()) {
+			long lowestWatermark = Long.MIN_VALUE;
+			for (Long watermark : restoreWatermarks.get()) {
+				if (watermark > lowestWatermark) {
+					lowestWatermark = watermark;
+				}
+			}
+			currentWatermark = lowestWatermark;
+			LOG.info("Find restore state for TimestampsAndPeriodicWatermarksOperator.");
+		} else {
+			currentWatermark = Long.MIN_VALUE;
+			LOG.info("No restore state for TimestampsAndPeriodicWatermarksOperator.");
+		}
+		output.emitWatermark(new Watermark(currentWatermark));
 	}
 
 	@Override
