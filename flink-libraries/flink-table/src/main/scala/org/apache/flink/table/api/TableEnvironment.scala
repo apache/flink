@@ -25,7 +25,7 @@ import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.Lex
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
-import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
+import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgram, HepProgramBuilder}
 import org.apache.calcite.plan.{Convention, RelOptPlanner, RelOptUtil, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.schema.SchemaPlus
@@ -256,34 +256,31 @@ abstract class TableEnvironment(val config: TableConfig) {
   protected def getBuiltInPhysicalOptRuleSet: RuleSet
 
   protected def optimizeConvertSubQueries(relNode: RelNode): RelNode = {
-    runHepPlanner(
+    runHepPlannerSequentially(
       HepMatchOrder.BOTTOM_UP,
       FlinkRuleSets.TABLE_SUBQUERY_RULES,
       relNode,
       relNode.getTraitSet)
   }
 
-  protected def optimizeConvertToTemporalJoin(relNode: RelNode): RelNode = {
-    runHepPlanner(
-      HepMatchOrder.BOTTOM_UP,
-      FlinkRuleSets.TEMPORAL_JOIN_RULES,
+  protected def optimizeExpandPlan(relNode: RelNode): RelNode = {
+    val result = runHepPlannerSimultaneously(
+      HepMatchOrder.TOP_DOWN,
+      FlinkRuleSets.EXPAND_PLAN_RULES,
       relNode,
       relNode.getTraitSet)
-  }
 
-  protected def optimizeConvertTableReferences(relNode: RelNode): RelNode = {
-    runHepPlanner(
-      HepMatchOrder.BOTTOM_UP,
-      FlinkRuleSets.TABLE_REF_RULES,
-      relNode,
-      relNode.getTraitSet)
+    runHepPlannerSequentially(
+      HepMatchOrder.TOP_DOWN,
+      FlinkRuleSets.POST_EXPAND_CLEAN_UP_RULES,
+      result,
+      result.getTraitSet)
   }
-
 
   protected def optimizeNormalizeLogicalPlan(relNode: RelNode): RelNode = {
     val normRuleSet = getNormRuleSet
     if (normRuleSet.iterator().hasNext) {
-      runHepPlanner(HepMatchOrder.BOTTOM_UP, normRuleSet, relNode, relNode.getTraitSet)
+      runHepPlannerSequentially(HepMatchOrder.BOTTOM_UP, normRuleSet, relNode, relNode.getTraitSet)
     } else {
       relNode
     }
@@ -310,13 +307,16 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
-    * run HEP planner
+    * run HEP planner with rules applied one by one. First apply one rule to all of the nodes
+    * and only then apply the next rule. If a rule creates a new node preceding rules will not
+    * be applied to the newly created node.
     */
-  protected def runHepPlanner(
+  protected def runHepPlannerSequentially(
     hepMatchOrder: HepMatchOrder,
     ruleSet: RuleSet,
     input: RelNode,
     targetTraits: RelTraitSet): RelNode = {
+
     val builder = new HepProgramBuilder
     builder.addMatchOrder(hepMatchOrder)
 
@@ -324,8 +324,36 @@ abstract class TableEnvironment(val config: TableConfig) {
     while (it.hasNext) {
       builder.addRuleInstance(it.next())
     }
+    runHepPlanner(builder.build(), input, targetTraits)
+  }
 
-    val planner = new HepPlanner(builder.build, frameworkConfig.getContext)
+  /**
+    * run HEP planner with rules applied simultaneously. Apply all of the rules to the given
+    * node before going to the next one. If a rule creates a new node all of the rules will
+    * be applied to this new node.
+    */
+  protected def runHepPlannerSimultaneously(
+    hepMatchOrder: HepMatchOrder,
+    ruleSet: RuleSet,
+    input: RelNode,
+    targetTraits: RelTraitSet): RelNode = {
+
+    val builder = new HepProgramBuilder
+    builder.addMatchOrder(hepMatchOrder)
+
+    builder.addRuleCollection(ruleSet.asScala.toList.asJava)
+    runHepPlanner(builder.build(), input, targetTraits)
+  }
+
+  /**
+    * run HEP planner
+    */
+  protected def runHepPlanner(
+    hepProgram: HepProgram,
+    input: RelNode,
+    targetTraits: RelTraitSet): RelNode = {
+
+    val planner = new HepPlanner(hepProgram, frameworkConfig.getContext)
     planner.setRoot(input)
     if (input.getTraitSet != targetTraits) {
       planner.changeTraits(input, targetTraits.simplify)

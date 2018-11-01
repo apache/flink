@@ -804,13 +804,13 @@ abstract class StreamTableEnvironment(
     */
   private[flink] def optimize(relNode: RelNode, updatesAsRetraction: Boolean): RelNode = {
     val convSubQueryPlan = optimizeConvertSubQueries(relNode)
-    val temporalTableJoinPlan = optimizeConvertToTemporalJoin(convSubQueryPlan)
-    val fullNode = optimizeConvertTableReferences(temporalTableJoinPlan)
-    val decorPlan = RelDecorrelator.decorrelateQuery(fullNode)
+    val expandedPlan = optimizeExpandPlan(convSubQueryPlan)
+    val decorPlan = RelDecorrelator.decorrelateQuery(expandedPlan)
     val planWithMaterializedTimeAttributes =
       RelTimeIndicatorConverter.convert(decorPlan, getRelBuilder.getRexBuilder)
     val normalizedPlan = optimizeNormalizeLogicalPlan(planWithMaterializedTimeAttributes)
     val logicalPlan = optimizeLogicalPlan(normalizedPlan)
+
     val physicalPlan = optimizePhysicalPlan(logicalPlan, FlinkConventions.DATASTREAM)
     optimizeDecoratePlan(physicalPlan, updatesAsRetraction)
   }
@@ -827,7 +827,7 @@ abstract class StreamTableEnvironment(
       } else {
         relNode
       }
-      runHepPlanner(
+      runHepPlannerSequentially(
         HepMatchOrder.BOTTOM_UP,
         decoRuleSet,
         planToDecorate,
