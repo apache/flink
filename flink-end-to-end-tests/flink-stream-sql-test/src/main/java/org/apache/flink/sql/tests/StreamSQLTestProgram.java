@@ -20,18 +20,23 @@ package org.apache.flink.sql.tests;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.fs.bucketing.BasePathBucketer;
-import org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
@@ -44,6 +49,7 @@ import org.apache.flink.table.sources.tsextractors.ExistingField;
 import org.apache.flink.table.sources.wmstrategies.BoundedOutOfOrderTimestamps;
 import org.apache.flink.types.Row;
 
+import java.io.PrintStream;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -139,9 +145,14 @@ public class StreamSQLTestProgram {
 		DataStream<Row> resultStream =
 			tEnv.toAppendStream(result, Types.ROW(Types.INT, Types.SQL_TIMESTAMP));
 
-		// define bucketing sink to emit the result
-		BucketingSink<Row> sink = new BucketingSink<Row>(outputPath)
-			.setBucketer(new BasePathBucketer<>());
+		final StreamingFileSink<Row> sink = StreamingFileSink
+			.forRowFormat(new Path(outputPath), (Encoder<Row>) (element, stream) -> {
+				PrintStream out = new PrintStream(stream);
+				out.println(element.toString());
+			})
+			.withBucketAssigner(new KeyBucketAssigner())
+			.withRollingPolicy(OnCheckpointRollingPolicy.build())
+			.build();
 
 		resultStream
 			// inject a KillMapper that forwards all records but terminates the first execution attempt
@@ -150,6 +161,24 @@ public class StreamSQLTestProgram {
 			.addSink(sink).setParallelism(1);
 
 		sEnv.execute();
+	}
+
+	/**
+	 * Use first field for buckets.
+	 */
+	public static final class KeyBucketAssigner implements BucketAssigner<Row, String> {
+
+		private static final long serialVersionUID = 987325769970523326L;
+
+		@Override
+		public String getBucketId(final Row element, final Context context) {
+			return String.valueOf(element.getField(0));
+		}
+
+		@Override
+		public SimpleVersionedSerializer<String> getSerializer() {
+			return SimpleVersionedStringSerializer.INSTANCE;
+		}
 	}
 
 	/**

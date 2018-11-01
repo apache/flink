@@ -50,7 +50,7 @@ trap sql_cleanup INT
 trap sql_cleanup EXIT
 
 # collect results from files
-cat $TEST_DATA_DIR/out/result/part-0-0 $TEST_DATA_DIR/out/result/_part-0-1.pending > $TEST_DATA_DIR/out/result-complete
+cat $TEST_DATA_DIR/out/result/20/.part-* $TEST_DATA_DIR/out/result/20/part-* | sort > $TEST_DATA_DIR/out/result-complete
 
 # check result:
 # 20,1970-01-01 00:00:00.0
