@@ -51,10 +51,6 @@ function run_test() {
     local PARALLELISM=1 # parallelism of queryable state app
     local PORT="9069" # port of queryable state server
 
-    # to ensure there are no files accidentally left behind by previous tests
-    clean_log_files
-    clean_stdout_files
-
     # speeds up TM loss detection
     set_conf "heartbeat.interval" "2000"
     set_conf "heartbeat.timeout" "10000"
@@ -169,12 +165,6 @@ function get_completed_number_of_checkpoints {
 
 function test_cleanup {
     unlink_queryable_state_lib
-
-    # this is needed b.c. otherwise we might have exceptions from when
-    # we kill the task manager left behind in the logs, which would cause
-    # our test to fail in the cleanup function
-    clean_log_files
-    clean_stdout_files
 }
 
 trap test_cleanup EXIT
