@@ -165,7 +165,7 @@ public class SingleInputGate implements InputGate {
 	private boolean hasReceivedAllEndOfPartitionEvents;
 
 	/** Flag indicating whether partitions have been requested. */
-	private boolean requestedPartitionsFlag;
+	private volatile boolean requestedPartitionsFlag;
 
 	/** Flag indicating whether all resources have been released. */
 	private volatile boolean isReleased;
@@ -482,23 +482,25 @@ public class SingleInputGate implements InputGate {
 		}
 
 		synchronized (requestLock) {
-			if (isReleased) {
-				throw new IllegalStateException("Already released.");
-			}
+			if (!requestedPartitionsFlag) {
+				if (isReleased) {
+					throw new IllegalStateException("Already released.");
+				}
 
-			// Sanity checks
-			if (numberOfInputChannels != inputChannels.size()) {
-				throw new IllegalStateException("Bug in input gate setup logic: mismatch between" +
+				// Sanity checks
+				if (numberOfInputChannels != inputChannels.size()) {
+					throw new IllegalStateException("Bug in input gate setup logic: mismatch between" +
 						"number of total input channels and the currently set number of input " +
 						"channels.");
-			}
+				}
 
-			for (InputChannel inputChannel : inputChannels.values()) {
-				inputChannel.requestSubpartition(consumedSubpartitionIndex);
+				for (InputChannel inputChannel : inputChannels.values()) {
+					inputChannel.requestSubpartition(consumedSubpartitionIndex);
+				}
+
+				requestedPartitionsFlag = true;
 			}
 		}
-
-		requestedPartitionsFlag = true;
 	}
 
 	// ------------------------------------------------------------------------
