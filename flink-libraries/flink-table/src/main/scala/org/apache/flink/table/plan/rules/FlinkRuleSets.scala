@@ -39,18 +39,14 @@ object FlinkRuleSets {
     SubQueryRemoveRule.JOIN)
 
   /**
-    * Handles proper conversion of correlate queries with temporal table functions
-    * into temporal table joins. This can create new table scans in the plan.
+    * Expand plan by replacing references to tables into a proper plan sub trees. Those rules
+    * can create new plan nodes.
     */
-  val TEMPORAL_JOIN_RULES: RuleSet = RuleSets.ofList(
-    LogicalCorrelateToTemporalTableJoinRule.INSTANCE
-  )
+  val EXPAND_PLAN_RULES: RuleSet = RuleSets.ofList(
+    LogicalCorrelateToTemporalTableJoinRule.INSTANCE,
+    TableScanRule.INSTANCE)
 
-  /**
-    * Convert table references before query decorrelation.
-    */
-  val TABLE_REF_RULES: RuleSet = RuleSets.ofList(
-    TableScanRule.INSTANCE,
+  val POST_EXPAND_CLEAN_UP_RULES: RuleSet = RuleSets.ofList(
     EnumerableToLogicalTableScan.INSTANCE)
 
   val LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList(

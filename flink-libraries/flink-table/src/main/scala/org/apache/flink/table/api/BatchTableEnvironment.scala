@@ -449,9 +449,8 @@ abstract class BatchTableEnvironment(
     */
   private[flink] def optimize(relNode: RelNode): RelNode = {
     val convSubQueryPlan = optimizeConvertSubQueries(relNode)
-    val temporalTableJoinPlan = optimizeConvertToTemporalJoin(convSubQueryPlan)
-    val fullNode = optimizeConvertTableReferences(temporalTableJoinPlan)
-    val decorPlan = RelDecorrelator.decorrelateQuery(fullNode)
+    val expandedPlan = optimizeExpandPlan(convSubQueryPlan)
+    val decorPlan = RelDecorrelator.decorrelateQuery(expandedPlan)
     val normalizedPlan = optimizeNormalizeLogicalPlan(decorPlan)
     val logicalPlan = optimizeLogicalPlan(normalizedPlan)
     optimizePhysicalPlan(logicalPlan, FlinkConventions.DATASET)
