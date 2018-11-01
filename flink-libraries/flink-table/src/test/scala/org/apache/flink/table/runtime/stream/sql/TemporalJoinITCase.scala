@@ -127,8 +127,6 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
 
     var expectedOutput = new mutable.HashSet[String]()
     expectedOutput += (2 * 114).toString
-    expectedOutput += (1 * 102).toString
-    expectedOutput += (50 * 1).toString
     expectedOutput += (3 * 116).toString
 
     val orders = env
@@ -142,11 +140,15 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
 
     tEnv.registerTable("Orders", orders)
     tEnv.registerTable("RatesHistory", ratesHistory)
+    tEnv.registerTable("FilteredRatesHistory", tEnv.scan("RatesHistory").filter('rate > 110L))
     tEnv.registerFunction(
       "Rates",
-      ratesHistory.createTemporalTableFunction('rowtime, 'currency))
+      tEnv.scan("FilteredRatesHistory").createTemporalTableFunction('rowtime, 'currency))
+    tEnv.registerTable("TemporalJoinResult", tEnv.sqlQuery(sqlQuery))
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    // Scan from registered table to test for interplay between
+    // LogicalCorrelateToTemporalTableJoinRule and TableScanRule
+    val result = tEnv.scan("TemporalJoinResult").toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
