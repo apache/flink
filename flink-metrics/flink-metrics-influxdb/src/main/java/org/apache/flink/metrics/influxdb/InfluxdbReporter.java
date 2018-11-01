@@ -35,27 +35,23 @@ import org.influxdb.dto.BatchPoints;
 import javax.annotation.Nullable;
 
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.ConcurrentModificationException;
-import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.DB;
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.HOST;
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.PASSWORD;
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.PORT;
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.USERNAME;
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getInteger;
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getString;
 
 /**
  * {@link MetricReporter} that exports {@link Metric Metrics} via InfluxDB.
  */
 @Experimental
 public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implements Scheduled {
-
-	private static final String ARG_PROTOCOL = "protocol";
-	private static final List<String> SUPPORTED_PROTOCOLS = Arrays.asList("http", "https");
-	private static final String ARG_HOST = "host";
-	private static final String ARG_PORT = "port";
-	private static final int DEFAULT_PORT = 8086;
-	private static final String ARG_USERNAME = "username";
-	private static final String ARG_PASSWORD = "password";
-	private static final String ARG_DB = "db";
-	private static final String DEFAULT_DB = "flink";
 
 	private String database;
 	private InfluxDB influxDB;
@@ -66,25 +62,21 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 
 	@Override
 	public void open(MetricConfig config) {
-		String protocol = config.getString(ARG_PROTOCOL, "http").toLowerCase();
-		if (!SUPPORTED_PROTOCOLS.contains(protocol)) {
-			throw new IllegalArgumentException("Not supported protocol: " + protocol);
-		}
-		String host = config.getString(ARG_HOST, null);
-		int port = config.getInteger(ARG_PORT, DEFAULT_PORT);
+		String host = getString(config, HOST);
+		int port = getInteger(config, PORT);
 		if (host == null || host.isEmpty() || port < 1) {
 			throw new IllegalArgumentException("Invalid host/port configuration. Host: " + host + " Port: " + port);
 		}
-		String url = String.format("%s://%s:%d", protocol, host, port);
-		String username = config.getString(ARG_USERNAME, null);
-		String password = config.getString(ARG_PASSWORD, null);
-		database = config.getString(ARG_DB, DEFAULT_DB);
+		String url = String.format("http://%s:%d", host, port);
+		String username = getString(config, USERNAME);
+		String password = getString(config, PASSWORD);
+		database = getString(config, DB);
 		if (username != null && password != null) {
 			influxDB = InfluxDBFactory.connect(url, username, password);
 		} else {
 			influxDB = InfluxDBFactory.connect(url);
 		}
-		log.info("Configured InfluxDBReporter with {protocol:{}, host:{}, port:{}, db:{}}", protocol, host, port, database);
+		log.info("Configured InfluxDBReporter with {host:{}, port:{}, db:{}}", host, port, database);
 	}
 
 	@Override
