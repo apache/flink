@@ -134,7 +134,7 @@ trait CrudExternalCatalog extends ExternalCatalog {
     * Modifies an existing view of this catalog.
     *
     * @param viewName         The name of the view to modify.
-    * @param view             The new view which replaces the existing table.
+    * @param view             The new view which replaces the existing view.
     * @param ignoreIfNotExists Flag to specify behavior if the view does not exist:
     *                          if set to false, throw an exception,
     *                          if set to true, nothing happens.
@@ -176,7 +176,7 @@ trait CrudExternalCatalog extends ExternalCatalog {
     * Modifies an existing UDF of this catalog.
     *
     * @param functionName         The name of the function to modify.
-    * @param function             The new function which replaces the existing table.
+    * @param function             The new function which replaces the existing function.
     * @param ignoreIfNotExists Flag to specify behavior if the function does not exist:
     *                          if set to false, throw an exception,
     *                          if set to true, nothing happens.
