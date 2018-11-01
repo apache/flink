@@ -29,8 +29,10 @@ S3_OUTPUT_PATH="s3://$ARTIFACTS_AWS_BUCKET/$OUT"
 mkdir -p $OUTPUT_PATH
 
 if [ "${OUT_TYPE}" == "local" ]; then
+  echo "Use local output"
   JOB_OUTPUT_PATH=${OUTPUT_PATH}
 elif [ "${OUT_TYPE}" == "s3" ]; then
+  echo "Use s3 output"
   JOB_OUTPUT_PATH=${S3_OUTPUT_PATH}
 else
   echo "Unknown output type: ${OUT_TYPE}"
@@ -60,13 +62,13 @@ TEST_PROGRAM_JAR="${END_TO_END_DIR}/flink-streaming-file-sink-test/target/Stream
 function get_complete_result {
   if [ "${OUT_TYPE}" == "s3" ]; then
     rm -rf $OUTPUT_PATH; mkdir -p $OUTPUT_PATH
-    s3_get_by_prefix $TEST_DATA_DIR "$OUT" "part-"
+    s3_get_by_prefix ${TEST_DATA_DIR} "${OUT}" "part-"
   fi
   find "${OUTPUT_PATH}" -type f \( -iname "part-*" \) -exec cat {} + | sort -g
 }
 
 ###################################
-# Get line number in part files.
+# Get total number of lines in part files.
 #
 # Globals:
 #   OUT
@@ -75,11 +77,11 @@ function get_complete_result {
 # Returns:
 #   line number in part files
 ###################################
-function get_line_number {
+function get_number_of_lines {
   if [ "${OUT_TYPE}" == "local" ]; then
     get_complete_result | wc -l | tr -d '[:space:]'
   elif [ "${OUT_TYPE}" == "s3" ]; then
-    s3_get_by_prefix_line_number $OUT
+    s3_get_number_of_lines_by_prefix "${OUT}" "part-"
   fi
 }
 
@@ -113,7 +115,7 @@ function wait_for_complete_result {
         sleep ${polling_interval}
         ((seconds_elapsed += ${polling_interval}))
 
-        number_of_values=$(get_line_number)
+        number_of_values=$(get_number_of_lines)
         if [[ ${previous_number_of_values} -ne ${number_of_values} ]]; then
             echo "Number of produced values ${number_of_values}/${expected_number_of_values}"
             previous_number_of_values=${number_of_values}

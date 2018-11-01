@@ -86,7 +86,7 @@ s3_setup
 ###################################
 function s3_list {
   AWS_REGION=$AWS_REGION \
-  $s3util --action listByPrefix --s3prefix $1 --bucket $ARTIFACTS_AWS_BUCKET
+  ${s3util} --action listByPrefix --s3prefix "$1" --bucket $ARTIFACTS_AWS_BUCKET
 }
 
 ###################################
@@ -102,7 +102,7 @@ function s3_list {
 ###################################
 function s3_get {
   AWS_REGION=$AWS_REGION \
-  $s3util --action downloadFile --localFile $1 --s3file $2 --bucket $ARTIFACTS_AWS_BUCKET
+  ${s3util} --action downloadFile --localFile "$1" --s3file "$2" --bucket $ARTIFACTS_AWS_BUCKET
 }
 
 ###################################
@@ -120,7 +120,7 @@ function s3_get {
 function s3_get_by_prefix {
   local file_prefix="${3-}"
   AWS_REGION=$AWS_REGION \
-  $s3util --action downloadByPrefix --localFolder $1 --s3prefix $2 --s3filePrefix ${file_prefix} --bucket $ARTIFACTS_AWS_BUCKET
+  ${s3util} --action downloadByPrefix --localFolder "$1" --s3prefix "$2" --s3filePrefix "${file_prefix}" --bucket $ARTIFACTS_AWS_BUCKET
 }
 
 ###################################
@@ -196,7 +196,7 @@ function s3_delete {
 ###################################
 function s3_delete_by_prefix {
   AWS_REGION=$AWS_REGION \
-  $s3util --action deleteByPrefix --s3prefix $1 --bucket $ARTIFACTS_AWS_BUCKET
+  ${s3util} --action deleteByPrefix --s3prefix "$1" --bucket $ARTIFACTS_AWS_BUCKET
 }
 
 ###################################
@@ -212,13 +212,13 @@ function s3_delete_by_prefix {
 # Returns:
 #   None
 ###################################
-function s3_get_file_line_number {
+function s3_get_number_of_lines_in_file {
   AWS_REGION=$AWS_REGION \
-  $s3util --action lineNumberFile --s3file $1 --bucket $ARTIFACTS_AWS_BUCKET
+  ${s3util} --action lineNumberFile --s3file "$1" --bucket $ARTIFACTS_AWS_BUCKET
 }
 
 ###################################
-# Count number of lines in files of s3 objects by prefix.
+# Count number of lines in files of s3 objects filtered by prefix.
 # The lines has to be simple to comply with CSV format
 # because SQL is used to query the s3 objects.
 #
@@ -227,10 +227,12 @@ function s3_get_file_line_number {
 # Arguments:
 #   $1 - s3 key prefix
 #   $2 - s3 bucket
+#   $3 - s3 file name prefix w/o directory to filter files by name (optional)
 # Returns:
 #   None
 ###################################
-function s3_get_by_prefix_line_number {
+function s3_get_number_of_lines_by_prefix {
+  local file_prefix="${3-}"
   AWS_REGION=$AWS_REGION \
-  $s3util --action lineNumberByPrefix --s3prefix $1 --bucket $ARTIFACTS_AWS_BUCKET
+  ${s3util} --action numberOfLinesByPrefix --s3prefix "$1" --s3filePrefix "${file_prefix}" --bucket $ARTIFACTS_AWS_BUCKET
 }
