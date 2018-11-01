@@ -272,7 +272,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
 			fatalErrorHandler.rethrowError();
 
-			RpcUtils.terminateRpcService(rpcService, Time.seconds(10L));
+			RpcUtils.terminateRpcService(rpcService, Time.seconds(100L));
 		}
 	}
 
