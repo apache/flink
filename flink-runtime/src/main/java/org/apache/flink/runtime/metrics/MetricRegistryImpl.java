@@ -426,7 +426,12 @@ public class MetricRegistryImpl implements MetricRegistry {
 			try {
 				reporter.report();
 			} catch (Throwable t) {
-				LOG.warn("Error while reporting metrics", t);
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Error while reporting metrics {}", t.getMessage());
+				}
+				else {
+					LOG.warn("Error while reporting metrics", t);
+				}
 			}
 		}
 	}
