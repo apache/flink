@@ -40,7 +40,13 @@ echo "flink-end-to-end-test directory: $END_TO_END_DIR"
 echo "Flink distribution directory: $FLINK_DIR"
 
 # Template for adding a test:
-# run_test "<description>" "$END_TO_END_DIR/test-scripts/<script_name>"
+# run_test "<description>" "$END_TO_END_DIR/test-scripts/<script_name>" ["skip_check_exceptions"]
+
+# IMPORTANT:
+# With the "skip_check_exceptions" flag one can disable default exceptions and errors checking in log files. This should be done
+# carefully though. A valid reasons for doing so could be e.g killing TMs randomly as we cannot predict what exception could be thrown. Whenever
+# those checks are disabled, one should take care that a proper checks are performed in the tests itself that ensure that the test finished
+# in an expected state.
 
 run_test "Batch Python Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_python_wordcount.sh"
 run_test "Streaming Python Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_python_wordcount.sh"
