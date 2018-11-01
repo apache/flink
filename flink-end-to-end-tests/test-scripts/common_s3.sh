@@ -75,18 +75,18 @@ function s3_setup {
 s3_setup
 
 ###################################
-# List s3 objects by prefix.
+# List s3 objects by full path prefix.
 #
 # Globals:
 #   ARTIFACTS_AWS_BUCKET
 # Arguments:
-#   $1 - s3 key prefix
+#   $1 - s3 full path key prefix
 # Returns:
 #   List of s3 object keys, separated by newline
 ###################################
 function s3_list {
   AWS_REGION=$AWS_REGION \
-  ${s3util} --action listByPrefix --s3prefix "$1" --bucket $ARTIFACTS_AWS_BUCKET
+  ${s3util} --action listByFullPathPrefix --s3prefix "$1" --bucket $ARTIFACTS_AWS_BUCKET
 }
 
 ###################################
@@ -106,21 +106,22 @@ function s3_get {
 }
 
 ###################################
-# Download s3 objects to folder by prefix.
+# Download s3 objects to folder by full path prefix.
 #
 # Globals:
 #   ARTIFACTS_AWS_BUCKET
 # Arguments:
 #   $1 - local path to save folder with files
-#   $2 - s3 key prefix (if it is folder, it should end with '/')
+#   $2 - s3 key full path prefix
 #   $3 - s3 file name prefix w/o directory to filter files by name (optional)
 # Returns:
 #   None
 ###################################
-function s3_get_by_prefix {
+function s3_get_by_full_path_and_filename_prefix {
   local file_prefix="${3-}"
   AWS_REGION=$AWS_REGION \
-  ${s3util} --action downloadByPrefix --localFolder "$1" --s3prefix "$2" --s3filePrefix "${file_prefix}" --bucket $ARTIFACTS_AWS_BUCKET
+  ${s3util} --action downloadByFullPathAndFileNamePrefix \
+    --localFolder "$1" --s3prefix "$2" --s3filePrefix "${file_prefix}" --bucket $ARTIFACTS_AWS_BUCKET
 }
 
 ###################################
@@ -185,18 +186,18 @@ function s3_delete {
 }
 
 ###################################
-# Delete s3 objects by prefix.
+# Delete s3 objects by full path prefix.
 #
 # Globals:
 #   ARTIFACTS_AWS_BUCKET
 # Arguments:
-#   $1 - s3 key prefix
+#   $1 - s3 key full path prefix
 # Returns:
 #   None
 ###################################
-function s3_delete_by_prefix {
+function s3_delete_by_full_path_prefix {
   AWS_REGION=$AWS_REGION \
-  ${s3util} --action deleteByPrefix --s3prefix "$1" --bucket $ARTIFACTS_AWS_BUCKET
+  ${s3util} --action deleteByFullPathPrefix --s3prefix "$1" --bucket $ARTIFACTS_AWS_BUCKET
 }
 
 ###################################
@@ -214,7 +215,7 @@ function s3_delete_by_prefix {
 ###################################
 function s3_get_number_of_lines_in_file {
   AWS_REGION=$AWS_REGION \
-  ${s3util} --action lineNumberFile --s3file "$1" --bucket $ARTIFACTS_AWS_BUCKET
+  ${s3util} --action numberOfLinesInFile --s3file "$1" --bucket $ARTIFACTS_AWS_BUCKET
 }
 
 ###################################
@@ -234,5 +235,6 @@ function s3_get_number_of_lines_in_file {
 function s3_get_number_of_lines_by_prefix {
   local file_prefix="${3-}"
   AWS_REGION=$AWS_REGION \
-  ${s3util} --action numberOfLinesByPrefix --s3prefix "$1" --s3filePrefix "${file_prefix}" --bucket $ARTIFACTS_AWS_BUCKET
+  ${s3util} --action numberOfLinesInFilesWithFullAndNamePrefix \
+    --s3prefix "$1" --s3filePrefix "${file_prefix}" --bucket $ARTIFACTS_AWS_BUCKET
 }

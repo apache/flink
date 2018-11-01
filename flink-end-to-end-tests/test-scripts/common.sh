@@ -624,7 +624,7 @@ function expect_in_taskmanager_logs {
     done
 }
 
-function wait_for_restart {
+function wait_for_restart_to_complete {
     local base_num_restarts=$1
     local jobid=$2
 

@@ -41,7 +41,7 @@ fi
 
 # make sure we delete the file at the end
 function out_cleanup {
-  s3_delete_by_prefix $OUT
+  s3_delete_by_full_path_prefix $OUT
 }
 if [ "${OUT_TYPE}" == "s3" ]; then
   trap out_cleanup EXIT
@@ -62,7 +62,7 @@ TEST_PROGRAM_JAR="${END_TO_END_DIR}/flink-streaming-file-sink-test/target/Stream
 function get_complete_result {
   if [ "${OUT_TYPE}" == "s3" ]; then
     rm -rf $OUTPUT_PATH; mkdir -p $OUTPUT_PATH
-    s3_get_by_prefix ${TEST_DATA_DIR} "${OUT}" "part-"
+    s3_get_by_full_path_and_filename_prefix ${TEST_DATA_DIR} "${OUT}" "part-"
   fi
   find "${OUTPUT_PATH}" -type f \( -iname "part-*" \) -exec cat {} + | sort -g
 }
@@ -77,7 +77,7 @@ function get_complete_result {
 # Returns:
 #   line number in part files
 ###################################
-function get_number_of_lines {
+function get_total_number_of_valid_lines {
   if [ "${OUT_TYPE}" == "local" ]; then
     get_complete_result | wc -l | tr -d '[:space:]'
   elif [ "${OUT_TYPE}" == "s3" ]; then
@@ -115,7 +115,7 @@ function wait_for_complete_result {
         sleep ${polling_interval}
         ((seconds_elapsed += ${polling_interval}))
 
-        number_of_values=$(get_number_of_lines)
+        number_of_values=$(get_total_number_of_valid_lines)
         if [[ ${previous_number_of_values} -ne ${number_of_values} ]]; then
             echo "Number of produced values ${number_of_values}/${expected_number_of_values}"
             previous_number_of_values=${number_of_values}
@@ -149,7 +149,7 @@ kill_random_taskmanager
 echo "Starting TM"
 "$FLINK_DIR/bin/taskmanager.sh" start
 
-wait_for_restart 0 ${JOB_ID}
+wait_for_restart_to_complete 0 ${JOB_ID}
 
 echo "Killing 2 TMs"
 kill_random_taskmanager
@@ -159,7 +159,7 @@ echo "Starting 2 TMs"
 "$FLINK_DIR/bin/taskmanager.sh" start
 "$FLINK_DIR/bin/taskmanager.sh" start
 
-wait_for_restart 1 ${JOB_ID}
+wait_for_restart_to_complete 1 ${JOB_ID}
 
 echo "Waiting until all values have been produced"
 wait_for_complete_result 60000 300

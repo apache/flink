@@ -55,33 +55,37 @@ import java.util.stream.Collectors;
  *     <li>bucket (string, required): Bucket where s3 objects reside.</li>
  *     <li>s3file (string, required for single object actions): s3 object key.</li>
  *     <li>s3prefix (string, required for actions over objects grouped by key prefix): s3 key prefix.</li>
- *     <li>s3filePrefix (string, optional for downloadByPrefix or numberOfLinesByPrefix): s3 file name prefix w/o directory to filter files by name.</li>
+ *     <li>s3filePrefix (string, optional for downloadByFullPathAndFileNamePrefix or numberOfLinesInFilesWithFullAndNamePrefix):
+ *     s3 file name prefix w/o directory to filter files by name.</li>
  *     <li>localFile (string, required for single file actions): local file path.</li>
  *     <li>localFolder (string, required for actions over folders): local folder path.</li>
- *     <li>parallelism (int, default 10): parallelism for parallelizable actions (e.g. {@code numberOfLinesByPrefix}).</li>
+ *     <li>parallelism (int, default 10): parallelism for parallelizable actions
+ *     (e.g. {@code numberOfLinesInFilesWithFullAndNamePrefix}).</li>
  * </ul>
  */
 class S3UtilProgram {
 	enum Action {
-		listByPrefix,
+		listByFullPathPrefix,
 		downloadFile,
-		downloadByPrefix,
+		downloadByFullPathAndFileNamePrefix,
 		deleteFile,
-		deleteByPrefix,
+		deleteByFullPathPrefix,
 		numberOfLinesInFile,
-		numberOfLinesByPrefix
+		numberOfLinesInFilesWithFullAndNamePrefix
 	}
 
 	private static final Map<Action, Consumer<ParameterTool>> handlers;
 	static {
 		Map<Action, Consumer<ParameterTool>> handlersMutable = new HashMap<>();
-		handlersMutable.put(Action.listByPrefix, S3UtilProgram::listByPrefix);
+		handlersMutable.put(Action.listByFullPathPrefix, S3UtilProgram::listByFullPathPrefix);
 		handlersMutable.put(Action.downloadFile, S3UtilProgram::downloadFile);
-		handlersMutable.put(Action.downloadByPrefix, S3UtilProgram::downloadByPrefix);
+		handlersMutable.put(Action.downloadByFullPathAndFileNamePrefix,
+			S3UtilProgram::downloadByFullPathAndFileNamePrefix);
 		handlersMutable.put(Action.deleteFile, S3UtilProgram::deleteFile);
-		handlersMutable.put(Action.deleteByPrefix, S3UtilProgram::deleteByPrefix);
+		handlersMutable.put(Action.deleteByFullPathPrefix, S3UtilProgram::deleteByFullPathPrefix);
 		handlersMutable.put(Action.numberOfLinesInFile, S3UtilProgram::numberOfLinesInFile);
-		handlersMutable.put(Action.numberOfLinesByPrefix, S3UtilProgram::numberOfLinesByPrefix);
+		handlersMutable.put(Action.numberOfLinesInFilesWithFullAndNamePrefix,
+			S3UtilProgram::numberOfLinesInFilesWithFullAndNamePrefix);
 		handlers = Collections.unmodifiableMap(handlersMutable);
 	}
 
@@ -93,13 +97,13 @@ class S3UtilProgram {
 		handlers.get(action).accept(params);
 	}
 
-	private static void listByPrefix(ParameterTool params) {
+	private static void listByFullPathPrefix(ParameterTool params) {
 		final String bucket = params.getRequired("bucket");
 		final String s3prefix = params.getRequired("s3prefix");
-		listByPrefix(bucket, s3prefix).forEach(System.out::println);
+		listByFullPathPrefix(bucket, s3prefix).forEach(System.out::println);
 	}
 
-	private static List<String> listByPrefix(final String bucket, final String s3prefix) {
+	private static List<String> listByFullPathPrefix(final String bucket, final String s3prefix) {
 		return AmazonS3ClientBuilder.defaultClient().listObjects(bucket, s3prefix).getObjectSummaries()
 			.stream().map(S3ObjectSummary::getKey).collect(Collectors.toList());
 	}
@@ -118,7 +122,7 @@ class S3UtilProgram {
 		}
 	}
 
-	private static void downloadByPrefix(ParameterTool params) {
+	private static void downloadByFullPathAndFileNamePrefix(ParameterTool params) {
 		final String bucket = params.getRequired("bucket");
 		final String s3prefix = params.getRequired("s3prefix");
 		final String localFolder = params.getRequired("localFolder");
@@ -154,10 +158,10 @@ class S3UtilProgram {
 		AmazonS3ClientBuilder.defaultClient().deleteObject(bucket, s3file);
 	}
 
-	private static void deleteByPrefix(ParameterTool params) {
+	private static void deleteByFullPathPrefix(ParameterTool params) {
 		final String bucket = params.getRequired("bucket");
 		final String s3prefix = params.getRequired("s3prefix");
-		String[] keys = listByPrefix(bucket, s3prefix).toArray(new String[] {});
+		String[] keys = listByFullPathPrefix(bucket, s3prefix).toArray(new String[] {});
 		if (keys.length > 0) {
 			DeleteObjectsRequest request = new DeleteObjectsRequest(bucket).withKeys(keys);
 			AmazonS3ClientBuilder.defaultClient().deleteObjects(request);
@@ -172,26 +176,26 @@ class S3UtilProgram {
 		s3client.shutdown();
 	}
 
-	private static void numberOfLinesByPrefix(ParameterTool params) {
+	private static void numberOfLinesInFilesWithFullAndNamePrefix(ParameterTool params) {
 		final String bucket = params.getRequired("bucket");
 		final String s3prefix = params.getRequired("s3prefix");
 		final String s3filePrefix = params.get("s3filePrefix", "");
 		int parallelism = params.getInt("parallelism", 10);
 
-		List<String> files = listByPrefix(bucket, s3prefix);
+		List<String> files = listByFullPathPrefix(bucket, s3prefix);
 
 		ExecutorService executor = Executors.newFixedThreadPool(parallelism);
 		AmazonS3 s3client = AmazonS3ClientBuilder.defaultClient();
 		List<CompletableFuture<Integer>> requests =
-			startLineNumberReqs(executor, s3client, bucket, files, s3filePrefix);
-		int count = getLineNumberReqsResult(requests);
+			submitLineCountingRequestsForFilesAsync(executor, s3client, bucket, files, s3filePrefix);
+		int count = waitAndComputeTotalLineCountResult(requests);
 
 		executor.shutdownNow();
 		s3client.shutdown();
 		System.out.print(count);
 	}
 
-	private static List<CompletableFuture<Integer>> startLineNumberReqs(
+	private static List<CompletableFuture<Integer>> submitLineCountingRequestsForFilesAsync(
 			ExecutorService executor, AmazonS3 s3client, String bucket, List<String> files, String s3filePrefix) {
 		List<CompletableFuture<Integer>> requests = new ArrayList<>();
 		Predicate<String> keyPredicate = getKeyFilterByFileNamePrefix(s3filePrefix);
@@ -206,7 +210,7 @@ class S3UtilProgram {
 		return requests;
 	}
 
-	private static int getLineNumberReqsResult(List<CompletableFuture<Integer>> requests) {
+	private static int waitAndComputeTotalLineCountResult(List<CompletableFuture<Integer>> requests) {
 		int count = 0;
 		for (CompletableFuture<Integer> result : requests) {
 			try {
