@@ -62,6 +62,9 @@ public class TimestampsAndPunctuatedWatermarksOperatorTest {
 
 		ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
 
+		// poll the watermark from initializing state.
+		output.poll();
+
 		assertEquals(3L, ((StreamRecord<Tuple2<Long, Boolean>>) output.poll()).getTimestamp());
 		assertEquals(3L, ((Watermark) output.poll()).getTimestamp());
 
@@ -100,6 +103,9 @@ public class TimestampsAndPunctuatedWatermarksOperatorTest {
 		}
 
 		ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
+
+		// poll the watermark from initializing state.
+		output.poll();
 
 		for (long value: values) {
 			assertEquals(value, ((StreamRecord<?>) output.poll()).getTimestamp());

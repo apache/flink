@@ -65,6 +65,9 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 			long nextElementValue = 1L;
 			long lastWatermark = -1L;
 
+			// poll the watermark from initializing state.
+			output.poll();
+
 			while (lastWatermark < 3) {
 				if (output.size() > 0) {
 					Object next = output.poll();
@@ -142,6 +145,9 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 		}
 
 		ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
+
+		// poll the watermark from initializing state.
+		output.poll();
 
 		for (long value: values) {
 			assertEquals(value, ((StreamRecord<?>) output.poll()).getTimestamp());
