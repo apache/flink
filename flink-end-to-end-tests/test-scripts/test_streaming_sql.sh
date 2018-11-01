@@ -43,8 +43,6 @@ function sql_cleanup() {
   # remove flink-table from lib folder
   rm $FLINK_DIR/lib/flink-table*jar
 
-  # remove logs cause they contain exceptions that shouldn't fail the test
-  rm $FLINK_DIR/log/*
 }
 trap sql_cleanup INT
 trap sql_cleanup EXIT

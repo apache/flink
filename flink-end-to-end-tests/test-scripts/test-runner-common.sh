@@ -24,10 +24,12 @@ source "${END_TO_END_DIR}"/test-scripts/common.sh
 # Arguments:
 #   $1: description of the test
 #   $2: command to execute
+#   $3: check logs for erors & exceptions
 #######################################
 function run_test {
-    description="$1"
-    command="$2"
+    local description="$1"
+    local command="$2"
+    local skip_check_exceptions="$3"
 
     printf "\n==============================================================================\n"
     printf "Running '${description}'\n"
@@ -43,9 +45,11 @@ function run_test {
     exit_code="$?"
     time_elapsed=$(end_timer)
 
-    check_logs_for_errors
-    check_logs_for_exceptions
-    check_logs_for_non_empty_out_files
+    if [[ "${skip_check_exceptions}" != "skip_check_exceptions" ]]; then
+        check_logs_for_errors
+        check_logs_for_exceptions
+        check_logs_for_non_empty_out_files
+    fi
 
     # Investigate exit_code for failures of test executable as well as EXIT_CODE for failures of the test.
     # Do not clean up if either fails.
