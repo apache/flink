@@ -255,16 +255,12 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		return locationConstraint;
 	}
 
-	public InputSplit getNextInputSplit(int index, String host) {
+	public InputSplit getNextInputSplit(String host) {
 		final int taskId = this.getParallelSubtaskIndex();
 		synchronized (this.inputSplits) {
-			if (index < this.inputSplits.size()) {
-				return this.inputSplits.get(index);
-			} else {
-				final InputSplit nextInputSplit = this.jobVertex.getSplitAssigner().getNextInputSplit(host, taskId);
-				this.inputSplits.add(nextInputSplit);
-				return nextInputSplit;
-			}
+			final InputSplit nextInputSplit = this.jobVertex.getSplitAssigner().getNextInputSplit(host, taskId);
+			this.inputSplits.add(nextInputSplit);
+			return nextInputSplit;
 		}
 	}
 
@@ -610,7 +606,9 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 				synchronized (this.inputSplits){
 					for (InputSplit split: this.inputSplits){
-						this.jobVertex.getSplitAssigner().returnInputSplit(split, this.getParallelSubtaskIndex());
+						if (split != null) {
+							this.jobVertex.getSplitAssigner().returnInputSplit(split, this.getParallelSubtaskIndex());
+						}
 					}
 					this.inputSplits.clear();
 				}

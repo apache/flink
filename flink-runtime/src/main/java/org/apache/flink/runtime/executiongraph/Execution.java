@@ -180,8 +180,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private volatile IOMetrics ioMetrics;
 
-	private int currentSplitIndex = 0;
-
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -316,7 +314,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	public InputSplit getNextInputSplit() {
 		final LogicalSlot slot = this.getAssignedResource();
 		final String host = slot != null ? slot.getTaskManagerLocation().getHostname() : null;
-		return this.vertex.getNextInputSplit(this.currentSplitIndex++, host);
+		return this.vertex.getNextInputSplit(host);
 	}
 
 	@Override
