@@ -118,7 +118,6 @@ public class PubSubSourceTest {
 		verify(sourceContext, times(1)).collect(MESSAGE);
 
 		//verify stopping PubSubSource
-		verify(subscriberWrapper, times(1)).nackAllMessagesInBuffer();
 		verify(ackReplyConsumer, times(1)).nack();
 		verify(subscriberWrapper, times(1)).awaitTerminated();
 	}

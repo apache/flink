@@ -116,20 +116,11 @@ public class SubscriberWrapperTest {
 
 	@Test
 	public void testReceivingMessage() throws Exception {
+		when(subscriber.isRunning()).thenReturn(true);
 		subscriberWrapper.initialize();
 
 		subscriberWrapper.receiveMessage(pubsubMessage, ackReplyConsumer);
 		assertThat(subscriberWrapper.take(), is(Tuple2.of(pubsubMessage, ackReplyConsumer)));
-	}
-
-	@Test
-	public void testNackOutstandingMessages() {
-		subscriberWrapper.initialize();
-		//create outstanding message
-		subscriberWrapper.receiveMessage(pubsubMessage, ackReplyConsumer);
-
-		subscriberWrapper.nackAllMessagesInBuffer();
-		verify(ackReplyConsumer, times(1)).nack();
 	}
 
 	@Test
@@ -143,15 +134,21 @@ public class SubscriberWrapperTest {
 	}
 
 	@Test
-	public void testAwaitTerminated() {
+	public void testAwaitTerminated() throws Exception {
 		subscriberWrapper.initialize();
 
+		//create outstanding message
+		subscriberWrapper.receiveMessage(pubsubMessage, ackReplyConsumer);
+
 		subscriberWrapper.awaitTerminated();
+
+		verify(ackReplyConsumer, times(1)).nack();
 		verify(subscriber, times(1)).awaitTerminated();
 	}
 
 	@Test
 	public void testAmountOfMessagesInBuffer() {
+		when(subscriber.isRunning()).thenReturn(true);
 		subscriberWrapper.initialize();
 
 		subscriberWrapper.receiveMessage(pubsubMessage, ackReplyConsumer);

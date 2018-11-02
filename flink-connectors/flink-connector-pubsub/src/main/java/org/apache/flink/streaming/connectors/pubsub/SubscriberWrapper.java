@@ -31,8 +31,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Wrapper class around a PubSub {@link Subscriber}.
@@ -73,15 +75,17 @@ class SubscriberWrapper implements Serializable, MessageReceiver {
 	}
 
 	Tuple2<PubsubMessage, AckReplyConsumer> take() throws InterruptedException {
-		return messageQueue.take();
+		return messageQueue.poll(1000L, TimeUnit.MILLISECONDS);
 	}
 
-	void nackAllMessagesInBuffer() {
-		LOG.info("Going to nack {} messages.", amountOfMessagesInBuffer());
-		messageQueue.stream()
+	private void nackAllMessagesInBuffer() throws InterruptedException {
+		LOG.debug("Going to nack {} messages.", amountOfMessagesInBuffer());
+		while (!messageQueue.isEmpty()) {
+			Optional.ofNullable(messageQueue.poll(1000L, TimeUnit.MILLISECONDS))
 					.map(tuple -> tuple.f1)
-					.forEach(AckReplyConsumer::nack);
-		LOG.info("Finished nacking messages in buffer.");
+					.ifPresent(AckReplyConsumer::nack);
+		}
+		LOG.debug("Finished nacking messages in buffer.");
 	}
 
 	int amountOfMessagesInBuffer() {
@@ -92,12 +96,21 @@ class SubscriberWrapper implements Serializable, MessageReceiver {
 		return subscriber.isRunning();
 	}
 
-	void awaitTerminated() {
+	void awaitTerminated() throws Exception {
+		nackAllMessagesInBuffer();
 		subscriber.awaitTerminated();
 	}
 
 	@Override
 	public void receiveMessage(PubsubMessage message, AckReplyConsumer consumer) {
-		messageQueue.offer(Tuple2.of(message, consumer));
+		if (subscriber.isRunning()) {
+			messageQueue.offer(Tuple2.of(message, consumer));
+		} else {
+			consumer.nack();
+		}
+	}
+
+	Subscriber getSubscriber() {
+		return subscriber;
 	}
 }

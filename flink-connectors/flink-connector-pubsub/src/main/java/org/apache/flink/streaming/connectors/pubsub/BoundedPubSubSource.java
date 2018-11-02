@@ -46,7 +46,7 @@ public class BoundedPubSubSource<OUT> extends PubSubSource<OUT> {
 	}
 
 	@Override
-	void processMessage(Tuple2<PubsubMessage, AckReplyConsumer> message) throws Exception {
+	void processMessage(Tuple2<PubsubMessage, AckReplyConsumer> message) {
 		super.processMessage(message);
 		bound.receivedMessage();
 	}

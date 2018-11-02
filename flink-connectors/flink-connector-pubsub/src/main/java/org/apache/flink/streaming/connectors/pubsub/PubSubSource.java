@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * PubSub Source, this Source will consume PubSub messages from a subscription and Acknowledge them as soon as they have been received.
@@ -95,20 +96,20 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 
 		while (subscriberWrapper.isRunning()) {
 			try {
-				processMessage(subscriberWrapper.take());
+				Optional.ofNullable(subscriberWrapper.take())
+						.ifPresent(this::processMessage);
 			} catch (InterruptedException e) {
 				LOG.debug("Interrupted - stop or cancel called?");
 			}
 		}
 
-		subscriberWrapper.nackAllMessagesInBuffer();
 		nackOutstandingMessages();
 
-		LOG.debug("Waiting for subscriber to terminate.");
+		LOG.debug("Waiting for PubSubSubscriber to terminate.");
 		subscriberWrapper.awaitTerminated();
 	}
 
-	void processMessage(Tuple2<PubsubMessage, AckReplyConsumer> input) throws Exception {
+	void processMessage(Tuple2<PubsubMessage, AckReplyConsumer> input) {
 		PubsubMessage message = input.f0;
 		AckReplyConsumer ackReplyConsumer = input.f1;
 		if (sourceContext == null) {
@@ -156,8 +157,12 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		running = false;
 	}
 
-	private OUT deserializeMessage(PubsubMessage message) throws IOException {
-		return deserializationSchema.deserialize(message.getData().toByteArray());
+	private OUT deserializeMessage(PubsubMessage message) {
+		try {
+			return deserializationSchema.deserialize(message.getData().toByteArray());
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	@Override
