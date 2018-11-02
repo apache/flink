@@ -57,7 +57,8 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-	private static final String PROMETHEUS_FILE_NAME = "prometheus-2.4.3.linux-amd64";
+	private static final String PROMETHEUS_VERSION = "2.4.3";
+	private static final String PROMETHEUS_FILE_NAME = "prometheus-" + PROMETHEUS_VERSION + ".linux-amd64";
 
 	private static final Pattern LOG_REPORTER_PORT_PATTERN = Pattern.compile(".*Started PrometheusReporter HTTP server on port ([0-9]+).*");
 
@@ -89,7 +90,7 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 			"Download of Prometheus",
 			Duration.ofMinutes(5),
 			CommandLineWrapper
-				.wget("https://github.com/prometheus/prometheus/releases/download/v2.4.3/" + prometheusArchive.getFileName())
+				.wget("https://github.com/prometheus/prometheus/releases/download/v" + PROMETHEUS_VERSION + '/' + prometheusArchive.getFileName())
 				.targetDir(tmpPrometheusDir)
 				.build());
 
