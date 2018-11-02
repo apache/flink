@@ -38,4 +38,8 @@ public interface InputSplitAssigner {
 	 */
 	InputSplit getNextInputSplit(String host, int taskId);
 
+	/**
+	 * return the split to assigner if the task fail to process it.
+	 * */
+	void returnInputSplit(InputSplit split, int taskId);
 }

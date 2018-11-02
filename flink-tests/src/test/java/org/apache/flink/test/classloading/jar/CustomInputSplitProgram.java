@@ -151,5 +151,12 @@ public class CustomInputSplitProgram {
 				}
 			}
 		}
+
+		@Override
+		public void returnInputSplit(InputSplit split, int taskId) {
+			synchronized (this) {
+				remainingSplits.add((CustomInputSplit) split);
+			}
+		}
 	}
 }

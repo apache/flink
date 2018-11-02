@@ -72,4 +72,11 @@ public class DefaultInputSplitAssigner implements InputSplitAssigner {
 		}
 		return next;
 	}
+
+	@Override
+	public void returnInputSplit(InputSplit split, int taskId) {
+		synchronized (this.splits){
+			this.splits.add(split);
+		}
+	}
 }

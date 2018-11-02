@@ -608,6 +608,13 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 				this.currentExecution = newExecution;
 
+				synchronized (this.inputSplits){
+					for (InputSplit split: this.inputSplits){
+						this.jobVertex.getSplitAssigner().returnInputSplit(split, this.getParallelSubtaskIndex());
+					}
+					this.inputSplits.clear();
+				}
+
 				CoLocationGroup grp = jobVertex.getCoLocationGroup();
 				if (grp != null) {
 					this.locationConstraint = grp.getLocationConstraint(subTaskIndex);

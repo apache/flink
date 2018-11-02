@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.core.io.InputSplit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -199,6 +200,15 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 					return null;
 				}
 			}
+		}
+	}
+
+	@Override
+	public void returnInputSplit(InputSplit split, int taskId) {
+		synchronized (this.unassigned){
+			LocatableInputSplitWithCount lisw = new LocatableInputSplitWithCount((LocatableInputSplit)split);
+			this.remoteSplitChooser.addInputSplit(lisw);
+			this.unassigned.add(lisw);
 		}
 	}
 

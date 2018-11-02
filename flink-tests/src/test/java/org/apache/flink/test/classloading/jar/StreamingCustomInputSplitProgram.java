@@ -157,6 +157,13 @@ public class StreamingCustomInputSplitProgram {
 				}
 			}
 		}
+
+		@Override
+		public void returnInputSplit(InputSplit split, int taskId) {
+			synchronized (this) {
+				remainingSplits.add((CustomInputSplit) split);
+			}
+		}
 	}
 
 	private static class NoOpSink implements SinkFunction<Tuple2<Integer, Double>> {
