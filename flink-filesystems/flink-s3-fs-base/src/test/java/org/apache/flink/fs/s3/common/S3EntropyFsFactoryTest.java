@@ -20,6 +20,7 @@ package org.apache.flink.fs.s3.common;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fs.s3.common.writer.S3MultiPartUploader;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.Test;
@@ -35,7 +36,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests that the file system factory picks up the entropy configuration properly.
  */
-public class S3EntropyFsFactoryTest {
+public class S3EntropyFsFactoryTest extends TestLogger {
 
 	@Test
 	public void testEntropyInjectionConfig() throws Exception {
