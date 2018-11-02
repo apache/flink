@@ -210,6 +210,7 @@ public class FlinkKafkaProducer<K, V> implements Producer<K, V> {
 		}
 	}
 
+	@Nullable
 	public String getTransactionalId() {
 		return transactionalId;
 	}
