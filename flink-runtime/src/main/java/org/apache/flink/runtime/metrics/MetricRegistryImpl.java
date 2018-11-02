@@ -427,10 +427,10 @@ public class MetricRegistryImpl implements MetricRegistry {
 				reporter.report();
 			} catch (Throwable t) {
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Error while reporting metrics {}", t.getMessage());
+					LOG.debug("Error while reporting metrics {}", t);
 				}
 				else {
-					LOG.warn("Error while reporting metrics", t);
+					LOG.warn("Error while reporting metrics", t.getMessage());
 				}
 			}
 		}
