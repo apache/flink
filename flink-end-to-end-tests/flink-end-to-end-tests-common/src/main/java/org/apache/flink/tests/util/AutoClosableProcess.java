@@ -81,8 +81,4 @@ public class AutoClosableProcess implements AutoCloseable {
 			}
 		}
 	}
-
-	public Process getProcess() {
-		return process;
-	}
 }

@@ -38,8 +38,4 @@ public final class AutoClosablePath implements AutoCloseable {
 	public void close() throws IOException {
 		FileUtils.deleteFileOrDirectory(path.toFile());
 	}
-
-	public Path getPath() {
-		return path;
-	}
 }
