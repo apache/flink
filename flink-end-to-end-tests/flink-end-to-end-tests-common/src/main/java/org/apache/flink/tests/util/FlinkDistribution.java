@@ -166,9 +166,9 @@ public final class FlinkDistribution extends ExternalResource {
 		AutoClosableProcess.runBlocking("Stop Flink Cluster", bin.resolve("stop-cluster.sh").toAbsolutePath().toString());
 	}
 
-	public void copyOptJarsToLib(String jarNamePattern) throws FileNotFoundException, IOException {
+	public void copyOptJarsToLib(String jarNamePrefix) throws FileNotFoundException, IOException {
 		final Optional<Path> reporterJarOptional = Files.walk(opt)
-			.filter(path -> path.getFileName().toString().startsWith("flink-metrics-prometheus"))
+			.filter(path -> path.getFileName().toString().startsWith(jarNamePrefix))
 			.findFirst();
 		if (reporterJarOptional.isPresent()) {
 			final Path optReporterJar = reporterJarOptional.get();
@@ -176,7 +176,7 @@ public final class FlinkDistribution extends ExternalResource {
 			Files.copy(optReporterJar, libReporterJar);
 			filesToDelete.add(new AutoClosablePath(libReporterJar));
 		} else {
-			throw new FileNotFoundException("No jar could be found matching the pattern " + jarNamePattern + ".");
+			throw new FileNotFoundException("No jar could be found matching the pattern " + jarNamePrefix + ".");
 		}
 	}
 
