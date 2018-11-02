@@ -18,6 +18,9 @@
 
 package org.apache.flink.tests.util;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -27,6 +30,9 @@ import java.util.concurrent.TimeoutException;
  * Utility class to terminate a given {@link Process} when exiting a try-with-resources statement.
  */
 public class AutoClosableProcess implements AutoCloseable {
+
+	private static final Logger LOG = LoggerFactory.getLogger(AutoClosableProcess.class);
+
 	private final Process process;
 
 	public AutoClosableProcess(Process process) {
@@ -34,7 +40,7 @@ public class AutoClosableProcess implements AutoCloseable {
 	}
 
 	public static AutoClosableProcess runNonBlocking(String step, String... commands) throws IOException {
-		System.out.println("Starting " + step + ".");
+		LOG.info("Step Started: " + step);
 		Process process = new ProcessBuilder()
 			.command(commands)
 			.inheritIO()
@@ -47,21 +53,21 @@ public class AutoClosableProcess implements AutoCloseable {
 	}
 
 	public static void runBlocking(String step, Duration timeout, String... commands) throws IOException {
-		System.out.println("Step started: " + step);
+		LOG.info("Step started: " + step);
 		Process process = new ProcessBuilder()
 			.command(commands)
 			.inheritIO()
 			.start();
 
 		try (AutoClosableProcess autoProcess = new AutoClosableProcess(process)) {
-			final boolean b = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
-			if (!b) {
+			final boolean success = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
+			if (!success) {
 				throw new TimeoutException();
 			}
 		} catch (TimeoutException | InterruptedException e) {
 			throw new RuntimeException(step + " failed due to timeout.");
 		}
-		System.out.println("Step complete: " + step);
+		LOG.info("Step complete: " + step);
 	}
 
 	@Override
