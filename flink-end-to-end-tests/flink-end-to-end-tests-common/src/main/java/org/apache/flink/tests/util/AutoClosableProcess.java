@@ -18,6 +18,8 @@
 
 package org.apache.flink.tests.util;
 
+import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +37,8 @@ public class AutoClosableProcess implements AutoCloseable {
 
 	private final Process process;
 
-	public AutoClosableProcess(Process process) {
+	public AutoClosableProcess(final Process process) {
+		Preconditions.checkNotNull(process);
 		this.process = process;
 	}
 

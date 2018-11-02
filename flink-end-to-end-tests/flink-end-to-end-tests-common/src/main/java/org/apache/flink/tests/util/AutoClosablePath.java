@@ -19,6 +19,7 @@
 package org.apache.flink.tests.util;
 
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -31,6 +32,8 @@ public final class AutoClosablePath implements AutoCloseable {
 	private final Path path;
 
 	public AutoClosablePath(final Path path) {
+		Preconditions.checkNotNull(path, "Path must not be null.");
+		Preconditions.checkArgument(path.isAbsolute(), "Path must be absolute.");
 		this.path = path;
 	}
 
