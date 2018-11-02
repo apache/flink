@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.StandaloneSessionClusterEntrypoint;
@@ -98,6 +99,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 		Configuration config = new Configuration();
 		config.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
 		config.setString(JobManagerOptions.ADDRESS, "localhost");
+		config.setInteger(RestOptions.PORT, 0);
 		config.setLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 500L);
 		config.setLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 10000L);
 		config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
