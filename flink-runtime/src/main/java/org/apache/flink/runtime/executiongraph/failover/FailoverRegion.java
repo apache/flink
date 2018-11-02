@@ -206,13 +206,10 @@ public class FailoverRegion {
 		try {
 			if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) {
 				// if we have checkpointed state, reload it into the executions
-				//TODO: checkpoint support restore part ExecutionVertex cp
-				/**
 				if (executionGraph.getCheckpointCoordinator() != null) {
 					executionGraph.getCheckpointCoordinator().restoreLatestCheckpointedState(
 							connectedExecutionVertexes, false, false);
 				}
-				*/
 
 				HashSet<AllocationID> previousAllocationsInRegion = new HashSet<>(connectedExecutionVertexes.size());
 				for (ExecutionVertex connectedExecutionVertex : connectedExecutionVertexes) {

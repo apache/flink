@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.OperatorInstanceID;
@@ -104,12 +105,69 @@ public class StateAssignmentOperation {
 				continue;
 			}
 
-			assignAttemptState(task.getValue(), operatorStates);
+			Set<Integer> executionVertexIndices = new HashSet<>();
+			for (ExecutionVertex executionVertex : task.getValue().getTaskVertices()) {
+				executionVertexIndices.add(executionVertex.getParallelSubtaskIndex());
+			}
+			assignAttemptState(task.getValue(), operatorStates, executionVertexIndices);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Assign states to given execution vertices.
+	 */
+	public boolean assignStates(List<ExecutionVertex> executionVertices) throws Exception {
+		Map<OperatorID, OperatorState> localOperators = new HashMap<>(operatorStates);
+		Map<JobVertexID, ExecutionJobVertex> localTasks = this.tasks;
+
+		checkStateMappingCompleteness(allowNonRestoredState, operatorStates, tasks);
+
+		// get job vertex and its subTaskIndex from given executionVertices.
+		Map<JobVertexID, Set<Integer>> jobVertexIDSetMap = new HashMap<>();
+		for (ExecutionVertex executionVertex : executionVertices) {
+			JobVertexID jobvertexId = executionVertex.getJobvertexId();
+			jobVertexIDSetMap.putIfAbsent(jobvertexId, new HashSet<>());
+			jobVertexIDSetMap.get(jobvertexId).add(executionVertex.getParallelSubtaskIndex());
+		}
+
+		for (Map.Entry<JobVertexID, ExecutionJobVertex> task : localTasks.entrySet()) {
+			final ExecutionJobVertex executionJobVertex = task.getValue();
+
+			// find the states of all operators belonging to this task
+			List<OperatorID> operatorIDs = executionJobVertex.getOperatorIDs();
+			List<OperatorID> altOperatorIDs = executionJobVertex.getUserDefinedOperatorIDs();
+			List<OperatorState> operatorStates = new ArrayList<>();
+			boolean statelessTask = true;
+			for (int x = 0; x < operatorIDs.size(); x++) {
+				OperatorID operatorID = altOperatorIDs.get(x) == null
+					? operatorIDs.get(x)
+					: altOperatorIDs.get(x);
+
+				OperatorState operatorState = localOperators.remove(operatorID);
+				if (operatorState == null) {
+					operatorState = new OperatorState(
+						operatorID,
+						executionJobVertex.getParallelism(),
+						executionJobVertex.getMaxParallelism());
+				} else {
+					statelessTask = false;
+				}
+				operatorStates.add(operatorState);
+			}
+			if (statelessTask) { // skip tasks where no operator has any state
+				continue;
+			}
+
+			if (jobVertexIDSetMap.containsKey(executionJobVertex.getJobVertexId())) {
+				assignAttemptState(executionJobVertex, operatorStates, jobVertexIDSetMap.get(executionJobVertex.getJobVertexId()));
+			}
 		}
 
 	}
 
-	private void assignAttemptState(ExecutionJobVertex executionJobVertex, List<OperatorState> operatorStates) {
+	private void assignAttemptState(ExecutionJobVertex executionJobVertex, List<OperatorState> operatorStates, Set<Integer> subTaskIndices) {
 
 		List<OperatorID> operatorIDs = executionJobVertex.getOperatorIDs();
 
@@ -180,6 +238,7 @@ public class StateAssignmentOperation {
 		 */
 		assignTaskStateToExecutionJobVertices(
 			executionJobVertex,
+			subTaskIndices,
 			newManagedOperatorStates,
 			newRawOperatorStates,
 			newManagedKeyedState,
@@ -189,6 +248,7 @@ public class StateAssignmentOperation {
 
 	private void assignTaskStateToExecutionJobVertices(
 			ExecutionJobVertex executionJobVertex,
+			Set<Integer> subTaskIndices,
 			Map<OperatorInstanceID, List<OperatorStateHandle>> subManagedOperatorState,
 			Map<OperatorInstanceID, List<OperatorStateHandle>> subRawOperatorState,
 			Map<OperatorInstanceID, List<KeyedStateHandle>> subManagedKeyedState,
@@ -199,31 +259,33 @@ public class StateAssignmentOperation {
 
 		for (int subTaskIndex = 0; subTaskIndex < newParallelism; subTaskIndex++) {
 
-			Execution currentExecutionAttempt = executionJobVertex.getTaskVertices()[subTaskIndex]
-				.getCurrentExecutionAttempt();
+			if (subTaskIndices.contains(subTaskIndex)) {
+				Execution currentExecutionAttempt = executionJobVertex.getTaskVertices()[subTaskIndex]
+					.getCurrentExecutionAttempt();
 
-			TaskStateSnapshot taskState = new TaskStateSnapshot(operatorIDs.size());
-			boolean statelessTask = true;
+				TaskStateSnapshot taskState = new TaskStateSnapshot(operatorIDs.size());
+				boolean statelessTask = true;
 
-			for (OperatorID operatorID : operatorIDs) {
-				OperatorInstanceID instanceID = OperatorInstanceID.of(subTaskIndex, operatorID);
+				for (OperatorID operatorID : operatorIDs) {
+					OperatorInstanceID instanceID = OperatorInstanceID.of(subTaskIndex, operatorID);
 
-				OperatorSubtaskState operatorSubtaskState = operatorSubtaskStateFrom(
-					instanceID,
-					subManagedOperatorState,
-					subRawOperatorState,
-					subManagedKeyedState,
-					subRawKeyedState);
+					OperatorSubtaskState operatorSubtaskState = operatorSubtaskStateFrom(
+						instanceID,
+						subManagedOperatorState,
+						subRawOperatorState,
+						subManagedKeyedState,
+						subRawKeyedState);
 
-				if (operatorSubtaskState.hasState()) {
-					statelessTask = false;
+					if (operatorSubtaskState.hasState()) {
+						statelessTask = false;
+					}
+					taskState.putSubtaskStateByOperatorID(operatorID, operatorSubtaskState);
 				}
-				taskState.putSubtaskStateByOperatorID(operatorID, operatorSubtaskState);
-			}
 
-			if (!statelessTask) {
-				JobManagerTaskRestore taskRestore = new JobManagerTaskRestore(restoreCheckpointId, taskState);
-				currentExecutionAttempt.setInitialState(taskRestore);
+				if (!statelessTask) {
+					JobManagerTaskRestore taskRestore = new JobManagerTaskRestore(restoreCheckpointId, taskState);
+					currentExecutionAttempt.setInitialState(taskRestore);
+				}
 			}
 		}
 	}
