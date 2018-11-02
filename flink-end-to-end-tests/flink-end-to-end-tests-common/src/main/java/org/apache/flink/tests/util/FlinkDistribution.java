@@ -63,10 +63,10 @@ public final class FlinkDistribution extends ExternalResource {
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-	private final List<AutoClosablePath> filesToDelete = new ArrayList<>(4);
-
 	private static final Path FLINK_CONF_YAML = Paths.get("flink-conf.yaml");
 	private static final Path FLINK_CONF_YAML_BACKUP = Paths.get("flink-conf.yaml.bak");
+
+	private final List<AutoClosablePath> filesToDelete = new ArrayList<>(4);
 
 	private final Path opt;
 	private final Path lib;
