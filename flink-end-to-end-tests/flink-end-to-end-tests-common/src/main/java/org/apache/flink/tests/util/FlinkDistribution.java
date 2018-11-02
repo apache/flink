@@ -200,6 +200,7 @@ public final class FlinkDistribution extends ExternalResource {
 			while (logFiles.hasNext()) {
 				final Path logFile = logFiles.next();
 				if (!logFile.getFileName().toString().endsWith(".log")) {
+					// ignore logs for previous runs that have a number suffix
 					continue;
 				}
 				try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(logFile.toFile()), StandardCharsets.UTF_8))) {
