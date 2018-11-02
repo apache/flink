@@ -89,6 +89,7 @@ public final class FlinkDistribution extends ExternalResource {
 		log = flinkDir.resolve("log");
 	}
 
+	@Override
 	protected void before() throws IOException {
 		defaultConfig = new UnmodifiableConfiguration(GlobalConfiguration.loadConfiguration(conf.toAbsolutePath().toString()));
 		final Path originalConfig = conf.resolve(FLINK_CONF_YAML);
@@ -97,6 +98,7 @@ public final class FlinkDistribution extends ExternalResource {
 		filesToDelete.add(new AutoClosablePath(backupConfig));
 	}
 
+	@Override
 	protected void after() {
 		try {
 			stopFlinkCluster();
