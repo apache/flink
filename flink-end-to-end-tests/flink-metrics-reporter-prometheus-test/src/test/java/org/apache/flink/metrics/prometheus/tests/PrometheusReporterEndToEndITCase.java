@@ -70,7 +70,6 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 
 	@Test
 	public void testReporter() throws Exception {
-		LOG.info("starting test");
 		dist.copyOptJarsToLib("flink-metrics-prometheus");
 
 		final Configuration config = new Configuration();
