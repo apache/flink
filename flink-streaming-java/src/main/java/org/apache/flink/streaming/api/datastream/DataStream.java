@@ -214,7 +214,7 @@ public class DataStream<T> {
 		unionedTransforms.add(this.transformation);
 
 		for (DataStream<T> newStream : streams) {
-			if (!getType().equals(newStream.getType())) {
+			if (!getType().getTypeClass().equals(newStream.getType().getTypeClass())) {
 				throw new IllegalArgumentException("Cannot union streams of different types: "
 						+ getType() + " and " + newStream.getType());
 			}
