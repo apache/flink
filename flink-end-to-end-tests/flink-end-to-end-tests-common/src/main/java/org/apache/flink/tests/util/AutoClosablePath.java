@@ -28,18 +28,18 @@ import java.nio.file.Path;
  */
 public final class AutoClosablePath implements AutoCloseable {
 
-	private final Path file;
+	private final Path path;
 
-	public AutoClosablePath(final Path file) {
-		this.file = file;
+	public AutoClosablePath(final Path path) {
+		this.path = path;
 	}
 
 	@Override
 	public void close() throws IOException {
-		FileUtils.deleteFileOrDirectory(file.toFile());
+		FileUtils.deleteFileOrDirectory(path.toFile());
 	}
 
-	public Path getFile() {
-		return file;
+	public Path getPath() {
+		return path;
 	}
 }
