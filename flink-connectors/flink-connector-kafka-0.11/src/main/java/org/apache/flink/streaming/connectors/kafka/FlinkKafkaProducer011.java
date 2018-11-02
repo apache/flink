@@ -672,8 +672,8 @@ public class FlinkKafkaProducer011<IN>
 		}
 		// make sure we propagate pending errors
 		checkErroneous();
-		pendingTransactions().values().forEach(transaction ->
-			IOUtils.closeQuietly(transaction.producer)
+		pendingTransactions().forEach(transaction ->
+			IOUtils.closeQuietly(transaction.getValue().producer)
 		);
 	}
 
