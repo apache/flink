@@ -319,9 +319,9 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 
 		state = context.getOperatorStateStore().getListState(stateDescriptor);
 
+		boolean recoveredUserContext = false;
 		if (context.isRestored()) {
 			LOG.info("{} - restoring state", name());
-
 			for (State<TXN, CONTEXT> operatorState : state.get()) {
 				userContext = operatorState.getContext();
 				List<TransactionHolder<TXN>> recoveredTransactions = operatorState.getPendingCommitTransactions();
@@ -336,11 +336,13 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 
 				if (userContext.isPresent()) {
 					finishRecoveringContext();
+					recoveredUserContext = true;
 				}
 			}
 		}
+
 		// if in restore we didn't get any userContext or we are initializing from scratch
-		if (userContext == null) {
+		if (!recoveredUserContext) {
 			LOG.info("{} - no state to restore", name());
 
 			userContext = initializeUserContext();
