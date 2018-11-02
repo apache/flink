@@ -49,8 +49,8 @@ import java.util.stream.IntStream;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.lessThan;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /**
  * IT cases for the {@link FlinkKafkaProducer}.
@@ -163,7 +163,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 	}
 
 	@Test
-	public void testFlinkKafkaProducer10FailBeforeNotify() throws Exception {
+	public void testFlinkKafkaProducerFailBeforeNotify() throws Exception {
 		String topic = "flink-kafka-producer-fail-before-notify";
 
 		OneInputStreamOperatorTestHarness<Integer, Object> testHarness = createTestHarness(topic);
@@ -181,7 +181,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 		try {
 			testHarness.processElement(44, 4);
 			testHarness.snapshot(2, 5);
-			assertFalse(true);
+			fail();
 		}
 		catch (Exception ex) {
 			// expected
@@ -205,7 +205,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 	}
 
 	@Test
-	public void testFlinkKafkaProducer10FailTransactionCoordinatorBeforeNotify() throws Exception {
+	public void testFlinkKafkaProducerFailTransactionCoordinatorBeforeNotify() throws Exception {
 		String topic = "flink-kafka-producer-fail-transaction-coordinator-before-notify";
 
 		Properties properties = createProperties();
@@ -564,6 +564,52 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 		deleteTestTopic(topic);
 	}
 
+	@Test
+	public void testMigrateFromAtLeastOnceToExactlyOnce() throws Exception {
+		String topic = "testMigrateFromAtLeastOnceToExactlyOnce";
+		testRecoverWithChangeSemantics(topic, FlinkKafkaProducer.Semantic.AT_LEAST_ONCE, FlinkKafkaProducer.Semantic.EXACTLY_ONCE);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 44, 45), 30_000L);
+		deleteTestTopic(topic);
+	}
+
+	@Test
+	public void testMigrateFromAtExactlyOnceToAtLeastOnce() throws Exception {
+		String topic = "testMigrateFromExactlyOnceToAtLeastOnce";
+		testRecoverWithChangeSemantics(topic, FlinkKafkaProducer.Semantic.EXACTLY_ONCE, FlinkKafkaProducer.Semantic.AT_LEAST_ONCE);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 45, 46, 47), 30_000L);
+		deleteTestTopic(topic);
+	}
+
+	private void testRecoverWithChangeSemantics(
+		String topic,
+		FlinkKafkaProducer.Semantic fromSemantic,
+		FlinkKafkaProducer.Semantic toSemantic) throws Exception {
+		OperatorSubtaskState producerSnapshot;
+		try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness = createTestHarness(topic, fromSemantic)) {
+			testHarness.setup();
+			testHarness.open();
+			testHarness.processElement(42, 0);
+			testHarness.snapshot(0, 1);
+			testHarness.processElement(43, 2);
+			testHarness.notifyOfCompletedCheckpoint(0);
+			producerSnapshot = testHarness.snapshot(1, 3);
+			testHarness.processElement(44, 4);
+		}
+
+		try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness = createTestHarness(topic, toSemantic)) {
+			testHarness.setup();
+			testHarness.initializeState(producerSnapshot);
+			testHarness.open();
+			testHarness.processElement(45, 7);
+			testHarness.snapshot(2, 8);
+			testHarness.processElement(46, 9);
+			testHarness.notifyOfCompletedCheckpoint(2);
+			testHarness.processElement(47, 9);
+		}
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------
+
 	// shut down a Kafka broker
 	private void failBroker(int brokerId) {
 		KafkaServer toShutDown = null;
@@ -602,7 +648,13 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 	}
 
 	private OneInputStreamOperatorTestHarness<Integer, Object> createTestHarness(String topic) throws Exception {
-		return createTestHarness(topic, 1, 1, 0, FlinkKafkaProducer.Semantic.EXACTLY_ONCE);
+		return createTestHarness(topic, FlinkKafkaProducer.Semantic.EXACTLY_ONCE);
+	}
+
+	private OneInputStreamOperatorTestHarness<Integer, Object> createTestHarness(
+		String topic,
+		FlinkKafkaProducer.Semantic semantic) throws Exception {
+		return createTestHarness(topic, 1, 1, 0, semantic);
 	}
 
 	private OneInputStreamOperatorTestHarness<Integer, Object> createTestHarness(
