@@ -648,9 +648,6 @@ public class FlinkKafkaProducer011<IN>
 
 	@Override
 	public void close() throws FlinkKafka011Exception {
-		pendingTransactions().values().forEach(transaction ->
-			IOUtils.closeQuietly(transaction.producer)
-		);
 		final KafkaTransactionState currentTransaction = currentTransaction();
 		if (currentTransaction != null) {
 			// to avoid exceptions on aborting transactions with some pending records
@@ -675,6 +672,9 @@ public class FlinkKafkaProducer011<IN>
 		}
 		// make sure we propagate pending errors
 		checkErroneous();
+		pendingTransactions().values().forEach(transaction ->
+			IOUtils.closeQuietly(transaction.producer)
+		);
 	}
 
 	// ------------------- Logic for handling checkpoint flushing -------------------------- //
