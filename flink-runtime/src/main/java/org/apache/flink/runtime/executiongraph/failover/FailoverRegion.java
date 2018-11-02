@@ -23,9 +23,11 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.GlobalModVersionMismatch;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.util.AbstractID;
@@ -36,8 +38,10 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -64,6 +68,8 @@ public class FailoverRegion {
 
 	private final List<ExecutionVertex> connectedExecutionVertexes;
 
+	private final Map<JobVertexID, ExecutionJobVertex> tasks;
+
 	/** Current status of the job execution */
 	private volatile JobStatus state = JobStatus.RUNNING;
 
@@ -73,8 +79,19 @@ public class FailoverRegion {
 
 		this.executionGraph = checkNotNull(executionGraph);
 		this.connectedExecutionVertexes = checkNotNull(connectedExecutions);
+		this.tasks = initTasks(connectedExecutionVertexes);
 
 		LOG.debug("Created failover region {} with vertices: {}", id, connectedExecutions);
+	}
+
+	private Map<JobVertexID, ExecutionJobVertex> initTasks(List<ExecutionVertex> connectedExecutionVertexes) {
+		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>(connectedExecutionVertexes.size());
+		for (ExecutionVertex executionVertex : connectedExecutionVertexes) {
+			JobVertexID jobvertexId = executionVertex.getJobvertexId();
+			ExecutionJobVertex jobVertex = executionVertex.getJobVertex();
+			tasks.putIfAbsent(jobvertexId, jobVertex);
+		}
+		return tasks;
 	}
 
 	public void onExecutionFail(Execution taskExecution, Throwable cause) {
@@ -106,6 +123,10 @@ public class FailoverRegion {
 
 	public JobStatus getState() {
 		return state;
+	}
+
+	public Map<JobVertexID, ExecutionJobVertex> getTasks() {
+		return tasks;
 	}
 
 	/**
@@ -206,13 +227,21 @@ public class FailoverRegion {
 		try {
 			if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) {
 				// if we have checkpointed state, reload it into the executions
-				//TODO: checkpoint support restore part ExecutionVertex cp
-				/**
 				if (executionGraph.getCheckpointCoordinator() != null) {
+					// we restart the checkpoint scheduler for
+					// i) enable new checkpoint could be triggered without waiting for last checkpoint expired.
+					// ii) ensure the EXACTLY_ONCE semantics if needed.
+					if (executionGraph.getCheckpointCoordinator().isPeriodicCheckpointingConfigured()) {
+						executionGraph.getCheckpointCoordinator().stopCheckpointScheduler();
+					}
+
 					executionGraph.getCheckpointCoordinator().restoreLatestCheckpointedState(
-							connectedExecutionVertexes, false, false);
+						tasks, false, true);
+
+					if (executionGraph.getCheckpointCoordinator().isPeriodicCheckpointingConfigured()) {
+						executionGraph.getCheckpointCoordinator().startCheckpointScheduler();
+					}
 				}
-				*/
 
 				HashSet<AllocationID> previousAllocationsInRegion = new HashSet<>(connectedExecutionVertexes.size());
 				for (ExecutionVertex connectedExecutionVertex : connectedExecutionVertexes) {

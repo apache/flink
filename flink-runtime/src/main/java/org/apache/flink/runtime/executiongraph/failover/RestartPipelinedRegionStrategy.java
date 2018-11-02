@@ -40,7 +40,7 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A failover strategy that restarts regions of the ExecutionGraph. A region is defined
+ * A failover strategy that restarts regions of the ExecutionGraph with state. A region is defined
  * by this strategy as the weakly connected component of tasks that communicate via pipelined
  * data exchange.
  */
