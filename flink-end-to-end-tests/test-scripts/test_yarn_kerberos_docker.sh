@@ -25,6 +25,7 @@ FLINK_TARBALL=flink.tar.gz
 FLINK_DIRNAME=$(basename $FLINK_DIR)
 
 MAX_RETRY_SECONDS=120
+CLUSTER_SETUP_RETRIES=3
 
 echo "Flink Tarball directory $FLINK_TARBALL_DIR"
 echo "Flink tarball filename $FLINK_TARBALL"
@@ -32,6 +33,49 @@ echo "Flink distribution directory name $FLINK_DIRNAME"
 echo "End-to-end directory $END_TO_END_DIR"
 docker --version
 docker-compose --version
+
+# make sure we stop our cluster at the end
+function cluster_shutdown {
+  # don't call ourselves again for another signal interruption
+  trap "exit -1" INT
+  # don't call ourselves again for normal exit
+  trap "" EXIT
+
+  docker-compose -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml down
+  rm $FLINK_TARBALL_DIR/$FLINK_TARBALL
+}
+trap cluster_shutdown INT
+trap cluster_shutdown EXIT
+
+function start_hadoop_cluster() {
+    echo "Starting Hadoop cluster"
+    docker-compose -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml up -d
+
+    # wait for kerberos to be set up
+    start_time=$(date +%s)
+    until docker logs master 2>&1 | grep -q "Finished master initialization"; do
+        current_time=$(date +%s)
+        time_diff=$((current_time - start_time))
+
+        if [ $time_diff -ge $MAX_RETRY_SECONDS ]; then
+            return 1
+        else
+            echo "Waiting for hadoop cluster to come up. We have been trying for $time_diff seconds, retrying ..."
+            sleep 10
+        fi
+    done
+
+    # perform health checks
+    if ! { [ $(docker inspect -f '{{.State.Running}}' master 2>&1) = 'true' ] &&
+           [ $(docker inspect -f '{{.State.Running}}' slave1 2>&1) = 'true' ] &&
+           [ $(docker inspect -f '{{.State.Running}}' slave2 2>&1) = 'true' ] &&
+           [ $(docker inspect -f '{{.State.Running}}' kdc 2>&1) = 'true' ]; };
+    then
+        return 1
+    fi
+
+    return 0
+}
 
 mkdir -p $FLINK_TARBALL_DIR
 tar czf $FLINK_TARBALL_DIR/$FLINK_TARBALL -C $(dirname $FLINK_DIR) .
@@ -48,45 +92,22 @@ do
     sleep 2
 done
 
-echo "Starting Hadoop cluster"
-docker-compose -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml up -d
-
-# make sure we stop our cluster at the end
-function cluster_shutdown {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
-
-  docker-compose -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml down
-  rm $FLINK_TARBALL_DIR/$FLINK_TARBALL
-}
-trap cluster_shutdown INT
-trap cluster_shutdown EXIT
-
-# wait for kerberos to be set up
-start_time=$(date +%s)
-until docker logs master 2>&1 | grep -q "Finished master initialization"; do
-    current_time=$(date +%s)
-    time_diff=$((current_time - start_time))
-
-    if [ $time_diff -ge $MAX_RETRY_SECONDS ]; then
-        echo "ERROR: Could not start hadoop cluster. Aborting..."
-        exit 0
-    else
-        echo "Waiting for hadoop cluster to come up. We have been trying for $time_diff seconds, retrying ..."
-        sleep 10
+CLUSTER_STARTED=1
+for (( i = 0; i < $CLUSTER_SETUP_RETRIES; i++ ))
+do
+    if start_hadoop_cluster; then
+       echo "Cluster started successfully."
+       CLUSTER_STARTED=0
+       break #continue test, cluster set up succeeded
     fi
+
+    echo "ERROR: Could not start hadoop cluster. Retrying..."
+    docker-compose -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml down
 done
 
-# perform health checks
-if ! { [ $(docker inspect -f '{{.State.Running}}' master 2>&1) = 'true' ] &&
-       [ $(docker inspect -f '{{.State.Running}}' slave1 2>&1) = 'true' ] &&
-       [ $(docker inspect -f '{{.State.Running}}' slave2 2>&1) = 'true' ] &&
-       [ $(docker inspect -f '{{.State.Running}}' kdc 2>&1) = 'true' ]; };
-then
-    echo "ERROR: Could not start hadoop cluster. At least one of the containers failed. Aborting..."
-    exit 0
+if [[ ${CLUSTER_STARTED} -ne 0 ]]; then
+    echo "ERROR: Could not start hadoop cluster. Aborting..."
+    exit 1
 fi
 
 docker cp $FLINK_TARBALL_DIR/$FLINK_TARBALL master:/home/hadoop-user/
