@@ -25,7 +25,14 @@ TEST=flink-heavy-deployment-stress-test
 TEST_PROGRAM_NAME=HeavyDeploymentStressTestProgram
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/$TEST/target/$TEST_PROGRAM_NAME.jar
 
-set_conf "taskmanager.numberOfTaskSlots" "13"
+set_conf "taskmanager.heap.mb" "256" # 256Mb x 20 TMs = 5Gb total heap
+
+set_conf "taskmanager.memory.size" "8" # 8Mb
+set_conf "taskmanager.network.memory.min" "8mb"
+set_conf "taskmanager.network.memory.max" "8mb"
+set_conf "taskmanager.memory.segment-size" "8kb"
+
+set_conf "taskmanager.numberOfTaskSlots" "11"
 
 start_cluster
 
@@ -37,7 +44,7 @@ for i in `seq 1 $NUM_TMS`; do
     $FLINK_DIR/bin/taskmanager.sh start
 done
 
-$FLINK_DIR/bin/flink run -p 256 ${TEST_PROGRAM_JAR} \
---environment.max_parallelism 1024 --environment.parallelism 256 \
+$FLINK_DIR/bin/flink run -p 200 ${TEST_PROGRAM_JAR} \
+--environment.max_parallelism 1024 --environment.parallelism 200 \
 --state_backend.checkpoint_directory ${CHECKPOINT_DIR} \
---heavy_deployment_test.num_list_states_per_op 50 --heavy_deployment_test.num_partitions_per_list_state 75
+--heavy_deployment_test.num_list_states_per_op 50 --heavy_deployment_test.num_partitions_per_list_state 50
