@@ -111,12 +111,6 @@ import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.getDynamicProperties
 public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractYarnClusterDescriptor.class);
 
-	/**
-	 * Minimum memory requirements, checked by the Client.
-	 */
-	private static final int MIN_JM_MEMORY = 768; // the minimum memory should be higher than the min heap cutoff
-	private static final int MIN_TM_MEMORY = 768;
-
 	private final YarnConfiguration yarnConfiguration;
 
 	private final YarnClient yarnClient;
@@ -545,7 +539,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			jobGraph,
 			yarnClient,
 			yarnApplication,
-			clusterSpecification);
+			validClusterSpecification);
 
 		String host = report.getHost();
 		int port = report.getRpcPort();
@@ -560,8 +554,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// the Flink cluster is deployed in YARN. Represent cluster
 		return createYarnClusterClient(
 			this,
-			clusterSpecification.getNumberTaskManagers(),
-			clusterSpecification.getSlotsPerTaskManager(),
+			validClusterSpecification.getNumberTaskManagers(),
+			validClusterSpecification.getSlotsPerTaskManager(),
 			report,
 			flinkConfiguration,
 			true);
@@ -576,16 +570,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		int taskManagerCount = clusterSpecification.getNumberTaskManagers();
 		int jobManagerMemoryMb = clusterSpecification.getMasterMemoryMB();
 		int taskManagerMemoryMb = clusterSpecification.getTaskManagerMemoryMB();
-
-		if (jobManagerMemoryMb < MIN_JM_MEMORY) {
-			LOG.warn("The minimum JobManager memory is {}. Will set the JobManager memory to this value.", MIN_JM_MEMORY);
-			jobManagerMemoryMb = MIN_JM_MEMORY;
-		}
-
-		if (taskManagerMemoryMb < MIN_TM_MEMORY) {
-			LOG.warn("The minimum TaskManager memory is {}. Will set the Taskmanager memory to this value.", MIN_TM_MEMORY);
-			taskManagerMemoryMb = MIN_TM_MEMORY;
-		}
 
 		if (jobManagerMemoryMb < yarnMinAllocationMB || taskManagerMemoryMb < yarnMinAllocationMB) {
 			LOG.warn("The JobManager or TaskManager memory is below the smallest possible YARN Container size. "
