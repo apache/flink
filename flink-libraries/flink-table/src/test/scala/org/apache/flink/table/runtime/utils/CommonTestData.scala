@@ -152,16 +152,16 @@ object CommonTestData {
     val db1 = new InMemoryExternalCatalog("db1")
     val db2 = new InMemoryExternalCatalog("db2")
     val db3 = new InMemoryExternalCatalog("db3")
-    catalog.createSubCatalog("db1", db1, ignoreIfExists = false)
-    catalog.createSubCatalog("db2", db2, ignoreIfExists = false)
-    catalog.createSubCatalog("db3", db3, ignoreIfExists = false)
+    catalog.createSubCatalog("db1", db1, false)
+    catalog.createSubCatalog("db2", db2, false)
+    catalog.createSubCatalog("db3", db3, false)
 
     // Register the table with both catalogs
-    catalog.createTable("tb1", externalTableBuilder1.asTableSource(), ignoreIfExists = false)
-    catalog.createTable("tb3", externalTableBuilder3.asTableSink(), ignoreIfExists = false)
-    db1.createTable("tb1", externalTableBuilder1.asTableSource(), ignoreIfExists = false)
-    db2.createTable("tb2", externalTableBuilder2.asTableSource(), ignoreIfExists = false)
-    db3.createTable("tb3", externalTableBuilder3.asTableSink(), ignoreIfExists = false)
+    catalog.createTable("tb1", externalTableBuilder1.asTableSource(), false)
+    catalog.createTable("tb3", externalTableBuilder3.asTableSink(), false)
+    db1.createTable("tb1", externalTableBuilder1.asTableSource(), false)
+    db2.createTable("tb2", externalTableBuilder2.asTableSource(), false)
+    db3.createTable("tb3", externalTableBuilder3.asTableSink(), false)
     catalog
   }
 
