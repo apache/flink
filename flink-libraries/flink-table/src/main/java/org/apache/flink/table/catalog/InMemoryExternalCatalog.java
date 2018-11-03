@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * This class is an in-memory implementation of [[ExternalCatalog]].
+ * This class is an in-memory implementation of {@link ExternalCatalog}.
  *
  * <p>It could be used for testing or developing instead of used in production environment.
  */
