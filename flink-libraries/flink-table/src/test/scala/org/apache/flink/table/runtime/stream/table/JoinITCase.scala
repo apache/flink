@@ -18,17 +18,17 @@
 
 package org.apache.flink.table.runtime.stream.table
 
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment, TableException}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
-import org.junit.Assert._
-import org.junit.Test
-import org.apache.flink.api.common.time.Time
+import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment, TableException}
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
+import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
+import org.junit.Assert._
+import org.junit.Test
 
 import scala.collection.mutable
 
@@ -200,7 +200,6 @@ class JoinITCase extends StreamingWithStateTestBase {
 
     // Proctime window output uncertain results, so assert has been ignored here.
   }
-
 
   @Test(expected = classOf[TableException])
   def testLeftOuterJoin(): Unit = {
