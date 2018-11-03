@@ -43,6 +43,7 @@ class IterativeConditionRunner(
     val clazz = compile(Thread.currentThread().getContextClassLoader, name, code)
     LOG.debug("Instantiating IterativeCondition.")
     function = clazz.newInstance()
+    // TODO add logic for opening and closing the function once it can be a RichFunction
   }
 
   override def filter(value: Row, ctx: IterativeCondition.Context[Row]): Boolean = {

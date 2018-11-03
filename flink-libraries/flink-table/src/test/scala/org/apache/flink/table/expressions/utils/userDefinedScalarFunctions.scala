@@ -290,6 +290,9 @@ object Func19 extends ScalarFunction {
 
 }
 
+/**
+  * A scalar function that always returns TRUE if opened correctly.
+  */
 class Func20 extends ScalarFunction {
 
   private var permitted: Boolean = false
