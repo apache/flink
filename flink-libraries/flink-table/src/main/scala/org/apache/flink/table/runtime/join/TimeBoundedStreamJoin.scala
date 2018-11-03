@@ -22,6 +22,7 @@ import java.util
 import java.util.{List => JList}
 
 import org.apache.flink.api.common.functions.FlatJoinFunction
+import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.operators.join.JoinType
@@ -110,6 +111,8 @@ abstract class TimeBoundedStreamJoin(
       genJoinFuncCode)
     LOG.debug("Instantiating JoinFunction.")
     joinFunction = clazz.newInstance()
+    FunctionUtils.setFunctionRuntimeContext(joinFunction, getRuntimeContext)
+    FunctionUtils.openFunction(joinFunction, config)
 
     joinCollector = new EmitAwareCollector()
     joinCollector.setCRowChange(true)
@@ -376,6 +379,10 @@ abstract class TimeBoundedStreamJoin(
         removeLeft = true
       )
     }
+  }
+
+  override def close(): Unit = {
+    FunctionUtils.closeFunction(joinFunction)
   }
 
   /**

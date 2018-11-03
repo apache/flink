@@ -26,6 +26,7 @@ import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.Literal
+import org.apache.flink.table.expressions.utils.Func20
 import org.apache.flink.table.runtime.utils.TableProgramsClusterTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.utils.TableFunc2
@@ -53,7 +54,12 @@ class JoinITCase(
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    val joinT = ds1.join(ds2).where('b === 'e).select('c, 'g)
+    val testOpenCall = new Func20
+
+    val joinT = ds1.join(ds2)
+      .where('b === 'e)
+      .where(testOpenCall('a + 'd))
+      .select('c, 'g)
 
     val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n"
     val results = joinT.toDataSet[Row].collect()

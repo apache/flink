@@ -18,18 +18,19 @@
 
 package org.apache.flink.table.runtime.stream.table
 
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment, TableException, Types}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
-import org.junit.Assert._
-import org.junit.Test
-import org.apache.flink.api.common.time.Time
+import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment, Types}
+import org.apache.flink.table.expressions.utils.Func20
 import org.apache.flink.table.expressions.{Literal, Null}
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
+import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
+import org.junit.Assert._
+import org.junit.Test
 
 import scala.collection.mutable
 
@@ -212,7 +213,12 @@ class JoinITCase extends StreamingWithStateTestBase {
     val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    val joinT = ds1.join(ds2).where('b === 'e).select('c, 'g)
+    val testOpenCall = new Func20
+
+    val joinT = ds1.join(ds2)
+      .where('b === 'e)
+      .where(testOpenCall('a + 'd))
+      .select('c, 'g)
 
     val expected = Seq("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt")
     val results = joinT.toRetractStream[Row]
