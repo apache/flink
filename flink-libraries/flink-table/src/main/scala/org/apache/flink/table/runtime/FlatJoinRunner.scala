@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime
 
+import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.functions.{FlatJoinFunction, RichFlatJoinFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
@@ -42,10 +43,16 @@ class FlatJoinRunner[IN1, IN2, OUT](
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
     LOG.debug("Instantiating FlatJoinFunction.")
     function = clazz.newInstance()
+    FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
+    FunctionUtils.openFunction(function, parameters)
   }
 
   override def join(first: IN1, second: IN2, out: Collector[OUT]): Unit =
     function.join(first, second, out)
 
   override def getProducedType: TypeInformation[OUT] = returnType
+
+  override def close(): Unit = {
+    FunctionUtils.closeFunction(function)
+  }
 }
