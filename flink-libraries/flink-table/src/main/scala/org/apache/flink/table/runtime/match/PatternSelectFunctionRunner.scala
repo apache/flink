@@ -48,6 +48,7 @@ class PatternSelectFunctionRunner(
     val clazz = compile(Thread.currentThread().getContextClassLoader, name, code)
     LOG.debug("Instantiating PatternSelectFunction.")
     function = clazz.newInstance()
+    // TODO add logic for opening and closing the function once it can be a RichFunction
   }
 
   override def flatSelect(

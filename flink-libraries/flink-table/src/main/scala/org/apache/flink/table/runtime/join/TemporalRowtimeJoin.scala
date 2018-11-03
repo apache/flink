@@ -22,8 +22,10 @@ import java.util
 import java.util.{Comparator, Optional}
 
 import org.apache.flink.api.common.functions.FlatJoinFunction
+import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.state.{VoidNamespace, VoidNamespaceSerializer}
 import org.apache.flink.streaming.api.SimpleTimerService
 import org.apache.flink.streaming.api.operators._
@@ -115,12 +117,16 @@ class TemporalRowtimeJoin(
   private var joinFunction: FlatJoinFunction[Row, Row, Row] = _
 
   override def open(): Unit = {
+    LOG.debug(s"Compiling FlatJoinFunction: $genJoinFuncName \n\n Code:\n$genJoinFuncCode")
     val clazz = compile(
       getRuntimeContext.getUserCodeClassLoader,
       genJoinFuncName,
       genJoinFuncCode)
 
+    LOG.debug("Instantiating FlatJoinFunction.")
     joinFunction = clazz.newInstance()
+    FunctionUtils.setFunctionRuntimeContext(joinFunction, getRuntimeContext)
+    FunctionUtils.openFunction(joinFunction, new Configuration())
 
     nextLeftIndex = getRuntimeContext.getState(
       new ValueStateDescriptor[JLong](NEXT_LEFT_INDEX_STATE_NAME, BasicTypeInfo.LONG_TYPE_INFO))
@@ -159,6 +165,22 @@ class TemporalRowtimeJoin(
     registerSmallestTimer(rowTime) // Timer to clean up the state
   }
 
+  override def onProcessingTime(timer: InternalTimer[Any, VoidNamespace]): Unit = {
+    throw new IllegalStateException("This should never happen")
+  }
+
+  override def onEventTime(timer: InternalTimer[Any, VoidNamespace]): Unit = {
+    registeredTimer.clear()
+    val lastUnprocessedTime = emitResultAndCleanUpState(timerService.currentWatermark())
+    if (lastUnprocessedTime < Long.MaxValue) {
+      registerTimer(lastUnprocessedTime)
+    }
+  }
+
+  override def close(): Unit = {
+    FunctionUtils.closeFunction(joinFunction)
+  }
+
   private def registerSmallestTimer(timestamp: Long): Unit = {
     val currentRegisteredTimer = registeredTimer.value()
     if (currentRegisteredTimer == null) {
@@ -173,18 +195,6 @@ class TemporalRowtimeJoin(
   private def registerTimer(timestamp: Long): Unit = {
     registeredTimer.update(timestamp)
     timerService.registerEventTimeTimer(timestamp)
-  }
-
-  override def onProcessingTime(timer: InternalTimer[Any, VoidNamespace]): Unit = {
-    throw new IllegalStateException("This should never happen")
-  }
-
-  override def onEventTime(timer: InternalTimer[Any, VoidNamespace]): Unit = {
-    registeredTimer.clear()
-    val lastUnprocessedTime = emitResultAndCleanUpState(timerService.currentWatermark())
-    if (lastUnprocessedTime < Long.MaxValue) {
-      registerTimer(lastUnprocessedTime)
-    }
   }
 
   /**

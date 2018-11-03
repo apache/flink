@@ -18,8 +18,10 @@
 package org.apache.flink.table.runtime.join
 
 import org.apache.flink.api.common.functions.FlatJoinFunction
+import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.operators.{AbstractStreamOperator, TimestampedCollector, TwoInputStreamOperator}
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.table.api.StreamQueryConfig
@@ -51,12 +53,16 @@ class TemporalProcessTimeJoin(
   protected var joinFunction: FlatJoinFunction[Row, Row, Row] = _
 
   override def open(): Unit = {
+    LOG.debug(s"Compiling FlatJoinFunction: $genJoinFuncName \n\n Code:\n$genJoinFuncCode")
     val clazz = compile(
       getRuntimeContext.getUserCodeClassLoader,
       genJoinFuncName,
       genJoinFuncCode)
 
+    LOG.debug("Instantiating FlatJoinFunction.")
     joinFunction = clazz.newInstance()
+    FunctionUtils.setFunctionRuntimeContext(joinFunction, getRuntimeContext)
+    FunctionUtils.openFunction(joinFunction, new Configuration())
 
     val rightStateDescriptor = new ValueStateDescriptor[Row]("right", rightType)
     rightState = getRuntimeContext.getState(rightStateDescriptor)
@@ -85,5 +91,9 @@ class TemporalProcessTimeJoin(
     } else {
       rightState.clear()
     }
+  }
+
+  override def close(): Unit = {
+    FunctionUtils.closeFunction(joinFunction)
   }
 }
