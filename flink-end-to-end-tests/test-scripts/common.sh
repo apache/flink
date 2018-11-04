@@ -253,6 +253,7 @@ function check_logs_for_exceptions {
       | grep -v "Caused by: java.lang.ClassNotFoundException: org.apache.hadoop.conf.Configuration" \
       | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/yarn/exceptions/YarnException" \
       | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/conf/Configuration" \
+      | grep -v "java.lang.Exception: Artificial failure" \
       | grep -ic "exception")
   if [[ ${exception_count} -gt 0 ]]; then
     echo "Found exception in log files:"

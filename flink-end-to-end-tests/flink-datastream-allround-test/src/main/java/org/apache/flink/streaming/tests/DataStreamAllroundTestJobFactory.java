@@ -311,6 +311,8 @@ class DataStreamAllroundTestJobFactory {
 					SEQUENCE_GENERATOR_SRC_EVENT_TIME_MAX_OUT_OF_ORDERNESS.key(),
 					SEQUENCE_GENERATOR_SRC_EVENT_TIME_MAX_OUT_OF_ORDERNESS.defaultValue()))) {
 
+			private static final long serialVersionUID = -3154419724891779938L;
+
 			@Override
 			public long extractTimestamp(Event element) {
 				return element.getEventTime();
@@ -339,8 +341,8 @@ class DataStreamAllroundTestJobFactory {
 		return pt.getBoolean(TEST_SIMULATE_FAILURE.key(), TEST_SIMULATE_FAILURE.defaultValue());
 	}
 
-	static MapFunction<Event, Event> createExceptionThrowingFailureMapper(ParameterTool pt) {
-		return new ExceptionThrowingFailureMapper<>(
+	static MapFunction<Event, Event> createFailureMapper(ParameterTool pt) {
+		return new FailureMapper<>(
 			pt.getLong(
 				TEST_SIMULATE_FAILURE_NUM_RECORDS.key(),
 				TEST_SIMULATE_FAILURE_NUM_RECORDS.defaultValue()),

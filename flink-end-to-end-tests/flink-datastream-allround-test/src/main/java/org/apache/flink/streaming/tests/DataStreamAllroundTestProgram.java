@@ -32,7 +32,7 @@ import java.util.Collections;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createArtificialKeyedStateMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createArtificialOperatorStateMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createEventSource;
-import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createExceptionThrowingFailureMapper;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createFailureMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSemanticsCheckMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.isSimulateFailures;
@@ -58,7 +58,7 @@ public class DataStreamAllroundTestProgram {
 	private static final String KEYED_STATE_OPER_NAME = "ArtificalKeyedStateMapper";
 	private static final String OPERATOR_STATE_OPER_NAME = "ArtificalOperatorStateMapper";
 	private static final String SEMANTICS_CHECK_MAPPER_NAME = "SemanticsCheckMapper";
-	private static final String FAILURE_MAPPER_NAME = "ExceptionThrowingFailureMapper";
+	private static final String FAILURE_MAPPER_NAME = "FailureMapper";
 
 	public static void main(String[] args) throws Exception {
 		final ParameterTool pt = ParameterTool.fromArgs(args);
@@ -94,7 +94,7 @@ public class DataStreamAllroundTestProgram {
 
 		if (isSimulateFailures(pt)) {
 			eventStream2 = eventStream2
-				.map(createExceptionThrowingFailureMapper(pt))
+				.map(createFailureMapper(pt))
 				.setParallelism(1)
 				.name(FAILURE_MAPPER_NAME);
 		}
