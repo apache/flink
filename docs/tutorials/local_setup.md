@@ -240,7 +240,7 @@ window of processing time, as long as words are floating in.
 * First of all, we use **netcat** to start local server via
 
 {% highlight bash %}
-$ nc -l 9000
+$ nc -l -p 9000
 {% endhighlight %}
 
 * Submit the Flink program:
@@ -268,7 +268,7 @@ Starting execution of program
   hitting <RETURN>):
 
 {% highlight bash %}
-$ nc -l 9000
+$ nc -l -p 9000
 lorem ipsum
 ipsum ipsum ipsum
 bye
