@@ -30,7 +30,7 @@ import org.apache.flink.runtime.state.CheckpointListener;
  * of the operator can also be configured. Note that this also takes into account
  * failures that were not triggered by this mapper, e.g. TaskManager failures.
  */
-public class ExceptionThrowingFailureMapper<T> extends RichMapFunction<T, T> implements CheckpointListener {
+public class FailureMapper<T> extends RichMapFunction<T, T> implements CheckpointListener {
 
 	private static final long serialVersionUID = -5286927943454740016L;
 
@@ -41,7 +41,7 @@ public class ExceptionThrowingFailureMapper<T> extends RichMapFunction<T, T> imp
 	private long numProcessedRecords;
 	private long numCompleteCheckpoints;
 
-	public ExceptionThrowingFailureMapper(
+	public FailureMapper(
 			long numProcessedRecordsFailureThreshold,
 			long numCompleteCheckpointsFailureThreshold,
 			int maxNumFailures) {
