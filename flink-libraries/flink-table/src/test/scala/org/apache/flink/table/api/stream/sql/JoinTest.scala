@@ -790,35 +790,6 @@ class JoinTest extends TableTestBase {
       "AND(=($0, $4), >($2, $6))")
   }
 
-  private def verifyTimeBoundary(
-      timeSql: String,
-      expLeftSize: Long,
-      expRightSize: Long,
-      expTimeType: String): Unit = {
-    val query =
-      "SELECT t1.a, t2.b FROM MyTable as t1 join MyTable2 as t2 on t1.a = t2.a and " + timeSql
-
-    val resultTable = streamUtil.tableEnv.sqlQuery(query)
-    val relNode = RelTimeIndicatorConverter.convert(
-      resultTable.getRelNode,
-      streamUtil.tableEnv.getRelBuilder.getRexBuilder)
-    val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
-    val (windowBounds, _) =
-      WindowJoinUtil.extractWindowBoundsFromPredicate(
-        joinNode.getCondition,
-        4,
-        joinNode.getRowType,
-        joinNode.getCluster.getRexBuilder,
-        streamUtil.tableEnv.getConfig)
-
-    val timeTypeStr =
-      if (windowBounds.get.isEventTime) "rowtime"
-      else  "proctime"
-    assertEquals(expLeftSize, windowBounds.get.leftLowerBound)
-    assertEquals(expRightSize, windowBounds.get.leftUpperBound)
-    assertEquals(expTimeType, timeTypeStr)
-  }
-
   @Test
   def testLeftOuterJoinEquiPred(): Unit = {
     val util = streamTestUtil()
@@ -1007,6 +978,35 @@ class JoinTest extends TableTestBase {
     )
 
     util.verifyTable(result, expected)
+  }
+
+  private def verifyTimeBoundary(
+      timeSql: String,
+      expLeftSize: Long,
+      expRightSize: Long,
+      expTimeType: String): Unit = {
+    val query =
+      "SELECT t1.a, t2.b FROM MyTable as t1 join MyTable2 as t2 on t1.a = t2.a and " + timeSql
+
+    val resultTable = streamUtil.tableEnv.sqlQuery(query)
+    val relNode = RelTimeIndicatorConverter.convert(
+      resultTable.getRelNode,
+      streamUtil.tableEnv.getRelBuilder.getRexBuilder)
+    val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
+    val (windowBounds, _) =
+      WindowJoinUtil.extractWindowBoundsFromPredicate(
+        joinNode.getCondition,
+        4,
+        joinNode.getRowType,
+        joinNode.getCluster.getRexBuilder,
+        streamUtil.tableEnv.getConfig)
+
+    val timeTypeStr =
+      if (windowBounds.get.isEventTime) "rowtime"
+      else  "proctime"
+    assertEquals(expLeftSize, windowBounds.get.leftLowerBound)
+    assertEquals(expRightSize, windowBounds.get.leftUpperBound)
+    assertEquals(expTimeType, timeTypeStr)
   }
 
   private def verifyRemainConditionConvert(
