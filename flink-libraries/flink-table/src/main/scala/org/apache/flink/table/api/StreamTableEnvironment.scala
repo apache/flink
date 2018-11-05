@@ -125,8 +125,12 @@ abstract class StreamTableEnvironment(
                 s"environment. But is: ${execEnv.getStreamTimeCharacteristic}")
         }
 
+        // Have to do like this because Scala 2.11 doesn't support conversion of Java Optional
+        // to Scala option
+        var opt = catalogManager.getTable(name)
+        var table = if (opt.isPresent) Some(opt.get()) else None
         // register
-        getTable(name) match {
+        table match {
 
           // check if a table (source or sink) is registered
           case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
@@ -141,7 +145,7 @@ abstract class StreamTableEnvironment(
               val enrichedTable = new TableSourceSinkTable(
                 Some(new StreamTableSourceTable(streamTableSource)),
                 table.tableSinkTable)
-              replaceRegisteredTable(name, enrichedTable)
+              catalogManager.replaceRegisteredTable(name, enrichedTable)
           }
 
           // no table is registered
@@ -149,7 +153,7 @@ abstract class StreamTableEnvironment(
             val newTable = new TableSourceSinkTable(
               Some(new StreamTableSourceTable(streamTableSource)),
               None)
-            registerTableInternal(name, newTable)
+            catalogManager.registerTableInternal(name, newTable)
         }
 
       // not a stream table source
@@ -272,8 +276,12 @@ abstract class StreamTableEnvironment(
       // check for proper batch table sink
       case _: StreamTableSink[_] =>
 
-        // check if a table (source or sink) is registered
-        getTable(name) match {
+        // Have to do like this because Scala 2.11 doesn't support conversion of Java Optional
+        // to Scala option
+        var opt = catalogManager.getTable(name)
+        var table = if (opt.isPresent) Some(opt.get()) else None
+        // register
+        table match {
 
           // table source and/or sink is registered
           case Some(table: TableSourceSinkTable[_, _]) => table.tableSinkTable match {
@@ -288,7 +296,7 @@ abstract class StreamTableEnvironment(
               val enrichedTable = new TableSourceSinkTable(
                 table.tableSourceTable,
                 Some(new TableSinkTable(configuredSink)))
-              replaceRegisteredTable(name, enrichedTable)
+              catalogManager.replaceRegisteredTable(name, enrichedTable)
           }
 
           // no table is registered
@@ -296,7 +304,7 @@ abstract class StreamTableEnvironment(
             val newTable = new TableSourceSinkTable(
               None,
               Some(new TableSinkTable(configuredSink)))
-            registerTableInternal(name, newTable)
+            catalogManager.registerTableInternal(name, newTable)
         }
 
       // not a stream table sink
@@ -522,7 +530,7 @@ abstract class StreamTableEnvironment(
       fieldIndexes,
       fieldNames
     )
-    registerTableInternal(name, dataStreamTable)
+    catalogManager.registerTableInternal(name, dataStreamTable)
   }
 
   /**
@@ -564,7 +572,7 @@ abstract class StreamTableEnvironment(
       indexesWithIndicatorFields,
       namesWithIndicatorFields
     )
-    registerTableInternal(name, dataStreamTable)
+    catalogManager.registerTableInternal(name, dataStreamTable)
   }
 
   /**

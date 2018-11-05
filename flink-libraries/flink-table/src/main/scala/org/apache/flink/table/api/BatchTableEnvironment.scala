@@ -20,6 +20,7 @@ package org.apache.flink.table.api
 
 import _root_.java.util.concurrent.atomic.AtomicInteger
 
+import com.esotericsoftware.kryo.serializers.FieldSerializer.Optional
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.RelNode
@@ -106,8 +107,14 @@ abstract class BatchTableEnvironment(
 
       // check for proper batch table source
       case batchTableSource: BatchTableSource[_] =>
+
+        // Have to do like this because Scala 2.11 doesn't support conversion of Java Optional
+        // to Scala option
+        var opt = catalogManager.getTable(name)
+        var table = if (opt.isPresent) Some(opt.get()) else None
+
         // check if a table (source or sink) is registered
-        getTable(name) match {
+        table match {
 
           // table source and/or sink is registered
           case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
@@ -122,7 +129,7 @@ abstract class BatchTableEnvironment(
               val enrichedTable = new TableSourceSinkTable(
                 Some(new BatchTableSourceTable(batchTableSource)),
                 table.tableSinkTable)
-              replaceRegisteredTable(name, enrichedTable)
+              catalogManager.replaceRegisteredTable(name, enrichedTable)
           }
 
           // no table is registered
@@ -130,7 +137,7 @@ abstract class BatchTableEnvironment(
             val newTable = new TableSourceSinkTable(
               Some(new BatchTableSourceTable(batchTableSource)),
               None)
-            registerTableInternal(name, newTable)
+            catalogManager.registerTableInternal(name, newTable)
         }
 
       // not a batch table source
@@ -248,8 +255,13 @@ abstract class BatchTableEnvironment(
       // check for proper batch table sink
       case _: BatchTableSink[_] =>
 
+        // Have to do like this because Scala 2.11 doesn't support conversion of Java Optional
+        // to Scala option
+        var opt = catalogManager.getTable(name)
+        var table = if (opt.isPresent) Some(opt.get()) else None
+
         // check if a table (source or sink) is registered
-        getTable(name) match {
+        table match {
 
           // table source and/or sink is registered
           case Some(table: TableSourceSinkTable[_, _]) => table.tableSinkTable match {
@@ -264,7 +276,7 @@ abstract class BatchTableEnvironment(
               val enrichedTable = new TableSourceSinkTable(
                 table.tableSourceTable,
                 Some(new TableSinkTable(configuredSink)))
-              replaceRegisteredTable(name, enrichedTable)
+              catalogManager.replaceRegisteredTable(name, enrichedTable)
           }
 
           // no table is registered
@@ -272,7 +284,7 @@ abstract class BatchTableEnvironment(
             val newTable = new TableSourceSinkTable(
               None,
               Some(new TableSinkTable(configuredSink)))
-            registerTableInternal(name, newTable)
+            catalogManager.registerTableInternal(name, newTable)
         }
 
       // not a batch table sink
@@ -401,7 +413,7 @@ abstract class BatchTableEnvironment(
       fieldIndexes,
       fieldNames
     )
-    registerTableInternal(name, dataSetTable)
+    catalogManager.registerTableInternal(name, dataSetTable)
   }
 
   /**
@@ -428,7 +440,7 @@ abstract class BatchTableEnvironment(
     }
 
     val dataSetTable = new DataSetTable[T](dataSet, fieldIndexes, fieldNames)
-    registerTableInternal(name, dataSetTable)
+    catalogManager.registerTableInternal(name, dataSetTable)
   }
 
   /**

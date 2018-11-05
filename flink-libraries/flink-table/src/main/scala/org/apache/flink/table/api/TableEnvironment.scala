@@ -23,13 +23,10 @@ import _root_.java.util.concurrent.atomic.AtomicInteger
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.Lex
-import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgram, HepProgramBuilder}
 import org.apache.calcite.plan.{Convention, RelOptPlanner, RelOptUtil, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.schema.SchemaPlus
-import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
@@ -47,7 +44,7 @@ import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => Scala
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
+import org.apache.flink.table.catalog.{CatalogManager, ExternalCatalog, ExternalCatalogSchema}
 import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
 import org.apache.flink.table.expressions._
@@ -66,7 +63,6 @@ import org.apache.flink.types.Row
 
 import _root_.scala.annotation.varargs
 import _root_.scala.collection.JavaConverters._
-import _root_.scala.collection.mutable
 
 /**
   * The abstract base class for batch and stream TableEnvironments.
@@ -75,10 +71,7 @@ import _root_.scala.collection.mutable
   */
 abstract class TableEnvironment(val config: TableConfig) {
 
-  // the catalog to hold all registered and translated tables
-  // we disable caching here to prevent side effects
-  private val internalSchema: CalciteSchema = CalciteSchema.createRootSchema(false, false)
-  private val rootSchema: SchemaPlus = internalSchema.plus()
+  protected val catalogManager: CatalogManager = new CatalogManager(this)
 
   // Table API/SQL function catalog
   private[flink] val functionCatalog: FunctionCatalog = FunctionCatalog.withBuiltIns
@@ -86,7 +79,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   // the configuration to create a Calcite planner
   private lazy val frameworkConfig: FrameworkConfig = Frameworks
     .newConfigBuilder
-    .defaultSchema(rootSchema)
+    .defaultSchema(catalogManager.getRootSchema)
     .parserConfig(getSqlParserConfig)
     .costFactory(new DataSetCostFactory)
     .typeSystem(new FlinkTypeSystem)
@@ -106,9 +99,6 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   // a counter for unique attribute names
   private[flink] val attrNameCntr: AtomicInteger = new AtomicInteger(0)
-
-  // registered external catalog names -> catalog
-  private val externalCatalogs = new mutable.HashMap[String, ExternalCatalog]
 
   /** Returns the table config to define the runtime behavior of the Table API. */
   def getConfig: TableConfig = config
@@ -411,12 +401,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param externalCatalog The externalCatalog to register
     */
   def registerExternalCatalog(name: String, externalCatalog: ExternalCatalog): Unit = {
-    if (rootSchema.getSubSchema(name) != null) {
-      throw new ExternalCatalogAlreadyExistException(name)
-    }
-    this.externalCatalogs.put(name, externalCatalog)
-    // create an external catalog Calcite schema, register it on the root schema
-    ExternalCatalogSchema.registerCatalog(this, rootSchema, name, externalCatalog)
+    catalogManager.registerExternalCatalog(name, externalCatalog)
   }
 
   /**
@@ -426,10 +411,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @return The [[ExternalCatalog]]
     */
   def getRegisteredExternalCatalog(name: String): ExternalCatalog = {
-    this.externalCatalogs.get(name) match {
-      case Some(catalog) => catalog
-      case None => throw new ExternalCatalogNotExistException(name)
-    }
+    catalogManager.getRegisteredExternalCatalog(name)
   }
 
   /**
@@ -526,7 +508,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
     checkValidTableName(name)
     val tableTable = new RelTable(table.getRelNode)
-    registerTableInternal(name, tableTable)
+    catalogManager.registerTableInternal(name, tableTable)
   }
 
   /**
@@ -575,23 +557,6 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param configuredSink The configured [[TableSink]] to register.
     */
   def registerTableSink(name: String, configuredSink: TableSink[_]): Unit
-
-  /**
-    * Replaces a registered Table with another Table under the same name.
-    * We use this method to replace a [[org.apache.flink.table.plan.schema.DataStreamTable]]
-    * with a [[org.apache.calcite.schema.TranslatableTable]].
-    *
-    * @param name Name of the table to replace.
-    * @param table The table that replaces the previous table.
-    */
-  protected def replaceRegisteredTable(name: String, table: AbstractTable): Unit = {
-
-    if (isRegistered(name)) {
-      rootSchema.add(name, table)
-    } else {
-      throw new TableException(s"Table \'$name\' is not registered.")
-    }
-  }
 
   /**
     * Scans a registered table and returns the resulting [[Table]].
@@ -658,7 +623,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   private[flink] def scanInternal(tablePath: Array[String]): Option[Table] = {
     require(tablePath != null && !tablePath.isEmpty, "tablePath must not be null or empty.")
     val schemaPaths = tablePath.slice(0, tablePath.length - 1)
-    val schema = getSchema(schemaPaths)
+    val schema = catalogManager.getSchema(schemaPaths)
     if (schema != null) {
       val tableName = tablePath(tablePath.length - 1)
       val table = schema.getTable(tableName)
@@ -669,24 +634,13 @@ abstract class TableEnvironment(val config: TableConfig) {
     None
   }
 
-  private def getSchema(schemaPath: Array[String]): SchemaPlus = {
-    var schema = rootSchema
-    for (schemaName <- schemaPath) {
-      schema = schema.getSubSchema(schemaName)
-      if (schema == null) {
-        return schema
-      }
-    }
-    schema
-  }
-
   /**
     * Gets the names of all tables registered in this environment.
     *
     * @return A list of the names of all registered tables.
     */
   def listTables(): Array[String] = {
-    rootSchema.getTableNames.asScala.toArray
+    catalogManager.listTables().asScala.toArray
   }
 
   /**
@@ -844,8 +798,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     if (null == sinkTableName) throw new TableException("Name of TableSink must not be null.")
     if (sinkTableName.isEmpty) throw new TableException("Name of TableSink must not be empty.")
 
-    getTable(sinkTableName) match {
-
+    Option(catalogManager.getTable(sinkTableName).get()) match {
       case None =>
         throw new TableException(s"No table was registered under the name $sinkTableName.")
 
@@ -884,24 +837,6 @@ abstract class TableEnvironment(val config: TableConfig) {
     }
   }
 
-  /**
-    * Registers a Calcite [[AbstractTable]] in the TableEnvironment's catalog.
-    *
-    * @param name The name under which the table will be registered.
-    * @param table The table to register in the catalog
-    * @throws TableException if another table is registered under the provided name.
-    */
-  @throws[TableException]
-  protected def registerTableInternal(name: String, table: AbstractTable): Unit = {
-
-    if (isRegistered(name)) {
-      throw new TableException(s"Table \'$name\' already exists. " +
-        s"Please, choose a different name.")
-    } else {
-      rootSchema.add(name, table)
-    }
-  }
-
   /** Returns a unique table name according to the internal naming pattern. */
   protected def createUniqueTableName(): String
 
@@ -911,51 +846,6 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param name The table name to check.
     */
   protected def checkValidTableName(name: String): Unit
-
-  /**
-    * Checks if a table is registered under the given name.
-    *
-    * @param name The table name to check.
-    * @return true, if a table is registered under the name, false otherwise.
-    */
-  protected[flink] def isRegistered(name: String): Boolean = {
-    rootSchema.getTableNames.contains(name)
-  }
-
-  /**
-    * Get a table from either internal or external catalogs.
-    *
-    * @param name The name of the table.
-    * @return The table registered either internally or externally, None otherwise.
-    */
-  protected def getTable(name: String): Option[org.apache.calcite.schema.Table] = {
-
-    // recursively fetches a table from a schema.
-    def getTableFromSchema(
-        schema: SchemaPlus,
-        path: List[String]): Option[org.apache.calcite.schema.Table] = {
-
-      path match {
-        case tableName :: Nil =>
-          // look up table
-          Option(schema.getTable(tableName))
-        case subschemaName :: remain =>
-          // look up subschema
-          val subschema = Option(schema.getSubSchema(subschemaName))
-          subschema match {
-            case Some(s) =>
-              // search for table in subschema
-              getTableFromSchema(s, remain)
-            case None =>
-              // subschema does not exist
-              None
-          }
-      }
-    }
-
-    val pathNames = name.split('.').toList
-    getTableFromSchema(rootSchema, pathNames)
-  }
 
   /** Returns a unique temporary attribute name. */
   private[flink] def createUniqueAttributeName(): String = {
