@@ -70,13 +70,13 @@ public class DynamodbStreamsShardHandleTest {
 			DynamodbStreamsShardHandle.compareShardIds(shardIdValid, shardIdInvalid);
 			fail("invalid shard Id" + shardIdInvalid + " should trigger exception");
 		} catch (IllegalArgumentException e) {
-			// ignore
+			// expected
 		}
 		try {
 			DynamodbStreamsShardHandle.compareShardIds(shardIdInvalid, shardIdValid);
 			fail("invalid shard Id" + shardIdInvalid + " should trigger exception");
 		} catch (IllegalArgumentException e) {
-			// ignore
+			// expected
 		}
 
 		// compare randomly generated shardIds based on timestamp
