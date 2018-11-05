@@ -465,6 +465,31 @@ public class FlinkKafkaConsumerBaseTest {
 	}
 
 	@Test
+	public void testClosePartitionDiscovererWhenOpenThrowException() throws Exception {
+
+		final FailingPartitionDiscoverer failingPartitionDiscoverer = new FailingPartitionDiscoverer(
+			new KafkaTopicsDescriptor(Arrays.asList("foo"), null), 1, 10);
+
+		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumerThrowExceptionInOpen<>(failingPartitionDiscoverer);
+		consumer.setCommitOffsetsOnCheckpoints(false); // disabling offset committing should override everything
+
+		try {
+			setupConsumer(
+				consumer,
+				false,
+				null,
+				false, // enable checkpointing; auto commit should be ignored
+				0,
+				1);
+			fail("Exception should be thrown in open method");
+		} catch (RuntimeException e) {
+			// expected exception thrown by open method
+		}
+		assertTrue("partitionDiscoverer should be closed when consumer is closed", failingPartitionDiscoverer.isClosed());
+		consumer.cancel();
+	}
+
+	@Test
 	public void testScaleUp() throws Exception {
 		testRescaling(5, 2, 8, 30);
 	}
@@ -606,6 +631,67 @@ public class FlinkKafkaConsumerBaseTest {
 
 
 	// ------------------------------------------------------------------------
+
+	private static class DummyFlinkKafkaConsumerThrowExceptionInOpen<T> extends DummyFlinkKafkaConsumer<T> {
+
+		DummyFlinkKafkaConsumerThrowExceptionInOpen(AbstractPartitionDiscoverer testPartitionDiscoverer) {
+			super(mock(AbstractFetcher.class), testPartitionDiscoverer, false);
+		}
+
+		@Override
+		public void open(Configuration configuration) throws Exception {
+			super.open(configuration);
+			throw new RuntimeException("fail open intentionally");
+		}
+	}
+
+	/**
+	 * A dummy partition discoverer that always throws an exception from discoverPartitions() method.
+	 */
+	private static class FailingPartitionDiscoverer extends AbstractPartitionDiscoverer {
+
+		private volatile boolean closed = false;
+
+		public FailingPartitionDiscoverer(
+			KafkaTopicsDescriptor topicsDescriptor,
+			int indexOfThisSubtask,
+			int numParallelSubtasks) {
+			super(topicsDescriptor, indexOfThisSubtask, numParallelSubtasks);
+		}
+
+		@Override
+		protected void initializeConnections() throws Exception {
+			closed = false;
+		}
+
+		@Override
+		protected void wakeupConnections() {
+
+		}
+
+		@Override
+		protected void closeConnections() throws Exception {
+			closed = true;
+		}
+
+		@Override
+		protected List<String> getAllTopics() throws WakeupException {
+			return null;
+		}
+
+		@Override
+		protected List<KafkaTopicPartition> getAllPartitionsForTopics(List<String> topics) throws WakeupException {
+			return null;
+		}
+
+		@Override public List<KafkaTopicPartition> discoverPartitions() throws WakeupException, ClosedException {
+			throw new RuntimeException("failed to discovery partitions");
+		}
+
+		public boolean isClosed() {
+			return closed;
+		}
+	}
 
 	/**
 	 * An instantiable dummy {@link FlinkKafkaConsumerBase} that supports injecting
