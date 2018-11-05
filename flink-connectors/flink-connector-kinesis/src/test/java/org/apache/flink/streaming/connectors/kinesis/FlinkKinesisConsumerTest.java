@@ -66,6 +66,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -243,8 +244,7 @@ public class FlinkKinesisConsumerTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testFetcherShouldNotBeRestoringFromFailureIfNotRestoringFromCheckpoint() throws Exception {
-		KinesisDataFetcher mockedFetcher = Mockito.mock(KinesisDataFetcher.class);
-		PowerMockito.whenNew(KinesisDataFetcher.class).withAnyArguments().thenReturn(mockedFetcher);
+		KinesisDataFetcher mockedFetcher = mockKinesisDataFetcher();
 
 		// assume the given config is correct
 		PowerMockito.mockStatic(KinesisConfigUtil.class);
@@ -286,14 +286,10 @@ public class FlinkKinesisConsumerTest {
 		// mock fetcher
 		// ----------------------------------------------------------------------
 
-		// TODO: to debug the travis build issue
-		System.out.println(java.util.Arrays.asList(KinesisDataFetcher.class.getDeclaredConstructors()));
-
-		KinesisDataFetcher mockedFetcher = Mockito.mock(KinesisDataFetcher.class);
+		KinesisDataFetcher mockedFetcher = mockKinesisDataFetcher();
 		List<StreamShardHandle> shards = new ArrayList<>();
 		shards.addAll(fakeRestoredState.keySet());
 		when(mockedFetcher.discoverNewShardsToSubscribe()).thenReturn(shards);
-		PowerMockito.whenNew(KinesisDataFetcher.class).withAnyArguments().thenReturn(mockedFetcher);
 
 		// assume the given config is correct
 		PowerMockito.mockStatic(KinesisConfigUtil.class);
@@ -351,11 +347,10 @@ public class FlinkKinesisConsumerTest {
 		// mock fetcher
 		// ----------------------------------------------------------------------
 
-		KinesisDataFetcher mockedFetcher = Mockito.mock(KinesisDataFetcher.class);
+		KinesisDataFetcher mockedFetcher = mockKinesisDataFetcher();
 		List<StreamShardHandle> shards = new ArrayList<>();
 		shards.addAll(fakeRestoredState.keySet());
 		when(mockedFetcher.discoverNewShardsToSubscribe()).thenReturn(shards);
-		PowerMockito.whenNew(KinesisDataFetcher.class).withAnyArguments().thenReturn(mockedFetcher);
 
 		// assume the given config is correct
 		PowerMockito.mockStatic(KinesisConfigUtil.class);
@@ -444,13 +439,12 @@ public class FlinkKinesisConsumerTest {
 		// mock fetcher
 		// ----------------------------------------------------------------------
 
-		KinesisDataFetcher mockedFetcher = Mockito.mock(KinesisDataFetcher.class);
+		KinesisDataFetcher mockedFetcher = mockKinesisDataFetcher();
 		List<StreamShardHandle> shards = new ArrayList<>();
 		shards.addAll(fakeRestoredState.keySet());
 		shards.add(new StreamShardHandle("fakeStream2",
 			new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(2))));
 		when(mockedFetcher.discoverNewShardsToSubscribe()).thenReturn(shards);
-		PowerMockito.whenNew(KinesisDataFetcher.class).withAnyArguments().thenReturn(mockedFetcher);
 
 		// assume the given config is correct
 		PowerMockito.mockStatic(KinesisConfigUtil.class);
@@ -556,7 +550,7 @@ public class FlinkKinesisConsumerTest {
 		// mock fetcher
 		// ----------------------------------------------------------------------
 
-		KinesisDataFetcher mockedFetcher = Mockito.mock(KinesisDataFetcher.class);
+		KinesisDataFetcher mockedFetcher = mockKinesisDataFetcher();
 		List<StreamShardHandle> shards = new ArrayList<>();
 
 		// create a fake stream shard handle based on the first entry in the restored state
@@ -570,7 +564,6 @@ public class FlinkKinesisConsumerTest {
 		shards.add(closedStreamShardHandle);
 
 		when(mockedFetcher.discoverNewShardsToSubscribe()).thenReturn(shards);
-		PowerMockito.whenNew(KinesisDataFetcher.class).withAnyArguments().thenReturn(mockedFetcher);
 
 		// assume the given config is correct
 		PowerMockito.mockStatic(KinesisConfigUtil.class);
@@ -697,4 +690,24 @@ public class FlinkKinesisConsumerTest {
 			return BasicTypeInfo.STRING_TYPE_INFO;
 		}
 	}
+
+	private static KinesisDataFetcher mockKinesisDataFetcher() throws Exception {
+		KinesisDataFetcher mockedFetcher = Mockito.mock(KinesisDataFetcher.class);
+
+		java.lang.reflect.Constructor<KinesisDataFetcher> ctor = (java.lang.reflect.Constructor<KinesisDataFetcher>) KinesisDataFetcher.class.getConstructors()[0];
+		Class<?>[] otherParamTypes = new Class<?>[ctor.getParameterTypes().length - 1];
+		System.arraycopy(ctor.getParameterTypes(), 1, otherParamTypes, 0, ctor.getParameterTypes().length - 1);
+
+		Supplier<Object[]> argumentSupplier = () -> {
+			Object[] otherParamArgs = new Object[otherParamTypes.length];
+			for (int i = 0; i < otherParamTypes.length; i++) {
+				otherParamArgs[i] = Mockito.nullable(otherParamTypes[i]);
+			}
+			return otherParamArgs;
+		};
+		PowerMockito.whenNew(ctor).withArguments(Mockito.any(ctor.getParameterTypes()[0]),
+			argumentSupplier.get()).thenReturn(mockedFetcher);
+		return mockedFetcher;
+	}
+
 }
