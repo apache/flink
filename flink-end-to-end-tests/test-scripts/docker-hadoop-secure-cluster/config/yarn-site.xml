@@ -21,6 +21,11 @@ under the License.
         <value>mapreduce_shuffle</value>
     </property>
 
+	<property>
+		<name>yarn.nodemanager.vmem-pmem-ratio</name>
+		<value>3</value>
+	</property>
+
     <!-- this is ignored by the default scheduler but we have to set it because Flink would
     complain if we didn't have it -->
     <property>
@@ -33,12 +38,12 @@ under the License.
     are scheduled on one NM, which wouldn't provoke a previously fixed Kerberos keytab bug. -->
     <property>
         <name>yarn.nodemanager.resource.memory-mb</name>
-        <value>4100</value>
+        <value>2500</value>
     </property>
 
     <property>
         <name>yarn.scheduler.minimum-allocation-mb</name>
-        <value>2000</value>
+        <value>1000</value>
     </property>
 
     <property>
