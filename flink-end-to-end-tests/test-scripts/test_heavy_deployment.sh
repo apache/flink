@@ -41,5 +41,6 @@ start_taskmanagers 19 # 1TM + 19TM = 20TM a 10 slots = 200 slots
 # We can scale up the numbers to make the test even heavier.
 $FLINK_DIR/bin/flink run ${TEST_PROGRAM_JAR} \
 --environment.max_parallelism 1024 --environment.parallelism 200 \
+--environment.restart_strategy fixed_delay --environment.restart_strategy.fixed_delay.attempts 3 \
 --state_backend.checkpoint_directory ${CHECKPOINT_DIR} \
 --heavy_deployment_test.num_list_states_per_op 50 --heavy_deployment_test.num_partitions_per_list_state 75
