@@ -286,6 +286,9 @@ public class FlinkKinesisConsumerTest {
 		// mock fetcher
 		// ----------------------------------------------------------------------
 
+		// TODO: to debug the travis build issue
+		System.out.println(java.util.Arrays.asList(KinesisDataFetcher.class.getDeclaredConstructors()));
+
 		KinesisDataFetcher mockedFetcher = Mockito.mock(KinesisDataFetcher.class);
 		List<StreamShardHandle> shards = new ArrayList<>();
 		shards.addAll(fakeRestoredState.keySet());

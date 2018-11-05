@@ -191,8 +191,6 @@ public class KinesisDataFetcher<T> {
 
 	private final AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner;
 
-	private PeriodicWatermarkEmitter periodicWatermarkEmitter;
-
 	/**
 	 * The watermark related state for each shard consumer. Entries in this map will be created when shards
 	 * are discovered. After recovery, this shard map will be recreated, possibly with different shard index keys,
@@ -380,8 +378,7 @@ public class KinesisDataFetcher<T> {
 			if (periodicWatermarkIntervalMillis > 0) {
 				ProcessingTimeService timerService = ((StreamingRuntimeContext) runtimeContext).getProcessingTimeService();
 				LOG.info("Starting periodic watermark emitter with interval {}", periodicWatermarkIntervalMillis);
-				this.periodicWatermarkEmitter = new PeriodicWatermarkEmitter(timerService, periodicWatermarkIntervalMillis);
-				this.periodicWatermarkEmitter.start();
+				new PeriodicWatermarkEmitter(timerService, periodicWatermarkIntervalMillis).start();
 			}
 			this.shardIdleIntervalMillis = Long.parseLong(
 				getConsumerConfiguration().getProperty(ConsumerConfigConstants.SHARD_IDLE_INTERVAL_MILLIS,
