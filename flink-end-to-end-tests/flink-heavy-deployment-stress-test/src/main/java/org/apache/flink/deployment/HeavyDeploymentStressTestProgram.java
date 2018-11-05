@@ -76,6 +76,8 @@ public class HeavyDeploymentStressTestProgram {
 	static class SimpleEndlessSourceWithBloatedState extends RichParallelSourceFunction<String>
 		implements CheckpointedFunction, CheckpointListener {
 
+		private static final long serialVersionUID = 1L;
+
 		private final int numListStates;
 		private final int numPartitionsPerListState;
 

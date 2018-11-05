@@ -25,26 +25,21 @@ TEST=flink-heavy-deployment-stress-test
 TEST_PROGRAM_NAME=HeavyDeploymentStressTestProgram
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/$TEST/target/$TEST_PROGRAM_NAME.jar
 
-set_conf "taskmanager.heap.mb" "256" # 256Mb x 20 TMs = 5Gb total heap
+set_conf "taskmanager.heap.mb" "256" # 256Mb x 20TMs = 5Gb total heap
 
 set_conf "taskmanager.memory.size" "8" # 8Mb
 set_conf "taskmanager.network.memory.min" "8mb"
 set_conf "taskmanager.network.memory.max" "8mb"
 set_conf "taskmanager.memory.segment-size" "8kb"
 
-set_conf "taskmanager.numberOfTaskSlots" "11"
+set_conf "taskmanager.numberOfTaskSlots" "10" # 10 slots per TM
 
-start_cluster
+start_cluster # this also starts 1TM
+start_taskmanagers 19 # 1TM + 19TM = 20TM a 10 slots = 200 slots
 
-NUM_TMS=20
-
-#20 x 13 slots to support a parallelism of 256
-echo "Start $NUM_TMS more task managers"
-for i in `seq 1 $NUM_TMS`; do
-    $FLINK_DIR/bin/taskmanager.sh start
-done
-
-$FLINK_DIR/bin/flink run -p 200 ${TEST_PROGRAM_JAR} \
+# This call will result in a deployment with state meta data of 200 x 200 x 50 union states x each 75 entries.
+# We can scale up the numbers to make the test even heavier.
+$FLINK_DIR/bin/flink run ${TEST_PROGRAM_JAR} \
 --environment.max_parallelism 1024 --environment.parallelism 200 \
 --state_backend.checkpoint_directory ${CHECKPOINT_DIR} \
---heavy_deployment_test.num_list_states_per_op 50 --heavy_deployment_test.num_partitions_per_list_state 50
+--heavy_deployment_test.num_list_states_per_op 50 --heavy_deployment_test.num_partitions_per_list_state 75
