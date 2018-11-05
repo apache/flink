@@ -124,7 +124,7 @@ under the License.
 		<avro.version>1.8.2</avro.version>
 		<junit.version>4.12</junit.version>
 		<mockito.version>2.21.0</mockito.version>
-		<powermock.version>2.0.0-beta.5</powermock.version>
+		<powermock.version>2.0.0-RC.1</powermock.version>
 		<hamcrest.version>1.3</hamcrest.version>
 		<japicmp.skip>false</japicmp.skip>
 		<codebase>new</codebase>
