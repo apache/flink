@@ -90,6 +90,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * ConsumerConfigConstants#SHARD_IDLE_INTERVAL_MILLIS}. By default, shards won't be considered
  * idle and watermark calculation will wait for newer records to arrive from all shards.
  *
+ * <p>Note that re-sharding of the Kinesis stream while an application (that relies on
+ * the Kinesis records for watermarking) is running can lead to incorrect late events.
+ * This depends on how shards are assigned to subtasks and applies regardless of whether watermarks
+ * are generated in the source or a downstream operator.
+ *
  * @param <T> the type of data emitted
  */
 @PublicEvolving

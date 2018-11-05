@@ -761,14 +761,10 @@ public class KinesisDataFetcher<T> {
 		private final ProcessingTimeService timerService;
 		private final long interval;
 
-		// -------------------------------------------------
-
 		PeriodicWatermarkEmitter(ProcessingTimeService timerService, long autoWatermarkInterval) {
 			this.timerService = checkNotNull(timerService);
 			this.interval = autoWatermarkInterval;
 		}
-
-		// -------------------------------------------------
 
 		public void start() {
 			LOG.debug("registering periodic watermark timer with interval {}", interval);
