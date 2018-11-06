@@ -87,6 +87,8 @@ function verify_result_hash {
   local numRecords=$3
   local hash=$4
 
+  sleep 20s
+
   while : ; do
     curl "localhost:9200/${index}/_search?q=*&pretty" > $TEST_DATA_DIR/es_output
 
