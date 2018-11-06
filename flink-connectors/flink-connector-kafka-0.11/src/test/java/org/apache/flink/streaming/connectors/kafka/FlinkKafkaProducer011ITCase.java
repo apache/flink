@@ -571,44 +571,25 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 	@Test
 	public void testMigrateFromAtLeastOnceToExactlyOnce() throws Exception {
 		String topic = "testMigrateFromAtLeastOnceToExactlyOnce";
-
-		OperatorSubtaskState producerSnapshot;
-		try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness = createTestHarness(topic, AT_LEAST_ONCE)) {
-			testHarness.setup();
-			testHarness.open();
-			testHarness.processElement(42, 0);
-			testHarness.snapshot(0, 1);
-			testHarness.processElement(43, 2);
-			testHarness.notifyOfCompletedCheckpoint(0);
-			producerSnapshot = testHarness.snapshot(1, 3);
-			testHarness.processElement(44, 4);
-		}
-
-		try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness = createTestHarness(topic, EXACTLY_ONCE)) {
-			testHarness.setup();
-			// restore from snapshot, all records until here should be persisted
-			testHarness.initializeState(producerSnapshot);
-			testHarness.open();
-
-			// write and commit more records
-			testHarness.processElement(44, 7);
-			testHarness.snapshot(2, 8);
-			testHarness.processElement(45, 9);
-		}
-
-		//now we should have:
-		// - records 42, 43, 44 in directly flushed writes from at-least-once
-		// - aborted transactions with records 44 and 45
-		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 44), 30_000L);
+		testRecoverWithChangeSemantics(topic, AT_LEAST_ONCE, EXACTLY_ONCE);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 44, 45), 30_000L);
 		deleteTestTopic(topic);
 	}
 
 	@Test
 	public void testMigrateFromAtExactlyOnceToAtLeastOnce() throws Exception {
 		String topic = "testMigrateFromExactlyOnceToAtLeastOnce";
+		testRecoverWithChangeSemantics(topic, EXACTLY_ONCE, AT_LEAST_ONCE);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 45, 46, 47), 30_000L);
+		deleteTestTopic(topic);
+	}
 
+	private void testRecoverWithChangeSemantics(
+		String topic,
+		Semantic fromSemantic,
+		Semantic toSemantic) throws Exception {
 		OperatorSubtaskState producerSnapshot;
-		try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness = createTestHarness(topic, EXACTLY_ONCE)) {
+		try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness = createTestHarness(topic, fromSemantic)) {
 			testHarness.setup();
 			testHarness.open();
 			testHarness.processElement(42, 0);
@@ -619,23 +600,16 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 			testHarness.processElement(44, 4);
 		}
 
-		try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness = createTestHarness(topic, AT_LEAST_ONCE)) {
+		try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness = createTestHarness(topic, toSemantic)) {
 			testHarness.setup();
-			// restore from snapshot
 			testHarness.initializeState(producerSnapshot);
 			testHarness.open();
-
-			// write and commit more records, after potentially lingering transactions
-			testHarness.processElement(44, 7);
+			testHarness.processElement(45, 7);
 			testHarness.snapshot(2, 8);
-			testHarness.processElement(45, 9);
+			testHarness.processElement(46, 9);
+			testHarness.notifyOfCompletedCheckpoint(2);
+			testHarness.processElement(47, 9);
 		}
-
-		//now we should have:
-		// - records 42 and 43 in committed transactions
-		// - aborted transactions with records 44 and 45
-		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 44, 45), 30_000L);
-		deleteTestTopic(topic);
 	}
 
 	// shut down a Kafka broker
