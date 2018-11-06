@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -184,40 +183,29 @@ public final class Lockable<T> {
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot<Lockable<E>> snapshotConfiguration() {
-			return new LockableSerializerConfigSnapshot<>(elementSerializer);
+		public TypeSerializerSnapshot<Lockable<E>> snapshotConfiguration() {
+			return new LockableTypeSerializerSnapshot<>(elementSerializer);
 		}
 
+		/**
+		 * This cannot be removed until {@link TypeSerializerConfigSnapshot} is no longer supported.
+		 */
 		@Override
 		public CompatibilityResult<Lockable<E>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-			if (configSnapshot instanceof LockableSerializerConfigSnapshot) {
-				@SuppressWarnings("unchecked")
-				LockableSerializerConfigSnapshot<E> snapshot = (LockableSerializerConfigSnapshot<E>) configSnapshot;
+			// backwards compatibility path
+			CompatibilityResult<E> inputCompatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
+				configSnapshot.restoreSerializer(),
+				UnloadableDummyTypeSerializer.class,
+				configSnapshot,
+				elementSerializer);
 
-				Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> nestedSerializerAndConfig =
-					snapshot.getSingleNestedSerializerAndConfig();
+			return (inputCompatibilityResult.isRequiresMigration())
+				? CompatibilityResult.requiresMigration()
+				: CompatibilityResult.compatible();
+		}
 
-				CompatibilityResult<E> inputCompatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
-					nestedSerializerAndConfig.f0,
-					UnloadableDummyTypeSerializer.class,
-					nestedSerializerAndConfig.f1,
-					elementSerializer);
-
-				return (inputCompatibilityResult.isRequiresMigration())
-					? CompatibilityResult.requiresMigration()
-					: CompatibilityResult.compatible();
-			} else {
-				// backwards compatibility path
-				CompatibilityResult<E> inputCompatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
-					configSnapshot.restoreSerializer(),
-					UnloadableDummyTypeSerializer.class,
-					configSnapshot,
-					elementSerializer);
-
-				return (inputCompatibilityResult.isRequiresMigration())
-					? CompatibilityResult.requiresMigration()
-					: CompatibilityResult.compatible();
-			}
+		TypeSerializer<E> getElementSerializer() {
+			return elementSerializer;
 		}
 	}
 }
