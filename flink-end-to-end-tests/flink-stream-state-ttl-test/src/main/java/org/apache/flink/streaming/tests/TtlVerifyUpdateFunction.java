@@ -33,7 +33,6 @@ import org.apache.flink.streaming.tests.verify.TtlUpdateContext;
 import org.apache.flink.streaming.tests.verify.TtlVerificationContext;
 import org.apache.flink.streaming.tests.verify.ValueWithTs;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,11 +40,13 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Update state with TTL for each verifier.
@@ -62,21 +63,26 @@ import java.util.stream.StreamSupport;
  * - verifies last update against previous updates
  * - emits verification context in case of failure
  */
-class TtlVerifyUpdateFunction
-	extends RichFlatMapFunction<TtlStateUpdate, String> implements CheckpointedFunction {
+class TtlVerifyUpdateFunction extends RichFlatMapFunction<TtlStateUpdate, String> implements CheckpointedFunction {
+
+	private static final long serialVersionUID = 1L;
+
 	private static final Logger LOG = LoggerFactory.getLogger(TtlVerifyUpdateFunction.class);
 
 	@Nonnull
 	private final StateTtlConfig ttlConfig;
-	private final long ttl;
+	private final MonotonicTTLTimeProvider ttlTimeProvider;
 	private final UpdateStat stat;
 
 	private transient Map<String, State> states;
 	private transient Map<String, ListState<ValueWithTs<?>>> prevUpdatesByVerifierId;
 
-	TtlVerifyUpdateFunction(@Nonnull StateTtlConfig ttlConfig, long reportStatAfterUpdatesNum) {
+	TtlVerifyUpdateFunction(
+			@Nonnull StateTtlConfig ttlConfig,
+			MonotonicTTLTimeProvider ttlTimeProvider,
+			long reportStatAfterUpdatesNum) {
 		this.ttlConfig = ttlConfig;
-		this.ttl = ttlConfig.getTtl().toMilliseconds();
+		this.ttlTimeProvider = checkNotNull(ttlTimeProvider);
 		this.stat = new UpdateStat(reportStatAfterUpdatesNum);
 	}
 
@@ -91,17 +97,13 @@ class TtlVerifyUpdateFunction
 	}
 
 	private TtlVerificationContext<?, ?> generateUpdateAndVerificationContext(
-		TtlStateUpdate updates, TtlStateVerifier<?, ?> verifier) throws Exception {
+			TtlStateUpdate updates,
+			TtlStateVerifier<?, ?> verifier) throws Exception {
+
 		List<ValueWithTs<?>> prevUpdates = getPrevUpdates(verifier.getId());
 		Object update = updates.getUpdate(verifier.getId());
 		TtlUpdateContext<?, ?> updateContext = performUpdate(verifier, update);
-		boolean clashes = updateClashesWithPrevUpdates(updateContext.getUpdateWithTs(), prevUpdates);
-		if (clashes) {
-			resetState(verifier.getId());
-			prevUpdates = Collections.emptyList();
-			updateContext = performUpdate(verifier, update);
-		}
-		stat.update(clashes, prevUpdates.size());
+		stat.update(prevUpdates.size());
 		prevUpdatesByVerifierId.get(verifier.getId()).add(updateContext.getUpdateWithTs());
 		return new TtlVerificationContext<>(updates.getKey(), verifier.getId(), prevUpdates, updateContext);
 	}
@@ -113,33 +115,22 @@ class TtlVerifyUpdateFunction
 	}
 
 	private TtlUpdateContext<?, ?> performUpdate(
-		TtlStateVerifier<?, ?> verifier, Object update) throws Exception {
+			TtlStateVerifier<?, ?> verifier,
+			Object update) throws Exception {
+
+		final long timestampBeforeUpdate = ttlTimeProvider.currentTimestamp();
 		State state = states.get(verifier.getId());
-		long timestampBeforeUpdate = System.currentTimeMillis();
 		Object valueBeforeUpdate = verifier.get(state);
 		verifier.update(state, update);
 		Object updatedValue = verifier.get(state);
-		return new TtlUpdateContext<>(timestampBeforeUpdate,
-			valueBeforeUpdate, update, updatedValue, System.currentTimeMillis());
-	}
+		final long timestampAfterUpdate = ttlTimeProvider.unfreezeTime();
 
-	private boolean updateClashesWithPrevUpdates(ValueWithTs<?> update, List<ValueWithTs<?>> prevUpdates) {
-		return tooSlow(update) ||
-			(!prevUpdates.isEmpty() && prevUpdates.stream().anyMatch(pu -> updatesClash(pu, update)));
-	}
+		checkState(
+				timestampAfterUpdate == timestampBeforeUpdate,
+				"Timestamps before and after the update do not match."
+		);
 
-	private boolean tooSlow(ValueWithTs<?> update) {
-		return update.getTimestampAfterUpdate() - update.getTimestampBeforeUpdate() >= ttl;
-	}
-
-	private boolean updatesClash(ValueWithTs<?> prevUpdate, ValueWithTs<?> nextUpdate) {
-		return prevUpdate.getTimestampAfterUpdate() + ttl >= nextUpdate.getTimestampBeforeUpdate() &&
-			prevUpdate.getTimestampBeforeUpdate() + ttl <= nextUpdate.getTimestampAfterUpdate();
-	}
-
-	private void resetState(String verifierId) {
-		states.get(verifierId).clear();
-		prevUpdatesByVerifierId.get(verifierId).clear();
+		return new TtlUpdateContext<>(valueBeforeUpdate, update, updatedValue, timestampAfterUpdate);
 	}
 
 	@Override
@@ -153,7 +144,7 @@ class TtlVerifyUpdateFunction
 			.collect(Collectors.toMap(TtlStateVerifier::getId, v -> v.createState(context, ttlConfig)));
 		prevUpdatesByVerifierId = TtlStateVerifier.VERIFIERS.stream()
 			.collect(Collectors.toMap(TtlStateVerifier::getId, v -> {
-				Preconditions.checkNotNull(v);
+				checkNotNull(v);
 				TypeSerializer<ValueWithTs<?>> typeSerializer = new ValueWithTs.Serializer(v.getUpdateSerializer());
 				ListStateDescriptor<ValueWithTs<?>> stateDesc = new ListStateDescriptor<>(
 					"TtlPrevValueState_" + v.getId(), typeSerializer);
@@ -165,22 +156,17 @@ class TtlVerifyUpdateFunction
 	private static class UpdateStat implements Serializable {
 		final long reportStatAfterUpdatesNum;
 		long updates = 0;
-		long clashes = 0;
 		long prevUpdatesNum = 0;
 
 		UpdateStat(long reportStatAfterUpdatesNum) {
 			this.reportStatAfterUpdatesNum = reportStatAfterUpdatesNum;
 		}
 
-		void update(boolean clash, long prevUpdatesSize) {
+		void update(long prevUpdatesSize) {
 			updates++;
-			if (clash) {
-				clashes++;
-			}
 			prevUpdatesNum += prevUpdatesSize;
 			if (updates % reportStatAfterUpdatesNum == 0) {
-				LOG.info(String.format("Avg update chain length: %d, clash stat: %d/%d",
-					prevUpdatesNum / updates, clashes, updates));
+				LOG.info(String.format("Avg update chain length: %d", prevUpdatesNum / updates));
 			}
 		}
 	}
