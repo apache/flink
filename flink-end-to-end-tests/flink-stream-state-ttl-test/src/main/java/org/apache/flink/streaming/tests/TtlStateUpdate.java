@@ -25,6 +25,9 @@ import java.util.Map;
 
 /** Randomly generated keyed state updates per state type. */
 class TtlStateUpdate implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+
 	private final int key;
 
 	@Nonnull
