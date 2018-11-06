@@ -38,7 +38,7 @@ public class DeclineCheckpoint extends AbstractCheckpointMessage implements java
 
 	private static final long serialVersionUID = 2094094662279578953L;
 
-	/** The reason why the checkpoint was declined */
+	/** The reason why the checkpoint was declined. */
 	private final Throwable reason;
 
 	public DeclineCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId) {
@@ -68,7 +68,7 @@ public class DeclineCheckpoint extends AbstractCheckpointMessage implements java
 
 	/**
 	 * Gets the reason why the checkpoint was declined.
-	 * 
+	 *
 	 * @return The reason why the checkpoint was declined
 	 */
 	public Throwable getReason() {
