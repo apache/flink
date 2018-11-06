@@ -35,15 +35,14 @@ public class BroadcastPartitionerTest {
 	private BroadcastPartitioner<Tuple> broadcastPartitioner2;
 	private BroadcastPartitioner<Tuple> broadcastPartitioner3;
 
-	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>(null);
-	private SerializationDelegate<StreamRecord<Tuple>> sd = new SerializationDelegate<StreamRecord<Tuple>>(null);
+	private StreamRecord<Tuple> streamRecord = new StreamRecord<>(null);
+	private SerializationDelegate<StreamRecord<Tuple>> serializationDelegate = new SerializationDelegate<>(null);
 
 	@Before
 	public void setPartitioner() {
-		broadcastPartitioner1 = new BroadcastPartitioner<Tuple>();
-		broadcastPartitioner2 = new BroadcastPartitioner<Tuple>();
-		broadcastPartitioner3 = new BroadcastPartitioner<Tuple>();
-
+		broadcastPartitioner1 = new BroadcastPartitioner<>();
+		broadcastPartitioner2 = new BroadcastPartitioner<>();
+		broadcastPartitioner3 = new BroadcastPartitioner<>();
 	}
 
 	@Test
@@ -51,9 +50,11 @@ public class BroadcastPartitionerTest {
 		int[] first = new int[] { 0 };
 		int[] second = new int[] { 0, 1 };
 		int[] sixth = new int[] { 0, 1, 2, 3, 4, 5 };
-		sd.setInstance(streamRecord);
-		assertArrayEquals(first, broadcastPartitioner1.selectChannels(sd, 1));
-		assertArrayEquals(second, broadcastPartitioner2.selectChannels(sd, 2));
-		assertArrayEquals(sixth, broadcastPartitioner3.selectChannels(sd, 6));
+
+		serializationDelegate.setInstance(streamRecord);
+
+		assertArrayEquals(first, broadcastPartitioner1.selectChannels(serializationDelegate, 1));
+		assertArrayEquals(second, broadcastPartitioner2.selectChannels(serializationDelegate, 2));
+		assertArrayEquals(sixth, broadcastPartitioner3.selectChannels(serializationDelegate, 6));
 	}
 }

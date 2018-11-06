@@ -36,16 +36,12 @@ import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -62,33 +58,19 @@ import static org.junit.Assert.fail;
  * Tests for {@link RescalePartitioner}.
  */
 @SuppressWarnings("serial")
-public class RescalePartitionerTest extends TestLogger {
+public class RescalePartitionerTest extends StreamPartitionerTest {
 
-	private RescalePartitioner<Tuple> distributePartitioner;
-	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>(null);
-	private SerializationDelegate<StreamRecord<Tuple>> sd = new SerializationDelegate<StreamRecord<Tuple>>(
-			null);
-
-	@Before
-	public void setPartitioner() {
-		distributePartitioner = new RescalePartitioner<Tuple>();
-	}
-
-	@Test
-	public void testSelectChannelsLength() {
-		sd.setInstance(streamRecord);
-		assertEquals(1, distributePartitioner.selectChannels(sd, 1).length);
-		assertEquals(1, distributePartitioner.selectChannels(sd, 2).length);
-		assertEquals(1, distributePartitioner.selectChannels(sd, 1024).length);
+	@Override
+	public StreamPartitioner<Tuple> createPartitioner() {
+		return new RescalePartitioner<>();
 	}
 
 	@Test
 	public void testSelectChannelsInterval() {
-		sd.setInstance(streamRecord);
-		assertEquals(0, distributePartitioner.selectChannels(sd, 3)[0]);
-		assertEquals(1, distributePartitioner.selectChannels(sd, 3)[0]);
-		assertEquals(2, distributePartitioner.selectChannels(sd, 3)[0]);
-		assertEquals(0, distributePartitioner.selectChannels(sd, 3)[0]);
+		assertSelectedChannel(0, 3);
+		assertSelectedChannel(1, 3);
+		assertSelectedChannel(2, 3);
+		assertSelectedChannel(0, 3);
 	}
 
 	@Test
