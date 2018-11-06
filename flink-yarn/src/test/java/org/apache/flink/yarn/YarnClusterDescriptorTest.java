@@ -174,7 +174,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			true);
 
 		final String java = "$JAVA_HOME/bin/java";
-		final String jvmmem = "-Xmx424m";
+		final String jvmmem = "-Xms424m -Xmx424m";
 		final String jvmOpts = "-Djvm"; // if set
 		final String jmJvmOpts = "-DjmJvm"; // if set
 		final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
