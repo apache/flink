@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.tests;
+package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -36,7 +36,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * This is a periodic streaming job that runs for API testing purpose.
+ * This is a periodic streaming job that runs for CLI testing purposes.
  *
  * <p>The stream is bounded and will complete after the specified duration.
  *
@@ -44,7 +44,7 @@ import java.util.List;
  * -outputPath Sets the path to where the result data is written.
  * -recordsPerSecond Sets the output record frequency.
  * -durationInSecond Sets the running duration of the job.
- * -offsetInSecond Sets the startup delay before the processing first message.
+ * -offsetInSecond Sets the startup delay before processing the first message.
  */
 public class PeriodicStreamingJob {
 
@@ -63,9 +63,9 @@ public class PeriodicStreamingJob {
 		// execute a simple pass through program.
 		PeriodicSourceGenerator generator = new PeriodicSourceGenerator(
 			recordsPerSecond, duration, offset);
-		DataStream rows = sEnv.addSource(generator);
+		DataStream<Tuple> rows = sEnv.addSource(generator);
 
-		DataStream result = rows
+		DataStream<Tuple> result = rows
 			.keyBy(1)
 			.timeWindow(Time.seconds(5))
 			.sum(0);
@@ -105,7 +105,9 @@ public class PeriodicStreamingJob {
 		}
 
 		@Override
-		public void cancel() { }
+		public void cancel() {
+			// nothing to do
+		}
 
 		@Override
 		public TypeInformation<Tuple> getProducedType() {

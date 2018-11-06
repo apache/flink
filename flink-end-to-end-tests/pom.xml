@@ -35,7 +35,7 @@ under the License.
 	<name>flink-end-to-end-tests</name>
 
 	<modules>
-		<module>flink-api-test</module>
+		<module>flink-cli-test</module>
 		<module>flink-parent-child-classloading-test</module>
 		<module>flink-dataset-allround-test</module>
 		<module>flink-datastream-allround-test</module>
