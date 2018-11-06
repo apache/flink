@@ -155,7 +155,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 				testHarness2.open();
 			}
 
-			assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42), 30_000L);
+			assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42));
 			deleteTestTopic(topic);
 		}
 		catch (Exception ex) {
@@ -204,7 +204,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		testHarness.initializeState(snapshot);
 		testHarness.close();
 
-		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43), 30_000L);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43));
 
 		deleteTestTopic(topic);
 	}
@@ -254,7 +254,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 			testHarness2.open();
 		}
 
-		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43), 30_000L);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43));
 
 		deleteTestTopic(topic);
 	}
@@ -300,7 +300,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		// - aborted transactions with records 44 and 45
 		// - committed transaction with record 46
 		// - pending transaction with record 47
-		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 46), 30_000L);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 46));
 
 		testHarness.close();
 		deleteTestTopic(topic);
@@ -349,7 +349,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		//now we should have:
 		// - records 42 and 43 in committed transactions
 		// - aborted transactions with records 44 and 45
-		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43), 30_000L);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43));
 		deleteTestTopic(topic);
 	}
 
@@ -401,7 +401,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		// - records 42, 43, 44 and 45 in aborted transactions
 		// - committed transaction with record 46
 		// - pending transaction with record 47
-		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(46), 30_000L);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(46));
 
 		postScaleDownOperator1.close();
 		// ignore ProducerFencedExceptions, because postScaleDownOperator1 could reuse transactional ids.
@@ -470,8 +470,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 			createProperties(),
 			topic,
 			0,
-			IntStream.range(0, parallelism1 + parallelism2 + parallelism3).boxed().collect(Collectors.toList()),
-			30_000L);
+			IntStream.range(0, parallelism1 + parallelism2 + parallelism3).boxed().collect(Collectors.toList()));
 		deleteTestTopic(topic);
 	}
 
@@ -543,7 +542,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		testHarness.initializeState(checkpoint0); // recover state 0 - producerA recover and commit txn 0
 		testHarness.close();
 
-		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42), 30_000L);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42));
 
 		deleteTestTopic(topic);
 	}
@@ -574,7 +573,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 	public void testMigrateFromAtLeastOnceToExactlyOnce() throws Exception {
 		String topic = "testMigrateFromAtLeastOnceToExactlyOnce";
 		testRecoverWithChangeSemantics(topic, AT_LEAST_ONCE, EXACTLY_ONCE);
-		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 44, 45), 30_000L);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 44, 45));
 		deleteTestTopic(topic);
 	}
 
@@ -582,7 +581,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 	public void testMigrateFromAtExactlyOnceToAtLeastOnce() throws Exception {
 		String topic = "testMigrateFromExactlyOnceToAtLeastOnce";
 		testRecoverWithChangeSemantics(topic, EXACTLY_ONCE, AT_LEAST_ONCE);
-		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 45, 46, 47), 30_000L);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 45, 46, 47));
 		deleteTestTopic(topic);
 	}
 

@@ -241,6 +241,14 @@ public abstract class KafkaTestBase extends TestLogger {
 		fail(String.format("Expected to contain all of: <%s>, but was: <%s>", expectedElements, actualElements));
 	}
 
+	protected void assertExactlyOnceForTopic(
+		Properties properties,
+		String topic,
+		int partition,
+		List<Integer> expectedElements) {
+		assertExactlyOnceForTopic(properties, topic, partition, expectedElements, 30_000L);
+	}
+
 	/**
 	 * We manually handle the timeout instead of using JUnit's timeout to return failure instead of timeout error.
 	 * After timeout we assume that there are missing records and there is a bug, not that the test has run out of time.
@@ -250,7 +258,7 @@ public abstract class KafkaTestBase extends TestLogger {
 			String topic,
 			int partition,
 			List<Integer> expectedElements,
-			long timeoutMillis) throws Exception {
+			long timeoutMillis) {
 
 		long startMillis = System.currentTimeMillis();
 		List<Integer> actualElements = new ArrayList<>();
