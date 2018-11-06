@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.Map;
@@ -48,6 +49,8 @@ public class MapSerializerSnapshot<K, V> implements TypeSerializerSnapshot<Map<K
 	 * Constructor to create the snapshot for writing.
 	 */
 	public MapSerializerSnapshot(TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer) {
+		Preconditions.checkNotNull(keySerializer);
+		Preconditions.checkNotNull(valueSerializer);
 		this.nestedKeyValueSerializerSnapshot = new CompositeSerializerSnapshot(keySerializer, valueSerializer);
 	}
 
