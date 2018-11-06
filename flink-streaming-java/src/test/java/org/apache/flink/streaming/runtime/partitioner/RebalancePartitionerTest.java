@@ -18,46 +18,29 @@
 package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import org.junit.Before;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link RebalancePartitioner}.
  */
-public class RebalancePartitionerTest {
+public class RebalancePartitionerTest extends StreamPartitionerTest {
 
-	private RebalancePartitioner<Tuple> distributePartitioner;
-	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>(null);
-	private SerializationDelegate<StreamRecord<Tuple>> sd = new SerializationDelegate<StreamRecord<Tuple>>(
-			null);
-
-	@Before
-	public void setPartitioner() {
-		distributePartitioner = new RebalancePartitioner<Tuple>();
-	}
-
-	@Test
-	public void testSelectChannelsLength() {
-		sd.setInstance(streamRecord);
-		assertEquals(1, distributePartitioner.selectChannels(sd, 1).length);
-		assertEquals(1, distributePartitioner.selectChannels(sd, 2).length);
-		assertEquals(1, distributePartitioner.selectChannels(sd, 1024).length);
+	@Override
+	public StreamPartitioner<Tuple> createPartitioner() {
+		return new RebalancePartitioner<>();
 	}
 
 	@Test
 	public void testSelectChannelsInterval() {
-		sd.setInstance(streamRecord);
-		int initialChannel = distributePartitioner.selectChannels(sd, 3)[0];
+		int initialChannel = streamPartitioner.selectChannels(serializationDelegate, 3)[0];
 		assertTrue(0 <= initialChannel);
 		assertTrue(3 > initialChannel);
-		assertEquals((initialChannel + 1) % 3, distributePartitioner.selectChannels(sd, 3)[0]);
-		assertEquals((initialChannel + 2) % 3, distributePartitioner.selectChannels(sd, 3)[0]);
-		assertEquals((initialChannel + 3) % 3, distributePartitioner.selectChannels(sd, 3)[0]);
+
+		assertSelectedChannel((initialChannel + 1) % 3, 3);
+		assertSelectedChannel((initialChannel + 2) % 3, 3);
+		assertSelectedChannel((initialChannel + 3) % 3, 3);
 	}
 }
