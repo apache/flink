@@ -418,7 +418,7 @@ function wait_job_terminal_state {
   echo "Waiting for job ($job) to reach terminal state $terminal_state ..."
 
   while : ; do
-    N=$(grep -o "Job $job reached globally terminal state $terminal_state" $FLINK_DIR/log/*standalonesession*.log | tail -1)
+    N=$(grep -o "Job $job reached globally terminal state $terminal_state" $FLINK_DIR/log/*standalonesession*.log | tail -1 || true)
 
     if [[ -z $N ]]; then
       sleep 1

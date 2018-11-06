@@ -18,7 +18,7 @@
 ################################################################################
 
 source "$(dirname "$0")"/common.sh
-source "$(dirname "$0")"/kafka-common.sh
+source "$(dirname "$0")"/kafka-common.sh 0.10.2.0 3.2.0 3.2
 source "$(dirname "$0")"/elasticsearch-common.sh
 
 SQL_TOOLBOX_JAR=$END_TO_END_DIR/flink-sql-client-test/target/SqlToolbox.jar
@@ -306,7 +306,7 @@ EOF
 
 echo "Executing SQL: Kafka JSON -> Kafka Avro"
 
-read -r -d '' SQL_STATEMENT_1 << EOF
+SQL_STATEMENT_1=$(cat << EOF
 INSERT INTO AvroBothTable
   SELECT
     CAST(TUMBLE_START(rowtime, INTERVAL '1' HOUR) AS VARCHAR) AS event_timestamp,
@@ -320,6 +320,7 @@ INSERT INTO AvroBothTable
     event.message,
     TUMBLE(rowtime, INTERVAL '1' HOUR)
 EOF
+)
 
 echo "$SQL_STATEMENT_1"
 
@@ -331,11 +332,12 @@ $FLINK_DIR/bin/sql-client.sh embedded \
 
 echo "Executing SQL: Kafka Avro -> Filesystem CSV"
 
-read -r -d '' SQL_STATEMENT_2 << EOF
+SQL_STATEMENT_2=$(cat << EOF
 INSERT INTO CsvSinkTable
   SELECT AvroBothTable.*, RegReplace('Test constant folding.', 'Test', 'Success') AS constant
   FROM AvroBothTable
 EOF
+)
 
 echo "$SQL_STATEMENT_2"
 
@@ -360,13 +362,14 @@ check_result_hash "SQL Client Kafka" $RESULT "0a1bf8bf716069b7269f575f87a802c0"
 
 echo "Executing SQL: Values -> Elasticsearch (upsert)"
 
-read -r -d '' SQL_STATEMENT_3 << EOF
+SQL_STATEMENT_3=$(cat << EOF
 INSERT INTO ElasticsearchUpsertSinkTable
   SELECT user_id, user_name, COUNT(*) AS user_count
   FROM (VALUES (1, 'Bob'), (22, 'Alice'), (42, 'Greg'), (42, 'Greg'), (42, 'Greg'), (1, 'Bob'))
     AS UserCountTable(user_id, user_name)
   GROUP BY user_id, user_name
 EOF
+)
 
 JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
   --library $SQL_JARS_DIR \
@@ -380,7 +383,7 @@ verify_result_hash "SQL Client Elasticsearch Upsert" "$ELASTICSEARCH_INDEX" 3 "9
 
 echo "Executing SQL: Values -> Elasticsearch (append, no key)"
 
-read -r -d '' SQL_STATEMENT_4 << EOF
+SQL_STATEMENT_4=$(cat << EOF
 INSERT INTO ElasticsearchAppendSinkTable
   SELECT *
   FROM (
@@ -393,6 +396,7 @@ INSERT INTO ElasticsearchAppendSinkTable
       (1, 'Bob', CAST(0 AS BIGINT)))
     AS UserCountTable(user_id, user_name, user_count)
 EOF
+)
 
 JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
   --library $SQL_JARS_DIR \
@@ -407,7 +411,7 @@ verify_result_line_number 9 "$ELASTICSEARCH_INDEX"
 
 echo "Executing SQL: Match recognize -> Elasticsearch"
 
-read -r -d '' SQL_STATEMENT_5 << EOF
+SQL_STATEMENT_5=$(cat << EOF
 INSERT INTO ElasticsearchAppendSinkTable
   SELECT 1 as user_id, T.userName as user_name, cast(1 as BIGINT) as user_count
   FROM (
@@ -423,6 +427,7 @@ INSERT INTO ElasticsearchAppendSinkTable
         A as user = 'Alice'
   ) T
 EOF
+)
 
 JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
   --library $SQL_JARS_DIR \
