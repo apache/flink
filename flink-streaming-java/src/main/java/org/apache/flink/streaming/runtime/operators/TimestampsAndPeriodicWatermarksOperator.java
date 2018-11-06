@@ -66,6 +66,7 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 			long now = getProcessingTimeService().getCurrentProcessingTime();
 			getProcessingTimeService().registerTimer(now + watermarkInterval, this);
 		}
+		output.emitWatermark(new Watermark(currentWatermark));
 	}
 
 	@Override
@@ -134,7 +135,6 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 			currentWatermark = Long.MIN_VALUE;
 			LOG.info("No restore state for TimestampsAndPeriodicWatermarksOperator.");
 		}
-		output.emitWatermark(new Watermark(currentWatermark));
 	}
 
 	@Override

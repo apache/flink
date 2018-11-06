@@ -315,6 +315,7 @@ public class TimestampITCase extends TestLogger {
 			@Override
 			public void run(SourceContext<Integer> ctx) throws Exception {
 				int index = 1;
+				latch.await();
 				while (index <= numElements) {
 					ctx.collect(index);
 					latch.await();
@@ -344,6 +345,12 @@ public class TimestampITCase extends TestLogger {
 		Assert.assertEquals(extractOp.getTransformation().getParallelism(), source1.getTransformation().getParallelism());
 
 		env.execute();
+
+		// remote first watermark emitted by watermark operator
+		Watermark firstWatermark = CustomOperator.finalWatermarks[0].remove(0);
+		if (firstWatermark.getTimestamp() != Long.MIN_VALUE) {
+			throw new RuntimeException("First watermark should be " + Long.MIN_VALUE);
+		}
 
 		// verify that we get NUM_ELEMENTS watermarks
 		for (int j = 0; j < numElements; j++) {
@@ -378,6 +385,7 @@ public class TimestampITCase extends TestLogger {
 			@Override
 			public void run(SourceContext<Integer> ctx) throws Exception {
 				int index = 1;
+				latch.await();
 				while (index <= numElements) {
 					ctx.collect(index);
 					latch.await();
@@ -406,6 +414,12 @@ public class TimestampITCase extends TestLogger {
 				.transform("Timestamp Check", BasicTypeInfo.INT_TYPE_INFO, new TimestampCheckingOperator());
 
 		env.execute();
+
+		// remote first watermark emitted by watermark operator
+		Watermark firstWatermark = CustomOperator.finalWatermarks[0].remove(0);
+		if (firstWatermark.getTimestamp() != Long.MIN_VALUE) {
+			throw new RuntimeException("First watermark should be " + Long.MIN_VALUE);
+		}
 
 		// verify that we get NUM_ELEMENTS watermarks
 		for (int j = 0; j < numElements; j++) {
@@ -437,6 +451,7 @@ public class TimestampITCase extends TestLogger {
 			@Override
 			public void run(SourceContext<Integer> ctx) throws Exception {
 				int index = 1;
+				latch.await();
 				while (index <= numElements) {
 					ctx.collect(index);
 					Thread.sleep(100);
@@ -467,6 +482,12 @@ public class TimestampITCase extends TestLogger {
 				.transform("Timestamp Check", BasicTypeInfo.INT_TYPE_INFO, new TimestampCheckingOperator());
 
 		env.execute();
+
+		// remote first watermark emitted by watermark operator
+		Watermark firstWatermark = CustomOperator.finalWatermarks[0].remove(0);
+		if (firstWatermark.getTimestamp() != Long.MIN_VALUE) {
+			throw new RuntimeException("First watermark should be " + Long.MIN_VALUE);
+		}
 
 		// verify that we get NUM_ELEMENTS watermarks
 		for (int j = 0; j < numElements; j++) {
