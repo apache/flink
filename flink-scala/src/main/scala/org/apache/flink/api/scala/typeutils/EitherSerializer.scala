@@ -116,21 +116,22 @@ class EitherSerializer[A, B](
     31 * leftSerializer.hashCode() + rightSerializer.hashCode()
   }
 
+  def getLeftSerializer: TypeSerializer[A] = leftSerializer
+
+  def getRightSerializer: TypeSerializer[B] = rightSerializer
+
   // --------------------------------------------------------------------------------------------
   // Serializer configuration snapshotting & compatibility
   // --------------------------------------------------------------------------------------------
 
-  override def snapshotConfiguration(): ScalaEitherSerializerConfigSnapshot[A, B] = {
-    new ScalaEitherSerializerConfigSnapshot[A, B](leftSerializer, rightSerializer)
+  override def snapshotConfiguration(): ScalaEitherSerializerSnapshot[A, B] = {
+    new ScalaEitherSerializerSnapshot[A, B](leftSerializer, rightSerializer)
   }
 
   override def ensureCompatibility(
       configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[Either[A, B]] = {
 
     configSnapshot match {
-      case eitherSerializerConfig: ScalaEitherSerializerConfigSnapshot[A, B] =>
-        checkCompatibility(eitherSerializerConfig)
-
       // backwards compatibility path;
       // Flink versions older or equal to 1.5.x uses a
       // EitherSerializerConfigSnapshot as the snapshot
