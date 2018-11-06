@@ -25,6 +25,7 @@ import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.CommandLineWrapper;
 import org.apache.flink.tests.util.FlinkDistribution;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,6 +33,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.junit.Assume;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -58,9 +61,29 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
 	private static final String PROMETHEUS_VERSION = "2.4.3";
-	private static final String PROMETHEUS_FILE_NAME = "prometheus-" + PROMETHEUS_VERSION + ".linux-amd64";
+	private static final String PROMETHEUS_FILE_NAME;
+
+	static {
+		final String base = "prometheus-" + PROMETHEUS_VERSION + '.';
+		switch (OperatingSystem.getCurrentOperatingSystem()) {
+			case MAC_OS:
+				PROMETHEUS_FILE_NAME = base + "darwin-amd64";
+				break;
+			case WINDOWS:
+				PROMETHEUS_FILE_NAME = base + "windows-amd64";
+				break;
+			default:
+				PROMETHEUS_FILE_NAME = base + "linux-amd64";
+				break;
+		}
+	}
 
 	private static final Pattern LOG_REPORTER_PORT_PATTERN = Pattern.compile(".*Started PrometheusReporter HTTP server on port ([0-9]+).*");
+
+	@BeforeClass
+	public void checkOS() {
+		Assume.assumeFalse("This test does not run on Windows.", OperatingSystem.isWindows());
+	}
 
 	@Rule
 	public final FlinkDistribution dist = new FlinkDistribution();
