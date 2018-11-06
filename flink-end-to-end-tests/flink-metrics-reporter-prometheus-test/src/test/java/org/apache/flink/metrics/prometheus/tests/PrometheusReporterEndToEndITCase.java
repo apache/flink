@@ -81,7 +81,7 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 	private static final Pattern LOG_REPORTER_PORT_PATTERN = Pattern.compile(".*Started PrometheusReporter HTTP server on port ([0-9]+).*");
 
 	@BeforeClass
-	public void checkOS() {
+	public static void checkOS() {
 		Assume.assumeFalse("This test does not run on Windows.", OperatingSystem.isWindows());
 	}
 
