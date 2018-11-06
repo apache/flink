@@ -15,45 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.partitioner;
+package org.apache.flink.runtime.io.network.partitioner;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Partitioner that distributes the data equally by cycling through the output
- * channels.
+ * Partitioner that forwards elements only to the locally running downstream operation.
  *
- * @param <T> Type of the elements in the Stream being rebalanced
+ * @param <T> Type of the elements in the Stream
  */
 @Internal
-public class RebalancePartitioner<T> extends StreamPartitioner<T> {
+public class ForwardPartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	private final int[] returnArray = {Integer.MAX_VALUE - 1};
+	private final int[] returnArray = new int[] {0};
 
 	@Override
-	public int[] selectChannels(
-			SerializationDelegate<StreamRecord<T>> record,
-			int numChannels) {
-		int newChannel = ++returnArray[0];
-		if (newChannel >= numChannels) {
-			returnArray[0] = resetValue(numChannels, newChannel);
-		}
+	public int[] selectChannels(SerializationDelegate<T> record, int numberOfOutputChannels) {
 		return returnArray;
-	}
-
-	private static int resetValue(
-			int numChannels,
-			int newChannel) {
-		if (newChannel == Integer.MAX_VALUE) {
-			// Initializes the first partition, this branch is only entered when initializing.
-			return ThreadLocalRandom.current().nextInt(numChannels);
-		}
-		return 0;
 	}
 
 	public StreamPartitioner<T> copy() {
@@ -62,6 +42,6 @@ public class RebalancePartitioner<T> extends StreamPartitioner<T> {
 
 	@Override
 	public String toString() {
-		return "REBALANCE";
+		return "FORWARD";
 	}
 }

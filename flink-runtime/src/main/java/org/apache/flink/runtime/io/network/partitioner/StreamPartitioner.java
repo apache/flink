@@ -15,26 +15,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.partitioner;
+package org.apache.flink.runtime.io.network.partitioner;
 
-import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 
-import org.junit.Test;
+import java.io.Serializable;
 
 /**
- * Tests for {@link GlobalPartitioner}.
+ * A special {@link ChannelSelector} for use in streaming programs.
  */
-public class GlobalPartitionerTest extends StreamPartitionerTest {
+@Internal
+public abstract class StreamPartitioner<T> implements
+		ChannelSelector<SerializationDelegate<T>>, Serializable {
+	private static final long serialVersionUID = 1L;
 
-	@Override
-	public StreamPartitioner<Tuple> createPartitioner() {
-		return new GlobalPartitioner<>();
-	}
-
-	@Test
-	public void testSelectChannels() {
-		assertSelectedChannel(0, 1);
-		assertSelectedChannel(0, 2);
-		assertSelectedChannel(0, 1024);
-	}
+	public abstract StreamPartitioner<T> copy();
 }

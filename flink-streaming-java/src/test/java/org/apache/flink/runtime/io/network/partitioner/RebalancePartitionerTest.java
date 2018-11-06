@@ -15,26 +15,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.partitioner;
+package org.apache.flink.runtime.io.network.partitioner;
 
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.Test;
 
+import static org.junit.Assert.assertTrue;
+
 /**
- * Tests for {@link ForwardPartitioner}.
+ * Tests for {@link RebalancePartitioner}.
  */
-public class ForwardPartitionerTest extends StreamPartitionerTest {
+public class RebalancePartitionerTest extends StreamPartitionerTest {
 
 	@Override
-	public StreamPartitioner<Tuple> createPartitioner() {
-		return new ForwardPartitioner<>();
+	public StreamPartitioner<StreamRecord<Tuple>> createPartitioner() {
+		return new RebalancePartitioner<>();
 	}
 
 	@Test
 	public void testSelectChannelsInterval() {
-		assertSelectedChannel(0, 1);
-		assertSelectedChannel(0, 2);
-		assertSelectedChannel(0, 1024);
+		int initialChannel = streamPartitioner.selectChannels(serializationDelegate, 3)[0];
+		assertTrue(0 <= initialChannel);
+		assertTrue(3 > initialChannel);
+
+		assertSelectedChannel((initialChannel + 1) % 3, 3);
+		assertSelectedChannel((initialChannel + 2) % 3, 3);
+		assertSelectedChannel((initialChannel + 3) % 3, 3);
 	}
 }

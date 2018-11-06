@@ -18,12 +18,12 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import org.apache.flink.runtime.io.network.partitioner.ForwardPartitioner;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
-import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
 import org.apache.flink.shaded.guava18.com.google.common.hash.HashFunction;
 import org.apache.flink.shaded.guava18.com.google.common.hash.Hasher;

@@ -15,11 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.partitioner;
+package org.apache.flink.runtime.io.network.partitioner;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
  * Partitioner that selects all the output channels.
@@ -33,7 +32,7 @@ public class BroadcastPartitioner<T> extends StreamPartitioner<T> {
 	private int[] returnArray;
 
 	@Override
-	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
+	public int[] selectChannels(SerializationDelegate<T> record,
 			int numberOfOutputChannels) {
 		if (returnArray != null && returnArray.length == numberOfOutputChannels) {
 			return returnArray;

@@ -15,12 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.partitioner;
+package org.apache.flink.runtime.io.network.partitioner;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
  * Partitioner that distributes the data equally by cycling through the output
@@ -51,7 +50,7 @@ public class RescalePartitioner<T> extends StreamPartitioner<T> {
 	private final int[] returnArray = new int[] {-1};
 
 	@Override
-	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record, int numberOfOutputChannels) {
+	public int[] selectChannels(SerializationDelegate<T> record, int numberOfOutputChannels) {
 		int newChannel = ++this.returnArray[0];
 		if (newChannel >= numberOfOutputChannels) {
 			this.returnArray[0] = 0;

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.runtime.io.network.partitioner.ForwardPartitioner;
 import org.apache.flink.runtime.net.ConnectionUtils;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
@@ -29,7 +30,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.experimental.CollectSink;
 import org.apache.flink.streaming.experimental.SocketStreamIterator;
-import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
 import java.io.IOException;
 import java.net.InetAddress;

@@ -15,22 +15,41 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.partitioner;
+package org.apache.flink.runtime.io.network.partitioner;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import java.io.Serializable;
+import java.util.Random;
 
 /**
- * A special {@link ChannelSelector} for use in streaming programs.
+ * Partitioner that distributes the data equally by selecting one output channel
+ * randomly.
+ *
+ * @param <T>
+ *            Type of the Tuple
  */
 @Internal
-public abstract class StreamPartitioner<T> implements
-		ChannelSelector<SerializationDelegate<StreamRecord<T>>>, Serializable {
+public class ShufflePartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	public abstract StreamPartitioner<T> copy();
+	private Random random = new Random();
+
+	private final int[] returnArray = new int[1];
+
+	@Override
+	public int[] selectChannels(SerializationDelegate<T> record, int numberOfOutputChannels) {
+		returnArray[0] = random.nextInt(numberOfOutputChannels);
+		return returnArray;
+	}
+
+	@Override
+	public StreamPartitioner<T> copy() {
+		return new ShufflePartitioner<T>();
+	}
+
+	@Override
+	public String toString() {
+		return "SHUFFLE";
+	}
 }

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.partitioner;
+package org.apache.flink.runtime.io.network.partitioner;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -34,24 +34,25 @@ import static org.junit.Assert.assertEquals;
  */
 public class KeyGroupStreamPartitionerTest extends TestLogger {
 
-	private KeyGroupStreamPartitioner<Tuple2<String, Integer>, String> keyGroupPartitioner;
+	private KeyGroupStreamPartitioner<StreamRecord<Tuple2<String, Integer>>, String> keyGroupPartitioner;
 	private StreamRecord<Tuple2<String, Integer>> streamRecord1 = new StreamRecord<>(new Tuple2<>("test", 0));
 	private StreamRecord<Tuple2<String, Integer>> streamRecord2 = new StreamRecord<>(new Tuple2<>("test", 42));
-	private SerializationDelegate<StreamRecord<Tuple2<String, Integer>>> serializationDelegate1 = new SerializationDelegate<>(null);
-	private SerializationDelegate<StreamRecord<Tuple2<String, Integer>>> serializationDelegate2 = new SerializationDelegate<>(null);
+	private SerializationDelegate<StreamRecord<Tuple2<String, Integer>>> serializationDelegate1 =
+		new SerializationDelegate<>(null);
+	private SerializationDelegate<StreamRecord<Tuple2<String, Integer>>> serializationDelegate2 =
+		new SerializationDelegate<>(null);
 
 	@Before
 	public void setPartitioner() {
-		keyGroupPartitioner = new KeyGroupStreamPartitioner<>(new KeySelector<Tuple2<String, Integer>, String>() {
+		keyGroupPartitioner = new KeyGroupStreamPartitioner<>(
+			new KeySelector<StreamRecord<Tuple2<String, Integer>>, String>() {
+				private static final long serialVersionUID = 1L;
 
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public String getKey(Tuple2<String, Integer> value) throws Exception {
-				return value.getField(0);
-			}
-		},
-		1024);
+				@Override
+				public String getKey(StreamRecord<Tuple2<String, Integer>> value) throws Exception {
+					return value.getValue().getField(0);
+				}
+			}, 1024);
 	}
 
 	@Test

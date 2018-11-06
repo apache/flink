@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.io.network.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 

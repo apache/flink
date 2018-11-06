@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.partitioner;
+package org.apache.flink.runtime.io.network.partitioner;
 
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -32,12 +32,12 @@ import static org.junit.Assert.assertEquals;
  */
 public abstract class StreamPartitionerTest extends TestLogger {
 
-	protected final StreamPartitioner<Tuple> streamPartitioner = createPartitioner();
+	protected final StreamPartitioner<StreamRecord<Tuple>> streamPartitioner = createPartitioner();
 	protected final StreamRecord<Tuple> streamRecord = new StreamRecord<>(null);
 	protected final SerializationDelegate<StreamRecord<Tuple>> serializationDelegate =
 		new SerializationDelegate<>(null);
 
-	abstract StreamPartitioner<Tuple> createPartitioner();
+	abstract StreamPartitioner<StreamRecord<Tuple>> createPartitioner();
 
 	@Before
 	public void setup() {

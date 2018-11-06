@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.partitioner;
+package org.apache.flink.runtime.io.network.partitioner;
 
 /**
  * Interface for {@link StreamPartitioner} which have to be configured with the maximum parallelism

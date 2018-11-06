@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.partitioner;
+package org.apache.flink.runtime.io.network.partitioner;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -40,6 +40,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -61,7 +62,7 @@ import static org.junit.Assert.fail;
 public class RescalePartitionerTest extends StreamPartitionerTest {
 
 	@Override
-	public StreamPartitioner<Tuple> createPartitioner() {
+	public StreamPartitioner<StreamRecord<Tuple>> createPartitioner() {
 		return new RescalePartitioner<>();
 	}
 

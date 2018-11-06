@@ -15,26 +15,47 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.partitioner;
+package org.apache.flink.runtime.io.network.partitioner;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
- * Partitioner that sends all elements to the downstream operator with subtask ID=0.
+ * Partitioner that selects the channel with a user defined partitioner function on a key.
  *
- * @param <T> Type of the elements in the Stream being partitioned
+ * @param <K>
+ *            Type of the key
+ * @param <T>
+ *            Type of the data
  */
 @Internal
-public class GlobalPartitioner<T> extends StreamPartitioner<T> {
+public class CustomPartitionerWrapper<K, T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	private final int[] returnArray = new int[] { 0 };
+	private final int[] returnArray = new int[1];
+	Partitioner<K> partitioner;
+	KeySelector<T, K> keySelector;
+
+	public CustomPartitionerWrapper(Partitioner<K> partitioner, KeySelector<T, K> keySelector) {
+		this.partitioner = partitioner;
+		this.keySelector = keySelector;
+	}
 
 	@Override
-	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
-			int numberOfOutputChannels) {
+	public int[] selectChannels(SerializationDelegate<T> record, int numberOfOutputChannels) {
+
+		K key = null;
+		try {
+			key = keySelector.getKey(record.getInstance());
+		} catch (Exception e) {
+			throw new RuntimeException("Could not extract key from " + record.getInstance(), e);
+		}
+
+		returnArray[0] = partitioner.partition(key,
+				numberOfOutputChannels);
+
 		return returnArray;
 	}
 
@@ -45,6 +66,6 @@ public class GlobalPartitioner<T> extends StreamPartitioner<T> {
 
 	@Override
 	public String toString() {
-		return "GLOBAL";
+		return "CUSTOM";
 	}
 }

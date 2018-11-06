@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.partitioner;
+package org.apache.flink.runtime.io.network.partitioner;
 
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -31,9 +31,9 @@ import static org.junit.Assert.assertArrayEquals;
  */
 public class BroadcastPartitionerTest {
 
-	private BroadcastPartitioner<Tuple> broadcastPartitioner1;
-	private BroadcastPartitioner<Tuple> broadcastPartitioner2;
-	private BroadcastPartitioner<Tuple> broadcastPartitioner3;
+	private BroadcastPartitioner<StreamRecord<Tuple>> broadcastPartitioner1;
+	private BroadcastPartitioner<StreamRecord<Tuple>> broadcastPartitioner2;
+	private BroadcastPartitioner<StreamRecord<Tuple>> broadcastPartitioner3;
 
 	private StreamRecord<Tuple> streamRecord = new StreamRecord<>(null);
 	private SerializationDelegate<StreamRecord<Tuple>> serializationDelegate = new SerializationDelegate<>(null);

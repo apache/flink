@@ -15,9 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.partitioner;
+package org.apache.flink.runtime.io.network.partitioner;
 
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.Test;
 
@@ -29,7 +30,7 @@ import static org.junit.Assert.assertTrue;
 public class ShufflePartitionerTest extends StreamPartitionerTest {
 
 	@Override
-	public StreamPartitioner<Tuple> createPartitioner() {
+	public StreamPartitioner<StreamRecord<Tuple>> createPartitioner() {
 		return new ShufflePartitioner<>();
 	}
 
