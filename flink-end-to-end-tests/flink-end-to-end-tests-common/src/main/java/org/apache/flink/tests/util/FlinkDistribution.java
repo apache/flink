@@ -135,7 +135,7 @@ public final class FlinkDistribution extends ExternalResource {
 			.build();
 
 		Exception reportedException = null;
-		for (int x = 0; x < 30; x++) {
+		for (int retryAttempt = 0; retryAttempt < 30; retryAttempt++) {
 			try (Response response = client.newCall(request).execute()) {
 				if (response.isSuccessful()) {
 					final String json = response.body().string();
