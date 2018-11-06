@@ -18,29 +18,28 @@
 
 package org.apache.flink.table.dataview;
 
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTestBase;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.table.api.dataview.ListView;
 
 /**
- * A {@link TypeSerializerConfigSnapshot} for the {@link ListViewSerializer}.
- *
- * @param <T> the type of the list elements.
+ * Migration test for the {@link ListViewSerializerSnapshot}.
  */
-public final class ListViewSerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot<ListView<T>> {
+public class ListViewSerializerSnapshotMigrationTest extends TypeSerializerSnapshotMigrationTestBase<ListView<String>> {
 
-	private static final int VERSION = 1;
+	private static final String DATA = "flink-1.6-list-view-serializer-data";
+	private static final String SNAPSHOT = "flink-1.6-list-view-serializer-snapshot";
 
-	/** This empty nullary constructor is required for deserializing the configuration. */
-	public ListViewSerializerConfigSnapshot() {}
-
-	public ListViewSerializerConfigSnapshot(ListSerializer<T> listSerializer) {
-		super(listSerializer);
-	}
-
-	@Override
-	public int getVersion() {
-		return VERSION;
+	public ListViewSerializerSnapshotMigrationTest() {
+		super(
+			TestSpecification.<ListView<String>>builder(
+					"1.6-list-view-serializer",
+					ListViewSerializer.class,
+					ListViewSerializerSnapshot.class)
+				.withSerializerProvider(() -> new ListViewSerializer<>(new ListSerializer<>(StringSerializer.INSTANCE)))
+				.withSnapshotDataLocation(SNAPSHOT)
+				.withTestData(DATA, 10)
+		);
 	}
 }
