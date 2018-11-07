@@ -1550,7 +1550,7 @@ under the License.
 						<dependency>
 							<groupId>com.puppycrawl.tools</groupId>
 							<artifactId>checkstyle</artifactId>
-							<!-- Note: match version with docs/internals/ide_setup.md -->
+							<!-- Note: match version with docs/flinkDev/ide_setup.md -->
 							<version>8.9</version>
 						</dependency>
 					</dependencies>
