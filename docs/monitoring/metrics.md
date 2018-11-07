@@ -660,6 +660,7 @@ Example configuration:
 metrics.reporter.influxdb.class: org.apache.flink.metrics.influxdb.InfluxdbReporter
 metrics.reporter.influxdb.host: localhost
 metrics.reporter.influxdb.port: 8086
+metrics.reporter.influxdb.db: flink
 metrics.reporter.influxdb.username: flink-metrics
 metrics.reporter.influxdb.password: qwerty
 

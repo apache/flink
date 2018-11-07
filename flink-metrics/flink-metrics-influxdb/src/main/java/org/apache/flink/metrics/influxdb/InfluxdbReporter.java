@@ -67,10 +67,15 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 		if (host == null || host.isEmpty() || port < 1) {
 			throw new IllegalArgumentException("Invalid host/port configuration. Host: " + host + " Port: " + port);
 		}
+		String database = getString(config, DB);
+		if (database == null) {
+			throw new IllegalArgumentException("'" + DB.key() + "' configuration option is not set");
+		}
 		String url = String.format("http://%s:%d", host, port);
 		String username = getString(config, USERNAME);
 		String password = getString(config, PASSWORD);
-		database = getString(config, DB);
+
+		this.database = database;
 		if (username != null && password != null) {
 			influxDB = InfluxDBFactory.connect(url, username, password);
 		} else {

@@ -49,7 +49,7 @@ public class InfluxdbReporterOptions {
 
 	public static final ConfigOption<String> DB = ConfigOptions
 		.key("db")
-		.defaultValue("flink")
+		.noDefaultValue()
 		.withDescription("the InfluxDB database to store metrics");
 
 	static String getString(MetricConfig config, ConfigOption<String> key) {
