@@ -60,10 +60,6 @@ under the License.
 			<artifactId>jsr305</artifactId>
 			<scope>provided</scope>
 		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils-junit</artifactId>
-		</dependency>
 	</dependencies>
 
 </project>
