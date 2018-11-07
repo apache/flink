@@ -18,11 +18,18 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.CheckpointListener;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
@@ -73,6 +80,8 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		env.setMaxParallelism(maxParallelism);
 		env.setParallelism(parallelism);
+		env.enableCheckpointing(100);
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
 
 		final List<File> partitionFiles = new ArrayList<>(parallelism);
 		for (int i = 0; i < parallelism; ++i) {
@@ -156,15 +165,22 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 		}
 	}
 
-	private static class FromPartitionFileSource extends RichParallelSourceFunction<Tuple2<Integer, Integer>> {
+	private static class FromPartitionFileSource extends RichParallelSourceFunction<Tuple2<Integer, Integer>>
+	implements CheckpointedFunction, CheckpointListener {
 		private static final long serialVersionUID = 1L;
 
 		private List<File> allPartitions;
 		private DataInputStream din;
 		private volatile boolean running;
 
-		public FromPartitionFileSource(List<File> allPartitons) {
-			this.allPartitions = allPartitons;
+		private long position;
+		private transient ListState<Long> positionState;
+		private transient boolean isRestored;
+
+		private transient volatile boolean canFail;
+
+		public FromPartitionFileSource(List<File> allPartitions) {
+			this.allPartitions = allPartitions;
 		}
 
 		@Override
@@ -174,6 +190,11 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 			din = new DataInputStream(
 				new BufferedInputStream(
 					new FileInputStream(allPartitions.get(subtaskIdx))));
+
+			long toSkip = position;
+			while (toSkip > 0L) {
+				toSkip -= din.skip(toSkip);
+			}
 		}
 
 		@Override
@@ -187,11 +208,29 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 			this.running = true;
 			try {
 				while (running) {
-					Integer key = din.readInt();
-					Integer val = din.readInt();
-					out.collect(new Tuple2<>(key, val));
+
+					checkFail();
+
+					synchronized (out.getCheckpointLock()) {
+						Integer key = din.readInt();
+						Integer val = din.readInt();
+						out.collect(new Tuple2<>(key, val));
+
+						position += 2 * Integer.BYTES;
+					}
 				}
 			} catch (EOFException ignore) {
+				if (!isRestored) {
+					while (true) {
+						checkFail();
+					}
+				}
+			}
+		}
+
+		private void checkFail() throws Exception {
+			if (canFail) {
+				throw new Exception("Artificial failure.");
 			}
 		}
 
@@ -199,13 +238,42 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 		public void cancel() {
 			this.running = false;
 		}
+
+		@Override
+		public void notifyCheckpointComplete(long checkpointId) {
+			canFail = !isRestored;
+		}
+
+		@Override
+		public void snapshotState(FunctionSnapshotContext context) throws Exception {
+			positionState.add(position);
+		}
+
+		@Override
+		public void initializeState(FunctionInitializationContext context) throws Exception {
+			canFail = false;
+			position = 0L;
+			isRestored = context.isRestored();
+			positionState = context.getOperatorStateStore().getListState(
+				new ListStateDescriptor<>("posState", Long.class));
+
+			if (isRestored) {
+
+				for (Long value : positionState.get()) {
+					position += value;
+				}
+			}
+		}
 	}
 
-	private static class ValidatingSink extends RichSinkFunction<Tuple2<Integer, Integer>> {
+	private static class ValidatingSink extends RichSinkFunction<Tuple2<Integer, Integer>>
+		implements CheckpointedFunction {
 
 		private static final long serialVersionUID = 1L;
 		private final int expectedSum;
 		private int runningSum = 0;
+
+		private transient ListState<Integer> sumState;
 
 		private ValidatingSink(int expectedSum) {
 			this.expectedSum = expectedSum;
@@ -226,6 +294,23 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 		public void close() throws Exception {
 			Assert.assertEquals(expectedSum, runningSum);
 			super.close();
+		}
+
+		@Override
+		public void snapshotState(FunctionSnapshotContext context) throws Exception {
+			sumState.add(runningSum);
+		}
+
+		@Override
+		public void initializeState(FunctionInitializationContext context) throws Exception {
+			sumState = context.getOperatorStateStore().getListState(
+				new ListStateDescriptor<>("sumState", Integer.class));
+
+			if (context.isRestored()) {
+				for (Integer value : sumState.get()) {
+					runningSum += value;
+				}
+			}
 		}
 	}
 }
