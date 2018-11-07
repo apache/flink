@@ -20,6 +20,7 @@ package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.formats.avro.typeutils.AvroSerializer;
@@ -36,6 +37,9 @@ import org.apache.flink.util.Collector;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.applyTumblingWindows;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createArtificialKeyedStateMapper;
@@ -43,6 +47,8 @@ import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createEventSource;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createFailureMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSemanticsCheckMapper;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSlidingWindow;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSlidingWindowCheckMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.isSimulateFailures;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
@@ -149,6 +155,24 @@ public class DataStreamAllroundTestProgram {
 				.setParallelism(1)
 				.name(FAILURE_MAPPER_NAME).uid("0006");
 		}
+
+		DataStream<Tuple2<Integer, List<Event>>> eventStream4 = eventStream2.keyBy(Event::getKey)
+			.window(createSlidingWindow(pt))
+			.apply(new WindowFunction<Event, Tuple2<Integer, List<Event>>, Integer, TimeWindow>() {
+				private static final long serialVersionUID = 3166250579972849440L;
+
+				@Override
+				public void apply(
+					Integer key, TimeWindow window, Iterable<Event> input,
+					Collector<Tuple2<Integer, List<Event>>> out) throws Exception {
+
+					out.collect(Tuple2.of(key, StreamSupport.stream(input.spliterator(), false).collect(Collectors.toList())));
+				}
+			});
+
+		eventStream4.keyBy(events-> events.f0)
+			.flatMap(createSlidingWindowCheckMapper(pt))
+			.addSink(new PrintSinkFunction<>());
 
 		eventStream3.keyBy(Event::getKey)
 			.flatMap(createSemanticsCheckMapper(pt))
