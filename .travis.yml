@@ -105,6 +105,36 @@ matrix:
       - BRANCH="master"
       - PROFILE="-Dhadoop.version=2.8.3 -Dscala-2.12"
       - SCRIPT="split_kubernetes_e2e.sh"
+    - env:
+      - REMOTE="apache"
+      - BRANCH="master"
+      - PROFILE="-DwithoutHadoop -De2e-metrics"
+      - SCRIPT="split_misc_hadoopfree.sh"
+    - env:
+      - REMOTE="apache"
+      - BRANCH="master"
+      - PROFILE="-DwithoutHadoop"
+      - SCRIPT="split_ha.sh"
+    - env:
+      - REMOTE="apache"
+      - BRANCH="master"
+      - PROFILE="-DwithoutHadoop"
+      - SCRIPT="split_sticky.sh"
+    - env:
+      - REMOTE="apache"
+      - BRANCH="master"
+      - PROFILE="-DwithoutHadoop"
+      - SCRIPT="split_checkpoints.sh"
+    - env:
+      - REMOTE="apache"
+      - BRANCH="master"
+      - PROFILE="-DwithoutHadoop"
+      - SCRIPT="split_docker_e2e.sh"
+    - env:
+      - REMOTE="apache"
+      - BRANCH="master"
+      - PROFILE="-DwithoutHadoop"
+      - SCRIPT="split_kubernetes_e2e.sh"
 
 git:
   depth: 100
