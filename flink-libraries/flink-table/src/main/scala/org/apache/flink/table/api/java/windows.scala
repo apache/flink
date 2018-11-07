@@ -19,7 +19,7 @@
 package org.apache.flink.table.api.java
 
 import org.apache.flink.table.api.scala.{CURRENT_RANGE, UNBOUNDED_RANGE}
-import org.apache.flink.table.api._
+import org.apache.flink.table.api.{OverWindow, TumbleWithSize, OverWindowWithPreceding, SlideWithSize, SessionWithGap}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 
 /**

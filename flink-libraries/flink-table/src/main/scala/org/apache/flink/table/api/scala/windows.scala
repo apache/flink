@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.api.scala
 
-import org.apache.flink.table.api._
+import org.apache.flink.table.api.{OverWindow, TumbleWithSize, OverWindowWithPreceding, SlideWithSize, SessionWithGap}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 
 /**

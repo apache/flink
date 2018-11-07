@@ -1579,7 +1579,7 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
 
         <p><a href="tableApi.html#unbounded-over-windows">Unbounded over windows</a> are specified using a constant, i.e., <code>UNBOUNDED_RANGE</code> for a time interval or <code>UNBOUNDED_ROW</code> for a row-count interval. Unbounded over windows start with the first row of a partition.</p>
         
-        <p>If the <code>preceding</code> and <code>following</code> clause both are omitted, RANGE UNBOUNDED PRECEDING AND CURRENT ROW is used as default for window.</p>
+        <p>If the <code>preceding</code> clause is omitted, <code>UNBOUNDED_RANGE</code> and <code>CURRENT_RANGE</code> are used as the default <code>preceding</code> and <code>following</code> for the window.</p>
       </td>
     </tr>
     <tr>
