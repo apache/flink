@@ -17,10 +17,6 @@
 # limitations under the License.
 ################################################################################
 
-set -e
-set -u
-set -o pipefail
-
 KAFKA_EXAMPLE_JAR="$1"
 
 setup_kafka_dist

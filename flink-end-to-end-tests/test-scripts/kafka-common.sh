@@ -17,10 +17,6 @@
 # limitations under the License.
 ################################################################################
 
-set -e
-set -u
-set -o pipefail
-
 if [[ -z $TEST_DATA_DIR ]]; then
   echo "Must run common.sh before kafka-common.sh."
   exit 1

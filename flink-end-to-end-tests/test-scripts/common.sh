@@ -17,8 +17,6 @@
 # limitations under the License.
 ################################################################################
 
-set -o pipefail
-
 if [[ -z $FLINK_DIR ]]; then
     echo "FLINK_DIR needs to point to a Flink distribution directory"
     exit 1
@@ -304,6 +302,7 @@ function start_and_wait_for_tm {
 }
 
 function check_logs_for_errors {
+  echo "Checking for errors..."
   error_count=$(grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log \
       | grep -v "RetriableCommitFailedException" \
       | grep -v "NoAvailableBrokersException" \
@@ -320,15 +319,18 @@ function check_logs_for_errors {
       | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/yarn/exceptions/YarnException" \
       | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/conf/Configuration" \
       | grep -v "org.apache.flink.fs.shaded.hadoop3.org.apache.commons.beanutils.FluentPropertyBeanIntrospector  - Error when creating PropertyDescriptor for public final void org.apache.flink.fs.shaded.hadoop3.org.apache.commons.configuration2.AbstractConfiguration.setProperty(java.lang.String,java.lang.Object)! Ignoring this property." \
-      | grep -ic "error")
+      | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
     echo "Found error in log files:"
     cat $FLINK_DIR/log/*
     EXIT_CODE=1
+  else
+    echo "No errors in log files."
   fi
 }
 
 function check_logs_for_exceptions {
+  echo "Checking for exceptions..."
   exception_count=$(grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log \
    | grep -v "RetriableCommitFailedException" \
    | grep -v "NoAvailableBrokersException" \
@@ -348,19 +350,24 @@ function check_logs_for_exceptions {
    | grep -v "java.io.InvalidClassException: org.apache.flink.formats.avro.typeutils.AvroSerializer" \
    | grep -v "Caused by: java.lang.Exception: JobManager is shutting down" \
    | grep -v "java.lang.Exception: Artificial failure" \
-   | grep -ic "exception")
+   | grep -ic "exception" || true)
   if [[ ${exception_count} -gt 0 ]]; then
     echo "Found exception in log files:"
     cat $FLINK_DIR/log/*
     EXIT_CODE=1
+  else
+    echo "No exceptions in log files."
   fi
 }
 
 function check_logs_for_non_empty_out_files {
+  echo "Checking for non-empty .out files..."
   if grep -ri "." $FLINK_DIR/log/*.out > /dev/null; then
     echo "Found non-empty .out files:"
     cat $FLINK_DIR/log/*.out
     EXIT_CODE=1
+  else
+    echo "No non-empty .out files."
   fi
 }
 
@@ -374,7 +381,9 @@ function stop_cluster {
   "$FLINK_DIR"/bin/stop-cluster.sh
 
   # stop zookeeper only if there are processes running
-  if ! [ "`jps | grep 'FlinkZooKeeperQuorumPeer' | wc -l`" = "0" ]; then
+  zookeeper_process_count=$(jps | grep -c 'FlinkZooKeeperQuorumPeer' || true)
+  if [[ ${zookeeper_process_count} -gt 0 ]]; then
+    echo "Stopping zookeeper..."
     "$FLINK_DIR"/bin/zookeeper.sh stop
   fi
 }
@@ -489,9 +498,9 @@ function tm_kill_all {
 
 # Kills all processes that match the given name.
 function kill_all {
-  local pid=`jps | grep -E "${1}" | cut -d " " -f 1`
-  kill ${pid} 2> /dev/null
-  wait ${pid} 2> /dev/null
+  local pid=`jps | grep -E "${1}" | cut -d " " -f 1 || true`
+  kill ${pid} 2> /dev/null || true
+  wait ${pid} 2> /dev/null || true
 }
 
 function kill_random_taskmanager {

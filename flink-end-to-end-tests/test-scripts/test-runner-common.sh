@@ -17,6 +17,10 @@
 # limitations under the License.
 ################################################################################
 
+# Enable this line when developing a new end-to-end test
+#set -Eexuo pipefail
+set -o pipefail
+
 source "${END_TO_END_DIR}"/test-scripts/common.sh
 
 #######################################
@@ -29,7 +33,7 @@ source "${END_TO_END_DIR}"/test-scripts/common.sh
 function run_test {
     local description="$1"
     local command="$2"
-    local skip_check_exceptions="$3"
+    local skip_check_exceptions=${3:-}
 
     printf "\n==============================================================================\n"
     printf "Running '${description}'\n"
@@ -39,32 +43,51 @@ function run_test {
     export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
     echo "TEST_DATA_DIR: $TEST_DATA_DIR"
 
+    export DESCRIPTION="$description"
+    export SKIP_CHECK_EXCEPTIONS="$skip_check_exceptions"
+
     backup_config
     start_timer
+
+    function test_error() {
+      echo "[FAIL] Test script contains errors."
+      post_test_validation 1
+    }
+    trap 'test_error' ERR
+
     ${command}
     exit_code="$?"
-    time_elapsed=$(end_timer)
+    post_test_validation ${exit_code}
+}
 
-    if [[ "${skip_check_exceptions}" != "skip_check_exceptions" ]]; then
+# Validates the test result and exit code after its execution.
+function post_test_validation {
+    local exit_code="$1"
+
+    local time_elapsed=$(end_timer)
+
+    if [[ "${SKIP_CHECK_EXCEPTIONS}" != "skip_check_exceptions" ]]; then
         check_logs_for_errors
         check_logs_for_exceptions
         check_logs_for_non_empty_out_files
+    else
+        echo "Checking of logs skipped."
     fi
 
     # Investigate exit_code for failures of test executable as well as EXIT_CODE for failures of the test.
     # Do not clean up if either fails.
     if [[ ${exit_code} == 0 ]]; then
         if [[ ${EXIT_CODE} != 0 ]]; then
-            printf "\n[FAIL] '${description}' failed after ${time_elapsed}! Test exited with exit code 0 but the logs contained errors, exceptions or non-empty .out files\n\n"
+            printf "\n[FAIL] '${DESCRIPTION}' failed after ${time_elapsed}! Test exited with exit code 0 but the logs contained errors, exceptions or non-empty .out files\n\n"
             exit_code=1
         else
-            printf "\n[PASS] '${description}' passed after ${time_elapsed}! Test exited with exit code 0.\n\n"
+            printf "\n[PASS] '${DESCRIPTION}' passed after ${time_elapsed}! Test exited with exit code 0.\n\n"
         fi
     else
         if [[ ${EXIT_CODE} != 0 ]]; then
-            printf "\n[FAIL] '${description}' failed after ${time_elapsed}! Test exited with exit code ${exit_code} and the logs contained errors, exceptions or non-empty .out files\n\n"
+            printf "\n[FAIL] '${DESCRIPTION}' failed after ${time_elapsed}! Test exited with exit code ${exit_code} and the logs contained errors, exceptions or non-empty .out files\n\n"
         else
-            printf "\n[FAIL] '${description}' failed after ${time_elapsed}! Test exited with exit code ${exit_code}\n\n"
+            printf "\n[FAIL] '${DESCRIPTION}' failed after ${time_elapsed}! Test exited with exit code ${exit_code}\n\n"
         fi
     fi
 
