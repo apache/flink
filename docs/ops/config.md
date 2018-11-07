@@ -154,6 +154,10 @@ The configuration keys in this section are independent of the used resource mana
 
 {% include generated/checkpointing_configuration.html %}
 
+### RocksDB State Backend
+
+{% include generated/rocks_db_configuration.html %}
+
 ### Queryable State
 
 {% include generated/queryable_state_configuration.html %}
