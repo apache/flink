@@ -167,9 +167,12 @@ public final class FlinkDistribution extends ExternalResource {
 	}
 
 	public void copyOptJarsToLib(String jarNamePrefix) throws FileNotFoundException, IOException {
-		final Optional<Path> reporterJarOptional = Files.walk(opt)
-			.filter(path -> path.getFileName().toString().startsWith(jarNamePrefix))
-			.findFirst();
+		final Optional<Path> reporterJarOptional;
+		try (Stream<Path> logFiles = Files.walk(opt)) {
+			reporterJarOptional = logFiles
+				.filter(path -> path.getFileName().toString().startsWith(jarNamePrefix))
+				.findFirst();
+		}
 		if (reporterJarOptional.isPresent()) {
 			final Path optReporterJar = reporterJarOptional.get();
 			final Path libReporterJar = lib.resolve(optReporterJar.getFileName());
