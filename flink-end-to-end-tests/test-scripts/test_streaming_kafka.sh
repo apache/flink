@@ -17,9 +17,7 @@
 # limitations under the License.
 ################################################################################
 
-set -e
-set -u
-set -o pipefail
+set -Eeuo pipefail
 
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/kafka-common.sh 2.0.0 5.0.0 5.0
