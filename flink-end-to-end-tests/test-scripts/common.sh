@@ -451,6 +451,16 @@ function cancel_job {
 }
 
 function check_result_hash {
+  local error_code=0
+  check_result_hash_no_exit "$@" || error_code=$?
+
+  if [ "$error_code" != "0" ]
+  then
+    exit $error_code
+  fi
+}
+
+function check_result_hash_no_exit {
   local name=$1
   local outfile_prefix=$2
   local expected=$3
@@ -462,18 +472,19 @@ function check_result_hash {
     actual=$(LC_ALL=C sort $outfile_prefix* | md5sum | awk '{print $1}')
   else
     echo "Neither 'md5' nor 'md5sum' binary available."
-    exit 2
+    return 2
   fi
   if [[ "$actual" != "$expected" ]]
   then
     echo "FAIL $name: Output hash mismatch.  Got $actual, expected $expected."
     echo "head hexdump of actual:"
     head $outfile_prefix* | hexdump -c
-    exit 1
+    return 1
   else
     echo "pass $name"
     # Output files are left behind in /tmp
   fi
+  return 0
 }
 
 # This function starts the given number of task managers and monitors their processes.

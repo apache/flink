@@ -83,23 +83,33 @@ function verify_result_hash {
   local name=$1
   local index=$2
   local numRecords=$3
-  local hash=$4
+  local expectedHash=$4
 
-  while : ; do
+  local error_code=0
+
+  for i in {1..30}; do
+    echo "Result verification attempt $i..."
     curl "localhost:9200/${index}/_search?q=*&pretty" > $TEST_DATA_DIR/es_output || true
 
-    if [ -n "$(grep "\"total\" : $numRecords" $TEST_DATA_DIR/es_output)" ]; then
-      break
-    else
-      echo "Waiting for Elasticsearch records ..."
+    # remove meta information
+    sed '2,9d' $TEST_DATA_DIR/es_output > $TEST_DATA_DIR/es_content
+
+    check_result_hash_no_exit "$name" $TEST_DATA_DIR/es_content "$expectedHash" || error_code=$?
+
+    if [ "$error_code" != "0" ]
+    then
+      echo "Result verification attempt $i has failed"
       sleep 1
+    else
+      break
     fi
   done
 
-  # remove meta information
-  sed '2,9d' $TEST_DATA_DIR/es_output > $TEST_DATA_DIR/es_content
-
-  check_result_hash "$name" $TEST_DATA_DIR/es_content "$hash"
+  if [ "$error_code" != "0" ]
+  then
+    echo "All result verification attempts have failed"
+    exit $error_code
+  fi
 }
 
 function shutdown_elasticsearch_cluster {
