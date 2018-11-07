@@ -171,4 +171,8 @@ state.backend: filesystem
 state.checkpoints.dir: hdfs://namenode:40010/flink/checkpoints
 {% endhighlight %}
 
+#### RocksDB State Backend Config Options
+
+{% include generated/rocks_db_configuration.html %}
+
 {% top %}
