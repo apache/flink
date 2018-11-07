@@ -19,15 +19,11 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -564,103 +560,4 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		}
 	}
 
-	/**
-	 * Serializer that can be disabled. Duplicates are still enabled, so we can check that
-	 * serializers are duplicated.
-	 */
-	static class TestDuplicateSerializer extends TypeSerializer<Integer> {
-
-		private static final long serialVersionUID = 1L;
-
-		private static final Integer ZERO = 0;
-
-		private boolean disabled;
-
-		public TestDuplicateSerializer() {
-			this.disabled = false;
-		}
-
-		@Override
-		public boolean isImmutableType() {
-			return true;
-		}
-
-		@Override
-		public TypeSerializer<Integer> duplicate() {
-			return new TestDuplicateSerializer();
-		}
-
-		@Override
-		public Integer createInstance() {
-			return ZERO;
-		}
-
-		@Override
-		public Integer copy(Integer from) {
-			return from;
-		}
-
-		@Override
-		public Integer copy(Integer from, Integer reuse) {
-			return from;
-		}
-
-		@Override
-		public int getLength() {
-			return 4;
-		}
-
-		@Override
-		public void serialize(Integer record, DataOutputView target) throws IOException {
-			Assert.assertFalse(disabled);
-			target.writeInt(record);
-		}
-
-		@Override
-		public Integer deserialize(DataInputView source) throws IOException {
-			Assert.assertFalse(disabled);
-			return source.readInt();
-		}
-
-		@Override
-		public Integer deserialize(Integer reuse, DataInputView source) throws IOException {
-			Assert.assertFalse(disabled);
-			return deserialize(source);
-		}
-
-		@Override
-		public void copy(DataInputView source, DataOutputView target) throws IOException {
-			Assert.assertFalse(disabled);
-			target.writeInt(source.readInt());
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			return obj instanceof TestDuplicateSerializer;
-		}
-
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof TestDuplicateSerializer;
-		}
-
-		@Override
-		public int hashCode() {
-			return getClass().hashCode();
-		}
-
-		public void disable() {
-			this.disabled = true;
-		}
-
-		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public CompatibilityResult<Integer> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-			throw new UnsupportedOperationException();
-		}
-	}
 }

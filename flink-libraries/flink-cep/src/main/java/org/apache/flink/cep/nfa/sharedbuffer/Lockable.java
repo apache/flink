@@ -18,6 +18,7 @@
 
 package org.apache.flink.cep.nfa.sharedbuffer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -106,8 +107,10 @@ public final class Lockable<T> {
 		}
 
 		@Override
-		public TypeSerializer<Lockable<E>> duplicate() {
-			return new LockableTypeSerializer<>(elementSerializer);
+		public LockableTypeSerializer<E> duplicate() {
+			TypeSerializer<E> elementSerializerCopy = elementSerializer.duplicate();
+			return elementSerializerCopy == elementSerializer ?
+				this : new LockableTypeSerializer<>(elementSerializerCopy);
 		}
 
 		@Override
@@ -117,7 +120,7 @@ public final class Lockable<T> {
 
 		@Override
 		public Lockable<E> copy(Lockable<E> from) {
-			return new Lockable<E>(elementSerializer.copy(from.element), from.refCounter);
+			return new Lockable<>(elementSerializer.copy(from.element), from.refCounter);
 		}
 
 		@Override
@@ -195,6 +198,11 @@ public final class Lockable<T> {
 			} else {
 				return CompatibilityResult.compatible();
 			}
+		}
+
+		@VisibleForTesting
+		TypeSerializer<E> getElementSerializer() {
+			return elementSerializer;
 		}
 	}
 }
