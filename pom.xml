@@ -1461,12 +1461,6 @@ under the License.
 				</executions>
 			</plugin>
 
-			<!-- We use shading in all packages for relocating some classes, such as
-				Guava and ASM.
-				By doing so, users adding Flink as a dependency won't run into conflicts.
-				(For example users can use whatever guava version they want, because we don't
-				expose our guava dependency)
-			-->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
