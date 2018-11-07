@@ -33,6 +33,10 @@ import org.apache.flink.streaming.tests.artificialstate.StatefulComplexPayloadSe
 import org.apache.flink.streaming.tests.avro.AvroEvent;
 import org.apache.flink.streaming.tests.avro.ComplexPayloadAvro;
 import org.apache.flink.streaming.tests.avro.InnerPayLoadAvro;
+import org.apache.flink.streaming.tests.kryo.CustomKryoEventSerializer;
+import org.apache.flink.streaming.tests.kryo.CustomSerializedKryoEvent;
+import org.apache.flink.streaming.tests.kryo.GenericKryoEvent;
+import org.apache.flink.streaming.tests.kryo.RegisteredKryoEvent;
 import org.apache.flink.util.Collector;
 
 import org.apache.avro.generic.GenericData;
@@ -79,6 +83,9 @@ public class DataStreamAllroundTestProgram {
 		final ParameterTool pt = ParameterTool.fromArgs(args);
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		env.registerType(RegisteredKryoEvent.class);
+		env.registerTypeWithKryoSerializer(CustomSerializedKryoEvent.class, CustomKryoEventSerializer.class);
 
 		setupEnvironment(env, pt);
 
@@ -171,6 +178,30 @@ public class DataStreamAllroundTestProgram {
 			in -> new Event((Integer) in.get("key"), (Long) in.get("eventTime"), (Long) in.get("sequenceNumber"), (String) in.get("payload")),
 			in -> (Integer) in.get("key"),
 			"Avro (Generic)");
+
+		// test operator input serialization that goes through Kryo, without the type registered
+		eventStream3 = testSpecificOperatorInputTypeSerialization(
+			eventStream3,
+			in -> new GenericKryoEvent(in.getKey(), in.getEventTime(), in.getSequenceNumber(), in.getPayload()),
+			in -> new Event(in.getKey(), in.getEventTime(), in.getSequenceNumber(), in.getPayload()),
+			GenericKryoEvent::getKey,
+			"Kryo (Generic)");
+
+		// test operator input serialization that goes through Kryo, with the type registered
+		eventStream3 = testSpecificOperatorInputTypeSerialization(
+			eventStream3,
+			in -> new RegisteredKryoEvent(in.getKey(), in.getEventTime(), in.getSequenceNumber(), in.getPayload()),
+			in -> new Event(in.getKey(), in.getEventTime(), in.getSequenceNumber(), in.getPayload()),
+			RegisteredKryoEvent::getKey,
+			"Kryo (Registered)");
+
+		// test operator input serialization that goes through Kryo, with the type registered with a custom Kryo serializer
+		eventStream3 = testSpecificOperatorInputTypeSerialization(
+			eventStream3,
+			in -> new CustomSerializedKryoEvent(in.getKey(), in.getEventTime(), in.getSequenceNumber(), in.getPayload()),
+			in -> new Event(in.getKey(), in.getEventTime(), in.getSequenceNumber(), in.getPayload()),
+			CustomSerializedKryoEvent::getKey,
+			"Kryo (Custom)");
 
 		if (isSimulateFailures(pt)) {
 			eventStream3 = eventStream3

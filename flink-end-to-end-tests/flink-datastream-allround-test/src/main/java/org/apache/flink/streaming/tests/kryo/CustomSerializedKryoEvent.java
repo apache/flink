@@ -16,22 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.tests;
+package org.apache.flink.streaming.tests.kryo;
+
+import org.apache.flink.streaming.tests.Event;
 
 /**
- * The event type of records used in the {@link DataStreamAllroundTestProgram}.
- * This should be a POJO that Flink recognizes.
+ * Variant of {@link Event} that is intended to be used for testing Kryo serialization
+ * (the class is deliberately designed to not be a POJO).
+ *
+ * <p>This is intended to be serialized by Kryo with a custom Kryo serializer {@link CustomKryoEventSerializer}
+ * registered for it.
  */
-public class Event {
+public class CustomSerializedKryoEvent {
 
-	private int key;
-	private long eventTime;
-	private long sequenceNumber;
-	private String payload;
+	private final int key;
+	private final long eventTime;
+	private final long sequenceNumber;
+	private final String payload;
 
-	public Event() {}
-
-	public Event(int key, long eventTime, long sequenceNumber, String payload) {
+	public CustomSerializedKryoEvent(int key, long eventTime, long sequenceNumber, String payload) {
 		this.key = key;
 		this.eventTime = eventTime;
 		this.sequenceNumber = sequenceNumber;
@@ -42,37 +45,21 @@ public class Event {
 		return key;
 	}
 
-	public void setKey(int key) {
-		this.key = key;
-	}
-
 	public long getEventTime() {
 		return eventTime;
-	}
-
-	public void setEventTime(long eventTime) {
-		this.eventTime = eventTime;
 	}
 
 	public long getSequenceNumber() {
 		return sequenceNumber;
 	}
 
-	public void setSequenceNumber(long sequenceNumber) {
-		this.sequenceNumber = sequenceNumber;
-	}
-
 	public String getPayload() {
 		return payload;
 	}
 
-	public void setPayload(String payload) {
-		this.payload = payload;
-	}
-
 	@Override
 	public String toString() {
-		return "Event{" +
+		return "CustomSerializedKryoEvent{" +
 			"key=" + key +
 			", eventTime=" + eventTime +
 			", sequenceNumber=" + sequenceNumber +
