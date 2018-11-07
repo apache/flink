@@ -25,6 +25,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -32,6 +33,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
@@ -454,5 +456,16 @@ class DataStreamAllroundTestJobFactory {
 			listStateGenerator,
 			listStateGenerator,
 			listStateDescriptor);
+	}
+
+	static <T> DataStream<Event> testSpecificOperatorInputTypeSerialization(
+			DataStream<Event> streamToConvert,
+			MapFunction<Event, T> convertToInputType,
+			MapFunction<T, Event> convertFromInputType,
+			KeySelector<T, Integer> inputTypeKeySelector,
+			String inputTypeId) {
+
+		DataStream<T> convertedStream = streamToConvert.map(convertToInputType);
+		return convertedStream.keyBy(inputTypeKeySelector).map(convertFromInputType).name("InputTypeSerializationTestOperator-" + inputTypeId);
 	}
 }

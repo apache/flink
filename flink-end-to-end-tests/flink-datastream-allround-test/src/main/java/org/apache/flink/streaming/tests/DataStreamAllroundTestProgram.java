@@ -30,9 +30,13 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.tests.artificialstate.ComplexPayload;
 import org.apache.flink.streaming.tests.artificialstate.StatefulComplexPayloadSerializer;
+import org.apache.flink.streaming.tests.avro.AvroEvent;
 import org.apache.flink.streaming.tests.avro.ComplexPayloadAvro;
 import org.apache.flink.streaming.tests.avro.InnerPayLoadAvro;
 import org.apache.flink.util.Collector;
+
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -46,6 +50,7 @@ import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.isSimulateFailures;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.testSpecificOperatorInputTypeSerialization;
 
 /**
  * A general purpose test job for Flink's DataStream API operators and primitives.
@@ -142,6 +147,30 @@ public class DataStreamAllroundTestProgram {
 					}
 				}
 			}).name(TIME_WINDOW_OPER_NAME);
+
+		// test operator input serialization with Avro specific records as the input type
+		eventStream3 = testSpecificOperatorInputTypeSerialization(
+			eventStream3,
+			in -> new AvroEvent(in.getKey(), in.getEventTime(), in.getSequenceNumber(), in.getPayload()),
+			in -> new Event(in.getKey(), in.getEventTime(), in.getSequenceNumber(), in.getPayload()),
+			AvroEvent::getKey,
+			"Avro (Specific)");
+
+		// test operator input serialization with Avro generic records as the input type
+		eventStream3 = testSpecificOperatorInputTypeSerialization(
+			eventStream3,
+			in -> {
+				GenericRecord record = new GenericData.Record(AvroEvent.SCHEMA$);
+				record.put("key", in.getKey());
+				record.put("eventTime", in.getEventTime());
+				record.put("sequenceNumber", in.getSequenceNumber());
+				record.put("payload", in.getPayload());
+
+				return record;
+			},
+			in -> new Event((Integer) in.get("key"), (Long) in.get("eventTime"), (Long) in.get("sequenceNumber"), (String) in.get("payload")),
+			in -> (Integer) in.get("key"),
+			"Avro (Generic)");
 
 		if (isSimulateFailures(pt)) {
 			eventStream3 = eventStream3
