@@ -568,7 +568,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	 * Serializer that can be disabled. Duplicates are still enabled, so we can check that
 	 * serializers are duplicated.
 	 */
-	static class TestDuplicateSerializer extends TypeSerializer<Integer> {
+	public static class TestDuplicateSerializer extends TypeSerializer<Integer> {
 
 		private static final long serialVersionUID = 1L;
 
