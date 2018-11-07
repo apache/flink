@@ -17,8 +17,6 @@
 # limitations under the License.
 ################################################################################
 
-set -o pipefail
-
 if [[ -z $TEST_DATA_DIR ]]; then
   echo "Must run common.sh before elasticsearch-common.sh."
   exit 1

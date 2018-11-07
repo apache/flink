@@ -17,6 +17,8 @@
 # limitations under the License.
 ################################################################################
 
+set -Eeuo pipefail
+
 source "$(dirname "$0")"/common.sh
 
 TEST_PROGRAM_JAR=$END_TO_END_DIR/flink-cli-test/target/PeriodicStreamingJob.jar
