@@ -29,7 +29,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-hcatalog</artifactId>
+	<artifactId>flink-hcatalog_${scala.binary.version}</artifactId>
 	<name>flink-hcatalog</name>
 
 	<packaging>jar</packaging>
