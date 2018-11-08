@@ -674,7 +674,7 @@ metrics.reporter.grph.protocol: TCP
 
 ### Prometheus (org.apache.flink.metrics.prometheus.PrometheusReporter)
 
-In order to use this reporter you must copy `/opt/flink-metrics-prometheus-{{site.version}}.jar` into the `/lib` folder
+In order to use this reporter you must copy `/opt/flink-metrics-prometheus{{site.scala_version_suffix}}-{{site.version}}.jar` into the `/lib` folder
 of your Flink distribution.
 
 Parameters:
