@@ -316,7 +316,7 @@ public class TaskManagerOptions {
 			key("taskmanager.network.request-backoff.initial")
 			.defaultValue(100)
 			.withDeprecatedKeys("taskmanager.net.request-backoff.initial")
-			.withDescription("Minimum backoff for partition requests of input channels.");
+			.withDescription("Minimum backoff in milliseconds for partition requests of input channels.");
 
 	/**
 	 * Maximum backoff for partition requests of input channels.
@@ -325,7 +325,7 @@ public class TaskManagerOptions {
 			key("taskmanager.network.request-backoff.max")
 			.defaultValue(10000)
 			.withDeprecatedKeys("taskmanager.net.request-backoff.max")
-			.withDescription("Maximum backoff for partition requests of input channels.");
+			.withDescription("Maximum backoff in milliseconds for partition requests of input channels.");
 
 	/**
 	 * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue
