@@ -69,12 +69,12 @@ matrix:
       - REMOTE="apache"
       - BRANCH="master"
       - PROFILE="-Dhadoop.version=2.8.3"
-      - SCRIPT="split_docker_e2e.sh"
+      - SCRIPT="split_container.sh"
     - env:
       - REMOTE="apache"
       - BRANCH="master"
       - PROFILE="-Dhadoop.version=2.8.3"
-      - SCRIPT="split_kubernetes_e2e.sh"
+      - SCRIPT="split_heavy.sh"
     - env:
       - REMOTE="apache"
       - BRANCH="master"
@@ -99,12 +99,12 @@ matrix:
       - REMOTE="apache"
       - BRANCH="master"
       - PROFILE="-Dhadoop.version=2.8.3 -Dscala-2.12"
-      - SCRIPT="split_docker_e2e.sh"
+      - SCRIPT="split_container.sh"
     - env:
       - REMOTE="apache"
       - BRANCH="master"
       - PROFILE="-Dhadoop.version=2.8.3 -Dscala-2.12"
-      - SCRIPT="split_kubernetes_e2e.sh"
+      - SCRIPT="split_heavy.sh"
     - env:
       - REMOTE="apache"
       - BRANCH="master"
@@ -129,12 +129,12 @@ matrix:
       - REMOTE="apache"
       - BRANCH="master"
       - PROFILE="-DwithoutHadoop"
-      - SCRIPT="split_docker_e2e.sh"
+      - SCRIPT="split_container.sh"
     - env:
       - REMOTE="apache"
       - BRANCH="master"
       - PROFILE="-DwithoutHadoop"
-      - SCRIPT="split_kubernetes_e2e.sh"
+      - SCRIPT="split_heavy.sh"
 
 git:
   depth: 100
