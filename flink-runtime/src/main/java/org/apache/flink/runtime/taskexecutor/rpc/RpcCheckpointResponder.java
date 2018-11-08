@@ -26,7 +26,12 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class RpcCheckpointResponder implements CheckpointResponder {
+
+	private static final Logger LOG = LoggerFactory.getLogger(RpcCheckpointResponder.class);
 
 	private final CheckpointCoordinatorGateway checkpointCoordinatorGateway;
 
@@ -57,6 +62,7 @@ public class RpcCheckpointResponder implements CheckpointResponder {
 			long checkpointId, 
 			Throwable cause) {
 
+		LOG.info("Declining checkpoint {} of job {}.", checkpointId, jobID, cause);
 		checkpointCoordinatorGateway.declineCheckpoint(jobID, executionAttemptID, checkpointId, cause);
 	}
 }
