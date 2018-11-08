@@ -1249,11 +1249,14 @@ public class CheckpointCoordinator {
 
 		final long checkpointId = pendingCheckpoint.getCheckpointId();
 
-		final String reason = (cause != null) ? cause.getMessage() : "";
+		LOG.info("Discarding checkpoint {} of job {}.", checkpointId, job, cause);
 
-		LOG.info("Discarding checkpoint {} of job {} because: {}", checkpointId, job, reason);
+		if (cause != null) {
+			pendingCheckpoint.abortError(cause);
+		} else {
+			pendingCheckpoint.abortDeclined();
+		}
 
-		pendingCheckpoint.abortDeclined();
 		rememberRecentCheckpointId(checkpointId);
 
 		// we don't have to schedule another "dissolving" checkpoint any more because the
