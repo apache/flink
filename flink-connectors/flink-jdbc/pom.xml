@@ -30,7 +30,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-jdbc</artifactId>
+	<artifactId>flink-jdbc_${scala.binary.version}</artifactId>
 	<name>flink-jdbc</name>
 
 	<packaging>jar</packaging>
