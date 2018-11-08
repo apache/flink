@@ -56,7 +56,6 @@ import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -126,19 +125,10 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	private int maxParallelism;
 
 	/**
-	 * Serialized task information which is for all sub tasks the same. Thus, it avoids to
-	 * serialize the same information multiple times in order to create the
-	 * TaskDeploymentDescriptors.
+	 * Either store a serialized task information, which is for all sub tasks the same,
+	 * or the permanent blob key of the offloaded task information BLOB containing
+	 * the serialized task information.
 	 */
-	private SerializedValue<TaskInformation> serializedTaskInformation;
-
-	/**
-	 * The key of the offloaded task information BLOB containing {@link #serializedTaskInformation}
-	 * or <tt>null</tt> if not offloaded.
-	 */
-	@Nullable
-	private PermanentBlobKey taskInformationBlobKey = null;
-
 	private Either<SerializedValue<TaskInformation>, PermanentBlobKey> taskInformationOrBlobKey = null;
 
 	private InputSplitAssigner splitAssigner;
@@ -192,8 +182,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		}
 
 		this.parallelism = numTaskVertices;
-
-		this.serializedTaskInformation = null;
 
 		this.taskVertices = new ExecutionVertex[numTaskVertices];
 		this.operatorIDs = Collections.unmodifiableList(jobVertex.getOperatorIDs());
