@@ -142,6 +142,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 			} catch (Exception e) {
 				String exceptionString = ExceptionUtils.stringifyException(e);
 				if (!(exceptionString.matches("(.*\n)*.*savepoint for the job .* failed(.*\n)*") // legacy
+						|| exceptionString.matches("(.*\n)*.*was not running(.*\n)*")
 						|| exceptionString.matches("(.*\n)*.*Not all required tasks are currently running(.*\n)*") // new
 						|| exceptionString.matches("(.*\n)*.*Checkpoint was declined \\(tasks not ready\\)(.*\n)*"))) { // new
 					throw e;

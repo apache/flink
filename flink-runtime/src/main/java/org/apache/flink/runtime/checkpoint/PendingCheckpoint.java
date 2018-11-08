@@ -34,6 +34,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -433,25 +434,26 @@ public class PendingCheckpoint {
 		}
 	}
 
+
 	public void abortDeclined() {
-		try {
-			Exception cause = new Exception("Checkpoint was declined (tasks not ready)");
-			onCompletionPromise.completeExceptionally(cause);
-			reportFailedCheckpoint(cause);
-		} finally {
-			dispose(true);
-		}
+		abortWithCause(new Exception("Checkpoint was declined (tasks not ready)"));
 	}
 
 	/**
 	 * Aborts the pending checkpoint due to an error.
 	 * @param cause The error's exception.
 	 */
-	public void abortError(Throwable cause) {
+	public void abortError(@Nullable Throwable cause) {
+		Exception determinedCause = cause != null ?
+			new Exception("Checkpoint failed: " + cause.getMessage(), cause) :
+			new Exception("Unknown cause.");
+		abortWithCause(determinedCause);
+	}
+
+	private void abortWithCause(@Nonnull Exception cause) {
 		try {
-			Exception failure = new Exception("Checkpoint failed: " + cause.getMessage(), cause);
-			onCompletionPromise.completeExceptionally(failure);
-			reportFailedCheckpoint(failure);
+			onCompletionPromise.completeExceptionally(cause);
+			reportFailedCheckpoint(cause);
 		} finally {
 			dispose(true);
 		}
