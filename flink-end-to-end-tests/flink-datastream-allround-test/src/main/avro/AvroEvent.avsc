@@ -22,22 +22,18 @@
      {
         "name": "key",
         "type": "int",
-        "default": ""
      },
      {
         "name": "eventTime",
         "type": "long",
-        "default": ""
      },
      {
         "name": "sequenceNumber",
         "type": "long",
-        "default": ""
      },
      {
         "name": "payload",
         "type": "string",
-        "default": ""
      }
  ]
 }
