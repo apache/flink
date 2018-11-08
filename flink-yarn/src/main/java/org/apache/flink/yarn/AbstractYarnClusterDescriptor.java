@@ -101,6 +101,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
+import static org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever.JOB_GRAPH_FILE_PATH;
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME;
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.getDynamicProperties;
@@ -887,8 +888,11 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					obOutput.writeObject(jobGraph);
 				}
 
+				final String jobGraphFilename = "job.graph";
+				flinkConfiguration.setString(JOB_GRAPH_FILE_PATH, jobGraphFilename);
+
 				Path pathFromYarnURL = setupSingleLocalResource(
-					"job.graph",
+					jobGraphFilename,
 					fs,
 					appId,
 					new Path(fp.toURI()),
@@ -896,7 +900,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					homeDir,
 					"");
 				paths.add(pathFromYarnURL);
-				classPathBuilder.append("job.graph").append(File.pathSeparator);
+				classPathBuilder.append(jobGraphFilename).append(File.pathSeparator);
 			} catch (Exception e) {
 				LOG.warn("Add job graph to local resource fail");
 				throw e;
