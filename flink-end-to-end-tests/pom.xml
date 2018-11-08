@@ -60,6 +60,7 @@ under the License.
 		<module>flink-end-to-end-tests-common</module>
 		<module>flink-metrics-reporter-prometheus-test</module>
 		<module>flink-heavy-deployment-stress-test</module>
+		<module>flink-batch-wordcount-test</module>
 	</modules>
 
 	<build>
