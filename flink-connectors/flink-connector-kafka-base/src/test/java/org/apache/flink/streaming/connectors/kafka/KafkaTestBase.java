@@ -245,7 +245,7 @@ public abstract class KafkaTestBase extends TestLogger {
 		Properties properties,
 		String topic,
 		int partition,
-		List<Integer> expectedElements) {
+		List<Integer> expectedElements) throws Exception {
 		assertExactlyOnceForTopic(properties, topic, partition, expectedElements, 30_000L);
 	}
 
@@ -258,7 +258,7 @@ public abstract class KafkaTestBase extends TestLogger {
 			String topic,
 			int partition,
 			List<Integer> expectedElements,
-			long timeoutMillis) {
+			long timeoutMillis) throws Exception {
 
 		long startMillis = System.currentTimeMillis();
 		List<Integer> actualElements = new ArrayList<>();
