@@ -45,5 +45,7 @@ echo "Flink distribution directory: $FLINK_DIR"
 
 run_test "Running Kerberized YARN on Docker test " "$END_TO_END_DIR/test-scripts/test_yarn_kerberos_docker.sh"
 
+run_test "Run kubernetes test" "$END_TO_END_DIR/test-scripts/test_kubernetes_embedded_job.sh"
+
 printf "\n[PASS] All tests passed\n"
 exit 0
