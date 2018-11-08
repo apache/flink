@@ -18,32 +18,39 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import org.apache.flink.api.java.typeutils.runtime.NullableSerializer;
+import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TestLogger;
+
+import org.apache.commons.lang3.SerializationException;
+import org.apache.commons.lang3.SerializationUtils;
+import org.junit.Assert;
+import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.CyclicBarrier;
 
-import org.apache.flink.api.java.typeutils.runtime.NullableSerializer;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.TestLogger;
-import org.junit.Assert;
-
-import org.apache.commons.lang3.SerializationException;
-import org.apache.commons.lang3.SerializationUtils;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.junit.Test;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Abstract test base for serializers.
@@ -437,6 +444,33 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testDuplicate() throws Exception {
+		final int numThreads = 10;
+		final TypeSerializer<T> serializer = getSerializer();
+		final CyclicBarrier startLatch = new CyclicBarrier(numThreads);
+		final List<SerializerRunner<T>> concurrentRunners = new ArrayList<>(numThreads);
+		Assert.assertEquals(serializer, serializer.duplicate());
+
+		T[] testData = getData();
+
+		for (int i = 0; i < numThreads; ++i) {
+			SerializerRunner<T> runner = new SerializerRunner<>(
+				startLatch,
+				serializer.duplicate(),
+				testData,
+				120L);
+
+			runner.start();
+			concurrentRunners.add(runner);
+		}
+
+		for (SerializerRunner<T> concurrentRunner : concurrentRunners) {
+			concurrentRunner.join();
+			concurrentRunner.checkResult();
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	protected void deepEquals(String message, T should, T is) {
@@ -527,6 +561,68 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		}
 	}
 
+	/**
+	 * Runner to test serializer duplication via concurrency.
+	 * @param <T> type of the test elements.
+	 */
+	static class SerializerRunner<T> extends Thread {
+		final CyclicBarrier allReadyBarrier;
+		final TypeSerializer<T> serializer;
+		final T[] testData;
+		final long durationLimitMillis;
+		Exception failure;
+
+		SerializerRunner(
+			CyclicBarrier allReadyBarrier,
+			TypeSerializer<T> serializer,
+			T[] testData,
+			long testTargetDurationMillis) {
+
+			this.allReadyBarrier = allReadyBarrier;
+			this.serializer = serializer;
+			this.testData = testData;
+			this.durationLimitMillis =  testTargetDurationMillis;
+			this.failure = null;
+		}
+
+		@Override
+		public void run() {
+			DataInputDeserializer dataInputDeserializer = new DataInputDeserializer();
+			DataOutputSerializer dataOutputSerializer = new DataOutputSerializer(128);
+			try {
+				allReadyBarrier.await();
+				final long endTimeNanos = System.nanoTime() + durationLimitMillis * 1_000_000L;
+				while (true) {
+					for (T testItem : testData) {
+						serializer.serialize(testItem, dataOutputSerializer);
+						dataInputDeserializer.setBuffer(
+							dataOutputSerializer.getSharedBuffer(),
+							0,
+							dataOutputSerializer.length());
+						T serdeTestItem = serializer.deserialize(dataInputDeserializer);
+						T copySerdeTestItem = serializer.copy(serdeTestItem);
+						dataOutputSerializer.clear();
+
+						Preconditions.checkState(Objects.deepEquals(testItem, copySerdeTestItem),
+							"Serialization/Deserialization cycle resulted in an object that are not equal to the original.");
+
+						// try to enforce some upper bound to the test time
+						if (System.nanoTime() >= endTimeNanos) {
+							return;
+						}
+					}
+				}
+			} catch (Exception ex) {
+				failure = ex;
+			}
+		}
+
+		void checkResult() throws Exception {
+			if (failure != null) {
+				throw failure;
+			}
+		}
+	}
 
 	private static final class TestInputView extends DataInputStream implements DataInputView {
 
