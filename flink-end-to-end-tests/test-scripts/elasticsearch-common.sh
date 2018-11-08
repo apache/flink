@@ -43,10 +43,10 @@ function wait_elasticsearch_working {
     echo "Waiting for Elasticsearch node to work..."
 
     for ((i=1;i<=60;i++)); do
-        curl -XGET 'http://localhost:9200' || true
+        output=$(curl -XGET 'http://localhost:9200' | grep "cluster_name" || true)
 
         # make sure the elasticsearch node is actually working
-        if [ $? -ne 0 ]; then
+        if [ "${output}" = "" ]; then
             sleep 1
         else
             echo "Elasticsearch node is working."
