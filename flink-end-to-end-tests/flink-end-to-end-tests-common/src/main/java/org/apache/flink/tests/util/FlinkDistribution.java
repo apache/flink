@@ -18,10 +18,12 @@
 
 package org.apache.flink.tests.util;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -73,6 +75,7 @@ public final class FlinkDistribution extends ExternalResource {
 	private final Path conf;
 	private final Path log;
 	private final Path bin;
+	private final Path examples;
 
 	private Configuration defaultConfig;
 
@@ -87,6 +90,7 @@ public final class FlinkDistribution extends ExternalResource {
 		lib = flinkDir.resolve("lib");
 		conf = flinkDir.resolve("conf");
 		log = flinkDir.resolve("log");
+		examples = flinkDir.resolve("examples");
 	}
 
 	@Override
@@ -164,6 +168,99 @@ public final class FlinkDistribution extends ExternalResource {
 
 	public void stopFlinkCluster() throws IOException {
 		AutoClosableProcess.runBlocking("Stop Flink Cluster", bin.resolve("stop-cluster.sh").toAbsolutePath().toString());
+	}
+
+	public JobRunBuilder prepareExampleJob(final Path relativePath) {
+		final Path absolutePath = examples.resolve(relativePath);
+		return prepareJob(absolutePath);
+	}
+
+	public JobRunBuilder prepareJob(final Path jar) {
+		return new JobRunBuilder(bin.resolve("flink"), jar);
+	}
+
+	/**
+	 * Wrapper around the "run" command of the "flink" executable.
+	 */
+	public static final class JobRunBuilder {
+
+		private final Path jar;
+		private final Path flinkBinary;
+		private int parallelism = 0;
+		private List<String> arguments = new ArrayList<>(2);
+		private boolean detached = false;
+
+		JobRunBuilder(final Path flinkBinary, final Path jar) {
+			Preconditions.checkNotNull(flinkBinary);
+			Preconditions.checkArgument(flinkBinary.isAbsolute(), "Binary path must be absolute.");
+			Preconditions.checkNotNull(jar);
+			Preconditions.checkArgument(jar.isAbsolute(), "Jar path must be absolute.");
+			this.flinkBinary = flinkBinary;
+			this.jar = jar;
+		}
+
+		public JobRunBuilder setParallelism(final int parallelism) {
+			this.parallelism = parallelism;
+			return this;
+		}
+
+		public JobRunBuilder setDetached(final boolean detached) {
+			this.detached = detached;
+			return this;
+		}
+
+		public JobRunBuilder addArgument(final String argument) {
+			Preconditions.checkNotNull(argument);
+			this.arguments.add(argument);
+			return this;
+		}
+
+		public JobRunBuilder addArgument(final String key, final String value) {
+			Preconditions.checkNotNull(key);
+			Preconditions.checkNotNull(value);
+			this.arguments.add(key);
+			this.arguments.add(value);
+			return this;
+		}
+
+		public JobID run() throws IOException {
+			List<String> commands = new ArrayList<>(4);
+			commands.add(flinkBinary.toString());
+			commands.add("run");
+			if (detached) {
+				commands.add("-d");
+			}
+			if (parallelism > 0) {
+				commands.add("-p");
+				commands.add(String.valueOf(parallelism));
+			}
+			commands.add(jar.toAbsolutePath().toString());
+			commands.addAll(arguments);
+
+			LOG.info("Running {}.", commands.stream().collect(Collectors.joining(" ")));
+
+			try (AutoClosableProcess flink = new AutoClosableProcess(new ProcessBuilder()
+				.command(commands)
+				.start())) {
+
+				final Pattern pattern = detached
+					? Pattern.compile("Job has been submitted with JobID (.*)")
+					: Pattern.compile("Job with JobID (.*) has finished.");
+				try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(flink.getProcess().getInputStream(), StandardCharsets.UTF_8))) {
+					final Optional<String> jobId = bufferedReader.lines()
+						.peek(LOG::info)
+						.map(pattern::matcher)
+						.filter(Matcher::matches)
+						.map(matcher -> matcher.group(1))
+						.findAny();
+					if (!jobId.isPresent()) {
+						throw new IOException("Could not determine Job ID.");
+					} else {
+						return JobID.fromHexString(jobId.get());
+					}
+				}
+			}
+		}
 	}
 
 	public void copyOptJarsToLib(String jarNamePrefix) throws FileNotFoundException, IOException {

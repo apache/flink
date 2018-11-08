@@ -42,6 +42,10 @@ public class AutoClosableProcess implements AutoCloseable {
 		this.process = process;
 	}
 
+	public Process getProcess() {
+		return process;
+	}
+
 	public static AutoClosableProcess runNonBlocking(String step, String... commands) throws IOException {
 		LOG.info("Step Started: " + step);
 		Process process = new ProcessBuilder()
