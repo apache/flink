@@ -44,7 +44,7 @@ LOG4J_PROPERTIES=${FLINK_DIR}/tools/log4j-travis.properties
 
 MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
 MVN_COMMON_OPTIONS="-nsu -B -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast"
-MVN_COMPILE_OPTIONS="-DskipTests"
+MVN_COMPILE_OPTIONS="-T1C -DskipTests"
 
 git clone --single-branch -b ${BRANCH} https://github.com/${REMOTE}/flink
 
