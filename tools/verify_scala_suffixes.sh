@@ -79,6 +79,13 @@ in_block=0
 block_name=""
 block_infected=0
 
+# exclude e2e modules and flink-docs for convenience as they
+# a) are not deployed during a release
+# b) exist only for dev purposes
+# c) no-one should depend on them
+e2e_modules=$(find flink-end-to-end-tests -mindeptha 2 -maxdepth 5 -name 'pom.xml' -printf '%h\n' | sort -u | tr '\n' ',')
+excluded_modules=\!${e2e_modules//,/,\!},!flink-docs
+
 echo "Analyzing modules for Scala dependencies using 'mvn dependency:tree'."
 echo "If you haven't built the project, please do so first by running \"mvn clean install -DskipTests\""
 
@@ -102,14 +109,14 @@ while read line; do
         block_name=""
         block_infected=0
     elif [[ $in_block -eq 1 ]]; then
-        echo $line | grep org.scala-lang >/dev/null
+        echo $line | grep "org.scala-lang" | grep --invert-match "org.scala-lang.*:.*:.*:test" >/dev/null
         if [ $? -eq 0 ]; then
             #echo $block_name
             infected="$block_name $infected"
             block_infected=1
         fi
     fi
-done < <(mvn -o dependency:tree -Dincludes=org.scala-lang | tee /dev/tty)
+done < <(mvn -o dependency:tree -Dincludes=org.scala-lang -pl ${excluded_modules} | tee /dev/tty)
 
 
 # deduplicate and sort

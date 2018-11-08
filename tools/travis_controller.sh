@@ -96,6 +96,19 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
 
     if [ $EXIT_CODE == 0 ]; then
         printf "\n\n==============================================================================\n"
+        printf "Checking scala suffixes\n"
+        printf "==============================================================================\n"
+
+        ./tools/verify_scala_suffixes.sh
+        EXIT_CODE=$?
+    else
+        printf "\n==============================================================================\n"
+        printf "Previous build failure detected, skipping scala-suffixes check.\n"
+        printf "==============================================================================\n"
+    fi
+
+    if [ $EXIT_CODE == 0 ]; then
+        printf "\n\n==============================================================================\n"
         printf "Checking dependency convergence\n"
         printf "==============================================================================\n"
 
