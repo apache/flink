@@ -466,6 +466,8 @@ class DataStreamAllroundTestJobFactory {
 			String inputTypeId) {
 
 		DataStream<T> convertedStream = streamToConvert.map(convertToInputType);
+
+		// apply a keyBy so that we have a non-chained operator with T as input type that goes through serialization
 		return convertedStream.keyBy(inputTypeKeySelector).map(convertFromInputType).name("InputTypeSerializationTestOperator-" + inputTypeId);
 	}
 }
