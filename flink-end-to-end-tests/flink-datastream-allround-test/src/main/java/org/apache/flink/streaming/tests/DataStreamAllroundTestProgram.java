@@ -75,6 +75,8 @@ public class DataStreamAllroundTestProgram {
 	private static final String TIME_WINDOW_OPER_NAME = "TumblingWindowOperator";
 	private static final String SEMANTICS_CHECK_MAPPER_NAME = "SemanticsCheckMapper";
 	private static final String FAILURE_MAPPER_NAME = "FailureMapper";
+	private static final String SLIDING_WINDOW_CHECK_MAPPER_NAME = "SlidingWindowCheckMapper";
+	private static final String SLIDING_WINDOW_AGG_NAME = "SlidingWindowOperator";
 
 	public static void main(String[] args) throws Exception {
 		final ParameterTool pt = ParameterTool.fromArgs(args);
@@ -156,6 +158,15 @@ public class DataStreamAllroundTestProgram {
 				.name(FAILURE_MAPPER_NAME).uid("0006");
 		}
 
+		eventStream3.keyBy(Event::getKey)
+			.flatMap(createSemanticsCheckMapper(pt))
+			.name(SEMANTICS_CHECK_MAPPER_NAME)
+			.uid("007")
+			.addSink(new PrintSinkFunction<>())
+		    .uid("008");
+
+		// Check sliding windows aggregations. Output all elements assigned to a window and later on
+		// check if each event was emitted slide_factor number of times
 		DataStream<Tuple2<Integer, List<Event>>> eventStream4 = eventStream2.keyBy(Event::getKey)
 			.window(createSlidingWindow(pt))
 			.apply(new WindowFunction<Event, Tuple2<Integer, List<Event>>, Integer, TimeWindow>() {
@@ -168,17 +179,16 @@ public class DataStreamAllroundTestProgram {
 
 					out.collect(Tuple2.of(key, StreamSupport.stream(input.spliterator(), false).collect(Collectors.toList())));
 				}
-			});
+			})
+			.name(SLIDING_WINDOW_AGG_NAME)
+			.uid("009");
 
 		eventStream4.keyBy(events-> events.f0)
 			.flatMap(createSlidingWindowCheckMapper(pt))
-			.addSink(new PrintSinkFunction<>());
-
-		eventStream3.keyBy(Event::getKey)
-			.flatMap(createSemanticsCheckMapper(pt))
-			.name(SEMANTICS_CHECK_MAPPER_NAME)
-			.uid("0007")
-			.addSink(new PrintSinkFunction<>()).uid("0008");
+			.uid("010")
+			.name(SLIDING_WINDOW_CHECK_MAPPER_NAME)
+			.addSink(new PrintSinkFunction<>())
+		    .uid("011");
 
 		env.execute("General purpose test job");
 	}

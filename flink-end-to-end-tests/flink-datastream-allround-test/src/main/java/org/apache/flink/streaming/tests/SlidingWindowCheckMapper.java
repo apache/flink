@@ -29,21 +29,25 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.BinaryOperator;
 
 /**
- * This mapper validates sliding event time window. It checks each event belongs to appropriate number of consecutive windows.
+ * This mapper validates sliding event time window. It checks each event belongs to appropriate number of consecutive
+ * windows.
  */
 public class SlidingWindowCheckMapper extends RichFlatMapFunction<Tuple2<Integer, List<Event>>, String> {
 
 	private static final long serialVersionUID = -744070793650644485L;
 
 	/** This value state tracks previously seen events with the number of windows they appeared in. */
-	private transient ValueState<List<Tuple2<Event, Integer>>> previousWindow;
+	private transient ValueState<List<Tuple2<Event, Integer>>> eventsSeenSoFar;
+
+	private transient ValueState<Long> lastSequenceNumber;
 
 	private final int slideFactor;
 
@@ -52,49 +56,123 @@ public class SlidingWindowCheckMapper extends RichFlatMapFunction<Tuple2<Integer
 	}
 
 	@Override
-	public void open(Configuration parameters) throws Exception {
+	public void open(Configuration parameters) {
 		ValueStateDescriptor<List<Tuple2<Event, Integer>>> previousWindowDescriptor =
-			new ValueStateDescriptor<>("previousWindow",
+			new ValueStateDescriptor<>("eventsSeenSoFar",
 				new ListTypeInfo<>(new TupleTypeInfo<>(TypeInformation.of(Event.class), BasicTypeInfo.INT_TYPE_INFO)));
 
-		previousWindow = getRuntimeContext().getState(previousWindowDescriptor);
+		eventsSeenSoFar = getRuntimeContext().getState(previousWindowDescriptor);
+
+		ValueStateDescriptor<Long> lastSequenceNumberDescriptor =
+			new ValueStateDescriptor<>("lastSequenceNumber", BasicTypeInfo.LONG_TYPE_INFO);
+
+		lastSequenceNumber = getRuntimeContext().getState(lastSequenceNumberDescriptor);
 	}
 
 	@Override
 	public void flatMap(Tuple2<Integer, List<Event>> value, Collector<String> out) throws Exception {
-		List<Tuple2<Event, Integer>> previousWindowValues = Optional.ofNullable(previousWindow.value()).orElseGet(
+		List<Tuple2<Event, Integer>> previousWindowValues = Optional.ofNullable(eventsSeenSoFar.value()).orElseGet(
 			Collections::emptyList);
 
 		List<Event> newValues = value.f1;
-		newValues.stream().reduce(new BinaryOperator<Event>() {
-			@Override
-			public Event apply(Event event, Event event2) {
+		Optional<Event> lastEventInWindow = verifyWindowContiguity(newValues, out);
+
+		Long lastSequenceNumberSeenSoFar = lastSequenceNumber.value();
+		List<Tuple2<Event, Integer>> newWindows =
+			verifyPreviousOccurences(previousWindowValues, newValues, out, lastSequenceNumberSeenSoFar);
+
+		if (lastEventInWindow.isPresent()) {
+			updateLastSeenSequenceNumber(lastEventInWindow.get(), lastSequenceNumberSeenSoFar);
+		}
+
+		eventsSeenSoFar.update(newWindows);
+	}
+
+	private void updateLastSeenSequenceNumber(
+			Event lastEventInWindow,
+			Long lastSequenceNumberSeenSoFar) throws IOException {
+		long lastSequenceNumberInWindow = lastEventInWindow.getSequenceNumber();
+		if (lastSequenceNumberSeenSoFar == null || lastSequenceNumberInWindow > lastSequenceNumberSeenSoFar) {
+			lastSequenceNumber.update(lastSequenceNumberInWindow);
+		}
+	}
+
+	/**
+	 * Verifies if all values from previous windows appear in the new one. Returns union of all events seen so far that
+	 * were not seen <b>slideFactor</b> number of times yet.
+	 */
+	private List<Tuple2<Event, Integer>> verifyPreviousOccurences(
+			List<Tuple2<Event, Integer>> previousWindowValues,
+			List<Event> newValues,
+			Collector<String> out, Long lastSequenceNumberSeenSoFar) {
+		List<Tuple2<Event, Integer>> newEventsSeenSoFar = new ArrayList<>();
+		List<Event> seenWindows = new ArrayList<>();
+
+		for (Tuple2<Event, Integer> windowValue : previousWindowValues) {
+			if (!newValues.contains(windowValue.f0)) {
+				printEventNotSeenAlertMessage(windowValue, newValues, out);
+			} else {
+				seenWindows.add(windowValue.f0);
+				preserveOrDiscardIfSeenSlideFactorTimes(newEventsSeenSoFar, windowValue);
+			}
+		}
+
+		addNotSeenValues(newEventsSeenSoFar, newValues, seenWindows, lastSequenceNumberSeenSoFar, out);
+
+		return newEventsSeenSoFar;
+	}
+
+	private void addNotSeenValues(
+			List<Tuple2<Event, Integer>> newEventsSeenSoFar,
+			List<Event> newValues,
+			List<Event> seenWindows,
+			Long lastSequenceNumberSeenSoFar,
+			Collector<String> out) {
+		newValues.stream()
+			.filter(e -> !seenWindows.contains(e))
+			.forEach(e -> {
+				if (lastSequenceNumberSeenSoFar == null || e.getSequenceNumber() > lastSequenceNumberSeenSoFar) {
+					newEventsSeenSoFar.add(Tuple2.of(e, 1));
+				} else {
+					printEventSeenTooManyTimesMessage(e, out);
+				}
+			});
+	}
+
+	private void printEventSeenTooManyTimesMessage(Event e, Collector<String> out) {
+		out.collect(String.format("Alert: event %s seen more than %d times", e, slideFactor));
+	}
+
+	private void preserveOrDiscardIfSeenSlideFactorTimes(
+			List<Tuple2<Event, Integer>> newEvenstSeenSoFar,
+			Tuple2<Event, Integer> windowValue) {
+		if (windowValue.f1 + 1 != slideFactor) {
+			newEvenstSeenSoFar.add(Tuple2.of(windowValue.f0, windowValue.f1 + 1));
+		}
+	}
+
+	private void printEventNotSeenAlertMessage(
+			Tuple2<Event, Integer> previousWindowValue,
+			List<Event> currentWindowValues,
+			Collector<String> out) {
+		out.collect(String.format(
+			"Alert: event %s did not belong to %d consecutive windows. " +
+				"Event seen so far %d times.Current window: %s",
+			previousWindowValue.f0,
+			slideFactor,
+			previousWindowValue.f1,
+			currentWindowValues));
+	}
+
+	private Optional<Event> verifyWindowContiguity(List<Event> newValues, Collector<String> out) {
+		return newValues.stream()
+			.sorted(Comparator.comparingLong(Event::getSequenceNumber))
+			.reduce((event, event2) -> {
 				if (event2.getSequenceNumber() - 1 != event.getSequenceNumber()) {
 					out.collect("Alert: events in window out ouf order!");
 				}
 
 				return event2;
-			}
-		});
-
-		List<Tuple2<Event, Integer>> newWindow = new ArrayList<>();
-		for (Tuple2<Event, Integer> windowValue : previousWindowValues) {
-			if (!newValues.contains(windowValue.f0)) {
-				out.collect(String.format("Alert: event %s did not belong to %d consecutive windows. Event seen so far %d times.Current window: %s",
-					windowValue.f0,
-					slideFactor,
-					windowValue.f1,
-					value.f1));
-			} else {
-				newValues.remove(windowValue.f0);
-				if (windowValue.f1 + 1 != slideFactor) {
-					newWindow.add(Tuple2.of(windowValue.f0, windowValue.f1 + 1));
-				}
-			}
-		}
-
-		newValues.forEach(e -> newWindow.add(Tuple2.of(e, 1)));
-
-		previousWindow.update(newWindow);
+			});
 	}
 }
