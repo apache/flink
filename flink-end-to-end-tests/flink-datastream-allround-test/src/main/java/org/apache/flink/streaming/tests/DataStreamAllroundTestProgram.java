@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.tests;
 
+import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
@@ -160,13 +161,13 @@ public class DataStreamAllroundTestProgram {
 		eventStream3 = testSpecificOperatorInputTypeSerialization(
 			eventStream3,
 			in -> {
-				GenericRecord record = new GenericData.Record(AvroEvent.SCHEMA$);
-				record.put("key", in.getKey());
-				record.put("eventTime", in.getEventTime());
-				record.put("sequenceNumber", in.getSequenceNumber());
-				record.put("payload", in.getPayload());
+				GenericRecordBuilder recordBuilder = new GenericRecordBuilder(AvroEvent.SCHEMA$);
+				recordBuilder.set("key", in.getKey());
+				recordBuilder.set("eventTime", in.getEventTime());
+				recordBuilder.set("sequenceNumber", in.getSequenceNumber());
+				recordBuilder.set("payload", in.getPayload());
 
-				return record;
+				return recordBuilder.build();
 			},
 			in -> new Event((Integer) in.get("key"), (Long) in.get("eventTime"), (Long) in.get("sequenceNumber"), (String) in.get("payload")),
 			in -> (Integer) in.get("key"),
