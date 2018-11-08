@@ -33,7 +33,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<presto.version>0.185</presto.version>
+		<presto.version>0.187</presto.version>
 	</properties>
 
 	<dependencies>
@@ -133,6 +133,10 @@ under the License.
 				<exclusion>
 					<groupId>io.airlift</groupId>
 					<artifactId>aircompressor</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>io.airlift</groupId>
+					<artifactId>log-manager</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>javax.inject</groupId>

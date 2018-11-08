@@ -24,7 +24,7 @@ import org.apache.flink.fs.s3.common.HadoopConfigLoader;
 import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import com.facebook.presto.hive.PrestoS3FileSystem;
+import com.facebook.presto.hive.s3.PrestoS3FileSystem;
 import org.apache.hadoop.fs.FileSystem;
 
 import javax.annotation.Nullable;
