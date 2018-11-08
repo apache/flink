@@ -85,9 +85,10 @@ function verify_result_hash {
   local numRecords=$3
   local expectedHash=$4
 
-  local error_code=0
+  for i in {1..30}
+  do
+    local error_code=0
 
-  for i in {1..30}; do
     echo "Result verification attempt $i..."
     curl "localhost:9200/${index}/_search?q=*&pretty" > $TEST_DATA_DIR/es_output || true
 
