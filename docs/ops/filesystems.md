@@ -54,7 +54,7 @@ including any NFS or SAN that is mounted into that local file system.
     the classpath to use them. Both internally use some Hadoop code, but "shade away" all classes to avoid any dependency conflicts.
 
     - `flink-s3-fs-presto`, registered under the scheme *"s3://"* and *"s3p://"*, is based on code from the [Presto project](https://prestodb.io/).
-      You can configure it the same way you can [configure the Presto file system](https://prestodb.io/docs/0.185/connector/hive.html#amazon-s3-configuration).
+      You can configure it the same way you can [configure the Presto file system](https://prestodb.io/docs/0.187/connector/hive.html#amazon-s3-configuration).
       
     - `flink-s3-fs-hadoop`, registered under *"s3://"* and *"s3a://"*, based on code from the [Hadoop Project](https://hadoop.apache.org/).
       The file system can be [configured exactly like Hadoop's s3a](https://hadoop.apache.org/docs/stable/hadoop-aws/tools/hadoop-aws/index.html#S3A).
