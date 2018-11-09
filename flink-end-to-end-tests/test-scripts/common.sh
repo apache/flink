@@ -663,3 +663,22 @@ function find_latest_completed_checkpoint {
     local checkpoint_meta_file=$(ls -d ${checkpoint_root_directory}/chk-[1-9]*/_metadata | sort -Vr | head -n1)
     echo "$(dirname "${checkpoint_meta_file}")"
 }
+
+function retry_times() {
+    local retriesNumber=$1
+    local backoff=$2
+    local command=${@:3}
+
+    for (( i = 0; i < ${retriesNumber}; i++ ))
+    do
+        if ${command}; then
+            return 0
+        fi
+
+        echo "Command: ${command} failed. Retrying..."
+        sleep ${backoff}
+    done
+
+    echo "Command: ${command} failed ${retriesNumber} times."
+    return 1
+}
