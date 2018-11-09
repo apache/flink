@@ -245,6 +245,12 @@ class HarnessTestBase {
       |  public final void retract(
       |    org.apache.flink.types.Row accs,
       |    org.apache.flink.types.Row input) {
+      |
+      |    sum.retract(
+      |      ((org.apache.flink.table.functions.aggfunctions.SumWithRetractAccumulator) accs
+      |      .getField
+      |      (0)),
+      |      (java.lang.Integer) input.getField(1));
       |  }
       |
       |  public final org.apache.flink.types.Row createAccumulators()
@@ -268,11 +274,6 @@ class HarnessTestBase {
       |    output.setField(
       |      0,
       |      input.getField(0));
-      |  }
-      |
-      |  public final void setConstantFlags(org.apache.flink.types.Row output)
-      |     {
-      |
       |  }
       |
       |  public final org.apache.flink.types.Row createOutputRow() {
