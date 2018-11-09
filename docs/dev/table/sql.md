@@ -163,6 +163,7 @@ joinCondition:
 
 tableReference:
   tablePrimary
+  [ matchRecognize ]
   [ [ AS ] alias [ '(' columnAlias [, columnAlias ]* ')' ] ]
 
 tablePrimary:
@@ -195,6 +196,45 @@ windowSpec:
       | ROWS numericExpression {PRECEDING}
     ]
     ')'
+
+matchRecognize:
+      MATCH_RECOGNIZE '('
+      [ PARTITION BY expression [, expression ]* ]
+      [ ORDER BY orderItem [, orderItem ]* ]
+      [ MEASURES measureColumn [, measureColumn ]* ]
+      [ ONE ROW PER MATCH ]
+      [ AFTER MATCH
+            ( SKIP TO NEXT ROW
+            | SKIP PAST LAST ROW
+            | SKIP TO FIRST variable
+            | SKIP TO LAST variable
+            | SKIP TO variable )
+      ]
+      PATTERN '(' pattern ')'
+      DEFINE variable AS condition [, variable AS condition ]*
+      ')'
+
+measureColumn:
+      expression AS alias
+
+pattern:
+      patternTerm [ '|' patternTerm ]*
+
+patternTerm:
+      patternFactor [ patternFactor ]*
+
+patternFactor:
+      variable [ patternQuantifier ]
+
+patternQuantifier:
+      '*'
+  |   '*?'
+  |   '+'
+  |   '+?'
+  |   '?'
+  |   '??'
+  |   '{' { [ minRepeat ], [ maxRepeat ] } '}' ['?']
+  |   '{' repeat '}'
 
 {% endhighlight %}
 
@@ -756,6 +796,49 @@ Group windows are defined in the `GROUP BY` clause of a SQL query. Just like que
   </tbody>
 </table>
 
+### Pattern Recognition
+
+<div markdown="1">
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operation</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <strong>MATCH_RECOGNIZE</strong><br>
+        <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Searches for a given pattern in a streaming table according to the MATCH_RECOGNIZE <a href="https://standards.iso.org/ittf/PubliclyAvailableStandards/c065143_ISO_IEC_TR_19075-5_2016.zip">standard</a>). For a more detailed description see <a href="streaming/match_recognize.html">Detecting patterns</a></p>
+
+{% highlight sql %}
+SELECT T.aid, T.bid, T.cid
+FROM MyTable
+MATCH_RECOGNIZE (
+  ORDER BY proctime
+  MEASURES
+    A.id AS aid,
+    B.id AS bid,
+    C.id AS cid
+  PATTERN (A B C)
+  DEFINE
+    A AS name = 'a',
+    B AS name = 'b',
+    C AS name = 'c'
+) AS T
+{% endhighlight %}
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+</div>
+
+{% top %}
 
 #### Time Attributes
 
