@@ -100,11 +100,10 @@ fi
 
 DATASTREAM_JOB=$($JOB_CMD | grep "Job has been submitted with JobID" | sed 's/.* //g')
 
-wait_job_running $DATASTREAM_JOB
-
 if [[ $SIMULATE_FAILURE == "true" ]]; then
   wait_job_terminal_state $DATASTREAM_JOB FAILED
 else
+  wait_job_running $DATASTREAM_JOB
   wait_num_checkpoints $DATASTREAM_JOB 1
   wait_oper_metric_num_in_records SemanticsCheckMapper.0 200
 
