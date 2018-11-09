@@ -210,7 +210,7 @@ public class RecordWriterTest {
 		TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(Integer.MAX_VALUE, bufferSize);
 
 		ResultPartitionWriter partitionWriter = new CollectingPartitionWriter(queues, bufferProvider);
-		RecordWriter<ByteArrayIO> writer = new RecordWriter<>(partitionWriter, new RoundRobin<ByteArrayIO>());
+		RecordWriter<ByteArrayIO> writer = new RecordWriter<>(partitionWriter, new RoundRobinChannelSelector<>());
 		CheckpointBarrier barrier = new CheckpointBarrier(Integer.MAX_VALUE + 919192L, Integer.MAX_VALUE + 18828228L, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		// No records emitted yet, broadcast should not request a buffer
@@ -247,7 +247,7 @@ public class RecordWriterTest {
 		TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(Integer.MAX_VALUE, bufferSize);
 
 		ResultPartitionWriter partitionWriter = new CollectingPartitionWriter(queues, bufferProvider);
-		RecordWriter<ByteArrayIO> writer = new RecordWriter<>(partitionWriter, new RoundRobin<ByteArrayIO>());
+		RecordWriter<ByteArrayIO> writer = new RecordWriter<>(partitionWriter, new RoundRobinChannelSelector<>());
 		CheckpointBarrier barrier = new CheckpointBarrier(Integer.MAX_VALUE + 1292L, Integer.MAX_VALUE + 199L, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		// Emit records on some channels first (requesting buffers), then
@@ -590,20 +590,6 @@ public class RecordWriterTest {
 		@Override
 		public void read(DataInputView in) throws IOException {
 			in.readFully(bytes);
-		}
-	}
-
-	/**
-	 * RoundRobin channel selector starting at 0 ({@link RoundRobinChannelSelector} starts at 1).
-	 */
-	private static class RoundRobin<T extends IOReadableWritable> implements ChannelSelector<T> {
-
-		private int[] nextChannel = new int[] { -1 };
-
-		@Override
-		public int[] selectChannels(final T record, final int numberOfOutputChannels) {
-			nextChannel[0] = (nextChannel[0] + 1) % numberOfOutputChannels;
-			return nextChannel;
 		}
 	}
 
