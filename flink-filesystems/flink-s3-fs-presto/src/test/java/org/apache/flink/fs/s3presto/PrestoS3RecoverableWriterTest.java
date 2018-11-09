@@ -42,16 +42,16 @@ public class PrestoS3RecoverableWriterTest {
 
 	// ----------------------- S3 general configuration -----------------------
 
-	private static final String ACCESS_KEY = System.getenv("ARTIFACTS_AWS_ACCESS_KEY");
-	private static final String SECRET_KEY = System.getenv("ARTIFACTS_AWS_SECRET_KEY");
-	private static final String BUCKET = System.getenv("ARTIFACTS_AWS_BUCKET");
+	private static final String ACCESS_KEY = System.getenv("IT_CASE_S3_ACCESS_KEY");
+	private static final String SECRET_KEY = System.getenv("IT_CASE_S3_SECRET_KEY");
+	private static final String BUCKET = System.getenv("IT_CASE_S3_BUCKET");
 
 	private static final long PART_UPLOAD_MIN_SIZE_VALUE = 7L << 20;
 	private static final int MAX_CONCURRENT_UPLOADS_VALUE = 2;
 
 	// ----------------------- Test Specific configuration -----------------------
 
-	private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
+	private static final String TEST_DATA_DIR = "temp/tests-" + UUID.randomUUID();
 
 	private static final Path basePath = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR);
 

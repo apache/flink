@@ -24,9 +24,9 @@ source "$(dirname "$0")"/common_s3.sh
 
 set_conf_ssl "mutual"
 
-OUT=out
+OUT=temp/test_streaming_file_sink-$(uuidgen)
 OUTPUT_PATH="$TEST_DATA_DIR/$OUT"
-S3_OUTPUT_PATH="s3://$ARTIFACTS_AWS_BUCKET/$OUT"
+S3_OUTPUT_PATH="s3://$IT_CASE_S3_BUCKET/$OUT"
 
 mkdir -p $OUTPUT_PATH
 

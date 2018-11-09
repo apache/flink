@@ -53,12 +53,12 @@ import static org.junit.Assume.assumeNoException;
  */
 public class YarnFileStageTestS3ITCase extends TestLogger {
 
-	private static final String BUCKET = System.getenv("ARTIFACTS_AWS_BUCKET");
+	private static final String BUCKET = System.getenv("IT_CASE_S3_BUCKET");
 
-	private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
+	private static final String TEST_DATA_DIR = "temp/tests-" + UUID.randomUUID();
 
-	private static final String ACCESS_KEY = System.getenv("ARTIFACTS_AWS_ACCESS_KEY");
-	private static final String SECRET_KEY = System.getenv("ARTIFACTS_AWS_SECRET_KEY");
+	private static final String ACCESS_KEY = System.getenv("IT_CASE_S3_ACCESS_KEY");
+	private static final String SECRET_KEY = System.getenv("IT_CASE_S3_SECRET_KEY");
 
 	@ClassRule
 	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();

@@ -22,15 +22,8 @@
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/common_s3.sh
 
-s3_put $TEST_INFRA_DIR/test-data/words $ARTIFACTS_AWS_BUCKET flink-end-to-end-test-shaded-s3a
-# make sure we delete the file at the end
-function shaded_s3a_cleanup {
-  s3_delete $ARTIFACTS_AWS_BUCKET flink-end-to-end-test-shaded-s3a
-}
-trap shaded_s3a_cleanup EXIT
-
 start_cluster
 
-$FLINK_DIR/bin/flink run -p 1 $FLINK_DIR/examples/batch/WordCount.jar --input s3:/$resource --output $TEST_DATA_DIR/out/wc_out
+$FLINK_DIR/bin/flink run -p 1 $FLINK_DIR/examples/batch/WordCount.jar --input $SHADED_S3_INPUT --output $TEST_DATA_DIR/out/wc_out
 
 check_result_hash "WordCountWithShadedS3A" $TEST_DATA_DIR/out/wc_out "72a690412be8928ba239c2da967328a5"
