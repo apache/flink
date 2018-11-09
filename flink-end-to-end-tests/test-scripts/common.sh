@@ -645,11 +645,6 @@ function clean_stdout_files {
     echo "Deleted all stdout files under ${FLINK_DIR}/log/"
 }
 
-function clean_log_files {
-    rm ${FLINK_DIR}/log/*
-    echo "Deleted all files under ${FLINK_DIR}/log/"
-}
-
 # Expect a string to appear in the log files of the task manager before a given timeout
 # $1: expected string
 # $2: timeout in seconds
