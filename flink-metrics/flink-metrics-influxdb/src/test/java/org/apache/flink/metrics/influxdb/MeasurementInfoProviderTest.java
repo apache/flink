@@ -29,6 +29,7 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -49,7 +50,7 @@ import static org.mockito.Mockito.when;
 /**
  * Test for {@link MeasurementInfoProvider}.
  */
-public class MeasurementInfoProviderTest {
+public class MeasurementInfoProviderTest extends TestLogger {
 	private static final Random RANDOM = new Random();
 
 	private final MeasurementInfoProvider provider = new MeasurementInfoProvider();

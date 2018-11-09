@@ -23,6 +23,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Meter;
+import org.apache.flink.util.TestLogger;
 
 import org.influxdb.dto.Point;
 import org.junit.Test;
@@ -38,7 +39,7 @@ import static org.mockito.Mockito.when;
 /**
  * Test for {@link MetricMapper} checking that metrics are converted to InfluxDB client objects as expected.
  */
-public class MetricMapperTest {
+public class MetricMapperTest extends TestLogger {
 
 	private final String name = "a-metric-name";
 	private final MeasurementInfo info = getMeasurementInfo(name);

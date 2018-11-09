@@ -21,12 +21,12 @@ package org.apache.flink.metrics.influxdb;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.util.TestLogger;
 
 import com.github.tomakehurst.wiremock.common.ConsoleNotifier;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
@@ -51,16 +51,72 @@ import static org.junit.Assert.assertTrue;
 /**
  * Integration test for {@link InfluxdbReporter}.
  */
-public class InfluxdbReporterTest {
+public class InfluxdbReporterTest extends TestLogger {
 	private static final String TEST_INFLUXDB_DB = "test-42";
 	private static final String METRIC_HOSTNAME = "task-mgr-1";
 	private static final String METRIC_TM_ID = "tm-id-123";
 
 	@Rule
-	public WireMockRule wireMockRule = new WireMockRule(wireMockConfig().dynamicPort().notifier(new ConsoleNotifier(false)));
+	public final WireMockRule wireMockRule = new WireMockRule(
+		wireMockConfig()
+			.dynamicPort()
+			.notifier(new ConsoleNotifier(false)));
 
 	@Test
-	public void test() throws Exception {
+	public void testReporterRegistration() throws Exception {
+		MetricRegistryImpl metricRegistry = createMetricRegistry();
+		try {
+			assertEquals(1, metricRegistry.getReporters().size());
+			MetricReporter reporter = metricRegistry.getReporters().get(0);
+			assertTrue(reporter instanceof InfluxdbReporter);
+		} finally {
+			metricRegistry.shutdown().get();
+		}
+	}
+
+	@Test
+	public void testMetricRegistration() throws Exception {
+		MetricRegistryImpl metricRegistry = createMetricRegistry();
+		try {
+			String metricName = "TestCounter";
+			Counter counter = registerTestMetric(metricName, metricRegistry);
+
+			InfluxdbReporter reporter = (InfluxdbReporter) metricRegistry.getReporters().get(0);
+			MeasurementInfo measurementInfo = reporter.counters.get(counter);
+			assertNotNull("test metric must be registered in the reporter", measurementInfo);
+			assertEquals("taskmanager_" + metricName, measurementInfo.getName());
+			assertThat(measurementInfo.getTags(), hasEntry("host", METRIC_HOSTNAME));
+			assertThat(measurementInfo.getTags(), hasEntry("tm_id", METRIC_TM_ID));
+		} finally {
+			metricRegistry.shutdown().get();
+		}
+	}
+
+	@Test
+	public void testMetricReporting() throws Exception {
+		MetricRegistryImpl metricRegistry = createMetricRegistry();
+		try {
+			String metricName = "TestCounter";
+			Counter counter = registerTestMetric(metricName, metricRegistry);
+			counter.inc(42);
+
+			stubFor(post(urlPathEqualTo("/write"))
+				.willReturn(aResponse()
+					.withStatus(200)));
+
+			InfluxdbReporter reporter = (InfluxdbReporter) metricRegistry.getReporters().get(0);
+			reporter.report();
+
+			verify(postRequestedFor(urlPathEqualTo("/write"))
+				.withQueryParam("db", equalTo(TEST_INFLUXDB_DB))
+				.withHeader("Content-Type", containing("text/plain"))
+				.withRequestBody(containing("taskmanager_" + metricName + ",host=" + METRIC_HOSTNAME + ",tm_id=" + METRIC_TM_ID + " count=42i")));
+		} finally {
+			metricRegistry.shutdown().get();
+		}
+	}
+
+	private MetricRegistryImpl createMetricRegistry() {
 		String configPrefix = ConfigConstants.METRICS_REPORTER_PREFIX + "test.";
 		Configuration configuration = new Configuration();
 		configuration.setString(
@@ -69,40 +125,11 @@ public class InfluxdbReporterTest {
 		configuration.setString(configPrefix + "host", "localhost");
 		configuration.setString(configPrefix + "port", String.valueOf(wireMockRule.port()));
 		configuration.setString(configPrefix + "db", TEST_INFLUXDB_DB);
-
-		MetricRegistryImpl metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(configuration));
-		MetricReporter reporter = metricRegistry.getReporters().get(0);
-		assertTrue(reporter instanceof InfluxdbReporter);
-		InfluxdbReporter influxdbReporter = (InfluxdbReporter) reporter;
-
-		String metricName = "TestCounter";
-		Counter counter = registerTestMetric(metricName, metricRegistry);
-		MeasurementInfo measurementInfo = influxdbReporter.counters.get(counter);
-		assertNotNull("test metric must be registered in the reporter", measurementInfo);
-		String fullMetricName = "taskmanager_" + metricName;
-		assertEquals(fullMetricName, measurementInfo.getName());
-		assertThat(measurementInfo.getTags(), hasEntry("host", METRIC_HOSTNAME));
-		assertThat(measurementInfo.getTags(), hasEntry("tm_id", METRIC_TM_ID));
-
-		stubFor(post(urlPathEqualTo("/write"))
-			.willReturn(aResponse()
-				.withStatus(200)));
-
-		counter.inc(42);
-		influxdbReporter.report();
-
-		verify(postRequestedFor(urlPathEqualTo("/write"))
-			.withQueryParam("db", equalTo(TEST_INFLUXDB_DB))
-			.withHeader("Content-Type", containing("text/plain"))
-			.withRequestBody(containing(fullMetricName + ",host=" + METRIC_HOSTNAME + ",tm_id=" + METRIC_TM_ID + " count=42i")));
-
-		metricRegistry.shutdown().get();
+		return new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(configuration));
 	}
 
 	private static Counter registerTestMetric(String metricName, MetricRegistry metricRegistry) {
 		TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(metricRegistry, METRIC_HOSTNAME, METRIC_TM_ID);
-		SimpleCounter counter = new SimpleCounter();
-		metricGroup.counter(metricName, counter);
-		return counter;
+		return metricGroup.counter(metricName);
 	}
 }
