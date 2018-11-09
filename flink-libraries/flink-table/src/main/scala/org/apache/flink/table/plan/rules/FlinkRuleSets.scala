@@ -25,7 +25,7 @@ import org.apache.flink.table.plan.rules.common._
 import org.apache.flink.table.plan.rules.logical._
 import org.apache.flink.table.plan.rules.dataSet._
 import org.apache.flink.table.plan.rules.datastream._
-import org.apache.flink.table.plan.nodes.logical._
+import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalMatch, _}
 
 object FlinkRuleSets {
 
@@ -133,7 +133,10 @@ object FlinkRuleSets {
     FlinkLogicalValues.CONVERTER,
     FlinkLogicalTableSourceScan.CONVERTER,
     FlinkLogicalTableFunctionScan.CONVERTER,
-    FlinkLogicalNativeTableScan.CONVERTER
+    FlinkLogicalNativeTableScan.CONVERTER,
+
+    // MATCH_RECOGNIZE logical
+    FlinkLogicalMatch.CONVERTER
   )
 
   /**
@@ -211,7 +214,10 @@ object FlinkRuleSets {
     DataStreamCorrelateRule.INSTANCE,
     DataStreamWindowJoinRule.INSTANCE,
     DataStreamJoinRule.INSTANCE,
-    StreamTableSourceScanRule.INSTANCE
+    StreamTableSourceScanRule.INSTANCE,
+
+    // MATCH_RECOGNIZE DataStream
+    DataStreamMatchRule.INSTANCE
   )
 
   /**

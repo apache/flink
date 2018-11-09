@@ -756,6 +756,13 @@ abstract class CodeGenerator(
       case (o@_, _) =>
         o.accept(this)
     }
+    generateCallExpression(call, operands, resultType)
+  }
+
+  def generateCallExpression(
+    call: RexCall,
+    operands: Seq[GeneratedExpression],
+    resultType: TypeInformation[_]): GeneratedExpression = {
 
     call.getOperator match {
       // arithmetic
@@ -1193,7 +1200,7 @@ abstract class CodeGenerator(
     GeneratedExpression(resultTerm, nullTerm, inputCheckCode, fieldType)
   }
 
-  private def generateFieldAccess(
+   def generateFieldAccess(
       inputType: TypeInformation[_],
       inputTerm: String,
       index: Int)
@@ -1968,5 +1975,16 @@ abstract class CodeGenerator(
     reusableInitStatements.add(nullableInit)
 
     fieldTerm
+  }
+
+  /**
+    * MATCH_RECOGNIZE PATTERN() patternVariable
+    */
+  def addReusableInitStatement(initStatement: String): Unit = {
+    reusableInitStatements.add(initStatement)
+  }
+
+  def addReusableMemberStatement(memberStatement: String): Unit = {
+    reusableMemberStatements.add(memberStatement)
   }
 }

@@ -34,6 +34,8 @@ import org.apache.flink.table.validate.BasicOperatorTable
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
+import java.util.Map;
+import java.util.TreeSet;
 
 /**
   * Traverses a [[RelNode]] tree and converts fields with [[TimeIndicatorRelDataType]] type. If a
@@ -99,8 +101,52 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     LogicalSort.create(input, sort.collation, sort.offset, sort.fetch)
   }
 
-  override def visit(`match`: LogicalMatch): RelNode =
-    throw new TableException("Logical match in a stream environment is not supported yet.")
+  override def visit(`match`: LogicalMatch): RelNode = {
+    // input row type
+    val rowType = `match`.getInput.getRowType
+    val rexTimeIndicatorMaterializer = new RexTimeIndicatorMaterializer(
+      rexBuilder,
+      rowType.getFieldList.map(_.getType)
+    )
+
+    // pattern definition
+    val patternDefinitions =
+      `match`.getPatternDefinitions.foldLeft(mutable.Map[String, RexNode]()) {
+        case (m, (k, v)) => m += k -> v.accept(rexTimeIndicatorMaterializer)
+      }
+
+    val measures = `match`.getMeasures.foldLeft(mutable.Map[String, RexNode]()) {
+      case (m, (k, v)) => m += k -> v.accept(rexTimeIndicatorMaterializer)
+    }
+
+    // output types
+    val outputTypeBuilder = rexBuilder
+      .getTypeFactory
+      .asInstanceOf[FlinkTypeFactory]
+      .builder()
+
+    `match`.getRowType.getFieldList
+      .foreach(x => measures.get(x.getName) match {
+        case Some(measure) => outputTypeBuilder.add(x.getName, measure.getType)
+        case None => outputTypeBuilder.add(x)
+      })
+
+    // creates a LogicalMatch
+    LogicalMatch.create(
+      `match`.getInput,
+      outputTypeBuilder.build(),
+      `match`.getPattern,
+      `match`.isStrictStart,
+      `match`.isStrictEnd,
+      patternDefinitions,
+      measures,
+      `match`.getAfter,
+      `match`.getSubsets.asInstanceOf[Map[String, TreeSet[String]]],
+      `match`.isAllRows,
+      `match`.getPartitionKeys,
+      `match`.getOrderKeys,
+      `match`.getInterval)
+  }
 
   override def visit(other: RelNode): RelNode = other match {
 

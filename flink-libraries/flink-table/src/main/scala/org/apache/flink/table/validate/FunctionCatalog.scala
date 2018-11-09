@@ -458,7 +458,17 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     BasicOperatorTable.HOP_PROCTIME,
     BasicOperatorTable.HOP_ROWTIME,
     BasicOperatorTable.SESSION_PROCTIME,
-    BasicOperatorTable.SESSION_ROWTIME
+    BasicOperatorTable.SESSION_ROWTIME,
+
+    // MATCH_RECOGNIZE
+    SqlStdOperatorTable.FIRST,
+    SqlStdOperatorTable.LAST,
+    SqlStdOperatorTable.PREV,
+    SqlStdOperatorTable.NEXT,
+    SqlStdOperatorTable.CLASSIFIER,
+    SqlStdOperatorTable.MATCH_NUMBER,
+    SqlStdOperatorTable.FINAL,
+    SqlStdOperatorTable.RUNNING
   )
 
   builtInSqlOperators.foreach(register)
