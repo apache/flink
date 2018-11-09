@@ -24,7 +24,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableEnvironment, Types, ValidationException}
-import org.apache.flink.table.expressions.utils.{Func1, Func18, RichFunc2}
+import org.apache.flink.table.expressions.utils.{Func1, Func18, Func20, RichFunc2}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.runtime.utils.{TableProgramsClusterTestBase, _}
@@ -365,6 +365,33 @@ class CorrelateITCase(
       .join(varArgsFunc0())
     val results0 = result0.toDataSet[Row].collect()
     assertTrue(results0.isEmpty)
+  }
+
+  @Test
+  def testTableFunctionCollectorOpenClose(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val t = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val func0 = new TableFunc0
+    val func20 = new Func20
+
+    val result = t
+      .join(func0('c) as('d, 'e))
+      .where(func20('e))
+      .select('c, 'd, 'e)
+
+    val results = result.toDataSet[Row].collect()
+
+    val expected = Seq (
+      "Jack#22,Jack,22",
+      "John#19,John,19",
+      "Anna#44,Anna,44"
+    )
+
+    TestBaseUtils.compareResultAsText(
+      results.asJava,
+      expected.sorted.mkString("\n")
+    )
   }
 
   private def testData(

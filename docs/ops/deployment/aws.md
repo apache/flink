@@ -105,7 +105,10 @@ To use either `flink-s3-fs-hadoop` or `flink-s3-fs-presto`, copy the respective 
 cp ./opt/flink-s3-fs-presto-{{ site.version }}.jar ./lib/
 {% endhighlight %}
 
-Both `flink-s3-fs-hadoop` and `flink-s3-fs-presto` register default FileSystem wrappers for URIs with the `s3://` scheme, `flink-s3-fs-hadoop` also registers for `s3a://`.
+Both `flink-s3-fs-hadoop` and `flink-s3-fs-presto` register default FileSystem
+wrappers for URIs with the `s3://` scheme, `flink-s3-fs-hadoop` also registers
+for `s3a://` and `flink-s3-fs-presto` also registers for `s3p://`, so you can
+use this to use both at the same time.
 
 #### Configure Access Credentials
 

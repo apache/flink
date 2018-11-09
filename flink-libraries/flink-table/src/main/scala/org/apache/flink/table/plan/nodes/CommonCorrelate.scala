@@ -99,7 +99,7 @@ trait CommonCorrelate {
            |}
            |""".stripMargin
     } else if (joinType != SemiJoinType.INNER) {
-      throw TableException(s"Unsupported SemiJoinType: $joinType for correlate join.")
+      throw new TableException(s"Unsupported SemiJoinType: $joinType for correlate join.")
     }
 
     functionGenerator.generateFunction(
@@ -136,6 +136,13 @@ trait CommonCorrelate {
       returnSchema.typeInfo,
       returnSchema.fieldNames)
 
+    val filterGenerator = new FunctionCodeGenerator(
+      config,
+      false,
+      udtfTypeInfo,
+      None,
+      pojoFieldMapping)
+
     val collectorCode = if (condition.isEmpty) {
       s"""
          |${crossResultExpr.code}
@@ -153,13 +160,6 @@ trait CommonCorrelate {
       //   The generated expression is discarded.
       generator.generateExpression(condition.get.accept(changeInputRefIndexShuttle))
 
-      val filterGenerator = new FunctionCodeGenerator(
-        config,
-        false,
-        udtfTypeInfo,
-        None,
-        pojoFieldMapping)
-
       filterGenerator.input1Term = filterGenerator.input2Term
       val filterCondition = filterGenerator.generateExpression(condition.get)
       s"""
@@ -175,7 +175,8 @@ trait CommonCorrelate {
     generator.generateTableFunctionCollector(
       "TableFunctionCollector",
       collectorCode,
-      udtfTypeInfo)
+      udtfTypeInfo,
+      filterGenerator)
   }
 
   private[flink] def selectToString(rowType: RelDataType): String = {

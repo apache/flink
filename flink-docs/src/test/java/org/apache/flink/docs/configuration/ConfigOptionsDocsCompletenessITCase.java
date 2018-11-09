@@ -18,7 +18,10 @@
 
 package org.apache.flink.docs.configuration;
 
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.description.Formatter;
+import org.apache.flink.configuration.description.HtmlFormatter;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -35,9 +38,12 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.COMMON_SECTION_FILE_NAME;
+import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.DEFAULT_PATH_PREFIX;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.LOCATIONS;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.extractConfigOptions;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.processConfigOptions;
@@ -51,11 +57,26 @@ import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.stri
  */
 public class ConfigOptionsDocsCompletenessITCase {
 
-	@Test
-	public void testDocsCompleteness() throws IOException, ClassNotFoundException {
-		Map<String, DocumentedOption> documentedOptions = parseDocumentedOptions();
-		Map<String, ExistingOption> existingOptions = findExistingOptions();
+	private static final Formatter htmlFormatter = new HtmlFormatter();
 
+	@Test
+	public void testCommonSectionCompleteness() throws IOException, ClassNotFoundException {
+		Map<String, DocumentedOption> documentedOptions = parseDocumentedCommonOptions();
+		Map<String, ExistingOption> existingOptions = findExistingOptions(
+			optionWithMetaInfo -> optionWithMetaInfo.field.getAnnotation(Documentation.CommonOption.class) != null);
+
+		compareDocumentedAndExistingOptions(documentedOptions, existingOptions);
+	}
+
+	@Test
+	public void testFullReferenceCompleteness() throws IOException, ClassNotFoundException {
+		Map<String, DocumentedOption> documentedOptions = parseDocumentedOptions();
+		Map<String, ExistingOption> existingOptions = findExistingOptions(ignored -> true);
+
+		compareDocumentedAndExistingOptions(documentedOptions, existingOptions);
+	}
+
+	private static void compareDocumentedAndExistingOptions(Map<String, DocumentedOption> documentedOptions, Map<String, ExistingOption> existingOptions) {
 		final Collection<String> problems = new ArrayList<>(0);
 
 		// first check that all existing options are properly documented
@@ -98,6 +119,27 @@ public class ConfigOptionsDocsCompletenessITCase {
 		}
 	}
 
+	private static Map<String, DocumentedOption> parseDocumentedCommonOptions() throws IOException {
+		Path commonSection = Paths.get(System.getProperty("rootDir"), "docs", "_includes", "generated", COMMON_SECTION_FILE_NAME);
+		return parseDocumentedOptionsFromFile(commonSection).stream()
+			.collect(Collectors.toMap(option -> option.key, option -> option, (option1, option2) -> {
+				if (option1.equals(option2)) {
+					// we allow multiple instances of ConfigOptions with the same key if they are identical
+					return option1;
+				} else {
+					// found a ConfigOption pair with the same key that aren't equal
+					// we fail here outright as this is not a documentation-completeness problem
+					if (!option1.defaultValue.equals(option2.defaultValue)) {
+						throw new AssertionError("Documentation contains distinct defaults for " +
+							option1.key + " in " + option1.containingFile + " and " + option2.containingFile + '.');
+					} else {
+						throw new AssertionError("Documentation contains distinct descriptions for " +
+							option1.key + " in " + option1.containingFile + " and " + option2.containingFile + '.');
+					}
+				}
+			}));
+	}
+
 	private static Map<String, DocumentedOption> parseDocumentedOptions() throws IOException {
 		Path includeFolder = Paths.get(System.getProperty("rootDir"), "docs", "_includes", "generated").toAbsolutePath();
 		return Files.list(includeFolder)
@@ -129,36 +171,43 @@ public class ConfigOptionsDocsCompletenessITCase {
 
 	private static Collection<DocumentedOption> parseDocumentedOptionsFromFile(Path file) throws IOException {
 		Document document = Jsoup.parse(file.toFile(), StandardCharsets.UTF_8.name());
+		document.outputSettings().prettyPrint(false);
 		return document.getElementsByTag("table").stream()
 			.map(element -> element.getElementsByTag("tbody").get(0))
 			.flatMap(element -> element.getElementsByTag("tr").stream())
 			.map(tableRow -> {
 				String key = tableRow.child(0).text();
 				String defaultValue = tableRow.child(1).text();
-				String description = tableRow.child(2).text();
+				String description = tableRow.child(2)
+					.childNodes()
+					.stream()
+					.map(Object::toString)
+					.collect(Collectors.joining());
 				return new DocumentedOption(key, defaultValue, description, file.getName(file.getNameCount() - 1));
 			})
 			.collect(Collectors.toList());
 	}
 
-	private static Map<String, ExistingOption> findExistingOptions() throws IOException, ClassNotFoundException {
+	private static Map<String, ExistingOption> findExistingOptions(Predicate<ConfigOptionsDocGenerator.OptionWithMetaInfo> predicate) throws IOException, ClassNotFoundException {
 		Map<String, ExistingOption> existingOptions = new HashMap<>(32);
 
 		for (OptionsClassLocation location : LOCATIONS) {
-			processConfigOptions(System.getProperty("rootDir"), location.getModule(), location.getPackage(), optionsClass -> {
+			processConfigOptions(System.getProperty("rootDir"), location.getModule(), location.getPackage(), DEFAULT_PATH_PREFIX, optionsClass -> {
 				List<ConfigOptionsDocGenerator.OptionWithMetaInfo> configOptions = extractConfigOptions(optionsClass);
 				for (ConfigOptionsDocGenerator.OptionWithMetaInfo option : configOptions) {
-					String key = option.option.key();
-					String defaultValue = stringifyDefault(option);
-					String description = option.option.description();
-					ExistingOption duplicate = existingOptions.put(key, new ExistingOption(key, defaultValue, description, optionsClass));
-					if (duplicate != null) {
-						// multiple documented options have the same key
-						// we fail here outright as this is not a documentation-completeness problem
-						if (!(duplicate.description.equals(description))) {
-							throw new AssertionError("Ambiguous option " + key + " due to distinct descriptions.");
-						} else if (!duplicate.defaultValue.equals(defaultValue)) {
-							throw new AssertionError("Ambiguous option " + key + " due to distinct default values (" + defaultValue + " vs " + duplicate.defaultValue + ").");
+					if (predicate.test(option)) {
+						String key = option.option.key();
+						String defaultValue = stringifyDefault(option);
+						String description = htmlFormatter.format(option.option.description());
+						ExistingOption duplicate = existingOptions.put(key, new ExistingOption(key, defaultValue, description, optionsClass));
+						if (duplicate != null) {
+							// multiple documented options have the same key
+							// we fail here outright as this is not a documentation-completeness problem
+							if (!(duplicate.description.equals(description))) {
+								throw new AssertionError("Ambiguous option " + key + " due to distinct descriptions.");
+							} else if (!duplicate.defaultValue.equals(defaultValue)) {
+								throw new AssertionError("Ambiguous option " + key + " due to distinct default values (" + defaultValue + " vs " + duplicate.defaultValue + ").");
+							}
 						}
 					}
 				}

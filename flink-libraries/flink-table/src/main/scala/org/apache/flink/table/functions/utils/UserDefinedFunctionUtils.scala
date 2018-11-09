@@ -19,28 +19,27 @@
 
 package org.apache.flink.table.functions.utils
 
-import java.util
-import java.lang.{Integer => JInt, Long => JLong}
 import java.lang.reflect.{Method, Modifier}
+import java.lang.{Integer => JInt, Long => JLong}
 import java.sql.{Date, Time, Timestamp}
+import java.util
 
-import org.apache.commons.codec.binary.Base64
 import com.google.common.primitives.Primitives
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
-import org.apache.calcite.sql.{SqlCallBinding, SqlFunction, SqlOperandCountRange, SqlOperator, SqlOperatorBinding}
+import org.apache.calcite.sql.{SqlCallBinding, SqlFunction, SqlOperandCountRange, SqlOperator}
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtractor}
 import org.apache.flink.table.api.dataview._
-import org.apache.flink.table.dataview._
-import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.dataview._
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
+import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.util.InstantiationUtil
 
@@ -53,15 +52,16 @@ object UserDefinedFunctionUtils {
     */
   def checkForInstantiation(clazz: Class[_]): Unit = {
     if (!InstantiationUtil.isPublic(clazz)) {
-      throw ValidationException(s"Function class ${clazz.getCanonicalName} is not public.")
+      throw new ValidationException(s"Function class ${clazz.getCanonicalName} is not public.")
     }
     else if (!InstantiationUtil.isProperClass(clazz)) {
-      throw ValidationException(s"Function class ${clazz.getCanonicalName} is no proper class," +
+      throw new ValidationException(
+        s"Function class ${clazz.getCanonicalName} is no proper class," +
         " it is either abstract, an interface, or a primitive type.")
     }
     else if (InstantiationUtil.isNonStaticInnerClass(clazz)) {
-      throw ValidationException(s"The class ${clazz.getCanonicalName} is an inner class, but" +
-        " not statically accessible.")
+      throw new ValidationException(
+        s"The class ${clazz.getCanonicalName} is an inner class, but not statically accessible.")
     }
   }
 
@@ -732,19 +732,6 @@ object UserDefinedFunctionUtils {
     (candidate.isArray && expected.isArray &&
       (candidate.getComponentType == expected.getComponentType ||
         expected.getComponentType == classOf[Object]))
-
-  @throws[Exception]
-  def serialize(function: UserDefinedFunction): String = {
-    val byteArray = InstantiationUtil.serializeObject(function)
-    Base64.encodeBase64URLSafeString(byteArray)
-  }
-
-  @throws[Exception]
-  def deserialize(data: String): UserDefinedFunction = {
-    val byteData = Base64.decodeBase64(data)
-    InstantiationUtil
-      .deserializeObject[UserDefinedFunction](byteData, Thread.currentThread.getContextClassLoader)
-  }
 
   /**
     * Creates a [[LogicalTableFunctionCall]] by parsing a String expression.

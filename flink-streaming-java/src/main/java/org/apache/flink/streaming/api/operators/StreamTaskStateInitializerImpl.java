@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.execution.Environment;
@@ -40,6 +41,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.OperatorSubtaskDescriptionText;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.CloseableIterable;
@@ -105,7 +107,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		@Nonnull String operatorClassName,
 		@Nonnull KeyContext keyContext,
 		@Nullable TypeSerializer<?> keySerializer,
-		@Nonnull CloseableRegistry streamTaskCloseableRegistry) throws Exception {
+		@Nonnull CloseableRegistry streamTaskCloseableRegistry,
+		@Nonnull MetricGroup metricGroup) throws Exception {
 
 		TaskInfo taskInfo = environment.getTaskInfo();
 		OperatorSubtaskDescriptionText operatorSubtaskDescription =
@@ -124,7 +127,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		OperatorStateBackend operatorStateBackend = null;
 		CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs = null;
 		CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs = null;
-		InternalTimeServiceManager<?, ?> timeServiceManager;
+		InternalTimeServiceManager<?> timeServiceManager;
 
 		try {
 
@@ -133,7 +136,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 				keySerializer,
 				operatorIdentifierText,
 				prioritizedOperatorSubtaskStates,
-				streamTaskCloseableRegistry);
+				streamTaskCloseableRegistry,
+				metricGroup);
 
 			// -------------- Operator State Backend --------------
 			operatorStateBackend = operatorStateBackend(
@@ -192,7 +196,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		}
 	}
 
-	protected <K> InternalTimeServiceManager<?, K> internalTimeServiceManager(
+	protected <K> InternalTimeServiceManager<K> internalTimeServiceManager(
 		AbstractKeyedStateBackend<K> keyedStatedBackend,
 		KeyContext keyContext, //the operator
 		Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
@@ -203,11 +207,12 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
 		final KeyGroupRange keyGroupRange = keyedStatedBackend.getKeyGroupRange();
 
-		final InternalTimeServiceManager<?, K> timeServiceManager = new InternalTimeServiceManager<>(
-			keyedStatedBackend.getNumberOfKeyGroups(),
+		final InternalTimeServiceManager<K> timeServiceManager = new InternalTimeServiceManager<>(
 			keyGroupRange,
 			keyContext,
-			processingTimeService);
+			keyedStatedBackend,
+			processingTimeService,
+			keyedStatedBackend.requiresLegacySynchronousTimerSnapshots());
 
 		// and then initialize the timer services
 		for (KeyGroupStatePartitionStreamProvider streamProvider : rawKeyedStates) {
@@ -245,7 +250,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		TypeSerializer<K> keySerializer,
 		String operatorIdentifierText,
 		PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates,
-		CloseableRegistry backendCloseableRegistry) throws Exception {
+		CloseableRegistry backendCloseableRegistry,
+		MetricGroup metricGroup) throws Exception {
 
 		if (keySerializer == null) {
 			return null;
@@ -269,7 +275,9 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 					keySerializer,
 					taskInfo.getMaxNumberOfParallelSubtasks(),
 					keyGroupRange,
-					environment.getTaskKvStateRegistry()),
+					environment.getTaskKvStateRegistry(),
+					TtlTimeProvider.DEFAULT,
+					metricGroup),
 				backendCloseableRegistry,
 				logDescription);
 
@@ -544,7 +552,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
 		private final OperatorStateBackend operatorStateBackend;
 		private final AbstractKeyedStateBackend<?> keyedStateBackend;
-		private final InternalTimeServiceManager<?, ?> internalTimeServiceManager;
+		private final InternalTimeServiceManager<?> internalTimeServiceManager;
 
 		private final CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs;
 		private final CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs;
@@ -553,7 +561,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			boolean restored,
 			OperatorStateBackend operatorStateBackend,
 			AbstractKeyedStateBackend<?> keyedStateBackend,
-			InternalTimeServiceManager<?, ?> internalTimeServiceManager,
+			InternalTimeServiceManager<?> internalTimeServiceManager,
 			CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs,
 			CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs) {
 
@@ -581,7 +589,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		}
 
 		@Override
-		public InternalTimeServiceManager<?, ?> internalTimerServiceManager() {
+		public InternalTimeServiceManager<?> internalTimerServiceManager() {
 			return internalTimeServiceManager;
 		}
 

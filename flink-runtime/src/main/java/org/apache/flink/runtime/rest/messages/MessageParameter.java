@@ -137,4 +137,10 @@ public abstract class MessageParameter<X> {
 		MANDATORY,
 		OPTIONAL
 	}
+
+	/**
+	 * Returns a description for REST API HTML documentation.
+ 	 * @return escaped HTML string
+	 */
+	public abstract String getDescription();
 }

@@ -28,4 +28,9 @@ public class SavepointPathQueryParameter  extends StringQueryParameter {
 	public SavepointPathQueryParameter() {
 		super(KEY, MessageParameterRequisiteness.OPTIONAL);
 	}
+
+	@Override
+	public String getDescription() {
+		return "String value that specifies the path of the savepoint to restore the job from.";
+	}
 }

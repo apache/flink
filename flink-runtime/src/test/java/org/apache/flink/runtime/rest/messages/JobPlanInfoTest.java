@@ -18,7 +18,8 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 
 /**
  * Tests that the {@link JobPlanInfo} can be marshalled and unmarshalled.
@@ -32,9 +33,7 @@ public class JobPlanInfoTest extends RestResponseMarshallingTestBase<JobPlanInfo
 
 	@Override
 	protected JobPlanInfo getTestResponseInstance() {
-		JobID jobID = new JobID();
-		String jobName = "job_007";
-		String jsonPlan = "{\"jobid\":\"" + jobID + "\", \"name\":\"" + jobName + "\", \"nodes\":[]}";
-		return new JobPlanInfo(jsonPlan);
+		JobGraph jg = new JobGraph("job_007");
+		return new JobPlanInfo(JsonPlanGenerator.generatePlan(jg));
 	}
 }

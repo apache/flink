@@ -31,6 +31,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
+import akka.actor.RobustActorSystem;
 import akka.testkit.JavaTestKit;
 import org.junit.Test;
 
@@ -38,9 +39,12 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeoutException;
 
+import scala.concurrent.Await;
 import scala.concurrent.ExecutionContext$;
-import scala.concurrent.forkjoin.ForkJoinPool;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.impl.ExecutionContextImpl;
 
 import static org.junit.Assert.fail;
@@ -54,13 +58,17 @@ public class LocalFlinkMiniClusterITCase extends TestLogger {
 		// This is a daemon thread spawned by netty's ThreadLocalRandom class if no
 		// initialSeedUniquifier is set yet and it is sometimes spawned before this test and
 		// sometimes during this test.
-		"initialSeedUniquifierGenerator"
+		"initialSeedUniquifierGenerator",
+		// This thread quits only on JVM because of static field
+		// io.netty.buffer.PooledByteBufAllocator.DEFAULT
+		// https://github.com/netty/netty/issues/7759
+		"ObjectCleanerThread"
 	};
 
 	@Test
-	public void testLocalFlinkMiniClusterWithMultipleTaskManagers() {
+	public void testLocalFlinkMiniClusterWithMultipleTaskManagers() throws InterruptedException, TimeoutException {
 
-		final ActorSystem system = ActorSystem.create("Testkit", AkkaUtils.getDefaultAkkaConfig());
+		final ActorSystem system = RobustActorSystem.create("Testkit", AkkaUtils.getDefaultAkkaConfig());
 		LocalFlinkMiniCluster miniCluster = null;
 
 		final int numTMs = 3;
@@ -113,7 +121,7 @@ public class LocalFlinkMiniClusterITCase extends TestLogger {
 			}
 
 			JavaTestKit.shutdownActorSystem(system);
-			system.awaitTermination();
+			Await.ready(system.whenTerminated(), Duration.Inf());
 		}
 
 		// shut down the global execution context, to make sure it does not affect this testing

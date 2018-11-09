@@ -120,12 +120,22 @@ public class CoProcessOperator<IN1, IN2, OUT>
 
 		@Override
 		public void registerProcessingTimeTimer(long time) {
-			throw new UnsupportedOperationException("Setting timers is only supported on a keyed streams.");
+			throw new UnsupportedOperationException(UNSUPPORTED_REGISTER_TIMER_MSG);
 		}
 
 		@Override
 		public void registerEventTimeTimer(long time) {
-			throw new UnsupportedOperationException("Setting timers is only supported on a keyed streams.");
+			throw new UnsupportedOperationException(UNSUPPORTED_REGISTER_TIMER_MSG);
+		}
+
+		@Override
+		public void deleteProcessingTimeTimer(long time) {
+			throw new UnsupportedOperationException(UNSUPPORTED_DELETE_TIMER_MSG);
+		}
+
+		@Override
+		public void deleteEventTimeTimer(long time) {
+			throw new UnsupportedOperationException(UNSUPPORTED_DELETE_TIMER_MSG);
 		}
 
 		@Override

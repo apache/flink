@@ -30,12 +30,16 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 import static com.facebook.presto.hive.PrestoS3FileSystem.S3_USE_INSTANCE_CREDENTIALS;
@@ -53,7 +57,16 @@ import static org.junit.Assert.fail;
  * <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel">consistency guarantees</a>
  * and what the {@link com.facebook.presto.hive.PrestoS3FileSystem} offers.
  */
+@RunWith(Parameterized.class)
 public class PrestoS3FileSystemITCase extends TestLogger {
+
+	@Parameterized.Parameter
+	public String scheme;
+
+	@Parameterized.Parameters(name = "Scheme = {0}")
+	public static List<String> parameters() {
+		return Arrays.asList("s3", "s3p");
+	}
 
 	private static final String BUCKET = System.getenv("ARTIFACTS_AWS_BUCKET");
 
@@ -71,7 +84,7 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 
 	@Test
 	public void testConfigKeysForwarding() throws Exception {
-		final Path path = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR);
+		final Path path = new Path(scheme + "://" + BUCKET + '/' + TEST_DATA_DIR);
 
 		// access without credentials should fail
 		{
@@ -145,7 +158,7 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 
 		FileSystem.initialize(conf);
 
-		final Path path = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR + "/test.txt");
+		final Path path = new Path(scheme + "://" + BUCKET + '/' + TEST_DATA_DIR + "/test.txt");
 		final FileSystem fs = path.getFileSystem();
 
 		try {
@@ -178,7 +191,7 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 
 		FileSystem.initialize(conf);
 
-		final Path directory = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR + "/testdir/");
+		final Path directory = new Path(scheme + "://" + BUCKET + '/' + TEST_DATA_DIR + "/testdir/");
 		final FileSystem fs = directory.getFileSystem();
 
 		// directory must not yet exist

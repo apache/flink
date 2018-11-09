@@ -114,11 +114,13 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogFileHead
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerStdoutFileHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -134,7 +136,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Rest endpoint which serves the web frontend REST calls.
@@ -148,7 +152,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	protected final RestHandlerConfiguration restConfiguration;
 	private final GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever;
 	private final TransientBlobService transientBlobService;
-	protected final Executor executor;
+	protected final ExecutorService executor;
 
 	private final ExecutionGraphCache executionGraphCache;
 	private final CheckpointStatsCache checkpointStatsCache;
@@ -170,7 +174,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			RestHandlerConfiguration restConfiguration,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
 			TransientBlobService transientBlobService,
-			Executor executor,
+			ExecutorService executor,
 			MetricQueryServiceRetriever metricQueryServiceRetriever,
 			LeaderElectionService leaderElectionService,
 			FatalErrorHandler fatalErrorHandler) throws IOException {
@@ -715,7 +719,9 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	protected CompletableFuture<Void> shutDownInternal() {
 		executionGraphCache.close();
 
-		final CompletableFuture<Void> shutdownFuture = super.shutDownInternal();
+		final CompletableFuture<Void> shutdownFuture = FutureUtils.runAfterwards(
+			super.shutDownInternal(),
+			() -> ExecutorUtils.gracefulShutdown(10, TimeUnit.SECONDS, executor));
 
 		final File webUiDir = restConfiguration.getWebUiDir();
 
@@ -775,5 +781,23 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			archivedJson.addAll(subArchive);
 		}
 		return archivedJson;
+	}
+
+	public static ExecutorService createExecutorService(int numThreads, int threadPriority, String componentName) {
+		if (threadPriority < Thread.MIN_PRIORITY || threadPriority > Thread.MAX_PRIORITY) {
+			throw new IllegalArgumentException(
+				String.format(
+					"The thread priority must be within (%s, %s) but it was %s.",
+					Thread.MIN_PRIORITY,
+					Thread.MAX_PRIORITY,
+					threadPriority));
+		}
+
+		return Executors.newFixedThreadPool(
+			numThreads,
+			new ExecutorThreadFactory.Builder()
+				.setThreadPriority(threadPriority)
+				.setPoolName("Flink-" + componentName)
+				.build());
 	}
 }

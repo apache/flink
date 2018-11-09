@@ -55,4 +55,7 @@ class OutputRowtimeProcessFunction[OUT](
     out.collect(function.map(in))
   }
 
+  override def close(): Unit = {
+    FunctionUtils.closeFunction(function)
+  }
 }

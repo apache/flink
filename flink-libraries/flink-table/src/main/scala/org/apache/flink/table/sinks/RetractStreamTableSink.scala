@@ -42,7 +42,7 @@ import org.apache.flink.table.api.Table
   *
   * @tparam T Type of records that this [[TableSink]] expects and supports.
   */
-trait RetractStreamTableSink[T] extends TableSink[JTuple2[JBool, T]] {
+trait RetractStreamTableSink[T] extends StreamTableSink[JTuple2[JBool, T]] {
 
   /** Returns the requested record type */
   def getRecordType: TypeInformation[T]

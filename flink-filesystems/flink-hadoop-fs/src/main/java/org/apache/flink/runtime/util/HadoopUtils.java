@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
@@ -26,6 +27,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
+import org.apache.hadoop.util.VersionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +44,7 @@ public class HadoopUtils {
 
 	private static final Text HDFS_DELEGATION_TOKEN_KIND = new Text("HDFS_DELEGATION_TOKEN");
 
+	@SuppressWarnings("deprecation")
 	public static Configuration getHadoopConfiguration(org.apache.flink.configuration.Configuration flinkConfiguration) {
 
 		// Instantiate a HdfsConfiguration to load the hdfs-site.xml and hdfs-default.xml
@@ -121,5 +124,23 @@ public class HadoopUtils {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Checks if the Hadoop dependency is at least of the given version.
+	 */
+	public static boolean isMinHadoopVersion(int major, int minor) throws FlinkRuntimeException {
+		String versionString = VersionInfo.getVersion();
+		String[] versionParts = versionString.split("\\.");
+
+		if (versionParts.length < 2) {
+			throw new FlinkRuntimeException(
+					"Cannot determine version of Hadoop, unexpected version string: " + versionString);
+		}
+
+		int maj = Integer.parseInt(versionParts[0]);
+		int min = Integer.parseInt(versionParts[1]);
+
+		return maj > major || (maj == major && min >= minor);
 	}
 }

@@ -26,6 +26,7 @@ import org.apache.flink.cep.PatternSelectFunction;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.util.OutputTag;
 
 import java.util.List;
 import java.util.Map;
@@ -63,9 +64,19 @@ public class CepOperatorTestUtilities {
 	}
 
 	public static <K> SelectCepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
-		boolean isProcessingTime,
-		NFACompiler.NFAFactory<Event> nfaFactory,
-		EventComparator<Event> comparator) {
+			boolean isProcessingTime,
+			NFACompiler.NFAFactory<Event> nfaFactory,
+			EventComparator<Event> comparator) {
+
+		return getKeyedCepOpearator(isProcessingTime, nfaFactory, comparator, null);
+	}
+
+	public static <K> SelectCepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
+			boolean isProcessingTime,
+			NFACompiler.NFAFactory<Event> nfaFactory,
+			EventComparator<Event> comparator,
+			OutputTag<Event> outputTag) {
+
 		return new SelectCepOperator<>(
 			Event.createTypeSerializer(),
 			isProcessingTime,
@@ -73,11 +84,13 @@ public class CepOperatorTestUtilities {
 			comparator,
 			null,
 			new PatternSelectFunction<Event, Map<String, List<Event>>>() {
+				private static final long serialVersionUID = -7143807777582726991L;
+
 				@Override
 				public Map<String, List<Event>> select(Map<String, List<Event>> pattern) throws Exception {
 					return pattern;
 				}
-			});
+			}, outputTag);
 	}
 
 	private CepOperatorTestUtilities() {

@@ -38,4 +38,10 @@ public class TriggerIdPathParameter extends MessagePathParameter<TriggerId> {
 	protected String convertToString(TriggerId value) {
 		return value.toString();
 	}
+
+	@Override
+	public String getDescription() {
+		return "32-character hexadecimal string that identifies an asynchronous operation trigger ID. " +
+			"The ID was returned then the operation was triggered.";
+	}
 }

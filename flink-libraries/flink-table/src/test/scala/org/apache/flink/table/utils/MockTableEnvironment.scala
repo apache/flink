@@ -21,6 +21,7 @@ package org.apache.flink.table.utils
 import org.apache.calcite.tools.RuleSet
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{QueryConfig, Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 
@@ -33,7 +34,7 @@ class MockTableEnvironment extends TableEnvironment(new TableConfig) {
 
   override protected def checkValidTableName(name: String): Unit = ???
 
-  override def sql(query: String): Table = ???
+  override def sqlQuery(query: String): Table = ???
 
   override protected def getBuiltInNormRuleSet: RuleSet = ???
 
@@ -45,10 +46,14 @@ class MockTableEnvironment extends TableEnvironment(new TableConfig) {
       fieldTypes: Array[TypeInformation[_]],
       tableSink: TableSink[_]): Unit = ???
 
+  override def registerTableSink(name: String, tableSink: TableSink[_]): Unit = ???
+
   override protected def createUniqueTableName(): String = ???
 
   override protected def registerTableSourceInternal(name: String, tableSource: TableSource[_])
     : Unit = ???
 
   override def explain(table: Table): String = ???
+
+  override def connect(connectorDescriptor: ConnectorDescriptor): TableDescriptor = ???
 }

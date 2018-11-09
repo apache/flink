@@ -286,7 +286,22 @@ public class DataStream<T> {
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 */
 	public <K> KeyedStream<T, K> keyBy(KeySelector<T, K> key) {
+		Preconditions.checkNotNull(key);
 		return new KeyedStream<>(this, clean(key));
+	}
+
+	/**
+	 * It creates a new {@link KeyedStream} that uses the provided key with explicit type information
+	 * for partitioning its operator states.
+	 *
+	 * @param key The KeySelector to be used for extracting the key for partitioning.
+	 * @param keyType The type information describing the key type.
+	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
+	 */
+	public <K> KeyedStream<T, K> keyBy(KeySelector<T, K> key, TypeInformation<K> keyType) {
+		Preconditions.checkNotNull(key);
+		Preconditions.checkNotNull(keyType);
+		return new KeyedStream<>(this, clean(key), keyType);
 	}
 
 	/**
@@ -620,7 +635,6 @@ public class DataStream<T> {
 			ProcessFunction.class,
 			0,
 			1,
-			TypeExtractor.NO_INDEX,
 			TypeExtractor.NO_INDEX,
 			getType(),
 			Utils.getCallLocationName(),
@@ -956,6 +970,40 @@ public class DataStream<T> {
 	@PublicEvolving
 	public DataStreamSink<T> printToErr() {
 		PrintSinkFunction<T> printFunction = new PrintSinkFunction<>(true);
+		return addSink(printFunction).name("Print to Std. Err");
+	}
+
+	/**
+	 * Writes a DataStream to the standard output stream (stdout).
+	 *
+	 * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
+	 *
+	 * <p>NOTE: This will print to stdout on the machine where the code is executed, i.e. the Flink
+	 * worker.
+	 *
+	 * @param sinkIdentifier The string to prefix the output with.
+	 * @return The closed DataStream.
+	 */
+	@PublicEvolving
+	public DataStreamSink<T> print(String sinkIdentifier) {
+		PrintSinkFunction<T> printFunction = new PrintSinkFunction<>(sinkIdentifier, false);
+		return addSink(printFunction).name("Print to Std. Out");
+	}
+
+	/**
+	 * Writes a DataStream to the standard output stream (stderr).
+	 *
+	 * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
+	 *
+	 * <p>NOTE: This will print to stderr on the machine where the code is executed, i.e. the Flink
+	 * worker.
+	 *
+	 * @param sinkIdentifier The string to prefix the output with.
+	 * @return The closed DataStream.
+	 */
+	@PublicEvolving
+	public DataStreamSink<T> printToErr(String sinkIdentifier) {
+		PrintSinkFunction<T> printFunction = new PrintSinkFunction<>(sinkIdentifier, true);
 		return addSink(printFunction).name("Print to Std. Err");
 	}
 

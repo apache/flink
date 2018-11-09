@@ -75,7 +75,7 @@ class WindowReduceITCase extends AbstractTestBase {
       .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
       .reduce( (a, b) => (a._1 + b._1, a._2 + b._2) )
       .addSink(new SinkFunction[(String, Int)]() {
-        def invoke(value: (String, Int)) {
+        override def invoke(value: (String, Int)) {
           WindowReduceITCase.testResults += value.toString
         }
       })
@@ -131,7 +131,7 @@ class WindowReduceITCase extends AbstractTestBase {
         reduceFunc,
         new CheckingIdentityRichWindowFunction[(String, Int), Tuple, TimeWindow]())
       .addSink(new SinkFunction[(String, Int)]() {
-        def invoke(value: (String, Int)) {
+        override def invoke(value: (String, Int)) {
           WindowReduceITCase.testResults += value.toString
         }
       })
@@ -189,7 +189,7 @@ class WindowReduceITCase extends AbstractTestBase {
         reduceFunc,
         new CheckingIdentityRichProcessWindowFunction[(String, Int), Tuple, TimeWindow]())
       .addSink(new SinkFunction[(String, Int)]() {
-        def invoke(value: (String, Int)) {
+        override def invoke(value: (String, Int)) {
           WindowReduceITCase.testResults += value.toString
         }
       })
@@ -237,7 +237,7 @@ class WindowReduceITCase extends AbstractTestBase {
       .windowAll(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
       .reduce( (a, b) => (a._1 + b._1, a._2 + b._2) )
       .addSink(new SinkFunction[(String, Int)]() {
-      def invoke(value: (String, Int)) {
+      override def invoke(value: (String, Int)) {
         WindowReduceITCase.testResults += value.toString
       }
     })
@@ -291,7 +291,7 @@ class WindowReduceITCase extends AbstractTestBase {
         reduceFunc,
         new CheckingIdentityRichAllWindowFunction[(String, Int), TimeWindow]())
       .addSink(new SinkFunction[(String, Int)]() {
-        def invoke(value: (String, Int)) {
+        override def invoke(value: (String, Int)) {
           WindowReduceITCase.testResults += value.toString
         }
       })
@@ -347,7 +347,7 @@ class WindowReduceITCase extends AbstractTestBase {
         reduceFunc,
         new CheckingIdentityRichProcessAllWindowFunction[(String, Int), TimeWindow]())
       .addSink(new SinkFunction[(String, Int)]() {
-        def invoke(value: (String, Int)) {
+        override def invoke(value: (String, Int)) {
           WindowReduceITCase.testResults += value.toString
         }
       })

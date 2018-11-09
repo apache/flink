@@ -34,6 +34,7 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -269,9 +270,6 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 
 		HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
 
-		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
-			Time.seconds(5L),
-			Time.seconds(5L));
 		MetricRegistryImpl metricRegistry = mock(MetricRegistryImpl.class);
 		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			highAvailabilityServices,
@@ -288,14 +286,14 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 			rpcService,
 			FlinkResourceManager.RESOURCE_MANAGER_NAME,
 			rmResourceId,
-			resourceManagerConfiguration,
 			highAvailabilityServices,
 			heartbeatServices,
 			slotManager,
 			metricRegistry,
 			jobLeaderIdService,
 			new ClusterInformation("localhost", 1234),
-			fatalErrorHandler);
+			fatalErrorHandler,
+			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup());
 		resourceManager.start();
 		return resourceManager;
 	}

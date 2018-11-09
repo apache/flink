@@ -55,6 +55,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -67,7 +68,7 @@ import static org.apache.flink.python.api.PythonOperationInfo.DatasizeHint.TINY;
  * This class allows the execution of a Flink plan written in python.
  */
 public class PythonPlanBinder {
-	static final Logger LOG = LoggerFactory.getLogger(PythonPlanBinder.class);
+	private static final Logger LOG = LoggerFactory.getLogger(PythonPlanBinder.class);
 
 	public static final String FLINK_PYTHON_DC_ID = "flink";
 	public static final String FLINK_PYTHON_PLAN_NAME = File.separator + "plan.py";
@@ -79,7 +80,6 @@ public class PythonPlanBinder {
 	private final Configuration operatorConfig;
 
 	private final String tmpPlanFilesDir;
-	private Path tmpDistributedDir;
 
 	private final SetCache sets = new SetCache();
 	private int currentEnvironmentID = 0;
@@ -107,8 +107,6 @@ public class PythonPlanBinder {
 		tmpPlanFilesDir = configuredPlanTmpPath != null
 			? configuredPlanTmpPath
 			: System.getProperty("java.io.tmpdir") + File.separator + "flink_plan_" + UUID.randomUUID();
-
-		tmpDistributedDir = new Path(globalConfig.getString(PythonOptions.DC_TMP_DIR));
 
 		operatorConfig = new Configuration();
 		operatorConfig.setString(PythonOptions.PYTHON_BINARY_PATH, globalConfig.getString(PythonOptions.PYTHON_BINARY_PATH));
@@ -263,24 +261,17 @@ public class PythonPlanBinder {
 	 */
 	private enum Parameters {
 		DOP,
-		MODE,
 		RETRY,
 		ID
 	}
 
 	private void receiveParameters(ExecutionEnvironment env) throws IOException {
-		for (int x = 0; x < 4; x++) {
+		for (int x = 0; x < Parameters.values().length; x++) {
 			Tuple value = (Tuple) streamer.getRecord(true);
 			switch (Parameters.valueOf(((String) value.getField(0)).toUpperCase())) {
 				case DOP:
 					Integer dop = value.<Integer>getField(1);
 					env.setParallelism(dop);
-					break;
-				case MODE:
-					if (value.<Boolean>getField(1)) {
-						LOG.info("Local execution specified, using default for {}.", PythonOptions.DC_TMP_DIR);
-						tmpDistributedDir = new Path(PythonOptions.DC_TMP_DIR.defaultValue());
-					}
 					break;
 				case RETRY:
 					int retry = value.<Integer>getField(1);
@@ -422,7 +413,7 @@ public class PythonPlanBinder {
 	}
 
 	private void createValueSource(ExecutionEnvironment env, PythonOperationInfo info) {
-		sets.add(info.setID, env.fromElements(info.values).setParallelism(info.parallelism).name("ValueSource")
+		sets.add(info.setID, env.fromCollection(info.values).setParallelism(info.parallelism).name("ValueSource")
 			.map(new SerializerMap<>()).setParallelism(info.parallelism).name("ValueSourcePostStep"));
 	}
 
@@ -470,7 +461,7 @@ public class PythonPlanBinder {
 	private <K extends Tuple> void createDistinctOperation(PythonOperationInfo info) {
 		DataSet<Tuple2<K, byte[]>> op = sets.getDataSet(info.parentID);
 		DataSet<byte[]> result = op
-			.distinct(info.keys).setParallelism(info.parallelism).name("Distinct")
+			.distinct(info.keys.toArray(new String[info.keys.size()])).setParallelism(info.parallelism).name("Distinct")
 			.map(new KeyDiscarder<K>()).setParallelism(info.parallelism).name("DistinctPostStep");
 		sets.add(info.setID, result);
 	}
@@ -495,13 +486,13 @@ public class PythonPlanBinder {
 
 	private void createGroupOperation(PythonOperationInfo info) {
 		DataSet<?> op1 = sets.getDataSet(info.parentID);
-		sets.add(info.setID, op1.groupBy(info.keys));
+		sets.add(info.setID, op1.groupBy(info.keys.toArray(new String[info.keys.size()])));
 	}
 
 	private <K extends Tuple> void createHashPartitionOperation(PythonOperationInfo info) {
 		DataSet<Tuple2<K, byte[]>> op1 = sets.getDataSet(info.parentID);
 		DataSet<byte[]> result = op1
-			.partitionByHash(info.keys).setParallelism(info.parallelism)
+			.partitionByHash(info.keys.toArray(new String[info.keys.size()])).setParallelism(info.parallelism)
 			.map(new KeyDiscarder<K>()).setParallelism(info.parallelism).name("HashPartitionPostStep");
 		sets.add(info.setID, result);
 	}
@@ -524,14 +515,14 @@ public class PythonPlanBinder {
 	private <IN> void createUnionOperation(PythonOperationInfo info) {
 		DataSet<IN> op1 = sets.getDataSet(info.parentID);
 		DataSet<IN> op2 = sets.getDataSet(info.otherID);
-		sets.add(info.setID, op1.union(op2).setParallelism(info.parallelism).name("Union"));
+		sets.add(info.setID, op1.union(op2).name("Union"));
 	}
 
 	private <IN1, IN2, OUT> void createCoGroupOperation(PythonOperationInfo info, TypeInformation<OUT> type) {
 		DataSet<IN1> op1 = sets.getDataSet(info.parentID);
 		DataSet<IN2> op2 = sets.getDataSet(info.otherID);
-		Keys.ExpressionKeys<IN1> key1 = new Keys.ExpressionKeys<>(info.keys1, op1.getType());
-		Keys.ExpressionKeys<IN2> key2 = new Keys.ExpressionKeys<>(info.keys2, op2.getType());
+		Keys.ExpressionKeys<IN1> key1 = new Keys.ExpressionKeys<>(info.keys1.toArray(new String[info.keys1.size()]), op1.getType());
+		Keys.ExpressionKeys<IN2> key2 = new Keys.ExpressionKeys<>(info.keys2.toArray(new String[info.keys2.size()]), op2.getType());
 		PythonCoGroup<IN1, IN2, OUT> pcg = new PythonCoGroup<>(operatorConfig, info.envID, info.setID, type);
 		sets.add(info.setID, new CoGroupRawOperator<>(op1, op2, key1, key2, pcg, type, info.name).setParallelism(info.parallelism));
 	}
@@ -623,19 +614,21 @@ public class PythonPlanBinder {
 		}
 	}
 
-	private <IN1, IN2> DataSet<Tuple2<byte[], byte[]>> createDefaultJoin(DataSet<IN1> op1, DataSet<IN2> op2, String[] firstKeys, String[] secondKeys, DatasizeHint mode, int parallelism) {
+	private <IN1, IN2> DataSet<Tuple2<byte[], byte[]>> createDefaultJoin(DataSet<IN1> op1, DataSet<IN2> op2, List<String> firstKeys, List<String> secondKeys, DatasizeHint mode, int parallelism) {
+		String[] firstKeysArray = firstKeys.toArray(new String[firstKeys.size()]);
+		String[] secondKeysArray = secondKeys.toArray(new String[secondKeys.size()]);
 		switch (mode) {
 			case NONE:
 				return op1
-					.join(op2).where(firstKeys).equalTo(secondKeys).setParallelism(parallelism)
+					.join(op2).where(firstKeysArray).equalTo(secondKeysArray).setParallelism(parallelism)
 					.map(new NestedKeyDiscarder<Tuple2<IN1, IN2>>()).setParallelism(parallelism).name("DefaultJoinPostStep");
 			case HUGE:
 				return op1
-					.joinWithHuge(op2).where(firstKeys).equalTo(secondKeys).setParallelism(parallelism)
+					.joinWithHuge(op2).where(firstKeysArray).equalTo(secondKeysArray).setParallelism(parallelism)
 					.map(new NestedKeyDiscarder<Tuple2<IN1, IN2>>()).setParallelism(parallelism).name("DefaultJoinPostStep");
 			case TINY:
 				return op1
-					.joinWithTiny(op2).where(firstKeys).equalTo(secondKeys).setParallelism(parallelism)
+					.joinWithTiny(op2).where(firstKeysArray).equalTo(secondKeysArray).setParallelism(parallelism)
 					.map(new NestedKeyDiscarder<Tuple2<IN1, IN2>>()).setParallelism(parallelism).name("DefaultJoinPostStep");
 			default:
 				throw new IllegalArgumentException("Invalid join mode specified.");

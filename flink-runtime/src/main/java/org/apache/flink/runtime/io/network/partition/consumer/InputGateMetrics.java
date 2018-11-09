@@ -40,7 +40,7 @@ public class InputGateMetrics {
 
 	// ------------------------------------------------------------------------
 
-	// these methods are package private to make access from the nested classes faster 
+	// these methods are package private to make access from the nested classes faster
 
 	/**
 	 * Iterates over all input channels and collects the total number of queued buffers in a

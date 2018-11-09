@@ -30,6 +30,7 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.cli.CommandLine;
@@ -40,8 +41,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Map;
-import java.util.concurrent.Callable;
 
 /**
  * The entry point for running a TaskManager in a Mesos container.
@@ -104,17 +105,15 @@ public class MesosTaskExecutorRunner {
 		SecurityUtils.install(sc);
 
 		try {
-			SecurityUtils.getInstalledContext().runSecured(new Callable<Integer>() {
-				@Override
-				public Integer call() throws Exception {
-					TaskManagerRunner.runTaskManager(configuration, resourceId);
+			SecurityUtils.getInstalledContext().runSecured(() -> {
+				TaskManagerRunner.runTaskManager(configuration, resourceId);
 
-					return 0;
-				}
+				return 0;
 			});
 		}
 		catch (Throwable t) {
-			LOG.error("Error while starting the TaskManager", t);
+			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
+			LOG.error("Error while starting the TaskManager", strippedThrowable);
 			System.exit(INIT_ERROR_EXIT_CODE);
 		}
 	}

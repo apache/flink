@@ -59,6 +59,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -133,7 +134,7 @@ public class CheckpointCoordinator {
 	/** The max time (in ms) that a checkpoint may take */
 	private final long checkpointTimeout;
 
-	/** The min time(in ms) to delay after a checkpoint could be triggered. Allows to
+	/** The min time(in ns) to delay after a checkpoint could be triggered. Allows to
 	 * enforce minimum processing time between checkpoint attempts */
 	private final long minPauseBetweenCheckpointsNanos;
 
@@ -456,12 +457,19 @@ public class CheckpointCoordinator {
 		Execution[] executions = new Execution[tasksToTrigger.length];
 		for (int i = 0; i < tasksToTrigger.length; i++) {
 			Execution ee = tasksToTrigger[i].getCurrentExecutionAttempt();
-			if (ee != null && ee.getState() == ExecutionState.RUNNING) {
-				executions[i] = ee;
-			} else {
+			if (ee == null) {
 				LOG.info("Checkpoint triggering task {} of job {} is not being executed at the moment. Aborting checkpoint.",
 						tasksToTrigger[i].getTaskNameWithSubtaskIndex(),
 						job);
+				return new CheckpointTriggerResult(CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
+			} else if (ee.getState() == ExecutionState.RUNNING) {
+				executions[i] = ee;
+			} else {
+				LOG.info("Checkpoint triggering task {} of job {} is not in state {} but {} instead. Aborting checkpoint.",
+						tasksToTrigger[i].getTaskNameWithSubtaskIndex(),
+						job,
+						ExecutionState.RUNNING,
+						ee.getState());
 				return new CheckpointTriggerResult(CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
 			}
 		}
@@ -831,28 +839,22 @@ public class CheckpointCoordinator {
 			// the pending checkpoint must be discarded after the finalization
 			Preconditions.checkState(pendingCheckpoint.isDiscarded() && completedCheckpoint != null);
 
-			// TODO: add savepoints to completed checkpoint store once FLINK-4815 has been completed
-			if (!completedCheckpoint.getProperties().isSavepoint()) {
-				try {
-					completedCheckpointStore.addCheckpoint(completedCheckpoint);
-				} catch (Exception exception) {
-					// we failed to store the completed checkpoint. Let's clean up
-					executor.execute(new Runnable() {
-						@Override
-						public void run() {
-							try {
-								completedCheckpoint.discardOnFailedStoring();
-							} catch (Throwable t) {
-								LOG.warn("Could not properly discard completed checkpoint {} of job {}.", completedCheckpoint.getCheckpointID(), job, t);
-							}
+			try {
+				completedCheckpointStore.addCheckpoint(completedCheckpoint);
+			} catch (Exception exception) {
+				// we failed to store the completed checkpoint. Let's clean up
+				executor.execute(new Runnable() {
+					@Override
+					public void run() {
+						try {
+							completedCheckpoint.discardOnFailedStoring();
+						} catch (Throwable t) {
+							LOG.warn("Could not properly discard completed checkpoint {}.", completedCheckpoint.getCheckpointID(), t);
 						}
-					});
+					}
+				});
 
-					throw new CheckpointException("Could not complete the pending checkpoint " + checkpointId + '.', exception);
-				}
-
-				// drop those pending checkpoints that are at prior to the completed one
-				dropSubsumedCheckpoints(checkpointId);
+				throw new CheckpointException("Could not complete the pending checkpoint " + checkpointId + '.', exception);
 			}
 		} finally {
 			pendingCheckpoints.remove(checkpointId);
@@ -861,6 +863,9 @@ public class CheckpointCoordinator {
 		}
 
 		rememberRecentCheckpointId(checkpointId);
+
+		// drop those pending checkpoints that are at prior to the completed one
+		dropSubsumedCheckpoints(checkpointId);
 
 		// record the time when this was completed, to calculate
 		// the 'min delay between checkpoints'
@@ -1173,9 +1178,10 @@ public class CheckpointCoordinator {
 			stopCheckpointScheduler();
 
 			periodicScheduling = true;
+			long initialDelay = ThreadLocalRandom.current().nextLong(
+				minPauseBetweenCheckpointsNanos / 1_000_000L, baseInterval + 1L);
 			currentPeriodicTrigger = timer.scheduleAtFixedRate(
-					new ScheduledTrigger(),
-					baseInterval, baseInterval, TimeUnit.MILLISECONDS);
+					new ScheduledTrigger(), initialDelay, baseInterval, TimeUnit.MILLISECONDS);
 		}
 	}
 

@@ -22,6 +22,7 @@ import java.lang.reflect.Method
 
 import org.apache.calcite.avatica.util.{TimeUnit, TimeUnitRange}
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
 import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
@@ -39,6 +40,7 @@ class ExtractCallGen(returnType: TypeInformation[_], method: Method)
            TimeUnit.DAY |
            TimeUnit.QUARTER |
            TimeUnit.DOY |
+           TimeUnit.DOW |
            TimeUnit.WEEK |
            TimeUnit.CENTURY |
            TimeUnit.MILLENNIUM =>
@@ -54,6 +56,9 @@ class ExtractCallGen(returnType: TypeInformation[_], method: Method)
 
           case SqlTimeTypeInfo.DATE =>
             return super.generate(codeGenerator, operands)
+
+          case SqlTimeTypeInfo.TIME =>
+            throw new ValidationException("unit " + unit + " can not be applied to time variable")
 
           case _ => // do nothing
         }

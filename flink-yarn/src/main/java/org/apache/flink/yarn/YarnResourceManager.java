@@ -20,8 +20,10 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -30,9 +32,9 @@ import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -57,6 +59,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import javax.annotation.Nullable;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -97,9 +100,9 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	@Nullable
 	private final String webInterfaceUrl;
 
-	private final int defaultTaskManagerMemoryMB;
+	private final int numberOfTaskSlots;
 
-	private final int defaultNumSlots;
+	private final int defaultTaskManagerMemoryMB;
 
 	private final int defaultCpus;
 
@@ -114,13 +117,14 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	private final Map<ResourceProfile, Integer> resourcePriorities = new HashMap<>();
 
+	private final Collection<ResourceProfile> slotsPerWorker;
+
 	public YarnResourceManager(
 			RpcService rpcService,
 			String resourceManagerEndpointId,
 			ResourceID resourceId,
 			Configuration flinkConfig,
 			Map<String, String> env,
-			ResourceManagerConfiguration resourceManagerConfiguration,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
 			SlotManager slotManager,
@@ -128,19 +132,20 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			JobLeaderIdService jobLeaderIdService,
 			ClusterInformation clusterInformation,
 			FatalErrorHandler fatalErrorHandler,
-			@Nullable String webInterfaceUrl) {
+			@Nullable String webInterfaceUrl,
+			JobManagerMetricGroup jobManagerMetricGroup) {
 		super(
 			rpcService,
 			resourceManagerEndpointId,
 			resourceId,
-			resourceManagerConfiguration,
 			highAvailabilityServices,
 			heartbeatServices,
 			slotManager,
 			metricRegistry,
 			jobLeaderIdService,
 			clusterInformation,
-			fatalErrorHandler);
+			fatalErrorHandler,
+			jobManagerMetricGroup);
 		this.flinkConfig  = flinkConfig;
 		this.yarnConfig = new YarnConfiguration();
 		this.env = env;
@@ -161,9 +166,11 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		numPendingContainerRequests = 0;
 
 		this.webInterfaceUrl = webInterfaceUrl;
-		this.defaultTaskManagerMemoryMB = flinkConfig.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY);
-		this.defaultNumSlots = flinkConfig.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
-		this.defaultCpus = flinkConfig.getInteger(YarnConfigOptions.VCORES, defaultNumSlots);
+		this.numberOfTaskSlots = flinkConfig.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
+		this.defaultTaskManagerMemoryMB = ConfigurationUtils.getTaskManagerHeapMemory(flinkConfig).getMebiBytes();
+		this.defaultCpus = flinkConfig.getInteger(YarnConfigOptions.VCORES, numberOfTaskSlots);
+
+		this.slotsPerWorker = createSlotsPerWorker(numberOfTaskSlots);
 	}
 
 	protected AMRMClientAsync<AMRMClient.ContainerRequest> createAndStartResourceManagerClient(
@@ -284,7 +291,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	}
 
 	@Override
-	public void startNewWorker(ResourceProfile resourceProfile) {
+	public Collection<ResourceProfile> startNewWorker(ResourceProfile resourceProfile) {
 		// Priority for worker containers - priorities are intra-application
 		//TODO: set priority according to the resource allocated
 		Priority priority = Priority.newInstance(generatePriority(resourceProfile));
@@ -292,6 +299,8 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		int vcore = resourceProfile.getCpuCores() < 1 ? defaultCpus : (int) resourceProfile.getCpuCores();
 		Resource capability = Resource.newInstance(mem, vcore);
 		requestYarnContainer(capability, priority);
+
+		return slotsPerWorker;
 	}
 
 	@Override
@@ -324,9 +333,10 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	}
 
 	@Override
-	public void onContainersCompleted(final List<ContainerStatus> list) {
+	public void onContainersCompleted(final List<ContainerStatus> statuses) {
 		runAsync(() -> {
-				for (final ContainerStatus containerStatus : list) {
+				log.debug("YARN ResourceManager reported the following containers completed: {}.", statuses);
+				for (final ContainerStatus containerStatus : statuses) {
 
 					final ResourceID resourceId = new ResourceID(containerStatus.getContainerId().toString());
 					final YarnWorkerNode yarnWorkerNode = workerNodeMap.remove(resourceId);
@@ -334,9 +344,10 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 					if (yarnWorkerNode != null) {
 						// Container completed unexpectedly ~> start a new one
 						final Container container = yarnWorkerNode.getContainer();
-						requestYarnContainer(container.getResource(), yarnWorkerNode.getContainer().getPriority());
-						closeTaskManagerConnection(resourceId, new Exception(containerStatus.getDiagnostics()));
+						requestYarnContainerIfRequired(container.getResource(), yarnWorkerNode.getContainer().getPriority());
 					}
+					// Eagerly close the connection with task manager.
+					closeTaskManagerConnection(resourceId, new Exception(containerStatus.getDiagnostics()));
 				}
 			}
 		);
@@ -374,7 +385,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 						workerNodeMap.remove(resourceId);
 						resourceManagerClient.releaseAssignedContainer(container.getId());
 						// and ask for a new one
-						requestYarnContainer(container.getResource(), container.getPriority());
+						requestYarnContainerIfRequired(container.getResource(), container.getPriority());
 					}
 				} else {
 					// return the excessive containers
@@ -442,6 +453,18 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		return new Tuple2<>(host, Integer.valueOf(port));
 	}
 
+	/**
+	 * Request new container if pending containers cannot satisfies pending slot requests.
+	 */
+	private void requestYarnContainerIfRequired(Resource resource, Priority priority) {
+		int requiredTaskManagerSlots = getNumberRequiredTaskManagerSlots();
+		int pendingTaskManagerSlots = numPendingContainerRequests * numberOfTaskSlots;
+
+		if (requiredTaskManagerSlots > pendingTaskManagerSlots) {
+			requestYarnContainer(resource, priority);
+		}
+	}
+
 	private void requestYarnContainer(Resource resource, Priority priority) {
 		resourceManagerClient.addContainerRequest(new AMRMClient.ContainerRequest(resource, null, null, priority));
 
@@ -460,10 +483,8 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		// init the ContainerLaunchContext
 		final String currDir = env.get(ApplicationConstants.Environment.PWD.key());
 
-		final int numSlots = flinkConfig.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
-
 		final ContaineredTaskManagerParameters taskManagerParameters =
-				ContaineredTaskManagerParameters.create(flinkConfig, resource.getMemory(), numSlots);
+				ContaineredTaskManagerParameters.create(flinkConfig, resource.getMemory(), numberOfTaskSlots);
 
 		log.debug("TaskExecutor {} will be started with container size {} MB, JVM heap size {} MB, " +
 				"JVM direct memory limit {} MB",
@@ -472,14 +493,16 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 				taskManagerParameters.taskManagerHeapSizeMB(),
 				taskManagerParameters.taskManagerDirectMemoryLimitMB());
 
-		log.debug("TaskManager configuration: {}", flinkConfig);
+		Configuration taskManagerConfig = BootstrapTools.cloneConfiguration(flinkConfig);
+
+		log.debug("TaskManager configuration: {}", taskManagerConfig);
 
 		ContainerLaunchContext taskExecutorLaunchContext = Utils.createTaskExecutorContext(
 			flinkConfig,
 			yarnConfig,
 			env,
 			taskManagerParameters,
-			flinkConfig,
+			taskManagerConfig,
 			currDir,
 			YarnTaskExecutorRunner.class,
 			log);
@@ -509,5 +532,4 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			return priority;
 		}
 	}
-
 }

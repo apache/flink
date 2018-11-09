@@ -19,6 +19,7 @@ package org.apache.flink.table.runtime.harness
 
 import java.util.{Comparator, Queue => JQueue}
 
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
@@ -27,23 +28,32 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, TestHarnessUtil}
+import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.GeneratedAggregationsFunction
-import org.apache.flink.table.functions.AggregateFunction
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.functions.aggfunctions.{IntSumWithRetractAggFunction, LongMaxWithRetractAggFunction, LongMinWithRetractAggFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getAccumulatorTypeOfAggregateFunction
+import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, RowResultSortComparatorWithWatermarks}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.table.utils.EncodingUtils
+import org.junit.Rule
+import org.junit.rules.ExpectedException
 
 class HarnessTestBase {
+  // used for accurate exception information checking.
+  val expectedException = ExpectedException.none()
+
+  @Rule
+  def thrown = expectedException
 
   val longMinWithRetractAggFunction: String =
-    UserDefinedFunctionUtils.serialize(new LongMinWithRetractAggFunction)
+    EncodingUtils.encodeObjectToString(new LongMinWithRetractAggFunction)
 
   val longMaxWithRetractAggFunction: String =
-    UserDefinedFunctionUtils.serialize(new LongMaxWithRetractAggFunction)
+    EncodingUtils.encodeObjectToString(new LongMaxWithRetractAggFunction)
 
   val intSumWithRetractAggFunction: String =
-    UserDefinedFunctionUtils.serialize(new IntSumWithRetractAggFunction)
+    EncodingUtils.encodeObjectToString(new IntSumWithRetractAggFunction)
 
   protected val MinMaxRowType = new RowTypeInfo(Array[TypeInformation[_]](
     LONG_TYPE_INFO,
@@ -87,12 +97,14 @@ class HarnessTestBase {
       |  public MinMaxAggregateHelper() throws Exception {
       |
       |    fmin = (org.apache.flink.table.functions.aggfunctions.LongMinWithRetractAggFunction)
-      |    org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-      |    .deserialize("$longMinWithRetractAggFunction");
+      |    ${classOf[EncodingUtils].getCanonicalName}.decodeStringToObject(
+      |      "$longMinWithRetractAggFunction",
+      |      ${classOf[UserDefinedFunction].getCanonicalName}.class);
       |
       |    fmax = (org.apache.flink.table.functions.aggfunctions.LongMaxWithRetractAggFunction)
-      |    org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-      |    .deserialize("$longMaxWithRetractAggFunction");
+      |    ${classOf[EncodingUtils].getCanonicalName}.decodeStringToObject(
+      |      "$longMaxWithRetractAggFunction",
+      |      ${classOf[UserDefinedFunction].getCanonicalName}.class);
       |  }
       |
       |  public void setAggregationResults(
@@ -210,8 +222,9 @@ class HarnessTestBase {
       |  public SumAggregationHelper() throws Exception {
       |
       |sum = (org.apache.flink.table.functions.aggfunctions.IntSumWithRetractAggFunction)
-      |org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-      |.deserialize("$intSumWithRetractAggFunction");
+      |${classOf[EncodingUtils].getCanonicalName}.decodeStringToObject(
+      |  "$intSumWithRetractAggFunction",
+      |  ${classOf[UserDefinedFunction].getCanonicalName}.class);
       |}
       |
       |  public final void setAggregationResults(
@@ -316,6 +329,14 @@ class HarnessTestBase {
     new KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT](operator, keySelector, keyType)
   }
 
+  def verify(expected: JQueue[Object], actual: JQueue[Object]): Unit = {
+    verify(expected, actual, new RowResultSortComparator)
+  }
+
+  def verifyWithWatermarks(expected: JQueue[Object], actual: JQueue[Object]): Unit = {
+    verify(expected, actual, new RowResultSortComparatorWithWatermarks, true)
+  }
+
   def verify(
     expected: JQueue[Object],
     actual: JQueue[Object],
@@ -383,5 +404,13 @@ object HarnessTestBase {
     override def getKey(value: CRow): T = {
       value.row.getField(selectorField).asInstanceOf[T]
     }
+  }
+
+  /**
+    * Test class used to test min and max retention time.
+    */
+  class TestStreamQueryConfig(min: Time, max: Time) extends StreamQueryConfig {
+    override def getMinIdleStateRetentionTime: Long = min.toMilliseconds
+    override def getMaxIdleStateRetentionTime: Long = max.toMilliseconds
   }
 }

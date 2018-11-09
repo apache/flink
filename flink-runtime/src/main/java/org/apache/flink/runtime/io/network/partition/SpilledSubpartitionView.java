@@ -257,7 +257,8 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 
 			synchronized (buffers) {
 				for (int i = 0; i < numberOfBuffers; i++) {
-					buffers.add(new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(memorySegmentSize), this));
+					buffers.add(new NetworkBuffer(MemorySegmentFactory.allocateUnpooledOffHeapMemory(
+						memorySegmentSize, null), this));
 				}
 			}
 		}

@@ -32,8 +32,8 @@ public abstract class AbstractCassandraTupleSink<IN> extends CassandraSinkBase<I
 	private final String insertQuery;
 	private transient PreparedStatement ps;
 
-	public AbstractCassandraTupleSink(String insertQuery, ClusterBuilder builder) {
-		super(builder);
+	public AbstractCassandraTupleSink(String insertQuery, ClusterBuilder builder, CassandraFailureHandler failureHandler) {
+		super(builder, failureHandler);
 		this.insertQuery = insertQuery;
 	}
 

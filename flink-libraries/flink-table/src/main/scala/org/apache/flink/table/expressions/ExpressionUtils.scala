@@ -22,13 +22,22 @@ import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float =
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.streaming.api.windowing.time.{Time => FlinkTime}
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 
 object ExpressionUtils {
+  /**
+    * Retrieve result type of given Expression.
+    *
+    * @param expr The expression which caller is interested about result type
+    * @return     The result type of Expression
+    */
+  def getResultType(expr: Expression): TypeInformation[_] = {
+    expr.resultType
+  }
 
   private[flink] def isTimeIntervalLiteral(expr: Expression): Boolean = expr match {
     case Literal(_, TimeIntervalTypeInfo.INTERVAL_MILLIS) => true
@@ -129,7 +138,7 @@ object ExpressionUtils {
         if (array.length > 0 && array.head.isInstanceOf[Array[_]]) {
           ArrayConstructor(array.map { na => convertArray(na.asInstanceOf[Array[_]]) })
         } else {
-          throw ValidationException("Unsupported array type.")
+          throw new ValidationException("Unsupported array type.")
         }
     }
   }

@@ -59,13 +59,11 @@ or configuration files. For instance, in non-containerized environments, the
 artifact server will provide the Flink binaries. What files will be served
 depends on the configuration overlay used.
 
-### Flink's JobManager and Web Interface
+### Flink's Dispatcher and Web Interface
 
-The Mesos scheduler currently resides with the JobManager but will be started
-independently of the JobManager in future versions (see
-[FLIP-6](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65147077)). The
-proposed changes will also add a Dipsatcher component which will be the central
-point for job submission and monitoring.
+The Dispatcher and the web interface provide a central point for monitoring,
+job submission, and other client interaction with the cluster
+(see [FLIP-6](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65147077)).
 
 ### Startup script and configuration overlays
 
@@ -139,7 +137,7 @@ More information about the deployment scripts can be found [here](http://mesos.a
 
 ### Installing Marathon
 
-Optionally, you may also [install Marathon](https://mesosphere.github.io/marathon/docs/) which will be necessary to run Flink in high availability (HA) mode.
+Optionally, you may also [install Marathon](https://mesosphere.github.io/marathon/docs/) which enables you to run Flink in [high availability (HA) mode](#high-availability).
 
 ### Pre-installing Flink vs Docker/Mesos containers
 
@@ -171,8 +169,6 @@ which manage the Flink processes in a Mesos cluster:
    It is automatically launched by the Mesos worker node to bring up a new TaskManager.
 
 In order to run the `mesos-appmaster.sh` script you have to define `mesos.master` in the `flink-conf.yaml` or pass it via `-Dmesos.master=...` to the Java process.
-Additionally, you should define the number of task managers which are started by Mesos via `mesos.initial-tasks`.
-This value can also be defined in the `flink-conf.yaml` or passed as a Java property.
 
 When executing `mesos-appmaster.sh`, it will create a job manager on the machine where you executed the script.
 In contrast to that, the task managers will be run as Mesos tasks in the Mesos cluster.
@@ -188,19 +184,21 @@ For example:
         -Djobmanager.heap.mb=1024 \
         -Djobmanager.rpc.port=6123 \
         -Drest.port=8081 \
-        -Dmesos.initial-tasks=10 \
         -Dmesos.resourcemanager.tasks.mem=4096 \
         -Dtaskmanager.heap.mb=3500 \
         -Dtaskmanager.numberOfTaskSlots=2 \
         -Dparallelism.default=10
 
+<div class="alert alert-info">
+  <strong>Note:</strong> If Flink is in <a href="{{ site.baseurl }}/ops/config.html#legacy">legacy mode</a>,
+  you should additionally define the number of task managers that are started by Mesos via
+  <a href="{{ site.baseurl }}/ops/config.html#mesos-initial-tasks"><code>mesos.initial-tasks</code></a>.
+</div>
 
 ### High Availability
 
 You will need to run a service like Marathon or Apache Aurora which takes care of restarting the Flink master process in case of node or process failures.
-In addition, Zookeeper needs to be configured like described in the [High Availability section of the Flink docs]({{ site.baseurl }}/ops/jobmanager_high_availability.html)
-
-For the reconciliation of tasks to work correctly, please also set `high-availability.zookeeper.path.mesos-workers` to a valid Zookeeper path.
+In addition, Zookeeper needs to be configured like described in the [High Availability section of the Flink docs]({{ site.baseurl }}/ops/jobmanager_high_availability.html).
 
 #### Marathon
 
@@ -211,7 +209,7 @@ Here is an example configuration for Marathon:
 
     {
         "id": "flink",
-        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.heap.mb=1024 -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dmesos.initial-tasks=1 -Dmesos.resourcemanager.tasks.mem=1024 -Dtaskmanager.heap.mb=1024 -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
+        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.heap.mb=1024 -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dmesos.resourcemanager.tasks.mem=1024 -Dtaskmanager.heap.mb=1024 -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
         "cpus": 1.0,
         "mem": 1024
     }
@@ -220,56 +218,7 @@ When running Flink with Marathon, the whole Flink cluster including the job mana
 
 ### Configuration parameters
 
-`mesos.initial-tasks`: The initial workers to bring up when the master starts (**DEFAULT**: The number of workers specified at cluster startup).
-
-`mesos.constraints.hard.hostattribute`: Constraints for task placement on Mesos based on agent attributes (**DEFAULT**: None).
-Takes a comma-separated list of key:value pairs corresponding to the attributes exposed by the target
-mesos agents.  Example: `az:eu-west-1a,series:t2`
-
-`mesos.maximum-failed-tasks`: The maximum number of failed workers before the cluster fails (**DEFAULT**: Number of initial workers).
-May be set to -1 to disable this feature.
-
-`mesos.master`: The Mesos master URL. The value should be in one of the following forms:
-
-* `host:port`
-* `zk://host1:port1,host2:port2,.../path`
-* `zk://username:password@host1:port1,host2:port2,.../path`
-* `file:///path/to/file`
-
-`mesos.failover-timeout`: The failover timeout in seconds for the Mesos scheduler, after which running tasks are automatically shut down (**DEFAULT:** 600).
-
-`mesos.resourcemanager.artifactserver.port`:The config parameter defining the Mesos artifact server port to use. Setting the port to 0 will let the OS choose an available port.
-
-`mesos.resourcemanager.framework.name`: Mesos framework name (**DEFAULT:** Flink)
-
-`mesos.resourcemanager.framework.role`: Mesos framework role definition (**DEFAULT:** *)
-
-`high-availability.zookeeper.path.mesos-workers`: The ZooKeeper root path for persisting the Mesos worker information.
-
-`mesos.resourcemanager.framework.principal`: Mesos framework principal (**NO DEFAULT**)
-
-`mesos.resourcemanager.framework.secret`: Mesos framework secret (**NO DEFAULT**)
-
-`mesos.resourcemanager.framework.user`: Mesos framework user (**DEFAULT:**"")
-
-`mesos.resourcemanager.artifactserver.ssl.enabled`: Enables SSL for the Flink artifact server (**DEFAULT**: true). Note that `security.ssl.enabled` also needs to be set to `true` encryption to enable encryption.
-
-`mesos.resourcemanager.tasks.mem`: Memory to assign to the Mesos workers in MB (**DEFAULT**: 1024)
-
-`mesos.resourcemanager.tasks.cpus`: CPUs to assign to the Mesos workers (**DEFAULT**: 0.0)
-
-`mesos.resourcemanager.tasks.gpus`: GPUs to assign to the Mesos workers (**DEFAULT**: 0.0)
-
-`mesos.resourcemanager.tasks.container.type`: Type of the containerization used: "mesos" or "docker" (DEFAULT: mesos);
-
-`mesos.resourcemanager.tasks.container.image.name`: Image name to use for the container (**NO DEFAULT**)
-
-`mesos.resourcemanager.tasks.container.volumes`: A comma separated list of `[host_path:]`container_path`[:RO|RW]`. This allows for mounting additional volumes into your container. (**NO DEFAULT**)
-
-`mesos.resourcemanager.tasks.container.docker.parameters`: Custom parameters to be passed into docker run command when using the docker containerizer. Comma separated list of `key=value` pairs. `value` may contain '=' (**NO DEFAULT**)
-
-`mesos.resourcemanager.tasks.hostname`: Optional value to define the TaskManager's hostname. The pattern `_TASK_` is replaced by the actual id of the Mesos task. This can be used to configure the TaskManager to use Mesos DNS (e.g. `_TASK_.flink-service.mesos`) for name lookups. (**NO DEFAULT**)
-
-`mesos.resourcemanager.tasks.bootstrap-cmd`: A command which is executed before the TaskManager is started (**NO DEFAULT**).
+For a list of Mesos specific configuration, refer to the [Mesos section]({{ site.baseurl }}/ops/config.html#mesos)
+of the configuration documentation.
 
 {% top %}

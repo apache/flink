@@ -36,6 +36,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.types.SerializableOptional;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -195,4 +196,11 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * @return Future which is completed with the {@link TransientBlobKey} of the uploaded file.
 	 */
 	CompletableFuture<TransientBlobKey> requestFileUpload(FileType fileType, @RpcTimeout Time timeout);
+
+	/**
+	 * Returns the fully qualified address of Metric Query Service on the TaskManager.
+	 *
+	 * @return Future String with Fully qualified (RPC) address of Metric Query Service on the TaskManager.
+	 */
+	CompletableFuture<SerializableOptional<String>> requestMetricQueryServiceAddress(@RpcTimeout Time timeout);
 }

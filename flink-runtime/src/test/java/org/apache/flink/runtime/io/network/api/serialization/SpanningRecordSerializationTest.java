@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.serialization.types.LargeObjectType;
+import org.apache.flink.runtime.io.network.util.DeserializationUtils;
 import org.apache.flink.testutils.serialization.types.IntType;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
 import org.apache.flink.testutils.serialization.types.SerializationTestTypeFactory;
@@ -134,7 +135,7 @@ public class SpanningRecordSerializationTest extends TestLogger {
 
 		// -------------------------------------------------------------------------------------------------------------
 
-		BufferConsumerAndSerializerResult serializationResult = setNextBufferForSerializer(serializer, segmentSize);
+		BufferAndSerializerResult serializationResult = setNextBufferForSerializer(serializer, segmentSize);
 
 		int numRecords = 0;
 		for (SerializationTestType record : records) {
@@ -144,27 +145,16 @@ public class SpanningRecordSerializationTest extends TestLogger {
 			numRecords++;
 
 			// serialize record
-			if (serializer.addRecord(record).isFullBuffer()) {
+			serializer.serializeRecord(record);
+			if (serializer.copyToBufferBuilder(serializationResult.getBufferBuilder()).isFullBuffer()) {
 				// buffer is full => start deserializing
 				deserializer.setNextBuffer(serializationResult.buildBuffer());
 
-				while (!serializedRecords.isEmpty()) {
-					SerializationTestType expected = serializedRecords.poll();
-					SerializationTestType actual = expected.getClass().newInstance();
-
-					if (deserializer.getNextRecord(actual).isFullRecord()) {
-						Assert.assertEquals(expected, actual);
-						numRecords--;
-					} else {
-						serializedRecords.addFirst(expected);
-						break;
-					}
-				}
+				numRecords -= DeserializationUtils.deserializeRecords(serializedRecords, deserializer);
 
 				// move buffers as long as necessary (for long records)
 				while ((serializationResult = setNextBufferForSerializer(serializer, segmentSize)).isFullBuffer()) {
 					deserializer.setNextBuffer(serializationResult.buildBuffer());
-					serializer.clear();
 				}
 			}
 		}
@@ -189,7 +179,7 @@ public class SpanningRecordSerializationTest extends TestLogger {
 		Assert.assertFalse(deserializer.hasUnfinishedData());
 	}
 
-	private static BufferConsumerAndSerializerResult setNextBufferForSerializer(
+	private static BufferAndSerializerResult setNextBufferForSerializer(
 			RecordSerializer<SerializationTestType> serializer,
 			int segmentSize) throws IOException {
 		// create a bufferBuilder with some random starting offset to properly test handling buffer slices in the
@@ -199,19 +189,28 @@ public class SpanningRecordSerializationTest extends TestLogger {
 		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 		bufferConsumer.build().recycleBuffer();
 
-		serializer.clear();
-		return new BufferConsumerAndSerializerResult(
+		return new BufferAndSerializerResult(
+			bufferBuilder,
 			bufferConsumer,
-			serializer.continueWritingWithNextBufferBuilder(bufferBuilder));
+			serializer.copyToBufferBuilder(bufferBuilder));
 	}
 
-	private static class BufferConsumerAndSerializerResult {
+	private static class BufferAndSerializerResult {
+		private final BufferBuilder bufferBuilder;
 		private final BufferConsumer bufferConsumer;
 		private final RecordSerializer.SerializationResult serializationResult;
 
-		public BufferConsumerAndSerializerResult(BufferConsumer bufferConsumer, RecordSerializer.SerializationResult serializationResult) {
+		public BufferAndSerializerResult(
+				BufferBuilder bufferBuilder,
+				BufferConsumer bufferConsumer,
+				RecordSerializer.SerializationResult serializationResult) {
+			this.bufferBuilder = bufferBuilder;
 			this.bufferConsumer = bufferConsumer;
 			this.serializationResult = serializationResult;
+		}
+
+		public BufferBuilder getBufferBuilder() {
+			return bufferBuilder;
 		}
 
 		public Buffer buildBuffer() {

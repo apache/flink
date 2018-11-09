@@ -21,6 +21,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 /**
  * Partitioner that distributes the data equally by cycling through the output
  * channels.
@@ -31,16 +33,27 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 public class RebalancePartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	private final int[] returnArray = new int[] {-1};
+	private final int[] returnArray = {Integer.MAX_VALUE - 1};
 
 	@Override
-	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
-			int numberOfOutputChannels) {
-		int newChannel = ++this.returnArray[0];
-		if (newChannel >= numberOfOutputChannels) {
-			this.returnArray[0] = 0;
+	public int[] selectChannels(
+			SerializationDelegate<StreamRecord<T>> record,
+			int numChannels) {
+		int newChannel = ++returnArray[0];
+		if (newChannel >= numChannels) {
+			returnArray[0] = resetValue(numChannels, newChannel);
 		}
-		return this.returnArray;
+		return returnArray;
+	}
+
+	private static int resetValue(
+			int numChannels,
+			int newChannel) {
+		if (newChannel == Integer.MAX_VALUE) {
+			// Initializes the first partition, this branch is only entered when initializing.
+			return ThreadLocalRandom.current().nextInt(numChannels);
+		}
+		return 0;
 	}
 
 	public StreamPartitioner<T> copy() {

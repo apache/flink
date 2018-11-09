@@ -19,14 +19,19 @@
 package org.apache.flink.table.client.config;
 
 import org.apache.flink.table.client.SqlClientException;
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.TableDescriptor;
-import org.apache.flink.table.descriptors.TableDescriptorValidator;
+import org.apache.flink.table.client.config.entries.DeploymentEntry;
+import org.apache.flink.table.client.config.entries.ExecutionEntry;
+import org.apache.flink.table.client.config.entries.FunctionEntry;
+import org.apache.flink.table.client.config.entries.TableEntry;
+import org.apache.flink.table.client.config.entries.ViewEntry;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonMappingException;
 
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -40,55 +45,72 @@ import java.util.Map;
  */
 public class Environment {
 
-	private Map<String, TableDescriptor> tables;
+	public static final String EXECUTION_ENTRY = "execution";
 
-	private Execution execution;
+	public static final String DEPLOYMENT_ENTRY = "deployment";
 
-	private Deployment deployment;
+	private Map<String, TableEntry> tables;
+
+	private Map<String, FunctionEntry> functions;
+
+	private ExecutionEntry execution;
+
+	private DeploymentEntry deployment;
 
 	public Environment() {
 		this.tables = Collections.emptyMap();
-		this.execution = new Execution();
-		this.deployment = new Deployment();
+		this.functions = Collections.emptyMap();
+		this.execution = ExecutionEntry.DEFAULT_INSTANCE;
+		this.deployment = DeploymentEntry.DEFAULT_INSTANCE;
 	}
 
-	public Map<String, TableDescriptor> getTables() {
+	public Map<String, TableEntry> getTables() {
 		return tables;
 	}
 
 	public void setTables(List<Map<String, Object>> tables) {
-		this.tables = new HashMap<>(tables.size());
+		this.tables = new LinkedHashMap<>(tables.size());
+
 		tables.forEach(config -> {
-			if (!config.containsKey(TableDescriptorValidator.TABLE_TYPE())) {
-				throw new SqlClientException("The 'type' attribute of a table is missing.");
-			}
-			if (config.get(TableDescriptorValidator.TABLE_TYPE()).equals(TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE())) {
-				config.remove(TableDescriptorValidator.TABLE_TYPE());
-				final Source s = Source.create(config);
-				if (this.tables.containsKey(s.getName())) {
-					throw new SqlClientException("Duplicate source name '" + s + "'.");
-				}
-				this.tables.put(s.getName(), s);
-			} else {
+			final TableEntry table = TableEntry.create(config);
+			if (this.tables.containsKey(table.getName())) {
 				throw new SqlClientException(
-						"Invalid table 'type' attribute value, only 'source' is supported");
+					"Cannot create table '" + table.getName() + "' because a table with this name is already registered.");
 			}
+			this.tables.put(table.getName(), table);
+		});
+	}
+
+	public Map<String, FunctionEntry> getFunctions() {
+		return functions;
+	}
+
+	public void setFunctions(List<Map<String, Object>> functions) {
+		this.functions = new HashMap<>(functions.size());
+
+		functions.forEach(config -> {
+			final FunctionEntry function = FunctionEntry.create(config);
+			if (this.functions.containsKey(function.getName())) {
+				throw new SqlClientException(
+					"Cannot create function '" + function.getName() + "' because a function with this name is already registered.");
+			}
+			this.functions.put(function.getName(), function);
 		});
 	}
 
 	public void setExecution(Map<String, Object> config) {
-		this.execution = Execution.create(config);
+		this.execution = ExecutionEntry.create(config);
 	}
 
-	public Execution getExecution() {
+	public ExecutionEntry getExecution() {
 		return execution;
 	}
 
 	public void setDeployment(Map<String, Object> config) {
-		this.deployment = Deployment.create(config);
+		this.deployment = DeploymentEntry.create(config);
 	}
 
-	public Deployment getDeployment() {
+	public DeploymentEntry getDeployment() {
 		return deployment;
 	}
 
@@ -97,15 +119,18 @@ public class Environment {
 		final StringBuilder sb = new StringBuilder();
 		sb.append("===================== Tables =====================\n");
 		tables.forEach((name, table) -> {
-			sb.append("- name: ").append(name).append("\n");
-			final DescriptorProperties props = new DescriptorProperties(true);
-			table.addProperties(props);
-			props.asMap().forEach((k, v) -> sb.append("  ").append(k).append(": ").append(v).append('\n'));
+			sb.append("- ").append(TableEntry.TABLES_NAME).append(": ").append(name).append("\n");
+			table.asMap().forEach((k, v) -> sb.append("  ").append(k).append(": ").append(v).append('\n'));
+		});
+		sb.append("=================== Functions ====================\n");
+		functions.forEach((name, function) -> {
+			sb.append("- ").append(FunctionEntry.FUNCTIONS_NAME).append(": ").append(name).append("\n");
+			function.asMap().forEach((k, v) -> sb.append("  ").append(k).append(": ").append(v).append('\n'));
 		});
 		sb.append("=================== Execution ====================\n");
-		execution.toProperties().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
+		execution.asTopLevelMap().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
 		sb.append("=================== Deployment ===================\n");
-		deployment.toProperties().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
+		deployment.asTopLevelMap().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
 		return sb.toString();
 	}
 
@@ -115,14 +140,22 @@ public class Environment {
 	 * Parses an environment file from an URL.
 	 */
 	public static Environment parse(URL url) throws IOException {
-		return new ConfigUtil.LowerCaseYamlMapper().readValue(url, Environment.class);
+		try {
+			return new ConfigUtil.LowerCaseYamlMapper().readValue(url, Environment.class);
+		} catch (JsonMappingException e) {
+			throw new SqlClientException("Could not parse environment file. Cause: " + e.getMessage());
+		}
 	}
 
 	/**
 	 * Parses an environment file from an String.
 	 */
 	public static Environment parse(String content) throws IOException {
-		return new ConfigUtil.LowerCaseYamlMapper().readValue(content, Environment.class);
+		try {
+			return new ConfigUtil.LowerCaseYamlMapper().readValue(content, Environment.class);
+		} catch (JsonMappingException e) {
+			throw new SqlClientException("Could not parse environment file. Cause: " + e.getMessage());
+		}
 	}
 
 	/**
@@ -132,30 +165,45 @@ public class Environment {
 		final Environment mergedEnv = new Environment();
 
 		// merge tables
-		final Map<String, TableDescriptor> tables = new HashMap<>(env1.getTables());
-		mergedEnv.getTables().putAll(env2.getTables());
+		final Map<String, TableEntry> tables = new LinkedHashMap<>(env1.getTables());
+		tables.putAll(env2.getTables());
 		mergedEnv.tables = tables;
 
+		// merge functions
+		final Map<String, FunctionEntry> functions = new HashMap<>(env1.getFunctions());
+		functions.putAll(env2.getFunctions());
+		mergedEnv.functions = functions;
+
 		// merge execution properties
-		mergedEnv.execution = Execution.merge(env1.getExecution(), env2.getExecution());
+		mergedEnv.execution = ExecutionEntry.merge(env1.getExecution(), env2.getExecution());
 
 		// merge deployment properties
-		mergedEnv.deployment = Deployment.merge(env1.getDeployment(), env2.getDeployment());
+		mergedEnv.deployment = DeploymentEntry.merge(env1.getDeployment(), env2.getDeployment());
 
 		return mergedEnv;
 	}
 
-	public static Environment enrich(Environment env, Map<String, String> properties) {
+	/**
+	 * Enriches an environment with new/modified properties or views and returns the new instance.
+	 */
+	public static Environment enrich(
+			Environment env,
+			Map<String, String> properties,
+			Map<String, ViewEntry> views) {
 		final Environment enrichedEnv = new Environment();
 
 		// merge tables
-		enrichedEnv.tables = new HashMap<>(env.getTables());
+		enrichedEnv.tables = new LinkedHashMap<>(env.getTables());
+		enrichedEnv.tables.putAll(views);
+
+		// merge functions
+		enrichedEnv.functions = new HashMap<>(env.getFunctions());
 
 		// enrich execution properties
-		enrichedEnv.execution = Execution.enrich(env.execution, properties);
+		enrichedEnv.execution = ExecutionEntry.enrich(env.execution, properties);
 
 		// enrich deployment properties
-		enrichedEnv.deployment = Deployment.enrich(env.deployment, properties);
+		enrichedEnv.deployment = DeploymentEntry.enrich(env.deployment, properties);
 
 		return enrichedEnv;
 	}

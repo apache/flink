@@ -24,11 +24,12 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.RestClientConfiguration;
-import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -43,7 +44,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for the {@link JarRunHandler}.
  */
-public class JarRunHandlerTest {
+public class JarRunHandlerTest extends TestLogger {
 
 	@ClassRule
 	public static final TemporaryFolder TMP = new TemporaryFolder();
@@ -62,13 +63,11 @@ public class JarRunHandlerTest {
 		config.setString(WebOptions.UPLOAD_DIR, uploadDir.toString());
 
 		MiniClusterResource clusterResource = new MiniClusterResource(
-			new MiniClusterResource.MiniClusterResourceConfiguration(
-				config,
-				1,
-				1
-			),
-			MiniClusterResource.MiniClusterType.NEW
-		);
+			new MiniClusterResourceConfiguration.Builder()
+				.setConfiguration(config)
+				.setNumberTaskManagers(1)
+				.setNumberSlotsPerTaskManager(1)
+				.build());
 		clusterResource.before();
 
 		try {
@@ -84,7 +83,7 @@ public class JarRunHandlerTest {
 				int port = clientConfig.getInteger(RestOptions.PORT);
 
 				try {
-					client.sendRequest(host, port, headers, parameters, EmptyRequestBody.getInstance())
+					client.sendRequest(host, port, headers, parameters, new JarRunRequestBody())
 						.get();
 				} catch (Exception e) {
 					Optional<RestClientException> expected = ExceptionUtils.findThrowable(e, RestClientException.class);

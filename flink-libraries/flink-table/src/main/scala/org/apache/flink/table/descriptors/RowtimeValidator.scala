@@ -18,62 +18,82 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.descriptors.DescriptorProperties.{serialize, toJava}
 import org.apache.flink.table.descriptors.RowtimeValidator._
 import org.apache.flink.table.sources.tsextractors.{ExistingField, StreamRecordTimestamp, TimestampExtractor}
 import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, BoundedOutOfOrderTimestamps, PreserveWatermarks, WatermarkStrategy}
+import org.apache.flink.table.util.JavaScalaConversionUtil.toJava
+import org.apache.flink.table.utils.EncodingUtils
 
 import scala.collection.JavaConverters._
 
 /**
   * Validator for [[Rowtime]].
   */
-class RowtimeValidator(val prefix: String = "") extends DescriptorValidator {
+class RowtimeValidator(
+    supportsSourceTimestamps: Boolean,
+    supportsSourceWatermarks: Boolean,
+    prefix: String = "")
+  extends DescriptorValidator {
 
   override def validate(properties: DescriptorProperties): Unit = {
     val timestampExistingField = (_: String) => {
       properties.validateString(
-        prefix + ROWTIME_TIMESTAMPS_FROM, isOptional = false, minLen = 1)
+        prefix + ROWTIME_TIMESTAMPS_FROM, false, 1)
     }
 
     val timestampCustom = (_: String) => {
       properties.validateString(
-        prefix + ROWTIME_TIMESTAMPS_CLASS, isOptional = false, minLen = 1)
+        prefix + ROWTIME_TIMESTAMPS_CLASS, false, 1)
       properties.validateString(
-        prefix + ROWTIME_TIMESTAMPS_SERIALIZED, isOptional = false, minLen = 1)
+        prefix + ROWTIME_TIMESTAMPS_SERIALIZED, false, 1)
+    }
+
+    val timestampsValidation = if (supportsSourceTimestamps) {
+      Map(
+        ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD -> toJava(timestampExistingField),
+        ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_SOURCE -> DescriptorProperties.noValidation(),
+        ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM -> toJava(timestampCustom))
+    } else {
+      Map(
+        ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD -> toJava(timestampExistingField),
+        ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM -> toJava(timestampCustom))
     }
 
     properties.validateEnum(
       prefix + ROWTIME_TIMESTAMPS_TYPE,
-      isOptional = false,
-      Map(
-        ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD -> toJava(timestampExistingField),
-        ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_SOURCE -> properties.noValidation(),
-        ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM -> toJava(timestampCustom)
-      ).asJava
+      false,
+      timestampsValidation.asJava
     )
 
     val watermarkPeriodicBounded = (_: String) => {
       properties.validateLong(
-        prefix + ROWTIME_WATERMARKS_DELAY, isOptional = false, min = 0)
+        prefix + ROWTIME_WATERMARKS_DELAY, false, 0)
     }
 
     val watermarkCustom = (_: String) => {
       properties.validateString(
-        prefix + ROWTIME_WATERMARKS_CLASS, isOptional = false, minLen = 1)
+        prefix + ROWTIME_WATERMARKS_CLASS, false, 1)
       properties.validateString(
-        prefix + ROWTIME_WATERMARKS_SERIALIZED, isOptional = false, minLen = 1)
+        prefix + ROWTIME_WATERMARKS_SERIALIZED, false, 1)
+    }
+
+    val watermarksValidation = if (supportsSourceWatermarks) {
+      Map(
+        ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING -> DescriptorProperties.noValidation(),
+        ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED -> toJava(watermarkPeriodicBounded),
+        ROWTIME_WATERMARKS_TYPE_VALUE_FROM_SOURCE -> DescriptorProperties.noValidation(),
+        ROWTIME_WATERMARKS_TYPE_VALUE_CUSTOM -> toJava(watermarkCustom))
+    } else {
+      Map(
+        ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING -> DescriptorProperties.noValidation(),
+        ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED -> toJava(watermarkPeriodicBounded),
+        ROWTIME_WATERMARKS_TYPE_VALUE_CUSTOM -> toJava(watermarkCustom))
     }
 
     properties.validateEnum(
       prefix + ROWTIME_WATERMARKS_TYPE,
-      isOptional = false,
-      Map(
-        ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_ASCENDING -> properties.noValidation(),
-        ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED -> toJava(watermarkPeriodicBounded),
-        ROWTIME_WATERMARKS_TYPE_VALUE_FROM_SOURCE -> properties.noValidation(),
-        ROWTIME_WATERMARKS_TYPE_VALUE_CUSTOM -> toJava(watermarkCustom)
-      ).asJava
+      false,
+      watermarksValidation.asJava
     )
   }
 }
@@ -115,7 +135,7 @@ object RowtimeValidator {
           Map(
             ROWTIME_TIMESTAMPS_TYPE -> ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM,
             ROWTIME_TIMESTAMPS_CLASS -> extractor.getClass.getName,
-            ROWTIME_TIMESTAMPS_SERIALIZED -> serialize(extractor))
+            ROWTIME_TIMESTAMPS_SERIALIZED -> EncodingUtils.encodeObjectToString(extractor))
     }
 
   def normalizeWatermarkStrategy(strategy: WatermarkStrategy): Map[String, String] =
@@ -136,7 +156,7 @@ object RowtimeValidator {
         Map(
           ROWTIME_WATERMARKS_TYPE -> ROWTIME_WATERMARKS_TYPE_VALUE_CUSTOM,
           ROWTIME_WATERMARKS_CLASS -> strategy.getClass.getName,
-          ROWTIME_WATERMARKS_SERIALIZED -> serialize(strategy))
+          ROWTIME_WATERMARKS_SERIALIZED -> EncodingUtils.encodeObjectToString(strategy))
     }
 
   def getRowtimeComponents(properties: DescriptorProperties, prefix: String)
@@ -154,13 +174,13 @@ object RowtimeValidator {
         new ExistingField(field)
 
       case ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_SOURCE =>
-        new StreamRecordTimestamp
+        StreamRecordTimestamp.INSTANCE
 
       case ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM =>
         val clazz = properties.getClass(
-          ROWTIME_TIMESTAMPS_CLASS,
+          prefix + ROWTIME_TIMESTAMPS_CLASS,
           classOf[TimestampExtractor])
-        DescriptorProperties.deserialize(
+        EncodingUtils.decodeStringToObject(
           properties.getString(prefix + ROWTIME_TIMESTAMPS_SERIALIZED),
           clazz)
     }
@@ -183,7 +203,7 @@ object RowtimeValidator {
         val clazz = properties.getClass(
           prefix + ROWTIME_WATERMARKS_CLASS,
           classOf[WatermarkStrategy])
-        DescriptorProperties.deserialize(
+        EncodingUtils.decodeStringToObject(
           properties.getString(prefix + ROWTIME_WATERMARKS_SERIALIZED),
           clazz)
     }

@@ -19,11 +19,12 @@
 
 source "$(dirname "$0")"/common.sh
 
-TEST_PROGRAM_JAR=$TEST_INFRA_DIR/../../flink-end-to-end-tests/flink-bucketing-sink-test/target/BucketingSinkTestProgram.jar
+TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-bucketing-sink-test/target/BucketingSinkTestProgram.jar
 
 # enable DEBUG logging level to retrieve truncate length later
 sed -i -e 's/#log4j.logger.org.apache.flink=INFO/log4j.logger.org.apache.flink=DEBUG/g' $FLINK_DIR/conf/log4j.properties
 
+set_conf_ssl
 start_cluster
 $FLINK_DIR/bin/taskmanager.sh start
 $FLINK_DIR/bin/taskmanager.sh start
@@ -36,9 +37,6 @@ function bucketing_cleanup() {
 
   # restore default logging level
   sed -i -e 's/log4j.logger.org.apache.flink=DEBUG/#log4j.logger.org.apache.flink=INFO/g' $FLINK_DIR/conf/log4j.properties
-
-  # make sure to run regular cleanup as well
-  cleanup
 }
 trap bucketing_cleanup INT
 trap bucketing_cleanup EXIT
@@ -48,7 +46,7 @@ JOB_ID=$($FLINK_DIR/bin/flink run -d -p 4 $TEST_PROGRAM_JAR -outputPath $TEST_DA
 
 wait_job_running ${JOB_ID}
 
-sleep 40
+wait_num_checkpoints "${JOB_ID}" 5
 
 echo "Killing TM"
 
@@ -73,7 +71,7 @@ $FLINK_DIR/bin/taskmanager.sh start
 $FLINK_DIR/bin/taskmanager.sh start
 
 # the job should complete in under 60s because half of the work has been checkpointed
-sleep 100
+wait_job_terminal_state "${JOB_ID}" "FINISHED"
 
 # get truncate information
 # e.g. "xxx xxx DEBUG xxx.BucketingSink  - Writing valid-length file for xxx/out/result8/part-0-0 to specify valid length 74994"

@@ -60,7 +60,7 @@ class DataStreamTest extends AbstractTestBase {
 
     val dataStream2 = env.generateSequence(0, 0).name("testSource2")
       .keyBy(x=>x)
-      .reduce((x, y) => 0)
+      .reduce((x, y) => 0L)
       .name("testReduce")
     assert("testReduce" == dataStream2.getName)
 
@@ -578,6 +578,12 @@ class DataStreamTest extends AbstractTestBase {
     val splitEdge =
       env.getStreamGraph.getStreamEdges(unionFilter.getId, sink.getTransformation.getId)
     assert("a" == splitEdge.get(0).getSelectedNames.get(0))
+
+    val sinkWithIdentifier = select.print("identifier")
+    val newSplitEdge = env.getStreamGraph.getStreamEdges(
+      unionFilter.getId,
+      sinkWithIdentifier.getTransformation.getId)
+    assert("a" == newSplitEdge.get(0).getSelectedNames.get(0))
 
     val foldFunction = new FoldFunction[Int, String] {
       override def fold(accumulator: String, value: Int): String = ""

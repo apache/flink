@@ -28,9 +28,13 @@ import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConsta
 
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -73,6 +77,8 @@ public class KinesisConfigUtil {
 	/** Default values for ThreadPoolSize. **/
 	protected static final int DEFAULT_THREAD_POOL_SIZE = 10;
 
+	private static final Logger LOG = LoggerFactory.getLogger(KinesisConfigUtil.class);
+
 	/**
 	 * Validate configuration properties for {@link FlinkKinesisConsumer}.
 	 */
@@ -80,6 +86,12 @@ public class KinesisConfigUtil {
 		checkNotNull(config, "config can not be null");
 
 		validateAwsConfiguration(config);
+
+		if (!(config.containsKey(AWSConfigConstants.AWS_REGION) ^ config.containsKey(ConsumerConfigConstants.AWS_ENDPOINT))) {
+			// per validation in AwsClientBuilder
+			throw new IllegalArgumentException(String.format("For FlinkKinesisConsumer either AWS region ('%s') or AWS endpoint ('%s') must be set in the config.",
+					AWSConfigConstants.AWS_REGION, AWSConfigConstants.AWS_ENDPOINT));
+		}
 
 		if (config.containsKey(ConsumerConfigConstants.STREAM_INITIAL_POSITION)) {
 			String initPosType = config.getProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION);
@@ -142,14 +154,14 @@ public class KinesisConfigUtil {
 		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS,
 			"Invalid value given for shard discovery sleep interval in milliseconds. Must be a valid non-negative long value.");
 
-		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE,
-			"Invalid value given for describe stream operation base backoff milliseconds. Must be a valid non-negative long value.");
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_BASE,
+			"Invalid value given for list shards operation base backoff milliseconds. Must be a valid non-negative long value.");
 
-		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX,
-			"Invalid value given for describe stream operation max backoff milliseconds. Must be a valid non-negative long value.");
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_MAX,
+			"Invalid value given for list shards operation max backoff milliseconds. Must be a valid non-negative long value.");
 
-		validateOptionalPositiveDoubleProperty(config, ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT,
-			"Invalid value given for describe stream operation backoff exponential constant. Must be a valid non-negative double value.");
+		validateOptionalPositiveDoubleProperty(config, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT,
+			"Invalid value given for list shards operation backoff exponential constant. Must be a valid non-negative double value.");
 
 		if (config.containsKey(ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS)) {
 			checkArgument(
@@ -181,6 +193,23 @@ public class KinesisConfigUtil {
 		return configProps;
 	}
 
+	public static Properties replaceDeprecatedConsumerKeys(Properties configProps) {
+		HashMap<String, String> deprecatedOldKeyToNewKeys = new HashMap<>();
+		deprecatedOldKeyToNewKeys.put(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_BASE);
+		deprecatedOldKeyToNewKeys.put(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_MAX);
+		deprecatedOldKeyToNewKeys.put(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT);
+		for (Map.Entry<String, String> entry : deprecatedOldKeyToNewKeys.entrySet()) {
+			String deprecatedOldKey = entry.getKey();
+			String newKey = entry.getValue();
+			if (configProps.containsKey(deprecatedOldKey)) {
+				LOG.warn("Please note {} property has been deprecated. Please use the {} new property key", deprecatedOldKey, newKey);
+				configProps.setProperty(newKey, configProps.getProperty(deprecatedOldKey));
+				configProps.remove(deprecatedOldKey);
+			}
+		}
+		return configProps;
+	}
+
 	/**
 	 * Validate configuration properties for {@link FlinkKinesisProducer},
 	 * and return a constructed KinesisProducerConfiguration.
@@ -189,6 +218,11 @@ public class KinesisConfigUtil {
 		checkNotNull(config, "config can not be null");
 
 		validateAwsConfiguration(config);
+
+		if (!config.containsKey(AWSConfigConstants.AWS_REGION)) {
+			// per requirement in Amazon Kinesis Producer Library
+			throw new IllegalArgumentException(String.format("For FlinkKinesisProducer AWS region ('%s') must be set in the config.", AWSConfigConstants.AWS_REGION));
+		}
 
 		KinesisProducerConfiguration kpc = KinesisProducerConfiguration.fromProperties(config);
 		kpc.setRegion(config.getProperty(AWSConfigConstants.AWS_REGION));
@@ -241,12 +275,6 @@ public class KinesisConfigUtil {
 						"and Secret Key ('" + AWSConfigConstants.AWS_SECRET_ACCESS_KEY + "') when using the BASIC AWS credential provider type.");
 				}
 			}
-		}
-
-		if (!(config.containsKey(AWSConfigConstants.AWS_REGION) ^ config.containsKey(ConsumerConfigConstants.AWS_ENDPOINT))) {
-			// per validation in AwsClientBuilder
-			throw new IllegalArgumentException(String.format("Either AWS region ('%s') or AWS endpoint ('%s') must be set in the config.",
-				AWSConfigConstants.AWS_REGION, AWSConfigConstants.AWS_REGION));
 		}
 
 		if (config.containsKey(AWSConfigConstants.AWS_REGION)) {

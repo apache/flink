@@ -27,16 +27,23 @@ import java.util.Properties;
 
 /**
  * Tests for the {@link Kafka09JsonTableSink}.
+ *
+ * @deprecated Ensures backwards compatibility with Flink 1.5. Can be removed once we
+ *             drop support for format-specific table sinks.
  */
-public class Kafka09JsonTableSinkTest extends KafkaTableSinkTestBase {
+@Deprecated
+public class Kafka09JsonTableSinkTest extends KafkaTableSinkBaseTestBase {
 
 	@Override
-	protected KafkaTableSink createTableSink(
+	protected KafkaTableSinkBase createTableSink(
 			String topic,
 			Properties properties,
 			FlinkKafkaPartitioner<Row> partitioner) {
 
-		return new Kafka09JsonTableSink(topic, properties, partitioner);
+		return new Kafka09JsonTableSink(
+			topic,
+			properties,
+			partitioner);
 	}
 
 	@Override

@@ -28,7 +28,8 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -49,15 +50,15 @@ public class AccumulatorErrorITCase extends TestLogger {
 	private static final String INCOMPATIBLE_ACCUMULATORS_NAME = "incompatible-accumulators";
 
 	@ClassRule
-	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			getConfiguration(),
-			2,
-			3));
+	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
+		new MiniClusterResourceConfiguration.Builder()
+			.setNumberTaskManagers(2)
+			.setNumberSlotsPerTaskManager(3)
+			.build());
 
 	public static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 12L);
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "12m");
 		return config;
 	}
 

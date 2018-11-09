@@ -180,6 +180,8 @@ Once a watermark reaches an operator, the operator can advance its internal *eve
 
 <img src="{{ site.baseurl }}/fig/stream_watermark_out_of_order.svg" alt="A data stream with events (out of order) and watermarks" class="center" width="65%" />
 
+Note that event time is inherited by a freshly created stream element (or elements) from either the event that produced them or
+from watermark that triggered creation of those elements.
 
 ## Watermarks in Parallel Streams
 
@@ -213,10 +215,36 @@ arrive after the system's event time clock (as signaled by the watermarks) has a
 timestamp. See [Allowed Lateness]({{ site.baseurl }}/dev/stream/operators/windows.html#allowed-lateness) for more information on how to work
 with late elements in event time windows.
 
+## Idling sources
+
+Currently, with pure event time watermarks generators, watermarks can not progress if there are no elements
+to be processed. That means in case of gap in the incoming data, event time will not progress and for
+example the window operator will not be triggered and thus existing windows will not be able to produce any
+output data.
+
+To circumvent this one can use periodic watermark assigners that don't only assign based on
+element timestamps. An example solution could be an assigner that switches to using current processing time
+as the time basis after not observing new events for a while.
+
+Sources can be marked as idle using `SourceFunction.SourceContext#markAsTemporarilyIdle`. For details please refer to the Javadoc of
+this method as well as `StreamStatus`.
 
 ## Debugging Watermarks
 
 Please refer to the [Debugging Windows & Event Time]({{ site.baseurl }}/monitoring/debugging_event_time.html) section for debugging
 watermarks at runtime.
+
+## How operators are processing watermarks
+
+As a general rule, operators are required to completely process a given watermark before forwarding it downstream. For example,
+`WindowOperator` will first evaluate which windows should be fired, and only after producing all of the output triggered by
+the watermark will the watermark itself be sent downstream. In other words, all elements produced due to occurrence of a watermark
+will be emitted before the watermark.
+
+The same rule applies to `TwoInputStreamOperator`. However, in this case the current watermark of the operator is defined as
+the minimum of both of its inputs.
+
+The details of this behavior are defined by the implementations of the `OneInputStreamOperator#processWatermark`,
+`TwoInputStreamOperator#processWatermark1` and `TwoInputStreamOperator#processWatermark2` methods.
 
 {% top %}

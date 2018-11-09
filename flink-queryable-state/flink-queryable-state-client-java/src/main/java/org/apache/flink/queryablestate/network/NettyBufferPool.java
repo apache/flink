@@ -168,4 +168,9 @@ public class NettyBufferPool implements ByteBufAllocator {
 	public boolean isDirectBufferPooled() {
 		return alloc.isDirectBufferPooled();
 	}
+
+	@Override
+	public int calculateNewCapacity(int minNewCapacity, int maxCapacity) {
+		return alloc.calculateNewCapacity(minNewCapacity, maxCapacity);
+	}
 }

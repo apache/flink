@@ -20,11 +20,15 @@
 ##
 ## Variables with defaults (if not overwritten by environment)
 ##
-RELEASE_VERSION=${RELEASE_VERSION:-1.3-SNAPSHOT}
 SCALA_VERSION=none
 HADOOP_VERSION=none
 SKIP_GPG=${SKIP_GPG:-false}
 MVN=${MVN:-mvn}
+
+if [ -z "${RELEASE_VERSION}" ]; then
+    echo "RELEASE_VERSION was not set."
+    exit 1
+fi
 
 # fail immediately
 set -o errexit
@@ -44,6 +48,12 @@ else
     SHASUM="sha512sum"
 fi
 
+cd ..
+
+FLINK_DIR=`pwd`
+RELEASE_DIR=${FLINK_DIR}/tools/releasing/release
+mkdir -p ${RELEASE_DIR}
+
 ###########################
 
 # build maven package, create Flink distribution, generate signature
@@ -59,26 +69,38 @@ make_binary_release() {
     dir_name="flink-$RELEASE_VERSION-bin-$NAME-scala_${SCALA_VERSION}"
   fi
 
+  if [ $SCALA_VERSION = "2.12" ]; then
+      FLAGS="$FLAGS -Dscala-2.12"
+  elif [ $SCALA_VERSION = "2.11" ]; then
+      FLAGS="$FLAGS -Dscala-2.11"
+  else
+      echo "Invalid Scala version ${SCALA_VERSION}"
+  fi
+
   # enable release profile here (to check for the maven version)
-  $MVN clean package $FLAGS -DskipTests -Prelease,scala-${SCALA_VERSION} -Dgpg.skip
+  $MVN clean package $FLAGS -Prelease -pl flink-dist -am -Dgpg.skip -Dcheckstyle.skip=true -DskipTests
 
   cd flink-dist/target/flink-*-bin/
   tar czf "${dir_name}.tgz" flink-*
 
-  cp flink-*.tgz ../../../
-  cd ../../../
+  cp flink-*.tgz ${RELEASE_DIR}
+  cd ${RELEASE_DIR}
 
   # Sign sha the tgz
   if [ "$SKIP_GPG" == "false" ] ; then
     gpg --armor --detach-sig "${dir_name}.tgz"
   fi
   $SHASUM "${dir_name}.tgz" > "${dir_name}.tgz.sha512"
+
+  cd ${FLINK_DIR}
 }
 
-cd ..
-
-
 if [ "$SCALA_VERSION" == "none" ] && [ "$HADOOP_VERSION" == "none" ]; then
+  make_binary_release "" "-DwithoutHadoop" "2.12"
+  make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "2.12"
+  make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "2.12"
+  make_binary_release "hadoop27" "-Dhadoop.version=2.7.5" "2.12"
+  make_binary_release "hadoop28" "-Dhadoop.version=2.8.3" "2.12"
   make_binary_release "" "-DwithoutHadoop" "2.11"
   make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "2.11"
   make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "2.11"

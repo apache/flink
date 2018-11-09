@@ -137,7 +137,7 @@ You can add both JobManager and TaskManager instances to your running cluster wi
 #### Adding a JobManager
 
 {% highlight bash %}
-bin/jobmanager.sh ((start|start-foreground) cluster)|stop|stop-all
+bin/jobmanager.sh ((start|start-foreground) [host] [webui-port])|stop|stop-all
 {% endhighlight %}
 
 #### Adding a TaskManager

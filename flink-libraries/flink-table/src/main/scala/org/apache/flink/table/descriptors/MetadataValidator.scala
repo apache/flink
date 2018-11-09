@@ -26,10 +26,10 @@ import org.apache.flink.table.descriptors.MetadataValidator.{METADATA_COMMENT, M
 class MetadataValidator extends DescriptorValidator {
 
   override def validate(properties: DescriptorProperties): Unit = {
-    properties.validateInt(METADATA_PROPERTY_VERSION, isOptional = true, 0, Integer.MAX_VALUE)
-    properties.validateString(METADATA_COMMENT, isOptional = true)
-    properties.validateLong(METADATA_CREATION_TIME, isOptional = true)
-    properties.validateLong(METADATA_LAST_ACCESS_TIME, isOptional = true)
+    properties.validateInt(METADATA_PROPERTY_VERSION, true, 0, Integer.MAX_VALUE)
+    properties.validateString(METADATA_COMMENT, true)
+    properties.validateLong(METADATA_CREATION_TIME, true)
+    properties.validateLong(METADATA_LAST_ACCESS_TIME, true)
   }
 }
 

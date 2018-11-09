@@ -26,7 +26,6 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{ROW, _}
-import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -40,10 +39,10 @@ import org.apache.flink.table.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NU
 import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.codegen.calls.{CurrentTimePointCallGen, FunctionGenerator}
 import org.apache.flink.table.functions.sql.{ProctimeSqlFunction, ScalarSqlFunctions, StreamRecordTimestampSqlFunction}
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils._
+import org.apache.flink.table.utils.EncodingUtils
 import org.joda.time.format.DateTimeFormatter
 
 import scala.collection.JavaConversions._
@@ -274,7 +273,7 @@ abstract class CodeGenerator(
           generateExpression(rowtimeExpression.get)
       case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER |
            TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER =>
-          throw TableException("Rowtime extraction expression missing. Please report a bug.")
+          throw new TableException("Rowtime extraction expression missing. Please report a bug.")
       case TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER =>
         // attribute is proctime indicator.
         // we use a null literal and generate a timestamp when we need it.
@@ -681,9 +680,7 @@ abstract class CodeGenerator(
         generateNonNullLiteral(resultType, decimalField)
 
       case VARCHAR | CHAR =>
-        val escapedValue = StringEscapeUtils.escapeJava(
-          StringEscapeUtils.unescapeJava(value.toString)
-        )
+        val escapedValue = EncodingUtils.escapeJava(value.toString)
         generateNonNullLiteral(resultType, "\"" + escapedValue + "\"")
 
       case SYMBOL =>
@@ -771,7 +768,7 @@ abstract class CodeGenerator(
         val right = operands(1)
         requireTemporal(left)
         requireTemporal(right)
-        generateTemporalPlusMinus(plus = true, nullCheck, left, right, config)
+        generateTemporalPlusMinus(plus = true, nullCheck, resultType, left, right, config)
 
       case MINUS if isNumeric(resultType) =>
         val left = operands.head
@@ -785,7 +782,7 @@ abstract class CodeGenerator(
         val right = operands(1)
         requireTemporal(left)
         requireTemporal(right)
-        generateTemporalPlusMinus(plus = false, nullCheck, left, right, config)
+        generateTemporalPlusMinus(plus = false, nullCheck, resultType, left, right, config)
 
       case MULTIPLY if isNumeric(resultType) =>
         val left = operands.head
@@ -929,6 +926,11 @@ abstract class CodeGenerator(
         val left = operands.head
         val right = operands.tail
         generateIn(this, left, right)
+
+      case NOT_IN =>
+        val left = operands.head
+        val right = operands.tail
+        generateNot(nullCheck, generateIn(this, left, right))
 
       // casting
       case CAST | REINTERPRET =>
@@ -1095,7 +1097,8 @@ abstract class CodeGenerator(
     }
   }
 
-  private def generateFieldAccess(refExpr: GeneratedExpression, index: Int): GeneratedExpression = {
+  protected def generateFieldAccess(refExpr: GeneratedExpression, index: Int)
+    : GeneratedExpression = {
 
     val fieldAccessExpr = generateFieldAccess(
       refExpr.resultType,
@@ -1132,7 +1135,7 @@ abstract class CodeGenerator(
     GeneratedExpression(resultTerm, nullTerm, resultCode, fieldAccessExpr.resultType)
   }
 
-  private def generateInputAccess(
+  protected def generateInputAccess(
       inputType: TypeInformation[_ <: Any],
       inputTerm: String,
       index: Int)
@@ -1606,7 +1609,7 @@ abstract class CodeGenerator(
     */
   def addReusableFunction(function: UserDefinedFunction, contextTerm: String = null): String = {
     val classQualifier = function.getClass.getCanonicalName
-    val functionSerializedData = UserDefinedFunctionUtils.serialize(function)
+    val functionSerializedData = EncodingUtils.encodeObjectToString(function)
     val fieldTerm = s"function_${function.functionIdentifier}"
 
     val fieldFunction =
@@ -1618,8 +1621,9 @@ abstract class CodeGenerator(
     val functionDeserialization =
       s"""
          |$fieldTerm = ($classQualifier)
-         |${UserDefinedFunctionUtils.getClass.getName.stripSuffix("$")}
-         |.deserialize("$functionSerializedData");
+         |${classOf[EncodingUtils].getCanonicalName}.decodeStringToObject(
+         |  "$functionSerializedData",
+         |  ${classOf[UserDefinedFunction].getCanonicalName}.class);
        """.stripMargin
 
     reusableInitStatements.add(functionDeserialization)

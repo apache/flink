@@ -20,9 +20,10 @@ package org.apache.flink.table.descriptors
 
 import java.util.Optional
 
-import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.api.{TableException, TableSchema, Types}
+import org.apache.flink.table.descriptors.RowtimeTest.CustomExtractor
 import org.apache.flink.table.sources.tsextractors.{ExistingField, StreamRecordTimestamp}
-import org.apache.flink.table.sources.wmstrategies.PreserveWatermarks
+import org.apache.flink.table.sources.wmstrategies.{BoundedOutOfOrderTimestamps, PreserveWatermarks}
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 
@@ -42,7 +43,7 @@ class SchemaValidatorTest {
       .field("r", Types.SQL_TIMESTAMP).rowtime(
         Rowtime().timestampsFromSource().watermarksFromSource())
     val props = new DescriptorProperties()
-    desc1.addProperties(props)
+    props.putProperties(desc1.toProperties)
 
     val inputSchema = TableSchema.builder()
       .field("csvField", Types.STRING)
@@ -67,15 +68,41 @@ class SchemaValidatorTest {
       "myField" -> "myField").asJava
     assertEquals(
       expectedMapping,
-      SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema)))
+      SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema.toRowType)))
+  }
 
-    // test field format
-    val formatSchema = SchemaValidator.deriveFormatFields(props)
-    val expectedFormatSchema = TableSchema.builder()
+  @Test(expected = classOf[TableException])
+  def testDeriveTableSinkSchemaWithRowtimeFromSource(): Unit = {
+    val desc1 = Schema()
+      .field("otherField", Types.STRING).from("csvField")
+      .field("abcField", Types.STRING)
+      .field("p", Types.SQL_TIMESTAMP).proctime()
+      .field("r", Types.SQL_TIMESTAMP).rowtime(
+        Rowtime().timestampsFromSource().watermarksFromSource())
+    val props = new DescriptorProperties()
+    props.putProperties(desc1.toProperties)
+
+    SchemaValidator.deriveTableSinkSchema(props)
+  }
+
+  @Test
+  def testDeriveTableSinkSchemaWithRowtimeFromField(): Unit = {
+    val desc1 = Schema()
+      .field("otherField", Types.STRING).from("csvField")
+      .field("abcField", Types.STRING)
+      .field("p", Types.SQL_TIMESTAMP).proctime()
+      .field("r", Types.SQL_TIMESTAMP).rowtime(
+        Rowtime().timestampsFromField("myTime").watermarksFromSource())
+    val props = new DescriptorProperties()
+    props.putProperties(desc1.toProperties)
+
+    val expectedTableSinkSchema = TableSchema.builder()
       .field("csvField", Types.STRING) // aliased
       .field("abcField", Types.STRING)
+      .field("myTime", Types.SQL_TIMESTAMP)
       .build()
-    assertEquals(expectedFormatSchema, formatSchema)
+
+    assertEquals(expectedTableSinkSchema, SchemaValidator.deriveTableSinkSchema(props))
   }
 
   @Test
@@ -87,7 +114,7 @@ class SchemaValidatorTest {
       .field("r", Types.SQL_TIMESTAMP).rowtime(
         Rowtime().timestampsFromField("myTime").watermarksFromSource())
     val props = new DescriptorProperties()
-    desc1.addProperties(props)
+    props.putProperties(desc1.toProperties)
 
     val inputSchema = TableSchema.builder()
       .field("csvField", Types.STRING)
@@ -114,15 +141,25 @@ class SchemaValidatorTest {
       "myTime" -> "myTime").asJava
     assertEquals(
       expectedMapping,
-      SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema)))
+      SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema.toRowType)))
+  }
 
-    // test field format
-    val formatSchema = SchemaValidator.deriveFormatFields(props)
-    val expectedFormatSchema = TableSchema.builder()
-      .field("csvField", Types.STRING) // aliased
-      .field("abcField", Types.STRING)
-      .field("myTime", Types.SQL_TIMESTAMP)
-      .build()
-    assertEquals(expectedFormatSchema, formatSchema)
+  @Test
+  def testSchemaWithRowtimeCustomTimestampExtractor(): Unit = {
+    val descriptor = Schema()
+      .field("f1", Types.STRING)
+      .field("f2", Types.STRING)
+      .field("f3", Types.SQL_TIMESTAMP)
+      .field("rt", Types.SQL_TIMESTAMP).rowtime(
+        Rowtime().timestampsFromExtractor(new CustomExtractor("f3"))
+          .watermarksPeriodicBounded(1000L))
+    val properties = new DescriptorProperties()
+    properties.putProperties(descriptor.toProperties)
+
+    val rowtime = SchemaValidator.deriveRowtimeAttributes(properties).get(0)
+    assertEquals("rt", rowtime.getAttributeName)
+    val extractor = rowtime.getTimestampExtractor
+    assertTrue(extractor.equals(new CustomExtractor("f3")))
+    assertTrue(rowtime.getWatermarkStrategy.isInstanceOf[BoundedOutOfOrderTimestamps])
   }
 }

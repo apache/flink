@@ -66,29 +66,33 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	}
 
 	/**
-	 * Starts serializing and copying the given record to the target buffer
-	 * (if available).
+	 * Starts serializing the given record to an intermediate data buffer.
 	 *
 	 * @param record the record to serialize
-	 * @return how much information was written to the target buffer and
-	 *         whether this buffer is full
 	 */
-	SerializationResult addRecord(T record) throws IOException;
+	void serializeRecord(T record) throws IOException;
 
 	/**
-	 * Sets a (next) target buffer to use and continues writing remaining data
-	 * to it until it is full.
+	 * Copies the intermediate data serialization buffer to the given target buffer.
 	 *
 	 * @param bufferBuilder the new target buffer to use
 	 * @return how much information was written to the target buffer and
 	 *         whether this buffer is full
 	 */
-	SerializationResult continueWritingWithNextBufferBuilder(BufferBuilder bufferBuilder) throws IOException;
+	SerializationResult copyToBufferBuilder(BufferBuilder bufferBuilder);
 
 	/**
-	 * Clear and release internal state.
+	 * Clears the buffer and checks to decrease the size of intermediate data serialization buffer
+	 * after finishing the whole serialization process including
+	 * {@link #serializeRecord(IOReadableWritable)} and {@link #copyToBufferBuilder(BufferBuilder)}.
 	 */
-	void clear();
+	void prune();
+
+	/**
+	 * Supports copying an intermediate data serialization buffer to multiple target buffers
+	 * by resetting its initial position before each copying.
+	 */
+	void reset();
 
 	/**
 	 * @return <tt>true</tt> if has some serialized data pending copying to the result {@link BufferBuilder}.

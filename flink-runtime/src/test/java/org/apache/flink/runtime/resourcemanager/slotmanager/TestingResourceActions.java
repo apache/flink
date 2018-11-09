@@ -19,26 +19,54 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
+import org.apache.flink.util.function.FunctionWithException;
+
+import javax.annotation.Nonnull;
+
+import java.util.Collection;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Testing implementation of the {@link ResourceActions}.
  */
 public class TestingResourceActions implements ResourceActions {
-	@Override
-	public void releaseResource(InstanceID instanceId, Exception cause) {
 
+	@Nonnull
+	private final BiConsumer<InstanceID, Exception> releaseResourceConsumer;
+
+	@Nonnull
+	private final FunctionWithException<ResourceProfile, Collection<ResourceProfile>, ResourceManagerException> allocateResourceFunction;
+
+	@Nonnull
+	private final Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer;
+
+	public TestingResourceActions(
+			@Nonnull BiConsumer<InstanceID, Exception> releaseResourceConsumer,
+			@Nonnull FunctionWithException<ResourceProfile, Collection<ResourceProfile>, ResourceManagerException> allocateResourceFunction,
+			@Nonnull Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer) {
+		this.releaseResourceConsumer = releaseResourceConsumer;
+		this.allocateResourceFunction = allocateResourceFunction;
+		this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
 	}
 
 	@Override
-	public void allocateResource(ResourceProfile resourceProfile) {
+	public void releaseResource(InstanceID instanceId, Exception cause) {
+		releaseResourceConsumer.accept(instanceId, cause);
+	}
 
+	@Override
+	public Collection<ResourceProfile> allocateResource(ResourceProfile resourceProfile) throws ResourceManagerException {
+		return allocateResourceFunction.apply(resourceProfile);
 	}
 
 	@Override
 	public void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause) {
-
+		notifyAllocationFailureConsumer.accept(Tuple3.of(jobId, allocationId, cause));
 	}
 }

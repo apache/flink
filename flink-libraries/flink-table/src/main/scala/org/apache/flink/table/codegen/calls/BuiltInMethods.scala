@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.codegen.calls
 
+import java.lang.reflect.Method
 import java.lang.{Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 
@@ -24,6 +25,14 @@ import org.apache.calcite.linq4j.tree.Types
 import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.table.runtime.functions.ScalarFunctions
 
+/**
+  * Contains references to built-in functions.
+  *
+  * NOTE: When adding functions here. Check if Calcite provides it in
+  * [[org.apache.calcite.util.BuiltInMethod]]. The function generator supports Java's auto casting
+  * so we don't need the full matrix of data types for every function. Only [[JBigDecimal]] needs
+  * special handling.
+  */
 object BuiltInMethods {
 
   val LOG = Types.lookupMethod(classOf[ScalarFunctions], "log", classOf[Double])
@@ -32,6 +41,8 @@ object BuiltInMethods {
     Types.lookupMethod(classOf[ScalarFunctions], "log", classOf[Double], classOf[Double])
 
   val LOG10 = Types.lookupMethod(classOf[Math], "log10", classOf[Double])
+
+  val LOG2 = Types.lookupMethod(classOf[ScalarFunctions], "log2", classOf[Double])
 
   val EXP = Types.lookupMethod(classOf[Math], "exp", classOf[Double])
 
@@ -61,6 +72,9 @@ object BuiltInMethods {
   val TAN = Types.lookupMethod(classOf[Math], "tan", classOf[Double])
   val TAN_DEC = Types.lookupMethod(classOf[SqlFunctions], "tan", classOf[JBigDecimal])
 
+  val TANH = Types.lookupMethod(classOf[Math], "tanh", classOf[Double])
+  val TANH_DEC = Types.lookupMethod(classOf[ScalarFunctions], "tanh", classOf[JBigDecimal])
+
   val COT = Types.lookupMethod(classOf[SqlFunctions], "cot", classOf[Double])
   val COT_DEC = Types.lookupMethod(classOf[SqlFunctions], "cot", classOf[JBigDecimal])
 
@@ -70,8 +84,25 @@ object BuiltInMethods {
   val ACOS = Types.lookupMethod(classOf[Math], "acos", classOf[Double])
   val ACOS_DEC = Types.lookupMethod(classOf[SqlFunctions], "acos", classOf[JBigDecimal])
 
+  val SINH = Types.lookupMethod(classOf[Math], "sinh", classOf[Double])
+  val SINH_DEC = Types.lookupMethod(classOf[ScalarFunctions], "sinh", classOf[JBigDecimal])
+
   val ATAN = Types.lookupMethod(classOf[Math], "atan", classOf[Double])
   val ATAN_DEC = Types.lookupMethod(classOf[SqlFunctions], "atan", classOf[JBigDecimal])
+
+  val COSH = Types.lookupMethod(classOf[Math], "cosh", classOf[Double])
+  val COSH_DEC = Types.lookupMethod(classOf[ScalarFunctions], "cosh", classOf[JBigDecimal])
+
+  val ATAN2_DOUBLE_DOUBLE = Types.lookupMethod(
+    classOf[Math],
+    "atan2",
+    classOf[Double],
+    classOf[Double])
+  val ATAN2_DEC_DEC = Types.lookupMethod(
+    classOf[SqlFunctions],
+    "atan2",
+    classOf[JBigDecimal],
+    classOf[JBigDecimal])
 
   val DEGREES = Types.lookupMethod(classOf[Math], "toDegrees", classOf[Double])
   val DEGREES_DEC = Types.lookupMethod(classOf[SqlFunctions], "degrees", classOf[JBigDecimal])
@@ -110,4 +141,39 @@ object BuiltInMethods {
     classOf[String])
 
   val BIN = Types.lookupMethod(classOf[JLong], "toBinaryString", classOf[Long])
+
+  val REGEXP_REPLACE = Types.lookupMethod(
+    classOf[ScalarFunctions],
+    "regexp_replace",
+    classOf[String],
+    classOf[String],
+    classOf[String])
+
+  val REGEXP_EXTRACT = Types.lookupMethod(
+    classOf[ScalarFunctions],
+    "regexp_extract",
+    classOf[String],
+    classOf[String],
+    classOf[Integer])
+
+  val REGEXP_EXTRACT_WITHOUT_INDEX = Types.lookupMethod(
+    classOf[ScalarFunctions],
+    "regexp_extract",
+    classOf[String],
+    classOf[String])
+
+  val FROMBASE64 = Types.lookupMethod(classOf[ScalarFunctions], "fromBase64", classOf[String])
+
+  val TOBASE64 = Types.lookupMethod(classOf[ScalarFunctions], "toBase64", classOf[String])
+
+  val HEX_LONG: Method = Types.lookupMethod(classOf[ScalarFunctions], "hex", classOf[Long])
+  val HEX_STRING: Method = Types.lookupMethod(classOf[ScalarFunctions], "hex", classOf[String])
+
+  val UUID: Method = Types.lookupMethod(classOf[ScalarFunctions], "uuid")
+
+  val REPEAT: Method = Types.lookupMethod(
+    classOf[ScalarFunctions],
+    "repeat",
+    classOf[String],
+    classOf[Int])
 }

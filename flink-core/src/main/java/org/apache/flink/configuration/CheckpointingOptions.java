@@ -18,6 +18,8 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.docs.Documentation;
+
 /**
  * A collection of all configuration options that relate to checkpoints
  * and savepoints.
@@ -29,6 +31,7 @@ public class CheckpointingOptions {
 	// ------------------------------------------------------------------------
 
 	/** The state backend to be used to store and checkpoint state. */
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_FAULT_TOLERANCE)
 	public static final ConfigOption<String> STATE_BACKEND = ConfigOptions
 			.key("state.backend")
 			.noDefaultValue()
@@ -86,6 +89,7 @@ public class CheckpointingOptions {
 
 	/** The default directory for savepoints. Used by the state backends that write
 	 * savepoints to file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend). */
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_FAULT_TOLERANCE)
 	public static final ConfigOption<String> SAVEPOINT_DIRECTORY = ConfigOptions
 			.key("state.savepoints.dir")
 			.noDefaultValue()
@@ -95,6 +99,7 @@ public class CheckpointingOptions {
 
 	/** The default directory used for storing the data files and meta data of checkpoints in a Flink supported filesystem.
 	 * The storage path must be accessible from all participating processes/nodes(i.e. all TaskManagers and JobManagers).*/
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_FAULT_TOLERANCE)
 	public static final ConfigOption<String> CHECKPOINTS_DIRECTORY = ConfigOptions
 			.key("state.checkpoints.dir")
 			.noDefaultValue()
@@ -110,15 +115,4 @@ public class CheckpointingOptions {
 			.defaultValue(1024)
 			.withDescription("The minimum size of state data files. All state chunks smaller than that are stored" +
 				" inline in the root checkpoint metadata file.");
-
-	// ------------------------------------------------------------------------
-	//  Options specific to the RocksDB state backend
-	// ------------------------------------------------------------------------
-
-	/** The local directory (on the TaskManager) where RocksDB puts its files. */
-	public static final ConfigOption<String> ROCKSDB_LOCAL_DIRECTORIES = ConfigOptions
-			.key("state.backend.rocksdb.localdir")
-			.noDefaultValue()
-			.withDeprecatedKeys("state.backend.rocksdb.checkpointdir")
-			.withDescription("The local directory (on the TaskManager) where RocksDB puts its files.");
 }

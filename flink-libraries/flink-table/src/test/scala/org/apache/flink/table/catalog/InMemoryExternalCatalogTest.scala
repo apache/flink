@@ -20,9 +20,9 @@ package org.apache.flink.table.catalog
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.api._
-import org.apache.flink.table.descriptors.{ConnectorDescriptor, DescriptorProperties, Schema}
-import org.junit.{Before, Test}
+import org.apache.flink.table.descriptors.{ConnectorDescriptor, Schema}
 import org.junit.Assert._
+import org.junit.{Before, Test}
 
 class InMemoryExternalCatalogTest {
 
@@ -138,7 +138,9 @@ class InMemoryExternalCatalogTest {
     val schemaDesc = new Schema()
       .field("first", BasicTypeInfo.STRING_TYPE_INFO)
       .field("second", BasicTypeInfo.INT_TYPE_INFO)
-    new ExternalCatalogTable(connDesc, None, Some(schemaDesc), None, None)
+    ExternalCatalogTable.builder(connDesc)
+      .withSchema(schemaDesc)
+      .asTableSource()
   }
 
   private def createTableInstance(
@@ -149,12 +151,14 @@ class InMemoryExternalCatalogTest {
     fieldNames.zipWithIndex.foreach { case (fieldName, index) =>
       schemaDesc.field(fieldName, fieldTypes(index))
     }
-    new ExternalCatalogTable(connDesc, None, Some(schemaDesc), None, None)
+    ExternalCatalogTable.builder(connDesc)
+      .withSchema(schemaDesc)
+      .asTableSource()
   }
 
-  class TestConnectorDesc extends ConnectorDescriptor("test", version = 1, formatNeeded = false) {
-    override protected def addConnectorProperties(properties: DescriptorProperties): Unit = {
+  class TestConnectorDesc extends ConnectorDescriptor("test", 1, false) {
+    override protected def toConnectorProperties: _root_.java.util.Map[String, String] = {
+      _root_.java.util.Collections.emptyMap()
     }
   }
-
 }

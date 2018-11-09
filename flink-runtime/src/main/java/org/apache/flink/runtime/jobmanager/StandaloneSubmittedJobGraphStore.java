@@ -43,22 +43,27 @@ public class StandaloneSubmittedJobGraphStore implements SubmittedJobGraphStore 
 	}
 
 	@Override
-	public void putJobGraph(SubmittedJobGraph jobGraph) throws Exception {
+	public void putJobGraph(SubmittedJobGraph jobGraph) {
 		// Nothing to do
 	}
 
 	@Override
-	public void removeJobGraph(JobID jobId) throws Exception {
+	public void removeJobGraph(JobID jobId) {
 		// Nothing to do
 	}
 
 	@Override
-	public Collection<JobID> getJobIds() throws Exception {
+	public void releaseJobGraph(JobID jobId) {
+		// nothing to do
+	}
+
+	@Override
+	public Collection<JobID> getJobIds() {
 		return Collections.emptyList();
 	}
 
 	@Override
-	public SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception {
+	public SubmittedJobGraph recoverJobGraph(JobID jobId) {
 		return null;
 	}
 }

@@ -29,6 +29,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -45,7 +46,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -77,16 +78,16 @@ public class TimestampITCase extends TestLogger {
 	static MultiShotLatch latch;
 
 	@ClassRule
-	public static final MiniClusterResource CLUSTER = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			getConfiguration(),
-			NUM_TASK_MANAGERS,
-			NUM_TASK_SLOTS),
-		true);
+	public static final MiniClusterWithClientResource CLUSTER = new MiniClusterWithClientResource(
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getConfiguration())
+			.setNumberTaskManagers(NUM_TASK_MANAGERS)
+			.setNumberSlotsPerTaskManager(NUM_TASK_SLOTS)
+			.build());
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 12L);
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "12m");
 		return config;
 	}
 

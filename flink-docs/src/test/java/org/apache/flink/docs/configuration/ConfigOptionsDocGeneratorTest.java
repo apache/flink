@@ -24,9 +24,18 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.description.Formatter;
+import org.apache.flink.configuration.description.HtmlFormatter;
+import org.apache.flink.docs.configuration.data.TestCommonOptions;
+import org.apache.flink.util.FileUtils;
 
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 
@@ -36,6 +45,9 @@ import static org.junit.Assert.assertEquals;
  * Tests for the {@link ConfigOptionsDocGenerator}.
  */
 public class ConfigOptionsDocGeneratorTest {
+
+	@ClassRule
+	public static final TemporaryFolder TMP = new TemporaryFolder();
 
 	static class TestConfigGroup {
 		public static ConfigOption<Integer> firstOption = ConfigOptions
@@ -215,4 +227,43 @@ public class ConfigOptionsDocGeneratorTest {
 		assertEquals(expectedTable, htmlTable);
 	}
 
+	@Test
+	public void testCommonOptions() throws IOException, ClassNotFoundException {
+		final String projectRootDir = System.getProperty("rootDir");
+		final String outputDirectory = TMP.newFolder().getAbsolutePath();
+
+		final OptionsClassLocation[] locations = new OptionsClassLocation[] {
+			new OptionsClassLocation("flink-docs", TestCommonOptions.class.getPackage().getName())
+		};
+
+		ConfigOptionsDocGenerator.generateCommonSection(projectRootDir, outputDirectory, locations, "src/test/java");
+		Formatter formatter = new HtmlFormatter();
+
+		String expected =
+			"<table class=\"table table-bordered\">\n" +
+			"    <thead>\n" +
+			"        <tr>\n" +
+			"            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n" +
+			"            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n" +
+			"            <th class=\"text-left\" style=\"width: 65%\">Description</th>\n" +
+			"        </tr>\n" +
+			"    </thead>\n" +
+			"    <tbody>\n" +
+			"        <tr>\n" +
+			"            <td><h5>" + TestCommonOptions.COMMON_POSITIONED_OPTION.key() + "</h5></td>\n" +
+			"            <td style=\"word-wrap: break-word;\">" + TestCommonOptions.COMMON_POSITIONED_OPTION.defaultValue() + "</td>\n" +
+			"            <td>" + formatter.format(TestCommonOptions.COMMON_POSITIONED_OPTION.description()) + "</td>\n" +
+			"        </tr>\n" +
+			"        <tr>\n" +
+			"            <td><h5>" + TestCommonOptions.COMMON_OPTION.key() + "</h5></td>\n" +
+			"            <td style=\"word-wrap: break-word;\">" + TestCommonOptions.COMMON_OPTION.defaultValue() + "</td>\n" +
+			"            <td>" + formatter.format(TestCommonOptions.COMMON_OPTION.description()) + "</td>\n" +
+			"        </tr>\n" +
+			"    </tbody>\n" +
+			"</table>\n";
+
+		String output = FileUtils.readFile(Paths.get(outputDirectory, ConfigOptionsDocGenerator.COMMON_SECTION_FILE_NAME).toFile(), StandardCharsets.UTF_8.name());
+
+		assertEquals(expected, output);
+	}
 }

@@ -167,9 +167,9 @@ public final class WritableSerializer<T extends Writable> extends TypeSerializer
 	}
 
 	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof WritableSerializerConfigSnapshot
-				&& typeClass.equals(((WritableSerializerConfigSnapshot) configSnapshot).getTypeClass())) {
+				&& typeClass.equals(((WritableSerializerConfigSnapshot<?>) configSnapshot).getTypeClass())) {
 
 			return CompatibilityResult.compatible();
 		} else {

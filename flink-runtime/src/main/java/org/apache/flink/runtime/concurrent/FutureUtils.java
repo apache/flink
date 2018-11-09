@@ -22,7 +22,6 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -199,21 +198,22 @@ public class FutureUtils {
 						if (throwable instanceof CancellationException) {
 							resultFuture.completeExceptionally(new RetryException("Operation future was cancelled.", throwable));
 						} else {
-							if (retries > 0 && retryPredicate.test(throwable)) {
+							throwable = ExceptionUtils.stripExecutionException(throwable);
+							if (!retryPredicate.test(throwable)) {
+								resultFuture.completeExceptionally(throwable);
+							} else if (retries > 0) {
 								final ScheduledFuture<?> scheduledFuture = scheduledExecutor.schedule(
-									() -> retryOperationWithDelay(resultFuture, operation, retries - 1, retryDelay, retryPredicate, scheduledExecutor),
+									(Runnable) () -> retryOperationWithDelay(resultFuture, operation, retries - 1, retryDelay, retryPredicate, scheduledExecutor),
 									retryDelay.toMilliseconds(),
 									TimeUnit.MILLISECONDS);
 
 								resultFuture.whenComplete(
 									(innerT, innerThrowable) -> scheduledFuture.cancel(false));
 							} else {
-								final String errorMsg = retries == 0 ?
-									"Number of retries has been exhausted." :
-									"Exception is not retryable.";
-								resultFuture.completeExceptionally(new RetryException(
-									"Could not complete the operation. " + errorMsg,
-									throwable));
+								RetryException retryException = new RetryException(
+									"Could not complete the operation. Number of retries has been exhausted.",
+									throwable);
+								resultFuture.completeExceptionally(retryException);
 							}
 						}
 					} else {
@@ -283,7 +283,7 @@ public class FutureUtils {
 							resultFuture.complete(t);
 						} else if (deadline.hasTimeLeft()) {
 							final ScheduledFuture<?> scheduledFuture = scheduledExecutor.schedule(
-								() -> retrySuccessfulOperationWithDelay(resultFuture, operation, retryDelay, deadline, acceptancePredicate, scheduledExecutor),
+								(Runnable) () -> retrySuccessfulOperationWithDelay(resultFuture, operation, retryDelay, deadline, acceptancePredicate, scheduledExecutor),
 								retryDelay.toMilliseconds(),
 								TimeUnit.MILLISECONDS);
 
@@ -508,30 +508,12 @@ public class FutureUtils {
 		 * @return The number of Futures in the conjunction that are already complete
 		 */
 		public abstract int getNumFuturesCompleted();
-
-		/**
-		 * Gets the individual futures which make up the {@link ConjunctFuture}.
-		 *
-		 * @return Collection of futures which make up the {@link ConjunctFuture}
-		 */
-		protected abstract Collection<? extends CompletableFuture<?>> getConjunctFutures();
-
-		@Override
-		public boolean cancel(boolean mayInterruptIfRunning) {
-			for (CompletableFuture<?> completableFuture : getConjunctFutures()) {
-				completableFuture.cancel(mayInterruptIfRunning);
-			}
-
-			return super.cancel(mayInterruptIfRunning);
-		}
 	}
 
 	/**
 	 * The implementation of the {@link ConjunctFuture} which returns its Futures' result as a collection.
 	 */
 	private static class ResultConjunctFuture<T> extends ConjunctFuture<Collection<T>> {
-
-		private final Collection<? extends CompletableFuture<? extends T>> resultFutures;
 
 		/** The total number of futures in the conjunction. */
 		private final int numTotal;
@@ -564,7 +546,6 @@ public class FutureUtils {
 
 		@SuppressWarnings("unchecked")
 		ResultConjunctFuture(Collection<? extends CompletableFuture<? extends T>> resultFutures) {
-			this.resultFutures = checkNotNull(resultFutures);
 			this.numTotal = resultFutures.size();
 			results = (T[]) new Object[numTotal];
 
@@ -587,11 +568,6 @@ public class FutureUtils {
 		public int getNumFuturesCompleted() {
 			return numCompleted.get();
 		}
-
-		@Override
-		protected Collection<? extends CompletableFuture<?>> getConjunctFutures() {
-			return resultFutures;
-		}
 	}
 
 	/**
@@ -599,8 +575,6 @@ public class FutureUtils {
 	 * of its futures and does not return their values.
 	 */
 	private static final class WaitingConjunctFuture extends ConjunctFuture<Void> {
-
-		private final Collection<? extends CompletableFuture<?>> futures;
 
 		/** Number of completed futures. */
 		private final AtomicInteger numCompleted = new AtomicInteger(0);
@@ -620,7 +594,6 @@ public class FutureUtils {
 		}
 
 		private WaitingConjunctFuture(Collection<? extends CompletableFuture<?>> futures) {
-			this.futures = checkNotNull(futures);
 			this.numTotal = futures.size();
 
 			if (futures.isEmpty()) {
@@ -640,11 +613,6 @@ public class FutureUtils {
 		@Override
 		public int getNumFuturesCompleted() {
 			return numCompleted.get();
-		}
-
-		@Override
-		protected Collection<? extends CompletableFuture<?>> getConjunctFutures() {
-			return futures;
 		}
 	}
 
@@ -673,14 +641,11 @@ public class FutureUtils {
 
 		private final int numFuturesTotal;
 
-		private final Collection<? extends CompletableFuture<?>> futuresToComplete;
-
 		private int futuresCompleted;
 
 		private Throwable globalThrowable;
 
 		private CompletionConjunctFuture(Collection<? extends CompletableFuture<?>> futuresToComplete) {
-			this.futuresToComplete = checkNotNull(futuresToComplete);
 			numFuturesTotal = futuresToComplete.size();
 
 			futuresCompleted = 0;
@@ -724,11 +689,6 @@ public class FutureUtils {
 			synchronized (lock) {
 				return futuresCompleted;
 			}
-		}
-
-		@Override
-		protected Collection<? extends CompletableFuture<?>> getConjunctFutures() {
-			return futuresToComplete;
 		}
 	}
 
@@ -799,14 +759,15 @@ public class FutureUtils {
 	 *
 	 * @param scalaFuture to convert to a Java 8 CompletableFuture
 	 * @param <T> type of the future value
+	 * @param <U> type of the original future
 	 * @return Java 8 CompletableFuture
 	 */
-	public static <T> CompletableFuture<T> toJava(Future<T> scalaFuture) {
+	public static <T, U extends T> CompletableFuture<T> toJava(Future<U> scalaFuture) {
 		final CompletableFuture<T> result = new CompletableFuture<>();
 
-		scalaFuture.onComplete(new OnComplete<T>() {
+		scalaFuture.onComplete(new OnComplete<U>() {
 			@Override
-			public void onComplete(Throwable failure, T success) {
+			public void onComplete(Throwable failure, U success) {
 				if (failure != null) {
 					result.completeExceptionally(failure);
 				} else {
@@ -826,7 +787,7 @@ public class FutureUtils {
 		private final CompletableFuture<?> future;
 
 		private Timeout(CompletableFuture<?> future) {
-			this.future = Preconditions.checkNotNull(future);
+			this.future = checkNotNull(future);
 		}
 
 		@Override
@@ -840,8 +801,9 @@ public class FutureUtils {
 	 *
 	 * <p>This class creates a singleton scheduler used to run the provided actions.
 	 */
-	private static final class Delayer {
-		static final ScheduledThreadPoolExecutor delayer = new ScheduledThreadPoolExecutor(
+	private enum Delayer {
+		;
+		static final ScheduledThreadPoolExecutor DELAYER = new ScheduledThreadPoolExecutor(
 			1,
 			new ExecutorThreadFactory("FlinkCompletableFutureDelayScheduler"));
 
@@ -854,10 +816,10 @@ public class FutureUtils {
 		 * @return Future of the scheduled action
 		 */
 		private static ScheduledFuture<?> delay(Runnable runnable, long delay, TimeUnit timeUnit) {
-			Preconditions.checkNotNull(runnable);
-			Preconditions.checkNotNull(timeUnit);
+			checkNotNull(runnable);
+			checkNotNull(timeUnit);
 
-			return delayer.schedule(runnable, delay, timeUnit);
+			return DELAYER.schedule(runnable, delay, timeUnit);
 		}
 	}
 }

@@ -29,6 +29,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
+import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 
@@ -211,21 +212,22 @@ public class TestingRestfulGateway implements RestfulGateway {
 	/**
 	 * Builder for the {@link TestingRestfulGateway}.
 	 */
-	public static final class Builder {
-		private String address = LOCALHOST;
-		private String hostname = LOCALHOST;
-		private String restAddress = LOCALHOST;
-		private Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction;
-		private Function<JobID, CompletableFuture<Acknowledge>> stopJobFunction;
-		private Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction;
-		private Function<JobID, CompletableFuture<JobResult>> requestJobResultFunction;
-		private Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction;
-		private Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier;
-		private Supplier<CompletableFuture<ClusterOverview>> requestClusterOverviewSupplier;
-		private Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServicePathsSupplier;
-		private Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServicePathsSupplier;
-		private BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction;
-		private BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction;
+	public static class Builder {
+		protected String address = LOCALHOST;
+		protected String hostname = LOCALHOST;
+		protected String restAddress = LOCALHOST;
+		protected Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction;
+		protected Function<JobID, CompletableFuture<Acknowledge>> stopJobFunction;
+		protected Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction;
+		protected Function<JobID, CompletableFuture<JobResult>> requestJobResultFunction;
+		protected Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction;
+		protected Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier;
+		protected Supplier<CompletableFuture<ClusterOverview>> requestClusterOverviewSupplier;
+		protected Supplier<CompletableFuture<JobsOverview>> requestOverviewForAllJobsSupplier;
+		protected Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServicePathsSupplier;
+		protected Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServicePathsSupplier;
+		protected BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction;
+		protected BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction;
 
 		public Builder() {
 			cancelJobFunction = DEFAULT_CANCEL_JOB_FUNCTION;

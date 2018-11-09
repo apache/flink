@@ -315,7 +315,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				return allOutputs.get(0).f0;
 			}
 			else {
-				// send to N outputs. Note that this includes teh special case
+				// send to N outputs. Note that this includes the special case
 				// of sending to zero outputs
 				@SuppressWarnings({"unchecked", "rawtypes"})
 				Output<StreamRecord<T>>[] asArray = new Output[allOutputs.size()];
@@ -381,8 +381,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			currentOperatorOutput = new CopyingChainingOutput<>(chainedOperator, inSerializer, outputTag, this);
 		}
 
-		chainedOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, currentOperatorOutput.getWatermarkGauge());
-		chainedOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_OUTPUT_WATERMARK, chainedOperatorOutput.getWatermarkGauge());
+		// wrap watermark gauges since registered metrics must be unique
+		chainedOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, currentOperatorOutput.getWatermarkGauge()::getValue);
+		chainedOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_OUTPUT_WATERMARK, chainedOperatorOutput.getWatermarkGauge()::getValue);
 
 		return currentOperatorOutput;
 	}
@@ -442,8 +443,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				Counter tmpNumRecordsIn;
 				try {
 					OperatorIOMetricGroup ioMetricGroup = ((OperatorMetricGroup) operator.getMetricGroup()).getIOMetricGroup();
-					ioMetricGroup.reuseInputMetricsForTask();
-					ioMetricGroup.reuseOutputMetricsForTask();
 					tmpNumRecordsIn = ioMetricGroup.getNumRecordsInCounter();
 				} catch (Exception e) {
 					LOG.warn("An exception occurred during the metrics setup.", e);

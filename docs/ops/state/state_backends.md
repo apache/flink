@@ -116,9 +116,12 @@ The RocksDBStateBackend is encouraged for:
 Note that the amount of state that you can keep is only limited by the amount of disk space available.
 This allows keeping very large state, compared to the FsStateBackend that keeps state in memory.
 This also means, however, that the maximum throughput that can be achieved will be lower with
-this state backend.
+this state backend. All reads/writes from/to this backend have to go through de-/serialization to retrieve/store the state objects, which is also more expensive than always working with the
+on-heap representation as the heap-based backends are doing.
 
 RocksDBStateBackend is currently the only backend that offers incremental checkpoints (see [here](large_state_tuning.html)). 
+
+Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({{ site.baseurl }}/ops/config.html#rocksdb-native-metrics)
 
 ## Configuring a State Backend
 
@@ -167,5 +170,9 @@ state.backend: filesystem
 
 state.checkpoints.dir: hdfs://namenode:40010/flink/checkpoints
 {% endhighlight %}
+
+#### RocksDB State Backend Config Options
+
+{% include generated/rocks_db_configuration.html %}
 
 {% top %}

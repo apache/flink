@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -35,6 +36,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.ExceptionUtils;
@@ -105,13 +107,15 @@ public class StateBackendITCase extends AbstractTestBase {
 
 		@Override
 		public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-				Environment env,
-				JobID jobID,
-				String operatorIdentifier,
-				TypeSerializer<K> keySerializer,
-				int numberOfKeyGroups,
-				KeyGroupRange keyGroupRange,
-				TaskKvStateRegistry kvStateRegistry) throws IOException {
+			Environment env,
+			JobID jobID,
+			String operatorIdentifier,
+			TypeSerializer<K> keySerializer,
+			int numberOfKeyGroups,
+			KeyGroupRange keyGroupRange,
+			TaskKvStateRegistry kvStateRegistry,
+			TtlTimeProvider ttlTimeProvider,
+			MetricGroup metricGroup) throws IOException {
 			throw new SuccessException();
 		}
 

@@ -26,7 +26,11 @@ import org.apache.flink.api.java.tuple.Tuple;
  */
 public class CassandraTupleSink<IN extends Tuple> extends AbstractCassandraTupleSink<IN> {
 	public CassandraTupleSink(String insertQuery, ClusterBuilder builder) {
-		super(insertQuery, builder);
+		this(insertQuery, builder, new NoOpCassandraFailureHandler());
+	}
+
+	public CassandraTupleSink(String insertQuery, ClusterBuilder builder, CassandraFailureHandler failureHandler) {
+		super(insertQuery, builder, failureHandler);
 	}
 
 	@Override

@@ -187,6 +187,48 @@ under the License.
 			</excludes>
 		</fileSet>
 
+		<!-- copy jar files of the streaming kafka examples -->
+		<fileSet>
+			<directory>../flink-examples/flink-examples-streaming-kafka/target</directory>
+			<outputDirectory>examples/streaming</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>flink-examples-streaming-kafka*.jar</exclude>
+				<exclude>original-*.jar</exclude>
+			</excludes>
+		</fileSet>
+
+		<!-- copy jar files of the streaming kafka 0.10 examples -->
+		<fileSet>
+			<directory>../flink-examples/flink-examples-streaming-kafka-0.10/target</directory>
+			<outputDirectory>examples/streaming</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>flink-examples-streaming-kafka*.jar</exclude>
+				<exclude>original-*.jar</exclude>
+			</excludes>
+		</fileSet>
+
+		<!-- copy jar files of the streaming kafka 0.11 examples -->
+		<fileSet>
+			<directory>../flink-examples/flink-examples-streaming-kafka-0.11/target</directory>
+			<outputDirectory>examples/streaming</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>flink-examples-streaming-kafka*.jar</exclude>
+				<exclude>original-*.jar</exclude>
+			</excludes>
+		</fileSet>
+
 		<!-- copy jar files of the gelly examples -->
 		<fileSet>
 			<directory>../flink-libraries/flink-gelly-examples/target</directory>

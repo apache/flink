@@ -37,12 +37,13 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
+import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamRel, UpdateAsRetractionTrait}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{DataStreamTable, RowSchema, StreamTableSourceTable, TableSinkTable}
+import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.runtime.conversion._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
@@ -113,31 +114,89 @@ abstract class StreamTableEnvironment(
     : Unit = {
 
     tableSource match {
+
+      // check for proper stream table source
       case streamTableSource: StreamTableSource[_] =>
         // check that event-time is enabled if table source includes rowtime attributes
         if (TableSourceUtil.hasRowtimeAttribute(streamTableSource) &&
           execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {
-            throw TableException(
+            throw new TableException(
               s"A rowtime attribute requires an EventTime time characteristic in stream " +
                 s"environment. But is: ${execEnv.getStreamTimeCharacteristic}")
         }
-        registerTableInternal(name, new StreamTableSourceTable(streamTableSource))
+
+        // register
+        getTable(name) match {
+
+          // check if a table (source or sink) is registered
+          case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
+
+            // wrapper contains source
+            case Some(_: TableSourceTable[_]) =>
+              throw new TableException(s"Table '$name' already exists. " +
+                s"Please choose a different name.")
+
+            // wrapper contains only sink (not source)
+            case _ =>
+              val enrichedTable = new TableSourceSinkTable(
+                Some(new StreamTableSourceTable(streamTableSource)),
+                table.tableSinkTable)
+              replaceRegisteredTable(name, enrichedTable)
+          }
+
+          // no table is registered
+          case _ =>
+            val newTable = new TableSourceSinkTable(
+              Some(new StreamTableSourceTable(streamTableSource)),
+              None)
+            registerTableInternal(name, newTable)
+        }
+
+      // not a stream table source
       case _ =>
         throw new TableException("Only StreamTableSource can be registered in " +
           "StreamTableEnvironment")
     }
   }
 
-// TODO expose this once we have enough table source factories that can deal with it
-//  /**
-//    * Creates a table from a descriptor that describes the source connector, source encoding,
-//    * the resulting table schema, and other properties.
-//    *
-//    * @param connectorDescriptor connector descriptor describing the source of the table
-//    */
-//  def from(connectorDescriptor: ConnectorDescriptor): StreamTableSourceDescriptor = {
-//    new StreamTableSourceDescriptor(this, connectorDescriptor)
-//  }
+  /**
+    * Creates a table source and/or table sink from a descriptor.
+    *
+    * Descriptors allow for declaring the communication to external systems in an
+    * implementation-agnostic way. The classpath is scanned for suitable table factories that match
+    * the desired configuration.
+    *
+    * The following example shows how to read from a Kafka connector using a JSON format and
+    * registering a table source "MyTable" in append mode:
+    *
+    * {{{
+    *
+    * tableEnv
+    *   .connect(
+    *     new Kafka()
+    *       .version("0.11")
+    *       .topic("clicks")
+    *       .property("zookeeper.connect", "localhost")
+    *       .property("group.id", "click-group")
+    *       .startFromEarliest())
+    *   .withFormat(
+    *     new Json()
+    *       .jsonSchema("{...}")
+    *       .failOnMissingField(false))
+    *   .withSchema(
+    *     new Schema()
+    *       .field("user-name", "VARCHAR").from("u_name")
+    *       .field("count", "DECIMAL")
+    *       .field("proc-time", "TIMESTAMP").proctime())
+    *   .inAppendMode()
+    *   .registerSource("MyTable")
+    * }}}
+    *
+    * @param connectorDescriptor connector descriptor describing the external system
+    */
+  def connect(connectorDescriptor: ConnectorDescriptor): StreamTableDescriptor = {
+    new StreamTableDescriptor(this, connectorDescriptor)
+  }
 
   /**
     * Registers an external [[TableSink]] with given field names and types in this
@@ -171,21 +230,76 @@ abstract class StreamTableEnvironment(
       tableSink: TableSink[_]): Unit = {
 
     checkValidTableName(name)
-    if (fieldNames == null) throw TableException("fieldNames must not be null.")
-    if (fieldTypes == null) throw TableException("fieldTypes must not be null.")
+    if (fieldNames == null) throw new TableException("fieldNames must not be null.")
+    if (fieldTypes == null) throw new TableException("fieldTypes must not be null.")
     if (fieldNames.length == 0) throw new TableException("fieldNames must not be empty.")
     if (fieldNames.length != fieldTypes.length) {
       throw new TableException("Same number of field names and types required.")
     }
 
-    tableSink match {
-      case streamTableSink@(
-        _: AppendStreamTableSink[_] |
-        _: UpsertStreamTableSink[_] |
-        _: RetractStreamTableSink[_]) =>
+    val configuredSink = tableSink.configure(fieldNames, fieldTypes)
+    registerTableSinkInternal(name, configuredSink)
+  }
 
-        val configuredSink = streamTableSink.configure(fieldNames, fieldTypes)
-        registerTableInternal(name, new TableSinkTable(configuredSink))
+  /**
+    * Registers an external [[TableSink]] with already configured field names and field types in
+    * this [[TableEnvironment]]'s catalog.
+    * Registered sink tables can be referenced in SQL DML statements.
+    *
+    * @param name The name under which the [[TableSink]] is registered.
+    * @param configuredSink The configured [[TableSink]] to register.
+    */
+  def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = {
+    registerTableSinkInternal(name, configuredSink)
+  }
+
+  private def registerTableSinkInternal(name: String, configuredSink: TableSink[_]): Unit = {
+    // validate
+    checkValidTableName(name)
+    if (configuredSink.getFieldNames == null || configuredSink.getFieldTypes == null) {
+      throw new TableException("Table sink is not configured.")
+    }
+    if (configuredSink.getFieldNames.length == 0) {
+      throw new TableException("Field names must not be empty.")
+    }
+    if (configuredSink.getFieldNames.length != configuredSink.getFieldTypes.length) {
+      throw new TableException("Same number of field names and types required.")
+    }
+
+    // register
+    configuredSink match {
+
+      // check for proper batch table sink
+      case _: StreamTableSink[_] =>
+
+        // check if a table (source or sink) is registered
+        getTable(name) match {
+
+          // table source and/or sink is registered
+          case Some(table: TableSourceSinkTable[_, _]) => table.tableSinkTable match {
+
+            // wrapper contains sink
+            case Some(_: TableSinkTable[_]) =>
+              throw new TableException(s"Table '$name' already exists. " +
+                s"Please choose a different name.")
+
+            // wrapper contains only source (not sink)
+            case _ =>
+              val enrichedTable = new TableSourceSinkTable(
+                table.tableSourceTable,
+                Some(new TableSinkTable(configuredSink)))
+              replaceRegisteredTable(name, enrichedTable)
+          }
+
+          // no table is registered
+          case _ =>
+            val newTable = new TableSourceSinkTable(
+              None,
+              Some(new TableSinkTable(configuredSink)))
+            registerTableInternal(name, newTable)
+        }
+
+      // not a stream table sink
       case _ =>
         throw new TableException(
           "Only AppendStreamTableSink, UpsertStreamTableSink, and RetractStreamTableSink can be " +
@@ -245,7 +359,7 @@ abstract class StreamTableEnvironment(
           case Some(keys) => upsertSink.setKeyFields(keys)
           case None if isAppendOnlyTable => upsertSink.setKeyFields(null)
           case None if !isAppendOnlyTable => throw new TableException(
-            "UpsertStreamTableSink requires that Table has a full primary keys if it is updated.")
+            "UpsertStreamTableSink requires that Table has full primary keys if it is updated.")
         }
         val outputType = sink.getOutputType
         val resultType = getResultType(table.getRelNode, optimizedPlan)
@@ -436,7 +550,7 @@ abstract class StreamTableEnvironment(
 
     // check if event-time is enabled
     if (rowtime.isDefined && execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {
-      throw TableException(
+      throw new TableException(
         s"A rowtime attribute requires an EventTime time characteristic in stream environment. " +
           s"But is: ${execEnv.getStreamTimeCharacteristic}")
     }
@@ -689,70 +803,38 @@ abstract class StreamTableEnvironment(
     * @return The optimized [[RelNode]] tree
     */
   private[flink] def optimize(relNode: RelNode, updatesAsRetraction: Boolean): RelNode = {
+    val convSubQueryPlan = optimizeConvertSubQueries(relNode)
+    val expandedPlan = optimizeExpandPlan(convSubQueryPlan)
+    val decorPlan = RelDecorrelator.decorrelateQuery(expandedPlan)
+    val planWithMaterializedTimeAttributes =
+      RelTimeIndicatorConverter.convert(decorPlan, getRelBuilder.getRexBuilder)
+    val normalizedPlan = optimizeNormalizeLogicalPlan(planWithMaterializedTimeAttributes)
+    val logicalPlan = optimizeLogicalPlan(normalizedPlan)
 
-    // 0. convert sub-queries before query decorrelation
-    val convSubQueryPlan = runHepPlanner(
-      HepMatchOrder.BOTTOM_UP, FlinkRuleSets.TABLE_SUBQUERY_RULES, relNode, relNode.getTraitSet)
+    val physicalPlan = optimizePhysicalPlan(logicalPlan, FlinkConventions.DATASTREAM)
+    optimizeDecoratePlan(physicalPlan, updatesAsRetraction)
+  }
 
-    // 0. convert table references
-    val fullRelNode = runHepPlanner(
-      HepMatchOrder.BOTTOM_UP,
-      FlinkRuleSets.TABLE_REF_RULES,
-      convSubQueryPlan,
-      relNode.getTraitSet)
-
-    // 1. decorrelate
-    val decorPlan = RelDecorrelator.decorrelateQuery(fullRelNode)
-
-    // 2. convert time indicators
-    val convPlan = RelTimeIndicatorConverter.convert(decorPlan, getRelBuilder.getRexBuilder)
-
-    // 3. normalize the logical plan
-    val normRuleSet = getNormRuleSet
-    val normalizedPlan = if (normRuleSet.iterator().hasNext) {
-      runHepPlanner(HepMatchOrder.BOTTOM_UP, normRuleSet, convPlan, convPlan.getTraitSet)
-    } else {
-      convPlan
-    }
-
-    // 4. optimize the logical Flink plan
-    val logicalOptRuleSet = getLogicalOptRuleSet
-    val logicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
-    val logicalPlan = if (logicalOptRuleSet.iterator().hasNext) {
-      runVolcanoPlanner(logicalOptRuleSet, normalizedPlan, logicalOutputProps)
-    } else {
-      normalizedPlan
-    }
-
-    // 5. optimize the physical Flink plan
-    val physicalOptRuleSet = getPhysicalOptRuleSet
-    val physicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.DATASTREAM).simplify()
-    val physicalPlan = if (physicalOptRuleSet.iterator().hasNext) {
-      runVolcanoPlanner(physicalOptRuleSet, logicalPlan, physicalOutputProps)
-    } else {
-      logicalPlan
-    }
-
-    // 6. decorate the optimized plan
+  private[flink] def optimizeDecoratePlan(
+      relNode: RelNode,
+      updatesAsRetraction: Boolean): RelNode = {
     val decoRuleSet = getDecoRuleSet
-    val decoratedPlan = if (decoRuleSet.iterator().hasNext) {
+    if (decoRuleSet.iterator().hasNext) {
       val planToDecorate = if (updatesAsRetraction) {
-        physicalPlan.copy(
-          physicalPlan.getTraitSet.plus(new UpdateAsRetractionTrait(true)),
-          physicalPlan.getInputs)
+        relNode.copy(
+          relNode.getTraitSet.plus(new UpdateAsRetractionTrait(true)),
+          relNode.getInputs)
       } else {
-        physicalPlan
+        relNode
       }
-      runHepPlanner(
+      runHepPlannerSequentially(
         HepMatchOrder.BOTTOM_UP,
         decoRuleSet,
         planToDecorate,
         planToDecorate.getTraitSet)
     } else {
-      physicalPlan
+      relNode
     }
-
-    decoratedPlan
   }
 
   /**
@@ -884,7 +966,7 @@ abstract class StreamTableEnvironment(
       case node: DataStreamRel =>
         node.translateToPlan(this, queryConfig)
       case _ =>
-        throw TableException("Cannot generate DataStream due to an invalid logical plan. " +
+        throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
     }
   }

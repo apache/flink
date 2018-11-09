@@ -31,14 +31,15 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
+import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.{Expression, TimeAttribute}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{BatchTableSourceTable, DataSetTable, RowSchema, TableSinkTable}
+import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.runtime.MapRunner
-import org.apache.flink.table.sinks.{BatchTableSink, TableSink}
+import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{BatchTableSource, TableSource}
 import org.apache.flink.types.Row
 
@@ -102,24 +103,75 @@ abstract class BatchTableEnvironment(
     : Unit = {
 
     tableSource match {
+
+      // check for proper batch table source
       case batchTableSource: BatchTableSource[_] =>
-        registerTableInternal(name, new BatchTableSourceTable(batchTableSource))
+        // check if a table (source or sink) is registered
+        getTable(name) match {
+
+          // table source and/or sink is registered
+          case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
+
+            // wrapper contains source
+            case Some(_: TableSourceTable[_]) =>
+              throw new TableException(s"Table '$name' already exists. " +
+                s"Please choose a different name.")
+
+            // wrapper contains only sink (not source)
+            case _ =>
+              val enrichedTable = new TableSourceSinkTable(
+                Some(new BatchTableSourceTable(batchTableSource)),
+                table.tableSinkTable)
+              replaceRegisteredTable(name, enrichedTable)
+          }
+
+          // no table is registered
+          case _ =>
+            val newTable = new TableSourceSinkTable(
+              Some(new BatchTableSourceTable(batchTableSource)),
+              None)
+            registerTableInternal(name, newTable)
+        }
+
+      // not a batch table source
       case _ =>
         throw new TableException("Only BatchTableSource can be registered in " +
-            "BatchTableEnvironment")
+            "BatchTableEnvironment.")
     }
   }
 
-// TODO expose this once we have enough table source factories that can deal with it
-//  /**
-//    * Creates a table from a descriptor that describes the source connector, source encoding,
-//    * the resulting table schema, and other properties.
-//    *
-//    * @param connectorDescriptor connector descriptor describing the source of the table
-//    */
-//  def from(connectorDescriptor: ConnectorDescriptor): BatchTableSourceDescriptor = {
-//    new BatchTableSourceDescriptor(this, connectorDescriptor)
-//  }
+  /**
+    * Creates a table source and/or table sink from a descriptor.
+    *
+    * Descriptors allow for declaring the communication to external systems in an
+    * implementation-agnostic way. The classpath is scanned for suitable table factories that match
+    * the desired configuration.
+    *
+    * The following example shows how to read from a connector using a JSON format and
+    * registering a table source as "MyTable":
+    *
+    * {{{
+    *
+    * tableEnv
+    *   .connect(
+    *     new ExternalSystemXYZ()
+    *       .version("0.11"))
+    *   .withFormat(
+    *     new Json()
+    *       .jsonSchema("{...}")
+    *       .failOnMissingField(false))
+    *   .withSchema(
+    *     new Schema()
+    *       .field("user-name", "VARCHAR").from("u_name")
+    *       .field("count", "DECIMAL")
+    *   .registerSource("MyTable")
+    * }}}
+    *
+    * @param connectorDescriptor connector descriptor describing the external system
+    */
+  def connect(connectorDescriptor: ConnectorDescriptor): BatchTableDescriptor = {
+    new BatchTableDescriptor(this, connectorDescriptor)
+  }
 
   /**
     * Registers an external [[TableSink]] with given field names and types in this
@@ -151,19 +203,79 @@ abstract class BatchTableEnvironment(
       fieldNames: Array[String],
       fieldTypes: Array[TypeInformation[_]],
       tableSink: TableSink[_]): Unit = {
-
+    // validate
     checkValidTableName(name)
-    if (fieldNames == null) throw TableException("fieldNames must not be null.")
-    if (fieldTypes == null) throw TableException("fieldTypes must not be null.")
+    if (fieldNames == null) throw new TableException("fieldNames must not be null.")
+    if (fieldTypes == null) throw new TableException("fieldTypes must not be null.")
     if (fieldNames.length == 0) throw new TableException("fieldNames must not be empty.")
     if (fieldNames.length != fieldTypes.length) {
       throw new TableException("Same number of field names and types required.")
     }
 
-    tableSink match {
-      case batchTableSink: BatchTableSink[_] =>
-        val configuredSink = batchTableSink.configure(fieldNames, fieldTypes)
-        registerTableInternal(name, new TableSinkTable(configuredSink))
+    // configure and register
+    val configuredSink = tableSink.configure(fieldNames, fieldTypes)
+    registerTableSinkInternal(name, configuredSink)
+  }
+
+  /**
+    * Registers an external [[TableSink]] with already configured field names and field types in
+    * this [[TableEnvironment]]'s catalog.
+    * Registered sink tables can be referenced in SQL DML statements.
+    *
+    * @param name The name under which the [[TableSink]] is registered.
+    * @param configuredSink The configured [[TableSink]] to register.
+    */
+  def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = {
+    registerTableSinkInternal(name, configuredSink)
+  }
+
+  private def registerTableSinkInternal(name: String, configuredSink: TableSink[_]): Unit = {
+    // validate
+    checkValidTableName(name)
+    if (configuredSink.getFieldNames == null || configuredSink.getFieldTypes == null) {
+      throw new TableException("Table sink is not configured.")
+    }
+    if (configuredSink.getFieldNames.length == 0) {
+      throw new TableException("Field names must not be empty.")
+    }
+    if (configuredSink.getFieldNames.length != configuredSink.getFieldTypes.length) {
+      throw new TableException("Same number of field names and types required.")
+    }
+
+    // register
+    configuredSink match {
+
+      // check for proper batch table sink
+      case _: BatchTableSink[_] =>
+
+        // check if a table (source or sink) is registered
+        getTable(name) match {
+
+          // table source and/or sink is registered
+          case Some(table: TableSourceSinkTable[_, _]) => table.tableSinkTable match {
+
+            // wrapper contains sink
+            case Some(_: TableSinkTable[_]) =>
+              throw new TableException(s"Table '$name' already exists. " +
+                s"Please choose a different name.")
+
+            // wrapper contains only source (not sink)
+            case _ =>
+              val enrichedTable = new TableSourceSinkTable(
+                table.tableSourceTable,
+                Some(new TableSinkTable(configuredSink)))
+              replaceRegisteredTable(name, enrichedTable)
+          }
+
+          // no table is registered
+          case _ =>
+            val newTable = new TableSourceSinkTable(
+              None,
+              Some(new TableSinkTable(configuredSink)))
+            registerTableInternal(name, newTable)
+        }
+
+      // not a batch table sink
       case _ =>
         throw new TableException("Only BatchTableSink can be registered in BatchTableEnvironment.")
     }
@@ -336,48 +448,12 @@ abstract class BatchTableEnvironment(
     * @return The optimized [[RelNode]] tree
     */
   private[flink] def optimize(relNode: RelNode): RelNode = {
-
-    // 0. convert sub-queries before query decorrelation
-    val convSubQueryPlan = runHepPlanner(
-      HepMatchOrder.BOTTOM_UP, FlinkRuleSets.TABLE_SUBQUERY_RULES, relNode, relNode.getTraitSet)
-
-    // 0. convert table references
-    val fullRelNode = runHepPlanner(
-      HepMatchOrder.BOTTOM_UP,
-      FlinkRuleSets.TABLE_REF_RULES,
-      convSubQueryPlan,
-      relNode.getTraitSet)
-
-    // 1. decorrelate
-    val decorPlan = RelDecorrelator.decorrelateQuery(fullRelNode)
-
-    // 2. normalize the logical plan
-    val normRuleSet = getNormRuleSet
-    val normalizedPlan = if (normRuleSet.iterator().hasNext) {
-      runHepPlanner(HepMatchOrder.BOTTOM_UP, normRuleSet, decorPlan, decorPlan.getTraitSet)
-    } else {
-      decorPlan
-    }
-
-    // 3. optimize the logical Flink plan
-    val logicalOptRuleSet = getLogicalOptRuleSet
-    val logicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
-    val logicalPlan = if (logicalOptRuleSet.iterator().hasNext) {
-      runVolcanoPlanner(logicalOptRuleSet, normalizedPlan, logicalOutputProps)
-    } else {
-      normalizedPlan
-    }
-
-    // 4. optimize the physical Flink plan
-    val physicalOptRuleSet = getPhysicalOptRuleSet
-    val physicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.DATASET).simplify()
-    val physicalPlan = if (physicalOptRuleSet.iterator().hasNext) {
-      runVolcanoPlanner(physicalOptRuleSet, logicalPlan, physicalOutputProps)
-    } else {
-      logicalPlan
-    }
-
-    physicalPlan
+    val convSubQueryPlan = optimizeConvertSubQueries(relNode)
+    val expandedPlan = optimizeExpandPlan(convSubQueryPlan)
+    val decorPlan = RelDecorrelator.decorrelateQuery(expandedPlan)
+    val normalizedPlan = optimizeNormalizeLogicalPlan(decorPlan)
+    val logicalPlan = optimizeLogicalPlan(normalizedPlan)
+    optimizePhysicalPlan(logicalPlan, FlinkConventions.DATASET)
   }
 
   /**
@@ -436,7 +512,7 @@ abstract class BatchTableEnvironment(
         }
 
       case _ =>
-        throw TableException("Cannot generate DataSet due to an invalid logical plan. " +
+        throw new TableException("Cannot generate DataSet due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
     }
   }

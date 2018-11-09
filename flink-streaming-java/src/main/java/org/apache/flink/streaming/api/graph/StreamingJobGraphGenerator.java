@@ -19,14 +19,14 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -63,6 +63,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -81,16 +83,14 @@ public class StreamingJobGraphGenerator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamingJobGraphGenerator.class);
 
-	/**
-	 * Restart delay used for the FixedDelayRestartStrategy in case checkpointing was enabled but
-	 * no restart strategy has been specified.
-	 */
-	private static final long DEFAULT_RESTART_DELAY = 0L;
-
 	// ------------------------------------------------------------------------
 
 	public static JobGraph createJobGraph(StreamGraph streamGraph) {
-		return new StreamingJobGraphGenerator(streamGraph).createJobGraph();
+		return createJobGraph(streamGraph, null);
+	}
+
+	public static JobGraph createJobGraph(StreamGraph streamGraph, @Nullable JobID jobID) {
+		return new StreamingJobGraphGenerator(streamGraph, jobID).createJobGraph();
 	}
 
 	// ------------------------------------------------------------------------
@@ -115,6 +115,10 @@ public class StreamingJobGraphGenerator {
 	private final List<StreamGraphHasher> legacyStreamGraphHashers;
 
 	private StreamingJobGraphGenerator(StreamGraph streamGraph) {
+		this(streamGraph, null);
+	}
+
+	private StreamingJobGraphGenerator(StreamGraph streamGraph, @Nullable JobID jobID) {
 		this.streamGraph = streamGraph;
 		this.defaultStreamGraphHasher = new StreamGraphHasherV2();
 		this.legacyStreamGraphHashers = Arrays.asList(new StreamGraphUserHashHasher());
@@ -128,7 +132,7 @@ public class StreamingJobGraphGenerator {
 		this.chainedPreferredResources = new HashMap<>();
 		this.physicalEdgesInOrder = new ArrayList<>();
 
-		jobGraph = new JobGraph(streamGraph.getJobName());
+		jobGraph = new JobGraph(jobID, streamGraph.getJobName());
 	}
 
 	private JobGraph createJobGraph() {
@@ -152,14 +156,11 @@ public class StreamingJobGraphGenerator {
 
 		setPhysicalEdges();
 
-		setSlotSharing();
+		setSlotSharingAndCoLocation();
 
 		configureCheckpointing();
 
-		// add registered cache file into job configuration
-		for (Tuple2<String, DistributedCache.DistributedCacheEntry> e : streamGraph.getEnvironment().getCachedFiles()) {
-			jobGraph.addUserArtifact(e.f0, e.f1);
-		}
+		JobGraphGenerator.addUserArtifactEntries(streamGraph.getEnvironment().getCachedFiles(), jobGraph);
 
 		// set the ExecutionConfig last when it has been finalized
 		try {
@@ -450,12 +451,12 @@ public class StreamingJobGraphGenerator {
 
 		config.setTimeCharacteristic(streamGraph.getEnvironment().getStreamTimeCharacteristic());
 
-		final CheckpointConfig ceckpointCfg = streamGraph.getCheckpointConfig();
+		final CheckpointConfig checkpointCfg = streamGraph.getCheckpointConfig();
 
 		config.setStateBackend(streamGraph.getStateBackend());
-		config.setCheckpointingEnabled(ceckpointCfg.isCheckpointingEnabled());
-		if (ceckpointCfg.isCheckpointingEnabled()) {
-			config.setCheckpointMode(ceckpointCfg.getCheckpointingMode());
+		config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
+		if (checkpointCfg.isCheckpointingEnabled()) {
+			config.setCheckpointMode(checkpointCfg.getCheckpointingMode());
 		}
 		else {
 			// the "at-least-once" input handler is slightly cheaper (in the absence of checkpoints),
@@ -534,20 +535,43 @@ public class StreamingJobGraphGenerator {
 				&& streamGraph.isChainingEnabled();
 	}
 
-	private void setSlotSharing() {
-
-		Map<String, SlotSharingGroup> slotSharingGroups = new HashMap<>();
+	private void setSlotSharingAndCoLocation() {
+		final HashMap<String, SlotSharingGroup> slotSharingGroups = new HashMap<>();
+		final HashMap<String, Tuple2<SlotSharingGroup, CoLocationGroup>> coLocationGroups = new HashMap<>();
 
 		for (Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
 
-			String slotSharingGroup = streamGraph.getStreamNode(entry.getKey()).getSlotSharingGroup();
+			final StreamNode node = streamGraph.getStreamNode(entry.getKey());
+			final JobVertex vertex = entry.getValue();
 
-			SlotSharingGroup group = slotSharingGroups.get(slotSharingGroup);
-			if (group == null) {
-				group = new SlotSharingGroup();
-				slotSharingGroups.put(slotSharingGroup, group);
+			// configure slot sharing group
+			final String slotSharingGroupKey = node.getSlotSharingGroup();
+			final SlotSharingGroup sharingGroup;
+
+			if (slotSharingGroupKey != null) {
+				sharingGroup = slotSharingGroups.computeIfAbsent(
+						slotSharingGroupKey, (k) -> new SlotSharingGroup());
+				vertex.setSlotSharingGroup(sharingGroup);
+			} else {
+				sharingGroup = null;
 			}
-			entry.getValue().setSlotSharingGroup(group);
+
+			// configure co-location constraint
+			final String coLocationGroupKey = node.getCoLocationGroup();
+			if (coLocationGroupKey != null) {
+				if (sharingGroup == null) {
+					throw new IllegalStateException("Cannot use a co-location constraint without a slot sharing group");
+				}
+
+				Tuple2<SlotSharingGroup, CoLocationGroup> constraint = coLocationGroups.computeIfAbsent(
+						coLocationGroupKey, (k) -> new Tuple2<>(sharingGroup, new CoLocationGroup()));
+
+				if (constraint.f0 != sharingGroup) {
+					throw new IllegalStateException("Cannot co-locate operators from different slot sharing groups");
+				}
+
+				vertex.updateCoLocationGroup(constraint.f1);
+			}
 		}
 
 		for (Tuple2<StreamNode, StreamNode> pair : streamGraph.getIterationSourceSinkPairs()) {
@@ -570,17 +594,9 @@ public class StreamingJobGraphGenerator {
 
 		long interval = cfg.getCheckpointInterval();
 		if (interval > 0) {
-
 			ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
 			// propagate the expected behaviour for checkpoint errors to task.
 			executionConfig.setFailTaskOnCheckpointError(cfg.isFailOnCheckpointingErrors());
-
-			// check if a restart strategy has been set, if not then set the FixedDelayRestartStrategy
-			if (executionConfig.getRestartStrategy() == null) {
-				// if the user enabled checkpointing, the default number of exec retries is infinite.
-				executionConfig.setRestartStrategy(
-					RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, DEFAULT_RESTART_DELAY));
-			}
 		} else {
 			// interval of max value means disable periodic checkpoint
 			interval = Long.MAX_VALUE;

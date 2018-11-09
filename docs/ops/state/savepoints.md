@@ -25,16 +25,28 @@ under the License.
 * toc
 {:toc}
 
-## Overview
+## What is a Savepoint? How is a Savepoint different from a Checkpoint?
 
-Savepoints are externally stored self-contained checkpoints that you can use to stop-and-resume or update your Flink programs. They use Flink's [checkpointing mechanism]({{ site.baseurl }}/internals/stream_checkpointing.html) to create a (non-incremental) snapshot of the state of your streaming program and write the checkpoint data and meta data out to an external file system.
-
-This page covers all steps involved in triggering, restoring, and disposing savepoints.
-For more details on how Flink handles state and failures in general, check out the [State in Streaming Programs]({{ site.baseurl }}/dev/stream/state/index.html) page.
+A Savepoint is a consistent image of the execution state of a streaming job, created via Flink's [checkpointing mechanism]({{ site.baseurl }}/internals/stream_checkpointing.html). You can use Savepoints to stop-and-resume, fork,
+or update your Flink jobs. Savepoints consist of two parts: a directory with (typically large) binary files on stable storage (e.g. HDFS, S3, ...) and a (relatively small) meta data file. The files on stable storage represent the net data of the job's execution state
+image. The meta data file of a Savepoint contains (primarily) pointers to all files on stable storage that are part of the Savepoint, in form of absolute paths.
 
 <div class="alert alert-warning">
 <strong>Attention:</strong> In order to allow upgrades between programs and Flink versions, it is important to check out the following section about <a href="#assigning-operator-ids">assigning IDs to your operators</a>.
 </div>
+
+Conceptually, Flink's Savepoints are different from Checkpoints in a similar way that backups are different from recovery logs in traditional database systems. The primary purpose of Checkpoints is to provide a recovery mechanism in case of
+unexpected job failures. A Checkpoint's lifecycle is managed by Flink, i.e. a Checkpoint is created, owned, and released by Flink - without user interaction. As a method of recovery and being periodically triggered, two main
+design goals for the Checkpoint implementation are i) being as lightweight to create and ii) being as fast to restore from as possible. Optimizations towards those goals can exploit certain properties, e.g. that the job code
+doesn't change between the execution attempts. Checkpoints are usually dropped after the job was terminated by the user (except if explicitly configured as retained Checkpoints).
+
+In contrast to all this, Savepoints are created, owned, and deleted by the user. Their use-case is for planned, manual backup and resume. For example, this could be an update of your Flink version, changing your job graph,
+changing parallelism, forking a second job like for a red/blue deployment, and so on. Of course, Savepoints must survive job termination. Conceptually, Savepoints can be a bit more expensive to produce and restore and focus
+more on portability and support for the previously mentioned changes to the job.
+
+Those conceptual differences aside, the current implementations of Checkpoints and Savepoints are basically using the same code and produce the same „format". However, there is currently one exception from this, and we might
+introduce more differences in the future. The exception are incremental checkpoints with the RocksDB state backend. They are using some RocksDB internal format instead of Flink’s native savepoint format. This makes them the
+first instance of a more lightweight checkpointing mechanism, compared to Savepoints.
 
 ## Assigning Operator IDs
 
@@ -105,6 +117,11 @@ Please follow <a href="https://issues.apache.org/jira/browse/FLINK-5778">FLINK-5
 </div>
 
 Note that if you use the `MemoryStateBackend`, metadata *and* savepoint state will be stored in the `_metadata` file. Since it is self-contained, you may move the file and restore from any location.
+
+<div class="alert alert-warning">
+  <strong>Attention:</strong> It is discouraged to move or delete the last savepoint of a running job, because this might interfere with failure-recovery. Savepoints have side-effects on exactly-once sinks, therefore 
+  to ensure exactly-once semantics, if there is no checkpoint after the last savepoint, the savepoint will be used for recovery. 
+</div>
 
 #### Trigger a Savepoint
 
@@ -210,5 +227,11 @@ If you did not assign IDs, the auto generated IDs of the stateful operators will
 If the savepoint was triggered with Flink >= 1.2.0 and using no deprecated state API like `Checkpointed`, you can simply restore the program from a savepoint and specify a new parallelism.
 
 If you are resuming from a savepoint triggered with Flink < 1.2.0 or using now deprecated APIs you first have to migrate your job and savepoint to Flink >= 1.2.0 before being able to change the parallelism. See the [upgrading jobs and Flink versions guide]({{ site.baseurl }}/ops/upgrading.html).
+
+### Can I move the Savepoint files on stable storage?
+
+The quick answer to this question is currently "no" because the meta data file references the files on stable storage as absolute paths for technical reasons. The longer answer is: if you MUST move the files for some reason there are two
+potential approaches as workaround. First, simpler but potentially more dangerous, you can use an editor to find the old path in the meta data file and replace them with the new path. Second, you can use the class
+SavepointV2Serializer as starting point to programmatically read, manipulate, and rewrite the meta data file with the new paths.
 
 {% top %}

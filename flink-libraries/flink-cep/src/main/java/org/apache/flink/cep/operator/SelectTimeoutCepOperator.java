@@ -25,7 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.EventComparator;
 import org.apache.flink.cep.PatternSelectFunction;
 import org.apache.flink.cep.PatternTimeoutFunction;
-import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
+import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
@@ -56,14 +56,16 @@ public class SelectTimeoutCepOperator<IN, OUT1, OUT2, KEY>
 		AfterMatchSkipStrategy skipStrategy,
 		PatternSelectFunction<IN, OUT1> flatSelectFunction,
 		PatternTimeoutFunction<IN, OUT2> flatTimeoutFunction,
-		OutputTag<OUT2> outputTag) {
+		OutputTag<OUT2> outputTag,
+		OutputTag<IN> lateDataOutputTag) {
 		super(
 			inputSerializer,
 			isProcessingTime,
 			nfaFactory,
 			comparator,
 			skipStrategy,
-			new SelectWrapper<>(flatSelectFunction, flatTimeoutFunction));
+			new SelectWrapper<>(flatSelectFunction, flatTimeoutFunction),
+			lateDataOutputTag);
 		this.timedOutOutputTag = outputTag;
 	}
 

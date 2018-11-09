@@ -18,17 +18,19 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
+import org.apache.flink.runtime.util.ZooKeeperUtils;
+import org.apache.flink.util.TestLogger;
+
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.CreateBuilder;
 import org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.curator.framework.recipes.cache.NodeCache;
 import org.apache.curator.framework.recipes.cache.NodeCacheListener;
 import org.apache.curator.test.TestingServer;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
-import org.apache.flink.runtime.util.ZooKeeperUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.junit.After;
@@ -40,23 +42,33 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.Promise;
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the {@link ZooKeeperLeaderElectionService} and the {@link ZooKeeperLeaderRetrievalService}.
+ */
 public class ZooKeeperLeaderElectionTest extends TestLogger {
 	private TestingServer testingServer;
 
@@ -65,7 +77,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	private CuratorFramework client;
 
 	private static final String TEST_URL = "akka//user/jobmanager";
-	private static final FiniteDuration timeout = new FiniteDuration(200, TimeUnit.SECONDS);
+	private static final long timeout = 200L * 1000L;
 
 	private static Logger LOG = LoggerFactory.getLogger(ZooKeeperLeaderElectionTest.class);
 
@@ -116,12 +128,12 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 			leaderElectionService.start(contender);
 			leaderRetrievalService.start(listener);
 
-			contender.waitForLeader(timeout.toMillis());
+			contender.waitForLeader(timeout);
 
 			assertTrue(contender.isLeader());
 			assertEquals(leaderElectionService.getLeaderSessionID(), contender.getLeaderSessionID());
 
-			listener.waitForNewLeader(timeout.toMillis());
+			listener.waitForNewLeader(timeout);
 
 			assertEquals(TEST_URL, listener.getAddress());
 			assertEquals(leaderElectionService.getLeaderSessionID(), listener.getLeaderSessionID());
@@ -144,7 +156,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	 */
 	@Test
 	public void testZooKeeperReelection() throws Exception {
-		Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
+		Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5L));
 
 		int num = 10;
 
@@ -248,7 +260,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 			Pattern regex = Pattern.compile(pattern);
 
 			for (int i = 0; i < numTries; i++) {
-				listener.waitForNewLeader(timeout.toMillis());
+				listener.waitForNewLeader(timeout);
 
 				String address = listener.getAddress();
 
@@ -316,7 +328,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 			leaderElectionService.start(contender);
 			leaderRetrievalService.start(listener);
 
-			listener.waitForNewLeader(timeout.toMillis());
+			listener.waitForNewLeader(timeout);
 
 			assertEquals(listener.getLeaderSessionID(), contender.getLeaderSessionID());
 			assertEquals(TEST_URL, listener.getAddress());
@@ -348,10 +360,10 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 
 			leaderRetrievalService2.start(listener2);
 
-			listener2.waitForNewLeader(timeout.toMillis());
+			listener2.waitForNewLeader(timeout);
 
 			if (FAULTY_CONTENDER_URL.equals(listener2.getAddress())) {
-				listener2.waitForNewLeader(timeout.toMillis());
+				listener2.waitForNewLeader(timeout);
 			}
 
 			assertEquals(listener2.getLeaderSessionID(), contender.getLeaderSessionID());
@@ -422,7 +434,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 			leaderElectionService.start(testingContender);
 			leaderRetrievalService.start(listener);
 
-			testingContender.waitForError(timeout.toMillis());
+			testingContender.waitForError(timeout);
 
 			assertNotNull(testingContender.getError());
 			assertEquals(testException, testingContender.getError().getCause());
@@ -473,11 +485,11 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 
 			leaderElectionService.start(testingContender);
 
-			testingContender.waitForLeader(timeout.toMillis());
+			testingContender.waitForLeader(timeout);
 
 			Future<Boolean> existsFuture = existsListener.nodeExists();
 
-			Await.result(existsFuture, timeout);
+			existsFuture.get(timeout, TimeUnit.MILLISECONDS);
 
 			cache.getListenable().addListener(deletedCacheListener);
 
@@ -489,7 +501,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 			Future<Boolean> deletedFuture = deletedCacheListener.nodeDeleted();
 
 			// make sure that the leader node has been deleted
-			Await.result(deletedFuture, timeout);
+			deletedFuture.get(timeout, TimeUnit.MILLISECONDS);
 
 			leaderRetrievalService.start(listener);
 
@@ -516,9 +528,9 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 		}
 	}
 
-	public static class ExistsCacheListener implements NodeCacheListener {
+	private static class ExistsCacheListener implements NodeCacheListener {
 
-		final Promise<Boolean> existsPromise = new scala.concurrent.impl.Promise.DefaultPromise<>();
+		final CompletableFuture<Boolean> existsPromise = new CompletableFuture<>();
 
 		final NodeCache cache;
 
@@ -527,23 +539,23 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 		}
 
 		public Future<Boolean> nodeExists() {
-			return existsPromise.future();
+			return existsPromise;
 		}
 
 		@Override
 		public void nodeChanged() throws Exception {
 			ChildData data = cache.getCurrentData();
 
-			if (data != null && !existsPromise.isCompleted()) {
-				existsPromise.success(true);
+			if (data != null && !existsPromise.isDone()) {
+				existsPromise.complete(true);
 				cache.getListenable().removeListener(this);
 			}
 		}
 	}
 
-	public static class DeletedCacheListener implements NodeCacheListener {
+	private static class DeletedCacheListener implements NodeCacheListener {
 
-		final Promise<Boolean> deletedPromise = new scala.concurrent.impl.Promise.DefaultPromise<>();
+		final CompletableFuture<Boolean> deletedPromise = new CompletableFuture<>();
 
 		final NodeCache cache;
 
@@ -552,15 +564,15 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 		}
 
 		public Future<Boolean> nodeDeleted() {
-			return deletedPromise.future();
+			return deletedPromise;
 		}
 
 		@Override
 		public void nodeChanged() throws Exception {
 			ChildData data = cache.getCurrentData();
 
-			if (data == null && !deletedPromise.isCompleted()) {
-				deletedPromise.success(true);
+			if (data == null && !deletedPromise.isDone()) {
+				deletedPromise.complete(true);
 				cache.getListenable().removeListener(this);
 			}
 		}

@@ -17,16 +17,18 @@
 
 package org.apache.flink.streaming.tests;
 
-import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSink;
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
+import org.apache.flink.util.Collector;
 
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Requests;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.common.transport.TransportAddress;
@@ -56,11 +58,14 @@ public class Elasticsearch1SinkExample {
 		env.getConfig().disableSysoutLogging();
 		env.enableCheckpointing(5000);
 
-		DataStream<String> source = env.generateSequence(0, parameterTool.getInt("numRecords") - 1)
-			.map(new MapFunction<Long, String>() {
+		DataStream<Tuple2<String, String>> source = env.generateSequence(0, parameterTool.getInt("numRecords") - 1)
+			.flatMap(new FlatMapFunction<Long, Tuple2<String, String>>() {
 				@Override
-				public String map(Long value) throws Exception {
-					return "message # " + value;
+				public void flatMap(Long value, Collector<Tuple2<String, String>> out) {
+					final String key = String.valueOf(value);
+					final String message = "message #" + value;
+					out.collect(Tuple2.of(key, message + "update #1"));
+					out.collect(Tuple2.of(key, message + "update #2"));
 				}
 			});
 
@@ -72,12 +77,13 @@ public class Elasticsearch1SinkExample {
 		List<TransportAddress> transports = new ArrayList<>();
 		transports.add(new InetSocketTransportAddress(InetAddress.getByName("127.0.0.1"), 9300));
 
-		source.addSink(new ElasticsearchSink<>(userConfig, transports, new ElasticsearchSinkFunction<String>() {
-			@Override
-			public void process(String element, RuntimeContext ctx, RequestIndexer indexer) {
-				indexer.add(createIndexRequest(element, parameterTool));
-			}
-		}));
+		source.addSink(new ElasticsearchSink<>(
+			userConfig,
+			transports,
+			(Tuple2<String, String> element, RuntimeContext ctx, RequestIndexer indexer) -> {
+				indexer.add(createIndexRequest(element.f1, parameterTool));
+				indexer.add(createUpdateRequest(element, parameterTool));
+			}));
 
 		env.execute("Elasticsearch1.x end to end sink test example");
 	}
@@ -91,5 +97,17 @@ public class Elasticsearch1SinkExample {
 			.type(parameterTool.getRequired("type"))
 			.id(element)
 			.source(json);
+	}
+
+	private static UpdateRequest createUpdateRequest(Tuple2<String, String> element, ParameterTool parameterTool) {
+		Map<String, Object> json = new HashMap<>();
+		json.put("data", element.f1);
+
+		return new UpdateRequest(
+				parameterTool.getRequired("index"),
+				parameterTool.getRequired("type"),
+				element.f0)
+			.doc(json)
+			.upsert(json);
 	}
 }

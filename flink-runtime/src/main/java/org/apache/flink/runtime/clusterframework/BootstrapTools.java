@@ -19,7 +19,9 @@
 package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -45,12 +47,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.BindException;
-import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -60,11 +64,19 @@ import scala.Some;
 import scala.Tuple2;
 import scala.concurrent.duration.FiniteDuration;
 
+import static org.apache.flink.configuration.ConfigOptions.key;
+
 /**
  * Tools for starting JobManager and TaskManager processes, including the
  * Actor Systems used to run the JobManager and TaskManager actors.
  */
 public class BootstrapTools {
+	/**
+	 * Internal option which says if default value is used for {@link CoreOptions#TMP_DIRS}.
+	 */
+	private static final ConfigOption<Boolean> USE_LOCAL_DEFAULT_TMP_DIRS = key("internal.io.tmpdirs.use-local-default")
+		.defaultValue(false);
+
 	private static final Logger LOG = LoggerFactory.getLogger(BootstrapTools.class);
 
 	/**
@@ -74,13 +86,66 @@ public class BootstrapTools {
 	 * @param portRangeDefinition The port range to choose a port from.
 	 * @param logger The logger to output log information.
 	 * @return The ActorSystem which has been started
-	 * @throws Exception
+	 * @throws Exception Thrown when actor system cannot be started in specified port range
+	 */
+	public static ActorSystem startActorSystem(
+		Configuration configuration,
+		String listeningAddress,
+		String portRangeDefinition,
+		Logger logger) throws Exception {
+		return startActorSystem(
+			configuration,
+			listeningAddress,
+			portRangeDefinition,
+			logger,
+			ForkJoinExecutorConfiguration.fromConfiguration(configuration));
+	}
+
+	/**
+	 * Starts an ActorSystem with the given configuration listening at the address/ports.
+	 *
+	 * @param configuration The Flink configuration
+	 * @param listeningAddress The address to listen at.
+	 * @param portRangeDefinition The port range to choose a port from.
+	 * @param logger The logger to output log information.
+	 * @param actorSystemExecutorConfiguration configuration for the ActorSystem's underlying executor
+	 * @return The ActorSystem which has been started
+	 * @throws Exception Thrown when actor system cannot be started in specified port range
 	 */
 	public static ActorSystem startActorSystem(
 			Configuration configuration,
 			String listeningAddress,
 			String portRangeDefinition,
-			Logger logger) throws Exception {
+			Logger logger,
+			@Nonnull ActorSystemExecutorConfiguration actorSystemExecutorConfiguration) throws Exception {
+		return startActorSystem(
+			configuration,
+			AkkaUtils.getFlinkActorSystemName(),
+			listeningAddress,
+			portRangeDefinition,
+			logger,
+			actorSystemExecutorConfiguration);
+	}
+
+	/**
+	 * Starts an ActorSystem with the given configuration listening at the address/ports.
+	 *
+	 * @param configuration The Flink configuration
+	 * @param actorSystemName Name of the started {@link ActorSystem}
+	 * @param listeningAddress The address to listen at.
+	 * @param portRangeDefinition The port range to choose a port from.
+	 * @param logger The logger to output log information.
+	 * @param actorSystemExecutorConfiguration configuration for the ActorSystem's underlying executor
+	 * @return The ActorSystem which has been started
+	 * @throws Exception Thrown when actor system cannot be started in specified port range
+	 */
+	public static ActorSystem startActorSystem(
+			Configuration configuration,
+			String actorSystemName,
+			String listeningAddress,
+			String portRangeDefinition,
+			Logger logger,
+			@Nonnull ActorSystemExecutorConfiguration actorSystemExecutorConfiguration) throws Exception {
 
 		// parse port range definition and create port iterator
 		Iterator<Integer> portsIterator;
@@ -91,29 +156,16 @@ public class BootstrapTools {
 		}
 
 		while (portsIterator.hasNext()) {
-			// first, we check if the port is available by opening a socket
-			// if the actor system fails to start on the port, we try further
-			ServerSocket availableSocket = NetUtils.createSocketFromPorts(
-				portsIterator,
-				new NetUtils.SocketFactory() {
-					@Override
-					public ServerSocket createSocket(int port) throws IOException {
-						return new ServerSocket(port);
-					}
-				});
-
-			int port;
-			if (availableSocket == null) {
-				throw new BindException("Unable to allocate further port in port range: " + portRangeDefinition);
-			} else {
-				port = availableSocket.getLocalPort();
-				try {
-					availableSocket.close();
-				} catch (IOException ignored) {}
-			}
+			final int port = portsIterator.next();
 
 			try {
-				return startActorSystem(configuration, listeningAddress, port, logger);
+				return startActorSystem(
+					configuration,
+					actorSystemName,
+					listeningAddress,
+					port,
+					logger,
+					actorSystemExecutorConfiguration);
 			}
 			catch (Exception e) {
 				// we can continue to try if this contains a netty channel exception
@@ -132,6 +184,7 @@ public class BootstrapTools {
 
 	/**
 	 * Starts an Actor System at a specific port.
+	 *
 	 * @param configuration The Flink configuration.
 	 * @param listeningAddress The address to listen at.
 	 * @param listeningPort The port to listen at.
@@ -140,10 +193,61 @@ public class BootstrapTools {
 	 * @throws Exception
 	 */
 	public static ActorSystem startActorSystem(
+		Configuration configuration,
+		String listeningAddress,
+		int listeningPort,
+		Logger logger) throws Exception {
+		return startActorSystem(
+			configuration,
+			listeningAddress,
+			listeningPort,
+			logger,
+			ForkJoinExecutorConfiguration.fromConfiguration(configuration));
+	}
+
+	/**
+	 * Starts an Actor System at a specific port.
+	 * @param configuration The Flink configuration.
+	 * @param listeningAddress The address to listen at.
+	 * @param listeningPort The port to listen at.
+	 * @param logger the logger to output log information.
+	 * @param actorSystemExecutorConfiguration configuration for the ActorSystem's underlying executor
+	 * @return The ActorSystem which has been started.
+	 * @throws Exception
+	 */
+	public static ActorSystem startActorSystem(
 				Configuration configuration,
 				String listeningAddress,
 				int listeningPort,
-				Logger logger) throws Exception {
+				Logger logger,
+				ActorSystemExecutorConfiguration actorSystemExecutorConfiguration) throws Exception {
+		return startActorSystem(
+			configuration,
+			AkkaUtils.getFlinkActorSystemName(),
+			listeningAddress,
+			listeningPort,
+			logger,
+			actorSystemExecutorConfiguration);
+	}
+
+	/**
+	 * Starts an Actor System at a specific port.
+	 * @param configuration The Flink configuration.
+	 * @param actorSystemName Name of the started {@link ActorSystem}
+	 * @param listeningAddress The address to listen at.
+	 * @param listeningPort The port to listen at.
+	 * @param logger the logger to output log information.
+	 * @param actorSystemExecutorConfiguration configuration for the ActorSystem's underlying executor
+	 * @return The ActorSystem which has been started.
+	 * @throws Exception
+	 */
+	public static ActorSystem startActorSystem(
+		Configuration configuration,
+		String actorSystemName,
+		String listeningAddress,
+		int listeningPort,
+		Logger logger,
+		ActorSystemExecutorConfiguration actorSystemExecutorConfiguration) throws Exception {
 
 		String hostPortUrl = NetUtils.unresolvedHostAndPortToNormalizedString(listeningAddress, listeningPort);
 		logger.info("Trying to start actor system at {}", hostPortUrl);
@@ -151,12 +255,12 @@ public class BootstrapTools {
 		try {
 			Config akkaConfig = AkkaUtils.getAkkaConfig(
 				configuration,
-				new Some<>(new Tuple2<>(listeningAddress, listeningPort))
-			);
+				new Some<>(new Tuple2<>(listeningAddress, listeningPort)),
+				actorSystemExecutorConfiguration.getAkkaConfig());
 
 			logger.debug("Using akka configuration\n {}", akkaConfig);
 
-			ActorSystem actorSystem = AkkaUtils.createActorSystem(akkaConfig);
+			ActorSystem actorSystem = AkkaUtils.createActorSystem(actorSystemName, akkaConfig);
 
 			logger.info("Actor system started at {}", AkkaUtils.getAddress(actorSystem));
 			return actorSystem;
@@ -166,7 +270,7 @@ public class BootstrapTools {
 				Throwable cause = t.getCause();
 				if (cause != null && t.getCause() instanceof BindException) {
 					throw new IOException("Unable to create ActorSystem at address " + hostPortUrl +
-							" : " + cause.getMessage(), t);
+						" : " + cause.getMessage(), t);
 				}
 			}
 			throw new Exception("Could not create actor system", t);
@@ -235,7 +339,7 @@ public class BootstrapTools {
 				int numSlots,
 				FiniteDuration registrationTimeout) {
 
-		Configuration cfg = baseConfig.clone();
+		Configuration cfg = cloneConfiguration(baseConfig);
 
 		if (jobManagerHostname != null && !jobManagerHostname.isEmpty()) {
 			cfg.setString(JobManagerOptions.ADDRESS, jobManagerHostname);
@@ -250,7 +354,7 @@ public class BootstrapTools {
 			cfg.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlots);
 		}
 
-		return cfg; 
+		return cfg;
 	}
 
 	/**
@@ -261,8 +365,7 @@ public class BootstrapTools {
 	 */
 	public static void writeConfiguration(Configuration cfg, File file) throws IOException {
 		try (FileWriter fwrt = new FileWriter(file);
-			PrintWriter out = new PrintWriter(fwrt))
-		{
+			PrintWriter out = new PrintWriter(fwrt)) {
 			for (String key : cfg.keySet()) {
 				String value = cfg.getString(key, null);
 				out.print(key);
@@ -322,7 +425,7 @@ public class BootstrapTools {
 	/**
 	 * Get an instance of the dynamic properties option.
 	 *
-	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
+	 * <p>Dynamic properties allow the user to specify additional configuration values with -D, such as
 	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.network.memory.min=536346624</tt>
      */
 	public static Option newDynamicPropertiesOption() {
@@ -336,13 +439,13 @@ public class BootstrapTools {
 		final Configuration config = new Configuration();
 
 		String[] values = cmd.getOptionValues(DYNAMIC_PROPERTIES_OPT);
-		if(values != null) {
-			for(String value : values) {
+		if (values != null) {
+			for (String value : values) {
 				String[] pair = value.split("=", 2);
-				if(pair.length == 1) {
+				if (pair.length == 1) {
 					config.setString(pair[0], Boolean.TRUE.toString());
 				}
-				else if(pair.length == 2) {
+				else if (pair.length == 2) {
 					config.setString(pair[0], pair[1]);
 				}
 			}
@@ -392,7 +495,7 @@ public class BootstrapTools {
 		}
 		//applicable only for YarnMiniCluster secure test run
 		//krb5.conf file will be available as local resource in JM/TM container
-		if(hasKrb5) {
+		if (hasKrb5) {
 			javaOpts += " -Djava.security.krb5.conf=krb5.conf";
 		}
 		startCommandValues.put("jvmopts", javaOpts);
@@ -430,12 +533,11 @@ public class BootstrapTools {
 
 	// ------------------------------------------------------------------------
 
-	/** Private constructor to prevent instantiation */
+	/** Private constructor to prevent instantiation. */
 	private BootstrapTools() {}
 
 	/**
-	 * Replaces placeholders in the template start command with values from
-	 * <tt>startCommandValues</tt>.
+	 * Replaces placeholders in the template start command with values from startCommandValues.
 	 *
 	 * <p>If the default template {@link ConfigConstants#DEFAULT_YARN_CONTAINER_START_COMMAND_TEMPLATE}
 	 * is used, the following keys must be present in the map or the resulting
@@ -449,7 +551,6 @@ public class BootstrapTools {
 	 * <li><tt>args</tt> = arguments for the main class</li>
 	 * <li><tt>redirects</tt> = output redirects</li>
 	 * </ul>
-	 * </p>
 	 *
 	 * @param template
 	 * 		a template start command with placeholders
@@ -466,5 +567,141 @@ public class BootstrapTools {
 				.replace("%" + variable.getKey() + "%", variable.getValue());
 		}
 		return template;
+	}
+
+	/**
+	 * Set temporary configuration directories if necessary.
+	 *
+	 * @param configuration flink config to patch
+	 * @param defaultDirs in case no tmp directories is set, next directories will be applied
+	 */
+	public static void updateTmpDirectoriesInConfiguration(
+			Configuration configuration,
+			@Nullable String defaultDirs) {
+		if (configuration.contains(CoreOptions.TMP_DIRS)) {
+			LOG.info("Overriding Fink's temporary file directories with those " +
+				"specified in the Flink config: {}", configuration.getValue(CoreOptions.TMP_DIRS));
+		} else if (defaultDirs != null) {
+			LOG.info("Setting directories for temporary files to: {}", defaultDirs);
+			configuration.setString(CoreOptions.TMP_DIRS, defaultDirs);
+			configuration.setBoolean(USE_LOCAL_DEFAULT_TMP_DIRS, true);
+		}
+	}
+
+	/**
+	 * Clones the given configuration and resets instance specific config options.
+	 *
+	 * @param configuration to clone
+	 * @return Cloned configuration with reset instance specific config options
+	 */
+	public static Configuration cloneConfiguration(Configuration configuration) {
+		final Configuration clonedConfiguration = new Configuration(configuration);
+
+		if (clonedConfiguration.getBoolean(USE_LOCAL_DEFAULT_TMP_DIRS)){
+			clonedConfiguration.removeConfig(CoreOptions.TMP_DIRS);
+			clonedConfiguration.removeConfig(USE_LOCAL_DEFAULT_TMP_DIRS);
+		}
+
+		return clonedConfiguration;
+	}
+
+	/**
+	 * Configuration interface for {@link ActorSystem} underlying executor.
+	 */
+	interface ActorSystemExecutorConfiguration {
+
+		/**
+		 * Create the executor {@link Config} for the respective executor.
+		 *
+		 * @return Akka config for the respective executor
+		 */
+		Config getAkkaConfig();
+	}
+
+	/**
+	 * Configuration for a fork join executor.
+	 */
+	public static class ForkJoinExecutorConfiguration implements ActorSystemExecutorConfiguration {
+
+		private final double parallelismFactor;
+
+		private final int minParallelism;
+
+		private final int maxParallelism;
+
+		public ForkJoinExecutorConfiguration(double parallelismFactor, int minParallelism, int maxParallelism) {
+			this.parallelismFactor = parallelismFactor;
+			this.minParallelism = minParallelism;
+			this.maxParallelism = maxParallelism;
+		}
+
+		public double getParallelismFactor() {
+			return parallelismFactor;
+		}
+
+		public int getMinParallelism() {
+			return minParallelism;
+		}
+
+		public int getMaxParallelism() {
+			return maxParallelism;
+		}
+
+		@Override
+		public Config getAkkaConfig() {
+			return AkkaUtils.getForkJoinExecutorConfig(this);
+		}
+
+		public static ForkJoinExecutorConfiguration fromConfiguration(final Configuration configuration) {
+			final double parallelismFactor = configuration.getDouble(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR);
+			final int minParallelism = configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MIN);
+			final int maxParallelism = configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MAX);
+
+			return new ForkJoinExecutorConfiguration(parallelismFactor, minParallelism, maxParallelism);
+		}
+	}
+
+	/**
+	 * Configuration for a fixed thread pool executor.
+	 */
+	public static class FixedThreadPoolExecutorConfiguration implements ActorSystemExecutorConfiguration {
+
+		private final int minNumThreads;
+
+		private final int maxNumThreads;
+
+		private final int threadPriority;
+
+		public FixedThreadPoolExecutorConfiguration(int minNumThreads, int maxNumThreads, int threadPriority) {
+			if (threadPriority < Thread.MIN_PRIORITY || threadPriority > Thread.MAX_PRIORITY) {
+				throw new IllegalArgumentException(
+					String.format(
+						"The thread priority must be within (%s, %s) but it was %s.",
+						Thread.MIN_PRIORITY,
+						Thread.MAX_PRIORITY,
+						threadPriority));
+			}
+
+			this.minNumThreads = minNumThreads;
+			this.maxNumThreads = maxNumThreads;
+			this.threadPriority = threadPriority;
+		}
+
+		public int getMinNumThreads() {
+			return minNumThreads;
+		}
+
+		public int getMaxNumThreads() {
+			return maxNumThreads;
+		}
+
+		public int getThreadPriority() {
+			return threadPriority;
+		}
+
+		@Override
+		public Config getAkkaConfig() {
+			return AkkaUtils.getThreadPoolExecutorConfig(this);
+		}
 	}
 }

@@ -65,6 +65,7 @@ By default, the job manager will pick a *random port* for inter process communic
 In order to start an HA-cluster add the following configuration keys to `conf/flink-conf.yaml`:
 
 - **high-availability mode** (required): The *high-availability mode* has to be set in `conf/flink-conf.yaml` to *zookeeper* in order to enable high availability mode.
+Alternatively this option can be set to FQN of factory class Flink should use to create HighAvailabilityServices instance. 
 
   <pre>high-availability: zookeeper</pre>
 
@@ -93,7 +94,7 @@ In order to start an HA-cluster add the following configuration keys to `conf/fl
 - **Storage directory** (required): JobManager metadata is persisted in the file system *storageDir* and only a pointer to this state is stored in ZooKeeper.
 
     <pre>
-high-availability.zookeeper.storageDir: hdfs:///flink/recovery
+high-availability.storageDir: hdfs:///flink/recovery
     </pre>
 
     The `storageDir` stores all metadata needed to recover a JobManager failure.
@@ -109,7 +110,7 @@ high-availability: zookeeper
 high-availability.zookeeper.quorum: localhost:2181
 high-availability.zookeeper.path.root: /flink
 high-availability.cluster-id: /cluster_one # important: customize per cluster
-high-availability.zookeeper.storageDir: hdfs:///flink/recovery</pre>
+high-availability.storageDir: hdfs:///flink/recovery</pre>
 
 2. **Configure masters** in `conf/masters`:
 
@@ -191,7 +192,7 @@ This means that the application can be restarted 9 times for failed attempts bef
    <pre>
 high-availability: zookeeper
 high-availability.zookeeper.quorum: localhost:2181
-high-availability.zookeeper.storageDir: hdfs:///flink/recovery
+high-availability.storageDir: hdfs:///flink/recovery
 high-availability.zookeeper.path.root: /flink
 yarn.application-attempts: 10</pre>
 

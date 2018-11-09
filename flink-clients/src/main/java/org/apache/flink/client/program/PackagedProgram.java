@@ -223,7 +223,7 @@ public class PackagedProgram {
 		}
 	}
 
-	PackagedProgram(Class<?> entryPointClass, String... args) throws ProgramInvocationException {
+	public PackagedProgram(Class<?> entryPointClass, String... args) throws ProgramInvocationException {
 		this.jarFile = null;
 		this.args = args == null ? new String[0] : args;
 
@@ -294,7 +294,7 @@ public class PackagedProgram {
 			return new JobWithJars(getPlan(), Collections.<URL>emptyList(), classpaths, userCodeClassLoader);
 		} else {
 			throw new ProgramInvocationException("Cannot create a " + JobWithJars.class.getSimpleName() +
-				" for a program that is using the interactive mode.");
+				" for a program that is using the interactive mode.", getPlan().getJobId());
 		}
 	}
 
@@ -309,7 +309,7 @@ public class PackagedProgram {
 			return new JobWithJars(getPlan(), getAllLibraries(), classpaths, userCodeClassLoader);
 		} else {
 			throw new ProgramInvocationException("Cannot create a " + JobWithJars.class.getSimpleName() +
-					" for a program that is using the interactive mode.");
+					" for a program that is using the interactive mode.", getPlan().getJobId());
 		}
 	}
 
@@ -341,12 +341,12 @@ public class PackagedProgram {
 			}
 			catch (Throwable t) {
 				// the invocation gets aborted with the preview plan
-				if (env.previewPlan != null) {
-					previewPlan = env.previewPlan;
-				} else if (env.preview != null) {
-					return env.preview;
-				} else {
-					throw new ProgramInvocationException("The program caused an error: ", t);
+				if (env.previewPlan == null) {
+					if (env.preview != null) {
+						return env.preview;
+					} else {
+						throw new ProgramInvocationException("The program caused an error: ", getPlan().getJobId(), t);
+					}
 				}
 			}
 			finally {
@@ -357,7 +357,8 @@ public class PackagedProgram {
 				previewPlan =  env.previewPlan;
 			} else {
 				throw new ProgramInvocationException(
-						"The program plan could not be fetched. The program silently swallowed the control flow exceptions.");
+					"The program plan could not be fetched. The program silently swallowed the control flow exceptions.",
+					getPlan().getJobId());
 			}
 		}
 		else {
@@ -695,7 +696,9 @@ public class PackagedProgram {
 					for (int i = 0; i < containedJarFileEntries.size(); i++) {
 						final JarEntry entry = containedJarFileEntries.get(i);
 						String name = entry.getName();
-						name = name.replace(File.separatorChar, '_');
+						// '/' as in case of zip, jar
+						// java.util.zip.ZipEntry#isDirectory always looks only for '/' not for File.separator
+						name = name.replace('/', '_');
 
 						File tempFile;
 						try {

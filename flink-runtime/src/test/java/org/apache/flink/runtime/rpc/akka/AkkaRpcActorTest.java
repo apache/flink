@@ -49,6 +49,8 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import scala.concurrent.Await;
+
 public class AkkaRpcActorTest extends TestLogger {
 
 	// ------------------------------------------------------------------------
@@ -259,8 +261,8 @@ public class AkkaRpcActorTest extends TestLogger {
 
 			terminationFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 		} finally {
-			rpcActorSystem.shutdown();
-			rpcActorSystem.awaitTermination(FutureUtils.toFiniteDuration(timeout));
+			rpcActorSystem.terminate();
+			Await.ready(rpcActorSystem.whenTerminated(), FutureUtils.toFiniteDuration(timeout));
 		}
 	}
 

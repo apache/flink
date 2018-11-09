@@ -26,9 +26,13 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.net.ConnectionUtils;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.SqlClientException;
-import org.apache.flink.table.client.config.Deployment;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.entries.DeploymentEntry;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.gateway.local.result.ChangelogCollectStreamResult;
+import org.apache.flink.table.client.gateway.local.result.DynamicResult;
+import org.apache.flink.table.client.gateway.local.result.MaterializedCollectBatchResult;
+import org.apache.flink.table.client.gateway.local.result.MaterializedCollectStreamResult;
 import org.apache.flink.types.Row;
 
 import java.net.InetAddress;
@@ -44,13 +48,11 @@ import java.util.Map;
  */
 public class ResultStore {
 
-	private Configuration flinkConfig;
-
-	private Map<String, DynamicResult<?>> results;
+	private final Configuration flinkConfig;
+	private final Map<String, DynamicResult<?>> results;
 
 	public ResultStore(Configuration flinkConfig) {
 		this.flinkConfig = flinkConfig;
-
 		results = new HashMap<>();
 	}
 
@@ -58,19 +60,31 @@ public class ResultStore {
 	 * Creates a result. Might start threads or opens sockets so every created result must be closed.
 	 */
 	public <T> DynamicResult<T> createResult(Environment env, TableSchema schema, ExecutionConfig config) {
-		if (!env.getExecution().isStreamingExecution()) {
-			throw new SqlExecutionException("Emission is only supported in streaming environments yet.");
-		}
 
-		final TypeInformation<Row> outputType = Types.ROW_NAMED(schema.getColumnNames(), schema.getTypes());
-		// determine gateway address (and port if possible)
-		final InetAddress gatewayAddress = getGatewayAddress(env.getDeployment());
-		final int gatewayPort = getGatewayPort(env.getDeployment());
+		final TypeInformation<Row> outputType = Types.ROW_NAMED(schema.getFieldNames(), schema.getFieldTypes());
 
-		if (env.getExecution().isChangelogMode()) {
-			return new ChangelogCollectStreamResult<>(outputType, config, gatewayAddress, gatewayPort);
+		if (env.getExecution().isStreamingExecution()) {
+			// determine gateway address (and port if possible)
+			final InetAddress gatewayAddress = getGatewayAddress(env.getDeployment());
+			final int gatewayPort = getGatewayPort(env.getDeployment());
+
+			if (env.getExecution().isChangelogMode()) {
+				return new ChangelogCollectStreamResult<>(outputType, config, gatewayAddress, gatewayPort);
+			} else {
+				return new MaterializedCollectStreamResult<>(
+					outputType,
+					config,
+					gatewayAddress,
+					gatewayPort,
+					env.getExecution().getMaxTableResultRows());
+			}
+
 		} else {
-			return new MaterializedCollectStreamResult<>(outputType, config, gatewayAddress, gatewayPort);
+			// Batch Execution
+			if (!env.getExecution().isTableMode()) {
+				throw new SqlExecutionException("Results of batch queries can only be served in table mode.");
+			}
+			return new MaterializedCollectBatchResult<>(outputType, config);
 		}
 	}
 
@@ -93,12 +107,12 @@ public class ResultStore {
 
 	// --------------------------------------------------------------------------------------------
 
-	private int getGatewayPort(Deployment deploy) {
+	private int getGatewayPort(DeploymentEntry deploy) {
 		// try to get address from deployment configuration
 		return deploy.getGatewayPort();
 	}
 
-	private InetAddress getGatewayAddress(Deployment deploy) {
+	private InetAddress getGatewayAddress(DeploymentEntry deploy) {
 		// try to get address from deployment configuration
 		final String address = deploy.getGatewayAddress();
 

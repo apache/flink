@@ -428,7 +428,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 					}
 					
 					for (RequestedGlobalProperties igps2: intGlobal2) {
-						// create a candidate channel for the first input. mark it cached, if the connection says so
+						// create a candidate channel for the second input. mark it cached, if the connection says so
 						final Channel c2 = new Channel(child2, this.input2.getMaterializationMode());
 						if (this.input2.getShipStrategy() == null) {
 							// free to choose the ship strategy
@@ -685,15 +685,15 @@ public abstract class TwoInputNode extends OptimizerNode {
 			}
 			
 			// okay combinations are both all dam or both no dam
-			if ( (damOnAllLeftPaths & damOnAllRightPaths) | (!someDamOnLeftPaths & !someDamOnRightPaths) ) {
+			if ( (damOnAllLeftPaths && damOnAllRightPaths) || (!someDamOnLeftPaths && !someDamOnRightPaths) ) {
 				// good, either both materialize already on the way, or both fully pipeline
 			} else {
-				if (someDamOnLeftPaths & !damOnAllRightPaths) {
+				if (someDamOnLeftPaths && !damOnAllRightPaths) {
 					// right needs a pipeline breaker
 					in2.setTempMode(in2.getTempMode().makePipelineBreaker());
 				}
 				
-				if (someDamOnRightPaths & !damOnAllLeftPaths) {
+				if (someDamOnRightPaths && !damOnAllLeftPaths) {
 					// right needs a pipeline breaker
 					in1.setTempMode(in1.getTempMode().makePipelineBreaker());
 				}

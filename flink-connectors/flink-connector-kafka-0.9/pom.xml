@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.6-SNAPSHOT</version>
+		<version>1.8-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -136,14 +136,6 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<!-- include 0.9 server for tests  -->
-			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka_${scala.binary.version}</artifactId>
-			<version>${kafka.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-metrics-jmx</artifactId>
 			<version>${project.version}</version>
@@ -189,6 +181,78 @@ under the License.
 		</dependency>
 
 	</dependencies>
+
+	<profiles>
+		<!-- The kafka_${...} dependency doesn't exist for Scala 2.12, so we need to exclude
+		this (test-)dependency when building for Scala 2.12. -->
+		<profile>
+			<id>scala-2.11</id>
+			<activation>
+				<property>
+					<name>!scala-2.12</name>
+				</property>
+			</activation>
+			<dependencies>
+				<dependency>
+					<!-- include 0.9 server for tests  -->
+					<groupId>org.apache.kafka</groupId>
+					<artifactId>kafka_${scala.binary.version}</artifactId>
+					<version>${kafka.version}</version>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
+		</profile>
+
+		<!-- Create SQL Client uber jars by default -->
+		<profile>
+			<id>sql-jars</id>
+			<activation>
+				<property>
+					<name>!skipSqlJars</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-shade-plugin</artifactId>
+						<executions>
+							<execution>
+								<phase>package</phase>
+								<goals>
+									<goal>shade</goal>
+								</goals>
+								<configuration>
+									<shadedArtifactAttached>true</shadedArtifactAttached>
+									<shadedClassifierName>sql-jar</shadedClassifierName>
+									<artifactSet>
+										<includes combine.children="append">
+											<include>org.apache.kafka:*</include>
+											<include>org.apache.flink:flink-connector-kafka-base_${scala.binary.version}</include>
+										</includes>
+									</artifactSet>
+									<filters>
+										<filter>
+											<artifact>*:*</artifact>
+											<excludes>
+												<exclude>kafka/kafka-version.properties</exclude>
+											</excludes>
+										</filter>
+									</filters>
+									<relocations>
+										<relocation>
+											<pattern>org.apache.kafka</pattern>
+											<shadedPattern>org.apache.flink.kafka09.shaded.org.apache.kafka</shadedPattern>
+										</relocation>
+									</relocations>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 	<build>
 		<plugins>

@@ -28,7 +28,7 @@ import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.schema.{BatchTableSourceTable, StreamTableSourceTable, TableSourceTable}
+import org.apache.flink.table.plan.schema.TableSourceSinkTable
 import org.apache.flink.table.sources.{FilterableTableSource, TableSource, TableSourceUtil}
 
 import scala.collection.JavaConverters._
@@ -51,10 +51,10 @@ class FlinkLogicalTableSourceScan(
 
   override def deriveRowType(): RelDataType = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val streamingTable = table.unwrap(classOf[TableSourceTable[_]]) match {
-      case _: StreamTableSourceTable[_] => true
-      case _: BatchTableSourceTable[_] => false
-      case t => throw TableException(s"Unknown Table type ${t.getClass}.")
+    val streamingTable = table.unwrap(classOf[TableSourceSinkTable[_, _]]) match {
+      case t: TableSourceSinkTable[_, _] if t.isStreamSourceTable => true
+      // null
+      case _ => false
     }
 
     TableSourceUtil.getRelDataType(tableSource, selectedFields, streamingTable, flinkTypeFactory)
@@ -79,7 +79,7 @@ class FlinkLogicalTableSourceScan(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val terms = super.explainTerms(pw)
-        .item("fields", tableSource.getTableSchema.getColumnNames.mkString(", "))
+        .item("fields", tableSource.getTableSchema.getFieldNames.mkString(", "))
 
     val sourceDesc = tableSource.explainSource()
     if (sourceDesc.nonEmpty) {
@@ -111,9 +111,9 @@ class FlinkLogicalTableSourceScanConverter
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan = call.rel[TableScan](0)
-    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
-    tableSourceTable match {
-      case _: TableSourceTable[_] => true
+    scan.getTable.unwrap(classOf[TableSourceSinkTable[_, _]]) match {
+      case t: TableSourceSinkTable[_, _] if t.isSourceTable => true
+      // null
       case _ => false
     }
   }
@@ -121,7 +121,10 @@ class FlinkLogicalTableSourceScanConverter
   def convert(rel: RelNode): RelNode = {
     val scan = rel.asInstanceOf[TableScan]
     val traitSet = rel.getTraitSet.replace(FlinkConventions.LOGICAL)
-    val tableSource = scan.getTable.unwrap(classOf[TableSourceTable[_]]).tableSource
+    val tableSource = scan.getTable.unwrap(classOf[TableSourceSinkTable[_, _]])
+      .tableSourceTable
+      .map(_.tableSource)
+      .getOrElse(throw new TableException("Table source expected."))
 
     new FlinkLogicalTableSourceScan(
       rel.getCluster,

@@ -26,13 +26,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 public interface TaskManagerActions {
 
 	/**
-	 * Notifies the task manager that the given task is in a final state.
-	 *
-	 * @param executionAttemptID Execution attempt ID of the task
-	 */
-	void notifyFinalState(ExecutionAttemptID executionAttemptID);
-
-	/**
 	 * Notifies the task manager about a fatal error occurred in the task.
 	 *
 	 * @param message Message to report

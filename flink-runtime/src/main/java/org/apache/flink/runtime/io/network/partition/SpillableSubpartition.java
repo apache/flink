@@ -143,6 +143,7 @@ class SpillableSubpartition extends ResultSubpartition {
 		if (spillWriter != null) {
 			spillWriter.close();
 		}
+		LOG.debug("{}: Finished {}.", parent.getOwningTaskName(), this);
 	}
 
 	@Override
@@ -179,6 +180,8 @@ class SpillableSubpartition extends ResultSubpartition {
 
 			isReleased = true;
 		}
+
+		LOG.debug("{}: Released {}.", parent.getOwningTaskName(), this);
 
 		if (view != null) {
 			view.releaseAllResources();
@@ -236,8 +239,8 @@ class SpillableSubpartition extends ResultSubpartition {
 				long spilledBytes = spillFinishedBufferConsumers(isFinished);
 				int spilledBuffers = numberOfBuffers - buffers.size();
 
-				LOG.debug("Spilling {} bytes ({} buffers} for sub partition {} of {}.",
-					spilledBytes, spilledBuffers, index, parent.getPartitionId());
+				LOG.debug("{}: Spilling {} bytes ({} buffers} for sub partition {} of {}.",
+					parent.getOwningTaskName(), spilledBytes, spilledBuffers, index, parent.getPartitionId());
 
 				return spilledBuffers;
 			}
@@ -300,9 +303,9 @@ class SpillableSubpartition extends ResultSubpartition {
 
 	@Override
 	public String toString() {
-		return String.format("SpillableSubpartition [%d number of buffers (%d bytes)," +
+		return String.format("SpillableSubpartition#%d [%d number of buffers (%d bytes)," +
 				"%d number of buffers in backlog, finished? %s, read view? %s, spilled? %s]",
-			getTotalNumberOfBuffers(), getTotalNumberOfBytes(),
+			index, getTotalNumberOfBuffers(), getTotalNumberOfBytes(),
 			getBuffersInBacklog(), isFinished, readView != null, spillWriter != null);
 	}
 

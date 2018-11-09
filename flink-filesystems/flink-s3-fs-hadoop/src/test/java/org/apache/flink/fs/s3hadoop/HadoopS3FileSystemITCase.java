@@ -48,7 +48,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * Unit tests for the S3 file system support via Hadoop's {@link org.apache.hadoop.fs.s3a.S3AFileSystem}.
@@ -59,6 +58,7 @@ import static org.junit.Assert.fail;
  */
 @RunWith(Parameterized.class)
 public class HadoopS3FileSystemITCase extends TestLogger {
+
 	@Parameterized.Parameter
 	public String scheme;
 
@@ -98,32 +98,31 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 		// directory must not yet exist
 		assertFalse(fs.exists(directory));
 
-		// reset configuration
-		FileSystem.initialize(new Configuration());
-
 		skipTest = false;
 	}
 
 	@AfterClass
 	public static void cleanUp() throws IOException, InterruptedException {
-		if (!skipTest) {
-			final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
-			// initialize configuration with valid credentials
-			final Configuration conf = new Configuration();
-			conf.setString("s3.access.key", ACCESS_KEY);
-			conf.setString("s3.secret.key", SECRET_KEY);
-			FileSystem.initialize(conf);
+		try {
+			if (!skipTest) {
+				final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
+				// initialize configuration with valid credentials
+				final Configuration conf = new Configuration();
+				conf.setString("s3.access.key", ACCESS_KEY);
+				conf.setString("s3.secret.key", SECRET_KEY);
+				FileSystem.initialize(conf);
 
-			final Path directory = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR);
-			final FileSystem fs = directory.getFileSystem();
+				final Path directory = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR);
+				final FileSystem fs = directory.getFileSystem();
 
-			// clean up
-			fs.delete(directory, true);
+				// clean up
+				fs.delete(directory, true);
 
-			// now directory must be gone
-			checkPathEventualExistence(fs, directory, false, deadline);
-
-			// reset configuration
+				// now directory must be gone
+				checkPathEventualExistence(fs, directory, false, deadline);
+			}
+		}
+		finally {
 			FileSystem.initialize(new Configuration());
 		}
 	}
@@ -135,16 +134,6 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 	@Test
 	public void testConfigKeysForwarding() throws Exception {
 		final Path path = new Path(getBasePath());
-
-		// access without credentials should fail
-		{
-			FileSystem.initialize(new Configuration());
-
-			try {
-				path.getFileSystem();
-				fail("should fail with an exception");
-			} catch (IOException ignored) {}
-		}
 
 		// standard Hadoop-style credential keys
 		{
@@ -175,14 +164,6 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 			FileSystem.initialize(conf);
 			path.getFileSystem();
 		}
-
-		// see that setting a blank config again clears everything
-		// and access without credentials should fail
-		FileSystem.initialize(new Configuration());
-		try {
-			path.getFileSystem();
-			fail("should fail with an exception");
-		} catch (IOException ignored) {}
 	}
 
 	@Test
@@ -279,5 +260,4 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 		// now directory must be gone (this is eventually-consistent, though!)
 		checkPathEventualExistence(fs, directory, false, deadline);
 	}
-
 }

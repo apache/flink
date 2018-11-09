@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -27,7 +26,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 /**
  * {@link MessageHeaders} for {@link JarRunHandler}.
  */
-public class JarRunHeaders implements MessageHeaders<EmptyRequestBody, JarRunResponseBody, JarRunMessageParameters> {
+public class JarRunHeaders implements MessageHeaders<JarRunRequestBody, JarRunResponseBody, JarRunMessageParameters> {
 
 	private static final JarRunHeaders INSTANCE = new JarRunHeaders();
 
@@ -44,8 +43,8 @@ public class JarRunHeaders implements MessageHeaders<EmptyRequestBody, JarRunRes
 	}
 
 	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
+	public Class<JarRunRequestBody> getRequestClass() {
+		return JarRunRequestBody.class;
 	}
 
 	@Override
@@ -69,6 +68,7 @@ public class JarRunHeaders implements MessageHeaders<EmptyRequestBody, JarRunRes
 
 	@Override
 	public String getDescription() {
-		return "Submits a job by running a jar previously uploaded via '" + JarUploadHeaders.URL + "'.";
+		return "Submits a job by running a jar previously uploaded via '" + JarUploadHeaders.URL + "'. " +
+			"Program arguments can be passed both via the JSON request (recommended) or query parameters.";
 	}
 }

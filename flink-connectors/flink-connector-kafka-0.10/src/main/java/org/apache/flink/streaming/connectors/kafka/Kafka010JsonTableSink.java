@@ -18,22 +18,28 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.types.Row;
 
+import java.util.Optional;
 import java.util.Properties;
 
 /**
- * Kafka 0.10 {@link KafkaTableSink} that serializes data in JSON format.
+ * Kafka 0.10 {@link KafkaTableSinkBase} that serializes data in JSON format.
+ *
+ * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
+ *             with descriptors for schema and format instead. Descriptors allow for
+ *             implementation-agnostic definition of tables. See also
+ *             {@link org.apache.flink.table.api.TableEnvironment#connect(ConnectorDescriptor)}.
  */
-@PublicEvolving
+@Deprecated
 public class Kafka010JsonTableSink extends KafkaJsonTableSink {
 
 	/**
-	 * Creates {@link KafkaTableSink} to write table rows as JSON-encoded records to a Kafka 0.10
+	 * Creates {@link KafkaTableSinkBase} to write table rows as JSON-encoded records to a Kafka 0.10
 	 * topic with fixed partition assignment.
 	 *
 	 * <p>Each parallel TableSink instance will write its rows to a single Kafka partition.</p>
@@ -46,30 +52,45 @@ public class Kafka010JsonTableSink extends KafkaJsonTableSink {
 	 *
 	 * @param topic topic in Kafka to which table is written
 	 * @param properties properties to connect to Kafka
+	 * @deprecated Use table descriptors instead of implementation-specific classes.
 	 */
+	@Deprecated
 	public Kafka010JsonTableSink(String topic, Properties properties) {
 		super(topic, properties, new FlinkFixedPartitioner<>());
 	}
 
 	/**
-	 * Creates {@link KafkaTableSink} to write table rows as JSON-encoded records to a Kafka 0.10
+	 * Creates {@link KafkaTableSinkBase} to write table rows as JSON-encoded records to a Kafka 0.10
 	 * topic with custom partition assignment.
 	 *
 	 * @param topic topic in Kafka to which table is written
 	 * @param properties properties to connect to Kafka
 	 * @param partitioner Kafka partitioner
+	 * @deprecated Use table descriptors instead of implementation-specific classes.
 	 */
+	@Deprecated
 	public Kafka010JsonTableSink(String topic, Properties properties, FlinkKafkaPartitioner<Row> partitioner) {
 		super(topic, properties, partitioner);
 	}
 
 	@Override
-	protected FlinkKafkaProducerBase<Row> createKafkaProducer(String topic, Properties properties, SerializationSchema<Row> serializationSchema, FlinkKafkaPartitioner<Row> partitioner) {
-		return new FlinkKafkaProducer010<>(topic, serializationSchema, properties, partitioner);
+	protected FlinkKafkaProducerBase<Row> createKafkaProducer(
+			String topic,
+			Properties properties,
+			SerializationSchema<Row> serializationSchema,
+			Optional<FlinkKafkaPartitioner<Row>> partitioner) {
+		return new FlinkKafkaProducer010<>(
+			topic,
+			serializationSchema,
+			properties,
+			partitioner.orElse(new FlinkFixedPartitioner<>()));
 	}
 
 	@Override
 	protected Kafka010JsonTableSink createCopy() {
-		return new Kafka010JsonTableSink(topic, properties, partitioner);
+		return new Kafka010JsonTableSink(
+			topic,
+			properties,
+			partitioner.orElse(new FlinkFixedPartitioner<>()));
 	}
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -62,6 +63,11 @@ public class CliFrontendParser {
 	public static final Option DETACHED_OPTION = new Option("d", "detached", false, "If present, runs " +
 			"the job in detached mode");
 
+	public static final Option SHUTDOWN_IF_ATTACHED_OPTION = new Option(
+		"sae", "shutdownOnAttachedExit", false,
+		"If the job is submitted in attached mode, perform a best-effort cluster shutdown " +
+			"when the CLI is terminated abruptly, e.g., in response to a user interrupt, such as typing Ctrl + C.");
+
 	/**
 	 * @deprecated use non-prefixed variant {@link #DETACHED_OPTION} for both YARN and non-YARN deployments
 	 */
@@ -76,10 +82,10 @@ public class CliFrontendParser {
 			"Address of the JobManager (master) to which to connect. " +
 			"Use this flag to connect to a different JobManager than the one specified in the configuration.");
 
-	static final Option SAVEPOINT_PATH_OPTION = new Option("s", "fromSavepoint", true,
+	public static final Option SAVEPOINT_PATH_OPTION = new Option("s", "fromSavepoint", true,
 			"Path to a savepoint to restore the job from (for example hdfs:///flink/savepoint-1537).");
 
-	static final Option SAVEPOINT_ALLOW_NON_RESTORED_OPTION = new Option("n", "allowNonRestoredState", false,
+	public static final Option SAVEPOINT_ALLOW_NON_RESTORED_OPTION = new Option("n", "allowNonRestoredState", false,
 			"Allow to skip savepoint state that cannot be restored. " +
 					"You need to allow this if you removed an operator from your " +
 					"program that was part of the program when the savepoint was triggered.");
@@ -93,6 +99,9 @@ public class CliFrontendParser {
 
 	static final Option SCHEDULED_OPTION = new Option("s", "scheduled", false,
 			"Show only scheduled programs and their JobIDs");
+
+	static final Option ALL_OPTION = new Option("a", "all", false,
+		"Show all programs and their JobIDs");
 
 	static final Option ZOOKEEPER_NAMESPACE_OPTION = new Option("z", "zookeeperNamespace", true,
 			"Namespace to create the Zookeeper sub-paths for high availability mode");
@@ -124,6 +133,7 @@ public class CliFrontendParser {
 
 		LOGGING_OPTION.setRequired(false);
 		DETACHED_OPTION.setRequired(false);
+		SHUTDOWN_IF_ATTACHED_OPTION.setRequired(false);
 		YARN_DETACHED_OPTION.setRequired(false);
 
 		ARGS_OPTION.setRequired(false);
@@ -166,6 +176,7 @@ public class CliFrontendParser {
 		options.addOption(ARGS_OPTION);
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
+		options.addOption(SHUTDOWN_IF_ATTACHED_OPTION);
 		options.addOption(YARN_DETACHED_OPTION);
 		return options;
 	}
@@ -176,6 +187,7 @@ public class CliFrontendParser {
 		options.addOption(PARALLELISM_OPTION);
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
+		options.addOption(SHUTDOWN_IF_ATTACHED_OPTION);
 		return options;
 	}
 
@@ -193,6 +205,7 @@ public class CliFrontendParser {
 
 	static Options getListCommandOptions() {
 		Options options = buildGeneralOptions(new Options());
+		options.addOption(ALL_OPTION);
 		options.addOption(RUNNING_OPTION);
 		return options.addOption(SCHEDULED_OPTION);
 	}
@@ -394,6 +407,16 @@ public class CliFrontendParser {
 			}
 			formatter.printHelp(" ", customOpts);
 			System.out.println();
+		}
+	}
+
+	public static SavepointRestoreSettings createSavepointRestoreSettings(CommandLine commandLine) {
+		if (commandLine.hasOption(SAVEPOINT_PATH_OPTION.getOpt())) {
+			String savepointPath = commandLine.getOptionValue(SAVEPOINT_PATH_OPTION.getOpt());
+			boolean allowNonRestoredState = commandLine.hasOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION.getOpt());
+			return SavepointRestoreSettings.forPath(savepointPath, allowNonRestoredState);
+		} else {
+			return SavepointRestoreSettings.none();
 		}
 	}
 

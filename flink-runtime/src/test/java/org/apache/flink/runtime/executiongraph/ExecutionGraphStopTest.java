@@ -39,7 +39,6 @@ import org.junit.Test;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
-
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
@@ -55,7 +54,7 @@ import static org.mockito.Mockito.when;
 public class ExecutionGraphStopTest extends TestLogger {
 
 	/**
-	 * Tests that STOP is only supported if all sources are stoppable
+	 * Tests that STOP is only supported if all sources are stoppable.
 	 */
 	@Test
 	public void testStopIfSourcesNotStoppable() throws Exception {
@@ -71,9 +70,9 @@ public class ExecutionGraphStopTest extends TestLogger {
 	}
 
 	/**
-	 * Validates that stop is only sent to the sources
-	 * 
-	 * This test build a simple job with two sources and two non-source vertices.
+	 * Validates that stop is only sent to the sources.
+	 *
+	 * <p>This test build a simple job with two sources and two non-source vertices.
 	 */
 	@Test
 	public void testStop() throws Exception {

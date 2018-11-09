@@ -194,9 +194,14 @@ class OverWindowTest extends TableTestBase {
     val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
-      .window(Over partitionBy 'c orderBy 'proctime preceding UNBOUNDED_RANGE following
-         CURRENT_RANGE as 'w)
+      .window(Over partitionBy 'c orderBy 'proctime preceding UNBOUNDED_RANGE as 'w)
       .select('a, 'c, 'a.count over 'w, weightedAvg('c, 'a) over 'w)
+
+    val result2 = table
+      .window(Over partitionBy 'c orderBy 'proctime as 'w)
+      .select('a, 'c, 'a.count over 'w, weightedAvg('c, 'a) over 'w)
+
+    streamUtil.verify2Tables(result, result2)
 
     val expected =
       unaryNode(
@@ -458,6 +463,12 @@ class OverWindowTest extends TableTestBase {
       .window(Over partitionBy 'c orderBy 'rowtime preceding UNBOUNDED_RANGE following
          CURRENT_RANGE as 'w)
       .select('a, 'c, 'a.count over 'w, weightedAvg('c, 'a) over 'w as 'wAvg)
+
+    val result2 = table
+      .window(Over partitionBy 'c orderBy 'rowtime as 'w)
+      .select('a, 'c, 'a.count over 'w, weightedAvg('c, 'a) over 'w as 'wAvg)
+
+    streamUtil.verify2Tables(result, result2)
 
     val expected =
       unaryNode(

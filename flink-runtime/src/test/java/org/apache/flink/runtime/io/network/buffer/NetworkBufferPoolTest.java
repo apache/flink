@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.buffer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -30,8 +31,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.core.IsCollectionContaining.hasItem;
 import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.assertEquals;
@@ -42,7 +46,10 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class NetworkBufferPoolTest {
+/**
+ * Tests for {@link NetworkBufferPool}.
+ */
+public class NetworkBufferPoolTest extends TestLogger {
 
 	@Rule
 	public ExpectedException expectedException = ExpectedException.none();
@@ -306,6 +313,99 @@ public class NetworkBufferPoolTest {
 	}
 
 	/**
+	 * Tests {@link NetworkBufferPool#requestMemorySegments(int)} with an exception occurring during
+	 * the call to {@link NetworkBufferPool#redistributeBuffers()}.
+	 */
+	@Test
+	public void testRequestMemorySegmentsExceptionDuringBufferRedistribution() throws IOException {
+		final int numBuffers = 3;
+
+		NetworkBufferPool networkBufferPool = new NetworkBufferPool(numBuffers, 128);
+
+		final List<Buffer> buffers = new ArrayList<>(numBuffers);
+		List<MemorySegment> memorySegments = Collections.emptyList();
+		BufferPool bufferPool = networkBufferPool.createBufferPool(1, numBuffers,
+			// make releaseMemory calls always fail:
+			Optional.of(numBuffersToRecycle -> {
+				throw new TestIOException();
+		}));
+
+		try {
+			// take all but one buffer
+			for (int i = 0; i < numBuffers - 1; ++i) {
+				Buffer buffer = bufferPool.requestBuffer();
+				buffers.add(buffer);
+				assertNotNull(buffer);
+			}
+
+			// this will ask the buffer pool to release its excess buffers which should fail
+			memorySegments = networkBufferPool.requestMemorySegments(2);
+			fail("Requesting memory segments should have thrown during buffer pool redistribution.");
+		} catch (TestIOException e) {
+			// test indirectly for NetworkBufferPool#numTotalRequiredBuffers being correct:
+			// -> creating a new buffer pool should not fail with "insufficient number of network
+			//    buffers" and instead only with the TestIOException from redistributing buffers in
+			//    bufferPool
+			expectedException.expect(TestIOException.class);
+			networkBufferPool.createBufferPool(2, 2);
+		} finally {
+			for (Buffer buffer : buffers) {
+				buffer.recycleBuffer();
+			}
+			bufferPool.lazyDestroy();
+			networkBufferPool.recycleMemorySegments(memorySegments);
+			networkBufferPool.destroy();
+		}
+	}
+
+	@Test
+	public void testCreateBufferPoolExceptionDuringBufferRedistribution() throws IOException {
+		final int numBuffers = 3;
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(numBuffers, 128);
+
+		final List<Buffer> buffers = new ArrayList<>(numBuffers);
+		BufferPool bufferPool = networkBufferPool.createBufferPool(1, numBuffers,
+			Optional.of(numBuffersToRecycle -> {
+				throw new TestIOException();
+		}));
+
+		try {
+
+			for (int i = 0; i < numBuffers; i++) {
+				Buffer buffer = bufferPool.requestBuffer();
+				buffers.add(buffer);
+				assertNotNull(buffer);
+			}
+
+			try {
+				networkBufferPool.createBufferPool(1, numBuffers);
+				fail("Should have failed because the other buffer pool does not support memory release.");
+			} catch (TestIOException expected) {
+			}
+
+			// destroy the faulty buffer pool
+			for (Buffer buffer : buffers) {
+				buffer.recycleBuffer();
+			}
+			buffers.clear();
+			bufferPool.lazyDestroy();
+
+			// now we should be able to create a new buffer pool
+			bufferPool = networkBufferPool.createBufferPool(numBuffers, numBuffers);
+		} finally {
+			for (Buffer buffer : buffers) {
+				buffer.recycleBuffer();
+			}
+			bufferPool.lazyDestroy();
+			networkBufferPool.destroy();
+		}
+	}
+
+	private static final class TestIOException extends IOException {
+		private static final long serialVersionUID = -814705441998024472L;
+	}
+
+	/**
 	 * Tests {@link NetworkBufferPool#requestMemorySegments(int)}, verifying it may be aborted in
 	 * case of a concurrent {@link NetworkBufferPool#destroy()} call.
 	 */
@@ -337,6 +437,53 @@ public class NetworkBufferPoolTest {
 
 		expectedException.expect(IllegalStateException.class);
 		expectedException.expectMessage("destroyed");
-		asyncRequest.sync();
+		try {
+			asyncRequest.sync();
+		} finally {
+			globalPool.destroy();
+		}
+	}
+
+	/**
+	 * Tests {@link NetworkBufferPool#requestMemorySegments(int)}, verifying it may be aborted and
+	 * remains in a defined state even if the waiting is interrupted.
+	 */
+	@Test
+	public void testRequestMemorySegmentsInterruptable2() throws Exception {
+		final int numBuffers = 10;
+
+		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128);
+		MemorySegment segment = globalPool.requestMemorySegment();
+		assertNotNull(segment);
+
+		final OneShotLatch isRunning = new OneShotLatch();
+		CheckedThread asyncRequest = new CheckedThread() {
+			@Override
+			public void go() throws Exception {
+				isRunning.trigger();
+				globalPool.requestMemorySegments(10);
+			}
+		};
+		asyncRequest.start();
+
+		// We want the destroy call inside the blocking part of the globalPool.requestMemorySegments()
+		// call above. We cannot guarantee this though but make it highly probable:
+		isRunning.await();
+		Thread.sleep(10);
+		asyncRequest.interrupt();
+
+		globalPool.recycle(segment);
+
+		try {
+			asyncRequest.sync();
+		} catch (IOException e) {
+			assertThat(e, hasProperty("cause", instanceOf(InterruptedException.class)));
+
+			// test indirectly for NetworkBufferPool#numTotalRequiredBuffers being correct:
+			// -> creating a new buffer pool should not fail
+			globalPool.createBufferPool(10, 10);
+		} finally {
+			globalPool.destroy();
+		}
 	}
 }

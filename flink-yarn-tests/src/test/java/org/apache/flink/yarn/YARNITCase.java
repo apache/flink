@@ -20,24 +20,31 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.yarn.util.YarnTestUtils;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
 import java.util.Arrays;
-import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertThat;
 
 /**
  * Test cases for the deployment of Yarn Flink clusters.
@@ -50,7 +57,6 @@ public class YARNITCase extends YarnTestBase {
 		startYARNWithConfig(YARN_CONFIGURATION);
 	}
 
-	@Ignore("The cluster cannot be stopped yet.")
 	@Test
 	public void testPerJobMode() throws Exception {
 		Configuration configuration = new Configuration();
@@ -77,50 +83,55 @@ public class YARNITCase extends YarnTestBase {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(2);
 
-			env.addSource(new InfiniteSource())
+			env.addSource(new NoDataSource())
 				.shuffle()
-				.addSink(new DiscardingSink<Integer>());
+				.addSink(new DiscardingSink<>());
 
 			final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-			File testingJar = YarnTestBase.findFile("..", new TestingYarnClusterDescriptor.TestJarFinder("flink-yarn-tests"));
+			File testingJar = YarnTestBase.findFile("..", new YarnTestUtils.TestJarFinder("flink-yarn-tests"));
 
 			jobGraph.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
 
-			ClusterClient<ApplicationId> clusterClient = yarnClusterDescriptor.deployJobCluster(
-				clusterSpecification,
-				jobGraph,
-				true);
+			ApplicationId applicationId = null;
+			ClusterClient<ApplicationId> clusterClient = null;
 
-			clusterClient.shutdown();
+			try {
+				clusterClient = yarnClusterDescriptor.deployJobCluster(
+					clusterSpecification,
+					jobGraph,
+					false);
+				applicationId = clusterClient.getClusterId();
+
+				assertThat(clusterClient, is(instanceOf(RestClusterClient.class)));
+				final RestClusterClient<ApplicationId> restClusterClient = (RestClusterClient<ApplicationId>) clusterClient;
+
+				final CompletableFuture<JobResult> jobResultCompletableFuture = restClusterClient.requestJobResult(jobGraph.getJobID());
+
+				final JobResult jobResult = jobResultCompletableFuture.get();
+
+				assertThat(jobResult, is(notNullValue()));
+				assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
+			} finally {
+				if (clusterClient != null) {
+					clusterClient.shutdown();
+				}
+
+				if (applicationId != null) {
+					yarnClusterDescriptor.killCluster(applicationId);
+				}
+			}
 		}
 	}
 
-	private static class InfiniteSource implements ParallelSourceFunction<Integer> {
+	private static class NoDataSource implements ParallelSourceFunction<Integer> {
 
 		private static final long serialVersionUID = 1642561062000662861L;
-		private volatile boolean running;
-		private final Random random;
-
-		InfiniteSource() {
-			running = true;
-			random = new Random();
-		}
 
 		@Override
-		public void run(SourceContext<Integer> ctx) throws Exception {
-			while (running) {
-				synchronized (ctx.getCheckpointLock()) {
-					ctx.collect(random.nextInt());
-				}
-
-				Thread.sleep(5L);
-			}
-		}
+		public void run(SourceContext<Integer> ctx) {}
 
 		@Override
-		public void cancel() {
-			running = false;
-		}
+		public void cancel() {}
 	}
 }

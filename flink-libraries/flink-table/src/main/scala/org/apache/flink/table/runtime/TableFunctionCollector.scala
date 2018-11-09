@@ -17,12 +17,13 @@
  */
 package org.apache.flink.table.runtime
 
+import org.apache.flink.api.common.functions.AbstractRichFunction
 import org.apache.flink.util.Collector
 
 /**
   * The basic implementation of collector for [[org.apache.flink.table.functions.TableFunction]].
   */
-abstract class TableFunctionCollector[T] extends Collector[T] {
+abstract class TableFunctionCollector[T] extends AbstractRichFunction with Collector[T] {
 
   private var input: Any = _
   private var collector: Collector[_] = _

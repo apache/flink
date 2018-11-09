@@ -24,6 +24,7 @@ import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.AutoCloseableAsync;
@@ -56,7 +57,8 @@ public class ResourceManagerRunner implements FatalErrorHandler, AutoCloseableAs
 			final HighAvailabilityServices highAvailabilityServices,
 			final HeartbeatServices heartbeatServices,
 			final MetricRegistry metricRegistry,
-			final ClusterInformation clusterInformation) throws Exception {
+			final ClusterInformation clusterInformation,
+			final JobManagerMetricGroup jobManagerMetricGroup) throws Exception {
 
 		Preconditions.checkNotNull(resourceId);
 		Preconditions.checkNotNull(configuration);
@@ -64,8 +66,6 @@ public class ResourceManagerRunner implements FatalErrorHandler, AutoCloseableAs
 		Preconditions.checkNotNull(highAvailabilityServices);
 		Preconditions.checkNotNull(heartbeatServices);
 		Preconditions.checkNotNull(metricRegistry);
-
-		final ResourceManagerConfiguration resourceManagerConfiguration = ResourceManagerConfiguration.fromConfiguration(configuration);
 
 		final ResourceManagerRuntimeServicesConfiguration resourceManagerRuntimeServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
 
@@ -78,14 +78,14 @@ public class ResourceManagerRunner implements FatalErrorHandler, AutoCloseableAs
 			rpcService,
 			resourceManagerEndpointId,
 			resourceId,
-			resourceManagerConfiguration,
 			highAvailabilityServices,
 			heartbeatServices,
 			resourceManagerRuntimeServices.getSlotManager(),
 			metricRegistry,
 			resourceManagerRuntimeServices.getJobLeaderIdService(),
 			clusterInformation,
-			this);
+			this,
+			jobManagerMetricGroup);
 	}
 
 	public ResourceManagerGateway getResourceManageGateway() {

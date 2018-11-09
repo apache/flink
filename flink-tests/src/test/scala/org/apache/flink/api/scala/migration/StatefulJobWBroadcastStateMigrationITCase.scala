@@ -65,11 +65,6 @@ object StatefulJobWBroadcastStateMigrationITCase {
   val GENERATE_SAVEPOINT_VER: MigrationVersion = MigrationVersion.v1_6
   val GENERATE_SAVEPOINT_BACKEND_TYPE: String = StateBackendLoader.MEMORY_STATE_BACKEND_NAME
 
-  val SCALA_VERSION: String = {
-    val versionString = Properties.versionString.split(" ")(1)
-    versionString.substring(0, versionString.lastIndexOf("."))
-  }
-
   val NUM_ELEMENTS = 4
 }
 
@@ -138,7 +133,6 @@ class StatefulJobWBroadcastStateMigrationITCase(
     executeAndSavepoint(
       env,
       s"src/test/resources/stateful-scala-with-broadcast" +
-        s"${StatefulJobWBroadcastStateMigrationITCase.SCALA_VERSION}" +
         s"-udf-migration-itcase-flink" +
         s"${StatefulJobWBroadcastStateMigrationITCase.GENERATE_SAVEPOINT_VER}" +
         s"-${StatefulJobWBroadcastStateMigrationITCase.GENERATE_SAVEPOINT_BACKEND_TYPE}-savepoint",
@@ -211,7 +205,7 @@ class StatefulJobWBroadcastStateMigrationITCase(
     restoreAndExecute(
       env,
       SavepointMigrationTestBase.getResourceFilename(
-        s"stateful-scala-with-broadcast${StatefulJobWBroadcastStateMigrationITCase.SCALA_VERSION}" +
+        s"stateful-scala-with-broadcast" +
           s"-udf-migration-itcase-flink${migrationVersionAndBackend._1}" +
           s"-${migrationVersionAndBackend._2}-savepoint"),
       new Tuple2(
@@ -318,7 +312,7 @@ private class AccumulatorCountingSink[T] extends RichSinkFunction[T] {
   }
 
   @throws[Exception]
-  def invoke(value: T) {
+  override def invoke(value: T) {
     count += 1
     getRuntimeContext.getAccumulator(
       AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR).add(1)

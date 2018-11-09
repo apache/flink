@@ -43,16 +43,16 @@ public abstract class ResultSubpartition {
 	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
 	protected final ArrayDeque<BufferConsumer> buffers = new ArrayDeque<>();
 
-	/** The number of non-event buffers currently in this subpartition */
+	/** The number of non-event buffers currently in this subpartition. */
 	@GuardedBy("buffers")
 	private int buffersInBacklog;
 
 	// - Statistics ----------------------------------------------------------
 
-	/** The total number of buffers (both data and event buffers) */
+	/** The total number of buffers (both data and event buffers). */
 	private long totalNumberOfBuffers;
 
-	/** The total number of bytes (both data and event buffers) */
+	/** The total number of bytes (both data and event buffers). */
 	private long totalNumberOfBytes;
 
 	public ResultSubpartition(int index, ResultPartition parent) {
@@ -102,19 +102,19 @@ public abstract class ResultSubpartition {
 	 * @throws IOException
 	 * 		thrown in case of errors while adding the buffer
 	 */
-	abstract public boolean add(BufferConsumer bufferConsumer) throws IOException;
+	public abstract boolean add(BufferConsumer bufferConsumer) throws IOException;
 
-	abstract public void flush();
+	public abstract void flush();
 
-	abstract public void finish() throws IOException;
+	public abstract void finish() throws IOException;
 
-	abstract public void release() throws IOException;
+	public abstract void release() throws IOException;
 
-	abstract public ResultSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException;
+	public abstract ResultSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException;
 
 	abstract int releaseMemory() throws IOException;
 
-	abstract public boolean isReleased();
+	public abstract boolean isReleased();
 
 	/**
 	 * Gets the number of non-event buffers in this subpartition.
@@ -132,7 +132,7 @@ public abstract class ResultSubpartition {
 	 * This method must not acquire locks or interfere with the task and network threads in
 	 * any way.
 	 */
-	abstract public int unsynchronizedGetNumberOfQueuedBuffers();
+	public abstract int unsynchronizedGetNumberOfQueuedBuffers();
 
 	/**
 	 * Decreases the number of non-event buffers by one after fetching a non-event
@@ -197,7 +197,6 @@ public abstract class ResultSubpartition {
 		public int buffersInBacklog() {
 			return buffersInBacklog;
 		}
-
 
 		public boolean nextBufferIsEvent() {
 			return nextBufferIsEvent;

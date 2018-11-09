@@ -31,7 +31,6 @@ import org.apache.flink.util.Collector
   *
   * @param leftType        the input type of left stream
   * @param rightType       the input type of right stream
-  * @param resultType      the output type of join
   * @param genJoinFuncName the function code of other non-equi condition
   * @param genJoinFuncCode the function name of other non-equi condition
   * @param isLeftJoin      the type of join, whether it is the type of left join
@@ -40,7 +39,6 @@ import org.apache.flink.util.Collector
 abstract class NonWindowOuterJoin(
     leftType: TypeInformation[Row],
     rightType: TypeInformation[Row],
-    resultType: TypeInformation[CRow],
     genJoinFuncName: String,
     genJoinFuncCode: String,
     isLeftJoin: Boolean,
@@ -48,7 +46,6 @@ abstract class NonWindowOuterJoin(
   extends NonWindowJoin(
     leftType,
     rightType,
-    resultType,
     genJoinFuncName,
     genJoinFuncCode,
     queryConfig) {
@@ -60,8 +57,9 @@ abstract class NonWindowOuterJoin(
 
   override def open(parameters: Configuration): Unit = {
     super.open(parameters)
-    leftResultRow = new Row(resultType.getArity)
-    rightResultRow = new Row(resultType.getArity)
+    val arity = leftType.getArity + rightType.getArity
+    leftResultRow = new Row(arity)
+    rightResultRow = new Row(arity)
     LOG.debug(s"Instantiating NonWindowOuterJoin")
   }
 
@@ -130,6 +128,7 @@ abstract class NonWindowOuterJoin(
       if (recordNum == 1 && value.change) {
         cRowWrapper.setChange(false)
         collectAppendNull(otherSideRow, !inputRowFromLeft, cRowWrapper)
+        // recover for the next iteration
         cRowWrapper.setChange(true)
       }
       // do normal join
@@ -139,6 +138,8 @@ abstract class NonWindowOuterJoin(
       if (!value.change && recordNum == 0) {
         cRowWrapper.setChange(true)
         collectAppendNull(otherSideRow, !inputRowFromLeft, cRowWrapper)
+        // recover for the next iteration
+        cRowWrapper.setChange(false)
       }
       // clear expired data. Note: clear after join to keep closer to the original semantics
       if (stateCleaningEnabled && curProcessTime >= otherSideCntAndExpiredTime.f1) {

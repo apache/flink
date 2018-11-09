@@ -109,7 +109,11 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 	 */
 	@Override
 	public ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target) {
-		long delay = Math.max(timestamp - getCurrentProcessingTime(), 0);
+
+		// delay the firing of the timer by 1 ms to align the semantics with watermark. A watermark
+		// T says we won't see elements in the future with a timestamp smaller or equal to T.
+		// With processing time, we therefore need to delay firing the timer by one ms.
+		long delay = Math.max(timestamp - getCurrentProcessingTime(), 0) + 1;
 
 		// we directly try to register the timer and only react to the status on exception
 		// that way we save unnecessary volatile accesses for each timer

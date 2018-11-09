@@ -28,7 +28,6 @@ else
   NUM_SLOTS=${NEW_DOP}
 fi
 
-backup_config
 change_conf "taskmanager.numberOfTaskSlots" "1" "${NUM_SLOTS}"
 setup_flink_slf4j_metric_reporter
 
@@ -43,16 +42,13 @@ function test_cleanup {
 
   # revert our modifications to the Flink distribution
   rm ${FLINK_DIR}/lib/flink-metrics-slf4j-*.jar
-
-  # make sure to run regular cleanup as well
-  cleanup
 }
 trap test_cleanup INT
 trap test_cleanup EXIT
 
 CHECKPOINT_DIR="file://${TEST_DATA_DIR}/savepoint-e2e-test-chckpt-dir"
 
-TEST_PROGRAM_JAR="${TEST_INFRA_DIR}/../../flink-end-to-end-tests/flink-stream-stateful-job-upgrade-test/target/StatefulStreamJobUpgradeTestProgram.jar"
+TEST_PROGRAM_JAR="${END_TO_END_DIR}/flink-stream-stateful-job-upgrade-test/target/StatefulStreamJobUpgradeTestProgram.jar"
 
 function job() {
     DOP=$1

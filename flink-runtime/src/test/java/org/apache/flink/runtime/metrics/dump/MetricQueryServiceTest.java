@@ -116,7 +116,7 @@ public class MetricQueryServiceTest extends TestLogger {
 		testActor.message = null;
 		assertEquals(0, emptyDump.serializedMetrics.length);
 
-		s.shutdown();
+		s.terminate();
 	}
 
 	private static class TestActor extends UntypedActor {

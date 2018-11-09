@@ -22,7 +22,11 @@ import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_VERSIO
 
 /**
  * Factory for creating configured instances of {@link Kafka09JsonTableSource}.
+ *
+ * @deprecated Ensures backwards compatibility with Flink 1.5. Can be removed once we
+ *             drop support for format-specific table sources.
  */
+@Deprecated
 public class Kafka09JsonTableSourceFactoryTest extends KafkaJsonTableSourceFactoryTestBase {
 
 	@Override

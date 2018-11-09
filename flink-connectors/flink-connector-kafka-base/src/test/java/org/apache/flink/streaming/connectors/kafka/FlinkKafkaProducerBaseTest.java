@@ -352,7 +352,7 @@ public class FlinkKafkaProducerBaseTest {
 			when(mockProducer.send(any(ProducerRecord.class), any(Callback.class))).thenAnswer(new Answer<Object>() {
 				@Override
 				public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-					pendingCallbacks.add(invocationOnMock.getArgumentAt(1, Callback.class));
+					pendingCallbacks.add(invocationOnMock.getArgument(1));
 					return null;
 				}
 			});

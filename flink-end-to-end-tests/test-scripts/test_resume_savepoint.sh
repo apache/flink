@@ -47,6 +47,7 @@ ORIGINAL_DOP=$1
 NEW_DOP=$2
 STATE_BACKEND_TYPE=${3:-file}
 STATE_BACKEND_FILE_ASYNC=${4:-true}
+STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE=${5:-heap}
 
 if (( $ORIGINAL_DOP >= $NEW_DOP )); then
   NUM_SLOTS=$ORIGINAL_DOP
@@ -54,8 +55,12 @@ else
   NUM_SLOTS=$NEW_DOP
 fi
 
-backup_config
 change_conf "taskmanager.numberOfTaskSlots" "1" "${NUM_SLOTS}"
+
+if [ $STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE == 'rocks' ]; then
+  set_conf "state.backend.rocksdb.timer-service.factory" "rocksdb"
+fi
+
 setup_flink_slf4j_metric_reporter
 
 start_cluster
@@ -69,9 +74,6 @@ function test_cleanup {
 
   # revert our modifications to the Flink distribution
   rm ${FLINK_DIR}/lib/flink-metrics-slf4j-*.jar
-
-  # make sure to run regular cleanup as well
-  cleanup
 }
 trap test_cleanup INT
 trap test_cleanup EXIT
@@ -79,7 +81,7 @@ trap test_cleanup EXIT
 CHECKPOINT_DIR="file://$TEST_DATA_DIR/savepoint-e2e-test-chckpt-dir"
 
 # run the DataStream allroundjob
-TEST_PROGRAM_JAR=$TEST_INFRA_DIR/../../flink-end-to-end-tests/flink-datastream-allround-test/target/DataStreamAllroundTestProgram.jar
+TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/DataStreamAllroundTestProgram.jar
 DATASTREAM_JOB=$($FLINK_DIR/bin/flink run -d -p $ORIGINAL_DOP $TEST_PROGRAM_JAR \
   --test.semantics exactly-once \
   --environment.parallelism $ORIGINAL_DOP \
@@ -92,7 +94,7 @@ DATASTREAM_JOB=$($FLINK_DIR/bin/flink run -d -p $ORIGINAL_DOP $TEST_PROGRAM_JAR 
 
 wait_job_running $DATASTREAM_JOB
 
-wait_oper_metric_num_in_records ArtificalKeyedStateMapper.0 200
+wait_oper_metric_num_in_records SemanticsCheckMapper.0 200
 
 # take a savepoint of the state machine job
 SAVEPOINT_PATH=$(take_savepoint $DATASTREAM_JOB $TEST_DATA_DIR \
@@ -117,7 +119,7 @@ DATASTREAM_JOB=$($FLINK_DIR/bin/flink run -s $SAVEPOINT_PATH -p $NEW_DOP -d $TES
 
 wait_job_running $DATASTREAM_JOB
 
-wait_oper_metric_num_in_records ArtificalKeyedStateMapper.0 200
+wait_oper_metric_num_in_records SemanticsCheckMapper.0 200
 
 # if state is errorneous and the state machine job produces alerting state transitions,
 # output would be non-empty and the test will not pass

@@ -19,9 +19,9 @@
 package org.apache.flink.table.descriptors
 
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.descriptors.DescriptorProperties.toScala
 import org.apache.flink.table.descriptors.StatisticsValidator.{STATISTICS_COLUMNS, STATISTICS_PROPERTY_VERSION, STATISTICS_ROW_COUNT, validateColumnStats}
 import org.apache.flink.table.plan.stats.ColumnStats
+import org.apache.flink.table.util.JavaScalaConversionUtil.toScala
 
 import scala.collection.mutable
 
@@ -31,8 +31,8 @@ import scala.collection.mutable
 class StatisticsValidator extends DescriptorValidator {
 
   override def validate(properties: DescriptorProperties): Unit = {
-    properties.validateInt(STATISTICS_PROPERTY_VERSION, isOptional = true, 0, Integer.MAX_VALUE)
-    properties.validateLong(STATISTICS_ROW_COUNT, isOptional = true, min = 0)
+    properties.validateInt(STATISTICS_PROPERTY_VERSION, true, 0, Integer.MAX_VALUE)
+    properties.validateLong(STATISTICS_ROW_COUNT, true, 0)
     validateColumnStats(properties, STATISTICS_COLUMNS)
   }
 }
@@ -84,13 +84,13 @@ object StatisticsValidator {
     val columnCount = properties.getIndexedProperty(key, NAME).size
 
     for (i <- 0 until columnCount) {
-      properties.validateString(s"$key.$i.$NAME", isOptional = false, minLen = 1)
-      properties.validateLong(s"$key.$i.$DISTINCT_COUNT", isOptional = true, min = 0L)
-      properties.validateLong(s"$key.$i.$NULL_COUNT", isOptional = true, min = 0L)
-      properties.validateDouble(s"$key.$i.$AVG_LENGTH", isOptional = true, min = 0.0)
-      properties.validateInt(s"$key.$i.$MAX_LENGTH", isOptional = true, min = 0)
-      properties.validateDouble(s"$key.$i.$MAX_VALUE", isOptional = true, min = 0.0)
-      properties.validateDouble(s"$key.$i.$MIN_VALUE", isOptional = true, min = 0.0)
+      properties.validateString(s"$key.$i.$NAME", false, 1)
+      properties.validateLong(s"$key.$i.$DISTINCT_COUNT", true, 0L)
+      properties.validateLong(s"$key.$i.$NULL_COUNT", true, 0L)
+      properties.validateDouble(s"$key.$i.$AVG_LENGTH", true, 0.0)
+      properties.validateInt(s"$key.$i.$MAX_LENGTH", true, 0)
+      properties.validateDouble(s"$key.$i.$MAX_VALUE", true, 0.0)
+      properties.validateDouble(s"$key.$i.$MIN_VALUE", true, 0.0)
     }
   }
 

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.StringUtils;
 
 import java.io.File;
@@ -35,7 +36,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -75,9 +76,6 @@ public class BufferSpiller implements BufferBlocker {
 	/** The buffer that encodes the spilled header. */
 	private final ByteBuffer headBuffer;
 
-	/** The reusable array that holds header and contents buffers. */
-	private final ByteBuffer[] sources;
-
 	/** The file that we currently spill to. */
 	private File currentSpillFile;
 
@@ -109,13 +107,11 @@ public class BufferSpiller implements BufferBlocker {
 		this.headBuffer = ByteBuffer.allocateDirect(16);
 		this.headBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
-		this.sources = new ByteBuffer[] { this.headBuffer, null };
-
 		File[] tempDirs = ioManager.getSpillingDirectories();
 		this.tempDir = tempDirs[DIRECTORY_INDEX.getAndIncrement() % tempDirs.length];
 
 		byte[] rndBytes = new byte[32];
-		new Random().nextBytes(rndBytes);
+		ThreadLocalRandom.current().nextBytes(rndBytes);
 		this.spillFilePrefix = StringUtils.byteToHexString(rndBytes) + '.';
 
 		// prepare for first contents
@@ -148,8 +144,8 @@ public class BufferSpiller implements BufferBlocker {
 
 			bytesWritten += (headBuffer.remaining() + contents.remaining());
 
-			sources[1] = contents;
-			currentChannel.write(sources);
+			FileUtils.writeCompletely(currentChannel, headBuffer);
+			FileUtils.writeCompletely(currentChannel, contents);
 		}
 		finally {
 			if (boe.isBuffer()) {

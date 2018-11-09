@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.api.scala
 
-import org.apache.flink.table.api.{TumbleWithSize, OverWindowWithPreceding, SlideWithSize, SessionWithGap}
-import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.api.{OverWindow, TumbleWithSize, OverWindowWithPreceding, SlideWithSize, SessionWithGap}
+import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 
 /**
   * Helper object for creating a tumbling window. Tumbling windows are consecutive, non-overlapping
@@ -127,7 +127,6 @@ case class PartitionedOver(partitionBy: Array[Expression]) {
 
 case class OverWindowWithOrderBy(partitionBy: Seq[Expression], orderBy: Expression) {
 
-
   /**
     * Set the preceding offset (based on time or row-count intervals) for over window.
     *
@@ -138,4 +137,21 @@ case class OverWindowWithOrderBy(partitionBy: Seq[Expression], orderBy: Expressi
     new OverWindowWithPreceding(partitionBy, orderBy, preceding)
   }
 
+  /**
+    * Assigns an alias for this window that the following `select()` clause can refer to.
+    *
+    * @param alias alias for this over window
+    * @return over window
+    */
+  def as(alias: String): OverWindow = as(ExpressionParser.parseExpression(alias))
+
+  /**
+    * Assigns an alias for this window that the following `select()` clause can refer to.
+    *
+    * @param alias alias for this over window
+    * @return over window
+    */
+  def as(alias: Expression): OverWindow = {
+    OverWindow(alias, partitionBy, orderBy, UNBOUNDED_RANGE, CURRENT_RANGE)
+  }
 }

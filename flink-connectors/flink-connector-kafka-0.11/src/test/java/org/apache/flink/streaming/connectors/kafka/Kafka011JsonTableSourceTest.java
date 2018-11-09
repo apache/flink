@@ -24,11 +24,15 @@ import org.apache.flink.types.Row;
 
 /**
  * Tests for the {@link Kafka011JsonTableSource}.
+ *
+ * @deprecated Ensures backwards compatibility with Flink 1.5. Can be removed once we
+ *             drop support for format-specific table sources.
  */
+@Deprecated
 public class Kafka011JsonTableSourceTest extends KafkaJsonTableSourceTestBase {
 
 	@Override
-	protected KafkaTableSource.Builder getBuilder() {
+	protected KafkaTableSourceBase.Builder getBuilder() {
 		return Kafka011JsonTableSource.builder();
 	}
 

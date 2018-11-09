@@ -38,7 +38,7 @@ import org.apache.flink.streaming.api.functions.sink.TwoPhaseCommitSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.internal.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.internal.TransactionalIdsGenerator;
-import org.apache.flink.streaming.connectors.kafka.internal.metrics.KafkaMetricMuttableWrapper;
+import org.apache.flink.streaming.connectors.kafka.internal.metrics.KafkaMetricMutableWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaDelegatePartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
@@ -255,7 +255,7 @@ public class FlinkKafkaProducer011<IN>
 	private final AtomicLong pendingRecords = new AtomicLong();
 
 	/** Cache of metrics to replace already registered metrics instead of overwriting existing ones. */
-	private final Map<String, KafkaMetricMuttableWrapper> previouslyCreatedMetrics = new HashMap<>();
+	private final Map<String, KafkaMetricMutableWrapper> previouslyCreatedMetrics = new HashMap<>();
 
 	/**
 	 * Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to
@@ -689,7 +689,7 @@ public class FlinkKafkaProducer011<IN>
 				if (currentTransaction != null && currentTransaction.producer != null) {
 					return new KafkaTransactionState(currentTransaction.producer);
 				}
-				return new KafkaTransactionState(initProducer(true));
+				return new KafkaTransactionState(initNonTransactionalProducer(true));
 			default:
 				throw new UnsupportedOperationException("Not implemented semantic");
 		}
@@ -712,73 +712,46 @@ public class FlinkKafkaProducer011<IN>
 
 	@Override
 	protected void commit(KafkaTransactionState transaction) {
-		switch (semantic) {
-			case EXACTLY_ONCE:
-				transaction.producer.commitTransaction();
-				recycleTransactionalProducer(transaction.producer);
-				break;
-			case AT_LEAST_ONCE:
-			case NONE:
-				break;
-			default:
-				throw new UnsupportedOperationException("Not implemented semantic");
+		if (transaction.isTransactional()) {
+			transaction.producer.commitTransaction();
+			recycleTransactionalProducer(transaction.producer);
 		}
 	}
 
 	@Override
 	protected void recoverAndCommit(KafkaTransactionState transaction) {
-		switch (semantic) {
-			case EXACTLY_ONCE:
-				try (FlinkKafkaProducer<byte[], byte[]> producer =
-						initTransactionalProducer(transaction.transactionalId, false)) {
-					producer.resumeTransaction(transaction.producerId, transaction.epoch);
-					producer.commitTransaction();
-				}
-				catch (InvalidTxnStateException | ProducerFencedException ex) {
-					// That means we have committed this transaction before.
-					LOG.warn("Encountered error {} while recovering transaction {}. " +
+		if (transaction.isTransactional()) {
+			try (
+				FlinkKafkaProducer<byte[], byte[]> producer =
+					initTransactionalProducer(transaction.transactionalId, false)) {
+				producer.resumeTransaction(transaction.producerId, transaction.epoch);
+				producer.commitTransaction();
+			} catch (InvalidTxnStateException | ProducerFencedException ex) {
+				// That means we have committed this transaction before.
+				LOG.warn("Encountered error {} while recovering transaction {}. " +
 						"Presumably this transaction has been already committed before",
-						ex,
-						transaction);
-				}
-				break;
-			case AT_LEAST_ONCE:
-			case NONE:
-				break;
-			default:
-				throw new UnsupportedOperationException("Not implemented semantic");
+					ex,
+					transaction);
+			}
 		}
 	}
 
 	@Override
 	protected void abort(KafkaTransactionState transaction) {
-		switch (semantic) {
-			case EXACTLY_ONCE:
-				transaction.producer.abortTransaction();
-				recycleTransactionalProducer(transaction.producer);
-				break;
-			case AT_LEAST_ONCE:
-			case NONE:
-				break;
-			default:
-				throw new UnsupportedOperationException("Not implemented semantic");
+		if (transaction.isTransactional()) {
+			transaction.producer.abortTransaction();
+			recycleTransactionalProducer(transaction.producer);
 		}
 	}
 
 	@Override
 	protected void recoverAndAbort(KafkaTransactionState transaction) {
-		switch (semantic) {
-			case EXACTLY_ONCE:
-				try (FlinkKafkaProducer<byte[], byte[]> producer =
-						initTransactionalProducer(transaction.transactionalId, false)) {
-					producer.initTransactions();
-				}
-				break;
-			case AT_LEAST_ONCE:
-			case NONE:
-				break;
-			default:
-				throw new UnsupportedOperationException("Not implemented semantic");
+		if (transaction.isTransactional()) {
+			try (
+				FlinkKafkaProducer<byte[], byte[]> producer =
+					initTransactionalProducer(transaction.transactionalId, false)) {
+				producer.initTransactions();
+			}
 		}
 	}
 
@@ -905,9 +878,7 @@ public class FlinkKafkaProducer011<IN>
 
 	private void resetAvailableTransactionalIdsPool(Collection<String> transactionalIds) {
 		availableTransactionalIds.clear();
-		for (String transactionalId : transactionalIds) {
-			availableTransactionalIds.add(transactionalId);
-		}
+		availableTransactionalIds.addAll(transactionalIds);
 	}
 
 	// ----------------------------------- Utilities --------------------------
@@ -916,6 +887,7 @@ public class FlinkKafkaProducer011<IN>
 		for (String transactionalId : transactionalIds) {
 			try (FlinkKafkaProducer<byte[], byte[]> kafkaProducer =
 					initTransactionalProducer(transactionalId, false)) {
+				// it suffice to call initTransactions - this will abort any lingering transactions
 				kafkaProducer.initTransactions();
 			}
 		}
@@ -956,6 +928,11 @@ public class FlinkKafkaProducer011<IN>
 		return initProducer(registerMetrics);
 	}
 
+	private FlinkKafkaProducer<byte[], byte[]> initNonTransactionalProducer(boolean registerMetrics) {
+		producerConfig.remove("transactional.id");
+		return initProducer(registerMetrics);
+	}
+
 	private FlinkKafkaProducer<byte[], byte[]> initProducer(boolean registerMetrics) {
 		FlinkKafkaProducer<byte[], byte[]> producer = new FlinkKafkaProducer<>(this.producerConfig);
 
@@ -985,12 +962,12 @@ public class FlinkKafkaProducer011<IN>
 					String name = entry.getKey().name();
 					Metric metric = entry.getValue();
 
-					KafkaMetricMuttableWrapper wrapper = previouslyCreatedMetrics.get(name);
+					KafkaMetricMutableWrapper wrapper = previouslyCreatedMetrics.get(name);
 					if (wrapper != null) {
 						wrapper.setKafkaMetric(metric);
 					} else {
 						// TODO: somehow merge metrics from all active producers?
-						wrapper = new KafkaMetricMuttableWrapper(metric);
+						wrapper = new KafkaMetricMutableWrapper(metric);
 						previouslyCreatedMetrics.put(name, wrapper);
 						kafkaMetricGroup.gauge(name, wrapper);
 					}
@@ -1074,7 +1051,7 @@ public class FlinkKafkaProducer011<IN>
 		}
 
 		KafkaTransactionState(
-				String transactionalId,
+				@Nullable String transactionalId,
 				long producerId,
 				short epoch,
 				FlinkKafkaProducer<byte[], byte[]> producer) {
@@ -1082,6 +1059,10 @@ public class FlinkKafkaProducer011<IN>
 			this.producerId = producerId;
 			this.epoch = epoch;
 			this.producer = producer;
+		}
+
+		boolean isTransactional() {
+			return transactionalId != null;
 		}
 
 		@Override

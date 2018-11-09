@@ -33,6 +33,11 @@
             <td>The maximum time in ms for the client to establish a TCP connection.</td>
         </tr>
         <tr>
+            <td><h5>rest.idleness-timeout</h5></td>
+            <td style="word-wrap: break-word;">300000</td>
+            <td>The maximum time in ms for a connection to stay idle before failing.</td>
+        </tr>
+        <tr>
             <td><h5>rest.port</h5></td>
             <td style="word-wrap: break-word;">8081</td>
             <td>The port that the server listens on / the client connects to.</td>
@@ -51,6 +56,16 @@
             <td><h5>rest.server.max-content-length</h5></td>
             <td style="word-wrap: break-word;">104857600</td>
             <td>The maximum content length in bytes that the server will handle.</td>
+        </tr>
+        <tr>
+            <td><h5>rest.server.numThreads</h5></td>
+            <td style="word-wrap: break-word;">4</td>
+            <td>The number of threads for the asynchronous processing of requests.</td>
+        </tr>
+        <tr>
+            <td><h5>rest.server.thread-priority</h5></td>
+            <td style="word-wrap: break-word;">5</td>
+            <td>Thread priority of the REST server's executor for processing asynchronous requests. Lowering the thread priority will give Flink's main components more CPU time whereas increasing will allocate more time for the REST server's processing.</td>
         </tr>
     </tbody>
 </table>

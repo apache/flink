@@ -28,7 +28,6 @@ import org.jline.utils.AttributedStyle;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.IntStream;
 
 import static org.apache.flink.table.client.cli.CliUtils.normalizeColumn;
 
@@ -145,8 +144,8 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
 		}
 		final CliRowView view = new CliRowView(
 			client,
-			resultDescriptor.getResultSchema().getColumnNames(),
-			CliUtils.typesToString(resultDescriptor.getResultSchema().getTypes()),
+			resultDescriptor.getResultSchema().getFieldNames(),
+			CliUtils.typesToString(resultDescriptor.getResultSchema().getFieldTypes()),
 			getRow(results.get(selectedRow)));
 		view.open(); // enter view
 	}
@@ -182,9 +181,8 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
 	protected List<AttributedString> computeMainLines() {
 		final List<AttributedString> lines = new ArrayList<>();
 
-		IntStream.range(0, results.size()).forEach(lineIdx -> {
-			final String[] line = results.get(lineIdx);
-
+		int lineIdx = 0;
+		for (String[] line : results) {
 			final AttributedStringBuilder row = new AttributedStringBuilder();
 
 			// highlight selected row
@@ -192,7 +190,7 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
 				row.style(AttributedStyle.DEFAULT.inverse());
 			}
 
-			IntStream.range(0, line.length).forEach(colIdx -> {
+			for (int colIdx = 0; colIdx < line.length; colIdx++) {
 				final String col = line[colIdx];
 				final int columnWidth = computeColumnWidth(colIdx);
 
@@ -208,24 +206,18 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
 				} else {
 					normalizeColumn(row, col, columnWidth);
 				}
-			});
+			}
 			lines.add(row.toAttributedString());
-		});
+
+			lineIdx++;
+		}
 
 		return lines;
 	}
 
 	@Override
 	protected void cleanUp() {
-		// stop retrieval
 		stopRetrieval();
-
-		// cancel table program
-		try {
-			client.getExecutor().cancelQuery(client.getContext(), resultDescriptor.getResultId());
-		} catch (SqlExecutionException e) {
-			// ignore further exceptions
-		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -284,6 +276,15 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
 				if (CliResultView.this.isRunning()) {
 					display();
 				}
+			}
+
+			// cancel table program
+			try {
+				// the cancellation happens in the refresh thread in order to keep the main thread
+				// responsive at all times; esp. if the cluster is not available
+				client.getExecutor().cancelQuery(client.getContext(), resultDescriptor.getResultId());
+			} catch (SqlExecutionException e) {
+				// ignore further exceptions
 			}
 		}
 	}

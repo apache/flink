@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
@@ -896,7 +897,6 @@ public class WindowedStream<T, K, W extends Window> {
 			WindowFunction.class,
 			0,
 			1,
-			new int[]{2, 0},
 			new int[]{3, 0},
 			inType,
 			null,
@@ -912,7 +912,6 @@ public class WindowedStream<T, K, W extends Window> {
 			ProcessWindowFunction.class,
 			0,
 			1,
-			TypeExtractor.NO_INDEX,
 			TypeExtractor.NO_INDEX,
 			inType,
 			functionName,
@@ -1012,7 +1011,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>Not that this function requires that all data in the windows is buffered until the window
+	 * <p>Note that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The window function.
@@ -1046,7 +1045,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>Not that this function requires that all data in the windows is buffered until the window
+	 * <p>Note that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The window function.
@@ -1064,7 +1063,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>Not that this function requires that all data in the windows is buffered until the window
+	 * <p>Note that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The window function.
@@ -1540,5 +1539,12 @@ public class WindowedStream<T, K, W extends Window> {
 
 	public TypeInformation<T> getInputType() {
 		return input.getType();
+	}
+
+	// -------------------- Testing Methods --------------------
+
+	@VisibleForTesting
+	long getAllowedLateness() {
+		return allowedLateness;
 	}
 }

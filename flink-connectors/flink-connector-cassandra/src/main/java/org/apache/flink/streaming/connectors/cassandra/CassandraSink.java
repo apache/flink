@@ -236,10 +236,12 @@ public class CassandraSink<IN> {
 		protected final TypeSerializer<IN> serializer;
 		protected final TypeInformation<IN> typeInfo;
 		protected ClusterBuilder builder;
+		protected String keyspace;
 		protected MapperOptions mapperOptions;
 		protected String query;
 		protected CheckpointCommitter committer;
 		protected boolean isWriteAheadLogEnabled;
+		protected CassandraFailureHandler failureHandler;
 
 		public CassandraSinkBuilder(DataStream<IN> input, TypeInformation<IN> typeInfo, TypeSerializer<IN> serializer) {
 			this.input = input;
@@ -255,6 +257,17 @@ public class CassandraSink<IN> {
 		 */
 		public CassandraSinkBuilder<IN> setQuery(String query) {
 			this.query = query;
+			return this;
+		}
+
+		/**
+		 * Sets the keyspace to be used.
+		 *
+		 * @param keyspace keyspace to use
+		 * @return this builder
+		 */
+		public CassandraSinkBuilder<IN> setDefaultKeyspace(String keyspace) {
+			this.keyspace = keyspace;
 			return this;
 		}
 
@@ -343,6 +356,18 @@ public class CassandraSink<IN> {
 		}
 
 		/**
+		 * Sets the failure handler for this sink. The failure handler is used to provide custom error handling.
+		 *
+		 * @param failureHandler CassandraFailureHandler, that handles any Throwable error.
+		 *
+		 * @return this builder
+		 */
+		public CassandraSinkBuilder<IN> setFailureHandler(CassandraFailureHandler failureHandler) {
+			this.failureHandler = failureHandler;
+			return this;
+		}
+
+		/**
 		 * Finalizes the configuration of this sink.
 		 *
 		 * @return finalized sink
@@ -350,6 +375,9 @@ public class CassandraSink<IN> {
 		 */
 		public CassandraSink<IN> build() throws Exception {
 			sanityCheck();
+			if (failureHandler == null) {
+				failureHandler = new NoOpCassandraFailureHandler();
+			}
 			return isWriteAheadLogEnabled
 				? createWriteAheadSink()
 				: createSink();
@@ -381,11 +409,14 @@ public class CassandraSink<IN> {
 			if (query == null || query.length() == 0) {
 				throw new IllegalArgumentException("Query must not be null or empty.");
 			}
+			if (keyspace != null) {
+				throw new IllegalArgumentException("Specifying a default keyspace is only allowed when using a Pojo-Stream as input.");
+			}
 		}
 
 		@Override
 		public CassandraSink<IN> createSink() throws Exception {
-			return new CassandraSink<>(input.addSink(new CassandraTupleSink<IN>(query, builder)).name("Cassandra Sink"));
+			return new CassandraSink<>(input.addSink(new CassandraTupleSink<IN>(query, builder, failureHandler)).name("Cassandra Sink"));
 		}
 
 		@Override
@@ -410,11 +441,14 @@ public class CassandraSink<IN> {
 			if (query == null || query.length() == 0) {
 				throw new IllegalArgumentException("Query must not be null or empty.");
 			}
+			if (keyspace != null) {
+				throw new IllegalArgumentException("Specifying a default keyspace is only allowed when using a Pojo-Stream as input.");
+			}
 		}
 
 		@Override
 		protected CassandraSink<Row> createSink() throws Exception {
-			return new CassandraSink<>(input.addSink(new CassandraRowSink(typeInfo.getArity(), query, builder)).name("Cassandra Sink"));
+			return new CassandraSink<>(input.addSink(new CassandraRowSink(typeInfo.getArity(), query, builder, failureHandler)).name("Cassandra Sink"));
 
 		}
 
@@ -445,7 +479,7 @@ public class CassandraSink<IN> {
 
 		@Override
 		public CassandraSink<IN> createSink() throws Exception {
-			return new CassandraSink<>(input.addSink(new CassandraPojoSink<>(typeInfo.getTypeClass(), builder, mapperOptions)).name("Cassandra Sink"));
+			return new CassandraSink<>(input.addSink(new CassandraPojoSink<>(typeInfo.getTypeClass(), builder, mapperOptions, keyspace, failureHandler)).name("Cassandra Sink"));
 		}
 
 		@Override
@@ -470,11 +504,14 @@ public class CassandraSink<IN> {
 			if (query == null || query.length() == 0) {
 				throw new IllegalArgumentException("Query must not be null or empty.");
 			}
+			if (keyspace != null) {
+				throw new IllegalArgumentException("Specifying a default keyspace is only allowed when using a Pojo-Stream as input.");
+			}
 		}
 
 		@Override
 		public CassandraSink<IN> createSink() throws Exception {
-			return new CassandraSink<>(input.addSink(new CassandraScalaProductSink<IN>(query, builder)).name("Cassandra Sink"));
+			return new CassandraSink<>(input.addSink(new CassandraScalaProductSink<IN>(query, builder, failureHandler)).name("Cassandra Sink"));
 		}
 
 		@Override

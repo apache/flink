@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -31,7 +32,7 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
-import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.AfterClass;
@@ -69,11 +70,12 @@ public class KafkaShortRetentionTestBase implements Serializable {
 	private static Properties standardProps;
 
 	@ClassRule
-	public static MiniClusterResource flink = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			getConfiguration(),
-			NUM_TMS,
-			TM_SLOTS));
+	public static MiniClusterWithClientResource flink = new MiniClusterWithClientResource(
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getConfiguration())
+			.setNumberTaskManagers(NUM_TMS)
+			.setNumberSlotsPerTaskManager(TM_SLOTS)
+			.build());
 
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
@@ -82,7 +84,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 
 	private static Configuration getConfiguration() {
 		Configuration flinkConfig = new Configuration();
-		flinkConfig.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 16L);
+		flinkConfig.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "16m");
 		flinkConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
 		return flinkConfig;
 	}

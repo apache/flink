@@ -59,7 +59,9 @@ class CRowCorrelateProcessRunner(
     val constructor = processClazz.getConstructor(classOf[TableFunctionCollector[_]])
     LOG.debug("Instantiating ProcessFunction.")
     function = constructor.newInstance(collector).asInstanceOf[ProcessFunction[Row, Row]]
+    FunctionUtils.setFunctionRuntimeContext(collector, getRuntimeContext)
     FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
+    FunctionUtils.openFunction(collector, parameters)
     FunctionUtils.openFunction(function, parameters)
   }
 
@@ -85,6 +87,7 @@ class CRowCorrelateProcessRunner(
   override def getProducedType: TypeInformation[CRow] = returnType
 
   override def close(): Unit = {
+    FunctionUtils.closeFunction(collector)
     FunctionUtils.closeFunction(function)
   }
 }

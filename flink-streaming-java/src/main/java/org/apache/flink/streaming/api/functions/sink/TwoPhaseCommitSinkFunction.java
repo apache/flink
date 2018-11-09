@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapsh
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
@@ -319,9 +320,9 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 
 		state = context.getOperatorStateStore().getListState(stateDescriptor);
 
+		boolean recoveredUserContext = false;
 		if (context.isRestored()) {
 			LOG.info("{} - restoring state", name());
-
 			for (State<TXN, CONTEXT> operatorState : state.get()) {
 				userContext = operatorState.getContext();
 				List<TransactionHolder<TXN>> recoveredTransactions = operatorState.getPendingCommitTransactions();
@@ -336,11 +337,13 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 
 				if (userContext.isPresent()) {
 					finishRecoveringContext();
+					recoveredUserContext = true;
 				}
 			}
 		}
+
 		// if in restore we didn't get any userContext or we are initializing from scratch
-		if (userContext == null) {
+		if (!recoveredUserContext) {
 			LOG.info("{} - no state to restore", name());
 
 			userContext = initializeUserContext();
@@ -763,16 +766,16 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		public TypeSerializerConfigSnapshot<State<TXN, CONTEXT>> snapshotConfiguration() {
 			return new StateSerializerConfigSnapshot<>(transactionSerializer, contextSerializer);
 		}
 
 		@Override
 		public CompatibilityResult<State<TXN, CONTEXT>> ensureCompatibility(
-				TypeSerializerConfigSnapshot configSnapshot) {
+				TypeSerializerConfigSnapshot<?> configSnapshot) {
 			if (configSnapshot instanceof StateSerializerConfigSnapshot) {
-				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs =
-						((StateSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
+				List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> previousSerializersAndConfigs =
+						((StateSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
 
 				CompatibilityResult<TXN> txnCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 						previousSerializersAndConfigs.get(0).f0,
@@ -809,7 +812,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 	 */
 	@Internal
 	public static final class StateSerializerConfigSnapshot<TXN, CONTEXT>
-			extends CompositeTypeSerializerConfigSnapshot {
+			extends CompositeTypeSerializerConfigSnapshot<State<TXN, CONTEXT>> {
 
 		private static final int VERSION = 1;
 

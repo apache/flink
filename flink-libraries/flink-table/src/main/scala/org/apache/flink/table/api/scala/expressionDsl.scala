@@ -22,12 +22,13 @@ import java.sql.{Date, Time, Timestamp}
 
 import org.apache.calcite.avatica.util.DateTimeUtils._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.table.api.{TableException, CurrentRow, CurrentRange, UnboundedRow, UnboundedRange}
+import org.apache.flink.table.api.{CurrentRange, CurrentRow, TableException, UnboundedRange, UnboundedRow}
 import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
 import org.apache.flink.table.api.Table
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
+import org.apache.flink.table.expressions.TimePointUnit.TimePointUnit
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.{AggregateFunction, DistinctAggregateFunction}
 
 import scala.language.implicitConversions
 
@@ -172,7 +173,7 @@ trait ImplicitExpressionOperations {
     * If all values are null, 0 is returned.
     */
   def sum0 = Sum0(expr)
-  
+
   /**
     * Returns the minimum value of field across all input values.
     */
@@ -214,7 +215,7 @@ trait ImplicitExpressionOperations {
   def varSamp = VarSamp(expr)
 
   /**
-    *  Returns multiset aggregate of a given expression.
+    * Returns multiset aggregate of a given expression.
     */
   def collect = Collect(expr)
 
@@ -236,7 +237,18 @@ trait ImplicitExpressionOperations {
     */
   def as(name: Symbol, extraNames: Symbol*) = Alias(expr, name.name, extraNames.map(_.name))
 
+  /**
+    * Specifies ascending order of an expression i.e. a field for orderBy call.
+    *
+    * @return ascend expression
+    */
   def asc = Asc(expr)
+
+  /**
+    * Specifies descending order of an expression i.e. a field for orderBy call.
+    *
+    * @return descend expression
+    */
   def desc = Desc(expr)
 
   /**
@@ -301,6 +313,11 @@ trait ImplicitExpressionOperations {
   def log10() = Log10(expr)
 
   /**
+    * Calculates the base 2 logarithm of the given value.
+    */
+  def log2() = Log2(expr)
+
+  /**
     * Calculates the natural logarithm of the given value.
     */
   def ln() = Ln(expr)
@@ -321,6 +338,11 @@ trait ImplicitExpressionOperations {
   def power(other: Expression) = Power(expr, other)
 
   /**
+    * Calculates the hyperbolic cosine of a given value.
+    */
+  def cosh() = Cosh(expr)
+
+  /**
     * Calculates the square root of a given value.
     */
   def sqrt() = Sqrt(expr)
@@ -334,6 +356,11 @@ trait ImplicitExpressionOperations {
     * Calculates the largest integer less than or equal to a given number.
     */
   def floor() = Floor(expr)
+
+  /**
+    * Calculates the hyperbolic sine of a given value.
+    */
+  def sinh() = Sinh(expr)
 
   /**
     * Calculates the smallest integer greater than or equal to a given number.
@@ -376,6 +403,11 @@ trait ImplicitExpressionOperations {
   def atan() = Atan(expr)
 
   /**
+    * Calculates the hyperbolic tangent of a given number.
+    */
+  def tanh() = Tanh(expr)
+
+  /**
     * Converts numeric from radians to degrees.
     */
   def degrees() = Degrees(expr)
@@ -400,6 +432,15 @@ trait ImplicitExpressionOperations {
     * numeric is null. E.g. "4" leads to "100", "12" leads to "1100".
     */
   def bin() = Bin(expr)
+
+  /**
+    * Returns a string representation of an integer numeric value or a string in hex format. Returns
+    * null if numeric or string is null.
+    *
+    * E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", and a string "hello,world" leads
+    * to "68656c6c6f2c776f726c64".
+    */
+  def hex() = Hex(expr)
 
   // String operations
 
@@ -444,6 +485,13 @@ trait ImplicitExpressionOperations {
       expr
     }
   }
+
+  /**
+    * Returns a new string which replaces all the occurrences of the search target
+    * with the replacement string (non-overlapping).
+    */
+  def replace(search: Expression, replacement: Expression) =
+    Replace(expr, search, replacement)
 
   /**
     * Returns the length of a string.
@@ -539,20 +587,64 @@ trait ImplicitExpressionOperations {
   def overlay(newString: Expression, starting: Expression, length: Expression) =
     Overlay(expr, newString, starting, length)
 
+  /**
+    * Returns a string with all substrings that match the regular expression consecutively
+    * being replaced.
+    */
+  def regexpReplace(regex: Expression, replacement: Expression) =
+    RegexpReplace(expr, regex, replacement)
+
+  /**
+    * Returns a string extracted with a specified regular expression and a regex match group index.
+    */
+  def regexpExtract(regex: Expression, extractIndex: Expression) =
+    RegexpExtract(expr, regex, extractIndex)
+
+  /**
+    * Returns a string extracted with a specified regular expression.
+    */
+  def regexpExtract(regex: Expression) =
+    RegexpExtract(expr, regex, null)
+
+  /**
+    * Returns the base string decoded with base64.
+    */
+  def fromBase64() = FromBase64(expr)
+
+  /**
+    * Returns the base64-encoded result of the input string.
+    */
+  def toBase64() = ToBase64(expr)
+
+  /**
+    * Returns a string that removes the left whitespaces from the given string.
+    */
+  def ltrim() = LTrim(expr)
+
+  /**
+    * Returns a string that removes the right whitespaces from the given string.
+    */
+  def rtrim() = RTrim(expr)
+
+  /**
+    * Returns a string that repeats the base string n times.
+    */
+  def repeat(n: Expression) = Repeat(expr, n)
+
   // Temporal operations
 
   /**
-    * Parses a date string in the form "yy-mm-dd" to a SQL Date.
+    * Parses a date string in the form "yyyy-MM-dd" to a SQL Date.
     */
   def toDate = Cast(expr, SqlTimeTypeInfo.DATE)
 
   /**
-    * Parses a time string in the form "hh:mm:ss" to a SQL Time.
+    * Parses a time string in the form "HH:mm:ss" to a SQL Time.
     */
   def toTime = Cast(expr, SqlTimeTypeInfo.TIME)
 
   /**
-    * Parses a timestamp string in the form "yy-mm-dd hh:mm:ss.fff" to a SQL Timestamp.
+    * Parses a timestamp string in the form "yyyy-MM-dd HH:mm:ss[.SSS]" to a SQL Timestamp.
     */
   def toTimestamp = Cast(expr, SqlTimeTypeInfo.TIMESTAMP)
 
@@ -562,13 +654,6 @@ trait ImplicitExpressionOperations {
     * e.g. "2006-06-05".toDate.extract(DAY) leads to 5
     */
   def extract(timeIntervalUnit: TimeIntervalUnit) = Extract(timeIntervalUnit, expr)
-
-  /**
-    * Returns the quarter of a year from a SQL date.
-    *
-    * e.g. "1994-09-27".toDate.quarter() leads to 3
-    */
-  def quarter() = Quarter(expr)
 
   /**
     * Rounds down a time point to the given unit.
@@ -591,98 +676,126 @@ trait ImplicitExpressionOperations {
     *
     * @return interval of months
     */
-  def year = toMonthInterval(expr, 12)
+  def year: Expression = toMonthInterval(expr, 12)
 
   /**
     * Creates an interval of the given number of years.
     *
     * @return interval of months
     */
-  def years = year
+  def years: Expression = year
+
+  /**
+   * Creates an interval of the given number of quarters.
+   *
+   * @return interval of months
+   */
+  def quarter: Expression = toMonthInterval(expr, 3)
+
+  /**
+   * Creates an interval of the given number of quarters.
+   *
+   * @return interval of months
+   */
+  def quarters: Expression = quarter
 
   /**
     * Creates an interval of the given number of months.
     *
     * @return interval of months
     */
-  def month = toMonthInterval(expr, 1)
+  def month: Expression = toMonthInterval(expr, 1)
 
   /**
     * Creates an interval of the given number of months.
     *
     * @return interval of months
     */
-  def months = month
+  def months: Expression = month
+
+  /**
+    * Creates an interval of the given number of weeks.
+    *
+    * @return interval of milliseconds
+    */
+  def week: Expression = toMilliInterval(expr, 7 * MILLIS_PER_DAY)
+
+  /**
+    * Creates an interval of the given number of weeks.
+    *
+    * @return interval of milliseconds
+    */
+  def weeks: Expression = week
 
   /**
     * Creates an interval of the given number of days.
     *
     * @return interval of milliseconds
     */
-  def day = toMilliInterval(expr, MILLIS_PER_DAY)
+  def day: Expression = toMilliInterval(expr, MILLIS_PER_DAY)
 
   /**
     * Creates an interval of the given number of days.
     *
     * @return interval of milliseconds
     */
-  def days = day
+  def days: Expression = day
 
   /**
     * Creates an interval of the given number of hours.
     *
     * @return interval of milliseconds
     */
-  def hour = toMilliInterval(expr, MILLIS_PER_HOUR)
+  def hour: Expression = toMilliInterval(expr, MILLIS_PER_HOUR)
 
   /**
     * Creates an interval of the given number of hours.
     *
     * @return interval of milliseconds
     */
-  def hours = hour
+  def hours: Expression = hour
 
   /**
     * Creates an interval of the given number of minutes.
     *
     * @return interval of milliseconds
     */
-  def minute = toMilliInterval(expr, MILLIS_PER_MINUTE)
+  def minute: Expression = toMilliInterval(expr, MILLIS_PER_MINUTE)
 
   /**
     * Creates an interval of the given number of minutes.
     *
     * @return interval of milliseconds
     */
-  def minutes = minute
+  def minutes: Expression = minute
 
   /**
     * Creates an interval of the given number of seconds.
     *
     * @return interval of milliseconds
     */
-  def second = toMilliInterval(expr, MILLIS_PER_SECOND)
+  def second: Expression = toMilliInterval(expr, MILLIS_PER_SECOND)
 
   /**
     * Creates an interval of the given number of seconds.
     *
     * @return interval of milliseconds
     */
-  def seconds = second
+  def seconds: Expression = second
 
   /**
     * Creates an interval of the given number of milliseconds.
     *
     * @return interval of milliseconds
     */
-  def milli = toMilliInterval(expr, 1)
+  def milli: Expression = toMilliInterval(expr, 1)
 
   /**
     * Creates an interval of the given number of milliseconds.
     *
     * @return interval of milliseconds
     */
-  def millis = milli
+  def millis: Expression = milli
 
   // Row interval type
 
@@ -691,7 +804,7 @@ trait ImplicitExpressionOperations {
     *
     * @return interval of rows
     */
-  def rows = toRowInterval(expr)
+  def rows: Expression = toRowInterval(expr)
 
   // Advanced type helper functions
 
@@ -927,6 +1040,10 @@ trait ImplicitExpressionConversions {
   implicit def array2ArrayConstructor(array: Array[_]): Expression = convertArray(array)
   implicit def userDefinedAggFunctionConstructor[T: TypeInformation, ACC: TypeInformation]
       (udagg: AggregateFunction[T, ACC]): UDAGGExpression[T, ACC] = UDAGGExpression(udagg)
+  implicit def toDistinct(agg: Aggregation): DistinctAgg = DistinctAgg(agg)
+  implicit def toDistinct[T: TypeInformation, ACC: TypeInformation]
+      (agg: AggregateFunction[T, ACC]): DistinctAggregateFunction[T, ACC] =
+    DistinctAggregateFunction(agg)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1060,6 +1177,34 @@ object dateFormat {
 }
 
 /**
+  * Returns the (signed) number of [[TimePointUnit]] between timePoint1 and timePoint2.
+  *
+  * For example, timestampDiff(TimePointUnit.DAY, '2016-06-15'.toDate, '2016-06-18'.toDate leads
+  * to 3.
+  */
+object timestampDiff {
+
+  /**
+    * Returns the (signed) number of [[TimePointUnit]] between timePoint1 and timePoint2.
+    *
+    * For example, timestampDiff(TimePointUnit.DAY, '2016-06-15'.toDate, '2016-06-18'.toDate leads
+    * to 3.
+    *
+    * @param timePointUnit The unit to compute diff.
+    * @param timePoint1 The first point in time.
+    * @param timePoint2 The second point in time.
+    * @return The number of intervals as integer value.
+    */
+  def apply(
+      timePointUnit: TimePointUnit,
+      timePoint1: Expression,
+      timePoint2: Expression)
+    : Expression = {
+    TimestampDiff(timePointUnit, timePoint1, timePoint2)
+  }
+}
+
+/**
   * Creates an array of literals. The array will be an array of objects (not primitives).
   */
 object array {
@@ -1175,8 +1320,26 @@ object randInteger {
   * Returns NULL if any argument is NULL.
   */
 object concat {
+
+  /**
+    * Returns the string that results from concatenating the arguments.
+    * Returns NULL if any argument is NULL.
+    */
   def apply(string: Expression, strings: Expression*): Expression = {
     Concat(Seq(string) ++ strings)
+  }
+}
+
+/**
+  * Calculates the arc tangent of a given coordinate.
+  */
+object atan2 {
+
+  /**
+    * Calculates the arc tangent of a given coordinate.
+    */
+  def apply(y: Expression, x: Expression): Expression = {
+    Atan2(y, x)
   }
 }
 
@@ -1190,6 +1353,25 @@ object concat {
 object concat_ws {
   def apply(separator: Expression, string: Expression, strings: Expression*): Expression = {
     ConcatWs(separator, Seq(string) ++ strings)
+  }
+}
+
+/**
+  * Returns an UUID (Universally Unique Identifier) string (e.g.,
+  * "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly
+  * generated) UUID. The UUID is generated using a cryptographically strong pseudo random number
+  * generator.
+  */
+object uuid {
+
+  /**
+    * Returns an UUID (Universally Unique Identifier) string (e.g.,
+    * "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly
+    * generated) UUID. The UUID is generated using a cryptographically strong pseudo random number
+    * generator.
+    */
+  def apply(): Expression = {
+    UUID()
   }
 }
 

@@ -25,6 +25,8 @@ import org.apache.flink.table.api.Types;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
+import org.apache.flink.table.client.gateway.utils.TestTableSinkFactoryBase;
+import org.apache.flink.table.client.gateway.utils.TestTableSourceFactoryBase;
 
 import org.junit.Test;
 
@@ -41,20 +43,23 @@ import static org.junit.Assert.assertEquals;
  */
 public class DependencyTest {
 
+	public static final String CONNECTOR_TYPE_VALUE = "test-connector";
+	public static final String TEST_PROPERTY = "test-property";
+
 	private static final String FACTORY_ENVIRONMENT_FILE = "test-sql-client-factory.yaml";
-	private static final String TABLE_SOURCE_FACTORY_JAR_FILE = "table-source-factory-test-jar.jar";
+	private static final String TABLE_FACTORY_JAR_FILE = "table-factories-test-jar.jar";
 
 	@Test
-	public void testTableSourceFactoryDiscovery() throws Exception {
+	public void testTableFactoryDiscovery() throws Exception {
 		// create environment
 		final Map<String, String> replaceVars = new HashMap<>();
-		replaceVars.put("$VAR_0", "test-table-source-factory");
-		replaceVars.put("$VAR_1", "test-property");
-		replaceVars.put("$VAR_2", "test-value");
+		replaceVars.put("$VAR_CONNECTOR_TYPE", CONNECTOR_TYPE_VALUE);
+		replaceVars.put("$VAR_CONNECTOR_PROPERTY", TEST_PROPERTY);
+		replaceVars.put("$VAR_CONNECTOR_PROPERTY_VALUE", "test-value");
 		final Environment env = EnvironmentFileUtil.parseModified(FACTORY_ENVIRONMENT_FILE, replaceVars);
 
 		// create executor with dependencies
-		final URL dependency = Paths.get("target", TABLE_SOURCE_FACTORY_JAR_FILE).toUri().toURL();
+		final URL dependency = Paths.get("target", TABLE_FACTORY_JAR_FILE).toUri().toURL();
 		final LocalExecutor executor = new LocalExecutor(
 			env,
 			Collections.singletonList(dependency),
@@ -71,5 +76,27 @@ public class DependencyTest {
 			.build();
 
 		assertEquals(expected, result);
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Table source that can be discovered if classloading is correct.
+	 */
+	public static class TestTableSourceFactory extends TestTableSourceFactoryBase {
+
+		public TestTableSourceFactory() {
+			super(CONNECTOR_TYPE_VALUE, TEST_PROPERTY);
+		}
+	}
+
+	/**
+	 * Table sink that can be discovered if classloading is correct.
+	 */
+	public static class TestTableSinkFactory extends TestTableSinkFactoryBase {
+
+		public TestTableSinkFactory() {
+			super(CONNECTOR_TYPE_VALUE, TEST_PROPERTY);
+		}
 	}
 }

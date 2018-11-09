@@ -19,8 +19,8 @@
 package org.apache.flink.cep.pattern;
 
 import org.apache.flink.api.java.ClosureCleaner;
-import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
+import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.pattern.Quantifier.ConsumingStrategy;
 import org.apache.flink.cep.pattern.Quantifier.Times;
 import org.apache.flink.cep.pattern.conditions.AndCondition;
@@ -568,5 +568,19 @@ public class Pattern<T, F extends T> {
 		if (previous != null && previous.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
 			throw new MalformedPatternException("Optional pattern cannot be preceded by greedy pattern");
 		}
+	}
+
+	@Override
+	public String toString() {
+		return "Pattern{" +
+			"name='" + name + '\'' +
+			", previous=" + previous +
+			", condition=" + condition +
+			", windowTime=" + windowTime +
+			", quantifier=" + quantifier +
+			", untilCondition=" + untilCondition +
+			", times=" + times +
+			", afterMatchSkipStrategy=" + afterMatchSkipStrategy +
+			'}';
 	}
 }

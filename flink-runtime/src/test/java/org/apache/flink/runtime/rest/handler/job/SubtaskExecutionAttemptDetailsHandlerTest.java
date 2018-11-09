@@ -104,6 +104,7 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 						expectedState,
 						null,
 						null,
+						null,
 						subtaskIndex,
 						new long[ExecutionState.values().length]),
 					new EvictingBoundedList<>(0)

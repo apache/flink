@@ -77,6 +77,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.{Failure, Success}
 
 /**
  * The TaskManager is responsible for executing the individual tasks of a Flink job. It is
@@ -423,7 +424,7 @@ class TaskManager(
               futureResponse.mapTo[Boolean].onComplete {
                 // IMPORTANT: In the future callback, we cannot directly modify state
                 //            but only send messages to the TaskManager to do those changes
-                case scala.util.Success(result) =>
+                case Success(result) =>
                   if (!result) {
                   self ! decorateMessage(
                     FailTask(
@@ -432,7 +433,7 @@ class TaskManager(
                     )
                   }
 
-                case scala.util.Failure(t) =>
+                case Failure(t) =>
                 self ! decorateMessage(
                   FailTask(
                     executionID,
@@ -839,10 +840,10 @@ class TaskManager(
             blobCache.get.getTransientBlobService.putTransient(fis)
           }(context.dispatcher)
             .onComplete {
-              case scala.util.Success(value) =>
+              case Success(value) =>
                 sender ! value
                 fis.close()
-              case scala.util.Failure(e) =>
+              case Failure(e) =>
                 sender ! akka.actor.Status.Failure(e)
                 fis.close()
             }(context.dispatcher)
@@ -1079,13 +1080,6 @@ class TaskManager(
     if (proxy != null) {
       // clear the key-value location oracle
       proxy.updateKvStateLocationOracle(HighAvailabilityServices.DEFAULT_JOB_ID, null)
-    }
-
-    // failsafe shutdown of the metrics registry
-    try {
-      taskManagerMetricGroup.close()
-    } catch {
-      case t: Exception => log.warn("TaskManagerMetricGroup could not be closed successfully.", t)
     }
   }
 
@@ -1418,8 +1412,8 @@ class TaskManager(
             accumulatorEvents.append(accumulators)
           } catch {
             case e: Exception =>
-              log.warn("Failed to take accumulator snapshot for task {}.",
-                execID, ExceptionUtils.getRootCause(e))
+              log.warn(s"Failed to take accumulator snapshot for task $execID.",
+                ExceptionUtils.getRootCause(e))
           }
       }
 
@@ -1541,7 +1535,7 @@ class TaskManager(
   }
 
   protected def shutdown(): Unit = {
-    context.system.shutdown()
+    context.system.terminate()
 
     // Await actor system termination and shut down JVM
     new ProcessShutDownThread(
@@ -1741,8 +1735,7 @@ object TaskManager {
       highAvailabilityServices: HighAvailabilityServices)
     : (String, java.util.Iterator[Integer]) = {
 
-    var taskManagerHostname = configuration.getString(
-      ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, null)
+    var taskManagerHostname = configuration.getString(TaskManagerOptions.HOST)
 
     if (taskManagerHostname != null) {
       LOG.info("Using configured hostname/address for TaskManager: " + taskManagerHostname)
@@ -1837,7 +1830,7 @@ object TaskManager {
       taskManagerClass: Class[_ <: TaskManager])
     : Unit = {
 
-    LOG.info("Starting TaskManager")
+    LOG.info(s"Starting TaskManager with ResourceID: $resourceID")
 
     // Bring up the TaskManager actor system first, bind it to the given address.
 
@@ -1889,30 +1882,17 @@ object TaskManager {
         )
       }
 
-      // if desired, start the logging daemon that periodically logs the
-      // memory usage information
-      if (LOG.isInfoEnabled && configuration.getBoolean(
-        TaskManagerOptions.DEBUG_MEMORY_LOG))
-      {
-        LOG.info("Starting periodic memory usage logger")
-
-        val interval = configuration.getLong(
-          TaskManagerOptions.DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS)
-
-        val logger = new MemoryLogger(LOG.logger, interval, taskManagerSystem)
-        logger.start()
-      }
+      MemoryLogger.startIfConfigured(LOG.logger, configuration, taskManagerSystem)
 
       // block until everything is done
-      taskManagerSystem.awaitTermination()
+      Await.ready(taskManagerSystem.whenTerminated, Duration.Inf)
     } catch {
       case t: Throwable =>
         LOG.error("Error while starting up taskManager", t)
-        try {
-          taskManagerSystem.shutdown()
-        } catch {
-          case tt: Throwable => LOG.warn("Could not cleanly shut down actor system", tt)
-        }
+        taskManagerSystem.terminate().onComplete {
+          case Success(_) =>
+          case Failure(tt) => LOG.warn("Could not cleanly shut down actor system", tt)
+        }(Executors.directExecutionContext())
         throw t
     }
 
@@ -2038,7 +2018,8 @@ object TaskManager {
     val taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
       metricRegistry,
       taskManagerServices.getTaskManagerLocation(),
-      taskManagerServices.getNetworkEnvironment())
+      taskManagerServices.getNetworkEnvironment(),
+      taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval)
 
     // create the actor properties (which define the actor constructor parameters)
     val tmProps = getTaskManagerProps(

@@ -32,13 +32,16 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
+/**
+ * Tests for {@link UnionInputGate}.
+ */
 public class UnionInputGateTest {
 
 	/**
 	 * Tests basic correctness of buffer-or-event interleaving and correct <code>null</code> return
 	 * value after receiving all end-of-partition events.
 	 *
-	 * <p> For buffer-or-event instances, it is important to verify that they have been set off to
+	 * <p>For buffer-or-event instances, it is important to verify that they have been set off to
 	 * the correct logical index.
 	 */
 	@Test(timeout = 120 * 1000)
@@ -86,15 +89,15 @@ public class UnionInputGateTest {
 		inputChannels[1][1].readEndOfPartitionEvent(); // 0 => 3
 		inputChannels[1][0].readEndOfPartitionEvent(); // 0 => 3
 
-		ig1.notifyChannelNonEmpty(inputChannels[0][0].getInputChannel());
-		ig1.notifyChannelNonEmpty(inputChannels[0][1].getInputChannel());
-		ig1.notifyChannelNonEmpty(inputChannels[0][2].getInputChannel());
+		ig1.notifyChannelNonEmpty(inputChannels[0][0]);
+		ig1.notifyChannelNonEmpty(inputChannels[0][1]);
+		ig1.notifyChannelNonEmpty(inputChannels[0][2]);
 
-		ig2.notifyChannelNonEmpty(inputChannels[1][0].getInputChannel());
-		ig2.notifyChannelNonEmpty(inputChannels[1][1].getInputChannel());
-		ig2.notifyChannelNonEmpty(inputChannels[1][2].getInputChannel());
-		ig2.notifyChannelNonEmpty(inputChannels[1][3].getInputChannel());
-		ig2.notifyChannelNonEmpty(inputChannels[1][4].getInputChannel());
+		ig2.notifyChannelNonEmpty(inputChannels[1][0]);
+		ig2.notifyChannelNonEmpty(inputChannels[1][1]);
+		ig2.notifyChannelNonEmpty(inputChannels[1][2]);
+		ig2.notifyChannelNonEmpty(inputChannels[1][3]);
+		ig2.notifyChannelNonEmpty(inputChannels[1][4]);
 
 		verifyBufferOrEvent(union, true, 0, true); // gate 1, channel 0
 		verifyBufferOrEvent(union, true, 3, true); // gate 2, channel 0

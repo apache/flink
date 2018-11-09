@@ -20,14 +20,17 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.util.Preconditions;
 
-import org.apache.avro.specific.SpecificRecordBase;
+import org.apache.avro.specific.SpecificRecord;
+
+import java.util.Map;
 
 /**
  * Format descriptor for Apache Avro records.
  */
 public class Avro extends FormatDescriptor {
 
-	private Class<? extends SpecificRecordBase> recordClass;
+	private Class<? extends SpecificRecord> recordClass;
+	private String avroSchema;
 
 	/**
 	 * Format descriptor for Apache Avro records.
@@ -37,23 +40,38 @@ public class Avro extends FormatDescriptor {
 	}
 
 	/**
-	 * Sets the class of the Avro specific record. Required.
+	 * Sets the class of the Avro specific record.
 	 *
 	 * @param recordClass class of the Avro record.
 	 */
-	public Avro recordClass(Class<? extends SpecificRecordBase> recordClass) {
+	public Avro recordClass(Class<? extends SpecificRecord> recordClass) {
 		Preconditions.checkNotNull(recordClass);
 		this.recordClass = recordClass;
 		return this;
 	}
 
 	/**
-	 * Internal method for format properties conversion.
+	 * Sets the Avro schema for specific or generic Avro records.
+	 *
+	 * @param avroSchema Avro schema string
 	 */
+	public Avro avroSchema(String avroSchema) {
+		Preconditions.checkNotNull(avroSchema);
+		this.avroSchema = avroSchema;
+		return this;
+	}
+
 	@Override
-	public void addFormatProperties(DescriptorProperties properties) {
+	protected Map<String, String> toFormatProperties() {
+		final DescriptorProperties properties = new DescriptorProperties();
+
 		if (null != recordClass) {
 			properties.putClass(AvroValidator.FORMAT_RECORD_CLASS, recordClass);
 		}
+		if (null != avroSchema) {
+			properties.putString(AvroValidator.FORMAT_AVRO_SCHEMA, avroSchema);
+		}
+
+		return properties.asMap();
 	}
 }

@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.rest.handler;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
 import org.apache.flink.runtime.rest.handler.util.HandlerRedirectUtils;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
+import org.apache.flink.runtime.rest.handler.util.KeepAliveWrite;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -30,10 +32,9 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.KeepAliveWrite;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
 import org.apache.flink.shaded.netty4.io.netty.util.ReferenceCountUtil;
 
 import org.slf4j.Logger;
@@ -53,7 +54,7 @@ import java.util.concurrent.TimeUnit;
  * @param <T> type of the leader to retrieve
  */
 @ChannelHandler.Sharable
-public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleChannelInboundHandler<Routed> {
+public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleChannelInboundHandler<RoutedRequest> {
 
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -82,7 +83,9 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 	@Override
 	protected void channelRead0(
 		ChannelHandlerContext channelHandlerContext,
-		Routed routed) throws Exception {
+		RoutedRequest routedRequest) throws Exception {
+
+		HttpRequest request = routedRequest.getRequest();
 
 		if (localAddressFuture.isDone()) {
 			if (localAddress == null) {
@@ -93,7 +96,7 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 
 					HandlerUtils.sendErrorResponse(
 						channelHandlerContext,
-						routed.request(),
+						request,
 						new ErrorResponseBody("Fatal error. Could not obtain local address. Please try to refresh."),
 						HttpResponseStatus.INTERNAL_SERVER_ERROR,
 						responseHeaders);
@@ -113,7 +116,7 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 							timeout);
 
 						// retain the message for the asynchronous handler
-						ReferenceCountUtil.retain(routed);
+						ReferenceCountUtil.retain(routedRequest);
 
 						optRedirectAddressFuture.whenCompleteAsync(
 							(Optional<String> optRedirectAddress, Throwable throwable) -> {
@@ -124,32 +127,32 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 
 									HandlerUtils.sendErrorResponse(
 										channelHandlerContext,
-										routed.request(),
+										request,
 										new ErrorResponseBody("Could not retrieve the redirect address of the current leader. Please try to refresh."),
 										HttpResponseStatus.INTERNAL_SERVER_ERROR,
 										responseHeaders);
 									} else if (optRedirectAddress.isPresent()) {
 										response = HandlerRedirectUtils.getRedirectResponse(
 											optRedirectAddress.get(),
-											routed.path());
+											routedRequest.getPath());
 
-										KeepAliveWrite.flush(channelHandlerContext, routed.request(), response);
+										KeepAliveWrite.flush(channelHandlerContext, request, response);
 									} else {
 										try {
-											respondAsLeader(channelHandlerContext, routed, gateway);
+											respondAsLeader(channelHandlerContext, routedRequest, gateway);
 										} catch (Exception e) {
 											logger.error("Error while responding as leader.", e);
-										HandlerUtils.sendErrorResponse(
+											HandlerUtils.sendErrorResponse(
 												channelHandlerContext,
-												routed.request(),
-											new ErrorResponseBody("Error while responding to the request."),
-											HttpResponseStatus.INTERNAL_SERVER_ERROR,
-											responseHeaders);
+												request,
+												new ErrorResponseBody("Error while responding to the request."),
+												HttpResponseStatus.INTERNAL_SERVER_ERROR,
+												responseHeaders);
 										}
 									}
 								} finally {
 									// release the message after processing it asynchronously
-									ReferenceCountUtil.release(routed);
+									ReferenceCountUtil.release(routedRequest);
 								}
 							}
 						, channelHandlerContext.executor());
@@ -158,7 +161,7 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 					() ->
 						HandlerUtils.sendErrorResponse(
 							channelHandlerContext,
-							routed.request(),
+							request,
 							new ErrorResponseBody("Service temporarily unavailable due to an ongoing leader election. Please refresh."),
 							HttpResponseStatus.SERVICE_UNAVAILABLE,
 							responseHeaders));
@@ -168,7 +171,7 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 
 				HandlerUtils.sendErrorResponse(
 					channelHandlerContext,
-					routed.request(),
+					request,
 					new ErrorResponseBody("Error occurred in RedirectHandler: " + throwable.getMessage() + '.'),
 					HttpResponseStatus.INTERNAL_SERVER_ERROR,
 					responseHeaders);
@@ -176,12 +179,12 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 		} else {
 			HandlerUtils.sendErrorResponse(
 				channelHandlerContext,
-				routed.request(),
+				request,
 				new ErrorResponseBody("Local address has not been resolved. This indicates an internal error."),
 				HttpResponseStatus.INTERNAL_SERVER_ERROR,
 				responseHeaders);
 		}
 	}
 
-	protected abstract void respondAsLeader(ChannelHandlerContext channelHandlerContext, Routed routed, T gateway) throws Exception;
+	protected abstract void respondAsLeader(ChannelHandlerContext channelHandlerContext, RoutedRequest request, T gateway) throws Exception;
 }

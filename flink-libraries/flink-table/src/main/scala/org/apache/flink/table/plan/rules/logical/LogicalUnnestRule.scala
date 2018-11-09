@@ -50,8 +50,16 @@ class LogicalUnnestRule(
       case filter: LogicalFilter =>
         filter.getInput.asInstanceOf[RelSubset].getOriginal match {
           case u: Uncollect => !u.withOrdinality
+          case p: LogicalProject => p.getInput.asInstanceOf[RelSubset].getOriginal match {
+            case u: Uncollect => !u.withOrdinality
+            case _ => false
+          }
           case _ => false
         }
+      case p: LogicalProject => p.getInput.asInstanceOf[RelSubset].getOriginal match {
+        case u: Uncollect => !u.withOrdinality
+        case _ => false
+      }
       case u: Uncollect => !u.withOrdinality
       case _ => false
     }
@@ -68,6 +76,11 @@ class LogicalUnnestRule(
         case rs: RelSubset =>
           convert(rs.getRelList.get(0))
 
+        case p: LogicalProject =>
+          p.copy(
+            p.getTraitSet,
+            ImmutableList.of(convert(p.getInput.asInstanceOf[RelSubset].getOriginal)))
+
         case f: LogicalFilter =>
           f.copy(
             f.getTraitSet,
@@ -83,7 +96,7 @@ class LogicalUnnestRule(
                 ExplodeFunctionUtil.explodeTableFuncFromType(arrayType.typeInfo))
             case mt: MultisetRelDataType =>
               (mt.getComponentType, ExplodeFunctionUtil.explodeTableFuncFromType(mt.typeInfo))
-            case _ => throw TableException(s"Unsupported UNNEST on type: ${dataType.toString}")
+            case _ => throw new TableException(s"Unsupported UNNEST on type: ${dataType.toString}")
           }
 
           // create sql function
@@ -108,7 +121,7 @@ class LogicalUnnestRule(
                 StructKind.FULLY_QUALIFIED,
                 ImmutableList.of(new RelDataTypeFieldImpl("f0", 0, componentType)))
             case _: RelRecordType => componentType
-            case _ => throw TableException(
+            case _ => throw new TableException(
               s"Unsupported component type in UNNEST: ${componentType.toString}")
           }
 

@@ -47,7 +47,6 @@ import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.PreviewPlanEnvironment;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -448,7 +447,7 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * <p>In contrast, the {@link org.apache.flink.runtime.state.filesystem.FsStateBackend}
 	 * stores checkpoints of the state (also maintained as heap objects) in files. When using a replicated
-	 * file system (like HDFS, S3, MapR FS, Tachyon, etc) this will guarantee that state is not lost upon
+	 * file system (like HDFS, S3, MapR FS, Alluxio, etc) this will guarantee that state is not lost upon
 	 * failures of individual nodes and that streaming program can be executed highly available and strongly
 	 * consistent (assuming that Flink is run in high-availability mode).
 	 *
@@ -1604,7 +1603,7 @@ public abstract class StreamExecutionEnvironment {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		if (env instanceof ContextEnvironment) {
 			return new StreamContextEnvironment((ContextEnvironment) env);
-		} else if (env instanceof OptimizerPlanEnvironment | env instanceof PreviewPlanEnvironment) {
+		} else if (env instanceof OptimizerPlanEnvironment || env instanceof PreviewPlanEnvironment) {
 			return new StreamPlanEnvironment(env);
 		} else {
 			return createLocalEnvironment();
@@ -1653,13 +1652,9 @@ public abstract class StreamExecutionEnvironment {
 	public static LocalStreamEnvironment createLocalEnvironment(int parallelism, Configuration configuration) {
 		final LocalStreamEnvironment currentEnvironment;
 
-		if (CoreOptions.NEW_MODE.equals(configuration.getString(CoreOptions.MODE))) {
-			currentEnvironment = new LocalStreamEnvironment(configuration);
-		} else {
-			currentEnvironment = new LegacyLocalStreamEnvironment(configuration);
-		}
-
+		currentEnvironment = new LocalStreamEnvironment(configuration);
 		currentEnvironment.setParallelism(parallelism);
+
 		return currentEnvironment;
 	}
 
@@ -1804,7 +1799,7 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Registers a file at the distributed cache under the given name. The file will be accessible
 	 * from any user-defined function in the (distributed) runtime under a local path. Files
-	 * may be local files (as long as all relevant workers have access to it), or files in a distributed file system.
+	 * may be local files (which will be distributed via BlobServer), or files in a distributed file system.
 	 * The runtime will copy the files temporarily to a local cache, if needed.
 	 *
 	 * <p>The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs via
@@ -1822,7 +1817,7 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Registers a file at the distributed cache under the given name. The file will be accessible
 	 * from any user-defined function in the (distributed) runtime under a local path. Files
-	 * may be local files (as long as all relevant workers have access to it), or files in a distributed file system.
+	 * may be local files (which will be distributed via BlobServer), or files in a distributed file system.
 	 * The runtime will copy the files temporarily to a local cache, if needed.
 	 *
 	 * <p>The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs via

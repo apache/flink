@@ -81,7 +81,7 @@ public class KafkaConsumerThread extends Thread {
 	private final ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue;
 
 	/** The indirections on KafkaConsumer methods, for cases where KafkaConsumer compatibility is broken. */
-	private final KafkaConsumerCallBridge consumerCallBridge;
+	private final KafkaConsumerCallBridge09 consumerCallBridge;
 
 	/** The maximum number of milliseconds to wait for a fetch batch. */
 	private final long pollTimeout;
@@ -125,7 +125,7 @@ public class KafkaConsumerThread extends Thread {
 			Handover handover,
 			Properties kafkaProperties,
 			ClosableBlockingQueue<KafkaTopicPartitionState<TopicPartition>> unassignedPartitionsQueue,
-			KafkaConsumerCallBridge consumerCallBridge,
+			KafkaConsumerCallBridge09 consumerCallBridge,
 			String threadName,
 			long pollTimeout,
 			boolean useMetrics,

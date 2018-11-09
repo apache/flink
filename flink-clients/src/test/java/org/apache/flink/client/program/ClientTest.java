@@ -60,6 +60,9 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.UUID;
 
+import scala.concurrent.Await;
+import scala.concurrent.duration.Duration;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
@@ -114,8 +117,8 @@ public class ClientTest extends TestLogger {
 	public void shutDownActorSystem() {
 		if (jobManagerSystem != null) {
 			try {
-				jobManagerSystem.shutdown();
-				jobManagerSystem.awaitTermination();
+				jobManagerSystem.terminate();
+				Await.ready(jobManagerSystem.whenTerminated(), Duration.Inf());
 			} catch (Exception e) {
 				e.printStackTrace();
 				fail(e.getMessage());

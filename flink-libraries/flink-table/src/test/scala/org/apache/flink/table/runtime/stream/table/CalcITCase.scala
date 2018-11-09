@@ -201,15 +201,14 @@ class CalcITCase extends AbstractTestBase {
     val ds = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
 
     val filterDs = ds.filter( 'a % 2 === 0 )
+      .where("b = 3 || b = 4 || b = 5")
     val results = filterDs.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = mutable.MutableList(
-      "2,2,Hello", "4,3,Hello world, how are you?",
-      "6,3,Luke Skywalker", "8,4,Comment#2", "10,4,Comment#4",
-      "12,5,Comment#6", "14,5,Comment#8", "16,6,Comment#10",
-      "18,6,Comment#12", "20,6,Comment#14")
+      "4,3,Hello world, how are you?", "6,3,Luke Skywalker",
+      "8,4,Comment#2", "10,4,Comment#4", "12,5,Comment#6", "14,5,Comment#8")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -225,12 +224,12 @@ class CalcITCase extends AbstractTestBase {
     val ds = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
 
     val filterDs = ds.filter( 'a % 2 !== 0)
+      .where("b != 1 && b != 2 && b != 3")
     val results = filterDs.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
     val expected = mutable.MutableList(
-      "1,1,Hi", "3,2,Hello world",
-      "5,3,I am fine.", "7,4,Comment#1", "9,4,Comment#3",
+      "7,4,Comment#1", "9,4,Comment#3",
       "11,5,Comment#5", "13,5,Comment#7", "15,5,Comment#9",
       "17,6,Comment#11", "19,6,Comment#13", "21,6,Comment#15")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
@@ -349,34 +348,6 @@ class CalcITCase extends AbstractTestBase {
       "{7=Comment#1}",
       "{8=Comment#2}",
       "{9=Comment#3}")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
-  }
-
-  @Test
-  def testUDFWithUnicodeParameter(): Unit = {
-    val data = List(
-      ("a\u0001b", "c\"d", "e\\\"\u0004f"),
-      ("x\u0001y", "y\"z", "z\\\"\u0004z")
-    )
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.testResults = mutable.MutableList()
-    val splitUDF0 = new SplitUDF(deterministic = true)
-    val splitUDF1 = new SplitUDF(deterministic = false)
-    val ds = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
-      .select(splitUDF0('a, "\u0001", 0) as 'a0,
-              splitUDF1('a, "\u0001", 0) as 'a1,
-              splitUDF0('b, "\"", 1) as 'b0,
-              splitUDF1('b, "\"", 1) as 'b1,
-              splitUDF0('c, "\\\"\u0004", 0) as 'c0,
-              splitUDF1('c, "\\\"\u0004", 0) as 'c1
-      )
-    val results = ds.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink[Row])
-    env.execute()
-    val expected = mutable.MutableList(
-      "a,a,d,d,e,e", "x,x,z,z,z,z"
-    )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }

@@ -23,7 +23,7 @@ under the License.
     <parent>
         <groupId>org.apache.flink</groupId>
         <artifactId>flink-libraries</artifactId>
-        <version>1.6-SNAPSHOT</version>
+        <version>1.8-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
 
@@ -48,7 +48,9 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<configuration>
-					<descriptor>src/assembly/python.xml</descriptor>
+					<descriptors>
+						<descriptor>src/assembly/python.xml</descriptor>
+					</descriptors>
 					<finalName>python-source</finalName>
 					<appendAssemblyId>false</appendAssemblyId>
 				</configuration>
@@ -88,6 +90,11 @@ under the License.
 	<profiles>
 		<profile>
 			<id>generate-config-docs</id>
+			<activation>
+				<property>
+					<name>generate-config-docs</name>
+				</property>
+			</activation>
 
 			<build>
 				<plugins>

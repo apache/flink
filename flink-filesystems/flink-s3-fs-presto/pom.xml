@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.6-SNAPSHOT</version>
+		<version>1.8-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -33,14 +33,12 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<!-- Do not change this without updating the copied Configuration class from the included Hadoop! -->
 		<presto.version>0.185</presto.version>
 	</properties>
 
 	<dependencies>
 
-		<!-- Flink core -->
-
+		<!-- Flink's file system abstraction (compiled against, not bundled) -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
@@ -48,30 +46,30 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- File system builds on the Hadoop file system support -->
-
+		<!-- S3 base (bundled) -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-hadoop-fs</artifactId>
+			<artifactId>flink-s3-fs-base</artifactId>
 			<version>${project.version}</version>
-
-			<!-- this exclusion is only needed to run tests in the IDE, pre shading,
-				because the optional Hadoop dependency is also pulled in for tests -->
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-hadoop2</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
-		<!-- Presto's S3 file system -->
-		
+		<!-- Presto's S3 file system (bundled) -->
 		<dependency>
 			<groupId>com.facebook.presto</groupId>
 			<artifactId>presto-hive</artifactId>
 			<version>${presto.version}</version>
 			<exclusions>
+				<!-- use our AWS dependencies instead -->
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-s3</artifactId>
+				</exclusion>
+
+				<!-- lot's of unneeded stuff for the S3 file system -->
 				<exclusion>
 					<groupId>com.facebook.hive</groupId>
 					<artifactId>hive-dwrf</artifactId>
@@ -184,20 +182,6 @@ under the License.
 			<version>2.7.3-1</version>
 		</dependency>
 
-		<!-- make sure that also logger and JSR is provided -->
-
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>com.google.code.findbugs</groupId>
-			<artifactId>jsr305</artifactId>
-			<scope>provided</scope>
-		</dependency>
-
 		<!-- for the behavior test suite -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -207,7 +191,6 @@ under the License.
 			<type>test-jar</type>
 		</dependency>
 	</dependencies>
-
 
 	<build>
 		<plugins>
@@ -232,10 +215,17 @@ under the License.
 								</excludes>
 							</artifactSet>
 							<relocations>
+								<!-- relocate the references to Hadoop to match the pre-shaded hadoop artifact -->
 								<relocation>
-									<pattern>com.amazonaws</pattern>
-									<shadedPattern>org.apache.flink.fs.s3presto.shaded.com.amazonaws</shadedPattern>
+									<pattern>org.apache.hadoop</pattern>
+									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop</shadedPattern>
 								</relocation>
+								<!-- relocate the AWS dependencies -->
+								<relocation>
+									<pattern>com.amazon</pattern>
+									<shadedPattern>org.apache.flink.fs.s3base.shaded.com.amazon</shadedPattern>
+								</relocation>
+								<!-- relocate S3 presto and dependencies -->
 								<relocation>
 									<pattern>com.facebook</pattern>
 									<shadedPattern>org.apache.flink.fs.s3presto.shaded.com.facebook</shadedPattern>
@@ -245,39 +235,8 @@ under the License.
 									<shadedPattern>org.apache.flink.fs.s3presto.shaded.com.fasterxml</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>com.google</pattern>
-									<shadedPattern>org.apache.flink.fs.s3presto.shaded.com.google</shadedPattern>
-									<excludes>
-										<!-- provided -->
-										<exclude>com.google.code.findbugs.**</exclude>
-									</excludes>
-								</relocation>
-								<relocation>
 									<pattern>io.airlift</pattern>
 									<shadedPattern>org.apache.flink.fs.s3presto.shaded.io.airlift</shadedPattern>
-								</relocation>
-
-								<!-- relocate everything from the flink-hadoop-fs project -->
-								<relocation>
-									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
-									<shadedPattern>org.apache.flink.fs.s3presto.shaded.org.apache.flink.runtime.fs.hdfs</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.apache.flink.runtime.util</pattern>
-									<shadedPattern>org.apache.flink.fs.s3presto.shaded.org.apache.flink.runtime.util</shadedPattern>
-									<includes>
-										<include>org.apache.flink.runtime.util.**Hadoop*</include>
-									</includes>
-								</relocation>
-
-								<relocation>
-									<pattern>org.apache</pattern>
-									<shadedPattern>org.apache.flink.fs.s3presto.shaded.org.apache</shadedPattern>
-									<excludes>
-										<!-- keep all other classes of flink as they are (exceptions above) -->
-										<exclude>org.apache.flink.**</exclude>
-										<exclude>org.apache.log4j.**</exclude> <!-- provided -->
-									</excludes>
 								</relocation>
 								<relocation>
 									<pattern>org.HdrHistogram</pattern>
@@ -288,46 +247,35 @@ under the License.
 									<shadedPattern>org.apache.flink.fs.s3presto.shaded.org.joda</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>org.openjdk</pattern>
-									<shadedPattern>org.apache.flink.fs.s3presto.shaded.org.openjdk</shadedPattern>
-								</relocation>
-								<relocation>
 									<pattern>org.weakref</pattern>
 									<shadedPattern>org.apache.flink.fs.s3presto.shaded.org.weakref</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>software.amazon</pattern>
-									<shadedPattern>org.apache.flink.fs.s3presto.shaded.software.amazon</shadedPattern>
+									<pattern>org.openjdk</pattern>
+									<shadedPattern>org.apache.flink.fs.s3presto.shaded.org.openjdk</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.google</pattern>
+									<shadedPattern>org.apache.flink.fs.s3presto.shaded.com.google</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>
 								<filter>
 									<artifact>*</artifact>
 									<excludes>
-										<exclude>log4j.properties</exclude>
-										<exclude>core-default.xml</exclude>
-										<exclude>core-site.xml</exclude>
-										<exclude>hdfs-default.xml</exclude>
-										<exclude>mapred-default.xml</exclude>
-										<exclude>mime.types</exclude>
-										<exclude>mozilla/**</exclude>
-										<exclude>nativelib/**</exclude>
-										<exclude>META-INF/native/**</exclude>
+										<exclude>META-INF/maven/org.weakref/**</exclude>
+										<exclude>META-INF/maven/org.hdrhistogram/**</exclude>
+										<exclude>META-INF/maven/joda-time/**</exclude>
+										<exclude>META-INF/maven/io.airlift/**</exclude>
 										<exclude>META-INF/maven/com*/**</exclude>
-										<exclude>META-INF/maven/io*/**</exclude>
-										<exclude>META-INF/maven/org.w*/**</exclude>
-										<exclude>META-INF/maven/org.h*/**</exclude>
-										<exclude>META-INF/maven/software*/**</exclude>
-										<exclude>META-INF/maven/joda*/**</exclude>
-										<exclude>META-INF/maven/org.mortbay.jetty/**</exclude>
-										<exclude>META-INF/maven/org.apache.h*/**</exclude>
-										<exclude>META-INF/maven/org.apache.flink/flink-hadoop-fs/**</exclude>
 										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
-										<!-- we use our own "shaded" core-default.xml: core-default-shaded.xml -->
-										<exclude>core-default.xml</exclude>
-										<!-- we only add a core-site.xml with unshaded classnames for the unit tests -->
-										<exclude>core-site.xml</exclude>
 									</excludes>
+								</filter>
+								<filter>
+									<artifact>com.facebook.presto.hadoop:hadoop-apache2</artifact>
+									<includes>
+										<include>com/facebook/presto/hadoop/**</include>
+									</includes>
 								</filter>
 							</filters>
 						</configuration>

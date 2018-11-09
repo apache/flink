@@ -80,6 +80,14 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
         <td>0.11.x</td>
         <td>Since 0.11.x Kafka does not support scala 2.10. This connector supports <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-98+-+Exactly+Once+Delivery+and+Transactional+Messaging">Kafka transactional messaging</a> to provide exactly once semantic for the producer.</td>
     </tr>
+    <tr>
+        <td>flink-connector-kafka_2.11</td>
+        <td>1.7.0</td>
+        <td>FlinkKafkaConsumer<br>
+        FlinkKafkaProducer</td>
+        <td>>= 1.0.0</td>
+        <td>This Kafka connector attempts to track the latest version of the Kafka client. The version of the client it uses may change between Flink releases. Modern Kafka clients are backwards compatible with broker versions 0.10.0 or later. However for Kafka 0.11.x and 0.10.x versions, we recommend using dedicated flink-connector-kafka-0.11 and link-connector-kafka-0.10 respectively.</td>
+        </tr>
   </tbody>
 </table>
 
@@ -88,8 +96,8 @@ Then, import the connector in your maven project:
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-kafka-0.8{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
+  <artifactId>flink-connector-kafka{{ site.scala_version_suffix }}</artifactId>
+  <version>{{ site.version }}</version>
 </dependency>
 {% endhighlight %}
 
@@ -100,9 +108,33 @@ Note that the streaming connectors are currently not part of the binary distribu
 * Follow the instructions from [Kafka's quickstart](https://kafka.apache.org/documentation.html#quickstart) to download the code and launch a server (launching a Zookeeper and a Kafka server is required every time before starting the application).
 * If the Kafka and Zookeeper servers are running on a remote machine, then the `advertised.host.name` setting in the `config/server.properties` file must be set to the machine's IP address.
 
+## Kafka 1.0.0+ Connector
+
+Starting with Flink 1.7, there is a new Kafka connector that does not track a specific Kafka major version. Rather, it tracks the latest version of Kafka at the time of the Flink release.
+
+If your Kafka broker version is 1.0.0 or newer, you should use this Kafka connector. If you use an older version of Kafka (0.11, 0.10, 0.9, or 0.8), you should use the connector corresponding to the broker version.
+
+### Compatibility
+
+The modern Kafka connector is compatible with older and newer Kafka brokers through the compatibility guarantees of the Kafka client API and broker. The modern Kafka connector is compatible with broker versions 0.11.0 or later, depending on the features used. For details on Kafka compatibility, please refer to the [Kafka documentation](https://kafka.apache.org/protocol.html#protocol_compatibility).
+
+### Usage
+
+The use of the modern Kafka connector add a dependency to it:
+
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-connector-kafka{{ site.scala_version_suffix }}</artifactId>
+  <version>{{ site.version }}</version>
+</dependency>
+{% endhighlight %}
+
+Then instantiate the new source (`FlinkKafkaConsumer`) and sink (`FlinkKafkaProducer`). The API is the backwards compatible with the older Kafka connectors.
+
 ## Kafka Consumer
 
-Flink's Kafka consumer is called `FlinkKafkaConsumer08` (or `09` for Kafka 0.9.0.x versions, etc.). It provides access to one or more Kafka topics.
+Flink's Kafka consumer is called `FlinkKafkaConsumer08` (or 09 for Kafka 0.9.0.x versions, etc. or just `FlinkKafkaConsumer` for Kafka >= 1.0.0 versions). It provides access to one or more Kafka topics.
 
 The constructor accepts the following arguments:
 
@@ -166,6 +198,39 @@ For convenience, Flink provides the following schemas:
     The KeyValue objectNode contains a "key" and "value" field which contain all fields, as well as
     an optional "metadata" field that exposes the offset/partition/topic for this message.
     
+3. `AvroDeserializationSchema` which reads data serialized with Avro format using a statically provided schema. It can
+    infer the schema from Avro generated classes (`AvroDeserializationSchema.forSpecific(...)`) or it can work with `GenericRecords`
+    with a manually provided schema (with `AvroDeserializationSchema.forGeneric(...)`). This deserialization schema expects that
+    the serialized records DO NOT contain embedded schema.
+
+    - There is also a version of this schema available that can lookup the writer's schema (schema which was used to write the record) in
+      [Confluent Schema Registry](https://docs.confluent.io/current/schema-registry/docs/index.html). Using these deserialization schema
+      record will be read with the schema that was retrieved from Schema Registry and transformed to a statically provided( either through 
+      `ConfluentRegistryAvroDeserializationSchema.forGeneric(...)` or `ConfluentRegistryAvroDeserializationSchema.forSpecific(...)`).
+
+    <br>To use this deserialization schema one has to add the following additional dependency:
+    
+<div class="codetabs" markdown="1">
+<div data-lang="AvroDeserializationSchema" markdown="1">
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-avro</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
+</div>
+<div data-lang="ConfluentRegistryAvroDeserializationSchema" markdown="1">
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-avro-confluent-registry</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
+</div>
+</div>
+
 When encountering a corrupted message that cannot be deserialized for any reason, there
 are two options - either throwing an exception from the `deserialize(...)` method
 which will cause the job to fail and be restarted, or returning `null` to allow
@@ -459,7 +524,7 @@ In the meanwhile, a possible workaround is to send *heartbeat messages* to all c
 
 ## Kafka Producer
 
-Flink’s Kafka Producer is called `FlinkKafkaProducer011` (or `010` for Kafka 0.10.0.x versions, etc.).
+Flink’s Kafka Producer is called `FlinkKafkaProducer011` (or `010` for Kafka 0.10.0.x versions, etc. or just `FlinkKafkaConsumer` for Kafka >= 1.0.0 versions).
 It allows writing a stream of records to one or more Kafka topics.
 
 Example:
@@ -585,13 +650,13 @@ into a Kafka topic.
   for more explanation.
 </div>
 
-#### Kafka 0.11
+#### Kafka 0.11 and newer
 
-With Flink's checkpointing enabled, the `FlinkKafkaProducer011` can provide
+With Flink's checkpointing enabled, the `FlinkKafkaProducer011` (`FlinkKafkaProducer` for Kafka >= 1.0.0 versions) can provide
 exactly-once delivery guarantees.
 
 Besides enabling Flink's checkpointing, you can also choose three different modes of operating
-chosen by passing appropriate `semantic` parameter to the `FlinkKafkaProducer011`:
+chosen by passing appropriate `semantic` parameter to the `FlinkKafkaProducer011` (`FlinkKafkaProducer` for Kafka >= 1.0.0 versions):
 
  * `Semantic.NONE`: Flink will not guarantee anything. Produced records can be lost or they can
  be duplicated.

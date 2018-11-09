@@ -28,11 +28,37 @@ import java.io.Serializable;
 /**
  * This interface describes the methods that are required for a data type to be handled by the Flink
  * runtime. Specifically, this interface contains the serialization and copying methods.
- * <p>
- * The methods in this class are assumed to be stateless, such that it is effectively thread safe. Stateful
+ *
+ * <p>The methods in this class are assumed to be stateless, such that it is effectively thread safe. Stateful
  * implementations of the methods may lead to unpredictable side effects and will compromise both stability and
  * correctness of the program.
- * 
+ *
+ * <p><b>Upgrading TypeSerializers to the new TypeSerializerSnapshot model</b>
+ *
+ * <p>This section is relevant if you implemented a TypeSerializer in Flink versions up to 1.6 and want
+ * to adapt that implementation to the new interfaces that support proper state schema evolution. Please
+ * follow these steps:
+ *
+ * <ul>
+ *     <li>Change the type serializer's config snapshot to implement {@link TypeSerializerSnapshot}, rather
+ *     than extending {@code TypeSerializerConfigSnapshot} (as previously).
+ *     <li>Move the compatibility check from the {@link TypeSerializer#ensureCompatibility(TypeSerializerConfigSnapshot)}
+ *     method to the {@link TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer)} method.
+ * </ul>
+ *
+ * <p><b>Maintaining Backwards Compatibility</b>
+ *
+ * <p>If you want your serializer to be able to restore checkpoints from Flink 1.6 and before, add the steps
+ * below in addition to the steps above.
+ *
+ * <ul>
+ *     <li>Retain the old serializer snapshot class (extending {@code TypeSerializerConfigSnapshot}) under
+ *     the same name and give the updated serializer snapshot class (the one extending {@code TypeSerializerSnapshot})
+ *     a new name.
+ *     <li>Keep the {@link TypeSerializer#ensureCompatibility(TypeSerializerConfigSnapshot)} on the TypeSerializer
+ *     as well.
+ * </ul>
+ *
  * @param <T> The data type that the serializer serializes.
  */
 @PublicEvolving
@@ -162,58 +188,55 @@ public abstract class TypeSerializer<T> implements Serializable {
 	public abstract int hashCode();
 
 	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & compatibility
+	// Serializer configuration snapshot for checkpoints/savepoints
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Create a snapshot of the serializer's current configuration to be stored along with the managed state it is
-	 * registered to (if any - this method is only relevant if this serializer is registered for serialization of
-	 * managed state).
+	 * Snapshots the configuration of this TypeSerializer. This method is only relevant if the serializer is
+	 * used to state stored in checkpoints/savepoints.
 	 *
-	 * <p>The configuration snapshot should contain information about the serializer's parameter settings and its
-	 * serialization format. When a new serializer is registered to serialize the same managed state that this
-	 * serializer was registered to, the returned configuration snapshot can be used to ensure compatibility
-	 * of the new serializer and determine if state migration is required.
+	 * <p>The snapshot of the TypeSerializer is supposed to contain all information that affects the serialization
+	 * format of the serializer. The snapshot serves two purposes: First, to reproduce the serializer when the
+	 * checkpoint/savepoint is restored, and second, to check whether the serialization format is compatible
+	 * with the serializer used in the restored program.
 	 *
-	 * @see TypeSerializerConfigSnapshot
+	 * <p><b>IMPORTANT:</b> TypeSerializerSnapshots changed after Flink 1.6. Serializers implemented against
+	 * Flink versions up to 1.6 should still work, but adjust to new model to enable state evolution and be
+	 * future-proof.
+	 * See the class-level comments, section "Upgrading TypeSerializers to the new TypeSerializerSnapshot model"
+	 * for details.
+	 *
+	 * @see TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer)
 	 *
 	 * @return snapshot of the serializer's current configuration (cannot be {@code null}).
 	 */
-	public abstract TypeSerializerConfigSnapshot snapshotConfiguration();
+	public abstract TypeSerializerSnapshot<T> snapshotConfiguration();
+
+	// --------------------------------------------------------------------------------------------
+	//  Deprecated methods for backwards compatibility
+	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Ensure compatibility of this serializer with a preceding serializer that was registered for serialization of
-	 * the same managed state (if any - this method is only relevant if this serializer is registered for
-	 * serialization of managed state).
+	 * This method is deprecated. It used to resolved compatibility of the serializer with serializer
+	 * config snapshots in checkpoints. The responsibility for this has moved to
+	 * {@link TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer)}.
 	 *
-	 * The compatibility check in this method should be performed by inspecting the preceding serializer's configuration
-	 * snapshot. The method may reconfigure the serializer (if required and possible) so that it may be compatible,
-	 * or provide a signaling result that informs Flink that state migration is necessary before continuing to use
-	 * this serializer.
+	 * <p>New serializers should not override this method any more! Serializers implemented against Flink
+	 * versions up to 1.6 should still work, but should adjust to new model to enable state evolution and
+	 * be future-proof. See the class-level comments, section <i>"Upgrading TypeSerializers to the new
+	 * TypeSerializerSnapshot model"</i> for details.
 	 *
-	 * <p>The result can be one of the following:
-	 * <ul>
-	 *     <li>{@link CompatibilityResult#compatible()}: this signals Flink that this serializer is compatible, or
-	 *     has been reconfigured to be compatible, to continue reading previous data, and that the
-	 *     serialization schema remains the same. No migration needs to be performed.</li>
-	 *
-	 *     <li>{@link CompatibilityResult#requiresMigration(TypeDeserializer)}: this signals Flink that
-	 *     migration needs to be performed, because this serializer is not compatible, or cannot be reconfigured to be
-	 *     compatible, for previous data. Furthermore, in the case that the preceding serializer cannot be found or
-	 *     restored to read the previous data to perform the migration, the provided convert deserializer can be
-	 *     used as a fallback resort.</li>
-	 *
-	 *     <li>{@link CompatibilityResult#requiresMigration()}: this signals Flink that migration needs to be
-	 *     performed, because this serializer is not compatible, or cannot be reconfigured to be compatible, for
-	 *     previous data. If the preceding serializer cannot be found (either its implementation changed or it was
-	 *     removed from the classpath) then the migration will fail due to incapability to read previous data.</li>
-	 * </ul>
-	 *
-	 * @see CompatibilityResult
-	 *
-	 * @param configSnapshot configuration snapshot of a preceding serializer for the same managed state
-	 *
-	 * @return the determined compatibility result (cannot be {@code null}).
+	 * @deprecated Replaced by {@link TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer)}.
 	 */
-	public abstract CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot);
+	@Deprecated
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+		throw new UnsupportedOperationException(
+				"This method is not supported any more - please evolve your TypeSerializer the following way:\n\n" +
+				"  - If you have a serializer whose 'ensureCompatibility()' method delegates to another\n" +
+				"    serializer's 'ensureCompatibility()', please use" +
+						"'CompatibilityUtil.resolveCompatibilityResult(snapshot, this)' instead.\n\n" +
+				"  - If you updated your serializer (removed overriding the 'ensureCompatibility()' method),\n" +
+				"    please also update the corresponding config snapshot to not extend 'TypeSerializerConfigSnapshot'" +
+						"any more.\n\n");
+	}
 }

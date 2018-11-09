@@ -31,6 +31,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -53,8 +54,6 @@ import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationInfo;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationResult;
 import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
 import org.apache.flink.runtime.rest.messages.AccumulatorsIncludeSerializedValueQueryParameter;
-import org.apache.flink.runtime.rest.messages.BlobServerPortHeaders;
-import org.apache.flink.runtime.rest.messages.BlobServerPortResponseBody;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
@@ -124,6 +123,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -226,26 +226,23 @@ public class RestClusterClientTest extends TestLogger {
 
 	@Test
 	public void testJobSubmitCancelStop() throws Exception {
-		TestBlobServerPortHandler portHandler = new TestBlobServerPortHandler();
 		TestJobSubmitHandler submitHandler = new TestJobSubmitHandler();
 		TestJobTerminationHandler terminationHandler = new TestJobTerminationHandler();
 		TestJobExecutionResultHandler testJobExecutionResultHandler =
 			new TestJobExecutionResultHandler(
 				JobExecutionResultResponseBody.created(new JobResult.Builder()
+					.applicationStatus(ApplicationStatus.SUCCEEDED)
 					.jobId(jobId)
 					.netRuntime(Long.MAX_VALUE)
 					.build()));
 
 		try (TestRestServerEndpoint ignored = createRestServerEndpoint(
-			portHandler,
 			submitHandler,
 			terminationHandler,
 			testJobExecutionResultHandler)) {
 
-			Assert.assertFalse(portHandler.portRetrieved);
 			Assert.assertFalse(submitHandler.jobSubmitted);
 			restClusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
-			Assert.assertTrue(portHandler.portRetrieved);
 			Assert.assertTrue(submitHandler.jobSubmitted);
 
 			Assert.assertFalse(terminationHandler.jobCanceled);
@@ -264,11 +261,9 @@ public class RestClusterClientTest extends TestLogger {
 	@Test
 	public void testDetachedJobSubmission() throws Exception {
 
-		final TestBlobServerPortHandler testBlobServerPortHandler = new TestBlobServerPortHandler();
 		final TestJobSubmitHandler testJobSubmitHandler = new TestJobSubmitHandler();
 
 		try (TestRestServerEndpoint ignored = createRestServerEndpoint(
-			testBlobServerPortHandler,
 			testJobSubmitHandler)) {
 
 			restClusterClient.setDetached(true);
@@ -280,20 +275,6 @@ public class RestClusterClientTest extends TestLogger {
 			assertThat(jobSubmissionResult.getJobID(), is(jobId));
 		}
 
-	}
-
-	private class TestBlobServerPortHandler extends TestHandler<EmptyRequestBody, BlobServerPortResponseBody, EmptyMessageParameters> {
-		private volatile boolean portRetrieved = false;
-
-		private TestBlobServerPortHandler() {
-			super(BlobServerPortHeaders.getInstance());
-		}
-
-		@Override
-		protected CompletableFuture<BlobServerPortResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
-			portRetrieved = true;
-			return CompletableFuture.completedFuture(new BlobServerPortResponseBody(12000));
-		}
 	}
 
 	private class TestJobSubmitHandler extends TestHandler<JobSubmitRequestBody, JobSubmitResponseBody, EmptyMessageParameters> {
@@ -373,11 +354,13 @@ public class RestClusterClientTest extends TestLogger {
 				new RestHandlerException("should trigger retry", HttpResponseStatus.SERVICE_UNAVAILABLE),
 				JobExecutionResultResponseBody.inProgress(),
 				JobExecutionResultResponseBody.created(new JobResult.Builder()
+					.applicationStatus(ApplicationStatus.SUCCEEDED)
 					.jobId(jobId)
 					.netRuntime(Long.MAX_VALUE)
 					.accumulatorResults(Collections.singletonMap("testName", new SerializedValue<>(OptionalFailure.of(1.0))))
 					.build()),
 				JobExecutionResultResponseBody.created(new JobResult.Builder()
+					.applicationStatus(ApplicationStatus.FAILED)
 					.jobId(jobId)
 					.netRuntime(Long.MAX_VALUE)
 					.serializedThrowable(new SerializedThrowable(new RuntimeException("expected")))
@@ -390,7 +373,6 @@ public class RestClusterClientTest extends TestLogger {
 
 		try (TestRestServerEndpoint ignored = createRestServerEndpoint(
 			testJobExecutionResultHandler,
-			new TestBlobServerPortHandler(),
 			new TestJobSubmitHandler())) {
 
 			JobExecutionResult jobExecutionResult;
@@ -408,8 +390,10 @@ public class RestClusterClientTest extends TestLogger {
 				restClusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
 				fail("Expected exception not thrown.");
 			} catch (final ProgramInvocationException e) {
-				assertThat(e.getCause(), instanceOf(RuntimeException.class));
-				assertThat(e.getCause().getMessage(), equalTo("expected"));
+				final Optional<RuntimeException> cause = ExceptionUtils.findThrowable(e, RuntimeException.class);
+
+				assertThat(cause.isPresent(), is(true));
+				assertThat(cause.get().getMessage(), equalTo("expected"));
 			}
 		}
 	}

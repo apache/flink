@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.6-SNAPSHOT</version>
+		<version>1.8-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -35,6 +35,7 @@ under the License.
 	<name>flink-end-to-end-tests</name>
 
 	<modules>
+		<module>flink-cli-test</module>
 		<module>flink-parent-child-classloading-test</module>
 		<module>flink-dataset-allround-test</module>
 		<module>flink-datastream-allround-test</module>
@@ -43,10 +44,22 @@ under the License.
 		<module>flink-distributed-cache-via-blob-test</module>
 		<module>flink-high-parallelism-iterations-test</module>
 		<module>flink-stream-stateful-job-upgrade-test</module>
+		<module>flink-queryable-state-test</module>
 		<module>flink-local-recovery-and-allocation-test</module>
 		<module>flink-elasticsearch1-test</module>
 		<module>flink-elasticsearch2-test</module>
 		<module>flink-elasticsearch5-test</module>
+		<module>flink-elasticsearch6-test</module>
+		<module>flink-quickstart-test</module>
+		<module>flink-confluent-schema-registry</module>
+		<module>flink-stream-state-ttl-test</module>
+		<module>flink-sql-client-test</module>
+		<module>flink-streaming-file-sink-test</module>
+		<module>flink-state-evolution-test</module>
+		<module>flink-e2e-test-utils</module>
+		<module>flink-end-to-end-tests-common</module>
+		<module>flink-metrics-reporter-prometheus-test</module>
+		<module>flink-heavy-deployment-stress-test</module>
 	</modules>
 
 	<build>
@@ -58,6 +71,50 @@ under the License.
 					<skip>true</skip>
 				</configuration>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<executions>
+					<!-- Do not execute any tests by default.
+						E2E tests should specify an additional execution within a profile. -->
+					<execution>
+						<id>default-test</id>
+						<phase>none</phase>
+					</execution>
+					<execution>
+						<id>integration-tests</id>
+						<phase>none</phase>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
+
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-shade-plugin</artifactId>
+					<configuration>
+						<artifactSet>
+							<excludes>
+								<exclude>com.google.code.findbugs:jsr305</exclude>
+								<exclude>org.slf4j:slf4j-api</exclude>
+							</excludes>
+						</artifactSet>
+						<filters>
+							<filter>
+								<artifact>*:*</artifact>
+								<excludes>
+									<exclude>META-INF/*.SF</exclude>
+									<exclude>META-INF/*.DSA</exclude>
+									<exclude>META-INF/*.RSA</exclude>
+								</excludes>
+							</filter>
+						</filters>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
 	</build>
+	
 </project>

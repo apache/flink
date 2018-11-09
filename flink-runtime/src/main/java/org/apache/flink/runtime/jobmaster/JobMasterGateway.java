@@ -268,7 +268,7 @@ public interface JobMasterGateway extends
 	CompletableFuture<String> triggerSavepoint(
 		@Nullable final String targetDirectory,
 		final boolean cancelJob,
-		final Time timeout);
+		@RpcTimeout final Time timeout);
 
 	/**
 	 * Requests the statistics on operator back pressure.
@@ -278,4 +278,12 @@ public interface JobMasterGateway extends
 	 * not available (yet).
 	 */
 	CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(JobVertexID jobVertexId);
+
+	/**
+	 * Notifies that the allocation has failed.
+	 *
+	 * @param allocationID the failed allocation id.
+	 * @param cause the reason that the allocation failed
+	 */
+	void notifyAllocationFailure(AllocationID allocationID, Exception cause);
 }

@@ -60,5 +60,5 @@ trait TableSource[T] {
     * @return A String explaining the [[TableSource]].
     */
   def explainSource(): String =
-    TableConnectorUtil.generateRuntimeName(getClass, getTableSchema.getColumnNames)
+    TableConnectorUtil.generateRuntimeName(getClass, getTableSchema.getFieldNames)
 }

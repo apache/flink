@@ -31,7 +31,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.executiongraph.metrics.NumberOfFullRestartsGauge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -39,11 +44,13 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
@@ -55,6 +62,17 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -62,6 +80,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.core.Is.is;
+import static org.hamcrest.number.OrderingComparison.greaterThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -85,7 +104,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 
 	private static TestingServer zkServer;
 
-	private static MiniClusterResource miniClusterResource;
+	private static MiniClusterWithClientResource miniClusterResource;
 
 	private static OneShotLatch waitForCheckpointLatch = new OneShotLatch();
 	private static OneShotLatch failInCheckpointLatch = new OneShotLatch();
@@ -106,14 +125,18 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
 		config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 
+		config.setString(
+			ConfigConstants.METRICS_REPORTER_PREFIX + "restarts." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+			RestartReporter.class.getName());
+
 		// we have to manage this manually because we have to create the ZooKeeper server
 		// ahead of this
-		miniClusterResource = new MiniClusterResource(
-			new MiniClusterResource.MiniClusterResourceConfiguration(
-				config,
-				NUM_TMS,
-				NUM_SLOTS_PER_TM),
-			true);
+		miniClusterResource = new MiniClusterWithClientResource(
+			new MiniClusterResourceConfiguration.Builder()
+				.setConfiguration(config)
+				.setNumberTaskManagers(NUM_TMS)
+				.setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
+				.build());
 
 		miniClusterResource.before();
 	}
@@ -146,7 +169,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 	 *       restored successfully
 	 * </ol>
 	 */
-	@Test(timeout = 120_000L)
+	@Test
 	public void testRestoreBehaviourWithFaultyStateHandles() throws Exception {
 		CheckpointBlockingFunction.allowedInitializeCallsWithoutRestore.set(1);
 		CheckpointBlockingFunction.successfulRestores.set(0);
@@ -183,66 +206,108 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 		// wait until we did some checkpoints
 		waitForCheckpointLatch.await();
 
+		log.debug("Messing with HA directory");
 		// mess with the HA directory so that the job cannot restore
 		File movedCheckpointLocation = TEMPORARY_FOLDER.newFolder();
-		int numCheckpoints = 0;
-		File[] files = haStorageDir.listFiles();
-		assertNotNull(files);
-		for (File file : files) {
-			if (file.getName().startsWith("completedCheckpoint")) {
-				assertTrue(file.renameTo(new File(movedCheckpointLocation, file.getName())));
-				numCheckpoints++;
+		AtomicInteger numCheckpoints = new AtomicInteger();
+		Files.walkFileTree(haStorageDir.toPath(), new SimpleFileVisitor<Path>() {
+			@Override
+			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+				if (file.getFileName().toString().startsWith("completedCheckpoint")) {
+					log.debug("Moving original checkpoint file {}.", file);
+					try {
+						Files.move(file, movedCheckpointLocation.toPath().resolve(file.getFileName()));
+						numCheckpoints.incrementAndGet();
+					} catch (IOException ioe) {
+						// previous checkpoint files may be deleted asynchronously
+						log.debug("Exception while moving HA files.", ioe);
+					}
+				}
+				return FileVisitResult.CONTINUE;
 			}
-		}
+		});
+
 		// Note to future developers: This will break when we change Flink to not put the
 		// checkpoint metadata into the HA directory but instead rely on the fact that the
 		// actual checkpoint directory on DFS contains the checkpoint metadata. In this case,
 		// ZooKeeper will only contain a "handle" (read: String) that points to the metadata
 		// in DFS. The likely solution will be that we have to go directly to ZooKeeper, find
 		// out where the checkpoint is stored and mess with that.
-		assertTrue(numCheckpoints > 0);
+		assertTrue(numCheckpoints.get() > 0);
 
+		log.debug("Resuming job");
 		failInCheckpointLatch.trigger();
 
-		// Ensure that we see at least one cycle where the job tries to restart and fails.
-		CompletableFuture<JobStatus> jobStatusFuture = FutureUtils.retrySuccesfulWithDelay(
-			() -> clusterClient.getJobStatus(jobID),
-			Time.milliseconds(1),
-			deadline,
-			(jobStatus) -> jobStatus == JobStatus.RESTARTING,
-			TestingUtils.defaultScheduledExecutor());
-		assertEquals(JobStatus.RESTARTING, jobStatusFuture.get());
-
-		jobStatusFuture = FutureUtils.retrySuccesfulWithDelay(
-			() -> clusterClient.getJobStatus(jobID),
-			Time.milliseconds(1),
-			deadline,
-			(jobStatus) -> jobStatus == JobStatus.FAILING,
-			TestingUtils.defaultScheduledExecutor());
-		assertEquals(JobStatus.FAILING, jobStatusFuture.get());
+		assertNotNull("fullRestarts metric could not be accessed.", RestartReporter.numRestarts);
+		while (RestartReporter.numRestarts.getValue() < 5 && deadline.hasTimeLeft()) {
+			Thread.sleep(50);
+		}
+		assertThat(RestartReporter.numRestarts.getValue(), is(greaterThan(4L)));
 
 		// move back the HA directory so that the job can restore
 		CheckpointBlockingFunction.afterMessWithZooKeeper.set(true);
+		log.debug("Restored zookeeper");
 
-		files = movedCheckpointLocation.listFiles();
-		assertNotNull(files);
-		for (File file : files) {
-			if (file.getName().startsWith("completedCheckpoint")) {
-				assertTrue(file.renameTo(new File(haStorageDir, file.getName())));
+		Files.walkFileTree(movedCheckpointLocation.toPath(), new SimpleFileVisitor<Path>() {
+			@Override
+			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+				Files.move(file, haStorageDir.toPath().resolve(file.getFileName()));
+				return FileVisitResult.CONTINUE;
 			}
-		}
+		});
 
 		// now the job should be able to go to RUNNING again and then eventually to FINISHED,
 		// which it only does if it could successfully restore
-		jobStatusFuture = FutureUtils.retrySuccesfulWithDelay(
+		CompletableFuture<JobStatus> jobStatusFuture = FutureUtils.retrySuccesfulWithDelay(
 			() -> clusterClient.getJobStatus(jobID),
 			Time.milliseconds(50),
 			deadline,
-			(jobStatus) -> jobStatus == JobStatus.FINISHED,
+			JobStatus::isGloballyTerminalState,
 			TestingUtils.defaultScheduledExecutor());
-		assertEquals(JobStatus.FINISHED, jobStatusFuture.get());
+		try {
+			assertEquals(JobStatus.FINISHED, jobStatusFuture.get());
+		} catch (Throwable e) {
+			// include additional debugging information
+			StringWriter error = new StringWriter();
+			try (PrintWriter out = new PrintWriter(error)) {
+				out.println("The job did not finish in time.");
+				out.println("allowedInitializeCallsWithoutRestore= " + CheckpointBlockingFunction.allowedInitializeCallsWithoutRestore.get());
+				out.println("illegalRestores= " + CheckpointBlockingFunction.illegalRestores.get());
+				out.println("successfulRestores= " + CheckpointBlockingFunction.successfulRestores.get());
+				out.println("afterMessWithZooKeeper= " + CheckpointBlockingFunction.afterMessWithZooKeeper.get());
+				out.println("failedAlready= " + CheckpointBlockingFunction.failedAlready.get());
+				out.println("currentJobStatus= " + clusterClient.getJobStatus(jobID).get());
+				out.println("numRestarts= " + RestartReporter.numRestarts.getValue());
+				out.println("threadDump= " + generateThreadDump());
+			}
+			throw new AssertionError(error.toString(), ExceptionUtils.stripCompletionException(e));
+		}
 
 		assertThat("We saw illegal restores.", CheckpointBlockingFunction.illegalRestores.get(), is(0));
+	}
+
+	private static String generateThreadDump() {
+		final StringBuilder dump = new StringBuilder();
+		final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+		final ThreadInfo[] threadInfos = threadMXBean.getThreadInfo(threadMXBean.getAllThreadIds(), 100);
+		for (ThreadInfo threadInfo : threadInfos) {
+			dump.append('"');
+			dump.append(threadInfo.getThreadName());
+			dump.append('"');
+			final Thread.State state = threadInfo.getThreadState();
+			dump.append(System.lineSeparator());
+			dump.append("   java.lang.Thread.State: ");
+			dump.append(state);
+			final StackTraceElement[] stackTraceElements = threadInfo.getStackTrace();
+			for (final StackTraceElement stackTraceElement : stackTraceElements) {
+				dump.append(System.lineSeparator());
+				dump.append("        at ");
+				dump.append(stackTraceElement);
+			}
+			dump.append(System.lineSeparator());
+			dump.append(System.lineSeparator());
+		}
+		return dump.toString();
 	}
 
 	private static class UnboundedSource implements SourceFunction<String> {
@@ -321,6 +386,32 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 					illegalRestores.getAndIncrement();
 				}
 			}
+		}
+	}
+
+	/**
+	 * Reporter that exposes the {@link NumberOfFullRestartsGauge} metric.
+	 */
+	public static class RestartReporter implements MetricReporter {
+		static volatile NumberOfFullRestartsGauge numRestarts = null;
+
+		@Override
+		public void open(MetricConfig metricConfig) {
+		}
+
+		@Override
+		public void close() {
+		}
+
+		@Override
+		public void notifyOfAddedMetric(Metric metric, String s, MetricGroup metricGroup) {
+			if (metric instanceof NumberOfFullRestartsGauge) {
+				numRestarts = (NumberOfFullRestartsGauge) metric;
+			}
+		}
+
+		@Override
+		public void notifyOfRemovedMetric(Metric metric, String s, MetricGroup metricGroup) {
 		}
 	}
 }

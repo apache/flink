@@ -18,6 +18,7 @@
 package org.apache.flink.table.runtime.join
 
 import org.apache.flink.api.common.functions.FlatJoinFunction
+import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.state.{MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
@@ -37,7 +38,6 @@ import org.apache.flink.util.Collector
   *
   * @param leftType          the input type of left stream
   * @param rightType         the input type of right stream
-  * @param resultType        the output type of join
   * @param genJoinFuncName   the function code of other non-equi condition
   * @param genJoinFuncCode   the function name of other non-equi condition
   * @param queryConfig       the configuration for the query to generate
@@ -45,7 +45,6 @@ import org.apache.flink.util.Collector
 abstract class NonWindowJoin(
     leftType: TypeInformation[Row],
     rightType: TypeInformation[Row],
-    resultType: TypeInformation[CRow],
     genJoinFuncName: String,
     genJoinFuncCode: String,
     queryConfig: StreamQueryConfig)
@@ -79,14 +78,16 @@ abstract class NonWindowJoin(
   protected var curProcessTime: Long = _
 
   override def open(parameters: Configuration): Unit = {
-    LOG.debug(s"Compiling JoinFunction: $genJoinFuncName \n\n " +
-                s"Code:\n$genJoinFuncCode")
+    LOG.debug(s"Compiling JoinFunction: $genJoinFuncName \n\n Code:\n$genJoinFuncCode")
     val clazz = compile(
       getRuntimeContext.getUserCodeClassLoader,
       genJoinFuncName,
       genJoinFuncCode)
 
+    LOG.debug("Instantiating JoinFunction.")
     joinFunction = clazz.newInstance()
+    FunctionUtils.setFunctionRuntimeContext(joinFunction, getRuntimeContext)
+    FunctionUtils.openFunction(joinFunction, parameters)
 
     // initialize left and right state, the first element of tuple2 indicates how many rows of
     // this row, while the second element represents the expired time of this row.
@@ -292,5 +293,9 @@ abstract class NonWindowJoin(
     } else {
       joinFunction.join(otherSideRow, inputRow, cRowWrapper)
     }
+  }
+
+  override def close(): Unit = {
+    FunctionUtils.closeFunction(joinFunction)
   }
 }

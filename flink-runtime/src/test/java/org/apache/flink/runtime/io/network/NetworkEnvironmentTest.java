@@ -21,9 +21,8 @@ package org.apache.flink.runtime.io.network;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -31,7 +30,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 
@@ -79,21 +77,8 @@ public class NetworkEnvironmentTest {
 	 */
 	@Test
 	public void testRegisterTaskUsesBoundedBuffers() throws Exception {
-
 		final NetworkEnvironment network = new NetworkEnvironment(
-			new NetworkBufferPool(numBuffers, memorySegmentSize),
-			new LocalConnectionManager(),
-			new ResultPartitionManager(),
-			new TaskEventDispatcher(),
-			new KvStateRegistry(),
-			null,
-			null,
-			IOManager.IOMode.SYNC,
-			0,
-			0,
-			2,
-			8,
-			enableCreditBasedFlowControl);
+			numBuffers, memorySegmentSize, 0, 0, 2, 8, enableCreditBasedFlowControl);
 
 		// result partitions
 		ResultPartition rp1 = createResultPartition(ResultPartitionType.PIPELINED, 2);
@@ -197,19 +182,7 @@ public class NetworkEnvironmentTest {
 
 	private void testRegisterTaskWithLimitedBuffers(int bufferPoolSize) throws Exception {
 		final NetworkEnvironment network = new NetworkEnvironment(
-			new NetworkBufferPool(bufferPoolSize, memorySegmentSize),
-			new LocalConnectionManager(),
-			new ResultPartitionManager(),
-			new TaskEventDispatcher(),
-			new KvStateRegistry(),
-			null,
-			null,
-			IOManager.IOMode.SYNC,
-			0,
-			0,
-			2,
-			8,
-			enableCreditBasedFlowControl);
+			bufferPoolSize, memorySegmentSize, 0, 0, 2, 8, enableCreditBasedFlowControl);
 
 		final ConnectionManager connManager = createDummyConnectionManager();
 
@@ -313,7 +286,7 @@ public class NetworkEnvironmentTest {
 			channels,
 			channels,
 			mock(ResultPartitionManager.class),
-			mock(ResultPartitionConsumableNotifier.class),
+			new NoOpResultPartitionConsumableNotifier(),
 			mock(IOManager.class),
 			false);
 	}

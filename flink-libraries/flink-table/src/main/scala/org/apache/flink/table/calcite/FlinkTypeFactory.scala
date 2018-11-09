@@ -172,7 +172,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
           getTypeSystem.asInstanceOf[FlinkTypeSystem])
 
       case ti@_ =>
-        throw TableException(s"Unsupported type information: $ti")
+        throw new TableException(s"Unsupported type information: $ti")
     }
 
     canonize(relType)
@@ -307,7 +307,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
       if (allTypes.exists(_.getSqlTypeName == SqlTypeName.ANY)) {
         // one of the type was ANY.
         // we cannot generate a common type if it differs from other types.
-        throw TableException("Generic ANY types must have a common type information.")
+        throw new TableException("Generic ANY types must have a common type information.")
       } else {
         // cannot resolve a common type for different input types
         None
@@ -341,10 +341,10 @@ object FlinkTypeFactory {
       case TimeIntervalTypeInfo.INTERVAL_MILLIS => INTERVAL_DAY_SECOND
 
       case CHAR_TYPE_INFO | CHAR_VALUE_TYPE_INFO =>
-        throw TableException("Character type is not supported.")
+        throw new TableException("Character type is not supported.")
 
       case _@t =>
-        throw TableException(s"Type is not supported: $t")
+        throw new TableException(s"Type is not supported: $t")
   }
 
   /**
@@ -419,7 +419,8 @@ object FlinkTypeFactory {
     case typeName if DAY_INTERVAL_TYPES.contains(typeName) => TimeIntervalTypeInfo.INTERVAL_MILLIS
 
     case NULL =>
-      throw TableException("Type NULL is not supported. Null values must have a supported type.")
+      throw new TableException(
+        "Type NULL is not supported. Null values must have a supported type.")
 
     // symbol for special flags e.g. TRIM's BOTH, LEADING, TRAILING
     // are represented as integer
@@ -454,6 +455,6 @@ object FlinkTypeFactory {
       multisetRelDataType.typeInfo
 
     case _@t =>
-      throw TableException(s"Type is not supported: $t")
+      throw new TableException(s"Type is not supported: $t")
   }
 }

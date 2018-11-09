@@ -21,6 +21,7 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -77,9 +78,7 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 			} catch (InterruptedException | ExecutionException e) {
 				ExceptionUtils.checkInterrupted(e);
 
-				throw new ProgramInvocationException(
-					String.format("Could not run job %s in detached mode.", jobGraph.getJobID()),
-					e);
+				throw new ProgramInvocationException("Could not run job in detached mode.", jobGraph.getJobID(), e);
 			}
 		} else {
 			final CompletableFuture<JobResult> jobResultFuture = jobSubmissionResultFuture.thenCompose(
@@ -91,17 +90,15 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 			} catch (InterruptedException | ExecutionException e) {
 				ExceptionUtils.checkInterrupted(e);
 
-				throw new ProgramInvocationException(
-					String.format("Could not run job %s.", jobGraph.getJobID()),
-					e);
+				throw new ProgramInvocationException("Could not run job", jobGraph.getJobID(), e);
 			}
 
 			try {
 				return jobResult.toJobExecutionResult(classLoader);
-			} catch (JobResult.WrappedJobException e) {
-				throw new ProgramInvocationException(e.getCause());
+			} catch (JobExecutionException e) {
+				throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
 			} catch (IOException | ClassNotFoundException e) {
-				throw new ProgramInvocationException(e);
+				throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
 			}
 		}
 	}

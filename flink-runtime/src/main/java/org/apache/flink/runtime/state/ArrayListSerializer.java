@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -141,19 +142,23 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & compatibility
+	// Serializer snapshots
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public TypeSerializerConfigSnapshot snapshotConfiguration() {
-		return new CollectionSerializerConfigSnapshot<>(elementSerializer);
+	public TypeSerializerSnapshot<ArrayList<T>> snapshotConfiguration() {
+		return new ArrayListSerializerSnapshot<>(elementSerializer);
 	}
 
+	/**
+	 * NOTE: this method cannot be removed until {@link CollectionSerializerConfigSnapshot} is fully removed.
+	 */
 	@Override
-	public CompatibilityResult<ArrayList<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	@SuppressWarnings("deprecation")
+	public CompatibilityResult<ArrayList<T>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
-			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousElemSerializerAndConfig =
-				((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerAndConfig();
+			Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> previousElemSerializerAndConfig =
+				((CollectionSerializerConfigSnapshot<?, ?>) configSnapshot).getSingleNestedSerializerAndConfig();
 
 			CompatibilityResult<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
 					previousElemSerializerAndConfig.f0,

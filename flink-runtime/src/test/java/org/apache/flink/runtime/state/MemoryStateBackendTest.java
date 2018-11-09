@@ -32,12 +32,13 @@ import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.testutils.ArtificialCNFExceptionThrowingClassLoader;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FutureUtil;
+
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.concurrent.RunnableFuture;
@@ -140,8 +141,8 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 			operatorStateBackend.restore(StateObjectCollection.singleton(stateHandle));
 
 			fail("The operator state restore should have failed if the previous state serializer could not be loaded.");
-		} catch (IOException expected) {
-			Assert.assertTrue(expected.getMessage().contains("Unable to restore operator state"));
+		} catch (Exception expected) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(expected, ClassNotFoundException.class).isPresent());
 		} finally {
 			stateHandle.discardState();
 		}
@@ -154,6 +155,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 	@Test
 	public void testKeyedStateRestoreFailsIfSerializerDeserializationFails() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		KeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 
 		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, null);
@@ -161,7 +163,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 
 		HeapKeyedStateBackend<Integer> heapBackend = (HeapKeyedStateBackend<Integer>) backend;
 
-		assertEquals(0, heapBackend.numStateEntries());
+		assertEquals(0, heapBackend.numKeyValueStateEntries());
 
 		ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
@@ -170,11 +172,13 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 		state.update("hello");
 		state.update("ciao");
 
-		KeyedStateHandle snapshot = runSnapshot(((HeapKeyedStateBackend<Integer>) backend).snapshot(
-			682375462378L,
-			2,
-			streamFactory,
-			CheckpointOptions.forCheckpointWithDefaultLocation()));
+		KeyedStateHandle snapshot = runSnapshot(
+			((HeapKeyedStateBackend<Integer>) backend).snapshot(
+				682375462378L,
+				2,
+				streamFactory,
+				CheckpointOptions.forCheckpointWithDefaultLocation()),
+			sharedStateRegistry);
 
 		backend.dispose();
 
@@ -190,8 +194,8 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 						Collections.singleton(StringSerializer.class.getName()))));
 
 			fail("The keyed state restore should have failed if the previous state serializer could not be loaded.");
-		} catch (IOException expected) {
-			Assert.assertTrue(expected.getMessage().contains("Unable to restore keyed state"));
+		} catch (Exception expected) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(expected, ClassNotFoundException.class).isPresent());
 		}
 	}
 

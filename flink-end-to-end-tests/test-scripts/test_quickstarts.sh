@@ -18,45 +18,59 @@
 ################################################################################
 
 # End to end test for quick starts test.
+# Usage:
+# FLINK_DIR=<flink dir> flink-end-to-end-tests/test-scripts/test_quickstarts.sh <Type (java or scala)>
 
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/elasticsearch-common.sh
 
-mkdir -p $TEST_DATA_DIR
+TEST_TYPE=$1
+TEST_CLASS_NAME=Elasticsearch5SinkExample
+TEST_FILE_PATH=flink-quickstart-test/src/main/${TEST_TYPE}/org/apache/flink/quickstarts/test/${TEST_CLASS_NAME}.${TEST_TYPE}
+QUICKSTARTS_FILE_PATH=${TEST_DATA_DIR}/flink-quickstart-${TEST_TYPE}/src/main/${TEST_TYPE}/org/apache/flink/quickstart/${TEST_CLASS_NAME}.${TEST_TYPE}
+ES_INDEX=index_${TEST_TYPE}
 
-cd $TEST_DATA_DIR
+# get the elasticsearch dependency from flink-quickstart-test
+ES_DEPENDENCY="<dependency>\
+<groupId>org.apache.flink</groupId>\
+$(awk '/flink-connector-elasticsearch/ {print $1}' ${END_TO_END_DIR}/flink-quickstart-test/target/dependency-reduced-pom.xml)\
+<version>\${flink.version}</version>\
+</dependency>"
 
-mvn archetype:generate                             \
-    -DarchetypeGroupId=org.apache.flink            \
-    -DarchetypeArtifactId=flink-quickstart-java    \
-    -DarchetypeVersion=1.6-SNAPSHOT                \
-    -DgroupId=org.apache.flink.quickstart          \
-    -DartifactId=flink-java-project                \
-    -Dversion=0.1                                  \
-    -Dpackage=org.apache.flink.quickstart          \
+mkdir -p "${TEST_DATA_DIR}"
+cd "${TEST_DATA_DIR}"
+
+ARTIFACT_ID=flink-quickstart-${TEST_TYPE}
+ARTIFACT_VERSION=0.1
+
+mvn archetype:generate                                   \
+    -DarchetypeGroupId=org.apache.flink                  \
+    -DarchetypeArtifactId=flink-quickstart-${TEST_TYPE}  \
+    -DarchetypeVersion=${FLINK_VERSION}                  \
+    -DgroupId=org.apache.flink.quickstart                \
+    -DartifactId=${ARTIFACT_ID}                          \
+    -Dversion=${ARTIFACT_VERSION}                        \
+    -Dpackage=org.apache.flink.quickstart                \
     -DinteractiveMode=false
 
-cd flink-java-project
+cd "${ARTIFACT_ID}"
 
-# use the Flink Elasticsearch sink example job code in flink-elasticsearch5-tests to simulate modifications to contained job
-cp $TEST_INFRA_DIR/../flink-elasticsearch5-test/src/main/java/org/apache/flink/streaming/tests/Elasticsearch5SinkExample.java $TEST_DATA_DIR/flink-java-project/src/main/java/org/apache/flink/quickstart/
-sed -i -e 's/package org.apache.flink.streaming.tests;/package org.apache.flink.quickstart;/' $TEST_DATA_DIR/flink-java-project/src/main/java/org/apache/flink/quickstart/Elasticsearch5SinkExample.java
+# use the Flink Elasticsearch sink example job code in flink-quickstart-test to simulate modifications to contained job
+cp ${END_TO_END_DIR}/${TEST_FILE_PATH} "$QUICKSTARTS_FILE_PATH"
+sed -i -e 's/package org.apache.flink.quickstarts.test/package org.apache.flink.quickstart/' "${QUICKSTARTS_FILE_PATH}"
 
 position=$(awk '/<dependencies>/ {print NR}' pom.xml | head -1)
 
-sed -i -e ''"$(($position + 1))"'i\
-<dependency>\
-<groupId>org.apache.flink</groupId>\
-<artifactId>flink-connector-elasticsearch5_${scala.binary.version}</artifactId>\
-<version>${flink.version}</version>\
-</dependency>' pom.xml
+# Add ElasticSearch dependency to pom.xml
+sed -i -e ''$(($position + 1))'i\
+'${ES_DEPENDENCY}'' pom.xml
 
-sed -i -e "s/org.apache.flink.quickstart.StreamingJob/org.apache.flink.streaming.tests.Elasticsearch5SinkExample/" pom.xml
+sed -i -e "s/org.apache.flink.quickstart.StreamingJob/org.apache.flink.quickstart.$TEST_CLASS_NAME/" pom.xml
 
 mvn clean package -nsu
 
 cd target
-jar tvf flink-java-project-0.1.jar > contentsInJar.txt
+jar tvf flink-quickstart-${TEST_TYPE}-0.1.jar > contentsInJar.txt
 
 if [[ `grep -c "org/apache/flink/api/java" contentsInJar.txt` -eq '0' && \
       `grep -c "org/apache/flink/streaming/api" contentsInJar.txt` -eq '0' && \
@@ -67,7 +81,6 @@ if [[ `grep -c "org/apache/flink/api/java" contentsInJar.txt` -eq '0' && \
     echo "Success: There are no flink core classes are contained in the jar."
 else
     echo "Failure: There are flink core classes are contained in the jar."
-    PASS=""
     exit 1
 fi
 
@@ -76,31 +89,32 @@ if [[ `grep -c "org/apache/flink/quickstart/StreamingJob.class" contentsInJar.tx
       `grep -c "org/apache/flink/streaming/connectors/elasticsearch5" contentsInJar.txt` -eq '0' ]]; then
 
     echo "Failure: Since Elasticsearch5SinkExample.class and other user classes are not included in the jar. "
-    PASS=""
     exit 1
 else
     echo "Success: Elasticsearch5SinkExample.class and other user classes are included in the jar."
 fi
 
 setup_elasticsearch "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.1.2.tar.gz"
-verify_elasticsearch_process_exist
+wait_elasticsearch_working
 
 function shutdownAndCleanup {
-    shutdown_elasticsearch_cluster
+    # don't call ourselves again for another signal interruption
+    trap "exit -1" INT
+    # don't call ourselves again for normal exit
+    trap "" EXIT
 
-    # make sure to run regular cleanup as well
-    cleanup
+    shutdown_elasticsearch_cluster "$ES_INDEX"
 }
 trap shutdownAndCleanup INT
 trap shutdownAndCleanup EXIT
 
-TEST_PROGRAM_JAR=$TEST_DATA_DIR/flink-java-project/target/flink-java-project-0.1.jar
+TEST_PROGRAM_JAR=${TEST_DATA_DIR}/${ARTIFACT_ID}/target/${ARTIFACT_ID}-${ARTIFACT_VERSION}.jar
 
 start_cluster
 
-$FLINK_DIR/bin/flink run -c org.apache.flink.quickstart.Elasticsearch5SinkExample $TEST_PROGRAM_JAR \
+${FLINK_DIR}/bin/flink run -c org.apache.flink.quickstart.Elasticsearch5SinkExample "$TEST_PROGRAM_JAR" \
   --numRecords 20 \
-  --index index \
+  --index "${ES_INDEX}" \
   --type type
 
-verify_result 20
+verify_result_line_number 20 "${ES_INDEX}"

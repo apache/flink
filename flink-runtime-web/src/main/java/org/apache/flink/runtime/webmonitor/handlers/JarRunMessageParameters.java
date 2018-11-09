@@ -19,9 +19,9 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.messages.MessageParameters;
-import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -29,32 +29,18 @@ import java.util.Collections;
 /**
  * {@link MessageParameters} for {@link JarRunHandler}.
  */
-public class JarRunMessageParameters extends MessageParameters {
+public class JarRunMessageParameters extends JarMessageParameters {
 
-	public final JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
+	final AllowNonRestoredStateQueryParameter allowNonRestoredStateQueryParameter = new AllowNonRestoredStateQueryParameter();
 
-	public final ProgramArgsQueryParameter programArgsQueryParameter = new ProgramArgsQueryParameter();
-
-	public final EntryClassQueryParameter entryClassQueryParameter = new EntryClassQueryParameter();
-
-	public final ParallelismQueryParameter parallelismQueryParameter = new ParallelismQueryParameter();
-
-	public final AllowNonRestoredStateQueryParameter allowNonRestoredStateQueryParameter = new AllowNonRestoredStateQueryParameter();
-
-	public final SavepointPathQueryParameter savepointPathQueryParameter = new SavepointPathQueryParameter();
-
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singletonList(jarIdPathParameter);
-	}
+	final SavepointPathQueryParameter savepointPathQueryParameter = new SavepointPathQueryParameter();
 
 	@Override
 	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.unmodifiableCollection(Arrays.asList(
-			programArgsQueryParameter,
-			entryClassQueryParameter,
-			parallelismQueryParameter,
+		Collection<MessageQueryParameter<?>> pars = new ArrayList<>(Arrays.asList(
 			allowNonRestoredStateQueryParameter,
 			savepointPathQueryParameter));
+		pars.addAll(super.getQueryParameters());
+		return Collections.unmodifiableCollection(pars);
 	}
 }

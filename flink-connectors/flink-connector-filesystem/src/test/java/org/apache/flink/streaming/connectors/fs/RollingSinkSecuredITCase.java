@@ -25,7 +25,8 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.modules.HadoopModule;
-import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.SecureTestEnvironment;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.test.util.TestingSecurityContext;
@@ -147,10 +148,12 @@ public class RollingSinkSecuredITCase extends RollingSinkITCase {
 
 		Configuration configuration = startSecureFlinkClusterWithRecoveryModeEnabled();
 
-		miniClusterResource = new MiniClusterResource(new MiniClusterResource.MiniClusterResourceConfiguration(
-			configuration,
-			1,
-			4));
+		miniClusterResource = new MiniClusterResource(
+			new MiniClusterResourceConfiguration.Builder()
+				.setConfiguration(configuration)
+				.setNumberTaskManagers(1)
+				.setNumberSlotsPerTaskManager(4)
+				.build());
 
 		miniClusterResource.before();
 	}

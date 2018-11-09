@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.6-SNAPSHOT</version>
+		<version>1.8-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -300,6 +300,11 @@ under the License.
 	<profiles>
 		<profile>
 			<id>cdh5.1.3</id>
+			<activation>
+				<property>
+					<name>cdh5.1.3</name>
+				</property>
+			</activation>
 			<properties>
 				<hbase.version>0.98.1-cdh5.1.3</hbase.version>
 				<hadoop.version>2.3.0-cdh5.1.3</hadoop.version>

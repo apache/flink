@@ -52,7 +52,6 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.JobManagerActorTestUtils;
 import org.apache.flink.runtime.testutils.JobManagerProcess;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
@@ -71,6 +70,7 @@ import org.apache.flink.util.TestLogger;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
+import akka.actor.RobustActorSystem;
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
 import org.junit.AfterClass;
@@ -82,7 +82,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -94,7 +93,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import scala.Option;
 import scala.Some;
 import scala.Tuple2;
+import scala.concurrent.Await;
 import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob;
@@ -111,42 +112,23 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 	@Rule
 	public RetryRule retryRule = new RetryRule();
 
+	@Rule
+	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 	private static final ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);
 
 	private static final FiniteDuration TestTimeOut = new FiniteDuration(5, TimeUnit.MINUTES);
 
-	private static final File FileStateBackendBasePath;
-
-	static {
-		try {
-			FileStateBackendBasePath = CommonTestUtils.createTempDirectory();
-		}
-		catch (IOException e) {
-			throw new RuntimeException("Error in test setup. Could not create directory.", e);
-		}
-	}
-
 	@AfterClass
-	public static void tearDown() throws Exception {
+	public static void tearDown() {
 		try {
 			ZooKeeper.shutdown();
 		} catch (Exception ignored) {
-		}
-
-		try {
-			if (FileStateBackendBasePath != null) {
-				FileUtils.deleteDirectory(FileStateBackendBasePath);
-			}
-		} catch (IOException ignored) {
 		}
 	}
 
 	@Before
 	public void cleanUp() throws Exception {
-		if (FileStateBackendBasePath != null && FileStateBackendBasePath.exists()) {
-			FileUtils.cleanDirectory(FileStateBackendBasePath);
-		}
-
 		ZooKeeper.deleteAll();
 	}
 
@@ -177,7 +159,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 	public void testCheckpointRecoveryFailure() throws Exception {
 		final Deadline testDeadline = TestTimeOut.fromNow();
 		final String zooKeeperQuorum = ZooKeeper.getConnectString();
-		final String fileStateBackendPath = FileStateBackendBasePath.getAbsoluteFile().toString();
+		final String fileStateBackendPath = temporaryFolder.newFolder().toString();
 
 		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 			zooKeeperQuorum,
@@ -264,7 +246,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 				testDeadline.timeLeft());
 
 			// Remove all files
-			FileUtils.deleteDirectory(FileStateBackendBasePath);
+			FileUtils.deleteDirectory(new File(fileStateBackendPath));
 
 			// Kill the leader
 			leadingJobManagerProcess.destroy();
@@ -338,7 +320,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 	public void testCheckpointedStreamingProgramIncrementalRocksDB() throws Exception {
 		testCheckpointedStreamingProgram(
 			new RocksDBStateBackend(
-				new FsStateBackend(FileStateBackendBasePath.getAbsoluteFile().toURI(), 16),
+				new FsStateBackend(temporaryFolder.newFolder().getAbsoluteFile().toURI(), 16),
 				true));
 	}
 
@@ -349,7 +331,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 		final int sequenceEnd = 5000;
 		final long expectedSum = Parallelism * sequenceEnd * (sequenceEnd + 1) / 2;
 
-		final ActorSystem system = ActorSystem.create("Test", AkkaUtils.getDefaultAkkaConfig());
+		final ActorSystem system = RobustActorSystem.create("Test", AkkaUtils.getDefaultAkkaConfig());
 		final TestingServer testingServer = new TestingServer();
 		final TemporaryFolder temporaryFolder = new TemporaryFolder();
 		temporaryFolder.create();
@@ -425,8 +407,8 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 				miniCluster.awaitTermination();
 			}
 
-			system.shutdown();
-			system.awaitTermination();
+			system.terminate();
+			Await.ready(system.whenTerminated(), Duration.Inf());
 
 			testingServer.stop();
 			testingServer.close();

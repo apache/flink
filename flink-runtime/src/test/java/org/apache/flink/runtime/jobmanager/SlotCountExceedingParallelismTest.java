@@ -29,18 +29,22 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.BitSet;
 
+/**
+ * Tests that Flink can execute jobs with a higher parallelism than available number
+ * of slots. This effectively tests that Flink can execute jobs with blocking results
+ * in a staged fashion.
+ */
 public class SlotCountExceedingParallelismTest extends TestLogger {
 
 	// Test configuration
@@ -50,29 +54,19 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
 
 	public static final String JOB_NAME = "SlotCountExceedingParallelismTest (no slot sharing, blocking results)";
 
-	private static MiniCluster flink;
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getFlinkConfiguration())
+			.setNumberTaskManagers(NUMBER_OF_TMS)
+			.setNumberSlotsPerTaskManager(NUMBER_OF_SLOTS_PER_TM)
+			.build());
 
-	@BeforeClass
-	public static void setUp() throws Exception {
+	private static Configuration getFlinkConfiguration() {
 		final Configuration config = new Configuration();
 		config.setString(AkkaOptions.ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
 
-		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
-			.setConfiguration(config)
-			.setNumTaskManagers(NUMBER_OF_TMS)
-			.setNumSlotsPerTaskManager(NUMBER_OF_SLOTS_PER_TM)
-			.build();
-
-		flink = new MiniCluster(miniClusterConfiguration);
-
-		flink.start();
-	}
-
-	@AfterClass
-	public static void tearDown() throws Exception {
-		if (flink != null) {
-			flink.close();
-		}
+		return config;
 	}
 
 	@Test
@@ -99,7 +93,7 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
 	// ---------------------------------------------------------------------------------------------
 
 	private void submitJobGraphAndWait(final JobGraph jobGraph) throws JobExecutionException, InterruptedException {
-		flink.executeJobBlocking(jobGraph);
+		MINI_CLUSTER_RESOURCE.getMiniCluster().executeJobBlocking(jobGraph);
 	}
 
 	private JobGraph createTestJobGraph(

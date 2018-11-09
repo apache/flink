@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -41,16 +42,16 @@ import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.instance.SimpleSlotContext;
-import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.SlotOwner;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
 import org.apache.flink.runtime.messages.TaskMessages.FailIntermediateResultPartitions;
@@ -65,11 +66,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.lang.reflect.Field;
 import java.net.InetAddress;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.ExecutionContext$;
@@ -93,13 +97,12 @@ public class ExecutionGraphTestUtils {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Waits until the job has reached a certain state.
+	 * Waits until the Job has reached a certain state.
 	 *
 	 * <p>This method is based on polling and might miss very fast state transitions!
 	 */
 	public static void waitUntilJobStatus(ExecutionGraph eg, JobStatus status, long maxWaitMillis)
 			throws TimeoutException {
-
 		checkNotNull(eg);
 		checkNotNull(status);
 		checkArgument(maxWaitMillis >= 0);
@@ -114,7 +117,9 @@ public class ExecutionGraphTestUtils {
 		}
 
 		if (System.nanoTime() >= deadline) {
-			throw new TimeoutException();
+			throw new TimeoutException(
+				String.format("The job did not reach status %s in time. Current status is %s.",
+					status, eg.getState()));
 		}
 	}
 
@@ -125,7 +130,6 @@ public class ExecutionGraphTestUtils {
 	 */
 	public static void waitUntilExecutionState(Execution execution, ExecutionState state, long maxWaitMillis)
 			throws TimeoutException {
-
 		checkNotNull(execution);
 		checkNotNull(state);
 		checkArgument(maxWaitMillis >= 0);
@@ -140,13 +144,103 @@ public class ExecutionGraphTestUtils {
 		}
 
 		if (System.nanoTime() >= deadline) {
-			throw new TimeoutException();
+			throw new TimeoutException(
+				String.format("The execution did not reach state %s in time. Current state is %s.",
+					state, execution.getState()));
 		}
+	}
+
+	/**
+	 * Waits until the ExecutionVertex has reached a certain state.
+	 *
+	 * <p>This method is based on polling and might miss very fast state transitions!
+	 */
+	public static void waitUntilExecutionVertexState(ExecutionVertex executionVertex, ExecutionState state, long maxWaitMillis)
+		throws TimeoutException {
+		checkNotNull(executionVertex);
+		checkNotNull(state);
+		checkArgument(maxWaitMillis >= 0);
+
+		// this is a poor implementation - we may want to improve it eventually
+		final long deadline = maxWaitMillis == 0 ? Long.MAX_VALUE : System.nanoTime() + (maxWaitMillis * 1_000_000);
+
+		while (true) {
+			Execution execution = executionVertex.getCurrentExecutionAttempt();
+
+			if (execution == null || (execution.getState() != state && System.nanoTime() < deadline)) {
+				try {
+					Thread.sleep(2);
+				} catch (InterruptedException ignored) { }
+			} else {
+				break;
+			}
+
+			if (System.nanoTime() >= deadline) {
+				if (execution != null) {
+					throw new TimeoutException(
+						String.format("The execution vertex did not reach state %s in time. Current state is %s.",
+							state, execution.getState()));
+				} else {
+					throw new TimeoutException(
+						"Cannot get current execution attempt of " + executionVertex + '.');
+				}
+			}
+		}
+	}
+
+	/**
+	 * Waits until all executions fulfill the given predicate.
+	 *
+	 * @param executionGraph for which to check the executions
+	 * @param executionPredicate predicate which is to be fulfilled
+	 * @param maxWaitMillis timeout for the wait operation
+	 * @throws TimeoutException if the executions did not reach the target state in time
+	 */
+	public static void waitForAllExecutionsPredicate(
+			ExecutionGraph executionGraph,
+			Predicate<Execution> executionPredicate,
+			long maxWaitMillis) throws TimeoutException {
+		final Iterable<ExecutionVertex> allExecutionVertices = executionGraph.getAllExecutionVertices();
+
+		final Deadline deadline = Deadline.fromNow(Duration.ofMillis(maxWaitMillis));
+		boolean predicateResult;
+
+		do {
+			predicateResult = true;
+			for (ExecutionVertex executionVertex : allExecutionVertices) {
+				final Execution currentExecution = executionVertex.getCurrentExecutionAttempt();
+
+				if (currentExecution == null || !executionPredicate.test(currentExecution)) {
+					predicateResult = false;
+					break;
+				}
+			}
+
+			if (!predicateResult) {
+				try {
+					Thread.sleep(2L);
+				} catch (InterruptedException ignored) {
+					Thread.currentThread().interrupt();
+				}
+			}
+		} while (!predicateResult && deadline.hasTimeLeft());
+
+		if (!predicateResult) {
+			throw new TimeoutException("Not all executions fulfilled the predicate in time.");
+		}
+	}
+
+	/**
+	 * Predicate which is true if the given {@link Execution} has a resource assigned.
+	 */
+	static final Predicate<Execution> hasResourceAssigned = (Execution execution) -> execution.getAssignedResource() != null;
+
+	static Predicate<Execution> isInExecutionState(ExecutionState executionState) {
+		return (Execution execution) -> execution.getState() == executionState;
 	}
 
 	public static void waitUntilFailoverRegionState(FailoverRegion region, JobStatus status, long maxWaitMillis)
 			throws TimeoutException {
-
 		checkNotNull(region);
 		checkNotNull(status);
 		checkArgument(maxWaitMillis >= 0);
@@ -162,6 +256,15 @@ public class ExecutionGraphTestUtils {
 
 		if (System.nanoTime() >= deadline) {
 			throw new TimeoutException();
+		}
+	}
+
+	public static void failExecutionGraph(ExecutionGraph executionGraph, Exception cause) {
+		executionGraph.getAllExecutionVertices().iterator().next().fail(cause);
+		assertEquals(JobStatus.FAILING, executionGraph.getState());
+
+		for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
+			vertex.getCurrentExecutionAttempt().cancelingComplete();
 		}
 	}
 
@@ -380,6 +483,13 @@ public class ExecutionGraphTestUtils {
 		TaskManagerLocation connection = new TaskManagerLocation(resourceID, address, 10001);
 
 		return new Instance(gateway, connection, new InstanceID(), hardwareDescription, numberOfSlots);
+	}
+
+	public static JobVertex createJobVertex(String task1, int numTasks, Class<NoOpInvokable> invokable) {
+		JobVertex groupVertex = new JobVertex(task1);
+		groupVertex.setInvokableClass(invokable);
+		groupVertex.setParallelism(numTasks);
+		return groupVertex;
 	}
 
 	@SuppressWarnings("serial")

@@ -85,9 +85,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 	public void addInputChannel(RemoteInputChannel listener) throws IOException {
 		checkError();
 
-		if (!inputChannels.containsKey(listener.getInputChannelId())) {
-			inputChannels.put(listener.getInputChannelId(), listener);
-		}
+		inputChannels.putIfAbsent(listener.getInputChannelId(), listener);
 	}
 
 	@Override
@@ -164,7 +162,11 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 								+ "that the remote task manager was lost.", remoteAddr, cause);
 			}
 			else {
-				tex = new LocalTransportException(cause.getMessage(), ctx.channel().localAddress(), cause);
+				SocketAddress localAddr = ctx.channel().localAddress();
+				tex = new LocalTransportException(
+					String.format("%s (connection to '%s')", cause.getMessage(), remoteAddr),
+					localAddr,
+					cause);
 			}
 
 			notifyAllChannelsOfErrorAndClose(tex);
@@ -333,8 +335,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 				nettyBuffer.readBytes(byteArray);
 
 				MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
-				Buffer buffer = new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, false);
-				buffer.setSize(receivedSize);
+				Buffer buffer = new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, false, receivedSize);
 
 				inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, -1);
 

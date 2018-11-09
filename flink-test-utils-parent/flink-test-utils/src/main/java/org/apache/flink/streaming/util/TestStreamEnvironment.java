@@ -19,12 +19,10 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.JobExecutor;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -36,7 +34,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * A {@link StreamExecutionEnvironment} that executes its jobs on {@link LocalFlinkMiniCluster}.
+ * A {@link StreamExecutionEnvironment} that executes its jobs on {@link MiniCluster}.
  */
 public class TestStreamEnvironment extends StreamExecutionEnvironment {
 
@@ -77,10 +75,6 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 		}
 
 		jobGraph.setClasspaths(new ArrayList<>(classPaths));
-
-		for (Tuple2<String, DistributedCache.DistributedCacheEntry> file : cacheFile) {
-			jobGraph.addUserArtifact(file.f0, file.f1);
-		}
 
 		return jobExecutor.executeJobBlocking(jobGraph);
 	}

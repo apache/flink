@@ -24,6 +24,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -37,6 +38,7 @@ import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TernaryBoolean;
 
@@ -59,6 +61,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
+import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TIMER_SERVICE_FACTORY;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -75,6 +78,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * {@link #setOptions(OptionsFactory)}.
  */
 public class RocksDBStateBackend extends AbstractStateBackend implements ConfigurableStateBackend {
+
+	/**
+	 * The options to chose for the type of priority queue state.
+	 */
+	public enum PriorityQueueStateType {
+		HEAP,
+		ROCKSDB
+	}
 
 	private static final long serialVersionUID = 1L;
 
@@ -108,6 +119,12 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 	/** This determines if incremental checkpointing is enabled. */
 	private final TernaryBoolean enableIncrementalCheckpointing;
+
+	/** This determines the type of priority queue state. */
+	private final PriorityQueueStateType priorityQueueStateType;
+
+	/** The default rocksdb metrics options. */
+	private final RocksDBNativeMetricOptions defaultMetricOptions;
 
 	// -- runtime values, set on TaskManager when initializing / using the backend
 
@@ -221,6 +238,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	public RocksDBStateBackend(StateBackend checkpointStreamBackend, TernaryBoolean enableIncrementalCheckpointing) {
 		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
+		// for now, we use still the heap-based implementation as default
+		this.priorityQueueStateType = PriorityQueueStateType.HEAP;
+		this.defaultMetricOptions = new RocksDBNativeMetricOptions();
 	}
 
 	/**
@@ -256,12 +276,17 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		this.enableIncrementalCheckpointing = original.enableIncrementalCheckpointing.resolveUndefined(
 			config.getBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS));
 
+		final String priorityQueueTypeString = config.getString(TIMER_SERVICE_FACTORY);
+
+		this.priorityQueueStateType = priorityQueueTypeString.length() > 0 ?
+			PriorityQueueStateType.valueOf(priorityQueueTypeString.toUpperCase()) : original.priorityQueueStateType;
+
 		// configure local directories
 		if (original.localRocksDbDirectories != null) {
 			this.localRocksDbDirectories = original.localRocksDbDirectories;
 		}
 		else {
-			final String rocksdbLocalPaths = config.getString(CheckpointingOptions.ROCKSDB_LOCAL_DIRECTORIES);
+			final String rocksdbLocalPaths = config.getString(RocksDBOptions.LOCAL_DIRECTORIES);
 			if (rocksdbLocalPaths != null) {
 				String[] directories = rocksdbLocalPaths.split(",|" + File.pathSeparator);
 
@@ -274,6 +299,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				}
 			}
 		}
+
+		// configure metric options
+		this.defaultMetricOptions = RocksDBNativeMetricOptions.fromConfig(config);
 
 		// copy remaining settings
 		this.predefinedOptions = original.predefinedOptions;
@@ -391,7 +419,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) throws IOException {
+			TaskKvStateRegistry kvStateRegistry,
+			TtlTimeProvider ttlTimeProvider,
+			MetricGroup metricGroup) throws IOException {
 
 		// first, make sure that the RocksDB JNI library is loaded
 		// we do this explicitly here to have better error handling
@@ -422,7 +452,11 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				keyGroupRange,
 				env.getExecutionConfig(),
 				isIncrementalCheckpointsEnabled(),
-				localRecoveryConfig);
+				localRecoveryConfig,
+				priorityQueueStateType,
+				ttlTimeProvider,
+				getMemoryWatcherOptions(),
+				metricGroup);
 	}
 
 	@Override
@@ -641,6 +675,15 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		}
 
 		return opt;
+	}
+
+	public RocksDBNativeMetricOptions getMemoryWatcherOptions() {
+		RocksDBNativeMetricOptions options = this.defaultMetricOptions;
+		if (optionsFactory != null) {
+			options = optionsFactory.createNativeMetricsOptions(options);
+		}
+
+		return options;
 	}
 
 	// ------------------------------------------------------------------------

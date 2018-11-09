@@ -47,7 +47,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -82,6 +82,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -253,7 +254,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 					blobService.getPermanentBlobService()),
 				new TestingTaskManagerRuntimeInfo(),
 				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
-				mock(ResultPartitionConsumableNotifier.class),
+				new NoOpResultPartitionConsumableNotifier(),
 				mock(PartitionProducerStateChecker.class),
 				Executors.directExecutor());
 	}
@@ -305,12 +306,13 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				env.getUserClassLoader(),
 				env.getExecutionConfig(),
 				true) {
+				@Nonnull
 				@Override
 				public RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot(
 					long checkpointId,
 					long timestamp,
-					CheckpointStreamFactory streamFactory,
-					CheckpointOptions checkpointOptions) throws Exception {
+					@Nonnull CheckpointStreamFactory streamFactory,
+					@Nonnull CheckpointOptions checkpointOptions) throws Exception {
 
 					throw new Exception("Sync part snapshot exception.");
 				}
@@ -334,12 +336,13 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				env.getUserClassLoader(),
 				env.getExecutionConfig(),
 				true) {
+				@Nonnull
 				@Override
 				public RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot(
 					long checkpointId,
 					long timestamp,
-					CheckpointStreamFactory streamFactory,
-					CheckpointOptions checkpointOptions) throws Exception {
+					@Nonnull CheckpointStreamFactory streamFactory,
+					@Nonnull CheckpointOptions checkpointOptions) throws Exception {
 
 					return new FutureTask<>(() -> {
 						throw new Exception("Async part snapshot exception.");
