@@ -31,13 +31,13 @@ import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 import org.junit.Test
 
-class NonWindowHarnessTest extends HarnessTestBase {
+class GroupAggregateHarnessTest extends HarnessTestBase {
 
   protected var queryConfig =
     new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(2), Time.seconds(3))
 
   @Test
-  def testNonWindow(): Unit = {
+  def testAggregate(): Unit = {
 
     val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
       new GroupAggProcessFunction(
@@ -97,7 +97,7 @@ class NonWindowHarnessTest extends HarnessTestBase {
   }
 
   @Test
-  def testNonWindowWithRetract(): Unit = {
+  def testAggregateWithRetract(): Unit = {
 
     val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
       new GroupAggProcessFunction(
@@ -124,6 +124,10 @@ class NonWindowHarnessTest extends HarnessTestBase {
 
     // trigger cleanup timer and register cleanup timer with 6002
     testHarness.setProcessingTime(3002)
+
+    // retract after clean up
+    testHarness.processElement(new StreamRecord(CRow(Row.of(4L: JLong, 3: JInt, "ccc"), false), 4))
+
     testHarness.processElement(new StreamRecord(CRow(Row.of(5L: JLong, 4: JInt, "aaa"), true), 5))
     testHarness.processElement(new StreamRecord(CRow(Row.of(6L: JLong, 2: JInt, "bbb"), true), 6))
     testHarness.processElement(new StreamRecord(CRow(Row.of(7L: JLong, 5: JInt, "aaa"), true), 7))
