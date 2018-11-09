@@ -27,7 +27,7 @@ under the License.
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
-	<artifactId>flink-examples-streaming-kafka-base</artifactId>
+	<artifactId>flink-examples-streaming-kafka-base_${scala.binary.version}</artifactId>
 	<name>flink-examples-streaming-kafka-base</name>
 
 	<packaging>jar</packaging>
