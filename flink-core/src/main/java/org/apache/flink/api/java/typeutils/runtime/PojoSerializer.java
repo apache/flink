@@ -18,18 +18,6 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Objects;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -49,6 +37,18 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.Preconditions;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -179,11 +179,13 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			}
 		}
 
-		if (stateful) {
-			return new PojoSerializer<T>(clazz, duplicateFieldSerializers, fields, executionConfig);
-		} else {
-			return this;
+		if (!stateful) {
+			// as a small memory optimization, we can share the same object between instances
+			duplicateFieldSerializers = fieldSerializers;
 		}
+
+		// we must create a new instance, otherwise the subclassSerializerCache can create concurrency problems
+		return new PojoSerializer<>(clazz, duplicateFieldSerializers, fields, executionConfig);
 	}
 
 	
