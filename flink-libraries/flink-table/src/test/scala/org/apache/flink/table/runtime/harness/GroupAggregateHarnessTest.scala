@@ -24,20 +24,18 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.runtime.harness.HarnessTestBase._
 import org.apache.flink.table.runtime.types.CRow
-import org.apache.flink.types.Row
 import org.junit.Test
 
-class NonWindowHarnessTest extends HarnessTestBase {
+class GroupAggregateHarnessTest extends HarnessTestBase {
 
   protected var queryConfig =
     new TestStreamQueryConfig(Time.seconds(2), Time.seconds(3))
 
   @Test
-  def testNonWindow(): Unit = {
+  def testAggregate(): Unit = {
 
     val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
       new GroupAggProcessFunction(
@@ -97,7 +95,7 @@ class NonWindowHarnessTest extends HarnessTestBase {
   }
 
   @Test
-  def testNonWindowWithRetract(): Unit = {
+  def testAggregateWithRetract(): Unit = {
 
     val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
       new GroupAggProcessFunction(
