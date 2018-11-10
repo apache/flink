@@ -165,6 +165,8 @@ public abstract class YarnTestBase extends TestLogger {
 		YARN_CONFIGURATION.setInt(YarnConfiguration.DEBUG_NM_DELETE_DELAY_SEC, 3600);
 		YARN_CONFIGURATION.setBoolean(YarnConfiguration.LOG_AGGREGATION_ENABLED, false);
 		YARN_CONFIGURATION.setInt(YarnConfiguration.NM_VCORES, 666); // memory is overwritten in the MiniYARNCluster.
+		YARN_CONFIGURATION.set("yarn.scheduler.capacity.resource-calculator",
+				"org.apache.hadoop.yarn.util.resource.DominantResourceCalculator");
 		// so we have to change the number of cores for testing.
 		YARN_CONFIGURATION.setInt(YarnConfiguration.RM_AM_EXPIRY_INTERVAL_MS, 20000); // 20 seconds expiry (to ensure we properly heartbeat with YARN).
 	}

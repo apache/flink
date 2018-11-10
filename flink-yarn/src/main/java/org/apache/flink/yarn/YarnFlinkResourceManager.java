@@ -438,6 +438,8 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 			numPendingContainerRequests = Math.max(0, numPendingContainerRequests - 1);
 			LOG.info("Received new container: {} - Remaining pending container requests: {}",
 				container.getId(), numPendingContainerRequests);
+			resourceManagerClient.removeContainerRequest(new AMRMClient.ContainerRequest(
+					container.getResource(), null, null, container.getPriority()));
 
 			// decide whether to return the container, or whether to start a TaskManager
 			if (numRegistered + containersInLaunch.size() < numRequired) {

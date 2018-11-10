@@ -43,6 +43,8 @@ import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.NodeId;
+import org.apache.hadoop.yarn.api.records.Priority;
+import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.NMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
@@ -69,8 +71,11 @@ import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -125,6 +130,8 @@ public class YarnFlinkResourceManagerTest extends TestLogger {
 							1),
 						i));
 				when(mockContainer.getNodeId()).thenReturn(NodeId.newInstance("container", 1234));
+				when(mockContainer.getResource()).thenReturn(Resource.newInstance(200, 1));
+				when(mockContainer.getPriority()).thenReturn(Priority.UNDEFINED);
 				containerList.add(mockContainer);
 			}
 
@@ -233,6 +240,8 @@ public class YarnFlinkResourceManagerTest extends TestLogger {
 
 				int numberOfRegisteredResources = (Integer) Await.result(numberOfRegisteredResourcesFuture, deadline.timeLeft());
 
+				verify(resourceManagerClient, times(numInitialTaskManagers)).removeContainerRequest(
+						any(AMRMClient.ContainerRequest.class));
 				assertEquals(numInitialTaskManagers, numberOfRegisteredResources);
 			} finally {
 				if (resourceManager != null) {
