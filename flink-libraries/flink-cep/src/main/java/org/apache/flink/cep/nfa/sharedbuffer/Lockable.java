@@ -207,10 +207,6 @@ public final class Lockable<T> {
 				: CompatibilityResult.compatible();
 		}
 
-		TypeSerializer<E> getElementSerializer() {
-			return elementSerializer;
-		}
-
 		@VisibleForTesting
 		TypeSerializer<E> getElementSerializer() {
 			return elementSerializer;
