@@ -36,7 +36,7 @@ mkdir -p $EXTRACTED_JAR
 
 for SQL_JAR in $SQL_JARS_DIR/*.jar; do
   echo "Checking SQL JAR: $SQL_JAR"
-  unzip $SQL_JAR -d $EXTRACTED_JAR > /dev/null
+  (cd $EXTRACTED_JAR && jar xf $SQL_JAR)
 
   # check for proper shading
   for EXTRACTED_FILE in $(find $EXTRACTED_JAR -type f); do
@@ -59,6 +59,8 @@ for SQL_JAR in $SQL_JARS_DIR/*.jar; do
   # clean up
   rm -r $EXTRACTED_JAR/*
 done
+
+rm -r $EXTRACTED_JAR
 
 ################################################################################
 # Prepare connectors
