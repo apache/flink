@@ -19,8 +19,11 @@ package org.apache.flink.streaming.connectors.pubsub;
 
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
+import org.junit.Before;
 import org.junit.Test;
+import scala.sys.process.ProcessBuilder;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
@@ -30,7 +33,30 @@ import static org.mockito.internal.verification.VerificationModeFactory.times;
  * Test for {@link Bound}.
  */
 public class BoundTest {
-	private SourceFunction<Object> sourceFunction = mock(SourceFunction.class);
+	private static class CountingSourceFunction implements SourceFunction<Object> {
+		int countRun = 0;
+		@Override
+		public void run(SourceContext sourceContext) {
+			countRun++;
+		}
+
+		int countCancel = 0;
+		@Override
+		public void cancel() {
+			countCancel++;
+		}
+
+		public void verify(int expectedRun, int expectedCancel) {
+			assertEquals("Wrong number of calls to run()", expectedRun, countRun);
+			assertEquals("Wrong number of calls to cancel()", expectedCancel, countCancel);
+		}
+	}
+
+	private CountingSourceFunction sourceFunction;
+	@Before
+	public void initSourceFunction() {
+		sourceFunction = new CountingSourceFunction();
+	}
 
 	@Test
 	public void testNoShutdownBeforeCounterLimit() {
@@ -39,7 +65,7 @@ public class BoundTest {
 		sleep(150L);
 
 		bound.receivedMessage();
-		verifyZeroInteractions(sourceFunction);
+		sourceFunction.verify(0, 0);
 	}
 
 	@Test
@@ -51,7 +77,7 @@ public class BoundTest {
 		bound.receivedMessage();
 		bound.receivedMessage();
 
-		verify(sourceFunction, times(1)).cancel();
+		sourceFunction.verify(0, 1);
 	}
 
 	@Test
@@ -62,7 +88,7 @@ public class BoundTest {
 			bound.receivedMessage();
 		}
 
-		verifyZeroInteractions(sourceFunction);
+		sourceFunction.verify(0, 0);
 	}
 
 	@Test
@@ -70,7 +96,7 @@ public class BoundTest {
 		Bound<Object> bound = Bound.boundByTimeSinceLastMessage(100L);
 		bound.start(sourceFunction);
 		sleep(250L);
-		verify(sourceFunction, times(1)).cancel();
+		sourceFunction.verify(0, 1);
 	}
 
 	@Test
@@ -81,10 +107,10 @@ public class BoundTest {
 
 		bound.receivedMessage();
 		sleep(50L);
-		verifyZeroInteractions(sourceFunction);
+		sourceFunction.verify(0, 0);
 
-		sleep(200L);
-		verify(sourceFunction, times(1)).cancel();
+		sleep(250L);
+		sourceFunction.verify(0, 1);
 	}
 
 	@Test
@@ -96,15 +122,15 @@ public class BoundTest {
 		bound.receivedMessage();
 		bound.receivedMessage();
 
-		verify(sourceFunction, times(1)).cancel();
+		sourceFunction.verify(0, 1);
 	}
 
 	@Test
 	public void testCounterOrTimerTimerElapsed() {
 		Bound<Object> bound = Bound.boundByAmountOfMessagesOrTimeSinceLastMessage(1L, 100L);
 		bound.start(sourceFunction);
-		sleep(200L);
-		verify(sourceFunction, times(1)).cancel();
+		sleep(250L);
+		sourceFunction.verify(0, 1);
 	}
 
 	@Test(expected = IllegalStateException.class)
