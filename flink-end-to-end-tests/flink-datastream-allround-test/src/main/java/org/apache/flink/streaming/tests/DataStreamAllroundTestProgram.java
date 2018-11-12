@@ -163,7 +163,7 @@ public class DataStreamAllroundTestProgram {
 			.name(SEMANTICS_CHECK_MAPPER_NAME)
 			.uid("007")
 			.addSink(new PrintSinkFunction<>())
-		    .uid("008");
+			.uid("008");
 
 		// Check sliding windows aggregations. Output all elements assigned to a window and later on
 		// check if each event was emitted slide_factor number of times
@@ -188,7 +188,7 @@ public class DataStreamAllroundTestProgram {
 			.uid("010")
 			.name(SLIDING_WINDOW_CHECK_MAPPER_NAME)
 			.addSink(new PrintSinkFunction<>())
-		    .uid("011");
+			.uid("011");
 
 		env.execute("General purpose test job");
 	}

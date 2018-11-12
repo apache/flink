@@ -79,10 +79,10 @@ public class SlidingWindowCheckMapper extends RichFlatMapFunction<Tuple2<Integer
 
 		Long lastSequenceNumberSeenSoFar = lastSequenceNumber.value();
 		List<Tuple2<Event, Integer>> newWindows =
-			verifyPreviousOccurences(previousWindowValues, newValues, out, lastSequenceNumberSeenSoFar);
+			verifyPreviousOccurences(previousWindowValues, newValues, lastSequenceNumberSeenSoFar, out);
 
 		if (lastEventInWindow.isPresent()) {
-			updateLastSeenSequenceNumber(lastEventInWindow.get(), lastSequenceNumberSeenSoFar);
+			updateLastSeenSequenceNumber(lastEventInWindow.get(), lastSequenceNumberSeenSoFar, out);
 		}
 
 		eventsSeenSoFar.update(newWindows);
@@ -90,11 +90,23 @@ public class SlidingWindowCheckMapper extends RichFlatMapFunction<Tuple2<Integer
 
 	private void updateLastSeenSequenceNumber(
 			Event lastEventInWindow,
-			Long lastSequenceNumberSeenSoFar) throws IOException {
+			Long lastSequenceNumberSeenSoFar,
+			Collector<String> out) throws IOException {
 		long lastSequenceNumberInWindow = lastEventInWindow.getSequenceNumber();
 		if (lastSequenceNumberSeenSoFar == null || lastSequenceNumberInWindow > lastSequenceNumberSeenSoFar) {
 			lastSequenceNumber.update(lastSequenceNumberInWindow);
+		} else if (lastSequenceNumberInWindow < lastSequenceNumberSeenSoFar) {
+			failWithSequenceNumberDecreased(lastEventInWindow, lastSequenceNumberSeenSoFar, out);
 		}
+	}
+
+	private void failWithSequenceNumberDecreased(
+			Event lastEventInWindow,
+			Long lastSequenceNumberSeenSoFar,
+			Collector<String> out) {
+		out.collect(String.format("Last event in current window (%s) has sequence number lower than seen so far (%d)",
+			lastEventInWindow,
+			lastSequenceNumberSeenSoFar));
 	}
 
 	/**
@@ -104,20 +116,21 @@ public class SlidingWindowCheckMapper extends RichFlatMapFunction<Tuple2<Integer
 	private List<Tuple2<Event, Integer>> verifyPreviousOccurences(
 			List<Tuple2<Event, Integer>> previousWindowValues,
 			List<Event> newValues,
-			Collector<String> out, Long lastSequenceNumberSeenSoFar) {
+			Long lastSequenceNumberSeenSoFar,
+			Collector<String> out) {
 		List<Tuple2<Event, Integer>> newEventsSeenSoFar = new ArrayList<>();
-		List<Event> seenWindows = new ArrayList<>();
+		List<Event> seenEvents = new ArrayList<>();
 
 		for (Tuple2<Event, Integer> windowValue : previousWindowValues) {
 			if (!newValues.contains(windowValue.f0)) {
-				printEventNotSeenAlertMessage(windowValue, newValues, out);
+				failWithEventNotSeenAlertMessage(windowValue, newValues, out);
 			} else {
-				seenWindows.add(windowValue.f0);
+				seenEvents.add(windowValue.f0);
 				preserveOrDiscardIfSeenSlideFactorTimes(newEventsSeenSoFar, windowValue);
 			}
 		}
 
-		addNotSeenValues(newEventsSeenSoFar, newValues, seenWindows, lastSequenceNumberSeenSoFar, out);
+		addNotSeenValues(newEventsSeenSoFar, newValues, seenEvents, lastSequenceNumberSeenSoFar, out);
 
 		return newEventsSeenSoFar;
 	}
@@ -125,33 +138,34 @@ public class SlidingWindowCheckMapper extends RichFlatMapFunction<Tuple2<Integer
 	private void addNotSeenValues(
 			List<Tuple2<Event, Integer>> newEventsSeenSoFar,
 			List<Event> newValues,
-			List<Event> seenWindows,
+			List<Event> seenValues,
 			Long lastSequenceNumberSeenSoFar,
 			Collector<String> out) {
 		newValues.stream()
-			.filter(e -> !seenWindows.contains(e))
+			.filter(e -> !seenValues.contains(e))
 			.forEach(e -> {
 				if (lastSequenceNumberSeenSoFar == null || e.getSequenceNumber() > lastSequenceNumberSeenSoFar) {
 					newEventsSeenSoFar.add(Tuple2.of(e, 1));
 				} else {
-					printEventSeenTooManyTimesMessage(e, out);
+					failWithEventSeenTooManyTimesMessage(e, out);
 				}
 			});
 	}
 
-	private void printEventSeenTooManyTimesMessage(Event e, Collector<String> out) {
+	private void failWithEventSeenTooManyTimesMessage(Event e, Collector<String> out) {
 		out.collect(String.format("Alert: event %s seen more than %d times", e, slideFactor));
 	}
 
 	private void preserveOrDiscardIfSeenSlideFactorTimes(
 			List<Tuple2<Event, Integer>> newEvenstSeenSoFar,
 			Tuple2<Event, Integer> windowValue) {
-		if (windowValue.f1 + 1 != slideFactor) {
-			newEvenstSeenSoFar.add(Tuple2.of(windowValue.f0, windowValue.f1 + 1));
+		int timesSeen = windowValue.f1 + 1;
+		if (timesSeen != slideFactor) {
+			newEvenstSeenSoFar.add(Tuple2.of(windowValue.f0, timesSeen));
 		}
 	}
 
-	private void printEventNotSeenAlertMessage(
+	private void failWithEventNotSeenAlertMessage(
 			Tuple2<Event, Integer> previousWindowValue,
 			List<Event> currentWindowValues,
 			Collector<String> out) {
