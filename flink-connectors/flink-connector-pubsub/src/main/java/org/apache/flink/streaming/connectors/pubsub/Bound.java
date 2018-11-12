@@ -45,13 +45,14 @@ class Bound<OUT> implements Serializable {
 	private transient Timer timer;
 	private long messagesReceived;
 	private long lastReceivedMessage;
-	private boolean cancelled = false;
+	private boolean cancelled;
 
 	private Bound(Bound.Mode mode, long maxMessagedReceived, long maxTimeBetweenMessages) {
 		this.mode = mode;
 		this.maxMessagedReceived = maxMessagedReceived;
 		this.maxTimeBetweenMessages = maxTimeBetweenMessages;
 		this.messagesReceived = 0L;
+		this.cancelled = false;
 	}
 
 	static <OUT> Bound<OUT> boundByAmountOfMessages(long maxMessagedReceived) {
