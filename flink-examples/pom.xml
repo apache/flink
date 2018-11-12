@@ -40,6 +40,7 @@ under the License.
 		<module>flink-examples-streaming-kafka-0.10</module>
 		<module>flink-examples-table</module>
 		<module>flink-examples-streaming-kafka-0.11</module>
+		<module>flink-examples-streaming-kafka-0.9</module>
 	</modules>
 
 	<dependencies>

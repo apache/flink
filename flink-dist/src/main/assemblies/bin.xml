@@ -201,6 +201,20 @@ under the License.
 			</excludes>
 		</fileSet>
 
+		<!-- copy jar files of the streaming kafka 0.9 examples -->
+		<fileSet>
+			<directory>../flink-examples/flink-examples-streaming-kafka-0.9/target</directory>
+			<outputDirectory>examples/streaming</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>flink-examples-streaming-kafka*.jar</exclude>
+				<exclude>original-*.jar</exclude>
+			</excludes>
+		</fileSet>
+
 		<!-- copy jar files of the streaming kafka 0.10 examples -->
 		<fileSet>
 			<directory>../flink-examples/flink-examples-streaming-kafka-0.10/target</directory>
