@@ -23,7 +23,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
-import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
@@ -44,16 +43,20 @@ public abstract class StreamPartitionerTest extends TestLogger {
 		serializationDelegate.setInstance(streamRecord);
 	}
 
-	@Test
-	public void testSelectChannelsLength() {
-		assertEquals(1, streamPartitioner.selectChannels(serializationDelegate, 1).length);
-		assertEquals(1, streamPartitioner.selectChannels(serializationDelegate, 2).length);
-		assertEquals(1, streamPartitioner.selectChannels(serializationDelegate, 1024).length);
+	protected int selectChannelAndAssertLength() {
+		int[] selectedChannels = streamPartitioner.selectChannels(serializationDelegate);
+		assertEquals(1, selectedChannels.length);
+
+		return selectedChannels[0];
 	}
 
-	protected void assertSelectedChannel(int expectedChannel, int numberOfChannels) {
-		int[] actualResult = streamPartitioner.selectChannels(serializationDelegate, numberOfChannels);
-		assertEquals(1, actualResult.length);
-		assertEquals(expectedChannel, actualResult[0]);
+	protected void assertSelectedChannel(int expectedChannel) {
+		int actualResult = selectChannelAndAssertLength();
+		assertEquals(expectedChannel, actualResult);
+	}
+
+	protected void assertSelectedChannelWithSetup(int expectedChannel, int numChannels) {
+		streamPartitioner.setup(numChannels);
+		assertSelectedChannel(expectedChannel);
 	}
 }

@@ -50,17 +50,14 @@ public class KeyGroupStreamPartitioner<T, K> extends StreamPartitioner<T> implem
 	}
 
 	@Override
-	public int[] selectChannels(
-		SerializationDelegate<StreamRecord<T>> record,
-		int numberOfOutputChannels) {
-
+	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record) {
 		K key;
 		try {
 			key = keySelector.getKey(record.getInstance().getValue());
 		} catch (Exception e) {
 			throw new RuntimeException("Could not extract key from " + record.getInstance().getValue(), e);
 		}
-		returnArray[0] = KeyGroupRangeAssignment.assignKeyToParallelOperator(key, maxParallelism, numberOfOutputChannels);
+		returnArray[0] = KeyGroupRangeAssignment.assignKeyToParallelOperator(key, maxParallelism, numChannels);
 		return returnArray;
 	}
 

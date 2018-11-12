@@ -33,13 +33,12 @@ public class BroadcastPartitioner<T> extends StreamPartitioner<T> {
 	private int[] returnArray;
 
 	@Override
-	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
-			int numberOfOutputChannels) {
-		if (returnArray != null && returnArray.length == numberOfOutputChannels) {
+	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record) {
+		if (returnArray != null && returnArray.length == numChannels) {
 			return returnArray;
 		} else {
-			this.returnArray = new int[numberOfOutputChannels];
-			for (int i = 0; i < numberOfOutputChannels; i++) {
+			this.returnArray = new int[numChannels];
+			for (int i = 0; i < numChannels; i++) {
 				returnArray[i] = i;
 			}
 			return returnArray;

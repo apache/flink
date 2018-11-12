@@ -32,9 +32,16 @@ public class RoundRobinChannelSelector<T extends IOReadableWritable> implements 
 	/** Stores the index of the channel to send the next record to. */
 	private final int[] nextChannelToSendTo = new int[] { -1 };
 
+	private int numChannels;
+
 	@Override
-	public int[] selectChannels(final T record, final int numberOfOutputChannels) {
-		nextChannelToSendTo[0] = (nextChannelToSendTo[0] + 1) % numberOfOutputChannels;
+	public void setup(int numChannels) {
+		this.numChannels = numChannels;
+	}
+
+	@Override
+	public int[] selectChannels(final T record) {
+		nextChannelToSendTo[0] = (nextChannelToSendTo[0] + 1) % numChannels;
 		return nextChannelToSendTo;
 	}
 }

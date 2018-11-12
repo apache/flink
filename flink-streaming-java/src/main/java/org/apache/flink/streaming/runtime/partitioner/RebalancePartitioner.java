@@ -33,27 +33,19 @@ import java.util.concurrent.ThreadLocalRandom;
 public class RebalancePartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	private final int[] returnArray = {Integer.MAX_VALUE - 1};
+	private final int[] returnArray = new int[1];
 
 	@Override
-	public int[] selectChannels(
-			SerializationDelegate<StreamRecord<T>> record,
-			int numChannels) {
-		int newChannel = ++returnArray[0];
-		if (newChannel >= numChannels) {
-			returnArray[0] = resetValue(numChannels, newChannel);
-		}
-		return returnArray;
+	public void setup(int numChannels) {
+		super.setup(numChannels);
+
+		returnArray[0] = ThreadLocalRandom.current().nextInt(numChannels);
 	}
 
-	private static int resetValue(
-			int numChannels,
-			int newChannel) {
-		if (newChannel == Integer.MAX_VALUE) {
-			// Initializes the first partition, this branch is only entered when initializing.
-			return ThreadLocalRandom.current().nextInt(numChannels);
-		}
-		return 0;
+	@Override
+	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record) {
+		returnArray[0] = (returnArray[0] + 1) % numChannels;
+		return returnArray;
 	}
 
 	public StreamPartitioner<T> copy() {

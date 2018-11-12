@@ -32,5 +32,12 @@ public abstract class StreamPartitioner<T> implements
 		ChannelSelector<SerializationDelegate<StreamRecord<T>>>, Serializable {
 	private static final long serialVersionUID = 1L;
 
+	protected int numChannels;
+
+	@Override
+	public void setup(int numChannels) {
+		this.numChannels = numChannels;
+	}
+
 	public abstract StreamPartitioner<T> copy();
 }

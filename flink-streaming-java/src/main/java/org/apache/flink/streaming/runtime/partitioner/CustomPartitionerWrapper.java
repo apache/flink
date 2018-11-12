@@ -45,17 +45,15 @@ public class CustomPartitionerWrapper<K, T> extends StreamPartitioner<T> {
 	}
 
 	@Override
-	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record, int numberOfOutputChannels) {
-
-		K key = null;
+	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record) {
+		K key;
 		try {
 			key = keySelector.getKey(record.getInstance().getValue());
 		} catch (Exception e) {
 			throw new RuntimeException("Could not extract key from " + record.getInstance(), e);
 		}
 
-		returnArray[0] = partitioner.partition(key,
-				numberOfOutputChannels);
+		returnArray[0] = partitioner.partition(key, numChannels);
 
 		return returnArray;
 	}

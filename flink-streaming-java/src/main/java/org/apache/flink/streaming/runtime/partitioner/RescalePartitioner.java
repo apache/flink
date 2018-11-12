@@ -51,12 +51,12 @@ public class RescalePartitioner<T> extends StreamPartitioner<T> {
 	private final int[] returnArray = new int[] {-1};
 
 	@Override
-	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record, int numberOfOutputChannels) {
-		int newChannel = ++this.returnArray[0];
-		if (newChannel >= numberOfOutputChannels) {
-			this.returnArray[0] = 0;
+	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record) {
+		int newChannel = ++returnArray[0];
+		if (newChannel >= numChannels) {
+			returnArray[0] = 0;
 		}
-		return this.returnArray;
+		return returnArray;
 	}
 
 	public StreamPartitioner<T> copy() {

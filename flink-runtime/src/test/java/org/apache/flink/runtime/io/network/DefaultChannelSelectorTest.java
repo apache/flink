@@ -38,19 +38,18 @@ public class DefaultChannelSelectorTest {
 	public void channelSelect() {
 		final StringValue dummyRecord = new StringValue("abc");
 		final RoundRobinChannelSelector<StringValue> selector = new RoundRobinChannelSelector<>();
-		final int numberOfChannels = 2;
+		selector.setup(2);
 
-		assertSelectedChannel(selector, dummyRecord, numberOfChannels, 0);
-		assertSelectedChannel(selector, dummyRecord, numberOfChannels, 1);
+		assertSelectedChannel(selector, dummyRecord, 0);
+		assertSelectedChannel(selector, dummyRecord, 1);
 	}
 
 	private void assertSelectedChannel(
 		ChannelSelector<StringValue> selector,
 		StringValue record,
-		int numberOfChannels,
 		int expectedChannel) {
 
-		int[] actualResult = selector.selectChannels(record, numberOfChannels);
+		int[] actualResult = selector.selectChannels(record);
 		assertEquals(1, actualResult.length);
 		assertEquals(expectedChannel, actualResult[0]);
 	}

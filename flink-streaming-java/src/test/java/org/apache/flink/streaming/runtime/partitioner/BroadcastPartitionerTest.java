@@ -40,9 +40,9 @@ public class BroadcastPartitionerTest {
 
 	@Before
 	public void setPartitioner() {
-		broadcastPartitioner1 = new BroadcastPartitioner<>();
-		broadcastPartitioner2 = new BroadcastPartitioner<>();
-		broadcastPartitioner3 = new BroadcastPartitioner<>();
+		broadcastPartitioner1 = createBroadcastPartitioner(1);
+		broadcastPartitioner2 = createBroadcastPartitioner(2);
+		broadcastPartitioner3 = createBroadcastPartitioner(6);
 	}
 
 	@Test
@@ -53,8 +53,14 @@ public class BroadcastPartitionerTest {
 
 		serializationDelegate.setInstance(streamRecord);
 
-		assertArrayEquals(first, broadcastPartitioner1.selectChannels(serializationDelegate, 1));
-		assertArrayEquals(second, broadcastPartitioner2.selectChannels(serializationDelegate, 2));
-		assertArrayEquals(sixth, broadcastPartitioner3.selectChannels(serializationDelegate, 6));
+		assertArrayEquals(first, broadcastPartitioner1.selectChannels(serializationDelegate));
+		assertArrayEquals(second, broadcastPartitioner2.selectChannels(serializationDelegate));
+		assertArrayEquals(sixth, broadcastPartitioner3.selectChannels(serializationDelegate));
+	}
+
+	private BroadcastPartitioner<Tuple> createBroadcastPartitioner(int numChannels) {
+		BroadcastPartitioner<Tuple> broadcastPartitioner = new BroadcastPartitioner<>();
+		broadcastPartitioner.setup(numChannels);
+		return broadcastPartitioner;
 	}
 }

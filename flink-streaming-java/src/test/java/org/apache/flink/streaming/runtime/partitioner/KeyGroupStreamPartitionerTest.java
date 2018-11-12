@@ -58,9 +58,9 @@ public class KeyGroupStreamPartitionerTest extends TestLogger {
 	public void testSelectChannelsLength() {
 		serializationDelegate1.setInstance(streamRecord1);
 
-		assertEquals(1, keyGroupPartitioner.selectChannels(serializationDelegate1, 1).length);
-		assertEquals(1, keyGroupPartitioner.selectChannels(serializationDelegate1, 2).length);
-		assertEquals(1, keyGroupPartitioner.selectChannels(serializationDelegate1, 1024).length);
+		assertEquals(1, selectChannels(serializationDelegate1, 1).length);
+		assertEquals(1, selectChannels(serializationDelegate1, 2).length);
+		assertEquals(1, selectChannels(serializationDelegate1, 1024).length);
 	}
 
 	@Test
@@ -68,11 +68,15 @@ public class KeyGroupStreamPartitionerTest extends TestLogger {
 		serializationDelegate1.setInstance(streamRecord1);
 		serializationDelegate2.setInstance(streamRecord2);
 
-		assertArrayEquals(keyGroupPartitioner.selectChannels(serializationDelegate1, 1),
-			keyGroupPartitioner.selectChannels(serializationDelegate2, 1));
-		assertArrayEquals(keyGroupPartitioner.selectChannels(serializationDelegate1, 2),
-			keyGroupPartitioner.selectChannels(serializationDelegate2, 2));
-		assertArrayEquals(keyGroupPartitioner.selectChannels(serializationDelegate1, 1024),
-			keyGroupPartitioner.selectChannels(serializationDelegate2, 1024));
+		assertArrayEquals(selectChannels(serializationDelegate1, 1), selectChannels(serializationDelegate2, 1));
+		assertArrayEquals(selectChannels(serializationDelegate1, 2), selectChannels(serializationDelegate2, 2));
+		assertArrayEquals(selectChannels(serializationDelegate1, 1024), selectChannels(serializationDelegate2, 1024));
+	}
+
+	private int[] selectChannels(
+		SerializationDelegate<StreamRecord<Tuple2<String, Integer>>> serializationDelegate,
+		int numChannels) {
+		keyGroupPartitioner.setup(numChannels);
+		return keyGroupPartitioner.selectChannels(serializationDelegate);
 	}
 }

@@ -412,13 +412,13 @@ public class RecordWriterTest {
 	 *
 	 * @param isBroadcastEmit whether using {@link RecordWriter#broadcastEmit(IOReadableWritable)} or not
 	 */
+	@SuppressWarnings("unchecked")
 	private void emitRecordWithBroadcastPartitionerOrBroadcastEmitRecord(boolean isBroadcastEmit) throws Exception {
 		final int numChannels = 4;
 		final int bufferSize = 32;
 		final int numValues = 8;
 		final int serializationLength = 4;
 
-		@SuppressWarnings("unchecked")
 		final Queue<BufferConsumer>[] queues = new Queue[numChannels];
 		for (int i = 0; i < numChannels; i++) {
 			queues[i] = new ArrayDeque<>();
@@ -426,9 +426,10 @@ public class RecordWriterTest {
 
 		final TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(Integer.MAX_VALUE, bufferSize);
 		final ResultPartitionWriter partitionWriter = new CollectingPartitionWriter(queues, bufferProvider);
+		final ChannelSelector selector = new Broadcast<>();
+		selector.setup(numChannels);
 		final RecordWriter<SerializationTestType> writer = isBroadcastEmit ?
-			new RecordWriter<>(partitionWriter) :
-			new RecordWriter<>(partitionWriter, new Broadcast<>());
+			new RecordWriter<>(partitionWriter) : new RecordWriter<>(partitionWriter, selector);
 		final RecordDeserializer<SerializationTestType> deserializer = new SpillingAdaptiveSpanningRecordDeserializer<>(
 			new String[]{ tempFolder.getRoot().getAbsolutePath() });
 
@@ -600,8 +601,15 @@ public class RecordWriterTest {
 
 		private int[] returnChannel;
 
+		private int numberOfOutputChannels;
+
 		@Override
-		public int[] selectChannels(final T record, final int numberOfOutputChannels) {
+		public void setup(int numChannels) {
+			this.numberOfOutputChannels = numChannels;
+		}
+
+		@Override
+		public int[] selectChannels(final T record) {
 			if (returnChannel != null && returnChannel.length == numberOfOutputChannels) {
 				return returnChannel;
 			} else {
