@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobmaster.RescalingBehaviour;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
@@ -96,7 +97,7 @@ public class TestingJobMasterGatewayBuilder {
 	private Function<JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction = ignored -> CompletableFuture.completedFuture(OperatorBackPressureStatsResponse.of(null));
 	private BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer = (ignoredA, ignoredB) -> {};
 	private Consumer<Tuple5<JobID, ExecutionAttemptID, Long, CheckpointMetrics, TaskStateSnapshot>> acknowledgeCheckpointConsumer = ignored -> {};
-	private Consumer<Tuple4<JobID, ExecutionAttemptID, Long, Throwable>> declineCheckpointConsumer = ignored -> {};
+	private Consumer<DeclineCheckpoint> declineCheckpointConsumer = ignored -> {};
 	private Supplier<JobMasterId> fencingTokenSupplier = () -> JOB_MASTER_ID;
 	private BiFunction<JobID, String, CompletableFuture<KvStateLocation>> requestKvStateLocationFunction = (ignoredA, registrationName) -> FutureUtils.completedExceptionally(new UnknownKvStateLocation(registrationName));
 	private Function<Tuple6<JobID, JobVertexID, KeyGroupRange, String, KvStateID, InetSocketAddress>, CompletableFuture<Acknowledge>> notifyKvStateRegisteredFunction = ignored -> CompletableFuture.completedFuture(Acknowledge.get());
@@ -222,7 +223,7 @@ public class TestingJobMasterGatewayBuilder {
 		return this;
 	}
 
-	public TestingJobMasterGatewayBuilder setDeclineCheckpointConsumer(Consumer<Tuple4<JobID, ExecutionAttemptID, Long, Throwable>> declineCheckpointConsumer) {
+	public TestingJobMasterGatewayBuilder setDeclineCheckpointConsumer(Consumer<DeclineCheckpoint> declineCheckpointConsumer) {
 		this.declineCheckpointConsumer = declineCheckpointConsumer;
 		return this;
 	}
