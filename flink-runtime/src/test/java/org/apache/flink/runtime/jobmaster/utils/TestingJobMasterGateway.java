@@ -41,6 +41,7 @@ import org.apache.flink.runtime.jobmaster.RescalingBehaviour;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -144,7 +145,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	private final Consumer<Tuple5<JobID, ExecutionAttemptID, Long, CheckpointMetrics, TaskStateSnapshot>> acknowledgeCheckpointConsumer;
 
 	@Nonnull
-	private final Consumer<Tuple4<JobID, ExecutionAttemptID, Long, Throwable>> declineCheckpointConsumer;
+	private final Consumer<DeclineCheckpoint> declineCheckpointConsumer;
 
 	@Nonnull
 	private final Supplier<JobMasterId> fencingTokenSupplier;
@@ -183,7 +184,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 			@Nonnull Function<JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction,
 			@Nonnull BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer,
 			@Nonnull Consumer<Tuple5<JobID, ExecutionAttemptID, Long, CheckpointMetrics, TaskStateSnapshot>> acknowledgeCheckpointConsumer,
-			@Nonnull Consumer<Tuple4<JobID, ExecutionAttemptID, Long, Throwable>> declineCheckpointConsumer,
+			@Nonnull Consumer<DeclineCheckpoint> declineCheckpointConsumer,
 			@Nonnull Supplier<JobMasterId> fencingTokenSupplier,
 			@Nonnull BiFunction<JobID, String, CompletableFuture<KvStateLocation>> requestKvStateLocationFunction,
 			@Nonnull Function<Tuple6<JobID, JobVertexID, KeyGroupRange, String, KvStateID, InetSocketAddress>, CompletableFuture<Acknowledge>> notifyKvStateRegisteredFunction,
@@ -335,8 +336,8 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	}
 
 	@Override
-	public void declineCheckpoint(JobID jobID, ExecutionAttemptID executionAttemptID, long checkpointId, Throwable cause) {
-		declineCheckpointConsumer.accept(Tuple4.of(jobID, executionAttemptID, checkpointId, cause));
+	public void declineCheckpoint(DeclineCheckpoint declineCheckpoint) {
+		declineCheckpointConsumer.accept(declineCheckpoint);
 	}
 
 	@Override
