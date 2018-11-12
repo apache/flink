@@ -21,6 +21,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
@@ -45,7 +46,7 @@ public class BoundedPubSubSourceTest {
 	private final SourceFunction.SourceContext<Object> sourceContext = mock(SourceFunction.SourceContext.class);
 	private final AckReplyConsumer ackReplyConsumer = mock(AckReplyConsumer.class);
 	private final DeserializationSchema<Object> deserializationSchema = mock(DeserializationSchema.class);
-	private final MetricGroup metricGroup = mock(MetricGroup.class);
+	private final MetricGroup metricGroup = new UnregisteredMetricsGroup();
 
 	private FunctionInitializationContext functionInitializationContext = mock(FunctionInitializationContext.class);
 	private OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
