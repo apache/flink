@@ -48,58 +48,26 @@ import java.util.concurrent.TimeUnit;
 public class PubSubSink<IN> extends RichSinkFunction<IN> {
 	private static final Logger LOG = LoggerFactory.getLogger(PubSubSink.class);
 
-	private SerializableCredentialsProvider serializableCredentialsProvider;
-	private SerializationSchema<IN> serializationSchema;
-	private String projectName;
-	private String topicName;
-	private String hostAndPort = null;
+	private final SerializableCredentialsProvider serializableCredentialsProvider;
+	private final SerializationSchema<IN> serializationSchema;
+	private final String projectName;
+	private final String topicName;
+	private final String hostAndPort;
 
 	private transient Publisher publisher;
 
-	private PubSubSink() {
-	}
-
-	void setSerializableCredentialsProvider(SerializableCredentialsProvider serializableCredentialsProvider) {
+	private PubSubSink(
+		SerializableCredentialsProvider serializableCredentialsProvider,
+		SerializationSchema<IN> serializationSchema,
+		String projectName,
+		String topicName,
+		String hostAndPort) {
 		this.serializableCredentialsProvider = serializableCredentialsProvider;
-	}
-
-	void setSerializationSchema(SerializationSchema<IN> serializationSchema) {
 		this.serializationSchema = serializationSchema;
-	}
-
-	void setProjectName(String projectName) {
 		this.projectName = projectName;
-	}
-
-	void setTopicName(String topicName) {
 		this.topicName = topicName;
-	}
-
-	/**
-	 * Set the custom hostname/port combination of PubSub.
-	 * The ONLY reason to use this is during tests with the emulator provided by Google.
-	 *
-	 * @param hostAndPort The combination of hostname and port to connect to ("hostname:1234")
-	 */
-	void withHostAndPort(String hostAndPort) {
 		this.hostAndPort = hostAndPort;
 	}
-
-	void initialize() throws IOException {
-		if (serializableCredentialsProvider == null) {
-			serializableCredentialsProvider = SerializableCredentialsProvider.credentialsProviderFromEnvironmentVariables();
-		}
-		if (serializationSchema == null) {
-			throw new IllegalArgumentException("The serializationSchema has not been specified.");
-		}
-		if (projectName == null) {
-			throw new IllegalArgumentException("The projectName has not been specified.");
-		}
-		if (topicName == null) {
-			throw new IllegalArgumentException("The topicName has not been specified.");
-		}
-	}
-
 
 	private transient ManagedChannel managedChannel = null;
 	private transient TransportChannel channel = null;
@@ -178,7 +146,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 	 * @return a new PubSubSinkBuilder instance
 	 */
 	public static <IN> PubSubSinkBuilder<IN, ? extends PubSubSink<IN>, ? extends PubSubSinkBuilder<IN, ?, ?>> newBuilder() {
-		return new PubSubSinkBuilder<>(new PubSubSink<>());
+		return new PubSubSinkBuilder<>();
 	}
 
 	/**
@@ -188,10 +156,14 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 	 */
 	@SuppressWarnings("unchecked")
 	public static class PubSubSinkBuilder<IN, PSS extends PubSubSink<IN>, BUILDER extends PubSubSinkBuilder<IN, PSS, BUILDER>> {
-		protected PSS sinkUnderConstruction;
+		private SerializableCredentialsProvider serializableCredentialsProvider;
+		private SerializationSchema<IN> serializationSchema;
+		private String projectName;
+		private String topicName;
+		private String hostAndPort;
 
-		private PubSubSinkBuilder(PSS sinkUnderConstruction) {
-			this.sinkUnderConstruction = sinkUnderConstruction;
+		private PubSubSinkBuilder() {
+			// Nothing to do here.
 		}
 
 		/**
@@ -202,7 +174,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 		 * @return The current PubSubSinkBuilder instance
 		 */
 		public BUILDER withCredentials(Credentials credentials) {
-			sinkUnderConstruction.setSerializableCredentialsProvider(new SerializableCredentialsProvider(credentials));
+			this.serializableCredentialsProvider = new SerializableCredentialsProvider(credentials);
 			return (BUILDER) this;
 		}
 
@@ -224,7 +196,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 		 * @return The current PubSubSinkBuilder instance
 		 */
 		public BUILDER withoutCredentials() {
-			sinkUnderConstruction.setSerializableCredentialsProvider(SerializableCredentialsProvider.withoutCredentials());
+			this.serializableCredentialsProvider = SerializableCredentialsProvider.withoutCredentials();
 			return (BUILDER) this;
 		}
 
@@ -233,7 +205,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 		 * @return The current PubSubSinkBuilder instance
 		 */
 		public BUILDER withSerializationSchema(SerializationSchema<IN> serializationSchema) {
-			sinkUnderConstruction.setSerializationSchema(serializationSchema);
+			this.serializationSchema = serializationSchema;
 			return (BUILDER) this;
 		}
 
@@ -242,7 +214,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 		 * @return The current PubSubSinkBuilder instance
 		 */
 		public BUILDER withProjectName(String projectName) {
-			sinkUnderConstruction.setProjectName(projectName);
+			this.projectName = projectName;
 			return (BUILDER) this;
 		}
 
@@ -251,7 +223,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 		 * @return The current PubSubSinkBuilder instance
 		 */
 		public BUILDER withTopicName(String topicName) {
-			sinkUnderConstruction.setTopicName(topicName);
+			this.topicName = topicName;
 			return (BUILDER) this;
 		}
 
@@ -263,7 +235,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 		 * @return The current PubSubSinkBuilder instance
 		 */
 		public BUILDER withHostAndPort(String hostAndPort) {
-			sinkUnderConstruction.withHostAndPort(hostAndPort);
+			this.hostAndPort = hostAndPort;
 			return (BUILDER) this;
 		}
 
@@ -275,8 +247,23 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 		 * @throws IllegalArgumentException incase required fields were not specified.
 		 */
 		public PubSubSink<IN> build() throws IOException {
-			sinkUnderConstruction.initialize();
-			return sinkUnderConstruction;
+			if (serializableCredentialsProvider == null) {
+				serializableCredentialsProvider = SerializableCredentialsProvider.credentialsProviderFromEnvironmentVariables();
+			}
+
+			if (serializationSchema == null) {
+				throw new IllegalArgumentException("The serializationSchema has not been specified.");
+			}
+
+			if (projectName == null) {
+				throw new IllegalArgumentException("The projectName has not been specified.");
+			}
+
+			if (topicName == null) {
+				throw new IllegalArgumentException("The topicName has not been specified.");
+			}
+
+			return new PubSubSink<>(serializableCredentialsProvider, serializationSchema, projectName, topicName, hostAndPort);
 		}
 	}
 
