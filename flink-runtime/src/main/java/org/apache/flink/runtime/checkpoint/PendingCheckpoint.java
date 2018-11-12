@@ -443,11 +443,8 @@ public class PendingCheckpoint {
 	 * Aborts the pending checkpoint due to an error.
 	 * @param cause The error's exception.
 	 */
-	public void abortError(@Nullable Throwable cause) {
-		Exception determinedCause = cause != null ?
-			new Exception("Checkpoint failed: " + cause.getMessage(), cause) :
-			new Exception("Unknown cause.");
-		abortWithCause(determinedCause);
+	public void abortError(@Nonnull Throwable cause) {
+		abortWithCause(new Exception("Checkpoint failed: " + cause.getMessage(), cause));
 	}
 
 	private void abortWithCause(@Nonnull Exception cause) {

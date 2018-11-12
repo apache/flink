@@ -1249,7 +1249,7 @@ public class CheckpointCoordinator {
 
 		final long checkpointId = pendingCheckpoint.getCheckpointId();
 
-		LOG.info("Discarding checkpoint " + checkpointId + " of job " + job + ".", cause);
+		LOG.info("Discarding checkpoint {} of job {}.", checkpointId, job, cause);
 
 		if (cause != null) {
 			pendingCheckpoint.abortError(cause);
