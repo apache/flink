@@ -30,6 +30,7 @@ set_conf "taskmanager.heap.mb" "512" # 512Mb x 10TMs = 5Gb total heap
 set_conf "taskmanager.memory.size" "8" # 8Mb
 set_conf "taskmanager.network.memory.min" "8mb"
 set_conf "taskmanager.network.memory.max" "8mb"
+set_conf "taskmanager.network.request-backoff.max" "60000"
 set_conf "taskmanager.memory.segment-size" "8kb"
 
 set_conf "taskmanager.numberOfTaskSlots" "10" # 10 slots per TM
