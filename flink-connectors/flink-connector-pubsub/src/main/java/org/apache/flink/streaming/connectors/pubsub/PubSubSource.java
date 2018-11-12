@@ -138,8 +138,8 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	private void nackOutstandingMessages() {
 		LOG.debug("Going to nack {} processed but not checkpointed pubsub messages.", getOutstandingMessagesToAck());
 		this.sessionIdsPerSnapshot.stream()
-									.flatMap(tuple -> tuple.f1.stream())
-									.forEach(AckReplyConsumer::nack);
+			.flatMap(tuple -> tuple.f1.stream())
+			.forEach(AckReplyConsumer::nack);
 		this.sessionIds.forEach(AckReplyConsumer::nack);
 		LOG.debug("Finished nacking pubsub messages.");
 	}

@@ -160,8 +160,8 @@ public class SubscriberWrapperTest {
 
 	private PubsubMessage pubSubMessage() {
 		return PubsubMessage.newBuilder()
-							.setData(ByteString.copyFrom("some message".getBytes()))
-							.build();
+			.setData(ByteString.copyFrom("some message".getBytes()))
+			.build();
 	}
 
 	private static Subscriber subscriberFactory(CredentialsProvider credentialsProvider, ProjectSubscriptionName projectSubscriptionName, MessageReceiver messageReceiver) {

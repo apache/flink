@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
  * This class makes it easier to connect to a Non Google PubSub service such as a local PubSub emulator or docker container.
  */
 class SubscriberWrapper implements Serializable, MessageReceiver {
-	private static final Logger LOG = LoggerFactory.getLogger(PubSubSource.class);
+	private static final Logger LOG = LoggerFactory.getLogger(SubscriberWrapper.class);
 
 	private final SerializableCredentialsProvider serializableCredentialsProvider;
 	private final String projectId;

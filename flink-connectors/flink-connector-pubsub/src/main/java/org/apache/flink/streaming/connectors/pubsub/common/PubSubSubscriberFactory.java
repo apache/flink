@@ -27,7 +27,7 @@ import java.io.Serializable;
 
 /**
  * A factory class to create a {@link Subscriber}.
- * This allows for customized Subscribers with for instance tweaked configurations
+ * This allows for customized Subscribers with for instance tweaked configurations.
  * Note: this class needs to be serializable.
  */
 public interface PubSubSubscriberFactory extends Serializable {

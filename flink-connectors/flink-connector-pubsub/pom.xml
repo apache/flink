@@ -35,13 +35,13 @@ under the License.
 
 	<packaging>jar</packaging>
 
-	<!-- This is the way we get a consistent set of versions of the Google tools -->
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
+				<!-- This is the way we get a consistent set of versions of the Google tools -->
 				<groupId>com.google.cloud</groupId>
 				<artifactId>google-cloud-bom</artifactId>
-				<version>0.53.0-alpha</version>
+				<version>0.70.0-alpha</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
@@ -69,19 +69,6 @@ under the License.
 				</exclusion>
 			</exclusions>
 			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
-			<version>${slf4j.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-log4j12</artifactId>
-			<version>${slf4j.version}</version>
-			<scope>test</scope>
 		</dependency>
 
 		<dependency>
