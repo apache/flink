@@ -25,8 +25,8 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.lang3.SerializationException;
@@ -42,6 +42,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.CyclicBarrier;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -445,7 +447,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	public void testDuplicate() throws Exception {
 		final int numThreads = 10;
 		final TypeSerializer<T> serializer = getSerializer();
-		final OneShotLatch startLatch = new OneShotLatch();
+		final CyclicBarrier startLatch = new CyclicBarrier(numThreads);
 		final List<SerializerRunner<T>> concurrentRunners = new ArrayList<>(numThreads);
 		Assert.assertEquals(serializer, serializer.duplicate());
 
@@ -462,8 +464,6 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			runner.start();
 			concurrentRunners.add(runner);
 		}
-
-		startLatch.trigger();
 
 		for (SerializerRunner<T> concurrentRunner : concurrentRunners) {
 			concurrentRunner.join();
@@ -566,14 +566,14 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	 * @param <T> type of the test elements.
 	 */
 	static class SerializerRunner<T> extends Thread {
-		final OneShotLatch startLatch;
+		final CyclicBarrier allReadyBarrier;
 		final TypeSerializer<T> serializer;
 		final T[] testData;
 		final int iterations;
 		Exception failure;
 
-		SerializerRunner(OneShotLatch startLatch, TypeSerializer<T> serializer, T[] testData, int iterations) {
-			this.startLatch = startLatch;
+		SerializerRunner(CyclicBarrier allReadyBarrier, TypeSerializer<T> serializer, T[] testData, int iterations) {
+			this.allReadyBarrier = allReadyBarrier;
 			this.serializer = serializer;
 			this.testData = testData;
 			this.iterations = iterations;
@@ -585,7 +585,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			DataInputDeserializer dataInputDeserializer = new DataInputDeserializer();
 			DataOutputSerializer dataOutputSerializer = new DataOutputSerializer(128);
 			try {
-				startLatch.await();
+				allReadyBarrier.await();
 				for (int repeat = 0; repeat < iterations; ++repeat) {
 					for (T testItem : testData) {
 						serializer.serialize(testItem, dataOutputSerializer);
@@ -596,7 +596,8 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 						T serdeTestItem = serializer.deserialize(dataInputDeserializer);
 						T copySerdeTestItem = serializer.copy(serdeTestItem);
 						dataOutputSerializer.clear();
-						Assert.assertEquals(testItem, copySerdeTestItem);
+						Preconditions.checkState(Objects.equals(testItem, copySerdeTestItem),
+							"Serialization/Deserialization cycle resulted in an object that are not equal to the original.");
 					}
 				}
 			} catch (Exception ex) {
