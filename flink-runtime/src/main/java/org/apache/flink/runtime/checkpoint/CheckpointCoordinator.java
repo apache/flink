@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineException;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -1251,10 +1252,10 @@ public class CheckpointCoordinator {
 
 		LOG.info("Discarding checkpoint {} of job {}.", checkpointId, job, cause);
 
-		if (cause != null) {
-			pendingCheckpoint.abortError(cause);
-		} else {
+		if (cause == null || cause instanceof CheckpointDeclineException) {
 			pendingCheckpoint.abortDeclined();
+		} else {
+			pendingCheckpoint.abortError(cause);
 		}
 
 		rememberRecentCheckpointId(checkpointId);
