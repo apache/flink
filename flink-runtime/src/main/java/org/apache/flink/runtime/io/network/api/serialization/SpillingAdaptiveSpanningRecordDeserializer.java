@@ -630,8 +630,7 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 			}
 
 			// try to find a unique file name for the spilling channel
-			int maxAttempts = 10;
-			for (int attempt = 0; attempt < maxAttempts; attempt++) {
+			for (int attempt = 0; attempt < tempDirs.length; attempt++) {
 				String directory = tempDirs[rnd.nextInt(tempDirs.length)];
 				spillFile = new File(directory, randomString(rnd) + ".inputchannel");
 				if (spillFile.createNewFile()) {
