@@ -21,13 +21,8 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import org.junit.Before;
 import org.junit.Test;
-import scala.sys.process.ProcessBuilder;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
-import static org.mockito.internal.verification.VerificationModeFactory.times;
 
 /**
  * Test for {@link Bound}.
