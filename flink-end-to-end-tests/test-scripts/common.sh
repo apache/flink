@@ -259,17 +259,20 @@ function start_and_wait_for_tm {
 
   ${FLINK_DIR}/bin/taskmanager.sh start
 
-  for i in {1..10}; do
-    local new_running_tms=`curl ${CURL_SSL_ARGS} -s "${url}" | grep -o "id" | wc -l`
+  local TIMEOUT_COUNTER=10
+  local TIMEOUT_INC=4
+  local TIMEOUT=$(( $TIMEOUT_COUNTER * $TIMEOUT_INC ))
+  for i in $(seq 1 ${TIMEOUT_COUNTER}); do
+    local new_running_tms=`curl ${CURL_SSL_ARGS} -s "http://localhost:8081/taskmanagers" | grep -o "id" | wc -l`
     if [ $((new_running_tms-running_tms)) -eq 0 ]; then
       echo "TaskManager is not yet up."
     else
       echo "TaskManager is up."
       return
     fi
-    sleep 4
+    sleep ${TIMEOUT_INC}
   done
-  echo "TaskManager has not started within a timeout"
+  echo "TaskManager has not started within a timeout of ${TIMEOUT} sec"
   exit 1
 }
 
@@ -370,7 +373,7 @@ function wait_for_job_state_transition {
   echo "Waiting for job ($job) to switch from state ${initial_state} to state ${next_state} ..."
 
   while : ; do
-    N=$(grep -o "($job) switched from state ${initial_state} to wait_dispatcher_running${next_state}" $FLINK_DIR/log/*standalonesession*.log | tail -1)
+    N=$(grep -o "($job) switched from state ${initial_state} to ${next_state}" $FLINK_DIR/log/*standalonesession*.log | tail -1)
 
     if [[ -z $N ]]; then
       sleep 1
@@ -382,7 +385,7 @@ function wait_for_job_state_transition {
 
 function wait_job_running {
   local TIMEOUT=10
-  for i in {1..10}; do
+  for i in $(seq 1 ${TIMEOUT}); do
     JOB_LIST_RESULT=$("$FLINK_DIR"/bin/flink list -r | grep "$1")
 
     if [[ "$JOB_LIST_RESULT" == "" ]]; then
