@@ -27,6 +27,7 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
@@ -67,12 +68,15 @@ import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMet
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultSlotPoolFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
+import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
@@ -83,10 +87,13 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
+import akka.actor.ActorSystem;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -102,6 +109,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URLClassLoader;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -208,6 +216,75 @@ public class JobMasterTest extends TestLogger {
 		if (rpcService != null) {
 			rpcService.stopService();
 			rpcService = null;
+		}
+	}
+
+	@Test
+	public void testDeclineCheckpointInvocationWithUserException() throws Exception {
+		RpcService rpcService1 = null;
+		RpcService rpcService2 = null;
+		try {
+			final ActorSystem actorSystem1 = AkkaUtils.createDefaultActorSystem();
+			final ActorSystem actorSystem2 = AkkaUtils.createDefaultActorSystem();
+
+			rpcService1 = new AkkaRpcService(actorSystem1, testingTimeout);
+			rpcService2 = new AkkaRpcService(actorSystem2, testingTimeout);
+
+			final CompletableFuture<Throwable> declineCheckpointMessageFuture = new CompletableFuture<>();
+
+			final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+			final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
+			final JobMaster jobMaster = new JobMaster(
+				rpcService1,
+				jobMasterConfiguration,
+				jmResourceId,
+				jobGraph,
+				haServices,
+				DefaultSlotPoolFactory.fromConfiguration(configuration, rpcService1),
+				jobManagerSharedServices,
+				heartbeatServices,
+				blobServer,
+				UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
+				new NoOpOnCompletionActions(),
+				testingFatalErrorHandler,
+				JobMasterTest.class.getClassLoader()) {
+				@Override
+				public void declineCheckpoint(DeclineCheckpoint declineCheckpoint) {
+					declineCheckpointMessageFuture.complete(declineCheckpoint.getReason());
+				}
+			};
+
+			jobMaster.start(jobMasterId, testingTimeout).get();
+
+			final String className = "UserException";
+			final URLClassLoader userClassLoader = ClassLoaderUtils.compileAndLoadJava(
+				temporaryFolder.newFolder(),
+				className + ".java",
+				String.format("public class %s extends RuntimeException { public %s() {super(\"UserMessage\");} }",
+					className,
+					className));
+
+			Throwable userException = (Throwable) Class.forName(className, false, userClassLoader).newInstance();
+
+			CompletableFuture<JobMasterGateway> jobMasterGateway =
+				rpcService2.connect(jobMaster.getAddress(), jobMaster.getFencingToken(), JobMasterGateway.class);
+
+			jobMasterGateway.thenAccept(gateway -> {
+				gateway.declineCheckpoint(new DeclineCheckpoint(
+						jobGraph.getJobID(),
+						new ExecutionAttemptID(1, 1),
+						1,
+						userException
+					)
+				);
+			});
+
+			Throwable throwable = declineCheckpointMessageFuture.get(testingTimeout.toMilliseconds(),
+				TimeUnit.MILLISECONDS);
+			assertThat(throwable, instanceOf(SerializedThrowable.class));
+			assertThat(throwable.getMessage(), equalTo(userException.getMessage()));
+		} finally {
+			RpcUtils.terminateRpcServices(testingTimeout, rpcService1, rpcService2);
 		}
 	}
 
