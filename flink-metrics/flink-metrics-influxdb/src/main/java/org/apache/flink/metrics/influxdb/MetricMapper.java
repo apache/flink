@@ -51,18 +51,17 @@ class MetricMapper {
 	static Point map(MeasurementInfo info, Instant timestamp, Histogram histogram) {
 		HistogramStatistics statistics = histogram.getStatistics();
 		return builder(info, timestamp)
-			.addField("run-count", histogram.getCount())
 			.addField("count", statistics.size())
 			.addField("min", statistics.getMin())
 			.addField("max", statistics.getMax())
 			.addField("mean", statistics.getMean())
-			.addField("std-dev", statistics.getStdDev())
-			.addField("50-percentile", statistics.getQuantile(.50))
-			.addField("75-percentile", statistics.getQuantile(.75))
-			.addField("95-percentile", statistics.getQuantile(.95))
-			.addField("98-percentile", statistics.getQuantile(.98))
-			.addField("99-percentile", statistics.getQuantile(.99))
-			.addField("999-percentile", statistics.getQuantile(.999))
+			.addField("stddev", statistics.getStdDev())
+			.addField("p50", statistics.getQuantile(.50))
+			.addField("p75", statistics.getQuantile(.75))
+			.addField("p95", statistics.getQuantile(.95))
+			.addField("p98", statistics.getQuantile(.98))
+			.addField("p99", statistics.getQuantile(.99))
+			.addField("p999", statistics.getQuantile(.999))
 			.build();
 	}
 

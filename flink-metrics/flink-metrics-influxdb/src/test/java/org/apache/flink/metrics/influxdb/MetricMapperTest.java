@@ -77,6 +77,7 @@ public class MetricMapperTest extends TestLogger {
 	@Test
 	public void testMapHistogram() {
 		HistogramStatistics statistics = mock(HistogramStatistics.class);
+		when(statistics.size()).thenReturn(42);
 		when(statistics.getMax()).thenReturn(-5L);
 		when(statistics.getMin()).thenReturn(50L);
 		when(statistics.getMean()).thenReturn(1.2);
@@ -90,22 +91,20 @@ public class MetricMapperTest extends TestLogger {
 
 		Histogram histogram = mock(Histogram.class);
 		when(histogram.getStatistics()).thenReturn(statistics);
-		when(histogram.getCount()).thenReturn(42L);
 
 		verifyPoint(
 			MetricMapper.map(info, timestamp, histogram),
-			"50-percentile=1.0",
-			"75-percentile=2.0",
-			"95-percentile=3.0",
-			"98-percentile=4.0",
-			"99-percentile=5.0",
-			"999-percentile=6.0",
-			"count=0",
+			"count=42",
 			"max=-5",
 			"mean=1.2",
 			"min=50",
-			"run-count=42",
-			"std-dev=0.7");
+			"p50=1.0",
+			"p75=2.0",
+			"p95=3.0",
+			"p98=4.0",
+			"p99=5.0",
+			"p999=6.0",
+			"stddev=0.7");
 	}
 
 	@Test
