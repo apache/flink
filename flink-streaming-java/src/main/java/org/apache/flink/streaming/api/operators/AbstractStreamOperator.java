@@ -409,6 +409,7 @@ public abstract class AbstractStreamOperator<OUT>
 			String snapshotFailMessage = "Could not complete snapshot " + checkpointId + " for operator " +
 				getOperatorName() + ".";
 
+			LOG.info(snapshotFailMessage, snapshotException);
 			throw new Exception(snapshotFailMessage, snapshotException);
 		}
 
