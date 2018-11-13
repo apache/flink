@@ -48,6 +48,9 @@ echo "Flink distribution directory: $FLINK_DIR"
 # those checks are disabled, one should take care that a proper checks are performed in the tests itself that ensure that the test finished
 # in an expected state.
 
+run_test "SQL Client end-to-end test for kafka 0.10" "$END_TO_END_DIR/test-scripts/test_sql_client_kafka010.sh"
+run_test "SQL Client end-to-end test for modern Kafka" "$END_TO_END_DIR/test-scripts/test_sql_client_kafka.sh"
+run_test "SQL Client end-to-end test" "$END_TO_END_DIR/test-scripts/test_sql_client.sh"
 run_test "State Migration end-to-end test from 1.6" "$END_TO_END_DIR/test-scripts/test_state_migration.sh"
 run_test "State Evolution end-to-end test" "$END_TO_END_DIR/test-scripts/test_state_evolution.sh"
 run_test "Batch Python Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_python_wordcount.sh"
