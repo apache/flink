@@ -112,16 +112,11 @@ else
   cancel_job $DATASTREAM_JOB
 fi
 
-CHECKPOINT_PATH=$(ls -d $CHECKPOINT_DIR/$DATASTREAM_JOB/chk-[1-9]*)
+# take the latest checkpoint
+CHECKPOINT_PATH=$(ls -d $CHECKPOINT_DIR/$DATASTREAM_JOB/chk-[1-9]* | sort -Vr | head -n1)
 
 if [ -z $CHECKPOINT_PATH ]; then
   echo "Expected an externalized checkpoint to be present, but none exists."
-  exit 1
-fi
-
-NUM_CHECKPOINTS=$(echo $CHECKPOINT_PATH | wc -l | tr -d ' ')
-if (( $NUM_CHECKPOINTS > 1 )); then
-  echo "Expected only exactly 1 externalized checkpoint to be present, but $NUM_CHECKPOINTS exists."
   exit 1
 fi
 
@@ -141,6 +136,11 @@ else
 fi
 
 DATASTREAM_JOB=$($JOB_CMD | grep "Job has been submitted with JobID" | sed 's/.* //g')
+
+if [ -z $DATASTREAM_JOB ]; then
+    echo "Resuming from externalized checkpoint job could not be started."
+    exit 1
+fi
 
 wait_job_running $DATASTREAM_JOB
 wait_oper_metric_num_in_records ArtificalKeyedStateMapper.0 200
