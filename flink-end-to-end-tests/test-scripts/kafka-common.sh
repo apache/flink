@@ -82,14 +82,14 @@ function stop_kafka_cluster {
   PIDS=$(jps -vl | grep -i 'kafka\.Kafka' | grep java | grep -v grep | awk '{print $1}'|| echo "")
 
   if [ ! -z "$PIDS" ]; then
-    kill -s TERM $PIDS
+    kill -s TERM $PIDS || true
   fi
 
   # Terminate QuorumPeerMain process if it still exists
   PIDS=$(jps -vl | grep java | grep -i QuorumPeerMain | grep -v grep | awk '{print $1}'|| echo "")
 
   if [ ! -z "$PIDS" ]; then
-    kill -s TERM $PIDS
+    kill -s TERM $PIDS || true
   fi
 }
 
