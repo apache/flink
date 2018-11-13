@@ -59,7 +59,7 @@ import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.PART_UPL
 /**
  * Tests for the {@link org.apache.flink.fs.s3.common.writer.S3RecoverableWriter S3RecoverableWriter}.
  */
-public class HadoopS3RecoverableWriterTest extends TestLogger {
+public class HadoopS3RecoverableWriterITCase extends TestLogger {
 
 	// ----------------------- S3 general configuration -----------------------
 
