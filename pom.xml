@@ -1252,6 +1252,27 @@ under the License.
 						<!-- the licenses that are re-bundled -->
 						<exclude>**/packaged_licenses/LICENSE.*.txt</exclude>
 
+						<!-- new web dashboard config JSON files -->
+						<exclude>flink-runtime-web/new-web-dashboard/tslint.json</exclude>
+						<exclude>flink-runtime-web/new-web-dashboard/tsconfig.json</exclude>
+						<exclude>flink-runtime-web/new-web-dashboard/angular.json</exclude>
+						<exclude>flink-runtime-web/new-web-dashboard/package.json</exclude>
+						<exclude>flink-runtime-web/new-web-dashboard/package-lock.json</exclude>
+						<exclude>flink-runtime-web/new-web-dashboard/proxy.conf.json</exclude>
+						<exclude>flink-runtime-web/new-web-dashboard/src/browserslist</exclude>
+						<exclude>flink-runtime-web/new-web-dashboard/src/tsconfig.app.json</exclude>
+						<exclude>flink-runtime-web/new-web-dashboard/src/tslint.json</exclude>
+						<exclude>flink-runtime-web/new-web-dashboard/src/tsconfig.spec.json</exclude>
+
+						<!-- new web dashboard non-binary image assets -->
+						<exclude>flink-runtime-web/new-web-dashboard/src/assets/images/flink.svg</exclude>
+						<exclude>flink-runtime-web/new-web-dashboard/src/assets/favicon/safari-pinned-tab.svg</exclude>
+						<exclude>flink-runtime-web/new-web-dashboard/src/assets/favicon/manifest.json</exclude>
+
+						<!-- new web dashboard downloaded and generated web libraries. -->
+						<exclude>flink-runtime-web/new-web-dashboard/node_modules/**</exclude>
+						<exclude>flink-runtime-web/new-web-dashboard/node/**</exclude>
+
 						<!-- web dashboard config JSON files -->
 						<exclude>flink-runtime-web/web-dashboard/package.json</exclude>
 						<exclude>flink-runtime-web/web-dashboard/bower.json</exclude>
