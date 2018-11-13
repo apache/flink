@@ -92,6 +92,14 @@ under the License.
 		<dependency>
 			<!-- Used by maven-dependency-plugin -->
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-kafka_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<classifier>sql-jar</classifier>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<!-- Used by maven-dependency-plugin -->
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-elasticsearch6_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<classifier>sql-jar</classifier>
@@ -106,7 +114,7 @@ under the License.
 					as we neither access nor package the kafka dependencies -->
 				<groupId>org.apache.kafka</groupId>
 				<artifactId>kafka-clients</artifactId>
-				<version>0.11.0.2</version>
+				<version>2.0.0</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -130,19 +138,19 @@ under the License.
 				</executions>
 			</plugin>
 
-			<!-- Copy SQL jars into dedicated "sql-jars" directory. -->
+			<!-- Copy SQL jars into dedicated "sql-jars-kafka-0.10" directory. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-dependency-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>copy</id>
+						<id>copy-for-sql-jars-kafka-0.10</id>
 						<phase>package</phase>
 						<goals>
 							<goal>copy</goal>
 						</goals>
 						<configuration>
-							<outputDirectory>${project.build.directory}/sql-jars</outputDirectory>
+							<outputDirectory>${project.build.directory}/sql-jars-kafka-0.10</outputDirectory>
 							<!-- List of currently provided SQL jars. 
 								When extending this list please also add a dependency
 								for the respective module. -->
@@ -172,6 +180,73 @@ under the License.
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
 									<artifactId>flink-connector-kafka-0.10_${scala.binary.version}</artifactId>
+									<version>${project.version}</version>
+									<classifier>sql-jar</classifier>
+									<type>jar</type>
+								</artifactItem>
+								<!-- This SQL JAR is not used for now to avoid dependency conflicts; see FLINK-10107.
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-connector-kafka-0.11_${scala.binary.version}</artifactId>
+									<version>${project.version}</version>
+									<classifier>sql-jar</classifier>
+									<type>jar</type>
+								</artifactItem>-->
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-connector-elasticsearch6_${scala.binary.version}</artifactId>
+									<version>${project.version}</version>
+									<classifier>sql-jar</classifier>
+									<type>jar</type>
+								</artifactItem>
+							</artifactItems>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Copy SQL jars into dedicated "sql-jars-kafka" directory. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy-for-sql-jars-kafka</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}/sql-jars-kafka</outputDirectory>
+							<!-- List of currently provided SQL jars.
+								When extending this list please also add a dependency
+								for the respective module. -->
+							<artifactItems>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-avro</artifactId>
+									<version>${project.version}</version>
+									<classifier>sql-jar</classifier>
+									<type>jar</type>
+								</artifactItem>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-json</artifactId>
+									<version>${project.version}</version>
+									<classifier>sql-jar</classifier>
+									<type>jar</type>
+								</artifactItem>
+								<!-- This SQL JAR is not used for now to avoid dependency conflicts; see FLINK-10107.
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-connector-kafka-0.9_${scala.binary.version}</artifactId>
+									<version>${project.version}</version>
+									<classifier>sql-jar</classifier>
+									<type>jar</type>
+								</artifactItem>-->
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-connector-kafka_${scala.binary.version}</artifactId>
 									<version>${project.version}</version>
 									<classifier>sql-jar</classifier>
 									<type>jar</type>

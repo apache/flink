@@ -19,15 +19,14 @@
 
 set -Eeuo pipefail
 
-KAFKA_CONNECTOR_VERSION="2.0"
-KAFKA_VERSION="2.0.0"
-CONFLUENT_VERSION="5.0.0"
-CONFLUENT_MAJOR_VERSION="5.0"
-LIB_DIR_NAME="sql-jars-kafka"
+KAFKA_CONNECTOR_VERSION="$1"
+KAFKA_VERSION="$2"
+CONFLUENT_VERSION="$3"
+CONFLUENT_MAJOR_VERSION="$4"
+LIB_DIR_NAME="$5"
 
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/kafka-common.sh $KAFKA_VERSION $CONFLUENT_VERSION $CONFLUENT_MAJOR_VERSION
-source "$(dirname "$0")"/elasticsearch-common.sh
 
 ################################################################################
 # Verify existing SQL jars
@@ -72,8 +71,6 @@ rm -r $EXTRACTED_JAR
 # Prepare connectors
 ################################################################################
 
-ELASTICSEARCH_INDEX='my_users'
-
 function sql_cleanup() {
   # don't call ourselves again for another signal interruption
   trap "exit -1" INT
@@ -81,7 +78,6 @@ function sql_cleanup() {
   trap "" EXIT
 
   stop_kafka_cluster
-  shutdown_elasticsearch_cluster "$ELASTICSEARCH_INDEX"
 }
 trap sql_cleanup INT
 trap sql_cleanup EXIT
@@ -111,15 +107,6 @@ send_messages_to_kafka '{"timestamp": "2018-03-12 09:30:00", "user": "Steve", "e
 send_messages_to_kafka '{"timestamp": "2018-03-12 09:30:00", "user": null, "event": { "type": "WARNING", "message": "This is a bad message because the user is missing."}}' test-json
 # pending in results
 send_messages_to_kafka '{"timestamp": "2018-03-12 10:40:00", "user": "Bob", "event": { "type": "ERROR", "message": "This is an error."}}' test-json
-
-# prepare Elasticsearch
-echo "Preparing Elasticsearch..."
-
-ELASTICSEARCH_VERSION=6
-DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.1.tar.gz'
-
-setup_elasticsearch $DOWNLOAD_URL
-wait_elasticsearch_working
 
 ################################################################################
 # Run a SQL statement
@@ -191,54 +178,72 @@ tables:
             }
           }
         }
-  - name: ElasticsearchUpsertSinkTable
-    type: sink-table
-    update-mode: upsert
+  - name: AvroBothTable
+    type: source-sink-table
+    update-mode: append
     schema:
-      - name: user_id
-        type: INT
-      - name: user_name
+      - name: event_timestamp
         type: VARCHAR
-      - name: user_count
+      - name: user
+        type: VARCHAR
+      - name: message
+        type: VARCHAR
+      - name: duplicate_count
         type: BIGINT
     connector:
-      type: elasticsearch
-      version: 6
-      hosts:
-        - hostname: "localhost"
-          port: 9200
-          protocol: "http"
-      index: "$ELASTICSEARCH_INDEX"
-      document-type: "user"
-      bulk-flush:
-        max-actions: 1
+      type: kafka
+      version: "$KAFKA_CONNECTOR_VERSION"
+      topic: test-avro
+      startup-mode: earliest-offset
+      properties:
+        - key: zookeeper.connect
+          value: localhost:2181
+        - key: bootstrap.servers
+          value: localhost:9092
     format:
-      type: json
-      derive-schema: true
-  - name: ElasticsearchAppendSinkTable
+      type: avro
+      avro-schema: >
+        {
+          "namespace": "org.apache.flink.table.tests",
+          "type": "record",
+          "name": "NormalizedEvent",
+            "fields": [
+              {"name": "event_timestamp", "type": "string"},
+              {"name": "user", "type": ["string", "null"]},
+              {"name": "message", "type": "string"},
+              {"name": "duplicate_count", "type": "long"}
+            ]
+        }
+  - name: CsvSinkTable
     type: sink-table
     update-mode: append
     schema:
-      - name: user_id
-        type: INT
-      - name: user_name
+      - name: event_timestamp
         type: VARCHAR
-      - name: user_count
+      - name: user
+        type: VARCHAR
+      - name: message
+        type: VARCHAR
+      - name: duplicate_count
         type: BIGINT
+      - name: constant
+        type: VARCHAR
     connector:
-      type: elasticsearch
-      version: 6
-      hosts:
-        - hostname: "localhost"
-          port: 9200
-          protocol: "http"
-      index: "$ELASTICSEARCH_INDEX"
-      document-type: "user"
-      bulk-flush:
-        max-actions: 1
+      type: filesystem
+      path: $RESULT
     format:
-      type: json
-      derive-schema: true
+      type: csv
+      fields:
+        - name: event_timestamp
+          type: VARCHAR
+        - name: user
+          type: VARCHAR
+        - name: message
+          type: VARCHAR
+        - name: duplicate_count
+          type: BIGINT
+        - name: constant
+          type: VARCHAR
 
 functions:
   - name: RegReplace
@@ -248,80 +253,58 @@ EOF
 
 # submit SQL statements
 
-echo "Executing SQL: Values -> Elasticsearch (upsert)"
+echo "Executing SQL: Kafka JSON -> Kafka Avro"
 
-SQL_STATEMENT_3=$(cat << EOF
-INSERT INTO ElasticsearchUpsertSinkTable
-  SELECT user_id, user_name, COUNT(*) AS user_count
-  FROM (VALUES (1, 'Bob'), (22, 'Alice'), (42, 'Greg'), (42, 'Greg'), (42, 'Greg'), (1, 'Bob'))
-    AS UserCountTable(user_id, user_name)
-  GROUP BY user_id, user_name
+SQL_STATEMENT_1=$(cat << EOF
+INSERT INTO AvroBothTable
+  SELECT
+    CAST(TUMBLE_START(rowtime, INTERVAL '1' HOUR) AS VARCHAR) AS event_timestamp,
+    user,
+    RegReplace(event.message, ' is ', ' was ') AS message,
+    COUNT(*) AS duplicate_count
+  FROM JsonSourceTable
+  WHERE user IS NOT NULL
+  GROUP BY
+    user,
+    event.message,
+    TUMBLE(rowtime, INTERVAL '1' HOUR)
 EOF
 )
 
-JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
+echo "$SQL_STATEMENT_1"
+
+$FLINK_DIR/bin/sql-client.sh embedded \
   --library $SQL_JARS_DIR \
   --jar $SQL_TOOLBOX_JAR \
   --environment $SQL_CONF \
-  --update "$SQL_STATEMENT_3" | grep "Job ID:" | sed 's/.* //g')
+  --update "$SQL_STATEMENT_1"
 
-wait_job_terminal_state "$JOB_ID" "FINISHED"
+echo "Executing SQL: Kafka Avro -> Filesystem CSV"
 
-verify_result_hash "SQL Client Elasticsearch Upsert" "$ELASTICSEARCH_INDEX" 3 "982cb32908def9801e781381c1b8a8db"
-
-echo "Executing SQL: Values -> Elasticsearch (append, no key)"
-
-SQL_STATEMENT_4=$(cat << EOF
-INSERT INTO ElasticsearchAppendSinkTable
-  SELECT *
-  FROM (
-    VALUES
-      (1, 'Bob', CAST(0 AS BIGINT)),
-      (22, 'Alice', CAST(0 AS BIGINT)),
-      (42, 'Greg', CAST(0 AS BIGINT)),
-      (42, 'Greg', CAST(0 AS BIGINT)),
-      (42, 'Greg', CAST(0 AS BIGINT)),
-      (1, 'Bob', CAST(0 AS BIGINT)))
-    AS UserCountTable(user_id, user_name, user_count)
+SQL_STATEMENT_2=$(cat << EOF
+INSERT INTO CsvSinkTable
+  SELECT AvroBothTable.*, RegReplace('Test constant folding.', 'Test', 'Success') AS constant
+  FROM AvroBothTable
 EOF
 )
 
-JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
+echo "$SQL_STATEMENT_2"
+
+$FLINK_DIR/bin/sql-client.sh embedded \
   --library $SQL_JARS_DIR \
   --jar $SQL_TOOLBOX_JAR \
   --environment $SQL_CONF \
-  --update "$SQL_STATEMENT_4" | grep "Job ID:" | sed 's/.* //g')
+  --update "$SQL_STATEMENT_2"
 
-wait_job_terminal_state "$JOB_ID" "FINISHED"
+echo "Waiting for CSV results..."
+for i in {1..10}; do
+  if [ -e $RESULT ]; then
+    CSV_LINE_COUNT=`cat $RESULT | wc -l`
+    if [ $((CSV_LINE_COUNT)) -eq 4 ]; then
+      break
+    fi
+  fi
+  sleep 5
+done
 
-# 3 upsert results and 6 append results
-verify_result_line_number 9 "$ELASTICSEARCH_INDEX"
-
-echo "Executing SQL: Match recognize -> Elasticsearch"
-
-SQL_STATEMENT_5=$(cat << EOF
-INSERT INTO ElasticsearchAppendSinkTable
-  SELECT 1 as user_id, T.userName as user_name, cast(1 as BIGINT) as user_count
-  FROM (
-    SELECT user, rowtime
-    FROM JsonSourceTable
-    WHERE user IS NOT NULL)
-  MATCH_RECOGNIZE (
-    ORDER BY rowtime
-    MEASURES
-        user as userName
-    PATTERN (A)
-    DEFINE
-        A as user = 'Alice'
-  ) T
-EOF
-)
-
-JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
-  --library $SQL_JARS_DIR \
-  --jar $SQL_TOOLBOX_JAR \
-  --environment $SQL_CONF \
-  --update "$SQL_STATEMENT_5" | grep "Job ID:" | sed 's/.* //g')
-
-# 3 upsert results and 6 append results and 3 match_recognize results
-verify_result_line_number 12 "$ELASTICSEARCH_INDEX"
+check_result_hash "SQL Client Kafka" $RESULT "0a1bf8bf716069b7269f575f87a802c0"
