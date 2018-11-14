@@ -107,7 +107,7 @@ public class JMXJobManagerMetricTest extends TestLogger {
 			client.setDetached(true);
 			client.submitJob(jobGraph, JMXJobManagerMetricTest.class.getClassLoader());
 
-			FutureUtils.retrySuccesfulWithDelay(
+			FutureUtils.retrySuccessfulWithDelay(
 				() -> client.getJobStatus(jobGraph.getJobID()),
 				Time.milliseconds(10),
 				deadline,
