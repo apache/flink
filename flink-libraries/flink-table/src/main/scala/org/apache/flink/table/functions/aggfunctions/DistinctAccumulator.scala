@@ -101,13 +101,18 @@ class DistinctAccumulator[ACC](
     * @return true if no instances of the parameters remain in the map, false otherwise.
     */
   def remove(params: Row): Boolean = {
-    val currentCnt = distinctValueMap.get(params)
-    if (currentCnt == 1) {
-      distinctValueMap.remove(params)
+    if (!distinctValueMap.contains(params)) {
       true
     } else {
-      distinctValueMap.put(params, currentCnt - 1L)
-      false
+      val currentCnt = distinctValueMap.get(params)
+
+      if (currentCnt == null || currentCnt <= 1) {
+        distinctValueMap.remove(params)
+        true
+      } else {
+        distinctValueMap.put(params, currentCnt - 1L)
+        false
+      }
     }
   }
 
