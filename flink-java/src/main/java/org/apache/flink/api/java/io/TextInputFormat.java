@@ -21,6 +21,7 @@ package org.apache.flink.api.java.io;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.DelimitedInputFormat;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 
 import java.io.IOException;
@@ -58,19 +59,33 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 
 	// --------------------------------------------------------------------------------------------
 
-	public String getCharsetName() {
-		return charsetName;
-	}
-
 	public void setCharsetName(String charsetName) {
 		if (charsetName == null) {
 			throw new IllegalArgumentException("Charset must not be null.");
 		}
 
 		this.charsetName = charsetName;
+		this.setCharset(charsetName);
+	}
+
+	/**
+	 * Processing for Delimiter special cases.
+	 */
+	private void setSpecialDelimiter() {
+		String delimiterString = "\n";
+		if (this.getDelimiter() != null && this.getDelimiter().length == 1
+			&& this.getDelimiter()[0] == (byte) '\n') {
+			this.setDelimiter(delimiterString);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public void open(FileInputSplit split) throws IOException {
+		super.open(split);
+		setSpecialDelimiter();
+	}
 
 	@Override
 	public void configure(Configuration parameters) {
@@ -87,12 +102,12 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 	public String readRecord(String reusable, byte[] bytes, int offset, int numBytes) throws IOException {
 		//Check if \n is used as delimiter and the end of this line is a \r, then remove \r from the line
 		if (this.getDelimiter() != null && this.getDelimiter().length == 1
-				&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 1
-				&& bytes[offset + numBytes - 1] == CARRIAGE_RETURN){
+			&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 1
+			&& bytes[offset + numBytes - 1] == CARRIAGE_RETURN){
 			numBytes -= 1;
 		}
 
-		return new String(bytes, offset, numBytes, this.charsetName);
+		return new String(bytes, offset, numBytes, this.getCharset());
 	}
 
 	// --------------------------------------------------------------------------------------------

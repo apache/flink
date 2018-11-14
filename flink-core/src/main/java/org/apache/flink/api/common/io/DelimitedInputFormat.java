@@ -28,6 +28,7 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
+import org.apache.flink.util.LRUCache;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,21 +37,22 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Map;
 
 /**
  * Base implementation for input formats that split the input at a delimiter into records.
  * The parsing of the record bytes into the record has to be implemented in the
  * {@link #readRecord(Object, byte[], int, int)} method.
- * 
+ *
  * <p>The default delimiter is the newline character {@code '\n'}.</p>
  */
 @Public
 public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> implements CheckpointableInputFormat<FileInputSplit, Long> {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	// -------------------------------------- Constants -------------------------------------------
-	
+
 	/**
 	 * The log.
 	 */
@@ -63,25 +65,45 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	private transient Charset charset;
 
 	/**
+	 * The charset of bom in the file to process.
+	 */
+	private transient Charset bomIdentifiedCharset;
+
+	/**
+	 * This is the charset that is configured via setCharset().
+	 */
+	private transient Charset configuredCharset;
+
+	/**
+	 * The Map to record the BOM encoding of all files.
+	 */
+	private transient final Map<String, Charset> fileBomCharsetMap;
+
+	/**
+	 * The bytes to BOM check.
+	 */
+	byte[] bomBytes = new byte[]{(byte) 0x00, (byte) 0xFE, (byte) 0xFF, (byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
+
+	/**
 	 * The default read buffer size = 1MB.
 	 */
 	private static final int DEFAULT_READ_BUFFER_SIZE = 1024 * 1024;
-	
+
 	/**
 	 * Indication that the number of samples has not been set by the configuration.
 	 */
 	private static final int NUM_SAMPLES_UNDEFINED = -1;
-	
+
 	/**
 	 * The maximum number of line samples to be taken.
 	 */
 	private static int DEFAULT_MAX_NUM_SAMPLES;
-	
+
 	/**
 	 * The minimum number of line samples to be taken.
 	 */
 	private static int DEFAULT_MIN_NUM_SAMPLES;
-	
+
 	/**
 	 * The maximum size of a sample record before sampling is aborted. To catch cases where a wrong delimiter is given.
 	 */
@@ -98,7 +120,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	protected static void loadConfigParameters(Configuration parameters) {
 		int maxSamples = parameters.getInteger(OptimizerOptions.DELIMITED_FORMAT_MAX_LINE_SAMPLES);
 		int minSamples = parameters.getInteger(OptimizerOptions.DELIMITED_FORMAT_MIN_LINE_SAMPLES);
-		
+
 		if (maxSamples < 0) {
 			LOG.error("Invalid default maximum number of line samples: " + maxSamples + ". Using default value of " +
 				OptimizerOptions.DELIMITED_FORMAT_MAX_LINE_SAMPLES.key());
@@ -109,17 +131,17 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 				OptimizerOptions.DELIMITED_FORMAT_MIN_LINE_SAMPLES.key());
 			minSamples = OptimizerOptions.DELIMITED_FORMAT_MIN_LINE_SAMPLES.defaultValue();
 		}
-		
+
 		DEFAULT_MAX_NUM_SAMPLES = maxSamples;
-		
+
 		if (minSamples > maxSamples) {
 			LOG.error("Default minimum number of line samples cannot be greater the default maximum number " +
-					"of line samples: min=" + minSamples + ", max=" + maxSamples + ". Defaulting minimum to maximum.");
+				"of line samples: min=" + minSamples + ", max=" + maxSamples + ". Defaulting minimum to maximum.");
 			DEFAULT_MIN_NUM_SAMPLES = maxSamples;
 		} else {
 			DEFAULT_MIN_NUM_SAMPLES = minSamples;
 		}
-		
+
 		int maxLen = parameters.getInteger(OptimizerOptions.DELIMITED_FORMAT_MAX_SAMPLE_LEN);
 		if (maxLen <= 0) {
 			maxLen = OptimizerOptions.DELIMITED_FORMAT_MAX_SAMPLE_LEN.defaultValue();
@@ -130,12 +152,12 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		}
 		MAX_SAMPLE_LEN = maxLen;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Variables for internal parsing.
-	//  They are all transient, because we do not want them so be serialized 
+	//  They are all transient, because we do not want them so be serialized
 	// --------------------------------------------------------------------------------------------
-	
+
 	private transient byte[] readBuffer;
 
 	private transient byte[] wrapBuffer;
@@ -164,12 +186,12 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	private String delimiterString = null;
 
 	private int lineLengthLimit = Integer.MAX_VALUE;
-	
+
 	private int bufferSize = -1;
-	
+
 	private int numLineSamples = NUM_SAMPLES_UNDEFINED;
-	
-	
+
+
 	// --------------------------------------------------------------------------------------------
 	//  Constructors & Getters/setters for the configurable parameters
 	// --------------------------------------------------------------------------------------------
@@ -184,6 +206,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			configuration = GlobalConfiguration.loadConfiguration();
 		}
 		loadConfigParameters(configuration);
+		this.fileBomCharsetMap = new LRUCache<>(1024);
 	}
 
 	/**
@@ -195,7 +218,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	 */
 	@PublicEvolving
 	public Charset getCharset() {
-		if (this.charset == null) {
+		if (this.configuredCharset != null) {
+			this.charset = this.configuredCharset;
+		} else if (this.bomIdentifiedCharset != null) {
+			this.charset = this.bomIdentifiedCharset;
+		} else {
 			this.charset = Charset.forName(charsetName);
 		}
 		return this.charset;
@@ -214,7 +241,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	@PublicEvolving
 	public void setCharset(String charset) {
 		this.charsetName = Preconditions.checkNotNull(charset);
-		this.charset = null;
+		this.configuredCharset = getSpecialCharset(charset);
 
 		if (this.delimiterString != null) {
 			this.delimiter = delimiterString.getBytes(getCharset());
@@ -224,7 +251,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	public byte[] getDelimiter() {
 		return delimiter;
 	}
-	
+
 	public void setDelimiter(byte[] delimiter) {
 		if (delimiter == null) {
 			throw new IllegalArgumentException("Delimiter must not be null");
@@ -236,7 +263,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	public void setDelimiter(char delimiter) {
 		setDelimiter(String.valueOf(delimiter));
 	}
-	
+
 	public void setDelimiter(String delimiter) {
 		if (delimiter == null) {
 			throw new IllegalArgumentException("Delimiter must not be null");
@@ -244,11 +271,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		this.delimiter = delimiter.getBytes(getCharset());
 		this.delimiterString = delimiter;
 	}
-	
+
 	public int getLineLengthLimit() {
 		return lineLengthLimit;
 	}
-	
+
 	public void setLineLengthLimit(int lineLengthLimit) {
 		if (lineLengthLimit < 1) {
 			throw new IllegalArgumentException("Line length limit must be at least 1.");
@@ -256,11 +283,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 
 		this.lineLengthLimit = lineLengthLimit;
 	}
-	
+
 	public int getBufferSize() {
 		return bufferSize;
 	}
-	
+
 	public void setBufferSize(int bufferSize) {
 		if (bufferSize < 2) {
 			throw new IllegalArgumentException("Buffer size must be at least 2.");
@@ -268,11 +295,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 
 		this.bufferSize = bufferSize;
 	}
-	
+
 	public int getNumLineSamples() {
 		return numLineSamples;
 	}
-	
+
 	public void setNumLineSamples(int numLineSamples) {
 		if (numLineSamples < 0) {
 			throw new IllegalArgumentException("Number of line samples must not be negative.");
@@ -287,25 +314,25 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	/**
 	 * This function parses the given byte array which represents a serialized record.
 	 * The function returns a valid record or throws an IOException.
-	 * 
+	 *
 	 * @param reuse An optionally reusable object.
 	 * @param bytes Binary data of serialized records.
-	 * @param offset The offset where to start to read the record data. 
+	 * @param offset The offset where to start to read the record data.
 	 * @param numBytes The number of bytes that can be read starting at the offset position.
-	 * 
+	 *
 	 * @return Returns the read record if it was successfully deserialized.
 	 * @throws IOException if the record could not be read.
 	 */
 	public abstract OT readRecord(OT reuse, byte[] bytes, int offset, int numBytes) throws IOException;
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Pre-flight: Configuration, Splits, Sampling
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Configures this input format by reading the path to the file from the configuration and the string that
 	 * defines the record delimiter.
-	 * 
+	 *
 	 * @param parameters The configuration object to read the parameters from.
 	 */
 	@Override
@@ -321,7 +348,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 				setDelimiter(delimString);
 			}
 		}
-		
+
 		// set the number of samples
 		if (numLineSamples == NUM_SAMPLES_UNDEFINED) {
 			String samplesString = parameters.getString(NUM_STATISTICS_SAMPLES, null);
@@ -337,13 +364,13 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			}
 		}
 	}
-	
+
 	@Override
 	public FileBaseStatistics getStatistics(BaseStatistics cachedStats) throws IOException {
-		
+
 		final FileBaseStatistics cachedFileStats = cachedStats instanceof FileBaseStatistics ?
-				(FileBaseStatistics) cachedStats : null;
-		
+			(FileBaseStatistics) cachedStats : null;
+
 		// store properties
 		final long oldTimeout = this.openTimeout;
 		final int oldBufferSize = this.bufferSize;
@@ -357,11 +384,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			if (stats == null) {
 				return null;
 			}
-			
+
 			// check whether the width per record is already known or the total size is unknown as well
 			// in both cases, we return the stats as they are
 			if (stats.getAverageRecordWidth() != FileBaseStatistics.AVG_RECORD_BYTES_UNKNOWN ||
-					stats.getTotalInputSize() == FileBaseStatistics.SIZE_UNKNOWN) {
+				stats.getTotalInputSize() == FileBaseStatistics.SIZE_UNKNOWN) {
 				return stats;
 			}
 
@@ -370,7 +397,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			if (unsplittable) {
 				return stats;
 			}
-			
+
 			// compute how many samples to take, depending on the defined upper and lower bound
 			final int numSamples;
 			if (this.numLineSamples != NUM_SAMPLES_UNDEFINED) {
@@ -380,7 +407,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 				final int calcSamples = (int) (stats.getTotalInputSize() / 1024);
 				numSamples = Math.min(DEFAULT_MAX_NUM_SAMPLES, Math.max(DEFAULT_MIN_NUM_SAMPLES, calcSamples));
 			}
-			
+
 			// check if sampling is disabled.
 			if (numSamples == 0) {
 				return stats;
@@ -388,15 +415,15 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			if (numSamples < 0) {
 				throw new RuntimeException("Error: Invalid number of samples: " + numSamples);
 			}
-			
-			
+
+
 			// make sure that the sampling times out after a while if the file system does not answer in time
 			this.openTimeout = 10000;
 			// set a small read buffer size
 			this.bufferSize = 4 * 1024;
 			// prevent overly large records, for example if we have an incorrectly configured delimiter
 			this.lineLengthLimit = MAX_SAMPLE_LEN;
-			
+
 			long offset = 0;
 			long totalNumBytes = 0;
 			long stepSize = stats.getTotalInputSize() / numSamples;
@@ -430,21 +457,21 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 					fileNum++;
 				}
 			}
-			
+
 			// we have the width, store it
 			return new FileBaseStatistics(stats.getLastModificationTime(),
 				stats.getTotalInputSize(), totalNumBytes / (float) samplesTaken);
-			
+
 		} catch (IOException ioex) {
 			if (LOG.isWarnEnabled()) {
 				LOG.warn("Could not determine statistics for files '" + Arrays.toString(getFilePaths()) + "' " +
-						 "due to an io error: " + ioex.getMessage());
+					"due to an io error: " + ioex.getMessage());
 			}
 		}
 		catch (Throwable t) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Unexpected problem while getting the file statistics for files '" + Arrays.toString(getFilePaths()) + "': "
-						+ t.getMessage(), t);
+					+ t.getMessage(), t);
 			}
 		} finally {
 			// restore properties (even on return)
@@ -452,7 +479,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			this.bufferSize = oldBufferSize;
 			this.lineLengthLimit = oldLineLengthLimit;
 		}
-		
+
 		// no statistics possible
 		return null;
 	}
@@ -472,6 +499,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 
 		this.offset = splitStart;
 		if (this.splitStart != 0) {
+			setBomFileCharset(split);
 			this.stream.seek(offset);
 			readLine();
 			// if the first partial record already pushes the stream over
@@ -481,7 +509,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			}
 		} else {
 			fillBuffer(0);
+			setBomFileCharset(split);
 		}
+
 	}
 
 	private void initBuffers() {
@@ -505,15 +535,84 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	}
 
 	/**
+	 * Special default processing for utf-16 and utf-32 is performed.
+	 *
+	 * @param charsetName
+	 * @return
+	 */
+	private Charset getSpecialCharset(String charsetName) {
+		Charset charset;
+		switch (charsetName.toUpperCase()) {
+			case "UTF-16":
+				charset = Charset.forName("UTF-16BE");
+				break;
+			case "UTF-32":
+				charset = Charset.forName("UTF-32BE");
+				break;
+			default:
+				charset = Charset.forName(charsetName);
+				break;
+		}
+		return charset;
+	}
+
+	/**
+	 * Set file bom encoding.
+	 *
+	 * @param split
+	 */
+	private void setBomFileCharset(FileInputSplit split) {
+		try {
+			if (configuredCharset == null) {
+				String filePath = split.getPath().toString();
+				if (this.fileBomCharsetMap.containsKey(filePath)) {
+					this.bomIdentifiedCharset = this.fileBomCharsetMap.get(filePath);
+				} else {
+					byte[] bomBuffer = new byte[4];
+
+					if (this.splitStart != 0) {
+						this.stream.seek(0);
+						this.stream.read(bomBuffer, 0, bomBuffer.length);
+						this.stream.seek(split.getStart());
+					} else {
+						System.arraycopy(this.readBuffer, 0, bomBuffer, 0, 4);
+					}
+
+					if ((bomBuffer[0] == bomBytes[0]) && (bomBuffer[1] == bomBytes[0]) && (bomBuffer[2] == bomBytes[1])
+						&& (bomBuffer[3] == bomBytes[2])) {
+						this.bomIdentifiedCharset = Charset.forName("UTF-32BE");
+					} else if ((bomBuffer[0] == bomBytes[2]) && (bomBuffer[1] == bomBytes[1]) && (bomBuffer[2] == bomBytes[0])
+						&& (bomBuffer[3] == bomBytes[0])) {
+						this.bomIdentifiedCharset = Charset.forName("UTF-32LE");
+					} else if ((bomBuffer[0] == bomBytes[3]) && (bomBuffer[1] == bomBytes[4]) && (bomBuffer[2] == bomBytes[5])) {
+						this.bomIdentifiedCharset = Charset.forName("UTF-8");
+					} else if ((bomBuffer[0] == bomBytes[1]) && (bomBuffer[1] == bomBytes[2])) {
+						this.bomIdentifiedCharset = Charset.forName("UTF-16BE");
+					} else if ((bomBuffer[0] == bomBytes[2]) && (bomBuffer[1] == bomBytes[1])) {
+						this.bomIdentifiedCharset = Charset.forName("UTF-16LE");
+					} else {
+						this.bomIdentifiedCharset = Charset.forName(charsetName);
+					}
+
+					this.fileBomCharsetMap.put(filePath, this.bomIdentifiedCharset);
+				}
+			}
+		} catch (Exception e) {
+			LOG.warn("Failed to get file bom encoding.");
+			this.bomIdentifiedCharset = Charset.forName(charsetName);
+		}
+	}
+
+	/**
 	 * Checks whether the current split is at its end.
-	 * 
+	 *
 	 * @return True, if the split is at its end, false otherwise.
 	 */
 	@Override
 	public boolean reachedEnd() {
 		return this.end;
 	}
-	
+
 	@Override
 	public OT nextRecord(OT record) throws IOException {
 		if (readLine()) {
@@ -526,7 +625,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 
 	/**
 	 * Closes the input by releasing all buffers and closing the file input stream.
-	 * 
+	 *
 	 * @throws IOException Thrown, if the closing of the file stream causes an I/O error.
 	 */
 	@Override
@@ -623,11 +722,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			} else {
 				// we reached the end of the readBuffer
 				count = this.limit - startPos;
-				
+
 				// check against the maximum record length
 				if (((long) countInWrapBuffer) + count > this.lineLengthLimit) {
-					throw new IOException("The record length exceeded the maximum record length (" + 
-							this.lineLengthLimit + ").");
+					throw new IOException("The record length exceeded the maximum record length (" +
+						this.lineLengthLimit + ").");
 				}
 
 				// Compute number of bytes to move to wrapBuffer
@@ -650,7 +749,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			}
 		}
 	}
-	
+
 	private void setResult(byte[] buffer, int offset, int len) {
 		this.currBuffer = buffer;
 		this.currOffset = offset;
@@ -675,7 +774,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 				return true;
 			}
 		}
-		
+
 		// else ..
 		int toRead;
 		if (this.splitLength > 0) {
@@ -714,7 +813,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	 * The configuration key to set the record delimiter.
 	 */
 	protected static final String RECORD_DELIMITER = "delimited-format.delimiter";
-	
+
 	/**
 	 * The configuration key to set the number of samples to take for the statistics.
 	 */
