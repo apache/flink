@@ -240,7 +240,7 @@ public class SavepointITCase extends TestLogger {
 
 			client.cancel(jobId);
 
-			FutureUtils.retrySuccesfulWithDelay(
+			FutureUtils.retrySuccessfulWithDelay(
 				() -> client.getJobStatus(jobId),
 				Time.milliseconds(50),
 				Deadline.now().plus(Duration.ofSeconds(30)),

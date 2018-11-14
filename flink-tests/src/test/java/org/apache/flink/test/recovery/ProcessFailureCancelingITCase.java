@@ -294,7 +294,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 	}
 
 	private void waitUntilAllSlotsAreUsed(DispatcherGateway dispatcherGateway, Time timeout) throws ExecutionException, InterruptedException {
-		FutureUtils.retrySuccesfulWithDelay(
+		FutureUtils.retrySuccessfulWithDelay(
 			() -> dispatcherGateway.requestClusterOverview(timeout),
 			Time.milliseconds(50L),
 			Deadline.fromNow(Duration.ofMillis(timeout.toMilliseconds())),
@@ -306,7 +306,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 	}
 
 	private Collection<JobID> waitForRunningJobs(ClusterClient<?> clusterClient, Time timeout) throws ExecutionException, InterruptedException {
-		return FutureUtils.retrySuccesfulWithDelay(
+		return FutureUtils.retrySuccessfulWithDelay(
 				CheckedSupplier.unchecked(clusterClient::listJobs),
 				Time.milliseconds(50L),
 				Deadline.fromNow(Duration.ofMillis(timeout.toMilliseconds())),

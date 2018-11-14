@@ -153,7 +153,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 		try {
 			NotifyingMapper.notifyLatch.await();
 
-			FutureUtils.retrySuccesfulWithDelay(
+			FutureUtils.retrySuccessfulWithDelay(
 				() -> {
 					try {
 						return CompletableFuture.completedFuture(client.getAccumulators(jobGraph.getJobID()));

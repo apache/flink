@@ -239,7 +239,7 @@ public class FutureUtils {
 	 * @return Future which retries the given operation a given amount of times and delays the retry
 	 *   in case the predicate isn't matched
 	 */
-	public static <T> CompletableFuture<T> retrySuccesfulWithDelay(
+	public static <T> CompletableFuture<T> retrySuccessfulWithDelay(
 		final Supplier<CompletableFuture<T>> operation,
 		final Time retryDelay,
 		final Deadline deadline,

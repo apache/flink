@@ -140,7 +140,7 @@ public class MetricsAvailabilityITCase extends TestLogger {
 	}
 
 	private static <X> X fetchMetric(final SupplierWithException<CompletableFuture<X>, IOException> clientOperation, final Predicate<X> predicate) throws InterruptedException, ExecutionException, TimeoutException {
-		final CompletableFuture<X> responseFuture = FutureUtils.retrySuccesfulWithDelay(() -> {
+		final CompletableFuture<X> responseFuture = FutureUtils.retrySuccessfulWithDelay(() -> {
 				try {
 					return clientOperation.get();
 				} catch (IOException e) {
