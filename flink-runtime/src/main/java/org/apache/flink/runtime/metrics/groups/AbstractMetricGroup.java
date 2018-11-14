@@ -90,9 +90,9 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * For example: "host-7.taskmanager-2.window_word_count.my-mapper" */
 	private final String[] scopeStrings;
 
-	/** The logical metrics scope represented by this group, as a concatenated string, lazily computed.
+	/** The logical metrics scope represented by this group for each reporter, as a concatenated string, lazily computed.
 	 * For example: "taskmanager.job.task" */
-	private String logicalScopeString;
+	private String[] logicalScopeStrings;
 
 	/** The metrics query service scope represented by this group, lazily computed. */
 	protected QueryScopeInfo queryServiceScopeInfo;
@@ -107,6 +107,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 		this.scopeComponents = checkNotNull(scope);
 		this.parent = parent;
 		this.scopeStrings = new String[registry.getNumberReporters()];
+		this.logicalScopeStrings = new String[registry.getNumberReporters()];
 	}
 
 	public Map<String, String> getAllVariables() {
@@ -152,14 +153,35 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @return logical scope
 	 */
 	public String getLogicalScope(CharacterFilter filter, char delimiter) {
-		if (logicalScopeString == null) {
+		return getLogicalScope(filter, delimiter, -1);
+	}
+
+	/**
+	 * Returns the logical scope of this group, for example
+	 * {@code "taskmanager.job.task"}.
+	 *
+	 * @param filter character filter which is applied to the scope components
+	 * @param delimiter delimiter to use for concatenating scope components
+	 * @param reporterIndex index of the reporter
+	 * @return logical scope
+	 */
+	public String getLogicalScope(CharacterFilter filter, char delimiter, int reporterIndex) {
+		if (logicalScopeStrings.length == 0 || (reporterIndex < 0 || reporterIndex >= logicalScopeStrings.length)) {
 			if (parent == null) {
-				logicalScopeString = getGroupName(filter);
+				return getGroupName(filter);
 			} else {
-				logicalScopeString = parent.getLogicalScope(filter, delimiter) + delimiter + getGroupName(filter);
+				return parent.getLogicalScope(filter, delimiter) + delimiter + getGroupName(filter);
 			}
+		} else {
+			if (logicalScopeStrings[reporterIndex] == null) {
+				if (parent == null) {
+					logicalScopeStrings[reporterIndex] = getGroupName(filter);
+				} else {
+					logicalScopeStrings[reporterIndex] = parent.getLogicalScope(filter, delimiter) + delimiter + getGroupName(filter);
+				}
+			}
+			return logicalScopeStrings[reporterIndex];
 		}
-		return logicalScopeString;
 	}
 
 	/**
