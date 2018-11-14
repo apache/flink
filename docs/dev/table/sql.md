@@ -796,50 +796,6 @@ Group windows are defined in the `GROUP BY` clause of a SQL query. Just like que
   </tbody>
 </table>
 
-### Pattern Recognition
-
-<div markdown="1">
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 20%">Operation</th>
-      <th class="text-center">Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>
-        <strong>MATCH_RECOGNIZE</strong><br>
-        <span class="label label-primary">Streaming</span>
-      </td>
-      <td>
-        <p>Searches for a given pattern in a streaming table according to the MATCH_RECOGNIZE <a href="https://standards.iso.org/ittf/PubliclyAvailableStandards/c065143_ISO_IEC_TR_19075-5_2016.zip">standard</a>). For a more detailed description see <a href="streaming/match_recognize.html">Detecting patterns</a></p>
-
-{% highlight sql %}
-SELECT T.aid, T.bid, T.cid
-FROM MyTable
-MATCH_RECOGNIZE (
-  ORDER BY proctime
-  MEASURES
-    A.id AS aid,
-    B.id AS bid,
-    C.id AS cid
-  PATTERN (A B C)
-  DEFINE
-    A AS name = 'a',
-    B AS name = 'b',
-    C AS name = 'c'
-) AS T
-{% endhighlight %}
-      </td>
-    </tr>
-
-  </tbody>
-</table>
-</div>
-
-{% top %}
-
 #### Time Attributes
 
 For SQL queries on streaming tables, the `time_attr` argument of the group window function must refer to a valid time attribute that specifies the processing time or event time of rows. See the [documentation of time attributes](streaming/time_attributes.html) to learn how to define time attributes.
@@ -981,6 +937,52 @@ val result4 = tableEnv.sqlQuery(
 
 {% endhighlight %}
 </div>
+</div>
+
+{% top %}
+
+### Pattern Recognition
+
+<div markdown="1">
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operation</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <strong>MATCH_RECOGNIZE</strong><br>
+        <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Searches for a given pattern in a streaming table according to the <code>MATCH_RECOGNIZE</code> <a href="https://standards.iso.org/ittf/PubliclyAvailableStandards/c065143_ISO_IEC_TR_19075-5_2016.zip">ISO standard</a>. This enables to express complex event processing (CEP) logic in SQL queries.</p>
+        <p>For a more detailed description, see the dedicated page for <a href="streaming/match_recognize.html">detecting patterns in tables</a>.</p>
+
+{% highlight sql %}
+SELECT T.aid, T.bid, T.cid
+FROM MyTable
+MATCH_RECOGNIZE (
+  PARTITION BY userid
+  ORDER BY proctime
+  MEASURES
+    A.id AS aid,
+    B.id AS bid,
+    C.id AS cid
+  PATTERN (A B C)
+  DEFINE
+    A AS name = 'a',
+    B AS name = 'b',
+    C AS name = 'c'
+) AS T
+{% endhighlight %}
+      </td>
+    </tr>
+
+  </tbody>
+</table>
 </div>
 
 {% top %}
