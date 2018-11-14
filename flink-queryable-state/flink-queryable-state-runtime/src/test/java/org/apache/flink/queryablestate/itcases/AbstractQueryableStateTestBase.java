@@ -1273,7 +1273,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			// Free cluster resources
 			clusterClient.cancel(jobId);
 			// cancel() is non-blocking so do this to make sure the job finished
-			CompletableFuture<JobStatus> jobStatusFuture = FutureUtils.retrySuccesfulWithDelay(
+			CompletableFuture<JobStatus> jobStatusFuture = FutureUtils.retrySuccessfulWithDelay(
 				() -> clusterClient.getJobStatus(jobId),
 				Time.milliseconds(50),
 				deadline,
