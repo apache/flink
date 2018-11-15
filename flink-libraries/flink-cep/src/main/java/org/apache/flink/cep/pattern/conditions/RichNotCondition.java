@@ -21,37 +21,22 @@ package org.apache.flink.cep.pattern.conditions;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Utility class containing an {@link IterativeCondition} that always returns
- * {@code true} and one that always returns {@code false}.
+ * A {@link RichIterativeCondition condition} which negates the condition it wraps
+ * and returns {@code true} if the original condition returns {@code false}.
+ *
+ * @param <T> Type of the element to filter
  */
 @Internal
-public class BooleanConditions {
+public class RichNotCondition<T> extends RichCompositeIterativeCondition<T> {
 
-	/**
-	 * @return An {@link IterativeCondition} that always returns {@code true}.
-	 */
-	public static <T> IterativeCondition<T> trueFunction()  {
-		return new SimpleCondition<T>() {
-			private static final long serialVersionUID = 8379409657655181451L;
+	private static final long serialVersionUID = 1L;
 
-			@Override
-			public boolean filter(T value) throws Exception {
-				return true;
-			}
-		};
+	public RichNotCondition(final IterativeCondition<T> original) {
+		super(original);
 	}
 
-	/**
-	 * @return An {@link IterativeCondition} that always returns {@code false}.
-	 */
-	public static <T> IterativeCondition<T> falseFunction()  {
-		return new SimpleCondition<T>() {
-			private static final long serialVersionUID = -823981593720949910L;
-
-			@Override
-			public boolean filter(T value) throws Exception {
-				return false;
-			}
-		};
+	@Override
+	public boolean filter(T value, Context<T> ctx) throws Exception {
+		return !getNestedConditions()[0].filter(value, ctx);
 	}
 }
