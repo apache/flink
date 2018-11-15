@@ -23,12 +23,12 @@ under the License.
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
 		<version>1.8-SNAPSHOT</version>
+		<relativePath>..</relativePath>
 	</parent>
 
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-metrics-availability-test</artifactId>
-	<version>1.8-SNAPSHOT</version>
 
 	<dependencies>
 		<dependency>
