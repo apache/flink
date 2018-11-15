@@ -53,4 +53,11 @@ public class SlotReport implements Serializable, Iterable<SlotStatus> {
 	public Iterator<SlotStatus> iterator() {
 		return slotsStatus.iterator();
 	}
+
+	@Override
+	public String toString() {
+		return "SlotReport{" +
+			"slotsStatus=" + slotsStatus +
+			'}';
+	}
 }
