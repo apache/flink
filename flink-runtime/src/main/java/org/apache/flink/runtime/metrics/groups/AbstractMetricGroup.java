@@ -165,23 +165,22 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @param reporterIndex index of the reporter
 	 * @return logical scope
 	 */
-	public String getLogicalScope(CharacterFilter filter, char delimiter, int reporterIndex) {
+	String getLogicalScope(CharacterFilter filter, char delimiter, int reporterIndex) {
 		if (logicalScopeStrings.length == 0 || (reporterIndex < 0 || reporterIndex >= logicalScopeStrings.length)) {
-			if (parent == null) {
-				return getGroupName(filter);
-			} else {
-				return parent.getLogicalScope(filter, delimiter) + delimiter + getGroupName(filter);
-			}
+			return createLogicalScope(filter, delimiter);
 		} else {
 			if (logicalScopeStrings[reporterIndex] == null) {
-				if (parent == null) {
-					logicalScopeStrings[reporterIndex] = getGroupName(filter);
-				} else {
-					logicalScopeStrings[reporterIndex] = parent.getLogicalScope(filter, delimiter) + delimiter + getGroupName(filter);
-				}
+				logicalScopeStrings[reporterIndex] = createLogicalScope(filter, delimiter);
 			}
 			return logicalScopeStrings[reporterIndex];
 		}
+	}
+
+	private String createLogicalScope(CharacterFilter filter, char delimiter) {
+		final String groupName = getGroupName(filter);
+		return parent == null
+			? groupName
+			: parent.getLogicalScope(filter, delimiter) + delimiter + groupName;
 	}
 
 	/**
