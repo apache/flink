@@ -531,3 +531,10 @@ function clean_log_files {
     rm ${FLINK_DIR}/log/*
     echo "Deleted all files under ${FLINK_DIR}/log/"
 }
+
+function find_latest_completed_checkpoint {
+    local checkpoint_root_directory=$1
+    # a completed checkpoint must contain the _metadata file
+    local checkpoint_meta_file=$(ls -d ${checkpoint_root_directory}/chk-[1-9]*/_metadata | sort -Vr | head -n1)
+    echo "$(dirname "${checkpoint_meta_file}")"
+}

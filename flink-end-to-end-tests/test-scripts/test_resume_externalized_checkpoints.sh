@@ -113,7 +113,7 @@ else
 fi
 
 # take the latest checkpoint
-CHECKPOINT_PATH=$(ls -d $CHECKPOINT_DIR/$DATASTREAM_JOB/chk-[1-9]* | sort -Vr | head -n1)
+CHECKPOINT_PATH=$(find_latest_completed_checkpoint ${CHECKPOINT_DIR}/${DATASTREAM_JOB})
 
 if [ -z $CHECKPOINT_PATH ]; then
   echo "Expected an externalized checkpoint to be present, but none exists."
