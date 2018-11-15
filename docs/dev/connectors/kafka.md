@@ -73,7 +73,7 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
         <td>This connector supports <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-32+-+Add+timestamps+to+Kafka+message">Kafka messages with timestamps</a> both for producing and consuming.</td>
     </tr>
     <tr>
-        <td>flink-connector-kafka-0.11_2.11</td>
+        <td>flink-connector-kafka-0.11{{ site.scala_version_suffix }}</td>
         <td>1.4.0</td>
         <td>FlinkKafkaConsumer011<br>
         FlinkKafkaProducer011</td>
@@ -81,7 +81,7 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
         <td>Since 0.11.x Kafka does not support scala 2.10. This connector supports <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-98+-+Exactly+Once+Delivery+and+Transactional+Messaging">Kafka transactional messaging</a> to provide exactly once semantic for the producer.</td>
     </tr>
     <tr>
-        <td>flink-connector-kafka_2.11</td>
+        <td>flink-connector-kafka{{ site.scala_version_suffix }}</td>
         <td>1.7.0</td>
         <td>FlinkKafkaConsumer<br>
         FlinkKafkaProducer</td>
@@ -90,7 +90,7 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
         The version of the client it uses may change between Flink releases.
         Modern Kafka clients are backwards compatible with broker versions 0.10.0 or later.
         However for Kafka 0.11.x and 0.10.x versions, we recommend using dedicated
-        flink-connector-kafka-0.11 and link-connector-kafka-0.10 respectively.</td>
+        flink-connector-kafka-0.11{{ site.scala_version_suffix }} and link-connector-kafka-0.10{{ site.scala_version_suffix }} respectively.</td>
         </tr>
   </tbody>
 </table>
@@ -115,7 +115,7 @@ See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/lin
 
 ## Kafka 1.0.0+ Connector
 
-Starting with Flink 1.7, there is a new Kafka connector that does not track a specific Kafka major version.
+Starting with Flink 1.7, there is a new universal Kafka connector that does not track a specific Kafka major version.
 Rather, it tracks the latest version of Kafka at the time of the Flink release.
 
 If your Kafka broker version is 1.0.0 or newer, you should use this Kafka connector.
@@ -123,13 +123,13 @@ If you use an older version of Kafka (0.11, 0.10, 0.9, or 0.8), you should use t
 
 ### Compatibility
 
-The modern Kafka connector is compatible with older and newer Kafka brokers through the compatibility guarantees of the Kafka client API and broker.
-The modern Kafka connector is compatible with broker versions 0.11.0 or later, depending on the features used.
+The universal Kafka connector is compatible with older and newer Kafka brokers through the compatibility guarantees of the Kafka client API and broker.
+It is compatible with broker versions 0.11.0 or newer, depending on the features used.
 For details on Kafka compatibility, please refer to the [Kafka documentation](https://kafka.apache.org/protocol.html#protocol_compatibility).
 
 ### Usage
 
-The use of the modern Kafka connector add a dependency to it:
+To use the universal Kafka connector add a dependency to it:
 
 {% highlight xml %}
 <dependency>
@@ -140,7 +140,8 @@ The use of the modern Kafka connector add a dependency to it:
 {% endhighlight %}
 
 Then instantiate the new source (`FlinkKafkaConsumer`) and sink (`FlinkKafkaProducer`).
-The API is the backwards compatible with the older Kafka connectors.
+The API is backward compatible with the Kafka 0.11 connector,
+except of dropping specific Kafka version from the module and class names.
 
 ## Kafka Consumer
 
