@@ -21,7 +21,7 @@ package org.apache.flink.cep.pattern;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.SubEvent;
 import org.apache.flink.cep.pattern.Quantifier.ConsumingStrategy;
-import org.apache.flink.cep.pattern.conditions.OrCondition;
+import org.apache.flink.cep.pattern.conditions.RichOrCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.pattern.conditions.SubtypeCondition;
 import org.apache.flink.util.TestLogger;
@@ -187,8 +187,8 @@ public class PatternTest extends TestLogger {
 		assertNull(previous2.getPrevious());
 
 		assertEquals(ConsumingStrategy.SKIP_TILL_NEXT, pattern.getQuantifier().getConsumingStrategy());
-		assertFalse(previous.getCondition() instanceof OrCondition);
-		assertTrue(previous2.getCondition() instanceof OrCondition);
+		assertFalse(previous.getCondition() instanceof RichOrCondition);
+		assertTrue(previous2.getCondition() instanceof RichOrCondition);
 
 		assertEquals(pattern.getName(), "end");
 		assertEquals(previous.getName(), "or");

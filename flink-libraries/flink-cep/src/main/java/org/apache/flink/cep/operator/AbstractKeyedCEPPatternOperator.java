@@ -20,6 +20,7 @@ package org.apache.flink.cep.operator;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -33,10 +34,14 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.NFA.MigratedNFA;
 import org.apache.flink.cep.nfa.NFAState;
 import org.apache.flink.cep.nfa.NFAStateSerializer;
+import org.apache.flink.cep.nfa.State;
+import org.apache.flink.cep.nfa.StateTransition;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -185,6 +190,15 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 				this);
 
 		this.nfa = nfaFactory.createNFA();
+
+		openNFA(nfa);
+	}
+
+	@Override
+	public void close() throws Exception {
+		super.close();
+
+		closeNFA(nfa);
 	}
 
 	@Override
@@ -392,6 +406,26 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 			Collection<Tuple2<Map<String, List<IN>>, Long>> timedOut =
 				nfa.advanceTime(sharedBufferAccessor, nfaState, timestamp);
 			processTimedOutSequences(timedOut, timestamp);
+		}
+	}
+
+	private void openNFA(NFA<IN> nfa) throws Exception {
+		Configuration conf = new Configuration();
+		for (State<IN> state : nfa.getStates()) {
+			for (StateTransition<IN> transition : state.getStateTransitions()) {
+				IterativeCondition condition = transition.getCondition();
+				FunctionUtils.setFunctionRuntimeContext(condition, getRuntimeContext());
+				FunctionUtils.openFunction(condition, conf);
+			}
+		}
+	}
+
+	private void closeNFA(NFA<IN> nfa) throws Exception {
+		for (State<IN> state : nfa.getStates()) {
+			for (StateTransition<IN> transition : state.getStateTransitions()) {
+				IterativeCondition condition = transition.getCondition();
+				FunctionUtils.closeFunction(condition);
+			}
 		}
 	}
 

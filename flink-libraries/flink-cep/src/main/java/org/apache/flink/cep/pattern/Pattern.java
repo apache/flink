@@ -23,9 +23,9 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.pattern.Quantifier.ConsumingStrategy;
 import org.apache.flink.cep.pattern.Quantifier.Times;
-import org.apache.flink.cep.pattern.conditions.AndCondition;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
-import org.apache.flink.cep.pattern.conditions.OrCondition;
+import org.apache.flink.cep.pattern.conditions.RichAndCondition;
+import org.apache.flink.cep.pattern.conditions.RichOrCondition;
 import org.apache.flink.cep.pattern.conditions.SubtypeCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Preconditions;
@@ -154,7 +154,7 @@ public class Pattern<T, F extends T> {
 		if (this.condition == null) {
 			this.condition = condition;
 		} else {
-			this.condition = new AndCondition<>(this.condition, condition);
+			this.condition = new RichAndCondition<>(this.condition, condition);
 		}
 		return this;
 	}
@@ -177,7 +177,7 @@ public class Pattern<T, F extends T> {
 		if (this.condition == null) {
 			this.condition = condition;
 		} else {
-			this.condition = new OrCondition<>(this.condition, condition);
+			this.condition = new RichOrCondition<>(this.condition, condition);
 		}
 		return this;
 	}
@@ -196,7 +196,7 @@ public class Pattern<T, F extends T> {
 		if (condition == null) {
 			this.condition = new SubtypeCondition<F>(subtypeClass);
 		} else {
-			this.condition = new AndCondition<>(condition, new SubtypeCondition<F>(subtypeClass));
+			this.condition = new RichAndCondition<>(condition, new SubtypeCondition<F>(subtypeClass));
 		}
 
 		@SuppressWarnings("unchecked")
