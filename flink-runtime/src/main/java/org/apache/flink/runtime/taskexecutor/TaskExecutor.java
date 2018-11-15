@@ -87,6 +87,7 @@ import org.apache.flink.runtime.taskexecutor.exceptions.TaskException;
 import org.apache.flink.runtime.taskexecutor.exceptions.TaskManagerException;
 import org.apache.flink.runtime.taskexecutor.exceptions.TaskSubmissionException;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcCheckpointResponder;
+import org.apache.flink.runtime.taskexecutor.rpc.RpcGlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcInputSplitProvider;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcKvStateRegistryListener;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcPartitionStateChecker;
@@ -498,6 +499,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 			TaskManagerActions taskManagerActions = jobManagerConnection.getTaskManagerActions();
 			CheckpointResponder checkpointResponder = jobManagerConnection.getCheckpointResponder();
+			GlobalAggregateManager aggregateManager = jobManagerConnection.getGlobalAggregateManager();
 
 			LibraryCacheManager libraryCache = jobManagerConnection.getLibraryCacheManager();
 			ResultPartitionConsumableNotifier resultPartitionConsumableNotifier = jobManagerConnection.getResultPartitionConsumableNotifier();
@@ -536,6 +538,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				taskManagerActions,
 				inputSplitProvider,
 				checkpointResponder,
+				aggregateManager,
 				blobCacheService,
 				libraryCache,
 				fileCache,
@@ -1233,6 +1236,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		TaskManagerActions taskManagerActions = new TaskManagerActionsImpl(jobMasterGateway);
 
 		CheckpointResponder checkpointResponder = new RpcCheckpointResponder(jobMasterGateway);
+		GlobalAggregateManager aggregateManager = new RpcGlobalAggregateManager(jobMasterGateway);
 
 		final LibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(
 			blobCacheService.getPermanentBlobService(),
@@ -1254,6 +1258,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			jobMasterGateway,
 			taskManagerActions,
 			checkpointResponder,
+			aggregateManager,
 			libraryCacheManager,
 			resultPartitionConsumableNotifier,
 			partitionStateChecker);
