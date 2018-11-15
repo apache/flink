@@ -29,7 +29,7 @@ echo "Run DataSet-Allround-Test Program"
 echo "taskmanager.network.memory.min: 10485760" >> $FLINK_DIR/conf/flink-conf.yaml
 echo "taskmanager.network.memory.max: 10485760" >> $FLINK_DIR/conf/flink-conf.yaml
 
-set_conf_ssl
+set_conf_ssl "server"
 start_cluster
 start_taskmanagers 3
 
