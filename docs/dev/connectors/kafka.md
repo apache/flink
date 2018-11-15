@@ -86,7 +86,11 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
         <td>FlinkKafkaConsumer<br>
         FlinkKafkaProducer</td>
         <td>>= 1.0.0</td>
-        <td>This Kafka connector attempts to track the latest version of the Kafka client. The version of the client it uses may change between Flink releases. Modern Kafka clients are backwards compatible with broker versions 0.10.0 or later. However for Kafka 0.11.x and 0.10.x versions, we recommend using dedicated flink-connector-kafka-0.11 and link-connector-kafka-0.10 respectively.</td>
+        <td>This universal Kafka connector attempts to track the latest version of the Kafka client.
+        The version of the client it uses may change between Flink releases.
+        Modern Kafka clients are backwards compatible with broker versions 0.10.0 or later.
+        However for Kafka 0.11.x and 0.10.x versions, we recommend using dedicated
+        flink-connector-kafka-0.11 and link-connector-kafka-0.10 respectively.</td>
         </tr>
   </tbody>
 </table>
@@ -101,7 +105,8 @@ Then, import the connector in your maven project:
 </dependency>
 {% endhighlight %}
 
-Note that the streaming connectors are currently not part of the binary distribution. See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/linking.html).
+Note that the streaming connectors are currently not part of the binary distribution.
+See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/linking.html).
 
 ## Installing Apache Kafka
 
@@ -110,13 +115,17 @@ Note that the streaming connectors are currently not part of the binary distribu
 
 ## Kafka 1.0.0+ Connector
 
-Starting with Flink 1.7, there is a new Kafka connector that does not track a specific Kafka major version. Rather, it tracks the latest version of Kafka at the time of the Flink release.
+Starting with Flink 1.7, there is a new Kafka connector that does not track a specific Kafka major version.
+Rather, it tracks the latest version of Kafka at the time of the Flink release.
 
-If your Kafka broker version is 1.0.0 or newer, you should use this Kafka connector. If you use an older version of Kafka (0.11, 0.10, 0.9, or 0.8), you should use the connector corresponding to the broker version.
+If your Kafka broker version is 1.0.0 or newer, you should use this Kafka connector.
+If you use an older version of Kafka (0.11, 0.10, 0.9, or 0.8), you should use the connector corresponding to the broker version.
 
 ### Compatibility
 
-The modern Kafka connector is compatible with older and newer Kafka brokers through the compatibility guarantees of the Kafka client API and broker. The modern Kafka connector is compatible with broker versions 0.11.0 or later, depending on the features used. For details on Kafka compatibility, please refer to the [Kafka documentation](https://kafka.apache.org/protocol.html#protocol_compatibility).
+The modern Kafka connector is compatible with older and newer Kafka brokers through the compatibility guarantees of the Kafka client API and broker.
+The modern Kafka connector is compatible with broker versions 0.11.0 or later, depending on the features used.
+For details on Kafka compatibility, please refer to the [Kafka documentation](https://kafka.apache.org/protocol.html#protocol_compatibility).
 
 ### Usage
 
@@ -130,11 +139,13 @@ The use of the modern Kafka connector add a dependency to it:
 </dependency>
 {% endhighlight %}
 
-Then instantiate the new source (`FlinkKafkaConsumer`) and sink (`FlinkKafkaProducer`). The API is the backwards compatible with the older Kafka connectors.
+Then instantiate the new source (`FlinkKafkaConsumer`) and sink (`FlinkKafkaProducer`).
+The API is the backwards compatible with the older Kafka connectors.
 
 ## Kafka Consumer
 
-Flink's Kafka consumer is called `FlinkKafkaConsumer08` (or 09 for Kafka 0.9.0.x versions, etc. or just `FlinkKafkaConsumer` for Kafka >= 1.0.0 versions). It provides access to one or more Kafka topics.
+Flink's Kafka consumer is called `FlinkKafkaConsumer08` (or 09 for Kafka 0.9.0.x versions, etc.
+or just `FlinkKafkaConsumer` for Kafka >= 1.0.0 versions). It provides access to one or more Kafka topics.
 
 The constructor accepts the following arguments:
 
@@ -516,7 +527,10 @@ the `Watermark getCurrentWatermark()` (for periodic) or the
 `Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp)` (for punctuated) is called to determine
 if a new watermark should be emitted and with which timestamp.
 
-**Note**: If a watermark assigner depends on records read from Kafka to advance its watermarks (which is commonly the case), all topics and partitions need to have a continuous stream of records. Otherwise, the watermarks of the whole application cannot advance and all time-based operations, such as time windows or functions with timers, cannot make progress. A single idle Kafka partition causes this behavior. 
+**Note**: If a watermark assigner depends on records read from Kafka to advance its watermarks
+(which is commonly the case), all topics and partitions need to have a continuous stream of records.
+Otherwise, the watermarks of the whole application cannot advance and all time-based operations,
+such as time windows or functions with timers, cannot make progress. A single idle Kafka partition causes this behavior.
 A Flink improvement is planned to prevent this from happening 
 (see [FLINK-5479: Per-partition watermarks in FlinkKafkaConsumer should consider idle partitions](
 https://issues.apache.org/jira/browse/FLINK-5479)).
@@ -729,7 +743,8 @@ application before first checkpoint completes, by factor larger then `FlinkKafka
 
 ## Using Kafka timestamps and Flink event time in Kafka 0.10
 
-Since Apache Kafka 0.10+, Kafka's messages can carry [timestamps](https://cwiki.apache.org/confluence/display/KAFKA/KIP-32+-+Add+timestamps+to+Kafka+message), indicating
+Since Apache Kafka 0.10+, Kafka's messages can carry
+[timestamps](https://cwiki.apache.org/confluence/display/KAFKA/KIP-32+-+Add+timestamps+to+Kafka+message), indicating
 the time the event has occurred (see ["event time" in Apache Flink](../event_time.html)) or the time when the message
 has been written to the Kafka broker.
 
@@ -789,17 +804,20 @@ Flink provides first-class support through the Kafka connector to authenticate t
 configured for Kerberos. Simply configure Flink in `flink-conf.yaml` to enable Kerberos authentication for Kafka like so:
 
 1. Configure Kerberos credentials by setting the following -
- - `security.kerberos.login.use-ticket-cache`: By default, this is `true` and Flink will attempt to use Kerberos credentials in ticket caches managed by `kinit`. 
- Note that when using the Kafka connector in Flink jobs deployed on YARN, Kerberos authorization using ticket caches will not work. This is also the case when deploying using Mesos, as authorization using ticket cache is not supported for Mesos deployments. 
+ - `security.kerberos.login.use-ticket-cache`: By default, this is `true` and Flink will attempt to use Kerberos credentials in ticket caches managed by `kinit`.
+ Note that when using the Kafka connector in Flink jobs deployed on YARN, Kerberos authorization using ticket caches will not work.
+ This is also the case when deploying using Mesos, as authorization using ticket cache is not supported for Mesos deployments.
  - `security.kerberos.login.keytab` and `security.kerberos.login.principal`: To use Kerberos keytabs instead, set values for both of these properties.
  
 2. Append `KafkaClient` to `security.kerberos.login.contexts`: This tells Flink to provide the configured Kerberos credentials to the Kafka login context to be used for Kafka authentication.
 
-Once Kerberos-based Flink security is enabled, you can authenticate to Kafka with either the Flink Kafka Consumer or Producer by simply including the following two settings in the provided properties configuration that is passed to the internal Kafka client:
+Once Kerberos-based Flink security is enabled, you can authenticate to Kafka with either the Flink Kafka Consumer or Producer
+by simply including the following two settings in the provided properties configuration that is passed to the internal Kafka client:
 
 - Set `security.protocol` to `SASL_PLAINTEXT` (default `NONE`): The protocol used to communicate to Kafka brokers.
 When using standalone Flink deployment, you can also use `SASL_SSL`; please see how to configure the Kafka client for SSL [here](https://kafka.apache.org/documentation/#security_configclients). 
-- Set `sasl.kerberos.service.name` to `kafka` (default `kafka`): The value for this should match the `sasl.kerberos.service.name` used for Kafka broker configurations. A mismatch in service name between client and server configuration will cause the authentication to fail.
+- Set `sasl.kerberos.service.name` to `kafka` (default `kafka`): The value for this should match the `sasl.kerberos.service.name` used for Kafka broker configurations.
+A mismatch in service name between client and server configuration will cause the authentication to fail.
 
 For more information on Flink configuration for Kerberos security, please see [here]({{ site.baseurl}}/ops/config.html).
 You can also find [here]({{ site.baseurl}}/ops/security-kerberos.html) further details on how Flink internally setups Kerberos-based security.
