@@ -23,7 +23,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.concurrent.Executor;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -66,11 +65,9 @@ public final class BackPressuringExecutor implements Executor {
 		final SemaphoreReleasingRunnable runnable = new SemaphoreReleasingRunnable(command, permits);
 		try {
 			delegate.execute(runnable);
-		} catch (RejectedExecutionException e) {
+		} catch (Throwable e) {
 			runnable.release();
 			ExceptionUtils.rethrow(e, e.getMessage());
-		} catch (Throwable t) {
-			ExceptionUtils.rethrow(t, t.getMessage());
 		}
 	}
 
