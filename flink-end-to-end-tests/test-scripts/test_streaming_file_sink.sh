@@ -26,7 +26,7 @@ set_conf_ssl "mutual"
 
 OUT=out
 OUTPUT_PATH="$TEST_DATA_DIR/$OUT"
-S3_OUTPUT_PATH="s3://$ARTIFACTS_AWS_BUCKET/$OUT"
+S3_OUTPUT_PATH="s3://$IT_CASE_S3_BUCKET/temp/$OUT"
 
 mkdir -p $OUTPUT_PATH
 
