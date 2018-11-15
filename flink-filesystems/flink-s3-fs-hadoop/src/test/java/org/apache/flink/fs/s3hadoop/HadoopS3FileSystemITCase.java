@@ -25,10 +25,10 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.testutils.s3.S3TestCredentials;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
-import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -69,10 +69,6 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 
 	private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
-	private static final String BUCKET = System.getenv("ARTIFACTS_AWS_BUCKET");
-	private static final String ACCESS_KEY = System.getenv("ARTIFACTS_AWS_ACCESS_KEY");
-	private static final String SECRET_KEY = System.getenv("ARTIFACTS_AWS_SECRET_KEY");
-
 	/**
 	 * Will be updated by {@link #checkCredentialsAndSetup()} if the test is not skipped.
 	 */
@@ -81,18 +77,16 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 	@BeforeClass
 	public static void checkCredentialsAndSetup() throws IOException {
 		// check whether credentials exist
-		Assume.assumeTrue("AWS S3 bucket not configured, skipping test...", BUCKET != null);
-		Assume.assumeTrue("AWS S3 access key not configured, skipping test...", ACCESS_KEY != null);
-		Assume.assumeTrue("AWS S3 secret key not configured, skipping test...", SECRET_KEY != null);
+		S3TestCredentials.assumeCredentialsAvailable();
 
 		// initialize configuration with valid credentials
 		final Configuration conf = new Configuration();
-		conf.setString("s3.access.key", ACCESS_KEY);
-		conf.setString("s3.secret.key", SECRET_KEY);
+		conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+		conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
 		FileSystem.initialize(conf);
 
 		// check for uniqueness of the test directory
-		final Path directory = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR);
+		final Path directory = new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR);
 		final FileSystem fs = directory.getFileSystem();
 
 		// directory must not yet exist
@@ -108,11 +102,11 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 				final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
 				// initialize configuration with valid credentials
 				final Configuration conf = new Configuration();
-				conf.setString("s3.access.key", ACCESS_KEY);
-				conf.setString("s3.secret.key", SECRET_KEY);
+				conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+				conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
 				FileSystem.initialize(conf);
 
-				final Path directory = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR);
+				final Path directory = new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR);
 				final FileSystem fs = directory.getFileSystem();
 
 				// clean up
@@ -128,7 +122,7 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 	}
 
 	private String getBasePath() {
-		return scheme + "://" + BUCKET + '/' + TEST_DATA_DIR + "/" + scheme;
+		return S3TestCredentials.getTestBucketUriWithScheme(scheme) + TEST_DATA_DIR + '/' + scheme;
 	}
 
 	@Test
@@ -138,8 +132,8 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 		// standard Hadoop-style credential keys
 		{
 			Configuration conf = new Configuration();
-			conf.setString("fs.s3a.access.key", ACCESS_KEY);
-			conf.setString("fs.s3a.secret.key", SECRET_KEY);
+			conf.setString("fs.s3a.access.key", S3TestCredentials.getS3AccessKey());
+			conf.setString("fs.s3a.secret.key", S3TestCredentials.getS3SecretKey());
 
 			FileSystem.initialize(conf);
 			path.getFileSystem();
@@ -148,8 +142,8 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 		// shortened Hadoop-style credential keys
 		{
 			Configuration conf = new Configuration();
-			conf.setString("s3.access.key", ACCESS_KEY);
-			conf.setString("s3.secret.key", SECRET_KEY);
+			conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+			conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
 
 			FileSystem.initialize(conf);
 			path.getFileSystem();
@@ -158,8 +152,8 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 		// shortened Presto-style credential keys
 		{
 			Configuration conf = new Configuration();
-			conf.setString("s3.access-key", ACCESS_KEY);
-			conf.setString("s3.secret-key", SECRET_KEY);
+			conf.setString("s3.access-key", S3TestCredentials.getS3AccessKey());
+			conf.setString("s3.secret-key", S3TestCredentials.getS3SecretKey());
 
 			FileSystem.initialize(conf);
 			path.getFileSystem();
@@ -170,8 +164,8 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 	public void testSimpleFileWriteAndRead() throws Exception {
 		final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
 		final Configuration conf = new Configuration();
-		conf.setString("s3.access.key", ACCESS_KEY);
-		conf.setString("s3.secret.key", SECRET_KEY);
+		conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+		conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
 
 		final String testLine = "Hello Upload!";
 
@@ -208,8 +202,8 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 	public void testDirectoryListing() throws Exception {
 		final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
 		final Configuration conf = new Configuration();
-		conf.setString("s3.access.key", ACCESS_KEY);
-		conf.setString("s3.secret.key", SECRET_KEY);
+		conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+		conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
 
 		FileSystem.initialize(conf);
 

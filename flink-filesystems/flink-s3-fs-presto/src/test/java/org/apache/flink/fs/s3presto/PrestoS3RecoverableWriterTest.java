@@ -21,15 +21,15 @@ package org.apache.flink.fs.s3presto;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.fs.s3.common.FlinkS3FileSystem;
+import org.apache.flink.testutils.s3.S3TestCredentials;
 
 import org.junit.AfterClass;
-import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.UUID;
 
 import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.MAX_CONCURRENT_UPLOADS;
@@ -42,10 +42,6 @@ public class PrestoS3RecoverableWriterTest {
 
 	// ----------------------- S3 general configuration -----------------------
 
-	private static final String ACCESS_KEY = System.getenv("ARTIFACTS_AWS_ACCESS_KEY");
-	private static final String SECRET_KEY = System.getenv("ARTIFACTS_AWS_SECRET_KEY");
-	private static final String BUCKET = System.getenv("ARTIFACTS_AWS_BUCKET");
-
 	private static final long PART_UPLOAD_MIN_SIZE_VALUE = 7L << 20;
 	private static final int MAX_CONCURRENT_UPLOADS_VALUE = 2;
 
@@ -53,21 +49,17 @@ public class PrestoS3RecoverableWriterTest {
 
 	private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
-	private static final Path basePath = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR);
-
 	// ----------------------- Test Lifecycle -----------------------
 
 	@BeforeClass
 	public static void checkCredentialsAndSetup() throws IOException {
 		// check whether credentials exist
-		Assume.assumeTrue("AWS S3 bucket not configured, skipping test...", BUCKET != null);
-		Assume.assumeTrue("AWS S3 access key not configured, skipping test...", ACCESS_KEY != null);
-		Assume.assumeTrue("AWS S3 secret key not configured, skipping test...", SECRET_KEY != null);
+		S3TestCredentials.assumeCredentialsAvailable();
 
 		// initialize configuration with valid credentials
 		final Configuration conf = new Configuration();
-		conf.setString("s3.access.key", ACCESS_KEY);
-		conf.setString("s3.secret.key", SECRET_KEY);
+		conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+		conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
 
 		conf.setLong(PART_UPLOAD_MIN_SIZE, PART_UPLOAD_MIN_SIZE_VALUE);
 		conf.setInteger(MAX_CONCURRENT_UPLOADS, MAX_CONCURRENT_UPLOADS_VALUE);
@@ -87,7 +79,8 @@ public class PrestoS3RecoverableWriterTest {
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void requestingRecoverableWriterShouldThroughException() throws Exception {
-		FlinkS3FileSystem fileSystem = (FlinkS3FileSystem) FileSystem.get(basePath.toUri());
+		URI s3Uri = URI.create(S3TestCredentials.getTestBucketUri());
+		FlinkS3FileSystem fileSystem = (FlinkS3FileSystem) FileSystem.get(s3Uri);
 		fileSystem.createRecoverableWriter();
 	}
 }
