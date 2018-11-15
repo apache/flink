@@ -126,41 +126,6 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 	}
 
 	@Test
-	public void testConfigKeysForwarding() throws Exception {
-		final Path path = new Path(getBasePath());
-
-		// standard Hadoop-style credential keys
-		{
-			Configuration conf = new Configuration();
-			conf.setString("fs.s3a.access.key", S3TestCredentials.getS3AccessKey());
-			conf.setString("fs.s3a.secret.key", S3TestCredentials.getS3SecretKey());
-
-			FileSystem.initialize(conf);
-			path.getFileSystem();
-		}
-
-		// shortened Hadoop-style credential keys
-		{
-			Configuration conf = new Configuration();
-			conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-			conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
-
-			FileSystem.initialize(conf);
-			path.getFileSystem();
-		}
-
-		// shortened Presto-style credential keys
-		{
-			Configuration conf = new Configuration();
-			conf.setString("s3.access-key", S3TestCredentials.getS3AccessKey());
-			conf.setString("s3.secret-key", S3TestCredentials.getS3SecretKey());
-
-			FileSystem.initialize(conf);
-			path.getFileSystem();
-		}
-	}
-
-	@Test
 	public void testSimpleFileWriteAndRead() throws Exception {
 		final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
 		final Configuration conf = new Configuration();
