@@ -54,12 +54,12 @@ import static org.junit.Assert.assertTrue;
  */
 public class HadoopS3FileSystemITCase extends TestLogger {
 
-	private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
-
 	/**
 	 * Will be updated by {@link #checkCredentialsAndSetup()} if the test is not skipped.
 	 */
-	private static boolean skipTest = true;
+	private static FileSystem fileSystem;
+
+	private static Path basePath;
 
 	@BeforeClass
 	public static void checkCredentialsAndSetup() throws IOException {
@@ -72,35 +72,25 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 		conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
 		FileSystem.initialize(conf);
 
+		basePath = new Path(S3TestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
+		fileSystem = basePath.getFileSystem();
+
 		// check for uniqueness of the test directory
-		final Path directory = new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR);
-		final FileSystem fs = directory.getFileSystem();
-
 		// directory must not yet exist
-		assertFalse(fs.exists(directory));
-
-		skipTest = false;
+		assertFalse(fileSystem.exists(basePath));
 	}
 
 	@AfterClass
 	public static void cleanUp() throws IOException, InterruptedException {
 		try {
-			if (!skipTest) {
+			if (fileSystem != null) {
 				final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
-				// initialize configuration with valid credentials
-				final Configuration conf = new Configuration();
-				conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-				conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
-				FileSystem.initialize(conf);
-
-				final Path directory = new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR);
-				final FileSystem fs = directory.getFileSystem();
 
 				// clean up
-				fs.delete(directory, true);
+				fileSystem.delete(basePath, true);
 
 				// now directory must be gone
-				checkPathEventualExistence(fs, directory, false, deadline);
+				checkPathEventualExistence(fileSystem, basePath, false, deadline);
 			}
 		}
 		finally {
@@ -108,22 +98,12 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 		}
 	}
 
-	private String getBasePath() {
-		return S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR;
-	}
-
 	@Test
 	public void testSimpleFileWriteAndRead() throws Exception {
 		final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
-		final Configuration conf = new Configuration();
-		conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-		conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
-
 		final String testLine = "Hello Upload!";
 
-		FileSystem.initialize(conf);
-
-		final Path path = new Path(getBasePath() + "/test.txt");
+		final Path path = new Path(basePath, "test.txt");
 		final FileSystem fs = path.getFileSystem();
 
 		try {
@@ -153,13 +133,8 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 	@Test
 	public void testDirectoryListing() throws Exception {
 		final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
-		final Configuration conf = new Configuration();
-		conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-		conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
 
-		FileSystem.initialize(conf);
-
-		final Path directory = new Path(getBasePath() + "/testdir/");
+		final Path directory = new Path(basePath, "testdir/");
 		final FileSystem fs = directory.getFileSystem();
 
 		// directory must not yet exist
