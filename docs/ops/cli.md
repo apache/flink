@@ -85,7 +85,7 @@ The command line can be used to
 
 -   Run example program using a [per-job YARN cluster]({{site.baseurl}}/ops/deployment/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
 
-        ./bin/flink run -m yarn-cluster -yn 2 \
+        ./bin/flink run -m yarn-cluster -d -yn 2 \
                                ./examples/batch/WordCount.jar \
                                --input hdfs:///user/hamlet.txt --output hdfs:///user/wordcount_out
 
