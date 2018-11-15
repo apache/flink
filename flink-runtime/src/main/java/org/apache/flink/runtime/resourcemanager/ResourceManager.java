@@ -1142,20 +1142,15 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 		@Override
 		public void reportPayload(final ResourceID resourceID, final SlotReport slotReport) {
-			runAsync(new Runnable() {
-				@Override
-				public void run() {
-					log.debug("Received new slot report from TaskManager {}.", resourceID);
+			runAsync(() -> {
+				final WorkerRegistration<WorkerType> workerRegistration = taskExecutors.get(resourceID);
 
-					final WorkerRegistration<WorkerType> workerRegistration = taskExecutors.get(resourceID);
+				if (workerRegistration == null) {
+					log.debug("Received slot report from TaskManager {} which is no longer registered.", resourceID);
+				} else {
+					InstanceID instanceId = workerRegistration.getInstanceID();
 
-					if (workerRegistration == null) {
-						log.debug("Received slot report from TaskManager {} which is no longer registered.", resourceID);
-					} else {
-						InstanceID instanceId = workerRegistration.getInstanceID();
-
-						slotManager.reportSlotStatus(instanceId, slotReport);
-					}
+					slotManager.reportSlotStatus(instanceId, slotReport);
 				}
 			});
 		}

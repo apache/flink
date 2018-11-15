@@ -51,10 +51,10 @@ public class SlotStatus implements Serializable {
 	}
 
 	public SlotStatus(
-			SlotID slotID,
-			ResourceProfile resourceProfile,
-			JobID jobID,
-			AllocationID allocationID) {
+		SlotID slotID,
+		ResourceProfile resourceProfile,
+		JobID jobID,
+		AllocationID allocationID) {
 		this.slotID = checkNotNull(slotID, "slotID cannot be null");
 		this.resourceProfile = checkNotNull(resourceProfile, "profile cannot be null");
 		this.allocationID = allocationID;
@@ -130,4 +130,13 @@ public class SlotStatus implements Serializable {
 		return result;
 	}
 
+	@Override
+	public String toString() {
+		return "SlotStatus{" +
+			"slotID=" + slotID +
+			", resourceProfile=" + resourceProfile +
+			", allocationID=" + allocationID +
+			", jobID=" + jobID +
+			'}';
+	}
 }
