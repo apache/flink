@@ -101,6 +101,16 @@ public class YarnConfigOptions {
 			" to set the JM host:port manually. It is recommended to leave this option at 1.");
 
 	/**
+	 * The attempt failure validity interval says that an application is only killed after
+	 * the system has seen the maximum number of application attempts during one interval.
+	 */
+	public static final ConfigOption<String> APPLICATION_ATTEMPTS_FAILURES_VALIDITY_INTERVAL =
+		key("yarn.application-attempts-failures-validity-interval")
+		.defaultValue("10 s")
+		.withDescription("The attempt failure validity interval says that an application is only killed after" +
+			"the system has seen the maximum number of application attempts during one interval.");
+
+	/**
 	 * The heartbeat interval between the Application Master and the YARN Resource Manager.
 	 */
 	public static final ConfigOption<Integer> HEARTBEAT_DELAY_SECONDS =

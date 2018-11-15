@@ -72,6 +72,7 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.concurrent.duration.Duration;
 
 import javax.annotation.Nullable;
 
@@ -1329,13 +1330,22 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		customName = name;
 	}
 
-	private void activateHighAvailabilitySupport(ApplicationSubmissionContext appContext) throws
-		InvocationTargetException, IllegalAccessException {
+	private void activateHighAvailabilitySupport(ApplicationSubmissionContext appContext) throws Exception {
 
 		ApplicationSubmissionContextReflector reflector = ApplicationSubmissionContextReflector.getInstance();
 
 		reflector.setKeepContainersAcrossApplicationAttempts(appContext, true);
-		reflector.setAttemptFailuresValidityInterval(appContext, AkkaUtils.getTimeout(flinkConfiguration).toMillis());
+
+		long interval;
+		String intervalString = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_ATTEMPTS_FAILURES_VALIDITY_INTERVAL);
+		try {
+			interval = Duration.apply(intervalString).toMillis();
+		} catch (NumberFormatException nfe) {
+			throw new Exception("Invalid config value for " +
+				YarnConfigOptions.APPLICATION_ATTEMPTS_FAILURES_VALIDITY_INTERVAL + ": " + intervalString +
+				". Value must be a valid duration (such as '100 milli' or '10 s')");
+		}
+		reflector.setAttemptFailuresValidityInterval(appContext, interval);
 	}
 
 	private void setApplicationTags(final ApplicationSubmissionContext appContext) throws InvocationTargetException,
