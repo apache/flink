@@ -28,14 +28,14 @@ if [[ -z "$IT_CASE_S3_ACCESS_KEY" ]]; then
     echo "Did not find AWS environment variables, NOT running the e2e test."
     exit 0
 else
-    echo "Found AWS access key $IT_CASE_S3_ACCESS_KEY, running the e2e test."
+    echo "Found AWS access key, running the e2e test."
 fi
 
 if [[ -z "$IT_CASE_S3_SECRET_KEY" ]]; then
     echo "Did not find AWS environment variables, NOT running the e2e test."
     exit 0
 else
-    echo "Found AWS secret key $IT_CASE_S3_SECRET_KEY, running the e2e test."
+    echo "Found AWS secret key, running the e2e test."
 fi
 
 AWS_REGION="${AWS_REGION:-us-east-1}"
