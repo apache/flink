@@ -32,6 +32,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -58,13 +59,15 @@ public class JobManagerGroupTest extends TestLogger {
 		JobManagerJobMetricGroup jmJobGroup12 = group.addJob(new JobGraph(jid1, jobName1));
 		JobManagerJobMetricGroup jmJobGroup21 = group.addJob(new JobGraph(jid2, jobName2));
 
-		assertEquals(jmJobGroup11, jmJobGroup12);
+		assertNotEquals(jmJobGroup11, jmJobGroup12);
+		assertTrue(jmJobGroup11.isClosed());
+		assertTrue(!jmJobGroup12.isClosed());
 
 		assertEquals(2, group.numRegisteredJobMetricGroups());
 
 		group.removeJob(jid1);
 
-		assertTrue(jmJobGroup11.isClosed());
+		assertTrue(jmJobGroup12.isClosed());
 		assertEquals(1, group.numRegisteredJobMetricGroups());
 
 		group.removeJob(jid2);

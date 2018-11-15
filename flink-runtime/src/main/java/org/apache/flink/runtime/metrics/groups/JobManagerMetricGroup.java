@@ -61,16 +61,17 @@ public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetric
 	public JobManagerJobMetricGroup addJob(JobGraph job) {
 		JobID jobId = job.getJobID();
 		String jobName = job.getName();
-		// get or create a jobs metric group
-		JobManagerJobMetricGroup currentJobGroup;
 		synchronized (this) {
 			if (!isClosed()) {
-				currentJobGroup = jobs.get(jobId);
+				JobManagerJobMetricGroup currentJobGroup = jobs.get(jobId);
 
-				if (currentJobGroup == null || currentJobGroup.isClosed()) {
-					currentJobGroup = new JobManagerJobMetricGroup(registry, this, jobId, jobName);
-					jobs.put(jobId, currentJobGroup);
+				if (currentJobGroup != null) {
+					currentJobGroup.close();
 				}
+
+				currentJobGroup = new JobManagerJobMetricGroup(registry, this, jobId, jobName);
+				jobs.put(jobId, currentJobGroup);
+
 				return currentJobGroup;
 			} else {
 				return null;
