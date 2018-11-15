@@ -20,6 +20,6 @@
 set -Eeuo pipefail
 
 source "$(dirname "$0")"/common.sh
-source "$(dirname "$0")"/kafka-common.sh 2.0.0 5.0.0 5.0
+source "$(dirname "$0")"/kafka-common.sh 2.0.1 5.0.0 5.0
 
 source "$(dirname "$0")"/test_streaming_kafka_common.sh $FLINK_DIR/examples/streaming/KafkaExample.jar
