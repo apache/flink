@@ -31,16 +31,12 @@ import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.List;
 import java.util.UUID;
 
 import static org.apache.flink.core.fs.FileSystemTestUtils.checkPathEventualExistence;
@@ -56,16 +52,7 @@ import static org.junit.Assert.assertTrue;
  * <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel">consistency guarantees</a>
  * and what the {@link org.apache.hadoop.fs.s3a.S3AFileSystem} offers.
  */
-@RunWith(Parameterized.class)
 public class HadoopS3FileSystemITCase extends TestLogger {
-
-	@Parameterized.Parameter
-	public String scheme;
-
-	@Parameterized.Parameters(name = "Scheme = {0}")
-	public static List<String> parameters() {
-		return Arrays.asList("s3", "s3a");
-	}
 
 	private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
@@ -122,7 +109,7 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 	}
 
 	private String getBasePath() {
-		return S3TestCredentials.getTestBucketUriWithScheme(scheme) + TEST_DATA_DIR + '/' + scheme;
+		return S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR;
 	}
 
 	@Test
