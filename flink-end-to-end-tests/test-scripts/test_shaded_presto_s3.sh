@@ -22,10 +22,10 @@
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/common_s3.sh
 
-s3_put $TEST_INFRA_DIR/test-data/words $ARTIFACTS_AWS_BUCKET flink-end-to-end-test-shaded-presto-s3
+s3_put $TEST_INFRA_DIR/test-data/words $IT_CASE_S3_BUCKET temp/flink-end-to-end-test-shaded-presto-s3
 # make sure we delete the file at the end
 function shaded_presto_s3_cleanup {
-  s3_delete $ARTIFACTS_AWS_BUCKET flink-end-to-end-test-shaded-presto-s3
+  s3_delete $IT_CASE_S3_BUCKET temp/flink-end-to-end-test-shaded-presto-s3
 }
 trap shaded_presto_s3_cleanup EXIT
 
