@@ -17,17 +17,17 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.io.filters.FileFilter;
+import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
 
-import java.io.Serializable;
-
 /**
- * The {@link #filterPath(Path)} method is responsible for deciding if a path is eligible for further
+ * A filter that is responsible for deciding if a path is eligible for further
  * processing or not. This can serve to exclude temporary or partial files that
  * are still being written.
  */
 @PublicEvolving
-public abstract class FilePathFilter implements Serializable {
+public abstract class FilePathFilter implements FileFilter {
 
 	private static final long serialVersionUID = 1L;
 
@@ -44,8 +44,14 @@ public abstract class FilePathFilter implements Serializable {
 	 *     return filePath.getName().startsWith(".") || filePath.getName().contains("_COPYING_");
 	 * }
 	 * }</pre>
+	 *
 	 */
 	public abstract boolean filterPath(Path filePath);
+
+	@Override
+	public boolean accept(FileStatus fileStatus) {
+		return !filterPath(fileStatus.getPath());
+	}
 
 	/**
 	 * Returns the default filter, which excludes the following files:
