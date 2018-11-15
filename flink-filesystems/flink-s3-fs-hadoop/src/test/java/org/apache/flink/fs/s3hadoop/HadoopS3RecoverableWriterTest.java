@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.fs.s3.common.FlinkS3FileSystem;
+import org.apache.flink.testutils.s3.S3TestCredentials;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
@@ -34,7 +35,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -63,10 +63,6 @@ public class HadoopS3RecoverableWriterTest extends TestLogger {
 
 	// ----------------------- S3 general configuration -----------------------
 
-	private static final String ACCESS_KEY = System.getenv("ARTIFACTS_AWS_ACCESS_KEY");
-	private static final String SECRET_KEY = System.getenv("ARTIFACTS_AWS_SECRET_KEY");
-	private static final String BUCKET = System.getenv("ARTIFACTS_AWS_BUCKET");
-
 	private static final long PART_UPLOAD_MIN_SIZE_VALUE = 7L << 20;
 	private static final int MAX_CONCURRENT_UPLOADS_VALUE = 2;
 
@@ -74,9 +70,7 @@ public class HadoopS3RecoverableWriterTest extends TestLogger {
 
 	private static final Random RND = new Random();
 
-	private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
-
-	private static final Path basePath = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR);
+	private static Path basePath;
 
 	private static FlinkS3FileSystem fileSystem;
 
@@ -101,14 +95,14 @@ public class HadoopS3RecoverableWriterTest extends TestLogger {
 	@BeforeClass
 	public static void checkCredentialsAndSetup() throws IOException {
 		// check whether credentials exist
-		Assume.assumeTrue("AWS S3 bucket not configured, skipping test...", BUCKET != null);
-		Assume.assumeTrue("AWS S3 access key not configured, skipping test...", ACCESS_KEY != null);
-		Assume.assumeTrue("AWS S3 secret key not configured, skipping test...", SECRET_KEY != null);
+		S3TestCredentials.assumeCredentialsAvailable();
+
+		basePath = new Path(S3TestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
 
 		// initialize configuration with valid credentials
 		final Configuration conf = new Configuration();
-		conf.setString("s3.access.key", ACCESS_KEY);
-		conf.setString("s3.secret.key", SECRET_KEY);
+		conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+		conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
 
 		conf.setLong(PART_UPLOAD_MIN_SIZE, PART_UPLOAD_MIN_SIZE_VALUE);
 		conf.setInteger(MAX_CONCURRENT_UPLOADS, MAX_CONCURRENT_UPLOADS_VALUE);
