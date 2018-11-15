@@ -659,3 +659,10 @@ function expect_in_taskmanager_logs {
         fi
     done
 }
+
+function find_latest_completed_checkpoint {
+    local checkpoint_root_directory=$1
+    # a completed checkpoint must contain the _metadata file
+    local checkpoint_meta_file=$(ls -d ${checkpoint_root_directory}/chk-[1-9]*/_metadata | sort -Vr | head -n1)
+    echo "$(dirname "${checkpoint_meta_file}")"
+}
