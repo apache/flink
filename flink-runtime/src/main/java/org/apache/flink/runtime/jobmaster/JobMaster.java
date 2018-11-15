@@ -970,7 +970,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				return path;
 			}, getMainThreadExecutor())
 			.exceptionally(throwable -> {
-				if (cancelJob) {
+				if (cancelJob && executionGraph.getState() == JobStatus.RUNNING) {
 					startCheckpointScheduler(checkpointCoordinator);
 				}
 				throw new CompletionException(throwable);

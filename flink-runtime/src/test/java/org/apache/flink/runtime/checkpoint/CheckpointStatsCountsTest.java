@@ -21,15 +21,16 @@ package org.apache.flink.runtime.checkpoint;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertTrue;
 
+/** Test checkpoint statistics counters. */
 public class CheckpointStatsCountsTest {
 
 	/**
 	 * Tests that counts are reported correctly.
 	 */
 	@Test
-	public void testCounts() throws Exception {
+	public void testCounts() {
 		CheckpointStatsCounts counts = new CheckpointStatsCounts();
 		assertEquals(0, counts.getNumberOfRestoredCheckpoints());
 		assertEquals(0, counts.getTotalNumberOfCheckpoints());
@@ -80,19 +81,15 @@ public class CheckpointStatsCountsTest {
 	 * incrementing the in progress checkpoints before throws an Exception.
 	 */
 	@Test
-	public void testCompleteOrFailWithoutInProgressCheckpoint() throws Exception {
+	public void testCompleteOrFailWithoutInProgressCheckpoint() {
 		CheckpointStatsCounts counts = new CheckpointStatsCounts();
-		try {
-			counts.incrementCompletedCheckpoints();
-			fail("Did not throw expected Exception");
-		} catch (IllegalStateException ignored) {
-		}
+		counts.incrementCompletedCheckpoints();
+		assertTrue("Number of checkpoints in progress should never be negative",
+			counts.getNumberOfInProgressCheckpoints() >= 0);
 
-		try {
-			counts.incrementFailedCheckpoints();
-			fail("Did not throw expected Exception");
-		} catch (IllegalStateException ignored) {
-		}
+		counts.incrementFailedCheckpoints();
+		assertTrue("Number of checkpoints in progress should never be negative",
+			counts.getNumberOfInProgressCheckpoints() >= 0);
 	}
 
 	/**
@@ -100,7 +97,7 @@ public class CheckpointStatsCountsTest {
 	 * parent.
 	 */
 	@Test
-	public void testCreateSnapshot() throws Exception {
+	public void testCreateSnapshot() {
 		CheckpointStatsCounts counts = new CheckpointStatsCounts();
 		counts.incrementRestoredCheckpoints();
 		counts.incrementRestoredCheckpoints();
