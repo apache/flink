@@ -164,23 +164,6 @@ public class YarnFileStageTestS3ITCase extends TestLogger {
 		}
 	}
 
-	/**
-	 * Verifies that nested directories are properly copied with a <tt>s3a://</tt> file
-	 * systems during resource uploads for YARN.
-	 */
-	@Test
-	public void testRecursiveUploadForYarnS3() throws Exception {
-		try {
-			Class.forName("org.apache.hadoop.fs.s3.S3FileSystem");
-		} catch (ClassNotFoundException e) {
-			// not in the classpath, cannot run this test
-			String msg = "Skipping test because S3FileSystem is not in the class path";
-			log.info(msg);
-			assumeNoException(msg, e);
-		}
-		testRecursiveUploadForYarn("s3", "testYarn-s3");
-	}
-
 	@Test
 	public void testRecursiveUploadForYarnS3n() throws Exception {
 		try {
