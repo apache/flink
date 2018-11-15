@@ -245,34 +245,44 @@ function start_taskmanagers {
 }
 
 function start_and_wait_for_tm {
-  local url="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
-
-  tm_query_result=$(curl ${CURL_SSL_ARGS} -s "${url}")
-
+  tm_query_result=`query_running_tms`
   # we assume that the cluster is running
   if ! [[ ${tm_query_result} =~ \{\"taskmanagers\":\[.*\]\} ]]; then
     echo "Your cluster seems to be unresponsive at the moment: ${tm_query_result}" 1>&2
     exit 1
   fi
 
-  running_tms=`curl ${CURL_SSL_ARGS} -s "${url}" | grep -o "id" | wc -l`
-
+  running_tms=`query_number_of_running_tms`
   ${FLINK_DIR}/bin/taskmanager.sh start
+  wait_for_number_of_running_tms $((running_tms+1))
+}
 
+function query_running_tms {
+  local url="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
+  curl ${CURL_SSL_ARGS} -s "${url}"
+}
+
+function query_number_of_running_tms {
+  query_running_tms | grep -o "id" | wc -l
+}
+
+function wait_for_number_of_running_tms {
+  local TM_NUM_TO_WAIT=${1}
   local TIMEOUT_COUNTER=10
   local TIMEOUT_INC=4
   local TIMEOUT=$(( $TIMEOUT_COUNTER * $TIMEOUT_INC ))
+  local TM_NUM_TEXT="Number of running task managers"
   for i in $(seq 1 ${TIMEOUT_COUNTER}); do
-    local new_running_tms=`curl ${CURL_SSL_ARGS} -s "http://localhost:8081/taskmanagers" | grep -o "id" | wc -l`
-    if [ $((new_running_tms-running_tms)) -eq 0 ]; then
-      echo "TaskManager is not yet up."
-    else
-      echo "TaskManager is up."
+    local TM_NUM=`query_number_of_running_tms`
+    if [ $((TM_NUM - TM_NUM_TO_WAIT)) -eq 0 ]; then
+      echo "${TM_NUM_TEXT} has reached ${TM_NUM_TO_WAIT}."
       return
+    else
+      echo "${TM_NUM_TEXT} ${TM_NUM} is not yet ${TM_NUM_TO_WAIT}."
     fi
     sleep ${TIMEOUT_INC}
   done
-  echo "TaskManager has not started within a timeout of ${TIMEOUT} sec"
+  echo "${TM_NUM_TEXT} has not reached ${TM_NUM_TO_WAIT} within a timeout of ${TIMEOUT} sec"
   exit 1
 }
 
