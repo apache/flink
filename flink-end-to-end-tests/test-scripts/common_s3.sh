@@ -42,6 +42,8 @@ AWS_REGION="${AWS_REGION:-us-east-1}"
 AWS_ACCESS_KEY=$IT_CASE_S3_ACCESS_KEY
 AWS_SECRET_KEY=$IT_CASE_S3_SECRET_KEY
 
+S3_TEST_DATA_WORDS_URI="s3://$IT_CASE_S3_BUCKET/static/words"
+
 s3util="java -jar ${END_TO_END_DIR}/flink-e2e-test-utils/target/S3UtilProgram.jar"
 
 ###################################
