@@ -23,9 +23,15 @@ KAFKA_CONNECTOR_VERSION="2.0"
 KAFKA_VERSION="2.0.0"
 CONFLUENT_VERSION="5.0.0"
 CONFLUENT_MAJOR_VERSION="5.0"
+KAFKA_SQL_VERSION="universal"
 
 source "$(dirname "$0")"/common.sh
-source "$(dirname "$0")"/kafka_sql_common.sh $KAFKA_CONNECTOR_VERSION $KAFKA_VERSION $CONFLUENT_VERSION $CONFLUENT_MAJOR_VERSION
+source "$(dirname "$0")"/kafka_sql_common.sh \
+  $KAFKA_CONNECTOR_VERSION \
+  $KAFKA_VERSION \
+  $CONFLUENT_VERSION \
+  $CONFLUENT_MAJOR_VERSION \
+  $KAFKA_SQL_VERSION
 source "$(dirname "$0")"/elasticsearch-common.sh
 
 SQL_TOOLBOX_JAR=$END_TO_END_DIR/flink-sql-client-test/target/SqlToolbox.jar

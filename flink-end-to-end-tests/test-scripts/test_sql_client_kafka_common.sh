@@ -22,9 +22,15 @@ KAFKA_VERSION="$2"
 CONFLUENT_VERSION="$3"
 CONFLUENT_MAJOR_VERSION="$4"
 KAFKA_SQL_JAR="$5"
+KAFKA_SQL_VERSION="$6"
 
 source "$(dirname "$0")"/common.sh
-source "$(dirname "$0")"/kafka_sql_common.sh $KAFKA_CONNECTOR_VERSION $KAFKA_VERSION $CONFLUENT_VERSION $CONFLUENT_MAJOR_VERSION
+source "$(dirname "$0")"/kafka_sql_common.sh \
+  $KAFKA_CONNECTOR_VERSION \
+  $KAFKA_VERSION \
+  $CONFLUENT_VERSION \
+  $CONFLUENT_MAJOR_VERSION \
+  $KAFKA_SQL_VERSION
 
 ################################################################################
 # Prepare connectors
@@ -98,7 +104,7 @@ cat >> $SQL_CONF << EOF
         type: BIGINT
     connector:
       type: kafka
-      version: "$KAFKA_CONNECTOR_VERSION"
+      version: "$KAFKA_SQL_VERSION"
       topic: test-avro
       startup-mode: earliest-offset
       properties:
