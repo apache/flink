@@ -149,6 +149,17 @@ public class YarnConfigOptions {
 		.defaultValue("")
 		.withDescription("A comma-separated list of tags to apply to the Flink YARN application.");
 
+	/**
+	 * The priority of the Flink YARN application.
+	 * Allowed priority values are 5, 4, 3, 2, 1, respectively correspond to VERY_HIGH, HIGH, NORMAL, LOW, VERY_LOW.
+	 *
+	 * By default, we take 3, respectively correspond to NORMAL.
+	 */
+	public static final ConfigOption<Integer> APPLICATION_PRIORITY =
+		key("yarn.application.priority")
+		.defaultValue(3)
+		.withDescription("The priority of the Flink YARN application.");
+
 	// ------------------------------------------------------------------------
 
 	/** This class is not meant to be instantiated. */
