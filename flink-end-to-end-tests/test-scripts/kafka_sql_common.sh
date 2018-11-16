@@ -21,6 +21,7 @@ KAFKA_CONNECTOR_VERSION="$1"
 KAFKA_VERSION="$2"
 CONFLUENT_VERSION="$3"
 CONFLUENT_MAJOR_VERSION="$4"
+KAFKA_SQL_VERSION="$5"
 
 source "$(dirname "$0")"/kafka-common.sh $2 $3 $4
 
@@ -64,7 +65,7 @@ function get_kafka_json_source_schema {
         type: ROW<type VARCHAR, message VARCHAR>
     connector:
       type: kafka
-      version: "$KAFKA_CONNECTOR_VERSION"
+      version: "$KAFKA_SQL_VERSION"
       topic: $topicName
       startup-mode: earliest-offset
       properties:
