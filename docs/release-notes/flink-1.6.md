@@ -29,6 +29,15 @@ The default value of the slot idle timeout `slot.idle.timeout` is set to the def
 ### Changed ElasticSearch 5.x Sink API
 
 Previous APIs in the Flink ElasticSearch 5.x Sink's `RequestIndexer` interface have been deprecated in favor of new signatures. 
-When adding requests to the `RequestIndexer`, the requests now must be of type `IndexRequest`, `DeleteRequest`, or `UpdateRequest`, instead of the base `ActionRequest`. 
+When adding requests to the `RequestIndexer`, the requests now must be of type `IndexRequest`, `DeleteRequest`, or `UpdateRequest`, instead of the base `ActionRequest`.
+
+<!-- Remove once FLINK-10712 has been fixed -->
+### Limitations of failover strategies
+Flink's non-default failover strategies are still a very experimental feature which come with a set of limitations.
+You should only use this feature if you are executing a stateless streaming job.
+In any other cases, it is highly recommended to remove the config option `jobmanager.execution.failover-strategy` from your `flink-conf.yaml` or set it to `"full"`.
+
+In order to avoid future problems, this feature has been removed from the documentation until it will be fixed.
+See [FLINK-10880](https://issues.apache.org/jira/browse/FLINK-10880) for more details.
 
 {% top %}
