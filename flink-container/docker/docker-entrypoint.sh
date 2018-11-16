@@ -32,7 +32,6 @@ if [ "${CMD}" == "--help" -o "${CMD}" == "-h" ]; then
     exit 0
 elif [ "${CMD}" == "${JOB_CLUSTER}" -o "${CMD}" == "${TASK_MANAGER}" ]; then
     echo "Starting the ${CMD}"
-    echo "config file: " && grep '^[^\n#]' $FLINK_HOME/conf/flink-conf.yaml
 
     if [ "${CMD}" == "${TASK_MANAGER}" ]; then
         exec $FLINK_HOME/bin/taskmanager.sh start-foreground "$@"
