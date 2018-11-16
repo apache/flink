@@ -92,7 +92,9 @@ public final class RowSerializer extends TypeSerializer<Row> {
 		Row result = new Row(len);
 		for (int i = 0; i < len; i++) {
 			Object fromField = from.getField(i);
-			if (fromField != null) {
+			Class<?> fromFieldClass = fromField.getClass();
+			Class<?> typeSerializerClass = fieldSerializers[i].getClass();
+			if (fromField != null && typeSerializerClass.equals(fromFieldClass)) {
 				Object copy = fieldSerializers[i].copy(fromField);
 				result.setField(i, copy);
 			} else {
@@ -120,12 +122,17 @@ public final class RowSerializer extends TypeSerializer<Row> {
 			Object fromField = from.getField(i);
 			if (fromField != null) {
 				Object reuseField = reuse.getField(i);
-				if (reuseField != null) {
+				Class<?> fromFieldClass = fromField.getClass();
+				Class<?> reuseFieldClass = reuseField.getClass();
+				Class<?> typeSerializerClass = fieldSerializers[i].getClass();
+				if (reuseField != null && typeSerializerClass.equals(fromFieldClass) && fromFieldClass.equals(reuseFieldClass)) {
 					Object copy = fieldSerializers[i].copy(fromField, reuseField);
 					reuse.setField(i, copy);
-				} else {
+				} else if (typeSerializerClass.equals(fromFieldClass)){
 					Object copy = fieldSerializers[i].copy(fromField);
 					reuse.setField(i, copy);
+				} else {
+					reuse.setField(i, null);
 				}
 			} else {
 				reuse.setField(i, null);
