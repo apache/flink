@@ -22,15 +22,8 @@
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/common_s3.sh
 
-s3_put $TEST_INFRA_DIR/test-data/words $IT_CASE_S3_BUCKET temp/flink-end-to-end-test-shaded-presto-s3
-# make sure we delete the file at the end
-function shaded_presto_s3_cleanup {
-  s3_delete $IT_CASE_S3_BUCKET temp/flink-end-to-end-test-shaded-presto-s3
-}
-trap shaded_presto_s3_cleanup EXIT
-
 start_cluster
 
-$FLINK_DIR/bin/flink run -p 1 $FLINK_DIR/examples/batch/WordCount.jar --input s3:/$resource --output $TEST_DATA_DIR/out/wc_out
+$FLINK_DIR/bin/flink run -p 1 $FLINK_DIR/examples/batch/WordCount.jar --input $S3_TEST_DATA_WORDS_URI --output $TEST_DATA_DIR/out/wc_out
 
 check_result_hash "WordCountWithShadedPrestoS3" $TEST_DATA_DIR/out/wc_out "72a690412be8928ba239c2da967328a5"
