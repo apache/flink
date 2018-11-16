@@ -30,4 +30,13 @@ Therefore, the module `flink-scala-shell` is not being released for Scala 2.12.
 
 See [FLINK-10911](https://issues.apache.org/jira/browse/FLINK-10911) for more details.  
 
+<!-- Remove once FLINK-10712 has been fixed -->
+### Limitations of failover strategies
+Flink's non-default failover strategies are still a very experimental feature which come with a set of limitations.
+You should only use this feature if you are executing a stateless streaming job.
+In any other cases, it is highly recommended to remove the config option `jobmanager.execution.failover-strategy` from your `flink-conf.yaml` or set it to `"full"`.
+
+In order to avoid future problems, this feature has been removed from the documentation until it will be fixed.
+See [FLINK-10880](https://issues.apache.org/jira/browse/FLINK-10880) for more details.
+
 {% top %}
