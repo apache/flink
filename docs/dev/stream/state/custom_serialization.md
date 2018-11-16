@@ -1,8 +1,8 @@
 ---
 title: "Custom Serialization for Managed State"
-nav-title: "Custom Serialization"
+nav-title: "Custom State Serialization"
 nav-parent_id: streaming_state
-nav-pos: 6
+nav-pos: 7
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,15 +23,18 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-If your application uses Flink's managed state, it might be necessary to implement custom serialization logic for special use cases.
+* ToC
+{:toc}
 
 This page is targeted as a guideline for users who require the use of custom serialization for their state, covering how
-to provide a custom serializer and how to handle upgrades to the serializer for compatibility. If you're simply using
-Flink's own serializers, this page is irrelevant and can be skipped.
+to provide a custom state serializer and guidelines and best practices to implementing serializers that allows
+state schema evolution.
 
-### Using custom serializers
+If you're simply using Flink's own serializers, this page is irrelevant and can be ignored.
 
-As demonstrated in the above examples, when registering a managed operator or keyed state, a `StateDescriptor` is required
+## Using custom state serializers
+
+When registering a managed operator or keyed state, a `StateDescriptor` is required
 to specify the state's name, as well as information about the type of the state. The type information is used by Flink's
 [type serialization framework](../../types_serialization.html) to create appropriate serializers for the state.
 
@@ -66,125 +69,166 @@ checkpointedState = getRuntimeContext.getListState(descriptor)
 </div>
 </div>
 
-Note that Flink writes state serializers along with the state as metadata. In certain cases on restore (see following
-subsections), the written serializer needs to be deserialized and used. Therefore, it is recommended to avoid using
-anonymous classes as your state serializers. Anonymous classes do not have a guarantee on the generated classname,
-which varies across compilers and depends on the order that they are instantiated within the enclosing class, which can 
-easily cause the previously written serializer to be unreadable (since the original class can no longer be found in the
-classpath).
+## State serializers and schema evolution
 
-### Handling serializer upgrades and compatibility
+This section explains the user-facing abstractions related to state serialization and schema evolution, and necessary
+internal details about how Flink interacts with these abstractions.
 
-Flink allows changing the serializers used to read and write managed state, so that users are not locked in to any
-specific serialization. When state is restored, the new serializer registered for the state (i.e., the serializer
-that comes with the `StateDescriptor` used to access the state in the restored job) will be checked for compatibility,
-and is replaced as the new serializer for the state.
+When restoring from savepoints, Flink allows changing the serializers used to read and write prior registered state,
+so that users are not locked in to any specific serialization schema. When state is restored, a new serializer will be
+registered for the state (i.e., the serializer that comes with the `StateDescriptor` used to access the state in the
+restored job). This new serializer may have a different schema than that of the prior serializer. Therefore, when
+implementing state serializers, besides the basic logic of reading / writing data, another important thing to keep in
+mind is how the serialization schema can be changed in the future.
 
-A compatible serializer would mean that the serializer is capable of reading previous serialized bytes of the state,
-and the written binary format of the state also remains identical. The means to check the new serializer's compatibility
-is provided through the following two methods of the `TypeSerializer` interface:
+When speaking of *schema*, in this context the term is interchangeable between referring to the *data model* of a state
+type and the *serialized binary format* of a state type. The schema, generally speaking, can change for a few cases:
 
+ 1. Data schema of the state type has evolved, i.e. adding or removing a field from a POJO that is used as state.
+ 2. Following the above, generally speaking, the serialization format of the serializer is intended to be upgraded.
+ 3. Configuration of the serializer has changed, i.e. Kryo types are registered in a different order than the
+ previous execution, leading to mismatching registration ids for types.
+ 
+In order for the new execution to have information about the *written schema* of state and detect whether or not the
+schema has changed, upon taking a savepoint of an operator's state, a *snapshot* of the state serializer needs to be
+written along with the state bytes. This is abstracted a `TypeSerializerSnapshot`, explained in the next subsection.
+
+### The `TypeSerializerSnapshot` abstraction
+
+<div data-lang="java" markdown="1">
 {% highlight java %}
-public abstract TypeSerializerConfigSnapshot snapshotConfiguration();
-public abstract CompatibilityResult ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot);
-{% endhighlight %}
-
-Briefly speaking, every time a checkpoint is performed, the `snapshotConfiguration` method is called to create a
-point-in-time view of the state serializer's configuration. The returned configuration snapshot is stored along with the
-checkpoint as the state's metadata. When the checkpoint is used to restore a job, that serializer configuration snapshot
-will be provided to the _new_ serializer of the same state via the counterpart method, `ensureCompatibility`, to verify
-compatibility of the new serializer. This method serves as a check for whether or not the new serializer is compatible,
-as well as a hook to possibly reconfigure the new serializer in the case that it is incompatible.
-
-Note that Flink's own serializers are implemented such that they are at least compatible with themselves, i.e. when the
-same serializer is used for the state in the restored job, the serializer's will reconfigure themselves to be compatible
-with their previous configuration.
-
-The following subsections illustrate guidelines to implement these two methods when using custom serializers.
-
-#### Implementing the `snapshotConfiguration` method
-
-The serializer's configuration snapshot should capture enough information such that on restore, the information
-carried over to the new serializer for the state is sufficient for it to determine whether or not it is compatible.
-This could typically contain information about the serializer's parameters or binary format of the serialized data;
-generally, anything that allows the new serializer to decide whether or not it can be used to read previous serialized
-bytes, and that it writes in the same binary format.
-
-How the serializer's configuration snapshot is written to and read from checkpoints is fully customizable. The below
-is the base class for all serializer configuration snapshot implementations, the `TypeSerializerConfigSnapshot`.
-
-{% highlight java %}
-public abstract TypeSerializerConfigSnapshot extends VersionedIOReadableWritable {
-  public abstract int getVersion();
-  public void read(DataInputView in) {...}
-  public void write(DataOutputView out) {...}
+public interface TypeSerializerSnapshot<T> {
+    int getCurrentVersion();
+    void writeSnapshot(DataOuputView out) throws IOException;
+    void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException;
+    TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer);
+    TypeSerializer<T> restoreSerializer();
 }
 {% endhighlight %}
+</div>
 
-The `read` and `write` methods define how the configuration is read from and written to the checkpoint. The base
-implementations contain logic to read and write the version of the configuration snapshot, so it should be extended and
-not completely overridden.
+<div data-lang="java" markdown="1">
+{% highlight java %}
+public abstract class TypeSerializer<T> {    
+    
+    // ...
+    
+    public abstract TypeSerializerSnapshot<T> snapshotConfiguration();
+}
+{% endhighlight %}
+</div>
 
-The version of the configuration snapshot is determined through the `getVersion` method. Versioning for the serializer
-configuration snapshot is the means to maintain compatible configurations, as information included in the configuration
-may change over time. By default, configuration snapshots are only compatible with the current version (as returned by
-`getVersion`). To indicate that the configuration is compatible with other versions, override the `getCompatibleVersions`
-method to return more version values. When reading from the checkpoint, you can use the `getReadVersion` method to
-determine the version of the written configuration and adapt the read logic to the specific version.
+A serializer's `TypeSerializerSnapshot` is a piece of information that serves as the single source of truth about
+the state serializer's configuration and write schema. The logic about what should be written and read at restore time
+as the serializer snapshot is defined in the `writeSnapshot` and `readSnapshot` methods.
 
-<span class="label label-danger">Attention</span> The version of the serializer's configuration snapshot is **not**
-related to upgrading the serializer. The exact same serializer can have different implementations of its
-configuration snapshot, for example when more information is added to the configuration to allow more comprehensive
-compatibility checks in the future.
+Note that the snapshot's own write schema may also need to change over time (e.g. when you wish to add more information
+about the serializer to the snapshot). To facilitate this, snapshot's are versioned, with the current version
+number defined in the `getCurrentVersion` method. On restore when the serializer snapshot is read from savepoints,
+the version of the schema that the snapshot was written in will be provided to the `readSnapshot` method so that
+the read implementation can handle different versions.
 
-One limitation of implementing a `TypeSerializerConfigSnapshot` is that an empty constructor must be present. The empty
-constructor is required when reading the configuration snapshot from checkpoints.
+At restore time, the logic that detects whether or not the new serializer's schema has changed should be implemented in
+the `resolveSchemaCompatibility` method. When prior registered state is registered again with new serializers in the
+restored execution of an operator, the new serializer is provided to the prior serializer's snapshot via this method.
+This method returns a `TypeSerializerSchemaCompatibility` representing the result of the compatibility resolution,
+which can be one of the following:
 
-#### Implementing the `ensureCompatibility` method
+ 1. **`TypeSerializerSchemaCompatibility.compatibleAsIs()`**: this result signals that the new serializer is compatible,
+ meaning that the new serializer has identical schema with the prior serializer. It is possible that the new
+ serializer has been reconfigured in the `resolveSchemaCompatibility` method so that it is compatible.
+ 2. **`TypeSerializerSchemaCompatibility.compatibleAfterMigration()`**: this result signals that the new serializer has a
+ different serialization schema, and it is possible to migrate from the old schema by using the prior serializer
+ (which recognizes the old schema) to read bytes into state objects, and then rewriting the object back to bytes with
+ the new serializer (which recognizes the new schema). 
+ 3. **`TypeSerializerSchemaCompatibility.incompatible()`**: this result signals that the new serializer has a
+ different serialization schema, but it is not possible to migrate from the old schema.
 
-The `ensureCompatibility` method should contain logic that performs checks against the information about the previous
-serializer carried over via the provided `TypeSerializerConfigSnapshot`, basically doing one of the following:
+The last bit of detail is how the prior serializer is obtained in the case that migration is required.
+Another important role of a serializer's `TypeSerializerSnapshot` is that it serves as a factory to restore
+the prior serializer. More specifically, the `TypeSerializerSnapshot` should implement the `restoreSerializer` method
+to instantiate a serializer instance that recognizes the prior serializer's schema and configuration, and can therefore
+safely read data written by the prior serializer.
 
-  * Check whether the serializer is compatible, while possibly reconfiguring itself (if required) so that it may be
-    compatible. Afterwards, acknowledge with Flink that the serializer is compatible.
+### How Flink interacts with the `TypeSerializer` and `TypeSerializerSnapshot` abstractions
 
-  * Acknowledge that the serializer is incompatible and that state migration is required before Flink can proceed with
-    using the new serializer.
+To wrap up, this section concludes how Flink, or more specifically the state backends, interact with the
+abstractions. The interaction is slightly different depending on the state backend, but this is orthogonal
+to the implementation of state serializers and their serializer snapshots.
 
-The above cases can be translated to code by returning one of the following from the `ensureCompatibility` method:
+#### Off-heap state backends (e.g. `RocksDBStateBackend`)
 
-  * **`CompatibilityResult.compatible()`**: This acknowledges that the new serializer is compatible, or has been reconfigured to
-    be compatible, and Flink can proceed with the job with the serializer as is.
+ 1. **Register new state with a state serializer that has schema _A_**
+  - the registered `TypeSerializer` for the state is used to read / write state on every state access.
+  - State is written in schema *A*.
+ 2. **Take a savepoint**
+  - The serializer snapshot is extracted via the `TypeSerializer#snapshotConfiguration` method.
+  - The serializer snapshot is written to the savepoint, as well as the already-deserialized state bytes (with schema *A*).
+ 3. **Restored execution re-accesses restored state bytes with new state serializer that has schema _B_**
+  - The previous state serializer's snapshot is restored.
+  - State bytes are not deserialized on restore, only loaded back to the state backends (therefore, still in schema *A*).
+  - Upon receiving the new serializer, it is provided to the restored prior serializer's snapshot via the
+  `TypeSerializer#resolveSchemaCompatibility` to check for schema compatibility.
+ 4. **Migrate state bytes in backend from schema _A_ to schema _B_**
+  - If the compatibility resolution reflects that the schema has changed and migration is possible, schema migration is 
+  performed. The prior state serializer which recognizes schema _A_ will be obtained from the serializer snapshot, via
+   `TypeSerializerSnapshot#restoreSerializer()`, and is used to deserialize state bytes to objects, which in turn
+   is re-written again with the new serializer, which recognizes schema _B_ to complete the migration.
+  - If the resolution signals incompatibility, then the state access fails with an exception.
+ 
+#### Heap state backends (e.g. `MemoryStateBackend`, `FsStateBackend`)
 
-  * **`CompatibilityResult.requiresMigration()`**: This acknowledges that the serializer is incompatible, or cannot be
-    reconfigured to be compatible, and requires a state migration before the new serializer can be used. State migration
-    is performed by using the previous serializer to read the restored state bytes to objects, and then serialized again
-    using the new serializer.
+ 1. **Register new state with a state serializer that has schema _A_**
+  - the registered `TypeSerializer` is maintained by the state backend.
+ 2. **Take a savepoint, serializing all state with schema _A_**
+  - The serializer snapshot is extracted via the `TypeSerializer#snapshotConfiguration` method.
+  - The serializer snapshot is written to the savepoint.
+  - State objects are now serialized to the savepoint, written in schema _A_.
+ 3. **On restore, deserialize state into objects in heap**
+  - The previous state serializer's snapshot is restored.
+  - The prior serializer, which recognizes schema _A_, is obtained from the serializer snapshot, via
+  `TypeSerializerSnapshot#restoreSerializer()`, and is used to deserialize state bytes to objects.
+  - From now on, all of the state is already deserialized.
+ 4. **Restored execution re-accesses prior state with new state serializer that has schema _B_**
+  - Upon receiving the new serializer, it is provided to the restored prior serializer's snapshot via the
+  `TypeSerializer#resolveSchemaCompatibility` to check for schema compatibility.
+  - If the compatibility check signals that migration is required, nothing happens in this case since for
+   heap backends, all state is already deserialized into objects.
+  - If the resolution signals incompatibility, then the state access fails with an exception.
+ 5. **Take another savepoint, serializing all state with schema _B_**
+  - Same as step 2., but now state bytes are all in schema _B_.
 
-  * **`CompatibilityResult.requiresMigration(TypeDeserializer deserializer)`**: This acknowledgement has equivalent semantics
-    to `CompatibilityResult.requiresMigration()`, but in the case that the previous serializer cannot be found or loaded
-    to read the restored state bytes for the migration, a provided `TypeDeserializer` can be used as a fallback resort.
+## Implementation notes and best practices
 
-<span class="label label-danger">Attention</span> Currently, as of Flink 1.3, if the result of the compatibility check
-acknowledges that state migration needs to be performed, the job simply fails to restore from the checkpoint as state
-migration is currently not available. The ability to migrate state will be introduced in future releases.
+#### 1. Flink restores serializer snapshots by instantiating them with their classname
 
-### Managing `TypeSerializer` and `TypeSerializerConfigSnapshot` classes in user code
+A serializer's snapshot, being the single source of truth for how a registered state was serialized, serves as an
+entrypoint to reading state in savepoints. In order to be able to restore and access previous state, the prior state
+serializer's snapshot must be able to be restored.
 
-Since `TypeSerializer`s and `TypeSerializerConfigSnapshot`s are written as part of checkpoints along with the state
-values, the availability of the classes within the classpath may affect restore behaviour.
+Flink restores serializer snapshots by first instantiating the `TypeSerializerSnapshot` with its classname (written
+along with the snapshot bytes). Therefore, to avoid being subject to unintended classname changes,
+`TypeSerializerSnapshot` classes should avoid being implemented as anonymous classes or nested classes.
+Moreover, the class requires having a public, nullary constructor for instantiation.
 
-`TypeSerializer`s are directly written into checkpoints using Java Object Serialization. In the case that the new
-serializer acknowledges that it is incompatible and requires state migration, it will be required to be present to be
-able to read the restored state bytes. Therefore, if the original serializer class no longer exists or has been modified
-(resulting in a different `serialVersionUID`) as a result of a serializer upgrade for the state, the restore would
-not be able to proceed. The alternative to this requirement is to provide a fallback `TypeDeserializer` when
-acknowledging that state migration is required, using `CompatibilityResult.requiresMigration(TypeDeserializer deserializer)`.
+#### 2. Avoid sharing the same `TypeSerializerSnapshot` class across different serializers
 
-The class of `TypeSerializerConfigSnapshot`s in the restored checkpoint must exist in the classpath, as they are
-fundamental components to compatibility checks on upgraded serializers and would not be able to be restored if the class
-is not present. Since configuration snapshots are written to checkpoints using custom serialization, the implementation
-of the class is free to be changed, as long as compatibility of the configuration change is handled using the versioning
-mechanisms in `TypeSerializerConfigSnapshot`.
+Since schema compatibility checks goes through the serializer snapshots, having multiple serializers returning
+the same `TypeSerializerSnapshot` class as their snapshot would complicate the implementation for the
+`TypeSerializerSnapshot#resolveSchemaCompatibility` and `TypeSerializerSnapshot#restoreSerializer()` method.
+
+This would also be a bad separation of concerns; a single serializer's serialization schema,
+configuration, as well as how to restore it, should be consolidated in its own dedicated `TypeSerializerSnapshot` class.
+
+#### 3. Use the `CompositeSerializerSnapshot` utility for serializers that contain nested serializers
+
+There may be cases where a `TypeSerializer` relies on other nested `TypeSerializer`s; take for example Flink's
+`TupleSerializer`, where it is configured with nested `TypeSerializer`s for the tuple fields. In this case,
+the snapshot of the most outer serializer should also contain snapshots of the nested serializers.
+
+The `ComnpositeSerializerSnapshot` can be used specifically for this scenario. It wraps the logic of resolving
+the overall schema compatibility check result for the composite serializer.
+For an example of how it should be used, one can refer to Flink's
+[ListSerializerSnapshot](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/common/typeutils/base/ListSerializerSnapshot.java) implementation.
 
 {% top %}
