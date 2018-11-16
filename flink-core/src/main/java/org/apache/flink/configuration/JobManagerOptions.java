@@ -106,6 +106,7 @@ public class JobManagerOptions {
 	/**
 	 * This option specifies the failover strategy, i.e. how the job computation recovers from task failures.
 	 */
+	@Documentation.ExcludeFromDocumentation("The failover strategy feature is highly experimental.")
 	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
 		key("jobmanager.execution.failover-strategy")
 			.defaultValue("full")
