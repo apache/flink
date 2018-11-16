@@ -33,6 +33,8 @@ import org.apache.flink.types.Row;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.List;
 
@@ -92,9 +94,12 @@ public final class RowSerializer extends TypeSerializer<Row> {
 		Row result = new Row(len);
 		for (int i = 0; i < len; i++) {
 			Object fromField = from.getField(i);
-			Class<?> fromFieldClass = fromField.getClass();
-			Class<?> typeSerializerClass = fieldSerializers[i].getClass();
-			if (fromField != null && typeSerializerClass.equals(fromFieldClass)) {
+
+			String fromTypeName = fromField.getClass().getTypeName();
+			Type fieldSerializerType = ((ParameterizedType) fieldSerializers[i].getClass().getGenericSuperclass()).getActualTypeArguments()[0];
+			String fieldSerializerTypeName = fieldSerializerType.getTypeName();
+
+			if (fromField != null && fieldSerializerTypeName.equals(fromTypeName)) {
 				Object copy = fieldSerializers[i].copy(fromField);
 				result.setField(i, copy);
 			} else {
@@ -122,13 +127,16 @@ public final class RowSerializer extends TypeSerializer<Row> {
 			Object fromField = from.getField(i);
 			if (fromField != null) {
 				Object reuseField = reuse.getField(i);
-				Class<?> fromFieldClass = fromField.getClass();
-				Class<?> reuseFieldClass = reuseField.getClass();
-				Class<?> typeSerializerClass = fieldSerializers[i].getClass();
-				if (reuseField != null && typeSerializerClass.equals(fromFieldClass) && fromFieldClass.equals(reuseFieldClass)) {
+
+				String fromTypeName = fromField.getClass().getTypeName();
+				String reuseTypeName = reuseField.getClass().getTypeName();
+				Type fieldSerializerType = ((ParameterizedType) fieldSerializers[i].getClass().getGenericSuperclass()).getActualTypeArguments()[0];
+				String fieldSerializerTypeName = fieldSerializerType.getTypeName();
+
+				if (reuseField != null && fieldSerializerTypeName.equals(fromTypeName) && fromTypeName.equals(reuseTypeName)) {
 					Object copy = fieldSerializers[i].copy(fromField, reuseField);
 					reuse.setField(i, copy);
-				} else if (typeSerializerClass.equals(fromFieldClass)){
+				} else if (fieldSerializerTypeName.equals(fromTypeName)){
 					Object copy = fieldSerializers[i].copy(fromField);
 					reuse.setField(i, copy);
 				} else {
