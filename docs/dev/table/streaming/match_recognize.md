@@ -24,16 +24,16 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-It is a common use-case to search for a set of event patterns, especially in case of data streams. Flink
+It is a common use case to search for a set of event patterns, especially in case of data streams. Flink
 comes with a [complex event processing (CEP) library]({{ site.baseurl }}/dev/libs/cep.html) which allows for pattern detection in event streams. Furthermore, Flink's
 SQL API provides a relational way of expressing queries with a large set of built-in functions and rule-based optimizations that can be used out of the box.
 
 In December 2016, the International Organization for Standardization (ISO) released a new version of the SQL standard which includes _Row Pattern Recognition in SQL_ ([ISO/IEC TR 19075-5:2016](https://standards.iso.org/ittf/PubliclyAvailableStandards/c065143_ISO_IEC_TR_19075-5_2016.zip)). It allows Flink to consolidate CEP and SQL API using the `MATCH_RECOGNIZE` clause for complex event processing in SQL.
 
 A `MATCH_RECOGNIZE` clause enables the following tasks:
-* Logically partition and order the data that is used with `PARTITION BY` and `ORDER BY` clauses.
+* Logically partition and order the data that is used with the `PARTITION BY` and `ORDER BY` clauses.
 * Define patterns of rows to seek using the `PATTERN` clause. These patterns use a syntax similar to that of regular expressions.
-* Specify logical conditions required to map a row to a row pattern variable in the `DEFINE` clause.
+* The logical components of the row pattern variables are specified in the `DEFINE` clause.
 * Define measures, which are expressions usable in other parts of the SQL query, in the `MEASURES` clause.
 
 The following example illustrates the syntax for basic pattern recognition:
@@ -58,7 +58,7 @@ MATCH_RECOGNIZE (
 
 This page will explain each keyword in more detail and will illustrate more complex examples.
 
-<span class="label label-danger">Attention</span> The `MATCH_RECOGNIZE` clause implementation in Flink is just a subset of the bigger pattern recognition standard. Only the features that are documented in the following sections are supported so far. Since the development is still in an early phase, please also take a look at the [known limitations](#known-limitations).
+<span class="label label-danger">Attention</span> Flink's implementation of the `MATCH_RECOGNIZE` clause is a subset of the full standard. Only those features documented in the following sections are supported. Since the development is still in an early phase, please also take a look at the [known limitations](#known-limitations).
 
 * This will be replaced by the TOC
 {:toc}
@@ -92,16 +92,16 @@ Every `MATCH_RECOGNIZE` query consists of the following clauses:
 * [ORDER BY](#order-of-events) - specifies how the incoming rows should be ordered; this is essential as patterns depend on an order.
 * [MEASURES](#define--measures) - defines output of the clause; similar to a `SELECT` clause.
 * [ONE ROW PER MATCH](#output-mode) - output mode which defines how many rows per match should be produced.
-* [AFTER MATCH SKIP](#after-match-strategy) - allows to specify where the next match should start; this is also a way to control how many distinct matches a single event can belong to.
+* [AFTER MATCH SKIP](#after-match-strategy) - specifies where the next match should start; this is also a way to control how many distinct matches a single event can belong to.
 * [PATTERN](#defining-pattern) - allows constructing patterns that will be searched for using a _regular expression_-like syntax.
-* [DEFINE](#define--measures) - this section defines conditions on rows that should be met in order to be qualified to the corresponding pattern variable.
+* [DEFINE](#define--measures) - this section defines the conditions that the pattern variables must satisfy.
 
 <span class="label label-danger">Attention</span> Currently, the `MATCH_RECOGNIZE` clause can only be applied to an [append table](dynamic_tables.html#update-and-append-queries). Furthermore, it always produces
 an append table as well.
 
 ### Examples
 
-For our examples, we assume that a table `Ticker` has been registered. The table contains prices of stocks at a particular point in time. Each row represents an updated characteristic of the ticker.
+For our examples, we assume that a table `Ticker` has been registered. The table contains prices of stocks at a particular point in time.
 
 The table has a following schema:
 
@@ -140,15 +140,15 @@ MATCH_RECOGNIZE (
     PARTITION BY symbol
     ORDER BY rowtime
     MEASURES
-        STRT_ROW.rowtime AS start_tstamp,
+        START_ROW.rowtime AS start_tstamp,
         LAST(PRICE_DOWN.rowtime) AS bottom_tstamp,
         LAST(PRICE_UP.rowtime) AS end_tstamp
     ONE ROW PER MATCH
     AFTER MATCH SKIP TO LAST PRICE_UP
-    PATTERN (STRT_ROW PRICE_DOWN+ PRICE_UP)
+    PATTERN (START_ROW PRICE_DOWN+ PRICE_UP)
     DEFINE
         PRICE_DOWN AS
-            (LAST(PRICE_DOWN.price, 1) IS NULL AND PRICE_DOWN.price < STRT_ROW.price)) OR
+            (LAST(PRICE_DOWN.price, 1) IS NULL AND PRICE_DOWN.price < START_ROW.price) OR
                 PRICE_DOWN.price < LAST(PRICE_DOWN.price, 1)
         PRICE_UP AS
             PRICE_UP.price > LAST(PRICE_DOWN.price, 1)
@@ -157,17 +157,17 @@ MATCH_RECOGNIZE (
 
 The query partitions the `Ticker` table by the `symbol` column and orders it by the `rowtime` time attribute.
 
-The `PATTERN` clause specifies that we are interested in a pattern with a starting event `STRT_ROW` that is followed by one or more `PRICE_DOWN` events and concluded with a `PRICE_UP` event. If such a pattern can be found, the next pattern match will be seeked at the last `PRICE_UP` event as indicated by the `AFTER MATCH SKIP TO LAST` clause.
+The `PATTERN` clause specifies that we are interested in a pattern with a starting event `START_ROW` that is followed by one or more `PRICE_DOWN` events and concluded with a `PRICE_UP` event. If such a pattern can be found, the next pattern match will be seeked at the last `PRICE_UP` event as indicated by the `AFTER MATCH SKIP TO LAST` clause.
 
-The `DEFINE` clause specifies the conditions that need to be met for a `PRICE_DOWN` and `PRICE_UP` event. Although the `STRT_ROW` pattern variable is not present it has an implicit condition that is evaluated always as `TRUE`.
+The `DEFINE` clause specifies the conditions that need to be met for a `PRICE_DOWN` and `PRICE_UP` event. Although the `START_ROW` pattern variable is not present it has an implicit condition that is evaluated always as `TRUE`.
 
 A pattern variable `PRICE_DOWN` is defined as a row with a price that is smaller than the price of the last row that met the `PRICE_DOWN` condition. For the initial case or when there is no last row that met the `PRICE_DOWN` condition, the price of the row should be smaller than the price of the preceding row in the pattern (referenced by `START_ROW`).
 
 A pattern variable `PRICE_UP` is defined as a row with a price that is larger than the price of the last row that met the `PRICE_DOWN` condition.
 
-The query produces a summary row for each found period in which the price was constantly decreasing.
+This query produces a summary row for each period in which the price of a stock was continuously decreasing.
 
-The exact representation of output rows is defined in `MEASURES` part of the query. The number of output rows is defined by the `ONE ROW PER MATCH` output mode.
+The exact representation of the output rows is defined in the `MEASURES` part of the query. The number of output rows is defined by the `ONE ROW PER MATCH` output mode.
 
 {% highlight text %}
  symbol       start_tstamp       bottom_tstamp         end_tstamp
@@ -175,7 +175,7 @@ The exact representation of output rows is defined in `MEASURES` part of the que
 ACME       01-APR-11 10:00:04  01-APR-11 10:00:07  01-APR-11 10:00:08
 {% endhighlight %}
 
-The resulting row contains the found period of a decreasing price for a ticker that started at `01-APR-11 10:00:04` and
+The resulting row describes a period of falling prices that started at `01-APR-11 10:00:04` and
 achieved the lowest price at `01-APR-11 10:00:07` that increased again at `01-APR-11 10:00:08`.
 
 Partitioning
@@ -191,7 +191,7 @@ Order of Events
 
 Apache Flink allows for searching for patterns based on time; either [processing time or event time](time_attributes.html).
 
-In case of event time, this assumption is very important because it enables to sort the events before they are passed to the internal pattern state machine. As a consequence, the
+In case of event time, the events are sorted before they are passed to the internal pattern state machine. As a consequence, the
 produced output will be correct regardless of the order in which rows are appended to the table. Instead, the pattern is evaluated in the order specified by the time contained in each row.
 
 The `MATCH_RECOGNIZE` clause assumes a [time attribute](time_attributes.html) with ascending ordering as the first argument to `ORDER BY` clause.
@@ -201,12 +201,12 @@ For the example `Ticker` table, a definition like `ORDER BY rowtime ASC, price D
 Define & Measures
 -----------------
 
-The `DEFINE` and `MEASURES` keywords have similar meaning as `WHERE` and `SELECT` clauses in a simple SQL query.
+The `DEFINE` and `MEASURES` keywords have similar meanings to the `WHERE` and `SELECT` clauses in a simple SQL query.
 
-The `MEASURES` clause defines what will be included in the output of a matching pattern. It can project columns and defines expressions for evaluation.
+The `MEASURES` clause defines what will be included in the output of a matching pattern. It can project columns and define expressions for evaluation.
 The number of produced rows depends on the [output mode](#output-mode) setting.
 
-The `DEFINE` clause allows to specify conditions that rows have to fulfill in order to be classified to a corresponding [pattern variable](#defining-pattern).
+The `DEFINE` clause specifies conditions that rows have to fulfill in order to be classified to a corresponding [pattern variable](#defining-pattern).
 If a condition is not defined for a pattern variable, a default condition will be used which evaluates to `true` for every row.
 
 For a more detailed explanation about expressions that can be used in those clauses, please have a look at the [event stream navigation](#pattern-navigation) section.
@@ -223,7 +223,7 @@ brackets.
 An example pattern could look like:
 
 {% highlight sql %}
-PATTERN (A B+ C*? D)
+PATTERN (A B+ C* D)
 {% endhighlight %}
 
 One may use the following operators:
@@ -366,14 +366,13 @@ The pattern recognition is partitioned by the `symbol` column. Even though not e
 Pattern Navigation
 ------------------
 
-The `DEFINE` and `MEASURE` clauses allow for navigating within a list of (potentially) matching rows to a pattern.
+The `DEFINE` and `MEASURE` clauses allow for navigating within the list of rows that (potentially) match a pattern.
 
 This section discusses this navigation for declaring conditions or producing output results.
 
 ### Pattern Variable Referencing
 
-A _pattern variable reference_ allows to reference a set of rows mapped to a particular pattern variable in
-`DEFINE` or `MEASURE` clauses.
+A _pattern variable reference_ allows a set of rows mapped to a particular pattern variable in the `DEFINE` or `MEASURE` clauses to be referenced.
 
 For example, the expression `A.price` describes a set of rows mapped so far to `A` plus the current row
 if we try to match the current row to `A`. If an expression in the `DEFINE`/`MEASURES` clause requires a single row (e.g. `A.price` or `A.price > 10`),
@@ -487,7 +486,7 @@ As can be seen in the table, the first row is mapped to pattern variable `A` and
 
 ### Logical Offsets
 
-_Logical offsets_ allow to navigate within events that were mapped to a particular pattern variable. This can be expressed
+_Logical offsets_ enable navigation within the events that were mapped to a particular pattern variable. This can be expressed
 with two corresponding functions:
 
 <table class="table table-bordered">
@@ -661,14 +660,14 @@ If the second row did not map to the `B` variable, we would have the following r
 It is also possible to use multiple pattern variable references in the first argument of the `FIRST/LAST` functions. This way, one can write an expression that accesses multiple columns.
 However, all of them must use the same pattern variable. In other words, the value of the `LAST`/`FIRST` function must be computed in a single row.
 
-Thus, it is possible to use `LAST(A.price * A.tax)` but an expression like `LAST(A.price * B.tax)` is not allowed.
+Thus, it is possible to use `LAST(A.price * A.tax)`, but an expression like `LAST(A.price * B.tax)` is not allowed.
 
 After Match Strategy
 --------------------
 
 The `AFTER MATCH SKIP` clause specifies where to start a new matching procedure after a complete match was found.
 
-There are five different strategies:
+There are four different strategies:
 * `SKIP PAST LAST ROW` - resumes the pattern matching at the next row after the last row of the current match.
 * `SKIP TO NEXT ROW` - continues searching for a new match starting at the next row after the starting row of the match.
 * `SKIP TO LAST variable` - resumes the pattern matching at the last row that is mapped to the specified pattern variable.
@@ -785,7 +784,7 @@ matching.
 
 ### Controlling Memory Consumption
 
-Memory consumption is an important aspect when writing `MATCH_RECOGNIZE` queries as the space of potential matches is built in a breadth-first like manner.
+Memory consumption is an important consideration when writing `MATCH_RECOGNIZE` queries, as the space of potential matches is built in a breadth-first-like manner.
 Having that in mind, one must make sure that the pattern can finish. Preferably with a reasonable number of rows mapped to the match as they have to fit into memory.
 
 For example, the pattern must not have a quantifier without an upper limit that accepts every single row. Such a pattern could look like this:
@@ -822,9 +821,9 @@ feature right now.
 Known Limitations
 -----------------
 
-`MATCH_RECOGNIZE` clause is still an ongoing effort and therefore some SQL standard features are not supported yet.
+Flink's implementation of the `MATCH_RECOGNIZE` clause is an ongoing effort, and some features of the SQL standard are not yet supported.
 
-The list of such features includes:
+Unsupported features include:
 * Pattern expressions:
   * Pattern groups - this means that e.g. quantifiers can not be applied to a subsequence of the pattern. Thus, `(A (B C)+)` is not a valid pattern.
   * Alterations - patterns like `PATTERN((A B | C D) E)`, which means that either a subsequence `A B` or `C D` has to be found before looking for the `E` row.
@@ -837,7 +836,7 @@ The list of such features includes:
   * `CLASSIFIER` function, which returns the pattern variable that a row was mapped to, is not yet supported.
 * `SUBSET` - which allows creating logical groups of pattern variables and using those groups in the `DEFINE` and `MEASURES` clauses.
 * Physical offsets - `PREV/NEXT`, which indexes all events seen rather than only those that were mapped to a pattern variable(as in [logical offsets](#logical-offsets) case).
-* Extracting time attributes - there is no possibility to get a time attribute for subsequent time-based operation yet.
-* Aggregates - one cannot use aggregates in `MEASURES` nor `DEFINE` clauses yet.
+* Extracting time attributes - there is currently no possibility to get a time attribute for subsequent time-based operations.
+* Aggregates - one cannot use aggregates in `MEASURES` nor `DEFINE` clauses.
 * User defined functions cannot be used within `MATCH_RECOGNIZE`.
 * `MATCH_RECOGNIZE` is supported only for SQL. There is no equivalent in the Table API.
