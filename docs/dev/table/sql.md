@@ -958,7 +958,7 @@ val result4 = tableEnv.sqlQuery(
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Searches for a given pattern in a streaming table according to the <code>MATCH_RECOGNIZE</code> <a href="https://standards.iso.org/ittf/PubliclyAvailableStandards/c065143_ISO_IEC_TR_19075-5_2016.zip">ISO standard</a>. This enables to express complex event processing (CEP) logic in SQL queries.</p>
+        <p>Searches for a given pattern in a streaming table according to the <code>MATCH_RECOGNIZE</code> <a href="https://standards.iso.org/ittf/PubliclyAvailableStandards/c065143_ISO_IEC_TR_19075-5_2016.zip">ISO standard</a>. This makes it possible to express complex event processing (CEP) logic in SQL queries.</p>
         <p>For a more detailed description, see the dedicated page for <a href="streaming/match_recognize.html">detecting patterns in tables</a>.</p>
 
 {% highlight sql %}
