@@ -33,7 +33,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.ignoreStubs;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -72,6 +74,8 @@ public class MetricMapperTest extends TestLogger {
 		verifyPoint(
 			MetricMapper.map(info, timestamp, counter),
 			"count=42");
+
+		verifyNoMoreInteractions(ignoreStubs(counter));
 	}
 
 	@Test
@@ -105,6 +109,8 @@ public class MetricMapperTest extends TestLogger {
 			"p99=5.0",
 			"p999=6.0",
 			"stddev=0.7");
+
+		verifyNoMoreInteractions(ignoreStubs(histogram, statistics));
 	}
 
 	@Test
@@ -117,6 +123,8 @@ public class MetricMapperTest extends TestLogger {
 			MetricMapper.map(info, timestamp, meter),
 			"count=42",
 			"rate=2.5");
+
+		verifyNoMoreInteractions(ignoreStubs(meter));
 	}
 
 	private void verifyPoint(Point point, String... expectedFields) {
