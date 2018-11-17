@@ -64,7 +64,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 	public void open(MetricConfig config) {
 		String host = getString(config, HOST);
 		int port = getInteger(config, PORT);
-		if (host == null || host.isEmpty() || port < 1) {
+		if (!isValidHost(host) || !isValidPort(port)) {
 			throw new IllegalArgumentException("Invalid host/port configuration. Host: " + host + " Port: " + port);
 		}
 		String database = getString(config, DB);
@@ -130,4 +130,11 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 		return report.build();
 	}
 
+	private static boolean isValidHost(String host) {
+		return host != null && !host.isEmpty();
+	}
+
+	private static boolean isValidPort(int port) {
+		return 0 < port && port <= 65535;
+	}
 }
