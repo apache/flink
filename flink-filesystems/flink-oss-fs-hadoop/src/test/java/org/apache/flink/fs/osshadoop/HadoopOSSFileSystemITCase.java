@@ -90,4 +90,19 @@ public class HadoopOSSFileSystemITCase extends TestLogger {
 			fs.delete(path, true);
 		}
 	}
+
+	@Test
+	public void testShadedConfigurations() {
+		final Configuration conf = new Configuration();
+		conf.setString("fs.oss.endpoint", ENDPOINT);
+		conf.setString("fs.oss.accessKeyId", ACCESS_KEY);
+		conf.setString("fs.oss.accessKeySecret", SECRET_KEY);
+		conf.setString("fs.oss.credentials.provider", "org.apache.hadoop.fs.aliyun.oss.AliyunCredentialsProvider");
+
+		OSSFileSystemFactory ossfsFactory = new OSSFileSystemFactory();
+		ossfsFactory.configure(conf);
+		org.apache.hadoop.conf.Configuration configuration = ossfsFactory.getHadoopConfiguration();
+		assertEquals("org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop.fs.aliyun.oss.AliyunCredentialsProvider",
+			configuration.get("fs.oss.credentials.provider"));
+	}
 }

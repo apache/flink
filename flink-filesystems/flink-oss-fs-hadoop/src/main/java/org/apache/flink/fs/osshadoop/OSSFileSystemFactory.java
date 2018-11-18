@@ -18,6 +18,7 @@
 
 package org.apache.flink.fs.osshadoop;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
@@ -29,9 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -44,11 +43,9 @@ public class OSSFileSystemFactory implements FileSystemFactory {
 
 	private org.apache.hadoop.conf.Configuration hadoopConfig;
 
-	private static final Set<String> PACKAGE_PREFIXES_TO_SHADE = new HashSet<>(Arrays.asList("com.aliyun.", "com.aliyuncs."));
-
 	private static final Set<String> CONFIG_KEYS_TO_SHADE = Collections.singleton("fs.oss.credentials.provider");
 
-	private static final String FLINK_SHADING_PREFIX = "org.apache.flink.fs.osshadoop.shaded.";
+	private static final String FLINK_SHADING_PREFIX = "org.apache.flink.fs.shaded.hadoop3.";
 
 	/**
 	 * In order to simplify, we make flink oss configuration keys same with hadoop oss module.
@@ -88,7 +85,8 @@ public class OSSFileSystemFactory implements FileSystemFactory {
 		return new HadoopFileSystem(fs);
 	}
 
-	private org.apache.hadoop.conf.Configuration getHadoopConfiguration() {
+	@VisibleForTesting
+	org.apache.hadoop.conf.Configuration getHadoopConfiguration() {
 		org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
 		if (flinkConfig == null) {
 			return conf;
@@ -101,9 +99,7 @@ public class OSSFileSystemFactory implements FileSystemFactory {
 					String value = flinkConfig.getString(key, null);
 					conf.set(key, value);
 					if (CONFIG_KEYS_TO_SHADE.contains(key)) {
-						if (PACKAGE_PREFIXES_TO_SHADE.stream().anyMatch(value::startsWith)) {
-							conf.set(key, FLINK_SHADING_PREFIX + value);
-						}
+						conf.set(key, FLINK_SHADING_PREFIX + value);
 					}
 
 					LOG.debug("Adding Flink config entry for {} as {} to Hadoop config", key, conf.get(key));

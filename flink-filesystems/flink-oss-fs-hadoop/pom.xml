@@ -114,7 +114,7 @@ under the License.
 									<pattern>org.apache.hadoop</pattern>
 									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop</shadedPattern>
 								</relocation>
-								<!-- relocate the AWS dependencies -->
+								<!-- relocate the OSS dependencies -->
 								<relocation>
 									<pattern>com.aliyun</pattern>
 									<shadedPattern>org.apache.flink.fs.osshadoop.shaded.com.aliyun</shadedPattern>
