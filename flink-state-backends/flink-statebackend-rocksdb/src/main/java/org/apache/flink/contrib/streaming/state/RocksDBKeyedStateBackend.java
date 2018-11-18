@@ -575,7 +575,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		try {
 			dbRef = RocksDB.open(
 				Preconditions.checkNotNull(dbOptions),
-				Preconditions.checkNotNull(path),
+				Preconditions.checkNotNull(new Path(path).toString()),
 				columnFamilyDescriptors,
 				stateColumnFamilyHandles);
 		} catch (RocksDBException e) {
@@ -2546,7 +2546,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			// create hard links of living files in the snapshot path
 			try (Checkpoint checkpoint = Checkpoint.create(stateBackend.db)) {
-				checkpoint.createCheckpoint(localBackupDirectory.getDirectory().getPath());
+				LOG.info("Checkpoint path is {}.", localBackupDirectory.getDirectory().toString());
+				checkpoint.createCheckpoint(localBackupDirectory.getDirectory().toString());
 			}
 		}
 
