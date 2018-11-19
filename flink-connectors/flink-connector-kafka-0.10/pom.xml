@@ -53,6 +53,10 @@ under the License.
 					<groupId>org.apache.kafka</groupId>
 					<artifactId>kafka_${scala.binary.version}</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.apache.kafka</groupId>
+					<artifactId>kafka-clients</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
