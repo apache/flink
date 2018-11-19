@@ -651,7 +651,11 @@ of your Flink distribution.
 
 Parameters:
 
-{% include generated/influxdb_reporter_configuration.html %}
+- `host` - the InfluxDB server host
+- `port` - (optional) the InfluxDB server port, defaults to `8086`
+- `db` - the InfluxDB database to store metrics
+- `username` - (optional) InfluxDB username used for authentication
+- `password` - (optional) InfluxDB username's password used for authentication
 
 Example configuration:
 
