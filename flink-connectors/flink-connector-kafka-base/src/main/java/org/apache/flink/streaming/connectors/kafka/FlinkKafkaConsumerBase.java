@@ -326,7 +326,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 *
 	 * <p>This setting will only have effect if checkpointing is enabled for the job.
 	 * If checkpointing isn't enabled, only the "auto.commit.enable" (for 0.8) / "enable.auto.commit" (for 0.9+)
-	 * property settings will be
+	 * property settings will be used.
 	 *
 	 * @return The consumer object, to allow function chaining.
 	 */
