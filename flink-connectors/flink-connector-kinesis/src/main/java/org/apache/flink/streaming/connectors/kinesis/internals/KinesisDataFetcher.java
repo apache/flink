@@ -676,7 +676,7 @@ public class KinesisDataFetcher<T> {
 				try {
 					sws.periodicWatermarkAssigner = InstantiationUtil.clone(periodicWatermarkAssigner);
 				} catch (Exception e) {
-					throw new RuntimeException(e);
+					throw new RuntimeException("Failed to instantiate new WatermarkAssigner", e);
 				}
 				sws.lastUpdated = getCurrentTimeMillis();
 				sws.lastRecordTimestamp = Long.MIN_VALUE;
