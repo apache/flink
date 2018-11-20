@@ -125,7 +125,7 @@ public class ParquetInputFormatTest {
 		}
 
 		Tuple2<Long, Long> state = rowInputFormat.getCurrentState();
-		assertEquals(0L, state.f0.longValue());
+		assertEquals(1L, state.f0.longValue());
 		assertEquals(62L, state.f1.longValue());
 	}
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.parquet;
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -34,7 +35,7 @@ import java.sql.Timestamp;
 
 /**
  * A subclass of {@link ParquetInputFormat} to read from Parquet files and convert to {@link Row}.
- * It is mainly used to integrate with table API and batch SQL.
+ * It is mainly used to integrate with table API and` SQL.
  */
 public class ParquetRowInputFormat extends ParquetInputFormat<Row> implements ResultTypeQueryable<Row> {
 	private static final long serialVersionUID = 11L;
@@ -51,7 +52,7 @@ public class ParquetRowInputFormat extends ParquetInputFormat<Row> implements Re
 
 	@Override
 	public TypeInformation<Row> getProducedType() {
-		return new RowTypeInfo(getFieldTypes(), getFieldNames());
+		return returnType;
 	}
 
 	@Override
@@ -72,13 +73,21 @@ public class ParquetRowInputFormat extends ParquetInputFormat<Row> implements Re
 	public void rewriteTimeStampField(String fieldName) {
 		this.tsIndex = returnType.getFieldIndex(fieldName);
 		if (tsIndex == -1) {
-			throw new RuntimeException(String.format("Fail to extract timestamp field for row schema: [%s]",
+			throw new RuntimeException(String.format("Cannot find field %s in row schema: [%s]",
 				returnType.toString()));
+		}
+
+		TypeInformation<?> originalType = returnType.getTypeAt(fieldName);
+		if (!originalType.equals(BasicTypeInfo.LONG_TYPE_INFO)
+			&& !originalType.equals(BasicTypeInfo.DOUBLE_TYPE_INFO)) {
+			throw new RuntimeException(String.format("Original type of field %s is not Long or Double, can't convert "
+				+ " to java.sql.Timestamp", fieldName));
 		}
 
 		this.returnType.getFieldTypes()[tsIndex] = SqlTimeTypeInfo.TIMESTAMP;
 		this.timeStampRewrite = true;
-		LOG.debug("Read parquet record as row type: {}", returnType.toString());
+		LOG.debug("After rewrite field {} as Timestamp, Read parquet record as row type: {}",
+			fieldName, returnType.toString());
 	}
 
 	public boolean isTimeStampRewrite() {

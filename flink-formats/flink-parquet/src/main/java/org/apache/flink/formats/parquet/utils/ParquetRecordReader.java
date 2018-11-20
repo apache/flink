@@ -64,15 +64,15 @@ public class ParquetRecordReader<T> {
 	// Parquet Materializer convert record to T
 	private RecordMaterializer<T> recordMaterializer;
 	private T currentValue;
-	private long total;
-	private long current = 0;
+	private long numTotalRows;
+	private long numReturnedRows = 0;
 	private int currentBlock = -1;
 	private ParquetFileReader reader;
 	private RecordReader<T> recordReader;
 	private boolean strictTypeChecking = true;
 	private boolean skipCorruptedRecord = true;
-	private long countLoadUntilLastGroup = 0;
-	private long totalCountLoadedSoFar = 0;
+	private long numRowsUpToPreviousBlock = 0;
+	private long numRowsUpToCurrentBlock = 0;
 
 	public ParquetRecordReader(ReadSupport<T> readSupport, MessageType readSchema, Filter filter) {
 		this.filter = checkNotNull(filter, "readSupport");
@@ -82,6 +82,10 @@ public class ParquetRecordReader<T> {
 
 	public ParquetRecordReader(ReadSupport<T> readSupport, MessageType readSchema) {
 		this(readSupport, readSchema, FilterCompat.NOOP);
+	}
+
+	public void setSkipCorruptedRecord(boolean skipCorruptedRecord) {
+		this.skipCorruptedRecord = skipCorruptedRecord;
 	}
 
 	public void initialize(ParquetFileReader reader, Configuration configuration) {
@@ -96,35 +100,30 @@ public class ParquetRecordReader<T> {
 		this.columnIOFactory = new ColumnIOFactory(parquetFileMetadata.getCreatedBy());
 		this.recordMaterializer = readSupport.prepareForRead(
 			configuration, fileMetadata, readSchema, readContext);
-		this.total = reader.getRecordCount();
+		this.numTotalRows = reader.getRecordCount();
 	}
 
-	public void close() throws  IOException {
-		if (reader != null) {
-			reader.close();
+	private RecordReader<T> createRecordReader(PageReadStore pages) throws IOException {
+		if (pages == null) {
+			throw new IOException("Expecting more rows but reached last block. Read "
+				+ numReturnedRows + " out of " + numTotalRows);
 		}
+		MessageColumnIO columnIO = columnIOFactory.getColumnIO(readSchema, fileSchema, strictTypeChecking);
+		RecordReader<T> recordReader = columnIO.getRecordReader(pages, recordMaterializer, filter);
+		return recordReader;
 	}
 
-	public void setSkipCorruptedRecord(boolean skipCorruptedRecord) {
-		this.skipCorruptedRecord = skipCorruptedRecord;
-	}
-
-	@CheckReturnValue(when = When.NEVER)
-	public T nextRecord() {
-		return currentValue;
-	}
-
-	public void seek(long syncedBlock, long recordsReadSinceLastSync) throws IOException {
+	public void seek(long syncedBlock, long recordInBlock) throws IOException {
 		List<BlockMetaData> blockMetaData = reader.getRowGroups();
-		while (syncedBlock > 0) {
+		currentBlock = 0;
+		while (currentBlock < syncedBlock) {
 			currentBlock++;
 			reader.skipNextRowGroup();
-			countLoadUntilLastGroup = totalCountLoadedSoFar;
-			totalCountLoadedSoFar += blockMetaData.get(currentBlock).getRowCount();
-			syncedBlock--;
+			numRowsUpToPreviousBlock = numRowsUpToCurrentBlock;
+			numRowsUpToCurrentBlock += blockMetaData.get(currentBlock).getRowCount();
 		}
 
-		for (int i = 0; i < recordsReadSinceLastSync; i++) {
+		for (int i = 0; i < recordInBlock; i++) {
 			// skip the record already processed
 			if (hasNextRecord()) {
 				nextRecord();
@@ -133,64 +132,46 @@ public class ParquetRecordReader<T> {
 
 	}
 
-	private RecordReader<T> createRecordReader(PageReadStore pages) throws IOException {
-		if (pages == null) {
-			throw new IOException("Expecting more rows but reached last block. Read " + current + " out of " + total);
-		}
-		MessageColumnIO columnIO = columnIOFactory.getColumnIO(readSchema, fileSchema, strictTypeChecking);
-		RecordReader<T> recordReader = columnIO.getRecordReader(pages, recordMaterializer, filter);
-		return recordReader;
-	}
-
-	public long getCurrentBlock() {
-		return currentBlock;
-	}
-
-	public long getRecordInCurrentBlock() {
-		if (currentBlock == 0) {
-			return current;
-		} else {
-			return current - countLoadUntilLastGroup;
-		}
-	}
-
 	public boolean reachEnd() {
-		return current >= total;
+		return numReturnedRows >= numTotalRows;
 	}
 
 	public boolean hasNextRecord() throws IOException {
 		boolean recordFound = false;
 		while (!recordFound) {
 			// no more records left
-			if (current >= total) {
+			if (numReturnedRows >= numTotalRows) {
 				return false;
 			}
 
 			try {
-				if (current == totalCountLoadedSoFar) {
+				if (numReturnedRows == numRowsUpToCurrentBlock) {
 					PageReadStore pages = reader.readNextRowGroup();
 					recordReader = createRecordReader(pages);
-					countLoadUntilLastGroup = totalCountLoadedSoFar;
-					totalCountLoadedSoFar += pages.getRowCount();
+					numRowsUpToPreviousBlock = numRowsUpToCurrentBlock;
+					numRowsUpToCurrentBlock += pages.getRowCount();
 					currentBlock++;
 				}
 
-				current++;
+				numReturnedRows++;
 				try {
 					currentValue = recordReader.read();
 				} catch (RecordMaterializationException e) {
 					String errorMessage = String.format("skipping a corrupt record in block number [%d] record"
-						+ "number [%s] of file %s", currentBlock, current - countLoadUntilLastGroup, reader.getFile());
+						+ "number [%s] of file %s", currentBlock,
+						numReturnedRows - numRowsUpToPreviousBlock, reader.getFile());
 
-					LOG.error(errorMessage);
 					if (!skipCorruptedRecord) {
+						LOG.error(errorMessage);
 						throw new RuntimeException(errorMessage, e);
+					} else {
+						LOG.warn(errorMessage);
 					}
 					continue;
 				}
 
 				if (currentValue == null) {
-					current = totalCountLoadedSoFar;
+					numReturnedRows = numRowsUpToCurrentBlock;
 					LOG.debug("filtered record reader reached end of block");
 					continue;
 				}
@@ -199,7 +180,7 @@ public class ParquetRecordReader<T> {
 				LOG.debug("read value: {}", currentValue);
 			} catch (RuntimeException e) {
 				LOG.error(String.format("Can not read value at %d in block %d in file %s",
-					current - countLoadUntilLastGroup, currentBlock, reader.getFile()), e);
+					numReturnedRows - numRowsUpToPreviousBlock, currentBlock, reader.getFile()), e);
 				if (!skipCorruptedRecord) {
 					throw e;
 				}
@@ -208,6 +189,29 @@ public class ParquetRecordReader<T> {
 		}
 
 		return true;
+	}
+
+	@CheckReturnValue(when = When.NEVER)
+	public T nextRecord() {
+		return currentValue;
+	}
+
+	public long getCurrentBlock() {
+		return currentBlock;
+	}
+
+	public long getRecordInCurrentBlock() {
+		if (currentBlock == 0) {
+			return numReturnedRows;
+		} else {
+			return numReturnedRows - numRowsUpToPreviousBlock;
+		}
+	}
+
+	public void close() throws  IOException {
+		if (reader != null) {
+			reader.close();
+		}
 	}
 
 	private static <K, V> Map<K, Set<V>> toSetMultiMap(Map<K, V> map) {
