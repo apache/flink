@@ -102,7 +102,12 @@ public class HadoopOSSFileSystemITCase extends TestLogger {
 		OSSFileSystemFactory ossfsFactory = new OSSFileSystemFactory();
 		ossfsFactory.configure(conf);
 		org.apache.hadoop.conf.Configuration configuration = ossfsFactory.getHadoopConfiguration();
+		// shaded
 		assertEquals("org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop.fs.aliyun.oss.AliyunCredentialsProvider",
 			configuration.get("fs.oss.credentials.provider"));
+		// should not shaded
+		assertEquals(ENDPOINT, configuration.get("fs.oss.endpoint"));
+		assertEquals(ACCESS_KEY, configuration.get("fs.oss.accessKeyId"));
+		assertEquals(SECRET_KEY, configuration.get("fs.oss.accessKeySecret"));
 	}
 }
