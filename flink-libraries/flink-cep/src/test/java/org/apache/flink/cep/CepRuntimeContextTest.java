@@ -53,9 +53,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Test cases for {@link RichPatternSelectFunction} and {@link RichPatternFlatSelectFunction}.
+ * Test cases for {@link CepRuntimeContext}.
  */
-public class RichPatternSelectFunctionTest {
+public class CepRuntimeContextTest {
 
 	@Test
 	public void testRichPatternSelectFunction() throws Exception {
