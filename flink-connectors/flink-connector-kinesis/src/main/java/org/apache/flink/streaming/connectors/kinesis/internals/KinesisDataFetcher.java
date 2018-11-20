@@ -691,7 +691,7 @@ public class KinesisDataFetcher<T> {
 	 * Return the current system time. Allow tests to override this to simulate progress for watermark
 	 * logic.
 	 *
-	 * @return
+	 * @return current processing time
 	 */
 	@VisibleForTesting
 	protected long getCurrentTimeMillis() {
@@ -708,10 +708,7 @@ public class KinesisDataFetcher<T> {
 	 */
 	@VisibleForTesting
 	protected void emitWatermark() {
-		LOG.debug(
-			"###evaluating watermark for subtask {} time {}",
-			indexOfThisConsumerSubtask,
-			getCurrentTimeMillis());
+		LOG.debug("Evaluating watermark for subtask {} time {}", indexOfThisConsumerSubtask, getCurrentTimeMillis());
 		long potentialWatermark = Long.MAX_VALUE;
 		long idleTime =
 			(shardIdleIntervalMillis > 0)
@@ -729,15 +726,13 @@ public class KinesisDataFetcher<T> {
 		// advance watermark if possible (watermarks can only be ascending)
 		if (potentialWatermark == Long.MAX_VALUE) {
 			if (shardWatermarks.isEmpty() || shardIdleIntervalMillis > 0) {
-				LOG.debug(
-					"###No active shard for subtask {}, marking the source idle.",
+				LOG.debug("No active shard for subtask {}, marking the source idle.",
 					indexOfThisConsumerSubtask);
 				// no active shard, signal downstream operators to not wait for a watermark
 				sourceContext.markAsTemporarilyIdle();
 			}
 		} else if (potentialWatermark > lastWatermark) {
-			LOG.debug(
-				"###emitting watermark {} from subtask {}",
+			LOG.debug("Emitting watermark {} from subtask {}",
 				potentialWatermark,
 				indexOfThisConsumerSubtask);
 			sourceContext.emitWatermark(new Watermark(potentialWatermark));

@@ -232,7 +232,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 
 	/**
 	 * Provide a custom assigner to influence how shards are distributed over subtasks.
-	 * @param shardAssigner
+	 * @param shardAssigner shard assigner
 	 */
 	public void setShardAssigner(KinesisShardAssigner shardAssigner) {
 		this.shardAssigner = checkNotNull(shardAssigner, "function can not be null");
@@ -246,8 +246,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	/**
 	 * Set the assigner that will extract the timestamp from {@link T} and calculate the
 	 * watermark.
-	 *
-	 * @param periodicWatermarkAssigner
+	 * @param periodicWatermarkAssigner periodic watermark assigner
 	 */
 	public void setPeriodicWatermarkAssigner(
 		AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner) {
