@@ -18,52 +18,23 @@
 
 package org.apache.flink.cep.pattern.conditions;
 
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.configuration.Configuration;
-
 /**
  * A {@link RichIterativeCondition condition} which negates the condition it wraps
  * and returns {@code true} if the original condition returns {@code false}.
  *
  * @param <T> Type of the element to filter
  */
-public class RichNotCondition<T> extends RichIterativeCondition<T> {
+public class RichNotCondition<T> extends RichCompositeIterativeCondition<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final IterativeCondition<T> original;
-
 	public RichNotCondition(final IterativeCondition<T> original) {
-		this.original = original;
-	}
-
-	@Override
-	public void setRuntimeContext(RuntimeContext t) {
-		super.setRuntimeContext(t);
-		if (original != null) {
-			FunctionUtils.setFunctionRuntimeContext(original, t);
-		}
-	}
-
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		if (original != null) {
-			FunctionUtils.openFunction(original, parameters);
-		}
-	}
-
-	@Override
-	public void close() throws Exception {
-		super.close();
-		if (original != null) {
-			FunctionUtils.closeFunction(original);
-		}
+		super(original);
 	}
 
 	@Override
 	public boolean filter(T value, Context<T> ctx) throws Exception {
+		IterativeCondition<T> original = getNestedConditions()[0];
 		return original != null && !original.filter(value, ctx);
 	}
 }

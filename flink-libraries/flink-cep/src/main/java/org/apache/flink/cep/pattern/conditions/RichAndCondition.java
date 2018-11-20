@@ -18,9 +18,6 @@
 
 package org.apache.flink.cep.pattern.conditions;
 
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -29,41 +26,20 @@ import org.apache.flink.util.Preconditions;
  *
  * @param <T> Type of the element to filter
  */
-public class RichAndCondition<T> extends RichIterativeCondition<T> {
+public class RichAndCondition<T> extends RichCompositeIterativeCondition<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final IterativeCondition<T> left;
-	private final IterativeCondition<T> right;
-
 	public RichAndCondition(final IterativeCondition<T> left, final IterativeCondition<T> right) {
-		this.left = Preconditions.checkNotNull(left, "The condition cannot be null.");
-		this.right = Preconditions.checkNotNull(right, "The condition cannot be null.");
-	}
-
-	@Override
-	public void setRuntimeContext(RuntimeContext t) {
-		super.setRuntimeContext(t);
-		FunctionUtils.setFunctionRuntimeContext(left, t);
-		FunctionUtils.setFunctionRuntimeContext(right, t);
-	}
-
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		FunctionUtils.openFunction(left, parameters);
-		FunctionUtils.openFunction(right, parameters);
-	}
-
-	@Override
-	public void close() throws Exception {
-		super.close();
-		FunctionUtils.closeFunction(left);
-		FunctionUtils.closeFunction(right);
+		super(
+			Preconditions.checkNotNull(left, "The condition cannot be null."),
+			Preconditions.checkNotNull(right, "The condition cannot be null."));
 	}
 
 	@Override
 	public boolean filter(T value, Context<T> ctx) throws Exception {
+		IterativeCondition<T> left = getLeft();
+		IterativeCondition<T> right = getRight();
 		return left.filter(value, ctx) && right.filter(value, ctx);
 	}
 
@@ -71,13 +47,13 @@ public class RichAndCondition<T> extends RichIterativeCondition<T> {
 	 * @return One of the {@link IterativeCondition conditions} combined in this condition.
 	 */
 	public IterativeCondition<T> getLeft() {
-		return left;
+		return getNestedConditions()[0];
 	}
 
 	/**
 	 * @return One of the {@link IterativeCondition conditions} combined in this condition.
 	 */
 	public IterativeCondition<T> getRight() {
-		return right;
+		return getNestedConditions()[1];
 	}
 }
