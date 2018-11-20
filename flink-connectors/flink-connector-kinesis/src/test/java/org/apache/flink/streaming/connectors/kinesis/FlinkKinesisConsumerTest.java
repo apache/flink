@@ -23,7 +23,6 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
@@ -32,7 +31,13 @@ import org.apache.flink.mock.Whitebox;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
+import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
@@ -41,10 +46,16 @@ import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
+import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
+import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisBehavioursFactory;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableFlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.CollectingSourceContext;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
@@ -59,17 +70,21 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -660,37 +675,6 @@ public class FlinkKinesisConsumerTest {
 		return fakeRestoredState;
 	}
 
-	/**
-	 * A non-serializable {@link KinesisDeserializationSchema} (because it is a nested class with reference
-	 * to the enclosing class, which is not serializable) used for testing.
-	 */
-	private final class NonSerializableDeserializationSchema implements KinesisDeserializationSchema<String> {
-		@Override
-		public String deserialize(byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId) throws IOException {
-			return new String(recordValue);
-		}
-
-		@Override
-		public TypeInformation<String> getProducedType() {
-			return BasicTypeInfo.STRING_TYPE_INFO;
-		}
-	}
-
-	/**
-	 * A static, serializable {@link KinesisDeserializationSchema}.
-	 */
-	private static final class SerializableDeserializationSchema implements KinesisDeserializationSchema<String> {
-		@Override
-		public String deserialize(byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId) throws IOException {
-			return new String(recordValue);
-		}
-
-		@Override
-		public TypeInformation<String> getProducedType() {
-			return BasicTypeInfo.STRING_TYPE_INFO;
-		}
-	}
-
 	private static KinesisDataFetcher mockKinesisDataFetcher() throws Exception {
 		KinesisDataFetcher mockedFetcher = Mockito.mock(KinesisDataFetcher.class);
 
@@ -708,6 +692,149 @@ public class FlinkKinesisConsumerTest {
 		PowerMockito.whenNew(ctor).withArguments(Mockito.any(ctor.getParameterTypes()[0]),
 			argumentSupplier.get()).thenReturn(mockedFetcher);
 		return mockedFetcher;
+	}
+
+	@Test
+	public void testPeriodicWatermark() throws Exception {
+
+		String streamName = "fakeStreamName";
+		Time maxOutOfOrderness = Time.milliseconds(5);
+		long autoWatermarkInterval = 1_000;
+
+		HashMap<String, String> subscribedStreamsToLastDiscoveredShardIds = new HashMap<>();
+		subscribedStreamsToLastDiscoveredShardIds.put(streamName, null);
+
+		KinesisDeserializationSchema<String> deserializationSchema = new KinesisDeserializationSchemaWrapper<>(
+			new SimpleStringSchema());
+		Properties props = new Properties();
+		props.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		props.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS, Long.toString(10L));
+
+		BlockingQueue<String> shard1 = new LinkedBlockingQueue();
+		BlockingQueue<String> shard2 = new LinkedBlockingQueue();
+
+		Map<String, List<BlockingQueue<String>>> streamToQueueMap = new HashMap<>();
+		streamToQueueMap.put(streamName, Lists.newArrayList(shard1, shard2));
+
+		// override createFetcher to mock Kinesis
+		FlinkKinesisConsumer<String> sourceFunc =
+			new FlinkKinesisConsumer<String>(streamName, deserializationSchema, props) {
+				@Override
+				protected KinesisDataFetcher<String> createFetcher(
+					List<String> streams,
+					SourceContext<String> sourceContext,
+					RuntimeContext runtimeContext,
+					Properties configProps,
+					KinesisDeserializationSchema<String> deserializationSchema) {
+
+					KinesisDataFetcher<String> fetcher =
+						new KinesisDataFetcher<String>(
+							streams,
+							sourceContext,
+							sourceContext.getCheckpointLock(),
+							runtimeContext,
+							configProps,
+							deserializationSchema,
+							getShardAssigner(),
+							getPeriodicWatermarkAssigner(),
+							new AtomicReference<>(),
+							new ArrayList<>(),
+							subscribedStreamsToLastDiscoveredShardIds,
+							(props) -> FakeKinesisBehavioursFactory.blockingQueueGetRecords(streamToQueueMap)
+							) {};
+					return fetcher;
+				}
+			};
+
+		sourceFunc.setShardAssigner(
+			(streamShardHandle, i) -> {
+				// shardId-000000000000
+				return Integer.parseInt(
+					streamShardHandle.getShard().getShardId().substring("shardId-".length()));
+			});
+
+		sourceFunc.setPeriodicWatermarkAssigner(new TestTimestampExtractor(maxOutOfOrderness));
+
+		// there is currently no test harness specifically for sources,
+		// so we overlay the source thread here
+		AbstractStreamOperatorTestHarness<Object> testHarness =
+			new AbstractStreamOperatorTestHarness<Object>(
+				new StreamSource(sourceFunc), 1, 1, 0);
+		testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
+		testHarness.getExecutionConfig().setAutoWatermarkInterval(autoWatermarkInterval);
+
+		testHarness.initializeState(null);
+		testHarness.open();
+
+		ConcurrentLinkedQueue<Watermark> watermarks = new ConcurrentLinkedQueue<>();
+
+		@SuppressWarnings("unchecked")
+		SourceFunction.SourceContext<String> sourceContext = new CollectingSourceContext(
+			testHarness.getCheckpointLock(), testHarness.getOutput()) {
+			@Override
+			public void emitWatermark(Watermark mark) {
+				watermarks.add(mark);
+			}
+		};
+
+		new Thread(
+			() -> {
+				try {
+					sourceFunc.run(sourceContext);
+				} catch (InterruptedException e) {
+					// expected on cancel
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			})
+			.start();
+
+		shard1.put("1");
+		shard1.put("2");
+		shard2.put("10");
+		int recordCount = 3;
+		int watermarkCount = 0;
+		awaitRecordCount(testHarness.getOutput(), recordCount);
+
+		// trigger watermark emit
+		testHarness.setProcessingTime(testHarness.getProcessingTime() + autoWatermarkInterval);
+		watermarkCount++;
+
+		// advance watermark
+		shard1.put("10");
+		recordCount++;
+		awaitRecordCount(testHarness.getOutput(), recordCount);
+
+		// trigger watermark emit
+		testHarness.setProcessingTime(testHarness.getProcessingTime() + autoWatermarkInterval);
+		watermarkCount++;
+
+		sourceFunc.cancel();
+		testHarness.close();
+
+		assertEquals("record count", recordCount, testHarness.getOutput().size());
+		assertEquals("watermark count", watermarkCount, watermarks.size());
+		assertThat(watermarks, org.hamcrest.Matchers.contains(new Watermark(-3), new Watermark(5)));
+	}
+
+	private void awaitRecordCount(ConcurrentLinkedQueue<? extends Object> queue, int count) throws Exception {
+		long timeoutMillis = System.currentTimeMillis() + 10_000;
+		while (System.currentTimeMillis() < timeoutMillis && queue.size() < count) {
+			Thread.sleep(100);
+		}
+	}
+
+	private static class TestTimestampExtractor extends BoundedOutOfOrdernessTimestampExtractor<String> {
+		private static final long serialVersionUID = 1L;
+
+		public TestTimestampExtractor(Time maxAllowedLateness) {
+			super(maxAllowedLateness);
+		}
+
+		@Override
+		public long extractTimestamp(String element) {
+			return Long.parseLong(element);
+		}
 	}
 
 }
