@@ -820,7 +820,7 @@ public class FlinkKinesisConsumerTest {
 	private void awaitRecordCount(ConcurrentLinkedQueue<? extends Object> queue, int count) throws Exception {
 		long timeoutMillis = System.currentTimeMillis() + 10_000;
 		while (System.currentTimeMillis() < timeoutMillis && queue.size() < count) {
-			Thread.sleep(100);
+			Thread.sleep(10);
 		}
 	}
 
