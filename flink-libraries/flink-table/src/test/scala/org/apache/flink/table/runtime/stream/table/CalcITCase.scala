@@ -23,7 +23,7 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.Literal
-import org.apache.flink.table.expressions.utils.{Func13, RichFunc1, RichFunc2, SplitUDF}
+import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, UserDefinedFunctionTestUtils}
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
@@ -348,6 +348,35 @@ class CalcITCase extends AbstractTestBase {
       "{7=Comment#1}",
       "{8=Comment#2}",
       "{9=Comment#3}")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testOverload(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    StreamITCase.testResults = mutable.MutableList()
+
+    val testData = new mutable.MutableList[Student]
+    testData.+=(new GraduatedStudent("Jack#22"))
+    testData.+=(new GraduatedStudent("John#19"))
+    testData.+=(new GraduatedStudent("Anna#44"))
+    testData.+=(new GraduatedStudent("nosharp"))
+
+    val t = env.fromCollection(testData).toTable(tEnv).as('a)
+
+    val result = t.select(Func21('a))
+
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "student#Jack#22",
+      "student#John#19",
+      "student#Anna#44",
+      "student#nosharp"
+    )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }
