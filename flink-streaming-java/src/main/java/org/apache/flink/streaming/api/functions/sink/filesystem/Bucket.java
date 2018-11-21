@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.util.Preconditions;
 
@@ -124,8 +125,9 @@ public class Bucket<IN, BucketID> {
 		// we try to resume the previous in-progress file
 		if (state.hasInProgressResumableFile()) {
 			final RecoverableWriter.ResumeRecoverable resumable = state.getInProgressResumableFile();
+			final RecoverableFsDataOutputStream stream = fsWriter.recover(resumable);
 			inProgressPart = partFileFactory.resumeFrom(
-					bucketId, fsWriter, resumable, state.getInProgressFileCreationTime());
+					bucketId, stream, resumable, state.getInProgressFileCreationTime());
 		}
 	}
 
@@ -195,7 +197,8 @@ public class Bucket<IN, BucketID> {
 		closePartFile();
 
 		final Path partFilePath = assembleNewPartPath();
-		inProgressPart = partFileFactory.openNew(bucketId, fsWriter, partFilePath, currentTime);
+		final RecoverableFsDataOutputStream stream = fsWriter.open(partFilePath);
+		inProgressPart = partFileFactory.openNew(bucketId, stream, partFilePath, currentTime);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Subtask {} opening new part file \"{}\" for bucket id={}.",
