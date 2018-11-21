@@ -27,8 +27,8 @@ import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.kubernetes.FlinkKubernetesOptions;
-import org.apache.flink.kubernetes.kubeclient.Endpoint;
-import org.apache.flink.kubernetes.kubeclient.KubeClient;
+import org.apache.flink.kubernetes.client.Endpoint;
+import org.apache.flink.kubernetes.client.KubernetesClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.FlinkException;
 
@@ -55,14 +55,14 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 
 	private FlinkKubernetesOptions options;
 
-	private KubeClient client;
+	private KubernetesClient client;
 
-	public KubernetesClusterDescriptor(@Nonnull FlinkKubernetesOptions options, @Nonnull KubeClient client) {
+	public KubernetesClusterDescriptor(@Nonnull FlinkKubernetesOptions options, @Nonnull KubernetesClient client) {
 		this.options = options;
 		this.client = client;
 	}
 
-	private String generateClusterId(){
+	private String generateClusterId() {
 		return CLUSTER_ID_PREFIX + UUID.randomUUID();
 	}
 
@@ -85,6 +85,7 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 			Endpoint clusterEndpoint = this.client.getResetEndpoint(clusterId);
 			return this.createClusterEndpoint(clusterEndpoint, clusterId);
 		} catch (Exception e) {
+			this.client.logException(e);
 			throw new ClusterRetrieveException("Could not create the RestClusterClient.", e);
 		}
 	}
@@ -112,8 +113,7 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 			Endpoint clusterEndpoint = this.client.createClusterService();
 			this.client.createClusterPod();
 			return this.createClusterEndpoint(clusterEndpoint, clusterId);
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			this.client.logException(e);
 			this.tryKillCluster(clusterId);
 			throw new ClusterDeploymentException("Could not create Kubernetes cluster " + clusterId, e);
@@ -122,11 +122,11 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 
 	/**
 	 * Try to kill cluster without throw exception.
-	 * */
-	private void tryKillCluster(String clusterId){
+	 */
+	private void tryKillCluster(String clusterId) {
 		try {
 			this.killCluster(clusterId);
-		} catch (Exception e){
+		} catch (Exception e) {
 			this.client.logException(e);
 		}
 	}
@@ -136,6 +136,7 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 		try {
 			this.client.stopAndCleanupCluster(clusterId);
 		} catch (Exception e) {
+			this.client.logException(e);
 			throw new FlinkException("Could not create Kubernetes cluster " + clusterId);
 		}
 	}
@@ -145,6 +146,7 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 		try {
 			this.client.close();
 		} catch (Exception e) {
+			this.client.logException(e);
 			LOG.error("failed to close client, exception {}", e.toString());
 		}
 	}

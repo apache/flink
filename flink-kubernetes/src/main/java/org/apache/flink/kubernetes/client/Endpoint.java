@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.kubernetes.kubeclient;
+package org.apache.flink.kubernetes.client;
 
 /**
  * represent a endpoint.

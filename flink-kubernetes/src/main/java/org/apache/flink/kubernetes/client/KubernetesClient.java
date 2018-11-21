@@ -16,17 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.kubernetes.kubeclient;
+package org.apache.flink.kubernetes.client;
 
 /**
  * The client to talk with kubernetes.
  * */
-public interface KubeClient extends AutoCloseable {
-
-	/**
-	 * Initialize client.
-	 * */
-	void initialize();
+public interface KubernetesClient extends AutoCloseable {
 
 	/**
 	 * Create kubernetes services and expose endpoints for access outside cluster.
@@ -44,7 +39,7 @@ public interface KubeClient extends AutoCloseable {
 	void stopAndCleanupCluster(String clusterId);
 
 	/**
-	 * Log exceptions.
+	 * Log exception.
 	 * */
 	void logException(Exception e);
 
