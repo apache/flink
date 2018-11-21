@@ -21,7 +21,7 @@ package org.apache.flink.fs.s3presto;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory;
 import org.apache.flink.fs.s3.common.HadoopConfigLoader;
-import org.apache.flink.fs.s3.common.writer.S3MultiPartUploader;
+import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import com.facebook.presto.hive.PrestoS3FileSystem;
@@ -92,7 +92,7 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
 
 	@Nullable
 	@Override
-	protected S3MultiPartUploader getS3AccessHelper(FileSystem fs) {
+	protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
 		return null;
 	}
 
