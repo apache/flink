@@ -19,7 +19,7 @@
 package org.apache.flink.fs.s3.common;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.fs.s3.common.writer.S3MultiPartUploader;
+import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -78,7 +78,7 @@ public class S3EntropyFsFactoryTest extends TestLogger {
 
 		@Nullable
 		@Override
-		protected S3MultiPartUploader getS3AccessHelper(FileSystem fs) {
+		protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
 			return null;
 		}
 

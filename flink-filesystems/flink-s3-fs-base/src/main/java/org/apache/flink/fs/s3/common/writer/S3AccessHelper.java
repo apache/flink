@@ -41,7 +41,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * the upload with all its parts will be either committed or discarded.
  */
 @Internal
-public interface S3MultiPartUploader {
+public interface S3AccessHelper {
 
 	/**
 	 * Initializes a Multi-Part Upload.
