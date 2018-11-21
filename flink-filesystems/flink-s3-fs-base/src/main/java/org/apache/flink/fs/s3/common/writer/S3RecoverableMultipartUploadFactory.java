@@ -43,7 +43,7 @@ final class S3RecoverableMultipartUploadFactory {
 
 	private final org.apache.hadoop.fs.FileSystem fs;
 
-	private final S3MultiPartUploader twoPhaseUploader;
+	private final S3AccessHelper s3AccessHelper;
 
 	private final FunctionWithException<File, RefCountedFile, IOException> tmpFileSupplier;
 
@@ -53,7 +53,7 @@ final class S3RecoverableMultipartUploadFactory {
 
 	S3RecoverableMultipartUploadFactory(
 			final FileSystem fs,
-			final S3MultiPartUploader twoPhaseUploader,
+			final S3AccessHelper s3AccessHelper,
 			final int maxConcurrentUploadsPerStream,
 			final Executor executor,
 			final FunctionWithException<File, RefCountedFile, IOException> tmpFileSupplier) {
@@ -61,14 +61,14 @@ final class S3RecoverableMultipartUploadFactory {
 		this.fs = Preconditions.checkNotNull(fs);
 		this.maxConcurrentUploadsPerStream = maxConcurrentUploadsPerStream;
 		this.executor = executor;
-		this.twoPhaseUploader = twoPhaseUploader;
+		this.s3AccessHelper = s3AccessHelper;
 		this.tmpFileSupplier = tmpFileSupplier;
 	}
 
 	RecoverableMultiPartUpload getNewRecoverableUpload(Path path) throws IOException {
 
 		return RecoverableMultiPartUploadImpl.newUpload(
-				twoPhaseUploader,
+				s3AccessHelper,
 				limitedExecutor(),
 				pathToObjectName(path));
 	}
@@ -77,7 +77,7 @@ final class S3RecoverableMultipartUploadFactory {
 		final Optional<File> incompletePart = downloadLastDataChunk(recoverable);
 
 		return RecoverableMultiPartUploadImpl.recoverUpload(
-				twoPhaseUploader,
+				s3AccessHelper,
 				limitedExecutor(),
 				recoverable.uploadId(),
 				recoverable.getObjectName(),

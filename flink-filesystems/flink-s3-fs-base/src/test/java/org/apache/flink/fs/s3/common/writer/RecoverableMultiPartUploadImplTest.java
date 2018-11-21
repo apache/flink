@@ -339,10 +339,10 @@ public class RecoverableMultiPartUploadImplTest {
 	}
 
 	/**
-	 * A {@link S3MultiPartUploader} that simulates uploading part files to S3 by
+	 * A {@link S3AccessHelper} that simulates uploading part files to S3 by
 	 * simply putting complete and incomplete part files in lists for further validation.
 	 */
-	private static class StubMultiPartUploader implements S3MultiPartUploader {
+	private static class StubMultiPartUploader implements S3AccessHelper {
 
 		private final List<RecoverableMultiPartUploadImplTest.TestUploadPartResult> completePartsUploaded = new ArrayList<>();
 		private final List<RecoverableMultiPartUploadImplTest.TestPutObjectResult> incompletePartsUploaded = new ArrayList<>();

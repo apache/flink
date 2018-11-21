@@ -129,7 +129,7 @@ public class S3RecoverableWriter implements RecoverableWriter {
 	public static S3RecoverableWriter writer(
 			final FileSystem fs,
 			final FunctionWithException<File, RefCountedFile, IOException> tempFileCreator,
-			final S3MultiPartUploader twoPhaseUploader,
+			final S3AccessHelper s3AccessHelper,
 			final Executor uploadThreadPool,
 			final long userDefinedMinPartSize,
 			final int maxConcurrentUploadsPerStream) {
@@ -139,7 +139,7 @@ public class S3RecoverableWriter implements RecoverableWriter {
 		final S3RecoverableMultipartUploadFactory uploadFactory =
 				new S3RecoverableMultipartUploadFactory(
 						fs,
-						twoPhaseUploader,
+						s3AccessHelper,
 						maxConcurrentUploadsPerStream,
 						uploadThreadPool,
 						tempFileCreator);
