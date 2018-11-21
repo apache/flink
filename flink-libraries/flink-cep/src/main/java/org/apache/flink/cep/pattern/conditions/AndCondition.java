@@ -18,8 +18,6 @@
 
 package org.apache.flink.cep.pattern.conditions;
 
-import org.apache.flink.util.Preconditions;
-
 /**
  * A {@link IterativeCondition condition} which combines two conditions with a logical
  * {@code AND} and returns {@code true} if both are {@code true}.
@@ -34,13 +32,13 @@ public class AndCondition<T> extends IterativeCondition<T> {
 	private final IterativeCondition<T> right;
 
 	public AndCondition(final IterativeCondition<T> left, final IterativeCondition<T> right) {
-		this.left = Preconditions.checkNotNull(left, "The condition cannot be null.");
-		this.right = Preconditions.checkNotNull(right, "The condition cannot be null.");
+		this.left = left;
+		this.right = right;
 	}
 
 	@Override
 	public boolean filter(T value, Context<T> ctx) throws Exception {
-		return left.filter(value, ctx) && right.filter(value, ctx);
+		return (left == null || left.filter(value, ctx)) && (right == null || right.filter(value, ctx));
 	}
 
 	/**

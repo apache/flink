@@ -18,8 +18,6 @@
 
 package org.apache.flink.cep.pattern.conditions;
 
-import org.apache.flink.util.Preconditions;
-
 /**
  * A {@link RichIterativeCondition condition} which combines two conditions with a logical
  * {@code AND} and returns {@code true} if both are {@code true}.
@@ -31,16 +29,14 @@ public class RichAndCondition<T> extends RichCompositeIterativeCondition<T> {
 	private static final long serialVersionUID = 1L;
 
 	public RichAndCondition(final IterativeCondition<T> left, final IterativeCondition<T> right) {
-		super(
-			Preconditions.checkNotNull(left, "The condition cannot be null."),
-			Preconditions.checkNotNull(right, "The condition cannot be null."));
+		super(left, right);
 	}
 
 	@Override
 	public boolean filter(T value, Context<T> ctx) throws Exception {
 		IterativeCondition<T> left = getLeft();
 		IterativeCondition<T> right = getRight();
-		return left.filter(value, ctx) && right.filter(value, ctx);
+		return (left == null || left.filter(value, ctx)) && (right == null || right.filter(value, ctx));
 	}
 
 	/**
