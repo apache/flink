@@ -71,6 +71,16 @@ public class LocalRecoverableWriter implements RecoverableWriter {
 	}
 
 	@Override
+	public boolean requiresCleanupOfRecoverableState() {
+		return false;
+	}
+
+	@Override
+	public boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException {
+		return false;
+	}
+
+	@Override
 	public Committer recoverForCommit(CommitRecoverable recoverable) throws IOException {
 		if (recoverable instanceof LocalRecoverable) {
 			return new LocalRecoverableFsDataOutputStream.LocalCommitter((LocalRecoverable) recoverable);

@@ -174,11 +174,6 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 		final String incompletePartObjectName = createIncompletePartObjectName();
 		file.retain();
 		try (InputStream inputStream = file.getInputStream()) {
-
-			// TODO: staged incomplete parts are not cleaned up as
-			// they do not fall under the user's global TTL on S3.
-			// Figure out a way to clean them.
-
 			s3AccessHelper.putObject(incompletePartObjectName, inputStream, file.getPos());
 		}
 		finally {
