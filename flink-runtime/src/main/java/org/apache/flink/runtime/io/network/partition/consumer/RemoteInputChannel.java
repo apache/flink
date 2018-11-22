@@ -352,7 +352,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	 */
 	@Override
 	public NotificationResult notifyBufferAvailable(Buffer buffer) {
-		NotificationResult notificationResult = NotificationResult.NONE;
+		NotificationResult notificationResult = NotificationResult.BUFFER_NOT_USED;
 		try {
 			synchronized (bufferQueue) {
 				checkState(isWaitingForFloatingBuffers,
@@ -374,7 +374,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 
 				if (bufferQueue.getAvailableBufferSize() == numRequiredBuffers) {
 					isWaitingForFloatingBuffers = false;
-					notificationResult = NotificationResult.BUFFER_USED_FINISHED;
+					notificationResult = NotificationResult.BUFFER_USED_NO_NEED_MORE;
 				} else {
 					notificationResult = NotificationResult.BUFFER_USED_NEED_MORE;
 				}

@@ -421,13 +421,13 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 			if (availableBuffer.compareAndSet(null, buffer)) {
 				ctx.channel().eventLoop().execute(this);
 
-				return NotificationResult.BUFFER_USED_FINISHED;
+				return NotificationResult.BUFFER_USED_NO_NEED_MORE;
 			}
 			else {
 				ctx.channel().eventLoop().execute(new AsyncErrorNotificationTask(
 					new IllegalStateException("Received a buffer notification, " +
 						" but the previous one has not been handled yet.")));
-				return NotificationResult.NONE;
+				return NotificationResult.BUFFER_NOT_USED;
 			}
 		}
 

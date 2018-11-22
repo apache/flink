@@ -259,15 +259,14 @@ class LocalBufferPool implements BufferPool {
 	@Override
 	public void recycle(MemorySegment segment) {
 		BufferListener listener;
-		NotificationResult notificationResult = NotificationResult.NONE;
-		while (!notificationResult.bufferUsed()) {
+		NotificationResult notificationResult = NotificationResult.BUFFER_NOT_USED;
+		while (!notificationResult.isBufferUsed()) {
 			synchronized (availableMemorySegments) {
 				if (isDestroyed || numberOfRequestedMemorySegments > currentPoolSize) {
 					returnMemorySegment(segment);
 					return;
 				} else {
 					listener = registeredListeners.poll();
-
 					if (listener == null) {
 						availableMemorySegments.add(segment);
 						availableMemorySegments.notify();
@@ -275,25 +274,26 @@ class LocalBufferPool implements BufferPool {
 					}
 				}
 			}
+			notificationResult = fireBufferAvailableNotification(listener, segment);
+		}
+	}
 
-			// We do not know which locks have been acquired before the recycle() or are needed in the
-			// notification and which other threads also access them.
-			// -> call notifyBufferAvailable() outside of the synchronized block to avoid a deadlock (FLINK-9676)
-			// Note that in case of any exceptions notifyBufferAvailable() should recycle the buffer
-			// (either directly or later during error handling) and therefore eventually end up in this method again.
-			notificationResult = listener.notifyBufferAvailable(new NetworkBuffer(segment, this));
-
-			if (notificationResult.needsMoreBuffers()) {
-				synchronized (availableMemorySegments) {
-					if (isDestroyed) {
-						// cleanup tasks how they would have been done if we only had one synchronized block
-						listener.notifyBufferDestroyed();
-					} else {
-						registeredListeners.add(listener);
-					}
+	private NotificationResult fireBufferAvailableNotification(BufferListener listener, MemorySegment segment) {
+		// We do not know which locks have been acquired before the recycle() or are needed in the
+		// notification and which other threads also access them.
+		// -> call notifyBufferAvailable() outside of the synchronized block to avoid a deadlock (FLINK-9676)
+		NotificationResult notificationResult = listener.notifyBufferAvailable(new NetworkBuffer(segment, this));
+		if (notificationResult.needsMoreBuffers()) {
+			synchronized (availableMemorySegments) {
+				if (isDestroyed) {
+					// cleanup tasks how they would have been done if we only had one synchronized block
+					listener.notifyBufferDestroyed();
+				} else {
+					registeredListeners.add(listener);
 				}
 			}
 		}
+		return notificationResult;
 	}
 
 	/**

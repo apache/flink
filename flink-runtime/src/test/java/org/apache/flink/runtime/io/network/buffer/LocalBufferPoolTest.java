@@ -420,7 +420,7 @@ public class LocalBufferPoolTest extends TestLogger {
 				if (newCount < notificationTimes) {
 					return NotificationResult.BUFFER_USED_NEED_MORE;
 				} else {
-					return NotificationResult.BUFFER_USED_FINISHED;
+					return NotificationResult.BUFFER_USED_NO_NEED_MORE;
 				}
 			}
 

@@ -152,7 +152,7 @@ public class RemoteInputChannelTest {
 							// this is the same buffer over and over again which will be
 							// recycled by the RemoteInputChannel
 							Object obj = function.apply(inputChannel, buffer.retainBuffer(), j);
-							if (obj instanceof NotificationResult && obj == NotificationResult.NONE) {
+							if (obj instanceof NotificationResult && obj == NotificationResult.BUFFER_NOT_USED) {
 								buffer.recycleBuffer();
 							}
 						}

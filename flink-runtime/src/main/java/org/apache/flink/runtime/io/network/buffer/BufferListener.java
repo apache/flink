@@ -28,15 +28,15 @@ public interface BufferListener {
 	 * Status of the notification result from the buffer listener.
 	 */
 	enum NotificationResult {
-		NONE(false, false),
-		BUFFER_USED_FINISHED(true, false),
+		BUFFER_NOT_USED(false, false),
+		BUFFER_USED_NO_NEED_MORE(true, false),
 		BUFFER_USED_NEED_MORE(true, true);
 
-		private final boolean bufferUsed;
+		private final boolean isBufferUsed;
 		private final boolean needsMoreBuffers;
 
-		NotificationResult(boolean bufferUsed, boolean needsMoreBuffers) {
-			this.bufferUsed = bufferUsed;
+		NotificationResult(boolean isBufferUsed, boolean needsMoreBuffers) {
+			this.isBufferUsed = isBufferUsed;
 			this.needsMoreBuffers = needsMoreBuffers;
 		}
 
@@ -45,8 +45,8 @@ public interface BufferListener {
 		 *
 		 * @return <tt>true</tt> if the notified buffer is accepted.
 		 */
-		boolean bufferUsed() {
-			return bufferUsed;
+		boolean isBufferUsed() {
+			return isBufferUsed;
 		}
 
 		/**
