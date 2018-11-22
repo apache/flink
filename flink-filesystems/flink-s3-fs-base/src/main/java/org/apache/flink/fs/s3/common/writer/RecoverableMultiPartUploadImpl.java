@@ -84,7 +84,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 		this.s3AccessHelper = checkNotNull(s3AccessHelper);
 		this.uploadThreadPool = checkNotNull(uploadThreadPool);
 		this.currentUploadInfo = new MultiPartUploadInfo(objectName, uploadId, partsSoFar, numBytes, incompletePart);
-		this.namePrefixForTempObjects = incompleteObjectNamePrefix(objectName);
+		this.namePrefixForTempObjects = createIncompletePartObjectNamePrefix(objectName);
 		this.uploadsInProgress = new ArrayDeque<>();
 	}
 
@@ -171,7 +171,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 		}
 
 		// first, upload the trailing data file. during that time, other in-progress uploads may complete.
-		final String incompletePartObjectName = createTmpObjectName();
+		final String incompletePartObjectName = createIncompletePartObjectName();
 		file.retain();
 		try (InputStream inputStream = file.getInputStream()) {
 
@@ -192,7 +192,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 	// ------------------------------------------------------------------------
 
 	@VisibleForTesting
-	static String incompleteObjectNamePrefix(String objectName) {
+	static String createIncompletePartObjectNamePrefix(String objectName) {
 		checkNotNull(objectName);
 
 		final int lastSlash = objectName.lastIndexOf('/');
@@ -207,6 +207,10 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 			child = objectName.substring(lastSlash + 1);
 		}
 		return parent + (child.isEmpty() ? "" : '_') + child + "_tmp_";
+	}
+
+	private String createIncompletePartObjectName() {
+		return namePrefixForTempObjects + UUID.randomUUID().toString();
 	}
 
 	private void awaitPendingPartsUpload() throws IOException {
@@ -233,10 +237,6 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 			throw new IOException("Uploading parts failed", e.getCause());
 		}
 		return completedUploadEtag;
-	}
-
-	private String createTmpObjectName() {
-		return namePrefixForTempObjects + UUID.randomUUID().toString();
 	}
 
 	// ------------------------------------------------------------------------

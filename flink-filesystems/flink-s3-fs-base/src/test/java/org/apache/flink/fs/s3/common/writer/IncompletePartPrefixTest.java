@@ -22,36 +22,36 @@ import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * Tests for the {@link RecoverableMultiPartUploadImpl#incompleteObjectNamePrefix(String)}.
+ * Tests for the {@link RecoverableMultiPartUploadImpl#createIncompletePartObjectNamePrefix(String)}.
  */
 public class IncompletePartPrefixTest {
 
 	@Test(expected = NullPointerException.class)
 	public void nullObjectNameShouldThroughException() {
-		RecoverableMultiPartUploadImpl.incompleteObjectNamePrefix(null);
+		RecoverableMultiPartUploadImpl.createIncompletePartObjectNamePrefix(null);
 	}
 
 	@Test
 	public void emptyInitialNameShouldSucceed() {
-		String objectNamePrefix = RecoverableMultiPartUploadImpl.incompleteObjectNamePrefix("");
+		String objectNamePrefix = RecoverableMultiPartUploadImpl.createIncompletePartObjectNamePrefix("");
 		Assert.assertEquals("_tmp_", objectNamePrefix);
 	}
 
 	@Test
 	public void nameWithoutSlashShouldSucceed() {
-		String objectNamePrefix = RecoverableMultiPartUploadImpl.incompleteObjectNamePrefix("no_slash_path");
+		String objectNamePrefix = RecoverableMultiPartUploadImpl.createIncompletePartObjectNamePrefix("no_slash_path");
 		Assert.assertEquals("_no_slash_path_tmp_", objectNamePrefix);
 	}
 
 	@Test
 	public void nameWithOnlySlashShouldSucceed() {
-		String objectNamePrefix = RecoverableMultiPartUploadImpl.incompleteObjectNamePrefix("/");
+		String objectNamePrefix = RecoverableMultiPartUploadImpl.createIncompletePartObjectNamePrefix("/");
 		Assert.assertEquals("/_tmp_", objectNamePrefix);
 	}
 
 	@Test
 	public void normalPathShouldSucceed() {
-		String objectNamePrefix = RecoverableMultiPartUploadImpl.incompleteObjectNamePrefix("/root/home/test-file");
+		String objectNamePrefix = RecoverableMultiPartUploadImpl.createIncompletePartObjectNamePrefix("/root/home/test-file");
 		Assert.assertEquals("/root/home/_test-file_tmp_", objectNamePrefix);
 	}
 }
