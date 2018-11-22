@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kinesis.model;
 
-import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
-
 import com.amazonaws.services.kinesis.model.Shard;
 
 /**

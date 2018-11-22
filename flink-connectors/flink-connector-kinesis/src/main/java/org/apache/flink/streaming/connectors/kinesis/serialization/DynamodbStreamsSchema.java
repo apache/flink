@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.connectors.kinesis.serialization;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 
 import com.amazonaws.services.dynamodbv2.model.Record;
 import com.fasterxml.jackson.databind.ObjectMapper;

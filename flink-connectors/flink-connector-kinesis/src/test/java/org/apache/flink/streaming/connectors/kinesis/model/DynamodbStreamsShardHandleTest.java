@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kinesis.model;
 
-import org.apache.flink.streaming.connectors.kinesis.model.DynamodbStreamsShardHandle;
 import org.junit.Test;
 
 import static org.apache.flink.streaming.connectors.kinesis.model.DynamodbStreamsShardHandle.SHARDID_PREFIX;

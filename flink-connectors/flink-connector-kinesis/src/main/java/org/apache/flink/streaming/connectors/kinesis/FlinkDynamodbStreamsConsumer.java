@@ -21,8 +21,8 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.internals.DynamodbStreamsDataFetcher;
-import org.apache.flink.streaming.connectors.kinesis.serialization.DynamodbStreamsSchema;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
+import org.apache.flink.streaming.connectors.kinesis.serialization.DynamodbStreamsSchema;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 
 import com.amazonaws.services.dynamodbv2.model.Record;
