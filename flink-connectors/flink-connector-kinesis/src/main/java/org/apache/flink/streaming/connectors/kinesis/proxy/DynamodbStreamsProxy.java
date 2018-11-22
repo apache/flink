@@ -15,13 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodbstreams.proxy;
+package org.apache.flink.streaming.connectors.kinesis.proxy;
 
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
-import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
-import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
-import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.ClientConfigurationFactory;
@@ -46,12 +43,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import static org.apache.flink.streaming.connectors.dynamodbstreams.config.ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE;
-import static org.apache.flink.streaming.connectors.dynamodbstreams.config.ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT;
-import static org.apache.flink.streaming.connectors.dynamodbstreams.config.ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX;
-import static org.apache.flink.streaming.connectors.dynamodbstreams.config.ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE;
-import static org.apache.flink.streaming.connectors.dynamodbstreams.config.ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT;
-import static org.apache.flink.streaming.connectors.dynamodbstreams.config.ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_DYNAMODB_STREAM_DESCRIBE_BACKOFF_BASE;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_DYNAMODB_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_DYNAMODB_STREAM_DESCRIBE_BACKOFF_MAX;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DYNAMODB_STREAM_DESCRIBE_BACKOFF_BASE;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DYNAMODB_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DYNAMODB_STREAM_DESCRIBE_BACKOFF_MAX;
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.AWS_ENDPOINT;
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.AWS_REGION;
 import static org.apache.flink.streaming.connectors.kinesis.util.AWSUtil.getCredentialsProvider;
@@ -78,14 +75,14 @@ public class DynamodbStreamsProxy extends KinesisProxy {
 
 		// parse properties
 		describeStreamBaseBackoffMillis = Long.valueOf(
-				configProps.getProperty(STREAM_DESCRIBE_BACKOFF_BASE,
-						Long.toString(DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE)));
+				configProps.getProperty(DYNAMODB_STREAM_DESCRIBE_BACKOFF_BASE,
+						Long.toString(DEFAULT_DYNAMODB_STREAM_DESCRIBE_BACKOFF_BASE)));
 		describeStreamMaxBackoffMillis = Long.valueOf(
-				configProps.getProperty(STREAM_DESCRIBE_BACKOFF_MAX,
-						Long.toString(DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX)));
+				configProps.getProperty(DYNAMODB_STREAM_DESCRIBE_BACKOFF_MAX,
+						Long.toString(DEFAULT_DYNAMODB_STREAM_DESCRIBE_BACKOFF_MAX)));
 		describeStreamExpConstant = Double.valueOf(
-				configProps.getProperty(STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT,
-						Double.toString(DEFAULT_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT)));
+				configProps.getProperty(DYNAMODB_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT,
+						Double.toString(DEFAULT_DYNAMODB_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT)));
 	}
 
 

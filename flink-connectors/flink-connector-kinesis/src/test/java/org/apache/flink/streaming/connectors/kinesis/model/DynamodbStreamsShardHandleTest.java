@@ -15,11 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodbstreams.model;
+package org.apache.flink.streaming.connectors.kinesis.model;
 
+import org.apache.flink.streaming.connectors.kinesis.model.DynamodbStreamsShardHandle;
 import org.junit.Test;
 
-import static org.apache.flink.streaming.connectors.dynamodbstreams.model.DynamodbStreamsShardHandle.SHARDID_PREFIX;
+import static org.apache.flink.streaming.connectors.kinesis.model.DynamodbStreamsShardHandle.SHARDID_PREFIX;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;

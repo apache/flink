@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodbstreams.model;
+package org.apache.flink.streaming.connectors.kinesis.model;
 
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 

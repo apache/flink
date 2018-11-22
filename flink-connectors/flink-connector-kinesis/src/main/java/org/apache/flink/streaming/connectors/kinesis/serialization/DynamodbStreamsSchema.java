@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodbstreams.serialization;
+package org.apache.flink.streaming.connectors.kinesis.serialization;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;

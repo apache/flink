@@ -15,14 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodbstreams;
+package org.apache.flink.streaming.connectors.kinesis;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.dynamodbstreams.internals.DynamodbStreamsDataFetcher;
-import org.apache.flink.streaming.connectors.dynamodbstreams.serialization.DynamodbStreamsSchema;
-import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
+import org.apache.flink.streaming.connectors.kinesis.internals.DynamodbStreamsDataFetcher;
+import org.apache.flink.streaming.connectors.kinesis.serialization.DynamodbStreamsSchema;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 

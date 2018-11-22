@@ -15,15 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodbstreams.internals;
+package org.apache.flink.streaming.connectors.kinesis.internals;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.dynamodbstreams.model.DynamodbStreamsShardHandle;
-import org.apache.flink.streaming.connectors.dynamodbstreams.proxy.DynamodbStreamsProxy;
+import org.apache.flink.streaming.connectors.kinesis.model.DynamodbStreamsShardHandle;
+import org.apache.flink.streaming.connectors.kinesis.proxy.DynamodbStreamsProxy;
 import org.apache.flink.streaming.connectors.kinesis.KinesisShardAssigner;
-import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
-import org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumer;
 import org.apache.flink.streaming.connectors.kinesis.metrics.ShardMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
@@ -34,8 +32,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.streaming.connectors.dynamodbstreams.config.ConsumerConfigConstants.DEFAULT_STREAM_SHARDID_FORMAT_CHECK;
-import static org.apache.flink.streaming.connectors.dynamodbstreams.config.ConsumerConfigConstants.STREAM_SHARDID_FORMAT_CHECK;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_DYNAMODB_STREAM_SHARDID_FORMAT_CHECK;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DYNAMODB_STREAM_SHARDID_FORMAT_CHECK;
 
 /**
  * Dynamodb streams data fetcher.
@@ -75,8 +73,8 @@ public class DynamodbStreamsDataFetcher <T> extends KinesisDataFetcher<T> {
 			DynamodbStreamsProxy::create);
 
 		shardIdFormatCheck = Boolean.valueOf(configProps.getProperty(
-			STREAM_SHARDID_FORMAT_CHECK,
-			DEFAULT_STREAM_SHARDID_FORMAT_CHECK));
+				DYNAMODB_STREAM_SHARDID_FORMAT_CHECK,
+				DEFAULT_DYNAMODB_STREAM_SHARDID_FORMAT_CHECK));
 	}
 
 	/**
