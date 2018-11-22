@@ -34,7 +34,6 @@ import org.apache.flink.runtime.testutils.recordutils.RecordComparatorFactory;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
 import org.apache.flink.types.DeserializationException;
 import org.apache.flink.types.DoubleValue;
-import org.apache.flink.types.Either;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.NullKeyFieldException;
 import org.apache.flink.types.Record;
@@ -56,9 +55,9 @@ public class OutputEmitterTest {
 	@Test
 	public void testPartitionHash() {
 		// Test for IntValue
-		verifyPartitionHashSelectedChannels(50000, 100, new Either.Left<>(0));
+		verifyPartitionHashSelectedChannels(50000, 100, RecordType.INTEGER);
 		// Test for StringValue
-		verifyPartitionHashSelectedChannels(10000, 100, new Either.Right<>(""));
+		verifyPartitionHashSelectedChannels(10000, 100, RecordType.STRING);
 
 		// Test hash corner cases
 		final TestIntComparator testIntComp = new TestIntComparator();
@@ -66,15 +65,10 @@ public class OutputEmitterTest {
 			ShipStrategyType.PARTITION_HASH, testIntComp);
 		final SerializationDelegate<Integer> serializationDelegate = new SerializationDelegate<>(new IntSerializer());
 
-		// MinVal hash
 		assertPartitionHashSelectedChannels(selector, serializationDelegate, Integer.MIN_VALUE, 100);
-		// -1 hash
 		assertPartitionHashSelectedChannels(selector, serializationDelegate, -1, 100);
-		// 0 hash
 		assertPartitionHashSelectedChannels(selector, serializationDelegate, 0, 100);
-		// 1 hash
 		assertPartitionHashSelectedChannels(selector, serializationDelegate, 1, 100);
-		// MaxVal hash
 		assertPartitionHashSelectedChannels(selector, serializationDelegate, Integer.MAX_VALUE, 100);
 	}
 
@@ -84,11 +78,11 @@ public class OutputEmitterTest {
 
 		// Test for IntValue
 		int numRecords = 50000 + numChannels / 2;
-		verifyForwardSelectedChannels(numRecords, numChannels, new Either.Left<>(0));
+		verifyForwardSelectedChannels(numRecords, numChannels, RecordType.INTEGER);
 
 		// Test for StringValue
 		numRecords = 10000 + numChannels / 2;
-		verifyForwardSelectedChannels(numRecords, numChannels, new Either.Right<>(""));
+		verifyForwardSelectedChannels(numRecords, numChannels, RecordType.STRING);
 	}
 
 	@Test
@@ -104,17 +98,17 @@ public class OutputEmitterTest {
 			ShipStrategyType.PARTITION_FORCED_REBALANCE, fromTaskIndex);
 
 		// Test for IntValue
-		int[] hits = getSelectedChannels(selector, delegate, new Either.Left<>(0), numRecords, numChannels);
-		int cnt = 0;
+		int[] hits = getSelectedChannelsHitCount(selector, delegate, RecordType.INTEGER, numRecords, numChannels);
+		int totalHitCount = 0;
 		for (int i = 0; i < hits.length; i++) {
 			if (toTaskIndex <= i || i < toTaskIndex+extraRecords - numChannels) {
 				assertTrue(hits[i] == (numRecords / numChannels) + 1);
 			} else {
 				assertTrue(hits[i] == numRecords/numChannels);
 			}
-			cnt += hits[i];
+			totalHitCount += hits[i];
 		}
-		assertTrue(cnt == numRecords);
+		assertTrue(totalHitCount == numRecords);
 
 		toTaskIndex = numChannels / 5;
 		fromTaskIndex = toTaskIndex + 2 * numChannels;
@@ -124,32 +118,33 @@ public class OutputEmitterTest {
 		// Test for StringValue
 		final ChannelSelector<SerializationDelegate<Record>> selector2 = new OutputEmitter<>(
 			ShipStrategyType.PARTITION_FORCED_REBALANCE, fromTaskIndex);
-		hits = getSelectedChannels(selector2, delegate, new Either.Right<>(""), numRecords, numChannels);
-		cnt = 0;
+		hits = getSelectedChannelsHitCount(selector2, delegate, RecordType.STRING, numRecords, numChannels);
+		totalHitCount = 0;
 		for (int i = 0; i < hits.length; i++) {
 			if (toTaskIndex <= i && i < toTaskIndex + extraRecords) {
 				assertTrue(hits[i] == (numRecords / numChannels) + 1);
 			} else {
 				assertTrue(hits[i] == numRecords / numChannels);
 			}
-			cnt += hits[i];
+			totalHitCount += hits[i];
 		}
-		assertTrue(cnt == numRecords);
+		assertTrue(totalHitCount == numRecords);
 	}
 	
 	@Test
 	public void testBroadcast() {
 		// Test for IntValue
-		verifyBroadcastSelectedChannels(100, 50000, new Either.Left<>(0));
+		verifyBroadcastSelectedChannels(100, 50000, RecordType.INTEGER);
 		// Test for StringValue
-		verifyBroadcastSelectedChannels(100, 50000, new Either.Right<>(""));
+		verifyBroadcastSelectedChannels(100, 50000, RecordType.STRING);
 	}
 	
 	@Test
 	public void testMultiKeys() {
 		final TypeComparator<Record> multiComp = new RecordComparatorFactory(
 			new int[] {0,1, 3}, new Class[] {IntValue.class, StringValue.class, DoubleValue.class}).createComparator();
-		final ChannelSelector<SerializationDelegate<Record>> selector = new OutputEmitter<>(ShipStrategyType.PARTITION_HASH, multiComp);
+		final ChannelSelector<SerializationDelegate<Record>> selector = new OutputEmitter<>(
+			ShipStrategyType.PARTITION_HASH, multiComp);
 		final SerializationDelegate<Record> delegate = new SerializationDelegate<>(new RecordSerializerFactory().getSerializer());
 		
 		int numChannels = 100;
@@ -168,12 +163,12 @@ public class OutputEmitterTest {
 			}
 		}
 
-		int cnt = 0;
+		int totalHitCount = 0;
 		for (int hit : hits) {
 			assertTrue(hit > 0);
-			cnt += hit;
+			totalHitCount += hit;
 		}
-		assertTrue(cnt == numRecords);
+		assertTrue(totalHitCount == numRecords);
 	}
 	
 	@Test
@@ -218,6 +213,46 @@ public class OutputEmitterTest {
 		Assert.fail("Expected a NullKeyFieldException.");
 	}
 
+	private void verifyPartitionHashSelectedChannels(int numRecords, int numChannels, Enum recordType) {
+		int[] hits = getSelectedChannelsHitCount(ShipStrategyType.PARTITION_HASH, numRecords, numChannels, recordType);
+
+		int totalHitCount = 0;
+		for (int hit : hits) {
+			assertTrue(hit > 0);
+			totalHitCount += hit;
+		}
+		assertTrue(totalHitCount == numRecords);
+	}
+
+	private void assertPartitionHashSelectedChannels(
+			ChannelSelector selector,
+			SerializationDelegate<Integer> serializationDelegate,
+			int record,
+			int numChannels) {
+		serializationDelegate.setInstance(record);
+		int[] selectedChannels = selector.selectChannels(serializationDelegate, numChannels);
+
+		assertTrue(selectedChannels.length == 1);
+		assertTrue(selectedChannels[0] >= 0 && selectedChannels[0] <= numChannels - 1);
+	}
+
+	private void verifyForwardSelectedChannels(int numRecords, int numChannels, Enum recordType) {
+		int[] hits = getSelectedChannelsHitCount(ShipStrategyType.FORWARD, numRecords, numChannels, recordType);
+
+		assertTrue(hits[0] == numRecords);
+		for (int i = 1; i < hits.length; i++) {
+			assertTrue(hits[i] == 0);
+		}
+	}
+
+	private void verifyBroadcastSelectedChannels(int numRecords, int numChannels, Enum recordType) {
+		int[] hits = getSelectedChannelsHitCount(ShipStrategyType.BROADCAST, numRecords, numChannels, recordType);
+
+		for (int hit : hits) {
+			assertTrue(hit + "", hit == numRecords);
+		}
+	}
+
 	private boolean verifyWrongPartitionHashKey(int position, int fieldNum) {
 		final TypeComparator<Record> comparator = new RecordComparatorFactory(
 			new int[] {position}, new Class[] {IntValue.class}).createComparator();
@@ -238,28 +273,29 @@ public class OutputEmitterTest {
 		return false;
 	}
 
-	private int[] getSelectedChannels(
-		ShipStrategyType shipStrategyType,
-		int numRecords,
-		int numChannels,
-		Either<Integer, String> recordType) {
+	private int[] getSelectedChannelsHitCount(
+			ShipStrategyType shipStrategyType,
+			int numRecords,
+			int numChannels,
+			Enum recordType) {
 		final TypeComparator<Record> comparator = new RecordComparatorFactory(
-			new int[] {0}, new Class[] {recordType.isLeft() ? IntValue.class : StringValue.class}).createComparator();
+			new int[] {0}, new Class[] {recordType == RecordType.INTEGER ? IntValue.class : StringValue.class}).createComparator();
 		final ChannelSelector<SerializationDelegate<Record>> selector = new OutputEmitter<>(shipStrategyType, comparator);
 		final SerializationDelegate<Record> delegate = new SerializationDelegate<>(new RecordSerializerFactory().getSerializer());
-		return getSelectedChannels(selector, delegate, recordType, numRecords, numChannels);
+
+		return getSelectedChannelsHitCount(selector, delegate, recordType, numRecords, numChannels);
 	}
 
-	private int[] getSelectedChannels(
-		ChannelSelector<SerializationDelegate<Record>> selector,
-		SerializationDelegate<Record> delegate,
-		Either<Integer, String> recordType,
-		int numRecords,
-		int numChannels) {
+	private int[] getSelectedChannelsHitCount(
+			ChannelSelector<SerializationDelegate<Record>> selector,
+			SerializationDelegate<Record> delegate,
+			Enum recordType,
+			int numRecords,
+			int numChannels) {
 		int[] hits = new int[numChannels];
 		Value value;
 		for (int i = 0; i < numRecords; i++) {
-			if (recordType.isLeft()) {
+			if (recordType == RecordType.INTEGER) {
 				value = new IntValue(i);
 			} else {
 				value = new StringValue(i + "");
@@ -273,46 +309,6 @@ public class OutputEmitterTest {
 			}
 		}
 		return hits;
-	}
-
-	private void assertPartitionHashSelectedChannels(
-		ChannelSelector selector,
-		SerializationDelegate<Integer> serializationDelegate,
-		int record,
-		int numChannels) {
-		serializationDelegate.setInstance(record);
-		int[] selectedChannels = selector.selectChannels(serializationDelegate, numChannels);
-
-		assertTrue(selectedChannels.length == 1);
-		assertTrue(selectedChannels[0] >= 0 && selectedChannels[0] <= numChannels - 1);
-	}
-
-	private void verifyPartitionHashSelectedChannels(int numRecords, int numChannels, Either<Integer, String> recordType) {
-		int[] hits = getSelectedChannels(ShipStrategyType.PARTITION_HASH, numRecords, numChannels, recordType);
-
-		int cnt = 0;
-		for (int hit : hits) {
-			assertTrue(hit > 0);
-			cnt += hit;
-		}
-		assertTrue(cnt == numRecords);
-	}
-
-	private void verifyForwardSelectedChannels(int numRecords, int numChannels, Either<Integer, String> recordType) {
-		int[] hits = getSelectedChannels(ShipStrategyType.FORWARD, numRecords, numChannels, recordType);
-
-		assertTrue(hits[0] == numRecords);
-		for (int i = 1; i < hits.length; i++) {
-			assertTrue(hits[i] == 0);
-		}
-	}
-
-	private void verifyBroadcastSelectedChannels(int numRecords, int numChannels, Either<Integer, String> recordType) {
-		int[] hits = getSelectedChannels(ShipStrategyType.BROADCAST, numRecords, numChannels, recordType);
-
-		for (int hit : hits) {
-			assertTrue(hit + "", hit == numRecords);
-		}
 	}
 
 	private static class TestIntComparator extends TypeComparator<Integer> {
@@ -385,5 +381,10 @@ public class OutputEmitterTest {
 		public TypeComparator[] getFlatComparators() {
 			return comparators;
 		}
+	}
+
+	private enum RecordType {
+		STRING,
+		INTEGER
 	}
 }
