@@ -65,6 +65,8 @@ public class Bucket<IN, BucketID> {
 
 	private final RollingPolicy<IN, BucketID> rollingPolicy;
 
+	private final Map<Long, RecoverableWriter.ResumeRecoverable> resumablesPerCheckpoint;
+
 	private final Map<Long, List<RecoverableWriter.CommitRecoverable>> pendingPartsPerCheckpoint;
 
 	private long partCounter;
@@ -96,6 +98,7 @@ public class Bucket<IN, BucketID> {
 
 		this.pendingPartsForCurrentCheckpoint = new ArrayList<>();
 		this.pendingPartsPerCheckpoint = new HashMap<>();
+		this.resumablesPerCheckpoint = new HashMap<>();
 	}
 
 	/**
@@ -130,6 +133,7 @@ public class Bucket<IN, BucketID> {
 			final RecoverableFsDataOutputStream stream = fsWriter.recover(resumable);
 			inProgressPart = partFileFactory.resumeFrom(
 					bucketId, stream, resumable, state.getInProgressFileCreationTime());
+			fsWriter.cleanupRecoverableState(resumable);
 		}
 	}
 
@@ -239,6 +243,15 @@ public class Bucket<IN, BucketID> {
 		if (inProgressPart != null) {
 			inProgressResumable = inProgressPart.persist();
 			inProgressFileCreationTime = inProgressPart.getCreationTime();
+
+			// the following is an optimization so that writers that do not
+			// require cleanup, they do not have to keep track of resumables
+			// and later iterate over the active buckets.
+			// (see onSuccessfulCompletionOfCheckpoint())
+
+			if (fsWriter.requiresCleanupOfRecoverableState()) {
+				this.resumablesPerCheckpoint.put(checkpointId, inProgressResumable);
+			}
 		}
 
 		return new BucketState<>(bucketId, bucketPath, inProgressFileCreationTime, inProgressResumable, pendingPartsPerCheckpoint);
@@ -272,6 +285,29 @@ public class Bucket<IN, BucketID> {
 					fsWriter.recoverForCommit(committable).commit();
 				}
 				it.remove();
+			}
+		}
+
+		cleanupOutdatedResumables(checkpointId);
+	}
+
+	private void cleanupOutdatedResumables(long checkpointId) throws IOException {
+		Iterator<Map.Entry<Long, RecoverableWriter.ResumeRecoverable>> it =
+				resumablesPerCheckpoint.entrySet().iterator();
+
+		while (it.hasNext()) {
+			final Map.Entry<Long, RecoverableWriter.ResumeRecoverable> entry = it.next();
+
+			final long resumableCheckpointId = entry.getKey();
+			if (resumableCheckpointId < checkpointId) {
+
+				final RecoverableWriter.ResumeRecoverable recoverable = entry.getValue();
+				final boolean successfullyDeleted = fsWriter.cleanupRecoverableState(recoverable);
+				it.remove();
+
+				if (LOG.isDebugEnabled() && successfullyDeleted) {
+					LOG.debug("Subtask {} successfully deleted incomplete part for bucket id={}.", subtaskIndex, bucketId);
+				}
 			}
 		}
 	}

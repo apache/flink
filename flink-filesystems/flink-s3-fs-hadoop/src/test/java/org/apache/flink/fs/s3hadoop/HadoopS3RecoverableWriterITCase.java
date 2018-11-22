@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.fs.s3.common.FlinkS3FileSystem;
+import org.apache.flink.fs.s3.common.writer.S3Recoverable;
 import org.apache.flink.testutils.s3.S3TestCredentials;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.StringUtils;
@@ -42,6 +43,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -211,6 +213,50 @@ public class HadoopS3RecoverableWriterITCase extends TestLogger {
 		stream.closeForCommit().commit();
 
 		Assert.assertEquals(testData1 + testData2, getContentsOfFile(path));
+	}
+
+	@Test(expected = FileNotFoundException.class)
+	public void testCleanupRecoverableState() throws Exception {
+		final RecoverableWriter writer = getRecoverableWriter();
+		final Path path = new Path(basePathForTest, "part-0");
+
+		final RecoverableFsDataOutputStream stream = writer.open(path);
+		stream.write(bytesOf(testData1));
+		S3Recoverable recoverable = (S3Recoverable) stream.persist();
+
+		stream.closeForCommit().commit();
+
+		// still the data is there as we have not deleted them from the tmp object
+		final String content = getContentsOfFile(new Path('/' + recoverable.incompleteObjectName()));
+		Assert.assertEquals(testData1, content);
+
+		boolean successfullyDeletedState = writer.cleanupRecoverableState(recoverable);
+		Assert.assertTrue(successfullyDeletedState);
+
+		// this should throw the exception as we deleted the file.
+		getContentsOfFile(new Path('/' + recoverable.incompleteObjectName()));
+	}
+
+	@Test
+	public void testCallingDeleteObjectTwiceDoesNotThroughException() throws Exception {
+		final RecoverableWriter writer = getRecoverableWriter();
+		final Path path = new Path(basePathForTest, "part-0");
+
+		final RecoverableFsDataOutputStream stream = writer.open(path);
+		stream.write(bytesOf(testData1));
+		S3Recoverable recoverable = (S3Recoverable) stream.persist();
+
+		stream.closeForCommit().commit();
+
+		// still the data is there as we have not deleted them from the tmp object
+		final String content = getContentsOfFile(new Path('/' + recoverable.incompleteObjectName()));
+		Assert.assertEquals(testData1, content);
+
+		boolean successfullyDeletedState = writer.cleanupRecoverableState(recoverable);
+		Assert.assertTrue(successfullyDeletedState);
+
+		boolean unsuccessfulDeletion = writer.cleanupRecoverableState(recoverable);
+		Assert.assertFalse(unsuccessfulDeletion);
 	}
 
 	// ----------------------- Test Recovery -----------------------

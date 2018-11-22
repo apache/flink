@@ -122,6 +122,32 @@ public interface RecoverableWriter {
 	RecoverableFsDataOutputStream recover(ResumeRecoverable resumable) throws IOException;
 
 	/**
+	 * Marks if the writer requires to do any additional cleanup/freeing of resources occupied
+	 * as part of a {@link ResumeRecoverable}, e.g. temporarily files created or objects uploaded
+	 * to external systems.
+	 *
+	 * In case cleanup is required, then {@link #cleanupRecoverableState(ResumeRecoverable)} should
+	 * be called.
+	 *
+	 * @return {@code true} if cleanup is required, {@code false} otherwise.
+	 */
+	boolean requiresCleanupOfRecoverableState();
+
+	/**
+	 * Frees up any resources that were were previously occupied in order to be able to
+	 * recover from a (potential) failure. This can be temporary files that we written or
+	 * objects that were uploaded (e.g. S3).
+	 *
+	 * <p><b>NOTE:</b> This operation should not through an exception if the resumable has already
+	 * been cleaned up and the resources have been freed.
+	 *
+	 * @param resumable The {@link ResumeRecoverable} whose state we want to clean-up.
+	 * @return {@code true} if the resources were successfully freed, {@code false} otherwise
+	 * (e.g. the file to be deleted was not there).
+	 */
+	boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException;
+
+	/**
 	 * Recovers a recoverable stream consistently at the point indicated by the given CommitRecoverable
 	 * for finalizing and committing. This will publish the target file with exactly the data
 	 * that was written up to the point then the CommitRecoverable was created.

@@ -86,6 +86,11 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
 	}
 
 	@Override
+	public boolean deleteObject(String key) throws IOException {
+		return s3a.delete(new org.apache.hadoop.fs.Path('/' + key), false);
+	}
+
+	@Override
 	public long getObject(String key, File targetLocation) throws IOException {
 		long numBytes = 0L;
 		try (

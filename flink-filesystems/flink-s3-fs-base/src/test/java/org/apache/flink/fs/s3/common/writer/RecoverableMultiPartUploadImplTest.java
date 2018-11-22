@@ -373,6 +373,11 @@ public class RecoverableMultiPartUploadImplTest {
 		}
 
 		@Override
+		public boolean deleteObject(String key) throws IOException {
+			return false;
+		}
+
+		@Override
 		public long getObject(String key, File targetLocation) throws IOException {
 			return 0;
 		}
