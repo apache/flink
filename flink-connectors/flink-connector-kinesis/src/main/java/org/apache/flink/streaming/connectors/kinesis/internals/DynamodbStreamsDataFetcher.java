@@ -32,8 +32,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_DYNAMODB_STREAM_SHARDID_FORMAT_CHECK;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DYNAMODB_STREAM_SHARDID_FORMAT_CHECK;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_DYNAMODB_STREAMS_SHARDID_FORMAT_CHECK;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DYNAMODB_STREAMS_SHARDID_FORMAT_CHECK;
 
 /**
  * Dynamodb streams data fetcher.
@@ -73,8 +73,8 @@ public class DynamodbStreamsDataFetcher <T> extends KinesisDataFetcher<T> {
 			DynamodbStreamsProxy::create);
 
 		shardIdFormatCheck = Boolean.valueOf(configProps.getProperty(
-				DYNAMODB_STREAM_SHARDID_FORMAT_CHECK,
-				DEFAULT_DYNAMODB_STREAM_SHARDID_FORMAT_CHECK));
+				DYNAMODB_STREAMS_SHARDID_FORMAT_CHECK,
+				DEFAULT_DYNAMODB_STREAMS_SHARDID_FORMAT_CHECK));
 	}
 
 	/**
