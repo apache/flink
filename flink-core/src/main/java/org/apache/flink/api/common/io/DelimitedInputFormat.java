@@ -28,6 +28,7 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
+import org.apache.flink.util.LRUCache;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +37,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Map;
 
 /**
  * Base implementation for input formats that split the input at a delimiter into records.
@@ -61,6 +63,23 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 
 	// Charset is not serializable
 	private transient Charset charset;
+
+	/**
+	 * The charset of bom in the file to process.
+	 */
+	private transient Charset bomIdentifiedCharset;
+	/**
+	 * This is the charset that is configured via setCharset().
+	 */
+	private transient Charset configuredCharset;
+	/**
+	 * The Map to record the BOM encoding of all files.
+	 */
+	private transient final Map<String, Charset> fileBomCharsetMap;
+	/**
+	 * The bytes to BOM check.
+	 */
+	byte[] bomBytes = new byte[]{(byte) 0x00, (byte) 0xFE, (byte) 0xFF, (byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
 
 	/**
 	 * The default read buffer size = 1MB.
@@ -184,6 +203,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			configuration = GlobalConfiguration.loadConfiguration();
 		}
 		loadConfigParameters(configuration);
+		this.fileBomCharsetMap = new LRUCache<>(1024);
 	}
 
 	/**
@@ -195,10 +215,23 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	 */
 	@PublicEvolving
 	public Charset getCharset() {
-		if (this.charset == null) {
+		if (this.configuredCharset != null) {
+			this.charset = this.configuredCharset;
+		} else if (this.bomIdentifiedCharset != null) {
+			this.charset = this.bomIdentifiedCharset;
+		} else {
 			this.charset = Charset.forName(charsetName);
 		}
 		return this.charset;
+	}
+
+	/**
+	 * get the charsetName.
+	 *
+	 * @return the charsetName
+	 */
+	public String getCharsetName() {
+		return charsetName;
 	}
 
 	/**
@@ -214,7 +247,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	@PublicEvolving
 	public void setCharset(String charset) {
 		this.charsetName = Preconditions.checkNotNull(charset);
-		this.charset = null;
+		this.configuredCharset = getSpecialCharset(charset);
 
 		if (this.delimiterString != null) {
 			this.delimiter = delimiterString.getBytes(getCharset());
@@ -472,6 +505,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 
 		this.offset = splitStart;
 		if (this.splitStart != 0) {
+			setBomFileCharset(split);
 			this.stream.seek(offset);
 			readLine();
 			// if the first partial record already pushes the stream over
@@ -481,6 +515,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			}
 		} else {
 			fillBuffer(0);
+			setBomFileCharset(split);
 		}
 	}
 
@@ -534,6 +569,71 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		this.wrapBuffer = null;
 		this.readBuffer = null;
 		super.close();
+	}
+
+	/**
+	 * Special default processing for utf-16 and utf-32 is performed.
+	 *
+	 * @param charsetName
+	 * @return
+	 */
+	private Charset getSpecialCharset(String charsetName) {
+		Charset charset;
+		switch (charsetName.toUpperCase()) {
+			case "UTF-16":
+				charset = Charset.forName("UTF-16BE");
+				break;
+			case "UTF-32":
+				charset = Charset.forName("UTF-32BE");
+				break;
+			default:
+				charset = Charset.forName(charsetName);
+				break;
+		}
+		return charset;
+	}
+	/**
+	 * Set file bom encoding.
+	 *
+	 * @param split
+	 */
+	private void setBomFileCharset(FileInputSplit split) {
+		try {
+			if (configuredCharset == null) {
+				String filePath = split.getPath().toString();
+				if (this.fileBomCharsetMap.containsKey(filePath)) {
+					this.bomIdentifiedCharset = this.fileBomCharsetMap.get(filePath);
+				} else {
+					byte[] bomBuffer = new byte[4];
+					if (this.splitStart != 0) {
+						this.stream.seek(0);
+						this.stream.read(bomBuffer, 0, bomBuffer.length);
+						this.stream.seek(split.getStart());
+					} else {
+						System.arraycopy(this.readBuffer, 0, bomBuffer, 0, 4);
+					}
+					if ((bomBuffer[0] == bomBytes[0]) && (bomBuffer[1] == bomBytes[0]) && (bomBuffer[2] == bomBytes[1])
+						&& (bomBuffer[3] == bomBytes[2])) {
+						this.bomIdentifiedCharset = Charset.forName("UTF-32BE");
+					} else if ((bomBuffer[0] == bomBytes[2]) && (bomBuffer[1] == bomBytes[1]) && (bomBuffer[2] == bomBytes[0])
+						&& (bomBuffer[3] == bomBytes[0])) {
+						this.bomIdentifiedCharset = Charset.forName("UTF-32LE");
+					} else if ((bomBuffer[0] == bomBytes[3]) && (bomBuffer[1] == bomBytes[4]) && (bomBuffer[2] == bomBytes[5])) {
+						this.bomIdentifiedCharset = Charset.forName("UTF-8");
+					} else if ((bomBuffer[0] == bomBytes[1]) && (bomBuffer[1] == bomBytes[2])) {
+						this.bomIdentifiedCharset = Charset.forName("UTF-16BE");
+					} else if ((bomBuffer[0] == bomBytes[2]) && (bomBuffer[1] == bomBytes[1])) {
+						this.bomIdentifiedCharset = Charset.forName("UTF-16LE");
+					} else {
+						this.bomIdentifiedCharset = Charset.forName(charsetName);
+					}
+					this.fileBomCharsetMap.put(filePath, this.bomIdentifiedCharset);
+				}
+			}
+		} catch (Exception e) {
+			LOG.warn("Failed to get file bom encoding.");
+			this.bomIdentifiedCharset = Charset.forName(charsetName);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
