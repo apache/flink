@@ -347,11 +347,11 @@ public class RecoverableMultiPartUploadImplTest {
 		private final List<RecoverableMultiPartUploadImplTest.TestUploadPartResult> completePartsUploaded = new ArrayList<>();
 		private final List<RecoverableMultiPartUploadImplTest.TestPutObjectResult> incompletePartsUploaded = new ArrayList<>();
 
-		public List<RecoverableMultiPartUploadImplTest.TestUploadPartResult> getCompletePartsUploaded() {
+		List<RecoverableMultiPartUploadImplTest.TestUploadPartResult> getCompletePartsUploaded() {
 			return completePartsUploaded;
 		}
 
-		public List<RecoverableMultiPartUploadImplTest.TestPutObjectResult> getIncompletePartsUploaded() {
+		List<RecoverableMultiPartUploadImplTest.TestPutObjectResult> getIncompletePartsUploaded() {
 			return incompletePartsUploaded;
 		}
 
@@ -367,9 +367,14 @@ public class RecoverableMultiPartUploadImplTest {
 		}
 
 		@Override
-		public PutObjectResult uploadIncompletePart(String key, InputStream file, long length) throws IOException {
+		public PutObjectResult putObject(String key, InputStream file, long length) throws IOException {
 			final byte[] content = getFileContentBytes(file, MathUtils.checkedDownCast(length));
 			return storeAndGetPutObjectResult(key, content);
+		}
+
+		@Override
+		public long getObject(String key, File targetLocation) throws IOException {
+			return 0;
 		}
 
 		@Override

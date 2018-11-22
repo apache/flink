@@ -179,7 +179,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 			// they do not fall under the user's global TTL on S3.
 			// Figure out a way to clean them.
 
-			s3AccessHelper.uploadIncompletePart(incompletePartObjectName, inputStream, file.getPos());
+			s3AccessHelper.putObject(incompletePartObjectName, inputStream, file.getPos());
 		}
 		finally {
 			file.release();
