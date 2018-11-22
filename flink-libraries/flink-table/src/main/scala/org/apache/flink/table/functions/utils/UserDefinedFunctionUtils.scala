@@ -751,27 +751,24 @@ object UserDefinedFunctionUtils {
     * Candidate can be null (acts as a wildcard).
     */
   private def parameterTypeApplicable(candidate: Class[_], expected: Class[_]): Boolean =
-    parameterTypeEquals(candidate, expected) || parameterTypeSubClassOf(candidate, expected)
-
-  private def parameterTypeEquals(candidate: Class[_], expected: Class[_]): Boolean =
-    candidate == null ||
-      candidate == expected ||
-      expected.isPrimitive && Primitives.wrap(expected) == candidate ||
-      // time types
-      candidate == classOf[Date] && (expected == classOf[Int] || expected == classOf[JInt])  ||
-      candidate == classOf[Time] && (expected == classOf[Int] || expected == classOf[JInt]) ||
-      candidate == classOf[Timestamp] && (expected == classOf[Long] || expected == classOf[JLong]) ||
-      // arrays
-      (candidate.isArray && expected.isArray &&
-        (candidate.getComponentType == expected.getComponentType))
-
-  private def parameterTypeSubClassOf(candidate: Class[_], expected: Class[_]): Boolean =
-    !parameterTypeEquals(candidate, expected) &&
+    parameterTypeEquals(candidate, expected) ||
       ((expected != null && expected.isAssignableFrom(candidate)) ||
         expected.isPrimitive && Primitives.wrap(expected).isAssignableFrom(candidate) ||
         // arrays
         (candidate.isArray && expected.isArray &&
           expected.getComponentType.isAssignableFrom(candidate.getComponentType)))
+
+  private def parameterTypeEquals(candidate: Class[_], expected: Class[_]): Boolean =
+  candidate == null ||
+    candidate == expected ||
+    expected.isPrimitive && Primitives.wrap(expected) == candidate ||
+    // time types
+    candidate == classOf[Date] && (expected == classOf[Int] || expected == classOf[JInt])  ||
+    candidate == classOf[Time] && (expected == classOf[Int] || expected == classOf[JInt]) ||
+    candidate == classOf[Timestamp] && (expected == classOf[Long] || expected == classOf[JLong]) ||
+    // arrays
+    (candidate.isArray && expected.isArray &&
+      (candidate.getComponentType == expected.getComponentType))
 
   /**
     * Creates a [[LogicalTableFunctionCall]] by parsing a String expression.

@@ -358,7 +358,7 @@ class CalcITCase extends AbstractTestBase {
 
     StreamITCase.testResults = mutable.MutableList()
 
-    val testData = new mutable.MutableList[Student]
+    val testData = new mutable.MutableList[GraduatedStudent]
     testData.+=(new GraduatedStudent("Jack#22"))
     testData.+=(new GraduatedStudent("John#19"))
     testData.+=(new GraduatedStudent("Anna#44"))
