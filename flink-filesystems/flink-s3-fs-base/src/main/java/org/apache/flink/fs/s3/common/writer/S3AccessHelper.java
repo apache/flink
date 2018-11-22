@@ -26,6 +26,7 @@ import com.amazonaws.services.s3.model.PartETag;
 import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.UploadPartResult;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -66,10 +67,9 @@ public interface S3AccessHelper {
 	UploadPartResult uploadPart(String key, String uploadId, int partNumber, InputStream file, long length) throws IOException;
 
 	/**
-	 * Uploads a part and associates it with the MPU with the provided {@code uploadId}.
-	 *
-	 * <p>Contrary to the {@link #uploadIncompletePart(String, InputStream, long)}, this part can
-	 * be smaller than the minimum part size imposed by S3.
+	 * Uploads an object to S3. Contrary to the {@link #uploadPart(String, String, int, InputStream, long)} method,
+	 * this object is not going to be associated to any MPU and, as such, it is not subject to the garbage collection
+	 * policies specified for your S3 bucket.
 	 *
 	 * @param key the key used to identify this part.
 	 * @param file the (local) file holding the data to be uploaded.
@@ -77,7 +77,7 @@ public interface S3AccessHelper {
 	 * @return The {@link PutObjectResult result} of the attempt to stage the incomplete part.
 	 * @throws IOException
 	 */
-	PutObjectResult uploadIncompletePart(String key, InputStream file, long length) throws IOException;
+	PutObjectResult putObject(String key, InputStream file, long length) throws IOException;
 
 	/**
 	 * Finalizes a Multi-Part Upload.
@@ -91,6 +91,17 @@ public interface S3AccessHelper {
 	 * @throws IOException
 	 */
 	CompleteMultipartUploadResult commitMultiPartUpload(String key, String uploadId, List<PartETag> partETags, long length, AtomicInteger errorCount) throws IOException;
+
+	/**
+	 * Gets the object associated with the provided {@code key} from S3 and
+	 * puts it in the provided {@code targetLocation}.
+	 *
+	 * @param key the key of the object to fetch.
+	 * @param targetLocation the file to read the object to.
+	 * @return The number of bytes read.
+	 * @throws IOException
+	 */
+	long getObject(String key, File targetLocation) throws IOException;
 
 	/**
 	 * Fetches the metadata associated with a given key on S3.

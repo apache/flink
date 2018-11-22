@@ -19,10 +19,8 @@
 package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.fs.s3.common.utils.BackPressuringExecutor;
-import org.apache.flink.fs.s3.common.utils.OffsetAwareOutputStream;
 import org.apache.flink.fs.s3.common.utils.RefCountedFile;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.util.Preconditions;
@@ -74,7 +72,7 @@ final class S3RecoverableMultipartUploadFactory {
 	}
 
 	RecoverableMultiPartUpload recoverRecoverableUpload(S3Recoverable recoverable) throws IOException {
-		final Optional<File> incompletePart = downloadLastDataChunk(recoverable);
+		final Optional<File> incompletePart = recoverInProgressPart(recoverable);
 
 		return RecoverableMultiPartUploadImpl.recoverUpload(
 				s3AccessHelper,
@@ -86,36 +84,20 @@ final class S3RecoverableMultipartUploadFactory {
 				incompletePart);
 	}
 
-	@VisibleForTesting
-	Optional<File> downloadLastDataChunk(S3Recoverable recoverable) throws IOException {
+	private Optional<File> recoverInProgressPart(S3Recoverable recoverable) throws IOException {
 
-		final String objectName = recoverable.incompleteObjectName();
-		if (objectName == null) {
+		final String objectKey = recoverable.incompleteObjectName();
+		if (objectKey == null) {
 			return Optional.empty();
 		}
 
 		// download the file (simple way)
-		final RefCountedFile fileAndStream = tmpFileSupplier.apply(null);
-		final File file = fileAndStream.getFile();
-
-		long numBytes = 0L;
-
-		try (
-				final OffsetAwareOutputStream outStream = fileAndStream.getStream();
-				final org.apache.hadoop.fs.FSDataInputStream inStream =
-						fs.open(new org.apache.hadoop.fs.Path('/' + objectName))
-		) {
-			final byte[] buffer = new byte[32 * 1024];
-
-			int numRead;
-			while ((numRead = inStream.read(buffer)) > 0) {
-				outStream.write(buffer, 0, numRead);
-				numBytes += numRead;
-			}
-		}
+		final RefCountedFile refCountedFile = tmpFileSupplier.apply(null);
+		final File file = refCountedFile.getFile();
+		final long numBytes = s3AccessHelper.getObject(objectKey, file);
 
 		// some sanity checks
-		if (numBytes != file.length() || numBytes != fileAndStream.getStream().getLength()) {
+		if (numBytes != file.length()) {
 			throw new IOException(String.format("Error recovering writer: " +
 							"Downloading the last data chunk file gives incorrect length. " +
 							"File=%d bytes, Stream=%d bytes",
@@ -132,8 +114,7 @@ final class S3RecoverableMultipartUploadFactory {
 		return Optional.of(file);
 	}
 
-	@VisibleForTesting
-	String pathToObjectName(final Path path) {
+	private String pathToObjectName(final Path path) {
 		org.apache.hadoop.fs.Path hadoopPath = HadoopFileSystem.toHadoopPath(path);
 		if (!hadoopPath.isAbsolute()) {
 			hadoopPath = new org.apache.hadoop.fs.Path(fs.getWorkingDirectory(), hadoopPath);

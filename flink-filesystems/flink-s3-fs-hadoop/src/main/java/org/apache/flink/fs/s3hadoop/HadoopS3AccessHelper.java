@@ -35,8 +35,11 @@ import org.apache.hadoop.fs.s3a.S3AFileSystem;
 import org.apache.hadoop.fs.s3a.S3AUtils;
 import org.apache.hadoop.fs.s3a.WriteOperationHelper;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -72,7 +75,7 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
 	}
 
 	@Override
-	public PutObjectResult uploadIncompletePart(String key, InputStream inputStream, long length) throws IOException {
+	public PutObjectResult putObject(String key, InputStream inputStream, long length) throws IOException {
 		final PutObjectRequest putRequest = s3accessHelper.createPutObjectRequest(key, inputStream, length);
 		return s3accessHelper.putObject(putRequest);
 	}
@@ -80,6 +83,26 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
 	@Override
 	public CompleteMultipartUploadResult commitMultiPartUpload(String destKey, String uploadId, List<PartETag> partETags, long length, AtomicInteger errorCount) throws IOException {
 		return s3accessHelper.completeMPUwithRetries(destKey, uploadId, partETags, length, errorCount);
+	}
+
+	@Override
+	public long getObject(String key, File targetLocation) throws IOException {
+		long numBytes = 0L;
+		try (
+				final OutputStream outStream = new FileOutputStream(targetLocation);
+				final org.apache.hadoop.fs.FSDataInputStream inStream =
+						s3a.open(new org.apache.hadoop.fs.Path('/' + key))
+		) {
+			final byte[] buffer = new byte[32 * 1024];
+
+			int numRead;
+			while ((numRead = inStream.read(buffer)) > 0) {
+				outStream.write(buffer, 0, numRead);
+				numBytes += numRead;
+			}
+		}
+
+		return numBytes;
 	}
 
 	@Override
