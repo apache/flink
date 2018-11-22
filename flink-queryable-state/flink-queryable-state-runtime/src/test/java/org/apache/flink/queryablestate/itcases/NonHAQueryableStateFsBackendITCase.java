@@ -86,10 +86,10 @@ public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTe
 		config.setInteger(QueryableStateOptions.SERVER_NETWORK_THREADS, 1);
 		config.setString(
 			QueryableStateOptions.PROXY_PORT_RANGE,
-			QS_PROXY_PORT_RANGE_START + "-" + (QS_PROXY_PORT_RANGE_START + NUM_TMS));
+			QS_PROXY_PORT_RANGE_START + "-" + (QS_PROXY_PORT_RANGE_START + 100));
 		config.setString(
 			QueryableStateOptions.SERVER_PORT_RANGE,
-			QS_SERVER_PORT_RANGE_START + "-" + (QS_SERVER_PORT_RANGE_START + NUM_TMS));
+			QS_SERVER_PORT_RANGE_START + "-" + (QS_SERVER_PORT_RANGE_START + 100));
 		config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
 		return config;
 	}
