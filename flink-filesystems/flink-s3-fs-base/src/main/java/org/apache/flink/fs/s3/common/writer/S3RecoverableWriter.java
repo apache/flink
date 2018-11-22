@@ -26,7 +26,6 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream.Committer;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.fs.s3.common.utils.RefCountedFile;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.FunctionWithException;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -37,6 +36,7 @@ import java.util.concurrent.Executor;
 
 import static org.apache.flink.fs.s3.common.FlinkS3FileSystem.S3_MULTIPART_MIN_PART_SIZE;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An implementation of the {@link RecoverableWriter} against S3.
@@ -54,16 +54,20 @@ public class S3RecoverableWriter implements RecoverableWriter {
 
 	private final long userDefinedMinPartSize;
 
+	private final S3AccessHelper s3AccessHelper;
+
 	private final S3RecoverableMultipartUploadFactory uploadFactory;
 
 	@VisibleForTesting
 	S3RecoverableWriter(
+			final S3AccessHelper s3AccessHelper,
 			final S3RecoverableMultipartUploadFactory uploadFactory,
 			final FunctionWithException<File, RefCountedFile, IOException> tempFileCreator,
 			final long userDefinedMinPartSize) {
 
-		this.uploadFactory = Preconditions.checkNotNull(uploadFactory);
-		this.tempFileCreator = Preconditions.checkNotNull(tempFileCreator);
+		this.s3AccessHelper = checkNotNull(s3AccessHelper);
+		this.uploadFactory = checkNotNull(uploadFactory);
+		this.tempFileCreator = checkNotNull(tempFileCreator);
 		this.userDefinedMinPartSize = userDefinedMinPartSize;
 	}
 
@@ -78,14 +82,14 @@ public class S3RecoverableWriter implements RecoverableWriter {
 	}
 
 	@Override
-	public Committer recoverForCommit(RecoverableWriter.CommitRecoverable recoverable) throws IOException {
+	public Committer recoverForCommit(CommitRecoverable recoverable) throws IOException {
 		final S3Recoverable s3recoverable = castToS3Recoverable(recoverable);
 		final S3RecoverableFsDataOutputStream recovered = recover(s3recoverable);
 		return recovered.closeForCommit();
 	}
 
 	@Override
-	public S3RecoverableFsDataOutputStream recover(RecoverableWriter.ResumeRecoverable recoverable) throws IOException {
+	public S3RecoverableFsDataOutputStream recover(ResumeRecoverable recoverable) throws IOException {
 		final S3Recoverable s3recoverable = castToS3Recoverable(recoverable);
 
 		final RecoverableMultiPartUpload upload = uploadFactory.recoverRecoverableUpload(s3recoverable);
@@ -98,14 +102,26 @@ public class S3RecoverableWriter implements RecoverableWriter {
 	}
 
 	@Override
+	public boolean requiresCleanupOfRecoverableState() {
+		return true;
+	}
+
+	@Override
+	public boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException {
+		final S3Recoverable s3recoverable = castToS3Recoverable(resumable);
+		final String smallPartObjectToDelete = s3recoverable.incompleteObjectName();
+		return smallPartObjectToDelete != null && s3AccessHelper.deleteObject(smallPartObjectToDelete);
+	}
+
+	@Override
 	@SuppressWarnings({"rawtypes", "unchecked"})
-	public SimpleVersionedSerializer<RecoverableWriter.CommitRecoverable> getCommitRecoverableSerializer() {
+	public SimpleVersionedSerializer<CommitRecoverable> getCommitRecoverableSerializer() {
 		return (SimpleVersionedSerializer) S3RecoverableSerializer.INSTANCE;
 	}
 
 	@Override
 	@SuppressWarnings({"rawtypes", "unchecked"})
-	public SimpleVersionedSerializer<RecoverableWriter.ResumeRecoverable> getResumeRecoverableSerializer() {
+	public SimpleVersionedSerializer<ResumeRecoverable> getResumeRecoverableSerializer() {
 		return (SimpleVersionedSerializer) S3RecoverableSerializer.INSTANCE;
 	}
 
@@ -116,7 +132,7 @@ public class S3RecoverableWriter implements RecoverableWriter {
 
 	// --------------------------- Utils ---------------------------
 
-	private static S3Recoverable castToS3Recoverable(RecoverableWriter.CommitRecoverable recoverable) {
+	private static S3Recoverable castToS3Recoverable(CommitRecoverable recoverable) {
 		if (recoverable instanceof S3Recoverable) {
 			return (S3Recoverable) recoverable;
 		}
@@ -144,6 +160,6 @@ public class S3RecoverableWriter implements RecoverableWriter {
 						uploadThreadPool,
 						tempFileCreator);
 
-		return new S3RecoverableWriter(uploadFactory, tempFileCreator, userDefinedMinPartSize);
+		return new S3RecoverableWriter(s3AccessHelper, uploadFactory, tempFileCreator, userDefinedMinPartSize);
 	}
 }

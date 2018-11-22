@@ -93,6 +93,16 @@ public interface S3AccessHelper {
 	CompleteMultipartUploadResult commitMultiPartUpload(String key, String uploadId, List<PartETag> partETags, long length, AtomicInteger errorCount) throws IOException;
 
 	/**
+	 * Deletes the object associated with the provided key.
+	 *
+	 * @param key The key to be deleted.
+	 * @return {@code true} if the resources were successfully freed, {@code false} otherwise
+	 * (e.g. the file to be deleted was not there).
+	 * @throws IOException
+	 */
+	boolean deleteObject(String key) throws IOException;
+
+	/**
 	 * Gets the object associated with the provided {@code key} from S3 and
 	 * puts it in the provided {@code targetLocation}.
 	 *
