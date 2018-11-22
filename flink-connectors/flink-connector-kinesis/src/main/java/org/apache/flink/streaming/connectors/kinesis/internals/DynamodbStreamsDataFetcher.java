@@ -66,6 +66,7 @@ public class DynamodbStreamsDataFetcher <T> extends KinesisDataFetcher<T> {
 			configProps,
 			deserializationSchema,
 			shardAssigner,
+			null,
 			new AtomicReference<>(),
 			new ArrayList<>(),
 			createInitialSubscribedStreamsToLastDiscoveredShardsState(streams),
