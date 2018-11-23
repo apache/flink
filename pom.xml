@@ -1493,6 +1493,13 @@ under the License.
 										<exclude>**</exclude>
 									</excludes>
 								</filter>
+								<!-- io.netty:netty brings its own LICENSE.txt which we don't need -->
+								<filter>
+									<artifact>io.netty:netty</artifact>
+									<excludes>
+										<exclude>META-INF/LICENSE.txt</exclude>
+									</excludes>
+								</filter>
 							</filters>
 							<artifactSet>
 								<includes>
