@@ -18,27 +18,22 @@
 
 package org.apache.flink.streaming.api.scala.async
 
-import org.apache.flink.annotation.Internal
-import org.apache.flink.streaming.api.functions.async
-
-import scala.collection.JavaConverters._
+import org.apache.flink.api.common.functions.AbstractRichFunction
 
 /**
-  * Internal wrapper class to map a Flink's Java API
-  * [[org.apache.flink.streaming.api.functions.async.ResultFuture]] to a Scala
-  * [[org.apache.flink.streaming.api.scala.async.ResultFuture]].
+  * Rich variant of [[AsyncFunction]]. As a [[org.apache.flink.api.common.functions.RichFunction]],
+  * it gives access to the [[org.apache.flink.api.common.functions.RuntimeContext]] and provides
+  * setup and teardown methods.
   *
-  * @param javaResultFuture to forward the calls to
-  * @tparam OUT type of the output elements
+  * State related apis in [[org.apache.flink.api.common.functions.RuntimeContext]] are not supported
+  * yet because the key may get changed while accessing states in the working thread.
+  *
+  * [[org.apache.flink.api.common.functions.IterationRuntimeContext#getIterationAggregator(String)]]
+  * is not supported since the aggregator may be modified by multiple threads.
+  *
+  * @tparam IN The type of the input value.
+  * @tparam OUT The type of the output value.
   */
-@Internal
-class JavaResultFutureWrapper[OUT](val javaResultFuture: async.ResultFuture[OUT])
-  extends ResultFuture[OUT] {
-  override def complete(result: Iterable[OUT]): Unit = {
-    javaResultFuture.complete(result.asJavaCollection)
-  }
-
-  override def completeExceptionally(throwable: Throwable): Unit = {
-    javaResultFuture.completeExceptionally(throwable)
-  }
-}
+abstract class RichAsyncFunction[IN, OUT]
+  extends AbstractRichFunction
+    with AsyncFunction [IN, OUT] {}
