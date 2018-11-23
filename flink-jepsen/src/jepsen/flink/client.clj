@@ -119,6 +119,14 @@
                 (map :status)
                 (every? #(= "RUNNING" %)))))))
 
+(defn jobs-running?
+  "Checks if multiple jobs are running. Returns a map where the keys are job ids and the values are
+  booleans indicating whether the job is running or not."
+  [base-url job-ids]
+  (let [job-running-on-current-master? (partial job-running? base-url)
+        make-job-id-running?-pair (juxt identity job-running-on-current-master?)]
+    (into {} (map make-job-id-running?-pair job-ids))))
+
 (defn- cancel-job!
   "Cancels the specified job. Returns true if the job could be canceled.
   Returns false if the job does not exist. Throws an exception if the HTTP status
@@ -130,6 +138,10 @@
       (http/missing? response) false
       (not (http/success? response)) (throw (ex-info "Job cancellation unsuccessful" {:job-id job-id :error error}))
       :else true)))
+
+(defn- cancel-jobs!
+  [base-url job-ids]
+  (doseq [job-id job-ids] (cancel-job! base-url job-id)))
 
 (defmacro dispatch-operation
   [op & body]
@@ -148,24 +160,24 @@
                                                                     (System/exit 1)))))
 
 (defn- dispatch-rest-operation!
-  [rest-url job-id op]
-  (assert job-id)
+  [rest-url job-ids op]
+  (assert job-ids)
   (if-not rest-url
     (assoc op :type :fail :error "Have not determined REST URL yet.")
     (case (:f op)
-      :job-running? (dispatch-operation op (fu/retry
-                                             (partial job-running? rest-url job-id)
-                                             :retries 3
-                                             :fallback #(throw %)))
-      :cancel-job (dispatch-operation-or-fatal op (cancel-job! rest-url job-id)))))
+      :jobs-running? (dispatch-operation op (fu/retry
+                                              (partial jobs-running? rest-url job-ids)
+                                              :retries 3
+                                              :fallback #(throw %)))
+      :cancel-jobs (dispatch-operation-or-fatal op (cancel-jobs! rest-url job-ids)))))
 
 (defrecord Client
-  [deploy-cluster!                                          ; function that starts a non-standalone cluster and submits the job
+  [deploy-cluster!                                          ; function that starts a non-standalone cluster and submits the jobs
    closer                                                   ; function that closes the ZK client
    rest-url                                                 ; atom storing the current rest-url
    init-future                                              ; future that completes if rest-url is set to an initial value
-   job-id                                                   ; atom storing the job-id
-   job-submitted?]                                          ; Has the job already been submitted? Used to avoid re-submission if the client is re-opened.
+   job-ids                                                  ; atom storing the job-ids
+   job-submitted?]                                          ; Have the jobs already been submitted? Used to avoid re-submission if the client is re-opened.
   client/Client
   (open! [this test _]
     (info "Open client.")
@@ -183,14 +195,13 @@
                            :fallback (fn [e]
                                        (fatal e "Could not get running jobs.")
                                        (System/exit 1)))
-            num-jobs (count jobs)
-            job (first jobs)]
-        (assert (= 1 num-jobs) (str "Expected 1 job, was " num-jobs))
-        (info "Submitted job" job)
-        (reset! job-id job))))
+            num-jobs (count jobs)]
+        (assert (pos? num-jobs) (str "Expected at least 1 job, was " num-jobs))
+        (info "Submitted jobs" jobs)
+        (reset! job-ids jobs))))
 
   (invoke! [_ _ op]
-    (dispatch-rest-operation! @rest-url @job-id op))
+    (dispatch-rest-operation! @rest-url @job-ids op))
 
   (teardown! [_ _])
   (close! [_ _]

@@ -20,7 +20,7 @@ semantics.
 
 ## Usage
 See the [Jepsen documentation](https://github.com/jepsen-io/jepsen#setting-up-a-jepsen-environment)
-for how to set up the environment to run tests. The script under `scripts/run-tests.sh` documents how to invoke
+for how to set up the environment to run tests. The script under `docker/run-tests.sh` documents how to invoke
 tests. The Flink job used for testing is located under
 `flink-end-to-end-tests/flink-datastream-allround-test`. You have to build the job first and copy
 the resulting jar (`DataStreamAllroundTestProgram.jar`) to the `./bin` directory of this project's
