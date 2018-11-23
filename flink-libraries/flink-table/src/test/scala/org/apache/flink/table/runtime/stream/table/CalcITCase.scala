@@ -379,4 +379,33 @@ class CalcITCase extends AbstractTestBase {
     )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+
+  @Test
+  def testOverloadWithArray(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    StreamITCase.testResults = mutable.MutableList()
+
+    val testData = new mutable.MutableList[Array[GraduatedStudent]]
+    testData.+=(Array(new GraduatedStudent("Jack#22")))
+    testData.+=(Array(new GraduatedStudent("John#19")))
+    testData.+=(Array(new GraduatedStudent("Anna#44")))
+    testData.+=(Array(new GraduatedStudent("nosharp")))
+
+    val t = env.fromCollection(testData).toTable(tEnv).as('a)
+
+    val result = t.select(Func22('a))
+
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "student#Jack#22",
+      "student#John#19",
+      "student#Anna#44",
+      "student#nosharp"
+    )
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
 }

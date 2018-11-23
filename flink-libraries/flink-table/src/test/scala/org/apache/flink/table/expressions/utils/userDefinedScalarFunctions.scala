@@ -320,6 +320,16 @@ object Func21 extends ScalarFunction {
   }
 }
 
+object Func22 extends ScalarFunction {
+  def eval(a: Array[People]): String = {
+    a.head.name
+  }
+
+  def eval(a: Array[Student]): String = {
+    "student#" + a.head.name
+  }
+}
+
 class SplitUDF(deterministic: Boolean) extends ScalarFunction {
   def eval(x: String, sep: String, index: Int): String = {
     val splits = StringUtils.splitByWholeSeparator(x, sep)

@@ -753,10 +753,7 @@ object UserDefinedFunctionUtils {
   private def parameterTypeApplicable(candidate: Class[_], expected: Class[_]): Boolean =
     parameterTypeEquals(candidate, expected) ||
       ((expected != null && expected.isAssignableFrom(candidate)) ||
-        expected.isPrimitive && Primitives.wrap(expected).isAssignableFrom(candidate) ||
-        // arrays
-        (candidate.isArray && expected.isArray &&
-          expected.getComponentType.isAssignableFrom(candidate.getComponentType)))
+        expected.isPrimitive && Primitives.wrap(expected).isAssignableFrom(candidate))
 
   private def parameterTypeEquals(candidate: Class[_], expected: Class[_]): Boolean =
   candidate == null ||
