@@ -269,6 +269,7 @@ under the License.
 										<exclude>META-INF/maven/io.airlift/**</exclude>
 										<exclude>META-INF/maven/com*/**</exclude>
 										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
 									</excludes>
 								</filter>
 								<filter>
