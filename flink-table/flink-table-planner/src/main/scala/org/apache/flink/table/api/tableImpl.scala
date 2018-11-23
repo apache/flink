@@ -27,6 +27,7 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.operations.TableOperation
 import org.apache.flink.table.plan.OperationTreeBuilder
+import org.apache.flink.table.plan.ProjectionTranslator.getLeadingNonAliasExpr
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.util.JavaScalaConversionUtil.toJava
 
@@ -460,6 +461,23 @@ class TableImpl(
 
   override def dropColumns(fields: Expression*): Table = {
     wrap(operationTreeBuilder.dropColumns(fields, operationTree))
+  }
+
+  override def map(mapFunction: String): Table = {
+    map(ExpressionParser.parseExpression(mapFunction))
+  }
+
+  override def map(mapFunction: Expression): Table = {
+    val resolvedMapFunction = callResolver.visit(mapFunction)
+    getLeadingNonAliasExpr(resolvedMapFunction) match {
+      case callExpr: CallExpression if callExpr.getFunctionDefinition.getType ==
+        FunctionDefinition.Type.SCALAR_FUNCTION =>
+
+      case _ =>
+        throw new ValidationException("Only ScalarFunction can be used in map.")
+    }
+
+    wrap(operationTreeBuilder.map(resolvedMapFunction, operationTree))
   }
 
   /**

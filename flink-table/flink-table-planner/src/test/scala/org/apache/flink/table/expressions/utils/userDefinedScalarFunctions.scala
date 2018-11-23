@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.expressions.utils
 
+import java.lang.{Long => JLong}
 import java.sql.{Date, Time, Timestamp}
+import java.util.Random
 
 import org.apache.commons.lang3.StringUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -328,6 +330,38 @@ object Func22 extends ScalarFunction {
   def eval(a: Array[Student]): String = {
     "student#" + a.head.name
   }
+}
+
+object Func23 extends ScalarFunction {
+  def eval(a: Integer, b: JLong, c: String): Row = {
+    Row.of("star", a, b, c)
+  }
+
+  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
+    Types.ROW(Types.STRING, Types.INT, Types.LONG, Types.STRING)
+}
+
+object Func24 extends ScalarFunction {
+  def eval(a: String, b: Integer, c: JLong, d: String): Row = {
+    Row.of(a, Integer.valueOf(b + 1), c, d)
+  }
+
+  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
+    Types.ROW(Types.STRING, Types.INT, Types.LONG, Types.STRING)
+}
+
+object Func25 extends ScalarFunction {
+  private val random = new Random()
+
+  def eval(a: Integer): Row = {
+    val col = random.nextInt()
+    Row.of(Integer.valueOf(a + col), Integer.valueOf(a + col))
+  }
+
+  override def isDeterministic: Boolean = false
+
+  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
+    Types.ROW(Types.INT, Types.INT)
 }
 
 class SplitUDF(deterministic: Boolean) extends ScalarFunction {

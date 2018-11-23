@@ -1785,6 +1785,33 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
 
 {% top %}
 
+### Map
+
+Map performs a map operation with an user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ScalarFunction func = new MyMapFunction();
+tableEnv.registerFunction("func", func);
+
+Table table = input
+  .map(func("c")).as("a, b")
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val func: ScalarFunction = new MyMapFunction()
+
+val table = input
+  .map(func('c)).as('a, 'b)
+{% endhighlight %}
+</div>
+</div>
+
+{% top %}
+
 Data Types
 ----------
 

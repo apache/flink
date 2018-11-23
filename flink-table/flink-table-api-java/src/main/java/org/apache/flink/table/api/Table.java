@@ -992,4 +992,33 @@ public interface Table {
 	 * </pre>
 	 */
 	Table dropColumns(Expression... fields);
+
+	/**
+	 * Performs a map operation with an user-defined scalar function or a built-in scalar function.
+	 * The output will be flattened if the output type is a composite type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code ScalarFunction func = new MyMapFunction();
+	 *   tableEnv.registerFunction("func", func);
+	 *   tab.map("func(c)");
+	 * }
+	 * </pre>
+	 */
+	Table map(String mapFunction);
+
+	/**
+	 * Performs a map operation with an user-defined scalar function or built-in scalar function.
+	 * The output will be flattened if the output type is a composite type.
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code val func = new MyMapFunction()
+	 *   tab.map(func('c))
+	 * }
+	 * </pre>
+	 */
+	Table map(Expression mapFunction);
 }
