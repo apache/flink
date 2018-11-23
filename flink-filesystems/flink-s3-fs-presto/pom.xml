@@ -327,6 +327,7 @@ under the License.
 										<exclude>core-default.xml</exclude>
 										<!-- we only add a core-site.xml with unshaded classnames for the unit tests -->
 										<exclude>core-site.xml</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
 									</excludes>
 								</filter>
 							</filters>
