@@ -80,7 +80,7 @@ public class GlobalModVersionTest extends TestLogger {
 		}
 
 		// let a vertex fail
-		testVertex.getCurrentExecutionAttempt().fail(new Exception("test exception"));
+		testVertex.getCurrentExecutionAttempt().failAsync(new Exception("test exception"));
 
 		// all cancellations are done now
 		for (ExecutionVertex v : graph.getVerticesTopologically().iterator().next().getTaskVertices()) {
@@ -134,7 +134,7 @@ public class GlobalModVersionTest extends TestLogger {
 		}
 
 		// let a vertex fail
-		testVertex.getCurrentExecutionAttempt().fail(new Exception("test exception"));
+		testVertex.getCurrentExecutionAttempt().failAsync(new Exception("test exception"));
 
 		// all cancellations are done now
 		for (ExecutionVertex v : graph.getVerticesTopologically().iterator().next().getTaskVertices()) {
@@ -170,6 +170,8 @@ public class GlobalModVersionTest extends TestLogger {
 			new InfiniteDelayRestartStrategy(),
 			new CustomStrategy(failoverStrategy),
 			slotProvider);
+
+		graph.start(TestComponentMainThreadExecutor.forMainThread());
 
 		JobVertex jv = new JobVertex("test vertex");
 		jv.setInvokableClass(NoOpInvokable.class);

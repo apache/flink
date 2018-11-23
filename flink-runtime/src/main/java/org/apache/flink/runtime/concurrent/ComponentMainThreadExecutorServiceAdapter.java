@@ -18,34 +18,31 @@
 
 package org.apache.flink.runtime.concurrent;
 
-import org.apache.flink.annotation.VisibleForTesting;
+import javax.annotation.Nonnull;
 
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.BooleanSupplier;
 
 /**
  * Adapter class for a {@link ScheduledExecutorService} which shall be used as a
- * {@link ComponentMainThreadExecutor}.
+ * {@link ComponentMainThreadExecutor}. It enhances the given executor with an assert that the current thread is the
+ * main thread of the executor.
  */
 public class ComponentMainThreadExecutorServiceAdapter
 	extends ScheduledExecutorServiceAdapter implements ComponentMainThreadExecutor {
 
-	private final BooleanSupplier mainThreadCheck;
-
-	@VisibleForTesting
-	public ComponentMainThreadExecutorServiceAdapter(ScheduledExecutorService scheduledExecutorService) {
-		this(scheduledExecutorService, () -> true);
-	}
+	/** A runnable that should assert that the current thread is the expected main thread. */
+	@Nonnull
+	private final Runnable mainThreadCheck;
 
 	public ComponentMainThreadExecutorServiceAdapter(
-		ScheduledExecutorService scheduledExecutorService,
-		BooleanSupplier mainThreadCheck) {
+		@Nonnull ScheduledExecutorService scheduledExecutorService,
+		@Nonnull Runnable mainThreadCheck) {
 		super(scheduledExecutorService);
 		this.mainThreadCheck = mainThreadCheck;
 	}
 
 	@Override
-	public boolean isMainThread() {
-		return mainThreadCheck.getAsBoolean();
+	public void assertRunningInMainThread() {
+		mainThreadCheck.run();
 	}
 }

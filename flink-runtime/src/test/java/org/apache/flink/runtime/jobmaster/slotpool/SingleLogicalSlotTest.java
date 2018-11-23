@@ -217,7 +217,12 @@ public class SingleLogicalSlotTest extends TestLogger {
 		}
 
 		@Override
-		public void fail(Throwable cause) {
+		public void failAsync(Throwable cause) {
+			failSync(cause);
+		}
+
+		@Override
+		public void failSync(Throwable cause) {
 			failCounter.incrementAndGet();
 		}
 
@@ -258,7 +263,12 @@ public class SingleLogicalSlotTest extends TestLogger {
 		}
 
 		@Override
-		public void fail(Throwable cause) {
+		public void failAsync(Throwable cause) {
+			failSync(cause);
+		}
+
+		@Override
+		public void failSync(Throwable cause) {
 			failFuture.completeExceptionally(cause);
 		}
 

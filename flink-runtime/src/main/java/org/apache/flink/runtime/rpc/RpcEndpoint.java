@@ -36,7 +36,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BooleanSupplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -91,7 +90,7 @@ public abstract class RpcEndpoint implements RpcGateway {
 
 		this.rpcServer = rpcService.startServer(this);
 
-		this.mainThreadExecutor = new MainThreadExecutor(rpcServer, this::isCurrentMainThread);
+		this.mainThreadExecutor = new MainThreadExecutor(rpcServer, this::validateRunsInMainThread);
 	}
 
 	/**
@@ -306,11 +305,7 @@ public abstract class RpcEndpoint implements RpcGateway {
 	 * }</pre>
 	 */
 	public void validateRunsInMainThread() {
-		assert isCurrentMainThread();
-	}
-
-	public boolean isCurrentMainThread() {
-		return currentMainThread.get() == Thread.currentThread();
+		assert MainThreadValidatorUtil.isRunningInExpectedThread(currentMainThread.get());
 	}
 
 	// ------------------------------------------------------------------------
@@ -323,9 +318,9 @@ public abstract class RpcEndpoint implements RpcGateway {
 	protected static class MainThreadExecutor implements ComponentMainThreadExecutor {
 
 		private final MainThreadExecutable gateway;
-		private final BooleanSupplier mainThreadCheck;
+		private final Runnable mainThreadCheck;
 
-		MainThreadExecutor(MainThreadExecutable gateway, BooleanSupplier mainThreadCheck) {
+		MainThreadExecutor(MainThreadExecutable gateway, Runnable mainThreadCheck) {
 			this.gateway = Preconditions.checkNotNull(gateway);
 			this.mainThreadCheck = Preconditions.checkNotNull(mainThreadCheck);
 		}
@@ -370,8 +365,8 @@ public abstract class RpcEndpoint implements RpcGateway {
 		}
 
 		@Override
-		public boolean isMainThread() {
-			return mainThreadCheck.getAsBoolean();
+		public void assertRunningInMainThread() {
+			mainThreadCheck.run();
 		}
 	}
 }

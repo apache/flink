@@ -51,6 +51,9 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 
 	@Test
 	public void testConstraintsAfterRestart() throws Exception {
+
+		ComponentMainThreadTestExecutor testMainThreadUtil = new ComponentMainThreadTestExecutor();
+
 		final long timeout = 5000L;
 
 		//setting up
@@ -72,28 +75,40 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 			groupVertex,
 			groupVertex2);
 
-
-		// enable the queued scheduling for the slot pool
-		eg.setQueuedSchedulingAllowed(true);
-
-
-		assertEquals(JobStatus.CREATED, eg.getState());
-
-		eg.scheduleForExecution();
+		eg.start(testMainThreadUtil.getMainThreadExecutor());
 
 		Predicate<Execution> isDeploying = ExecutionGraphTestUtils.isInExecutionState(ExecutionState.DEPLOYING);
+		testMainThreadUtil.execute(() -> {
+			// enable the queued scheduling for the slot pool
+			eg.setQueuedSchedulingAllowed(true);
+
+			assertEquals(JobStatus.CREATED, eg.getState());
+
+			eg.scheduleForExecution();
+		});
 
 		ExecutionGraphTestUtils.waitForAllExecutionsPredicate(
 			eg,
 			isDeploying,
 			timeout);
 
-		assertEquals(JobStatus.RUNNING, eg.getState());
+		testMainThreadUtil.execute(() -> {
 
-		//sanity checks
-		validateConstraints(eg);
+			assertEquals(JobStatus.RUNNING, eg.getState());
 
-		ExecutionGraphTestUtils.failExecutionGraph(eg, new FlinkException("Test exception"));
+			//sanity checks
+			validateConstraints(eg);
+
+			eg.getAllExecutionVertices().iterator().next().fail(new FlinkException("Test exception"));
+		});
+
+		testMainThreadUtil.execute(() -> {
+			assertEquals(JobStatus.FAILING, eg.getState());
+
+			for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
+				vertex.getCurrentExecutionAttempt().cancelingComplete();
+			}
+		});
 
 		// wait until we have restarted
 		ExecutionGraphTestUtils.waitUntilJobStatus(eg, JobStatus.RUNNING, timeout);
@@ -103,12 +118,15 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 			isDeploying,
 			timeout);
 
-		//checking execution vertex properties
-		validateConstraints(eg);
+		testMainThreadUtil.execute(() -> {
 
-		ExecutionGraphTestUtils.finishAllVertices(eg);
+			//checking execution vertex properties
+			validateConstraints(eg);
 
-		assertThat(eg.getState(), is(FINISHED));
+			ExecutionGraphTestUtils.finishAllVertices(eg);
+
+			assertThat(eg.getState(), is(FINISHED));
+		});
 	}
 
 	private void validateConstraints(ExecutionGraph eg) {

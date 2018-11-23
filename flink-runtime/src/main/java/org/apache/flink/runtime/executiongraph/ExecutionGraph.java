@@ -44,7 +44,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
-import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
@@ -192,6 +191,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	private final Executor ioExecutor;
 
 	/** Executor that runs tasks in the job manager's main thread. */
+	@Nonnull
 	private ComponentMainThreadExecutor jobMasterMainThreadExecutor;
 
 	/** {@code true} if all source tasks are stoppable. */
@@ -430,7 +430,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		this.failoverStrategy = checkNotNull(failoverStrategyFactory.create(this), "null failover strategy");
 
 		this.schedulingFuture = null;
-		this.jobMasterMainThreadExecutor = null;
+		this.jobMasterMainThreadExecutor =
+			new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
+				"ExecutionGraph is not initialized with proper main thread executor. " +
+					"Call to ExecutionGraph.start(...) required.");
 
 		LOG.info("Job recovers via failover strategy: {}", failoverStrategy.getStrategyName());
 	}
@@ -471,6 +474,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		return allocationTimeout;
 	}
 
+	@Nonnull
 	public ComponentMainThreadExecutor getJobMasterMainThreadExecutor() {
 		return jobMasterMainThreadExecutor;
 	}
@@ -828,9 +832,11 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	public void attachJobGraph(List<JobVertex> topologiallySorted) throws JobException {
 
+		assertRunningInJobMasterMainThread();
+
 		LOG.debug("Attaching {} topologically sorted vertices to existing job graph with {} " +
 				"vertices and {} intermediate results.",
-				topologiallySorted.size(), tasks.size(), intermediateResults.size());
+			topologiallySorted.size(), tasks.size(), intermediateResults.size());
 
 		final ArrayList<ExecutionJobVertex> newExecJobVertices = new ArrayList<>(topologiallySorted.size());
 		final long createTimestamp = System.currentTimeMillis();
@@ -855,14 +861,14 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			ExecutionJobVertex previousTask = this.tasks.putIfAbsent(jobVertex.getID(), ejv);
 			if (previousTask != null) {
 				throw new JobException(String.format("Encountered two job vertices with ID %s : previous=[%s] / new=[%s]",
-						jobVertex.getID(), ejv, previousTask));
+					jobVertex.getID(), ejv, previousTask));
 			}
 
 			for (IntermediateResult res : ejv.getProducedDataSets()) {
 				IntermediateResult previousDataSet = this.intermediateResults.putIfAbsent(res.getId(), res);
 				if (previousDataSet != null) {
 					throw new JobException(String.format("Encountered two intermediate data set with ID %s : previous=[%s] / new=[%s]",
-							res.getId(), res, previousDataSet));
+						res.getId(), res, previousDataSet));
 				}
 			}
 
@@ -876,6 +882,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	public void scheduleForExecution() throws JobException {
+
+		assertRunningInJobMasterMainThread();
 
 		final long currentGlobalModVersion = globalModVersion;
 
@@ -899,15 +907,15 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 			if (state == JobStatus.RUNNING && currentGlobalModVersion == globalModVersion) {
 				schedulingFuture = newSchedulingFuture;
-
-				newSchedulingFuture.whenCompleteAsync(
+				FutureUtils.whenCompleteAsyncIfNotDone(
+					newSchedulingFuture,
+					getJobMasterMainThreadExecutor(),
 					(Void ignored, Throwable throwable) -> {
 						if (throwable != null && !(throwable instanceof CancellationException)) {
 							// only fail if the scheduling future was not canceled
 							failGlobal(ExceptionUtils.stripCompletionException(throwable));
 						}
-					},
-					futureExecutor);
+					});
 			} else {
 				newSchedulingFuture.cancel(false);
 			}
@@ -942,10 +950,11 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * @param slotProvider  The resource provider from which the slots are allocated
 	 * @param timeout       The maximum time that the deployment may take, before a
 	 *                      TimeoutException is thrown.
-	 * @returns Future which is completed once the {@link ExecutionGraph} has been scheduled.
+	 * @return Future which is completed once the {@link ExecutionGraph} has been scheduled.
 	 * The future can also be completed exceptionally if an error happened.
 	 */
 	private CompletableFuture<Void> scheduleEager(SlotProvider slotProvider, final Time timeout) {
+		assertRunningInJobMasterMainThread();
 		checkState(state == JobStatus.RUNNING, "job is not running currently");
 
 		// Important: reserve all the space we need up front.
@@ -977,26 +986,26 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		// the future fails once one slot future fails.
 		final ConjunctFuture<Collection<Execution>> allAllocationsFuture = FutureUtils.combineAll(allAllocationFutures);
 
-		final CompletableFuture<Void> currentSchedulingFuture = allAllocationsFuture
-			.thenAccept(
-				(Collection<Execution> executionsToDeploy) -> {
-					for (Execution execution : executionsToDeploy) {
-						try {
-							execution.deploy();
-						} catch (Throwable t) {
-							throw new CompletionException(
-								new FlinkException(
-									String.format("Could not deploy execution %s.", execution),
-									t));
-						}
+		return FutureUtils.thenAcceptAsyncIfNotDone(
+			allAllocationsFuture,
+			getJobMasterMainThreadExecutor(),
+			(Collection<Execution> executionsToDeploy) -> {
+				for (Execution execution : executionsToDeploy) {
+					try {
+						execution.deploy();
+					} catch (Throwable t) {
+						throw new CompletionException(
+							new FlinkException(
+								String.format("Could not deploy execution %s.", execution),
+								t));
 					}
-				})
+				}
+			})
 			// Generate a more specific failure message for the eager scheduling
 			.exceptionally(
 				(Throwable throwable) -> {
 					final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
 					final Throwable resultThrowable;
-
 					if (strippedThrowable instanceof TimeoutException) {
 						int numTotal = allAllocationsFuture.getNumFuturesTotal();
 						int numComplete = allAllocationsFuture.getNumFuturesCompleted();
@@ -1010,11 +1019,12 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 					throw new CompletionException(resultThrowable);
 				});
-
-		return currentSchedulingFuture;
 	}
 
 	public void cancel() {
+
+		assertRunningInJobMasterMainThread();
+
 		while (true) {
 			JobStatus current = state;
 
@@ -1040,7 +1050,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 					// we build a future that is complete once all vertices have reached a terminal state
 					final ConjunctFuture<Void> allTerminal = FutureUtils.waitForAll(futures);
-					allTerminal.whenComplete(
+					allTerminal.whenCompleteAsync(
 						(Void value, Throwable throwable) -> {
 							if (throwable != null) {
 								transitionState(
@@ -1054,8 +1064,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 								// restarts, so we need to pass a proper restart global version here
 								allVerticesInTerminalState(globalVersionForRestart);
 							}
-						}
-					);
+						}, getJobMasterMainThreadExecutor());
 
 					return;
 				}
@@ -1087,6 +1096,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	public void stop() throws StoppingException {
+
+		assertRunningInJobMasterMainThread();
+
 		if (isStoppable) {
 			for (ExecutionVertex ev : this.getAllExecutionVertices()) {
 				if (ev.getNumberOfInputs() == 0) { // send signal to sources only
@@ -1110,6 +1122,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * @param suspensionCause Cause of the suspension
 	 */
 	public void suspend(Throwable suspensionCause) {
+
+		assertRunningInJobMasterMainThread();
+
 		while (true) {
 			JobStatus currentState = state;
 
@@ -1136,7 +1151,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 				final ConjunctFuture<Void> jobVerticesTerminationFuture = FutureUtils.waitForAll(executionJobVertexTerminationFutures);
 
-				jobVerticesTerminationFuture.whenComplete(
+				FutureUtils.whenCompleteAsyncIfNotDone(
+					jobVerticesTerminationFuture,
+					jobMasterMainThreadExecutor,
 					(Void ignored, Throwable throwable) -> {
 						if (throwable != null) {
 							LOG.debug("Flink could not properly clean up resource after suspension.", throwable);
@@ -1165,6 +1182,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * @param t The exception that caused the failure.
 	 */
 	public void failGlobal(Throwable t) {
+
+		assertRunningInJobMasterMainThread();
+
 		while (true) {
 			JobStatus current = state;
 			// stay in these states
@@ -1195,7 +1215,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				}
 
 				final ConjunctFuture<Void> allTerminal = FutureUtils.waitForAll(futures);
-				allTerminal.whenComplete(
+				FutureUtils.whenCompleteAsyncIfNotDone(
+					allTerminal,
+					jobMasterMainThreadExecutor,
 					(Void ignored, Throwable throwable) -> {
 						if (throwable != null) {
 							transitionState(
@@ -1215,6 +1237,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	public void restart(long expectedGlobalVersion) {
+
+		assertRunningInJobMasterMainThread();
+
 		try {
 			synchronized (progressLock) {
 				// check the global version to see whether this recovery attempt is still valid
@@ -1290,6 +1315,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * job vertex that is not part of this ExecutionGraph).
 	 */
 	public void restoreLatestCheckpointedState(boolean errorIfNoCheckpoint, boolean allowNonRestoredState) throws Exception {
+		assertRunningInJobMasterMainThread();
 		synchronized (progressLock) {
 			if (checkpointCoordinator != null) {
 				checkpointCoordinator.restoreLatestCheckpointedState(getAllVertices(), errorIfNoCheckpoint, allowNonRestoredState);
@@ -1304,6 +1330,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 */
 	@Override
 	public ArchivedExecutionConfig getArchivedExecutionConfig() {
+
+		assertRunningInJobMasterMainThread();
+
 		// create a summary of all relevant data accessed in the web interface's JobConfigHandler
 		try {
 			ExecutionConfig executionConfig = jobInformation.getSerializedExecutionConfig().deserializeValue(userClassLoader);
@@ -1366,6 +1395,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	private boolean transitionState(JobStatus current, JobStatus newState, Throwable error) {
+		assertRunningInJobMasterMainThread();
 		// consistency check
 		if (current.isTerminalState()) {
 			String message = "Job is trying to leave terminal state " + current;
@@ -1404,6 +1434,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * Once all vertices are in the FINISHED state, the program is successfully done.
 	 */
 	void vertexFinished() {
+		assertRunningInJobMasterMainThread();
 		final int numFinished = verticesFinished.incrementAndGet();
 		if (numFinished == numVerticesTotal) {
 			// done :-)
@@ -1434,6 +1465,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	void vertexUnFinished() {
+		assertRunningInJobMasterMainThread();
 		verticesFinished.getAndDecrement();
 	}
 
@@ -1442,6 +1474,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * have reached a terminal state (cancelled/failed/finished).
 	 */
 	private void allVerticesInTerminalState(long expectedGlobalVersionForRestart) {
+
+		assertRunningInJobMasterMainThread();
+
 		// we are done, transition to the final state
 		JobStatus current;
 		while (true) {
@@ -1470,7 +1505,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			}
 			else if (current.isGloballyTerminalState()) {
 				LOG.warn("Job has entered globally terminal state without waiting for all " +
-						"job vertices to reach final state.");
+					"job vertices to reach final state.");
 				break;
 			}
 			else {
@@ -1489,6 +1524,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * @return true if the operation could be executed; false if a concurrent job status change occurred
 	 */
 	private boolean tryRestartOrFail(long globalModVersionForRestart) {
+
 		JobStatus currentState = state;
 
 		if (currentState == JobStatus.FAILING || currentState == JobStatus.RESTARTING) {
@@ -1509,13 +1545,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 					LOG.info("Restarting the job {} ({}).", getJobName(), getJobID());
 
 					RestartCallback restarter = new ExecutionGraphRestartCallback(this, globalModVersionForRestart);
-					restartStrategy.restart(restarter, new ScheduledExecutorServiceAdapter(futureExecutor));
+					restartStrategy.restart(restarter, getJobMasterMainThreadExecutor());
 
 					return true;
 				}
 				else if (!isRestartable && transitionState(currentState, JobStatus.FAILED, failureCause)) {
 					final String cause1 = isFailureCauseAllowingRestart ? null :
-							"a type of SuppressRestartsException was thrown";
+						"a type of SuppressRestartsException was thrown";
 					final String cause2 = isRestartStrategyAllowingRestart ? null :
 						"the restart strategy prevented it";
 
@@ -1563,6 +1599,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * @return True, if the task update was properly applied, false, if the execution attempt was not found.
 	 */
 	public boolean updateState(TaskExecutionState state) {
+		assertRunningInJobMasterMainThread();
 		final Execution attempt = currentExecutions.get(state.getID());
 
 		if (attempt != null) {
@@ -1594,7 +1631,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 					default:
 						// we mark as failed and return false, which triggers the TaskManager
 						// to remove the task
-						attempt.fail(new Exception("TaskManager sent illegal state update: " + state.getExecutionState()));
+						attempt.failSync(new Exception("TaskManager sent illegal state update: " + state.getExecutionState()));
 						return false;
 				}
 			}
@@ -1643,6 +1680,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 */
 	public void scheduleOrUpdateConsumers(ResultPartitionID partitionId) throws ExecutionGraphException {
 
+		assertRunningInJobMasterMainThread();
+
 		final Execution execution = currentExecutions.get(partitionId.getProducerId());
 
 		if (execution == null) {
@@ -1662,6 +1701,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	void registerExecution(Execution exec) {
+		assertRunningInJobMasterMainThread();
 		Execution previous = currentExecutions.putIfAbsent(exec.getAttemptId(), exec);
 		if (previous != null) {
 			failGlobal(new Exception("Trying to register execution " + exec + " for already used ID " + exec.getAttemptId()));
@@ -1669,6 +1709,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	void deregisterExecution(Execution exec) {
+		assertRunningInJobMasterMainThread();
 		Execution contained = currentExecutions.remove(exec.getAttemptId());
 
 		if (contained != null && contained != exec) {
@@ -1802,6 +1843,12 @@ public class ExecutionGraph implements AccessExecutionGraph {
 					failGlobal(ex);
 				}
 			}
+		}
+	}
+
+	public void assertRunningInJobMasterMainThread() {
+		if (!(jobMasterMainThreadExecutor instanceof ComponentMainThreadExecutor.DummyComponentMainThreadExecutor)) {
+			jobMasterMainThreadExecutor.assertRunningInMainThread();
 		}
 	}
 }

@@ -28,16 +28,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * Adapter from {@link Future} to {@link ScheduledFuture}.
+ * Adapter from {@link Future} to {@link ScheduledFuture}. This enriches the basic future with scheduling information.
  * @param <V> value type of the future.
  */
 public class ScheduledFutureAdapter<V> implements ScheduledFuture<V> {
 
+	/** The encapsulated basic future to which execution is delegated. */
 	@Nonnull
 	private final Future<V> delegate;
+
+	/** The time unit for the delay. */
 	@Nonnull
 	private final TimeUnit timeUnit;
 
+	/** The delay, to interpreted in the given time unit.*/
 	private final long delay;
 
 	public ScheduledFutureAdapter(

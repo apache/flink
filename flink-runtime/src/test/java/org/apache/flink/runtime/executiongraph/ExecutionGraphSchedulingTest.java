@@ -97,6 +97,7 @@ import static org.mockito.Mockito.when;
 public class ExecutionGraphSchedulingTest extends TestLogger {
 
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+	private final ComponentMainThreadTestExecutor testMainThread = new ComponentMainThreadTestExecutor();
 
 	@After
 	public void shutdown() {
@@ -141,6 +142,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		slotProvider.addSlot(targetVertex.getID(), 0, targetFuture);
 
 		final ExecutionGraph eg = createExecutionGraph(jobGraph, slotProvider);
+		eg.start(TestComponentMainThreadExecutor.forMainThread());
 
 		//  set up two TaskManager gateways and slots
 
@@ -240,7 +242,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		//
 		//  kick off the scheduling
-
+		eg.start(TestComponentMainThreadExecutor.forMainThread());
 		eg.setScheduleMode(ScheduleMode.EAGER);
 		eg.setQueuedSchedulingAllowed(true);
 		eg.scheduleForExecution();
@@ -327,6 +329,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		slotProvider.addSlots(targetVertex.getID(), targetFutures);
 
 		final ExecutionGraph eg = createExecutionGraph(jobGraph, slotProvider);
+		eg.start(TestComponentMainThreadExecutor.forMainThread());
 
 		//
 		//  we complete some of the futures
@@ -406,7 +409,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		slotFutures[1].complete(slots[1]);
 
 		//  kick off the scheduling
-
+		eg.start(TestComponentMainThreadExecutor.forMainThread());
 		eg.setScheduleMode(ScheduleMode.EAGER);
 		eg.setQueuedSchedulingAllowed(true);
 		eg.scheduleForExecution();
@@ -450,6 +453,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		slotProvider.addSlots(jobVertex.getID(), new CompletableFuture[]{slotFuture1, slotFuture2});
 		final ExecutionGraph executionGraph = createExecutionGraph(jobGraph, slotProvider);
 
+		executionGraph.start(TestComponentMainThreadExecutor.forMainThread());
 		executionGraph.scheduleForExecution();
 
 		final CompletableFuture<?> releaseFuture = new CompletableFuture<>();
@@ -497,6 +501,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		final ExecutionGraph executionGraph = createExecutionGraph(jobGraph, slotProvider);
 
+		executionGraph.start(TestComponentMainThreadExecutor.forMainThread());
 		executionGraph.scheduleForExecution();
 
 		assertThat(executionGraph.getState(), is(JobStatus.RUNNING));
@@ -544,55 +549,62 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		final ExecutionGraph executionGraph = createExecutionGraph(jobGraph, slotProvider);
 
-		executionGraph.scheduleForExecution();
-
-		// wait until we have requested all slots
-		requestedSlotsLatch.await();
-
+		executionGraph.start(testMainThread.getMainThreadExecutor());
 		final Set<SlotRequestId> slotRequestIdsToReturn = ConcurrentHashMap.newKeySet(slotRequestIds.size());
-		slotRequestIdsToReturn.addAll(slotRequestIds.keySet());
 		final CountDownLatch countDownLatch = new CountDownLatch(slotRequestIds.size());
 
-		slotOwner.setReturnAllocatedSlotConsumer(logicalSlot -> {
-			slotRequestIdsToReturn.remove(logicalSlot.getSlotRequestId());
-			countDownLatch.countDown();
-		});
-		slotProvider.setSlotCanceller(slotRequestId -> {
-			slotRequestIdsToReturn.remove(slotRequestId);
-			countDownLatch.countDown();
-		});
+		testMainThread.execute(() -> {
 
-		final OneShotLatch slotRequestsBeingFulfilled = new OneShotLatch();
+				executionGraph.scheduleForExecution();
 
-		// start completing the slot requests asynchronously
-		executor.execute(
-			() -> {
-				slotRequestsBeingFulfilled.trigger();
+				// wait until we have requested all slots
+				requestedSlotsLatch.await();
 
-				for (SlotRequestId slotRequestId : slotRequestIds.keySet()) {
-					final SingleLogicalSlot singleLogicalSlot = createSingleLogicalSlot(slotOwner, taskManagerGateway, slotRequestId);
-					slotProvider.complete(slotRequestId, singleLogicalSlot);
-				}
+				slotRequestIdsToReturn.addAll(slotRequestIds.keySet());
+
+				slotOwner.setReturnAllocatedSlotConsumer(logicalSlot -> {
+					slotRequestIdsToReturn.remove(logicalSlot.getSlotRequestId());
+					countDownLatch.countDown();
+				});
+				slotProvider.setSlotCanceller(slotRequestId -> {
+					slotRequestIdsToReturn.remove(slotRequestId);
+					countDownLatch.countDown();
+				});
+
+				final OneShotLatch slotRequestsBeingFulfilled = new OneShotLatch();
+
+				// start completing the slot requests asynchronously
+				executor.execute(
+					() -> {
+						slotRequestsBeingFulfilled.trigger();
+
+						for (SlotRequestId slotRequestId : slotRequestIds.keySet()) {
+							final SingleLogicalSlot singleLogicalSlot = createSingleLogicalSlot(slotOwner, taskManagerGateway, slotRequestId);
+							slotProvider.complete(slotRequestId, singleLogicalSlot);
+						}
+					});
+
+				// make sure that we complete cancellations of deployed tasks
+				taskManagerGateway.setCancelConsumer(
+					(ExecutionAttemptID executionAttemptId) -> {
+						final Execution execution = executionGraph.getRegisteredExecutions().get(executionAttemptId);
+
+						// if the execution was cancelled in state SCHEDULING, then it might already have been removed
+						if (execution != null) {
+							execution.cancelingComplete();
+						}
+					}
+				);
+
+				slotRequestsBeingFulfilled.await();
+
+				executionGraph.cancel();
 			});
 
-		// make sure that we complete cancellations of deployed tasks
-		taskManagerGateway.setCancelConsumer(
-			(ExecutionAttemptID executionAttemptId) -> {
-				final Execution execution = executionGraph.getRegisteredExecutions().get(executionAttemptId);
-
-				// if the execution was cancelled in state SCHEDULING, then it might already have been removed
-				if (execution != null) {
-					execution.cancelingComplete();
-				}
-			}
-		);
-
-		slotRequestsBeingFulfilled.await();
-
-		executionGraph.cancel();
-
-		countDownLatch.await();
-		assertThat(slotRequestIdsToReturn, is(empty()));
+		testMainThread.execute(() -> {
+			countDownLatch.await();
+			assertThat(slotRequestIdsToReturn, is(empty()));
+		});
 	}
 
 	// ------------------------------------------------------------------------

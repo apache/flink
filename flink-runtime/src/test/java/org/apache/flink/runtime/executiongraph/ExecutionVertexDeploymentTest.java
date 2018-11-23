@@ -25,18 +25,19 @@ import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Collection;
@@ -277,9 +278,10 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
 			assertEquals(testError, vertex.getFailureCause());
 
-			queue.triggerNextAction();
+//			queue.triggerNextAction();
 			queue.triggerNextAction();
 
+			Assert.assertTrue(queue.isEmpty());
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.FAILED) > 0);
@@ -329,13 +331,16 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			cancel1.run();
 			// execute the FutureUtils.retry loop (will complete immediately)
 			queue.triggerNextAction();
-			// execute the exceptionallyAsync call in Execution#sendRpcCall which won't don anything
-			queue.triggerNextAction();
+//			// execute the exceptionallyAsync call in Execution#sendRpcCall which won't don anything
+//			queue.triggerNextAction();
 
 			deploy.run();
 
-			// execute exceptionallyAsync call in Execution#deployToSlot
-			queue.triggerNextAction();
+//			// execute exceptionallyAsync call in Execution#deployToSlot
+//			queue.triggerNextAction();
+//
+//			// handle returning interaction with TM gateway
+//			queue.triggerNextAction();
 
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
 

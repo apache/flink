@@ -32,7 +32,16 @@ import java.util.concurrent.Executor;
  */
 public class ManuallyTriggeredDirectExecutor implements Executor {
 
+	private final Executor executorDelegate;
 	private final ArrayDeque<Runnable> queuedRunnables = new ArrayDeque<>();
+
+	public ManuallyTriggeredDirectExecutor(Executor executorDelegate) {
+		this.executorDelegate = executorDelegate;
+	}
+
+	public ManuallyTriggeredDirectExecutor() {
+		this(Runnable::run);
+	}
 
 	@Override
 	public void execute(@Nonnull Runnable command) {
@@ -53,7 +62,7 @@ public class ManuallyTriggeredDirectExecutor implements Executor {
 		}
 
 		if (next != null) {
-			next.run();
+			executorDelegate.execute(next);
 		}
 		else {
 			throw new IllegalStateException("No runnable available");
