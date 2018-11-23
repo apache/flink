@@ -21,6 +21,7 @@ package org.apache.flink.metrics;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the MeterView.
@@ -93,5 +94,13 @@ public class MeterViewTest {
 		// values = [480, 480, 480, 480, 480, 480, 480, 480, 480, 480, 480, 480, 480]
 		assertEquals(0.0, m.getRate(), 0.1); // 480 - 480 / 60
 
+	}
+
+	@Test
+	public void testTooSmallTimeSpan() {
+		MeterView m = new MeterView(1);
+		m.markEvent();
+		m.update();
+		assertTrue(0.2 == m.getRate());
 	}
 }

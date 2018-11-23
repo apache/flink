@@ -18,6 +18,9 @@
 
 package org.apache.flink.metrics;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * A MeterView provides an average rate of events per second over a given time period.
  *
@@ -44,12 +47,19 @@ public class MeterView implements Meter, View {
 	/** The last rate we computed. */
 	private double currentRate = 0;
 
+	private static Logger logger = LoggerFactory.getLogger(MeterView.class);
+
 	public MeterView(int timeSpanInSeconds) {
 		this(new SimpleCounter(), timeSpanInSeconds);
 	}
 
 	public MeterView(Counter counter, int timeSpanInSeconds) {
 		this.counter = counter;
+		// timeSpanInSeconds should at least bigger than update interval
+		if (timeSpanInSeconds < UPDATE_INTERVAL_SECONDS) {
+			logger.warn("TimeSpan in meterview should not lower than update interval: {} and is set to {} by default", UPDATE_INTERVAL_SECONDS, UPDATE_INTERVAL_SECONDS);
+			timeSpanInSeconds = UPDATE_INTERVAL_SECONDS;
+		}
 		this.timeSpanInSeconds = timeSpanInSeconds - (timeSpanInSeconds % UPDATE_INTERVAL_SECONDS);
 		this.values = new long[this.timeSpanInSeconds / UPDATE_INTERVAL_SECONDS + 1];
 	}
