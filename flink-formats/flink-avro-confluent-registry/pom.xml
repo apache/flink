@@ -78,10 +78,31 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<artifactSet>
+								<includes>
+									<include>io.confluent:*</include>
+									<include>com.fasterxml.jackson.core:*</include>
+									<include>org.apache.zookeeper:zookeeper</include>
+									<include>com.101tec:zkclient</include>
+								</includes>
+							</artifactSet>
 							<relocations combine.children="append">
 								<relocation>
-									<pattern>com.fasterxml.jackson.core</pattern>
-									<shadedPattern>org.apache.flink.formats.avro.registry.confluent.shaded.com.fasterxml.jackson.core</shadedPattern>
+									<pattern>com.fasterxml.jackson</pattern>
+									<shadedPattern>org.apache.flink.formats.avro.registry.confluent.shaded.com.fasterxml.jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.zookeeper</pattern>
+									<shadedPattern>org.apache.flink.formats.avro.registry.confluent.shaded.org.apache.zookeeper</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.jute</pattern>
+									<shadedPattern>org.apache.flink.formats.avro.registry.confluent.shaded.org.apache.jute</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.I0Itec.zkclient</pattern>
+									<shadedPattern>org.apache.flink.formats.avro.registry.confluent.shaded.org.101tec</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
