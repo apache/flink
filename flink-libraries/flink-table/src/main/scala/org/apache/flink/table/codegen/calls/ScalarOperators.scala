@@ -191,7 +191,17 @@ object ScalarOperators {
           )
         )
     }
-  }  
+  }
+
+  def generateDistinctFrom(
+      nullCheck: Boolean,
+      left: GeneratedExpression,
+      right: GeneratedExpression)
+    : GeneratedExpression = {
+    val newleft = left.copy(nullTerm = GeneratedExpression.NEVER_NULL)
+    val newright = left.copy(nullTerm = GeneratedExpression.NEVER_NULL)
+    generateEquals(nullCheck, newleft, newright)
+  }
   
   def generateEquals(
       nullCheck: Boolean,
