@@ -69,6 +69,20 @@
     ;; TODO: write log4j.properties properly
     (c/exec (c/lit (str "sed -i'.bak' -e '/log4j.rootLogger=/ s/=.*/=DEBUG, file/' " install-dir "/conf/log4j.properties")))))
 
+(defn- file-name
+  [path]
+  (.getName (clojure.java.io/file path)))
+
+(defn upload-job-jar!
+  [job-jar]
+  (c/upload job-jar upload-dir)
+  (c/exec :mv (str upload-dir "/" (file-name job-jar)) install-dir))
+
+(defn upload-job-jars!
+  [job-jars]
+  (doseq [job-jar job-jars]
+    (upload-job-jar! job-jar)))
+
 (defn install-flink!
   [test node]
   (let [url (:tarball test)]
@@ -76,8 +90,7 @@
     (cu/install-archive! url install-dir)
     (info "Enable S3 FS")
     (c/exec (c/lit (str "ls " install-dir "/opt/flink-s3-fs-hadoop* | xargs -I {} mv {} " install-dir "/lib")))
-    (c/upload (:job-jar test) upload-dir)
-    (c/exec :mv (str upload-dir "/" (.getName (clojure.java.io/file (:job-jar test)))) install-dir)
+    (upload-job-jars! (->> test :test-spec :jobs (map :job-jar)))
     (write-configuration! test node)))
 
 (defn teardown-flink!
@@ -145,7 +158,7 @@
   [m]
   (->>
     (map #(str (name (first %)) "=" (second %)) m)
-    (clojure.string/join " ")
+    (apply fu/join-space)
     (#(str % " "))))
 
 (defn- hadoop-env-vars
@@ -158,26 +171,25 @@
   (c/su
     (c/exec (c/lit (str
                      (hadoop-env-vars)
-                     install-dir "/bin/flink " cmd " " args)))))
+                     install-dir "/bin/flink " cmd " " (apply fu/join-space args))))))
 
 (defn flink-run-cli-args
   "Returns the CLI args that should be passed to 'flink run'"
-  [test]
+  [job-spec]
   (concat
     ["-d"]
-    (if (:main-class test)
-      [(str "-c " (:main-class test))]
+    (if (:main-class job-spec)
+      [(str "-c " (:main-class job-spec))]
       [])))
 
 (defn submit-job!
   ([test] (submit-job! test []))
   ([test cli-args]
-   (exec-flink! "run" (clojure.string/join
-                        " "
-                        (concat cli-args
-                                (flink-run-cli-args test)
-                                [(str install-dir "/" (last (str/split (:job-jar test) #"/")))
-                                 (:job-args test)])))))
+   (doseq [{:keys [job-jar job-args] :as job-spec} (-> test :test-spec :jobs)]
+     (exec-flink! "run" (concat cli-args
+                                (flink-run-cli-args job-spec)
+                                [(str install-dir "/" (file-name job-jar))
+                                 job-args])))))
 
 ;;; Standalone
 

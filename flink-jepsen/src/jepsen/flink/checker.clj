@@ -155,34 +155,80 @@
   ([job-running-healthy-threshold job-recovery-grace-period]
    (job-running-within-grace-period job-running-healthy-threshold job-recovery-grace-period 10)))
 
-(defn get-job-running-history
+(defn- history->jobs-running?-value
   [history]
   (->>
     history
-    (remove #(= (:process %) :nemesis))
+    (filter #(= (:f %) :jobs-running?))
     (remove #(= (:type %) :invoke))
-    (map :value)
-    (map boolean)
-    (remove nil?)))
+    (map :value)))
+
+(defn- history->job-ids
+  "Extracts all job ids from a history."
+  [history]
+  (set (->> history
+            (history->jobs-running?-value)
+            (map keys)
+            (flatten)
+            (remove nil?))))
+
+(defn all-jobs-running?-history
+  [history]
+  (->>
+    history
+    (history->jobs-running?-value)
+    (map vals)
+    (map #(and
+            (not (empty? %))
+            (every? true? %)))))
 
 (defn- healthy?
   [model]
-  (>= (:healthy-count model) (:healthy-threshold model)))
+  (or (>= (:healthy-count model) (:healthy-threshold model))
+      (:job-canceled? model)))
+
+(defn- jobs-running?->job-running?
+  "Rewrites history entries of the form {:f :jobs-running? :value {...}}
+
+  Example: {:type ok :f :jobs-running? :value {job-id-1 true}} -> {:type ok :f :job-running? :value true}"
+  [history-entry job-id]
+  (let [job-running?-entry (assoc history-entry :f :job-running?)
+        job-running?-entry-ok (update job-running?-entry :value #(get % job-id))]
+    (if (= (:type history-entry) :ok)
+      job-running?-entry-ok
+      job-running?-entry)))
+
+(defn- history->single-job-history
+  "Rewrites a history to one that appears to run a single Flink job."
+  [history job-id]
+  (let [transform-history-entry (fn [history-entry]
+                                  (case (:f history-entry)
+                                    :jobs-running? (jobs-running?->job-running? history-entry job-id)
+                                    :cancel-jobs (assoc history-entry :f :cancel-job)
+                                    history-entry))]
+    (map transform-history-entry history)))
+
+(defn- compute-final-model
+  [model history]
+  (let [start-time (-> history first :time)]
+    (reduce model/step
+            (assoc model :last-failure start-time)
+            history)))
 
 (defn job-running-checker
   []
   (reify
     checker/Checker
     (check [_ test model history _]
-      (let [final (reduce model/step (assoc model :last-failure (:time (first history))) history)
-            result-map (conj {}
-                             (find test :nemesis-gen)
-                             (find test :deployment-mode))]
-        (if (or (model/inconsistent? final)
-                (and
-                  (not (healthy? final))
-                  (not (:job-canceled? final))))
-          (into result-map {:valid?      false
-                            :final-model final})
-          (into result-map {:valid?      true
-                            :final-model final}))))))
+      (let [job-ids (history->job-ids history)
+            individual-job-histories (map (partial history->single-job-history history) job-ids)
+            final-models (map (partial compute-final-model model) individual-job-histories)
+            inconsistent-or-unhealthy (or (empty? job-ids)
+                                          (some model/inconsistent? final-models)
+                                          (some (complement healthy?) final-models))
+            result-map (select-keys test [:nemesis-gen :deployment-mode])]
+        (if inconsistent-or-unhealthy
+          (into result-map {:valid?       false
+                            :final-models final-models})
+          (into result-map {:valid?       true
+                            :final-models final-models}))))))
