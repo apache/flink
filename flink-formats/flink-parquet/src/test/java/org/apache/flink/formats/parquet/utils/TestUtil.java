@@ -160,7 +160,7 @@ public class TestUtil {
 		File root = temporaryFolder.getRoot();
 		Path path = new Path(root.getPath(), UUID.randomUUID().toString());
 		ParquetWriter<IndexedRecord> writer = AvroParquetWriter.<IndexedRecord>builder(
-			new org.apache.hadoop.fs.Path(path.toUri())).withSchema(schema).build();
+			new org.apache.hadoop.fs.Path(path.toUri())).withSchema(schema).withRowGroupSize(10).build();
 
 		for (IndexedRecord record : records) {
 			writer.write(record);

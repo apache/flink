@@ -90,15 +90,15 @@ public class ParquetInputFormatTest {
 	public void testFailureRecoverySimpleRecord() throws IOException {
 		temp.create();
 		List<IndexedRecord> records = new ArrayList<>();
-		Long[] longArray = {1L};
-		for (long i = 0; i < 100; i++) {
+		for (long i = 0; i < 1000; i++) {
 			final SimpleRecord simpleRecord = SimpleRecord.newBuilder()
-				.setBar("test_simple")
+				.setBar("row")
 				.setFoo(i)
-				.setArr(Arrays.asList(longArray)).build();
+				.setArr(Arrays.asList(1L)).build();
 			records.add(simpleRecord);
 		}
 
+		// created a parquet file with 10 row groups. Each row group has 100 records
 		Path path = TestUtil.createTempParquetFile(temp, TestUtil.SIMPLE_SCHEMA, records);
 		MessageType simpleType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
 
@@ -113,12 +113,13 @@ public class ParquetInputFormatTest {
 		assertEquals(1, splits.length);
 
 		final Tuple2<Long, Long> checkpoint = new Tuple2<>();
-		checkpoint.f0 = 0L;
+		checkpoint.f0 = 1L;
 		checkpoint.f1 = 51L;
 		rowInputFormat.reopen(splits[0], checkpoint);
 		Row row = rowInputFormat.nextRecord(null);
 		assertNotNull(row);
-		assertEquals(51L, row.getField(0));
+		// the field value should be block * 100 + position
+		assertEquals(151L, row.getField(0));
 
 		for (int i = 0; i < 10; i++) {
 			rowInputFormat.nextRecord(null);

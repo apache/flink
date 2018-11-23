@@ -71,6 +71,7 @@ public class ParquetRecordReader<T> {
 	private RecordReader<T> recordReader;
 	private boolean strictTypeChecking = true;
 	private boolean skipCorruptedRecord = true;
+	private boolean fetched = false;
 	private long numRowsUpToPreviousBlock = 0;
 	private long numRowsUpToCurrentBlock = 0;
 
@@ -123,6 +124,9 @@ public class ParquetRecordReader<T> {
 			numRowsUpToCurrentBlock += blockMetaData.get(currentBlock).getRowCount();
 		}
 
+		PageReadStore pages = reader.readNextRowGroup();
+		recordReader = createRecordReader(pages);
+
 		for (int i = 0; i < recordInBlock; i++) {
 			// skip the record already processed
 			if (hasNextRecord()) {
@@ -138,6 +142,10 @@ public class ParquetRecordReader<T> {
 
 	public boolean hasNextRecord() throws IOException {
 		boolean recordFound = false;
+		if (currentValue != null && !fetched) {
+			return true;
+		}
+
 		while (!recordFound) {
 			// no more records left
 			if (numReturnedRows >= numTotalRows) {
@@ -163,7 +171,7 @@ public class ParquetRecordReader<T> {
 
 					if (!skipCorruptedRecord) {
 						LOG.error(errorMessage);
-						throw new RuntimeException(errorMessage, e);
+						throw e;
 					} else {
 						LOG.warn(errorMessage);
 					}
@@ -178,7 +186,7 @@ public class ParquetRecordReader<T> {
 
 				recordFound = true;
 				LOG.debug("read value: {}", currentValue);
-			} catch (RuntimeException e) {
+			} catch (RecordMaterializationException e) {
 				LOG.error(String.format("Can not read value at %d in block %d in file %s",
 					numReturnedRows - numRowsUpToPreviousBlock, currentBlock, reader.getFile()), e);
 				if (!skipCorruptedRecord) {
@@ -193,6 +201,7 @@ public class ParquetRecordReader<T> {
 
 	@CheckReturnValue(when = When.NEVER)
 	public T nextRecord() {
+		fetched = true;
 		return currentValue;
 	}
 
