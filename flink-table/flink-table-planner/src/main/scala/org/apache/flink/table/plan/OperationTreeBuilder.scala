@@ -22,7 +22,7 @@ import java.util.{Optional, List => JList, Map => JMap}
 
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.api._
-import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionBridge, Ordering, PlannerExpression, UnresolvedAlias, UnresolvedFieldReference, WindowProperty}
+import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionBridge, Flattening, Ordering, PlannerExpression, UnresolvedAlias, UnresolvedFieldReference, WindowProperty}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.operations.TableOperation
 import org.apache.flink.table.plan.ProjectionTranslator.{expandProjectList, flattenExpression, resolveOverWindows}
@@ -367,6 +367,13 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       all: Boolean)
     : TableOperation = {
     Union(left.asInstanceOf[LogicalNode], right.asInstanceOf[LogicalNode], all).validate(tableEnv)
+  }
+
+  def map(mapFunction: Expression, child: TableOperation): TableOperation = {
+    val childNode = child.asInstanceOf[LogicalNode]
+    val expandedFields = expandProjectList(
+      Seq(mapFunction).map(e => Flattening(expressionBridge.bridge(e))), childNode, tableEnv)
+    Project(expandedFields.map(UnresolvedAlias), childNode).validate(tableEnv)
   }
 
   /**

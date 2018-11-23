@@ -136,4 +136,20 @@ object ProjectionTranslator {
       case e: PlannerExpression => e
     }
   }
+
+
+  /**
+    * Extracts the leading non-alias expression.
+    *
+    * @param expr the expression to extract
+    * @return the top non-alias expression
+    */
+  def getLeadingNonAliasExpr(expr: Expression): Expression = {
+    expr match {
+      case callExpr: CallExpression if callExpr.getFunctionDefinition.equals(
+          BuiltInFunctionDefinitions.AS) =>
+        getLeadingNonAliasExpr(callExpr.getChildren.get(0))
+      case _ => expr
+    }
+  }
 }

@@ -193,4 +193,8 @@ class TableImpl(val tableEnv: TableEnvironment, relNode: RelNode) extends Table 
   override def dropColumns(fields: String): Table = ???
 
   override def dropColumns(fields: Expression*): Table = ???
+
+  override def map(mapFunction: String): Table = ???
+
+  override def map(mapFunction: Expression): Table = ???
 }
