@@ -48,14 +48,21 @@ trait CommonAggregate {
     val groupStrings = grouping.map( inFields(_) )
 
     val aggs = namedAggregates.map(_.getKey)
-    val aggStrings = aggs.map( a => s"${a.getAggregation}(${
+    val filterStrings = aggs.map { a =>
+      if (a.filterArg >= 0) {
+        " FILTER " + inFields(a.filterArg)
+      } else {
+        ""
+      }
+    }
+    val aggStrings = aggs.zipWithIndex.map { case (a, i) => s"${a.getAggregation}(${
       val prefix = if (a.isDistinct) "DISTINCT " else ""
       prefix + (if (a.getArgList.size() > 0) {
         a.getArgList.asScala.map(inFields(_)).mkString(", ")
       } else {
         "*"
       })
-    })")
+    })${filterStrings(i)}"}
 
     val propStrings = namedProperties.map(_.property.toString)
 

@@ -97,6 +97,7 @@ class AggregationCodeGenerator(
       physicalInputTypes: Seq[TypeInformation[_]],
       aggregates: Array[AggregateFunction[_ <: Any, _ <: Any]],
       aggFields: Array[Array[Int]],
+      filterArgFields: Array[Int],
       aggMapping: Array[Int],
       isDistinctAggs: Array[Boolean],
       isStateBackedDataViews: Boolean,
@@ -140,6 +141,14 @@ class AggregationCodeGenerator(
       }
 
       fields.mkString(", ")
+    }
+
+    val filtersCode = filterArgFields.map { f =>
+      if (f > -1) {
+        s"(${CodeGenUtils.boxedTypeTermForTypeInfo(physicalInputTypes(f))}) input.getField($f)"
+      } else {
+        ""
+      }
     }
 
     // get method signatures
@@ -470,7 +479,8 @@ class AggregationCodeGenerator(
                |      ${aggs(i)}.accumulate(acc$i
                |        ${if (!parametersCode(i).isEmpty) "," else ""} ${parametersCode(i)});
                """.stripMargin
-          if (isDistinctAggs(i)) {
+
+          val accumulateCode = if (isDistinctAggs(i)) {
             j"""
                |    $distinctAccType distinctAcc$i = ($distinctAccType) accs.getField($i);
                |    ${genDistinctDataViewFieldSetter(s"distinctAcc$i", i)}
@@ -485,6 +495,16 @@ class AggregationCodeGenerator(
                |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
                |    $accumulateAcc
                """.stripMargin
+          }
+
+          if (filterArgFields(i) > -1) {
+            j"""
+               |if (${filtersCode(i)}) {
+               |  $accumulateCode
+               |}
+               """.stripMargin
+          } else {
+            accumulateCode
           }
         }
       }.mkString("\n")
@@ -510,7 +530,7 @@ class AggregationCodeGenerator(
                |    ${aggs(i)}.retract(
                |      acc$i ${if (!parametersCode(i).isEmpty) "," else ""} ${parametersCode(i)});
                """.stripMargin
-          if (isDistinctAggs(i)) {
+          val retractCode = if (isDistinctAggs(i)) {
             j"""
                |    $distinctAccType distinctAcc$i = ($distinctAccType) accs.getField($i);
                |    ${genDistinctDataViewFieldSetter(s"distinctAcc$i", i)}
@@ -525,6 +545,16 @@ class AggregationCodeGenerator(
                |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
                |    $retractAcc
                """.stripMargin
+          }
+
+          if (filterArgFields(i) > -1) {
+            j"""
+               |if (${filtersCode(i)}) {
+               |  $retractCode
+               |}
+               """.stripMargin
+          } else {
+            retractCode
           }
         }
       }.mkString("\n")

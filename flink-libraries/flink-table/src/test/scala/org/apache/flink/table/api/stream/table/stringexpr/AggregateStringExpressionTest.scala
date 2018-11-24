@@ -128,4 +128,68 @@ class AggregateStringExpressionTest extends TableTestBase {
 
     verifyTableEquals(resJava, resScala)
   }
+
+  @Test
+  def testFilterNonGroupedAggregate(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3")
+
+    val t1 = t.select('_1.sum.distinct.filter('_2 > 0), '_1.count.filter('_2 > 0))
+    val t2 = t.select("sum.distinct(_1).filter(_2 > 0), count(_1).filter(_2 > 0)")
+
+    verifyTableEquals(t1, t2)
+  }
+
+  @Test
+  def testFilterGroupedAggregate(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+
+    val t1 = t.groupBy('b).select('b, 'a.sum.distinct.filter('c === "a"), 'a.sum.filter('c === "a"))
+    val t2 = t.groupBy("b").select("b, a.sum.distinct.filter(c = \"a\"), a.sum.filter(c = \"a\")")
+
+    verifyTableEquals(t1, t2)
+  }
+
+  @Test
+  def testFilterNonGroupAggregateWithUDAGG(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+
+    val myCnt = new CountAggFunction
+    util.tableEnv.registerFunction("myCnt", myCnt)
+    val myWeightedAvg = new WeightedAvgWithMergeAndReset
+    util.tableEnv.registerFunction("myWeightedAvg", myWeightedAvg)
+
+    val t1 = t.select(
+      myCnt.distinct('a).filter('b > 0) as 'aCnt, myWeightedAvg('b, 'a).filter('b < 0) as 'wAvg)
+    val t2 = t.select(
+      "myCnt.distinct(a).filter(b > 0) as aCnt, myWeightedAvg(b, a).filter(b < 0) as wAvg")
+
+    verifyTableEquals(t1, t2)
+  }
+
+  @Test
+  def testFilterGroupedAggregateWithUDAGG(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+
+
+    val myCnt = new CountAggFunction
+    util.tableEnv.registerFunction("myCnt", myCnt)
+    val myWeightedAvg = new WeightedAvgWithMergeAndReset
+    util.tableEnv.registerFunction("myWeightedAvg", myWeightedAvg)
+
+    val t1 = t.groupBy('b)
+      .select('b,
+              myCnt.distinct('a).filter('b > 0) + 9 as 'aCnt,
+              myWeightedAvg('b, 'a).filter('b > 0).distinct * 2 as 'wAvg,
+              myWeightedAvg('a, 'a).filter('b < 0) as 'wAvg2)
+    val t2 = t.groupBy("b")
+      .select("b, myCnt.distinct(a).filter(b > 0) + 9 as aCnt," +
+                "myWeightedAvg(b, a).filter(b > 0).distinct * 2 as wAvg, " +
+                "myWeightedAvg(a, a).filter(b < 0) as wAvg2")
+
+    verifyTableEquals(t1, t2)
+  }
 }

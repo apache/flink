@@ -1044,6 +1044,8 @@ trait ImplicitExpressionConversions {
   implicit def toDistinct[T: TypeInformation, ACC: TypeInformation]
       (agg: AggregateFunction[T, ACC]): DistinctAggregateFunction[T, ACC] =
     DistinctAggregateFunction(agg)
+  implicit def toAggWithFilter(agg: Aggregation): FilterAgg =
+    FilterAgg(agg, null)
 }
 
 // ------------------------------------------------------------------------------------------------

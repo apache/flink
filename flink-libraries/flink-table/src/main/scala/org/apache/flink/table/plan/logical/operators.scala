@@ -231,17 +231,31 @@ case class Aggregate(
     val resolvedAggregate = super.validate(tableEnv).asInstanceOf[Aggregate]
     val groupingExprs = resolvedAggregate.groupingExpressions
     val aggregateExprs = resolvedAggregate.aggregateExpressions
-    aggregateExprs.foreach(validateAggregateExpression)
+    aggregateExprs.foreach(validateAggregateExpression(
+      _, distinctFound = false, aggFilterFound = false))
     groupingExprs.foreach(validateGroupingExpression)
 
-    def validateAggregateExpression(expr: Expression): Unit = expr match {
+    def validateAggregateExpression(
+        expr: Expression,
+        distinctFound: Boolean,
+        aggFilterFound: Boolean): Unit = expr match {
+      case _: DistinctAgg if distinctFound =>
+        failValidation("Chained distinct operators are not supported!")
       case distinctExpr: DistinctAgg =>
         distinctExpr.child match {
-          case _: DistinctAgg => failValidation(
-            "Chained distinct operators are not supported!")
-          case aggExpr: Aggregation => validateAggregateExpression(aggExpr)
+          case aggExpr: Aggregation => validateAggregateExpression(
+            aggExpr, distinctFound = true, aggFilterFound = aggFilterFound)
           case _ => failValidation(
             "Distinct operator can only be applied to aggregation expressions!")
+        }
+      case _: FilterAgg if aggFilterFound =>
+        failValidation("Chained filter operators are not supported!")
+      case filterExpr: FilterAgg =>
+        filterExpr.agg match {
+          case aggExpr: Aggregation => validateAggregateExpression(
+            aggExpr, distinctFound, aggFilterFound = true)
+          case _ => failValidation(
+            "Filter operator can only be applied to aggregation expressions!")
         }
       // check aggregate function
       case aggExpr: Aggregation
@@ -263,7 +277,8 @@ case class Aggregate(
           s"expression '$a' is invalid because it is neither" +
             " present in group by nor an aggregate function")
       case e if groupingExprs.exists(_.checkEquals(e)) => // OK
-      case e => e.children.foreach(validateAggregateExpression)
+      case e => e.children.foreach(validateAggregateExpression(
+        _, distinctFound = false, aggFilterFound = false))
     }
 
     def validateGroupingExpression(expr: Expression): Unit = {

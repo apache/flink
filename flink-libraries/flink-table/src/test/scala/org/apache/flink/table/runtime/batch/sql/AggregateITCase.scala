@@ -559,4 +559,23 @@ class AggregateITCase(
 
     TestBaseUtils.compareResultAsText(result.asJava, expected)
   }
+
+  @Test
+  def testGroupedFilterAggregate(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT _2, count(_3) FILTER (WHERE MOD(_1, 2) = 0) FROM MyTable GROUP BY _2"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
+    tEnv.registerTable("MyTable", ds)
+
+    val result = tEnv.sqlQuery(sqlQuery)
+
+    val expected =
+      "1,0\n2,1\n3,2\n4,2\n5,2\n6,3"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
 }

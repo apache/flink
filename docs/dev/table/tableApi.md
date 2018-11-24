@@ -327,7 +327,7 @@ val result = orders.where('b === "red")
         <p>Similar to a SQL GROUP BY clause. Groups the rows on the grouping keys with a following running aggregation operator to aggregate rows group-wise.</p>
 {% highlight java %}
 Table orders = tableEnv.scan("Orders");
-Table result = orders.groupBy("a").select("a, b.sum as d");
+Table result = orders.groupBy("a").select("a, b.sum as d, c.avg.filter(e > 0) as f");
 {% endhighlight %}
         <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
@@ -448,7 +448,7 @@ Table result = orders.distinct();
         <p>Similar to a SQL GROUP BY clause. Groups the rows on the grouping keys with a following running aggregation operator to aggregate rows group-wise.</p>
 {% highlight scala %}
 val orders: Table = tableEnv.scan("Orders")
-val result = orders.groupBy('a).select('a, 'b.sum as 'd)
+val result = orders.groupBy('a).select('a, 'b.sum as 'd, 'c.avg.filter('e > 0) as 'f)
 {% endhighlight %}
         <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>

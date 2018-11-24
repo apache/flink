@@ -864,6 +864,38 @@ class SqlITCase extends StreamingWithStateTestBase {
 
     assertEquals(List(expected.toString()), StreamITCase.testResults.sorted)
   }
+
+  @Test
+  def testUnboundedGroupByWithAggFilter(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setStateBackend(getStateBackend)
+    StreamITCase.clear
+
+    val sqlQuery = "SELECT a, sum(b) FILTER (WHERE c < 4), count(b) FROM MyTable GROUP BY a"
+
+    val data = List(
+      (1, 1, 1),
+      (1, 2, 2),
+      (1, 3, 3),
+      (2, 2, 3),
+      (2, 3, 4),
+      (3, 3, 5)
+    )
+
+    tEnv.registerTable("MyTable", env.fromCollection(data).toTable(tEnv).as('a, 'b, 'c))
+
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = List(
+      "1,6,3",
+      "2,2,2",
+      "3,null,1")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
 }
 
 object SqlITCase {

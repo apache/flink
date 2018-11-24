@@ -87,6 +87,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val FLATTEN: Keyword = Keyword("flatten")
   lazy val OVER: Keyword = Keyword("over")
   lazy val DISTINCT: Keyword = Keyword("distinct")
+  lazy val FILTER: Keyword = Keyword("filter")
   lazy val CURRENT_ROW: Keyword = Keyword("current_row")
   lazy val CURRENT_RANGE: Keyword = Keyword("current_range")
   lazy val UNBOUNDED_ROW: Keyword = Keyword("unbounded_row")
@@ -331,6 +332,11 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val suffixDistinct: PackratParser[Expression] =
     composite <~ "." ~ DISTINCT ~ opt("()") ^^ { e => DistinctAgg(e) }
 
+  lazy val suffixFilter: PackratParser[Expression] =
+    composite ~ "." ~ FILTER ~ "(" ~ expression ~ ")" ^^ {
+      case agg ~ _ ~ _ ~ _ ~ filter ~ _ => FilterAgg(agg, filter)
+  }
+
   lazy val suffixAs: PackratParser[Expression] =
     composite ~ "." ~ AS ~ "(" ~ rep1sep(fieldReference, ",") ~ ")" ^^ {
       case e ~ _ ~ _ ~ _ ~ target ~ _ => Alias(e, target.head.name, target.tail.map(_.name))
@@ -354,6 +360,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     suffixIf |
     // expression with distinct suffix modifier
     suffixDistinct |
+    // expression with filter suffix modifier
+    suffixFilter |
     // function call must always be at the end
     suffixFunctionCall | suffixFunctionCallOneArg
 

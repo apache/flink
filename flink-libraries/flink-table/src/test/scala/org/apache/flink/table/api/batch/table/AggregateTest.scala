@@ -20,6 +20,7 @@ package org.apache.flink.table.api.batch.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
@@ -133,6 +134,64 @@ class AggregateTest extends TableTestBase {
         "COUNT(c) AS TMP_2",
         "SUM($f3) AS TMP_3")
     )
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testGroupFilterAggregate(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
+
+    val resultTable = table
+      .groupBy('b)
+      .select('a.sum.filter('c === "A"), 'c.count.filter('c === "A"))
+
+    val expected =
+      unaryNode(
+        "DataSetCalc",
+        unaryNode(
+          "DataSetAggregate",
+          unaryNode(
+            "DataSetCalc",
+            batchTableNode(0),
+            term("select", "a", "c", "b", "IS TRUE(=(c, 'A')) AS $f3", "IS TRUE(=(c, 'A')) AS $f4")
+          ),
+          term("groupBy", "b"),
+          term("select", "b", "SUM(a) FILTER $f3 AS TMP_0, COUNT(c) FILTER $f4 AS TMP_1")
+        ),
+        term("select", "TMP_0", "TMP_1")
+      )
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testGroupFilterAggregateWithUDAGG(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
+    val weightedAvg = new WeightedAvg
+
+    val resultTable = table
+      .groupBy('c)
+      .select(weightedAvg('a, 'b).filter('c === "A"))
+
+    val expected =
+      unaryNode(
+        "DataSetCalc",
+        unaryNode(
+          "DataSetAggregate",
+          unaryNode(
+            "DataSetCalc",
+            batchTableNode(0),
+            term("select", "a", "b", "c", "IS TRUE(=(c, 'A')) AS $f3")
+          ),
+          term("groupBy", "c"),
+          term(
+            "select",
+            "c",
+            "WeightedAvg(a, b) FILTER $f3 AS TMP_0")
+        ),
+        term("select", "TMP_0")
+      )
     util.verifyTable(resultTable, expected)
   }
 }

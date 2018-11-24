@@ -238,4 +238,64 @@ class AggregateTest extends TableTestBase {
 
     util.verifyTable(resultTable, expected)
   }
+
+  @Test
+  def testGroupFilterAggregate(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
+
+    val resultTable = table
+      .groupBy('b)
+      .select('a.sum.filter('c === "A"), 'c.count.distinct.filter('c === "A"))
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamGroupAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "a", "c", "b", "IS TRUE(=(c, 'A')) AS $f3", "IS TRUE(=(c, 'A')) AS $f4")
+          ),
+          term("groupBy", "b"),
+          term("select", "b", "SUM(a) FILTER $f3 AS TMP_0, COUNT(DISTINCT c) FILTER $f4 AS TMP_1")
+        ),
+        term("select", "TMP_0", "TMP_1")
+      )
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testGroupFilterAggregateWithUDAGG(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
+    val weightedAvg = new WeightedAvg
+
+    val resultTable = table
+      .groupBy('c)
+      .select(
+        weightedAvg.distinct('a, 'b).filter('c === "A"), weightedAvg('a, 'b).filter('c === "A"))
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamGroupAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "a", "b", "c", "IS TRUE(=(c, 'A')) AS $f3", "IS TRUE(=(c, 'A')) AS $f4")
+          ),
+          term("groupBy", "c"),
+          term(
+            "select",
+            "c",
+            "WeightedAvg(DISTINCT a, b) FILTER $f3 AS TMP_0",
+            "WeightedAvg(a, b) FILTER $f4 AS TMP_1")
+        ),
+        term("select", "TMP_0", "TMP_1")
+      )
+    util.verifyTable(resultTable, expected)
+  }
 }

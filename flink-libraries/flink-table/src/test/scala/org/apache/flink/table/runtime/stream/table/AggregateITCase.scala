@@ -323,4 +323,49 @@ class AggregateITCase extends StreamingWithStateTestBase {
     val expected = List("(true,A,1)", "(true,B,2)", "(true,C,3)")
     assertEquals(expected.sorted, RowCollector.getAndClearValues.map(_.toString).sorted)
   }
+
+  @Test
+  def testFilterAggregate(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+      .groupBy('a)
+      .select('a,
+              'c.count.filter('b % 2 === 0),
+              'c.count.distinct.filter('b % 2 === 0),
+              'c.count.filter('b % 2 === 0).distinct)
+
+    val results = t.toRetractStream[Row](queryConfig)
+    results.addSink(new StreamITCase.RetractingSink)
+    env.execute()
+
+    val expected = List("1,0,0,0", "2,1,1,1", "3,2,2,2", "4,2,2,2", "5,2,2,2")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testFilterUDAGG(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val testAgg = new DataViewTestAgg
+    val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+      .groupBy('e)
+      .select('e,
+              testAgg.distinct('d, 'e).filter('b % 2 === 0),
+              testAgg('d, 'e).filter('b % 2 === 0).distinct,
+              testAgg('d, 'e).filter('b % 2 === 0))
+
+    val results = t.toRetractStream[Row](queryConfig)
+    results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList("1,2,2,2", "2,12,12,12", "3,8,8,8")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
 }

@@ -455,6 +455,21 @@ class AggregationsITCase(
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
+
+  @Test
+  def testGroupedFilterAggregate(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val t = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+      .groupBy('e)
+      .select('e, 'c.min.filter('b % 2 === 0))
+
+    val expected = "1,7\n" + "2,1\n" + "3,5\n"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
 }
 
 case class WC(word: String, frequency: Long)

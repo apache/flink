@@ -22,11 +22,10 @@ import org.apache.calcite.sql.SqlAggFunction
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.AggCall
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.typeutils.TypeCheckUtils
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.typeutils.MultisetTypeInfo
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
@@ -44,7 +43,8 @@ abstract sealed class Aggregation extends Expression {
     */
   private[flink] def toAggCall(
       name: String,
-      isDistinct: Boolean = false
+      isDistinct: Boolean = false,
+      filterArg: Option[Expression] = None
   )(implicit relBuilder: RelBuilder): AggCall
 
   /**
@@ -56,7 +56,7 @@ abstract sealed class Aggregation extends Expression {
 
 case class DistinctAgg(child: Expression) extends Aggregation {
 
-  private[flink] def distinct: Expression = DistinctAgg(child)
+  private[flink] def distinct: Aggregation = DistinctAgg(child)
 
   override private[flink] def resultType: TypeInformation[_] = child.resultType
 
@@ -73,8 +73,11 @@ case class DistinctAgg(child: Expression) extends Aggregation {
   }
 
   override private[flink] def toAggCall(
-      name: String, isDistinct: Boolean = true)(implicit relBuilder: RelBuilder) = {
-    child.asInstanceOf[Aggregation].toAggCall(name, isDistinct = true)
+      name: String,
+      isDistinct: Boolean = true,
+      filterArg: Option[Expression] = None
+  )(implicit relBuilder: RelBuilder) = {
+    child.asInstanceOf[Aggregation].toAggCall(name, isDistinct = true, filterArg)
   }
 
   override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
@@ -84,17 +87,57 @@ case class DistinctAgg(child: Expression) extends Aggregation {
   override private[flink] def children = Seq(child)
 }
 
+case class FilterAgg(agg: Expression, filter: Expression) extends Aggregation {
+
+  private[flink] def filter(filter: Expression): Aggregation =
+    FilterAgg(agg, filter)
+
+  override private[flink] def resultType: TypeInformation[_] = agg.resultType
+
+  override private[flink] def validateInput(): ValidationResult = {
+    super.validateInput()
+    if (filter.resultType != BasicTypeInfo.BOOLEAN_TYPE_INFO) {
+      return ValidationFailure(s"Filter should have boolean condition, get ${filter.resultType}")
+    }
+    agg match {
+      case a: Aggregation =>
+        a.validateInput()
+      case _ =>
+        ValidationFailure(s"Filter modifier cannot be applied to $agg! " +
+          s"It can only be applied to an aggregation expression, for example, " +
+          s"'a.count.filter(b) which is equivalent with COUNT(a) FILTER (WHERE b).")
+    }
+  }
+
+  override private[flink] def toAggCall(
+      name: String,
+      isDistinct: Boolean = false,
+      filterArg: Option[Expression] = Some(filter)
+  )(implicit relBuilder: RelBuilder) = {
+    agg.asInstanceOf[Aggregation].toAggCall(name, isDistinct, Some(filter))
+  }
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
+    agg.asInstanceOf[Aggregation].getSqlAggFunction()
+  }
+
+  override private[flink] def children = Seq(agg, filter)
+}
+
 case class Sum(child: Expression) extends Aggregation {
   override private[flink] def children: Seq[Expression] = Seq(child)
   override def toString = s"sum($child)"
 
   override private[flink] def toAggCall(
-      name: String, isDistinct: Boolean = false)(implicit relBuilder: RelBuilder): AggCall = {
+      name: String,
+      isDistinct: Boolean = false,
+      filterArg: Option[Expression] = None
+  )(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(
       SqlStdOperatorTable.SUM,
       isDistinct,
       false,
-      null,
+      filterArg.map(_.toRexNode).orNull,
       name,
       child.toRexNode)
   }
@@ -117,12 +160,15 @@ case class Sum0(child: Expression) extends Aggregation {
   override def toString = s"sum0($child)"
 
   override private[flink] def toAggCall(
-      name: String, isDistinct: Boolean = false)(implicit relBuilder: RelBuilder): AggCall = {
+      name: String,
+      isDistinct: Boolean = false,
+      filterArg: Option[Expression] = None
+  )(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(
       SqlStdOperatorTable.SUM0,
       isDistinct,
       false,
-      null,
+      filterArg.map(_.toRexNode).orNull,
       name,
       child.toRexNode)
   }
@@ -141,12 +187,15 @@ case class Min(child: Expression) extends Aggregation {
   override def toString = s"min($child)"
 
   override private[flink] def toAggCall(
-      name: String, isDistinct: Boolean = false)(implicit relBuilder: RelBuilder): AggCall = {
+      name: String,
+      isDistinct: Boolean = false,
+      filterArg: Option[Expression] = None
+  )(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(
       SqlStdOperatorTable.MIN,
       isDistinct,
       false,
-      null,
+      filterArg.map(_.toRexNode).orNull,
       name,
       child.toRexNode)
   }
@@ -166,12 +215,15 @@ case class Max(child: Expression) extends Aggregation {
   override def toString = s"max($child)"
 
   override private[flink] def toAggCall(
-      name: String, isDistinct: Boolean = false)(implicit relBuilder: RelBuilder): AggCall = {
+      name: String,
+      isDistinct: Boolean = false,
+      filterArg: Option[Expression] = None
+  )(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(
       SqlStdOperatorTable.MAX,
       isDistinct,
       false,
-      null,
+      filterArg.map(_.toRexNode).orNull,
       name,
       child.toRexNode)
   }
@@ -191,12 +243,15 @@ case class Count(child: Expression) extends Aggregation {
   override def toString = s"count($child)"
 
   override private[flink] def toAggCall(
-      name: String, isDistinct: Boolean = false)(implicit relBuilder: RelBuilder): AggCall = {
+      name: String,
+      isDistinct: Boolean = false,
+      filterArg: Option[Expression] = None
+  )(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(
       SqlStdOperatorTable.COUNT,
       isDistinct,
       false,
-      null,
+      filterArg.map(_.toRexNode).orNull,
       name,
       child.toRexNode)
   }
@@ -213,12 +268,15 @@ case class Avg(child: Expression) extends Aggregation {
   override def toString = s"avg($child)"
 
   override private[flink] def toAggCall(
-      name: String, isDistinct: Boolean = false)(implicit relBuilder: RelBuilder): AggCall = {
+      name: String,
+      isDistinct: Boolean = false,
+      filterArg: Option[Expression] = None
+  )(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(
       SqlStdOperatorTable.AVG,
       isDistinct,
       false,
-      null,
+      filterArg.map(_.toRexNode).orNull,
       name,
       child.toRexNode)
   }
@@ -246,12 +304,15 @@ case class Collect(child: Expression) extends Aggregation  {
   override def toString: String = s"collect($child)"
 
   override private[flink] def toAggCall(
-      name: String, isDistinct: Boolean = false)(implicit relBuilder: RelBuilder): AggCall = {
+      name: String,
+      isDistinct: Boolean = false,
+      filterArg: Option[Expression] = None
+  )(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(
       SqlStdOperatorTable.COLLECT,
       isDistinct,
       false,
-      null,
+      filterArg.map(_.toRexNode).orNull,
       name,
       child.toRexNode)
   }
@@ -266,12 +327,15 @@ case class StddevPop(child: Expression) extends Aggregation {
   override def toString = s"stddev_pop($child)"
 
   override private[flink] def toAggCall(
-      name: String, isDistinct: Boolean = false)(implicit relBuilder: RelBuilder): AggCall = {
+      name: String,
+      isDistinct: Boolean = false,
+      filterArg: Option[Expression] = None
+  )(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(
       SqlStdOperatorTable.STDDEV_POP,
       isDistinct,
       false,
-      null,
+      filterArg.map(_.toRexNode).orNull,
       name,
       child.toRexNode)
   }
@@ -290,12 +354,15 @@ case class StddevSamp(child: Expression) extends Aggregation {
   override def toString = s"stddev_samp($child)"
 
   override private[flink] def toAggCall(
-      name: String, isDistinct: Boolean = false)(implicit relBuilder: RelBuilder): AggCall = {
+      name: String,
+      isDistinct: Boolean = false,
+      filterArg: Option[Expression] = None
+  )(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(
       SqlStdOperatorTable.STDDEV_SAMP,
       isDistinct,
       false,
-      null,
+      filterArg.map(_.toRexNode).orNull,
       name,
       child.toRexNode)
   }
@@ -314,12 +381,15 @@ case class VarPop(child: Expression) extends Aggregation {
   override def toString = s"var_pop($child)"
 
   override private[flink] def toAggCall(
-      name: String, isDistinct: Boolean = false)(implicit relBuilder: RelBuilder): AggCall = {
+      name: String,
+      isDistinct: Boolean = false,
+      filterArg: Option[Expression] = None
+  )(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(
       SqlStdOperatorTable.VAR_POP,
       isDistinct,
       false,
-      null,
+      filterArg.map(_.toRexNode).orNull,
       name,
       child.toRexNode)
   }
@@ -338,12 +408,15 @@ case class VarSamp(child: Expression) extends Aggregation {
   override def toString = s"var_samp($child)"
 
   override private[flink] def toAggCall(
-      name: String, isDistinct: Boolean = false)(implicit relBuilder: RelBuilder): AggCall = {
+      name: String,
+      isDistinct: Boolean = false,
+      filterArg: Option[Expression] = None
+  )(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(
       SqlStdOperatorTable.VAR_SAMP,
       isDistinct,
       false,
-      null,
+      filterArg.map(_.toRexNode).orNull,
       name,
       child.toRexNode)
   }
@@ -388,12 +461,15 @@ case class AggFunctionCall(
   override def toString: String = s"${aggregateFunction.getClass.getSimpleName}($args)"
 
   override def toAggCall(
-      name: String, isDistinct: Boolean = false)(implicit relBuilder: RelBuilder): AggCall = {
+      name: String,
+      isDistinct: Boolean = false,
+      filterArg: Option[Expression] = None
+  )(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(
       this.getSqlAggFunction(),
       isDistinct,
       false,
-      null,
+      filterArg.map(_.toRexNode).orNull,
       name,
       args.map(_.toRexNode): _*)
   }
