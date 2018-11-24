@@ -557,6 +557,14 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.defaultColumnFamily = columnFamilyHandles.get(0);
 	}
 
+	private String getPathAsString(Path path) {
+		String pathString = path.getPath();
+		if (path.hasWindowsDrive() && pathString.startsWith("/")) {
+			pathString = pathString.substring(1);
+		}
+		return pathString;
+	}
+
 	private RocksDB openDB(
 		String path,
 		List<ColumnFamilyDescriptor> stateColumnFamilyDescriptors,
@@ -575,7 +583,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		try {
 			dbRef = RocksDB.open(
 				Preconditions.checkNotNull(dbOptions),
-				Preconditions.checkNotNull(path),
+				Preconditions.checkNotNull(getPathAsString(new Path(path))),
 				columnFamilyDescriptors,
 				stateColumnFamilyHandles);
 		} catch (RocksDBException e) {
@@ -2546,7 +2554,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			// create hard links of living files in the snapshot path
 			try (Checkpoint checkpoint = Checkpoint.create(stateBackend.db)) {
-				checkpoint.createCheckpoint(localBackupDirectory.getDirectory().getPath());
+				String path = stateBackend.getPathAsString(localBackupDirectory.getDirectory());
+				LOG.trace("Checkpoint directory is {}.", path);
+				checkpoint.createCheckpoint(path);
 			}
 		}
 
