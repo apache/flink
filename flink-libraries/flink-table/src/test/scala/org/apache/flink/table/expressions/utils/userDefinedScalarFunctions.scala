@@ -29,6 +29,7 @@ import org.junit.Assert
 
 import scala.annotation.varargs
 import scala.collection.mutable
+import scala.collection.JavaConversions._
 import scala.io.Source
 
 case class SimplePojo(name: String, age: Int)
