@@ -557,7 +557,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.defaultColumnFamily = columnFamilyHandles.get(0);
 	}
 
-	private String getPathAsString(Path path){
+	private String getPathAsString(Path path) {
 		String pathString = path.getPath();
 		if (path.hasWindowsDrive() && pathString.startsWith("/")) {
 			pathString = pathString.substring(1);
