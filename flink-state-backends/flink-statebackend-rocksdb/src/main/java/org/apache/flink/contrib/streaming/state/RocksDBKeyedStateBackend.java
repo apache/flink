@@ -557,14 +557,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.defaultColumnFamily = columnFamilyHandles.get(0);
 	}
 
-	private static class Utils {
-		static String getPathAsString(Path path) {
-			String pathString = path.getPath();
-			if (path.hasWindowsDrive() && pathString.startsWith("/")) {
-				pathString = pathString.substring(1);
-			}
-			return pathString;
+	private String getPathAsString(Path path){
+		String pathString = path.getPath();
+		if (path.hasWindowsDrive() && pathString.startsWith("/")) {
+			pathString = pathString.substring(1);
 		}
+		return pathString;
 	}
 
 	private RocksDB openDB(
@@ -585,7 +583,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		try {
 			dbRef = RocksDB.open(
 				Preconditions.checkNotNull(dbOptions),
-				Preconditions.checkNotNull(Utils.getPathAsString(new Path(path))),
+				Preconditions.checkNotNull(getPathAsString(new Path(path))),
 				columnFamilyDescriptors,
 				stateColumnFamilyHandles);
 		} catch (RocksDBException e) {
@@ -2557,8 +2555,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			// create hard links of living files in the snapshot path
 			try (Checkpoint checkpoint = Checkpoint.create(stateBackend.db)) {
-				LOG.info("Checkpoint path is {}.", localBackupDirectory.getDirectory().getPath());
-				String path = Utils.getPathAsString(localBackupDirectory.getDirectory());
+				String path = stateBackend.getPathAsString(localBackupDirectory.getDirectory());
+				LOG.trace("Checkpoint path is {}.", path);
 				checkpoint.createCheckpoint(path);
 			}
 		}
