@@ -28,7 +28,7 @@ import org.apache.flink.table.api.Table
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.expressions.TimePointUnit.TimePointUnit
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{AggregateFunction, DistinctAggregateFunction}
+import org.apache.flink.table.functions.{AggregateFunction, DistinctAggregateFunction, ScalarFunction}
 
 import scala.language.implicitConversions
 
@@ -1019,6 +1019,12 @@ trait ImplicitExpressionConversions {
   implicit class LiteralSqlTimestampExpression(sqlTimestamp: Timestamp)
       extends ImplicitExpressionOperations {
     def expr = Literal(sqlTimestamp)
+  }
+
+  implicit class ScalarFunctionCallExpression(val s: ScalarFunction) {
+    def apply(params: Expression*): Expression = {
+      ScalarFunctionCall(s, params)
+    }
   }
 
   implicit def symbol2FieldExpression(sym: Symbol): Expression = UnresolvedFieldReference(sym.name)
