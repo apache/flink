@@ -59,13 +59,14 @@ class CollectorCodeGenerator(
     *             valid Java class identifier.
     * @param bodyCode body code for the collector method
     * @param collectedType The type information of the element collected by the collector
+    * @param filterGenerator generator containing context information for the generated body code
     * @return instance of GeneratedCollector
     */
   def generateTableFunctionCollector(
       name: String,
       bodyCode: String,
       collectedType: TypeInformation[Any],
-      codeGenerator: CodeGenerator)
+      filterGenerator: CodeGenerator)
     : GeneratedCollector = {
 
     val className = newName(name)
@@ -86,6 +87,10 @@ class CollectorCodeGenerator(
       s"$input2TypeClass $input2Term" // local variable
     }
 
+    reusableMemberStatements ++= filterGenerator.reusableMemberStatements
+    reusableInitStatements ++= filterGenerator.reusableInitStatements
+    reusablePerRecordStatements ++= filterGenerator.reusablePerRecordStatements
+
     val funcCode = j"""
       |public class $className extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
       |
@@ -98,7 +103,7 @@ class CollectorCodeGenerator(
       |
       |  @Override
       |  public void open(${classOf[Configuration].getCanonicalName} parameters) throws Exception {
-      |    ${codeGenerator.reuseOpenCode()}
+      |    ${filterGenerator.reuseOpenCode()}
       |  }
       |
       |  @Override
@@ -113,7 +118,7 @@ class CollectorCodeGenerator(
       |
       |  @Override
       |  public void close() throws Exception {
-      |    ${codeGenerator.reuseCloseCode()}
+      |    ${filterGenerator.reuseCloseCode()}
       |  }
       |}
       |""".stripMargin

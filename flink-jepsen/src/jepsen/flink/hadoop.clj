@@ -40,11 +40,14 @@
 
 (defn yarn-site-config
   [test]
-  {:yarn.resourcemanager.hostname        (resource-manager (:nodes test))
-   :yarn.log-aggregation-enable          "true"
+  {:yarn.log-aggregation-enable          "true"
+
+   :yarn.nodemanager.log-dirs            yarn-log-dir
    :yarn.nodemanager.resource.cpu-vcores "8"
+   :yarn.nodemanager.vmem-check-enabled  "false"
+
    :yarn.resourcemanager.am.max-attempts "99999"
-   :yarn.nodemanager.log-dirs            yarn-log-dir})
+   :yarn.resourcemanager.hostname        (resource-manager (:nodes test))})
 
 (defn core-site-config
   [test]
