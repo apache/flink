@@ -85,14 +85,7 @@
 
 		<!-- Metrics -->
 		<file>
-			<source>../flink-metrics/flink-metrics-dropwizard/target/flink-metrics-dropwizard-${project.version}-jar-with-dependencies.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-metrics-dropwizard-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<file>
-			<source>../flink-metrics/flink-metrics-graphite/target/flink-metrics-graphite-${project.version}-jar-with-dependencies.jar</source>
+			<source>../flink-metrics/flink-metrics-graphite/target/flink-metrics-graphite-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
 			<destName>flink-metrics-graphite-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
