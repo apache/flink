@@ -69,20 +69,24 @@ under the License.
 	<build>
 		<plugins>
 			<plugin>
-				<artifactId>maven-assembly-plugin</artifactId>
-				<version>2.4</version>
-				<configuration>
-					<descriptorRefs>
-						<descriptorRef>jar-with-dependencies</descriptorRef>
-					</descriptorRefs>
-				</configuration>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>make-assembly</id>
+						<id>shade-flink</id>
 						<phase>package</phase>
 						<goals>
-							<goal>single</goal>
+							<goal>shade</goal>
 						</goals>
+						<configuration>
+							<artifactSet>
+								<includes>
+									<include>org.apache.flink:flink-metrics-dropwizard</include>
+									<include>io.dropwizard.metrics:metrics-core</include>
+									<include>io.dropwizard.metrics:metrics-graphite</include>
+								</includes>
+							</artifactSet>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>
