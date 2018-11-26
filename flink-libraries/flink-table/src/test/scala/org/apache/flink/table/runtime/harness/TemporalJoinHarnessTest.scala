@@ -42,7 +42,7 @@ import org.apache.flink.table.runtime.CRowKeySelector
 import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, TestStreamQueryConfig}
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-import org.hamcrest.{CoreMatchers, Matcher}
+import org.hamcrest.CoreMatchers
 import org.hamcrest.Matchers.{endsWith, startsWith}
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -652,6 +652,82 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
     testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 7L)))
 
     testHarness.processBothWatermarks(new Watermark(10L))
+
+    verify(expectedOutput, testHarness.getOutput)
+
+    testHarness.close()
+  }
+
+  // ---------------------- Processing time TTL tests ----------------------
+
+  @Test
+  def testProcessingTimeJoinCleanupTimerUpdatedFromProbeSide(): Unit = {
+    // min=2ms max=4ms
+    val testHarness = createTestHarness(new OrdersRatesProctimeTemporalJoinInfo())
+
+    testHarness.open()
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+
+    testHarness.setProcessingTime(1L)
+
+    testHarness.processElement2(new StreamRecord(CRow("Euro", 114L, 0L)))
+    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 1L)))
+
+    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", 1L, "Euro", 114L, 0L)))
+
+    // this should push further the clean-up the state
+    testHarness.setProcessingTime(4L)
+
+    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 6L)))
+    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", 6L, "Euro", 114L, 0L)))
+
+    // this should do nothing
+    testHarness.setProcessingTime(5L)
+
+    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 8L)))
+    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", 8L, "Euro", 114L, 0L)))
+
+    // this should clean up the state
+    testHarness.setProcessingTime(8L)
+
+    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 10L)))
+
+    verify(expectedOutput, testHarness.getOutput)
+
+    testHarness.close()
+  }
+
+  @Test
+  def testProcessingTimeJoinCleanupTimerUpdatedFromBuildSide(): Unit = {
+    // min=2ms max=4ms
+    val testHarness = createTestHarness(new OrdersRatesProctimeTemporalJoinInfo())
+
+    testHarness.open()
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+
+    testHarness.setProcessingTime(1L)
+
+    testHarness.processElement2(new StreamRecord(CRow("Euro", 114L, 0L)))
+    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 1L)))
+
+    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", 1L, "Euro", 114L, 0L)))
+
+    // this should push further the clean-up the state
+    testHarness.setProcessingTime(4L)
+
+    testHarness.processElement2(new StreamRecord(CRow("Euro", 116L, 1L)))
+
+    // this should do nothing
+    testHarness.setProcessingTime(5L)
+
+    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 6L)))
+    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", 6L, "Euro", 116L, 1L)))
+
+    // this should clean up the state
+    testHarness.setProcessingTime(8L)
+
+    // so this should find no match
+    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 10L)))
 
     verify(expectedOutput, testHarness.getOutput)
 
