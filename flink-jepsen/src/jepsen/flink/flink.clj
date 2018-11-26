@@ -28,11 +28,13 @@
              [checker :as flink-checker]
              [db :as fdb]
              [hadoop :as hadoop]
+             [kafka :as kafka]
              [mesos :as mesos]
              [nemesis :as fn]]))
 
 (def default-flink-dist-url "https://archive.apache.org/dist/flink/flink-1.6.0/flink-1.6.0-bin-hadoop28-scala_2.11.tgz")
 (def hadoop-dist-url "https://archive.apache.org/dist/hadoop/common/hadoop-2.8.3/hadoop-2.8.3.tar.gz")
+(def kafka-dist-url "http://mirror.funkfreundelandshut.de/apache/kafka/2.0.1/kafka_2.11-2.0.1.tgz")
 (def deb-zookeeper-package "3.4.9-3+deb8u1")
 (def deb-mesos-package "1.5.0-2.0.2")
 (def deb-marathon-package "1.6.322")
@@ -43,6 +45,7 @@
    :flink-standalone-session (fdb/start-flink-db)
    :flink-mesos-session      (fdb/flink-mesos-app-master)
    :hadoop                   (hadoop/db hadoop-dist-url)
+   :kafka                    (kafka/db kafka-dist-url)
    :mesos                    (mesos/db deb-mesos-package deb-marathon-package)
    :zookeeper                (zk/db deb-zookeeper-package)})
 
