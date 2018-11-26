@@ -59,7 +59,7 @@ class TableDescriptorTest extends TableTestBase {
     val connector = FileSystem()
       .path("/path/to/csv")
 
-    val format = Csv()
+    val format = OldCsv()
       .field("myfield", Types.STRING)
       .field("myfield2", Types.INT)
       .field("myfield3", Types.MAP(Types.STRING, Types.INT))

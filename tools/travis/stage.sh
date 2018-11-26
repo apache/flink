@@ -66,6 +66,8 @@ flink-filesystems/flink-s3-fs-hadoop,\
 flink-filesystems/flink-s3-fs-presto,\
 flink-formats/flink-avro,\
 flink-formats/flink-parquet,\
+flink-formats/flink-json,\
+flink-formats/flink-csv,\
 flink-connectors/flink-hbase,\
 flink-connectors/flink-hcatalog,\
 flink-connectors/flink-hadoop-compatibility,\

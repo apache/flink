@@ -93,7 +93,7 @@ public class Json extends FormatDescriptor {
 	}
 
 	/**
-	 * Derives the format schema from the table's schema described using {@link Schema}.
+	 * Derives the format schema from the table's schema described.
 	 *
 	 * <p>This allows for defining schema information only once.
 	 *

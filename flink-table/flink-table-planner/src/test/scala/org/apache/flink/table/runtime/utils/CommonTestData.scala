@@ -26,7 +26,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.catalog._
-import org.apache.flink.table.descriptors.{Csv, FileSystem, Schema}
+import org.apache.flink.table.descriptors.{OldCsv, FileSystem, Schema}
 import org.apache.flink.table.sources.{BatchTableSource, CsvTableSource}
 
 object CommonTestData {
@@ -71,7 +71,7 @@ object CommonTestData {
     val tempFilePath1 = writeToTempFile(csvRecord1.mkString("\n"), "csv-test1", "tmp")
 
     val connDesc1 = FileSystem().path(tempFilePath1)
-    val formatDesc1 = Csv()
+    val formatDesc1 = OldCsv()
       .field("a", Types.INT)
       .field("b", Types.LONG)
       .field("c", Types.STRING)
@@ -110,7 +110,7 @@ object CommonTestData {
     val tempFilePath2 = writeToTempFile(csvRecord2.mkString("\n"), "csv-test2", "tmp")
 
     val connDesc2 = FileSystem().path(tempFilePath2)
-    val formatDesc2 = Csv()
+    val formatDesc2 = OldCsv()
       .field("d", Types.INT)
       .field("e", Types.LONG)
       .field("f", Types.INT)
@@ -135,7 +135,7 @@ object CommonTestData {
 
     val tempFilePath3 = writeToTempFile("", "csv-test3", "tmp")
     val connDesc3 = FileSystem().path(tempFilePath3)
-    val formatDesc3 = Csv()
+    val formatDesc3 = OldCsv()
       .field("x", Types.INT)
       .field("y", Types.LONG)
       .field("z", Types.STRING)

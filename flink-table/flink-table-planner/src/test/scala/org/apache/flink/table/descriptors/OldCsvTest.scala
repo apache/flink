@@ -28,9 +28,9 @@ import org.junit.Test
 import scala.collection.JavaConverters._
 
 /**
-  * Tests for [[Csv]].
+  * Tests for [[OldCsv]].
   */
-class CsvTest extends DescriptorTestBase {
+class OldCsvTest extends DescriptorTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testInvalidType(): Unit = {
@@ -47,20 +47,10 @@ class CsvTest extends DescriptorTestBase {
     addPropertyAndVerify(descriptors().get(0), "format.quote-character", "qq")
   }
 
-  @Test(expected = classOf[ValidationException])
-  def testTwoSchemas(): Unit = {
-    addPropertyAndVerify(descriptors().get(0), "format.derive-schema", "true")
-  }
-
-  @Test
-  def testOneSchema(): Unit = {
-    addPropertyAndVerify(descriptors().get(0), "format.derive-schema", "false")
-  }
-
   // ----------------------------------------------------------------------------------------------
 
   override def descriptors(): util.List[Descriptor] = {
-    val desc1 = Csv()
+    val desc1 = OldCsv()
       .field("field1", "STRING")
       .field("field2", Types.SQL_TIMESTAMP)
       .field("field3", TypeExtractor.createTypeInfo(classOf[Class[_]]))
@@ -69,7 +59,7 @@ class CsvTest extends DescriptorTestBase {
         Array[TypeInformation[_]](Types.INT, Types.STRING)))
       .lineDelimiter("^")
 
-    val desc2 = Csv()
+    val desc2 = OldCsv()
       .schema(new TableSchema(
         Array[String]("test", "row"),
         Array[TypeInformation[_]](Types.INT, Types.STRING)))
@@ -107,6 +97,6 @@ class CsvTest extends DescriptorTestBase {
   }
 
   override def validator(): DescriptorValidator = {
-    new CsvValidator()
+    new OldCsvValidator()
   }
 }

@@ -22,7 +22,7 @@ import java.util
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator._
-import org.apache.flink.table.descriptors.CsvValidator._
+import org.apache.flink.table.descriptors.OldCsvValidator._
 import org.apache.flink.table.descriptors.FileSystemValidator._
 import org.apache.flink.table.descriptors.FormatDescriptorValidator._
 import org.apache.flink.table.descriptors.SchemaValidator._
@@ -69,7 +69,7 @@ abstract class CsvTableSinkFactoryBase extends TableFactory {
 
     // validate
     new FileSystemValidator().validate(params)
-    new CsvValidator().validate(params)
+    new OldCsvValidator().validate(params)
     new SchemaValidator(
       isStreaming,
       supportsSourceTimestamps = false,
