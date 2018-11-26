@@ -21,13 +21,13 @@ package org.apache.flink.table.`match`
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.codegen.CodeGenException
 import org.apache.flink.table.runtime.stream.sql.ToMillis
+import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
 import org.junit.Test
 
-class MatchOperatorValidationTest extends TableTestBase {
+class MatchRecognizeValidationTest extends TableTestBase {
 
   private val streamUtils = streamTestUtil()
   streamUtils.addTable[(String, Long, Int, Int)]("Ticker",
@@ -128,6 +128,52 @@ class MatchOperatorValidationTest extends TableTestBase {
     streamUtils.tableEnv.sqlQuery(sqlQuery).toRetractStream[Row]
   }
 
+  @Test
+  def testAggregatesOnMultiplePatternVariablesNotSupported(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage("SQL validation failed.")
+
+    val sqlQuery =
+      s"""
+         |SELECT *
+         |FROM Ticker
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    SUM(A.price + B.tax) AS taxedPrice
+         |  PATTERN (A B)
+         |  DEFINE
+         |    A AS A.symbol = 'a'
+         |) AS T
+         |""".stripMargin
+
+    streamUtils.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+  }
+
+  @Test
+  def testAggregatesOnMultiplePatternVariablesNotSupportedInUDAGs(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage("Aggregation must be applied to a single pattern variable")
+
+    streamUtils.tableEnv.registerFunction("weightedAvg", new WeightedAvg)
+
+    val sqlQuery =
+      s"""
+         |SELECT *
+         |FROM Ticker
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    weightedAvg(A.price, B.tax) AS weightedAvg
+         |  PATTERN (A B)
+         |  DEFINE
+         |    A AS A.symbol = 'a'
+         |) AS T
+         |""".stripMargin
+
+    streamUtils.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+  }
+
   // ***************************************************************************************
   // * Those validations are temporary. We should remove those tests once we support those *
   // * features.                                                                           *
@@ -196,54 +242,6 @@ class MatchOperatorValidationTest extends TableTestBase {
          |  PATTERN (A*)
          |  DEFINE
          |    A AS symbol = 'a'
-         |) AS T
-         |""".stripMargin
-
-    streamUtils.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-  }
-
-  @Test
-  def testAggregatesAreNotSupportedInMeasures(): Unit = {
-    thrown.expectMessage(
-      "Unsupported call: SUM \nIf you think this function should be supported, you can " +
-        "create an issue and start a discussion for it.")
-    thrown.expect(classOf[CodeGenException])
-
-    val sqlQuery =
-      s"""
-         |SELECT *
-         |FROM Ticker
-         |MATCH_RECOGNIZE (
-         |  ORDER BY proctime
-         |  MEASURES
-         |    SUM(A.price + A.tax) AS cost
-         |  PATTERN (A B)
-         |  DEFINE
-         |    A AS A.symbol = 'a'
-         |) AS T
-         |""".stripMargin
-
-    streamUtils.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-  }
-
-  @Test
-  def testAggregatesAreNotSupportedInDefine(): Unit = {
-    thrown.expectMessage(
-      "Unsupported call: SUM \nIf you think this function should be supported, you can " +
-        "create an issue and start a discussion for it.")
-    thrown.expect(classOf[CodeGenException])
-
-    val sqlQuery =
-      s"""
-         |SELECT *
-         |FROM Ticker
-         |MATCH_RECOGNIZE (
-         |  ORDER BY proctime
-         |  MEASURES
-         |    B.price as bPrice
-         |  PATTERN (A+ B)
-         |  DEFINE
-         |    A AS SUM(A.price + A.tax) < 10
          |) AS T
          |""".stripMargin
 
