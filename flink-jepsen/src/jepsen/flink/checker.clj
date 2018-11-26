@@ -211,7 +211,7 @@
 (defn- compute-final-model
   [model history]
   (let [start-time (-> history first :time)]
-    (reduce model/step
+    (reduce knossos.model/step
             (assoc model :last-failure start-time)
             history)))
 

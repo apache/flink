@@ -35,7 +35,7 @@
           :or   {on-retry (fn [exception attempt] (warn "Retryable operation failed:"
                                                         (.getMessage exception)))
                  success  identity
-                 fallback :default
+                 fallback #(throw %)
                  retries  10
                  delay    2000}
           :as   keys}]
