@@ -18,72 +18,153 @@
 
 package org.apache.flink.formats.csv;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectReader;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.NullNode;
-import com.fasterxml.jackson.databind.node.TextNode;
-import com.fasterxml.jackson.dataformat.csv.CsvMapper;
-import com.fasterxml.jackson.dataformat.csv.CsvSchema;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Deserialization schema from CSV to Flink types.
  *
  * <p>Deserializes a <code>byte[]</code> message as a {@link JsonNode} and
- * convert it to {@link Row}.
+ * converts it to {@link Row}.
  *
- * <p>Failure during deserialization are forwarded as wrapped IOExceptions.
+ * <p>Failure during deserialization are forwarded as wrapped {@link IOException}s.
  */
-@Public
+@PublicEvolving
 public final class CsvRowDeserializationSchema implements DeserializationSchema<Row> {
 
-	/** Schema describing the input csv data. */
-	private CsvSchema csvSchema;
+	private static final long serialVersionUID = 2135553495874539201L;
 
-	/** Type information describing the input csv data. */
-	private TypeInformation<Row> rowTypeInfo;
+	/** Type information describing the result type. */
+	private final TypeInformation<Row> typeInfo;
 
-	/** ObjectReader used to read message, it will be changed when csvSchema is changed. */
-	private ObjectReader objectReader;
+	/** Runtime instance that performs the actual work. */
+	private final RuntimeConverter runtimeConverter;
 
-	/** Charset for byte[]. */
-	private String charset = "UTF-8";
+	/** Schema describing the input CSV data. */
+	private final CsvSchema csvSchema;
+
+	/** Object reader used to read rows. It is configured by {@link CsvSchema}. */
+	private final ObjectReader objectReader;
+
+	/** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
+	private final boolean ignoreParseErrors;
+
+	private CsvRowDeserializationSchema(
+			RowTypeInfo typeInfo,
+			CsvSchema csvSchema,
+			boolean ignoreParseErrors) {
+		this.typeInfo = typeInfo;
+		this.runtimeConverter = createRowRuntimeConverter(typeInfo, ignoreParseErrors, true);
+		this.csvSchema = csvSchema;
+		this.objectReader = new CsvMapper().readerFor(JsonNode.class).with(csvSchema);
+		this.ignoreParseErrors = ignoreParseErrors;
+	}
 
 	/**
-	 * Create a csv row DeserializationSchema with given {@link TypeInformation}.
+	 * A builder for creating a {@link CsvRowDeserializationSchema}.
 	 */
-	public CsvRowDeserializationSchema(TypeInformation<Row> rowTypeInfo) {
-		Preconditions.checkNotNull(rowTypeInfo, "rowTypeInfo must not be null !");
-		CsvMapper csvMapper = new CsvMapper();
-		this.rowTypeInfo = rowTypeInfo;
-		this.csvSchema = CsvRowSchemaConverter.rowTypeToCsvSchema((RowTypeInfo) rowTypeInfo);
-		this.objectReader = csvMapper.readerFor(JsonNode.class).with(csvSchema);
-		this.setNullValue("null");
+	@PublicEvolving
+	public static class Builder {
+
+		private final RowTypeInfo typeInfo;
+		private CsvSchema csvSchema;
+		private boolean ignoreParseErrors;
+
+		/**
+		 * Creates a CSV deserialization schema for the given {@link TypeInformation} with
+		 * optional parameters.
+		 */
+		public Builder(TypeInformation<Row> typeInfo) {
+			Preconditions.checkNotNull(typeInfo, "Type information must not be null.");
+
+			if (!(typeInfo instanceof RowTypeInfo)) {
+				throw new IllegalArgumentException("Row type information expected.");
+			}
+
+			this.typeInfo = (RowTypeInfo) typeInfo;
+			this.csvSchema = CsvRowSchemaConverter.convert((RowTypeInfo) typeInfo);
+		}
+
+		public Builder setFieldDelimiter(char delimiter) {
+			this.csvSchema = this.csvSchema.rebuild().setColumnSeparator(delimiter).build();
+			return this;
+		}
+
+		public Builder setAllowComments(boolean allowComments) {
+			this.csvSchema = this.csvSchema.rebuild().setAllowComments(allowComments).build();
+			return this;
+		}
+
+		public Builder setArrayElementDelimiter(String delimiter) {
+			Preconditions.checkNotNull(delimiter, "Array element delimiter must not be null.");
+			this.csvSchema = this.csvSchema.rebuild().setArrayElementSeparator(delimiter).build();
+			return this;
+		}
+
+		public Builder setQuoteCharacter(char c) {
+			this.csvSchema = this.csvSchema.rebuild().setQuoteChar(c).build();
+			return this;
+		}
+
+		public Builder setEscapeCharacter(char c) {
+			this.csvSchema = this.csvSchema.rebuild().setEscapeChar(c).build();
+			return this;
+		}
+
+		public Builder setNullLiteral(String nullLiteral) {
+			Preconditions.checkNotNull(nullLiteral, "Null literal must not be null.");
+			this.csvSchema = this.csvSchema.rebuild().setNullValue(nullLiteral).build();
+			return this;
+		}
+
+		public Builder setIgnoreParseErrors(boolean ignoreParseErrors) {
+			this.ignoreParseErrors = ignoreParseErrors;
+			return this;
+		}
+
+		public CsvRowDeserializationSchema build() {
+			return new CsvRowDeserializationSchema(
+				typeInfo,
+				csvSchema,
+				ignoreParseErrors);
+		}
 	}
 
 	@Override
 	public Row deserialize(byte[] message) throws IOException {
-		JsonNode root = objectReader.readValue(message);
-		return convertRow(root, (RowTypeInfo) rowTypeInfo);
+		try {
+			final JsonNode root = objectReader.readValue(message);
+			return (Row) runtimeConverter.convert(root);
+		} catch (Throwable t) {
+			if (ignoreParseErrors) {
+				return null;
+			}
+			throw new IOException("Failed to deserialize CSV row '" + new String(message) + "'.", t);
+		}
 	}
 
 	@Override
@@ -93,133 +174,195 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
 
 	@Override
 	public TypeInformation<Row> getProducedType() {
-		return rowTypeInfo;
-	}
-
-	private Row convertRow(JsonNode root, RowTypeInfo rowTypeInfo) {
-		String[] fields = rowTypeInfo.getFieldNames();
-		TypeInformation<?>[] types = rowTypeInfo.getFieldTypes();
-		Row row = new Row(fields.length);
-
-		for (int i = 0; i < fields.length; i++) {
-			String columnName = fields[i];
-			JsonNode node = root.get(columnName);
-			row.setField(i, convert(node, types[i]));
-		}
-		return row;
-	}
-
-	private Row convertRow(ArrayNode node, RowTypeInfo rowTypeInfo) {
-		TypeInformation[] types = rowTypeInfo.getFieldTypes();
-		String[] fields = rowTypeInfo.getFieldNames();
-		Row row = new Row(fields.length);
-		for (int i = 0; i < fields.length; i++) {
-			row.setField(i, convert(node.get(i), types[i]));
-		}
-		return row;
-	}
-
-	/**
-	 * Converts json node to object with given type information.
-	 * @param node json node to be converted.
-	 * @param info type information for the json data.
-	 * @return converted object
-	 */
-	private Object convert(JsonNode node, TypeInformation<?> info) {
-		if (node instanceof NullNode) {
-			return null;
-		}
-		if (info == Types.STRING) {
-			return node.asText();
-		} else if (info == Types.LONG) {
-			return node.asLong();
-		} else if (info == Types.INT) {
-			return node.asInt();
-		} else if (info == Types.DOUBLE) {
-			return node.asDouble();
-		} else if (info == Types.FLOAT) {
-			return Double.valueOf(node.asDouble()).floatValue();
-		} else if (info == Types.BIG_DEC) {
-			return BigDecimal.valueOf(node.asDouble());
-		} else if (info == Types.BIG_INT) {
-			return BigInteger.valueOf(node.asLong());
-		} else if (info == Types.SQL_DATE) {
-			return Date.valueOf(node.asText());
-		} else if (info == Types.SQL_TIME) {
-			return Time.valueOf(node.asText());
-		} else if (info == Types.SQL_TIMESTAMP) {
-			return Timestamp.valueOf(node.asText());
-		} else if (info == Types.BOOLEAN) {
-			return node.asBoolean();
-		} else if (info instanceof RowTypeInfo) {
-			return convertRow((ArrayNode) node, (RowTypeInfo) info);
-		} else if (info instanceof BasicArrayTypeInfo) {
-			return convertArray((ArrayNode) node, ((BasicArrayTypeInfo) info).getComponentInfo());
-		} else if (info instanceof PrimitiveArrayTypeInfo &&
-			((PrimitiveArrayTypeInfo) info).getComponentType() == Types.BYTE) {
-			return convertByteArray((TextNode) node);
-		} else {
-			throw new RuntimeException("Unable to support type " + info.toString() + " yet");
-		}
-	}
-
-	private Object[] convertArray(ArrayNode node, TypeInformation<?> elementType) {
-		final Object[] array = (Object[]) Array.newInstance(elementType.getTypeClass(), node.size());
-		for (int i = 0; i < node.size(); i++) {
-			array[i] = convert(node.get(i), elementType);
-		}
-		return array;
-	}
-
-	private byte[] convertByteArray(TextNode node) {
-		try {
-			return node.asText().getBytes(charset);
-		} catch (UnsupportedEncodingException e) {
-			throw new RuntimeException("Unsupport encoding charset" + charset, e);
-		}
-	}
-
-	public void setCharset(String charset) {
-		this.charset = charset;
-	}
-
-	public void setFieldDelimiter(String s) {
-		if (s.length() != 1) {
-			throw new RuntimeException("FieldDelimiter's length must be one !");
-		}
-		this.csvSchema = this.csvSchema.rebuild().setColumnSeparator(s.charAt(0)).build();
-	}
-
-	public void setArrayElementDelimiter(String s) {
-		this.csvSchema = this.csvSchema.rebuild().setArrayElementSeparator(s).build();
-		this.objectReader = objectReader.with(csvSchema);
-	}
-
-	public void setQuoteCharacter(char c) {
-		this.csvSchema = this.csvSchema.rebuild().setQuoteChar(c).build();
-		this.objectReader = objectReader.with(csvSchema);
-	}
-
-	public void setEscapeCharacter(char c) {
-		this.csvSchema = this.csvSchema.rebuild().setEscapeChar(c).build();
-		this.objectReader = objectReader.with(csvSchema);
-	}
-
-	public void setNullValue(String s) {
-		this.csvSchema = this.csvSchema.rebuild().setNullValue(s).build();
-		this.objectReader = objectReader.with(csvSchema);
+		return typeInfo;
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		if (o == null || o.getClass() != this.getClass()) {
-			return false;
-		}
 		if (this == o) {
 			return true;
 		}
+		if (o == null || o.getClass() != this.getClass()) {
+			return false;
+		}
 		final CsvRowDeserializationSchema that = (CsvRowDeserializationSchema) o;
-		return rowTypeInfo.equals(that.rowTypeInfo) &&
-			csvSchema.toString().equals(that.csvSchema.toString());
+		final CsvSchema otherSchema = that.csvSchema;
+
+		return typeInfo.equals(that.typeInfo) &&
+			ignoreParseErrors == that.ignoreParseErrors &&
+			csvSchema.getColumnSeparator() == otherSchema.getColumnSeparator() &&
+			csvSchema.allowsComments() == otherSchema.allowsComments() &&
+			csvSchema.getArrayElementSeparator().equals(otherSchema.getArrayElementSeparator()) &&
+			csvSchema.getQuoteChar() == otherSchema.getQuoteChar() &&
+			csvSchema.getEscapeChar() == otherSchema.getEscapeChar() &&
+			Arrays.equals(csvSchema.getNullValue(), otherSchema.getNullValue());
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(
+			typeInfo,
+			ignoreParseErrors,
+			csvSchema.getColumnSeparator(),
+			csvSchema.allowsComments(),
+			csvSchema.getArrayElementSeparator(),
+			csvSchema.getQuoteChar(),
+			csvSchema.getEscapeChar(),
+			csvSchema.getNullValue());
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private interface RuntimeConverter extends Serializable {
+		Object convert(JsonNode node);
+	}
+
+	private static RuntimeConverter createRowRuntimeConverter(
+			RowTypeInfo rowTypeInfo,
+			boolean ignoreParseErrors,
+			boolean isTopLevel) {
+		final TypeInformation<?>[] fieldTypes = rowTypeInfo.getFieldTypes();
+		final String[] fieldNames = rowTypeInfo.getFieldNames();
+
+		final RuntimeConverter[] fieldConverters =
+			createFieldRuntimeConverters(ignoreParseErrors, fieldTypes);
+
+		return assembleRowRuntimeConverter(ignoreParseErrors, isTopLevel, fieldNames, fieldConverters);
+	}
+
+	private static RuntimeConverter[] createFieldRuntimeConverters(boolean ignoreParseErrors, TypeInformation<?>[] fieldTypes) {
+		final RuntimeConverter[] fieldConverters = new RuntimeConverter[fieldTypes.length];
+		for (int i = 0; i < fieldTypes.length; i++) {
+			fieldConverters[i] = createNullableRuntimeConverter(fieldTypes[i], ignoreParseErrors);
+		}
+		return fieldConverters;
+	}
+
+	private static RuntimeConverter assembleRowRuntimeConverter(
+			boolean ignoreParseErrors,
+			boolean isTopLevel,
+			String[] fieldNames,
+			RuntimeConverter[] fieldConverters) {
+		final int rowArity = fieldNames.length;
+
+		return (node) -> {
+			final int nodeSize = node.size();
+
+			validateArity(rowArity, nodeSize, ignoreParseErrors);
+
+			final Row row = new Row(rowArity);
+			for (int i = 0; i < Math.min(rowArity, nodeSize); i++) {
+				// Jackson only supports mapping by name in the first level
+				if (isTopLevel) {
+					row.setField(i, fieldConverters[i].convert(node.get(fieldNames[i])));
+				} else {
+					row.setField(i, fieldConverters[i].convert(node.get(i)));
+				}
+			}
+			return row;
+		};
+	}
+
+	private static RuntimeConverter createNullableRuntimeConverter(
+			TypeInformation<?> info,
+			boolean ignoreParseErrors) {
+		final RuntimeConverter valueConverter = createRuntimeConverter(info, ignoreParseErrors);
+		return (node) -> {
+			if (node.isNull()) {
+				return null;
+			}
+			try {
+				return valueConverter.convert(node);
+			} catch (Throwable t) {
+				if (!ignoreParseErrors) {
+					throw t;
+				}
+				return null;
+			}
+		};
+	}
+
+	private static RuntimeConverter createRuntimeConverter(TypeInformation<?> info, boolean ignoreParseErrors) {
+		if (info.equals(Types.VOID)) {
+			return (node) -> null;
+		} else if (info.equals(Types.STRING)) {
+			return JsonNode::asText;
+		} else if (info.equals(Types.BOOLEAN)) {
+			return (node) -> Boolean.valueOf(node.asText().trim());
+		} else if (info.equals(Types.BYTE)) {
+			return (node) -> Byte.valueOf(node.asText().trim());
+		} else if (info.equals(Types.SHORT)) {
+			return (node) -> Short.valueOf(node.asText().trim());
+		} else if (info.equals(Types.INT)) {
+			return (node) -> Integer.valueOf(node.asText().trim());
+		} else if (info.equals(Types.LONG)) {
+			return (node) -> Long.valueOf(node.asText().trim());
+		} else if (info.equals(Types.FLOAT)) {
+			return (node) -> Float.valueOf(node.asText().trim());
+		} else if (info.equals(Types.DOUBLE)) {
+			return (node) -> Double.valueOf(node.asText().trim());
+		} else if (info.equals(Types.BIG_DEC)) {
+			return (node) -> new BigDecimal(node.asText().trim());
+		} else if (info.equals(Types.BIG_INT)) {
+			return (node) -> new BigInteger(node.asText().trim());
+		} else if (info.equals(Types.SQL_DATE)) {
+			return (node) -> Date.valueOf(node.asText());
+		} else if (info.equals(Types.SQL_TIME)) {
+			return (node) -> Time.valueOf(node.asText());
+		} else if (info.equals(Types.SQL_TIMESTAMP)) {
+			return (node) -> Timestamp.valueOf(node.asText());
+		} else if (info instanceof RowTypeInfo) {
+			final RowTypeInfo rowTypeInfo = (RowTypeInfo) info;
+			return createRowRuntimeConverter(rowTypeInfo, ignoreParseErrors, false);
+		} else if (info instanceof BasicArrayTypeInfo) {
+			return createObjectArrayRuntimeConverter(
+				((BasicArrayTypeInfo<?, ?>) info).getComponentInfo(),
+				ignoreParseErrors);
+		} else if (info instanceof ObjectArrayTypeInfo) {
+			return createObjectArrayRuntimeConverter(
+				((ObjectArrayTypeInfo<?, ?>) info).getComponentInfo(),
+				ignoreParseErrors);
+		} else if (info instanceof PrimitiveArrayTypeInfo &&
+				((PrimitiveArrayTypeInfo) info).getComponentType() == Types.BYTE) {
+			return createByteArrayRuntimeConverter(ignoreParseErrors);
+		} else {
+			throw new RuntimeException("Unsupported type information '" + info + "'.");
+		}
+	}
+
+	private static RuntimeConverter createObjectArrayRuntimeConverter(
+			TypeInformation<?> elementType,
+			boolean ignoreParseErrors) {
+		final Class<?> elementClass = elementType.getTypeClass();
+		final RuntimeConverter elementConverter = createNullableRuntimeConverter(elementType, ignoreParseErrors);
+
+		return (node) -> {
+			final int nodeSize = node.size();
+			final Object[] array = (Object[]) Array.newInstance(elementClass, nodeSize);
+			for (int i = 0; i < nodeSize; i++) {
+				array[i] = elementConverter.convert(node.get(i));
+			}
+			return array;
+		};
+	}
+
+	private static RuntimeConverter createByteArrayRuntimeConverter(boolean ignoreParseErrors) {
+		return (node) -> {
+			try {
+				return node.binaryValue();
+			} catch (IOException e) {
+				if (!ignoreParseErrors) {
+					throw new RuntimeException("Unable to deserialize byte array.", e);
+				}
+				return null;
+			}
+		};
+	}
+
+	private static void validateArity(int expected, int actual, boolean ignoreParseErrors) {
+		if (expected != actual && !ignoreParseErrors) {
+			throw new RuntimeException("Row length mismatch. " + expected +
+				" fields expected but was " + actual + ".");
+		}
 	}
 }

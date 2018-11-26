@@ -22,7 +22,7 @@ import java.util
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{TableSchema, ValidationException}
-import org.apache.flink.table.descriptors.CsvValidator._
+import org.apache.flink.table.descriptors.OldCsvValidator._
 import org.apache.flink.table.utils.TypeStringUtils
 
 import scala.collection.mutable
@@ -30,8 +30,18 @@ import scala.collection.JavaConverters._
 
 /**
   * Format descriptor for comma-separated values (CSV).
+  *
+  * Note: This descriptor describes Flink's non-standard CSV table source/sink. In the future, the
+  * descriptor will be replaced by a proper RFC-compliant version. Use the RFC-compliant `Csv`
+  * format in the dedicated `flink-formats/flink-csv` module instead when writing to Kafka. Use the
+  * old one for stream/batch filesystem operations for now.
+  *
+  * @deprecated Use the RFC-compliant `Csv` format in the dedicated
+  *            `flink-formats/flink-csv` module instead when writing to Kafka.
   */
-class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, 1) {
+@Deprecated
+@deprecated
+class OldCsv extends FormatDescriptor(FORMAT_TYPE_VALUE, 1) {
 
   private var fieldDelim: Option[String] = None
   private var lineDelim: Option[String] = None
@@ -41,17 +51,13 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, 1) {
   private var commentPrefix: Option[String] = None
   private var isIgnoreFirstLine: Option[Boolean] = None
   private var lenient: Option[Boolean] = None
-  private var arrayElementDelim: Option[String] = None
-  private var escapeCharacter: Option[Character] = None
-  private var bytesCharset: Option[String] = None
-  private var derived: Option[Boolean] = None
 
   /**
     * Sets the field delimiter, "," by default.
     *
     * @param delim the field delimiter
     */
-  def fieldDelimiter(delim: String): Csv = {
+  def fieldDelimiter(delim: String): OldCsv = {
     this.fieldDelim = Some(delim)
     this
   }
@@ -61,7 +67,7 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, 1) {
     *
     * @param delim the line delimiter
     */
-  def lineDelimiter(delim: String): Csv = {
+  def lineDelimiter(delim: String): OldCsv = {
     this.lineDelim = Some(delim)
     this
   }
@@ -74,7 +80,7 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, 1) {
     *
     * @param schema the table schema
     */
-  def schema(schema: TableSchema): Csv = {
+  def schema(schema: TableSchema): OldCsv = {
     this.schema.clear()
     schema.getFieldNames.zip(schema.getFieldTypes).foreach { case (n, t) =>
       field(n, t)
@@ -90,7 +96,7 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, 1) {
     * @param fieldName the field name
     * @param fieldType the type information of the field
     */
-  def field(fieldName: String, fieldType: TypeInformation[_]): Csv = {
+  def field(fieldName: String, fieldType: TypeInformation[_]): OldCsv = {
     field(fieldName, TypeStringUtils.writeTypeInfo(fieldType))
     this
   }
@@ -103,7 +109,7 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, 1) {
     * @param fieldName the field name
     * @param fieldType the type string of the field
     */
-  def field(fieldName: String, fieldType: String): Csv = {
+  def field(fieldName: String, fieldType: String): OldCsv = {
     if (schema.contains(fieldName)) {
       throw new ValidationException(s"Duplicate field name $fieldName.")
     }
@@ -116,7 +122,7 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, 1) {
     *
     * @param quote the quote character
     */
-  def quoteCharacter(quote: Character): Csv = {
+  def quoteCharacter(quote: Character): OldCsv = {
     this.quoteCharacter = Option(quote)
     this
   }
@@ -126,7 +132,7 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, 1) {
     *
     * @param prefix the prefix to indicate comments
     */
-  def commentPrefix(prefix: String): Csv = {
+  def commentPrefix(prefix: String): OldCsv = {
     this.commentPrefix = Option(prefix)
     this
   }
@@ -134,7 +140,7 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, 1) {
   /**
     * Ignore the first line. Not skip the first line by default.
     */
-  def ignoreFirstLine(): Csv = {
+  def ignoreFirstLine(): OldCsv = {
     this.isIgnoreFirstLine = Some(true)
     this
   }
@@ -142,45 +148,14 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, 1) {
   /**
     * Skip records with parse error instead to fail. Throw an exception by default.
     */
-  def ignoreParseErrors(): Csv = {
+  def ignoreParseErrors(): OldCsv = {
     this.lenient = Some(true)
-    this
-  }
-
-  /**
-    * Set delimiter of array elements, ';' by default.
-    */
-  def arrayElementDelim(delim: String): Csv = {
-    this.arrayElementDelim = Some(delim)
-    this
-  }
-
-  /**
-    * Set escape character, none by default.
-    */
-  def escapeCharacter(escape: Character): Csv = {
-    this.escapeCharacter = Some(escape)
-    this
-  }
-
-  /**
-    * Set charset of byte[], 'UTF-8' by defaut.
-    */
-  def bytesCharset(charset: String): Csv = {
-    this.bytesCharset = Some(charset)
-    this
-  }
-
-  /**
-    * Set true if format schema derives from table schema.
-    */
-  def derived(derived: Boolean): Csv = {
-    this.derived = Some(derived)
     this
   }
 
   override protected def toFormatProperties: util.Map[String, String] = {
     val properties = new DescriptorProperties()
+
     fieldDelim.foreach(properties.putString(FORMAT_FIELD_DELIMITER, _))
     lineDelim.foreach(properties.putString(FORMAT_LINE_DELIMITER, _))
 
@@ -206,14 +181,20 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, 1) {
 /**
   * Format descriptor for comma-separated values (CSV).
   */
-object Csv {
+object OldCsv {
 
   /**
     * Format descriptor for comma-separated values (CSV).
     *
-    * @deprecated Use `new Csv()`.
+    * Note: This descriptor describes Flink's non-standard CSV table source/sink. In the future, the
+    * descriptor will be replaced by a proper RFC-compliant version. Use the RFC-compliant `Csv`
+    * format in the dedicated `flink-formats/flink-csv` module instead when writing to Kafka. Use
+    * the old one for stream/batch filesystem operations for now.
+    *
+    * @deprecated Use the RFC-compliant `Csv` format in the dedicated
+    *            `flink-formats/flink-csv` module instead when writing to Kafka.
     */
   @deprecated
-  def apply(): Csv = new Csv()
+  def apply(): OldCsv = new OldCsv()
 
 }

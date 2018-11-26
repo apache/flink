@@ -21,11 +21,9 @@ package org.apache.flink.formats.csv;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.NoMatchingTableFactoryException;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.descriptors.Csv;
-import org.apache.flink.table.descriptors.Descriptor;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.factories.DeserializationSchemaFactory;
 import org.apache.flink.table.factories.SerializationSchemaFactory;
@@ -35,15 +33,15 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
 /**
- * Testing for {@link CsvRowFormatFactory}.
+ * Tests for {@link CsvRowFormatFactory}.
  */
 public class CsvRowFormatFactoryTest extends TestLogger {
-
 
 	private static final TypeInformation<Row> SCHEMA = Types.ROW(
 		new String[]{"a", "b", "c"},
@@ -55,67 +53,69 @@ public class CsvRowFormatFactoryTest extends TestLogger {
 
 	@Test
 	public void testSchema() {
-		final Map<String, String> properties = toMap(
-			new Csv()
-				.field("a", Types.STRING())
-				.field("b", Types.INT())
-				.field("c", Types.ROW(
-					new String[]{"a", "b", "c"},
-					new TypeInformation[]{Types.STRING(), Types.INT(), Types.BOOLEAN()}
-				))
-				.arrayElementDelim("^^")
-				.escapeCharacter('c')
-		);
-		testSchemaSerializationSchema(properties);
-		testSchemaDeserializationSchema(properties);
+		final Map<String, String> properties = new Csv()
+				.schema(SCHEMA)
+				.fieldDelimiter(';')
+				.lineDelimiter("\r\n")
+				.quoteCharacter('\'')
+				.allowComments()
+				.ignoreParseErrors()
+				.arrayElementDelimiter("|")
+				.escapeCharacter('\\')
+				.nullLiteral("n/a")
+				.toProperties();
+
+		final CsvRowDeserializationSchema expectedDeser = new CsvRowDeserializationSchema.Builder(SCHEMA)
+			.setFieldDelimiter(';')
+			.setQuoteCharacter('\'')
+			.setAllowComments(true)
+			.setIgnoreParseErrors(true)
+			.setArrayElementDelimiter("|")
+			.setEscapeCharacter('\\')
+			.setNullLiteral("n/a")
+			.build();
+
+		final DeserializationSchema<?> actualDeser = TableFactoryService
+			.find(DeserializationSchemaFactory.class, properties)
+			.createDeserializationSchema(properties);
+
+		assertEquals(expectedDeser, actualDeser);
+
+		final CsvRowSerializationSchema expectedSer = new CsvRowSerializationSchema.Builder(SCHEMA)
+			.setFieldDelimiter(';')
+			.setLineDelimiter("\r\n")
+			.setQuoteCharacter('\'')
+			.setArrayElementDelimiter("|")
+			.setEscapeCharacter('\\')
+			.setNullLiteral("n/a")
+			.build();
+
+		final SerializationSchema<?> actualSer = TableFactoryService
+			.find(SerializationSchemaFactory.class, properties)
+			.createSerializationSchema(properties);
+
+		assertEquals(expectedSer, actualSer);
 	}
 
 	@Test
-	public void testDerived() {
-		final Map<String, String> properties = toMap(
-			new Schema()
-				.field("a", Types.STRING())
-				.field("b", Types.INT())
-				.field("c", Types.ROW(
-					new String[]{"a", "b", "c"},
-					new TypeInformation[]{Types.STRING(), Types.INT(), Types.BOOLEAN()}
-				)), new Csv().derived(true)
-		);
-		testSchemaSerializationSchema(properties);
-		testSchemaDeserializationSchema(properties);
-	}
+	public void testSchemaDerivation() {
+		final Map<String, String> properties = new HashMap<>();
+		properties.putAll(new Schema().schema(TableSchema.fromTypeInfo(SCHEMA)).toProperties());
+		properties.putAll(new Csv().deriveSchema().toProperties());
 
-	@Test(expected = NoMatchingTableFactoryException.class)
-	public void testUnsupportedProperties() {
-		final Map<String, String> properties = toMap(
-			new Csv()
-				.field("a", Types.STRING())
-				.lineDelimiter("%")
-		);
-		testSchemaSerializationSchema(properties);
-	}
+		final CsvRowSerializationSchema expectedSer = new CsvRowSerializationSchema.Builder(SCHEMA).build();
+		final CsvRowDeserializationSchema expectedDeser = new CsvRowDeserializationSchema.Builder(SCHEMA).build();
 
-	private void testSchemaDeserializationSchema(Map<String, String> properties) {
-		final DeserializationSchema<?> actual2 = TableFactoryService
-			.find(DeserializationSchemaFactory.class, properties)
-			.createDeserializationSchema(properties);
-		final CsvRowDeserializationSchema expected2 = new CsvRowDeserializationSchema(SCHEMA);
-		assertEquals(expected2, actual2);
-	}
-
-	private void testSchemaSerializationSchema(Map<String, String> properties) {
-		final SerializationSchema<?> actual1 = TableFactoryService
+		final SerializationSchema<?> actualSer = TableFactoryService
 			.find(SerializationSchemaFactory.class, properties)
 			.createSerializationSchema(properties);
-		final SerializationSchema expected1 = new CsvRowSerializationSchema(SCHEMA);
-		assertEquals(expected1, actual1);
-	}
 
-	private static Map<String, String> toMap(Descriptor... desc) {
-		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
-		for (Descriptor d : desc) {
-			d.addProperties(descriptorProperties);
-		}
-		return descriptorProperties.asMap();
+		assertEquals(expectedSer, actualSer);
+
+		final DeserializationSchema<?> actualDeser = TableFactoryService
+			.find(DeserializationSchemaFactory.class, properties)
+			.createDeserializationSchema(properties);
+
+		assertEquals(expectedDeser, actualDeser);
 	}
 }

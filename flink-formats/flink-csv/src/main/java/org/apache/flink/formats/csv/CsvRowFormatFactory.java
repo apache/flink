@@ -21,123 +21,117 @@ package org.apache.flink.formats.csv;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.descriptors.CsvValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.FormatDescriptorValidator;
-import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.DeserializationSchemaFactory;
 import org.apache.flink.table.factories.SerializationSchemaFactory;
+import org.apache.flink.table.factories.TableFormatFactoryBase;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Table format for providing configured instances of CSV-to-row {@link SerializationSchema}
+ * Table format factory for providing configured instances of CSV-to-row {@link SerializationSchema}
  * and {@link DeserializationSchema}.
  */
-public final class CsvRowFormatFactory implements SerializationSchemaFactory<Row>,
-	DeserializationSchemaFactory<Row>  {
+public final class CsvRowFormatFactory extends TableFormatFactoryBase<Row>
+	implements SerializationSchemaFactory<Row>, DeserializationSchemaFactory<Row>  {
 
-	@Override
-	public Map<String, String> requiredContext() {
-		final Map<String, String> context = new HashMap<>();
-		context.put(FormatDescriptorValidator.FORMAT_TYPE(), CsvValidator.FORMAT_TYPE_VALUE());
-		context.put(FormatDescriptorValidator.FORMAT_PROPERTY_VERSION(), "1");
-		return context;
+	public CsvRowFormatFactory() {
+		super(CsvValidator.FORMAT_TYPE_VALUE, 1, true);
 	}
 
 	@Override
-	public boolean supportsSchemaDerivation() {
-		return true;
-	}
-
-	@Override
-	public List<String> supportedProperties() {
+	public List<String> supportedFormatProperties() {
 		final List<String> properties = new ArrayList<>();
-		properties.add(CsvValidator.FORMAT_FIELDS() + ".#." + DescriptorProperties.TYPE());
-		properties.add(CsvValidator.FORMAT_FIELDS() + ".#." + DescriptorProperties.NAME());
-		properties.add(CsvValidator.FORMAT_FIELD_DELIMITER());
-		properties.add(CsvValidator.FORMAT_ARRAY_ELEMENT_DELIMITER());
-		properties.add(CsvValidator.FORMAT_QUOTE_CHARACTER());
-		properties.add(CsvValidator.FORMAT_ESCAPE_CHARACTER());
-		properties.add(CsvValidator.FORMAT_BYTES_CHARSET());
-		properties.add(CsvValidator.FORMAT_NULL_VALUE());
-		properties.add(SchemaValidator.SCHEMA() + ".#." + SchemaValidator.SCHEMA_TYPE());
-		properties.add(SchemaValidator.SCHEMA() + ".#." + SchemaValidator.SCHEMA_NAME());
+		properties.add(CsvValidator.FORMAT_FIELD_DELIMITER);
+		properties.add(CsvValidator.FORMAT_LINE_DELIMITER);
+		properties.add(CsvValidator.FORMAT_QUOTE_CHARACTER);
+		properties.add(CsvValidator.FORMAT_ALLOW_COMMENTS);
+		properties.add(CsvValidator.FORMAT_IGNORE_PARSE_ERRORS);
+		properties.add(CsvValidator.FORMAT_ARRAY_ELEMENT_DELIMITER);
+		properties.add(CsvValidator.FORMAT_ESCAPE_CHARACTER);
+		properties.add(CsvValidator.FORMAT_NULL_LITERAL);
+		properties.add(CsvValidator.FORMAT_SCHEMA);
 		return properties;
 	}
 
 	@Override
 	public DeserializationSchema<Row> createDeserializationSchema(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = validateAndGetProperties(properties);
+		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
-		final CsvRowDeserializationSchema schema = new CsvRowDeserializationSchema(
+		final CsvRowDeserializationSchema.Builder schemaBuilder = new CsvRowDeserializationSchema.Builder(
 			createTypeInformation(descriptorProperties));
 
-		// update csv schema with properties
-		descriptorProperties.getOptionalString(CsvValidator.FORMAT_FIELD_DELIMITER())
-			.ifPresent(schema::setFieldDelimiter);
-		descriptorProperties.getOptionalString(CsvValidator.FORMAT_ARRAY_ELEMENT_DELIMITER())
-			.ifPresent(schema::setArrayElementDelimiter);
-		descriptorProperties.getOptionalCharacter(CsvValidator.FORMAT_QUOTE_CHARACTER())
-			.ifPresent(schema::setQuoteCharacter);
-		descriptorProperties.getOptionalCharacter(CsvValidator.FORMAT_ESCAPE_CHARACTER())
-			.ifPresent(schema::setEscapeCharacter);
-		descriptorProperties.getOptionalString(CsvValidator.FORMAT_BYTES_CHARSET())
-			.ifPresent(schema::setCharset);
-		descriptorProperties.getOptionalString(CsvValidator.FORMAT_NULL_VALUE())
-			.ifPresent(schema::setCharset);
+		descriptorProperties.getOptionalCharacter(CsvValidator.FORMAT_FIELD_DELIMITER)
+			.ifPresent(schemaBuilder::setFieldDelimiter);
 
-		return new CsvRowDeserializationSchema(createTypeInformation(descriptorProperties));
+		descriptorProperties.getOptionalCharacter(CsvValidator.FORMAT_QUOTE_CHARACTER)
+			.ifPresent(schemaBuilder::setQuoteCharacter);
+
+		descriptorProperties.getOptionalBoolean(CsvValidator.FORMAT_ALLOW_COMMENTS)
+			.ifPresent(schemaBuilder::setAllowComments);
+
+		descriptorProperties.getOptionalBoolean(CsvValidator.FORMAT_IGNORE_PARSE_ERRORS)
+			.ifPresent(schemaBuilder::setIgnoreParseErrors);
+
+		descriptorProperties.getOptionalString(CsvValidator.FORMAT_ARRAY_ELEMENT_DELIMITER)
+			.ifPresent(schemaBuilder::setArrayElementDelimiter);
+
+		descriptorProperties.getOptionalCharacter(CsvValidator.FORMAT_ESCAPE_CHARACTER)
+			.ifPresent(schemaBuilder::setEscapeCharacter);
+
+		descriptorProperties.getOptionalString(CsvValidator.FORMAT_NULL_LITERAL)
+			.ifPresent(schemaBuilder::setNullLiteral);
+
+		return schemaBuilder.build();
 	}
 
 	@Override
 	public SerializationSchema<Row> createSerializationSchema(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = validateAndGetProperties(properties);
+		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
-		final CsvRowSerializationSchema schema = new CsvRowSerializationSchema(
+		final CsvRowSerializationSchema.Builder schemaBuilder = new CsvRowSerializationSchema.Builder(
 			createTypeInformation(descriptorProperties));
 
-		// update csv schema with properties
-		descriptorProperties.getOptionalString(CsvValidator.FORMAT_FIELD_DELIMITER())
-			.ifPresent(schema::setFieldDelimiter);
-		descriptorProperties.getOptionalString(CsvValidator.FORMAT_ARRAY_ELEMENT_DELIMITER())
-			.ifPresent(schema::setArrayElementDelimiter);
-		descriptorProperties.getOptionalCharacter(CsvValidator.FORMAT_QUOTE_CHARACTER())
-			.ifPresent(schema::setQuoteCharacter);
-		descriptorProperties.getOptionalCharacter(CsvValidator.FORMAT_ESCAPE_CHARACTER())
-			.ifPresent(schema::setEscapeCharacter);
-		descriptorProperties.getOptionalString(CsvValidator.FORMAT_BYTES_CHARSET())
-			.ifPresent(schema::setCharset);
-		descriptorProperties.getOptionalString(CsvValidator.FORMAT_NULL_VALUE())
-			.ifPresent(schema::setCharset);
+		descriptorProperties.getOptionalCharacter(CsvValidator.FORMAT_FIELD_DELIMITER)
+			.ifPresent(schemaBuilder::setFieldDelimiter);
 
-		return new CsvRowSerializationSchema(createTypeInformation(descriptorProperties));
+		descriptorProperties.getOptionalString(CsvValidator.FORMAT_LINE_DELIMITER)
+			.ifPresent(schemaBuilder::setLineDelimiter);
+
+		descriptorProperties.getOptionalCharacter(CsvValidator.FORMAT_QUOTE_CHARACTER)
+			.ifPresent(schemaBuilder::setQuoteCharacter);
+
+		descriptorProperties.getOptionalString(CsvValidator.FORMAT_ARRAY_ELEMENT_DELIMITER)
+			.ifPresent(schemaBuilder::setArrayElementDelimiter);
+
+		descriptorProperties.getOptionalCharacter(CsvValidator.FORMAT_ESCAPE_CHARACTER)
+			.ifPresent(schemaBuilder::setEscapeCharacter);
+
+		descriptorProperties.getOptionalString(CsvValidator.FORMAT_NULL_LITERAL)
+			.ifPresent(schemaBuilder::setNullLiteral);
+
+		return schemaBuilder.build();
 	}
 
-	private static DescriptorProperties validateAndGetProperties(Map<String, String> propertiesMap) {
+	private static DescriptorProperties getValidatedProperties(Map<String, String> propertiesMap) {
 		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
 		descriptorProperties.putProperties(propertiesMap);
 
-		// validate
 		new CsvValidator().validate(descriptorProperties);
 
 		return descriptorProperties;
 	}
 
-	/**
-	 * Create a {@link TypeInformation} based on the "format-fields" in {@link CsvValidator}.
-	 * @param descriptorProperties descriptor properties
-	 * @return {@link TypeInformation}
-	 */
 	private static TypeInformation<Row> createTypeInformation(DescriptorProperties descriptorProperties) {
-		if (descriptorProperties.getOptionalTableSchema(CsvValidator.FORMAT_FIELDS()).isPresent()) {
-			return descriptorProperties.getTableSchema(CsvValidator.FORMAT_FIELDS()).toRowType();
+		if (descriptorProperties.containsKey(CsvValidator.FORMAT_SCHEMA)) {
+			return (RowTypeInfo) descriptorProperties.getType(CsvValidator.FORMAT_SCHEMA);
 		} else {
-			return SchemaValidator.deriveFormatFields(descriptorProperties).toRowType();
+			return deriveSchema(descriptorProperties.asMap()).toRowType();
 		}
 	}
 }
