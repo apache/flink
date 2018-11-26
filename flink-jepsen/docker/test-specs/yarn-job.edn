@@ -14,5 +14,6 @@
 ;; See the License for the specific language governing permissions and
 ;; limitations under the License.
 
-{:jobs [{:job-jar  "/jepsen/bin/DataStreamAllroundTestProgram.jar"
+{:dbs  [:hadoop :zookeeper :flink-yarn-job]
+ :jobs [{:job-jar  "/jepsen/bin/DataStreamAllroundTestProgram.jar"
          :job-args "--environment.parallelism 1 --state_backend.checkpoint_directory hdfs:///checkpoints --state_backend rocks --state_backend.rocks.incremental true"}]}

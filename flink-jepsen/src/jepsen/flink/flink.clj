@@ -20,22 +20,31 @@
             [jepsen
              [cli :as cli]
              [generator :as gen]
-             [tests :as tests]]
+             [tests :as tests]
+             [zookeeper :as zk]]
             [jepsen.os.debian :as debian]
-            [jepsen.flink.client :refer :all]
-            [jepsen.flink.checker :as flink-checker]
-            [jepsen.flink.db :as fdb]
-            [jepsen.flink.nemesis :as fn]))
+            [jepsen.flink
+             [client :refer :all]
+             [checker :as flink-checker]
+             [db :as fdb]
+             [hadoop :as hadoop]
+             [mesos :as mesos]
+             [nemesis :as fn]]))
 
-(def flink-test-config
-  {:yarn-session       {:db                  (fdb/flink-yarn-db)
-                        :deployment-strategy fdb/start-yarn-session!}
-   :yarn-job           {:db                  (fdb/flink-yarn-db)
-                        :deployment-strategy fdb/start-yarn-job!}
-   :mesos-session      {:db                  (fdb/flink-mesos-db)
-                        :deployment-strategy fdb/start-mesos-session!}
-   :standalone-session {:db                  (fdb/flink-standalone-db)
-                        :deployment-strategy fdb/submit-job-from-first-node!}})
+(def default-flink-dist-url "https://archive.apache.org/dist/flink/flink-1.6.0/flink-1.6.0-bin-hadoop28-scala_2.11.tgz")
+(def hadoop-dist-url "https://archive.apache.org/dist/hadoop/common/hadoop-2.8.3/hadoop-2.8.3.tar.gz")
+(def deb-zookeeper-package "3.4.9-3+deb8u1")
+(def deb-mesos-package "1.5.0-2.0.2")
+(def deb-marathon-package "1.6.322")
+
+(def dbs
+  {:flink-yarn-job           (fdb/yarn-job-db)
+   :flink-yarn-session       (fdb/yarn-session-db)
+   :flink-standalone-session (fdb/start-flink-db)
+   :flink-mesos-session      (fdb/flink-mesos-app-master)
+   :hadoop                   (hadoop/db hadoop-dist-url)
+   :mesos                    (mesos/db deb-mesos-package deb-marathon-package)
+   :zookeeper                (zk/db deb-zookeeper-package)})
 
 (def poll-jobs-running {:type :invoke, :f :jobs-running?, :value nil})
 (def cancel-jobs {:type :invoke, :f :cancel-jobs, :value nil})
@@ -64,12 +73,12 @@
 (defn flink-test
   [opts]
   (merge tests/noop-test
-         (let [{:keys [db deployment-strategy]} (-> opts :deployment-mode flink-test-config)
+         (let [dbs (->> opts :test-spec :dbs (map dbs))
                {:keys [job-running-healthy-threshold job-recovery-grace-period]} opts
                client-gen ((:client-gen opts) client-gens)]
            {:name      "Apache Flink"
             :os        debian/os
-            :db        db
+            :db        (fdb/combined-db dbs)
             :nemesis   (fn/nemesis)
             :model     (flink-checker/job-running-within-grace-period
                          job-running-healthy-threshold
@@ -81,7 +90,7 @@
                                                    ((fn/nemesis-generator-factories (:nemesis-gen opts)) opts)
                                                    job-running-healthy-threshold
                                                    job-recovery-grace-period))))
-            :client    (create-client deployment-strategy)
+            :client    (create-client)
             :checker   (flink-checker/job-running-checker)})
          (assoc opts :concurrency 1)))
 
@@ -104,8 +113,11 @@
     (merge
       (cli/single-test-cmd
         {:test-fn  flink-test
-         :tarball  fdb/default-flink-dist-url
-         :opt-spec [[nil "--test-spec FILE" "" :parse-fn read-test-spec]
+         :tarball  default-flink-dist-url
+         :opt-spec [[nil "--test-spec FILE" "Path to a test specification (.edn)"
+                     :parse-fn read-test-spec
+                     :validate [#(->> % :dbs (map dbs) (every? (complement nil?)))
+                                (str "Invalid :dbs specification. " (keys-as-allowed-values-help-text dbs))]]
                     [nil "--ha-storage-dir DIR" "high-availability.storageDir"]
                     [nil "--nemesis-gen GEN" (str "Which nemesis should be used?"
                                                   (keys-as-allowed-values-help-text fn/nemesis-generator-factories))
@@ -119,11 +131,6 @@
                      :default :poll-job-running
                      :validate [#(client-gens (keyword %))
                                 (keys-as-allowed-values-help-text client-gens)]]
-                    [nil "--deployment-mode MODE" (keys-as-allowed-values-help-text flink-test-config)
-                     :parse-fn keyword
-                     :default :yarn-session
-                     :validate [#(flink-test-config (keyword %))
-                                (keys-as-allowed-values-help-text flink-test-config)]]
                     [nil "--job-running-healthy-threshold TIMES" "Number of consecutive times the job must be running to be considered healthy."
                      :default 5
                      :parse-fn #(Long/parseLong %)

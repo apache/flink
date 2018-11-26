@@ -172,12 +172,11 @@
       :cancel-jobs (dispatch-operation-or-fatal op (cancel-jobs! rest-url job-ids)))))
 
 (defrecord Client
-  [deploy-cluster!                                          ; function that starts a non-standalone cluster and submits the jobs
-   closer                                                   ; function that closes the ZK client
+  [closer                                                   ; function that closes the ZK client
    rest-url                                                 ; atom storing the current rest-url
    init-future                                              ; future that completes if rest-url is set to an initial value
    job-ids                                                  ; atom storing the job-ids
-   job-submitted?]                                          ; Have the jobs already been submitted? Used to avoid re-submission if the client is re-opened.
+   client-setup?]                                           ; Has the client already been setup? Used to avoid running setup! again if the client is re-opened.
   client/Client
   (open! [this test _]
     (info "Open client.")
@@ -186,10 +185,9 @@
                   :rest-url rest-url-atom
                   :init-future init-future)))
 
-  (setup! [_ test]
+  (setup! [_ _]
     (info "Setup client.")
-    (when (compare-and-set! job-submitted? false true)
-      (deploy-cluster! test)
+    (when (compare-and-set! client-setup? false true)
       (deref init-future)
       (let [jobs (fu/retry (fn [] (list-jobs! @rest-url))
                            :fallback (fn [e]
@@ -209,5 +207,5 @@
     (closer)))
 
 (defn create-client
-  [deploy-cluster!]
-  (Client. deploy-cluster! nil nil nil (atom nil) (atom false)))
+  []
+  (Client. nil nil nil (atom nil) (atom false)))
