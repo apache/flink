@@ -20,8 +20,8 @@ package org.apache.flink.metrics;
 
 import org.junit.Test;
 
+import static org.apache.flink.metrics.View.UPDATE_INTERVAL_SECONDS;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the MeterView.
@@ -97,10 +97,12 @@ public class MeterViewTest {
 	}
 
 	@Test
-	public void testTooSmallTimeSpan() {
-		MeterView m = new MeterView(1);
+	public void testTimeSpanBelowUpdateRate() {
+		int timeSpanInSeconds = 1;
+		MeterView m = new MeterView(timeSpanInSeconds);
+		assert timeSpanInSeconds < UPDATE_INTERVAL_SECONDS;
 		m.markEvent();
 		m.update();
-		assertTrue(0.2 == m.getRate());
+		assertEquals(0.2, m.getRate(), 0.0);
 	}
 }
