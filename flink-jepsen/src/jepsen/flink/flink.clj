@@ -98,7 +98,7 @@
             :checker   (flink-checker/job-running-checker)})
          (assoc opts :concurrency 1)))
 
-(defn keys-as-allowed-values-help-text
+(defn- keys->allowed-values-help-text
   "Takes a map and returns a string explaining which values are allowed.
   This is a CLI helper function."
   [m]
@@ -121,20 +121,20 @@
          :opt-spec [[nil "--test-spec FILE" "Path to a test specification (.edn)"
                      :parse-fn read-test-spec
                      :validate [#(->> % :dbs (map dbs) (every? (complement nil?)))
-                                (str "Invalid :dbs specification. " (keys-as-allowed-values-help-text dbs))]]
+                                (str "Invalid :dbs specification. " (keys->allowed-values-help-text dbs))]]
                     [nil "--ha-storage-dir DIR" "high-availability.storageDir"]
                     [nil "--nemesis-gen GEN" (str "Which nemesis should be used?"
-                                                  (keys-as-allowed-values-help-text fn/nemesis-generator-factories))
+                                                  (keys->allowed-values-help-text fn/nemesis-generator-factories))
                      :parse-fn keyword
                      :default :kill-task-managers
                      :validate [#(fn/nemesis-generator-factories %)
-                                (keys-as-allowed-values-help-text fn/nemesis-generator-factories)]]
+                                (keys->allowed-values-help-text fn/nemesis-generator-factories)]]
                     [nil "--client-gen GEN" (str "Which client should be used?"
-                                                 (keys-as-allowed-values-help-text client-gens))
+                                                 (keys->allowed-values-help-text client-gens))
                      :parse-fn keyword
                      :default :poll-job-running
                      :validate [#(client-gens %)
-                                (keys-as-allowed-values-help-text client-gens)]]
+                                (keys->allowed-values-help-text client-gens)]]
                     [nil "--job-running-healthy-threshold TIMES" "Number of consecutive times the job must be running to be considered healthy."
                      :default 5
                      :parse-fn #(Long/parseLong %)
