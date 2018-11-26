@@ -27,6 +27,7 @@
              [client :refer :all]
              [checker :as flink-checker]
              [db :as fdb]
+             [generator :as fg]
              [hadoop :as hadoop]
              [kafka :as kafka]
              [mesos :as mesos]
@@ -87,9 +88,9 @@
                          job-running-healthy-threshold
                          job-recovery-grace-period)
             :generator (let [stop (atom nil)]
-                         (->> (fn/stoppable-generator stop (client-gen))
+                         (->> (fg/stoppable-generator stop (client-gen))
                               (gen/nemesis
-                                (fn/stop-generator stop
+                                (fg/stop-generator stop
                                                    ((fn/nemesis-generator-factories (:nemesis-gen opts)) opts)
                                                    job-running-healthy-threshold
                                                    job-recovery-grace-period))))
