@@ -41,6 +41,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
@@ -79,6 +80,7 @@ import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -188,6 +190,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	/** The executor which is used to execute blocking io operations. */
 	private final Executor ioExecutor;
+
+	/** Executor that runs tasks in the job manager's main thread. */
+	private ComponentMainThreadExecutor jobMasterMainThreadExecutor;
 
 	/** {@code true} if all source tasks are stoppable. */
 	private boolean isStoppable = true;
@@ -425,7 +430,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		this.failoverStrategy = checkNotNull(failoverStrategyFactory.create(this), "null failover strategy");
 
 		this.schedulingFuture = null;
+		this.jobMasterMainThreadExecutor = null;
+
 		LOG.info("Job recovers via failover strategy: {}", failoverStrategy.getStrategyName());
+	}
+
+	public void start(@Nonnull ComponentMainThreadExecutor jobMasterMainThreadExecutor) {
+		this.jobMasterMainThreadExecutor = jobMasterMainThreadExecutor;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -458,6 +469,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	public Time getAllocationTimeout() {
 		return allocationTimeout;
+	}
+
+	public ComponentMainThreadExecutor getJobMasterMainThreadExecutor() {
+		return jobMasterMainThreadExecutor;
 	}
 
 	@Override
