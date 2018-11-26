@@ -74,13 +74,13 @@ class TemporalProcessTimeJoin(
 
   override def processElement1(element: StreamRecord[CRow]): Unit = {
 
-    if (rightState.value() == null) {
+    val rightSideRow = rightState.value()
+    if (rightSideRow == null) {
       return
     }
 
     cRowWrapper.setChange(element.getValue.change)
 
-    val rightSideRow = rightState.value()
     joinFunction.join(element.getValue.row, rightSideRow, cRowWrapper)
   }
 
