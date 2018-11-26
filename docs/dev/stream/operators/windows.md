@@ -819,7 +819,7 @@ private static class MyProcessWindowFunction
                     Iterable<SensorReading> minReadings,
                     Collector<Tuple2<Long, SensorReading>> out) {
       SensorReading min = minReadings.iterator().next();
-      out.collect(new Tuple2<Long, SensorReading>(window.getStart(), min));
+      out.collect(new Tuple2<Long, SensorReading>(context.window().getStart(), min));
   }
 }
 
@@ -836,12 +836,12 @@ input
   .reduce(
     (r1: SensorReading, r2: SensorReading) => { if (r1.value > r2.value) r2 else r1 },
     ( key: String,
-      window: TimeWindow,
+      context: Context,
       minReadings: Iterable[SensorReading],
       out: Collector[(Long, SensorReading)] ) =>
       {
         val min = minReadings.iterator.next()
-        out.collect((window.getStart, min))
+        out.collect((context.window.getStart, min))
       }
   )
 
