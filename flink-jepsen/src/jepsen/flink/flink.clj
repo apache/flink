@@ -126,13 +126,13 @@
                                                   (keys-as-allowed-values-help-text fn/nemesis-generator-factories))
                      :parse-fn keyword
                      :default :kill-task-managers
-                     :validate [#(fn/nemesis-generator-factories (keyword %))
+                     :validate [#(fn/nemesis-generator-factories %)
                                 (keys-as-allowed-values-help-text fn/nemesis-generator-factories)]]
                     [nil "--client-gen GEN" (str "Which client should be used?"
                                                  (keys-as-allowed-values-help-text client-gens))
                      :parse-fn keyword
                      :default :poll-job-running
-                     :validate [#(client-gens (keyword %))
+                     :validate [#(client-gens %)
                                 (keys-as-allowed-values-help-text client-gens)]]
                     [nil "--job-running-healthy-threshold TIMES" "Number of consecutive times the job must be running to be considered healthy."
                      :default 5
