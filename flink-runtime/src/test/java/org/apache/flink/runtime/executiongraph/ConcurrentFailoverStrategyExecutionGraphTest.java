@@ -20,41 +20,72 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.core.testutils.ManuallyTriggeredDirectExecutor;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
+import org.apache.flink.runtime.checkpoint.PendingCheckpoint;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
-import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.FailoverRegion;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy.Factory;
+import org.apache.flink.runtime.executiongraph.failover.RestartIndividualStrategy;
 import org.apache.flink.runtime.executiongraph.failover.RestartPipelinedRegionStrategy;
-import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.util.concurrent.Executor;
+import javax.annotation.Nonnull;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.waitUntilExecutionState;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.waitUntilJobStatus;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * These tests make sure that global failover (restart all) always takes precedence over
- * local recovery strategies for the {@link RestartPipelinedRegionStrategy}
- * 
+ * local recovery strategies.
+ *
  * <p>This test must be in the package it resides in, because it uses package-private methods
  * from the ExecutionGraph classes.
  */
-public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
+public class ConcurrentFailoverStrategyExecutionGraphTest extends TestLogger {
+
+	private final TestingComponentMainThreadExecutorServiceAdapter mainThreadExecutor = TestingComponentMainThreadExecutorServiceAdapter.forMainThread();
 
 	/**
 	 * Tests that a cancellation concurrent to a local failover leads to a properly
@@ -74,16 +105,21 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		final JobID jid = new JobID();
 		final int parallelism = 2;
 
-		final ManuallyTriggeredDirectExecutor executor = new ManuallyTriggeredDirectExecutor();
-
 		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
 
 		final ExecutionGraph graph = createSampleGraph(
-				jid,
-				new FailoverPipelinedRegionWithCustomExecutor(executor),
-				new FixedDelayRestartStrategy(Integer.MAX_VALUE, 0),
-				slotProvider,
-				2);
+			jid,
+			TestRestartPipelinedRegionStrategy::new,
+			TestRestartStrategy.directExecuting(),
+			slotProvider,
+			parallelism);
+
+		graph.start(mainThreadExecutor);
+		TestRestartPipelinedRegionStrategy strategy = (TestRestartPipelinedRegionStrategy) graph.getFailoverStrategy();
+
+		// This future is used to block the failover strategy execution until we complete it
+		final CompletableFuture<?> blocker = new CompletableFuture<>();
+		strategy.setBlockerFuture(blocker);
 
 		final ExecutionJobVertex ejv = graph.getVerticesTopologically().iterator().next();
 		final ExecutionVertex vertex1 = ejv.getTaskVertices()[0];
@@ -93,12 +129,11 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		assertEquals(JobStatus.RUNNING, graph.getState());
 
 		// let one of the vertices fail - that triggers a local recovery action
-		vertex1.getCurrentExecutionAttempt().fail(new Exception("test failure"));
+		vertex1.getCurrentExecutionAttempt().failSync(new Exception("test failure"));
 		assertEquals(ExecutionState.FAILED, vertex1.getCurrentExecutionAttempt().getState());
 
 		// graph should still be running and the failover recovery action should be queued
 		assertEquals(JobStatus.RUNNING, graph.getState());
-		assertEquals(1, executor.numQueuedRunnables());
 
 		// now cancel the job
 		graph.cancel();
@@ -108,7 +143,7 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		assertEquals(ExecutionState.CANCELING, vertex2.getCurrentExecutionAttempt().getState());
 
 		// let the recovery action continue
-		executor.trigger();
+		blocker.complete(null);
 
 		// now report that cancelling is complete for the other vertex
 		vertex2.getCurrentExecutionAttempt().cancelingComplete();
@@ -139,16 +174,21 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		final JobID jid = new JobID();
 		final int parallelism = 2;
 
-		final ManuallyTriggeredDirectExecutor executor = new ManuallyTriggeredDirectExecutor();
-
 		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
 
 		final ExecutionGraph graph = createSampleGraph(
-				jid,
-				new FailoverPipelinedRegionWithCustomExecutor(executor),
-				new FixedDelayRestartStrategy(Integer.MAX_VALUE, 0),
-				slotProvider,
-				2);
+			jid,
+			TestRestartPipelinedRegionStrategy::new,
+			TestRestartStrategy.directExecuting(),
+			slotProvider,
+			parallelism);
+
+		graph.start(mainThreadExecutor);
+		TestRestartPipelinedRegionStrategy strategy = (TestRestartPipelinedRegionStrategy) graph.getFailoverStrategy();
+
+		// This future is used to block the failover strategy execution until we complete it
+		final CompletableFuture<?> blocker = new CompletableFuture<>();
+		strategy.setBlockerFuture(blocker);
 
 		final ExecutionJobVertex ejv = graph.getVerticesTopologically().iterator().next();
 		final ExecutionVertex vertex1 = ejv.getTaskVertices()[0];
@@ -158,12 +198,11 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		assertEquals(JobStatus.RUNNING, graph.getState());
 
 		// let one of the vertices fail - that triggers a local recovery action
-		vertex1.getCurrentExecutionAttempt().fail(new Exception("test failure"));
+		vertex1.getCurrentExecutionAttempt().failSync(new Exception("test failure"));
 		assertEquals(ExecutionState.FAILED, vertex1.getCurrentExecutionAttempt().getState());
 
 		// graph should still be running and the failover recovery action should be queued
 		assertEquals(JobStatus.RUNNING, graph.getState());
-		assertEquals(1, executor.numQueuedRunnables());
 
 		// now cancel the job
 		graph.failGlobal(new SuppressRestartsException(new Exception("test exception")));
@@ -173,7 +212,7 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		assertEquals(ExecutionState.CANCELING, vertex2.getCurrentExecutionAttempt().getState());
 
 		// let the recovery action continue
-		executor.trigger();
+		blocker.complete(null);
 
 		// now report that cancelling is complete for the other vertex
 		vertex2.getCurrentExecutionAttempt().cancelingComplete();
@@ -203,17 +242,22 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		final JobID jid = new JobID();
 		final int parallelism = 2;
 
-		final ManuallyTriggeredDirectExecutor executor = new ManuallyTriggeredDirectExecutor();
-
 		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
 
 		final ExecutionGraph graph = createSampleGraph(
-				jid,
-				new FailoverPipelinedRegionWithCustomExecutor(executor),
-				new FixedDelayRestartStrategy(2, 0), // twice restart, no delay
-				slotProvider,
-				2);
-		RestartPipelinedRegionStrategy strategy = (RestartPipelinedRegionStrategy)graph.getFailoverStrategy();
+			jid,
+			TestRestartPipelinedRegionStrategy::new,
+			new TestRestartStrategy(2, false), // twice restart, no delay
+			slotProvider,
+			parallelism);
+
+		TestRestartPipelinedRegionStrategy strategy = (TestRestartPipelinedRegionStrategy) graph.getFailoverStrategy();
+
+		// This future is used to block the failover strategy execution until we complete it
+		CompletableFuture<?> blocker = new CompletableFuture<>();
+		strategy.setBlockerFuture(blocker);
+
+		graph.start(mainThreadExecutor);
 
 		final ExecutionJobVertex ejv = graph.getVerticesTopologically().iterator().next();
 		final ExecutionVertex vertex1 = ejv.getTaskVertices()[0];
@@ -224,13 +268,12 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(vertex1).getState());
 
 		// let one of the vertices fail - that triggers a local recovery action
-		vertex2.getCurrentExecutionAttempt().fail(new Exception("test failure"));
+		vertex2.getCurrentExecutionAttempt().failSync(new Exception("test failure"));
 		assertEquals(ExecutionState.FAILED, vertex2.getCurrentExecutionAttempt().getState());
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(vertex2).getState());
 
 		// graph should still be running and the failover recovery action should be queued
 		assertEquals(JobStatus.RUNNING, graph.getState());
-		assertEquals(1, executor.numQueuedRunnables());
 
 		// now cancel the job
 		graph.failGlobal(new Exception("test exception"));
@@ -253,7 +296,7 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		assertEquals(ExecutionState.RUNNING, vertex2.getCurrentExecutionAttempt().getState());
 
 		// let the recovery action continue - this should do nothing any more
-		executor.trigger();
+		blocker.complete(null);
 
 		// validate that the graph is still peachy
 		assertEquals(JobStatus.RUNNING, graph.getState());
@@ -269,12 +312,14 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		// make sure all slots are in use
 		assertEquals(0, slotProvider.getNumberOfAvailableSlots());
 
+		blocker = new CompletableFuture<>();
+		strategy.setBlockerFuture(blocker);
+
 		// validate that a task failure then can be handled by the local recovery
-		vertex2.getCurrentExecutionAttempt().fail(new Exception("test failure"));
-		assertEquals(1, executor.numQueuedRunnables());
+		vertex2.getCurrentExecutionAttempt().failSync(new Exception("test failure"));
 
 		// let the local recovery action continue - this should recover the vertex2
-		executor.trigger();
+		blocker.complete(null);
 
 		waitUntilExecutionState(vertex2.getCurrentExecutionAttempt(), ExecutionState.DEPLOYING, 1000);
 		vertex2.getCurrentExecutionAttempt().switchToRunning();
@@ -294,16 +339,139 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		assertEquals(0, slotProvider.getNumberOfAvailableSlots());
 	}
 
+	/**
+	 * Tests that a local failure fails all pending checkpoints which have not been acknowledged by the failing
+	 * task.
+	 */
+	@Test
+	public void testLocalFailureFailsPendingCheckpoints() throws Exception {
+		final JobID jid = new JobID();
+		final int parallelism = 2;
+		final long verifyTimeout = 5000L;
+
+		final TaskManagerGateway taskManagerGateway = mock(TaskManagerGateway.class);
+		when(taskManagerGateway.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
+		when(taskManagerGateway.cancelTask(any(ExecutionAttemptID.class), any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
+
+		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism, taskManagerGateway);
+
+		final CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration = new CheckpointCoordinatorConfiguration(
+			10L,
+			100000L,
+			1L,
+			3,
+			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true);
+
+		final ExecutionGraph graph = createSampleGraph(
+			jid,
+			(eg) -> new RestartIndividualStrategy(eg) {
+					@Override
+					protected void performExecutionVertexRestart(
+						ExecutionVertex vertexToRecover,
+						long globalModVersion) {
+					}
+				}
+			,
+			new TestRestartStrategy(2, false), // twice restart, no delay
+			slotProvider,
+			parallelism);
+
+		graph.start(mainThreadExecutor);
+
+		final List<ExecutionJobVertex> allVertices = new ArrayList<>(graph.getAllVertices().values());
+
+		final StandaloneCheckpointIDCounter standaloneCheckpointIDCounter = new StandaloneCheckpointIDCounter();
+
+		graph.enableCheckpointing(
+			checkpointCoordinatorConfiguration.getCheckpointInterval(),
+			checkpointCoordinatorConfiguration.getCheckpointTimeout(),
+			checkpointCoordinatorConfiguration.getMinPauseBetweenCheckpoints(),
+			checkpointCoordinatorConfiguration.getMaxConcurrentCheckpoints(),
+			checkpointCoordinatorConfiguration.getCheckpointRetentionPolicy(),
+			allVertices,
+			allVertices,
+			allVertices,
+			Collections.emptyList(),
+			standaloneCheckpointIDCounter,
+			new StandaloneCompletedCheckpointStore(1),
+			new MemoryStateBackend(),
+			new CheckpointStatsTracker(
+				1,
+				allVertices,
+				checkpointCoordinatorConfiguration,
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()));
+
+		final CheckpointCoordinator checkpointCoordinator = graph.getCheckpointCoordinator();
+
+		final ExecutionJobVertex ejv = graph.getVerticesTopologically().iterator().next();
+		final ExecutionVertex vertex1 = ejv.getTaskVertices()[0];
+		final ExecutionVertex vertex2 = ejv.getTaskVertices()[1];
+
+		graph.scheduleForExecution();
+		assertEquals(JobStatus.RUNNING, graph.getState());
+
+		verify(taskManagerGateway, timeout(verifyTimeout).times(parallelism)).submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
+
+		// switch all executions to running
+		for (ExecutionVertex executionVertex : graph.getAllExecutionVertices()) {
+			executionVertex.getCurrentExecutionAttempt().switchToRunning();
+		}
+
+		// wait for a first checkpoint to be triggered
+		verify(taskManagerGateway, timeout(verifyTimeout).times(3)).triggerCheckpoint(
+			eq(vertex1.getCurrentExecutionAttempt().getAttemptId()),
+			any(JobID.class),
+			anyLong(),
+			anyLong(),
+			any(CheckpointOptions.class));
+
+		verify(taskManagerGateway, timeout(verifyTimeout).times(3)).triggerCheckpoint(
+			eq(vertex2.getCurrentExecutionAttempt().getAttemptId()),
+			any(JobID.class),
+			anyLong(),
+			anyLong(),
+			any(CheckpointOptions.class));
+
+		assertEquals(3, checkpointCoordinator.getNumberOfPendingCheckpoints());
+
+		long checkpointToAcknowledge = standaloneCheckpointIDCounter.getLast();
+
+		checkpointCoordinator.receiveAcknowledgeMessage(
+			new AcknowledgeCheckpoint(
+				graph.getJobID(),
+				vertex1.getCurrentExecutionAttempt().getAttemptId(),
+				checkpointToAcknowledge));
+
+		Map<Long, PendingCheckpoint> oldPendingCheckpoints = new HashMap<>(3);
+
+		for (PendingCheckpoint pendingCheckpoint : checkpointCoordinator.getPendingCheckpoints().values()) {
+			assertFalse(pendingCheckpoint.isDiscarded());
+			oldPendingCheckpoints.put(pendingCheckpoint.getCheckpointId(), pendingCheckpoint);
+		}
+
+		// let one of the vertices fail - this should trigger the failing of not acknowledged pending checkpoints
+		vertex1.getCurrentExecutionAttempt().failSync(new Exception("test failure"));
+
+		for (PendingCheckpoint pendingCheckpoint : oldPendingCheckpoints.values()) {
+			if (pendingCheckpoint.getCheckpointId() == checkpointToAcknowledge) {
+				assertFalse(pendingCheckpoint.isDiscarded());
+			} else {
+				assertTrue(pendingCheckpoint.isDiscarded());
+			}
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  utilities
 	// ------------------------------------------------------------------------
 
 	private ExecutionGraph createSampleGraph(
-			JobID jid,
-			Factory failoverStrategy,
-			RestartStrategy restartStrategy,
-			SlotProvider slotProvider,
-			int parallelism) throws Exception {
+		JobID jid,
+		Factory failoverStrategy,
+		RestartStrategy restartStrategy,
+		SlotProvider slotProvider,
+		int parallelism) throws Exception {
 
 		final JobInformation jobInformation = new DummyJobInformation(
 			jid,
@@ -333,19 +501,35 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		return graph;
 	}
 
-	// ------------------------------------------------------------------------
+	/**
+	 * Test implementation of the {@link RestartPipelinedRegionStrategy} that makes it possible to control when the
+	 * failover action is performed via {@link CompletableFuture}.
+	 */
+	static class TestRestartPipelinedRegionStrategy extends RestartPipelinedRegionStrategy {
 
-	private static class FailoverPipelinedRegionWithCustomExecutor implements Factory {
+		@Nonnull
+		CompletableFuture<?> blockerFuture;
 
-		private final Executor executor;
+		public TestRestartPipelinedRegionStrategy(ExecutionGraph executionGraph) {
+			super(executionGraph);
+			this.blockerFuture = CompletableFuture.completedFuture(null);
+		}
 
-		FailoverPipelinedRegionWithCustomExecutor(Executor executor) {
-			this.executor = executor;
+		public void setBlockerFuture(@Nonnull CompletableFuture<?> blockerFuture) {
+			this.blockerFuture = blockerFuture;
 		}
 
 		@Override
-		public FailoverStrategy create(ExecutionGraph executionGraph) {
-			return new RestartPipelinedRegionStrategy(executionGraph, executor);
+		protected FailoverRegion createFailoverRegion(ExecutionGraph eg, List<ExecutionVertex> connectedExecutions) {
+			return new FailoverRegion(eg, connectedExecutions) {
+				@Override
+				protected CompletableFuture<Void> createTerminationFutureOverAllConnectedVertexes() {
+					ArrayList<CompletableFuture<?>> terminationAndBlocker = new ArrayList<>(2);
+					terminationAndBlocker.add(super.createTerminationFutureOverAllConnectedVertexes());
+					terminationAndBlocker.add(blockerFuture);
+					return FutureUtils.waitForAll(terminationAndBlocker);
+				}
+			};
 		}
 	}
 }

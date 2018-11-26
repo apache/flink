@@ -110,6 +110,8 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 			new NoRestartStrategy(),
 			mock(SlotProvider.class));
 
+		runtimeGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+
 		runtimeGraph.attachJobGraph(vertices);
 
 		List<ExecutionJobVertex> jobVertices = new ArrayList<>();
@@ -139,7 +141,7 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 
 		runtimeGraph.setJsonPlan("{}");
 
-		runtimeGraph.getJobVertex(v2ID).getTaskVertices()[0].getCurrentExecutionAttempt().fail(new RuntimeException("This exception was thrown on purpose."));
+		runtimeGraph.getJobVertex(v2ID).getTaskVertices()[0].getCurrentExecutionAttempt().failAsync(new RuntimeException("This exception was thrown on purpose."));
 	}
 
 	@Test

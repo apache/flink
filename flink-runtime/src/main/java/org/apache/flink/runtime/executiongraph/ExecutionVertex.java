@@ -34,7 +34,6 @@ import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescript
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -643,7 +642,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	}
 
 	@VisibleForTesting
-	public void deployToSlot(SimpleSlot slot) throws JobException {
+	public void deployToSlot(LogicalSlot slot) throws JobException {
 		if (this.currentExecution.tryAssignResource(slot)) {
 			this.currentExecution.deploy();
 		} else {
@@ -670,7 +669,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	}
 
 	public void fail(Throwable t) {
-		this.currentExecution.fail(t);
+		this.currentExecution.failSync(t);
 	}
 
 	/**

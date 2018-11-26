@@ -512,7 +512,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			},
 			getMainThreadExecutor());
 
-		rescalingFuture.whenComplete(
+		rescalingFuture.whenCompleteAsync(
 			(Acknowledge ignored, Throwable throwable) -> {
 				if (throwable != null) {
 					// fail the newly created execution graph
@@ -522,7 +522,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 								String.format("Failed to rescale the job %s.", jobGraph.getJobID()),
 								throwable)));
 				}
-			});
+			}, getMainThreadExecutor());
 
 		return rescalingFuture;
 	}
@@ -1005,6 +1005,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	//-- job starting and stopping  -----------------------------------------------------------------
 
 	private Acknowledge startJobExecution(JobMasterId newJobMasterId) throws Exception {
+
 		validateRunsInMainThread();
 
 		checkNotNull(newJobMasterId, "The new JobMasterId must not be null.");
@@ -1109,17 +1110,18 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		if (executionGraph.getState() == JobStatus.CREATED) {
 			executionGraphAssignedFuture = CompletableFuture.completedFuture(null);
+			executionGraph.start(getMainThreadExecutor());
 		} else {
 			suspendAndClearExecutionGraphFields(new FlinkException("ExecutionGraph is being reset in order to be rescheduled."));
 			final JobManagerJobMetricGroup newJobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
 			final ExecutionGraph newExecutionGraph = createAndRestoreExecutionGraph(newJobManagerJobMetricGroup);
 
-			executionGraphAssignedFuture = executionGraph.getTerminationFuture().handleAsync(
+			executionGraphAssignedFuture = executionGraph.getTerminationFuture().handle(
 				(JobStatus ignored, Throwable throwable) -> {
+					newExecutionGraph.start(getMainThreadExecutor());
 					assignExecutionGraph(newExecutionGraph, newJobManagerJobMetricGroup);
 					return null;
-				},
-				getMainThreadExecutor());
+				});
 		}
 
 		executionGraphAssignedFuture.thenRun(this::scheduleExecutionGraph);

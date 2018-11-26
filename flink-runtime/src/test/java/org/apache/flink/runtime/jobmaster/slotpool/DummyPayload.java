@@ -39,11 +39,16 @@ final class DummyPayload implements LogicalSlot.Payload {
     }
 
     @Override
-    public void fail(Throwable cause) {
-        terminalStateFuture.complete(null);
+    public void failAsync(Throwable cause) {
+		failSync(cause);
     }
 
-    @Override
+	@Override
+	public void failSync(Throwable cause) {
+		terminalStateFuture.complete(null);
+	}
+
+	@Override
     public CompletableFuture<?> getTerminalStateFuture() {
         return terminalStateFuture;
     }

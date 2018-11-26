@@ -41,7 +41,6 @@ import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -53,6 +52,7 @@ import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
@@ -170,6 +170,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 				ExecutionGraph.class.getClassLoader(),
 				blobWriter,
 				AkkaUtils.getDefaultTimeout());
+
+			eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 			checkJobOffloaded(eg);
 
@@ -291,7 +293,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 7, v2, 6).f1;
 
 			for (Execution e : executions.values()) {
-				e.fail(null);
+				e.failAsync(null);
 			}
 
 			assertEquals(0, executions.size());
@@ -439,10 +441,12 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			jobId,
 			"failing test job");
 
+		DirectScheduledExecutorService directExecutor = new DirectScheduledExecutorService();
+
 		// execution graph that executes actions synchronously
 		ExecutionGraph eg = new ExecutionGraph(
 			jobInformation,
-			new DirectScheduledExecutorService(),
+			directExecutor,
 			TestingUtils.defaultExecutor(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
@@ -451,6 +455,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			ExecutionGraph.class.getClassLoader(),
 			blobWriter,
 			AkkaUtils.getDefaultTimeout());
+
+		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		checkJobOffloaded(eg);
 
@@ -517,10 +523,12 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			jobId,
 			"some job");
 
+		DirectScheduledExecutorService executorService = new DirectScheduledExecutorService();
+
 		// execution graph that executes actions synchronously
 		ExecutionGraph eg = new ExecutionGraph(
 			jobInformation,
-			new DirectScheduledExecutorService(),
+			executorService,
 			TestingUtils.defaultExecutor(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
@@ -530,6 +538,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			blobWriter,
 			AkkaUtils.getDefaultTimeout());
 		checkJobOffloaded(eg);
+
+		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 		
 		eg.setQueuedSchedulingAllowed(false);
 
@@ -609,6 +619,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			sourceVertex,
 			sinkVertex);
 
+		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 		executionGraph.setScheduleMode(ScheduleMode.EAGER);
 		executionGraph.scheduleForExecution();
 
