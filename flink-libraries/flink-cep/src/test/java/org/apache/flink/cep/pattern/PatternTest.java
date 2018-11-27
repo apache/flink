@@ -105,7 +105,7 @@ public class PatternTest extends TestLogger {
 
 		assertNotNull(pattern.getCondition());
 		assertNotNull(previous.getCondition());
-		assertNull(previous2.getCondition());
+		assertNotNull(previous2.getCondition());
 
 		assertEquals(pattern.getName(), "end");
 		assertEquals(previous.getName(), "next");

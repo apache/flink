@@ -39,8 +39,8 @@ public class OrCondition<T> extends IterativeCondition<T> {
 	private final IterativeCondition<T> right;
 
 	public OrCondition(final IterativeCondition<T> left, final IterativeCondition<T> right) {
-		this.left = Preconditions.checkNotNull(left, "The condition cannot be null.");;
-		this.right = Preconditions.checkNotNull(right, "The condition cannot be null.");;
+		this.left = Preconditions.checkNotNull(left, "The condition cannot be null.");
+		this.right = Preconditions.checkNotNull(right, "The condition cannot be null.");
 	}
 
 	@Override
