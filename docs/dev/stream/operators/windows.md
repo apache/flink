@@ -836,7 +836,7 @@ input
   .reduce(
     (r1: SensorReading, r2: SensorReading) => { if (r1.value > r2.value) r2 else r1 },
     ( key: String,
-      context: Context,
+      context: ProcessWindowFunction[_,_,_,TimeWindow]#Context,
       minReadings: Iterable[SensorReading],
       out: Collector[(Long, SensorReading)] ) =>
       {
