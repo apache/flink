@@ -17,8 +17,8 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
@@ -33,18 +33,19 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
-import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.checkpointing.utils.WatermarkCheckpointingSource;
-import org.apache.flink.test.checkpointing.utils.WatermarkCheckpointingValidatingSink;
 import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -54,14 +55,11 @@ import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import javax.annotation.Nullable;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.flink.test.checkpointing.WatermarkCheckpointingITCase.StateBackendEnum.ROCKSDB_INCREMENTAL_ZK;
 import static org.junit.Assert.fail;
 
@@ -233,69 +231,36 @@ public class WatermarkCheckpointingITCase extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	@Test
-	public void testTimestampsAndPeriodicWatermarksOperator() {
-		int sendCount = 10;
-		int upperWatermark = 5;
-		int lowerWatermark = 3;
-
-		int expect = 5 * 10 / 2;
-
-		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			setupEnvironment(env);
-
-			env.addSource(new WatermarkCheckpointingSource(upperWatermark, lowerWatermark, sendCount,
-				WatermarkCheckpointingSource.PERIOD_MODE)).setParallelism(1)
-				.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple2<Integer, Integer>>() {
-					@Override
-					public long extractAscendingTimestamp(Tuple2<Integer, Integer> element) {
-						return element.f0;
-					}
-				}).setParallelism(1)
-				.windowAll(TumblingEventTimeWindows.of(Time.of(1, MILLISECONDS)))
-				.sum(1).setParallelism(1)
-				.map((MapFunction<Tuple2<Integer, Integer>, Integer>) value -> value.f1).setParallelism(1)
-				.addSink(new WatermarkCheckpointingValidatingSink(expect)).setParallelism(1);
-
-			env.execute();
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
 	public void testTimestampsAndPunctuatedWatermarksOperator() {
-		int sendCount = 100;
-		int upperWatermark = 10000;
-		int lowerWatermark = 1;
-
-		// 10000 + 10001 + ... + 10049
-		int expect = 501275;
-
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			setupEnvironment(env);
 
-			env.addSource(new WatermarkCheckpointingSource(upperWatermark, lowerWatermark, sendCount,
-				WatermarkCheckpointingSource.PUNCTUATE_MODE)).setParallelism(1)
+			int failTaskIndex = 2;
+			TemporaryFolder folder = new TemporaryFolder();
+			folder.create();
+			File tempFolder = folder.getRoot();
+
+			CustomTestingOperator customOperator = new CustomTestingOperator(failTaskIndex, 0);
+			customOperator.setChainingStrategy(ChainingStrategy.ALWAYS);
+
+			env.addSource(new WatermarkCheckpointingSource(failTaskIndex, tempFolder)).setParallelism(PARALLELISM)
 				.assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Integer, Integer>>() {
+
 					@Override
 					public long extractTimestamp(Tuple2<Integer, Integer> element, long previousElementTimestamp) {
-						return element.f1;
+						return element.f0;
 					}
 
-					@Nullable
 					@Override
 					public Watermark checkAndGetNextWatermark(Tuple2<Integer, Integer> lastElement, long extractedTimestamp) {
-						return new Watermark(lastElement.f1);
+						return new Watermark(extractedTimestamp);
 					}
-				}).setParallelism(1)
-				.windowAll(TumblingEventTimeWindows.of(Time.of(100, MILLISECONDS)))
-				.sum(1).setParallelism(1)
-				.map((MapFunction<Tuple2<Integer, Integer>, Integer>) value -> value.f1).setParallelism(1)
-				.addSink(new WatermarkCheckpointingValidatingSink(expect)).setParallelism(1);
+				}).setParallelism(PARALLELISM)
+				.transform("custom operator", BasicTypeInfo.INT_TYPE_INFO, customOperator).setParallelism(PARALLELISM)
+				.print();
 
+			System.out.println(env.getExecutionPlan());
 			env.execute();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -310,6 +275,42 @@ public class WatermarkCheckpointingITCase extends TestLogger {
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 		env.getConfig().disableSysoutLogging();
 		env.setStateBackend(this.stateBackend);
+	}
+
+	/**
+	 * This operator is used to verify the watermark from upstream operator.
+	 */
+	private static class CustomTestingOperator extends AbstractStreamOperator<Integer>
+		implements OneInputStreamOperator<Tuple2<Integer, Integer>, Integer> {
+
+		private boolean receiveFirstWatermark = false;
+		private final int failTaskIndex;
+		private final long expect;
+
+		public CustomTestingOperator(int failTaskIndex, long expect) {
+			this.failTaskIndex = failTaskIndex;
+			this.expect = expect;
+		}
+
+		@Override
+		public void processElement(StreamRecord<Tuple2<Integer, Integer>> element) {
+			// do nothing
+		}
+
+		/**
+		 * The first watermark we receive after recovery should be the
+		 * whole task's lowest watermark of the first attempt, which is zero.
+		 */
+		@Override
+		public void processWatermark(Watermark mark) {
+			int attempt = getRuntimeContext().getAttemptNumber();
+
+			if (attempt == 1 && getRuntimeContext().getIndexOfThisSubtask() == failTaskIndex && !receiveFirstWatermark) {
+				System.out.println("Subtask " + getRuntimeContext().getIndexOfThisSubtask() + " getting watermark : " + mark.getTimestamp());
+				receiveFirstWatermark = true;
+				Assert.assertEquals(expect, mark.getTimestamp());
+			}
+		}
 	}
 }
 

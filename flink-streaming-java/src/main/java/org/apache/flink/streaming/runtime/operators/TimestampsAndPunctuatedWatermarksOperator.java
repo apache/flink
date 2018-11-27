@@ -106,13 +106,13 @@ public class TimestampsAndPunctuatedWatermarksOperator<T>
 
 		// find the lowest watermark
 		if (context.isRestored()) {
-			long lowestWatermark = Long.MIN_VALUE;
+			long lowestWatermark = Long.MAX_VALUE;
 			for (Long watermark : restoreWatermarks.get()) {
-				if (watermark > lowestWatermark) {
+				if (watermark < lowestWatermark) {
 					lowestWatermark = watermark;
 				}
 			}
-			currentWatermark = lowestWatermark;
+			currentWatermark = (lowestWatermark == Long.MAX_VALUE ? Long.MIN_VALUE : lowestWatermark);
 			LOG.info("Find restore state for TimestampsAndPunctuatedWatermarksOperator.");
 		} else {
 			currentWatermark = Long.MIN_VALUE;

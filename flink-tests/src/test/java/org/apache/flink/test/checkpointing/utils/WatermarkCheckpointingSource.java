@@ -22,22 +22,33 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+
+
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.Assert.assertEquals;
 
 /**
  * Source used for watermark checkpointing tests.
+ * Here is the source's logic:
+ *   1. Let every subtask regard the index of task as the sending data.
+ *   2. Every subtask creates its own temporary file after they finish the first half sending.
+ *   3. The fail subtask needs to make sure that all the subtasks finish the checkpointing by counting the temporary files.
+ *   4. The fail subtask throws an exception and fails.
  */
-public class WatermarkCheckpointingSource extends RichSourceFunction<Tuple2<Integer, Integer>>
+public class WatermarkCheckpointingSource extends RichParallelSourceFunction<Tuple2<Integer, Integer>>
 	implements ListCheckpointed<Integer>, CheckpointListener {
-
-	public static final int PERIOD_MODE = 1;
-	public static final int PUNCTUATE_MODE = 2;
 
 	private static final long INITIAL = Long.MIN_VALUE;
 	private static final long STATEFUL_CHECKPOINT_COMPLETED = Long.MAX_VALUE;
@@ -47,79 +58,69 @@ public class WatermarkCheckpointingSource extends RichSourceFunction<Tuple2<Inte
 	private volatile boolean running;
 
 	private int emitCallCount;
-	private final int upperWatermark;
-	private final int lowerWatermark;
 	private final int sendCount;
 	private final int failAfterNumElements;
-	private final int mode;
+	private final int failTaskIndex;
 
-	public WatermarkCheckpointingSource(int upperWatermark, int lowerWatermark, int sendCount, int mode) {
+	private File tempFolder;
+
+	private final AtomicBoolean snapshotWriteFlag = new AtomicBoolean(false);
+
+	public WatermarkCheckpointingSource(int failTaskIndex, File tempFolder) {
 		this.running = true;
 		this.emitCallCount = 0;
-		this.upperWatermark = upperWatermark;
-		this.lowerWatermark = lowerWatermark;
-		this.sendCount = sendCount;
-		this.failAfterNumElements = sendCount / 2;
+		this.sendCount = 2;
+		this.failAfterNumElements = 1;
 		this.checkpointStatus = new AtomicLong(INITIAL);
-		this.mode = mode;
+		this.failTaskIndex = failTaskIndex;
+		this.tempFolder = tempFolder;
 	}
 
 	@Override
 	public void open(Configuration parameters) {
 		// non-parallel source
-		assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
+		assertEquals(4, getRuntimeContext().getNumberOfParallelSubtasks());
 	}
 
 	@Override
 	public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
 		final RuntimeContext runtimeContext = getRuntimeContext();
 
-		final boolean failThisTask =
-			runtimeContext.getAttemptNumber() == 0 && runtimeContext.getIndexOfThisSubtask() == 0;
+		final boolean failThisTask = runtimeContext.getAttemptNumber() == 0 && runtimeContext.getIndexOfThisSubtask() == failTaskIndex;
 
 		while (running && emitCallCount < sendCount) {
 
-			emitCallCount++;
 			// the function failed before, or we are in the elements before the failure
 			synchronized (ctx.getCheckpointLock()) {
-				collectRecord(ctx, failThisTask);
+				collectRecord(ctx);
 			}
+			emitCallCount++;
 
 			if (emitCallCount <= sendCount) {
 				Thread.sleep(1);
 			}
-			if (failThisTask && emitCallCount == failAfterNumElements) {
-				// wait for a pending checkpoint that fulfills our requirements if needed
+			if (emitCallCount == failAfterNumElements) {
 				while (checkpointStatus.get() != STATEFUL_CHECKPOINT_COMPLETED) {
 					Thread.sleep(1);
 				}
-				// wait for watermark emit
-				Thread.sleep(200);
-				throw new Exception("Artificial Failure");
+				if (failThisTask) {
+					while (!snapshotWriteFlag.get() || readSnapshotTempFiles() != getRuntimeContext().getNumberOfParallelSubtasks()) {
+						Thread.sleep(1);
+					}
+					Thread.sleep(200);
+					throw new Exception("Artificial Failure");
+				}
 			}
 		}
 	}
 
-	private void collectRecord(SourceContext<Tuple2<Integer, Integer>> ctx, boolean failThisTask) {
-		if (mode == PERIOD_MODE) {
-			if (failThisTask) {
-				ctx.collect(Tuple2.of(upperWatermark, upperWatermark));
-			} else {
-				ctx.collect(Tuple2.of(lowerWatermark, lowerWatermark));
-			}
-		} else if (mode == PUNCTUATE_MODE) {
-			if (failThisTask) {
-				ctx.collect(Tuple2.of(upperWatermark + emitCallCount, upperWatermark + emitCallCount));
-			} else {
-				ctx.collect(Tuple2.of(lowerWatermark + emitCallCount, lowerWatermark + emitCallCount));
-			}
-		} else {
-			throw new RuntimeException("Fail to identify mode " + String.valueOf(mode) + ".");
-		}
+	private void collectRecord(SourceContext<Tuple2<Integer, Integer>> ctx) {
+		int output = getRuntimeContext().getIndexOfThisSubtask();
+		ctx.collect(Tuple2.of(output, output));
 	}
 
 	@Override
-	public void notifyCheckpointComplete(long checkpointId) {
+	public void notifyCheckpointComplete(long checkpointId) throws IOException {
 		// This will unblock the task for failing, if this is the checkpoint we are waiting for
 		checkpointStatus.compareAndSet(checkpointId, STATEFUL_CHECKPOINT_COMPLETED);
 	}
@@ -128,6 +129,7 @@ public class WatermarkCheckpointingSource extends RichSourceFunction<Tuple2<Inte
 	public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
 		// We accept a checkpoint as basis if it should have a "decent amount" of state
 		if (emitCallCount == failAfterNumElements) {
+			writeSnapshotToTempFile();
 			// This means we are waiting for notification of this checkpoint to completed now.
 			checkpointStatus.compareAndSet(INITIAL, checkpointId);
 		}
@@ -145,5 +147,28 @@ public class WatermarkCheckpointingSource extends RichSourceFunction<Tuple2<Inte
 	@Override
 	public void cancel() {
 		running = false;
+	}
+
+	private void writeSnapshotToTempFile() throws IOException {
+		File tempFile = new File(tempFolder + "/.watermark-"
+			+ String.valueOf(getRuntimeContext().getIndexOfThisSubtask()));
+		tempFile.createNewFile();
+		try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+			fos.write(1);
+		}
+		snapshotWriteFlag.compareAndSet(false, true);
+	}
+
+	private int readSnapshotTempFiles() {
+		List<File> files = Arrays.asList(Objects.requireNonNull(tempFolder.listFiles()));
+
+		List<File> filterFiles = new ArrayList<>();
+		files.forEach(file -> {
+			if (file.getName().contains(".watermark-")) {
+				filterFiles.add(file);
+			}
+		});
+
+		return filterFiles.size();
 	}
 }
