@@ -60,7 +60,7 @@ import static org.junit.Assert.fail;
  * IT cases for the {@link FlinkKafkaProducer011}.
  */
 @SuppressWarnings("serial")
-public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
+public class FlinkKafkaProducer011ITCase extends KafkaTestBaseWithFlink {
 	protected String transactionalId;
 	protected Properties extraProperties;
 
