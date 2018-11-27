@@ -242,6 +242,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** The native metrics monitor. */
 	private RocksDBNativeMetricMonitor nativeMetricMonitor;
 
+	/** Helper to build the byte arrays of composite keys to address data in RocksDB. Shared across all states.*/
+	private final RocksDBSerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder;
+
 	public RocksDBKeyedStateBackend(
 		String operatorIdentifier,
 		ClassLoader userCodeClassLoader,
@@ -294,6 +297,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.kvStateInformation = new LinkedHashMap<>();
 
 		this.writeOptions = new WriteOptions().setDisableWAL(true);
+		this.sharedRocksKeyBuilder = new RocksDBSerializedCompositeKeyBuilder<>(keySerializer, keyGroupPrefixBytes, 32);
 
 		this.metricOptions = metricOptions;
 		this.metricGroup = metricGroup;
@@ -371,6 +375,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		if (nativeMetricMonitor != null) {
 			nativeMetricMonitor.registerColumnFamily(columnFamilyName, registeredColumn.f0);
 		}
+	}
+
+	@Override
+	public void setCurrentKey(K newKey) {
+		super.setCurrentKey(newKey);
+		sharedRocksKeyBuilder.setKeyAndKeyGroup(getCurrentKey(), getCurrentKeyGroupIndex());
 	}
 
 	/**
@@ -454,6 +464,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	public WriteOptions getWriteOptions() {
 		return writeOptions;
+	}
+
+	RocksDBSerializedCompositeKeyBuilder<K> getSharedRocksKeyBuilder() {
+		return sharedRocksKeyBuilder;
 	}
 
 	/**
