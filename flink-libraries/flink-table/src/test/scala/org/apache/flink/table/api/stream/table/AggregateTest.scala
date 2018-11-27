@@ -21,6 +21,7 @@ package org.apache.flink.table.api.stream.table
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.plan.logical.{SessionGroupWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.TableTestBase
@@ -237,5 +238,79 @@ class AggregateTest extends TableTestBase {
       )
 
     util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testDistinctAggregateOnTumbleWindow(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)](
+      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val result = table
+      .window(Tumble over 15.minute on 'rowtime as 'w)
+      .groupBy('w)
+      .select('a.count.distinct, 'a.sum)
+
+    val expected = unaryNode(
+      "DataStreamGroupWindowAggregate",
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "a", "rowtime")
+      ),
+      term("window", TumblingGroupWindow('w, 'rowtime, 900000.millis)),
+      term("select", "COUNT(DISTINCT a) AS TMP_0", "SUM(a) AS TMP_1")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testMultiDistinctAggregateSameFieldOnHopWindow(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)](
+      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val result = table
+      .window(Slide over 1.hour every 15.minute on 'rowtime as 'w)
+      .groupBy('w)
+      .select('a.count.distinct, 'a.sum.distinct, 'a.max.distinct)
+
+    val expected = unaryNode(
+      "DataStreamGroupWindowAggregate",
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "a", "rowtime")
+      ),
+      term("window", SlidingGroupWindow('w, 'rowtime, 3600000.millis, 900000.millis)),
+      term("select", "COUNT(DISTINCT a) AS TMP_0", "SUM(DISTINCT a) AS TMP_1",
+           "MAX(DISTINCT a) AS TMP_2")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testDistinctAggregateWithGroupingOnSessionWindow(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)](
+      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val result = table
+      .window(Session withGap 15.minute on 'rowtime as 'w)
+      .groupBy('a, 'w)
+      .select('a, 'a.count, 'c.count.distinct)
+
+    val expected = unaryNode(
+      "DataStreamGroupWindowAggregate",
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "a", "c", "rowtime")
+      ),
+      term("groupBy", "a"),
+      term("window", SessionGroupWindow('w, 'rowtime, 900000.millis)),
+      term("select", "a", "COUNT(a) AS TMP_0", "COUNT(DISTINCT c) AS TMP_1")
+    )
+
+    util.verifyTable(result, expected)
   }
 }
