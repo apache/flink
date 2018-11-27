@@ -633,6 +633,8 @@ case class WindowAggregate(
       case aggExpr: Aggregation
         if aggExpr.getSqlAggFunction.requiresOver =>
         failValidation(s"OVER clause is necessary for window functions: [${aggExpr.getClass}].")
+      case aggExpr: DistinctAgg =>
+        validateAggregateExpression(aggExpr.child)
       // check no nested aggregation exists.
       case aggExpr: Aggregation =>
         aggExpr.children.foreach { child =>
