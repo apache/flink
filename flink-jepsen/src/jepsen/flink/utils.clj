@@ -51,6 +51,20 @@
          (recur op (assoc keys :retries (dec retries))))
        (success r)))))
 
+(defn find-files!
+  "Lists files recursively given a directory. If the directory does not exist, an empty collection
+  is returned."
+  [dir]
+  (let [files (try
+                (c/exec :find dir :-type :f)
+                (catch Exception e
+                  (if (.contains (.getMessage e) "No such file or directory")
+                    ""
+                    (throw e))))]
+    (->>
+      (clojure.string/split files #"\n")
+      (remove clojure.string/blank?))))
+
 ;;; runit process supervisor (http://smarden.org/runit/)
 
 (def runit-version "2.1.2-3")

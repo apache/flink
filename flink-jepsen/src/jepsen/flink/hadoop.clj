@@ -19,12 +19,15 @@
             [clojure.tools.logging :refer :all]
             [jepsen
              [control :as c]
-             [db :as db]]
-            [jepsen.control.util :as cu]))
+             [db :as db]
+             [util :refer [meh]]]
+            [jepsen.control.util :as cu]
+            [jepsen.flink.utils :as fu]))
 
 (def install-dir "/opt/hadoop")
 (def hadoop-conf-dir (str install-dir "/etc/hadoop"))
-(def yarn-log-dir "/tmp/logs/yarn")
+(def log-dir (str install-dir "/logs"))
+(def yarn-log-dir (str log-dir "/yarn"))
 
 (defn name-node
   [nodes]
@@ -51,7 +54,12 @@
 
 (defn core-site-config
   [test]
-  {:fs.defaultFS (str "hdfs://" (name-node (:nodes test)) ":9000")})
+  {:hadoop.tmp.dir (str install-dir "/tmp")
+   :fs.defaultFS   (str "hdfs://" (name-node (:nodes test)) ":9000")})
+
+(defn hdfs-site-config
+  [_]
+  {:dfs.replication "1"})
 
 (defn property-value
   [property value]
@@ -66,8 +74,23 @@
                      (xml/element :configuration
                                   {}
                                   (map (fn [[k v]] (property-value k v)) (seq config))))]
-    (c/exec :echo config-xml :> config-file)
-    ))
+    (c/exec :echo config-xml :> config-file)))
+
+(defn- write-hadoop-env!
+  "Configures additional environment variables in hadoop-env.sh"
+  []
+  (let [env-vars ["export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64"
+                  "export HADOOP_NAMENODE_OPTS=\"-Xms2G -Xmx2G $HADOOP_NAMENODE_OPTS\""
+                  "export HADOOP_DATANODE_OPTS=\"-Xms2G -Xmx2G $HADOOP_DATANODE_OPTS\""]]
+    (doseq [env-var env-vars]
+      (c/exec :echo env-var :>> (str install-dir "/etc/hadoop/hadoop-env.sh")))))
+
+(defn- write-configuration!
+  [test]
+  (write-config! (str install-dir "/etc/hadoop/yarn-site.xml") (yarn-site-config test))
+  (write-config! (str install-dir "/etc/hadoop/core-site.xml") (core-site-config test))
+  (write-config! (str install-dir "/etc/hadoop/hdfs-site.xml") (hdfs-site-config test))
+  (write-hadoop-env!))
 
 (defn start-name-node!
   [test node]
@@ -104,12 +127,6 @@
     (info "Start NodeManager")
     (c/exec (str install-dir "/sbin/yarn-daemon.sh") :--config hadoop-conf-dir :start :nodemanager)))
 
-(defn find-files!
-  [dir]
-  (->>
-    (clojure.string/split (c/exec :find dir :-type :f) #"\n")
-    (remove clojure.string/blank?)))
-
 (defn db
   [url]
   (reify db/DB
@@ -117,26 +134,20 @@
       (info "Install Hadoop from" url)
       (c/su
         (cu/install-archive! url install-dir)
-        (write-config! (str install-dir "/etc/hadoop/yarn-site.xml") (yarn-site-config test))
-        (write-config! (str install-dir "/etc/hadoop/core-site.xml") (core-site-config test))
-        (c/exec :echo (c/lit "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64") :>> (str install-dir "/etc/hadoop/hadoop-env.sh"))
+        (write-configuration! test)
         (start-name-node-formatted! test node)
         (start-data-node! test node)
         (start-resource-manager! test node)
         (start-node-manager! test node)))
 
-    (teardown! [_ test node]
+    (teardown! [_ _ _]
       (info "Teardown Hadoop")
       (c/su
         (cu/grepkill! "hadoop")
-        (c/exec (c/lit (str "rm -rf /tmp/hadoop-* ||:")))))
+        (c/exec :rm :-rf install-dir)))
 
     db/LogFiles
     (log-files [_ _ _]
       (c/su
-        (concat (find-files! (str install-dir "/logs"))
-                (if (cu/exists? yarn-log-dir)
-                  (do
-                    (c/exec :chmod :-R :777 yarn-log-dir)
-                    (find-files! yarn-log-dir))
-                  []))))))
+        (meh (c/exec :chmod :-R :755 log-dir))
+        (fu/find-files! log-dir)))))
