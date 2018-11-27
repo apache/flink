@@ -203,54 +203,6 @@ class MatchOperatorValidationTest extends TableTestBase {
   }
 
   @Test
-  def testUDFsAreNotSupportedInMeasures(): Unit = {
-    thrown.expectMessage(
-      "Match recognize does not support UDFs, nor other functions that require " +
-        "open/close methods yet.")
-    thrown.expect(classOf[TableException])
-
-    val sqlQuery =
-      s"""
-         |SELECT *
-         |FROM Ticker
-         |MATCH_RECOGNIZE (
-         |  ORDER BY proctime
-         |  MEASURES
-         |    ToMillis(A.proctime) AS aProctime
-         |  PATTERN (A B)
-         |  DEFINE
-         |    A AS A.symbol = 'a'
-         |) AS T
-         |""".stripMargin
-
-    streamUtils.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-  }
-
-  @Test
-  def testUDFsAreNotSupportedInDefine(): Unit = {
-    thrown.expectMessage(
-      "Match recognize does not support UDFs, nor other functions that require " +
-        "open/close methods yet.")
-    thrown.expect(classOf[TableException])
-
-    val sqlQuery =
-      s"""
-         |SELECT *
-         |FROM Ticker
-         |MATCH_RECOGNIZE (
-         |  ORDER BY proctime
-         |  MEASURES
-         |    A.symbol AS aSymbol
-         |  PATTERN (A B)
-         |  DEFINE
-         |    A AS ToMillis(A.proctime) = 2
-         |) AS T
-         |""".stripMargin
-
-    streamUtils.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-  }
-
-  @Test
   def testAggregatesAreNotSupportedInMeasures(): Unit = {
     thrown.expectMessage(
       "Unsupported call: SUM \nIf you think this function should be supported, you can " +

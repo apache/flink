@@ -25,8 +25,9 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.cep.pattern.conditions.IterativeCondition
-import org.apache.flink.cep.{PatternFlatSelectFunction, PatternSelectFunction}
+import org.apache.flink.cep.pattern.conditions.{IterativeCondition, RichIterativeCondition}
+import org.apache.flink.cep.{PatternFlatSelectFunction, PatternSelectFunction, RichPatternFlatSelectFunction, RichPatternSelectFunction}
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForTypeInfo, newName}
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
@@ -110,9 +111,6 @@ class MatchCodeGenerator(
     * Generates a [[org.apache.flink.api.common.functions.Function]] that can be passed to Java
     * compiler.
     *
-    * This is a separate method from [[FunctionCodeGenerator.generateFunction()]] because as of
-    * now functions in CEP library do not support rich interfaces
-    *
     * @param name Class name of the Function. Must not be unique but has to be a valid Java class
     *             identifier.
     * @param clazz Flink Function to be generated.
@@ -131,52 +129,47 @@ class MatchCodeGenerator(
     : GeneratedFunction[F, T] = {
     val funcName = newName(name)
     val collectorTypeTerm = classOf[Collector[Any]].getCanonicalName
-    val (functionClass, signature, inputStatements, isInterface) =
-      if (clazz == classOf[IterativeCondition[_]]) {
-        val baseClass = classOf[IterativeCondition[_]]
+    val (functionClass, signature, inputStatements) =
+      if (clazz == classOf[RichIterativeCondition[_]]) {
+        val baseClass = classOf[RichIterativeCondition[_]]
         val inputTypeTerm = boxedTypeTermForTypeInfo(input)
         val contextType = classOf[IterativeCondition.Context[_]].getCanonicalName
 
         (baseClass,
           s"boolean filter(Object _in1, $contextType $contextTerm)",
-          List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"),
-          false)
-      } else if (clazz == classOf[PatternSelectFunction[_, _]]) {
-        val baseClass = classOf[PatternSelectFunction[_, _]]
+          List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
+      } else if (clazz == classOf[RichPatternSelectFunction[_, _]]) {
+        val baseClass = classOf[RichPatternSelectFunction[_, _]]
         val inputTypeTerm =
           s"java.util.Map<String, java.util.List<${boxedTypeTermForTypeInfo(input)}>>"
 
         (baseClass,
           s"Object select($inputTypeTerm $input1Term)",
-          List(),
-          true)
-      } else if (clazz == classOf[PatternFlatSelectFunction[_, _]]) {
-        val baseClass = classOf[PatternFlatSelectFunction[_, _]]
+          List())
+      } else if (clazz == classOf[RichPatternFlatSelectFunction[_, _]]) {
+        val baseClass = classOf[RichPatternFlatSelectFunction[_, _]]
         val inputTypeTerm =
           s"java.util.Map<String, java.util.List<${boxedTypeTermForTypeInfo(input)}>>"
 
         (baseClass,
           s"void flatSelect($inputTypeTerm $input1Term, $collectorTypeTerm $collectorTerm)",
-          List(),
-          true)
+          List())
       } else {
         throw new CodeGenException("Unsupported Function.")
       }
 
-    if (!reuseOpenCode().trim.isEmpty || !reuseCloseCode().trim.isEmpty) {
-      throw new TableException(
-        "Match recognize does not support UDFs, nor other functions that require " +
-          "open/close methods yet.")
-    }
-
-    val extendsKeyword = if (isInterface) "implements" else "extends"
     val funcCode = j"""
-      |public class $funcName $extendsKeyword ${functionClass.getCanonicalName} {
+      |public class $funcName extends ${functionClass.getCanonicalName} {
       |
       |  ${reuseMemberCode()}
       |
       |  public $funcName() throws Exception {
       |    ${reuseInitCode()}
+      |  }
+      |
+      |  @Override
+      |  public void open(${classOf[Configuration].getCanonicalName} parameters) throws Exception {
+      |    ${reuseOpenCode()}
       |  }
       |
       |  @Override
@@ -186,6 +179,11 @@ class MatchCodeGenerator(
       |    ${reuseInputUnboxingCode()}
       |    ${reusePerRecordCode()}
       |    $bodyCode
+      |  }
+      |
+      |  @Override
+      |  public void close() throws Exception {
+      |    ${reuseCloseCode()}
       |  }
       |}
     """.stripMargin

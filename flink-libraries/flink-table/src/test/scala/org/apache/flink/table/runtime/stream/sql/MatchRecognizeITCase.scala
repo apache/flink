@@ -27,9 +27,9 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableConfig, TableEnvironment}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.functions.{FunctionContext, ScalarFunction}
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
-import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
+import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase, UserDefinedFunctionTestUtils}
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -543,10 +543,75 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     // We do not assert the proctime in the result, cause it is currently
     // accessed from System.currentTimeMillis(), so there is no graceful way to assert the proctime
   }
+
+  @Test
+  def testUserDefinedFunctions(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    tEnv.getConfig.setMaxGeneratedCodeLength(1)
+    StreamITCase.clear
+
+    val data = new mutable.MutableList[(Int, String, Long)]
+    data.+=((1, "a", 1))
+    data.+=((2, "a", 1))
+    data.+=((3, "a", 1))
+    data.+=((4, "a", 1))
+    data.+=((5, "a", 1))
+    data.+=((6, "b", 1))
+    data.+=((7, "a", 1))
+    data.+=((8, "a", 1))
+    data.+=((9, "f", 1))
+
+    val t = env.fromCollection(data)
+      .toTable(tEnv, 'id, 'name, 'price, 'proctime.proctime)
+    tEnv.registerTable("MyTable", t)
+    tEnv.registerFunction("prefix", new PrefixingScalarFunc)
+    val prefix = "PREF"
+    UserDefinedFunctionTestUtils
+      .setJobParameters(env, Map("prefix" -> prefix))
+
+    val sqlQuery =
+      s"""
+         |SELECT *
+         |FROM MyTable
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    FIRST(id) as firstId,
+         |    prefix(A.name) as prefixedNameA,
+         |    LAST(id) as lastId
+         |  AFTER MATCH SKIP PAST LAST ROW
+         |  PATTERN (A+ C)
+         |  DEFINE
+         |    A AS prefix(A.name) = '$prefix:a'
+         |) AS T
+         |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList("1,PREF:a,6", "7,PREF:a,9")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
 }
 
 class ToMillis extends ScalarFunction {
   def eval(t: Timestamp): Long = {
     t.toInstant.toEpochMilli + TimeZone.getDefault.getOffset(t.toInstant.toEpochMilli)
+  }
+}
+
+private class PrefixingScalarFunc extends ScalarFunction {
+
+  private var prefix = "ERROR_VALUE"
+
+  override def open(context: FunctionContext): Unit = {
+    prefix = context.getJobParameter("prefix", "")
+  }
+
+  def eval(value: String): String = {
+    s"$prefix:$value"
   }
 }
