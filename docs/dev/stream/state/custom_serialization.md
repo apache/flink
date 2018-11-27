@@ -26,8 +26,8 @@ under the License.
 * ToC
 {:toc}
 
-This page is targeted as a guideline for users who require the use of custom serialization for their state, covering how
-to provide a custom state serializer and guidelines and best practices to implementing serializers that allows
+This page is targeted as a guideline for users who require the use of custom serialization for their state, covering
+how to provide a custom state serializer as well as guidelines and best practices for implementing serializers that allow
 state schema evolution.
 
 If you're simply using Flink's own serializers, this page is irrelevant and can be ignored.
@@ -74,10 +74,10 @@ checkpointedState = getRuntimeContext.getListState(descriptor)
 This section explains the user-facing abstractions related to state serialization and schema evolution, and necessary
 internal details about how Flink interacts with these abstractions.
 
-When restoring from savepoints, Flink allows changing the serializers used to read and write prior registered state,
+When restoring from savepoints, Flink allows changing the serializers used to read and write previously registered state,
 so that users are not locked in to any specific serialization schema. When state is restored, a new serializer will be
 registered for the state (i.e., the serializer that comes with the `StateDescriptor` used to access the state in the
-restored job). This new serializer may have a different schema than that of the prior serializer. Therefore, when
+restored job). This new serializer may have a different schema than that of the previous serializer. Therefore, when
 implementing state serializers, besides the basic logic of reading / writing data, another important thing to keep in
 mind is how the serialization schema can be changed in the future.
 
@@ -85,7 +85,7 @@ When speaking of *schema*, in this context the term is interchangeable between r
 type and the *serialized binary format* of a state type. The schema, generally speaking, can change for a few cases:
 
  1. Data schema of the state type has evolved, i.e. adding or removing a field from a POJO that is used as state.
- 2. Following the above, generally speaking, the serialization format of the serializer is intended to be upgraded.
+ 2. Generally speaking, after a change to the data schema, the serialization format of the serializer will need to be upgraded.
  3. Configuration of the serializer has changed.
  
 In order for the new execution to have information about the *written schema* of state and detect whether or not the
@@ -123,32 +123,32 @@ would be identical to the given point-in-time. The logic about what should be wr
 as the serializer snapshot is defined in the `writeSnapshot` and `readSnapshot` methods.
 
 Note that the snapshot's own write schema may also need to change over time (e.g. when you wish to add more information
-about the serializer to the snapshot). To facilitate this, snapshot's are versioned, with the current version
-number defined in the `getCurrentVersion` method. On restore when the serializer snapshot is read from savepoints,
-the version of the schema that the snapshot was written in will be provided to the `readSnapshot` method so that
+about the serializer to the snapshot). To facilitate this, snapshots are versioned, with the current version
+number defined in the `getCurrentVersion` method. On restore, when the serializer snapshot is read from savepoints,
+the version of the schema in which the snapshot was written in will be provided to the `readSnapshot` method so that
 the read implementation can handle different versions.
 
 At restore time, the logic that detects whether or not the new serializer's schema has changed should be implemented in
-the `resolveSchemaCompatibility` method. When prior registered state is registered again with new serializers in the
-restored execution of an operator, the new serializer is provided to the prior serializer's snapshot via this method.
+the `resolveSchemaCompatibility` method. When previous registered state is registered again with new serializers in the
+restored execution of an operator, the new serializer is provided to the previous serializer's snapshot via this method.
 This method returns a `TypeSerializerSchemaCompatibility` representing the result of the compatibility resolution,
 which can be one of the following:
 
  1. **`TypeSerializerSchemaCompatibility.compatibleAsIs()`**: this result signals that the new serializer is compatible,
- meaning that the new serializer has identical schema with the prior serializer. It is possible that the new
+ meaning that the new serializer has identical schema with the previous serializer. It is possible that the new
  serializer has been reconfigured in the `resolveSchemaCompatibility` method so that it is compatible.
  2. **`TypeSerializerSchemaCompatibility.compatibleAfterMigration()`**: this result signals that the new serializer has a
- different serialization schema, and it is possible to migrate from the old schema by using the prior serializer
+ different serialization schema, and it is possible to migrate from the old schema by using the previous serializer
  (which recognizes the old schema) to read bytes into state objects, and then rewriting the object back to bytes with
  the new serializer (which recognizes the new schema). 
  3. **`TypeSerializerSchemaCompatibility.incompatible()`**: this result signals that the new serializer has a
  different serialization schema, but it is not possible to migrate from the old schema.
 
-The last bit of detail is how the prior serializer is obtained in the case that migration is required.
+The last bit of detail is how the previous serializer is obtained in the case that migration is required.
 Another important role of a serializer's `TypeSerializerSnapshot` is that it serves as a factory to restore
-the prior serializer. More specifically, the `TypeSerializerSnapshot` should implement the `restoreSerializer` method
-to instantiate a serializer instance that recognizes the prior serializer's schema and configuration, and can therefore
-safely read data written by the prior serializer.
+the previous serializer. More specifically, the `TypeSerializerSnapshot` should implement the `restoreSerializer` method
+to instantiate a serializer instance that recognizes the previous serializer's schema and configuration, and can therefore
+safely read data written by the previous serializer.
 
 ### How Flink interacts with the `TypeSerializer` and `TypeSerializerSnapshot` abstractions
 
@@ -167,13 +167,13 @@ to the implementation of state serializers and their serializer snapshots.
  3. **Restored execution re-accesses restored state bytes with new state serializer that has schema _B_**
   - The previous state serializer's snapshot is restored.
   - State bytes are not deserialized on restore, only loaded back to the state backends (therefore, still in schema *A*).
-  - Upon receiving the new serializer, it is provided to the restored prior serializer's snapshot via the
+  - Upon receiving the new serializer, it is provided to the restored previous serializer's snapshot via the
   `TypeSerializer#resolveSchemaCompatibility` to check for schema compatibility.
  4. **Migrate state bytes in backend from schema _A_ to schema _B_**
   - If the compatibility resolution reflects that the schema has changed and migration is possible, schema migration is 
-  performed. The prior state serializer which recognizes schema _A_ will be obtained from the serializer snapshot, via
+  performed. The previous state serializer which recognizes schema _A_ will be obtained from the serializer snapshot, via
    `TypeSerializerSnapshot#restoreSerializer()`, and is used to deserialize state bytes to objects, which in turn
-   is re-written again with the new serializer, which recognizes schema _B_ to complete the migration. All entries
+   are re-written again with the new serializer, which recognizes schema _B_ to complete the migration. All entries
    of the accessed state is migrated all-together before processing continues.
   - If the resolution signals incompatibility, then the state access fails with an exception.
  
@@ -187,11 +187,11 @@ to the implementation of state serializers and their serializer snapshots.
   - State objects are now serialized to the savepoint, written in schema _A_.
  3. **On restore, deserialize state into objects in heap**
   - The previous state serializer's snapshot is restored.
-  - The prior serializer, which recognizes schema _A_, is obtained from the serializer snapshot, via
+  - The previous serializer, which recognizes schema _A_, is obtained from the serializer snapshot, via
   `TypeSerializerSnapshot#restoreSerializer()`, and is used to deserialize state bytes to objects.
   - From now on, all of the state is already deserialized.
- 4. **Restored execution re-accesses prior state with new state serializer that has schema _B_**
-  - Upon receiving the new serializer, it is provided to the restored prior serializer's snapshot via the
+ 4. **Restored execution re-accesses previous state with new state serializer that has schema _B_**
+  - Upon receiving the new serializer, it is provided to the restored previous serializer's snapshot via the
   `TypeSerializer#resolveSchemaCompatibility` to check for schema compatibility.
   - If the compatibility check signals that migration is required, nothing happens in this case since for
    heap backends, all state is already deserialized into objects.
@@ -204,7 +204,7 @@ to the implementation of state serializers and their serializer snapshots.
 #### 1. Flink restores serializer snapshots by instantiating them with their classname
 
 A serializer's snapshot, being the single source of truth for how a registered state was serialized, serves as an
-entrypoint to reading state in savepoints. In order to be able to restore and access previous state, the prior state
+entrypoint to reading state in savepoints. In order to be able to restore and access previous state, the previous state
 serializer's snapshot must be able to be restored.
 
 Flink restores serializer snapshots by first instantiating the `TypeSerializerSnapshot` with its classname (written
