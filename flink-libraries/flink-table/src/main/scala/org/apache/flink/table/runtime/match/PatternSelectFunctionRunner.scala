@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.runtime.`match`
 
-import java.io.{IOException, ObjectInputStream}
 import java.util
 
-import org.apache.flink.cep.{PatternFlatSelectFunction, PatternSelectFunction}
+import org.apache.flink.api.common.functions.util.FunctionUtils
+import org.apache.flink.cep.{RichPatternFlatSelectFunction, RichPatternSelectFunction}
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.table.runtime.types.CRow
@@ -35,20 +36,25 @@ import org.apache.flink.util.Collector
 class PatternSelectFunctionRunner(
     name: String,
     code: String)
-  extends PatternFlatSelectFunction[Row, CRow]
-  with Compiler[PatternSelectFunction[Row, Row]]
+  extends RichPatternFlatSelectFunction[Row, CRow]
+  with Compiler[RichPatternSelectFunction[Row, Row]]
   with Logging {
 
   @transient private var outCRow: CRow = _
 
-  @transient private var function: PatternSelectFunction[Row, Row] = _
+  @transient private var function: RichPatternSelectFunction[Row, Row] = _
 
-  def init(): Unit = {
+  override def open(parameters: Configuration): Unit = {
+    if (outCRow == null) {
+      outCRow = new CRow(null, true)
+    }
+
     LOG.debug(s"Compiling PatternSelectFunction: $name \n\n Code:\n$code")
-    val clazz = compile(Thread.currentThread().getContextClassLoader, name, code)
+    val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
     LOG.debug("Instantiating PatternSelectFunction.")
     function = clazz.newInstance()
-    // TODO add logic for opening and closing the function once it can be a RichFunction
+    FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
+    FunctionUtils.openFunction(function, parameters)
   }
 
   override def flatSelect(
@@ -60,17 +66,8 @@ class PatternSelectFunctionRunner(
     out.collect(outCRow)
   }
 
-  @throws(classOf[IOException])
-  private def readObject(in: ObjectInputStream): Unit = {
-    in.defaultReadObject()
-
-    if (outCRow == null) {
-      outCRow = new CRow(null, true)
-    }
-
-    if (function == null) {
-      init()
-    }
+  override def close(): Unit = {
+    FunctionUtils.closeFunction(function)
   }
 }
 

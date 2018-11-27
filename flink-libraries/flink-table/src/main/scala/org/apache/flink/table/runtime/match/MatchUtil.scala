@@ -23,8 +23,8 @@ import java.util
 import org.apache.calcite.rel.RelFieldCollation
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.cep.pattern.conditions.IterativeCondition
-import org.apache.flink.cep.{PatternFlatSelectFunction, PatternSelectFunction}
+import org.apache.flink.cep.pattern.conditions.RichIterativeCondition
+import org.apache.flink.cep.{PatternFlatSelectFunction, RichPatternSelectFunction}
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.MatchCodeGenerator
 import org.apache.flink.table.plan.schema.RowSchema
@@ -53,7 +53,7 @@ object MatchUtil {
 
     val genCondition = generator
       .generateMatchFunction("MatchRecognizeCondition",
-        classOf[IterativeCondition[Row]],
+        classOf[RichIterativeCondition[Row]],
         body,
         condition.resultType)
     new IterativeConditionRunner(genCondition.name, genCondition.code)
@@ -82,7 +82,7 @@ object MatchUtil {
 
     val genFunction = generator.generateMatchFunction(
       "MatchRecognizePatternSelectFunction",
-      classOf[PatternSelectFunction[Row, Row]],
+      classOf[RichPatternSelectFunction[Row, Row]],
       body,
       resultExpression.resultType)
     new PatternSelectFunctionRunner(genFunction.name, genFunction.code)

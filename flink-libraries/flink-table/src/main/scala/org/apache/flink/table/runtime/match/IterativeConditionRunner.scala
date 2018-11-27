@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.runtime.`match`
 
-import java.io.{IOException, ObjectInputStream}
-
-import org.apache.flink.cep.pattern.conditions.IterativeCondition
+import org.apache.flink.api.common.functions.util.FunctionUtils
+import org.apache.flink.cep.pattern.conditions.{IterativeCondition, RichIterativeCondition}
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
@@ -31,30 +31,26 @@ import org.apache.flink.types.Row
 class IterativeConditionRunner(
     name: String,
     code: String)
-  extends IterativeCondition[Row]
-  with Compiler[IterativeCondition[Row]]
+  extends RichIterativeCondition[Row]
+  with Compiler[RichIterativeCondition[Row]]
   with Logging {
 
-  @transient private var function: IterativeCondition[Row] = _
+  @transient private var function: RichIterativeCondition[Row] = _
 
-  def init(): Unit = {
+  override def open(parameters: Configuration): Unit = {
     LOG.debug(s"Compiling IterativeCondition: $name \n\n Code:\n$code")
-    // We cannot get user's classloader currently, see FLINK-6938 for details
-    val clazz = compile(Thread.currentThread().getContextClassLoader, name, code)
+    val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
     LOG.debug("Instantiating IterativeCondition.")
     function = clazz.newInstance()
-    // TODO add logic for opening and closing the function once it can be a RichFunction
+    FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
+    FunctionUtils.openFunction(function, parameters)
   }
 
   override def filter(value: Row, ctx: IterativeCondition.Context[Row]): Boolean = {
     function.filter(value, ctx)
   }
 
-  @throws(classOf[IOException])
-  private def readObject(in: ObjectInputStream): Unit = {
-    in.defaultReadObject()
-    if (function == null) {
-      init()
-    }
+  override def close(): Unit = {
+    FunctionUtils.closeFunction(function)
   }
 }
