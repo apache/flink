@@ -22,14 +22,22 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
+import static org.apache.flink.configuration.ResourceManagerOptions.CONTAINERIZED_OFFHEAP_CUTOFF_RATIO;
 import static org.apache.flink.configuration.TaskManagerOptions.MEMORY_OFF_HEAP;
 import static org.apache.flink.runtime.taskexecutor.TaskManagerServices.calculateNetworkBufferMemory;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+
+
+
+/**
+ * ContaineredTaskManagerParametersTest  yarn/mesos.
+ */
 public class ContaineredTaskManagerParametersTest extends TestLogger {
 	private static final long CONTAINER_MEMORY = 8192L;
 
@@ -54,8 +62,10 @@ public class ContaineredTaskManagerParametersTest extends TestLogger {
 		final long networkBufMB =
 			calculateNetworkBufferMemory(
 				(CONTAINER_MEMORY - cutoff) << 20, // megabytes to bytes
-				conf) >> 20; // bytes to megabytes
-		assertEquals(networkBufMB + cutoff, params.taskManagerDirectMemoryLimitMB());
+				conf) >> 20; // bytes to m
+		float offheapCutOffRatio = conf.getFloat(CONTAINERIZED_OFFHEAP_CUTOFF_RATIO);
+		long containerMarginMemory = (long) ((CONTAINER_MEMORY - params.taskManagerHeapSizeMB()) * offheapCutOffRatio);
+		assertEquals(networkBufMB + cutoff - containerMarginMemory, params.taskManagerDirectMemoryLimitMB());
 	}
 
 	/**

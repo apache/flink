@@ -67,6 +67,16 @@ public class ResourceManagerOptions {
 		.withDescription("Minimum amount of heap memory to remove in containers, as a safety margin.");
 
 	/**
+	 * Percentage of offheap space to remove from containers (YARN / Mesos), to compensate
+	 * for other JVM memory usage.
+	 */
+	public static final ConfigOption<Float> CONTAINERIZED_OFFHEAP_CUTOFF_RATIO = ConfigOptions
+		.key("containerized.offheap-cutoff-ratio")
+		.defaultValue(0.25f)
+		.withDescription("Percentage of offheap space to remove from containers (YARN / Mesos), to compensate" +
+			" for other JVM memory usage.");
+
+	/**
 	 * The timeout for a slot request to be discarded, in milliseconds.
 	 * @deprecated Use {@link JobManagerOptions#SLOT_REQUEST_TIMEOUT}.
 	 */

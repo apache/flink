@@ -158,8 +158,10 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 
 		// (2) split the remaining Java memory between heap and off-heap
 		final long heapSizeMB = TaskManagerServices.calculateHeapSizeMB(containerMemoryMB - cutoffMB, config);
-		// use the cut-off memory for off-heap (that was its intention)
-		final long offHeapSizeMB = containerMemoryMB - heapSizeMB;
+		// (3) try to compute the offHeapMemory from a safe margin
+		final long restMemoryMB = containerMemoryMB - heapSizeMB;
+		final long offHeapCutoffMemory = calculateOffHeapCutoffMB(config, restMemoryMB);
+		final long offHeapSizeMB = restMemoryMB - offHeapCutoffMemory;
 
 		// (3) obtain the additional environment variables from the configuration
 		final HashMap<String, String> envVars = new HashMap<>();
@@ -176,5 +178,11 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 		// done
 		return new ContaineredTaskManagerParameters(
 			containerMemoryMB, heapSizeMB, offHeapSizeMB, numSlots, envVars);
+	}
+
+	public static long calculateOffHeapCutoffMB(Configuration config, long offHeapMemoryMB) {
+		final float ratio = config.getFloat(ResourceManagerOptions.CONTAINERIZED_OFFHEAP_CUTOFF_RATIO);
+		long offHeapCutoffMemory = (long) (offHeapMemoryMB * ratio);
+		return offHeapCutoffMemory;
 	}
 }
