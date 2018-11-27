@@ -115,11 +115,10 @@ class RocksDBListState<K, N, V>
 	@Override
 	public List<V> getInternal() {
 		try {
-			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = dataOutputView.getCopyOfBuffer();
+			byte[] key = serializeCurrentKeyWithGroupAndNamespace();
 			byte[] valueBytes = backend.db.get(columnFamily, key);
 			return deserializeList(valueBytes);
-		} catch (IOException | RocksDBException e) {
+		} catch (RocksDBException e) {
 			throw new FlinkRuntimeException("Error while retrieving data from RocksDB", e);
 		}
 	}
@@ -160,11 +159,12 @@ class RocksDBListState<K, N, V>
 		Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
 
 		try {
-			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = dataOutputView.getCopyOfBuffer();
-			dataOutputView.clear();
-			elementSerializer.serialize(value, dataOutputView);
-			backend.db.merge(columnFamily, writeOptions, key, dataOutputView.getCopyOfBuffer());
+			backend.db.merge(
+				columnFamily,
+				writeOptions,
+				serializeCurrentKeyWithGroupAndNamespace(),
+				serializeValue(value, elementSerializer)
+			);
 		} catch (Exception e) {
 			throw new FlinkRuntimeException("Error while adding data to RocksDB", e);
 		}
@@ -176,21 +176,17 @@ class RocksDBListState<K, N, V>
 			return;
 		}
 
-		// cache key and namespace
-		final K key = backend.getCurrentKey();
-		final int keyGroup = backend.getCurrentKeyGroupIndex();
-
 		try {
 			// create the target full-binary-key
-			writeKeyWithGroupAndNamespace(keyGroup, key, target, dataOutputView);
-			final byte[] targetKey = dataOutputView.getCopyOfBuffer();
+			setCurrentNamespace(target);
+			final byte[] targetKey = serializeCurrentKeyWithGroupAndNamespace();
 
 			// merge the sources to the target
 			for (N source : sources) {
 				if (source != null) {
-					writeKeyWithGroupAndNamespace(keyGroup, key, source, dataOutputView);
+					setCurrentNamespace(source);
+					final byte[] sourceKey = serializeCurrentKeyWithGroupAndNamespace();
 
-					byte[] sourceKey = dataOutputView.getCopyOfBuffer();
 					byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
 					backend.db.delete(columnFamily, writeOptions, sourceKey);
 
@@ -218,10 +214,11 @@ class RocksDBListState<K, N, V>
 
 		if (!values.isEmpty()) {
 			try {
-				writeCurrentKeyWithGroupAndNamespace();
-				byte[] key = dataOutputView.getCopyOfBuffer();
-				byte[] premerge = getPreMergedValue(values, elementSerializer, dataOutputView);
-				backend.db.put(columnFamily, writeOptions, key, premerge);
+				backend.db.put(
+					columnFamily,
+					writeOptions,
+					serializeCurrentKeyWithGroupAndNamespace(),
+					serializeValueList(values, elementSerializer, DELIMITER));
 			} catch (IOException | RocksDBException e) {
 				throw new FlinkRuntimeException("Error while updating data to RocksDB", e);
 			}
@@ -234,10 +231,11 @@ class RocksDBListState<K, N, V>
 
 		if (!values.isEmpty()) {
 			try {
-				writeCurrentKeyWithGroupAndNamespace();
-				byte[] key = dataOutputView.getCopyOfBuffer();
-				byte[] premerge = getPreMergedValue(values, elementSerializer, dataOutputView);
-				backend.db.merge(columnFamily, writeOptions, key, premerge);
+				backend.db.merge(
+					columnFamily,
+					writeOptions,
+					serializeCurrentKeyWithGroupAndNamespace(),
+					serializeValueList(values, elementSerializer, DELIMITER));
 			} catch (IOException | RocksDBException e) {
 				throw new FlinkRuntimeException("Error while updating data to RocksDB", e);
 			}
@@ -271,26 +269,6 @@ class RocksDBListState<K, N, V>
 		} catch (Exception e) {
 			throw new StateMigrationException("Error while trying to migrate RocksDB list state.", e);
 		}
-	}
-
-	private static <V> byte[] getPreMergedValue(
-		List<V> values,
-		TypeSerializer<V> elementSerializer,
-		DataOutputSerializer keySerializationStream) throws IOException {
-
-		keySerializationStream.clear();
-		boolean first = true;
-		for (V value : values) {
-			Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
-			if (first) {
-				first = false;
-			} else {
-				keySerializationStream.write(DELIMITER);
-			}
-			elementSerializer.serialize(value, keySerializationStream);
-		}
-
-		return keySerializationStream.getCopyOfBuffer();
 	}
 
 	@SuppressWarnings("unchecked")
@@ -343,10 +321,32 @@ class RocksDBListState<K, N, V>
 				prevPosition = in.getPosition();
 			}
 			try {
-				return result.isEmpty() ? null : getPreMergedValue(result, elementSerializer, out);
+				return result.isEmpty() ? null : serializeValueList(result, elementSerializer, DELIMITER);
 			} catch (IOException e) {
 				throw new FlinkRuntimeException("Failed to serialize transformed list", e);
 			}
+		}
+
+		byte[] serializeValueList(
+			List<T> valueList,
+			TypeSerializer<T> elementSerializer,
+			byte delimiter) throws IOException {
+
+			out.clear();
+			boolean first = true;
+
+			for (T value : valueList) {
+				Preconditions.checkNotNull(value, "You cannot add null to a value list.");
+
+				if (first) {
+					first = false;
+				} else {
+					out.write(delimiter);
+				}
+				elementSerializer.serialize(value, out);
+			}
+
+			return out.getCopyOfBuffer();
 		}
 	}
 }

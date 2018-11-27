@@ -56,10 +56,10 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	protected final TypeSerializer<K> keySerializer;
 
 	/** The currently active key. */
-	private K currentKey;
+	protected K currentKey;
 
 	/** The key group of the currently active key. */
-	private int currentKeyGroup;
+	protected int currentKeyGroup;
 
 	/** So that we can give out state when the user uses the same key. */
 	private final HashMap<String, InternalKvState<K, ?, ?>> keyValueStatesByName;

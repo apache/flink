@@ -112,10 +112,7 @@ class RocksDBReducingState<K, N, V>
 			// merge the sources to the target
 			for (N source : sources) {
 				if (source != null) {
-
-					writeKeyWithGroupAndNamespace(keyGroup, key, source, dataOutputView);
-
-					final byte[] sourceKey = dataOutputView.getCopyOfBuffer();
+					final byte[] sourceKey = serializeCurrentKeyWithGroupAndNamespace();
 					final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
 					backend.db.delete(columnFamily, writeOptions, sourceKey);
 
@@ -136,9 +133,7 @@ class RocksDBReducingState<K, N, V>
 			// if something came out of merging the sources, merge it or write it to the target
 			if (current != null) {
 				// create the target full-binary-key
-				writeKeyWithGroupAndNamespace(keyGroup, key, target, dataOutputView);
-
-				final byte[] targetKey = dataOutputView.getCopyOfBuffer();
+				final byte[] targetKey = serializeCurrentKeyWithGroupAndNamespace();
 				final byte[] targetValueBytes = backend.db.get(columnFamily, targetKey);
 
 				if (targetValueBytes != null) {

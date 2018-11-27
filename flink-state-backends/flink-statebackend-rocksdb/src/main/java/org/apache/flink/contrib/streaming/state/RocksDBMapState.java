@@ -119,7 +119,7 @@ class RocksDBMapState<K, N, UK, UV>
 
 	@Override
 	public UV get(UK userKey) throws IOException, RocksDBException {
-		byte[] rawKeyBytes = serializeUserKeyWithCurrentKeyAndNamespace(userKey);
+		byte[] rawKeyBytes = serializeCurrentKeyWithGroupAndNamespacePlusUserKey(userKey, userKeySerializer);
 		byte[] rawValueBytes = backend.db.get(columnFamily, rawKeyBytes);
 
 		return (rawValueBytes == null ? null : deserializeUserValue(dataInputView, rawValueBytes, userValueSerializer));
@@ -128,8 +128,8 @@ class RocksDBMapState<K, N, UK, UV>
 	@Override
 	public void put(UK userKey, UV userValue) throws IOException, RocksDBException {
 
-		byte[] rawKeyBytes = serializeUserKeyWithCurrentKeyAndNamespace(userKey);
-		byte[] rawValueBytes = serializeUserValue(userValue, userValueSerializer, dataOutputView);
+		byte[] rawKeyBytes = serializeCurrentKeyWithGroupAndNamespacePlusUserKey(userKey, userKeySerializer);
+		byte[] rawValueBytes = serializeValueNullSensitive(userValue, userValueSerializer);
 
 		backend.db.put(columnFamily, writeOptions, rawKeyBytes, rawValueBytes);
 	}
@@ -142,8 +142,8 @@ class RocksDBMapState<K, N, UK, UV>
 
 		try (RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(backend.db, writeOptions)) {
 			for (Map.Entry<UK, UV> entry : map.entrySet()) {
-				byte[] rawKeyBytes = serializeUserKeyWithCurrentKeyAndNamespace(entry.getKey());
-				byte[] rawValueBytes = serializeUserValue(entry.getValue(), userValueSerializer, dataOutputView);
+				byte[] rawKeyBytes = serializeCurrentKeyWithGroupAndNamespacePlusUserKey(entry.getKey(), userKeySerializer);
+				byte[] rawValueBytes = serializeValueNullSensitive(entry.getValue(), userValueSerializer);
 				writeBatchWrapper.put(columnFamily, rawKeyBytes, rawValueBytes);
 			}
 		}
@@ -151,21 +151,21 @@ class RocksDBMapState<K, N, UK, UV>
 
 	@Override
 	public void remove(UK userKey) throws IOException, RocksDBException {
-		byte[] rawKeyBytes = serializeUserKeyWithCurrentKeyAndNamespace(userKey);
+		byte[] rawKeyBytes = serializeCurrentKeyWithGroupAndNamespacePlusUserKey(userKey, userKeySerializer);
 
 		backend.db.delete(columnFamily, writeOptions, rawKeyBytes);
 	}
 
 	@Override
 	public boolean contains(UK userKey) throws IOException, RocksDBException {
-		byte[] rawKeyBytes = serializeUserKeyWithCurrentKeyAndNamespace(userKey);
+		byte[] rawKeyBytes = serializeCurrentKeyWithGroupAndNamespacePlusUserKey(userKey, userKeySerializer);
 		byte[] rawValueBytes = backend.db.get(columnFamily, rawKeyBytes);
 
 		return (rawValueBytes != null);
 	}
 
 	@Override
-	public Iterable<Map.Entry<UK, UV>> entries() throws IOException {
+	public Iterable<Map.Entry<UK, UV>> entries() {
 		final Iterator<Map.Entry<UK, UV>> iterator = iterator();
 
 		// Return null to make the behavior consistent with other states.
@@ -177,10 +177,11 @@ class RocksDBMapState<K, N, UK, UV>
 	}
 
 	@Override
-	public Iterable<UK> keys() throws IOException {
-		final byte[] prefixBytes = serializeCurrentKeyAndNamespace();
+	public Iterable<UK> keys() {
+		final byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
 
 		return () -> new RocksDBMapIterator<UK>(backend.db, prefixBytes, userKeySerializer, userValueSerializer, dataInputView) {
+			@Nullable
 			@Override
 			public UK next() {
 				RocksDBMapEntry entry = nextEntry();
@@ -190,8 +191,8 @@ class RocksDBMapState<K, N, UK, UV>
 	}
 
 	@Override
-	public Iterable<UV> values() throws IOException {
-		final byte[] prefixBytes = serializeCurrentKeyAndNamespace();
+	public Iterable<UV> values() {
+		final byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
 
 		return () -> new RocksDBMapIterator<UV>(backend.db, prefixBytes, userKeySerializer, userValueSerializer, dataInputView) {
 			@Override
@@ -203,8 +204,8 @@ class RocksDBMapState<K, N, UK, UV>
 	}
 
 	@Override
-	public Iterator<Map.Entry<UK, UV>> iterator() throws IOException {
-		final byte[] prefixBytes = serializeCurrentKeyAndNamespace();
+	public Iterator<Map.Entry<UK, UV>> iterator() {
+		final byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
 
 		return new RocksDBMapIterator<Map.Entry<UK, UV>>(backend.db, prefixBytes, userKeySerializer, userValueSerializer, dataInputView) {
 			@Override
@@ -220,7 +221,7 @@ class RocksDBMapState<K, N, UK, UV>
 			try (RocksIteratorWrapper iterator = RocksDBKeyedStateBackend.getRocksIterator(backend.db, columnFamily);
 				WriteBatch writeBatch = new WriteBatch(128)) {
 
-				final byte[] keyPrefixBytes = serializeCurrentKeyAndNamespace();
+				final byte[] keyPrefixBytes = serializeCurrentKeyWithGroupAndNamespace();
 				iterator.seek(keyPrefixBytes);
 
 				while (iterator.isValid()) {
@@ -259,18 +260,15 @@ class RocksDBMapState<K, N, UK, UV>
 
 		int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(keyAndNamespace.f0, backend.getNumberOfKeyGroups());
 
-		DataOutputSerializer outputView = new DataOutputSerializer(128);
-		DataInputDeserializer inputView = new DataInputDeserializer();
-
-		writeKeyWithGroupAndNamespace(
-				keyGroup,
-				keyAndNamespace.f0,
+		RocksDBSerializedCompositeKeyBuilder<K> keyBuilder =
+			new RocksDBSerializedCompositeKeyBuilder<>(
 				safeKeySerializer,
-				keyAndNamespace.f1,
-				safeNamespaceSerializer,
-				outputView);
+				backend.getKeyGroupPrefixBytes(),
+				32);
 
-		final byte[] keyPrefixBytes = outputView.getCopyOfBuffer();
+		keyBuilder.setKeyAndKeyGroup(keyAndNamespace.f0, keyGroup);
+
+		final byte[] keyPrefixBytes = keyBuilder.buildCompositeKeyNamespace(keyAndNamespace.f1, namespaceSerializer);
 
 		final MapSerializer<UK, UV> serializer = (MapSerializer<UK, UV>) safeValueSerializer;
 
@@ -282,7 +280,8 @@ class RocksDBMapState<K, N, UK, UV>
 				keyPrefixBytes,
 				dupUserKeySerializer,
 				dupUserValueSerializer,
-				inputView) {
+				dataInputView
+			) {
 
 			@Override
 			public Map.Entry<UK, UV> next() {
@@ -301,36 +300,6 @@ class RocksDBMapState<K, N, UK, UV>
 	// ------------------------------------------------------------------------
 	//  Serialization Methods
 	// ------------------------------------------------------------------------
-
-	private byte[] serializeCurrentKeyAndNamespace() throws IOException {
-		writeCurrentKeyWithGroupAndNamespace();
-
-		return dataOutputView.getCopyOfBuffer();
-	}
-
-	private byte[] serializeUserKeyWithCurrentKeyAndNamespace(UK userKey) throws IOException {
-		serializeCurrentKeyAndNamespace();
-		userKeySerializer.serialize(userKey, dataOutputView);
-
-		return dataOutputView.getCopyOfBuffer();
-	}
-
-	private static <UV> byte[] serializeUserValue(
-		UV userValue,
-		TypeSerializer<UV> valueSerializer,
-		DataOutputSerializer dataOutputView) throws IOException {
-
-		dataOutputView.clear();
-
-		if (userValue == null) {
-			dataOutputView.writeBoolean(true);
-		} else {
-			dataOutputView.writeBoolean(false);
-			valueSerializer.serialize(userValue, dataOutputView);
-		}
-
-		return dataOutputView.getCopyOfBuffer();
-	}
 
 	private static <UK> UK deserializeUserKey(
 		DataInputDeserializer dataInputView,
@@ -474,7 +443,7 @@ class RocksDBMapState<K, N, UK, UV>
 
 			try {
 				userValue = value;
-				rawValueBytes = serializeUserValue(value, valueSerializer, dataOutputView);
+				rawValueBytes = serializeValueNullSensitive(value, valueSerializer);
 
 				db.put(columnFamily, writeOptions, rawKeyBytes, rawValueBytes);
 			} catch (IOException | RocksDBException e) {
