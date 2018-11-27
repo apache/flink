@@ -91,16 +91,17 @@ class FlinkILoop(
   }
 
   // local environment
-  val (scalaBenv: ExecutionEnvironment, scalaSenv: StreamExecutionEnvironment) = {
+  val (
+    scalaBenv: ExecutionEnvironment,
+    scalaSenv: StreamExecutionEnvironment,
+    scalaBTEnv: BatchTableEnvironment,
+    scalaSTEnv: StreamTableEnvironment
+    ) = {
     val scalaBenv = new ExecutionEnvironment(remoteBenv)
     val scalaSenv = new StreamExecutionEnvironment(remoteSenv)
-    (scalaBenv,scalaSenv)
-  }
-
-  val (scalaBTEnv: BatchTableEnvironment, scalaSTEnv: StreamTableEnvironment) = {
     val scalaBTEnv = TableEnvironment.getTableEnvironment(scalaBenv)
     val scalaSTEnv = TableEnvironment.getTableEnvironment(scalaSenv)
-    (scalaBTEnv, scalaSTEnv)
+    (scalaBenv,scalaSenv,scalaBTEnv,scalaSTEnv)
   }
 
   /**
@@ -146,7 +147,6 @@ class FlinkILoop(
     "org.apache.flink.api.scala._",
     "org.apache.flink.api.scala.utils._",
     "org.apache.flink.streaming.api.scala._",
-    "org.apache.flink.streaming.api.windowing.time._",
     "org.apache.flink.table.api._",
     "org.apache.flink.table.api.scala._"
   )
@@ -254,22 +254,22 @@ class FlinkILoop(
 
               F L I N K - S C A L A - S H E L L
 
-NOTE: Use the prebound Execution Environments to implement batch or streaming programs.
+NOTE: Use the prebound Execution Environments and Table Environment to implement batch or streaming programs.
 
-  Batch - Use the 'benv' variable
+  Batch - Use the 'benv' and 'btenv' variable
 
     * val dataSet = benv.readTextFile("/path/to/data")
     * dataSet.writeAsText("/path/to/output")
     * benv.execute("My batch program")
-
+    * val batchTable = btenv.sqlQuery("SELECT * FROM tableName")
     HINT: You can use print() on a DataSet to print the contents to the shell.
 
-  Streaming - Use the 'senv' variable
+  Streaming - Use the 'senv' and 'stenv' variable
 
     * val dataStream = senv.fromElements(1, 2, 3, 4)
     * dataStream.countWindowAll(2).sum(0).print()
     * senv.execute("My streaming program")
-
+    * val streamTable = stenv.sqlQuery("SELECT * FROM tableName")
     HINT: You can only print a DataStream to the shell in local mode.
       """
     // scalastyle:on

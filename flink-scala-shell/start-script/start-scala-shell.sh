@@ -52,6 +52,13 @@ bin=`cd "$bin"; pwd`
 
 FLINK_CLASSPATH=`constructFlinkClassPath`
 
+#adding flink table jar into class path
+opt=`dirname "$0"`
+opt=`cd ../"$opt"/opt; pwd`
+FLINK_TABLE_LIB_PATH=$opt/`ls $opt|grep flink-table_*`
+FLINK_CLASSPATH=$FLINK_CLASSPATH:$FLINK_TABLE_LIB_PATH
+
+
 # https://issues.scala-lang.org/browse/SI-6502, cant load external jars interactively
 # in scala shell since 2.10, has to be done at startup
 # checks arguments for additional classpath and adds it to the "standard classpath"
