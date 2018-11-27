@@ -23,6 +23,7 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.pattern.Quantifier.ConsumingStrategy;
 import org.apache.flink.cep.pattern.Quantifier.Times;
+import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.RichAndCondition;
 import org.apache.flink.cep.pattern.conditions.RichOrCondition;
@@ -105,7 +106,11 @@ public class Pattern<T, F extends T> {
 	}
 
 	public IterativeCondition<F> getCondition() {
-		return condition;
+		if (condition != null) {
+			return condition;
+		} else {
+			return BooleanConditions.trueFunction();
+		}
 	}
 
 	public IterativeCondition<F> getUntilCondition() {

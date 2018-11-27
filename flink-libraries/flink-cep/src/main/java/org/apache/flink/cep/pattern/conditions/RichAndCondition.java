@@ -18,12 +18,15 @@
 
 package org.apache.flink.cep.pattern.conditions;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * A {@link RichIterativeCondition condition} which combines two conditions with a logical
  * {@code AND} and returns {@code true} if both are {@code true}.
  *
  * @param <T> Type of the element to filter
  */
+@Internal
 public class RichAndCondition<T> extends RichCompositeIterativeCondition<T> {
 
 	private static final long serialVersionUID = 1L;
@@ -34,9 +37,7 @@ public class RichAndCondition<T> extends RichCompositeIterativeCondition<T> {
 
 	@Override
 	public boolean filter(T value, Context<T> ctx) throws Exception {
-		IterativeCondition<T> left = getLeft();
-		IterativeCondition<T> right = getRight();
-		return (left == null || left.filter(value, ctx)) && (right == null || right.filter(value, ctx));
+		return getLeft().filter(value, ctx) && getRight().filter(value, ctx);
 	}
 
 	/**

@@ -21,6 +21,7 @@ package org.apache.flink.cep.pattern.conditions;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A base class of composite {@link IterativeCondition} conditions such as {@link RichAndCondition},
@@ -37,6 +38,9 @@ public abstract class RichCompositeIterativeCondition<T> extends RichIterativeCo
 
 	@SafeVarargs
 	public RichCompositeIterativeCondition(final IterativeCondition<T>... nestedConditions) {
+		for (IterativeCondition<T> condition : nestedConditions) {
+			Preconditions.checkNotNull(condition, "The condition cannot be null.");
+		}
 		this.nestedConditions = nestedConditions;
 	}
 
@@ -49,9 +53,7 @@ public abstract class RichCompositeIterativeCondition<T> extends RichIterativeCo
 		super.setRuntimeContext(t);
 
 		for (IterativeCondition<T> nestedCondition : nestedConditions) {
-			if (nestedCondition != null) {
-				FunctionUtils.setFunctionRuntimeContext(nestedCondition, t);
-			}
+			FunctionUtils.setFunctionRuntimeContext(nestedCondition, t);
 		}
 	}
 
@@ -59,9 +61,7 @@ public abstract class RichCompositeIterativeCondition<T> extends RichIterativeCo
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 		for (IterativeCondition<T> nestedCondition : nestedConditions) {
-			if (nestedCondition != null) {
-				FunctionUtils.openFunction(nestedCondition, parameters);
-			}
+			FunctionUtils.openFunction(nestedCondition, parameters);
 		}
 	}
 
@@ -69,9 +69,7 @@ public abstract class RichCompositeIterativeCondition<T> extends RichIterativeCo
 	public void close() throws Exception {
 		super.close();
 		for (IterativeCondition<T> nestedCondition : nestedConditions) {
-			if (nestedCondition != null) {
-				FunctionUtils.closeFunction(nestedCondition);
-			}
+			FunctionUtils.closeFunction(nestedCondition);
 		}
 	}
 }

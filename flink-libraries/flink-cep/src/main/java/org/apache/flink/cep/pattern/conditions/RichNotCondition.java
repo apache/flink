@@ -18,12 +18,15 @@
 
 package org.apache.flink.cep.pattern.conditions;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * A {@link RichIterativeCondition condition} which negates the condition it wraps
  * and returns {@code true} if the original condition returns {@code false}.
  *
  * @param <T> Type of the element to filter
  */
+@Internal
 public class RichNotCondition<T> extends RichCompositeIterativeCondition<T> {
 
 	private static final long serialVersionUID = 1L;
@@ -34,7 +37,6 @@ public class RichNotCondition<T> extends RichCompositeIterativeCondition<T> {
 
 	@Override
 	public boolean filter(T value, Context<T> ctx) throws Exception {
-		IterativeCondition<T> original = getNestedConditions()[0];
-		return original != null && !original.filter(value, ctx);
+		return !getNestedConditions()[0].filter(value, ctx);
 	}
 }

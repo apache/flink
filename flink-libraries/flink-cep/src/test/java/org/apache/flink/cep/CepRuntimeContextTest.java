@@ -58,91 +58,19 @@ import static org.mockito.Mockito.when;
 public class CepRuntimeContextTest {
 
 	@Test
-	public void testRichPatternSelectFunction() throws Exception {
-		RichPatternSelectFunction<Integer, Integer> function = new RichPatternSelectFunction<Integer, Integer>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public Integer select(Map<String, List<Integer>> pattern) throws Exception {
-				return null;
-			}
-		};
-
-		verifyRuntimeContext(function);
-	}
-
-	@Test
-	public void testRichPatternFlatSelectFunction() throws Exception {
-		RichPatternFlatSelectFunction<Integer, Integer> function =
-			new RichPatternFlatSelectFunction<Integer, Integer>() {
-				private static final long serialVersionUID = 1L;
-
-				@Override
-				public void flatSelect(Map<String, List<Integer>> pattern, Collector<Integer> out) throws Exception {
-					// no op
-				}
-			};
-
-		verifyRuntimeContext(function);
-	}
-
-	@Test
-	public void testRichIterativeConditionFunction() throws Exception {
-		RichIterativeCondition<Integer> function = new RichIterativeCondition<Integer>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public boolean filter(
-				Integer value, Context<Integer> ctx) throws Exception {
-				return false;
-			}
-		};
-
-		verifyRuntimeContext(function);
-	}
-
-	@Test
 	public void testRichCompositeIterativeCondition() throws Exception {
-		RichIterativeCondition<Integer> first = new RichIterativeCondition<Integer>() {
-			private static final long serialVersionUID = 1L;
+		RichIterativeCondition<Integer> first = new TestRichIterativeCondition();
+		RichIterativeCondition<Integer> second = new TestRichIterativeCondition();
+		RichIterativeCondition<Integer> third = new TestRichIterativeCondition();
 
-			@Override
-			public boolean filter(
-				Integer value, Context<Integer> ctx) throws Exception {
-				return false;
-			}
-		};
-
-		RichIterativeCondition<Integer> second = new RichIterativeCondition<Integer>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public boolean filter(
-				Integer value, Context<Integer> ctx) throws Exception {
-				return false;
-			}
-		};
-
-		RichIterativeCondition<Integer> third = new RichIterativeCondition<Integer>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public boolean filter(
-				Integer value, Context<Integer> ctx) throws Exception {
-				return false;
-			}
-		};
-
-		RichIterativeCondition<Integer> fourth = null;
-
-		RichCompositeIterativeCondition function = new RichCompositeIterativeCondition(first, second, third, fourth) {
+		RichCompositeIterativeCondition function = new RichCompositeIterativeCondition(first, second, third) {
 			@Override
 			public boolean filter(Object value, Context ctx) throws Exception {
 				return false;
 			}
 		};
+		function.setRuntimeContext(mock(RuntimeContext.class));
 
-		verifyRuntimeContext(function);
 		assertTrue(first.getRuntimeContext() instanceof CepRuntimeContext);
 		assertTrue(second.getRuntimeContext() instanceof CepRuntimeContext);
 		assertTrue(third.getRuntimeContext() instanceof CepRuntimeContext);
@@ -150,81 +78,54 @@ public class CepRuntimeContextTest {
 
 	@Test
 	public void testRichAndCondition() throws Exception {
-		RichIterativeCondition<Integer> left = new RichIterativeCondition<Integer>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public boolean filter(
-				Integer value, Context<Integer> ctx) throws Exception {
-				return false;
-			}
-		};
-
-		RichIterativeCondition<Integer> right = new RichIterativeCondition<Integer>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public boolean filter(
-				Integer value, Context<Integer> ctx) throws Exception {
-				return false;
-			}
-		};
+		RichIterativeCondition<Integer> left = new TestRichIterativeCondition();
+		RichIterativeCondition<Integer> right = new TestRichIterativeCondition();
 
 		RichAndCondition function = new RichAndCondition<>(left, right);
+		function.setRuntimeContext(mock(RuntimeContext.class));
 
-		verifyRuntimeContext(function);
 		assertTrue(left.getRuntimeContext() instanceof CepRuntimeContext);
 		assertTrue(right.getRuntimeContext() instanceof CepRuntimeContext);
 	}
 
 	@Test
 	public void testRichOrCondition() throws Exception {
-		RichIterativeCondition<Integer> left = new RichIterativeCondition<Integer>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public boolean filter(
-				Integer value, Context<Integer> ctx) throws Exception {
-				return false;
-			}
-		};
-
-		RichIterativeCondition<Integer> right = new RichIterativeCondition<Integer>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public boolean filter(
-				Integer value, Context<Integer> ctx) throws Exception {
-				return false;
-			}
-		};
+		RichIterativeCondition<Integer> left = new TestRichIterativeCondition();
+		RichIterativeCondition<Integer> right = new TestRichIterativeCondition();
 
 		RichOrCondition function = new RichOrCondition<>(left, right);
+		function.setRuntimeContext(mock(RuntimeContext.class));
 
-		verifyRuntimeContext(function);
 		assertTrue(left.getRuntimeContext() instanceof CepRuntimeContext);
 		assertTrue(right.getRuntimeContext() instanceof CepRuntimeContext);
 	}
 
 	@Test
-	public void testRichNotCondition() throws Exception {
-		RichIterativeCondition<Integer> original = new RichIterativeCondition<Integer>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public boolean filter(
-				Integer value, Context<Integer> ctx) throws Exception {
-				return false;
-			}
-		};
+	public void testRichNotCondition() {
+		RichIterativeCondition<Integer> original = new TestRichIterativeCondition();
 
 		RichNotCondition function = new RichNotCondition<>(original);
+		function.setRuntimeContext(mock(RuntimeContext.class));
 
-		verifyRuntimeContext(function);
 		assertTrue(original.getRuntimeContext() instanceof CepRuntimeContext);
 	}
 
-	private void verifyRuntimeContext(final RichFunction function) throws Exception {
+	@Test
+	public void testRichPatternSelectFunction() {
+		verifyRuntimeContext(new TestRichPatternSelectFunction());
+	}
+
+	@Test
+	public void testRichPatternFlatSelectFunction() {
+		verifyRuntimeContext(new TestRichPatternFlatSelectFunction());
+	}
+
+	@Test
+	public void testRichIterativeCondition() {
+		verifyRuntimeContext(new TestRichIterativeCondition());
+	}
+
+	private void verifyRuntimeContext(final RichFunction function) {
 		final String taskName = "foobarTask";
 		final MetricGroup metricGroup = new UnregisteredMetricsGroup();
 		final int numberOfParallelSubtasks = 42;
@@ -281,14 +182,10 @@ public class CepRuntimeContextTest {
 		}
 
 		try {
-			runtimeContext.getReducingState(new ReducingStateDescriptor<>("foobar", new ReduceFunction<Integer>() {
-				private static final long serialVersionUID = 1L;
-
-				@Override
-				public Integer reduce(Integer value1, Integer value2) throws Exception {
-					return value1;
-				}
-			}, Integer.class));
+			runtimeContext.getReducingState(new ReducingStateDescriptor<>(
+				"foobar",
+				mock(ReduceFunction.class),
+				Integer.class));
 			fail("Expected getReducingState to fail with unsupported operation exception.");
 		} catch (UnsupportedOperationException e) {
 			// expected
@@ -297,31 +194,7 @@ public class CepRuntimeContextTest {
 		try {
 			runtimeContext.getAggregatingState(new AggregatingStateDescriptor<>(
 				"foobar",
-				new AggregateFunction<Integer, Integer, Integer>() {
-					@Override
-					public Integer createAccumulator() {
-						return null;
-					}
-
-					@Override
-					public Integer add(
-						Integer value,
-						Integer accumulator) {
-						return null;
-					}
-
-					@Override
-					public Integer getResult(Integer accumulator) {
-						return null;
-					}
-
-					@Override
-					public Integer merge(
-						Integer a,
-						Integer b) {
-						return null;
-					}
-				},
+				mock(AggregateFunction.class),
 				Integer.class));
 			fail("Expected getAggregatingState to fail with unsupported operation exception.");
 		} catch (UnsupportedOperationException e) {
@@ -332,14 +205,7 @@ public class CepRuntimeContextTest {
 			runtimeContext.getFoldingState(new FoldingStateDescriptor<>(
 				"foobar",
 				0,
-				new FoldFunction<Integer, Integer>() {
-					@Override
-					public Integer fold(
-						Integer accumulator,
-						Integer value) throws Exception {
-						return accumulator;
-					}
-				},
+				mock(FoldFunction.class),
 				Integer.class));
 			fail("Expected getFoldingState to fail with unsupported operation exception.");
 		} catch (UnsupportedOperationException e) {
@@ -354,34 +220,7 @@ public class CepRuntimeContextTest {
 		}
 
 		try {
-			runtimeContext.addAccumulator("foobar", new Accumulator<Integer, Integer>() {
-				private static final long serialVersionUID = 1L;
-
-				@Override
-				public void add(Integer value) {
-					// no op
-				}
-
-				@Override
-				public Integer getLocalValue() {
-					return null;
-				}
-
-				@Override
-				public void resetLocal() {
-
-				}
-
-				@Override
-				public void merge(Accumulator<Integer, Integer> other) {
-
-				}
-
-				@Override
-				public Accumulator<Integer, Integer> clone() {
-					return null;
-				}
-			});
+			runtimeContext.addAccumulator("foobar", mock(Accumulator.class));
 			fail("Expected addAccumulator to fail with unsupported operation exception.");
 		} catch (UnsupportedOperationException e) {
 			// expected
@@ -446,15 +285,37 @@ public class CepRuntimeContextTest {
 		try {
 			runtimeContext.getBroadcastVariableWithInitializer(
 				"foobar",
-				new BroadcastVariableInitializer<Object, Object>() {
-					@Override
-					public Object initializeBroadcastVariable(Iterable<Object> data) {
-						return null;
-					}
-				});
+				mock(BroadcastVariableInitializer.class));
 			fail("Expected getBroadcastVariableWithInitializer to fail with unsupported operation exception.");
 		} catch (UnsupportedOperationException e) {
 			// expected
+		}
+	}
+
+	private static class TestRichIterativeCondition extends RichIterativeCondition<Integer> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public boolean filter(Integer value, Context<Integer> ctx) throws Exception {
+			return false;
+		}
+	}
+
+	private static class TestRichPatternSelectFunction extends RichPatternSelectFunction<Integer, Integer> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Integer select(Map<String, List<Integer>> pattern) throws Exception {
+			return null;
+		}
+	}
+
+	private static class TestRichPatternFlatSelectFunction extends RichPatternFlatSelectFunction<Integer, Integer> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void flatSelect(Map<String, List<Integer>> pattern, Collector<Integer> out) throws Exception {
+			// no op
 		}
 	}
 }

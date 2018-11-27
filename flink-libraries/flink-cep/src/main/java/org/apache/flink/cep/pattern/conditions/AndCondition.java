@@ -18,12 +18,19 @@
 
 package org.apache.flink.cep.pattern.conditions;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.Preconditions;
+
 /**
  * A {@link IterativeCondition condition} which combines two conditions with a logical
  * {@code AND} and returns {@code true} if both are {@code true}.
  *
  * @param <T> Type of the element to filter
+ * @deprecated Please use {@link RichAndCondition} instead. This class exists just for
+ * backwards compatibility and will be removed in FLINK-10113.
  */
+@Internal
+@Deprecated
 public class AndCondition<T> extends IterativeCondition<T> {
 
 	private static final long serialVersionUID = -2471892317390197319L;
@@ -32,13 +39,13 @@ public class AndCondition<T> extends IterativeCondition<T> {
 	private final IterativeCondition<T> right;
 
 	public AndCondition(final IterativeCondition<T> left, final IterativeCondition<T> right) {
-		this.left = left;
-		this.right = right;
+		this.left = Preconditions.checkNotNull(left, "The condition cannot be null.");;
+		this.right = Preconditions.checkNotNull(right, "The condition cannot be null.");;
 	}
 
 	@Override
 	public boolean filter(T value, Context<T> ctx) throws Exception {
-		return (left == null || left.filter(value, ctx)) && (right == null || right.filter(value, ctx));
+		return left.filter(value, ctx) && right.filter(value, ctx);
 	}
 
 	/**
