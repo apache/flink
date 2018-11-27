@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.RetrievableStreamStateHandle;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
@@ -57,21 +58,20 @@ public class FileSystemStateStorageHelper<T extends Serializable> implements Ret
 
 	@Override
 	public RetrievableStateHandle<T> store(T state) throws Exception {
-		Exception latestException = null;
+		Exception exception = null;
 
 		for (int attempt = 0; attempt < 10; attempt++) {
 			Path filePath = getNewFilePath();
 
 			try (FSDataOutputStream outStream = fs.create(filePath, FileSystem.WriteMode.NO_OVERWRITE)) {
 				InstantiationUtil.serializeObject(outStream, state);
-				return new RetrievableStreamStateHandle<T>(filePath, outStream.getPos());
-			}
-			catch (Exception e) {
-				latestException = e;
+				return new RetrievableStreamStateHandle<>(filePath, outStream.getPos());
+			} catch (Exception e) {
+				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}
 		}
 
-		throw new Exception("Could not open output stream for state backend", latestException);
+		throw new Exception("Could not open output stream for state backend", exception);
 	}
 
 	private Path getNewFilePath() {
