@@ -58,12 +58,13 @@ abstract class BaseTwoInputStreamOperatorWithStateRetention(
 
   private val minRetentionTime: Long = queryConfig.getMinIdleStateRetentionTime
   private val maxRetentionTime: Long = queryConfig.getMaxIdleStateRetentionTime
-  private val stateCleaningEnabled: Boolean = minRetentionTime > 1
 
   private val CLEANUP_TIMESTAMP = "cleanup-timestamp"
   private val TIMERS_STATE_NAME = "timers"
 
   private var latestRegisteredCleanUpTimer: ValueState[JLong] = _
+
+  protected val stateCleaningEnabled: Boolean = minRetentionTime > 1
 
   protected var timerService: SimpleTimerService = _
 
