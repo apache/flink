@@ -1527,8 +1527,8 @@ The events for a given pattern are ordered by timestamp. The reason for returnin
 
 {% highlight scala %}
 def selectFn(pattern : Map[String, Iterable[IN]]): OUT = {
-    val startEvent = pattern.get("start").get.next
-    val endEvent = pattern.get("end").get.next
+    val startEvent = pattern.get("start").get.head
+    val endEvent = pattern.get("end").get.head
     OUT(startEvent, endEvent)
 }
 {% endhighlight %}
@@ -1539,8 +1539,8 @@ The `flatSelect` method is similar to the `select` method. Their only difference
 
 {% highlight scala %}
 def flatSelectFn(pattern : Map[String, Iterable[IN]], collector : Collector[OUT]) = {
-    val startEvent = pattern.get("start").get.next
-    val endEvent = pattern.get("end").get.next
+    val startEvent = pattern.get("start").get.head
+    val endEvent = pattern.get("end").get.head
     for (i <- 0 to startEvent.getValue) {
         collector.collect(OUT(startEvent, endEvent))
     }

@@ -95,6 +95,13 @@ class GroupAggProcessFunction(
     var inputCnt = cntState.value()
 
     if (null == accumulators) {
+      // Don't create a new accumulator for a retraction message. This
+      // might happen if the retraction message is the first message for the
+      // key or after a state clean up.
+      if (!inputC.change) {
+        return
+      }
+      // first accumulate message
       firstRow = true
       accumulators = function.createAccumulators()
     } else {

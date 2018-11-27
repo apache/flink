@@ -38,7 +38,11 @@ else
     echo "Found AWS secret key, running the e2e test."
 fi
 
-AWS_REGION="${AWS_REGION:-us-east-1}"
+# export credentials into environment variables for AWS client
+export AWS_REGION="${AWS_REGION:-us-east-1}"
+export AWS_ACCESS_KEY_ID="$IT_CASE_S3_ACCESS_KEY"
+export AWS_SECRET_ACCESS_KEY="$IT_CASE_S3_SECRET_KEY"
+
 AWS_ACCESS_KEY=$IT_CASE_S3_ACCESS_KEY
 AWS_SECRET_KEY=$IT_CASE_S3_SECRET_KEY
 

@@ -839,8 +839,15 @@ object ScalarOperators {
         generateArithmeticOperator(op, nullCheck, l, left, right, config)
 
       case (SqlTimeTypeInfo.DATE, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
-        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, left, right) {
-            (l, r) => s"$l $op ((int) ($r / ${MILLIS_PER_DAY}L))"
+        resultType match {
+          case SqlTimeTypeInfo.DATE =>
+            generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, left, right) {
+              (l, r) => s"$l $op ((int) ($r / ${MILLIS_PER_DAY}L))"
+            }
+          case SqlTimeTypeInfo.TIMESTAMP =>
+            generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
+              (l, r) => s"$l * ${MILLIS_PER_DAY}L $op $r"
+            }
         }
 
       case (SqlTimeTypeInfo.DATE, TimeIntervalTypeInfo.INTERVAL_MONTHS) =>

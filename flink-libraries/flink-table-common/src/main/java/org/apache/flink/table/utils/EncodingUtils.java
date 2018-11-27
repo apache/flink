@@ -76,7 +76,7 @@ public abstract class EncodingUtils {
 			return instance;
 		} catch (Exception e) {
 			throw new ValidationException(
-				"Unable to deserialize string '" + base64String + "' of base class '" + baseClass.getName() + "'.");
+				"Unable to deserialize string '" + base64String + "' of base class '" + baseClass.getName() + "'.", e);
 		}
 	}
 

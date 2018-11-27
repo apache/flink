@@ -20,6 +20,7 @@ package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.formats.avro.typeutils.AvroSerializer;
@@ -36,6 +37,9 @@ import org.apache.flink.util.Collector;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.applyTumblingWindows;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createArtificialKeyedStateMapper;
@@ -43,6 +47,8 @@ import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createEventSource;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createFailureMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSemanticsCheckMapper;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSlidingWindow;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSlidingWindowCheckMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.isSimulateFailures;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
@@ -69,6 +75,8 @@ public class DataStreamAllroundTestProgram {
 	private static final String TIME_WINDOW_OPER_NAME = "TumblingWindowOperator";
 	private static final String SEMANTICS_CHECK_MAPPER_NAME = "SemanticsCheckMapper";
 	private static final String FAILURE_MAPPER_NAME = "FailureMapper";
+	private static final String SLIDING_WINDOW_CHECK_MAPPER_NAME = "SlidingWindowCheckMapper";
+	private static final String SLIDING_WINDOW_AGG_NAME = "SlidingWindowOperator";
 
 	public static void main(String[] args) throws Exception {
 		final ParameterTool pt = ParameterTool.fromArgs(args);
@@ -153,8 +161,34 @@ public class DataStreamAllroundTestProgram {
 		eventStream3.keyBy(Event::getKey)
 			.flatMap(createSemanticsCheckMapper(pt))
 			.name(SEMANTICS_CHECK_MAPPER_NAME)
-			.uid("0007")
-			.addSink(new PrintSinkFunction<>()).uid("0008");
+			.uid("007")
+			.addSink(new PrintSinkFunction<>())
+			.uid("008");
+
+		// Check sliding windows aggregations. Output all elements assigned to a window and later on
+		// check if each event was emitted slide_factor number of times
+		DataStream<Tuple2<Integer, List<Event>>> eventStream4 = eventStream2.keyBy(Event::getKey)
+			.window(createSlidingWindow(pt))
+			.apply(new WindowFunction<Event, Tuple2<Integer, List<Event>>, Integer, TimeWindow>() {
+				private static final long serialVersionUID = 3166250579972849440L;
+
+				@Override
+				public void apply(
+					Integer key, TimeWindow window, Iterable<Event> input,
+					Collector<Tuple2<Integer, List<Event>>> out) throws Exception {
+
+					out.collect(Tuple2.of(key, StreamSupport.stream(input.spliterator(), false).collect(Collectors.toList())));
+				}
+			})
+			.name(SLIDING_WINDOW_AGG_NAME)
+			.uid("009");
+
+		eventStream4.keyBy(events-> events.f0)
+			.flatMap(createSlidingWindowCheckMapper(pt))
+			.uid("010")
+			.name(SLIDING_WINDOW_CHECK_MAPPER_NAME)
+			.addSink(new PrintSinkFunction<>())
+			.uid("011");
 
 		env.execute("General purpose test job");
 	}

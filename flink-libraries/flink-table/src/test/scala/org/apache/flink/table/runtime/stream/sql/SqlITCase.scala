@@ -264,6 +264,43 @@ class SqlITCase extends StreamingWithStateTestBase {
   }
 
   @Test
+  def testDistinctWithRetraction(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 1L, "Hi"))
+    data.+=((1, 1L, "Hi World"))
+    data.+=((1, 1L, "Test"))
+    data.+=((2, 1L, "Hi World"))
+    data.+=((2, 1L, "Test"))
+    data.+=((3, 1L, "Hi World"))
+    data.+=((3, 1L, "Hi World"))
+    data.+=((3, 1L, "Hi World"))
+    data.+=((4, 1L, "Hi World"))
+    data.+=((4, 1L, "Test"))
+
+    val t = env.fromCollection(data).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+
+    // "1,1,3", "2,1,2", "3,1,1", "4,1,2"
+    val distinct = "SELECT a, COUNT(DISTINCT b) AS distinct_b, COUNT(DISTINCT c) AS distinct_c " +
+      "FROM MyTable GROUP BY a"
+    val nestedDistinct = s"SELECT distinct_b, COUNT(DISTINCT distinct_c) " +
+      s"FROM ($distinct) GROUP BY distinct_b"
+
+    val result = tEnv.sqlQuery(nestedDistinct).toRetractStream[Row]
+    result.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+
+    env.execute()
+
+    val expected = List("1,3")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
   def testUnboundedGroupByCollect(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment

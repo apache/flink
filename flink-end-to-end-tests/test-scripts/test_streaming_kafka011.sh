@@ -20,5 +20,5 @@
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/kafka-common.sh 0.11.0.2 3.2.0 3.2
 
-source "$(dirname "$0")"/test_streaming_kafka_common.sh $FLINK_DIR/examples/streaming/Kafka011Example.jar
+source "$(dirname "$0")"/test_streaming_kafka_common.sh ${END_TO_END_DIR}/flink-streaming-kafka011-test/target/Kafka011Example.jar
 

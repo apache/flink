@@ -284,6 +284,27 @@ class CorrelateITCase extends AbstractTestBase {
     )
   }
 
+  @Test
+  def testTableFunctionCollectorInit(): Unit = {
+    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val func0 = new TableFunc0
+
+    // this case will generate 'timestamp' member field and 'DateFormatter'
+    val result = t
+      .join(func0('c) as('d, 'e))
+      .where(dateFormat(currentTimestamp(), "yyyyMMdd") === 'd)
+      .select('c, 'd, 'e)
+      .toAppendStream[Row]
+
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    assertEquals(
+      Seq(),
+      StreamITCase.testResults.sorted
+    )
+  }
+
   private def testData(
       env: StreamExecutionEnvironment)
     : DataStream[(Int, Long, String)] = {

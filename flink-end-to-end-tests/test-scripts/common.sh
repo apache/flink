@@ -212,19 +212,22 @@ function start_local_zk {
 function wait_dispatcher_running {
   # wait at most 10 seconds until the dispatcher is up
   local QUERY_URL="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
-  for i in {1..10}; do
+  local TIMEOUT=10
+  for i in $(seq 1 ${TIMEOUT}); do
     # without the || true this would exit our script if the JobManager is not yet up
     QUERY_RESULT=$(curl ${CURL_SSL_ARGS} "$QUERY_URL" 2> /dev/null || true)
 
     # ensure the taskmanagers field is there at all and is not empty
     if [[ ${QUERY_RESULT} =~ \{\"taskmanagers\":\[.+\]\} ]]; then
       echo "Dispatcher REST endpoint is up."
-      break
+      return
     fi
 
     echo "Waiting for dispatcher REST endpoint to come up..."
     sleep 1
   done
+  echo "Dispatcher REST endpoint has not started within a timeout of ${TIMEOUT} sec"
+  exit 1
 }
 
 function start_cluster {
@@ -242,30 +245,45 @@ function start_taskmanagers {
 }
 
 function start_and_wait_for_tm {
-  local url="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
-
-  tm_query_result=$(curl ${CURL_SSL_ARGS} -s "${url}")
-
+  tm_query_result=`query_running_tms`
   # we assume that the cluster is running
   if ! [[ ${tm_query_result} =~ \{\"taskmanagers\":\[.*\]\} ]]; then
     echo "Your cluster seems to be unresponsive at the moment: ${tm_query_result}" 1>&2
     exit 1
   fi
 
-  running_tms=`curl ${CURL_SSL_ARGS} -s "${url}" | grep -o "id" | wc -l`
-
+  running_tms=`query_number_of_running_tms`
   ${FLINK_DIR}/bin/taskmanager.sh start
+  wait_for_number_of_running_tms $((running_tms+1))
+}
 
-  for i in {1..10}; do
-    local new_running_tms=`curl ${CURL_SSL_ARGS} -s "${url}" | grep -o "id" | wc -l`
-    if [ $((new_running_tms-running_tms)) -eq 0 ]; then
-      echo "TaskManager is not yet up."
+function query_running_tms {
+  local url="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
+  curl ${CURL_SSL_ARGS} -s "${url}"
+}
+
+function query_number_of_running_tms {
+  query_running_tms | grep -o "id" | wc -l
+}
+
+function wait_for_number_of_running_tms {
+  local TM_NUM_TO_WAIT=${1}
+  local TIMEOUT_COUNTER=10
+  local TIMEOUT_INC=4
+  local TIMEOUT=$(( $TIMEOUT_COUNTER * $TIMEOUT_INC ))
+  local TM_NUM_TEXT="Number of running task managers"
+  for i in $(seq 1 ${TIMEOUT_COUNTER}); do
+    local TM_NUM=`query_number_of_running_tms`
+    if [ $((TM_NUM - TM_NUM_TO_WAIT)) -eq 0 ]; then
+      echo "${TM_NUM_TEXT} has reached ${TM_NUM_TO_WAIT}."
+      return
     else
-      echo "TaskManager is up."
-      break
+      echo "${TM_NUM_TEXT} ${TM_NUM} is not yet ${TM_NUM_TO_WAIT}."
     fi
-    sleep 4
+    sleep ${TIMEOUT_INC}
   done
+  echo "${TM_NUM_TEXT} has not reached ${TM_NUM_TO_WAIT} within a timeout of ${TIMEOUT} sec"
+  exit 1
 }
 
 function check_logs_for_errors {
@@ -376,17 +394,20 @@ function wait_for_job_state_transition {
 }
 
 function wait_job_running {
-  for i in {1..10}; do
+  local TIMEOUT=10
+  for i in $(seq 1 ${TIMEOUT}); do
     JOB_LIST_RESULT=$("$FLINK_DIR"/bin/flink list -r | grep "$1")
 
     if [[ "$JOB_LIST_RESULT" == "" ]]; then
       echo "Job ($1) is not yet running."
     else
       echo "Job ($1) is running."
-      break
+      return
     fi
     sleep 1
   done
+  echo "Job ($1) has not started within a timeout of ${TIMEOUT} sec"
+  exit 1
 }
 
 function wait_job_terminal_state {
@@ -662,4 +683,23 @@ function find_latest_completed_checkpoint {
     # a completed checkpoint must contain the _metadata file
     local checkpoint_meta_file=$(ls -d ${checkpoint_root_directory}/chk-[1-9]*/_metadata | sort -Vr | head -n1)
     echo "$(dirname "${checkpoint_meta_file}")"
+}
+
+function retry_times() {
+    local retriesNumber=$1
+    local backoff=$2
+    local command=${@:3}
+
+    for (( i = 0; i < ${retriesNumber}; i++ ))
+    do
+        if ${command}; then
+            return 0
+        fi
+
+        echo "Command: ${command} failed. Retrying..."
+        sleep ${backoff}
+    done
+
+    echo "Command: ${command} failed ${retriesNumber} times."
+    return 1
 }

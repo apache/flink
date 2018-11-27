@@ -335,7 +335,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 					case CONNECTOR_SINK_PARTITIONER_VALUE_CUSTOM:
 						final Class<? extends FlinkKafkaPartitioner> partitionerClass =
 							descriptorProperties.getClass(CONNECTOR_SINK_PARTITIONER_CLASS, FlinkKafkaPartitioner.class);
-						return Optional.of(InstantiationUtil.instantiate(partitionerClass));
+						return Optional.of((FlinkKafkaPartitioner<Row>) InstantiationUtil.instantiate(partitionerClass));
 					default:
 						throw new TableException("Unsupported sink partitioner. Validator should have checked that.");
 				}
