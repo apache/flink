@@ -86,8 +86,7 @@ type and the *serialized binary format* of a state type. The schema, generally s
 
  1. Data schema of the state type has evolved, i.e. adding or removing a field from a POJO that is used as state.
  2. Following the above, generally speaking, the serialization format of the serializer is intended to be upgraded.
- 3. Configuration of the serializer has changed, i.e. Kryo types are registered in a different order than the
- previous execution, leading to mismatching registration ids for types.
+ 3. Configuration of the serializer has changed.
  
 In order for the new execution to have information about the *written schema* of state and detect whether or not the
 schema has changed, upon taking a savepoint of an operator's state, a *snapshot* of the state serializer needs to be
@@ -118,8 +117,9 @@ public abstract class TypeSerializer<T> {
 {% endhighlight %}
 </div>
 
-A serializer's `TypeSerializerSnapshot` is a piece of information that serves as the single source of truth about
-the state serializer's configuration and write schema. The logic about what should be written and read at restore time
+A serializer's `TypeSerializerSnapshot` is a point-in-time information that serves as the single source of truth about
+the state serializer's write schema, as well as any additional information mandatory to restore a serializer that
+would be identical to the given point-in-time. The logic about what should be written and read at restore time
 as the serializer snapshot is defined in the `writeSnapshot` and `readSnapshot` methods.
 
 Note that the snapshot's own write schema may also need to change over time (e.g. when you wish to add more information
@@ -163,7 +163,7 @@ to the implementation of state serializers and their serializer snapshots.
   - State is written in schema *A*.
  2. **Take a savepoint**
   - The serializer snapshot is extracted via the `TypeSerializer#snapshotConfiguration` method.
-  - The serializer snapshot is written to the savepoint, as well as the already-deserialized state bytes (with schema *A*).
+  - The serializer snapshot is written to the savepoint, as well as the already-serialized state bytes (with schema *A*).
  3. **Restored execution re-accesses restored state bytes with new state serializer that has schema _B_**
   - The previous state serializer's snapshot is restored.
   - State bytes are not deserialized on restore, only loaded back to the state backends (therefore, still in schema *A*).
