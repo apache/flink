@@ -25,8 +25,6 @@ under the License.
 * ToC
 {:toc}
 
-## Overview
-
 Apache Flink streaming applications are typically designed to run indefinitely or for long periods of time.
 As with all long-running services, the applications need to be updated to adapt to changing requirements.
 This goes the same for data schemas that the applications work against; they evolve along with the application.
@@ -71,6 +69,10 @@ To evolve the schema of a given state type, you would take the following steps:
  the schema had been changed for the state, and migrate state schema if necessary.
 
 The process of migrating state to adapt to changed schemas happens automatically, and independently for each state.
+This process is performed internally by Flink by first checking if the new serializer for the state has different
+serialization schema than the previous serializer; if so, the previous serializer is used to read the state to objects,
+and written back to bytes again with the new serializer.
+
 Further details about the migration process is out of the scope of this documentation; please refer to
 [here]({{ site.baseurl }}/dev/stream/state/custom_serialization).
 

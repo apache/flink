@@ -173,7 +173,8 @@ to the implementation of state serializers and their serializer snapshots.
   - If the compatibility resolution reflects that the schema has changed and migration is possible, schema migration is 
   performed. The prior state serializer which recognizes schema _A_ will be obtained from the serializer snapshot, via
    `TypeSerializerSnapshot#restoreSerializer()`, and is used to deserialize state bytes to objects, which in turn
-   is re-written again with the new serializer, which recognizes schema _B_ to complete the migration.
+   is re-written again with the new serializer, which recognizes schema _B_ to complete the migration. All entries
+   of the accessed state is migrated all-together before processing continues.
   - If the resolution signals incompatibility, then the state access fails with an exception.
  
 #### Heap state backends (e.g. `MemoryStateBackend`, `FsStateBackend`)
@@ -207,9 +208,11 @@ entrypoint to reading state in savepoints. In order to be able to restore and ac
 serializer's snapshot must be able to be restored.
 
 Flink restores serializer snapshots by first instantiating the `TypeSerializerSnapshot` with its classname (written
-along with the snapshot bytes). Therefore, to avoid being subject to unintended classname changes,
-`TypeSerializerSnapshot` classes should avoid being implemented as anonymous classes or nested classes.
-Moreover, the class requires having a public, nullary constructor for instantiation.
+along with the snapshot bytes). Therefore, to avoid being subject to unintended classname changes or instantiation
+failures, `TypeSerializerSnapshot` classes should:
+
+ - avoid being implemented as anonymous classes or nested classes,
+ - have a public, nullary constructor for instantiation
 
 #### 2. Avoid sharing the same `TypeSerializerSnapshot` class across different serializers
 
@@ -226,7 +229,7 @@ There may be cases where a `TypeSerializer` relies on other nested `TypeSerializ
 `TupleSerializer`, where it is configured with nested `TypeSerializer`s for the tuple fields. In this case,
 the snapshot of the most outer serializer should also contain snapshots of the nested serializers.
 
-The `ComnpositeSerializerSnapshot` can be used specifically for this scenario. It wraps the logic of resolving
+The `CompositeSerializerSnapshot` can be used specifically for this scenario. It wraps the logic of resolving
 the overall schema compatibility check result for the composite serializer.
 For an example of how it should be used, one can refer to Flink's
 [ListSerializerSnapshot](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/common/typeutils/base/ListSerializerSnapshot.java) implementation.
