@@ -35,6 +35,7 @@ import org.junit.Test;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -160,6 +161,7 @@ public class ResultPartitionTest {
 			partition.release();
 			// partition.add() silently drops the bufferConsumer but recycles it
 			partition.addBufferConsumer(bufferConsumer, 0);
+			assertTrue(partition.isReleased());
 		} finally {
 			if (!bufferConsumer.isRecycled()) {
 				bufferConsumer.close();
