@@ -55,8 +55,8 @@ public abstract class StreamPartitionerTest extends TestLogger {
 		assertEquals(expectedChannel, actualResult);
 	}
 
-	protected void assertSelectedChannelWithSetup(int expectedChannel, int numChannels) {
-		streamPartitioner.setup(numChannels);
+	protected void assertSelectedChannelWithSetup(int expectedChannel, int numberOfChannels) {
+		streamPartitioner.setup(numberOfChannels);
 		assertSelectedChannel(expectedChannel);
 	}
 }

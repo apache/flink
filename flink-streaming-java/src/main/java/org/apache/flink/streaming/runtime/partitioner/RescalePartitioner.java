@@ -53,7 +53,7 @@ public class RescalePartitioner<T> extends StreamPartitioner<T> {
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record) {
 		int newChannel = ++returnArray[0];
-		if (newChannel >= numChannels) {
+		if (newChannel >= numberOfChannels) {
 			returnArray[0] = 0;
 		}
 		return returnArray;

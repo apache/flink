@@ -75,8 +75,8 @@ public class KeyGroupStreamPartitionerTest extends TestLogger {
 
 	private int[] selectChannels(
 		SerializationDelegate<StreamRecord<Tuple2<String, Integer>>> serializationDelegate,
-		int numChannels) {
-		keyGroupPartitioner.setup(numChannels);
+		int numberOfChannels) {
+		keyGroupPartitioner.setup(numberOfChannels);
 		return keyGroupPartitioner.selectChannels(serializationDelegate);
 	}
 }

@@ -36,15 +36,15 @@ public class RebalancePartitioner<T> extends StreamPartitioner<T> {
 	private final int[] returnArray = new int[1];
 
 	@Override
-	public void setup(int numChannels) {
-		super.setup(numChannels);
+	public void setup(int numberOfChannels) {
+		super.setup(numberOfChannels);
 
-		returnArray[0] = ThreadLocalRandom.current().nextInt(numChannels);
+		returnArray[0] = ThreadLocalRandom.current().nextInt(numberOfChannels);
 	}
 
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record) {
-		returnArray[0] = (returnArray[0] + 1) % numChannels;
+		returnArray[0] = (returnArray[0] + 1) % numberOfChannels;
 		return returnArray;
 	}
 

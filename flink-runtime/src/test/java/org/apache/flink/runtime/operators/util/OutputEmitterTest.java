@@ -74,59 +74,59 @@ public class OutputEmitterTest {
 
 	@Test
 	public void testForward() {
-		final int numChannels = 100;
+		final int numberOfChannels = 100;
 
 		// Test for IntValue
-		int numRecords = 50000 + numChannels / 2;
-		verifyForwardSelectedChannels(numRecords, numChannels, RecordType.INTEGER);
+		int numRecords = 50000 + numberOfChannels / 2;
+		verifyForwardSelectedChannels(numRecords, numberOfChannels, RecordType.INTEGER);
 
 		// Test for StringValue
-		numRecords = 10000 + numChannels / 2;
-		verifyForwardSelectedChannels(numRecords, numChannels, RecordType.STRING);
+		numRecords = 10000 + numberOfChannels / 2;
+		verifyForwardSelectedChannels(numRecords, numberOfChannels, RecordType.STRING);
 	}
 
 	@Test
 	public void testForcedRebalance() {
-		final int numChannels = 100;
-		int toTaskIndex = numChannels * 6 / 7;
-		int fromTaskIndex = toTaskIndex + numChannels;
-		int extraRecords = numChannels / 3;
+		final int numberOfChannels = 100;
+		int toTaskIndex = numberOfChannels * 6 / 7;
+		int fromTaskIndex = toTaskIndex + numberOfChannels;
+		int extraRecords = numberOfChannels / 3;
 		int numRecords = 50000 + extraRecords;
 		final SerializationDelegate<Record> delegate = new SerializationDelegate<>(
 			new RecordSerializerFactory().getSerializer());
 		final ChannelSelector<SerializationDelegate<Record>> selector = new OutputEmitter<>(
 			ShipStrategyType.PARTITION_FORCED_REBALANCE, fromTaskIndex);
-		selector.setup(numChannels);
+		selector.setup(numberOfChannels);
 
 		// Test for IntValue
-		int[] hits = getSelectedChannelsHitCount(selector, delegate, RecordType.INTEGER, numRecords, numChannels);
+		int[] hits = getSelectedChannelsHitCount(selector, delegate, RecordType.INTEGER, numRecords, numberOfChannels);
 		int totalHitCount = 0;
 		for (int i = 0; i < hits.length; i++) {
-			if (toTaskIndex <= i || i < toTaskIndex+extraRecords - numChannels) {
-				assertTrue(hits[i] == (numRecords / numChannels) + 1);
+			if (toTaskIndex <= i || i < toTaskIndex+extraRecords - numberOfChannels) {
+				assertTrue(hits[i] == (numRecords / numberOfChannels) + 1);
 			} else {
-				assertTrue(hits[i] == numRecords/numChannels);
+				assertTrue(hits[i] == numRecords/numberOfChannels);
 			}
 			totalHitCount += hits[i];
 		}
 		assertTrue(totalHitCount == numRecords);
 
-		toTaskIndex = numChannels / 5;
-		fromTaskIndex = toTaskIndex + 2 * numChannels;
-		extraRecords = numChannels * 2 / 9;
+		toTaskIndex = numberOfChannels / 5;
+		fromTaskIndex = toTaskIndex + 2 * numberOfChannels;
+		extraRecords = numberOfChannels * 2 / 9;
 		numRecords = 10000 + extraRecords;
 
 		// Test for StringValue
 		final ChannelSelector<SerializationDelegate<Record>> selector2 = new OutputEmitter<>(
 			ShipStrategyType.PARTITION_FORCED_REBALANCE, fromTaskIndex);
-		selector2.setup(numChannels);
-		hits = getSelectedChannelsHitCount(selector2, delegate, RecordType.STRING, numRecords, numChannels);
+		selector2.setup(numberOfChannels);
+		hits = getSelectedChannelsHitCount(selector2, delegate, RecordType.STRING, numRecords, numberOfChannels);
 		totalHitCount = 0;
 		for (int i = 0; i < hits.length; i++) {
 			if (toTaskIndex <= i && i < toTaskIndex + extraRecords) {
-				assertTrue(hits[i] == (numRecords / numChannels) + 1);
+				assertTrue(hits[i] == (numRecords / numberOfChannels) + 1);
 			} else {
-				assertTrue(hits[i] == numRecords / numChannels);
+				assertTrue(hits[i] == numRecords / numberOfChannels);
 			}
 			totalHitCount += hits[i];
 		}
@@ -143,16 +143,16 @@ public class OutputEmitterTest {
 	
 	@Test
 	public void testMultiKeys() {
-		final int numChannels = 100;
+		final int numberOfChannels = 100;
 		final int numRecords = 5000;
 		final TypeComparator<Record> multiComp = new RecordComparatorFactory(
 			new int[] {0,1, 3}, new Class[] {IntValue.class, StringValue.class, DoubleValue.class}).createComparator();
 
 		final ChannelSelector<SerializationDelegate<Record>> selector = createChannelSelector(
-			ShipStrategyType.PARTITION_HASH, multiComp, numChannels);
+			ShipStrategyType.PARTITION_HASH, multiComp, numberOfChannels);
 		final SerializationDelegate<Record> delegate = new SerializationDelegate<>(new RecordSerializerFactory().getSerializer());
 
-		int[] hits = new int[numChannels];
+		int[] hits = new int[numberOfChannels];
 		for (int i = 0; i < numRecords; i++) {
 			Record record = new Record(4);
 			record.setField(0, new IntValue(i));
@@ -216,8 +216,8 @@ public class OutputEmitterTest {
 		Assert.fail("Expected a NullKeyFieldException.");
 	}
 
-	private void verifyPartitionHashSelectedChannels(int numRecords, int numChannels, Enum recordType) {
-		int[] hits = getSelectedChannelsHitCount(ShipStrategyType.PARTITION_HASH, numRecords, numChannels, recordType);
+	private void verifyPartitionHashSelectedChannels(int numRecords, int numberOfChannels, Enum recordType) {
+		int[] hits = getSelectedChannelsHitCount(ShipStrategyType.PARTITION_HASH, numRecords, numberOfChannels, recordType);
 
 		int totalHitCount = 0;
 		for (int hit : hits) {
@@ -227,8 +227,8 @@ public class OutputEmitterTest {
 		assertTrue(totalHitCount == numRecords);
 	}
 
-	private void verifyForwardSelectedChannels(int numRecords, int numChannels, Enum recordType) {
-		int[] hits = getSelectedChannelsHitCount(ShipStrategyType.FORWARD, numRecords, numChannels, recordType);
+	private void verifyForwardSelectedChannels(int numRecords, int numberOfChannels, Enum recordType) {
+		int[] hits = getSelectedChannelsHitCount(ShipStrategyType.FORWARD, numRecords, numberOfChannels, recordType);
 
 		assertTrue(hits[0] == numRecords);
 		for (int i = 1; i < hits.length; i++) {
@@ -236,8 +236,8 @@ public class OutputEmitterTest {
 		}
 	}
 
-	private void verifyBroadcastSelectedChannels(int numRecords, int numChannels, Enum recordType) {
-		int[] hits = getSelectedChannelsHitCount(ShipStrategyType.BROADCAST, numRecords, numChannels, recordType);
+	private void verifyBroadcastSelectedChannels(int numRecords, int numberOfChannels, Enum recordType) {
+		int[] hits = getSelectedChannelsHitCount(ShipStrategyType.BROADCAST, numRecords, numberOfChannels, recordType);
 
 		for (int hit : hits) {
 			assertTrue(hit + "", hit == numRecords);
@@ -267,22 +267,22 @@ public class OutputEmitterTest {
 	private int[] getSelectedChannelsHitCount(
 			ShipStrategyType shipStrategyType,
 			int numRecords,
-			int numChannels,
+			int numberOfChannels,
 			Enum recordType) {
 		final TypeComparator<Record> comparator = new RecordComparatorFactory(
 			new int[] {0}, new Class[] {recordType == RecordType.INTEGER ? IntValue.class : StringValue.class}).createComparator();
-		final ChannelSelector<SerializationDelegate<Record>> selector = createChannelSelector(shipStrategyType, comparator, numChannels);
+		final ChannelSelector<SerializationDelegate<Record>> selector = createChannelSelector(shipStrategyType, comparator, numberOfChannels);
 		final SerializationDelegate<Record> delegate = new SerializationDelegate<>(new RecordSerializerFactory().getSerializer());
 
-		return getSelectedChannelsHitCount(selector, delegate, recordType, numRecords, numChannels);
+		return getSelectedChannelsHitCount(selector, delegate, recordType, numRecords, numberOfChannels);
 	}
 
 	private ChannelSelector createChannelSelector(
 			ShipStrategyType shipStrategyType,
 			TypeComparator comparator,
-			int numChannels) {
+			int numberOfChannels) {
 		final ChannelSelector selector = new OutputEmitter<>(shipStrategyType, comparator);
-		selector.setup(numChannels);
+		selector.setup(numberOfChannels);
 		return selector;
 	}
 
@@ -291,8 +291,8 @@ public class OutputEmitterTest {
 			SerializationDelegate<Record> delegate,
 			Enum recordType,
 			int numRecords,
-			int numChannels) {
-		int[] hits = new int[numChannels];
+			int numberOfChannels) {
+		int[] hits = new int[numberOfChannels];
 		Value value;
 		for (int i = 0; i < numRecords; i++) {
 			if (recordType == RecordType.INTEGER) {
@@ -315,12 +315,12 @@ public class OutputEmitterTest {
 			ChannelSelector selector,
 			SerializationDelegate<Integer> serializationDelegate,
 			int record,
-			int numChannels) {
+			int numberOfChannels) {
 		serializationDelegate.setInstance(record);
 		int[] selectedChannels = selector.selectChannels(serializationDelegate);
 
 		assertTrue(selectedChannels.length == 1);
-		assertTrue(selectedChannels[0] >= 0 && selectedChannels[0] <= numChannels - 1);
+		assertTrue(selectedChannels[0] >= 0 && selectedChannels[0] <= numberOfChannels - 1);
 	}
 
 	private static class TestIntComparator extends TypeComparator<Integer> {

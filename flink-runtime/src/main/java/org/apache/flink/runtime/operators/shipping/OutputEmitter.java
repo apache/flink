@@ -45,7 +45,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	private int nextChannelToSendTo = 0;
 
 	/** the total number of output channels */
-	private int numChannels;
+	private int numberOfChannels;
 	
 	/** the comparator for hashing / sorting */
 	private final TypeComparator<T> comparator;
@@ -134,8 +134,8 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(int numChannels) {
-		this.numChannels = numChannels;
+	public void setup(int numberOfChannels) {
+		this.numberOfChannels = numberOfChannels;
 	}
 
 	@Override
@@ -145,15 +145,15 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 			return forward();
 		case PARTITION_RANDOM:
 		case PARTITION_FORCED_REBALANCE:
-			return robin(numChannels);
+			return robin(numberOfChannels);
 		case PARTITION_HASH:
-			return hashPartitionDefault(record.getInstance(), numChannels);
+			return hashPartitionDefault(record.getInstance(), numberOfChannels);
 		case BROADCAST:
-			return broadcast(numChannels);
+			return broadcast(numberOfChannels);
 		case PARTITION_CUSTOM:
-			return customPartition(record.getInstance(), numChannels);
+			return customPartition(record.getInstance(), numberOfChannels);
 		case PARTITION_RANGE:
-			return rangePartition(record.getInstance(), numChannels);
+			return rangePartition(record.getInstance(), numberOfChannels);
 		default:
 			throw new UnsupportedOperationException("Unsupported distribution strategy: " + strategy.name());
 		}

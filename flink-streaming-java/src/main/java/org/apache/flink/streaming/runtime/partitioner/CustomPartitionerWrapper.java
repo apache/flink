@@ -53,7 +53,7 @@ public class CustomPartitionerWrapper<K, T> extends StreamPartitioner<T> {
 			throw new RuntimeException("Could not extract key from " + record.getInstance(), e);
 		}
 
-		returnArray[0] = partitioner.partition(key, numChannels);
+		returnArray[0] = partitioner.partition(key, numberOfChannels);
 
 		return returnArray;
 	}

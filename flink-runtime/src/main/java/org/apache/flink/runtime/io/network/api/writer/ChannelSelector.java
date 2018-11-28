@@ -31,10 +31,10 @@ public interface ChannelSelector<T extends IOReadableWritable> {
 	/**
 	 * Initializes the channel selector with the number of output channels.
 	 *
-	 * @param numChannels the total number of output channels which are attached
+	 * @param numberOfChannels the total number of output channels which are attached
 	 * 		to respective output gate.
 	 */
-	void setup(int numChannels);
+	void setup(int numberOfChannels);
 
 	/**
 	 * Returns the logical channel indexes, to which the given record should be

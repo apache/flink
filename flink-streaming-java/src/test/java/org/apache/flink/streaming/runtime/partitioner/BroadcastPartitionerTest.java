@@ -58,9 +58,9 @@ public class BroadcastPartitionerTest {
 		assertArrayEquals(sixth, broadcastPartitioner3.selectChannels(serializationDelegate));
 	}
 
-	private BroadcastPartitioner<Tuple> createBroadcastPartitioner(int numChannels) {
+	private BroadcastPartitioner<Tuple> createBroadcastPartitioner(int numberOfChannels) {
 		BroadcastPartitioner<Tuple> broadcastPartitioner = new BroadcastPartitioner<>();
-		broadcastPartitioner.setup(numChannels);
+		broadcastPartitioner.setup(numberOfChannels);
 		return broadcastPartitioner;
 	}
 }
