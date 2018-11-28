@@ -96,14 +96,6 @@ final class S3RecoverableMultipartUploadFactory {
 		final File file = refCountedFile.getFile();
 		final long numBytes = s3AccessHelper.getObject(objectKey, file);
 
-		// some sanity checks
-		if (numBytes != file.length()) {
-			throw new IOException(String.format("Error recovering writer: " +
-							"Downloading the last data chunk file gives incorrect length. " +
-							"File=%d bytes, Stream=%d bytes",
-					file.length(), numBytes));
-		}
-
 		if (numBytes != recoverable.incompleteObjectLength()) {
 			throw new IOException(String.format("Error recovering writer: " +
 							"Downloading the last data chunk file gives incorrect length." +

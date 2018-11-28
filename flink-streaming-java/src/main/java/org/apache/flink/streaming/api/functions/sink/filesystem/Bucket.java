@@ -126,15 +126,16 @@ public class Bucket<IN, BucketID> {
 	}
 
 	private void restoreInProgressFile(final BucketState<BucketID> state) throws IOException {
+		if (!state.hasInProgressResumableFile()) {
+			return;
+		}
 
 		// we try to resume the previous in-progress file
-		if (state.hasInProgressResumableFile()) {
-			final RecoverableWriter.ResumeRecoverable resumable = state.getInProgressResumableFile();
-			final RecoverableFsDataOutputStream stream = fsWriter.recover(resumable);
-			inProgressPart = partFileFactory.resumeFrom(
-					bucketId, stream, resumable, state.getInProgressFileCreationTime());
-			fsWriter.cleanupRecoverableState(resumable);
-		}
+		final RecoverableWriter.ResumeRecoverable resumable = state.getInProgressResumableFile();
+		final RecoverableFsDataOutputStream stream = fsWriter.recover(resumable);
+		inProgressPart = partFileFactory.resumeFrom(
+				bucketId, stream, resumable, state.getInProgressFileCreationTime());
+		fsWriter.cleanupRecoverableState(resumable);
 	}
 
 	private void commitRecoveredPendingFiles(final BucketState<BucketID> state) throws IOException {

@@ -101,10 +101,18 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
 			final byte[] buffer = new byte[32 * 1024];
 
 			int numRead;
-			while ((numRead = inStream.read(buffer)) > 0) {
+			while ((numRead = inStream.read(buffer)) != -1) {
 				outStream.write(buffer, 0, numRead);
 				numBytes += numRead;
 			}
+		}
+
+		// some sanity checks
+		if (numBytes != targetLocation.length()) {
+			throw new IOException(String.format("Error recovering writer: " +
+							"Downloading the last data chunk file gives incorrect length. " +
+							"File=%d bytes, Stream=%d bytes",
+					targetLocation.length(), numBytes));
 		}
 
 		return numBytes;
