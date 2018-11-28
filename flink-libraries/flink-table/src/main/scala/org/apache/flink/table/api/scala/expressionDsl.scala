@@ -1021,6 +1021,12 @@ trait ImplicitExpressionConversions {
     def expr = Literal(sqlTimestamp)
   }
 
+  implicit class implicitAggregateOperations(agg: Aggregation) {
+    def filter(condition: Expression): Aggregation = {
+      FilterAgg(agg, condition)
+    }
+  }
+
   implicit def symbol2FieldExpression(sym: Symbol): Expression = UnresolvedFieldReference(sym.name)
   implicit def byte2Literal(b: Byte): Expression = Literal(b)
   implicit def short2Literal(s: Short): Expression = Literal(s)
@@ -1044,8 +1050,6 @@ trait ImplicitExpressionConversions {
   implicit def toDistinct[T: TypeInformation, ACC: TypeInformation]
       (agg: AggregateFunction[T, ACC]): DistinctAggregateFunction[T, ACC] =
     DistinctAggregateFunction(agg)
-  implicit def toAggWithFilter(agg: Aggregation): FilterAgg =
-    FilterAgg(agg, null)
 }
 
 // ------------------------------------------------------------------------------------------------

@@ -89,9 +89,6 @@ case class DistinctAgg(child: Expression) extends Aggregation {
 
 case class FilterAgg(agg: Expression, filter: Expression) extends Aggregation {
 
-  private[flink] def filter(filter: Expression): Aggregation =
-    FilterAgg(agg, filter)
-
   override private[flink] def resultType: TypeInformation[_] = agg.resultType
 
   override private[flink] def validateInput(): ValidationResult = {
