@@ -68,7 +68,8 @@ class DataStreamLogicalWindowAggregateRule
 
     def getOperandAsLong(call: RexCall, idx: Int): Long =
       call.getOperands.get(idx) match {
-        case v: RexLiteral => v.getValue.asInstanceOf[JBigDecimal].longValue()
+        case v: RexLiteral =>
+          v.getValue.asInstanceOf[JBigDecimal].longValue()
         case _ => throw new TableException("Only constant window descriptors are supported.")
       }
 

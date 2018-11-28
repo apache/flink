@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironm
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableConfig, TableEnvironment}
 import org.apache.flink.table.calcite.FlinkPlannerImpl
-import org.apache.flink.table.plan.nodes.datastream.{DataStreamMatch, DataStreamScan, PatternVisitor}
+import org.apache.flink.table.plan.nodes.datastream.{DataStreamMatch, DataStreamScan}
 import org.apache.flink.types.Row
 import org.apache.flink.util.TestLogger
 import org.junit.Assert._
@@ -89,11 +89,8 @@ abstract class PatternTranslatorTestBase extends TestLogger{
       fail("Expression is converted into more than a Match operation. Use a different test method.")
     }
 
-    val dataMatch = optimized
-      .asInstanceOf[DataStreamMatch]
-
-    val pVisitor = new PatternVisitor(new TableConfig, testTableTypeInfo, dataMatch.getLogicalMatch)
-    val p = dataMatch.getLogicalMatch.pattern.accept(pVisitor)
+    val dataMatch = optimized.asInstanceOf[DataStreamMatch]
+    val p = dataMatch.translatePattern(new TableConfig, testTableTypeInfo)._1
 
     compare(expected, p)
   }
@@ -108,10 +105,16 @@ abstract class PatternTranslatorTestBase extends TestLogger{
       val sameSkipStrategy = currentLeft.getAfterMatchSkipStrategy ==
         currentRight.getAfterMatchSkipStrategy
 
+      val sameTimeWindow = if (currentLeft.getWindowTime != null && currentRight != null) {
+        currentLeft.getWindowTime.toMilliseconds == currentRight.getWindowTime.toMilliseconds
+      } else {
+        currentLeft.getWindowTime == null && currentRight.getWindowTime == null
+      }
+
       currentLeft = currentLeft.getPrevious
       currentRight = currentRight.getPrevious
 
-      if (!sameName || !sameQuantifier || !sameTimes || !sameSkipStrategy) {
+      if (!sameName || !sameQuantifier || !sameTimes || !sameSkipStrategy || !sameTimeWindow) {
         throw new ComparisonFailure("Compiled different pattern.",
           expected.toString,
           actual.toString)
