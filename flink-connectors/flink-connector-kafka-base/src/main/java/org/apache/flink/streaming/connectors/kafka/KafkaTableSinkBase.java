@@ -21,11 +21,11 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.util.TableConnectorUtil;
 import org.apache.flink.types.Row;
@@ -45,10 +45,8 @@ import java.util.Properties;
 @Internal
 public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 
-	// TODO make all attributes final and mandatory once we drop support for format-specific table sinks
-
 	/** The schema of the table. */
-	private final Optional<TableSchema> schema;
+	private final TableSchema schema;
 
 	/** The Kafka topic to write to. */
 	protected final String topic;
@@ -57,14 +55,10 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 	protected final Properties properties;
 
 	/** Serialization schema for encoding records to Kafka. */
-	protected Optional<SerializationSchema<Row>> serializationSchema;
+	protected final SerializationSchema<Row> serializationSchema;
 
 	/** Partitioner to select Kafka partition for each item. */
 	protected final Optional<FlinkKafkaPartitioner<Row>> partitioner;
-
-	// legacy variables
-	protected String[] fieldNames;
-	protected TypeInformation[] fieldTypes;
 
 	protected KafkaTableSinkBase(
 			TableSchema schema,
@@ -72,32 +66,11 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<Row>> partitioner,
 			SerializationSchema<Row> serializationSchema) {
-		this.schema = Optional.of(Preconditions.checkNotNull(schema, "Schema must not be null."));
+		this.schema = Preconditions.checkNotNull(schema, "Schema must not be null.");
 		this.topic = Preconditions.checkNotNull(topic, "Topic must not be null.");
 		this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
 		this.partitioner = Preconditions.checkNotNull(partitioner, "Partitioner must not be null.");
-		this.serializationSchema = Optional.of(Preconditions.checkNotNull(
-			serializationSchema, "Serialization schema must not be null."));
-	}
-
-	/**
-	 * Creates KafkaTableSinkBase.
-	 *
-	 * @param topic                 Kafka topic to write to.
-	 * @param properties            Properties for the Kafka producer.
-	 * @param partitioner           Partitioner to select Kafka partition for each item
-	 * @deprecated Use table descriptors instead of implementation-specific classes.
-	 */
-	@Deprecated
-	public KafkaTableSinkBase(
-			String topic,
-			Properties properties,
-			FlinkKafkaPartitioner<Row> partitioner) {
-		this.schema = Optional.empty();
-		this.topic = Preconditions.checkNotNull(topic, "topic");
-		this.properties = Preconditions.checkNotNull(properties, "properties");
-		this.partitioner = Optional.of(Preconditions.checkNotNull(partitioner, "partitioner"));
-		this.serializationSchema = Optional.empty();
+		this.serializationSchema = Preconditions.checkNotNull(serializationSchema, "Serialization schema must not be null.");
 	}
 
 	/**
@@ -115,72 +88,39 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 		SerializationSchema<Row> serializationSchema,
 		Optional<FlinkKafkaPartitioner<Row>> partitioner);
 
-	/**
-	 * Create serialization schema for converting table rows into bytes.
-	 *
-	 * @param rowSchema the schema of the row to serialize.
-	 * @return Instance of serialization schema
-	 * @deprecated Use the constructor to pass a serialization schema instead.
-	 */
-	@Deprecated
-	protected SerializationSchema<Row> createSerializationSchema(RowTypeInfo rowSchema) {
-		throw new UnsupportedOperationException("This method only exists for backwards compatibility.");
-	}
-
-	/**
-	 * Create a deep copy of this sink.
-	 *
-	 * @return Deep copy of this sink
-	 */
-	@Deprecated
-	protected KafkaTableSinkBase createCopy() {
-		throw new UnsupportedOperationException("This method only exists for backwards compatibility.");
-	}
-
 	@Override
 	public void emitDataStream(DataStream<Row> dataStream) {
-		SinkFunction<Row> kafkaProducer = createKafkaProducer(
+		final SinkFunction<Row> kafkaProducer = createKafkaProducer(
 			topic,
 			properties,
-			serializationSchema.orElseThrow(() -> new IllegalStateException("No serialization schema defined.")),
+			serializationSchema,
 			partitioner);
-		dataStream.addSink(kafkaProducer).name(TableConnectorUtil.generateRuntimeName(this.getClass(), fieldNames));
+		dataStream.addSink(kafkaProducer).name(TableConnectorUtil.generateRuntimeName(this.getClass(), getFieldNames()));
 	}
 
 	@Override
 	public TypeInformation<Row> getOutputType() {
-		return schema
-			.map(TableSchema::toRowType)
-			.orElseGet(() -> new RowTypeInfo(getFieldTypes()));
+		return schema.toRowType();
 	}
 
+	@Override
 	public String[] getFieldNames() {
-		return schema.map(TableSchema::getFieldNames).orElse(fieldNames);
+		return schema.getFieldNames();
 	}
 
 	@Override
 	public TypeInformation<?>[] getFieldTypes() {
-		return schema.map(TableSchema::getFieldTypes).orElse(fieldTypes);
+		return schema.getFieldTypes();
 	}
 
 	@Override
 	public KafkaTableSinkBase configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		if (schema.isPresent()) {
-			// a fixed schema is defined so reconfiguration is not supported
-			throw new UnsupportedOperationException("Reconfiguration of this sink is not supported.");
+		if (!Arrays.equals(getFieldNames(), fieldNames) || !Arrays.equals(getFieldTypes(), fieldTypes)) {
+			throw new ValidationException("Reconfiguration with different fields is not allowed. " +
+				"Expected: " + Arrays.toString(getFieldNames()) + " / " + Arrays.toString(getFieldTypes()) + ". " +
+				"But was: " + Arrays.toString(fieldNames) + " / " + Arrays.toString(fieldTypes));
 		}
-
-		// legacy code
-		KafkaTableSinkBase copy = createCopy();
-		copy.fieldNames = Preconditions.checkNotNull(fieldNames, "fieldNames");
-		copy.fieldTypes = Preconditions.checkNotNull(fieldTypes, "fieldTypes");
-		Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
-			"Number of provided field names and types does not match.");
-
-		RowTypeInfo rowSchema = new RowTypeInfo(fieldTypes, fieldNames);
-		copy.serializationSchema = Optional.of(createSerializationSchema(rowSchema));
-
-		return copy;
+		return this;
 	}
 
 	@Override
@@ -191,26 +131,21 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		KafkaTableSinkBase that = (KafkaTableSinkBase) o;
+		final KafkaTableSinkBase that = (KafkaTableSinkBase) o;
 		return Objects.equals(schema, that.schema) &&
 			Objects.equals(topic, that.topic) &&
 			Objects.equals(properties, that.properties) &&
 			Objects.equals(serializationSchema, that.serializationSchema) &&
-			Objects.equals(partitioner, that.partitioner) &&
-			Arrays.equals(fieldNames, that.fieldNames) &&
-			Arrays.equals(fieldTypes, that.fieldTypes);
+			Objects.equals(partitioner, that.partitioner);
 	}
 
 	@Override
 	public int hashCode() {
-		int result = Objects.hash(
+		return Objects.hash(
 			schema,
 			topic,
 			properties,
 			serializationSchema,
 			partitioner);
-		result = 31 * result + Arrays.hashCode(fieldNames);
-		result = 31 * result + Arrays.hashCode(fieldTypes);
-		return result;
 	}
 }
