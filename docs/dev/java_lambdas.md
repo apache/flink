@@ -107,7 +107,7 @@ env.fromElements(1, 2, 3)
     .map(new MyTuple2Mapper())
     .print();
 
-public static class MyTuple2Mapper extends MapFunction<Integer, Integer> {
+public static class MyTuple2Mapper extends MapFunction<Integer, Tuple2<Integer, Integer>> {
     @Override
     public Tuple2<Integer, Integer> map(Integer i) {
         return Tuple2.of(i, i);
