@@ -31,7 +31,6 @@ import org.apache.flink.table.util.TableConnectorUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
@@ -59,9 +58,6 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 
 	/** Partitioner to select Kafka partition for each item. */
 	protected final Optional<FlinkKafkaPartitioner<Row>> partitioner;
-
-	protected String[] fieldNames;
-	protected TypeInformation[] fieldTypes;
 
 	protected KafkaTableSinkBase(
 			TableSchema schema,
@@ -99,7 +95,7 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 			properties,
 			serializationSchema.orElseThrow(() -> new IllegalStateException("No serialization schema defined.")),
 			partitioner);
-		dataStream.addSink(kafkaProducer).name(TableConnectorUtil.generateRuntimeName(this.getClass(), fieldNames));
+		dataStream.addSink(kafkaProducer).name(TableConnectorUtil.generateRuntimeName(this.getClass(), getFieldNames()));
 	}
 
 	@Override
@@ -110,12 +106,12 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 	}
 
 	public String[] getFieldNames() {
-		return schema.map(TableSchema::getFieldNames).orElse(fieldNames);
+		return schema.map(TableSchema::getFieldNames).get();
 	}
 
 	@Override
 	public TypeInformation<?>[] getFieldTypes() {
-		return schema.map(TableSchema::getFieldTypes).orElse(fieldTypes);
+		return schema.map(TableSchema::getFieldTypes).get();
 	}
 
 	@Override
@@ -141,9 +137,7 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 			Objects.equals(topic, that.topic) &&
 			Objects.equals(properties, that.properties) &&
 			Objects.equals(serializationSchema, that.serializationSchema) &&
-			Objects.equals(partitioner, that.partitioner) &&
-			Arrays.equals(fieldNames, that.fieldNames) &&
-			Arrays.equals(fieldTypes, that.fieldTypes);
+			Objects.equals(partitioner, that.partitioner);
 	}
 
 	@Override
@@ -154,8 +148,6 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 			properties,
 			serializationSchema,
 			partitioner);
-		result = 31 * result + Arrays.hashCode(fieldNames);
-		result = 31 * result + Arrays.hashCode(fieldTypes);
 		return result;
 	}
 }
