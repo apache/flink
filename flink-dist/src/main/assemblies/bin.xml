@@ -58,9 +58,27 @@ under the License.
 			<outputDirectory>conf</outputDirectory>
 			<fileMode>0644</fileMode>
 		</file>
+
+		<file>
+			<source>../LICENSE</source>
+			<outputDirectory/>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
+			<source>../NOTICE-binary</source>
+			<outputDirectory/>
+			<destName>NOTICE</destName>
+			<fileMode>0644</fileMode>
+		</file>
 	</files>
 
 	<fileSets>
+		<fileSet>
+			<directory>../licenses-binary</directory>
+			<outputDirectory>licenses</outputDirectory>
+			<fileMode>0644</fileMode>
+		</fileSet>
 		<!-- copy start scripts -->
 		<fileSet>
 			<directory>src/main/flink-bin/bin</directory>
@@ -127,17 +145,6 @@ under the License.
 			<fileMode>0644</fileMode>
 			<includes>
 				<include>*.txt</include>
-			</includes>
-		</fileSet>
-
-		<!-- copy LICENSE/NOTICE files -->
-		<fileSet>
-			<directory>../</directory>
-			<outputDirectory/>
-			<fileMode>0644</fileMode>
-			<includes>
-				<include>LICENSE*</include>
-				<include>NOTICE*</include>
 			</includes>
 		</fileSet>
 
