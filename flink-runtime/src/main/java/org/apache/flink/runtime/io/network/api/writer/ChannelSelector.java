@@ -37,12 +37,12 @@ public interface ChannelSelector<T extends IOReadableWritable> {
 	void setup(int numberOfChannels);
 
 	/**
-	 * Returns the logical channel indexes, to which the given record should be
+	 * Returns the logical channel index, to which the given record should be
 	 * written.
 	 *
 	 * @param record the record to determine the output channels for.
-	 * @return an array of integer numbers which indicate the indices of the output
-	 * 		channels through which the record shall be forwarded.
+	 * @return an integer number which indicates the index of the output
+	 * 		channel through which the record shall be forwarded.
 	 */
-	int[] selectChannels(T record);
+	int selectChannels(T record);
 }

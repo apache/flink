@@ -146,11 +146,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 	 * This is used to send LatencyMarks to a random target channel.
 	 */
 	public void randomEmit(T record) throws IOException, InterruptedException {
-		checkErroneous();
-		serializer.serializeRecord(record);
-		if (copyFromSerializerToTargetChannel(rng.nextInt(numberOfChannels))) {
-			serializer.prune();
-		}
+		emit(record, rng.nextInt(numberOfChannels));
 	}
 
 	private void emit(T record, int[] targetChannels) throws IOException, InterruptedException {
@@ -165,6 +161,14 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 		// Make sure we don't hold onto the large intermediate serialization buffer for too long
 		if (pruneAfterCopying) {
+			serializer.prune();
+		}
+	}
+
+	private void emit(T record, int targetChannel) throws IOException, InterruptedException {
+		serializer.serializeRecord(record);
+
+		if (copyFromSerializerToTargetChannel(targetChannel)) {
 			serializer.prune();
 		}
 	}

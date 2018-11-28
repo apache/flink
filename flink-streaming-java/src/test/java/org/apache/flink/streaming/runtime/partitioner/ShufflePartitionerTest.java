@@ -38,11 +38,11 @@ public class ShufflePartitionerTest extends StreamPartitionerTest {
 		assertSelectedChannelWithSetup(0, 1);
 
 		streamPartitioner.setup(2);
-		assertTrue(0 <= selectChannelAndAssertLength());
-		assertTrue(2 > selectChannelAndAssertLength());
+		assertTrue(0 <= streamPartitioner.selectChannels(serializationDelegate));
+		assertTrue(2 > streamPartitioner.selectChannels(serializationDelegate));
 
 		streamPartitioner.setup(1024);
-		assertTrue(0 <= selectChannelAndAssertLength());
-		assertTrue(1024 > selectChannelAndAssertLength());
+		assertTrue(0 <= streamPartitioner.selectChannels(serializationDelegate));
+		assertTrue(1024 > streamPartitioner.selectChannels(serializationDelegate));
 	}
 }

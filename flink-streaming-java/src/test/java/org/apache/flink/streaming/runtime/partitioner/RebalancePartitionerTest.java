@@ -38,7 +38,7 @@ public class RebalancePartitionerTest extends StreamPartitionerTest {
 		final int numberOfChannels = 3;
 		streamPartitioner.setup(numberOfChannels);
 
-		int initialChannel = selectChannelAndAssertLength();
+		int initialChannel = streamPartitioner.selectChannels(serializationDelegate);
 		assertTrue(0 <= initialChannel);
 		assertTrue(numberOfChannels > initialChannel);
 
