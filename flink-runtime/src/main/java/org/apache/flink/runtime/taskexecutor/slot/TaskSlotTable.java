@@ -276,6 +276,22 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	}
 
 	/**
+	 * This can be safely released if all slots can be released.
+	 * @return
+	 */
+	public boolean canBeReleased() {
+		for (TaskSlot taskSlot : taskSlots) {
+			if (!taskSlot.canBeReleased()) {
+				LOG.debug("TaskSlotTable can not be released.");
+				return false;
+			}
+		}
+
+		LOG.debug("TaskSlotTable can be released.");
+		return true;
+	}
+
+	/**
 	 * Try to free the slot. If the slot is empty it will set the state of the task slot to free
 	 * and return its index. If the slot is not empty, then it will set the state of the task slot
 	 * to releasing, fail all tasks and return -1.
@@ -509,7 +525,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 
 			taskSlot.remove(task.getExecutionId());
 
-			if (taskSlot.isReleasing() && taskSlot.isEmpty()) {
+			if (taskSlot.isReleasing() && taskSlot.isEmpty() && taskSlot.canBeReleased()) {
 				slotActions.freeSlot(taskSlot.getAllocationId());
 			}
 

@@ -377,6 +377,13 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		}
 	}
 
+	/**
+	 * Whether this partition is released (all subpartitions are consumed).
+	 */
+	public boolean isReleased() {
+		return isReleased.get();
+	}
+
 	@Override
 	public String toString() {
 		return "ResultPartition " + partitionId.toString() + " [" + partitionType + ", "

@@ -42,6 +42,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -60,6 +61,9 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 
 	/** The readers which are already enqueued available for transferring data. */
 	private final ArrayDeque<NetworkSequenceViewReader> availableReaders = new ArrayDeque<>();
+
+	/** The readers are marked as to be closed, waiting for confirmation from writer side */
+	private final Set<NetworkSequenceViewReader> readersToClose = new HashSet<>();
 
 	/** All the readers created for the consumers' partition requests. */
 	private final ConcurrentMap<InputChannelID, NetworkSequenceViewReader> allReaders = new ConcurrentHashMap<>();
@@ -134,9 +138,16 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		ctx.pipeline().fireUserEventTriggered(receiverId);
 	}
 
-	public void close() {
+	public void close() throws IOException {
 		if (ctx != null) {
 			ctx.channel().close();
+		}
+
+		LOG.info("Close all {} readers pending for close.", readersToClose.size());
+		for (NetworkSequenceViewReader reader : readersToClose) {
+			reader.notifySubpartitionConsumed();
+			reader.releaseAllResources();
+			markAsReleased(reader.getReceiverId());
 		}
 	}
 
@@ -248,10 +259,8 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 						next.buffersInBacklog());
 
 					if (isEndOfPartitionEvent(next.buffer())) {
-						reader.notifySubpartitionConsumed();
-						reader.releaseAllResources();
-
-						markAsReleased(reader.getReceiverId());
+						// Don't close them now, wait for write's close request
+						readersToClose.add(reader);
 					}
 
 					// Write and flush and wait until this is done before

@@ -869,6 +869,20 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		}
 	}
 
+	/**
+	 * This task can only be safely released after all produced partitions are consumed.
+	 */
+	public boolean canBeReleased() {
+		for (ResultPartition producedPartition : producedPartitions) {
+			if (!producedPartition.isReleased()) {
+				LOG.debug("Task can NOT be released, execution ID {}", this.getExecutionId());
+				return false;
+			}
+		}
+		LOG.debug("Task can be released, execution ID {}", this.getExecutionId());
+		return true;
+	}
+
 	private ClassLoader createUserCodeClassloader() throws Exception {
 		long startDownloadTime = System.currentTimeMillis();
 

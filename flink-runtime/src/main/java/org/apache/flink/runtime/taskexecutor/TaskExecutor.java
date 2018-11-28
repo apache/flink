@@ -254,6 +254,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.currentRegistrationTimeoutId = null;
 	}
 
+	@Override
+	public boolean canBeReleased() {
+		return this.taskSlotTable.canBeReleased();
+	}
+
 	// ------------------------------------------------------------------------
 	//  Life cycle
 	// ------------------------------------------------------------------------

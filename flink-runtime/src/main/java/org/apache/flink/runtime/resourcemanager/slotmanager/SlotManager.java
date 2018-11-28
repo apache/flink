@@ -902,6 +902,15 @@ public class SlotManager implements AutoCloseable {
 			// first retrieve the timed out TaskManagers
 			for (TaskManagerRegistration taskManagerRegistration : taskManagerRegistrations.values()) {
 				if (currentTime - taskManagerRegistration.getIdleSince() >= taskManagerTimeout.toMilliseconds()) {
+					// checking whether TaskManagers can be safely removed
+					final TaskExecutorGateway taskExecutorGateway = taskManagerRegistration.getTaskManagerConnection().getTaskExecutorGateway();
+					if (!taskExecutorGateway.canBeReleased()) {
+						LOG.debug("Task executor {} can not be released", taskExecutorGateway.getAddress());
+						continue;
+					} else {
+						LOG.debug("Task executor {} can be released", taskExecutorGateway.getAddress());
+					}
+
 					// we collect the instance ids first in order to avoid concurrent modifications by the
 					// ResourceActions.releaseResource call
 					timedOutTaskManagerIds.add(taskManagerRegistration.getInstanceId());

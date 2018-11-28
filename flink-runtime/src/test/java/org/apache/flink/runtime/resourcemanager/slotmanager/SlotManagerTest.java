@@ -674,7 +674,7 @@ public class SlotManagerTest extends TestLogger {
 	/**
 	 * Tests that idle task managers time out after the configured timeout. A timed out task manager
 	 * will be removed from the slot manager and the resource manager will be notified about the
-	 * timeout.
+	 * timeout, if it can be released.
 	 */
 	@Test
 	public void testTaskManagerTimeout() throws Exception {
@@ -686,6 +686,8 @@ public class SlotManagerTest extends TestLogger {
 
 		final TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(resourceID, taskExecutorGateway);
+
+		when(taskExecutorGateway.canBeReleased()).thenReturn(true);
 
 		final SlotID slotId = new SlotID(resourceID, 0);
 		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
@@ -710,6 +712,49 @@ public class SlotManagerTest extends TestLogger {
 			});
 
 			verify(resourceManagerActions, timeout(100L * tmTimeout).times(1))
+				.releaseResource(eq(taskManagerConnection.getInstanceID()), any(Exception.class));
+		}
+	}
+
+	/**
+	 * Tests that idle but not releasable task managers will not be released even if timed out.
+	 */
+	@Test
+	public void testTaskManagerTimeoutWhenNotReleasable() throws Exception {
+		final long tmTimeout = 500L;
+
+		final ResourceActions resourceManagerActions = mock(ResourceActions.class);
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
+		final ResourceID resourceID = ResourceID.generate();
+
+		final TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
+		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(resourceID, taskExecutorGateway);
+
+		when(taskExecutorGateway.canBeReleased()).thenReturn(false);
+
+		final SlotID slotId = new SlotID(resourceID, 0);
+		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
+		final SlotStatus slotStatus = new SlotStatus(slotId, resourceProfile);
+		final SlotReport slotReport = new SlotReport(slotStatus);
+
+		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
+
+		try (SlotManager slotManager = new SlotManager(
+			TestingUtils.defaultScheduledExecutor(),
+			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime(),
+			Time.milliseconds(tmTimeout))) {
+
+			slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
+
+			mainThreadExecutor.execute(new Runnable() {
+				@Override
+				public void run() {
+					slotManager.registerTaskManager(taskManagerConnection, slotReport);
+				}
+			});
+
+			verify(resourceManagerActions, timeout(100L * tmTimeout).times(0))
 				.releaseResource(eq(taskManagerConnection.getInstanceID()), any(Exception.class));
 		}
 	}
@@ -987,6 +1032,7 @@ public class SlotManagerTest extends TestLogger {
 			anyString(),
 			eq(resourceManagerId),
 			any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
+		when(taskExecutorGateway.canBeReleased()).thenReturn(true);
 
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(resourceId, taskExecutorGateway);
 
@@ -1070,6 +1116,8 @@ public class SlotManagerTest extends TestLogger {
 		final ResourceID resourceID = ResourceID.generate();
 		final ResourceActions resourceActions = mock(ResourceActions.class);
 		final TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
+
+		when(taskExecutorGateway.canBeReleased()).thenReturn(true);
 
 		final TaskExecutorConnection taskExecutorConnection = new TaskExecutorConnection(resourceID, taskExecutorGateway);
 		final SlotStatus slotStatus = new SlotStatus(
