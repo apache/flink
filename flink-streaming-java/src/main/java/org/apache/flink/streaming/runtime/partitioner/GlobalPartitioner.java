@@ -33,8 +33,7 @@ public class GlobalPartitioner<T> extends StreamPartitioner<T> {
 	private final int[] returnArray = new int[] { 0 };
 
 	@Override
-	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
-			int numberOfOutputChannels) {
+	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record) {
 		return returnArray;
 	}
 

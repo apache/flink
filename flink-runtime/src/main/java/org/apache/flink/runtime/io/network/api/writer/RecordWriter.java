@@ -86,6 +86,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 		this.targetPartition = writer;
 		this.channelSelector = channelSelector;
 		this.numberOfChannels = writer.getNumberOfSubpartitions();
+		this.channelSelector.setup(numberOfChannels);
 
 		this.serializer = new SpanningRecordSerializer<T>();
 		this.bufferBuilders = new Optional[numberOfChannels];
@@ -97,7 +98,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 	}
 
 	public void emit(T record) throws IOException, InterruptedException {
-		emit(record, channelSelector.selectChannels(record, numberOfChannels));
+		emit(record, channelSelector.selectChannels(record));
 	}
 
 	/**

@@ -67,10 +67,12 @@ public class RescalePartitionerTest extends StreamPartitionerTest {
 
 	@Test
 	public void testSelectChannelsInterval() {
-		assertSelectedChannel(0, 3);
-		assertSelectedChannel(1, 3);
-		assertSelectedChannel(2, 3);
-		assertSelectedChannel(0, 3);
+		streamPartitioner.setup(3);
+
+		assertSelectedChannel(0);
+		assertSelectedChannel(1);
+		assertSelectedChannel(2);
+		assertSelectedChannel(0);
 	}
 
 	@Test

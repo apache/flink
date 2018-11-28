@@ -426,9 +426,9 @@ public class RecordWriterTest {
 
 		final TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(Integer.MAX_VALUE, bufferSize);
 		final ResultPartitionWriter partitionWriter = new CollectingPartitionWriter(queues, bufferProvider);
+		final ChannelSelector selector = new Broadcast<>();
 		final RecordWriter<SerializationTestType> writer = isBroadcastEmit ?
-			new RecordWriter<>(partitionWriter) :
-			new RecordWriter<>(partitionWriter, new Broadcast<>());
+			new RecordWriter<>(partitionWriter) : new RecordWriter<>(partitionWriter, selector);
 		final RecordDeserializer<SerializationTestType> deserializer = new SpillingAdaptiveSpanningRecordDeserializer<>(
 			new String[]{ tempFolder.getRoot().getAbsolutePath() });
 
@@ -600,8 +600,15 @@ public class RecordWriterTest {
 
 		private int[] returnChannel;
 
+		private int numberOfChannels;
+
 		@Override
-		public int[] selectChannels(final T record, final int numberOfChannels) {
+		public void setup(int numberOfChannels) {
+			this.numberOfChannels = numberOfChannels;
+		}
+
+		@Override
+		public int[] selectChannels(final T record) {
 			if (returnChannel != null && returnChannel.length == numberOfChannels) {
 				return returnChannel;
 			} else {

@@ -61,8 +61,8 @@ public class OutputEmitterTest {
 
 		// Test hash corner cases
 		final TestIntComparator testIntComp = new TestIntComparator();
-		final ChannelSelector<SerializationDelegate<Integer>> selector = new OutputEmitter<>(
-			ShipStrategyType.PARTITION_HASH, testIntComp);
+		final ChannelSelector<SerializationDelegate<Integer>> selector = createChannelSelector(
+			ShipStrategyType.PARTITION_HASH, testIntComp, 100);
 		final SerializationDelegate<Integer> serializationDelegate = new SerializationDelegate<>(new IntSerializer());
 
 		assertPartitionHashSelectedChannels(selector, serializationDelegate, Integer.MIN_VALUE, 100);
@@ -96,6 +96,7 @@ public class OutputEmitterTest {
 			new RecordSerializerFactory().getSerializer());
 		final ChannelSelector<SerializationDelegate<Record>> selector = new OutputEmitter<>(
 			ShipStrategyType.PARTITION_FORCED_REBALANCE, fromTaskIndex);
+		selector.setup(numberOfChannels);
 
 		// Test for IntValue
 		int[] hits = getSelectedChannelsHitCount(selector, delegate, RecordType.INTEGER, numRecords, numberOfChannels);
@@ -118,6 +119,7 @@ public class OutputEmitterTest {
 		// Test for StringValue
 		final ChannelSelector<SerializationDelegate<Record>> selector2 = new OutputEmitter<>(
 			ShipStrategyType.PARTITION_FORCED_REBALANCE, fromTaskIndex);
+		selector2.setup(numberOfChannels);
 		hits = getSelectedChannelsHitCount(selector2, delegate, RecordType.STRING, numRecords, numberOfChannels);
 		totalHitCount = 0;
 		for (int i = 0; i < hits.length; i++) {
@@ -146,8 +148,8 @@ public class OutputEmitterTest {
 		final TypeComparator<Record> multiComp = new RecordComparatorFactory(
 			new int[] {0,1, 3}, new Class[] {IntValue.class, StringValue.class, DoubleValue.class}).createComparator();
 
-		final ChannelSelector<SerializationDelegate<Record>> selector = new OutputEmitter<>(
-			ShipStrategyType.PARTITION_HASH, multiComp);
+		final ChannelSelector<SerializationDelegate<Record>> selector = createChannelSelector(
+			ShipStrategyType.PARTITION_HASH, multiComp, numberOfChannels);
 		final SerializationDelegate<Record> delegate = new SerializationDelegate<>(new RecordSerializerFactory().getSerializer());
 
 		int[] hits = new int[numberOfChannels];
@@ -158,7 +160,7 @@ public class OutputEmitterTest {
 			record.setField(3, new DoubleValue(i * 3.141d));
 			delegate.setInstance(record);
 
-			int[] channels = selector.selectChannels(delegate, hits.length);
+			int[] channels = selector.selectChannels(delegate);
 			for (int channel : channels) {
 				hits[channel]++;
 			}
@@ -191,8 +193,8 @@ public class OutputEmitterTest {
 		// Test for IntValue
 		final TypeComparator<Record> doubleComp = new RecordComparatorFactory(
 			new int[] {0}, new Class[] {DoubleValue.class}).createComparator();
-		final ChannelSelector<SerializationDelegate<Record>> selector = new OutputEmitter<>(
-			ShipStrategyType.PARTITION_HASH, doubleComp);
+		final ChannelSelector<SerializationDelegate<Record>> selector = createChannelSelector(
+			ShipStrategyType.PARTITION_HASH, doubleComp, 100);
 		final SerializationDelegate<Record> delegate = new SerializationDelegate<>(new RecordSerializerFactory().getSerializer());
 
 		PipedInputStream pipedInput = new PipedInputStream(1024 * 1024);
@@ -207,7 +209,7 @@ public class OutputEmitterTest {
 
 		try {
 			delegate.setInstance(record);
-			selector.selectChannels(delegate, 100);
+			selector.selectChannels(delegate);
 		} catch (DeserializationException re) {
 			return;
 		}
@@ -223,18 +225,6 @@ public class OutputEmitterTest {
 			totalHitCount += hit;
 		}
 		assertTrue(totalHitCount == numRecords);
-	}
-
-	private void assertPartitionHashSelectedChannels(
-			ChannelSelector selector,
-			SerializationDelegate<Integer> serializationDelegate,
-			int record,
-			int numChannels) {
-		serializationDelegate.setInstance(record);
-		int[] selectedChannels = selector.selectChannels(serializationDelegate, numChannels);
-
-		assertTrue(selectedChannels.length == 1);
-		assertTrue(selectedChannels[0] >= 0 && selectedChannels[0] <= numChannels - 1);
 	}
 
 	private void verifyForwardSelectedChannels(int numRecords, int numberOfChannels, Enum recordType) {
@@ -257,8 +247,8 @@ public class OutputEmitterTest {
 	private boolean verifyWrongPartitionHashKey(int position, int fieldNum) {
 		final TypeComparator<Record> comparator = new RecordComparatorFactory(
 			new int[] {position}, new Class[] {IntValue.class}).createComparator();
-		final ChannelSelector<SerializationDelegate<Record>> selector = new OutputEmitter<>(
-			ShipStrategyType.PARTITION_HASH, comparator);
+		final ChannelSelector<SerializationDelegate<Record>> selector = createChannelSelector(
+			ShipStrategyType.PARTITION_HASH, comparator, 100);
 		final SerializationDelegate<Record> delegate = new SerializationDelegate<>(new RecordSerializerFactory().getSerializer());
 
 		Record record = new Record(2);
@@ -266,7 +256,7 @@ public class OutputEmitterTest {
 		delegate.setInstance(record);
 
 		try {
-			selector.selectChannels(delegate, 100);
+			selector.selectChannels(delegate);
 		} catch (NullKeyFieldException re) {
 			Assert.assertEquals(position, re.getFieldNumber());
 			return true;
@@ -281,10 +271,19 @@ public class OutputEmitterTest {
 			Enum recordType) {
 		final TypeComparator<Record> comparator = new RecordComparatorFactory(
 			new int[] {0}, new Class[] {recordType == RecordType.INTEGER ? IntValue.class : StringValue.class}).createComparator();
-		final ChannelSelector<SerializationDelegate<Record>> selector = new OutputEmitter<>(shipStrategyType, comparator);
+		final ChannelSelector<SerializationDelegate<Record>> selector = createChannelSelector(shipStrategyType, comparator, numberOfChannels);
 		final SerializationDelegate<Record> delegate = new SerializationDelegate<>(new RecordSerializerFactory().getSerializer());
 
 		return getSelectedChannelsHitCount(selector, delegate, recordType, numRecords, numberOfChannels);
+	}
+
+	private ChannelSelector createChannelSelector(
+			ShipStrategyType shipStrategyType,
+			TypeComparator comparator,
+			int numberOfChannels) {
+		final ChannelSelector selector = new OutputEmitter<>(shipStrategyType, comparator);
+		selector.setup(numberOfChannels);
+		return selector;
 	}
 
 	private int[] getSelectedChannelsHitCount(
@@ -304,12 +303,24 @@ public class OutputEmitterTest {
 			Record record = new Record(value);
 			delegate.setInstance(record);
 
-			int[] channels = selector.selectChannels(delegate, hits.length);
+			int[] channels = selector.selectChannels(delegate);
 			for (int channel : channels) {
 				hits[channel]++;
 			}
 		}
 		return hits;
+	}
+
+	private void assertPartitionHashSelectedChannels(
+			ChannelSelector selector,
+			SerializationDelegate<Integer> serializationDelegate,
+			int record,
+			int numberOfChannels) {
+		serializationDelegate.setInstance(record);
+		int[] selectedChannels = selector.selectChannels(serializationDelegate);
+
+		assertTrue(selectedChannels.length == 1);
+		assertTrue(selectedChannels[0] >= 0 && selectedChannels[0] <= numberOfChannels - 1);
 	}
 
 	private static class TestIntComparator extends TypeComparator<Integer> {
