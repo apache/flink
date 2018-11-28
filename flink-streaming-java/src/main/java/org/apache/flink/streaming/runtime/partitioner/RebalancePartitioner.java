@@ -38,20 +38,20 @@ public class RebalancePartitioner<T> extends StreamPartitioner<T> {
 	@Override
 	public int[] selectChannels(
 			SerializationDelegate<StreamRecord<T>> record,
-			int numChannels) {
+			int numberOfChannels) {
 		int newChannel = ++returnArray[0];
-		if (newChannel >= numChannels) {
-			returnArray[0] = resetValue(numChannels, newChannel);
+		if (newChannel >= numberOfChannels) {
+			returnArray[0] = resetValue(numberOfChannels, newChannel);
 		}
 		return returnArray;
 	}
 
 	private static int resetValue(
-			int numChannels,
+			int numberOfChannels,
 			int newChannel) {
-		if (newChannel == Integer.MAX_VALUE) {
+		if (numberOfChannels == Integer.MAX_VALUE) {
 			// Initializes the first partition, this branch is only entered when initializing.
-			return ThreadLocalRandom.current().nextInt(numChannels);
+			return ThreadLocalRandom.current().nextInt(numberOfChannels);
 		}
 		return 0;
 	}

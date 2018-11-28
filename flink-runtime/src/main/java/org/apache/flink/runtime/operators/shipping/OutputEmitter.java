@@ -43,7 +43,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 
 	/** counter to go over channels round robin */
 	private int nextChannelToSendTo = 0;
-	
+
 	/** the comparator for hashing / sorting */
 	private final TypeComparator<T> comparator;
 

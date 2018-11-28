@@ -33,9 +33,9 @@ public interface ChannelSelector<T extends IOReadableWritable> {
 	 * written.
 	 *
 	 * @param record      the record to the determine the output channels for
-	 * @param numChannels the total number of output channels which are attached to respective output gate
+	 * @param numberOfChannels the total number of output channels which are attached to respective output gate
 	 * @return a (possibly empty) array of integer numbers which indicate the indices of the output channels through
 	 * which the record shall be forwarded
 	 */
-	int[] selectChannels(T record, int numChannels);
+	int[] selectChannels(T record, int numberOfChannels);
 }

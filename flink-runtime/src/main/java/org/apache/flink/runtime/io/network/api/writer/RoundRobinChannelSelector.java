@@ -33,8 +33,8 @@ public class RoundRobinChannelSelector<T extends IOReadableWritable> implements 
 	private final int[] nextChannelToSendTo = new int[] { -1 };
 
 	@Override
-	public int[] selectChannels(final T record, final int numberOfOutputChannels) {
-		nextChannelToSendTo[0] = (nextChannelToSendTo[0] + 1) % numberOfOutputChannels;
+	public int[] selectChannels(final T record, final int numberOfChannels) {
+		nextChannelToSendTo[0] = (nextChannelToSendTo[0] + 1) % numberOfChannels;
 		return nextChannelToSendTo;
 	}
 }
