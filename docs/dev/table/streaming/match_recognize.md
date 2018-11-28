@@ -93,7 +93,7 @@ Every `MATCH_RECOGNIZE` query consists of the following clauses:
 * [MEASURES](#define--measures) - defines output of the clause; similar to a `SELECT` clause.
 * [ONE ROW PER MATCH](#output-mode) - output mode which defines how many rows per match should be produced.
 * [AFTER MATCH SKIP](#after-match-strategy) - specifies where the next match should start; this is also a way to control how many distinct matches a single event can belong to.
-* [PATTERN](#defining-pattern) - allows constructing patterns that will be searched for using a _regular expression_-like syntax.
+* [PATTERN](#defining-a-pattern) - allows constructing patterns that will be searched for using a _regular expression_-like syntax.
 * [DEFINE](#define--measures) - this section defines the conditions that the pattern variables must satisfy.
 
 <span class="label label-danger">Attention</span> Currently, the `MATCH_RECOGNIZE` clause can only be applied to an [append table](dynamic_tables.html#update-and-append-queries). Furthermore, it always produces
@@ -206,7 +206,7 @@ The `DEFINE` and `MEASURES` keywords have similar meanings to the `WHERE` and `S
 The `MEASURES` clause defines what will be included in the output of a matching pattern. It can project columns and define expressions for evaluation.
 The number of produced rows depends on the [output mode](#output-mode) setting.
 
-The `DEFINE` clause specifies conditions that rows have to fulfill in order to be classified to a corresponding [pattern variable](#defining-pattern).
+The `DEFINE` clause specifies conditions that rows have to fulfill in order to be classified to a corresponding [pattern variable](#defining-a-pattern).
 If a condition is not defined for a pattern variable, a default condition will be used which evaluates to `true` for every row.
 
 For a more detailed explanation about expressions that can be used in those clauses, please have a look at the [event stream navigation](#pattern-navigation) section.
@@ -310,6 +310,71 @@ DEFINE
 {% endhighlight %}
 
 <span class="label label-danger">Attention</span> The optional reluctant quantifier (`A??` or `A{0,1}?`) is not supported right now.
+
+### Time constraint
+
+Especially for streaming use cases, it is often required that a pattern finishes within a given period of time.
+This allows for limiting the overall state size that Flink has to maintain internally, even in case of greedy quantifiers.
+
+Therefore, Flink SQL supports the additional (non-standard SQL) `WITHIN` clause for defining a time constraint for a pattern. The clause can be defined after the `PATTERN` clause and takes an interval of millisecond resolution.
+
+If the time between the first and last event of a potential match is longer than the given value, such a match will not be appended to the result table.
+
+<span class="label label-info">Note</span> It is generally encouraged to use the `WITHIN` clause as it helps Flink with efficient memory management. Underlying state can be pruned once the threshold is reached.
+
+<span class="label label-danger">Attention</span> However, the `WITHIN` clause is not part of the SQL standard. The recommended way of dealing with time constraints might change in the future.
+
+The use of the `WITHIN` clause is illustrated in the following example query:
+
+{% highlight sql %}
+SELECT *
+FROM Ticker
+    MATCH_RECOGNIZE(
+        PARTITION BY symbol
+        ORDER BY rowtime
+        MEASURES
+            C.rowtime AS dropTime,
+            A.price - C.price AS dropDiff
+        PATTERN (A B* C) WITHIN INTERVAL '1' HOUR
+        ONE ROW PER MATCH
+        AFTER MATCH SKIP PAST LAST ROW
+        DEFINE
+            B AS B.price > A.price - 10
+            C AS C.price < A.price - 10
+    )
+{% endhighlight %}
+
+The query detects a price drop of `10` that happens within an interval of 1 hour.
+
+Let's assume the query is used to analyze the following ticker data:
+
+{% highlight text %}
+symbol         rowtime         price    tax
+======  ====================  ======= =======
+'ACME'  '01-Apr-11 10:00:00'   20      1
+'ACME'  '01-Apr-11 10:20:00'   17      2
+'ACME'  '01-Apr-11 10:40:00'   18      1
+'ACME'  '01-Apr-11 11:00:00'   11      3
+'ACME'  '01-Apr-11 11:20:00'   14      2
+'ACME'  '01-Apr-11 11:40:00'   9       1
+'ACME'  '01-Apr-11 12:00:00'   15      1
+'ACME'  '01-Apr-11 12:20:00'   14      2
+'ACME'  '01-Apr-11 12:40:00'   24      2
+'ACME'  '01-Apr-11 13:00:00'   1       2
+'ACME'  '01-Apr-11 13:20:00'   19      1
+{% endhighlight %}
+
+The query will produce the following results:
+
+{% highlight text %}
+symbol         dropTime         dropDiff
+======  ====================  =============
+'ACME'  '01-Apr-11 13:00:00'      14
+{% endhighlight %}
+
+The resulting row represents a price drop from `15` (at `01-Apr-11 12:00:00`) to `1` (at `01-Apr-11 13:00:00`). The `dropDiff` column contains the price difference.
+
+Notice that even though prices also drop by higher values, for example, by `11` (between `01-Apr-11 10:00:00` and `01-Apr-11 11:40:00`), the time difference between those two events is larger than 1 hour. Thus, they don't produce a match.
 
 Output Mode
 -----------
@@ -781,8 +846,8 @@ One has to keep in mind that in case of the `SKIP TO FIRST/LAST variable`strateg
 variable (e.g. for pattern `A*`). In such cases, a runtime exception will be thrown as the standard requires a valid row to continue the
 matching.
 
-
-### Controlling Memory Consumption
+Controlling Memory Consumption
+------------------------------
 
 Memory consumption is an important consideration when writing `MATCH_RECOGNIZE` queries, as the space of potential matches is built in a breadth-first-like manner.
 Having that in mind, one must make sure that the pattern can finish. Preferably with a reasonable number of rows mapped to the match as they have to fit into memory.
@@ -815,8 +880,7 @@ DEFINE
   C as C.price > 20
 {% endhighlight %}
 
-<span class="label label-danger">Attention</span> Please note that the `MATCH_RECOGNIZE` clause does not use a configured [state retention time](query_configuration.html#idle-state-retention-time). As of now, there is also no possibility to define a time restriction on the pattern to finish because there is no such possibility in the SQL standard. The community is in the process of designing a proper syntax for that
-feature right now.
+<span class="label label-danger">Attention</span> Please note that the `MATCH_RECOGNIZE` clause does not use a configured [state retention time](query_configuration.html#idle-state-retention-time). One may want to use the `WITHIN` [clause](#time-constraint) for this purpose.
 
 Known Limitations
 -----------------
