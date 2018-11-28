@@ -23,7 +23,8 @@ import java.io.{BufferedReader, File, FileOutputStream}
 import org.apache.flink.api.java.{JarHelper, ScalaShellRemoteEnvironment, ScalaShellRemoteStreamEnvironment}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.{BatchTableEnvironment, StreamTableEnvironment, TableEnvironment}
+import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.scala.{BatchTableEnvironment, StreamTableEnvironment}
 import org.apache.flink.util.AbstractID
 
 import scala.tools.nsc.interpreter._
@@ -148,7 +149,8 @@ class FlinkILoop(
     "org.apache.flink.api.scala.utils._",
     "org.apache.flink.streaming.api.scala._",
     "org.apache.flink.table.api._",
-    "org.apache.flink.table.api.scala._"
+    "org.apache.flink.table.api.scala._",
+    "org.apache.flink.types.Row"
   )
 
   override def createInterpreter(): Unit = {
@@ -261,15 +263,22 @@ NOTE: Use the prebound Execution Environments and Table Environment to implement
     * val dataSet = benv.readTextFile("/path/to/data")
     * dataSet.writeAsText("/path/to/output")
     * benv.execute("My batch program")
-    * val batchTable = btenv.sqlQuery("SELECT * FROM tableName")
+    *
+    * val batchTable = btenv.fromDataSet(dataSet)
+    * btenv.registerTable(batchTable, "tableName")
+    * val result = btenv.sqlQuery("SELECT * FROM tableName").collect
     HINT: You can use print() on a DataSet to print the contents to the shell.
 
   Streaming - Use the 'senv' and 'stenv' variable
 
     * val dataStream = senv.fromElements(1, 2, 3, 4)
     * dataStream.countWindowAll(2).sum(0).print()
+    *
+    * val streamTable = stenv.fromDataStream(dataStream, 'num)
+    * val resultTable = streamTable.select('num).where('num % 2 ===1 )
+    * val resultStream = resultTable.toAppendStream[Row]
+    * resultStream.print
     * senv.execute("My streaming program")
-    * val streamTable = stenv.sqlQuery("SELECT * FROM tableName")
     HINT: You can only print a DataStream to the shell in local mode.
       """
     // scalastyle:on
