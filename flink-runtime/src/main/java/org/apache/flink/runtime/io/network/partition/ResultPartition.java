@@ -377,6 +377,16 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		}
 	}
 
+	/**
+	 * Whether this partition is released.
+	 *
+	 * <p>A partition is released when each subpartition is either consumed and communication is closed by consumer
+	 * or failed. A partition is also released if task is cancelled.
+	 */
+	public boolean isReleased() {
+		return isReleased.get();
+	}
+
 	@Override
 	public String toString() {
 		return "ResultPartition " + partitionId.toString() + " [" + partitionType + ", "
