@@ -31,11 +31,12 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Objects;
+import java.util.TreeMap;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -65,9 +66,9 @@ public class Bucket<IN, BucketID> {
 
 	private final RollingPolicy<IN, BucketID> rollingPolicy;
 
-	private final Map<Long, RecoverableWriter.ResumeRecoverable> resumablesPerCheckpoint;
+	private final NavigableMap<Long, RecoverableWriter.ResumeRecoverable> resumablesPerCheckpoint;
 
-	private final Map<Long, List<RecoverableWriter.CommitRecoverable>> pendingPartsPerCheckpoint;
+	private final NavigableMap<Long, List<RecoverableWriter.CommitRecoverable>> pendingPartsPerCheckpoint;
 
 	private long partCounter;
 
@@ -97,8 +98,8 @@ public class Bucket<IN, BucketID> {
 		this.rollingPolicy = checkNotNull(rollingPolicy);
 
 		this.pendingPartsForCurrentCheckpoint = new ArrayList<>();
-		this.pendingPartsPerCheckpoint = new HashMap<>();
-		this.resumablesPerCheckpoint = new HashMap<>();
+		this.pendingPartsPerCheckpoint = new TreeMap<>();
+		this.resumablesPerCheckpoint = new TreeMap<>();
 	}
 
 	/**
@@ -276,17 +277,16 @@ public class Bucket<IN, BucketID> {
 		checkNotNull(fsWriter);
 
 		Iterator<Map.Entry<Long, List<RecoverableWriter.CommitRecoverable>>> it =
-				pendingPartsPerCheckpoint.entrySet().iterator();
+				pendingPartsPerCheckpoint.headMap(checkpointId, true)
+						.entrySet().iterator();
 
 		while (it.hasNext()) {
 			Map.Entry<Long, List<RecoverableWriter.CommitRecoverable>> entry = it.next();
 
-			if (entry.getKey() <= checkpointId) {
-				for (RecoverableWriter.CommitRecoverable committable : entry.getValue()) {
-					fsWriter.recoverForCommit(committable).commit();
-				}
-				it.remove();
+			for (RecoverableWriter.CommitRecoverable committable : entry.getValue()) {
+				fsWriter.recoverForCommit(committable).commit();
 			}
+			it.remove();
 		}
 
 		cleanupOutdatedResumables(checkpointId);
@@ -294,21 +294,16 @@ public class Bucket<IN, BucketID> {
 
 	private void cleanupOutdatedResumables(long checkpointId) throws IOException {
 		Iterator<Map.Entry<Long, RecoverableWriter.ResumeRecoverable>> it =
-				resumablesPerCheckpoint.entrySet().iterator();
+				resumablesPerCheckpoint.headMap(checkpointId, false)
+						.entrySet().iterator();
 
 		while (it.hasNext()) {
-			final Map.Entry<Long, RecoverableWriter.ResumeRecoverable> entry = it.next();
+			final RecoverableWriter.ResumeRecoverable recoverable = it.next().getValue();
+			final boolean successfullyDeleted = fsWriter.cleanupRecoverableState(recoverable);
+			it.remove();
 
-			final long resumableCheckpointId = entry.getKey();
-			if (resumableCheckpointId < checkpointId) {
-
-				final RecoverableWriter.ResumeRecoverable recoverable = entry.getValue();
-				final boolean successfullyDeleted = fsWriter.cleanupRecoverableState(recoverable);
-				it.remove();
-
-				if (LOG.isDebugEnabled() && successfullyDeleted) {
-					LOG.debug("Subtask {} successfully deleted incomplete part for bucket id={}.", subtaskIndex, bucketId);
-				}
+			if (LOG.isDebugEnabled() && successfullyDeleted) {
+				LOG.debug("Subtask {} successfully deleted incomplete part for bucket id={}.", subtaskIndex, bucketId);
 			}
 		}
 	}
