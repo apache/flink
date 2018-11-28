@@ -211,6 +211,7 @@ matchRecognize:
             | SKIP TO variable )
       ]
       PATTERN '(' pattern ')'
+      [ WITHIN intervalLiteral ]
       DEFINE variable AS condition [, variable AS condition ]*
       ')'
 
