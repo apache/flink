@@ -260,8 +260,8 @@ FROM Ticker
         ONE ROW PER MATCH
         AFTER MATCH SKIP PAST LAST ROW
         DEFINE
-            A AS A.price > 10
-            B AS B.price < 15
+            A AS A.price > 10,
+            B AS B.price < 15,
             C AS B.price > 12
     )
 {% endhighlight %}
@@ -304,8 +304,8 @@ variable of a pattern. Thus, a pattern like `(A B*)` is not allowed. This can be
 {% highlight sql %}
 PATTERN (A B* C)
 DEFINE
-    A AS condA()
-    B AS condB()
+    A AS condA(),
+    B AS condB(),
     C AS NOT condB()
 {% endhighlight %}
 
