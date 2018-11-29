@@ -103,6 +103,11 @@ public class CepRuntimeContext implements RuntimeContext {
 		return runtimeContext.getUserCodeClassLoader();
 	}
 
+	@Override
+	public DistributedCache getDistributedCache() {
+		return runtimeContext.getDistributedCache();
+	}
+
 	// -----------------------------------------------------------------------------------
 	// Unsupported operations
 	// -----------------------------------------------------------------------------------
@@ -157,11 +162,6 @@ public class CepRuntimeContext implements RuntimeContext {
 	public <T, C> C getBroadcastVariableWithInitializer(
 		String name, BroadcastVariableInitializer<T, C> initializer) {
 		throw new UnsupportedOperationException("Broadcast variables are not supported.");
-	}
-
-	@Override
-	public DistributedCache getDistributedCache() {
-		throw new UnsupportedOperationException("Distributed cache is not supported.");
 	}
 
 	@Override

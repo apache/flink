@@ -20,6 +20,7 @@ package org.apache.flink.cep;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.FoldFunction;
@@ -134,6 +135,7 @@ public class CepRuntimeContextTest {
 		final String taskNameWithSubtask = "barfoo";
 		final ExecutionConfig executionConfig = mock(ExecutionConfig.class);
 		final ClassLoader userCodeClassLoader = mock(ClassLoader.class);
+		final DistributedCache distributedCache = mock(DistributedCache.class);
 
 		RuntimeContext mockedRuntimeContext = mock(RuntimeContext.class);
 
@@ -145,6 +147,7 @@ public class CepRuntimeContextTest {
 		when(mockedRuntimeContext.getTaskNameWithSubtasks()).thenReturn(taskNameWithSubtask);
 		when(mockedRuntimeContext.getExecutionConfig()).thenReturn(executionConfig);
 		when(mockedRuntimeContext.getUserCodeClassLoader()).thenReturn(userCodeClassLoader);
+		when(mockedRuntimeContext.getDistributedCache()).thenReturn(distributedCache);
 
 		function.setRuntimeContext(mockedRuntimeContext);
 
@@ -159,13 +162,7 @@ public class CepRuntimeContextTest {
 		assertEquals(taskNameWithSubtask, runtimeContext.getTaskNameWithSubtasks());
 		assertEquals(executionConfig, runtimeContext.getExecutionConfig());
 		assertEquals(userCodeClassLoader, runtimeContext.getUserCodeClassLoader());
-
-		try {
-			runtimeContext.getDistributedCache();
-			fail("Expected getDistributedCached to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
+		assertEquals(distributedCache, runtimeContext.getDistributedCache());
 
 		try {
 			runtimeContext.getState(new ValueStateDescriptor<>("foobar", Integer.class, 42));
