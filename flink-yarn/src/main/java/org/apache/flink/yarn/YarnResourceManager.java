@@ -67,6 +67,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import static org.apache.flink.yarn.Utils.overwriteYarnConf;
+
 /**
  * The yarn implementation of the resource manager. Used when the system is started
  * via the resource framework YARN.
@@ -148,6 +150,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			jobManagerMetricGroup);
 		this.flinkConfig  = flinkConfig;
 		this.yarnConfig = new YarnConfiguration();
+		overwriteYarnConf(flinkConfig, yarnConfig);
 		this.env = env;
 		this.workerNodeMap = new ConcurrentHashMap<>();
 		final int yarnHeartbeatIntervalMS = flinkConfig.getInteger(

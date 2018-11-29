@@ -592,4 +592,24 @@ public final class Utils {
 		}
 	}
 
+	/**
+	 * Overwrite YARN config by flink.yarn.* in flink-conf.yaml.
+	 *
+	 * @param config	flink configuration
+	 * @param yarnConf		yarn configuration
+	 */
+	public static void overwriteYarnConf(
+		org.apache.flink.configuration.Configuration config,
+		YarnConfiguration yarnConf) {
+		Map<String, String> flinkYarnConf = new HashMap();
+		for (String key : config.keySet()) {
+			if (key.startsWith("flink.yarn")) {
+				flinkYarnConf.put(key.substring(13), config.getString(key, ""));
+			}
+		}
+		for (String key : flinkYarnConf.keySet()) {
+			yarnConf.set(key, flinkYarnConf.get(key));
+		}
+	}
+
 }

@@ -41,6 +41,7 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.AbstractYarnClusterDescriptor;
+import org.apache.flink.yarn.Utils;
 import org.apache.flink.yarn.YarnClusterDescriptor;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
@@ -164,6 +165,8 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 	private final YarnConfiguration yarnConfiguration;
 
+	private static final Configuration flinkConfiguration = GlobalConfiguration.loadConfiguration();
+
 	public FlinkYarnSessionCli(
 			Configuration configuration,
 			String configurationDirectory,
@@ -262,6 +265,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		}
 
 		this.yarnConfiguration = new YarnConfiguration();
+		Utils.overwriteYarnConf(flinkConfiguration, yarnConfiguration);
 	}
 
 	private AbstractYarnClusterDescriptor createDescriptor(

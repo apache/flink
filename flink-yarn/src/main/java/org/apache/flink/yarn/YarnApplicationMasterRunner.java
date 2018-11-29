@@ -84,6 +84,7 @@ import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.runtime.concurrent.Executors.directExecutionContext;
+import static org.apache.flink.yarn.Utils.overwriteYarnConf;
 import static org.apache.flink.yarn.Utils.require;
 
 /**
@@ -257,6 +258,7 @@ public class YarnApplicationMasterRunner {
 
 			// Hadoop/Yarn configuration (loads config data automatically from classpath files)
 			final YarnConfiguration yarnConfig = new YarnConfiguration();
+			overwriteYarnConf(config, yarnConfig);
 
 			final int taskManagerContainerMemory;
 			final int numInitialTaskManagers;
