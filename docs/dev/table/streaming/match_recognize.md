@@ -149,7 +149,7 @@ MATCH_RECOGNIZE (
     DEFINE
         PRICE_DOWN AS
             (LAST(PRICE_DOWN.price, 1) IS NULL AND PRICE_DOWN.price < START_ROW.price) OR
-                PRICE_DOWN.price < LAST(PRICE_DOWN.price, 1)
+                PRICE_DOWN.price < LAST(PRICE_DOWN.price, 1),
         PRICE_UP AS
             PRICE_UP.price > LAST(PRICE_DOWN.price, 1)
     ) MR;
@@ -260,8 +260,8 @@ FROM Ticker
         ONE ROW PER MATCH
         AFTER MATCH SKIP PAST LAST ROW
         DEFINE
-            A AS A.price > 10
-            B AS B.price < 15
+            A AS A.price > 10,
+            B AS B.price < 15,
             C AS B.price > 12
     )
 {% endhighlight %}
@@ -304,8 +304,8 @@ variable of a pattern. Thus, a pattern like `(A B*)` is not allowed. This can be
 {% highlight sql %}
 PATTERN (A B* C)
 DEFINE
-    A AS condA()
-    B AS condB()
+    A AS condA(),
+    B AS condB(),
     C AS NOT condB()
 {% endhighlight %}
 
@@ -331,8 +331,8 @@ FROM Ticker
         PARTITION BY symbol
         ORDER BY rowtime
         MEASURES
-            FIRST(A.price) AS startPrice
-            LAST(A.price) AS topPrice
+            FIRST(A.price) AS startPrice,
+            LAST(A.price) AS topPrice,
             B.price AS lastPrice
         PATTERN (A+ B)
         ONE ROW PER MATCH
@@ -366,13 +366,13 @@ The pattern recognition is partitioned by the `symbol` column. Even though not e
 Pattern Navigation
 ------------------
 
-The `DEFINE` and `MEASURE` clauses allow for navigating within the list of rows that (potentially) match a pattern.
+The `DEFINE` and `MEASURES` clauses allow for navigating within the list of rows that (potentially) match a pattern.
 
 This section discusses this navigation for declaring conditions or producing output results.
 
 ### Pattern Variable Referencing
 
-A _pattern variable reference_ allows a set of rows mapped to a particular pattern variable in the `DEFINE` or `MEASURE` clauses to be referenced.
+A _pattern variable reference_ allows a set of rows mapped to a particular pattern variable in the `DEFINE` or `MEASURES` clauses to be referenced.
 
 For example, the expression `A.price` describes a set of rows mapped so far to `A` plus the current row
 if we try to match the current row to `A`. If an expression in the `DEFINE`/`MEASURES` clause requires a single row (e.g. `A.price` or `A.price > 10`),
