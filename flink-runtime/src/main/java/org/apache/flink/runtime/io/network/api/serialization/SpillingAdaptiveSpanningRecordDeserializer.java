@@ -26,6 +26,8 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedInputStream;
 import java.io.EOFException;
@@ -44,6 +46,7 @@ import java.util.Random;
  * @param <T> The type of the record to be deserialized.
  */
 public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> implements RecordDeserializer<T> {
+	private static final Logger LOG = LoggerFactory.getLogger(SpillingAdaptiveSpanningRecordDeserializer.class);
 
 	private static final String BROKEN_SERIALIZATION_ERROR_MESSAGE =
 					"Serializer consumed more bytes than the record had. " +
@@ -634,8 +637,12 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 			for (int attempt = 0; attempt < maxAttempts; attempt++) {
 				String directory = tempDirs[rnd.nextInt(tempDirs.length)];
 				spillFile = new File(directory, randomString(rnd) + ".inputchannel");
-				if (spillFile.createNewFile()) {
-					return new RandomAccessFile(spillFile, "rw").getChannel();
+				try {
+					if (spillFile.createNewFile()) {
+						return new RandomAccessFile(spillFile, "rw").getChannel();
+					}
+				} catch (IOException e) {
+					LOG.warn("Exception while find a unique file name for the spilling channel, try it again.", e);
 				}
 			}
 
