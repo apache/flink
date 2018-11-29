@@ -1523,6 +1523,67 @@ public class WindowOperatorTest extends TestLogger {
 	}
 
 	@Test
+	public void testNotSideOutputDueToLatenessTumblingWithUnlimitedLateness() throws Exception {
+		final int windowSize = 2;
+		final long lateness = Long.MAX_VALUE;
+
+		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc =
+			new ReducingStateDescriptor<>("window-contents",
+			new SumReducer(),
+			STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+
+		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator =
+			new WindowOperator<>(
+				TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+				new TimeWindow.Serializer(),
+				new TupleKeySelector(),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+				stateDesc,
+				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<>()),
+				EventTimeTrigger.create(),
+				lateness,
+				lateOutputTag);
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
+			createTestHarness(operator);
+
+		testHarness.open();
+
+		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
+		testHarness.processWatermark(new Watermark(1985));
+
+		expected.add(new Watermark(1985));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1980));
+		testHarness.processWatermark(new Watermark(1999));
+
+		expected.add(new StreamRecord<>(new Tuple2<>("key2", 2), 1999));
+		expected.add(new Watermark(1999));
+
+		// this will not be dropped because we allow unlimited lateness
+		// and the element will be immediately emitted because window.maxTimestamp() <= currentWatermark
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1998));
+		expected.add(new StreamRecord<>(new Tuple2<>("key2", 3), 1999));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 2001));
+		testHarness.processWatermark(new Watermark(2999));
+
+		expected.add(new Watermark(2999));
+
+		testHarness.processWatermark(new Watermark(3999));
+
+		expected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 3999));
+		expected.add(new Watermark(3999));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.",
+			expected, testHarness.getOutput(), new Tuple2ResultSortComparator());
+		assertEquals(null, testHarness.getSideOutput(lateOutputTag));
+		testHarness.close();
+	}
+
+	@Test
 	public void testSideOutputDueToLatenessTumbling() throws Exception {
 		final int windowSize = 2;
 		final long lateness = 0;
