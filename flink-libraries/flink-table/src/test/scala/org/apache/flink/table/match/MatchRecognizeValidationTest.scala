@@ -247,4 +247,25 @@ class MatchRecognizeValidationTest extends TableTestBase {
 
     streamUtils.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
   }
+
+  @Test
+  def testDistinctAggregationsNotSupported(): Unit = {
+    thrown.expect(classOf[ValidationException])
+
+    val sqlQuery =
+      s"""
+         |SELECT *
+         |FROM Ticker
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    COUNT(DISTINCT A.price) AS price
+         |  PATTERN (A B)
+         |  DEFINE
+         |    A AS A.symbol = 'a'
+         |) AS T
+         |""".stripMargin
+
+    streamUtils.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+  }
 }

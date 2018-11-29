@@ -959,4 +959,4 @@ Unsupported features include:
 * Extracting time attributes - there is currently no possibility to get a time attribute for subsequent time-based operations.
 * `MATCH_RECOGNIZE` is supported only for SQL. There is no equivalent in the Table API.
 * Aggregations:
-  * distinct aggregations are not supported. Moreover if specified it will be silently dropped unfortunately.
+  * distinct aggregations are not supported.

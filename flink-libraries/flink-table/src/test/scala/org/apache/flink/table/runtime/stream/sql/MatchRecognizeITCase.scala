@@ -510,7 +510,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
          |  MEASURES
          |    FIRST(id) as startId,
          |    SUM(A.price) AS sumA,
-         |    COUNT(DISTINCT D.price) AS countD,
+         |    COUNT(D.price) AS countD,
          |    SUM(D.price) as sumD,
          |    weightedAvg(price, weight) as wAvg,
          |    AVG(B.price) AS avgB,
