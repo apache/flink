@@ -44,7 +44,7 @@ import java.util.Properties;
  */
 @Deprecated
 @Internal
-public abstract class KafkaAvroTableSource extends KafkaTableSource {
+public abstract class KafkaAvroTableSource extends KafkaTableSourceBase {
 
 	/**
 	 * Creates a generic Kafka Avro {@link StreamTableSource} using a given {@link SpecificRecord}.
@@ -93,7 +93,7 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource {
 	 */
 	@Deprecated
 	protected abstract static class Builder<T extends KafkaAvroTableSource, B extends KafkaAvroTableSource.Builder>
-		extends KafkaTableSource.Builder<T, B> {
+		extends KafkaTableSourceBase.Builder<T, B> {
 
 		private Class<? extends SpecificRecordBase> avroClass;
 

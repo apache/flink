@@ -22,7 +22,6 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.formats.json.JsonRowSchemaConverter;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.Json;
 import org.apache.flink.table.descriptors.Kafka;
@@ -114,7 +113,7 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 		specificOffsets.put(new KafkaTopicPartition(TOPIC, 0), 100L);
 		specificOffsets.put(new KafkaTopicPartition(TOPIC, 1), 123L);
 
-		final KafkaTableSource builderSource = builder()
+		final KafkaTableSourceBase builderSource = builder()
 				.forJsonSchema(TableSchema.fromTypeInfo(JsonRowSchemaConverter.convert(JSON_SCHEMA)))
 				.failOnMissingField(true)
 				.withTableToJsonMapping(tableJsonMapping)
@@ -156,11 +155,10 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 						.field("proc-time", Types.SQL_TIMESTAMP).proctime())
 			.inAppendMode();
 
-		DescriptorProperties properties = new DescriptorProperties(true);
-		testDesc.addProperties(properties);
+		final Map<String, String> properties = testDesc.toProperties();
 		final TableSource<?> factorySource =
-				TableFactoryService.find(StreamTableSourceFactory.class, testDesc)
-						.createStreamTableSource(properties.asMap());
+				TableFactoryService.find(StreamTableSourceFactory.class, properties)
+						.createStreamTableSource(properties);
 
 		assertEquals(builderSource, factorySource);
 	}

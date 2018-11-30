@@ -54,7 +54,7 @@ public abstract class CassandraOutputFormatBase<OUT> extends RichOutputFormat<OU
 
 	public CassandraOutputFormatBase(String insertQuery, ClusterBuilder builder) {
 		Preconditions.checkArgument(!Strings.isNullOrEmpty(insertQuery), "Query cannot be null or empty");
-		Preconditions.checkArgument(builder != null, "Builder cannot be null");
+		Preconditions.checkNotNull(builder, "Builder cannot be null");
 
 		this.insertQuery = insertQuery;
 		this.builder = builder;

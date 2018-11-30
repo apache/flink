@@ -338,6 +338,11 @@ trait ImplicitExpressionOperations {
   def power(other: Expression) = Power(expr, other)
 
   /**
+    * Calculates the hyperbolic cosine of a given value.
+    */
+  def cosh() = Cosh(expr)
+
+  /**
     * Calculates the square root of a given value.
     */
   def sqrt() = Sqrt(expr)
@@ -351,6 +356,11 @@ trait ImplicitExpressionOperations {
     * Calculates the largest integer less than or equal to a given number.
     */
   def floor() = Floor(expr)
+
+  /**
+    * Calculates the hyperbolic sine of a given value.
+    */
+  def sinh() = Sinh(expr)
 
   /**
     * Calculates the smallest integer greater than or equal to a given number.
@@ -391,6 +401,11 @@ trait ImplicitExpressionOperations {
     * Calculates the arc tangent of a given number.
     */
   def atan() = Atan(expr)
+
+  /**
+    * Calculates the hyperbolic tangent of a given number.
+    */
+  def tanh() = Tanh(expr)
 
   /**
     * Converts numeric from radians to degrees.
@@ -578,6 +593,18 @@ trait ImplicitExpressionOperations {
     */
   def regexpReplace(regex: Expression, replacement: Expression) =
     RegexpReplace(expr, regex, replacement)
+
+  /**
+    * Returns a string extracted with a specified regular expression and a regex match group index.
+    */
+  def regexpExtract(regex: Expression, extractIndex: Expression) =
+    RegexpExtract(expr, regex, extractIndex)
+
+  /**
+    * Returns a string extracted with a specified regular expression.
+    */
+  def regexpExtract(regex: Expression) =
+    RegexpExtract(expr, regex, null)
 
   /**
     * Returns the base string decoded with base64.

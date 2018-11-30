@@ -19,8 +19,8 @@
 package org.apache.flink.table.api.stream.sql.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.junit.Test
 
@@ -29,18 +29,6 @@ class JoinValidationTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()
   streamUtil.addTable[(Int, String, Long)]("MyTable", 'a, 'b, 'c.rowtime, 'proctime.proctime)
   streamUtil.addTable[(Int, String, Long)]("MyTable2", 'a, 'b, 'c.rowtime, 'proctime.proctime)
-
-  /** There should exist exactly two time conditions **/
-  @Test(expected = classOf[TableException])
-  def testWindowJoinSingleTimeCondition() = {
-    val sql =
-      """
-        |SELECT t2.a
-        |FROM MyTable t1 JOIN MyTable2 t2 ON
-        |  t1.a = t2.a AND
-        |  t1.proctime > t2.proctime - INTERVAL '5' SECOND""".stripMargin
-    streamUtil.verifySql(sql, "n/a")
-  }
 
   /** Both time attributes in a join condition must be of the same type **/
   @Test(expected = classOf[TableException])
@@ -133,6 +121,80 @@ class JoinValidationTest extends TableTestBase {
         |FROM MyTable t1, MyTable2 t2
         |WHERE t1.a = t2.a AND t1.proctime > t2.proctime
         | """.stripMargin
+
+    streamUtil.verifySql(sql, "n/a")
+  }
+
+  /** Rowtime attributes cannot be accessed in filter conditions yet. */
+  @Test
+  def testJoinWithRowtimeCondition(): Unit = {
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage(
+      "Rowtime attributes must not be in the input rows of a regular join.")
+
+    val sql =
+      """
+        |SELECT t2.a
+        |FROM MyTable t1 JOIN MyTable2 t2 ON
+        |  t1.a = t2.a AND
+        |  t1.c > t2.c - INTERVAL '5' SECOND
+        |""".stripMargin
+
+    streamUtil.verifySql(sql, "n/a")
+  }
+
+  /** Rowtime attributes cannot be accessed in filter conditions yet. */
+  @Test
+  def testJoinWithRowtimeConditionFromComplexQuery(): Unit = {
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage(
+      "Rowtime attributes must not be in the input rows of a regular join.")
+
+    val util = streamTestUtil()
+
+    util.addTable[(Long, Long)]("MyTable1", 'id, 'eventTs.rowtime)
+
+    util.addTable[(Long, Long)]("MyTable2", 'id, 'eventTs.rowtime)
+
+    val sql1 =
+      """SELECT
+        |  id,
+        |  eventTs AS t1,
+        |  COUNT(*) OVER (
+        |    PARTITION BY id ORDER BY eventTs ROWS BETWEEN 100 PRECEDING AND CURRENT ROW
+        |  ) AS cnt1
+        |FROM MyTable1
+        |""".stripMargin
+    val sql2 =
+      """SELECT DISTINCT
+        |  id AS r_id,
+        |  eventTs AS t2,
+        |  COUNT(*) OVER (
+        |    PARTITION BY id ORDER BY eventTs ROWS BETWEEN 50 PRECEDING AND CURRENT ROW
+        |  ) AS cnt2
+        |FROM MyTable2
+        |""".stripMargin
+
+    val left = util.tableEnv.sqlQuery(sql1)
+    val right = util.tableEnv.sqlQuery(sql2)
+    val result = left.join(right).where("id === r_id && t1 === t2").select("id, t1")
+
+    util.verifyTable(result, "n/a")
+  }
+
+  /** Rowtime attributes cannot be accessed in projection yet. */
+  @Test
+  def testJoinWithRowtimeProjection(): Unit = {
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage(
+      "Rowtime attributes must not be in the input rows of a regular join.")
+
+    val sql =
+      """
+        |SELECT t2.a, t2.c
+        |FROM MyTable t1 JOIN MyTable2 t2 ON
+        |  t1.a = t2.a
+        |""".stripMargin
 
     streamUtil.verifySql(sql, "n/a")
   }

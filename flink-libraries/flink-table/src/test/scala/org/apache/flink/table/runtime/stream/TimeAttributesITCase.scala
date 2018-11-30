@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.stream
 
 import java.lang.{Integer => JInt, Long => JLong}
 import java.math.BigDecimal
+import java.sql.Timestamp
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -185,13 +186,23 @@ class TimeAttributesITCase extends AbstractTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     MemoryTableSourceSinkUtil.clear()
 
+    tEnv.registerTableSink(
+      "testSink",
+      (new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink).configure(
+        Array[String]("rowtime", "floorDay", "ceilDay"),
+        Array[TypeInformation[_]](Types.SQL_TIMESTAMP, Types.SQL_TIMESTAMP, Types.SQL_TIMESTAMP)
+      ))
+
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
     stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
       .filter('rowtime.cast(Types.LONG) > 4)
-      .select('rowtime, 'rowtime.floor(TimeIntervalUnit.DAY), 'rowtime.ceil(TimeIntervalUnit.DAY))
-      .writeToSink(new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink)
+      .select(
+        'rowtime,
+        'rowtime.floor(TimeIntervalUnit.DAY).as('floorDay),
+        'rowtime.ceil(TimeIntervalUnit.DAY).as('ceilDay))
+      .insertInto("testSink")
 
     env.execute()
 
@@ -649,6 +660,51 @@ class TimeAttributesITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.008",
       "1970-01-01 00:00:00.017"
     )
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testMaterializedRowtimeFilter(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = new mutable.MutableList[(String, Timestamp, Int)]
+    data.+=(("ACME", new Timestamp(1000L), 12))
+    data.+=(("ACME", new Timestamp(2000L), 17))
+    data.+=(("ACME", new Timestamp(3000L), 13))
+    data.+=(("ACME", new Timestamp(4000L), 11))
+
+    val t = env.fromCollection(data)
+      .assignAscendingTimestamps(e => e._2.toInstant.toEpochMilli)
+      .toTable(tEnv, 'symbol, 'tstamp.rowtime, 'price)
+    tEnv.registerTable("Ticker", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT *
+         |FROM (
+         |   SELECT symbol, SUM(price) as price,
+         |     TUMBLE_ROWTIME(tstamp, interval '1' second) as rowTime,
+         |     TUMBLE_START(tstamp, interval '1' second) as startTime,
+         |     TUMBLE_END(tstamp, interval '1' second) as endTime
+         |   FROM Ticker
+         |   GROUP BY symbol, TUMBLE(tstamp, interval '1' second)
+         |)
+         |WHERE startTime < endTime
+         |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List(
+      "ACME,12,1970-01-01 00:00:01.999,1970-01-01 00:00:01.0,1970-01-01 00:00:02.0",
+      "ACME,17,1970-01-01 00:00:02.999,1970-01-01 00:00:02.0,1970-01-01 00:00:03.0",
+      "ACME,13,1970-01-01 00:00:03.999,1970-01-01 00:00:03.0,1970-01-01 00:00:04.0",
+      "ACME,11,1970-01-01 00:00:04.999,1970-01-01 00:00:04.0,1970-01-01 00:00:05.0")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }

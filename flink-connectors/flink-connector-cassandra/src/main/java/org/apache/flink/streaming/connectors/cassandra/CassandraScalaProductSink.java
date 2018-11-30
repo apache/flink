@@ -27,7 +27,11 @@ import scala.Product;
  */
 public class CassandraScalaProductSink<IN extends Product> extends AbstractCassandraTupleSink<IN> {
 	public CassandraScalaProductSink(String insertQuery, ClusterBuilder builder) {
-		super(insertQuery, builder);
+		this(insertQuery, builder, new NoOpCassandraFailureHandler());
+	}
+
+	public CassandraScalaProductSink(String insertQuery, ClusterBuilder builder, CassandraFailureHandler failureHandler) {
+		super(insertQuery, builder, failureHandler);
 	}
 
 	@Override

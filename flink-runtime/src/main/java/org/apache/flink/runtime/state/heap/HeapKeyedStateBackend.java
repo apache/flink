@@ -28,10 +28,9 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -206,14 +205,15 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			StateMetaInfoSnapshot.CommonSerializerKeys serializerKey =
 				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER;
 
-			CompatibilityResult<T> compatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
-				restoredMetaInfoSnapshot.getTypeSerializer(serializerKey),
-				null,
-				restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(serializerKey),
-				byteOrderedElementSerializer);
+			@SuppressWarnings("unchecked")
+			TypeSerializerSnapshot<T> serializerSnapshot = Preconditions.checkNotNull(
+				(TypeSerializerSnapshot<T>) restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(serializerKey));
 
-			if (compatibilityResult.isRequiresMigration()) {
-				throw new FlinkRuntimeException(StateMigrationException.notSupported());
+			TypeSerializerSchemaCompatibility<T> compatibilityResult =
+				serializerSnapshot.resolveSchemaCompatibility(byteOrderedElementSerializer);
+
+			if (compatibilityResult.isIncompatible()) {
+				throw new FlinkRuntimeException(new StateMigrationException("For heap backends, the new priority queue serializer must not be incompatible."));
 			} else {
 				registeredPQStates.put(
 					stateName,
@@ -257,7 +257,14 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		@SuppressWarnings("unchecked")
 		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) registeredKVStates.get(stateDesc.getName());
 
-		RegisteredKeyValueStateBackendMetaInfo<N, V> newMetaInfo;
+		TypeSerializer<V> newStateSerializer = stateDesc.getSerializer();
+		RegisteredKeyValueStateBackendMetaInfo<N, V> newMetaInfo = new RegisteredKeyValueStateBackendMetaInfo<>(
+			stateDesc.getType(),
+			stateDesc.getName(),
+			namespaceSerializer,
+			newStateSerializer,
+			snapshotTransformer);
+
 		if (stateTable != null) {
 			@SuppressWarnings("unchecked")
 			StateMetaInfoSnapshot restoredMetaInfoSnapshot =
@@ -269,21 +276,33 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				"Requested to check compatibility of a restored RegisteredKeyedBackendStateMetaInfo," +
 					" but its corresponding restored snapshot cannot be found.");
 
-			newMetaInfo = RegisteredKeyValueStateBackendMetaInfo.resolveKvStateCompatibility(
-				restoredMetaInfoSnapshot,
-				namespaceSerializer,
-				stateDesc,
-				snapshotTransformer);
+			@SuppressWarnings("unchecked")
+			TypeSerializerSnapshot<N> namespaceSerializerSnapshot = Preconditions.checkNotNull(
+				(TypeSerializerSnapshot<N>) restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(
+					StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString()));
+
+			TypeSerializerSchemaCompatibility<N> namespaceCompatibility =
+				namespaceSerializerSnapshot.resolveSchemaCompatibility(namespaceSerializer);
+			if (namespaceCompatibility.isIncompatible()) {
+				throw new StateMigrationException("For heap backends, the new namespace serializer must not be incompatible.");
+			}
+
+			@SuppressWarnings("unchecked")
+			TypeSerializerSnapshot<V> stateSerializerSnapshot = Preconditions.checkNotNull(
+				(TypeSerializerSnapshot<V>) restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(
+					StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString()));
+
+			RegisteredKeyValueStateBackendMetaInfo.checkStateMetaInfo(restoredMetaInfoSnapshot, stateDesc);
+
+			TypeSerializerSchemaCompatibility<V> stateCompatibility =
+				stateSerializerSnapshot.resolveSchemaCompatibility(newStateSerializer);
+
+			if (stateCompatibility.isIncompatible()) {
+				throw new StateMigrationException("For heap backends, the new state serializer must not be incompatible.");
+			}
 
 			stateTable.setMetaInfo(newMetaInfo);
 		} else {
-			newMetaInfo = new RegisteredKeyValueStateBackendMetaInfo<>(
-				stateDesc.getType(),
-				stateDesc.getName(),
-				namespaceSerializer,
-				stateDesc.getSerializer(),
-				snapshotTransformer);
-
 			stateTable = snapshotStrategy.newStateTable(newMetaInfo);
 			registeredKVStates.put(stateDesc.getName(), stateTable);
 		}
@@ -405,26 +424,17 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			try {
 				DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(fsDataInputStream);
 
-				// isSerializerPresenceRequired flag is set to true, since for the heap state backend,
-				// deserialization of state happens eagerly at restore time
 				KeyedBackendSerializationProxy<K> serializationProxy =
-						new KeyedBackendSerializationProxy<>(userCodeClassLoader, true);
+						new KeyedBackendSerializationProxy<>(userCodeClassLoader);
 
 				serializationProxy.read(inView);
 
 				if (!keySerializerRestored) {
 					// check for key serializer compatibility; this also reconfigures the
 					// key serializer to be compatible, if it is required and is possible
-					if (CompatibilityUtil.resolveCompatibilityResult(
-							serializationProxy.getKeySerializer(),
-							UnloadableDummyTypeSerializer.class,
-							serializationProxy.getKeySerializerConfigSnapshot(),
-							keySerializer)
-						.isRequiresMigration()) {
-
-						// TODO replace with state migration; note that key hash codes need to remain the same after migration
-						throw new StateMigrationException("The new key serializer is not compatible to read previous keys. " +
-							"Aborting now since state migration is currently not available");
+					if (!serializationProxy.getKeySerializerConfigSnapshot()
+							.resolveSchemaCompatibility(keySerializer).isCompatibleAsIs()) {
+						throw new StateMigrationException("The new key serializer must be compatible.");
 					}
 
 					keySerializerRestored = true;

@@ -19,10 +19,10 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -133,7 +133,7 @@ public class YarnTaskExecutorRunner {
 			// use the hostname passed by job manager
 			final String taskExecutorHostname = ENV.get(YarnResourceManager.ENV_FLINK_NODE_ID);
 			if (taskExecutorHostname != null) {
-				configuration.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, taskExecutorHostname);
+				configuration.setString(TaskManagerOptions.HOST, taskExecutorHostname);
 			}
 
 			SecurityUtils.install(sc);

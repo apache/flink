@@ -32,12 +32,16 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.queryablestate.KvStateID;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.OperatorState;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
@@ -66,38 +70,56 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
+import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultSlotPoolFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
+import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
+import org.apache.flink.runtime.query.KvStateLocation;
+import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
+import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
+import org.apache.flink.runtime.taskexecutor.rpc.RpcCheckpointResponder;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.SupplierWithException;
 
+import akka.actor.ActorSystem;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.After;
@@ -114,6 +136,9 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -136,6 +161,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -228,6 +254,73 @@ public class JobMasterTest extends TestLogger {
 		if (rpcService != null) {
 			rpcService.stopService();
 			rpcService = null;
+		}
+	}
+
+	@Test
+	public void testDeclineCheckpointInvocationWithUserException() throws Exception {
+		RpcService rpcService1 = null;
+		RpcService rpcService2 = null;
+		try {
+			final ActorSystem actorSystem1 = AkkaUtils.createDefaultActorSystem();
+			final ActorSystem actorSystem2 = AkkaUtils.createDefaultActorSystem();
+
+			rpcService1 = new AkkaRpcService(actorSystem1, testingTimeout);
+			rpcService2 = new AkkaRpcService(actorSystem2, testingTimeout);
+
+			final CompletableFuture<Throwable> declineCheckpointMessageFuture = new CompletableFuture<>();
+
+			final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+			final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
+			final JobMaster jobMaster = new JobMaster(
+				rpcService1,
+				jobMasterConfiguration,
+				jmResourceId,
+				jobGraph,
+				haServices,
+				DefaultSlotPoolFactory.fromConfiguration(configuration, rpcService1),
+				jobManagerSharedServices,
+				heartbeatServices,
+				blobServer,
+				UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
+				new NoOpOnCompletionActions(),
+				testingFatalErrorHandler,
+				JobMasterTest.class.getClassLoader()) {
+				@Override
+				public void declineCheckpoint(DeclineCheckpoint declineCheckpoint) {
+					declineCheckpointMessageFuture.complete(declineCheckpoint.getReason());
+				}
+			};
+
+			jobMaster.start(jobMasterId, testingTimeout).get();
+
+			final String className = "UserException";
+			final URLClassLoader userClassLoader = ClassLoaderUtils.compileAndLoadJava(
+				temporaryFolder.newFolder(),
+				className + ".java",
+				String.format("public class %s extends RuntimeException { public %s() {super(\"UserMessage\");} }",
+					className,
+					className));
+
+			Throwable userException = (Throwable) Class.forName(className, false, userClassLoader).newInstance();
+
+			JobMasterGateway jobMasterGateway =
+				rpcService2.connect(jobMaster.getAddress(), jobMaster.getFencingToken(), JobMasterGateway.class).get();
+
+			RpcCheckpointResponder rpcCheckpointResponder = new RpcCheckpointResponder(jobMasterGateway);
+			rpcCheckpointResponder.declineCheckpoint(
+				jobGraph.getJobID(),
+				new ExecutionAttemptID(1, 1),
+				1,
+				userException
+			);
+
+			Throwable throwable = declineCheckpointMessageFuture.get(testingTimeout.toMilliseconds(),
+				TimeUnit.MILLISECONDS);
+			assertThat(throwable, instanceOf(SerializedThrowable.class));
+			assertThat(throwable.getMessage(), equalTo(userException.getMessage()));
+		} finally {
+			RpcUtils.terminateRpcServices(testingTimeout, rpcService1, rpcService2);
 		}
 	}
 
@@ -372,6 +465,67 @@ public class JobMasterTest extends TestLogger {
 		final JobMaster jobMaster = createJobMaster(
 			configuration,
 			jobGraph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder().build());
+
+		try {
+			// starting the JobMaster should have read the savepoint
+			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint();
+
+			assertThat(savepointCheckpoint, Matchers.notNullValue());
+
+			assertThat(savepointCheckpoint.getCheckpointID(), is(savepointId));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
+	/**
+	 * Tests that a JobMaster will only restore a modified JobGraph if non
+	 * restored state is allowed.
+	 */
+	@Test
+	public void testRestoringModifiedJobFromSavepoint() throws Exception {
+
+		// create savepoint data
+		final long savepointId = 42L;
+		final OperatorID operatorID = new OperatorID();
+		final File savepointFile = createSavepointWithOperatorState(savepointId, operatorID);
+
+		// set savepoint settings which don't allow non restored state
+		final SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.forPath(
+			savepointFile.getAbsolutePath(),
+			false);
+
+		// create a new operator
+		final JobVertex jobVertex = new JobVertex("New operator");
+		jobVertex.setInvokableClass(NoOpInvokable.class);
+		final JobGraph jobGraphWithNewOperator = createJobGraphFromJobVerticesWithCheckpointing(savepointRestoreSettings, jobVertex);
+
+		final StandaloneCompletedCheckpointStore completedCheckpointStore = new StandaloneCompletedCheckpointStore(1);
+		final TestingCheckpointRecoveryFactory testingCheckpointRecoveryFactory = new TestingCheckpointRecoveryFactory(completedCheckpointStore, new StandaloneCheckpointIDCounter());
+		haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
+
+		try {
+			createJobMaster(
+				configuration,
+				jobGraphWithNewOperator,
+				haServices,
+				new TestingJobManagerSharedServicesBuilder().build());
+			fail("Should fail because we cannot resume the changed JobGraph from the savepoint.");
+		} catch (IllegalStateException expected) {
+			// that was expected :-)
+		}
+
+		// allow for non restored state
+		jobGraphWithNewOperator.setSavepointRestoreSettings(
+			SavepointRestoreSettings.forPath(
+				savepointFile.getAbsolutePath(),
+				true));
+
+		final JobMaster jobMaster = createJobMaster(
+			configuration,
+			jobGraphWithNewOperator,
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build());
 
@@ -836,6 +990,234 @@ public class JobMasterTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testRequestKvStateWithoutRegistration() throws Exception {
+		final JobGraph graph = createKvJobGraph();
+
+		final JobMaster jobMaster = createJobMaster(
+			configuration,
+			graph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder().build(),
+			heartbeatServices);
+
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+		try {
+			// wait for the start to complete
+			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+			// lookup location
+			try {
+				jobMasterGateway.requestKvStateLocation(graph.getJobID(), "unknown").get();
+				fail("Expected to fail with UnknownKvStateLocation");
+			} catch (Exception e) {
+				assertTrue(ExceptionUtils.findThrowable(e, UnknownKvStateLocation.class).isPresent());
+			}
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
+	@Test
+	public void testRequestKvStateOfWrongJob() throws Exception {
+		final JobGraph graph = createKvJobGraph();
+
+		final JobMaster jobMaster = createJobMaster(
+			configuration,
+			graph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder().build(),
+			heartbeatServices);
+
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+		try {
+			// wait for the start to complete
+			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+			// lookup location
+			try {
+				jobMasterGateway.requestKvStateLocation(new JobID(), "unknown").get();
+				fail("Expected to fail with FlinkJobNotFoundException");
+			} catch (Exception e) {
+				assertTrue(ExceptionUtils.findThrowable(e, FlinkJobNotFoundException.class).isPresent());
+			}
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
+	@Nonnull
+	public JobGraph createKvJobGraph() {
+		final JobVertex vertex1 = new JobVertex("v1");
+		vertex1.setParallelism(4);
+		vertex1.setMaxParallelism(16);
+		vertex1.setInvokableClass(BlockingNoOpInvokable.class);
+
+		final JobVertex vertex2 = new JobVertex("v2");
+		vertex2.setParallelism(4);
+		vertex2.setMaxParallelism(16);
+		vertex2.setInvokableClass(BlockingNoOpInvokable.class);
+
+		return new JobGraph(vertex1, vertex2);
+	}
+
+	@Test
+	public void testRequestKvStateWithIrrelevantRegistration() throws Exception {
+		final JobGraph graph = createKvJobGraph();
+
+		final JobMaster jobMaster = createJobMaster(
+			configuration,
+			graph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder().build(),
+			heartbeatServices);
+
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+		try {
+			// wait for the start to complete
+			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+			// register an irrelevant KvState
+			try {
+				jobMasterGateway.notifyKvStateRegistered(
+					new JobID(),
+					new JobVertexID(),
+					new KeyGroupRange(0, 0),
+					"any-name",
+					new KvStateID(),
+					new InetSocketAddress(InetAddress.getLocalHost(), 1233)).get();
+				fail("Expected to fail with FlinkJobNotFoundException.");
+			} catch (Exception e) {
+				assertTrue(ExceptionUtils.findThrowable(e, FlinkJobNotFoundException.class).isPresent());
+			}
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
+	@Test
+	public void testRegisterAndUnregisterKvState() throws Exception {
+		final JobGraph graph = createKvJobGraph();
+		final List<JobVertex> jobVertices = graph.getVerticesSortedTopologicallyFromSources();
+		final JobVertex vertex1 = jobVertices.get(0);
+
+		final JobMaster jobMaster = createJobMaster(
+			configuration,
+			graph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder().build(),
+			heartbeatServices);
+
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+		try {
+			// wait for the start to complete
+			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+			// register a KvState
+			final String registrationName = "register-me";
+			final KvStateID kvStateID = new KvStateID();
+			final KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
+			final InetSocketAddress address = new InetSocketAddress(InetAddress.getLocalHost(), 1029);
+
+			jobMasterGateway.notifyKvStateRegistered(
+				graph.getJobID(),
+				vertex1.getID(),
+				keyGroupRange,
+				registrationName,
+				kvStateID,
+				address).get();
+
+			final KvStateLocation location = jobMasterGateway.requestKvStateLocation(graph.getJobID(), registrationName).get();
+
+			assertEquals(graph.getJobID(), location.getJobId());
+			assertEquals(vertex1.getID(), location.getJobVertexId());
+			assertEquals(vertex1.getMaxParallelism(), location.getNumKeyGroups());
+			assertEquals(1, location.getNumRegisteredKeyGroups());
+			assertEquals(1, keyGroupRange.getNumberOfKeyGroups());
+			assertEquals(kvStateID, location.getKvStateID(keyGroupRange.getStartKeyGroup()));
+			assertEquals(address, location.getKvStateServerAddress(keyGroupRange.getStartKeyGroup()));
+
+			// unregister the KvState
+			jobMasterGateway.notifyKvStateUnregistered(
+				graph.getJobID(),
+				vertex1.getID(),
+				keyGroupRange,
+				registrationName).get();
+
+			try {
+				jobMasterGateway.requestKvStateLocation(graph.getJobID(), registrationName).get();
+				fail("Expected to fail with an UnknownKvStateLocation.");
+			} catch (Exception e) {
+				assertTrue(ExceptionUtils.findThrowable(e, UnknownKvStateLocation.class).isPresent());
+			}
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
+	@Test
+	public void testDuplicatedKvStateRegistrationsFailTask() throws Exception {
+		final JobGraph graph = createKvJobGraph();
+		final List<JobVertex> jobVertices = graph.getVerticesSortedTopologicallyFromSources();
+		final JobVertex vertex1 = jobVertices.get(0);
+		final JobVertex vertex2 = jobVertices.get(1);
+
+		final JobMaster jobMaster = createJobMaster(
+			configuration,
+			graph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder().build(),
+			heartbeatServices);
+
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+		try {
+			// wait for the start to complete
+			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+			// duplicate registration fails task
+
+			// register a KvState
+			final String registrationName = "duplicate-me";
+			final KvStateID kvStateID = new KvStateID();
+			final KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
+			final InetSocketAddress address = new InetSocketAddress(InetAddress.getLocalHost(), 4396);
+
+			jobMasterGateway.notifyKvStateRegistered(
+				graph.getJobID(),
+				vertex1.getID(),
+				keyGroupRange,
+				registrationName,
+				kvStateID,
+				address).get();
+
+			try {
+				jobMasterGateway.notifyKvStateRegistered(
+					graph.getJobID(),
+					vertex2.getID(), // <--- different operator, but...
+					keyGroupRange,
+					registrationName,  // ...same name
+					kvStateID,
+					address).get();
+				fail("Expected to fail because of clashing registration message.");
+			} catch (Exception e) {
+				assertTrue(ExceptionUtils.findThrowableWithMessage(e, "Registration name clash").isPresent());
+				assertEquals(JobStatus.FAILED, jobMaster.getExecutionGraph().getState());
+			}
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
 	/**
 	 * Tests the {@link JobMaster#requestPartitionState(IntermediateDataSetID, ResultPartitionID)}
 	 * call for a finished result partition.
@@ -901,9 +1283,40 @@ public class JobMasterTest extends TestLogger {
 			jobMasterGateway.updateTaskExecutionState(new TaskExecutionState(producerConsumerJobGraph.getJobID(), executionAttemptId, ExecutionState.FINISHED)).get();
 
 			// request the state of the result partition of the producer
-			final CompletableFuture<ExecutionState> partitionStateFuture = jobMasterGateway.requestPartitionState(partition.getResultId(), new ResultPartitionID(partition.getPartitionId(), copiedExecutionAttemptId));
+			final ResultPartitionID partitionId = new ResultPartitionID(partition.getPartitionId(), copiedExecutionAttemptId);
+			CompletableFuture<ExecutionState> partitionStateFuture = jobMasterGateway.requestPartitionState(partition.getResultId(), partitionId);
 
 			assertThat(partitionStateFuture.get(), equalTo(ExecutionState.FINISHED));
+
+			// ask for unknown result partition
+			partitionStateFuture = jobMasterGateway.requestPartitionState(partition.getResultId(), new ResultPartitionID());
+
+			try {
+				partitionStateFuture.get();
+				fail("Expected failure.");
+			} catch (ExecutionException e) {
+				assertThat(ExceptionUtils.findThrowable(e, IllegalArgumentException.class).isPresent(), is(true));
+			}
+
+			// ask for wrong intermediate data set id
+			partitionStateFuture = jobMasterGateway.requestPartitionState(new IntermediateDataSetID(), partitionId);
+
+			try {
+				partitionStateFuture.get();
+				fail("Expected failure.");
+			} catch (ExecutionException e) {
+				assertThat(ExceptionUtils.findThrowable(e, IllegalArgumentException.class).isPresent(), is(true));
+			}
+
+			// ask for "old" execution
+			partitionStateFuture = jobMasterGateway.requestPartitionState(partition.getResultId(), new ResultPartitionID(partition.getPartitionId(), new ExecutionAttemptID()));
+
+			try {
+				partitionStateFuture.get();
+				fail("Expected failure.");
+			} catch (ExecutionException e) {
+				assertThat(ExceptionUtils.findThrowable(e, PartitionProducerDisposedException.class).isPresent(), is(true));
+			}
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
 		}
@@ -1042,8 +1455,13 @@ public class JobMasterTest extends TestLogger {
 	}
 
 	private File createSavepoint(long savepointId) throws IOException {
+		return createSavepointWithOperatorState(savepointId);
+	}
+
+	private File createSavepointWithOperatorState(long savepointId, OperatorID... operatorIds) throws IOException {
 		final File savepointFile = temporaryFolder.newFile();
-		final SavepointV2 savepoint = new SavepointV2(savepointId, Collections.emptyList(), Collections.emptyList());
+		final Collection<OperatorState> operatorStates = createOperatorState(operatorIds);
+		final SavepointV2 savepoint = new SavepointV2(savepointId, operatorStates, Collections.emptyList());
 
 		try (FileOutputStream fileOutputStream = new FileOutputStream(savepointFile)) {
 			Checkpoints.storeCheckpointMetadata(savepoint, fileOutputStream);
@@ -1052,9 +1470,33 @@ public class JobMasterTest extends TestLogger {
 		return savepointFile;
 	}
 
+	private Collection<OperatorState> createOperatorState(OperatorID... operatorIds) {
+		Collection<OperatorState> operatorStates = new ArrayList<>(operatorIds.length);
+
+		for (OperatorID operatorId : operatorIds) {
+			final OperatorState operatorState = new OperatorState(operatorId, 1, 42);
+			final OperatorSubtaskState subtaskState = new OperatorSubtaskState(
+				new OperatorStreamStateHandle(
+					Collections.emptyMap(),
+					new ByteStreamStateHandle("foobar", new byte[0])),
+				null,
+				null,
+				null);
+			operatorState.putState(0, subtaskState);
+			operatorStates.add(operatorState);
+		}
+
+		return operatorStates;
+	}
+
 	@Nonnull
 	private JobGraph createJobGraphWithCheckpointing(SavepointRestoreSettings savepointRestoreSettings) {
-		final JobGraph jobGraph = new JobGraph();
+		return createJobGraphFromJobVerticesWithCheckpointing(savepointRestoreSettings);
+	}
+
+	@Nonnull
+	private JobGraph createJobGraphFromJobVerticesWithCheckpointing(SavepointRestoreSettings savepointRestoreSettings, JobVertex... jobVertices) {
+		final JobGraph jobGraph = new JobGraph(jobVertices);
 
 		// enable checkpointing which is required to resume from a savepoint
 		final CheckpointCoordinatorConfiguration checkpoinCoordinatorConfiguration = new CheckpointCoordinatorConfiguration(

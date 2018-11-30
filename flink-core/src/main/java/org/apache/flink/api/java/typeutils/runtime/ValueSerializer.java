@@ -182,7 +182,7 @@ public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof ValueSerializerConfigSnapshot) {
 			final ValueSerializerConfigSnapshot<T> config = (ValueSerializerConfigSnapshot<T>) configSnapshot;
 

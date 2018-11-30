@@ -384,7 +384,7 @@ public abstract class ExecutionEnvironment {
 
 	/**
 	 * Creates a {@link DataSet} that represents the Strings produced by reading the given file line wise.
-	 * The file will be read with the system's default character set.
+	 * The file will be read with the UTF-8 character set.
 	 *
 	 * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
 	 * @return A {@link DataSet} that represents the data read from the given file as text lines.
@@ -419,7 +419,7 @@ public abstract class ExecutionEnvironment {
 	 * {@link StringValue} objects, rather than Java Strings. StringValues can be used to tune implementations
 	 * to be less object and garbage collection heavy.
 	 *
-	 * <p>The file will be read with the system's default character set.
+	 * <p>The file will be read with the UTF-8 character set.
 	 *
 	 * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
 	 * @return A {@link DataSet} that represents the data read from the given file as text lines.

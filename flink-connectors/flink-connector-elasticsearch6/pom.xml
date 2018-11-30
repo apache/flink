@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.7-SNAPSHOT</version>
+		<version>1.8-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -82,6 +82,16 @@ under the License.
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-to-slf4j</artifactId>
 			<version>2.9.1</version>
+		</dependency>
+
+		<!-- Used for the Elasticsearch table sink. -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<!-- Projects depending on this project, won't depend on flink-table. -->
+			<optional>true</optional>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -140,19 +150,118 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
-			<artifactId>log4j-api</artifactId>
-			<version>2.9.1</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-core</artifactId>
 			<version>2.9.1</version>
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Elasticsearch table descriptor testing -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Elasticsearch table sink factory testing -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-json</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
+
+	<profiles>
+		<!-- Create SQL Client uber jars by default -->
+		<profile>
+			<id>sql-jars</id>
+			<activation>
+				<property>
+					<name>!skipSqlJars</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-shade-plugin</artifactId>
+						<executions>
+							<execution>
+								<phase>package</phase>
+								<goals>
+									<goal>shade</goal>
+								</goals>
+								<configuration>
+									<shadedArtifactAttached>true</shadedArtifactAttached>
+									<shadedClassifierName>sql-jar</shadedClassifierName>
+									<filters>
+										<filter>
+											<artifact>*:*</artifact>
+											<!-- It is difficult to find out artifacts that are really required by ES. -->
+											<!-- We use hard filters for now to clean up the SQL JAR. -->
+											<excludes>
+												<exclude>com/carrotsearch/**</exclude>
+												<exclude>com/sun/**</exclude>
+												<exclude>com/tdunning/**</exclude>
+												<exclude>config/**</exclude>
+												<exclude>forbidden/**</exclude>
+												<exclude>joptsimple/**</exclude>
+												<exclude>META-INF/services/com.fasterxml.**</exclude>
+												<exclude>META-INF/services/org.apache.lucene.**</exclude>
+												<exclude>META-INF/services/org.elasticsearch.**</exclude>
+												<exclude>META-INF/versions/**</exclude>
+												<exclude>modules.txt</exclude>
+												<exclude>mozilla/**</exclude>
+												<exclude>org/HdrHistogram/**</exclude>
+												<exclude>org/joda/**</exclude>
+												<exclude>org/tartarus/**</exclude>
+												<exclude>org/yaml/**</exclude>
+												<exclude>plugins.txt</exclude>
+											</excludes>
+										</filter>
+									</filters>
+									<relocations>
+										<!-- Force relocation of all Elasticsearch dependencies. -->
+										<relocation>
+											<pattern>org.apache.commons</pattern>
+											<shadedPattern>org.apache.flink.elasticsearch6.shaded.org.apache.commons</shadedPattern>
+										</relocation>
+										<relocation>
+											<pattern>org.apache.http</pattern>
+											<shadedPattern>org.apache.flink.elasticsearch6.shaded.org.apache.http</shadedPattern>
+										</relocation>
+										<relocation>
+											<pattern>org.apache.lucene</pattern>
+											<shadedPattern>org.apache.flink.elasticsearch6.shaded.org.apache.lucene</shadedPattern>
+										</relocation>
+										<relocation>
+											<pattern>org.elasticsearch</pattern>
+											<shadedPattern>org.apache.flink.elasticsearch6.shaded.org.elasticsearch</shadedPattern>
+										</relocation>
+										<relocation>
+											<pattern>org.apache.logging</pattern>
+											<shadedPattern>org.apache.flink.elasticsearch6.shaded.org.apache.logging</shadedPattern>
+										</relocation>
+										<relocation>
+											<pattern>com.fasterxml.jackson</pattern>
+											<shadedPattern>org.apache.flink.elasticsearch6.shaded.com.fasterxml.jackson</shadedPattern>
+										</relocation>
+									</relocations>
+									<!-- Relocate the table format factory service file. -->
+									<transformers>
+										<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+									</transformers>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 	<build>
 		<plugins>
@@ -169,6 +278,9 @@ under the License.
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.12.2</version>
 				<configuration>
+					<systemPropertyVariables>
+						<jna.nosys>true</jna.nosys>
+					</systemPropertyVariables>
 					<classpathDependencyExcludes>
 						<classpathDependencyExclude>org.apache.logging.log4j:log4j-to-slf4j</classpathDependencyExclude>
 					</classpathDependencyExcludes>

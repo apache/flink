@@ -22,7 +22,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.net.SSLEngineFactory;
+import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
+import org.apache.flink.runtime.net.RedirectingSslHandler;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.router.Router;
@@ -43,7 +44,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCodec;
-import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 
 import org.slf4j.Logger;
@@ -63,6 +63,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * An abstract class for netty-based REST server endpoints.
@@ -77,7 +78,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 	private final String restBindAddress;
 	private final int restBindPort;
 	@Nullable
-	private final SSLEngineFactory sslEngineFactory;
+	private final SSLHandlerFactory sslHandlerFactory;
 	private final int maxContentLength;
 
 	protected final Path uploadDir;
@@ -85,6 +86,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 	private final CompletableFuture<Void> terminationFuture;
 
+	private List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers;
 	private ServerBootstrap bootstrap;
 	private Channel serverChannel;
 	private String restBaseUrl;
@@ -97,7 +99,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 		this.restAddress = configuration.getRestAddress();
 		this.restBindAddress = configuration.getRestBindAddress();
 		this.restBindPort = configuration.getRestBindPort();
-		this.sslEngineFactory = configuration.getSslEngineFactory();
+		this.sslHandlerFactory = configuration.getSslHandlerFactory();
 
 		this.uploadDir = configuration.getUploadDir();
 		createUploadDir(uploadDir, log);
@@ -131,7 +133,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 			final Router router = new Router();
 			final CompletableFuture<String> restAddressFuture = new CompletableFuture<>();
 
-			List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = initializeHandlers(restAddressFuture);
+			handlers = initializeHandlers(restAddressFuture);
 
 			/* sort the handlers such that they are ordered the following:
 			 * /jobs
@@ -155,8 +157,9 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 					RouterHandler handler = new RouterHandler(router, responseHeaders);
 
 					// SSL should be the first handler in the pipeline
-					if (sslEngineFactory != null) {
-						ch.pipeline().addLast("ssl", new SslHandler(sslEngineFactory.createSSLEngine()));
+					if (sslHandlerFactory != null) {
+						ch.pipeline().addLast("ssl",
+							new RedirectingSslHandler(restAddress, restAddressFuture, sslHandlerFactory));
 					}
 
 					ch.pipeline()
@@ -200,7 +203,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 			final String protocol;
 
-			if (sslEngineFactory != null) {
+			if (sslHandlerFactory != null) {
 				protocol = "https://";
 			} else {
 				protocol = "http://";
@@ -264,10 +267,13 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 			log.info("Shutting down rest endpoint.");
 
 			if (state == State.RUNNING) {
-				final CompletableFuture<Void> shutDownFuture = shutDownInternal();
+				final CompletableFuture<Void> shutDownFuture = FutureUtils.composeAfterwards(
+					closeHandlersAsync(),
+					this::shutDownInternal);
 
 				shutDownFuture.whenComplete(
 					(Void ignored, Throwable throwable) -> {
+						log.info("Shut down complete.");
 						if (throwable != null) {
 							terminationFuture.completeExceptionally(throwable);
 						} else {
@@ -282,6 +288,14 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 			return terminationFuture;
 		}
+	}
+
+	private FutureUtils.ConjunctFuture<Void> closeHandlersAsync() {
+		return FutureUtils.waitForAll(handlers.stream()
+			.map(tuple -> tuple.f1)
+			.filter(handler -> handler instanceof AutoCloseableAsync)
+			.map(handler -> ((AutoCloseableAsync) handler).closeAsync())
+			.collect(Collectors.toList()));
 	}
 
 	/**

@@ -25,7 +25,7 @@ import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.Lex
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
-import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
+import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgram, HepProgramBuilder}
 import org.apache.calcite.plan.{Convention, RelOptPlanner, RelOptUtil, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.schema.SchemaPlus
@@ -33,6 +33,7 @@ import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
+import org.apache.calcite.sql2rel.SqlToRelConverter
 import org.apache.calcite.tools._
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -76,7 +77,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   // the catalog to hold all registered and translated tables
   // we disable caching here to prevent side effects
-  private val internalSchema: CalciteSchema = CalciteSchema.createRootSchema(true, false)
+  private val internalSchema: CalciteSchema = CalciteSchema.createRootSchema(false, false)
   private val rootSchema: SchemaPlus = internalSchema.plus()
 
   // Table API/SQL function catalog
@@ -90,6 +91,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     .costFactory(new DataSetCostFactory)
     .typeSystem(new FlinkTypeSystem)
     .operatorTable(getSqlOperatorTable)
+    .sqlToRelConverterConfig(getSqlToRelConverterConfig)
     // set the executor to evaluate constant expressions
     .executor(new ExpressionReducer(config))
     .build
@@ -116,6 +118,24 @@ abstract class TableEnvironment(val config: TableConfig) {
     case _: BatchTableEnvironment => new BatchQueryConfig
     case _: StreamTableEnvironment => new StreamQueryConfig
     case _ => null
+  }
+
+  /**
+    * Returns the SqlToRelConverter config.
+    */
+  protected def getSqlToRelConverterConfig: SqlToRelConverter.Config = {
+    val calciteConfig = config.getCalciteConfig
+    calciteConfig.getSqlToRelConverterConfig match {
+
+      case None =>
+        SqlToRelConverter.configBuilder()
+          .withTrimUnusedFields(false)
+          .withConvertTableAccess(false)
+          .withInSubQueryThreshold(Integer.MAX_VALUE)
+          .build()
+
+      case Some(c) => c
+    }
   }
 
   /**
@@ -235,34 +255,31 @@ abstract class TableEnvironment(val config: TableConfig) {
   protected def getBuiltInPhysicalOptRuleSet: RuleSet
 
   protected def optimizeConvertSubQueries(relNode: RelNode): RelNode = {
-    runHepPlanner(
+    runHepPlannerSequentially(
       HepMatchOrder.BOTTOM_UP,
       FlinkRuleSets.TABLE_SUBQUERY_RULES,
       relNode,
       relNode.getTraitSet)
   }
 
-  protected def optimizeConvertToTemporalJoin(relNode: RelNode): RelNode = {
-    runHepPlanner(
-      HepMatchOrder.BOTTOM_UP,
-      FlinkRuleSets.TEMPORAL_JOIN_RULES,
+  protected def optimizeExpandPlan(relNode: RelNode): RelNode = {
+    val result = runHepPlannerSimultaneously(
+      HepMatchOrder.TOP_DOWN,
+      FlinkRuleSets.EXPAND_PLAN_RULES,
       relNode,
       relNode.getTraitSet)
-  }
 
-  protected def optimizeConvertTableReferences(relNode: RelNode): RelNode = {
-    runHepPlanner(
-      HepMatchOrder.BOTTOM_UP,
-      FlinkRuleSets.TABLE_REF_RULES,
-      relNode,
-      relNode.getTraitSet)
+    runHepPlannerSequentially(
+      HepMatchOrder.TOP_DOWN,
+      FlinkRuleSets.POST_EXPAND_CLEAN_UP_RULES,
+      result,
+      result.getTraitSet)
   }
-
 
   protected def optimizeNormalizeLogicalPlan(relNode: RelNode): RelNode = {
     val normRuleSet = getNormRuleSet
     if (normRuleSet.iterator().hasNext) {
-      runHepPlanner(HepMatchOrder.BOTTOM_UP, normRuleSet, relNode, relNode.getTraitSet)
+      runHepPlannerSequentially(HepMatchOrder.BOTTOM_UP, normRuleSet, relNode, relNode.getTraitSet)
     } else {
       relNode
     }
@@ -289,13 +306,16 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
-    * run HEP planner
+    * run HEP planner with rules applied one by one. First apply one rule to all of the nodes
+    * and only then apply the next rule. If a rule creates a new node preceding rules will not
+    * be applied to the newly created node.
     */
-  protected def runHepPlanner(
+  protected def runHepPlannerSequentially(
     hepMatchOrder: HepMatchOrder,
     ruleSet: RuleSet,
     input: RelNode,
     targetTraits: RelTraitSet): RelNode = {
+
     val builder = new HepProgramBuilder
     builder.addMatchOrder(hepMatchOrder)
 
@@ -303,8 +323,36 @@ abstract class TableEnvironment(val config: TableConfig) {
     while (it.hasNext) {
       builder.addRuleInstance(it.next())
     }
+    runHepPlanner(builder.build(), input, targetTraits)
+  }
 
-    val planner = new HepPlanner(builder.build, frameworkConfig.getContext)
+  /**
+    * run HEP planner with rules applied simultaneously. Apply all of the rules to the given
+    * node before going to the next one. If a rule creates a new node all of the rules will
+    * be applied to this new node.
+    */
+  protected def runHepPlannerSimultaneously(
+    hepMatchOrder: HepMatchOrder,
+    ruleSet: RuleSet,
+    input: RelNode,
+    targetTraits: RelTraitSet): RelNode = {
+
+    val builder = new HepProgramBuilder
+    builder.addMatchOrder(hepMatchOrder)
+
+    builder.addRuleCollection(ruleSet.asScala.toList.asJava)
+    runHepPlanner(builder.build(), input, targetTraits)
+  }
+
+  /**
+    * run HEP planner
+    */
+  protected def runHepPlanner(
+    hepProgram: HepProgram,
+    input: RelNode,
+    targetTraits: RelTraitSet): RelNode = {
+
+    val planner = new HepPlanner(hepProgram, frameworkConfig.getContext)
     planner.setRoot(input)
     if (input.getTraitSet != targetTraits) {
       planner.changeTraits(input, targetTraits.simplify)
@@ -335,7 +383,7 @@ abstract class TableEnvironment(val config: TableConfig) {
         throw new TableException(
           s"Cannot generate a valid execution plan for the given query: \n\n" +
             s"${RelOptUtil.toString(input)}\n" +
-            s"${t.msg}\n" +
+            s"${t.getMessage}\n" +
             s"Please check the documentation for the set of currently supported SQL features.")
       case a: AssertionError =>
         // keep original exception stack for caller
@@ -657,27 +705,19 @@ abstract class TableEnvironment(val config: TableConfig) {
   def explain(table: Table): String
 
   /**
-    * Evaluates a SQL query on registered tables and retrieves the result as a [[Table]].
+    * Returns completion hints for the given statement at the given cursor position.
+    * The completion happens case insensitively.
     *
-    * All tables referenced by the query must be registered in the TableEnvironment.
-    * A [[Table]] is automatically registered when its [[toString]] method is called, for example
-    * when it is embedded into a String.
-    * Hence, SQL queries can directly reference a [[Table]] as follows:
-    *
-    * {{{
-    *   val table: Table = ...
-    *   // the table is not registered to the table environment
-    *   tEnv.sql(s"SELECT * FROM $table")
-    * }}}
-    *
-    * @deprecated Use sqlQuery() instead.
-    * @param query The SQL query to evaluate.
-    * @return The result of the query as Table.
+    * @param statement Partial or slightly incorrect SQL statement
+    * @param position cursor position
+    * @return completion hints that fit at the current cursor position
     */
-  @Deprecated
-  @deprecated("Please use sqlQuery() instead.")
-  def sql(query: String): Table = {
-    sqlQuery(query)
+  def getCompletionHints(statement: String, position: Int): Array[String] = {
+    val planner = new FlinkPlannerImpl(
+      getFrameworkConfig,
+      getPlanner,
+      getTypeFactory)
+    planner.getCompletionHints(statement, position)
   }
 
   /**
@@ -801,24 +841,24 @@ abstract class TableEnvironment(val config: TableConfig) {
   private[flink] def insertInto(table: Table, sinkTableName: String, conf: QueryConfig): Unit = {
 
     // check that sink table exists
-    if (null == sinkTableName) throw TableException("Name of TableSink must not be null.")
-    if (sinkTableName.isEmpty) throw TableException("Name of TableSink must not be empty.")
+    if (null == sinkTableName) throw new TableException("Name of TableSink must not be null.")
+    if (sinkTableName.isEmpty) throw new TableException("Name of TableSink must not be empty.")
 
     getTable(sinkTableName) match {
 
       case None =>
-        throw TableException(s"No table was registered under the name $sinkTableName.")
+        throw new TableException(s"No table was registered under the name $sinkTableName.")
 
       case Some(s: TableSourceSinkTable[_, _]) if s.tableSinkTable.isDefined =>
         val tableSink = s.tableSinkTable.get.tableSink
         // validate schema of source table and table sink
-        val srcFieldTypes = table.getSchema.getTypes
+        val srcFieldTypes = table.getSchema.getFieldTypes
         val sinkFieldTypes = tableSink.getFieldTypes
 
         if (srcFieldTypes.length != sinkFieldTypes.length ||
           srcFieldTypes.zip(sinkFieldTypes).exists { case (srcF, snkF) => srcF != snkF }) {
 
-          val srcFieldNames = table.getSchema.getColumnNames
+          val srcFieldNames = table.getSchema.getFieldNames
           val sinkFieldNames = tableSink.getFieldNames
 
           // format table and table sink schema strings
@@ -829,7 +869,7 @@ abstract class TableEnvironment(val config: TableConfig) {
             .map { case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}" }
             .mkString("[", ", ", "]")
 
-          throw ValidationException(
+          throw new ValidationException(
             s"Field types of query result and registered TableSink " +
               s"$sinkTableName do not match.\n" +
               s"Query result schema: $srcSchema\n" +
@@ -839,7 +879,7 @@ abstract class TableEnvironment(val config: TableConfig) {
         writeToSink(table, tableSink, conf)
 
       case Some(_) =>
-        throw TableException(s"The table registered as $sinkTableName is not a TableSink. " +
+        throw new TableException(s"The table registered as $sinkTableName is not a TableSink. " +
           s"You can only emit query results to a registered TableSink.")
     }
   }
@@ -1103,7 +1143,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     // validate that at least the field types of physical and logical type match
     // we do that here to make sure that plan translation was correct
     if (schema.typeInfo != inputTypeInfo) {
-      throw TableException(
+      throw new TableException(
         s"The field types of physical and logical row types do not match. " +
         s"Physical type is [${schema.typeInfo}], Logical type is [$inputTypeInfo]. " +
         s"This is a bug and should not happen. Please file an issue.")
@@ -1334,7 +1374,8 @@ object TableEnvironment {
     if ((clazz.isMemberClass && !Modifier.isStatic(clazz.getModifiers)) ||
       !Modifier.isPublic(clazz.getModifiers) ||
       clazz.getCanonicalName == null) {
-      throw TableException(s"Class '$clazz' described in type information '$typeInfo' must be " +
+      throw new TableException(
+        s"Class '$clazz' described in type information '$typeInfo' must be " +
         s"static and globally accessible.")
     }
   }

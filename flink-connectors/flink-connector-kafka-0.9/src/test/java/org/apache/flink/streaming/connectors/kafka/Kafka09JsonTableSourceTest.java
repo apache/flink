@@ -32,7 +32,7 @@ import org.apache.flink.types.Row;
 public class Kafka09JsonTableSourceTest extends KafkaJsonTableSourceTestBase {
 
 	@Override
-	protected KafkaTableSource.Builder getBuilder() {
+	protected KafkaTableSourceBase.Builder getBuilder() {
 		return Kafka09JsonTableSource.builder();
 	}
 

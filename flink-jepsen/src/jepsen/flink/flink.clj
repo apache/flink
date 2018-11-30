@@ -15,6 +15,7 @@
 ;; limitations under the License.
 
 (ns jepsen.flink.flink
+  (:gen-class)
   (:require [clojure.tools.logging :refer :all]
             [jepsen
              [cli :as cli]
@@ -24,31 +25,48 @@
             [jepsen.flink.client :refer :all]
             [jepsen.flink.checker :as flink-checker]
             [jepsen.flink.db :as fdb]
-            [jepsen.flink.nemesis :as fn])
-  (:import (jepsen.flink.client Client)))
+            [jepsen.flink.nemesis :as fn]))
 
 (def flink-test-config
-  {:yarn-session  {:db                  (fdb/flink-yarn-db)
-                   :deployment-strategy fdb/start-yarn-session!}
-   :yarn-job      {:db                  (fdb/flink-yarn-db)
-                   :deployment-strategy fdb/start-yarn-job!}
-   :mesos-session {:db                  (fdb/flink-mesos-db)
-                   :deployment-strategy fdb/start-mesos-session!}})
+  {:yarn-session       {:db                  (fdb/flink-yarn-db)
+                        :deployment-strategy fdb/start-yarn-session!}
+   :yarn-job           {:db                  (fdb/flink-yarn-db)
+                        :deployment-strategy fdb/start-yarn-job!}
+   :mesos-session      {:db                  (fdb/flink-mesos-db)
+                        :deployment-strategy fdb/start-mesos-session!}
+   :standalone-session {:db                  (fdb/flink-standalone-db)
+                        :deployment-strategy fdb/submit-job-from-first-node!}})
 
-(defn client-gen
+(def poll-job-running {:type :invoke, :f :job-running?, :value nil})
+(def cancel-job {:type :invoke, :f :cancel-job, :value nil})
+(def poll-job-running-loop (gen/seq (cycle [poll-job-running (gen/sleep 5)])))
+
+(defn default-client-gen
+  "Client generator that polls for the job running status."
   []
   (->
-    (cons {:type :invoke, :f :submit, :value nil}
-          (cycle [{:type :invoke, :f :job-running?, :value nil}
-                  (gen/sleep 5)]))
-    (gen/seq)
+    poll-job-running-loop
     (gen/singlethreaded)))
+
+(defn cancelling-client-gen
+  "Client generator that polls for the job running status, and cancels the job after 15 seconds."
+  []
+  (->
+    (gen/concat (gen/time-limit 15 (default-client-gen))
+                (gen/once cancel-job)
+                (default-client-gen))
+    (gen/singlethreaded)))
+
+(def client-gens
+  {:poll-job-running default-client-gen
+   :cancel-job       cancelling-client-gen})
 
 (defn flink-test
   [opts]
   (merge tests/noop-test
          (let [{:keys [db deployment-strategy]} (-> opts :deployment-mode flink-test-config)
-               {:keys [job-running-healthy-threshold job-recovery-grace-period]} opts]
+               {:keys [job-running-healthy-threshold job-recovery-grace-period]} opts
+               client-gen ((:client-gen opts) client-gens)]
            {:name      "Apache Flink"
             :os        debian/os
             :db        db
@@ -63,7 +81,7 @@
                                                    ((fn/nemesis-generator-factories (:nemesis-gen opts)) opts)
                                                    job-running-healthy-threshold
                                                    job-recovery-grace-period))))
-            :client    (Client. deployment-strategy nil nil nil nil)
+            :client    (create-client deployment-strategy)
             :checker   (flink-checker/job-running-checker)})
          (assoc opts :concurrency 1)))
 
@@ -93,6 +111,12 @@
                      :default :kill-task-managers
                      :validate [#(fn/nemesis-generator-factories (keyword %))
                                 (keys-as-allowed-values-help-text fn/nemesis-generator-factories)]]
+                    [nil "--client-gen GEN" (str "Which client should be used?"
+                                                 (keys-as-allowed-values-help-text client-gens))
+                     :parse-fn keyword
+                     :default :poll-job-running
+                     :validate [#(client-gens (keyword %))
+                                (keys-as-allowed-values-help-text client-gens)]]
                     [nil "--deployment-mode MODE" (keys-as-allowed-values-help-text flink-test-config)
                      :parse-fn keyword
                      :default :yarn-session

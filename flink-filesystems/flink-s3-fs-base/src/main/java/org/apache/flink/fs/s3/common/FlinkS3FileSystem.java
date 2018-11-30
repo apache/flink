@@ -20,11 +20,22 @@ package org.apache.flink.fs.s3.common;
 
 import org.apache.flink.core.fs.EntropyInjectingFileSystem;
 import org.apache.flink.core.fs.FileSystemKind;
+import org.apache.flink.core.fs.RecoverableWriter;
+import org.apache.flink.fs.s3.common.utils.RefCountedFile;
+import org.apache.flink.fs.s3.common.utils.RefCountedTmpFileCreator;
+import org.apache.flink.fs.s3.common.writer.S3MultiPartUploader;
+import org.apache.flink.fs.s3.common.writer.S3RecoverableWriter;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -39,15 +50,23 @@ public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInject
 
 	private final int entropyLength;
 
-	/**
-	 * Creates a FlinkS3FileSystem based on the given Hadoop S3 file system.
-	 * The given Hadoop file system object is expected to be initialized already.
-	 *
-	 * @param hadoopS3FileSystem The Hadoop FileSystem that will be used under the hood.
-	 */
-	public FlinkS3FileSystem(org.apache.hadoop.fs.FileSystem hadoopS3FileSystem) {
-		this(hadoopS3FileSystem, null, -1);
-	}
+	// ------------------- Recoverable Writer Parameters -------------------
+
+	/** The minimum size of a part in the multipart upload, except for the last part: 5 MIBytes. */
+	public static final long S3_MULTIPART_MIN_PART_SIZE = 5L << 20;
+
+	private final String localTmpDir;
+
+	private final FunctionWithException<File, RefCountedFile, IOException> tmpFileCreator;
+
+	@Nullable
+	private final S3MultiPartUploader s3UploadHelper;
+
+	private final Executor uploadThreadPool;
+
+	private final long s3uploadPartSize;
+
+	private final int maxConcurrentUploadsPerStream;
 
 	/**
 	 * Creates a FlinkS3FileSystem based on the given Hadoop S3 file system.
@@ -61,8 +80,12 @@ public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInject
 	 */
 	public FlinkS3FileSystem(
 			org.apache.hadoop.fs.FileSystem hadoopS3FileSystem,
+			String localTmpDirectory,
 			@Nullable String entropyInjectionKey,
-			int entropyLength) {
+			int entropyLength,
+			@Nullable S3MultiPartUploader s3UploadHelper,
+			long s3uploadPartSize,
+			int maxConcurrentUploadsPerStream) {
 
 		super(hadoopS3FileSystem);
 
@@ -72,6 +95,16 @@ public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInject
 
 		this.entropyInjectionKey = entropyInjectionKey;
 		this.entropyLength = entropyLength;
+
+		// recoverable writer parameter configuration initialization
+		this.localTmpDir = Preconditions.checkNotNull(localTmpDirectory);
+		this.tmpFileCreator = RefCountedTmpFileCreator.inDirectories(new File(localTmpDirectory));
+		this.s3UploadHelper = s3UploadHelper;
+		this.uploadThreadPool = Executors.newCachedThreadPool();
+
+		Preconditions.checkArgument(s3uploadPartSize >= S3_MULTIPART_MIN_PART_SIZE);
+		this.s3uploadPartSize = s3uploadPartSize;
+		this.maxConcurrentUploadsPerStream = maxConcurrentUploadsPerStream;
 	}
 
 	// ------------------------------------------------------------------------
@@ -90,5 +123,25 @@ public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInject
 	@Override
 	public FileSystemKind getKind() {
 		return FileSystemKind.OBJECT_STORE;
+	}
+
+	public String getLocalTmpDir() {
+		return localTmpDir;
+	}
+
+	@Override
+	public RecoverableWriter createRecoverableWriter() throws IOException {
+		if (s3UploadHelper == null) {
+			// this is the case for Presto
+			throw new UnsupportedOperationException("This s3 file system implementation does not support recoverable writers.");
+		}
+
+		return S3RecoverableWriter.writer(
+				getHadoopFileSystem(),
+				tmpFileCreator,
+				s3UploadHelper,
+				uploadThreadPool,
+				s3uploadPartSize,
+				maxConcurrentUploadsPerStream);
 	}
 }

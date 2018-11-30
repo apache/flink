@@ -75,7 +75,7 @@ class WindowFoldITCase extends AbstractTestBase {
       .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
       .fold(("R:", 0)) { (acc: (String, Int), v: (String, Int)) => (acc._1 + v._1, acc._2 + v._2) }
       .addSink(new SinkFunction[(String, Int)]() {
-        def invoke(value: (String, Int)) {
+        override def invoke(value: (String, Int)) {
         WindowFoldITCase.testResults += value.toString
         }
       })
@@ -132,7 +132,7 @@ class WindowFoldITCase extends AbstractTestBase {
         foldFunc,
         new CheckingIdentityRichWindowFunction[(String, Int), Tuple, TimeWindow]())
       .addSink(new SinkFunction[(String, Int)]() {
-        def invoke(value: (String, Int)) {
+        override def invoke(value: (String, Int)) {
           WindowFoldITCase.testResults += value.toString
         }
       })
@@ -191,7 +191,7 @@ class WindowFoldITCase extends AbstractTestBase {
         foldFunc,
         new CheckingIdentityRichProcessWindowFunction[(Int, String), Tuple, TimeWindow]())
       .addSink(new SinkFunction[(Int, String)]() {
-        def invoke(value: (Int, String)) {
+        override def invoke(value: (Int, String)) {
           WindowFoldITCase.testResults += value.toString
         }
       })
@@ -239,7 +239,7 @@ class WindowFoldITCase extends AbstractTestBase {
       .windowAll(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
       .fold(("R:", 0)) { (acc: (String, Int), v: (String, Int)) => (acc._1 + v._1, acc._2 + v._2) }
       .addSink(new SinkFunction[(String, Int)]() {
-      def invoke(value: (String, Int)) {
+      override def invoke(value: (String, Int)) {
         WindowFoldITCase.testResults += value.toString
       }
     })
@@ -294,7 +294,7 @@ class WindowFoldITCase extends AbstractTestBase {
         foldFunc,
         new CheckingIdentityRichAllWindowFunction[(String, Int), TimeWindow]())
       .addSink(new SinkFunction[(String, Int)]() {
-        def invoke(value: (String, Int)) {
+        override def invoke(value: (String, Int)) {
           WindowFoldITCase.testResults += value.toString
         }
       })
@@ -351,7 +351,7 @@ class WindowFoldITCase extends AbstractTestBase {
         foldFunc,
         new CheckingIdentityRichProcessAllWindowFunction[(String, Int), TimeWindow]())
       .addSink(new SinkFunction[(String, Int)]() {
-        def invoke(value: (String, Int)) {
+        override def invoke(value: (String, Int)) {
           WindowFoldITCase.testResults += value.toString
         }
       })

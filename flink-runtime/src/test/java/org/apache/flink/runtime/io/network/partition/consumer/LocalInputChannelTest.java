@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
+import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
@@ -105,8 +106,7 @@ public class LocalInputChannelTest {
 			(parallelism * producerBufferPoolSize) + (parallelism * parallelism),
 			TestBufferFactory.BUFFER_SIZE);
 
-		final ResultPartitionConsumableNotifier partitionConsumableNotifier =
-			mock(ResultPartitionConsumableNotifier.class);
+		final ResultPartitionConsumableNotifier partitionConsumableNotifier = new NoOpResultPartitionConsumableNotifier();
 
 		final TaskActions taskActions = mock(TaskActions.class);
 

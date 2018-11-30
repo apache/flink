@@ -33,11 +33,13 @@ import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * CassandraSinkBase is the common abstract class of {@link CassandraPojoSink} and {@link CassandraTupleSink}.
+ * CassandraSinkBase is the common abstract class of {@link CassandraPojoSink} and {@link
+ * CassandraTupleSink}.
  *
  * @param <IN> Type of the elements emitted by this sink
  */
@@ -53,8 +55,11 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 
 	private final AtomicInteger updatesPending = new AtomicInteger();
 
-	CassandraSinkBase(ClusterBuilder builder) {
+	private final CassandraFailureHandler failureHandler;
+
+	CassandraSinkBase(ClusterBuilder builder, CassandraFailureHandler failureHandler) {
 		this.builder = builder;
+		this.failureHandler = checkNotNull(failureHandler);
 		ClosureCleaner.clean(builder, true);
 	}
 
@@ -150,7 +155,7 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 		if (error != null) {
 			// prevent throwing duplicated error
 			exception = null;
-			throw new IOException("Error while sending value.", error);
+			failureHandler.onFailure(error);
 		}
 	}
 

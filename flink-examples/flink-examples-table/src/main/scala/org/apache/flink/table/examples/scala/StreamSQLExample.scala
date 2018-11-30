@@ -23,7 +23,7 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 
 /**
-  * Simple example for demonstrating the use of SQL on a Stream Table.
+  * Simple example for demonstrating the use of SQL on a Stream Table in Scala.
   *
   * This example shows how to:
   *  - Convert DataStreams to Tables
@@ -53,13 +53,14 @@ object StreamSQLExample {
       Order(2L, "rubber", 3),
       Order(4L, "beer", 1)))
 
-    // register the DataStreams under the name "OrderA" and "OrderB"
-    tEnv.registerDataStream("OrderA", orderA, 'user, 'product, 'amount)
+    // convert DataStream to Table
+    var tableA = tEnv.fromDataStream(orderA, 'user, 'product, 'amount)
+    // register DataStream as Table
     tEnv.registerDataStream("OrderB", orderB, 'user, 'product, 'amount)
 
     // union the two tables
     val result = tEnv.sqlQuery(
-      "SELECT * FROM OrderA WHERE amount > 2 UNION ALL " +
+      s"SELECT * FROM $tableA WHERE amount > 2 UNION ALL " +
         "SELECT * FROM OrderB WHERE amount < 2")
 
     result.toAppendStream[Order].print()

@@ -19,9 +19,14 @@
 package org.apache.flink.fs.s3.common;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fs.s3.common.writer.S3MultiPartUploader;
+import org.apache.flink.util.TestLogger;
 
+import org.apache.hadoop.fs.FileSystem;
 import org.junit.Test;
 import org.mockito.Mockito;
+
+import javax.annotation.Nullable;
 
 import java.net.URI;
 import java.util.Collections;
@@ -31,7 +36,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests that the file system factory picks up the entropy configuration properly.
  */
-public class S3EntropyFsFactoryTest {
+public class S3EntropyFsFactoryTest extends TestLogger {
 
 	@Test
 	public void testEntropyInjectionConfig() throws Exception {
@@ -69,6 +74,12 @@ public class S3EntropyFsFactoryTest {
 		@Override
 		protected URI getInitURI(URI fsUri, org.apache.hadoop.conf.Configuration hadoopConfig) {
 			return fsUri;
+		}
+
+		@Nullable
+		@Override
+		protected S3MultiPartUploader getS3AccessHelper(FileSystem fs) {
+			return null;
 		}
 
 		@Override

@@ -180,6 +180,7 @@ input.addSink(new ElasticsearchSink<>(config, transportAddresses, new Elasticsea
 {% highlight java %}
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
 import org.apache.flink.streaming.connectors.elasticsearch6.ElasticsearchSink;
 
@@ -194,7 +195,7 @@ import java.util.Map;
 
 DataStream<String> input = ...;
 
-List<HttpHost> httpHost = new ArrayList<>();
+List<HttpHost> httpHosts = new ArrayList<>();
 httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
 httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"));
 
@@ -220,10 +221,10 @@ ElasticsearchSink.Builder<String> esSinkBuilder = new ElasticsearchSink.Builder<
 );
 
 // configuration for the bulk requests; this instructs the sink to emit after every element, otherwise they would be buffered
-builder.setBulkFlushMaxActions(1);
+esSinkBuilder.setBulkFlushMaxActions(1);
 
 // provide a RestClientFactory for custom configuration on the internally created REST client
-builder.setRestClientFactory(
+esSinkBuilder.setRestClientFactory(
   restClientBuilder -> {
     restClientBuilder.setDefaultHeaders(...)
     restClientBuilder.setMaxRetryTimeoutMillis(...)
@@ -325,6 +326,7 @@ input.addSink(new ElasticsearchSink(config, transportAddresses, new Elasticsearc
 {% highlight scala %}
 import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer
 import org.apache.flink.streaming.connectors.elasticsearch6.ElasticsearchSink
 
@@ -357,10 +359,10 @@ val esSinkBuilder = new ElasticsearchSink.Builer[String](
 )
 
 // configuration for the bulk requests; this instructs the sink to emit after every element, otherwise they would be buffered
-builder.setBulkFlushMaxActions(1)
+esSinkBuilder.setBulkFlushMaxActions(1)
 
 // provide a RestClientFactory for custom configuration on the internally created REST client
-builder.setRestClientFactory(
+esSinkBuilder.setRestClientFactory(
   restClientBuilder -> {
     restClientBuilder.setDefaultHeaders(...)
     restClientBuilder.setMaxRetryTimeoutMillis(...)

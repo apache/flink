@@ -269,11 +269,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 				.get();
 		} catch (Exception e) {
 			Throwable t = ExceptionUtils.stripExecutionException(e);
-			if (t instanceof RestHandlerException){
-				Assert.assertTrue(t.getMessage().equals("Job submission failed."));
-			} else {
-				throw e;
-			}
+			Assert.assertEquals(errorMessage, t.getMessage());
 		}
 	}
 }

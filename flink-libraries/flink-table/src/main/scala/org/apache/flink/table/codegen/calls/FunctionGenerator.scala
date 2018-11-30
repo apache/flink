@@ -160,6 +160,18 @@ object FunctionGenerator {
     BuiltInMethod.REPLACE.method)
 
   addSqlFunctionMethod(
+    REGEXP_EXTRACT,
+    Seq(STRING_TYPE_INFO, STRING_TYPE_INFO, INT_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.REGEXP_EXTRACT)
+
+  addSqlFunctionMethod(
+    REGEXP_EXTRACT,
+    Seq(STRING_TYPE_INFO, STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.REGEXP_EXTRACT_WITHOUT_INDEX)
+
+  addSqlFunctionMethod(
     FROM_BASE64,
     Seq(STRING_TYPE_INFO),
     STRING_TYPE_INFO,
@@ -212,10 +224,34 @@ object FunctionGenerator {
     BuiltInMethods.LOG2)
 
   addSqlFunctionMethod(
+    COSH,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.COSH)
+
+  addSqlFunctionMethod(
+    COSH,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.COSH_DEC)
+
+  addSqlFunctionMethod(
     LN,
     Seq(DOUBLE_TYPE_INFO),
     DOUBLE_TYPE_INFO,
     BuiltInMethods.LN)
+
+  addSqlFunctionMethod(
+    SINH,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.SINH)
+
+  addSqlFunctionMethod(
+    SINH,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.SINH_DEC)
 
   addSqlFunctionMethod(
     EXP,
@@ -306,6 +342,18 @@ object FunctionGenerator {
     Seq(BIG_DEC_TYPE_INFO),
     DOUBLE_TYPE_INFO,
     BuiltInMethods.TAN_DEC)
+
+  addSqlFunctionMethod(
+    TANH,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.TANH)
+
+  addSqlFunctionMethod(
+    TANH,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.TANH_DEC)
 
   addSqlFunctionMethod(
     COT,

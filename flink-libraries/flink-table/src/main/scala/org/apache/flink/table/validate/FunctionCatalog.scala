@@ -64,7 +64,7 @@ class FunctionCatalog {
     */
   def lookupFunction(name: String, children: Seq[Expression]): Expression = {
     val funcClass = functionBuilders
-      .getOrElse(name.toLowerCase, throw ValidationException(s"Undefined function: $name"))
+      .getOrElse(name.toLowerCase, throw new ValidationException(s"Undefined function: $name"))
 
     // Instantiate a function using the provided `children`
     funcClass match {
@@ -73,7 +73,7 @@ class FunctionCatalog {
       case sf if classOf[ScalarFunction].isAssignableFrom(sf) =>
         val scalarSqlFunction = sqlFunctions
           .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[ScalarSqlFunction])
-          .getOrElse(throw ValidationException(s"Undefined scalar function: $name"))
+          .getOrElse(throw new ValidationException(s"Undefined scalar function: $name"))
           .asInstanceOf[ScalarSqlFunction]
         ScalarFunctionCall(scalarSqlFunction.getScalarFunction, children)
 
@@ -81,7 +81,7 @@ class FunctionCatalog {
       case tf if classOf[TableFunction[_]].isAssignableFrom(tf) =>
         val tableSqlFunction = sqlFunctions
           .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[TableSqlFunction])
-          .getOrElse(throw ValidationException(s"Undefined table function: $name"))
+          .getOrElse(throw new ValidationException(s"Undefined table function: $name"))
           .asInstanceOf[TableSqlFunction]
         val typeInfo = tableSqlFunction.getRowTypeInfo
         val function = tableSqlFunction.getTableFunction
@@ -91,7 +91,7 @@ class FunctionCatalog {
       case af if classOf[AggregateFunction[_, _]].isAssignableFrom(af) =>
         val aggregateFunction = sqlFunctions
           .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[AggSqlFunction])
-          .getOrElse(throw ValidationException(s"Undefined table function: $name"))
+          .getOrElse(throw new ValidationException(s"Undefined table function: $name"))
           .asInstanceOf[AggSqlFunction]
         val function = aggregateFunction.getFunction
         val returnType = aggregateFunction.returnType
@@ -121,16 +121,16 @@ class FunctionCatalog {
                   case Success(ctor) =>
                     Try(ctor.newInstance(children: _*).asInstanceOf[Expression]) match {
                       case Success(expr) => expr
-                      case Failure(exception) => throw ValidationException(exception.getMessage)
+                      case Failure(exception) => throw new ValidationException(exception.getMessage)
                     }
                   case Failure(_) =>
-                    throw ValidationException(
+                    throw new ValidationException(
                       s"Invalid number of arguments for function $funcClass")
                 }
             }
         }
       case _ =>
-        throw ValidationException("Unsupported function.")
+        throw new ValidationException("Unsupported function.")
     }
   }
 
@@ -203,6 +203,7 @@ object FunctionCatalog {
     "concat_ws" -> classOf[ConcatWs],
     "lpad" -> classOf[Lpad],
     "rpad" -> classOf[Rpad],
+    "regexpExtract" -> classOf[RegexpExtract],
     "fromBase64" -> classOf[FromBase64],
     "toBase64" -> classOf[ToBase64],
     "uuid" -> classOf[UUID],
@@ -230,12 +231,15 @@ object FunctionCatalog {
     "minusPrefix" -> classOf[UnaryMinus],
     "sin" -> classOf[Sin],
     "cos" -> classOf[Cos],
+    "sinh" -> classOf[Sinh],
     "tan" -> classOf[Tan],
+    "tanh" -> classOf[Tanh],
     "cot" -> classOf[Cot],
     "asin" -> classOf[Asin],
     "acos" -> classOf[Acos],
     "atan" -> classOf[Atan],
     "atan2" -> classOf[Atan2],
+    "cosh" -> classOf[Cosh],
     "degrees" -> classOf[Degrees],
     "radians" -> classOf[Radians],
     "sign" -> classOf[Sign],
@@ -430,11 +434,13 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.SIN,
     SqlStdOperatorTable.COS,
     SqlStdOperatorTable.TAN,
+    ScalarSqlFunctions.TANH,
     SqlStdOperatorTable.COT,
     SqlStdOperatorTable.ASIN,
     SqlStdOperatorTable.ACOS,
     SqlStdOperatorTable.ATAN,
     SqlStdOperatorTable.ATAN2,
+    ScalarSqlFunctions.COSH,
     SqlStdOperatorTable.DEGREES,
     SqlStdOperatorTable.RADIANS,
     SqlStdOperatorTable.SIGN,
@@ -455,11 +461,13 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.RPAD,
     ScalarSqlFunctions.MD5,
     ScalarSqlFunctions.SHA1,
+    ScalarSqlFunctions.SINH,
     ScalarSqlFunctions.SHA224,
     ScalarSqlFunctions.SHA256,
     ScalarSqlFunctions.SHA384,
     ScalarSqlFunctions.SHA512,
     ScalarSqlFunctions.SHA2,
+    ScalarSqlFunctions.REGEXP_EXTRACT,
     ScalarSqlFunctions.FROM_BASE64,
     ScalarSqlFunctions.TO_BASE64,
     ScalarSqlFunctions.UUID,
@@ -467,6 +475,13 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.RTRIM,
     ScalarSqlFunctions.REPEAT,
     ScalarSqlFunctions.REGEXP_REPLACE,
+
+    // MATCH_RECOGNIZE
+    SqlStdOperatorTable.FIRST,
+    SqlStdOperatorTable.LAST,
+    SqlStdOperatorTable.PREV,
+    SqlStdOperatorTable.FINAL,
+    SqlStdOperatorTable.RUNNING,
 
     // EXTENSIONS
     BasicOperatorTable.TUMBLE,

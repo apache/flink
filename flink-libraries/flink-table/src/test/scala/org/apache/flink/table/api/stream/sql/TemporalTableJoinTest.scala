@@ -87,7 +87,9 @@ class TemporalTableJoinTest extends TableTestBase {
 
     val ratesHistory = util.addTable[(Timestamp, String, String, Int, Int)](
       "RatesHistory", 'rowtime.rowtime, 'comment, 'currency, 'rate, 'secondary_key)
-    val rates = ratesHistory.createTemporalTableFunction('rowtime, 'currency)
+    val rates = ratesHistory
+      .filter('rate > 110L)
+      .createTemporalTableFunction('rowtime, 'currency)
     util.addFunction("Rates", rates)
 
     val sqlQuery =

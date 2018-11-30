@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
 
@@ -69,7 +69,7 @@ public class RegisteredOperatorStateBackendMetaInfo<S> extends RegisteredStateMe
 		this(
 			snapshot.getName(),
 			(TypeSerializer<S>) Preconditions.checkNotNull(
-				snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER)),
+				snapshot.restoreTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER)),
 			OperatorStateHandle.Mode.valueOf(
 				snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE)));
 		Preconditions.checkState(StateMetaInfoSnapshot.BackendStateType.OPERATOR == snapshot.getBackendStateType());
@@ -140,7 +140,7 @@ public class RegisteredOperatorStateBackendMetaInfo<S> extends RegisteredStateMe
 		String valueSerializerKey = StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString();
 		Map<String, TypeSerializer<?>> serializerMap =
 			Collections.singletonMap(valueSerializerKey, partitionStateSerializer.duplicate());
-		Map<String, TypeSerializerConfigSnapshot> serializerConfigSnapshotsMap =
+		Map<String, TypeSerializerSnapshot<?>> serializerConfigSnapshotsMap =
 			Collections.singletonMap(valueSerializerKey, partitionStateSerializer.snapshotConfiguration());
 
 		return new StateMetaInfoSnapshot(

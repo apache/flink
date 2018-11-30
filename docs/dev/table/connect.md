@@ -40,13 +40,15 @@ The following table list all available connectors and formats. Their mutual comp
 
 ### Connectors
 
-| Name              | Version       | Maven dependency             | SQL Client JAR         |
-| :---------------- | :------------ | :--------------------------- | :----------------------|
-| Filesystem        |               | Built-in                     | Built-in               |
-| Apache Kafka      | 0.8           | `flink-connector-kafka-0.8`  | Not available          |
-| Apache Kafka      | 0.9           | `flink-connector-kafka-0.9`  | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-kafka-0.9{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka-0.9{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
-| Apache Kafka      | 0.10          | `flink-connector-kafka-0.10` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka-0.10{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
-| Apache Kafka      | 0.11          | `flink-connector-kafka-0.11` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-kafka-0.11{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka-0.11{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
+| Name              | Version             | Maven dependency             | SQL Client JAR         |
+| :---------------- | :------------------ | :--------------------------- | :----------------------|
+| Filesystem        |                     | Built-in                     | Built-in               |
+| Elasticsearch     | 6                   | `flink-connector-elasticsearch6` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-elasticsearch6{{site.scala_version_suffix}}/{{site.version}}/flink-connector-elasticsearch6{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
+| Apache Kafka      | 0.8                 | `flink-connector-kafka-0.8`  | Not available          |
+| Apache Kafka      | 0.9                 | `flink-connector-kafka-0.9`  | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-kafka-0.9{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka-0.9{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
+| Apache Kafka      | 0.10                | `flink-connector-kafka-0.10` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka-0.10{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
+| Apache Kafka      | 0.11                | `flink-connector-kafka-0.11` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-kafka-0.11{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka-0.11{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
+| Apache Kafka      | 0.11+ (`universal`) | `flink-connector-kafka`      | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
 
 ### Formats
 
@@ -82,7 +84,7 @@ The **connector** describes the external system that stores the data of a table.
 
 Some systems support different **data formats**. For example, a table that is stored in Kafka or in files can encode its rows with CSV, JSON, or Avro. A database connector might need the table schema here. Whether or not a storage system requires the definition of a format, is documented for every [connector](connect.html#table-connectors). Different systems also require different [types of formats](connect.html#table-formats) (e.g., column-oriented formats vs. row-oriented formats). The documentation states which format types and connectors are compatible.
 
-The **table schema** defines the schema of a table that is exposed to SQL queries. It describes how a source maps the data format to the table schema and a sink vice versa. The schema has access to fields defined by the connector or format. It can use one or more fields for extracting or inserting [time attributes](streaming.html#time-attributes). If input fields have no determinstic field order, the schema clearly defines column names, their order, and origin.
+The **table schema** defines the schema of a table that is exposed to SQL queries. It describes how a source maps the data format to the table schema and a sink vice versa. The schema has access to fields defined by the connector or format. It can use one or more fields for extracting or inserting [time attributes](streaming/time_attributes.html). If input fields have no deterministic field order, the schema clearly defines column names, their order, and origin.
 
 The subsequent sections will cover each definition part ([connector](connect.html#table-connectors), [format](connect.html#table-formats), and [schema](connect.html#table-schema)) in more detail. The following example shows how to pass them:
 
@@ -112,7 +114,7 @@ schema: ...
 
 The table's type (`source`, `sink`, or `both`) determines how a table is registered. In case of table type `both`, both a table source and table sink are registered under the same name. Logically, this means that we can both read and write to such a table similarly to a table in a regular DBMS.
 
-For streaming queries, an [update mode](connect.html#update-mode) declares how to communicate between a dynamic table and the storage system for continous queries.
+For streaming queries, an [update mode](connect.html#update-mode) declares how to communicate between a dynamic table and the storage system for continuous queries.
 
 The following code shows a full example of how to connect to Kafka for reading Avro records.
 
@@ -293,7 +295,7 @@ schema:
 
 Time attributes are essential when working with unbounded streaming tables. Therefore both processing-time and event-time (also known as "rowtime") attributes can be defined as part of the schema.
 
-For more information about time handling in Flink and especially event-time, we recommend the general [event-time section](streaming.html#time-attributes).
+For more information about time handling in Flink and especially event-time, we recommend the general [event-time section](streaming/time_attributes.html).
 
 ### Rowtime Attributes
 
@@ -436,7 +438,7 @@ ANY<class, serialized>           # used for type information that is not support
 Update Modes
 ------------
 
-For streaming queries, it is required to declare how to perform the [conversion between a dynamic table and an external connector](streaming.html#dynamic-tables--continuous-queries). The *update mode* specifies which kind of messages should be exchanged with the external system:
+For streaming queries, it is required to declare how to perform the [conversion between a dynamic table and an external connector](streaming/dynamic_tables.html#continuous-queries). The *update mode* specifies which kind of messages should be exchanged with the external system:
 
 **Append Mode:** In append mode, a dynamic table and an external connector only exchange INSERT messages.
 
@@ -463,7 +465,7 @@ tables:
 </div>
 </div>
 
-See also the [general streaming concepts documentation](streaming.html#dynamic-tables--continuous-queries) for more information.
+See also the [general streaming concepts documentation](streaming/dynamic_tables.html#continuous-queries) for more information.
 
 {% top %}
 
@@ -523,7 +525,8 @@ The Kafka connector allows for reading and writing from and to an Apache Kafka t
 {% highlight java %}
 .connect(
   new Kafka()
-    .version("0.11")    // required: valid connector versions are "0.8", "0.9", "0.10", and "0.11"
+    .version("0.11")    // required: valid connector versions are
+                        //   "0.8", "0.9", "0.10", "0.11", and "universal"
     .topic("...")       // required: topic name from which the table is read
 
     // optional: connector specific properties
@@ -548,7 +551,8 @@ The Kafka connector allows for reading and writing from and to an Apache Kafka t
 {% highlight yaml %}
 connector:
   type: kafka
-  version: "0.11"     # required: valid connector versions are "0.8", "0.9", "0.10", and "0.11"
+  version: "0.11"     # required: valid connector versions are
+                      #   "0.8", "0.9", "0.10", "0.11", and "universal"
   topic: ...          # required: topic name from which the table is read
 
   properties:         # optional: connector specific properties
@@ -582,9 +586,116 @@ connector:
 
 **Consistency guarantees:** By default, a Kafka sink ingests data with at-least-once guarantees into a Kafka topic if the query is executed with [checkpointing enabled]({{ site.baseurl }}/dev/stream/state/checkpointing.html#enabling-and-configuring-checkpointing).
 
-**Kafka 0.10+ Timestamps:** Since Kafka 0.10, Kafka messages have a timestamp as metadata that specifies when the record was written into the Kafka topic. These timestamps can be used for a [rowtime attribute](connect.html#defining-the-schema) by selecting `timestamps: from-source` in YAML and `timestampsFromSource()` in Java/Scala respectively. 
+**Kafka 0.10+ Timestamps:** Since Kafka 0.10, Kafka messages have a timestamp as metadata that specifies when the record was written into the Kafka topic. These timestamps can be used for a [rowtime attribute](connect.html#defining-the-schema) by selecting `timestamps: from-source` in YAML and `timestampsFromSource()` in Java/Scala respectively.
+
+**Kafka 0.11+ Versioning:** Since Flink 1.7, the Kafka connector definition should be independent of a hard-coded Kafka version. Use the connector version `universal` as a wildcard for Flink's Kafka connector that is compatible with all Kafka versions starting from 0.11.
 
 Make sure to add the version-specific Kafka dependency. In addition, a corresponding format needs to be specified for reading and writing rows from and to Kafka.
+
+{% top %}
+
+### Elasticsearch Connector
+
+<span class="label label-primary">Sink: Streaming Append Mode</span>
+<span class="label label-primary">Sink: Streaming Upsert Mode</span>
+<span class="label label-info">Format: JSON-only</span>
+
+The Elasticsearch connector allows for writing into an index of the Elasticsearch search engine.
+
+The connector can operate in [upsert mode](#update-modes) for exchanging UPSERT/DELETE messages with the external system using a [key defined by the query](./streaming/dynamic_tables.html#table-to-stream-conversion).
+
+For append-only queries, the connector can also operate in [append mode](#update-modes) for exchanging only INSERT messages with the external system. If no key is defined by the query, a key is automatically generated by Elasticsearch.
+
+The connector can be defined as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
+{% highlight java %}
+.connect(
+  new Elasticsearch()
+    .version("6")                      // required: valid connector versions are "6"
+    .host("localhost", 9200, "http")   // required: one or more Elasticsearch hosts to connect to
+    .index("MyUsers")                  // required: Elasticsearch index
+    .documentType("user")              // required: Elasticsearch document type
+
+    .keyDelimiter("$")        // optional: delimiter for composite keys ("_" by default)
+                              //   e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
+    .keyNullLiteral("n/a")    // optional: representation for null fields in keys ("null" by default)
+
+    // optional: failure handling strategy in case a request to Elasticsearch fails (fail by default)
+    .failureHandlerFail()          // optional: throws an exception if a request fails and causes a job failure
+    .failureHandlerIgnore()        //   or ignores failures and drops the request
+    .failureHandlerRetryRejected() //   or re-adds requests that have failed due to queue capacity saturation
+    .failureHandlerCustom(...)     //   or custom failure handling with a ActionRequestFailureHandler subclass
+
+    // optional: configure how to buffer elements before sending them in bulk to the cluster for efficiency
+    .disableFlushOnCheckpoint()    // optional: disables flushing on checkpoint (see notes below!)
+    .bulkFlushMaxActions(42)       // optional: maximum number of actions to buffer for each bulk request
+    .bulkFlushMaxSize("42 mb")     // optional: maximum size of buffered actions in bytes per bulk request
+                                   //   (only MB granularity is supported)
+    .bulkFlushInterval(60000L)     // optional: bulk flush interval (in milliseconds)
+
+    .bulkFlushBackoffConstant()    // optional: use a constant backoff type
+    .bulkFlushBackoffExponential() //   or use an exponential backoff type
+    .bulkFlushBackoffMaxRetries(3) // optional: maximum number of retries
+    .bulkFlushBackoffDelay(30000L) // optional: delay between each backoff attempt (in milliseconds)
+
+    // optional: connection properties to be used during REST communication to Elasticsearch
+    .connectionMaxRetryTimeout(3)  // optional: maximum timeout (in milliseconds) between retries
+    .connectionPathPrefix("/v1")   // optional: prefix string to be added to every REST communication
+)
+{% endhighlight %}
+</div>
+
+<div data-lang="YAML" markdown="1">
+{% highlight yaml %}
+connector:
+  type: elasticsearch
+  version: 6                # required: valid connector versions are "6"
+    hosts:                  # required: one or more Elasticsearch hosts to connect to
+      - hostname: "localhost"
+        port: 9200
+        protocol: "http"
+    index: "MyUsers"        # required: Elasticsearch index
+    document-type: "user"   # required: Elasticsearch document type
+
+    key-delimiter: "$"      # optional: delimiter for composite keys ("_" by default)
+                            #   e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
+    key-null-literal: "n/a" # optional: representation for null fields in keys ("null" by default)
+
+    # optional: failure handling strategy in case a request to Elasticsearch fails ("fail" by default)
+    failure-handler: ...    # valid strategies are "fail" (throws an exception if a request fails and
+                            #   thus causes a job failure), "ignore" (ignores failures and drops the request),
+                            #   "retry-rejected" (re-adds requests that have failed due to queue capacity
+                            #   saturation), or "custom" for failure handling with a
+                            #   ActionRequestFailureHandler subclass
+
+    # optional: configure how to buffer elements before sending them in bulk to the cluster for efficiency
+    flush-on-checkpoint: true   # optional: disables flushing on checkpoint (see notes below!) ("true" by default)
+    bulk-flush:
+      max-actions: 42           # optional: maximum number of actions to buffer for each bulk request
+      max-size: 42 mb           # optional: maximum size of buffered actions in bytes per bulk request
+                                #   (only MB granularity is supported)
+      interval: 60000           # optional: bulk flush interval (in milliseconds)
+      back-off:                 # optional: backoff strategy ("disabled" by default)
+        type: ...               #   valid strategies are "disabled", "constant", or "exponential"
+        max-retries: 3          # optional: maximum number of retries
+        delay: 30000            # optional: delay between each backoff attempt (in milliseconds)
+
+    # optional: connection properties to be used during REST communication to Elasticsearch
+    connection-max-retry-timeout: 3   # optional: maximum timeout (in milliseconds) between retries
+    connection-path-prefix: "/v1"     # optional: prefix string to be added to every REST communication
+{% endhighlight %}
+</div>
+</div>
+
+**Bulk flushing:** For more information about characteristics of the optional flushing parameters see the [corresponding low-level documentation]({{ site.baseurl }}/dev/connectors/elasticsearch.html).
+
+**Disabling flushing on checkpoint:** When disabled, a sink will not wait for all pending action requests to be acknowledged by Elasticsearch on checkpoints. Thus, a sink does NOT provide any strong guarantees for at-least-once delivery of action requests.
+
+**Key extraction:** Flink automatically extracts valid keys from a query. For example, a query `SELECT a, b, c FROM t GROUP BY a, b` defines a composite key of the fields `a` and `b`. The Elasticsearch connector generates a document ID string for every row by concatenating all key fields in the order defined in the query using a key delimiter. A custom representation of null literals for key fields can be defined.
+
+<span class="label label-danger">Attention</span> A JSON format defines how to encode documents for the external system, therefore, it must be added as a [dependency](connect.html#formats). 
 
 {% top %}
 
@@ -935,43 +1046,55 @@ val orcTableSource = OrcTableSource.builder()
 
 The `CsvTableSink` emits a `Table` to one or more CSV files. 
 
-The sink only supports append-only streaming tables. It cannot be used to emit a `Table` that is continuously updated. See the [documentation on Table to Stream conversions](./streaming.html#table-to-stream-conversion) for details. When emitting a streaming table, rows are written at least once (if checkpointing is enabled) and the `CsvTableSink` does not split output files into bucket files but continuously writes to the same files. 
+The sink only supports append-only streaming tables. It cannot be used to emit a `Table` that is continuously updated. See the [documentation on Table to Stream conversions](./streaming/dynamic_tables.html#table-to-stream-conversion) for details. When emitting a streaming table, rows are written at least once (if checkpointing is enabled) and the `CsvTableSink` does not split output files into bucket files but continuously writes to the same files.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 
-Table table = ...
-
-table.writeToSink(
-  new CsvTableSink(
+CsvTableSink sink = new CsvTableSink(
     path,                  // output path 
     "|",                   // optional: delimit files by '|'
     1,                     // optional: write to a single file
-    WriteMode.OVERWRITE)); // optional: override existing files
+    WriteMode.OVERWRITE);  // optional: override existing files
 
+tableEnv.registerTableSink(
+  "csvOutputTable",
+  sink,
+  // specify table schema
+  new String[]{"f0", "f1"},
+  new TypeInformation[]{Types.STRING, Types.INT});
+
+Table table = ...
+table.insertInto("csvOutputTable");
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-val table: Table = ???
-
-table.writeToSink(
-  new CsvTableSink(
+val sink: CsvTableSink = new CsvTableSink(
     path,                             // output path 
     fieldDelim = "|",                 // optional: delimit files by '|'
     numFiles = 1,                     // optional: write to a single file
-    writeMode = WriteMode.OVERWRITE)) // optional: override existing files
+    writeMode = WriteMode.OVERWRITE)  // optional: override existing files
 
+tableEnv.registerTableSink(
+  "csvOutputTable",
+  sink,
+  // specify table schema
+  Array[String]("f0", "f1"),
+  Array[TypeInformation[_]](Types.STRING, Types.INT))
+
+val table: Table = ???
+table.insertInto("csvOutputTable")
 {% endhighlight %}
 </div>
 </div>
 
 ### JDBCAppendTableSink
 
-The `JDBCAppendTableSink` emits a `Table` to a JDBC connection. The sink only supports append-only streaming tables. It cannot be used to emit a `Table` that is continuously updated. See the [documentation on Table to Stream conversions](./streaming.html#table-to-stream-conversion) for details. 
+The `JDBCAppendTableSink` emits a `Table` to a JDBC connection. The sink only supports append-only streaming tables. It cannot be used to emit a `Table` that is continuously updated. See the [documentation on Table to Stream conversions](./streaming/dynamic_tables.html#table-to-stream-conversion) for details.
 
 The `JDBCAppendTableSink` inserts each `Table` row at least once into the database table (if checkpointing is enabled). However, you can specify the insertion query using <code>REPLACE</code> or <code>INSERT OVERWRITE</code> to perform upsert writes to the database.
 
@@ -988,8 +1111,15 @@ JDBCAppendTableSink sink = JDBCAppendTableSink.builder()
   .setParameterTypes(INT_TYPE_INFO)
   .build();
 
+tableEnv.registerTableSink(
+  "jdbcOutputTable",
+  sink,
+  // specify table schema
+  new String[]{"id"},
+  new TypeInformation[]{Types.INT});
+
 Table table = ...
-table.writeToSink(sink);
+table.insertInto("jdbcOutputTable");
 {% endhighlight %}
 </div>
 
@@ -1002,8 +1132,15 @@ val sink: JDBCAppendTableSink = JDBCAppendTableSink.builder()
   .setParameterTypes(INT_TYPE_INFO)
   .build()
 
+tableEnv.registerTableSink(
+  "jdbcOutputTable",
+  sink,
+  // specify table schema
+  Array[String]("id"),
+  Array[TypeInformation[_]](Types.INT))
+
 val table: Table = ???
-table.writeToSink(sink)
+table.insertInto("jdbcOutputTable")
 {% endhighlight %}
 </div>
 </div>
@@ -1014,7 +1151,7 @@ Similar to using <code>JDBCOutputFormat</code>, you have to explicitly specify t
 
 ### CassandraAppendTableSink
 
-The `CassandraAppendTableSink` emits a `Table` to a Cassandra table. The sink only supports append-only streaming tables. It cannot be used to emit a `Table` that is continuously updated. See the [documentation on Table to Stream conversions](./streaming.html#table-to-stream-conversion) for details. 
+The `CassandraAppendTableSink` emits a `Table` to a Cassandra table. The sink only supports append-only streaming tables. It cannot be used to emit a `Table` that is continuously updated. See the [documentation on Table to Stream conversions](./streaming/dynamic_tables.html#table-to-stream-conversion) for details.
 
 The `CassandraAppendTableSink` inserts all rows at least once into the Cassandra table if checkpointing is enabled. However, you can specify the query as upsert query.
 
@@ -1031,8 +1168,15 @@ CassandraAppendTableSink sink = new CassandraAppendTableSink(
   // the query must match the schema of the table
   INSERT INTO flink.myTable (id, name, value) VALUES (?, ?, ?));
 
+tableEnv.registerTableSink(
+  "cassandraOutputTable",
+  sink,
+  // specify table schema
+  new String[]{"id", "name", "value"},
+  new TypeInformation[]{Types.INT, Types.STRING, Types.DOUBLE});
+
 Table table = ...
-table.writeToSink(sink);
+table.insertInto(cassandraOutputTable);
 {% endhighlight %}
 </div>
 
@@ -1045,8 +1189,15 @@ val sink: CassandraAppendTableSink = new CassandraAppendTableSink(
   // the query must match the schema of the table
   INSERT INTO flink.myTable (id, name, value) VALUES (?, ?, ?))
 
+tableEnv.registerTableSink(
+  "cassandraOutputTable",
+  sink,
+  // specify table schema
+  Array[String]("id", "name", "value"),
+  Array[TypeInformation[_]](Types.INT, Types.STRING, Types.DOUBLE))
+
 val table: Table = ???
-table.writeToSink(sink)
+table.insertInto(cassandraOutputTable)
 {% endhighlight %}
 </div>
 </div>

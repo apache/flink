@@ -21,34 +21,42 @@ package org.apache.flink.api.common.typeutils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
 
+import java.io.IOException;
+
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
- * A {@code TypeSerializerConfigSnapshot} is a point-in-time view of a {@link TypeSerializer's} configuration.
- * The configuration snapshot of a serializer is persisted along with checkpoints of the managed state that the
- * serializer is registered to.
+ * This class bridges between the old serializer config snapshot interface (this class) and the new
+ * serializer config snapshot interface ({@link TypeSerializerSnapshot}).
  *
- * <p>The persisted configuration may later on be used by new serializers to ensure serialization compatibility
- * for the same managed state. In order for new serializers to be able to ensure this, the configuration snapshot
- * should encode sufficient information about:
- *
- * <ul>
- *   <li><strong>Parameter settings of the serializer:</strong> parameters of the serializer include settings
- *   required to setup the serializer, or the state of the serializer if it is stateful. If the serializer
- *   has nested serializers, then the configuration snapshot should also contain the parameters of the nested
- *   serializers.</li>
- *
- *   <li><strong>Serialization schema of the serializer:</strong> the data format used by the serializer.</li>
- * </ul>
- *
- * <p>NOTE: Implementations must contain the default empty nullary constructor. This is required to be able to
- * deserialize the configuration snapshot from its binary form.
+ * <p>Serializers that create snapshots and compatibility checks with the old interfaces extends this class
+ * and should migrate to extend {@code TypeSerializerSnapshot} to properly support state evolution/migration
+ * and be future-proof.
  */
 @PublicEvolving
-public abstract class TypeSerializerConfigSnapshot extends VersionedIOReadableWritable {
+@Deprecated
+public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadableWritable implements TypeSerializerSnapshot<T> {
+
+	/** Version / Magic number for the format that bridges between the old and new interface. */
+	private static final int ADAPTER_VERSION = 0x7a53c4f0;
 
 	/** The user code class loader; only relevant if this configuration instance was deserialized from binary form. */
 	private ClassLoader userCodeClassLoader;
+
+	/** The originating serializer of this configuration snapshot. */
+	private TypeSerializer<T> serializer;
+
+	/**
+	 * Set the originating serializer of this configuration snapshot.
+	 */
+	@Internal
+	public final void setPriorSerializer(TypeSerializer<T> serializer) {
+		this.serializer = Preconditions.checkNotNull(serializer);
+	}
 
 	/**
 	 * Set the user code class loader.
@@ -74,7 +82,77 @@ public abstract class TypeSerializerConfigSnapshot extends VersionedIOReadableWr
 		return userCodeClassLoader;
 	}
 
-	public abstract boolean equals(Object obj);
+	// ----------------------------------------------------------------------------
+	//  Implementation of the TypeSerializerSnapshot interface
+	// ----------------------------------------------------------------------------
 
-	public abstract int hashCode();
+	@Override
+	public final int getCurrentVersion() {
+		return ADAPTER_VERSION;
+	}
+
+	@Override
+	public final void writeSnapshot(DataOutputView out) throws IOException {
+		checkState(serializer != null, "the prior serializer has not been set on this");
+
+		// write the snapshot for a non-updated serializer.
+		// this mimics the previous behavior where the TypeSerializer was
+		// Java-serialized, for backwards compatibility
+		TypeSerializerSerializationUtil.writeSerializer(out, serializer);
+
+		// now delegate to the snapshots own writing code
+		write(out);
+	}
+
+	@Override
+	public final void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+		if (readVersion != ADAPTER_VERSION) {
+			throw new IOException("Wrong/unexpected version for the TypeSerializerConfigSnapshot: " + readVersion);
+		}
+
+		serializer = TypeSerializerSerializationUtil.tryReadSerializer(in, userCodeClassLoader, true);
+
+		// now delegate to the snapshots own reading code
+		setUserCodeClassLoader(userCodeClassLoader);
+		read(in);
+	}
+
+	/**
+	 * Creates a serializer using this configuration, that is capable of reading data
+	 * written by the serializer described by this configuration.
+	 *
+	 * @return the restored serializer.
+	 */
+	@Override
+	public final TypeSerializer<T> restoreSerializer() {
+		if (serializer == null) {
+			throw new IllegalStateException(
+					"Trying to restore the prior serializer via TypeSerializerConfigSnapshot, " +
+					"but the prior serializer has not been set.");
+		}
+		else if (serializer instanceof UnloadableDummyTypeSerializer) {
+			Throwable originalError = ((UnloadableDummyTypeSerializer<?>) serializer).getOriginalError();
+
+			throw new IllegalStateException(
+					"Could not Java-deserialize TypeSerializer while restoring checkpoint metadata for serializer " +
+					"snapshot '" + getClass().getName() + "'. " +
+					"Please update to the TypeSerializerSnapshot interface that removes Java Serialization to avoid " +
+					"this problem in the future.", originalError);
+		} else {
+			return this.serializer;
+		}
+	}
+
+	@Override
+	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
+			TypeSerializer<T> newSerializer) {
+
+		// in prior versions, the compatibility check was in the serializer itself, so we
+		// delegate this call to the serializer.
+		final CompatibilityResult<T> compatibility = newSerializer.ensureCompatibility(this);
+
+		return compatibility.isRequiresMigration() ?
+				TypeSerializerSchemaCompatibility.incompatible() :
+				TypeSerializerSchemaCompatibility.compatibleAsIs();
+	}
 }

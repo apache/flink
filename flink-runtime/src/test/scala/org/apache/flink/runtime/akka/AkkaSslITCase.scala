@@ -50,7 +50,7 @@ class AkkaSslITCase(_system: ActorSystem)
 
       val config = new Configuration()
       config.setString(JobManagerOptions.ADDRESS, "127.0.0.1")
-      config.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "127.0.0.1")
+      config.setString(TaskManagerOptions.HOST, "127.0.0.1")
       config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1)
       config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1)
 
@@ -77,7 +77,7 @@ class AkkaSslITCase(_system: ActorSystem)
 
         val config = new Configuration()
         config.setString(JobManagerOptions.ADDRESS, "127.0.0.1")
-        config.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "127.0.0.1")
+        config.setString(TaskManagerOptions.HOST, "127.0.0.1")
         config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1)
         config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1)
 

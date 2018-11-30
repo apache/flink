@@ -22,12 +22,10 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamTemporalTableJoin
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTemporalTableJoin
 import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.runtime.join.WindowJoinUtil
 
 class DataStreamTemporalTableJoinRule
   extends ConverterRule(
@@ -38,16 +36,7 @@ class DataStreamTemporalTableJoinRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalTemporalTableJoin = call.rel(0)
-    val joinInfo = join.analyzeCondition
-
-    val (windowBounds, remainingPreds) = WindowJoinUtil.extractWindowBoundsFromPredicate(
-      joinInfo.getRemaining(join.getCluster.getRexBuilder),
-      join.getLeft.getRowType.getFieldCount,
-      join.getRowType,
-      join.getCluster.getRexBuilder,
-      TableConfig.DEFAULT)
-
-    windowBounds.isEmpty && join.getJoinType == JoinRelType.INNER
+    join.getJoinType == JoinRelType.INNER
   }
 
   override def convert(rel: RelNode): RelNode = {

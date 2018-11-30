@@ -31,7 +31,7 @@ import java.io.IOException;
  * @param <T> The type to be instantiated.
  */
 @Internal
-public abstract class GenericTypeSerializerConfigSnapshot<T> extends TypeSerializerConfigSnapshot {
+public abstract class GenericTypeSerializerConfigSnapshot<T> extends TypeSerializerConfigSnapshot<T> {
 
 	private Class<T> typeClass;
 

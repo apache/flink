@@ -75,7 +75,10 @@ The following configuration methods can be used:
 5. _enableWriteAheadLog([CheckpointCommitter committer])_
     * An __optional__ setting
     * Allows exactly-once processing for non-deterministic algorithms.
-6. _build()_
+6. _setFailureHandler([CassandraFailureHandler failureHandler])_
+    * An __optional__ setting
+    * Sets the custom failure handler.
+7. _build()_
     * Finalizes the configuration and constructs the CassandraSink instance.
 
 ### Write-ahead Log

@@ -23,6 +23,7 @@ import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.logical._
 import org.apache.calcite.rel.{RelNode, RelShuttle}
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo
 import org.apache.flink.table.api.{TableException, ValidationException}
@@ -33,6 +34,7 @@ import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
 import org.apache.flink.table.validate.BasicOperatorTable
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 /**
@@ -96,8 +98,44 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     LogicalSort.create(input, sort.collation, sort.offset, sort.fetch)
   }
 
-  override def visit(`match`: LogicalMatch): RelNode =
-    throw new TableException("Logical match in a stream environment is not supported yet.")
+  override def visit(matchRel: LogicalMatch): RelNode = {
+    // visit children and update inputs
+    val input = matchRel.getInput.accept(this)
+    val materializer = createMaterializer(input)
+
+    // update input expressions
+    val patternDefs = matchRel.getPatternDefinitions.mapValues(_.accept(materializer))
+    val measures = matchRel.getMeasures
+      .mapValues(_.accept(materializer))
+      .mapValues(materializerUtils.materialize)
+    val partitionKeys = matchRel.getPartitionKeys
+      .map(_.accept(materializer))
+      .map(materializerUtils.materialize)
+    val interval = if (matchRel.getInterval != null) {
+      matchRel.getInterval.accept(materializer)
+    } else {
+      null
+    }
+
+    // materialize all output types
+    // TODO allow passing through for rowtime accessor function, once introduced
+    val outputType = materializerUtils.getRowTypeWithoutIndicators(matchRel.getRowType)
+
+    LogicalMatch.create(
+      input,
+      outputType,
+      matchRel.getPattern,
+      matchRel.isStrictStart,
+      matchRel.isStrictEnd,
+      patternDefs,
+      measures,
+      matchRel.getAfter,
+      matchRel.getSubsets.asInstanceOf[java.util.Map[String, java.util.TreeSet[String]]],
+      matchRel.isAllRows,
+      partitionKeys,
+      matchRel.getOrderKeys,
+      interval)
+  }
 
   override def visit(other: RelNode): RelNode = other match {
 
@@ -137,23 +175,16 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
   override def visit(filter: LogicalFilter): RelNode = {
     // visit children and update inputs
     val input = filter.getInput.accept(this)
+    val materializer = createMaterializer(input)
 
-    // We do not materialize time indicators in conditions because they can be locally evaluated.
-    // Some conditions are evaluated by special operators (e.g., time window joins).
-    // Time indicators in remaining conditions are materialized by Calc before the code generation.
-    LogicalFilter.create(input, filter.getCondition)
+    val condition = filter.getCondition.accept(materializer)
+    LogicalFilter.create(input, condition)
   }
 
   override def visit(project: LogicalProject): RelNode = {
     // visit children and update inputs
     val input = project.getInput.accept(this)
-
-    // check if input field contains time indicator type
-    // materialize field if no time indicator is present anymore
-    // if input field is already materialized, change to timestamp type
-    val materializer = new RexTimeIndicatorMaterializer(
-      rexBuilder,
-      input.getRowType.getFieldList.map(_.getType))
+    val materializer = createMaterializer(input)
 
     val projects = project.getProjects.map(_.accept(materializer))
     val fieldNames = project.getRowType.getFieldNames
@@ -163,8 +194,14 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
   override def visit(join: LogicalJoin): RelNode = {
     val left = join.getLeft.accept(this)
     val right = join.getRight.accept(this)
+    val materializer = createMaterializer(left, right)
 
-    LogicalJoin.create(left, right, join.getCondition, join.getVariablesSet, join.getJoinType)
+    LogicalJoin.create(
+      left,
+      right,
+      join.getCondition.accept(materializer),
+      join.getVariablesSet,
+      join.getJoinType)
   }
 
   def visit(temporalJoin: LogicalTemporalTableJoin): RelNode = {
@@ -186,19 +223,11 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       case scan: LogicalTableFunctionScan =>
         // visit children and update inputs
         val scanInputs = scan.getInputs.map(_.accept(this))
-
-        // check if input field contains time indicator type
-        // materialize field if no time indicator is present anymore
-        // if input field is already materialized, change to timestamp type
-        val materializer = new RexTimeIndicatorMaterializer(
-          rexBuilder,
-          inputs.head.getRowType.getFieldList.map(_.getType))
-
-        val call = scan.getCall.accept(materializer)
+        val materializer = createMaterializer(inputs.head)
         LogicalTableFunctionScan.create(
           scan.getCluster,
           scanInputs,
-          call,
+          scan.getCall.accept(materializer),
           scan.getElementType,
           scan.getRowType,
           scan.getColumnMappings)
@@ -326,6 +355,15 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
     indicesToMaterialize.toSet
   }
+
+  private def createMaterializer(inputs: RelNode*): RexTimeIndicatorMaterializer = {
+    // check if input field contains time indicator type
+    // materialize field if no time indicator is present anymore
+    // if input field is already materialized, change to timestamp type
+    new RexTimeIndicatorMaterializer(
+      rexBuilder,
+      inputs.flatMap(_.getRowType.getFieldList.map(_.getType)))
+  }
 }
 
 object RelTimeIndicatorConverter {
@@ -369,11 +407,34 @@ object RelTimeIndicatorConverter {
     * @return The expression with materialized time indicators.
     */
   def convertExpression(expr: RexNode, rowType: RelDataType, rexBuilder: RexBuilder): RexNode = {
+    // check if input field contains time indicator type
+    // materialize field if no time indicator is present anymore
+    // if input field is already materialized, change to timestamp type
     val materializer = new RexTimeIndicatorMaterializer(
-          rexBuilder,
-          rowType.getFieldList.map(_.getType))
+      rexBuilder,
+      rowType.getFieldList.map(_.getType))
 
-        expr.accept(materializer)
+    expr.accept(materializer)
+  }
+
+  /**
+    * Checks if the given call is a materialization call for either proctime or rowtime.
+    */
+  def isMaterializationCall(call: RexCall): Boolean = {
+    val isProctimeCall: Boolean = {
+      call.getOperator == ProctimeSqlFunction &&
+        call.getOperands.size() == 1 &&
+        isProctimeIndicatorType(call.getOperands.get(0).getType)
+    }
+
+    val isRowtimeCall: Boolean = {
+      call.getOperator == SqlStdOperatorTable.CAST &&
+        call.getOperands.size() == 1 &&
+        isRowtimeIndicatorType(call.getOperands.get(0).getType) &&
+        call.getType.getSqlTypeName == SqlTypeName.TIMESTAMP
+    }
+
+    isProctimeCall || isRowtimeCall
   }
 }
 
@@ -478,6 +539,23 @@ class RexTimeIndicatorMaterializerUtils(rexBuilder: RexBuilder) {
       input,
       projects,
       input.getRowType.getFieldNames)
+  }
+
+  def getRowTypeWithoutIndicators(relType: RelDataType): RelDataType = {
+    val outputTypeBuilder = rexBuilder
+      .getTypeFactory
+      .asInstanceOf[FlinkTypeFactory]
+      .builder()
+
+    relType.getFieldList.asScala.zipWithIndex.foreach { case (field, idx) =>
+      if (FlinkTypeFactory.isTimeIndicatorType(field.getType)) {
+        outputTypeBuilder.add(field.getName, timestamp)
+      } else {
+        outputTypeBuilder.add(field.getName, field.getType)
+      }
+    }
+
+    outputTypeBuilder.build()
   }
 
   def materializeIfContains(expr: RexNode, index: Int, indicesToMaterialize: Set[Int]): RexNode = {

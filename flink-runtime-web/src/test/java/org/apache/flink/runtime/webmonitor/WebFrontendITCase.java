@@ -30,9 +30,9 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
-import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -79,7 +79,7 @@ public class WebFrontendITCase extends TestLogger {
 	private static final Configuration CLUSTER_CONFIGURATION = getClusterConfiguration();
 
 	@ClassRule
-	public static final MiniClusterResource CLUSTER = new MiniClusterResource(
+	public static final MiniClusterWithClientResource CLUSTER = new MiniClusterWithClientResource(
 		new MiniClusterResourceConfiguration.Builder()
 			.setConfiguration(CLUSTER_CONFIGURATION)
 			.setNumberTaskManagers(NUM_TASK_MANAGERS)
@@ -117,7 +117,7 @@ public class WebFrontendITCase extends TestLogger {
 	@Test
 	public void getFrontPage() {
 		try {
-			String fromHTTP = TestBaseUtils.getFromHTTP("http://localhost:" + CLUSTER.getWebUIPort() + "/index.html");
+			String fromHTTP = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/index.html");
 			String text = "Apache Flink Dashboard";
 			assertTrue("Startpage should contain " + text, fromHTTP.contains(text));
 		} catch (Exception e) {
@@ -126,10 +126,14 @@ public class WebFrontendITCase extends TestLogger {
 		}
 	}
 
+	private int getRestPort() {
+		return CLUSTER.getRestAddres().getPort();
+	}
+
 	@Test
 	public void testResponseHeaders() throws Exception {
 		// check headers for successful json response
-		URL taskManagersUrl = new URL("http://localhost:" + CLUSTER.getWebUIPort() + "/taskmanagers");
+		URL taskManagersUrl = new URL("http://localhost:" + getRestPort() + "/taskmanagers");
 		HttpURLConnection taskManagerConnection = (HttpURLConnection) taskManagersUrl.openConnection();
 		taskManagerConnection.setConnectTimeout(100000);
 		taskManagerConnection.connect();
@@ -145,18 +149,14 @@ public class WebFrontendITCase extends TestLogger {
 		Assert.assertEquals("application/json; charset=UTF-8", taskManagerConnection.getContentType());
 
 		// check headers in case of an error
-		URL notFoundJobUrl = new URL("http://localhost:" + CLUSTER.getWebUIPort() + "/jobs/dontexist");
+		URL notFoundJobUrl = new URL("http://localhost:" + getRestPort() + "/jobs/dontexist");
 		HttpURLConnection notFoundJobConnection = (HttpURLConnection) notFoundJobUrl.openConnection();
 		notFoundJobConnection.setConnectTimeout(100000);
 		notFoundJobConnection.connect();
 		if (notFoundJobConnection.getResponseCode() >= 400) {
 			// we don't set the content-encoding header
 			Assert.assertNull(notFoundJobConnection.getContentEncoding());
-			if (CLUSTER.getCodebaseType() == TestBaseUtils.CodebaseType.NEW) {
-				Assert.assertEquals("application/json; charset=UTF-8", notFoundJobConnection.getContentType());
-			} else {
-				Assert.assertEquals("text/plain; charset=UTF-8", notFoundJobConnection.getContentType());
-			}
+			Assert.assertEquals("application/json; charset=UTF-8", notFoundJobConnection.getContentType());
 		} else {
 			throw new RuntimeException("Request for non-existing job did not return an error.");
 		}
@@ -165,7 +165,7 @@ public class WebFrontendITCase extends TestLogger {
 	@Test
 	public void getNumberOfTaskManagers() {
 		try {
-			String json = TestBaseUtils.getFromHTTP("http://localhost:" + CLUSTER.getWebUIPort() + "/taskmanagers/");
+			String json = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/");
 
 			ObjectMapper mapper = new ObjectMapper();
 			JsonNode response = mapper.readTree(json);
@@ -181,7 +181,7 @@ public class WebFrontendITCase extends TestLogger {
 
 	@Test
 	public void getTaskmanagers() throws Exception {
-		String json = TestBaseUtils.getFromHTTP("http://localhost:" + CLUSTER.getWebUIPort() + "/taskmanagers/");
+		String json = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/");
 
 		ObjectMapper mapper = new ObjectMapper();
 		JsonNode parsed = mapper.readTree(json);
@@ -201,18 +201,18 @@ public class WebFrontendITCase extends TestLogger {
 		WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(CLUSTER_CONFIGURATION);
 
 		FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
-		String logs = TestBaseUtils.getFromHTTP("http://localhost:" + CLUSTER.getWebUIPort() + "/jobmanager/log");
+		String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/log");
 		assertTrue(logs.contains("job manager log"));
 
 		FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
-		logs = TestBaseUtils.getFromHTTP("http://localhost:" + CLUSTER.getWebUIPort() + "/jobmanager/stdout");
+		logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/stdout");
 		assertTrue(logs.contains("job manager out"));
 	}
 
 	@Test
 	public void getTaskManagerLogAndStdoutFiles() {
 		try {
-			String json = TestBaseUtils.getFromHTTP("http://localhost:" + CLUSTER.getWebUIPort() + "/taskmanagers/");
+			String json = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/");
 
 			ObjectMapper mapper = new ObjectMapper();
 			JsonNode parsed = mapper.readTree(json);
@@ -224,11 +224,11 @@ public class WebFrontendITCase extends TestLogger {
 
 			//we check for job manager log files, since no separate taskmanager logs exist
 			FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
-			String logs = TestBaseUtils.getFromHTTP("http://localhost:" + CLUSTER.getWebUIPort() + "/taskmanagers/" + id + "/log");
+			String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/" + id + "/log");
 			assertTrue(logs.contains("job manager log"));
 
 			FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
-			logs = TestBaseUtils.getFromHTTP("http://localhost:" + CLUSTER.getWebUIPort() + "/taskmanagers/" + id + "/stdout");
+			logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/" + id + "/stdout");
 			assertTrue(logs.contains("job manager out"));
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -239,7 +239,7 @@ public class WebFrontendITCase extends TestLogger {
 	@Test
 	public void getConfiguration() {
 		try {
-			String config = TestBaseUtils.getFromHTTP("http://localhost:" + CLUSTER.getWebUIPort() + "/jobmanager/config");
+			String config = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/config");
 
 			Map<String, String> conf = WebMonitorUtils.fromKeyValueJsonArray(config);
 			assertEquals(
@@ -279,24 +279,14 @@ public class WebFrontendITCase extends TestLogger {
 		final FiniteDuration testTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
 		final Deadline deadline = testTimeout.fromNow();
 
-		try (HttpTestClient client = new HttpTestClient("localhost", CLUSTER.getWebUIPort())) {
-			if (CLUSTER.getCodebaseType() == TestBaseUtils.CodebaseType.NEW) {
-				// stop the job
-				client.sendPatchRequest("/jobs/" + jid + "/?mode=stop", deadline.timeLeft());
-				HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
+		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
+			// stop the job
+			client.sendPatchRequest("/jobs/" + jid + "/?mode=stop", deadline.timeLeft());
+			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
 
-				assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
-				assertEquals("application/json; charset=UTF-8", response.getType());
-				assertEquals("{}", response.getContent());
-			} else {
-				// stop the job
-				client.sendDeleteRequest("/jobs/" + jid + "/stop", deadline.timeLeft());
-				HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
-
-				assertEquals(HttpResponseStatus.OK, response.getStatus());
-				assertEquals("application/json; charset=UTF-8", response.getType());
-				assertEquals("{}", response.getContent());
-			}
+			assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
+			assertEquals("application/json; charset=UTF-8", response.getType());
+			assertEquals("{}", response.getContent());
 		}
 
 		// wait for cancellation to finish
@@ -305,7 +295,7 @@ public class WebFrontendITCase extends TestLogger {
 		}
 
 		// ensure we can access job details when its finished (FLINK-4011)
-		try (HttpTestClient client = new HttpTestClient("localhost", CLUSTER.getWebUIPort())) {
+		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
 			FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
 			client.sendGetRequest("/jobs/" + jid + "/config", timeout);
 			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(timeout);
@@ -348,18 +338,14 @@ public class WebFrontendITCase extends TestLogger {
 		final FiniteDuration testTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
 		final Deadline deadline = testTimeout.fromNow();
 
-		try (HttpTestClient client = new HttpTestClient("localhost", CLUSTER.getWebUIPort())) {
+		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
 			// Request the file from the web server
 			client.sendGetRequest("/jobs/" + jid + "/yarn-stop", deadline.timeLeft());
 
 			HttpTestClient.SimpleHttpResponse response = client
 				.getNextResponse(deadline.timeLeft());
 
-			if (CLUSTER.getCodebaseType() == TestBaseUtils.CodebaseType.NEW) {
-				assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
-			} else {
-				assertEquals(HttpResponseStatus.OK, response.getStatus());
-			}
+			assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
 			assertEquals("application/json; charset=UTF-8", response.getType());
 			assertEquals("{}", response.getContent());
 		}

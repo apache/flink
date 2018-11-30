@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.async;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.NotFoundException;
@@ -29,24 +28,14 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
-import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.types.Either;
-import org.apache.flink.util.FlinkException;
-
-import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
 /**
  * HTTP handlers for asynchronous operations.
@@ -176,7 +165,7 @@ public abstract class AbstractAsynchronousOperationHandlers<K extends OperationK
 			final Either<Throwable, R> operationResultOrError;
 			try {
 				operationResultOrError = completedOperationCache.get(key);
-			} catch (UnknownOperationKey e) {
+			} catch (UnknownOperationKeyException e) {
 				return FutureUtils.completedExceptionally(
 					new NotFoundException("Operation not found under key: " + key, e));
 			}
@@ -192,6 +181,11 @@ public abstract class AbstractAsynchronousOperationHandlers<K extends OperationK
 			} else {
 				return CompletableFuture.completedFuture(AsynchronousOperationResult.inProgress());
 			}
+		}
+
+		@Override
+		public CompletableFuture<Void> closeHandlerAsync() {
+			return completedOperationCache.closeAsync();
 		}
 
 		/**
@@ -218,81 +212,6 @@ public abstract class AbstractAsynchronousOperationHandlers<K extends OperationK
 		 * @return Operation result
 		 */
 		protected abstract V operationResultResponse(R operationResult);
-	}
-
-	/**
-	 * Cache to manage ongoing operations.
-	 *
-	 * <p>The cache allows to register ongoing operations by calling
-	 * {@link #registerOngoingOperation(K, CompletableFuture)}, where the
-	 * {@code CompletableFuture} contains the operation result. Completed operations will be
-	 * removed from the cache automatically after a fixed timeout.
-	 */
-	@ThreadSafe
-	protected static class CompletedOperationCache<K, R> {
-
-		private static final long COMPLETED_OPERATION_RESULT_CACHE_DURATION_SECONDS = 300L;
-
-		/**
-		 * Stores SavepointKeys of ongoing savepoint.
-		 * If the savepoint completes, it will be moved to {@link #completedOperations}.
-		 */
-		private final Set<K> registeredOperationTriggers = ConcurrentHashMap.newKeySet();
-
-		/** Caches the location of completed operations. */
-		private final Cache<K, Either<Throwable, R>> completedOperations =
-			CacheBuilder.newBuilder()
-				.expireAfterWrite(COMPLETED_OPERATION_RESULT_CACHE_DURATION_SECONDS, TimeUnit.SECONDS)
-				.build();
-
-		/**
-		 * Registers an ongoing operation with the cache.
-		 *
-		 * @param operationResultFuture A future containing the operation result.
-		 */
-		public void registerOngoingOperation(
-			final K operationKey,
-			final CompletableFuture<R> operationResultFuture) {
-			registeredOperationTriggers.add(operationKey);
-			operationResultFuture.whenComplete((savepointLocation, error) -> {
-				if (error == null) {
-					completedOperations.put(operationKey, Either.Right(savepointLocation));
-				} else {
-					completedOperations.put(operationKey, Either.Left(error));
-				}
-				registeredOperationTriggers.remove(operationKey);
-			});
-		}
-
-		/**
-		 * Returns the operation result or a {@code Throwable} if the {@code CompletableFuture}
-		 * finished, otherwise {@code null}.
-		 *
-		 * @throws UnknownOperationKey If the operation is not found, and there is no ongoing
-		 *                                   operation under the provided key.
-		 */
-		@Nullable
-		public Either<Throwable, R> get(
-			final K operationKey) throws UnknownOperationKey {
-			Either<Throwable, R> operationResultOrError = null;
-			if (!registeredOperationTriggers.contains(operationKey)
-				&& (operationResultOrError = completedOperations.getIfPresent(operationKey)) == null) {
-				throw new UnknownOperationKey(operationKey);
-			}
-			return operationResultOrError;
-		}
-	}
-
-	/**
-	 * Exception that indicates that there is no ongoing or completed savepoint for a given
-	 * {@link JobID} and {@link TriggerId} pair.
-	 */
-	static class UnknownOperationKey extends FlinkException {
-		private static final long serialVersionUID = 1L;
-
-		UnknownOperationKey(final Object operationKey) {
-			super("No ongoing operation for " + operationKey);
-		}
 	}
 
 }

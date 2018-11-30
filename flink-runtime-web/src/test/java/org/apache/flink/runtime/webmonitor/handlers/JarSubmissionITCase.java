@@ -127,8 +127,8 @@ public class JarSubmissionITCase extends TestLogger {
 
 	private static JobPlanInfo showPlan(JarPlanHandler handler, String jarName, RestfulGateway restfulGateway) throws Exception {
 		JarPlanMessageParameters planParameters = JarPlanHeaders.getInstance().getUnresolvedMessageParameters();
-		HandlerRequest<EmptyRequestBody, JarPlanMessageParameters> planRequest = new HandlerRequest<>(
-			EmptyRequestBody.getInstance(),
+		HandlerRequest<JarPlanRequestBody, JarPlanMessageParameters> planRequest = new HandlerRequest<>(
+			new JarPlanRequestBody(),
 			planParameters,
 			Collections.singletonMap(planParameters.jarIdPathParameter.getKey(), jarName),
 			Collections.emptyMap(),

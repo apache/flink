@@ -252,7 +252,8 @@ public abstract class AbstractStreamOperator<OUT>
 				getClass().getSimpleName(),
 				this,
 				keySerializer,
-				streamTaskCloseableRegistry);
+				streamTaskCloseableRegistry,
+				metrics);
 
 		this.operatorStateBackend = context.operatorStateBackend();
 		this.keyedStateBackend = context.keyedStateBackend();
@@ -412,8 +413,13 @@ public abstract class AbstractStreamOperator<OUT>
 				snapshotException.addSuppressed(e);
 			}
 
-			throw new Exception("Could not complete snapshot " + checkpointId + " for operator " +
-				getOperatorName() + '.', snapshotException);
+			String snapshotFailMessage = "Could not complete snapshot " + checkpointId + " for operator " +
+				getOperatorName() + ".";
+
+			if (!getContainingTask().isCanceled()) {
+				LOG.info(snapshotFailMessage, snapshotException);
+			}
+			throw new Exception(snapshotFailMessage, snapshotException);
 		}
 
 		return snapshotInProgress;

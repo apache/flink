@@ -54,7 +54,7 @@ public class CassandraSinkBaseTest {
 					.withoutJMXReporting()
 					.withoutMetrics().build();
 			}
-		}) {
+		}, new NoOpCassandraFailureHandler()) {
 			@Override
 			public ListenableFuture send(Object value) {
 				return null;
@@ -114,6 +114,20 @@ public class CassandraSinkBaseTest {
 			Assert.assertEquals(cause, e.getCause());
 			Assert.assertEquals(0, casSinkFunc.getNumOfPendingRecords());
 		}
+	}
+
+	@Test(timeout = 5000)
+	public void testIgnoreError() throws Exception {
+		Exception cause = new RuntimeException();
+		CassandraFailureHandler failureHandler = failure -> Assert.assertEquals(cause, failure);
+		TestCassandraSink casSinkFunc = new TestCassandraSink(failureHandler);
+
+		casSinkFunc.open(new Configuration());
+
+		casSinkFunc.setResultFuture(ResultSetFutures.fromCompletableFuture(FutureUtils.getFailedFuture(cause)));
+
+		casSinkFunc.invoke("hello");
+		casSinkFunc.invoke("world");
 	}
 
 	@Test(timeout = 5000)
@@ -232,7 +246,11 @@ public class CassandraSinkBaseTest {
 		private ResultSetFuture result;
 
 		TestCassandraSink() {
-			super(builder);
+			super(builder, new NoOpCassandraFailureHandler());
+		}
+
+		TestCassandraSink(CassandraFailureHandler failureHandler) {
+			super(builder, failureHandler);
 		}
 
 		void setResultFuture(ResultSetFuture result) {

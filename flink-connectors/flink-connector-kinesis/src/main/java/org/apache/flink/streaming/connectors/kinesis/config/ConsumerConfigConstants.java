@@ -140,6 +140,8 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The config to turn on adaptive reads from a shard. */
 	public static final String SHARD_USE_ADAPTIVE_READS = "flink.shard.adaptivereads";
 
+	/** The interval after which to consider a shard idle for purposes of watermark generation. */
+	public static final String SHARD_IDLE_INTERVAL_MILLIS = "flink.shard.idle.interval";
 
 	// ------------------------------------------------------------------------
 	//  Default values for consumer configuration
@@ -189,6 +191,8 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	public static final long DEFAULT_SHARD_DISCOVERY_INTERVAL_MILLIS = 10000L;
 
 	public static final boolean DEFAULT_SHARD_USE_ADAPTIVE_READS = false;
+
+	public static final long DEFAULT_SHARD_IDLE_INTERVAL_MILLIS = -1;
 
 	/**
 	 * To avoid shard iterator expires in {@link ShardConsumer}s, the value for the configured

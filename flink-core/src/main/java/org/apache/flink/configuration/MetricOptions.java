@@ -144,6 +144,30 @@ public class MetricOptions {
 		key("metrics.system-resource-probing-interval")
 			.defaultValue(5000L);
 
+	/**
+	 * The default network port range for Flink's internal metric query service. The {@code "0"} means that
+	 * Flink searches for a free port.
+	 */
+	public static final ConfigOption<String> QUERY_SERVICE_PORT =
+		key("metrics.internal.query-service.port")
+		.defaultValue("0")
+		.withDescription("The port range used for Flink's internal metric query service. Accepts a list of ports " +
+			"(“50100,50101”), ranges(“50100-50200”) or a combination of both. It is recommended to set a range of " +
+			"ports to avoid collisions when multiple Flink components are running on the same machine. Per default " +
+			"Flink will pick a random port.");
+
+	/**
+	 * The thread priority for Flink's internal metric query service. The {@code 1} means the min priority and the
+	 * {@code 10} means the max priority.
+	 */
+	public static final ConfigOption<Integer> QUERY_SERVICE_THREAD_PRIORITY =
+		key("metrics.internal.query-service.thread-priority")
+		.defaultValue(1)
+		.withDescription("The thread priority used for Flink's internal metric query service. The thread is created" +
+			" by Akka's thread pool executor. " +
+			"The range of the priority is from 1 (MIN_PRIORITY) to 10 (MAX_PRIORITY). " +
+			"Warning, increasing this value may bring the main Flink components down.");
+
 	private MetricOptions() {
 	}
 }

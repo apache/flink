@@ -26,10 +26,9 @@ import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -64,7 +63,7 @@ public class HistoryServerTest extends TestLogger {
 	@ClassRule
 	public static final TemporaryFolder TMP = new TemporaryFolder();
 
-	private MiniClusterResource cluster;
+	private MiniClusterWithClientResource cluster;
 	private File jmDirectory;
 	private File hsDirectory;
 
@@ -76,12 +75,11 @@ public class HistoryServerTest extends TestLogger {
 		Configuration clusterConfig = new Configuration();
 		clusterConfig.setString(JobManagerOptions.ARCHIVE_DIR, jmDirectory.toURI().toString());
 
-		cluster = new MiniClusterResource(
+		cluster = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()
 				.setConfiguration(clusterConfig)
 				.setNumberTaskManagers(1)
 				.setNumberSlotsPerTaskManager(1)
-				.setCodebaseType(TestBaseUtils.CodebaseType.NEW)
 				.build());
 		cluster.before();
 	}

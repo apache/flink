@@ -57,6 +57,8 @@ import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
@@ -172,7 +174,8 @@ public class MesosResourceManagerTest extends TestLogger {
 			MesosServices mesosServices,
 			MesosConfiguration mesosConfig,
 			MesosTaskManagerParameters taskManagerParameters,
-			ContainerSpecification taskManagerContainerSpec) {
+			ContainerSpecification taskManagerContainerSpec,
+			JobManagerMetricGroup jobManagerMetricGroup) {
 			super(
 				rpcService,
 				resourceManagerEndpointId,
@@ -189,7 +192,8 @@ public class MesosResourceManagerTest extends TestLogger {
 				mesosConfig,
 				taskManagerParameters,
 				taskManagerContainerSpec,
-				null);
+				null,
+				jobManagerMetricGroup);
 		}
 
 		@Override
@@ -242,7 +246,7 @@ public class MesosResourceManagerTest extends TestLogger {
 		TestingMesosResourceManager resourceManager;
 
 		// domain objects for test purposes
-		final ResourceProfile resourceProfile1 = new ResourceProfile(1.0, 1);
+		final ResourceProfile resourceProfile1 = ResourceProfile.UNKNOWN;
 
 		Protos.FrameworkID framework1 = Protos.FrameworkID.newBuilder().setValue("framework1").build();
 		public Protos.SlaveID slave1 = Protos.SlaveID.newBuilder().setValue("slave1").build();
@@ -298,8 +302,8 @@ public class MesosResourceManagerTest extends TestLogger {
 					mesosServices,
 					rmServices.mesosConfig,
 					tmParams,
-					containerSpecification
-				);
+					containerSpecification,
+					UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup());
 
 			// TaskExecutors
 			task1Executor = mockTaskExecutor(task1);
@@ -344,7 +348,7 @@ public class MesosResourceManagerTest extends TestLogger {
 				doAnswer(new Answer<Object>() {
 					@Override
 					public Object answer(InvocationOnMock invocation) throws Throwable {
-						rmActions = invocation.getArgumentAt(2, ResourceActions.class);
+						rmActions = invocation.getArgument(2);
 						slotManagerStarted.complete(true);
 						return null;
 					}

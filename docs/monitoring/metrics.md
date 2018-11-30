@@ -622,34 +622,6 @@ An example for such a list would be `host=localhost,job_name=MyJob,task_name=MyT
 
 The domain thus identifies a metric class, while the key-property list identifies one (or multiple) instances of that metric.
 
-### Ganglia (org.apache.flink.metrics.ganglia.GangliaReporter)
-
-In order to use this reporter you must copy `/opt/flink-metrics-ganglia-{{site.version}}.jar` into the `/lib` folder
-of your Flink distribution.
-
-Parameters:
-
-- `host` - the gmond host address configured under `udp_recv_channel.bind` in `gmond.conf`
-- `port` - the gmond port configured under `udp_recv_channel.port` in `gmond.conf`
-- `tmax` - soft limit for how long an old metric should be retained
-- `dmax` - hard limit for how long an old metric should be retained
-- `ttl` - time-to-live for transmitted UDP packets
-- `addressingMode` - UDP addressing mode to use (UNICAST/MULTICAST)
-
-Example configuration:
-
-{% highlight yaml %}
-
-metrics.reporter.gang.class: org.apache.flink.metrics.ganglia.GangliaReporter
-metrics.reporter.gang.host: localhost
-metrics.reporter.gang.port: 8649
-metrics.reporter.gang.tmax: 60
-metrics.reporter.gang.dmax: 0
-metrics.reporter.gang.ttl: 1
-metrics.reporter.gang.addressingMode: MULTICAST
-
-{% endhighlight %}
-
 ### Graphite (org.apache.flink.metrics.graphite.GraphiteReporter)
 
 In order to use this reporter you must copy `/opt/flink-metrics-graphite-{{site.version}}.jar` into the `/lib` folder
@@ -674,7 +646,7 @@ metrics.reporter.grph.protocol: TCP
 
 ### Prometheus (org.apache.flink.metrics.prometheus.PrometheusReporter)
 
-In order to use this reporter you must copy `/opt/flink-metrics-prometheus-{{site.version}}.jar` into the `/lib` folder
+In order to use this reporter you must copy `/opt/flink-metrics-prometheus{{site.scala_version_suffix}}-{{site.version}}.jar` into the `/lib` folder
 of your Flink distribution.
 
 Parameters:
@@ -1204,6 +1176,9 @@ Thus, in order to infer the metric identifier:
     </tr>
   </tbody>
 </table>
+
+### RocksDB
+Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({{ site.baseurl }}/ops/config.html#rocksdb-native-metrics)
 
 ### IO
 <table class="table table-bordered">

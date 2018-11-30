@@ -43,7 +43,7 @@ import java.util.Properties;
  */
 @Deprecated
 @Internal
-public abstract class KafkaJsonTableSource extends KafkaTableSource {
+public abstract class KafkaJsonTableSource extends KafkaTableSourceBase {
 
 	/**
 	 * Creates a generic Kafka JSON {@link StreamTableSource}.
@@ -102,7 +102,7 @@ public abstract class KafkaJsonTableSource extends KafkaTableSource {
 	 */
 	@Deprecated
 	protected abstract static class Builder<T extends KafkaJsonTableSource, B extends KafkaJsonTableSource.Builder>
-		extends KafkaTableSource.Builder<T, B> {
+		extends KafkaTableSourceBase.Builder<T, B> {
 
 		private TableSchema jsonSchema;
 

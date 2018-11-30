@@ -23,8 +23,11 @@ import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.RequestBody;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
+import org.slf4j.Logger;
 
 import java.util.List;
 
@@ -63,4 +66,26 @@ public class HandlerRequestUtils {
 		return value;
 	}
 
+	/**
+	 * Returns {@code requestValue} if it is not null, otherwise returns the query parameter value
+	 * if it is not null, otherwise returns the default value.
+	 */
+	public static <T> T fromRequestBodyOrQueryParameter(
+			T requestValue,
+			SupplierWithException<T, RestHandlerException> queryParameterExtractor,
+			T defaultValue,
+			Logger log) throws RestHandlerException {
+		if (requestValue != null) {
+			return requestValue;
+		} else {
+			T queryParameterValue = queryParameterExtractor.get();
+			if (queryParameterValue != null) {
+				log.warn("Configuring the job submission via query parameters is deprecated." +
+					" Please migrate to submitting a JSON request instead.");
+				return queryParameterValue;
+			} else {
+				return defaultValue;
+			}
+		}
+	}
 }

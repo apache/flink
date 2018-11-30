@@ -114,10 +114,7 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 		CompletableFuture<Acknowledge> jobSubmissionFuture = finalizedJobGraphFuture.thenCompose(jobGraph -> gateway.submitJob(jobGraph, timeout));
 
 		return jobSubmissionFuture.thenCombine(jobGraphFuture,
-			(ack, jobGraph) -> new JobSubmitResponseBody("/jobs/" + jobGraph.getJobID()))
-			.exceptionally(exception -> {
-				throw new CompletionException(new RestHandlerException("Job submission failed.", HttpResponseStatus.INTERNAL_SERVER_ERROR, exception));
-			});
+			(ack, jobGraph) -> new JobSubmitResponseBody("/jobs/" + jobGraph.getJobID()));
 	}
 
 	private CompletableFuture<JobGraph> loadJobGraph(JobSubmitRequestBody requestBody, Map<String, Path> nameToFile) throws MissingFileException {

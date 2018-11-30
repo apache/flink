@@ -45,7 +45,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *     <li>The default parallelism of the program, i.e., how many parallel tasks to use for
  *         all functions that do not define a specific value directly.</li>
  *     <li>The number of retries in the case of failed executions.</li>
- *     <li>The delay between delay between execution retries.</li>
+ *     <li>The delay between execution retries.</li>
  *     <li>The {@link ExecutionMode} of the program: Batch or Pipelined.
  *         The default execution mode is {@link ExecutionMode#PIPELINED}</li>
  *     <li>Enabling or disabling the "closure cleaner". The closure cleaner pre-processes

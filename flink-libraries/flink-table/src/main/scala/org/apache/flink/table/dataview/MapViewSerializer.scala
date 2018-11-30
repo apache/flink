@@ -35,14 +35,14 @@ import org.apache.flink.table.api.dataview.MapView
   * @tparam K The type of the keys in the map.
   * @tparam V The type of the values in the map.
   */
-class MapViewSerializer[K, V](val mapSerializer: MapSerializer[K, V])
+@SerialVersionUID(-9007142882049098705L)
+class MapViewSerializer[K, V](val mapSerializer: TypeSerializer[java.util.Map[K, V]])
   extends TypeSerializer[MapView[K, V]] {
 
   override def isImmutableType: Boolean = false
 
   override def duplicate(): TypeSerializer[MapView[K, V]] =
-    new MapViewSerializer[K, V](
-      mapSerializer.duplicate().asInstanceOf[MapSerializer[K, V]])
+    new MapViewSerializer[K, V](mapSerializer.duplicate())
 
   override def createInstance(): MapView[K, V] = {
     new MapView[K, V]()
@@ -77,40 +77,38 @@ class MapViewSerializer[K, V](val mapSerializer: MapSerializer[K, V])
   override def equals(obj: Any): Boolean = canEqual(this) &&
     mapSerializer.equals(obj.asInstanceOf[MapViewSerializer[_, _]].mapSerializer)
 
-  override def snapshotConfiguration(): TypeSerializerConfigSnapshot =
-    mapSerializer.snapshotConfiguration()
+  override def snapshotConfiguration(): MapViewSerializerSnapshot[K, V] =
+    new MapViewSerializerSnapshot[K, V](mapSerializer)
 
   // copy and modified from MapSerializer.ensureCompatibility
-  override def ensureCompatibility(configSnapshot: TypeSerializerConfigSnapshot)
+  override def ensureCompatibility(configSnapshot: TypeSerializerConfigSnapshot[_])
   : CompatibilityResult[MapView[K, V]] = {
 
     configSnapshot match {
-      case snapshot: MapSerializerConfigSnapshot[_, _] =>
-        val previousKvSerializersAndConfigs = snapshot.getNestedSerializersAndConfigs
+      // backwards compatibility path;
+      // Flink versions older or equal to 1.5.x returns a
+      // MapSerializerConfigSnapshot as the snapshot
+      case legacySnapshot: MapSerializerConfigSnapshot[K, V] =>
+        val previousKvSerializersAndConfigs =
+          legacySnapshot.getNestedSerializersAndConfigs
 
+        // in older versions, the nested map serializer was always
+        // specifically a MapSerializer, so this cast is safe
+        val castedSer = mapSerializer.asInstanceOf[MapSerializer[K, V]]
         val keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
           previousKvSerializersAndConfigs.get(0).f0,
           classOf[UnloadableDummyTypeSerializer[_]],
           previousKvSerializersAndConfigs.get(0).f1,
-          mapSerializer.getKeySerializer)
+          castedSer.getKeySerializer)
 
         val valueCompatResult = CompatibilityUtil.resolveCompatibilityResult(
           previousKvSerializersAndConfigs.get(1).f0,
           classOf[UnloadableDummyTypeSerializer[_]],
           previousKvSerializersAndConfigs.get(1).f1,
-          mapSerializer.getValueSerializer)
+          castedSer.getValueSerializer)
 
         if (!keyCompatResult.isRequiresMigration && !valueCompatResult.isRequiresMigration) {
           CompatibilityResult.compatible[MapView[K, V]]
-        } else if (keyCompatResult.getConvertDeserializer != null
-          && valueCompatResult.getConvertDeserializer != null) {
-          CompatibilityResult.requiresMigration(
-            new MapViewSerializer[K, V](
-              new MapSerializer[K, V](
-                new TypeDeserializerAdapter[K](keyCompatResult.getConvertDeserializer),
-                new TypeDeserializerAdapter[V](valueCompatResult.getConvertDeserializer))
-            )
-          )
         } else {
           CompatibilityResult.requiresMigration[MapView[K, V]]
         }
@@ -118,4 +116,6 @@ class MapViewSerializer[K, V](val mapSerializer: MapSerializer[K, V])
       case _ => CompatibilityResult.requiresMigration[MapView[K, V]]
     }
   }
+
+  def getMapSerializer: TypeSerializer[java.util.Map[K, V]] = mapSerializer
 }

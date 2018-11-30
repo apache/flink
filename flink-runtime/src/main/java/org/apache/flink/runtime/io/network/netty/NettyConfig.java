@@ -22,7 +22,6 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.net.SSLUtils;
 
 import org.slf4j.Logger;
@@ -191,14 +190,14 @@ public class NettyConfig {
 	}
 
 	@Nullable
-	public SSLEngineFactory createClientSSLEngineFactory() throws Exception {
+	public SSLHandlerFactory createClientSSLEngineFactory() throws Exception {
 		return getSSLEnabled() ?
 				SSLUtils.createInternalClientSSLEngineFactory(config) :
 				null;
 	}
 
 	@Nullable
-	public SSLEngineFactory createServerSSLEngineFactory() throws Exception {
+	public SSLHandlerFactory createServerSSLEngineFactory() throws Exception {
 		return getSSLEnabled() ?
 				SSLUtils.createInternalServerSSLEngineFactory(config) :
 				null;

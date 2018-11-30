@@ -88,7 +88,7 @@ The `BatchTableSource` interface extends the `TableSource` interface and defines
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-BatchTableSource<T> extends TableSource<T> {
+BatchTableSource<T> implements TableSource<T> {
 
   public DataSet<T> getDataSet(ExecutionEnvironment execEnv);
 }
@@ -116,7 +116,7 @@ The `StreamTableSource` interface extends the `TableSource` interface and define
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-StreamTableSource<T> extends TableSource<T> {
+StreamTableSource<T> implements TableSource<T> {
 
   public DataStream<T> getDataStream(StreamExecutionEnvironment execEnv);
 }
@@ -139,13 +139,13 @@ StreamTableSource[T] extends TableSource[T] {
 
 ### Defining a TableSource with Time Attributes
 
-Time-based operations of streaming [Table API](tableApi.html#group-windows) and [SQL](sql.html#group-windows) queries, such as windowed aggregations or joins, require explicitly specified [time attributes]({{ site.baseurl }}/dev/table/streaming.html#time-attributes). 
+Time-based operations of streaming [Table API](tableApi.html#group-windows) and [SQL](sql.html#group-windows) queries, such as windowed aggregations or joins, require explicitly specified [time attributes](streaming/time_attributes.html).
 
 A `TableSource` defines a time attribute as a field of type `Types.SQL_TIMESTAMP` in its table schema. In contrast to all regular fields in the schema, a time attribute must not be matched to a physical field in the return type of the table source. Instead, a `TableSource` defines a time attribute by implementing a certain interface.
 
 #### Defining a Processing Time Attribute
 
-[Processing time attributes](streaming.html#processing-time) are commonly used in streaming queries. A processing time attribute returns the current wall-clock time of the operator that accesses it. A `TableSource` defines a processing time attribute by implementing the `DefinedProctimeAttribute` interface. The interface looks as follows:
+[Processing time attributes](streaming/time_attributes.html#processing-time) are commonly used in streaming queries. A processing time attribute returns the current wall-clock time of the operator that accesses it. A `TableSource` defines a processing time attribute by implementing the `DefinedProctimeAttribute` interface. The interface looks as follows:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -173,7 +173,7 @@ DefinedProctimeAttribute {
 
 #### Defining a Rowtime Attribute
 
-[Rowtime attributes](streaming.html#event-time) are attributes of type `TIMESTAMP` and handled in a unified way in stream and batch queries.
+[Rowtime attributes](streaming/time_attributes.html#event-time) are attributes of type `TIMESTAMP` and handled in a unified way in stream and batch queries.
 
 A table schema field of type `SQL_TIMESTAMP` can be declared as rowtime attribute by specifying 
 
@@ -374,7 +374,7 @@ The interface looks as follows:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-BatchTableSink<T> extends TableSink<T> {
+BatchTableSink<T> implements TableSink<T> {
 
   public void emitDataSet(DataSet<T> dataSet);
 }
@@ -402,7 +402,7 @@ The interface looks as follows:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-AppendStreamTableSink<T> extends TableSink<T> {
+AppendStreamTableSink<T> implements TableSink<T> {
 
   public void emitDataStream(DataStream<T> dataStream);
 }
@@ -432,7 +432,7 @@ The interface looks as follows:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-RetractStreamTableSink<T> extends TableSink<Tuple2<Boolean, T>> {
+RetractStreamTableSink<T> implements TableSink<Tuple2<Boolean, T>> {
 
   public TypeInformation<T> getRecordType();
 
@@ -466,7 +466,7 @@ The interface looks as follows:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-UpsertStreamTableSink<T> extends TableSink<Tuple2<Boolean, T>> {
+UpsertStreamTableSink<T> implements TableSink<Tuple2<Boolean, T>> {
 
   public void setKeyFields(String[] keys);
 
@@ -572,7 +572,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-class MySystemTableSourceFactory extends StreamTableSourceFactory<Row> {
+class MySystemTableSourceFactory implements StreamTableSourceFactory<Row> {
 
   @Override
   public Map<String, String> requiredContext() {
@@ -672,7 +672,8 @@ A connector for `MySystem` in our example can extend `ConnectorDescriptor` as sh
 <div data-lang="java" markdown="1">
 {% highlight java %}
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.descriptors.DescriptorProperties;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
   * Connector to MySystem with debug mode.
@@ -687,8 +688,10 @@ public class MySystemConnector extends ConnectorDescriptor {
   }
 
   @Override
-  public void addConnectorProperties(DescriptorProperties properties) {
-    properties.putString("connector.debug", Boolean.toString(isDebug));
+  protected Map<String, String> toConnectorProperties() {
+    Map<String, String> properties = new HashMap<>();
+    properties.put("connector.debug", Boolean.toString(isDebug));
+    return properties;
   }
 }
 {% endhighlight %}
@@ -697,15 +700,18 @@ public class MySystemConnector extends ConnectorDescriptor {
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 import org.apache.flink.table.descriptors.ConnectorDescriptor
-import org.apache.flink.table.descriptors.DescriptorProperties
+import java.util.HashMap
+import java.util.Map
 
 /**
   * Connector to MySystem with debug mode.
   */
-class MySystemConnector(isDebug: Boolean) extends ConnectorDescriptor("my-system", 1, formatNeeded = false) {
+class MySystemConnector(isDebug: Boolean) extends ConnectorDescriptor("my-system", 1, false) {
   
-  override protected def addConnectorProperties(properties: DescriptorProperties): Unit = {
-    properties.putString("connector.debug", isDebug.toString)
+  override protected def toConnectorProperties(): Map[String, String] = {
+    val properties = new HashMap[String, String]
+    properties.put("connector.debug", isDebug.toString)
+    properties
   }
 }
 {% endhighlight %}

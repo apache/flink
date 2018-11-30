@@ -21,12 +21,16 @@ package org.apache.flink.fs.s3.common;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
+import org.apache.flink.fs.s3.common.writer.S3MultiPartUploader;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URI;
@@ -35,6 +39,24 @@ import java.net.URI;
  * Base class for file system factories that create S3 file systems.
  */
 public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
+
+	public static final ConfigOption<Long> PART_UPLOAD_MIN_SIZE = ConfigOptions
+			.key("s3.upload.min.part.size")
+			.defaultValue(FlinkS3FileSystem.S3_MULTIPART_MIN_PART_SIZE)
+			.withDescription(
+					"This option is relevant to the Recoverable Writer and sets the min size of data that " +
+					"buffered locally, before being sent to S3. Flink also takes care of checkpointing locally " +
+					"buffered data. This value cannot be less than 5MB or greater than 5GB (limits set by Amazon)."
+			);
+
+	public static final ConfigOption<Integer> MAX_CONCURRENT_UPLOADS = ConfigOptions
+			.key("s3.upload.max.concurrent.uploads")
+			.defaultValue(Runtime.getRuntime().availableProcessors())
+			.withDescription(
+					"This option is relevant to the Recoverable Writer and limits the number of " +
+					"parts that can be concurrently in-flight. By default, this is set to " +
+					Runtime.getRuntime().availableProcessors() + "."
+			);
 
 	/**
 	 * The substring to be replaced by random entropy in checkpoint paths.
@@ -116,7 +138,19 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
 				}
 			}
 
-			return new FlinkS3FileSystem(fs, entropyInjectionKey, numEntropyChars);
+			final String localTmpDirectory = flinkConfig.getString(CoreOptions.TMP_DIRS);
+			final long s3minPartSize = flinkConfig.getLong(PART_UPLOAD_MIN_SIZE);
+			final int maxConcurrentUploads = flinkConfig.getInteger(MAX_CONCURRENT_UPLOADS);
+			final S3MultiPartUploader s3AccessHelper = getS3AccessHelper(fs);
+
+			return new FlinkS3FileSystem(
+					fs,
+					localTmpDirectory,
+					entropyInjectionKey,
+					numEntropyChars,
+					s3AccessHelper,
+					s3minPartSize,
+					maxConcurrentUploads);
 		}
 		catch (IOException e) {
 			throw e;
@@ -130,5 +164,8 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
 
 	protected abstract URI getInitURI(
 		URI fsUri, org.apache.hadoop.conf.Configuration hadoopConfig);
+
+	@Nullable
+	protected abstract S3MultiPartUploader getS3AccessHelper(org.apache.hadoop.fs.FileSystem fs);
 }
 

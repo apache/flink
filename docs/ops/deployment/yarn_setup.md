@@ -291,7 +291,7 @@ It allows to access log files for running YARN applications and shows diagnostic
 
 ## Build YARN client for a specific Hadoop version
 
-Users using Hadoop distributions from companies like Hortonworks, Cloudera or MapR might have to build Flink against their specific versions of Hadoop (HDFS) and YARN. Please read the [build instructions]({{ site.baseurl }}/flinkdev/building.html) for more details.
+Users using Hadoop distributions from companies like Hortonworks, Cloudera or MapR might have to build Flink against their specific versions of Hadoop (HDFS) and YARN. Please read the [build instructions]({{ site.baseurl }}/flinkDev/building.html) for more details.
 
 ## Running Flink on YARN behind Firewalls
 

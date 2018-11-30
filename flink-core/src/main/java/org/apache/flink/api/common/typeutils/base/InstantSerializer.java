@@ -19,6 +19,8 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -101,5 +103,22 @@ public final class InstantSerializer extends TypeSerializerSingleton<Instant> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof InstantSerializer;
+	}
+
+	@Override
+	public TypeSerializerSnapshot<Instant> snapshotConfiguration() {
+		return new InstantSerializerSnapshot();
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Serializer configuration snapshot for compatibility and format evolution.
+	 */
+	public static final class InstantSerializerSnapshot extends SimpleTypeSerializerSnapshot<Instant> {
+
+		public InstantSerializerSnapshot() {
+			super(InstantSerializer.class);
+		}
 	}
 }

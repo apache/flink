@@ -67,11 +67,6 @@ object StatefulJobSavepointMigrationITCase {
   val GENERATE_SAVEPOINT_VER: MigrationVersion = MigrationVersion.v1_4
   val GENERATE_SAVEPOINT_BACKEND_TYPE: String = StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME
 
-  val SCALA_VERSION: String = {
-    val versionString = Properties.versionString.split(" ")(1)
-    versionString.substring(0, versionString.lastIndexOf("."))
-  }
-
   val NUM_ELEMENTS = 4
 }
 
@@ -115,9 +110,7 @@ class StatefulJobSavepointMigrationITCase(
 
     executeAndSavepoint(
       env,
-      s"src/test/resources/stateful-scala" +
-        s"${StatefulJobSavepointMigrationITCase.SCALA_VERSION}" +
-        s"-udf-migration-itcase-flink" +
+      s"src/test/resources/stateful-scala-udf-migration-itcase-flink" +
         s"${StatefulJobSavepointMigrationITCase.GENERATE_SAVEPOINT_VER}" +
         s"-${StatefulJobSavepointMigrationITCase.GENERATE_SAVEPOINT_BACKEND_TYPE}-savepoint",
       new Tuple2(
@@ -159,7 +152,7 @@ class StatefulJobSavepointMigrationITCase(
     restoreAndExecute(
       env,
       SavepointMigrationTestBase.getResourceFilename(
-        s"stateful-scala${StatefulJobSavepointMigrationITCase.SCALA_VERSION}" +
+        s"stateful-scala" +
           s"-udf-migration-itcase-flink${migrationVersionAndBackend._1}" +
           s"-${migrationVersionAndBackend._2}-savepoint"),
       new Tuple2(
@@ -229,7 +222,7 @@ class StatefulJobSavepointMigrationITCase(
     }
 
     @throws[Exception]
-    def invoke(value: T) {
+    override def invoke(value: T) {
       count += 1
       getRuntimeContext.getAccumulator(
         AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR).add(1)

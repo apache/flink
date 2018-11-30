@@ -56,6 +56,7 @@ import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -617,17 +618,21 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 * @param slotProvider to allocate the slots from
 	 * @param queued if the allocation can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
+	 *                                                 Can be empty if the allocation ids are not required for scheduling.
 	 * @return Future which is completed once the execution is deployed. The future
 	 * can also completed exceptionally.
 	 */
 	public CompletableFuture<Void> scheduleForExecution(
 			SlotProvider slotProvider,
 			boolean queued,
-			LocationPreferenceConstraint locationPreferenceConstraint) {
+			LocationPreferenceConstraint locationPreferenceConstraint,
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 		return this.currentExecution.scheduleForExecution(
 			slotProvider,
 			queued,
-			locationPreferenceConstraint);
+			locationPreferenceConstraint,
+			allPreviousExecutionGraphAllocationIds);
 	}
 
 	@VisibleForTesting

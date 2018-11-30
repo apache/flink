@@ -285,7 +285,7 @@ EXISTS (sub-query)
       </td>
       <td>
         <p>Returns TRUE if <i>sub-query</i> returns at least one row. Only supported if the operation can be rewritten in a join and group operation.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -297,7 +297,7 @@ value IN (sub-query)
       </td>
       <td>
         <p>Returns TRUE if <i>value</i> is equal to a row returned by sub-query.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -309,7 +309,7 @@ value NOT IN (sub-query)
       </td>
       <td>
         <p>Returns TRUE if <i>value</i> is not equal to every row returned by <i>sub-query</i>.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
     </tbody>
@@ -459,7 +459,7 @@ ANY.in(TABLE)
       </td>
       <td>
         <p>Returns TRUE if <i>ANY</i> is equal to a row returned by sub-query <i>TABLE</i>.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -639,7 +639,7 @@ ANY.in(TABLE)
       </td>
       <td>
         <p>Returns TRUE if <i>ANY</i> is equal to a row returned by sub-query <i>TABLE</i>.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -1200,6 +1200,18 @@ SIN(numeric)
     <tr>
       <td>
         {% highlight text %}
+SINH(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic sine of <i>numeric</i>.</p> 
+        <p>The return type is <i>DOUBLE</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
 COS(numeric)
 {% endhighlight %}
       </td>
@@ -1216,6 +1228,18 @@ TAN(numeric)
       </td>
       <td>
         <p>Returns the tangent of <i>numeric</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+TANH(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic tangent of <i>numeric</i>.</p> 
+        <p>The return type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
@@ -1271,6 +1295,18 @@ ATAN2(numeric1, numeric2)
       </td>
       <td>
         <p>Returns the arc tangent of a coordinate <i>(numeric1, numeric2)</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+COSH(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic cosine of <i>NUMERIC</i>.</p> 
+        <p>Return value type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
@@ -1635,6 +1671,18 @@ NUMERIC.sin()
     <tr>
       <td>
         {% highlight java %}
+NUMERIC.sinh()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic sine of <i>NUMERIC</i>.</p> 
+        <p>The return type is <i>DOUBLE</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
 NUMERIC.cos()
 {% endhighlight %}
       </td>
@@ -1651,6 +1699,18 @@ NUMERIC.tan()
       </td>
       <td>
         <p>Returns the tangent of <i>NUMERIC</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.tanh()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic tangent of <i>NUMERIC</i>.</p> 
+        <p>The return type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
@@ -1706,6 +1766,18 @@ atan2(NUMERIC1, NUMERIC2)
       </td>
       <td>
         <p>Returns the arc tangent of a coordinate <i>(NUMERIC1, NUMERIC2)</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.cosh()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic cosine of <i>NUMERIC</i>.</p> 
+        <p>Return value type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
@@ -2071,6 +2143,18 @@ NUMERIC.sin()
     <tr>
       <td>
         {% highlight scala %}
+NUMERIC.sinh()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic sine of <i>NUMERIC</i>.</p> 
+        <p>The return type is <i>DOUBLE</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
 NUMERIC.cos()
 {% endhighlight %}
       </td>
@@ -2087,6 +2171,18 @@ NUMERIC.tan()
       </td>
       <td>
         <p>Returns the tangent of <i>NUMERIC</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.tanh()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic tangent of <i>NUMERIC</i>.</p> 
+        <p>The return type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
@@ -2142,6 +2238,18 @@ atan2(NUMERIC1, NUMERIC2)
       </td>
       <td>
         <p>Returns the arc tangent of a coordinate <i>(NUMERIC1, NUMERIC2)</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.cosh()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic cosine of <i>NUMERIC</i>.</p> 
+        <p>Return value type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
@@ -2463,6 +2571,19 @@ REPLACE(string1, string2, string3)
     <tr>
       <td>
         {% highlight text %}
+REGEXP_EXTRACT(string1, string2[, integer])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string from <i>string1</i> which extracted with a specified regular expression <i>string2</i> and a regex match group index <i>integer</i>.</p> 
+        <p><b>Note:</b> The regex match group index starts from 1 and 0 means matching the whole regex. In addition, the regex match group index should not exceed the number of the defined groups.</p> 
+        <p>E.g. <code>REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)"</code> returns "bar".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
 INITCAP(string)
 {% endhighlight %}
       </td>
@@ -2715,6 +2836,19 @@ STRING1.replace(STRING2, STRING3)
     <tr>
       <td>
         {% highlight java %}
+STRING1.regexpExtract(STRING2[, INTEGER1])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string from <i>STRING1</i> which extracted with a specified regular expression <i>STRING2</i> and a regex match group index <i>INTEGER1</i>.</p>
+        <p><b>Note:</b> The regex match group index starts from 1 and 0 means matching the whole regex. In addition, the regex match group index should not exceed the number of the defined groups.</p> 
+        <p>E.g. <code>'foothebar'.regexpExtract('foo(.*?)(bar)', 2)"</code> returns "bar".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
 STRING.initCap()
 {% endhighlight %}
       </td>
@@ -2960,6 +3094,19 @@ STRING1.replace(STRING2, STRING3)
       <td>
         <p>Returns a new string which replaces all the occurrences of <i>STRING2</i> with <i>STRING3</i> (non-overlapping) from <i>STRING1</i>.</p>
         <p>E.g., <code>"hello world".replace("world", "flink")</code> returns "hello flink"; <code>"ababab".replace("abab", "z")</code> returns "zab".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING1.regexpExtract(STRING2[, INTEGER1])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string from <i>STRING1</i> which extracted with a specified regular expression <i>STRING2</i> and a regex match group index <i>INTEGER1</i>.</p>
+        <p><b>Note:</b> The regex match group index starts from 1 and 0 means matching the whole regex. In addition, the regex match group index should not exceed the number of the defined groups.</p>
+        <p>E.g. <code>"foothebar".regexpExtract("foo(.*?)(bar)", 2)"</code> returns "bar".</p>
       </td>
     </tr>
 
@@ -4039,7 +4186,7 @@ CAST(value AS type)
       </td>
       <td>
         <p>Returns a new <i>value</i> being cast to type <i>type</i>. See the supported types <a href="sql.html#data-types">here</a>.</p>
-        <p>E.g., <code>CAST('42' AS INT)</code> returns 42.</p>
+        <p>E.g., <code>CAST('42' AS INT)</code> returns 42; <code>CAST(NULL AS VARCHAR)</code> returns NULL of type VARCHAR.</p>
       </td>
     </tr>
   </tbody>
@@ -4064,7 +4211,7 @@ ANY.cast(TYPE)
       </td>
       <td>
         <p>Returns a new <i>ANY</i> being cast to type <i>TYPE</i>. See the supported types <a href="tableApi.html#data-types">here</a>.</p>
-        <p>E.g., <code>'42'.cast(INT)</code> returns 42.</p>
+        <p>E.g., <code>'42'.cast(INT)</code> returns 42; <code>Null(STRING)</code> returns NULL of type STRING.</p>
       </td>
     </tr>
     </tbody>
@@ -4089,7 +4236,7 @@ ANY.cast(TYPE)
       </td>
       <td>
         <p>Returns a new <i>ANY</i> being cast to type <i>TYPE</i>. See the supported types <a href="tableApi.html#data-types">here</a>.</p>
-        <p>E.g., <code>"42".cast(Types.INT)</code> returns 42.</p>
+        <p>E.g., <code>"42".cast(Types.INT)</code> returns 42; <code>Null(Types.STRING)</code> returns NULL of type STRING.</p>
       </td>
     </tr>
   </tbody>

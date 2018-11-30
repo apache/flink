@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.7-SNAPSHOT</version>
+		<version>1.8-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -42,7 +42,6 @@ under the License.
 		<module>flink-hbase</module>
 		<module>flink-hcatalog</module>
 		<module>flink-connector-kafka-base</module>
-		<module>flink-connector-kafka-0.8</module>
 		<module>flink-connector-kafka-0.9</module>
 		<module>flink-connector-kafka-0.10</module>
 		<module>flink-connector-kafka-0.11</module>
@@ -56,6 +55,7 @@ under the License.
 		<module>flink-connector-nifi</module>
 		<module>flink-connector-cassandra</module>
 		<module>flink-connector-filesystem</module>
+		<module>flink-connector-kafka</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
@@ -82,6 +82,19 @@ under the License.
 
 	<!-- See main pom.xml for explanation of profiles -->
 	<profiles>
+		<!-- there's no Kafka 0.8 dependency for Scala 2.12, we only include when building
+		for Scala 2.11 -->
+		<profile>
+			<id>scala-2.11</id>
+			<activation>
+				<property>
+					<name>!scala-2.12</name>
+				</property>
+			</activation>
+			<modules>
+				<module>flink-connector-kafka-0.8</module>
+			</modules>
+		</profile>
 		<!--
 			We include the kinesis module only optionally because it contains a dependency
 			licenced under the "Amazon Software License".

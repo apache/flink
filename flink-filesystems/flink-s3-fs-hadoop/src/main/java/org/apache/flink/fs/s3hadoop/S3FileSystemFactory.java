@@ -21,10 +21,14 @@ package org.apache.flink.fs.s3hadoop;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory;
 import org.apache.flink.fs.s3.common.HadoopConfigLoader;
+import org.apache.flink.fs.s3.common.writer.S3MultiPartUploader;
 
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.s3a.S3AFileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.net.URI;
 import java.util.Collections;
@@ -34,6 +38,7 @@ import java.util.Set;
  * Simple factory for the S3 file system.
  */
 public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
+
 	private static final Logger LOG = LoggerFactory.getLogger(S3FileSystemFactory.class);
 
 	private static final Set<String> PACKAGE_PREFIXES_TO_SHADE = Collections.singleton("com.amazonaws.");
@@ -87,5 +92,12 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
 		LOG.debug("Using scheme {} for s3a file system backing the S3 File System", fsUri);
 
 		return fsUri;
+	}
+
+	@Nullable
+	@Override
+	protected S3MultiPartUploader getS3AccessHelper(FileSystem fs) {
+		final S3AFileSystem s3Afs = (S3AFileSystem) fs;
+		return new HadoopS3MultiPartUploader(s3Afs, s3Afs.getConf());
 	}
 }

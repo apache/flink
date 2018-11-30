@@ -25,17 +25,21 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.testutils.s3.S3TestCredentials;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 import static com.facebook.presto.hive.PrestoS3FileSystem.S3_USE_INSTANCE_CREDENTIALS;
@@ -53,25 +57,27 @@ import static org.junit.Assert.fail;
  * <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel">consistency guarantees</a>
  * and what the {@link com.facebook.presto.hive.PrestoS3FileSystem} offers.
  */
+@RunWith(Parameterized.class)
 public class PrestoS3FileSystemITCase extends TestLogger {
 
-	private static final String BUCKET = System.getenv("ARTIFACTS_AWS_BUCKET");
+	@Parameterized.Parameter
+	public String scheme;
+
+	@Parameterized.Parameters(name = "Scheme = {0}")
+	public static List<String> parameters() {
+		return Arrays.asList("s3", "s3p");
+	}
 
 	private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
-	private static final String ACCESS_KEY = System.getenv("ARTIFACTS_AWS_ACCESS_KEY");
-	private static final String SECRET_KEY = System.getenv("ARTIFACTS_AWS_SECRET_KEY");
-
 	@BeforeClass
 	public static void checkIfCredentialsArePresent() {
-		Assume.assumeTrue("AWS S3 bucket not configured, skipping test...", BUCKET != null);
-		Assume.assumeTrue("AWS S3 access key not configured, skipping test...", ACCESS_KEY != null);
-		Assume.assumeTrue("AWS S3 secret key not configured, skipping test...", SECRET_KEY != null);
+		S3TestCredentials.assumeCredentialsAvailable();
 	}
 
 	@Test
 	public void testConfigKeysForwarding() throws Exception {
-		final Path path = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR);
+		final Path path = new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR);
 
 		// access without credentials should fail
 		{
@@ -90,8 +96,8 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 		{
 			Configuration conf = new Configuration();
 			conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
-			conf.setString("presto.s3.access-key", ACCESS_KEY);
-			conf.setString("presto.s3.secret-key", SECRET_KEY);
+			conf.setString("presto.s3.access-key", S3TestCredentials.getS3AccessKey());
+			conf.setString("presto.s3.secret-key", S3TestCredentials.getS3SecretKey());
 
 			FileSystem.initialize(conf);
 			path.getFileSystem().exists(path);
@@ -101,8 +107,8 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 		{
 			Configuration conf = new Configuration();
 			conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
-			conf.setString("s3.access-key", ACCESS_KEY);
-			conf.setString("s3.secret-key", SECRET_KEY);
+			conf.setString("s3.access-key", S3TestCredentials.getS3AccessKey());
+			conf.setString("s3.secret-key", S3TestCredentials.getS3SecretKey());
 
 			FileSystem.initialize(conf);
 			path.getFileSystem().exists(path);
@@ -112,8 +118,8 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 		{
 			Configuration conf = new Configuration();
 			conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
-			conf.setString("s3.access.key", ACCESS_KEY);
-			conf.setString("s3.secret.key", SECRET_KEY);
+			conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+			conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
 
 			FileSystem.initialize(conf);
 			path.getFileSystem().exists(path);
@@ -123,8 +129,8 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 		{
 			Configuration conf = new Configuration();
 			conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
-			conf.setString("presto.s3.access.key", ACCESS_KEY);
-			conf.setString("presto.s3.secret.key", SECRET_KEY);
+			conf.setString("presto.s3.access.key", S3TestCredentials.getS3AccessKey());
+			conf.setString("presto.s3.secret.key", S3TestCredentials.getS3SecretKey());
 
 			FileSystem.initialize(conf);
 			path.getFileSystem().exists(path);
@@ -138,14 +144,14 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 	public void testSimpleFileWriteAndRead() throws Exception {
 		final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
 		final Configuration conf = new Configuration();
-		conf.setString("s3.access-key", ACCESS_KEY);
-		conf.setString("s3.secret-key", SECRET_KEY);
+		conf.setString("s3.access-key", S3TestCredentials.getS3AccessKey());
+		conf.setString("s3.secret-key", S3TestCredentials.getS3SecretKey());
 
 		final String testLine = "Hello Upload!";
 
 		FileSystem.initialize(conf);
 
-		final Path path = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR + "/test.txt");
+		final Path path = new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR + "/test.txt");
 		final FileSystem fs = path.getFileSystem();
 
 		try {
@@ -173,12 +179,12 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 	public void testDirectoryListing() throws Exception {
 		final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
 		final Configuration conf = new Configuration();
-		conf.setString("s3.access-key", ACCESS_KEY);
-		conf.setString("s3.secret-key", SECRET_KEY);
+		conf.setString("s3.access-key", S3TestCredentials.getS3AccessKey());
+		conf.setString("s3.secret-key", S3TestCredentials.getS3SecretKey());
 
 		FileSystem.initialize(conf);
 
-		final Path directory = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR + "/testdir/");
+		final Path directory = new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR + "/testdir/");
 		final FileSystem fs = directory.getFileSystem();
 
 		// directory must not yet exist

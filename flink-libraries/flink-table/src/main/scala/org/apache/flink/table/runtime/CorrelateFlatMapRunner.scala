@@ -52,7 +52,9 @@ class CorrelateFlatMapRunner[IN, OUT](
     val constructor = flatMapClazz.getConstructor(classOf[TableFunctionCollector[_]])
     LOG.debug("Instantiating FlatMapFunction.")
     function = constructor.newInstance(collector).asInstanceOf[FlatMapFunction[IN, OUT]]
+    FunctionUtils.setFunctionRuntimeContext(collector, getRuntimeContext)
     FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
+    FunctionUtils.openFunction(collector, parameters)
     FunctionUtils.openFunction(function, parameters)
   }
 
@@ -66,6 +68,7 @@ class CorrelateFlatMapRunner[IN, OUT](
   override def getProducedType: TypeInformation[OUT] = returnType
 
   override def close(): Unit = {
+    FunctionUtils.closeFunction(collector)
     FunctionUtils.closeFunction(function)
   }
 }

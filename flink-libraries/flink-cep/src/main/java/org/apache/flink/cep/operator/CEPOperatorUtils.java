@@ -87,7 +87,7 @@ public class CEPOperatorUtils {
 
 			@Override
 			public String getOperatorName() {
-				return "SelectCepOperator";
+				return "GlobalSelectCepOperator";
 			}
 		});
 	}
@@ -136,7 +136,7 @@ public class CEPOperatorUtils {
 
 			@Override
 			public String getOperatorName() {
-				return "FlatSelectCepOperator";
+				return "GlobalFlatSelectCepOperator";
 			}
 		});
 	}
@@ -194,7 +194,7 @@ public class CEPOperatorUtils {
 
 			@Override
 			public String getOperatorName() {
-				return "FlatSelectTimeoutCepOperator";
+				return "GlobalFlatSelectTimeoutCepOperator";
 			}
 		});
 	}
@@ -252,7 +252,7 @@ public class CEPOperatorUtils {
 
 			@Override
 			public String getOperatorName() {
-				return "SelectTimeoutCepOperator";
+				return "GlobalSelectTimeoutCepOperator";
 			}
 		});
 	}

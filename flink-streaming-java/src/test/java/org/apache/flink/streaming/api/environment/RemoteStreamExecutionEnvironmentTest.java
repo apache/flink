@@ -21,14 +21,14 @@ package org.apache.flink.streaming.api.environment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Iterator;
@@ -38,30 +38,12 @@ import java.util.Iterator;
  */
 public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 
-	private static MiniCluster flink;
-
-	@BeforeClass
-	public static void setUp() throws Exception {
-		final Configuration config = new Configuration();
-		config.setInteger(RestOptions.PORT, 0);
-
-		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
-			.setConfiguration(config)
-			.setNumTaskManagers(1)
-			.setNumSlotsPerTaskManager(1)
-			.build();
-
-		flink = new MiniCluster(miniClusterConfiguration);
-
-		flink.start();
-	}
-
-	@AfterClass
-	public static void tearDown() throws Exception {
-		if (flink != null) {
-			flink.close();
-		}
-	}
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResourceConfiguration.Builder()
+			.setNumberTaskManagers(1)
+			.setNumberSlotsPerTaskManager(1)
+			.build());
 
 	/**
 	 * Verifies that the port passed to the RemoteStreamEnvironment is used for connecting to the cluster.
@@ -71,9 +53,10 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 		final Configuration clientConfiguration = new Configuration();
 		clientConfiguration.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 0);
 
+		final MiniCluster miniCluster = MINI_CLUSTER_RESOURCE.getMiniCluster();
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-			flink.getRestAddress().getHost(),
-			flink.getRestAddress().getPort(),
+			miniCluster.getRestAddress().getHost(),
+			miniCluster.getRestAddress().getPort(),
 			clientConfiguration);
 
 		final DataStream<Integer> resultStream = env.fromElements(1)

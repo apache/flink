@@ -114,19 +114,19 @@ abstract class LogicalWindowAggregateRule(ruleName: String)
               if (call.getOperands.size() == 2) {
                 true
               } else {
-                throw TableException("TUMBLE window with alignment is not supported yet.")
+                throw new TableException("TUMBLE window with alignment is not supported yet.")
               }
             case BasicOperatorTable.HOP =>
               if (call.getOperands.size() == 3) {
                 true
               } else {
-                throw TableException("HOP window with alignment is not supported yet.")
+                throw new TableException("HOP window with alignment is not supported yet.")
               }
             case BasicOperatorTable.SESSION =>
               if (call.getOperands.size() == 2) {
                 true
               } else {
-                throw TableException("SESSION window with alignment is not supported yet.")
+                throw new TableException("SESSION window with alignment is not supported yet.")
               }
             case _ => false
           }

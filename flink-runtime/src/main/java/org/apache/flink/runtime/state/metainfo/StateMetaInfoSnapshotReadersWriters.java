@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.state.metainfo;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerializationUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
@@ -43,12 +43,12 @@ public class StateMetaInfoSnapshotReadersWriters {
 
 	/**
 	 * Current version for the serialization format of {@link StateMetaInfoSnapshotReadersWriters}.
-	 * - v5: Flink 1.6.x
+	 * - v6: since Flink 1.7.x
 	 */
-	public static final int CURRENT_STATE_META_INFO_SNAPSHOT_VERSION = 5;
+	public static final int CURRENT_STATE_META_INFO_SNAPSHOT_VERSION = 6;
 
 	/**
-	 * Enum for backeards compatibility. This gives a hint about the expected state type for which a
+	 * Enum for backwards compatibility. This gives a hint about the expected state type for which a
 	 * {@link StateMetaInfoSnapshot} should be deserialized.
 	 *
 	 * TODO this can go away after we eventually drop backwards compatibility with all versions < 5.
@@ -76,7 +76,8 @@ public class StateMetaInfoSnapshotReadersWriters {
 	@Nonnull
 	public static StateMetaInfoReader getReader(int readVersion, @Nonnull StateTypeHint stateTypeHint) {
 
-		if (readVersion < CURRENT_STATE_META_INFO_SNAPSHOT_VERSION) {
+		if (readVersion < 5) {
+			// versions before 5 still had different state meta info formats between keyed / operator state
 			switch (stateTypeHint) {
 				case KEYED_STATE:
 					return getLegacyKeyedStateMetaInfoReader(readVersion);
@@ -98,12 +99,14 @@ public class StateMetaInfoSnapshotReadersWriters {
 	 * @return the requested reader.
 	 */
 	@Nonnull
-	public static StateMetaInfoReader getReader(int readVersion) {
-		if (readVersion == CURRENT_STATE_META_INFO_SNAPSHOT_VERSION) {
-			// latest version shortcut
-			return CurrentReaderImpl.INSTANCE;
-		} else {
-			throw new IllegalArgumentException("Unsupported read version for state meta info: " + readVersion);
+	static StateMetaInfoReader getReader(int readVersion) {
+		switch (readVersion) {
+			case CURRENT_STATE_META_INFO_SNAPSHOT_VERSION:
+				return CurrentReaderImpl.INSTANCE;
+			case 5:
+				return V5ReaderImpl.INSTANCE;
+			default:
+					throw new IllegalArgumentException("Unsupported read version for state meta info: " + readVersion);
 		}
 	}
 
@@ -138,10 +141,19 @@ public class StateMetaInfoSnapshotReadersWriters {
 		}
 	}
 
-	//----------------------------------------------------------
+	// ---------------------------------------------------------------------------------
+	//  Current version reader / writer implementation
+	// ---------------------------------------------------------------------------------
 
 	/**
-	 * Implementation of {@link StateMetaInfoWriter}.
+	 * Implementation of {@link StateMetaInfoWriter} for current implementation. The serialization format is as follows:
+	 *
+	 * <ul>
+	 *     <li>1. State name (UDF)</li>
+	 *     <li>2. State backend type enum ordinal (int)</li>
+	 *     <li>3. Meta info options map, consisting of the map size (int) followed by the key value pairs (String, String)</li>
+	 *     <li>4. Serializer configuration map, consisting of the map size (int) followed by the key value pairs (String, TypeSerializerConfigSnapshot)</li>
+	 * </ul>
 	 */
 	static class CurrentWriterImpl implements StateMetaInfoWriter {
 
@@ -152,10 +164,8 @@ public class StateMetaInfoSnapshotReadersWriters {
 			@Nonnull StateMetaInfoSnapshot snapshot,
 			@Nonnull DataOutputView outputView) throws IOException {
 			final Map<String, String> optionsMap = snapshot.getOptionsImmutable();
-			final Map<String, TypeSerializer<?>> serializerMap = snapshot.getSerializersImmutable();
-			final Map<String, TypeSerializerConfigSnapshot> serializerConfigSnapshotsMap =
+			final Map<String, TypeSerializerSnapshot<?>> serializerConfigSnapshotsMap =
 				snapshot.getSerializerConfigSnapshotsImmutable();
-			Preconditions.checkState(serializerMap.size() == serializerConfigSnapshotsMap.size());
 
 			outputView.writeUTF(snapshot.getName());
 			outputView.writeInt(snapshot.getBackendStateType().ordinal());
@@ -165,21 +175,14 @@ public class StateMetaInfoSnapshotReadersWriters {
 				outputView.writeUTF(entry.getValue());
 			}
 
-			outputView.writeInt(serializerMap.size());
-			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersWithConfig =
-				new ArrayList<>(serializerMap.size());
-
-			for (Map.Entry<String, TypeSerializer<?>> entry : serializerMap.entrySet()) {
+			outputView.writeInt(serializerConfigSnapshotsMap.size());
+			for (Map.Entry<String, TypeSerializerSnapshot<?>> entry : serializerConfigSnapshotsMap.entrySet()) {
 				final String key = entry.getKey();
-				outputView.writeUTF(key);
+				outputView.writeUTF(entry.getKey());
 
-				TypeSerializerConfigSnapshot configForSerializer =
-					Preconditions.checkNotNull(serializerConfigSnapshotsMap.get(key));
-
-				serializersWithConfig.add(new Tuple2<>(entry.getValue(), configForSerializer));
+				TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
+					outputView, (TypeSerializerSnapshot) entry.getValue(), snapshot.getTypeSerializer(key));
 			}
-
-			TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(outputView, serializersWithConfig);
 		}
 	}
 
@@ -206,26 +209,66 @@ public class StateMetaInfoSnapshotReadersWriters {
 				String value = inputView.readUTF();
 				optionsMap.put(key, value);
 			}
+
+			final int numSerializerConfigSnapshots = inputView.readInt();
+			final HashMap<String, TypeSerializerSnapshot<?>> serializerConfigsMap = new HashMap<>(numSerializerConfigSnapshots);
+
+			for (int i = 0; i < numSerializerConfigSnapshots; ++i) {
+				serializerConfigsMap.put(
+					inputView.readUTF(),
+					TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+						inputView, userCodeClassLoader, null));
+			}
+
+			return new StateMetaInfoSnapshot(stateName, stateType, optionsMap, serializerConfigsMap);
+		}
+	}
+
+	// ---------------------------------------------------------------------------------
+	//  Legacy reader implementations
+	// ---------------------------------------------------------------------------------
+
+	/**
+	 * Implementation of {@link StateMetaInfoReader} for version 5 (Flink 1.6.x) and generic for all state types.
+	 */
+	static class V5ReaderImpl implements StateMetaInfoReader {
+
+		private static final V5ReaderImpl INSTANCE = new V5ReaderImpl();
+
+		@Nonnull
+		@Override
+		public StateMetaInfoSnapshot readStateMetaInfoSnapshot(
+			@Nonnull DataInputView inputView,
+			@Nonnull ClassLoader userCodeClassLoader) throws IOException {
+
+			final String stateName = inputView.readUTF();
+			final StateMetaInfoSnapshot.BackendStateType stateType =
+				StateMetaInfoSnapshot.BackendStateType.values()[inputView.readInt()];
+			final int numOptions = inputView.readInt();
+			HashMap<String, String> optionsMap = new HashMap<>(numOptions);
+			for (int i = 0; i < numOptions; ++i) {
+				String key = inputView.readUTF();
+				String value = inputView.readUTF();
+				optionsMap.put(key, value);
+			}
 			final int numSerializer = inputView.readInt();
 			final ArrayList<String> serializerKeys = new ArrayList<>(numSerializer);
-			final HashMap<String, TypeSerializer<?>> serializerMap = new HashMap<>(numSerializer);
-			final HashMap<String, TypeSerializerConfigSnapshot> serializerConfigsMap = new HashMap<>(numSerializer);
+			final HashMap<String, TypeSerializerSnapshot<?>> serializerConfigsMap = new HashMap<>(numSerializer);
 
 			for (int i = 0; i < numSerializer; ++i) {
 				serializerKeys.add(inputView.readUTF());
 			}
-			final List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersWithConfig =
+			final List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> serializersWithConfig =
 				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(inputView, userCodeClassLoader);
 
 			for (int i = 0; i < numSerializer; ++i) {
 				String key = serializerKeys.get(i);
-				final Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> serializerConfigTuple =
+				final Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> serializerConfigTuple =
 					serializersWithConfig.get(i);
-				serializerMap.put(key, serializerConfigTuple.f0);
 				serializerConfigsMap.put(key, serializerConfigTuple.f1);
 			}
 
-			return new StateMetaInfoSnapshot(stateName, stateType, optionsMap, serializerConfigsMap, serializerMap);
+			return new StateMetaInfoSnapshot(stateName, stateType, optionsMap, serializerConfigsMap);
 		}
 	}
 }

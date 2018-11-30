@@ -72,6 +72,9 @@ object BuiltInMethods {
   val TAN = Types.lookupMethod(classOf[Math], "tan", classOf[Double])
   val TAN_DEC = Types.lookupMethod(classOf[SqlFunctions], "tan", classOf[JBigDecimal])
 
+  val TANH = Types.lookupMethod(classOf[Math], "tanh", classOf[Double])
+  val TANH_DEC = Types.lookupMethod(classOf[ScalarFunctions], "tanh", classOf[JBigDecimal])
+
   val COT = Types.lookupMethod(classOf[SqlFunctions], "cot", classOf[Double])
   val COT_DEC = Types.lookupMethod(classOf[SqlFunctions], "cot", classOf[JBigDecimal])
 
@@ -81,8 +84,14 @@ object BuiltInMethods {
   val ACOS = Types.lookupMethod(classOf[Math], "acos", classOf[Double])
   val ACOS_DEC = Types.lookupMethod(classOf[SqlFunctions], "acos", classOf[JBigDecimal])
 
+  val SINH = Types.lookupMethod(classOf[Math], "sinh", classOf[Double])
+  val SINH_DEC = Types.lookupMethod(classOf[ScalarFunctions], "sinh", classOf[JBigDecimal])
+
   val ATAN = Types.lookupMethod(classOf[Math], "atan", classOf[Double])
   val ATAN_DEC = Types.lookupMethod(classOf[SqlFunctions], "atan", classOf[JBigDecimal])
+
+  val COSH = Types.lookupMethod(classOf[Math], "cosh", classOf[Double])
+  val COSH_DEC = Types.lookupMethod(classOf[ScalarFunctions], "cosh", classOf[JBigDecimal])
 
   val ATAN2_DOUBLE_DOUBLE = Types.lookupMethod(
     classOf[Math],
@@ -137,6 +146,19 @@ object BuiltInMethods {
     classOf[ScalarFunctions],
     "regexp_replace",
     classOf[String],
+    classOf[String],
+    classOf[String])
+
+  val REGEXP_EXTRACT = Types.lookupMethod(
+    classOf[ScalarFunctions],
+    "regexp_extract",
+    classOf[String],
+    classOf[String],
+    classOf[Integer])
+
+  val REGEXP_EXTRACT_WITHOUT_INDEX = Types.lookupMethod(
+    classOf[ScalarFunctions],
+    "regexp_extract",
     classOf[String],
     classOf[String])
 

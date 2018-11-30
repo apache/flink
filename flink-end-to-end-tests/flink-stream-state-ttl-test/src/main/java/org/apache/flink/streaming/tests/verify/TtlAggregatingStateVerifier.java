@@ -71,13 +71,13 @@ class TtlAggregatingStateVerifier extends AbstractTtlStateVerifier<
 			return null;
 		}
 		long acc = AGG_FUNC.createAccumulator();
-		long lastTs = updates.get(0).getTimestampAfterUpdate();
+		long lastTs = updates.get(0).getTimestamp();
 		for (ValueWithTs<Integer> update : updates) {
-			if (expired(lastTs, update.getTimestampAfterUpdate())) {
+			if (expired(lastTs, update.getTimestamp())) {
 				acc = AGG_FUNC.createAccumulator();
 			}
 			acc = AGG_FUNC.add(update.getValue(), acc);
-			lastTs = update.getTimestampAfterUpdate();
+			lastTs = update.getTimestamp();
 		}
 		return expired(lastTs, currentTimestamp) ? null : AGG_FUNC.getResult(acc);
 	}

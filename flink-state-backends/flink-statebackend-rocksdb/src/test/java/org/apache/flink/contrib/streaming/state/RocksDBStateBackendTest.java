@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -250,7 +251,9 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				enableIncrementalCheckpointing,
 				TestLocalRecoveryConfig.disabled(),
 				RocksDBStateBackend.PriorityQueueStateType.HEAP,
-				TtlTimeProvider.DEFAULT);
+				TtlTimeProvider.DEFAULT,
+				new RocksDBNativeMetricOptions(),
+				new UnregisteredMetricsGroup());
 
 			verify(columnFamilyOptions, Mockito.times(1))
 				.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);

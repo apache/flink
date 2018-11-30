@@ -20,6 +20,7 @@ package org.apache.flink.table.calcite
 
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.sql.fun.{OracleSqlOperatorTable, SqlStdOperatorTable}
+import org.apache.calcite.sql2rel.SqlToRelConverter
 import org.apache.calcite.tools.RuleSets
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.junit.Assert._
@@ -396,5 +397,21 @@ class CalciteConfigBuilderTest {
       assertTrue(ops.contains(o))
     }
 
+  }
+
+  @Test
+  def testReplaceSqlToRelConverterConfig(): Unit = {
+    val config = SqlToRelConverter.configBuilder()
+      .withTrimUnusedFields(false)
+      .withConvertTableAccess(false)
+      .withInSubQueryThreshold(Integer.MAX_VALUE)
+      .build()
+
+    val cc: CalciteConfig = new CalciteConfigBuilder()
+      .replaceSqlToRelConverterConfig(config)
+      .build()
+
+    assertTrue(cc.getSqlToRelConverterConfig.isDefined)
+    assertEquals(Integer.MAX_VALUE, cc.getSqlToRelConverterConfig.get.getInSubQueryThreshold)
   }
 }

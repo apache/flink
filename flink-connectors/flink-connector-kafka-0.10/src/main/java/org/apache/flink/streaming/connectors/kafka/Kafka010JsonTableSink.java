@@ -28,7 +28,7 @@ import java.util.Optional;
 import java.util.Properties;
 
 /**
- * Kafka 0.10 {@link KafkaTableSink} that serializes data in JSON format.
+ * Kafka 0.10 {@link KafkaTableSinkBase} that serializes data in JSON format.
  *
  * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
  *             with descriptors for schema and format instead. Descriptors allow for
@@ -39,7 +39,7 @@ import java.util.Properties;
 public class Kafka010JsonTableSink extends KafkaJsonTableSink {
 
 	/**
-	 * Creates {@link KafkaTableSink} to write table rows as JSON-encoded records to a Kafka 0.10
+	 * Creates {@link KafkaTableSinkBase} to write table rows as JSON-encoded records to a Kafka 0.10
 	 * topic with fixed partition assignment.
 	 *
 	 * <p>Each parallel TableSink instance will write its rows to a single Kafka partition.</p>
@@ -60,7 +60,7 @@ public class Kafka010JsonTableSink extends KafkaJsonTableSink {
 	}
 
 	/**
-	 * Creates {@link KafkaTableSink} to write table rows as JSON-encoded records to a Kafka 0.10
+	 * Creates {@link KafkaTableSinkBase} to write table rows as JSON-encoded records to a Kafka 0.10
 	 * topic with custom partition assignment.
 	 *
 	 * @param topic topic in Kafka to which table is written

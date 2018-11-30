@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.catalog
 
-import org.apache.flink.table.descriptors.DescriptorProperties.toScala
+import java.util
+
 import org.apache.flink.table.descriptors.StatisticsValidator.{STATISTICS_COLUMNS, STATISTICS_ROW_COUNT, readColumnStats}
 import org.apache.flink.table.descriptors.StreamTableDescriptorValidator.{UPDATE_MODE, UPDATE_MODE_VALUE_APPEND, UPDATE_MODE_VALUE_RETRACT, UPDATE_MODE_VALUE_UPSERT}
 import org.apache.flink.table.descriptors._
 import org.apache.flink.table.factories.TableFactory
 import org.apache.flink.table.plan.stats.TableStats
+import org.apache.flink.table.util.JavaScalaConversionUtil.toScala
 
 import scala.collection.JavaConverters._
 
@@ -62,7 +64,7 @@ class ExternalCatalogTable(
   @deprecated
   def getTableStats: Option[TableStats] = {
     val normalizedProps = new DescriptorProperties()
-    addProperties(normalizedProps)
+    normalizedProps.putProperties(normalizedProps)
     val rowCount = toScala(normalizedProps.getOptionalLong(STATISTICS_ROW_COUNT))
     rowCount match {
       case Some(cnt) =>
@@ -108,10 +110,10 @@ class ExternalCatalogTable(
   // ----------------------------------------------------------------------------------------------
 
   /**
-    * Internal method for properties conversion.
+    * Converts this descriptor into a set of properties.
     */
-  override private[flink] def addProperties(descriptorProperties: DescriptorProperties): Unit = {
-    descriptorProperties.putProperties(properties)
+  override def toProperties: util.Map[String, String] = {
+    properties
   }
 }
 
@@ -294,7 +296,7 @@ class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDesc
       isStreaming,
       isSource = true,
       isSink = false,
-      DescriptorProperties.toJavaMap(this))
+      toProperties)
   }
 
   /**
@@ -309,7 +311,7 @@ class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDesc
       isStreaming,
       isSource = false,
       isSink = true,
-      DescriptorProperties.toJavaMap(this))
+      toProperties)
   }
 
   /**
@@ -324,20 +326,22 @@ class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDesc
       isStreaming,
       isSource = true,
       isSink = true,
-      DescriptorProperties.toJavaMap(this))
+      toProperties)
   }
 
   // ----------------------------------------------------------------------------------------------
 
   /**
-    * Internal method for properties conversion.
+    * Converts this descriptor into a set of properties.
     */
-  override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
-    connectorDescriptor.addProperties(properties)
-    formatDescriptor.foreach(_.addProperties(properties))
-    schemaDescriptor.foreach(_.addProperties(properties))
-    statisticsDescriptor.foreach(_.addProperties(properties))
-    metadataDescriptor.foreach(_.addProperties(properties))
+  override def toProperties: util.Map[String, String] = {
+    val properties = new DescriptorProperties()
+    properties.putProperties(connectorDescriptor.toProperties)
+    formatDescriptor.foreach(d => properties.putProperties(d.toProperties))
+    schemaDescriptor.foreach(d => properties.putProperties(d.toProperties))
+    statisticsDescriptor.foreach(d => properties.putProperties(d.toProperties))
+    metadataDescriptor.foreach(d => properties.putProperties(d.toProperties))
     updateMode.foreach(mode => properties.putString(UPDATE_MODE, mode))
+    properties.asMap()
   }
 }

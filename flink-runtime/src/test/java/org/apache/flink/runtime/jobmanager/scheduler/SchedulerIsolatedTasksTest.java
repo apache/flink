@@ -27,8 +27,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -53,12 +51,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the {@link Scheduler} when scheduling individual tasks.
  */
-@RunWith(Parameterized.class)
 public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
-
-	public SchedulerIsolatedTasksTest(SchedulerType schedulerType) {
-		super(schedulerType);
-	}
 	
 	@Test
 	public void testScheduleImmediately() throws Exception {

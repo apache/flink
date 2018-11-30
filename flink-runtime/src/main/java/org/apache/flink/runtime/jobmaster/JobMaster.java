@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.queryablestate.KvStateID;
@@ -678,7 +679,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				try {
 					checkpointCoordinator.receiveAcknowledgeMessage(ackMessage);
 				} catch (Throwable t) {
-					log.warn("Error while processing checkpoint acknowledgement message");
+					log.warn("Error while processing checkpoint acknowledgement message", t);
 				}
 			});
 		} else {
@@ -689,13 +690,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	// TODO: This method needs a leader session ID
 	@Override
-	public void declineCheckpoint(
-			final JobID jobID,
-			final ExecutionAttemptID executionAttemptID,
-			final long checkpointID,
-			final Throwable reason) {
-		final DeclineCheckpoint decline = new DeclineCheckpoint(
-				jobID, executionAttemptID, checkpointID, reason);
+	public void declineCheckpoint(DeclineCheckpoint decline) {
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
 
 		if (checkpointCoordinator != null) {
@@ -946,6 +941,13 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		if (checkpointCoordinator == null) {
 			return FutureUtils.completedExceptionally(new IllegalStateException(
 				String.format("Job %s is not a streaming job.", jobGraph.getJobID())));
+		} else if (targetDirectory == null && !checkpointCoordinator.getCheckpointStorage().hasDefaultSavepointLocation()) {
+			log.info("Trying to cancel job {} with savepoint, but no savepoint directory configured.", jobGraph.getJobID());
+
+			return FutureUtils.completedExceptionally(new IllegalStateException(
+				"No savepoint directory configured. You can either specify a directory " +
+					"while cancelling via -s :targetDirectory or configure a cluster-wide " +
+					"default via key '" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + "'."));
 		}
 
 		if (cancelJob) {

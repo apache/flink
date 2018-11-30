@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapsh
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -388,6 +389,7 @@ public class NFA<T> {
 					sharedBufferAccessor);
 
 				result.add(sharedBufferAccessor.materializeMatch(matchedResult.get(0)));
+				sharedBufferAccessor.releaseNode(earliestMatch.getPreviousBufferEntry());
 				earliestMatch = nfaState.getCompletedMatches().peek();
 			}
 
@@ -852,7 +854,7 @@ public class NFA<T> {
 	 * The {@link TypeSerializerConfigSnapshot} serializer configuration to be stored with the managed state.
 	 */
 	@Deprecated
-	public static final class NFASerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot {
+	public static final class NFASerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot<MigratedNFA<T>> {
 
 		private static final int VERSION = 1;
 
@@ -976,15 +978,15 @@ public class NFA<T> {
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		public TypeSerializerConfigSnapshot<MigratedNFA<T>> snapshotConfiguration() {
 			return new NFASerializerConfigSnapshot<>(eventSerializer, sharedBufferSerializer);
 		}
 
 		@Override
 		public CompatibilityResult<MigratedNFA<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			if (configSnapshot instanceof NFASerializerConfigSnapshot) {
-				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs =
-					((NFASerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
+				List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> serializersAndConfigs =
+					((NFASerializerConfigSnapshot<?>) configSnapshot).getNestedSerializersAndConfigs();
 
 				CompatibilityResult<T> eventCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 					serializersAndConfigs.get(0).f0,

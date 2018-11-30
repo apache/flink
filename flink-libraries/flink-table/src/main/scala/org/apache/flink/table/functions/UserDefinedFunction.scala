@@ -17,8 +17,8 @@
  */
 package org.apache.flink.table.functions
 
-import org.apache.commons.codec.digest.DigestUtils
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.serialize
+import org.apache.flink.table.utils.EncodingUtils
+
 /**
   * Base class for all user-defined functions such as scalar functions, table functions,
   * or aggregation functions.
@@ -49,7 +49,7 @@ abstract class UserDefinedFunction extends Serializable {
   def isDeterministic: Boolean = true
 
   final def functionIdentifier: String = {
-    val md5 = DigestUtils.md5Hex(serialize(this))
+    val md5 = EncodingUtils.hex(EncodingUtils.md5(EncodingUtils.encodeObjectToString(this)))
     getClass.getCanonicalName.replace('.', '$').concat("$").concat(md5)
   }
 

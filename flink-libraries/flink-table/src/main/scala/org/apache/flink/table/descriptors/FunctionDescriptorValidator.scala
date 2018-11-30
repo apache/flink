@@ -19,8 +19,8 @@
 package org.apache.flink.table.descriptors
 
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.descriptors.DescriptorProperties.toJava
 import org.apache.flink.table.descriptors.FunctionDescriptorValidator.FROM
+import org.apache.flink.table.util.JavaScalaConversionUtil.toJava
 
 import scala.collection.JavaConverters._
 
@@ -39,7 +39,7 @@ class FunctionDescriptorValidator extends DescriptorValidator {
     if (properties.containsKey(FROM)) {
       properties.validateEnum(
         FROM,
-        isOptional = false,
+        false,
         Map(
           FunctionDescriptorValidator.FROM_VALUE_CLASS -> toJava(classValidation)
         ).asJava

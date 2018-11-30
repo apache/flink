@@ -19,12 +19,15 @@
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -59,10 +62,11 @@ public class Bucket<IN, BucketID> {
 
 	private final RollingPolicy<IN, BucketID> rollingPolicy;
 
-	private final Map<Long, List<RecoverableWriter.CommitRecoverable>> pendingPartsPerCheckpoint = new HashMap<>();
+	private final Map<Long, List<RecoverableWriter.CommitRecoverable>> pendingPartsPerCheckpoint;
 
 	private long partCounter;
 
+	@Nullable
 	private PartFileWriter<IN, BucketID> inProgressPart;
 
 	private List<RecoverableWriter.CommitRecoverable> pendingPartsForCurrentCheckpoint;
@@ -88,6 +92,7 @@ public class Bucket<IN, BucketID> {
 		this.rollingPolicy = Preconditions.checkNotNull(rollingPolicy);
 
 		this.pendingPartsForCurrentCheckpoint = new ArrayList<>();
+		this.pendingPartsPerCheckpoint = new HashMap<>();
 	}
 
 	/**
@@ -275,6 +280,24 @@ public class Bucket<IN, BucketID> {
 			}
 			closePartFile();
 		}
+	}
+
+	// --------------------------- Testing Methods -----------------------------
+
+	@VisibleForTesting
+	Map<Long, List<RecoverableWriter.CommitRecoverable>> getPendingPartsPerCheckpoint() {
+		return pendingPartsPerCheckpoint;
+	}
+
+	@Nullable
+	@VisibleForTesting
+	PartFileWriter<IN, BucketID> getInProgressPart() {
+		return inProgressPart;
+	}
+
+	@VisibleForTesting
+	List<RecoverableWriter.CommitRecoverable> getPendingPartsForCurrentCheckpoint() {
+		return pendingPartsForCurrentCheckpoint;
 	}
 
 	// --------------------------- Static Factory Methods -----------------------------

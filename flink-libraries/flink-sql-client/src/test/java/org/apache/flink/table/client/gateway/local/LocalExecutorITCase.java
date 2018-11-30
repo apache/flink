@@ -30,8 +30,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
@@ -39,8 +41,7 @@ import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
-import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
@@ -82,7 +83,7 @@ public class LocalExecutorITCase extends TestLogger {
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@ClassRule
-	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
 		new MiniClusterResourceConfiguration.Builder()
 			.setConfiguration(getConfig())
 			.setNumberTaskManagers(NUM_TMS)
@@ -112,8 +113,8 @@ public class LocalExecutorITCase extends TestLogger {
 
 		executor.validateSession(session);
 
-		session.addView("AdditionalView1", "SELECT 1");
-		session.addView("AdditionalView2", "SELECT * FROM AdditionalView1");
+		session.addView(ViewEntry.create("AdditionalView1", "SELECT 1"));
+		session.addView(ViewEntry.create("AdditionalView2", "SELECT * FROM AdditionalView1"));
 		executor.validateSession(session);
 
 		List<String> actualTables = executor.listTables(session);
@@ -222,16 +223,35 @@ public class LocalExecutorITCase extends TestLogger {
 		assertEquals(expectedTableSchema, actualTableSchema);
 	}
 
+	@Test
+	public void testCompleteStatement() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		final List<String> expectedTableHints = Arrays.asList(
+			"TABLE",
+			"TableNumber1",
+			"TableNumber2",
+			"TableSourceSink");
+		assertEquals(expectedTableHints, executor.completeStatement(session, "SELECT * FROM Ta", 16));
+
+		final List<String> expectedClause = Collections.singletonList("WHERE");
+		assertEquals(expectedClause, executor.completeStatement(session, "SELECT * FROM TableNumber2 WH", 29));
+
+		final List<String> expectedField = Arrays.asList("INTERVAL", "IntegerField1");
+		assertEquals(expectedField, executor.completeStatement(session, "SELECT * FROM TableNumber1 WHERE Inte", 37));
+	}
+
 	@Test(timeout = 30_000L)
 	public void testStreamQueryExecutionChangelog() throws Exception {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
 		final Map<String, String> replaceVars = new HashMap<>();
-		replaceVars.put("$VAR_0", url.getPath());
-		replaceVars.put("$VAR_1", "/");
-		replaceVars.put("$VAR_2", "streaming");
-		replaceVars.put("$VAR_3", "changelog");
+		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+		replaceVars.put("$VAR_RESULT_MODE", "changelog");
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
 
 		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
@@ -267,10 +287,9 @@ public class LocalExecutorITCase extends TestLogger {
 		Objects.requireNonNull(url);
 
 		final Map<String, String> replaceVars = new HashMap<>();
-		replaceVars.put("$VAR_0", url.getPath());
-		replaceVars.put("$VAR_1", "/");
-		replaceVars.put("$VAR_2", "streaming");
-		replaceVars.put("$VAR_3", "table");
+		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+		replaceVars.put("$VAR_RESULT_MODE", "table");
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
 		replaceVars.put("$VAR_MAX_ROWS", "100");
 
@@ -293,10 +312,9 @@ public class LocalExecutorITCase extends TestLogger {
 		Objects.requireNonNull(url);
 
 		final Map<String, String> replaceVars = new HashMap<>();
-		replaceVars.put("$VAR_0", url.getPath());
-		replaceVars.put("$VAR_1", "/");
-		replaceVars.put("$VAR_2", "streaming");
-		replaceVars.put("$VAR_3", "table");
+		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+		replaceVars.put("$VAR_RESULT_MODE", "table");
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
 		replaceVars.put("$VAR_MAX_ROWS", "1");
 
@@ -313,11 +331,11 @@ public class LocalExecutorITCase extends TestLogger {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
 		final Map<String, String> replaceVars = new HashMap<>();
-		replaceVars.put("$VAR_0", url.getPath());
-		replaceVars.put("$VAR_1", "/");
-		replaceVars.put("$VAR_2", "batch");
-		replaceVars.put("$VAR_3", "table");
+		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
+		replaceVars.put("$VAR_RESULT_MODE", "table");
 		replaceVars.put("$VAR_UPDATE_MODE", "");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
 
 		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
@@ -349,10 +367,11 @@ public class LocalExecutorITCase extends TestLogger {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
 		final Map<String, String> replaceVars = new HashMap<>();
-		replaceVars.put("$VAR_0", url.getPath());
-		replaceVars.put("$VAR_2", "streaming");
-		replaceVars.put("$VAR_4", csvOutputPath);
+		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+		replaceVars.put("$VAR_SOURCE_SINK_PATH", csvOutputPath);
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
 
 		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
@@ -422,7 +441,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private <T> LocalExecutor createDefaultExecutor(ClusterClient<T> clusterClient) throws Exception {
 		final Map<String, String> replaceVars = new HashMap<>();
-		replaceVars.put("$VAR_2", "batch");
+		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
 		replaceVars.put("$VAR_UPDATE_MODE", "");
 		replaceVars.put("$VAR_MAX_ROWS", "100");
 		return new LocalExecutor(

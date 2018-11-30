@@ -92,20 +92,9 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	 */
 	@Override
 	public SerializationResult copyToBufferBuilder(BufferBuilder targetBuffer) {
-		boolean mustCommit = false;
-		if (lengthBuffer.hasRemaining()) {
-			targetBuffer.append(lengthBuffer);
-			mustCommit = true;
-		}
-
-		if (dataBuffer.hasRemaining()) {
-			targetBuffer.append(dataBuffer);
-			mustCommit = true;
-		}
-
-		if (mustCommit) {
-			targetBuffer.commit();
-		}
+		targetBuffer.append(lengthBuffer);
+		targetBuffer.append(dataBuffer);
+		targetBuffer.commit();
 
 		return getSerializationResult(targetBuffer);
 	}

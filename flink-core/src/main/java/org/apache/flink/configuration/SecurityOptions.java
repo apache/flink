@@ -120,6 +120,14 @@ public class SecurityOptions {
 			.defaultValue(false)
 			.withDescription("Turns on SSL for external communication via the REST endpoints.");
 
+	/**
+	 * Enable mututal SSL authentication for external REST endpoints.
+	 */
+	public static final ConfigOption<Boolean> SSL_REST_AUTHENTICATION_ENABLED =
+		key("security.ssl.rest.authentication-enabled")
+			.defaultValue(false)
+			.withDescription("Turns on mutual SSL authentication for external communication via the REST endpoints.");
+
 	// ----------------- certificates (internal + external) -------------------
 
 	/**
@@ -290,4 +298,47 @@ public class SecurityOptions {
 		key("security.ssl.verify-hostname")
 			.defaultValue(true)
 			.withDescription("Flag to enable peer’s hostname verification during ssl handshake.");
+
+	// ------------------------ ssl parameters --------------------------------
+
+	/**
+	 * SSL session cache size.
+	 */
+	public static final ConfigOption<Integer> SSL_INTERNAL_SESSION_CACHE_SIZE =
+		key("security.ssl.internal.session-cache-size")
+			.defaultValue(-1)
+			.withDescription("The size of the cache used for storing SSL session objects. "
+				+ "According to https://github.com/netty/netty/issues/832, you should always set "
+				+ "this to an appropriate number to not run into a bug with stalling IO threads "
+				+ "during garbage collection. (-1 = use system default).")
+		.withDeprecatedKeys("security.ssl.session-cache-size");
+
+	/**
+	 * SSL session timeout.
+	 */
+	public static final ConfigOption<Integer> SSL_INTERNAL_SESSION_TIMEOUT =
+		key("security.ssl.internal.session-timeout")
+			.defaultValue(-1)
+			.withDescription("The timeout (in ms) for the cached SSL session objects. (-1 = use system default)")
+			.withDeprecatedKeys("security.ssl.session-timeout");
+
+	/**
+	 * SSL session timeout during handshakes.
+	 */
+	public static final ConfigOption<Integer> SSL_INTERNAL_HANDSHAKE_TIMEOUT =
+		key("security.ssl.internal.handshake-timeout")
+			.defaultValue(-1)
+			.withDescription("The timeout (in ms) during SSL handshake. (-1 = use system default)")
+			.withDeprecatedKeys("security.ssl.handshake-timeout");
+
+	/**
+	 * SSL session timeout after flushing the <tt>close_notify</tt> message.
+	 */
+	public static final ConfigOption<Integer> SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT =
+		key("security.ssl.internal.close-notify-flush-timeout")
+			.defaultValue(-1)
+			.withDescription("The timeout (in ms) for flushing the `close_notify` that was triggered by closing a " +
+				"channel. If the `close_notify` was not flushed in the given timeout the channel will be closed " +
+				"forcibly. (-1 = use system default)")
+			.withDeprecatedKeys("security.ssl.close-notify-flush-timeout");
 }

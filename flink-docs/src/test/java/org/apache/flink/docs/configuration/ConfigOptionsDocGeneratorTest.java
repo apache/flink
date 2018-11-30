@@ -266,4 +266,45 @@ public class ConfigOptionsDocGeneratorTest {
 
 		assertEquals(expected, output);
 	}
+
+	static class TestConfigGroupWithExclusion {
+		public static ConfigOption<Integer> firstOption = ConfigOptions
+			.key("first.option.a")
+			.defaultValue(2)
+			.withDescription("This is example description for the first option.");
+
+		@Documentation.ExcludeFromDocumentation
+		public static ConfigOption<String> excludedOption = ConfigOptions
+			.key("excluded.option.a")
+			.noDefaultValue()
+			.withDescription("This should not be documented.");
+	}
+
+	/**
+	 * Tests that {@link ConfigOption} annotated with {@link Documentation.ExcludeFromDocumentation}
+	 * are not documented.
+	 */
+	@Test
+	public void testConfigOptionExclusion() {
+		final String expectedTable =
+			"<table class=\"table table-bordered\">\n" +
+				"    <thead>\n" +
+				"        <tr>\n" +
+				"            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n" +
+				"            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n" +
+				"            <th class=\"text-left\" style=\"width: 65%\">Description</th>\n" +
+				"        </tr>\n" +
+				"    </thead>\n" +
+				"    <tbody>\n" +
+				"        <tr>\n" +
+				"            <td><h5>first.option.a</h5></td>\n" +
+				"            <td style=\"word-wrap: break-word;\">2</td>\n" +
+				"            <td>This is example description for the first option.</td>\n" +
+				"        </tr>\n" +
+				"    </tbody>\n" +
+				"</table>\n";
+		final String htmlTable = ConfigOptionsDocGenerator.generateTablesForClass(TestConfigGroupWithExclusion.class).get(0).f1;
+
+		assertEquals(expectedTable, htmlTable);
+	}
 }

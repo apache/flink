@@ -21,7 +21,6 @@ import java.lang.reflect.Modifier
 import java.lang.{Iterable => JIterable}
 
 import org.apache.calcite.rex.RexLiteral
-import org.apache.commons.codec.binary.Base64
 import org.apache.flink.api.common.state.{ListStateDescriptor, MapStateDescriptor, State, StateDescriptor}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -36,8 +35,8 @@ import org.apache.flink.table.functions.aggfunctions.DistinctAccumulator
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
 import org.apache.flink.table.runtime.aggregate.{GeneratedAggregations, SingleElementIterable}
+import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.Row
-import org.apache.flink.util.InstantiationUtil
 
 import scala.collection.mutable
 
@@ -315,7 +314,7 @@ class AggregationCodeGenerator(
       val dataViewTypeTerm = dataViewField.getType.getCanonicalName
 
       // define the DataView variables
-      val serializedData = serializeStateDescriptor(desc)
+      val serializedData = EncodingUtils.encodeObjectToString(desc)
       val dataViewFieldTerm = createDataViewTerm(aggIndex, dataViewField.getName)
       val field =
         s"""
@@ -329,9 +328,10 @@ class AggregationCodeGenerator(
       val descDeserializeCode =
         s"""
            |    $descClassQualifier $descFieldTerm = ($descClassQualifier)
-           |      org.apache.flink.util.InstantiationUtil.deserializeObject(
-           |      org.apache.commons.codec.binary.Base64.decodeBase64("$serializedData"),
-           |      $contextTerm.getUserCodeClassLoader());
+           |      ${classOf[EncodingUtils].getCanonicalName}.decodeStringToObject(
+           |        "$serializedData",
+           |        $descClassQualifier.class,
+           |        $contextTerm.getUserCodeClassLoader());
            |""".stripMargin
       val createDataView = if (dataViewField.getType == classOf[MapView[_, _]]) {
         s"""
@@ -769,11 +769,5 @@ class AggregationCodeGenerator(
          """.stripMargin
 
     GeneratedAggregationsFunction(funcName, funcCode)
-  }
-
-  @throws[Exception]
-  def serializeStateDescriptor(stateDescriptor: StateDescriptor[_, _]): String = {
-    val byteArray = InstantiationUtil.serializeObject(stateDescriptor)
-    Base64.encodeBase64URLSafeString(byteArray)
   }
 }

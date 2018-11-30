@@ -56,7 +56,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	private final ChannelSelector<T> channelSelector;
 
-	private final int numChannels;
+	private final int numberOfChannels;
 
 	private final int[] broadcastChannels;
 
@@ -85,20 +85,20 @@ public class RecordWriter<T extends IOReadableWritable> {
 		this.flushAlways = flushAlways;
 		this.targetPartition = writer;
 		this.channelSelector = channelSelector;
-
-		this.numChannels = writer.getNumberOfSubpartitions();
+		this.numberOfChannels = writer.getNumberOfSubpartitions();
+		this.channelSelector.setup(numberOfChannels);
 
 		this.serializer = new SpanningRecordSerializer<T>();
-		this.bufferBuilders = new Optional[numChannels];
-		this.broadcastChannels = new int[numChannels];
-		for (int i = 0; i < numChannels; i++) {
+		this.bufferBuilders = new Optional[numberOfChannels];
+		this.broadcastChannels = new int[numberOfChannels];
+		for (int i = 0; i < numberOfChannels; i++) {
 			broadcastChannels[i] = i;
 			bufferBuilders[i] = Optional.empty();
 		}
 	}
 
 	public void emit(T record) throws IOException, InterruptedException {
-		emit(record, channelSelector.selectChannels(record, numChannels));
+		emit(record, channelSelector.selectChannels(record));
 	}
 
 	/**
@@ -115,7 +115,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 	public void randomEmit(T record) throws IOException, InterruptedException {
 		serializer.serializeRecord(record);
 
-		if (copyFromSerializerToTargetChannel(rng.nextInt(numChannels))) {
+		if (copyFromSerializerToTargetChannel(rng.nextInt(numberOfChannels))) {
 			serializer.prune();
 		}
 	}
@@ -174,7 +174,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	public void broadcastEvent(AbstractEvent event) throws IOException {
 		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event)) {
-			for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
+			for (int targetChannel = 0; targetChannel < numberOfChannels; targetChannel++) {
 				tryFinishCurrentBufferBuilder(targetChannel);
 
 				// Retain the buffer so that it can be recycled by each channel of targetPartition
@@ -192,7 +192,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 	}
 
 	public void clearBuffers() {
-		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
+		for (int targetChannel = 0; targetChannel < numberOfChannels; targetChannel++) {
 			closeBufferBuilder(targetChannel);
 		}
 	}

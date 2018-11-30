@@ -24,10 +24,12 @@ source "${END_TO_END_DIR}"/test-scripts/common.sh
 # Arguments:
 #   $1: description of the test
 #   $2: command to execute
+#   $3: check logs for erors & exceptions
 #######################################
 function run_test {
-    description="$1"
-    command="$2"
+    local description="$1"
+    local command="$2"
+    local skip_check_exceptions=${3:-}
 
     printf "\n==============================================================================\n"
     printf "Running '${description}'\n"
@@ -39,13 +41,33 @@ function run_test {
 
     backup_config
     start_timer
+
+    function test_error() {
+      echo "[FAIL] Test script contains errors."
+      post_test_validation 1 "$description" "$skip_check_exceptions"
+    }
+    trap 'test_error' ERR
+
     ${command}
     exit_code="$?"
-    time_elapsed=$(end_timer)
+    post_test_validation ${exit_code} "$description" "$skip_check_exceptions"
+}
 
-    check_logs_for_errors
-    check_logs_for_exceptions
-    check_logs_for_non_empty_out_files
+# Validates the test result and exit code after its execution.
+function post_test_validation {
+    local exit_code="$1"
+    local description="$2"
+    local skip_check_exceptions="$3"
+
+    local time_elapsed=$(end_timer)
+
+    if [[ "${skip_check_exceptions}" != "skip_check_exceptions" ]]; then
+        check_logs_for_errors
+        check_logs_for_exceptions
+        check_logs_for_non_empty_out_files
+    else
+        echo "Checking of logs skipped."
+    fi
 
     # Investigate exit_code for failures of test executable as well as EXIT_CODE for failures of the test.
     # Do not clean up if either fails.
@@ -79,7 +101,8 @@ function cleanup_proc {
 
 # Cleans up all temporary folders and files
 function cleanup_tmp_files {
-    clean_log_files
+    rm ${FLINK_DIR}/log/*
+    echo "Deleted all files under ${FLINK_DIR}/log/"
 
     rm -rf ${TEST_DATA_DIR} 2> /dev/null
     echo "Deleted ${TEST_DATA_DIR}"

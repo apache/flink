@@ -40,6 +40,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collections;
 
 import scala.concurrent.ExecutionContext;
 
@@ -454,7 +455,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			// it can occur as the result of races
 			{
 				Scheduler scheduler = mock(Scheduler.class);
-				vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL);
+				vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL, Collections.emptySet());
 
 				assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 			}
@@ -493,7 +494,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 				setVertexState(vertex, ExecutionState.CANCELING);
 
 				Scheduler scheduler = mock(Scheduler.class);
-				vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL);
+				vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL, Collections.emptySet());
 			}
 			catch (Exception e) {
 				fail("should not throw an exception");

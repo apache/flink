@@ -401,7 +401,8 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		try {
 			// check if ScalaKryoInstantiator is in class path (coming from Twitter's Chill library).
 			// This will be true if Flink's Scala API is used.
-			Class<?> chillInstantiatorClazz = Class.forName("com.twitter.chill.ScalaKryoInstantiator");
+			Class<?> chillInstantiatorClazz =
+					Class.forName("org.apache.flink.runtime.types.FlinkScalaKryoInstantiator");
 			Object chillInstantiator = chillInstantiatorClazz.newInstance();
 
 			// obtain a Kryo instance through Twitter Chill
@@ -463,7 +464,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof KryoSerializerConfigSnapshot) {
 			final KryoSerializerConfigSnapshot<T> config = (KryoSerializerConfigSnapshot<T>) configSnapshot;
 
