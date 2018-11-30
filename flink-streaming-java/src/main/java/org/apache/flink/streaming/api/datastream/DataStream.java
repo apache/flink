@@ -88,6 +88,7 @@ import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.HashPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
@@ -496,6 +497,23 @@ public class DataStream<T> {
 	@PublicEvolving
 	public DataStream<T> global() {
 		return setConnectionType(new GlobalPartitioner<T>());
+	}
+
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output elements
+	 * are Object.hashCode and mod to the next operation.
+	 *
+	 * @return The DataStream with hash partitioning set.
+	 */
+	@PublicEvolving
+	public DataStream<T> hash(){
+		return setConnectionType(new HashPartitioner<T>(this.getParallelism()));
+	}
+
+	@PublicEvolving
+	public DataStream<T> hash(int partitions){
+		Preconditions.checkArgument(partitions >= 0);
+		return setConnectionType(new HashPartitioner<T>(partitions));
 	}
 
 	/**

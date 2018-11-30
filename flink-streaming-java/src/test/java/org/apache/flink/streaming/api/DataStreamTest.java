@@ -74,6 +74,7 @@ import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.HashPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
@@ -1089,6 +1090,13 @@ public class DataStreamTest extends TestLogger {
 				env.getStreamGraph().getStreamEdges(src.getId(),
 						globalSink.getTransformation().getId()).get(0).getPartitioner();
 		assertTrue(globalPartitioner instanceof GlobalPartitioner);
+
+		DataStream<Long> hash = src.hash();
+		DataStreamSink<Long> hashSink = hash.print();
+		StreamPartitioner<?> hashPartitioner =
+			env.getStreamGraph().getStreamEdges(src.getId(),
+				hashSink.getTransformation().getId()).get(0).getPartitioner();
+		assertTrue(hashPartitioner instanceof HashPartitioner);
 	}
 
 	/////////////////////////////////////////////////////////////
