@@ -547,7 +547,7 @@ In order to create a specific instance, a factory class can implement one or mor
 
 * `BatchTableSourceFactory`: Creates a batch table source.
 * `BatchTableSinkFactory`: Creates a batch table sink.
-* `StreamTableSoureFactory`: Creates a stream table source.
+* `StreamTableSourceFactory`: Creates a stream table source.
 * `StreamTableSinkFactory`: Creates a stream table sink.
 * `DeserializationSchemaFactory`: Creates a deserialization schema format.
 * `SerializationSchemaFactory`: Creates a serialization schema format.
