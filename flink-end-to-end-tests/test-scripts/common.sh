@@ -38,6 +38,8 @@ echo "Flink dist directory: $FLINK_DIR"
 
 FLINK_VERSION=$(cat ${END_TO_END_DIR}/pom.xml | sed -n 's/.*<version>\(.*\)<\/version>/\1/p')
 
+NODENAME=`hostname -f`
+
 USE_SSL=OFF # set via set_conf_ssl(), reset via revert_default_config()
 TEST_ROOT=`pwd -P`
 TEST_INFRA_DIR="$END_TO_END_DIR/test-scripts/"
@@ -176,7 +178,6 @@ function set_conf_ssl {
     fi
     mkdir -p "${TEST_DATA_DIR}/ssl"
 
-    NODENAME=`hostname -f`
     SANSTRING="dns:${NODENAME}"
     for NODEIP in $(get_node_ip) ; do
         SANSTRING="${SANSTRING},ip:${NODEIP}"
@@ -185,15 +186,18 @@ function set_conf_ssl {
     echo "Using SAN ${SANSTRING}"
 
     # create certificates
-    keytool -genkeypair -alias ca -keystore "${TEST_DATA_DIR}/ssl/ca.keystore" -dname "CN=Sample CA" -storepass password -keypass password -keyalg RSA -ext bc=ca:true
+    keytool -genkeypair -alias ca -keystore "${TEST_DATA_DIR}/ssl/ca.keystore" -dname "CN=Sample CA" -storepass password -keypass password -keyalg RSA -ext bc=ca:true -storetype PKCS12
     keytool -keystore "${TEST_DATA_DIR}/ssl/ca.keystore" -storepass password -alias ca -exportcert > "${TEST_DATA_DIR}/ssl/ca.cer"
     keytool -importcert -keystore "${TEST_DATA_DIR}/ssl/ca.truststore" -alias ca -storepass password -noprompt -file "${TEST_DATA_DIR}/ssl/ca.cer"
 
-    keytool -genkeypair -alias node -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -dname "CN=${NODENAME}" -ext SAN=${SANSTRING} -storepass password -keypass password -keyalg RSA
+    keytool -genkeypair -alias node -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -dname "CN=${NODENAME}" -ext SAN=${SANSTRING} -storepass password -keypass password -keyalg RSA -storetype PKCS12
     keytool -certreq -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -storepass password -alias node -file "${TEST_DATA_DIR}/ssl/node.csr"
     keytool -gencert -keystore "${TEST_DATA_DIR}/ssl/ca.keystore" -storepass password -alias ca -ext SAN=${SANSTRING} -infile "${TEST_DATA_DIR}/ssl/node.csr" -outfile "${TEST_DATA_DIR}/ssl/node.cer"
     keytool -importcert -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -storepass password -file "${TEST_DATA_DIR}/ssl/ca.cer" -alias ca -noprompt
     keytool -importcert -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -storepass password -file "${TEST_DATA_DIR}/ssl/node.cer" -alias node -noprompt
+
+    # keystore is converted into a pem format to use it as node.pem with curl in Flink REST API queries, see also $CURL_SSL_ARGS
+    openssl pkcs12 -passin pass:password -in "${TEST_DATA_DIR}/ssl/node.keystore" -out "${TEST_DATA_DIR}/ssl/node.pem" -nodes
 
     # adapt config
     # (here we rely on security.ssl.enabled enabling SSL for all components and internal as well as
@@ -242,26 +246,23 @@ function start_cluster {
   "$FLINK_DIR"/bin/start-cluster.sh
 
   # wait at most 10 seconds until the dispatcher is up
-  local QUERY_URL
-  if [ "x$USE_SSL" = "xON" ]; then
-    QUERY_URL="http://localhost:8081/taskmanagers"
-  else
-    QUERY_URL="https://localhost:8081/taskmanagers"
-  fi
-  for i in {1..10}; do
+  local TIMEOUT=10
+  for i in $(seq 1 ${TIMEOUT}); do
     # without the || true this would exit our script if the JobManager is not yet up
-    QUERY_RESULT=$(curl "$QUERY_URL" 2> /dev/null || true)
+    QUERY_RESULT=$(query_running_tms 2> /dev/null || true)
 
     # ensure the taskmanagers field is there at all and is not empty
     if [[ ${QUERY_RESULT} =~ \{\"taskmanagers\":\[.+\]\} ]]; then
 
       echo "Dispatcher REST endpoint is up."
-      break
+      return
     fi
 
     echo "Waiting for dispatcher REST endpoint to come up..."
     sleep 1
   done
+  echo "Dispatcher REST endpoint has not started within a timeout of ${TIMEOUT} sec"
+  exit 1
 }
 
 function start_taskmanagers {
@@ -274,30 +275,55 @@ function start_taskmanagers {
 }
 
 function start_and_wait_for_tm {
-
-  tm_query_result=$(curl -s "http://localhost:8081/taskmanagers")
-
+  tm_query_result=`query_running_tms`
   # we assume that the cluster is running
   if ! [[ ${tm_query_result} =~ \{\"taskmanagers\":\[.*\]\} ]]; then
     echo "Your cluster seems to be unresponsive at the moment: ${tm_query_result}" 1>&2
     exit 1
   fi
 
-  running_tms=`curl -s "http://localhost:8081/taskmanagers" | grep -o "id" | wc -l`
-
+  running_tms=`query_number_of_running_tms`
   ${FLINK_DIR}/bin/taskmanager.sh start
-
-  for i in {1..10}; do
-    local new_running_tms=`curl -s "http://localhost:8081/taskmanagers" | grep -o "id" | wc -l`
-    if [ $((new_running_tms-running_tms)) -eq 0 ]; then
-      echo "TaskManager is not yet up."
-    else
-      echo "TaskManager is up."
-      break
-    fi
-    sleep 4
-  done
+  wait_for_number_of_running_tms $((running_tms+1))
 }
+
+function query_running_tms {
+  local QUERY_URL
+  local CURL_SSL_ARGS
+  if [ "x$USE_SSL" = "xON" ]; then
+    QUERY_URL="https://${NODENAME}:8081/taskmanagers"
+    CURL_SSL_ARGS="--cacert ${TEST_DATA_DIR}/ssl/node.pem"
+  else
+    QUERY_URL="http://${NODENAME}:8081/taskmanagers"
+    CURL_SSL_ARGS=""
+  fi
+  curl ${CURL_SSL_ARGS} -s "${QUERY_URL}"
+}
+
+function query_number_of_running_tms {
+  query_running_tms | grep -o "id" | wc -l
+}
+
+function wait_for_number_of_running_tms {
+  local TM_NUM_TO_WAIT=${1}
+  local TIMEOUT_COUNTER=10
+  local TIMEOUT_INC=4
+  local TIMEOUT=$(( $TIMEOUT_COUNTER * $TIMEOUT_INC ))
+  local TM_NUM_TEXT="Number of running task managers"
+  for i in $(seq 1 ${TIMEOUT_COUNTER}); do
+    local TM_NUM=`query_number_of_running_tms`
+    if [ $((TM_NUM - TM_NUM_TO_WAIT)) -eq 0 ]; then
+      echo "${TM_NUM_TEXT} has reached ${TM_NUM_TO_WAIT}."
+      return
+    else
+      echo "${TM_NUM_TEXT} ${TM_NUM} is not yet ${TM_NUM_TO_WAIT}."
+    fi
+    sleep ${TIMEOUT_INC}
+  done
+  echo "${TM_NUM_TEXT} has not reached ${TM_NUM_TO_WAIT} within a timeout of ${TIMEOUT} sec"
+  exit 1
+}
+
 
 function check_logs_for_errors {
   error_count=$(grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log \
@@ -392,17 +418,20 @@ function wait_for_job_state_transition {
 }
 
 function wait_job_running {
-  for i in {1..10}; do
+  local TIMEOUT=10
+  for i in $(seq 1 ${TIMEOUT}); do
     JOB_LIST_RESULT=$("$FLINK_DIR"/bin/flink list -r | grep "$1")
 
     if [[ "$JOB_LIST_RESULT" == "" ]]; then
       echo "Job ($1) is not yet running."
     else
       echo "Job ($1) is running."
-      break
+      return
     fi
     sleep 1
   done
+  echo "Job ($1) has not started within a timeout of ${TIMEOUT} sec"
+  exit 1
 }
 
 function wait_job_terminal_state {
