@@ -20,24 +20,28 @@ package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;
 
 import java.io.File;
 
 /**
- * A FunctionContext allows to obtain global runtime information about the context in which the
- * user-defined function is executed. The information include the metric group,
- * the distributed cache files, and the global job parameters.
+ * A {@link FunctionContext} allows to obtain global runtime information about the context in which the
+ * user-defined function is executed.
+ *
+ * <p>The information includes the metric group, distributed cache files, and global job parameters.
  */
 @PublicEvolving
 public class FunctionContext {
 
-	/**
-	 * @param context the runtime context in which the Flink Function is executed
-	 */
 	private RuntimeContext context;
 
+	/**
+	 * Wraps the underlying {@link RuntimeContext}.
+	 *
+	 * @param context the runtime context in which Flink's {@link Function} is executed.
+	 */
 	public FunctionContext(RuntimeContext context) {
 		this.context = context;
 	}
@@ -70,7 +74,7 @@ public class FunctionContext {
 	 * @return (default) value associated with the given key
 	 */
 	public String getJobParameter(String key, String defaultValue) {
-		GlobalJobParameters conf = context.getExecutionConfig().getGlobalJobParameters();
+		final GlobalJobParameters conf = context.getExecutionConfig().getGlobalJobParameters();
 		if (conf != null && conf.toMap().containsKey(key)) {
 			return conf.toMap().get(key);
 		} else {

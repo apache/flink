@@ -22,51 +22,89 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
- * Base class for User-Defined Aggregates.
+ * Base class for user-defined aggregates.
  *
  * <p>The behavior of an {@link AggregateFunction} can be defined by implementing a series of custom
  * methods. An {@link AggregateFunction} needs at least three methods:
- *  - createAccumulator,
- *  - accumulate, and
- *  - getValue.
+ *  - <code>createAccumulator</code>,
+ *  - <code>accumulate</code>, and
+ *  - <code>getValue</code>.
  *
  * <p>There are a few other methods that can be optional to have:
- *  - retract,
- *  - merge, and
- *  - resetAccumulator
+ *  - <code>retract</code>,
+ *  - <code>merge</code>, and
+ *  - <code>resetAccumulator</code>.
  *
- * <p>All these methods must be declared publicly, not static and named exactly as the names
- * mentioned above. The methods createAccumulator and getValue are defined in the
- * {@link AggregateFunction} functions, while other methods are explained below.
+ * <p>All these methods must be declared publicly, not static, and named exactly as the names
+ * mentioned above. The methods {@link #createAccumulator()} and {@link #getValue} are defined in
+ * the {@link AggregateFunction} functions, while other methods are explained below.
  *
- * <p>Processes the input values and update the provided accumulator instance. The method
+ * <pre>
+ * {@code
+ * Processes the input values and update the provided accumulator instance. The method
  * accumulate can be overloaded with different custom types and arguments. An AggregateFunction
  * requires at least one accumulate() method.
  *
+ * param: accumulator           the accumulator which contains the current aggregated results
+ * param: [user defined inputs] the input value (usually obtained from a new arrived data).
  *
- * <p>Retracts the input values from the accumulator instance. The current design assumes the
+ * public void accumulate(ACC accumulator, [user defined inputs])
+ * }
+ * </pre>
+ *
+ * <pre>
+ * {@code
+ * Retracts the input values from the accumulator instance. The current design assumes the
  * inputs are the values that have been previously accumulated. The method retract can be
  * overloaded with different custom types and arguments. This function must be implemented for
- * datastream bounded over aggregate.
+ * data stream bounded OVER aggregates.
  *
- * <p>Merges a group of accumulator instances into one accumulator instance. This function must be
- * implemented for datastream session window grouping aggregate and dataset grouping aggregate.
+ * param: accumulator           the accumulator which contains the current aggregated results
+ * param: [user defined inputs] the input value (usually obtained from a new arrived data).
  *
- * <p>Resets the accumulator for this {@link AggregateFunction}. This function must be implemented for
- * dataset grouping aggregate.
+ * public void retract(ACC accumulator, [user defined inputs])
+ * }
+ * </pre>
  *
+ * <pre>
+ * {@code
+ * Merges a group of accumulator instances into one accumulator instance. This function must be
+ * implemented for data stream session window grouping aggregates and data set grouping aggregates.
  *
- * @param T   the type of the aggregation result
- * @param ACC the type of the aggregation accumulator. The accumulator is used to keep the
- *             aggregated values which are needed to compute an aggregation result.
- *             AggregateFunction represents its state using accumulator, thereby the state of the
- *             AggregateFunction must be put into the accumulator.
+ * param: accumulator the accumulator which will keep the merged aggregate results. It should
+ *                    be noted that the accumulator may contain the previous aggregated
+ *                    results. Therefore user should not replace or clean this instance in the
+ *                    custom merge method.
+ * param: its         an java.lang.Iterable pointed to a group of accumulators that will be
+ *                    merged.
+ *
+ * public void merge(ACC accumulator, java.lang.Iterable<ACC> iterable)
+ * }
+ * </pre>
+ *
+ * <pre>
+ * {@code
+ * Resets the accumulator for this AggregateFunction. This function must be implemented for
+ * data set grouping aggregates.
+ *
+ * param: accumulator the accumulator which needs to be reset
+ *
+ * public void resetAccumulator(ACC accumulator)
+ * }
+ * </pre>
+ *
+ * @param <T>   the type of the aggregation result
+ * @param <ACC> the type of the aggregation accumulator. The accumulator is used to keep the
+ *              aggregated values which are needed to compute an aggregation result.
+ *              AggregateFunction represents its state using accumulator, thereby the state of the
+ *              AggregateFunction must be put into the accumulator.
  */
 @PublicEvolving
 public abstract class AggregateFunction<T, ACC> extends UserDefinedFunction {
 
 	/**
-	 * Creates and init the Accumulator for this {@link AggregateFunction}.
+	 * Creates and initializes the accumulator for this {@link AggregateFunction}. The accumulator
+	 * is used to keep the aggregated values which are needed to compute an aggregation result.
 	 *
 	 * @return the accumulator with the initial value
 	 */
@@ -85,29 +123,31 @@ public abstract class AggregateFunction<T, ACC> extends UserDefinedFunction {
 	public abstract T getValue(ACC accumulator);
 
 	/**
-	 * Returns true if this AggregateFunction can only be applied in an OVER window.
+	 * Returns <code>true</code> if this {@link AggregateFunction} can only be applied in an
+	 * OVER window.
 	 *
-	 * @return true if the AggregateFunction requires an OVER window, false otherwise.
+	 * @return <code>true</code> if the {@link AggregateFunction} requires an OVER window,
+	 *         <code>false</code> otherwise.
 	 */
 	public boolean requiresOver() {
 		return false;
 	}
 
 	/**
-	 * Returns the TypeInformation of the AggregateFunction's result.
+	 * Returns the {@link TypeInformation} of the {@link AggregateFunction}'s result.
 	 *
-	 * @return The TypeInformation of the AggregateFunction's result or null if the result type
-	 *         should be automatically inferred.
+	 * @return The {@link TypeInformation} of the {@link AggregateFunction}'s result or
+	 *         <code>null</code> if the result type should be automatically inferred.
 	 */
 	public TypeInformation<T> getResultType() {
 		return null;
 	}
 
 	/**
-	 * Returns the TypeInformation of the AggregateFunction's accumulator.
+	 * Returns the {@link TypeInformation} of the {@link AggregateFunction}'s accumulator.
 	 *
-	 * @return The TypeInformation of the AggregateFunction's accumulator or null if the
-	 *         accumulator type should be automatically inferred.
+	 * @return The {@link TypeInformation} of the {@link AggregateFunction}'s accumulator or
+	 *         <code>null</code> if the accumulator type should be automatically inferred.
 	 */
 	public TypeInformation<ACC> getAccumulatorType() {
 		return null;

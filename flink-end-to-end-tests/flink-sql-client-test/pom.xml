@@ -37,11 +37,6 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
-		<dependency>
-			<groupId>org.scala-lang</groupId>
-			<artifactId>scala-compiler</artifactId>
-			<scope>provided</scope>
-		</dependency>
 
 		<!-- The following dependencies are for connector/format sql-jars that
 			we copy using the maven-dependency-plugin. When extending the test

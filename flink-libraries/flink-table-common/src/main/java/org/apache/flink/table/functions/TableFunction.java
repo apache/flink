@@ -25,17 +25,13 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.util.Collector;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
 /**
  * Base class for a user-defined table function (UDTF). A user-defined table functions works on
  * zero, one, or multiple scalar values as input and returns multiple rows as output.
  *
  * <p>The behavior of a {@link TableFunction} can be defined by implementing a custom evaluation
- * method. An evaluation method must be declared publicly, not static and named "eval".
- * Evaluation methods can also be overloaded by implementing multiple methods named "eval".
+ * method. An evaluation method must be declared publicly, not static, and named <code>eval</code>.
+ * Evaluation methods can also be overloaded by implementing multiple methods named <code>eval</code>.
  *
  * <p>User-defined functions must have a default constructor and must be instantiable during runtime.
  *
@@ -47,25 +43,49 @@ import java.util.stream.Collectors;
  * <p>Internally, the Table/SQL API code generation works with primitive values as much as possible.
  * If a user-defined table function should not introduce much overhead during runtime, it is
  * recommended to declare parameters and result types as primitive types instead of their boxed
- * classes. DATE/TIME is equal to int, TIMESTAMP is equal to long.
+ * classes. <code>DATE/TIME</code> is equal to <code>int</code>, <code>TIMESTAMP</code> is equal
+ * to <code>long</code>.
  *
+ * <p>For Example:
  *
- * @param T The type of the output row
+ * <pre>
+ * {@code
+ *   public class Split extends TableFunction<String> {
+ *
+ *     // implement an "eval" method with as many parameters as you want
+ *     public void eval(String str) {
+ *       for (String s : str.split(" ")) {
+ *         collect(s);   // use collect(...) to emit an output row
+ *       }
+ *     }
+ *
+ *     // you can overload the eval method here ...
+ *   }
+ *
+ *   TableEnvironment tEnv = ...
+ *   Table table = ...    // schema: ROW(a VARCHAR)
+ *
+ *   // for Scala users
+ *   val split = new Split()
+ *   table.join(split('c) as ('s)).select('a, 's)
+ *
+ *   // for Java users
+ *   tEnv.registerFunction("split", new Split());   // register table function first
+ *   table.join(new Table(tEnv, "split(a) as (s)")).select("a, s");
+ *
+ *   // for SQL users
+ *   tEnv.registerFunction("split", new Split());   // register table function first
+ *   tEnv.sqlQuery("SELECT a, s FROM MyTable, LATERAL TABLE(split(a)) as T(s)");
+ * }
+ * </pre>
+ *
+ * @param <T> The type of the output row
  */
 @PublicEvolving
 public abstract class TableFunction<T> extends UserDefinedFunction {
 
 	/**
-	 * Emit an output row.
-	 *
-	 * @param row the output row
-	 */
-	protected void collect(T row) {
-		collector.collect(row);
-	}
-
-	/**
-	 * The code generated collector used to emit row.
+	 * The code generated collector used to emit rows.
 	 */
 	protected Collector<T> collector;
 
@@ -84,7 +104,7 @@ public abstract class TableFunction<T> extends UserDefinedFunction {
 	 * method. Flink's type extraction facilities can handle basic types or
 	 * simple POJOs but might be wrong for more complex, custom, or composite types.
 	 *
-	 * @return {@link TypeInformation} of result type or null if Flink should determine the type
+	 * @return {@link TypeInformation} of result type or <code>null</code> if Flink should determine the type
 	 */
 	public TypeInformation<T> getResultType() {
 		return null;
@@ -103,18 +123,25 @@ public abstract class TableFunction<T> extends UserDefinedFunction {
 	 * @return {@link TypeInformation} of operand types
 	 */
 	public TypeInformation<?>[] getParameterTypes(Class<?>[] signature) {
-
-		List<TypeInformation<?>> typeList = Arrays.asList(signature).stream().map(c -> {
+		final TypeInformation<?>[] types = new TypeInformation<?>[signature.length];
+		for (int i = 0; i < signature.length; i++) {
 			try {
-				return TypeExtractor.getForClass(c);
+				types[i] = TypeExtractor.getForClass(signature[i]);
 			} catch (InvalidTypesException e) {
 				throw new ValidationException(
-						"Parameter types of table function " + this.getClass().getCanonicalName() + " cannot be " +
-						"automatically determined. Please provide type information manually.");
+					"Parameter types of table function " + this.getClass().getCanonicalName() +
+					" cannot be automatically determined. Please provide type information manually.");
 			}
-		}).collect(Collectors.toList());
-
-		return typeList.toArray(new TypeInformation<?>[0]);
+		}
+		return types;
 	}
 
+	/**
+	 * Emits an output row.
+	 *
+	 * @param row the output row
+	 */
+	protected final void collect(T row) {
+		collector.collect(row);
+	}
 }

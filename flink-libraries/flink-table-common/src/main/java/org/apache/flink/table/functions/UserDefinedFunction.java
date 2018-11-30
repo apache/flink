@@ -29,12 +29,21 @@ import java.io.Serializable;
  */
 @PublicEvolving
 public abstract class UserDefinedFunction implements Serializable {
+
+	/**
+	 * Returns a unique, serialized representation for this function.
+	 */
+	public final String functionIdentifier() {
+		final String md5 = EncodingUtils.hex(EncodingUtils.md5(EncodingUtils.encodeObjectToString(this)));
+		return getClass().getCanonicalName().replace('.', '$').concat("$").concat(md5);
+	}
+
 	/**
 	 * Setup method for user-defined function. It can be used for initialization work.
 	 * By default, this method does nothing.
 	 */
 	public void open(FunctionContext context) throws Exception {
-
+		// do nothing
 	}
 
 	/**
@@ -42,22 +51,19 @@ public abstract class UserDefinedFunction implements Serializable {
 	 * By default, this method does nothing.
 	 */
 	public void close() throws Exception {
-
+		// do nothing
 	}
 
 	/**
-	 * @return true if and only if a call to this function is guaranteed to always return
-	 * the same result given the same parameters; true is assumed by default
-	 * if user's function is not pure functional, like random(), date(), now()...
-	 * isDeterministic must return false
+	 * Returns information about the determinism of the function's results.
+	 *
+	 * @return <code>true</code> if and only if a call to this function is guaranteed to
+	 *         always return the same result given the same parameters. <code>true</code> is
+	 *         assumed by default. If the function is not pure functional like
+	 *         <code>random(), date(), now(), ...</code> this method must return <code>false</code>.
 	 */
 	public boolean isDeterministic() {
 		return true;
-	}
-
-	public String functionIdentifier() {
-		String md5 = EncodingUtils.hex(EncodingUtils.md5(EncodingUtils.encodeObjectToString(this)));
-		return getClass().getCanonicalName().replace('.', '$').concat("$").concat(md5);
 	}
 
 	/**

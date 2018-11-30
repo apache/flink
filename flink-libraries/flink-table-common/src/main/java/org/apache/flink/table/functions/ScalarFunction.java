@@ -24,17 +24,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.ValidationException;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
 /**
  * Base class for a user-defined scalar function. A user-defined scalar functions maps zero, one,
  * or multiple scalar values to a new scalar value.
  *
  * <p>The behavior of a {@link ScalarFunction} can be defined by implementing a custom evaluation
- * method. An evaluation method must be declared publicly and named "eval". Evaluation methods
- * can also be overloaded by implementing multiple methods named "eval".
+ * method. An evaluation method must be declared publicly and named <code>eval</code>. Evaluation
+ * methods can also be overloaded by implementing multiple methods named <code>eval</code>.
  *
  * <p>User-defined functions must have a default constructor and must be instantiable during runtime.
  *
@@ -46,7 +42,8 @@ import java.util.stream.Collectors;
  * <p>Internally, the Table/SQL API code generation works with primitive values as much as possible.
  * If a user-defined scalar function should not introduce much overhead during runtime, it is
  * recommended to declare parameters and result types as primitive types instead of their boxed
- * classes. DATE/TIME is equal to int, TIMESTAMP is equal to long.
+ * classes. <code>DATE/TIME</code> is equal to <code>int</code>, <code>TIMESTAMP</code> is equal
+ * to <code>long</code>.
  */
 @PublicEvolving
 public abstract class ScalarFunction extends UserDefinedFunction {
@@ -60,7 +57,8 @@ public abstract class ScalarFunction extends UserDefinedFunction {
 	 * simple POJOs but might be wrong for more complex, custom, or composite types.
 	 *
 	 * @param signature signature of the method the return type needs to be determined
-	 * @return {@link TypeInformation} of result type or null if Flink should determine the type
+	 * @return {@link TypeInformation} of result type or <code>null</code> if Flink should
+	 *         determine the type
 	 */
 	public TypeInformation<?> getResultType(Class<?>[] signature) {
 		return null;
@@ -70,26 +68,25 @@ public abstract class ScalarFunction extends UserDefinedFunction {
 	 * Returns {@link TypeInformation} about the operands of the evaluation method with a given
 	 * signature.
 	 *
-	 * <p>In order to perform operand type inference in SQL (especially when NULL is used) it might be
-	 * necessary to determine the parameter {@link TypeInformation} of an evaluation method.
-	 * By default Flink's type extraction facilities are used for this but might be wrong for
-	 * more complex, custom, or composite types.
+	 * <p>In order to perform operand type inference in SQL (especially when <code>NULL</code> is
+	 * used) it might be necessary to determine the parameter {@link TypeInformation} of an
+	 * evaluation method. By default Flink's type extraction facilities are used for this but might
+	 * be wrong for more complex, custom, or composite types.
 	 *
 	 * @param signature signature of the method the operand types need to be determined
 	 * @return {@link TypeInformation} of operand types
 	 */
 	public TypeInformation<?>[] getParameterTypes(Class<?>[] signature) {
-
-		List<TypeInformation<?>> typeList = Arrays.asList(signature).stream().map(c -> {
+		final TypeInformation<?>[] types = new TypeInformation<?>[signature.length];
+		for (int i = 0; i < signature.length; i++) {
 			try {
-				return TypeExtractor.getForClass(c);
+				types[i] = TypeExtractor.getForClass(signature[i]);
 			} catch (InvalidTypesException e) {
 				throw new ValidationException(
-						"Parameter types of table function " + this.getClass().getCanonicalName() + " cannot be " +
-						"automatically determined. Please provide type information manually.");
+					"Parameter types of scalar function " + this.getClass().getCanonicalName() +
+					" cannot be automatically determined. Please provide type information manually.");
 			}
-		}).collect(Collectors.toList());
-
-		return typeList.toArray(new TypeInformation<?>[0]);
+		}
+		return types;
 	}
 }
