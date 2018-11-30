@@ -349,7 +349,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		if (portKeys != null) {
 			Arrays.stream(portKeys.split(","))
 				.map(String::trim)
-				.peek(key -> LOG.debug("Adding port key " + key + " to mesos request"))
+				.peek(key -> LOG.debug("Adding port key {} to mesos request"))
 				.forEach(tmPortKeys::add);
 		}
 
