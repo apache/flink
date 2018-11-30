@@ -93,4 +93,17 @@ class WindowAggregateValidationTest extends TableTestBase {
 
     streamUtil.verifySql(sqlQuery, "n/a")
   }
+
+  @Test
+  def testWindowWrongWindowParameter(): Unit = {
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage("Only constant window descriptors with DAY TO SECOND " +
+      "resolution are supported")
+
+    val sqlQuery =
+      "SELECT COUNT(*) FROM MyTable " +
+        "GROUP BY TUMBLE(proctime, INTERVAL '2-10' YEAR TO MONTH)"
+
+    streamUtil.verifySql(sqlQuery, "n/a")
+  }
 }
