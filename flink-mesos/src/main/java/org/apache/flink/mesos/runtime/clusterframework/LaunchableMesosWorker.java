@@ -353,7 +353,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 				.forEach(tmPortKeys::add);
 		}
 
-		return tmPortKeys;
+		return Collections.unmodifiableSet(tmPortKeys);
 	}
 
 	@Override
