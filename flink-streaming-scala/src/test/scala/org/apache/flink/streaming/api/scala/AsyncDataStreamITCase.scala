@@ -20,6 +20,8 @@ package org.apache.flink.streaming.api.scala
 
 import java.util.concurrent.TimeUnit
 
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.streaming.api.functions.async.RichAsyncFunction.{RichAsyncFunctionIterationRuntimeContext, RichAsyncFunctionRuntimeContext}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.scala.AsyncDataStreamITCase._
 import org.apache.flink.streaming.api.scala.async.{AsyncFunction, ResultFuture, RichAsyncFunction}
@@ -33,7 +35,6 @@ import scala.concurrent.{ExecutionContext, Future}
 object AsyncDataStreamITCase {
   val timeout = 1000L
   private var testResult: mutable.ArrayBuffer[Int] = _
-  private var runtimeTestResult: mutable.ArrayBuffer[String] = _
 }
 
 class AsyncDataStreamITCase extends AbstractTestBase {
@@ -100,22 +101,15 @@ class AsyncDataStreamITCase extends AbstractTestBase {
   def testRichAsyncFunctionRuntimeContext(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
+
     val source = env.fromElements(1)
 
-    runtimeTestResult = mutable.ArrayBuffer[String]()
-    val expectedResult =  mutable.ArrayBuffer[String]()
-    expectedResult += 1 + "Distributed cache is not supported in rich async functions."
 
     val richAsyncFunction = new MyRichAsyncFunction
-    AsyncDataStream
+    val asyncMapped = AsyncDataStream
       .unorderedWait(source, richAsyncFunction, timeout, TimeUnit.MILLISECONDS)
-      .addSink(new SinkFunction[String] {
-        override def invoke(value: String, context: SinkFunction.Context[_]): Unit = {
-          runtimeTestResult += value
-        }
-      })
-    env.execute("testRichAsyncFunctionRuntimeContext")
-    assertEquals(expectedResult, runtimeTestResult)
+
+    executeAndValidate(false, env, asyncMapped, mutable.ArrayBuffer[Int](2))
   }
 
   private def testAsyncWaitUsingAnonymousFunction(ordered: Boolean): Unit = {
@@ -159,18 +153,25 @@ class MyAsyncFunction extends AsyncFunction[Int, Int] {
   }
 }
 
-class MyRichAsyncFunction extends RichAsyncFunction[Int, String] {
-  override def asyncInvoke(input: Int, resultFuture: ResultFuture[String]): Unit = {
-    var exceptionThrown = ""
-    try {
-      val dc = getRuntimeContext.getDistributedCache
-    } catch {
-      case t: Throwable => exceptionThrown = t.getMessage
-    }
-    val parallelism = getRuntimeContext.getNumberOfParallelSubtasks
-    resultFuture.complete(Seq(parallelism + exceptionThrown))
+class MyRichAsyncFunction extends RichAsyncFunction[Int, Int] {
+
+  override def open(parameters: Configuration): Unit = {
+    assert(getRuntimeContext.isInstanceOf[RichAsyncFunctionRuntimeContext]
+      || getRuntimeContext.isInstanceOf[RichAsyncFunctionIterationRuntimeContext])
+    assertEquals(getRuntimeContext.getNumberOfParallelSubtasks, 1)
   }
-  override def timeout(input: Int, resultFuture: ResultFuture[String]): Unit = {
-    resultFuture.complete(Seq(""))
+
+  override def asyncInvoke(input: Int, resultFuture: ResultFuture[Int]): Unit = {
+    Future {
+      // trigger the timeout of the even input number
+      if (input % 2 == 0) {
+        Thread.sleep(AsyncDataStreamITCase.timeout + 1000)
+      }
+
+      resultFuture.complete(Seq(input * 2))
+    } (ExecutionContext.global)
+  }
+  override def timeout(input: Int, resultFuture: ResultFuture[Int]): Unit = {
+    resultFuture.complete(Seq(input * 3))
   }
 }

@@ -16,12 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.scala.async.util
+package org.apache.flink.streaming.api.scala.async
 
 import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.async.{ResultFuture, RichAsyncFunction => JRichAsyncFunction}
-import org.apache.flink.streaming.api.scala.async.{JavaResultFutureWrapper, RichAsyncFunction}
+import org.apache.flink.streaming.api.functions.async.{ResultFuture => JResultFuture, RichAsyncFunction => JRichAsyncFunction}
 
 /**
   * A wrapper function that exposes a Scala RichAsyncFunction as a Java Rich Async Function.
@@ -33,21 +32,19 @@ import org.apache.flink.streaming.api.scala.async.{JavaResultFutureWrapper, Rich
 final class ScalaRichAsyncFunctionWrapper[IN, OUT](func: RichAsyncFunction[IN, OUT])
   extends JRichAsyncFunction[IN, OUT]{
 
-  override def asyncInvoke(input: IN, resultFuture: ResultFuture[OUT]): Unit = {
+  override def asyncInvoke(input: IN, resultFuture: JResultFuture[OUT]): Unit = {
     func.asyncInvoke(input, new JavaResultFutureWrapper[OUT](resultFuture))
   }
 
-  override def timeout(input: IN, resultFuture: ResultFuture[OUT]): Unit = {
+  override def timeout(input: IN, resultFuture: JResultFuture[OUT]): Unit = {
     func.timeout(input, new JavaResultFutureWrapper[OUT](resultFuture))
   }
 
   override def open(parameters: Configuration): Unit = {
-    super.open(parameters)
     func.open(parameters)
   }
 
   override def close(): Unit = {
-    super.close()
     func.close()
   }
 

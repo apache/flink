@@ -97,7 +97,7 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction im
 	 * context only supports basic operations which are thread safe. Consequently, state access,
 	 * accumulators, broadcast variables and the distributed cache are disabled.
 	 */
-	private static class RichAsyncFunctionRuntimeContext implements RuntimeContext {
+	public static class RichAsyncFunctionRuntimeContext implements RuntimeContext {
 		private final RuntimeContext runtimeContext;
 
 		RichAsyncFunctionRuntimeContext(RuntimeContext context) {
@@ -239,7 +239,12 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction im
 		}
 	}
 
-	private static class RichAsyncFunctionIterationRuntimeContext extends RichAsyncFunctionRuntimeContext implements IterationRuntimeContext {
+	/**
+	 * A wrapper class for async function's {@link IterationRuntimeContext}. The async function runtime
+	 * context only supports basic operations which are thread safe. Consequently, state access,
+	 * accumulators, broadcast variables and the distributed cache are disabled.
+	 */
+	public static class RichAsyncFunctionIterationRuntimeContext extends RichAsyncFunctionRuntimeContext implements IterationRuntimeContext {
 
 		private final IterationRuntimeContext iterationRuntimeContext;
 
