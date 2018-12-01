@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.FiniteTestSource;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
@@ -67,6 +68,8 @@ public class SequenceFileSinkITCase extends AbstractTestBase {
 			new FiniteTestSource<>(data), TypeInformation.of(new TypeHint<Tuple2<Long, String>>() {
 			}));
 
+		Path testPath = Path.fromLocalFile(folder);
+
 		stream.map(new MapFunction<Tuple2<Long, String>, Tuple2<LongWritable, Text>>() {
 			@Override
 			public Tuple2<LongWritable, Text> map(Tuple2<Long, String> value) throws Exception {
@@ -74,8 +77,8 @@ public class SequenceFileSinkITCase extends AbstractTestBase {
 			}
 		}).addSink(
 			StreamingFileSink.forBulkFormat(
-				Path.fromLocalFile(folder),
-				new SequenceFileWriterFactory<>(LongWritable.class, Text.class, "BZip2")
+				testPath,
+				new SequenceFileWriterFactory<>(SequenceFileWriterFactory.getHadoopConfFromPath(testPath), LongWritable.class, Text.class, "BZip2")
 			).build());
 
 		env.execute();
@@ -110,3 +113,4 @@ public class SequenceFileSinkITCase extends AbstractTestBase {
 		assertEquals(expected, results);
 	}
 }
+

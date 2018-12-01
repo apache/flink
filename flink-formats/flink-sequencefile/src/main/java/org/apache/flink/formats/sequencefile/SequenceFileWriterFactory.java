@@ -21,9 +21,10 @@ package org.apache.flink.formats.sequencefile;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.runtime.util.HadoopUtils;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.SequenceFile;
@@ -43,6 +44,7 @@ import java.io.IOException;
 public class SequenceFileWriterFactory<K extends Writable, V extends Writable> implements BulkWriter.Factory<Tuple2<K, V>> {
 	private static final long serialVersionUID = 1L;
 
+	private final SerializableHadoopConfiguration serdeHadoopConf;
 	private final Class<K> keyClass;
 	private final Class<V> valueClass;
 	private final String compressionCodecName;
@@ -52,35 +54,39 @@ public class SequenceFileWriterFactory<K extends Writable, V extends Writable> i
 	 * Creates a new SequenceFileWriterFactory using the given builder to assemble the
 	 * SequenceFileWriter.
 	 *
-	 * @param keyClass The class of key to write.
+	 * @param hadoopConf The Hadoop configuration for Sequence File Writer.
+	 * @param keyClass   The class of key to write.
 	 * @param valueClass The class of value to write.
 	 */
-	public SequenceFileWriterFactory(Class<K> keyClass, Class<V> valueClass) {
-		this(keyClass, valueClass, "None", SequenceFile.CompressionType.BLOCK);
+	public SequenceFileWriterFactory(Configuration hadoopConf, Class<K> keyClass, Class<V> valueClass) {
+		this(hadoopConf, keyClass, valueClass, "None", SequenceFile.CompressionType.BLOCK);
 	}
 
 	/**
 	 * Creates a new SequenceFileWriterFactory using the given builder to assemble the
 	 * SequenceFileWriter.
 	 *
-	 * @param keyClass The class of key to write.
-	 * @param valueClass The class of value to write.
+	 * @param hadoopConf           The Hadoop configuration for Sequence File Writer.
+	 * @param keyClass             The class of key to write.
+	 * @param valueClass           The class of value to write.
 	 * @param compressionCodecName The name of compression codec.
 	 */
-	public SequenceFileWriterFactory(Class<K> keyClass, Class<V> valueClass, String compressionCodecName) {
-		this(keyClass, valueClass, compressionCodecName, SequenceFile.CompressionType.BLOCK);
+	public SequenceFileWriterFactory(Configuration hadoopConf, Class<K> keyClass, Class<V> valueClass, String compressionCodecName) {
+		this(hadoopConf, keyClass, valueClass, compressionCodecName, SequenceFile.CompressionType.BLOCK);
 	}
 
 	/**
 	 * Creates a new SequenceFileWriterFactory using the given builder to assemble the
 	 * SequenceFileWriter.
 	 *
-	 * @param keyClass The class of key to write.
-	 * @param valueClass The class of value to write.
+	 * @param hadoopConf           The Hadoop configuration for Sequence File Writer.
+	 * @param keyClass             The class of key to write.
+	 * @param valueClass           The class of value to write.
 	 * @param compressionCodecName The name of compression codec.
-	 * @param compressionType The type of compression level.
+	 * @param compressionType      The type of compression level.
 	 */
-	public SequenceFileWriterFactory(Class<K> keyClass, Class<V> valueClass, String compressionCodecName, SequenceFile.CompressionType compressionType) {
+	public SequenceFileWriterFactory(Configuration hadoopConf, Class<K> keyClass, Class<V> valueClass, String compressionCodecName, SequenceFile.CompressionType compressionType) {
+		this.serdeHadoopConf = new SerializableHadoopConfiguration(hadoopConf);
 		this.keyClass = keyClass;
 		this.valueClass = valueClass;
 		this.compressionCodecName = compressionCodecName;
@@ -89,10 +95,9 @@ public class SequenceFileWriterFactory<K extends Writable, V extends Writable> i
 
 	@Override
 	public BulkWriter<Tuple2<K, V>> create(FSDataOutputStream out) throws IOException {
-		Configuration hadoopConf = HadoopUtils.getHadoopConfiguration(GlobalConfiguration.loadConfiguration());
 		org.apache.hadoop.fs.FSDataOutputStream stream = new org.apache.hadoop.fs.FSDataOutputStream(out, null);
-		CompressionCodec compressionCodec = getCompressionCodec(hadoopConf, compressionCodecName);
-		SequenceFile.Writer writer = SequenceFile.createWriter(hadoopConf,
+		CompressionCodec compressionCodec = getCompressionCodec(serdeHadoopConf.get(), compressionCodecName);
+		SequenceFile.Writer writer = SequenceFile.createWriter(serdeHadoopConf.get(),
 			SequenceFile.Writer.stream(stream),
 			SequenceFile.Writer.keyClass(keyClass),
 			SequenceFile.Writer.valueClass(valueClass),
@@ -111,4 +116,22 @@ public class SequenceFileWriterFactory<K extends Writable, V extends Writable> i
 		}
 		return codec;
 	}
+
+	/**
+	 * Get Hadoop configuration based by the path.
+	 * If the path is not Hadoop URI, it will be return default configuration.
+	 *
+	 * @param path The path to get configuration.
+	 * @return Hadoop configuration.
+	 * @throws IOException
+	 */
+	public static Configuration getHadoopConfFromPath(Path path) throws IOException {
+		FileSystem fs = FileSystem.getUnguardedFileSystem(path.toUri());
+		if (fs != null && fs instanceof HadoopFileSystem) {
+			return ((HadoopFileSystem) fs).getHadoopFileSystem().getConf();
+		} else {
+			return new Configuration();
+		}
+	}
 }
+

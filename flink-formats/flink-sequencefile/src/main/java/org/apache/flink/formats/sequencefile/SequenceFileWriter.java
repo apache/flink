@@ -45,7 +45,6 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> implemen
 
 	@Override
 	public void addElement(Tuple2<K, V> element) throws IOException {
-
 		writer.append(element.f0, element.f1);
 	}
 
