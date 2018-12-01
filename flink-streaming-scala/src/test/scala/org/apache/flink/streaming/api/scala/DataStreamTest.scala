@@ -659,6 +659,12 @@ class DataStreamTest extends AbstractTestBase {
     val globalPartitioner = env.getStreamGraph
       .getStreamEdges(src.getId, globalSink.getTransformation.getId).get(0).getPartitioner
     assert(globalPartitioner.isInstanceOf[GlobalPartitioner[_]])
+
+    val hash: DataStream[Long] = src.hash
+    val hashSink = hash.print()
+    val hashPartitioner = env.getStreamGraph
+      .getStreamEdges(src.getId, hashSink.getTransformation.getId).get(0).getPartitioner
+    assert(hashPartitioner.isInstanceOf[HashPartitioner[_]])
   }
 
   @Test

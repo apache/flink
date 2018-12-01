@@ -496,6 +496,16 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   /**
+    * Sets the partitioning of the DataStream so that the output values tuples
+    * * are hashed to the next component.
+    */
+  @PublicEvolving
+  def hash: DataStream[T] = asScalaStream(stream.hash())
+
+  @PublicEvolving
+  def hash(partitions: Int): DataStream[T] = asScalaStream(stream.hash(partitions))
+
+  /**
    * Sets the partitioning of the DataStream so that the output values all go to
    * the first instance of the next processing operator. Use this setting with care
    * since it might cause a serious performance bottleneck in the application.
