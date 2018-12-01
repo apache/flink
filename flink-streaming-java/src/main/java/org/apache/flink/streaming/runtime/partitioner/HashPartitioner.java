@@ -33,7 +33,7 @@ public class HashPartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
 	private int partitions;
-	private int[] returnArray;
+	private final int[] returnArray = new int[1];
 
 	public HashPartitioner(int partitions) {
 		this.partitions = partitions;
@@ -41,15 +41,14 @@ public class HashPartitioner<T> extends StreamPartitioner<T> {
 
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record, int numChannels) {
-		if (returnArray != null && returnArray.length == numChannels) {
-			return returnArray;
-		} else {
-			this.returnArray = new int[numChannels];
-			for (int i = 0; i < numChannels; i++) {
-				returnArray[i] = nonNegativeMod(record.getInstance().getValue().hashCode(), partitions);
-			}
-			return returnArray;
+		T value = record.getInstance().getValue();
+		if (value != null){
+			returnArray[0] = nonNegativeMod(value.hashCode() + Integer.hashCode(numChannels), partitions);
 		}
+		else {
+			returnArray[0] = nonNegativeMod(Integer.hashCode(numChannels), partitions);
+		}
+		return returnArray;
 	}
 
 	@Override
