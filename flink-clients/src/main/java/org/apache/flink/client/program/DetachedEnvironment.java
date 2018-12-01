@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.optimizer.plan.FlinkPlan;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
@@ -53,8 +54,8 @@ public class DetachedEnvironment extends ContextEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		Plan p = createProgramPlan(jobName);
+	public JobExecutionResult execute(String jobName, DataSink<?>... sinks) throws Exception {
+		Plan p = createProgramPlan(jobName, sinks);
 		setDetachedPlan(ClusterClient.getOptimizedPlan(client.compiler, p, getParallelism()));
 		LOG.warn("Job was executed in detached mode, the results will be available on completion.");
 		this.lastJobExecutionResult = DetachedJobExecutionResult.INSTANCE;

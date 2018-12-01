@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
+import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.FlinkPlan;
 
@@ -46,8 +47,8 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		Plan plan = createProgramPlan(jobName);
+	public JobExecutionResult execute(String jobName, DataSink<?>... sinks) throws Exception {
+		Plan plan = createProgramPlan(jobName, sinks);
 		this.optimizerPlan = compiler.compile(plan);
 
 		// do not go on with anything now!
@@ -56,7 +57,7 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public String getExecutionPlan() throws Exception {
-		Plan plan = createProgramPlan(null, false);
+		Plan plan = createProgramPlan(null, false, new DataSink[0]);
 		this.optimizerPlan = compiler.compile(plan);
 
 		// do not go on with anything now!

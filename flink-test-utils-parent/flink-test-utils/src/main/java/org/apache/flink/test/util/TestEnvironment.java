@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
+import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.DataStatistics;
@@ -105,8 +106,8 @@ public class TestEnvironment extends ExecutionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		OptimizedPlan op = compileProgram(jobName);
+	public JobExecutionResult execute(String jobName, DataSink<?>... sinks) throws Exception {
+		OptimizedPlan op = compileProgram(jobName, sinks);
 
 		JobGraphGenerator jgg = new JobGraphGenerator();
 		JobGraph jobGraph = jgg.compileJobGraph(op);
@@ -129,8 +130,8 @@ public class TestEnvironment extends ExecutionEnvironment {
 		return jsonGen.getOptimizerPlanAsJSON(op);
 	}
 
-	private OptimizedPlan compileProgram(String jobName) {
-		Plan p = createProgramPlan(jobName);
+	private OptimizedPlan compileProgram(String jobName, DataSink<?>... sinks) {
+		Plan p = createProgramPlan(jobName, sinks);
 
 		Optimizer pc = new Optimizer(new DataStatistics(), new Configuration());
 		return pc.compile(p);

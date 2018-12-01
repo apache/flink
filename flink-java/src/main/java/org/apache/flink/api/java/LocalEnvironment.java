@@ -26,6 +26,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
+import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.configuration.Configuration;
 
 /**
@@ -77,12 +78,12 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
+	public JobExecutionResult execute(String jobName, DataSink<?>... sinks) throws Exception {
 		if (executor == null) {
 			startNewSession();
 		}
 
-		Plan p = createProgramPlan(jobName);
+		Plan p = createProgramPlan(jobName, sinks);
 
 		// Session management is disabled, revert this commit to enable
 		//p.setJobId(jobID);
@@ -96,7 +97,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public String getExecutionPlan() throws Exception {
-		Plan p = createProgramPlan(null, false);
+		Plan p = createProgramPlan(null, false, new DataSink[0]);
 
 		// make sure that we do not start an executor in any case here.
 		// if one runs, fine, of not, we only create the class but disregard immediately afterwards

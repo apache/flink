@@ -802,12 +802,12 @@ public abstract class ExecutionEnvironment {
 
 	/**
 	 * Triggers the program execution. The environment will execute all parts of the program that have
-	 * resulted in a "sink" operation. Sink operations are for example printing results ({@link DataSet#print()},
-	 * writing results (e.g. {@link DataSet#writeAsText(String)},
+	 * resulted in all "sink" operations. Sink operations are for example printing results
+	 * ({@link DataSet#print()}, writing results (e.g. {@link DataSet#writeAsText(String)},
 	 * {@link DataSet#write(org.apache.flink.api.common.io.FileOutputFormat, String)}, or other generic
 	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
 	 *
-	 * <p>The program execution will be logged and displayed with a generated default name.
+	 * <p>The program execution will be logged and displayed with the given job name.
 	 *
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception Thrown, if the program executions fails.
@@ -818,8 +818,8 @@ public abstract class ExecutionEnvironment {
 
 	/**
 	 * Triggers the program execution. The environment will execute all parts of the program that have
-	 * resulted in a "sink" operation. Sink operations are for example printing results ({@link DataSet#print()},
-	 * writing results (e.g. {@link DataSet#writeAsText(String)},
+	 * resulted in all "sink" operations. Sink operations are for example printing results
+	 * ({@link DataSet#print()}, writing results (e.g. {@link DataSet#writeAsText(String)},
 	 * {@link DataSet#write(org.apache.flink.api.common.io.FileOutputFormat, String)}, or other generic
 	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
 	 *
@@ -828,7 +828,39 @@ public abstract class ExecutionEnvironment {
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception Thrown, if the program executions fails.
 	 */
-	public abstract JobExecutionResult execute(String jobName) throws Exception;
+	public JobExecutionResult execute(String jobName) throws Exception {
+		return execute(jobName, new DataSink[0]);
+	}
+
+	/**
+	 * Triggers the program execution. The environment will execute all parts of the program that have
+	 * resulted in the {@code sinks}. Sink operations are for example printing results
+	 * ({@link DataSet#print()}, writing results (e.g. {@link DataSet#writeAsText(String)},
+	 * {@link DataSet#write(org.apache.flink.api.common.io.FileOutputFormat, String)}, or other generic
+	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
+	 *
+	 * <p>The program execution will be logged and displayed with a generated default name.
+	 *
+	 * @return The result of the job execution, containing elapsed time and accumulators.
+	 * @throws Exception Thrown, if the program executions fails.
+	 */
+	public JobExecutionResult execute(DataSink<?>... sinks) throws Exception {
+		return execute(getDefaultName(), sinks);
+	}
+
+	/**
+	 * Triggers the program execution. The environment will execute all parts of the program that have
+	 * resulted in the {@code sinks}. Sink operations are for example printing results
+	 * ({@link DataSet#print()}, writing results (e.g. {@link DataSet#writeAsText(String)},
+	 * {@link DataSet#write(org.apache.flink.api.common.io.FileOutputFormat, String)}, or other generic
+	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
+	 *
+	 * <p>The program execution will be logged and displayed with the given job name.
+	 *
+	 * @return The result of the job execution, containing elapsed time and accumulators.
+	 * @throws Exception Thrown, if the program executions fails.
+	 */
+	public abstract JobExecutionResult execute(String jobName, DataSink<?>... sinks) throws Exception;
 
 	/**
 	 * Creates the plan with which the system will execute the program, and returns it as
@@ -919,7 +951,24 @@ public abstract class ExecutionEnvironment {
 	 */
 	@Internal
 	public Plan createProgramPlan(String jobName) {
-		return createProgramPlan(jobName, true);
+		return createProgramPlan(jobName, true, new DataSink[0]);
+	}
+
+	/**
+	 * Creates the program's {@link Plan}. The plan is a description of specified data sinks,
+	 * and its dependent operations and sources, as an isolated unit that can be executed with a
+	 * {@link org.apache.flink.api.common.PlanExecutor}. Obtaining a plan and starting it with an
+	 * executor is an alternative way to run a program and is only possible if the program consists
+	 * only of distributed operations.
+	 * This automatically starts a new stage of execution.
+	 *
+	 * @param jobName The name attached to the plan (displayed in logs and monitoring).
+	 * @param sinks   The target sinks for this plan
+	 * @return The program's plan.
+	 */
+	@Internal
+	public Plan createProgramPlan(String jobName, DataSink<?>... sinks) {
+		return createProgramPlan(jobName, true, sinks);
 	}
 
 	/**
@@ -934,7 +983,7 @@ public abstract class ExecutionEnvironment {
 	 * @return The program's plan.
 	 */
 	@Internal
-	public Plan createProgramPlan(String jobName, boolean clearSinks) {
+	public Plan createProgramPlan(String jobName, boolean clearSinks, DataSink<?>... targetSinks) {
 		if (this.sinks.isEmpty()) {
 			if (wasExecuted) {
 				throw new RuntimeException("No new data sinks have been defined since the " +
@@ -950,9 +999,17 @@ public abstract class ExecutionEnvironment {
 		if (jobName == null) {
 			jobName = getDefaultName();
 		}
+		List<DataSink<?>> planSinks = this.sinks;
+		// run the whole DAG if no sink is specified.
+		if (targetSinks.length != 0) {
+			planSinks = new ArrayList();
+			for (DataSink sink : targetSinks) {
+				planSinks.add(sink);
+			}
+		}
 
 		OperatorTranslation translator = new OperatorTranslation();
-		Plan plan = translator.translateToPlan(this.sinks, jobName);
+		Plan plan = translator.translateToPlan(planSinks, jobName);
 
 		if (getParallelism() > 0) {
 			plan.setDefaultParallelism(getParallelism());
@@ -985,7 +1042,13 @@ public abstract class ExecutionEnvironment {
 
 		// clear all the sinks such that the next execution does not redo everything
 		if (clearSinks) {
-			this.sinks.clear();
+			if (targetSinks.length == 0) {
+				this.sinks.clear();
+			} else {
+				for (DataSink sink : targetSinks) {
+					this.sinks.remove(sink);
+				}
+			}
 			wasExecuted = true;
 		}
 

@@ -18,14 +18,14 @@
 package org.apache.flink.api.scala
 
 import com.esotericsoftware.kryo.Serializer
-import org.apache.flink.annotation.{PublicEvolving, Public}
+import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult, JobID}
 import org.apache.flink.api.java.io._
-import org.apache.flink.api.java.operators.DataSource
+import org.apache.flink.api.java.operators.{DataSink, DataSource}
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfoBase, ValueTypeInfo}
 import org.apache.flink.api.java.{CollectionEnvironment, ExecutionEnvironment => JavaEnv}
@@ -513,7 +513,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
    * Triggers the program execution. The environment will execute all parts of the program that have
-   * resulted in a "sink" operation. Sink operations are for example printing results
+   * resulted in all "sink" operations. Sink operations are for example printing results
    * [[DataSet.print]], writing results (e.g. [[DataSet.writeAsText]], [[DataSet.write]], or other
    * generic data sinks created with [[DataSet.output]].
    *
@@ -531,12 +531,40 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * [[DataSet.print]], writing results (e.g. [[DataSet.writeAsText]], [[DataSet.write]], or other
    * generic data sinks created with [[DataSet.output]].
    *
+   * The program execution will be logged and displayed with a generated default name.
+   *
+   * @return The result of the job execution, containing elapsed time and accumulators.
+   */
+  def execute(sinks: DataSink[_]*): JobExecutionResult = {
+    javaEnv.execute(sinks: _*)
+  }
+
+  /**
+   * Triggers the program execution. The environment will execute all parts of the program that have
+   * resulted in all "sink" operation. Sink operations are for example printing results
+   * [[DataSet.print]], writing results (e.g. [[DataSet.writeAsText]], [[DataSet.write]], or other
+   * generic data sinks created with [[DataSet.output]].
+   *
    * The program execution will be logged and displayed with the given name.
    *
    * @return The result of the job execution, containing elapsed time and accumulators.
    */
   def execute(jobName: String): JobExecutionResult = {
-    javaEnv.execute(jobName)
+    javaEnv.execute(jobName, Array.empty[DataSink[_]]: _*)
+  }
+
+  /**
+   * Triggers the program execution. The environment will execute all parts of the program that have
+   * resulted in the {@code sinks} operation. Sink operations are for example printing results
+   * [[DataSet.print]], writing results (e.g. [[DataSet.writeAsText]], [[DataSet.write]], or other
+   * generic data sinks created with [[DataSet.output]].
+   *
+   * The program execution will be logged and displayed with the given name.
+   *
+   * @return The result of the job execution, containing elapsed time and accumulators.
+   */
+  def execute(jobName: String, sinks: DataSink[_]*): JobExecutionResult = {
+    javaEnv.execute(jobName, sinks: _*)
   }
 
   /**
@@ -609,7 +637,7 @@ object ExecutionEnvironment {
    * This method sets the environment's default parallelism to given parameter, which
    * defaults to the value set via [[setDefaultLocalParallelism(Int)]].
    */
-  def createLocalEnvironment(parallelism: Int = JavaEnv.getDefaultLocalParallelism): 
+  def createLocalEnvironment(parallelism: Int = JavaEnv.getDefaultLocalParallelism):
       ExecutionEnvironment = {
     new ExecutionEnvironment(JavaEnv.createLocalEnvironment(parallelism))
   }

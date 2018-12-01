@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
+import org.apache.flink.api.java.operators.DataSink;
 
 /**
  * A {@link CollectionEnvironment} to be used in tests. The predominant feature of this class is that it allows setting
@@ -43,13 +44,13 @@ public class CollectionTestEnvironment extends CollectionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute() throws Exception {
-		return execute("test job");
+	public JobExecutionResult execute(DataSink<?>... sinks) throws Exception {
+		return execute("test job", sinks);
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		JobExecutionResult result = super.execute(jobName);
+	public JobExecutionResult execute(String jobName, DataSink<?>... sinks) throws Exception {
+		JobExecutionResult result = super.execute(jobName, sinks);
 		this.lastJobExecutionResult = result;
 		return result;
 	}
