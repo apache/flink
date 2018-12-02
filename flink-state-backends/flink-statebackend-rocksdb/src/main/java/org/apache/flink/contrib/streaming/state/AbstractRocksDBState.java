@@ -59,7 +59,7 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State> implements 
 	final TypeSerializer<V> valueSerializer;
 
 	/** The current namespace, which the next value methods will refer to. */
-	private N currentNamespace;
+	protected N currentNamespace;
 
 	/** Backend that holds the actual RocksDB instance where we store state. */
 	protected RocksDBKeyedStateBackend<K> backend;
