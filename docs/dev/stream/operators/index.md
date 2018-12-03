@@ -434,14 +434,14 @@ IterativeStream<Long> iteration = initialStream.iterate();
 DataStream<Long> iterationBody = iteration.map (/*do something*/);
 DataStream<Long> feedback = iterationBody.filter(new FilterFunction<Long>(){
     @Override
-    public boolean filter(Integer value) throws Exception {
+    public boolean filter(Long value) throws Exception {
         return value > 0;
     }
 });
 iteration.closeWith(feedback);
 DataStream<Long> output = iterationBody.filter(new FilterFunction<Long>(){
     @Override
-    public boolean filter(Integer value) throws Exception {
+    public boolean filter(Long value) throws Exception {
         return value <= 0;
     }
 });
