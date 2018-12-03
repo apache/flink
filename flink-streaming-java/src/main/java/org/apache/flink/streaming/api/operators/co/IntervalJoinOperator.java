@@ -227,7 +227,8 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 		addToBuffer(ourBuffer, ourValue, ourTimestamp);
 
-		for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket: otherBuffer.entries()) {
+		for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket:
+			getEntries(otherBuffer, ourTimestamp + relativeLowerBound, ourTimestamp + relativeUpperBound + 1)) {
 			final long timestamp  = bucket.getKey();
 
 			if (timestamp < ourTimestamp + relativeLowerBound ||
@@ -249,6 +250,17 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_LEFT, cleanupTime);
 		} else {
 			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_RIGHT, cleanupTime);
+		}
+	}
+
+	private <T> Iterable<Map.Entry<Long, List<IntervalJoinOperator.BufferEntry<T>>>> getEntries(
+		final MapState<Long, List<IntervalJoinOperator.BufferEntry<T>>> buffer,
+		final Long lowerBound,
+		final Long upperBound) throws Exception {
+		if (getRuntimeContext().getExecutionConfig().isIntervalJoinSeekOptimization()) {
+			return buffer.filter(lowerBound, upperBound);
+		} else {
+			return buffer.entries();
 		}
 	}
 

@@ -124,4 +124,16 @@ public interface MapState<UK, UV> extends State {
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	Iterator<Map.Entry<UK, UV>> iterator() throws Exception;
+
+	/**
+	 * Returns all the entries between lowerBound and upperBound in the state.
+	 * <p>
+	 *     Note: Only implement in subclass RocksDBMapState when key is comparable in byte-lexicographical currently.
+	 * </p>
+	 * @param lowerBound The lowerBound of the range. The lowerBound is included.
+	 * @param upperBound The upperBound of the range. The upperBound is excluded.
+	 * @return An iterable view of all the key-value pairs between lowerBound and upperBound in the state.
+	 * @throws Exception
+	 */
+	Iterable<Map.Entry<UK, UV>> filter(UK lowerBound, UK upperBound) throws Exception;
 }

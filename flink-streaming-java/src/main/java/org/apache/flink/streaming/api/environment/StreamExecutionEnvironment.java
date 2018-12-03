@@ -536,6 +536,16 @@ public abstract class StreamExecutionEnvironment {
 		return config.getNumberOfExecutionRetries();
 	}
 
+	@PublicEvolving
+	public boolean isIntervalJoinSeekOptimization() {
+		return config.isIntervalJoinSeekOptimization();
+	}
+
+	@PublicEvolving
+	public void setIntervalJoinSeekOptimization(boolean isIntervalJoinSeekOptimization) {
+		config.setIntervalJoinSeekOptimization(isIntervalJoinSeekOptimization);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Registry for types and serializers
 	// --------------------------------------------------------------------------------------------

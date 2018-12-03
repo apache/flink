@@ -37,6 +37,7 @@ import org.apache.flink.util.Preconditions;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
+import org.rocksdb.Slice;
 import org.rocksdb.WriteBatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -176,6 +177,17 @@ class RocksDBMapState<K, N, UK, UV>
 		}
 	}
 
+	public Iterable<Map.Entry<UK, UV>> filter(UK lowerBound, UK upperBound) throws Exception {
+		final Iterator<Map.Entry<UK, UV>> iterator = iterateByRange(lowerBound, upperBound);
+
+		// Return null to make the behavior consistent with other states.
+		if (!iterator.hasNext()) {
+			return null;
+		} else {
+			return () -> iterator;
+		}
+	}
+
 	@Override
 	public Iterable<UK> keys() {
 		final byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
@@ -208,6 +220,20 @@ class RocksDBMapState<K, N, UK, UV>
 		final byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
 
 		return new RocksDBMapIterator<Map.Entry<UK, UV>>(backend.db, prefixBytes, userKeySerializer, userValueSerializer, dataInputView) {
+			@Override
+			public Map.Entry<UK, UV> next() {
+				return nextEntry();
+			}
+		};
+	}
+
+	public Iterator<Map.Entry<UK, UV>> iterateByRange(UK lowerBound, UK upperBound) throws IOException {
+		final byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
+		final byte[] lowerBoundBytes = serializeCurrentKeyWithGroupAndNamespacePlusUserKey(lowerBound, userKeySerializer);
+		final byte[] upperBoundBytes = serializeCurrentKeyWithGroupAndNamespacePlusUserKey(upperBound, userKeySerializer);
+
+		return new RocksDBMapIterator<Map.Entry<UK, UV>>(backend.db, prefixBytes, lowerBoundBytes, upperBoundBytes,
+			userKeySerializer, userValueSerializer, dataInputView) {
 			@Override
 			public Map.Entry<UK, UV> next() {
 				return nextEntry();
@@ -467,6 +493,10 @@ class RocksDBMapState<K, N, UK, UV>
 		@Nonnull
 		private final byte[] keyPrefixBytes;
 
+		// TODO upperBoundBytesSlice will be used for optimization in rocksdb's new version.
+		private byte[] lowerBoundBytes = null;
+		private Slice upperBoundBytesSlice = null;
+
 		/**
 		 * True if all entries have been accessed or the iterator has come across an
 		 * entry with a different prefix.
@@ -496,6 +526,20 @@ class RocksDBMapState<K, N, UK, UV>
 			this.keySerializer = keySerializer;
 			this.valueSerializer = valueSerializer;
 			this.dataInputView = dataInputView;
+		}
+
+		RocksDBMapIterator(
+			final RocksDB db,
+			final byte[] keyPrefixBytes,
+			final byte[] lowerBoundBytes,
+			final byte[] upperBoundBytes,
+			final TypeSerializer<UK> keySerializer,
+			final TypeSerializer<UV> valueSerializer,
+			DataInputDeserializer dataInputView) {
+
+			this(db, keyPrefixBytes, keySerializer, valueSerializer, dataInputView);
+			this.lowerBoundBytes = lowerBoundBytes;
+			this.upperBoundBytesSlice = new Slice(upperBoundBytes);
 		}
 
 		@Override
@@ -543,6 +587,7 @@ class RocksDBMapState<K, N, UK, UV>
 
 			// use try-with-resources to ensure RocksIterator can be release even some runtime exception
 			// occurred in the below code block.
+			// TODO use upperBoundBytesSlice to set IterateUpperBound in ReadOptions for better seek.
 			try (RocksIteratorWrapper iterator = RocksDBKeyedStateBackend.getRocksIterator(db, columnFamily)) {
 
 				/*
@@ -551,6 +596,10 @@ class RocksDBMapState<K, N, UK, UV>
 				 * the iterating from currentEntry if reloading cache is needed.
 				 */
 				byte[] startBytes = (currentEntry == null ? keyPrefixBytes : currentEntry.rawKeyBytes);
+				// Below code is added for optimizing seek.
+				if (null != lowerBoundBytes && startBytes == keyPrefixBytes) {
+					startBytes = lowerBoundBytes;
+				}
 
 				cacheEntries.clear();
 				cacheIndex = 0;

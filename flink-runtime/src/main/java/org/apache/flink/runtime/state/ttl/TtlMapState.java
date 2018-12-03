@@ -98,6 +98,11 @@ class TtlMapState<K, N, UK, UV>
 		return entries(e -> e);
 	}
 
+	@Override
+	public Iterable<Map.Entry<UK, UV>> filter(UK lowerBound, UK upperBound) throws Exception {
+		throw new UnsupportedOperationException("filter is not supported");
+	}
+
 	private <R> Iterable<R> entries(
 		Function<Map.Entry<UK, UV>, R> resultMapper) throws Exception {
 		Iterable<Map.Entry<UK, TtlValue<UV>>> withTs = original.entries();

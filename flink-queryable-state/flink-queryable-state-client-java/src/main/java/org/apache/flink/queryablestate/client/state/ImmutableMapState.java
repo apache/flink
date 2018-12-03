@@ -82,6 +82,11 @@ public final class ImmutableMapState<K, V> extends ImmutableState implements Map
 		return Collections.unmodifiableSet(state.entrySet());
 	}
 
+	@Override
+	public Iterable<Map.Entry<K, V>> filter(K lowerBound, K upperBound) throws Exception {
+		throw new UnsupportedOperationException("filter is not supported");
+	}
+
 	/**
 	 * Returns all the keys in the state in a {@link Collections#unmodifiableSet(Set)}.
 	 *

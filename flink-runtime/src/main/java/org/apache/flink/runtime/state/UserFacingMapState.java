@@ -79,6 +79,12 @@ class UserFacingMapState<K, V> implements MapState<K, V> {
 	}
 
 	@Override
+	public Iterable<Map.Entry<K, V>> filter(K lowerBound, K upperBound) throws Exception {
+		Iterable<Map.Entry<K, V>> original = originalState.filter(lowerBound, upperBound);
+		return original != null ? original : emptyState.entrySet();
+	}
+
+	@Override
 	public Iterable<K> keys() throws Exception {
 		Iterable<K> original = originalState.keys();
 		return original != null ? original : emptyState.keySet();

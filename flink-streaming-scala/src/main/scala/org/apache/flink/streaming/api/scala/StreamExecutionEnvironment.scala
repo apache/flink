@@ -311,6 +311,15 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   @PublicEvolving
   def getNumberOfExecutionRetries = javaEnv.getNumberOfExecutionRetries
 
+  @PublicEvolving
+  def isIntervalJoinSeekOptimization: Boolean = {
+    javaEnv.isIntervalJoinSeekOptimization();
+  }
+
+  @PublicEvolving
+  def setIntervalJoinSeekOptimization(isIntervalJoinSeekOptimization: Boolean): Unit = {
+    javaEnv.setIntervalJoinSeekOptimization(isIntervalJoinSeekOptimization)
+  }
   // --------------------------------------------------------------------------------------------
   // Registry for types and serializers
   // --------------------------------------------------------------------------------------------

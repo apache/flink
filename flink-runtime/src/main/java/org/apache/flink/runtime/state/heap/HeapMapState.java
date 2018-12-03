@@ -144,6 +144,11 @@ class HeapMapState<K, N, UK, UV>
 	}
 
 	@Override
+	public Iterable<Map.Entry<UK, UV>> filter(UK lowerBound, UK upperBound) throws Exception {
+		throw new UnsupportedOperationException("filter is not supported");
+	}
+
+	@Override
 	public Iterable<UK> keys() {
 		Map<UK, UV> userMap = stateTable.get(currentNamespace);
 		return userMap == null ? null : userMap.keySet();

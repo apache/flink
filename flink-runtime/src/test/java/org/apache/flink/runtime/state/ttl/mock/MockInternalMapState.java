@@ -72,6 +72,11 @@ public class MockInternalMapState<K, N, UK, UV>
 	}
 
 	@Override
+	public Iterable<Map.Entry<UK, UV>> filter(UK lowerBound, UK upperBound) throws Exception {
+		throw new UnsupportedOperationException("filter is not supported");
+	}
+
+	@Override
 	public Iterable<UK> keys() {
 		return getInternal().keySet();
 	}

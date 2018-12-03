@@ -159,6 +159,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/** Determines if a task fails or not if there is an error in writing its checkpoint data. Default: true */
 	private boolean failTaskOnCheckpointError = true;
 
+	/** When state-backend is rocksDB and isIntervalJoinSeekOptimization is true, better seek for intervalJoin */
+	private boolean isIntervalJoinSeekOptimization = false;
+
 	// ------------------------------- User code values --------------------------------------------
 
 	private GlobalJobParameters globalJobParameters;
@@ -891,6 +894,16 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	@Internal
 	public void setFailTaskOnCheckpointError(boolean failTaskOnCheckpointError) {
 		this.failTaskOnCheckpointError = failTaskOnCheckpointError;
+	}
+
+	@PublicEvolving
+	public boolean isIntervalJoinSeekOptimization() {
+		return isIntervalJoinSeekOptimization;
+	}
+
+	@PublicEvolving
+	public void setIntervalJoinSeekOptimization(boolean isIntervalJoinSeekOptimization) {
+		this.isIntervalJoinSeekOptimization = isIntervalJoinSeekOptimization;
 	}
 
 	@Override

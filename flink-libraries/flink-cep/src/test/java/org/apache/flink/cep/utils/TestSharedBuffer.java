@@ -193,6 +193,11 @@ public class TestSharedBuffer<V> extends SharedBuffer<V> {
 				}
 
 				@Override
+				public Iterable<Map.Entry<UK, UV>> filter(UK lowerBound, UK upperBound) throws Exception {
+					throw new UnsupportedOperationException("filter is not supported");
+				}
+
+				@Override
 				public Iterable<UK> keys() throws Exception {
 					if (values == null) {
 						return Collections.emptyList();
