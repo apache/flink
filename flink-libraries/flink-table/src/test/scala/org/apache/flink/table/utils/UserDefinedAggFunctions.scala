@@ -27,6 +27,7 @@ import java.util
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, TupleTypeInfo}
 import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.dataview.MapView
 
 /**
   * User-defined aggregation function to compute the top 10 most visited Int IDs
@@ -142,4 +143,42 @@ class NonMergableCount extends AggregateFunction[Long, NonMergableCountAcc] {
   override def createAccumulator(): NonMergableCountAcc = NonMergableCountAcc(0)
 
   override def getValue(acc: NonMergableCountAcc): Long = acc.count
+}
+
+case class CountDistinctAcc(map: MapView[String, Integer], var count: Long)
+
+/**
+  * CountDistinct aggregate with acc tuple of case class.
+  */
+class CountDistinctWithCaseClassAcc extends AggregateFunction[Long, CountDistinctAcc] {
+  def createAccumulator(): CountDistinctAcc = {
+    CountDistinctAcc(new MapView[String, Integer](Types.STRING, Types.INT), 0L)
+  }
+
+  //Overloaded accumulate method
+  def accumulate(accumulator: CountDistinctAcc, id: String) {
+    var cnt = accumulator.map.get(id)
+    if (cnt != null) {
+      cnt += 1
+      accumulator.map.put(id, cnt)
+    }
+    else {
+      accumulator.map.put(id, 1)
+      accumulator.count += 1
+    }
+  }
+
+  //Overloaded accumulate method
+  def accumulate(accumulator: CountDistinctAcc, id: Long) {
+    var cnt = accumulator.map.get(String.valueOf(id))
+    if (cnt != null) {
+      cnt += 1
+      accumulator.map.put(String.valueOf(id), cnt)
+    } else {
+      accumulator.map.put(String.valueOf(id), 1)
+      accumulator.count += 1
+    }
+  }
+
+  def getValue(accumulator: CountDistinctAcc): Long = accumulator.count
 }

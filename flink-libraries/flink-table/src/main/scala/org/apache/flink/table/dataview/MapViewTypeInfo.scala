@@ -29,12 +29,14 @@ import org.apache.flink.table.api.dataview.MapView
   *
   * @param keyType key type information
   * @param valueType value type information
+  * @param nullSerializer whether to use the NullSerializer as the serializer
   * @tparam K key type
   * @tparam V value type
   */
-class  MapViewTypeInfo[K, V](
+class MapViewTypeInfo[K, V](
     val keyType: TypeInformation[K],
-    val valueType: TypeInformation[V])
+    val valueType: TypeInformation[V],
+    var nullSerializer: Boolean = false)
   extends TypeInformation[MapView[K, V]] {
 
   override def isBasicType = false
@@ -50,20 +52,26 @@ class  MapViewTypeInfo[K, V](
   override def isKeyType: Boolean = false
 
   override def createSerializer(config: ExecutionConfig): TypeSerializer[MapView[K, V]] = {
-    val keySer = keyType.createSerializer(config)
-    val valueSer = valueType.createSerializer(config)
-    new MapViewSerializer[K, V](new MapSerializer[K, V](keySer, valueSer))
+    if (nullSerializer) {
+      new NullSerializer().asInstanceOf[TypeSerializer[MapView[K, V]]]
+    } else {
+      val keySer = keyType.createSerializer(config)
+      val valueSer = valueType.createSerializer(config)
+      new MapViewSerializer[K, V](new MapSerializer[K, V](keySer, valueSer))
+    }
   }
 
   override def canEqual(obj: scala.Any): Boolean = obj != null && obj.getClass == getClass
 
-  override def hashCode(): Int = 31 * keyType.hashCode + valueType.hashCode
+  override def hashCode(): Int =
+    31 * 31 * keyType.hashCode() + 31 * valueType.hashCode() + nullSerializer.hashCode()
 
   override def equals(obj: Any): Boolean = canEqual(obj) && {
     obj match {
       case other: MapViewTypeInfo[_, _] =>
         keyType.equals(other.keyType) &&
-          valueType.equals(other.valueType)
+          valueType.equals(other.valueType) &&
+          nullSerializer == other.nullSerializer
       case _ => false
     }
   }

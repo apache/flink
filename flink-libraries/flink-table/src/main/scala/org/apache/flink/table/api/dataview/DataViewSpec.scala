@@ -31,6 +31,7 @@ import org.apache.flink.table.dataview.{ListViewTypeInfo, MapViewTypeInfo}
 trait DataViewSpec[ACC <: DataView] {
   def stateId: String
   def field: Field
+  def fieldType: Class[_] // the type get from field may be Object
   def toStateDescriptor: StateDescriptor[_ <: State, _]
 }
 
@@ -42,6 +43,8 @@ case class ListViewSpec[T](
 
   override def toStateDescriptor: StateDescriptor[_ <: State, _] =
     new ListStateDescriptor[T](stateId, listViewTypeInfo.elementType)
+
+  override def fieldType: Class[_] = listViewTypeInfo.getTypeClass
 }
 
 case class MapViewSpec[K, V](
@@ -52,4 +55,6 @@ case class MapViewSpec[K, V](
 
   override def toStateDescriptor: StateDescriptor[_ <: State, _] =
     new MapStateDescriptor[K, V](stateId, mapViewTypeInfo.keyType, mapViewTypeInfo.valueType)
+
+  override def fieldType: Class[_] = mapViewTypeInfo.getTypeClass
 }

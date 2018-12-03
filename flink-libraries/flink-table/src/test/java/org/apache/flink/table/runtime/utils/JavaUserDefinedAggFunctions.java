@@ -349,4 +349,53 @@ public class JavaUserDefinedAggFunctions {
 			isCloseCalled = true;
 		}
 	}
+
+	/**
+	 * CountDistinct aggregate with acc type of Tuple.
+	 */
+	public static class CountDistinctWithTupleAcc
+			extends AggregateFunction<Long, Tuple2<MapView<String, Integer>, Long>> {
+
+		@Override
+		public Tuple2<MapView<String, Integer>, Long> createAccumulator() {
+			return Tuple2.of(new MapView<>(Types.STRING, Types.INT), 0L);
+		}
+
+		//Overloaded accumulate method
+		public void accumulate(Tuple2<MapView<String, Integer>, Long> accumulator, String id) {
+			try {
+				Integer cnt = accumulator.f0.get(id);
+				if (cnt != null) {
+					cnt += 1;
+					accumulator.f0.put(id, cnt);
+				} else {
+					accumulator.f0.put(id, 1);
+					accumulator.f1 += 1;
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+
+		//Overloaded accumulate method
+		public void accumulate(Tuple2<MapView<String, Integer>, Long> accumulator, long id) {
+			try {
+				Integer cnt = accumulator.f0.get(String.valueOf(id));
+				if (cnt != null) {
+					cnt += 1;
+					accumulator.f0.put(String.valueOf(id), cnt);
+				} else {
+					accumulator.f0.put(String.valueOf(id), 1);
+					accumulator.f1 += 1;
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+
+		@Override
+		public Long getValue(Tuple2<MapView<String, Integer>, Long> accumulator) {
+			return accumulator.f1;
+		}
+	}
 }

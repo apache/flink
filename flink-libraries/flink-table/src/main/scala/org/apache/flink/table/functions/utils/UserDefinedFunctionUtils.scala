@@ -19,7 +19,7 @@
 
 package org.apache.flink.table.functions.utils
 
-import java.lang.reflect.{Method, Modifier}
+import java.lang.reflect.{Field, Method, Modifier}
 import java.lang.{Integer => JInt, Long => JLong}
 import java.sql.{Date, Time, Timestamp}
 import java.util
@@ -29,10 +29,12 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.{SqlCallBinding, SqlFunction, SqlOperandCountRange, SqlOperator}
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtractor}
+import org.apache.flink.api.common.typeutils.{CompositeType, TypeSerializer}
+import org.apache.flink.api.java.typeutils._
+import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
 import org.apache.flink.table.api.dataview._
 import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -489,6 +491,88 @@ object UserDefinedFunctionUtils {
       )
     }
 
+    def decorateDataViewTypeInfo(
+        fieldTypeInfo: TypeInformation[_],
+        fieldInstance: AnyRef,
+        field: Field): (TypeInformation[_], Option[DataViewSpec[_]]) = fieldTypeInfo match {
+      case ct: CompositeType[_] if includesDataView(ct) =>
+        throw new TableException(
+          "MapView and ListView only supported at first level of accumulators of Pojo, Tuple " +
+            "and Case Class type.")
+      case map: MapViewTypeInfo[_, _] =>
+        val mapView = fieldInstance.asInstanceOf[MapView[_, _]]
+        val newTypeInfo = if (mapView != null && mapView.keyTypeInfo != null &&
+          mapView.valueTypeInfo != null) {
+          new MapViewTypeInfo(mapView.keyTypeInfo, mapView.valueTypeInfo)
+        } else {
+          map
+        }
+
+        if (isStateBackedDataViews) {
+          newTypeInfo.nullSerializer = true
+
+          // create map view specs with unique id (used as state name)
+          val fieldName = field.getName
+          var spec = MapViewSpec(
+            "agg" + index + "$" + fieldName,
+            field,
+            newTypeInfo)
+
+          (newTypeInfo, Some(spec))
+        } else {
+          (newTypeInfo, None)
+        }
+
+      case list: ListViewTypeInfo[_] =>
+        val listView = fieldInstance.asInstanceOf[ListView[_]]
+        val newTypeInfo = if (listView != null && listView.elementTypeInfo != null) {
+          new ListViewTypeInfo(listView.elementTypeInfo)
+        } else {
+          list
+        }
+
+        if (isStateBackedDataViews) {
+          newTypeInfo.nullSerializer = true
+
+          // create list view specs with unique is (used as state name)
+          val fieldName = field.getName
+          var spec = ListViewSpec(
+            "agg" + index + "$" + fieldName,
+            field,
+            newTypeInfo)
+
+          (newTypeInfo, Some(spec))
+        } else {
+          (newTypeInfo, None)
+        }
+
+      case _ => (fieldTypeInfo, None)
+    }
+
+    def replaceFieldTypes[T <: Product](
+        oldCaseClassType: CaseClassTypeInfo[T],
+        newFieldTypes: Seq[TypeInformation[_]]): CaseClassTypeInfo[T] = {
+      new CaseClassTypeInfo[T](
+        oldCaseClassType.getTypeClass,
+        oldCaseClassType.typeParamTypeInfos,
+        newFieldTypes,
+        oldCaseClassType.getFieldNames) {
+
+        override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
+          val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
+          for (i <- 0 until getArity) {
+            fieldSerializers(i) = types(i).createSerializer(executionConfig)
+          }
+
+          new CaseClassSerializer[T](getTypeClass, fieldSerializers) {
+            override def createInstance(fields: Array[AnyRef]): T =
+              oldCaseClassType.createSerializer(executionConfig)
+                .asInstanceOf[CaseClassSerializer[T]].createInstance(fields)
+          }
+        }
+      }
+    }
+
     val acc = aggFun.createAccumulator()
     accType match {
       case pojoType: PojoTypeInfo[_] if pojoType.getArity > 0 =>
@@ -498,69 +582,54 @@ object UserDefinedFunctionUtils {
         for (i <- 0 until arity) {
           val pojoField = pojoType.getPojoFieldAt(i)
           val field = pojoField.getField
-          val fieldName = field.getName
           field.setAccessible(true)
 
-          pojoField.getTypeInformation match {
-            case ct: CompositeType[_] if includesDataView(ct) =>
-              throw new TableException(
-                "MapView and ListView only supported at first level of accumulators of Pojo type.")
-            case map: MapViewTypeInfo[_, _] =>
-              val mapView = field.get(acc).asInstanceOf[MapView[_, _]]
-              if (mapView != null) {
-                val keyTypeInfo = mapView.keyTypeInfo
-                val valueTypeInfo = mapView.valueTypeInfo
-                val newTypeInfo = if (keyTypeInfo != null && valueTypeInfo != null) {
-                  new MapViewTypeInfo(keyTypeInfo, valueTypeInfo)
-                } else {
-                  map
-                }
+          val (newTypeInfo, spec) = decorateDataViewTypeInfo(
+            pojoField.getTypeInformation,
+            field.get(acc),
+            field)
 
-                // create map view specs with unique id (used as state name)
-                var spec = MapViewSpec(
-                  "agg" + index + "$" + fieldName,
-                  field,
-                  newTypeInfo)
-
-                accumulatorSpecs += spec
-                if (!isStateBackedDataViews) {
-                  // add data view field if it is not backed by a state backend.
-                  // data view fields which are backed by state backend are not serialized.
-                  newPojoFields.add(new PojoField(field, newTypeInfo))
-                }
-              }
-
-            case list: ListViewTypeInfo[_] =>
-              val listView = field.get(acc).asInstanceOf[ListView[_]]
-              if (listView != null) {
-                val elementTypeInfo = listView.elementTypeInfo
-                val newTypeInfo = if (elementTypeInfo != null) {
-                  new ListViewTypeInfo(elementTypeInfo)
-                } else {
-                  list
-                }
-
-                // create list view specs with unique is (used as state name)
-                var spec = ListViewSpec(
-                  "agg" + index + "$" + fieldName,
-                  field,
-                  newTypeInfo)
-
-                accumulatorSpecs += spec
-                if (!isStateBackedDataViews) {
-                  // add data view field if it is not backed by a state backend.
-                  // data view fields which are backed by state backend are not serialized.
-                  newPojoFields.add(new PojoField(field, newTypeInfo))
-                }
-              }
-
-            case _ => newPojoFields.add(pojoField)
+          if (spec.isDefined) {
+            accumulatorSpecs += spec.get
           }
+          newPojoFields.add(new PojoField(field, newTypeInfo))
         }
         (new PojoTypeInfo(accType.getTypeClass, newPojoFields), Some(accumulatorSpecs))
+
+      case _: TupleTypeInfo[_] | _: CaseClassTypeInfo[_] if accType.getArity > 0 =>
+        // match only tuple and case class
+        val tupleType = accType.asInstanceOf[TupleTypeInfoBase[_]]
+        val arity = tupleType.getArity
+        val fieldNames = tupleType.getFieldNames
+        val accumulatorSpecs = new mutable.ArrayBuffer[DataViewSpec[_]]
+        val newFieldTypes = new mutable.ArrayBuffer[TypeInformation[_]]()
+        for (i <- 0 until arity) {
+          val fieldName = fieldNames(i)
+          val field = tupleType.getTypeClass.getDeclaredField(fieldName)
+          field.setAccessible(true)
+
+          val (newTypeInfo, spec) = decorateDataViewTypeInfo(
+            tupleType.getTypeAt(i),
+            field.get(acc),
+            field)
+
+          if (spec.isDefined) {
+            accumulatorSpecs += spec.get
+          }
+          newFieldTypes += newTypeInfo
+        }
+
+        accType match {
+          case _: TupleTypeInfo[_] =>
+            (new TupleTypeInfo(newFieldTypes: _*), Some(accumulatorSpecs))
+          case caseClassType: CaseClassTypeInfo[_] =>
+            val newTypeInfo = replaceFieldTypes(caseClassType, newFieldTypes)
+            (newTypeInfo, Some(accumulatorSpecs))
+        }
+
       case ct: CompositeType[_] if includesDataView(ct) =>
         throw new TableException(
-          "MapView and ListView only supported in accumulators of POJO type.")
+          "MapView and ListView only supported in accumulators of POJO, Tuple and Case Class type.")
       case _ => (accType, None)
     }
   }

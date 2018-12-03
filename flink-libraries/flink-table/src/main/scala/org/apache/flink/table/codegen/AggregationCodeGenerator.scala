@@ -326,7 +326,8 @@ class AggregationCodeGenerator(
         desc: StateDescriptor[_, _],
         aggIndex: Int): Unit = {
       val dataViewField = spec.field
-      val dataViewTypeTerm = dataViewField.getType.getCanonicalName
+      val dataViewFiledType = spec.fieldType
+      val dataViewTypeTerm = dataViewFiledType.getCanonicalName
 
       // define the DataView variables
       val serializedData = EncodingUtils.encodeObjectToString(desc)
@@ -348,14 +349,14 @@ class AggregationCodeGenerator(
            |        $descClassQualifier.class,
            |        $contextTerm.getUserCodeClassLoader());
            |""".stripMargin
-      val createDataView = if (dataViewField.getType == classOf[MapView[_, _]]) {
+      val createDataView = if (dataViewFiledType == classOf[MapView[_, _]]) {
         s"""
            |    $descDeserializeCode
            |    $dataViewFieldTerm = new ${classOf[StateMapView[_, _]].getCanonicalName}(
            |      $contextTerm.getMapState(
            |        (${classOf[MapStateDescriptor[_, _]].getCanonicalName}) $descFieldTerm));
            |""".stripMargin
-      } else if (dataViewField.getType == classOf[ListView[_]]) {
+      } else if (dataViewFiledType == classOf[ListView[_]]) {
         s"""
            |    $descDeserializeCode
            |    $dataViewFieldTerm = new ${classOf[StateListView[_]].getCanonicalName}(

@@ -28,9 +28,12 @@ import org.apache.flink.table.api.dataview.ListView
   * [[ListView]] type information.
   *
   * @param elementType element type information
+  * @param nullSerializer whether to use the NullSerializer as the serializer
   * @tparam T element type
   */
-class  ListViewTypeInfo[T](val elementType: TypeInformation[T])
+class ListViewTypeInfo[T](
+    val elementType: TypeInformation[T],
+    var nullSerializer: Boolean = false)
   extends TypeInformation[ListView[T]] {
 
   override def isBasicType: Boolean = false
@@ -46,18 +49,23 @@ class  ListViewTypeInfo[T](val elementType: TypeInformation[T])
   override def isKeyType: Boolean = false
 
   override def createSerializer(config: ExecutionConfig): TypeSerializer[ListView[T]] = {
-    val typeSer = elementType.createSerializer(config)
-    new ListViewSerializer[T](new ListSerializer[T](typeSer))
+    if (nullSerializer) {
+      new NullSerializer().asInstanceOf[TypeSerializer[ListView[T]]]
+    } else {
+      val typeSer = elementType.createSerializer(config)
+      new ListViewSerializer[T](new ListSerializer[T](typeSer))
+    }
   }
 
   override def canEqual(obj: scala.Any): Boolean = obj != null && obj.getClass == getClass
 
-  override def hashCode(): Int = 31 * elementType.hashCode
+  override def hashCode(): Int = 31 * elementType.hashCode() + nullSerializer.hashCode()
 
   override def equals(obj: Any): Boolean = canEqual(obj) && {
     obj match {
       case other: ListViewTypeInfo[T] =>
-        elementType.equals(other.elementType)
+        elementType.equals(other.elementType) &&
+          nullSerializer == other.nullSerializer
       case _ => false
     }
   }
