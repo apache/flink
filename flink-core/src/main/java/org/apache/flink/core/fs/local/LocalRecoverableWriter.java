@@ -77,7 +77,7 @@ public class LocalRecoverableWriter implements RecoverableWriter {
 
 	@Override
 	public boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException {
-		return false;
+		throw new UnsupportedOperationException();
 	}
 
 	@Override

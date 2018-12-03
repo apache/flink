@@ -135,15 +135,15 @@ public interface RecoverableWriter {
 
 	/**
 	 * Frees up any resources that were previously occupied in order to be able to
-	 * recover from a (potential) failure. This can be temporary files that we written or
-	 * objects that were uploaded (e.g. S3).
+	 * recover from a (potential) failure. These can be temporary files that were written
+	 * to the filesystem or objects that were uploaded to S3.
 	 *
 	 * <p><b>NOTE:</b> This operation should not throw an exception if the resumable has already
 	 * been cleaned up and the resources have been freed.
 	 *
 	 * @param resumable The {@link ResumeRecoverable} whose state we want to clean-up.
 	 * @return {@code true} if the resources were successfully freed, {@code false} otherwise
-	 * (e.g. the file to be deleted was not there).
+	 * (e.g. the file to be deleted was not there for any reason - already deleted or never created).
 	 */
 	boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException;
 
