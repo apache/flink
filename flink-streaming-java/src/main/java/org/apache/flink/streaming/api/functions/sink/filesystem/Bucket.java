@@ -23,6 +23,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
+import org.apache.flink.core.fs.RecoverableWriter.ResumeRecoverable;
+import org.apache.flink.core.fs.RecoverableWriter.CommitRecoverable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,16 +68,16 @@ public class Bucket<IN, BucketID> {
 
 	private final RollingPolicy<IN, BucketID> rollingPolicy;
 
-	private final NavigableMap<Long, RecoverableWriter.ResumeRecoverable> resumablesPerCheckpoint;
+	private final NavigableMap<Long, ResumeRecoverable> resumablesPerCheckpoint;
 
-	private final NavigableMap<Long, List<RecoverableWriter.CommitRecoverable>> pendingPartsPerCheckpoint;
+	private final NavigableMap<Long, List<CommitRecoverable>> pendingPartsPerCheckpoint;
 
 	private long partCounter;
 
 	@Nullable
 	private PartFileWriter<IN, BucketID> inProgressPart;
 
-	private List<RecoverableWriter.CommitRecoverable> pendingPartsForCurrentCheckpoint;
+	private List<CommitRecoverable> pendingPartsForCurrentCheckpoint;
 
 	/**
 	 * Constructor to create a new empty bucket.
@@ -132,7 +134,7 @@ public class Bucket<IN, BucketID> {
 		}
 
 		// we try to resume the previous in-progress file
-		final RecoverableWriter.ResumeRecoverable resumable = state.getInProgressResumableFile();
+		final ResumeRecoverable resumable = state.getInProgressResumableFile();
 		final RecoverableFsDataOutputStream stream = fsWriter.recover(resumable);
 		inProgressPart = partFileFactory.resumeFrom(
 				bucketId, stream, resumable, state.getInProgressFileCreationTime());
@@ -142,8 +144,8 @@ public class Bucket<IN, BucketID> {
 	private void commitRecoveredPendingFiles(final BucketState<BucketID> state) throws IOException {
 
 		// we commit pending files for checkpoints that precess the last successful one, from which we are recovering
-		for (List<RecoverableWriter.CommitRecoverable> committables: state.getCommittableFilesPerCheckpoint().values()) {
-			for (RecoverableWriter.CommitRecoverable committable: committables) {
+		for (List<CommitRecoverable> committables: state.getCommittableFilesPerCheckpoint().values()) {
+			for (CommitRecoverable committable: committables) {
 				fsWriter.recoverForCommit(committable).commitAfterRecovery();
 			}
 		}
@@ -178,7 +180,7 @@ public class Bucket<IN, BucketID> {
 		checkState(bucket.pendingPartsForCurrentCheckpoint.isEmpty());
 		checkState(bucket.pendingPartsPerCheckpoint.isEmpty());
 
-		RecoverableWriter.CommitRecoverable committable = bucket.closePartFile();
+		CommitRecoverable committable = bucket.closePartFile();
 		if (committable != null) {
 			pendingPartsForCurrentCheckpoint.add(committable);
 		}
@@ -220,8 +222,8 @@ public class Bucket<IN, BucketID> {
 		return new Path(bucketPath, PART_PREFIX + '-' + subtaskIndex + '-' + partCounter);
 	}
 
-	private RecoverableWriter.CommitRecoverable closePartFile() throws IOException {
-		RecoverableWriter.CommitRecoverable committable = null;
+	private CommitRecoverable closePartFile() throws IOException {
+		CommitRecoverable committable = null;
 		if (inProgressPart != null) {
 			committable = inProgressPart.closeForCommit();
 			pendingPartsForCurrentCheckpoint.add(committable);
@@ -239,7 +241,7 @@ public class Bucket<IN, BucketID> {
 	BucketState<BucketID> onReceptionOfCheckpoint(long checkpointId) throws IOException {
 		prepareBucketForCheckpointing(checkpointId);
 
-		RecoverableWriter.ResumeRecoverable inProgressResumable = null;
+		ResumeRecoverable inProgressResumable = null;
 		long inProgressFileCreationTime = Long.MAX_VALUE;
 
 		if (inProgressPart != null) {
@@ -276,14 +278,14 @@ public class Bucket<IN, BucketID> {
 	void onSuccessfulCompletionOfCheckpoint(long checkpointId) throws IOException {
 		checkNotNull(fsWriter);
 
-		Iterator<Map.Entry<Long, List<RecoverableWriter.CommitRecoverable>>> it =
+		Iterator<Map.Entry<Long, List<CommitRecoverable>>> it =
 				pendingPartsPerCheckpoint.headMap(checkpointId, true)
 						.entrySet().iterator();
 
 		while (it.hasNext()) {
-			Map.Entry<Long, List<RecoverableWriter.CommitRecoverable>> entry = it.next();
+			Map.Entry<Long, List<CommitRecoverable>> entry = it.next();
 
-			for (RecoverableWriter.CommitRecoverable committable : entry.getValue()) {
+			for (CommitRecoverable committable : entry.getValue()) {
 				fsWriter.recoverForCommit(committable).commit();
 			}
 			it.remove();
@@ -293,12 +295,12 @@ public class Bucket<IN, BucketID> {
 	}
 
 	private void cleanupOutdatedResumables(long checkpointId) throws IOException {
-		Iterator<Map.Entry<Long, RecoverableWriter.ResumeRecoverable>> it =
+		Iterator<Map.Entry<Long, ResumeRecoverable>> it =
 				resumablesPerCheckpoint.headMap(checkpointId, false)
 						.entrySet().iterator();
 
 		while (it.hasNext()) {
-			final RecoverableWriter.ResumeRecoverable recoverable = it.next().getValue();
+			final ResumeRecoverable recoverable = it.next().getValue();
 			final boolean successfullyDeleted = fsWriter.cleanupRecoverableState(recoverable);
 			it.remove();
 
@@ -322,7 +324,7 @@ public class Bucket<IN, BucketID> {
 	// --------------------------- Testing Methods -----------------------------
 
 	@VisibleForTesting
-	Map<Long, List<RecoverableWriter.CommitRecoverable>> getPendingPartsPerCheckpoint() {
+	Map<Long, List<CommitRecoverable>> getPendingPartsPerCheckpoint() {
 		return pendingPartsPerCheckpoint;
 	}
 
@@ -333,7 +335,7 @@ public class Bucket<IN, BucketID> {
 	}
 
 	@VisibleForTesting
-	List<RecoverableWriter.CommitRecoverable> getPendingPartsForCurrentCheckpoint() {
+	List<CommitRecoverable> getPendingPartsForCurrentCheckpoint() {
 		return pendingPartsForCurrentCheckpoint;
 	}
 
