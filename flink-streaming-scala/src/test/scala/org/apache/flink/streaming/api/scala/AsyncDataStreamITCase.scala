@@ -156,8 +156,6 @@ class MyAsyncFunction extends AsyncFunction[Int, Int] {
 class MyRichAsyncFunction extends RichAsyncFunction[Int, Int] {
 
   override def open(parameters: Configuration): Unit = {
-    assert(getRuntimeContext.isInstanceOf[RichAsyncFunctionRuntimeContext]
-      || getRuntimeContext.isInstanceOf[RichAsyncFunctionIterationRuntimeContext])
     assertEquals(getRuntimeContext.getNumberOfParallelSubtasks, 1)
   }
 
