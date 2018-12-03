@@ -162,8 +162,12 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       throw new TableException(s"Unsupported logical operator: ${other.getClass.getSimpleName}")
   }
 
-  override def visit(exchange: LogicalExchange): RelNode =
-    throw new TableException("Logical exchange in a stream environment is not supported yet.")
+  override def visit(exchange: LogicalExchange): RelNode = {
+    // visit children and update inputs
+    val input = exchange.getInput.accept(this)
+    val distribution = exchange.distribution
+    LogicalExchange.create(input,distribution)
+  }
 
   override def visit(scan: TableScan): RelNode = scan
 
