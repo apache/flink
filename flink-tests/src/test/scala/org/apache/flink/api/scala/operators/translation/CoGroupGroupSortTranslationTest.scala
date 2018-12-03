@@ -128,7 +128,11 @@ class CoGroupGroupSortTranslationTest extends TestLogger {
         .where(1).equalTo(2)
         .sortFirstGroup(0, Order.DESCENDING)
         .sortSecondGroup(1, Order.ASCENDING).sortSecondGroup(0, Order.DESCENDING)
-        .apply((a, b, c: Collector[(Long, Long)]) => a.foreach(e => c.collect(e)))
+        .apply(
+          (a: Iterator[(Long, Long)],
+            b: Iterator[(Long, Long, Long)],
+            c: Collector[(Long, Long)]) =>
+            a.foreach(e => c.collect(e)))
         .output(new DiscardingOutputFormat[(Long, Long)])
         
       val p = env.createProgramPlan()
