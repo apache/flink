@@ -139,7 +139,9 @@ public interface RecoverableWriter {
 	 * to the filesystem or objects that were uploaded to S3.
 	 *
 	 * <p><b>NOTE:</b> This operation should not throw an exception if the resumable has already
-	 * been cleaned up and the resources have been freed.
+	 * been cleaned up and the resources have been freed. But the contract is that it will throw
+	 * an {@link UnsupportedOperationException} if it is called for a {@code RecoverableWriter}
+	 * whose {@link #requiresCleanupOfRecoverableState()} returns {@code false}.
 	 *
 	 * @param resumable The {@link ResumeRecoverable} whose state we want to clean-up.
 	 * @return {@code true} if the resources were successfully freed, {@code false} otherwise

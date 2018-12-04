@@ -138,7 +138,10 @@ public class Bucket<IN, BucketID> {
 		final RecoverableFsDataOutputStream stream = fsWriter.recover(resumable);
 		inProgressPart = partFileFactory.resumeFrom(
 				bucketId, stream, resumable, state.getInProgressFileCreationTime());
-		fsWriter.cleanupRecoverableState(resumable);
+
+		if (fsWriter.requiresCleanupOfRecoverableState()) {
+			fsWriter.cleanupRecoverableState(resumable);
+		}
 	}
 
 	private void commitRecoveredPendingFiles(final BucketState<BucketID> state) throws IOException {

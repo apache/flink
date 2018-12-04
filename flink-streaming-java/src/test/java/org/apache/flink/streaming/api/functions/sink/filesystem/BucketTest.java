@@ -191,13 +191,14 @@ public class BucketTest {
 
 		@Override
 		public boolean requiresCleanupOfRecoverableState() {
+			// here we return true so that the cleanupRecoverableState() is called.
 			return true;
 		}
 
 		@Override
 		public boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException {
 			cleanupCallCounter++;
-			return super.cleanupRecoverableState(resumable);
+			return false;
 		}
 
 		@Override
