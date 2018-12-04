@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -158,4 +159,16 @@ public interface SlotPoolGateway extends AllocatedSlotActions, RpcGateway {
 			SlotProfile slotProfile,
 			boolean allowQueuedScheduling,
 			@RpcTimeout Time timeout);
+
+	// ------------------------------------------------------------------------
+	//  misc
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Create report about the allocated slots belonging to the specified task manager.
+	 *
+	 * @param taskManagerId identifies the task manager
+	 * @return the allocated slots on the task manager
+	 */
+	CompletableFuture<AllocatedSlotReport> createAllocatedSlotReport(ResourceID taskManagerId);
 }

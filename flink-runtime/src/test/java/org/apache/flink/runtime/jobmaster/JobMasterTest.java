@@ -330,7 +330,7 @@ public class JobMasterTest extends TestLogger {
 		final CompletableFuture<JobID> disconnectedJobManagerFuture = new CompletableFuture<>();
 		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 		final TestingTaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
-			.setHeartbeatJobManagerConsumer(heartbeatResourceIdFuture::complete)
+			.setHeartbeatJobManagerConsumer((taskManagerId, ignored) -> heartbeatResourceIdFuture.complete(taskManagerId))
 			.setDisconnectJobManagerConsumer((jobId, throwable) -> disconnectedJobManagerFuture.complete(jobId))
 			.createTestingTaskExecutorGateway();
 

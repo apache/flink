@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -29,6 +30,8 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGate
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.DummyScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
+import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
+import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -50,14 +53,16 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.After;
+import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -70,9 +75,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.jobmaster.slotpool.AvailableSlotsTest.DEFAULT_TESTING_PROFILE;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -652,11 +659,10 @@ public class SlotPoolTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that idle slots which cannot be released are only recycled if the owning {@link TaskExecutor}
-	 * is still registered at the {@link SlotPool}. See FLINK-9047.
+	 * Tests that idle slots which cannot be released will be discarded. See FLINK-11059.
 	 */
 	@Test
-	public void testReleasingIdleSlotFailed() throws Exception {
+	public void testDiscardIdleSlotIfReleasingFailed() throws Exception {
 		final ManualClock clock = new ManualClock();
 		final SlotPool slotPool = new SlotPool(
 			rpcService,
@@ -672,23 +678,13 @@ public class SlotPoolTest extends TestLogger {
 			final AllocationID expiredAllocationId = new AllocationID();
 			final SlotOffer slotToExpire = new SlotOffer(expiredAllocationId, 0, ResourceProfile.UNKNOWN);
 
-			final ArrayDeque<CompletableFuture<Acknowledge>> responseQueue = new ArrayDeque<>(2);
+			OneShotLatch freeSlotLatch = new OneShotLatch();
 			taskManagerGateway.setFreeSlotFunction((AllocationID allocationId, Throwable cause) -> {
-				if (responseQueue.isEmpty()) {
-					return CompletableFuture.completedFuture(Acknowledge.get());
-				} else {
-					return responseQueue.pop();
-				}
+				freeSlotLatch.trigger();
+				return FutureUtils.completedExceptionally(new TimeoutException("Test failure"));
 			});
 
-			responseQueue.add(FutureUtils.completedExceptionally(new FlinkException("Test failure")));
-
-			final CompletableFuture<Acknowledge> responseFuture = new CompletableFuture<>();
-			responseQueue.add(responseFuture);
-
-			assertThat(
-				slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID()).get(),
-				Matchers.is(Acknowledge.get()));
+			slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID()).get();
 
 			assertThat(
 				slotPoolGateway.offerSlot(taskManagerLocation, taskManagerGateway, slotToExpire).get(),
@@ -698,29 +694,9 @@ public class SlotPoolTest extends TestLogger {
 
 			slotPool.triggerCheckIdleSlot();
 
+			freeSlotLatch.await();
+
 			CompletableFuture<LogicalSlot> allocatedSlotFuture = allocateSlot(slotPoolGateway, new SlotRequestId());
-
-			// wait until the slot has been fulfilled with the previously idling slot
-			final LogicalSlot logicalSlot = allocatedSlotFuture.get();
-			assertThat(logicalSlot.getAllocationId(), Matchers.is(expiredAllocationId));
-
-			// return the slot
-			slotPool.getSlotOwner().returnAllocatedSlot(logicalSlot).get();
-
-			// advance the time so that the returned slot is now idling
-			clock.advanceTime(timeout.toMilliseconds() + 1, TimeUnit.MILLISECONDS);
-
-			slotPool.triggerCheckIdleSlot();
-
-			// request a new slot after the idling slot has been released
-			allocatedSlotFuture = allocateSlot(slotPoolGateway, new SlotRequestId());
-
-			// release the TaskExecutor before we get a response from the slot releasing
-			slotPoolGateway.releaseTaskManager(taskManagerLocation.getResourceID(), null).get();
-
-			// let the slot releasing fail --> since the owning TaskExecutor is no longer registered
-			// the slot should be discarded
-			responseFuture.completeExceptionally(new FlinkException("Second test exception"));
 
 			try {
 				// since the slot must have been discarded, we cannot fulfill the slot request
@@ -728,8 +704,8 @@ public class SlotPoolTest extends TestLogger {
 				fail("Expected to fail with a timeout.");
 			} catch (TimeoutException ignored) {
 				// expected
+				assertEquals(0, slotPool.getAvailableSlots().size());
 			}
-
 		} finally {
 			RpcUtils.terminateRpcEndpoint(slotPool, timeout);
 		}
@@ -832,6 +808,85 @@ public class SlotPoolTest extends TestLogger {
 		} finally {
 			RpcUtils.terminateRpcEndpoint(slotPool, timeout);
 		}
+	}
+
+	/**
+	 * Tests that create report of allocated slots on a {@link TaskExecutor}.
+	 */
+	@Test
+	public void testCreateAllocatedSlotReport() throws Exception {
+		final SlotPool slotPool = new SlotPool(rpcService, jobId, LocationPreferenceSchedulingStrategy.getInstance());
+
+		try {
+
+			final ArrayBlockingQueue<AllocationID> allocationIds = new ArrayBlockingQueue<>(1);
+			resourceManagerGateway.setRequestSlotConsumer(
+					slotRequest -> allocationIds.offer(slotRequest.getAllocationId()));
+
+			final SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway);
+
+			final SlotRequestId slotRequestId = new SlotRequestId();
+			final CompletableFuture<LogicalSlot> slotRequestFuture = allocateSlot(slotPoolGateway, slotRequestId);
+
+			final List<AllocatedSlotInfo> allocatedSlotInfos = new ArrayList<>(2);
+			final List<SlotOffer> slotOffers = new ArrayList<>(2);
+
+			final AllocationID allocatedId = allocationIds.take();
+			slotOffers.add(new SlotOffer(allocatedId, 0, ResourceProfile.UNKNOWN));
+			allocatedSlotInfos.add(new AllocatedSlotInfo(0, allocatedId));
+
+			final AllocationID availableId = new AllocationID();
+			slotOffers.add(new SlotOffer(availableId, 1, ResourceProfile.UNKNOWN));
+			allocatedSlotInfos.add(new AllocatedSlotInfo(1, availableId));
+
+			slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID()).get();
+			slotPoolGateway.offerSlots(taskManagerLocation, taskManagerGateway, slotOffers).get();
+
+			// wait for the completion of slot future
+			slotRequestFuture.get();
+
+			final AllocatedSlotReport slotReport = slotPoolGateway.createAllocatedSlotReport(taskManagerLocation.getResourceID()).get();
+			assertThat(jobId, is(slotReport.getJobId()));
+			assertThat(slotReport.getAllocatedSlotInfos(), containsInAnyOrder(isEachEqual(allocatedSlotInfos)));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(slotPool, timeout);
+		}
+	}
+
+	private static Collection<Matcher<? super AllocatedSlotInfo>> isEachEqual(Collection<AllocatedSlotInfo> allocatedSlotInfos) {
+		return allocatedSlotInfos
+			.stream()
+			.map(SlotPoolTest::isEqualAllocatedSlotInfo)
+			.collect(Collectors.toList());
+	}
+
+	private static Matcher<AllocatedSlotInfo> isEqualAllocatedSlotInfo(AllocatedSlotInfo expectedAllocatedSlotInfo) {
+		return new TypeSafeDiagnosingMatcher<AllocatedSlotInfo>() {
+			@Override
+			public void describeTo(Description description) {
+				description.appendText(describeAllocatedSlotInformation(expectedAllocatedSlotInfo));
+			}
+
+			private String describeAllocatedSlotInformation(AllocatedSlotInfo expectedAllocatedSlotInformation) {
+				return expectedAllocatedSlotInformation.toString();
+			}
+
+			@Override
+			protected boolean matchesSafely(AllocatedSlotInfo item, Description mismatchDescription) {
+				final boolean matches = item.getAllocationId().equals(expectedAllocatedSlotInfo.getAllocationId()) &&
+					item.getSlotIndex() == expectedAllocatedSlotInfo.getSlotIndex();
+
+				if (!matches) {
+					mismatchDescription
+						.appendText("Actual value ")
+						.appendText(describeAllocatedSlotInformation(item))
+						.appendText(" differs from expected value ")
+						.appendText(describeAllocatedSlotInformation(expectedAllocatedSlotInfo));
+				}
+
+				return matches;
+			}
+		};
 	}
 
 	private CompletableFuture<LogicalSlot> allocateSlot(SlotPoolGateway slotPoolGateway, SlotRequestId slotRequestId) {

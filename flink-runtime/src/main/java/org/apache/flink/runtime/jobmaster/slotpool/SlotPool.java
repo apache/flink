@@ -36,6 +36,8 @@ import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
+import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
@@ -54,6 +56,8 @@ import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -1111,6 +1115,20 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
+	@Override
+	public CompletableFuture<AllocatedSlotReport> createAllocatedSlotReport(ResourceID taskManagerId) {
+		final Set<AllocatedSlot> availableSlotsForTaskManager = availableSlots.getSlotsForTaskManager(taskManagerId);
+		final Set<AllocatedSlot> allocatedSlotsForTaskManager = allocatedSlots.getSlotsForTaskManager(taskManagerId);
+
+		List<AllocatedSlotInfo> allocatedSlotInfos = new ArrayList<>(
+			availableSlotsForTaskManager.size() + allocatedSlotsForTaskManager.size());
+		for (AllocatedSlot allocatedSlot : Iterables.concat(availableSlotsForTaskManager, allocatedSlotsForTaskManager)) {
+			allocatedSlotInfos.add(
+				new AllocatedSlotInfo(allocatedSlot.getPhysicalSlotNumber(), allocatedSlot.getAllocationId()));
+		}
+		return CompletableFuture.completedFuture(new AllocatedSlotReport(jobId, allocatedSlotInfos));
+	}
+
 	// ------------------------------------------------------------------------
 	//  Internal methods
 	// ------------------------------------------------------------------------
@@ -1167,15 +1185,9 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				freeSlotFuture.whenCompleteAsync(
 					(Acknowledge ignored, Throwable throwable) -> {
 						if (throwable != null) {
-							if (registeredTaskManagers.contains(expiredSlot.getTaskManagerId())) {
-								log.debug("Releasing slot [{}] of registered TaskExecutor {} failed. " +
-									"Trying to fulfill a different slot request.", allocationID, expiredSlot.getTaskManagerId(),
-									throwable);
-								tryFulfillSlotRequestOrMakeAvailable(expiredSlot);
-							} else {
-								log.debug("Releasing slot [{}] failed and owning TaskExecutor {} is no " +
-									"longer registered. Discarding slot.", allocationID, expiredSlot.getTaskManagerId());
-							}
+							// The slot status will be synced to task manager in next heartbeat.
+							log.debug("Releasing slot [{}] of registered TaskExecutor {} failed. Discarding slot.",
+								allocationID, expiredSlot.getTaskManagerId(), throwable);
 						}
 					},
 					getMainThreadExecutor());
@@ -1593,6 +1605,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			availableSlots.clear();
 			availableSlotsByTaskManager.clear();
 			availableSlotsByHost.clear();
+		}
+
+		Set<AllocatedSlot> getSlotsForTaskManager(ResourceID resourceId) {
+			return availableSlotsByTaskManager.getOrDefault(resourceId, Collections.emptySet());
 		}
 	}
 
