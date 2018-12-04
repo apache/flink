@@ -190,7 +190,7 @@ public class JavaSqlITCase extends AbstractTestBase {
 
 					// validate the second here
 					long procSecondTime = procTimestamp.getTime() / 1000;
-					long sysSecondTime = System.currentTimeMillis() / 1000;
+					long sysSecondTime = context.currentProcessingTime() / 1000;
 
 					Assert.assertTrue(procSecondTime == sysSecondTime);
 				}
