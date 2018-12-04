@@ -79,6 +79,22 @@ class TableAggregateValidationTest extends TableTestBase {
   }
 
   @Test
+  def testInvalidWithAggregation(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Aggregate functions are not supported in the " +
+      "select right after the aggregate or flatAggregate operation.")
+
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, Timestamp)]('a, 'b, 'c)
+
+    val func = new EmptyTableAggFunc
+    table
+      .groupBy('b)
+      .flatAggregate(func('a, 'b) as ('x, 'y))
+      .select('x.count)
+  }
+
+  @Test
   def testInvalidParameterWithAgg(): Unit = {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
@@ -127,21 +143,5 @@ class TableAggregateValidationTest extends TableTestBase {
       // must fail. alias with wrong number of fields
       .flatAggregate(func('a, 'b) as ('a, 'b))
       .select('*)
-  }
-
-  @Test
-  def testInvalidDistinct(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("A flatAggregate only accepts an expression which " +
-      "defines a table aggregate function that might be followed by some alias.")
-
-    val util = streamTestUtil()
-    val table = util.addTable[(Long, Int, Timestamp)]('a, 'b, 'c)
-
-    val func = new EmptyTableAggFunc
-    table
-      .groupBy('b)
-      .flatAggregate(func('a, 'b).distinct as ('a, 'b, 'c))
-      .select('a, 'b)
   }
 }

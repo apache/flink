@@ -445,12 +445,20 @@ class TableImpl(
     wrap(operationTreeBuilder.flatMap(tableFunction, operationTree))
   }
 
-  override def flatAggregate(tableAggFunction: String): FlatAggregateTable = {
-    groupBy().flatAggregate(tableAggFunction)
+  override def aggregate(aggregateFunction: String): AggregatedTable = {
+    aggregate(ExpressionParser.parseExpression(aggregateFunction))
   }
 
-  override def flatAggregate(tableAggFunction: Expression): FlatAggregateTable = {
-    groupBy().flatAggregate(tableAggFunction)
+  override def aggregate(aggregateFunction: Expression): AggregatedTable = {
+    groupBy().aggregate(aggregateFunction)
+  }
+
+  override def flatAggregate(tableAggregateFunction: String): FlatAggregateTable = {
+    groupBy().flatAggregate(tableAggregateFunction)
+  }
+
+  override def flatAggregate(tableAggregateFunction: Expression): FlatAggregateTable = {
+    groupBy().flatAggregate(tableAggregateFunction)
   }
 
   /**
@@ -503,19 +511,31 @@ class GroupedTableImpl(
       ))
   }
 
-  override def flatAggregate(tableAggFunction: String): FlatAggregateTable = {
-    flatAggregate(ExpressionParser.parseExpression(tableAggFunction))
+  override def aggregate(aggregateFunction: String): AggregatedTable = {
+    aggregate(ExpressionParser.parseExpression(aggregateFunction))
   }
 
-  override def flatAggregate(tableAggFunction: Expression): FlatAggregateTable = {
-    new FlatAggregateTableImpl(table, groupKeys, tableAggFunction)
+  override def aggregate(aggregateFunction: Expression): AggregatedTable = {
+    new AggregatedTableImpl(table, groupKeys, aggregateFunction)
+  }
+
+  override def flatAggregate(tableAggregateFunction: String): FlatAggregateTable = {
+    flatAggregate(ExpressionParser.parseExpression(tableAggregateFunction))
+  }
+
+  override def flatAggregate(tableAggregateFunction: Expression): FlatAggregateTable = {
+    new FlatAggregateTableImpl(table, groupKeys, tableAggregateFunction)
   }
 }
 
-class FlatAggregateTableImpl(
-  private[flink] val table: Table,
-  private[flink] val groupKey: Seq[Expression],
-  private[flink] val tableAggFunction: Expression) extends FlatAggregateTable {
+/**
+  * The implementation of an [[AggregatedTable]] that has been performed on an aggregate function.
+  */
+class AggregatedTableImpl(
+    private[flink] val table: Table,
+    private[flink] val groupKeys: Seq[Expression],
+    private[flink] val aggregateFunction: Expression)
+  extends AggregatedTable {
 
   private val tableImpl = table.asInstanceOf[TableImpl]
 
@@ -524,16 +544,41 @@ class FlatAggregateTableImpl(
   }
 
   override def select(fields: Expression*): Table = {
-    val resolvedTableAggFunction = tableAggFunction.accept(tableImpl.callResolver)
-
-    val flatAggTable = new TableImpl(tableImpl.tableEnv,
-      tableImpl.operationTreeBuilder.tableAggregate(
-        groupKey.asJava,
-        resolvedTableAggFunction,
-        tableImpl.operationTree
+    new TableImpl(tableImpl.tableEnv,
+      tableImpl.operationTreeBuilder.project(fields,
+        tableImpl.operationTreeBuilder.aggregate(
+          groupKeys.asJava,
+          aggregateFunction,
+          tableImpl.operationTree
+        )
       ))
+  }
+}
 
-    flatAggTable.select(fields: _*)
+/**
+  * The implementation of an [[FlatAggregateTable]] that has been performed on an table aggregate
+  * function.
+  */
+class FlatAggregateTableImpl(
+  private[flink] val table: Table,
+  private[flink] val groupKey: Seq[Expression],
+  private[flink] val tableAggregateFunction: Expression) extends FlatAggregateTable {
+
+  private val tableImpl = table.asInstanceOf[TableImpl]
+
+  override def select(fields: String): Table = {
+    select(ExpressionParser.parseExpressionList(fields).asScala: _*)
+  }
+
+  override def select(fields: Expression*): Table = {
+    new TableImpl(tableImpl.tableEnv,
+      tableImpl.operationTreeBuilder.project(fields,
+        tableImpl.operationTreeBuilder.tableAggregate(
+          groupKey.asJava,
+          tableAggregateFunction.accept(tableImpl.callResolver),
+          tableImpl.operationTree
+        )
+      ))
   }
 }
 

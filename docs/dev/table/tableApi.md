@@ -1970,6 +1970,62 @@ Table table = input
     
     <tr>
       <td>
+        <strong>Aggregate</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+        <span class="label label-info">Result Updating</span>
+      </td>
+      <td>
+        <p>Performs an aggregate operation with an aggregate function. You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.</p>
+{% highlight java %}
+public class MyMinMaxAcc {
+    public int min = 0;
+    public int max = 0;
+}
+
+public class MyMinMax extends AggregateFunction<Row, MyMinMaxAcc> {
+
+    public void accumulate(MyMinMaxAcc acc, int value) {
+        if (value < acc.min) {
+            acc.min = value;
+        }
+        if (value > acc.max) {
+            acc.max = value;
+        }
+    }
+
+    @Override
+    public MyMinMaxAcc createAccumulator() {
+        return new MyMinMaxAcc();
+    }
+    
+    public void resetAccumulator(MyMinMaxAcc acc) {
+        acc.min = 0;
+        acc.max = 0;
+    }
+
+    @Override
+    public Row getValue(MyMinMaxAcc acc) {
+        return Row.of(acc.min, acc.max);
+    }
+
+    @Override
+    public TypeInformation<Row> getResultType() {
+        return new RowTypeInfo(Types.INT, Types.INT);
+    }
+}
+    
+AggregateFunction myAggFunc = new MyMinMax();
+tableEnv.registerFunction("myAggFunc", myAggFunc);
+Table table = input
+  .groupBy("key")
+  .aggregate("myAggFunc(a) as (x, y)")
+  .select("key, x, y")
+{% endhighlight %}
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
         <strong>GroupBy TableAggregation</strong><br>
         <span class="label label-primary">Streaming</span><br>
         <span class="label label-info">Result Updating</span>
@@ -2085,6 +2141,53 @@ class MyFlatMapFunction extends TableFunction[Row] {
 val func = new MyFlatMapFunction
 val table = input
   .flatMap(func('c)).as('a, 'b)
+{% endhighlight %}
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        <strong>Aggregate</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+        <span class="label label-info">Result Updating</span>
+      </td>
+      <td>
+        <p>Performs an aggregate operation with an aggregate function. You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.</p>
+{% highlight scala %}
+case class MyMinMaxAcc(var min: Int, var max: Int)
+
+class MyMinMax extends AggregateFunction[Row, MyMinMaxAcc] {
+
+  def accumulate(acc: MyMinMaxAcc, value: Int): Unit = {
+    if (value < acc.min) {
+      acc.min = value
+    }
+    if (value > acc.max) {
+      acc.max = value
+    }
+  }
+
+  override def createAccumulator(): MyMinMaxAcc = MyMinMaxAcc(0, 0)
+  
+  def resetAccumulator(acc: MyMinMaxAcc): Unit = {
+    acc.min = 0
+    acc.max = 0
+  }
+
+  override def getValue(acc: MyMinMaxAcc): Row = {
+    Row.of(Integer.valueOf(acc.min), Integer.valueOf(acc.max))
+  }
+
+  override def getResultType: TypeInformation[Row] = {
+    new RowTypeInfo(Types.INT, Types.INT)
+  }
+}
+
+val myAggFunc: AggregateFunction = new MyMinMax
+val table = input
+  .groupBy('key)
+  .aggregate(myAggFunc('a) as ('x, 'y))
+  .select('key, 'x, 'y)
 {% endhighlight %}
       </td>
     </tr>

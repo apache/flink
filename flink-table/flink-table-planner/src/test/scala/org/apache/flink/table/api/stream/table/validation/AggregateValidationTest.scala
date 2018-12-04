@@ -19,9 +19,9 @@
 package org.apache.flink.table.api.stream.table.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{ExpressionParserException, ValidationException}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.utils.{TableFunc0, TableTestBase}
 import org.junit.Test
 
 class AggregateValidationTest extends TableTestBase {
@@ -46,5 +46,81 @@ class AggregateValidationTest extends TableTestBase {
       .groupBy('a, 'b)
       // must fail. 'c is not a grouping key or aggregation
       .select('c)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidAggregationInSelection(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
+
+    table
+      .groupBy('a)
+      .aggregate('b.sum as 'd)
+      // must fail. Cannot use AggregateFunction in select right after aggregate
+      .select('d.sum)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidWindowPropertiesInSelection(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
+
+    table
+      .groupBy('a)
+      .aggregate('b.sum as 'd)
+      // must fail. Cannot use window properties in select right after aggregate
+      .select('d.start)
+  }
+
+  @Test(expected = classOf[UnsupportedOperationException])
+  def testTableFunctionInSelection(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
+
+    util.tableEnv.registerFunction("func", new TableFunc0)
+    val resultTable = table
+      .groupBy('a)
+      .aggregate('b.sum as 'd)
+      // must fail. Cannot use TableFunction in select after aggregate
+      .select("func('abc')")
+
+    util.verifyTable(resultTable, "")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidScalarFunctionInAggregate(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
+
+    table
+      .groupBy('a)
+      // must fail. Only AggregateFunction can be used in aggregate
+      .aggregate('c.upperCase as 'd)
+      .select('a, 'd)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidTableFunctionInAggregate(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
+
+    util.tableEnv.registerFunction("func", new TableFunc0)
+    table
+      .groupBy('a)
+      // must fail. Only AggregateFunction can be used in aggregate
+      .aggregate("func(c) as d")
+      .select('a, 'd)
+  }
+
+  @Test(expected = classOf[ExpressionParserException])
+  def testMultipleAggregateExpressionInAggregate(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
+
+    util.tableEnv.registerFunction("func", new TableFunc0)
+    table
+      .groupBy('a)
+      // must fail. Only one AggregateFunction can be used in aggregate
+      .aggregate("sum(c), count(b)")
   }
 }

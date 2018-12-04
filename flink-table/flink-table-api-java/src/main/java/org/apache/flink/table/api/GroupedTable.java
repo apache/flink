@@ -56,6 +56,43 @@ public interface GroupedTable {
 	Table select(Expression... fields);
 
 	/**
+	 * Performs an aggregate operation with an aggregate function. You have to close the
+	 * {@link #aggregate(String)} with a select statement. The output will be flattened if the
+	 * output type is a composite type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   AggregateFunction aggFunc = new MyAggregateFunction()
+	 *   tableEnv.registerFunction("aggFunc", aggFunc);
+	 *   table.groupBy("key")
+	 *     .aggregate("aggFunc(a, b) as (f0, f1, f2)")
+	 *     .select("key, f0, f1")
+	 * }
+	 * </pre>
+	 */
+	AggregatedTable aggregate(String aggregateFunction);
+
+	/**
+	 * Performs an aggregate operation with an aggregate function. You have to close the
+	 * {@link #aggregate(Expression)} with a select statement. The output will be flattened if the
+	 * output type is a composite type.
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   val aggFunc = new MyAggregateFunction
+	 *   table.groupBy('key)
+	 *     .aggregate(aggFunc('a, 'b) as ('f0, 'f1, 'f2))
+	 *     .select('key, 'f0, 'f1)
+	 * }
+	 * </pre>
+	 */
+	AggregatedTable aggregate(Expression aggregateFunction);
+
+	/**
 	 * Performs a flatAggregate operation on a grouped table. FlatAggregate takes a
 	 * TableAggregateFunction which returns multiple rows. Use a selection after flatAggregate.
 	 *

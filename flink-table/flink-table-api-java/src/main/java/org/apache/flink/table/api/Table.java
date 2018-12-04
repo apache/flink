@@ -1060,6 +1060,41 @@ public interface Table {
 	Table flatMap(Expression tableFunction);
 
 	/**
+	 * Performs a global aggregate operation with an aggregate function. You have to close the
+	 * {@link #aggregate(String)} with a select statement. The output will be flattened if the
+	 * output type is a composite type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   AggregateFunction aggFunc = new MyAggregateFunction()
+	 *   tableEnv.registerFunction("aggFunc", aggFunc);
+	 *   table.aggregate("aggFunc(a, b) as (f0, f1, f2)")
+	 *     .select("f0, f1")
+	 * }
+	 * </pre>
+	 */
+	AggregatedTable aggregate(String aggregateFunction);
+
+	/**
+	 * Performs a global aggregate operation with an aggregate function. You have to close the
+	 * {@link #aggregate(Expression)} with a select statement. The output will be flattened if the
+	 * output type is a composite type.
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   val aggFunc = new MyAggregateFunction
+	 *   table.aggregate(aggFunc('a, 'b) as ('f0, 'f1, 'f2))
+	 *     .select('f0, 'f1)
+	 * }
+	 * </pre>
+	 */
+	AggregatedTable aggregate(Expression aggregateFunction);
+
+	/**
 	 * Perform a global flatAggregate without groupBy. FlatAggregate takes a TableAggregateFunction
 	 * which returns multiple rows. Use a selection after the flatAggregate.
 	 *
@@ -1074,7 +1109,7 @@ public interface Table {
 	 * }
 	 * </pre>
 	 */
-	FlatAggregateTable flatAggregate(String tableAggFunction);
+	FlatAggregateTable flatAggregate(String tableAggregateFunction);
 
 	/**
 	 * Perform a global flatAggregate without groupBy. FlatAggregate takes a TableAggregateFunction
@@ -1090,5 +1125,5 @@ public interface Table {
 	 * }
 	 * </pre>
 	 */
-	FlatAggregateTable flatAggregate(Expression tableAggFunction);
+	FlatAggregateTable flatAggregate(Expression tableAggregateFunction);
 }
