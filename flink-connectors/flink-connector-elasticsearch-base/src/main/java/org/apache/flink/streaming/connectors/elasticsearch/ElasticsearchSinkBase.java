@@ -154,6 +154,9 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 	 */
 	private final Map<String, String> userConfig;
 
+	/** the transport factory for user to create user define client .*/
+	private TransportClientFactory<C> transportClientFactory;
+
 	/** The function that is used to construct multiple {@link ActionRequest ActionRequests} from each incoming element. */
 	private final ElasticsearchSinkFunction<T> elasticsearchSinkFunction;
 
@@ -198,6 +201,15 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 	 * <p>Errors will be checked and rethrown before processing each input element, and when the sink is closed.
 	 */
 	private final AtomicReference<Throwable> failureThrowable = new AtomicReference<>();
+
+	public ElasticsearchSinkBase(ElasticsearchApiCallBridge callBridge,
+			Map<String, String> userConfig,
+			ElasticsearchSinkFunction<T> elasticsearchSinkFunction,
+			ActionRequestFailureHandler failureHandler,
+			TransportClientFactory<C> userTransportFactory) {
+		this(callBridge, userConfig, elasticsearchSinkFunction, failureHandler);
+		this.transportClientFactory = userTransportFactory;
+	}
 
 	public ElasticsearchSinkBase(
 		ElasticsearchApiCallBridge callBridge,
@@ -293,7 +305,12 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
-		client = callBridge.createClient(userConfig);
+		if (transportClientFactory != null) {
+			LOG.info("create client use transportClientFatory");
+			client = transportClientFactory.build(userConfig);
+		} else {
+			client = callBridge.createClient(userConfig);
+		}
 		bulkProcessor = buildBulkProcessor(new BulkProcessorListener());
 		requestIndexer = callBridge.createBulkProcessorIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequests);
 	}

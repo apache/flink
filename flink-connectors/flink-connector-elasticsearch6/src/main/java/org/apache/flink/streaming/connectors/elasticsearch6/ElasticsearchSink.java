@@ -21,6 +21,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
+import org.apache.flink.streaming.connectors.elasticsearch.TransportClientFactory;
 import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
 import org.apache.flink.util.Preconditions;
 
@@ -67,9 +68,10 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		List<HttpHost> httpHosts,
 		ElasticsearchSinkFunction<T> elasticsearchSinkFunction,
 		ActionRequestFailureHandler failureHandler,
-		RestClientFactory restClientFactory) {
+		RestClientFactory restClientFactory,
+		TransportClientFactory transportClientFactory) {
 
-		super(new Elasticsearch6ApiCallBridge(httpHosts, restClientFactory),  bulkRequestsConfig, elasticsearchSinkFunction, failureHandler);
+		super(new Elasticsearch6ApiCallBridge(httpHosts, restClientFactory),  bulkRequestsConfig, elasticsearchSinkFunction, failureHandler, transportClientFactory);
 	}
 
 	/**
@@ -86,6 +88,7 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		private Map<String, String> bulkRequestsConfig = new HashMap<>();
 		private ActionRequestFailureHandler failureHandler = new NoOpFailureHandler();
 		private RestClientFactory restClientFactory = restClientBuilder -> {};
+		private TransportClientFactory transportClientFactory;
 
 		/**
 		 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link RestHighLevelClient}.
@@ -201,12 +204,21 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		}
 
 		/**
+		 * Sets a REST client factory for custom client configuration.
+		 *
+		 * @param transportClientFactory the factory that configures the transport client.
+		 */
+		public void setTransportClientFactory(TransportClientFactory transportClientFactory) {
+			this.transportClientFactory = Preconditions.checkNotNull(transportClientFactory);
+		}
+
+		/**
 		 * Creates the Elasticsearch sink.
 		 *
 		 * @return the created Elasticsearch sink.
 		 */
 		public ElasticsearchSink<T> build() {
-			return new ElasticsearchSink<>(bulkRequestsConfig, httpHosts, elasticsearchSinkFunction, failureHandler, restClientFactory);
+			return new ElasticsearchSink<>(bulkRequestsConfig, httpHosts, elasticsearchSinkFunction, failureHandler, restClientFactory, transportClientFactory);
 		}
 
 		@Override

@@ -21,6 +21,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
+import org.apache.flink.streaming.connectors.elasticsearch.TransportClientFactory;
 import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
 
 import org.elasticsearch.action.ActionRequest;
@@ -75,7 +76,7 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, TransportClie
 		List<InetSocketAddress> transportAddresses,
 		ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
 
-		this(userConfig, transportAddresses, elasticsearchSinkFunction, new NoOpFailureHandler());
+		this(userConfig, transportAddresses, elasticsearchSinkFunction, new NoOpFailureHandler(), null);
 	}
 
 	/**
@@ -85,13 +86,15 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, TransportClie
 	 * @param transportAddresses The addresses of Elasticsearch nodes to which to connect using a {@link TransportClient}
 	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
 	 * @param failureHandler This is used to handle failed {@link ActionRequest}
+	 * @param transportClieneFactory This is used to create user define elasticsearch client
 	 */
 	public ElasticsearchSink(
 		Map<String, String> userConfig,
 		List<InetSocketAddress> transportAddresses,
 		ElasticsearchSinkFunction<T> elasticsearchSinkFunction,
-		ActionRequestFailureHandler failureHandler) {
+		ActionRequestFailureHandler failureHandler,
+		TransportClientFactory<TransportClient> transportClieneFactory) {
 
-		super(new Elasticsearch5ApiCallBridge(transportAddresses), userConfig, elasticsearchSinkFunction, failureHandler);
+		super(new Elasticsearch5ApiCallBridge(transportAddresses), userConfig, elasticsearchSinkFunction, failureHandler, transportClieneFactory);
 	}
 }
