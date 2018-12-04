@@ -70,8 +70,10 @@ class DataStreamLogicalWindowAggregateRule
       call.getOperands.get(idx) match {
         case v: RexLiteral if v.getTypeName.getFamily == SqlTypeFamily.INTERVAL_DAY_TIME =>
           v.getValue.asInstanceOf[JBigDecimal].longValue()
+        case v: RexLiteral if v.getTypeName.getFamily == SqlTypeFamily.INTERVAL_YEAR_MONTH =>
+          v.getValue.asInstanceOf[JBigDecimal].longValue()
         case _ => throw new TableException(
-          "Only constant window intervals with millisecond resolution are supported.")
+          "Only constant window intervals with millisecond and months resolution are supported.")
       }
 
     def getOperandAsTimeIndicator(call: RexCall, idx: Int): ResolvedFieldReference =
@@ -84,27 +86,37 @@ class DataStreamLogicalWindowAggregateRule
           throw new ValidationException("Window can only be defined over a time attribute column.")
       }
 
+    def getOperandAsLiteral(call: RexCall, idx: Int): Literal =
+      call.getOperands.get(idx) match {
+        case v: RexLiteral if v.getTypeName.getFamily == SqlTypeFamily.INTERVAL_DAY_TIME =>
+          Literal(getOperandAsLong(call, idx), TimeIntervalTypeInfo.INTERVAL_MILLIS)
+        case v: RexLiteral if v.getTypeName.getFamily == SqlTypeFamily.INTERVAL_YEAR_MONTH =>
+          Literal(getOperandAsLong(call, idx), TimeIntervalTypeInfo.INTERVAL_MONTHS)
+        case _ => throw new TableException(
+          "Only constant window intervals with millisecond and months resolution are supported.")
+      }
+
     windowExpr.getOperator match {
       case BasicOperatorTable.TUMBLE =>
         val time = getOperandAsTimeIndicator(windowExpr, 0)
-        val interval = getOperandAsLong(windowExpr, 1)
-        val w = Tumble.over(Literal(interval, TimeIntervalTypeInfo.INTERVAL_MILLIS))
-
+        val tumbleLiteral = getOperandAsLiteral(windowExpr, 1)
+        val w = Tumble.over(tumbleLiteral)
         w.on(time).as(WindowReference("w$", Some(time.resultType)))
 
       case BasicOperatorTable.HOP =>
         val time = getOperandAsTimeIndicator(windowExpr, 0)
-        val (slide, size) = (getOperandAsLong(windowExpr, 1), getOperandAsLong(windowExpr, 2))
+        val (slideLiteral, sizeLiteral) = (getOperandAsLiteral(windowExpr, 1),
+          getOperandAsLiteral(windowExpr, 2))
         val w = Slide
-          .over(Literal(size, TimeIntervalTypeInfo.INTERVAL_MILLIS))
-          .every(Literal(slide, TimeIntervalTypeInfo.INTERVAL_MILLIS))
+          .over(sizeLiteral)
+          .every(slideLiteral)
 
         w.on(time).as(WindowReference("w$", Some(time.resultType)))
 
       case BasicOperatorTable.SESSION =>
         val time = getOperandAsTimeIndicator(windowExpr, 0)
-        val gap = getOperandAsLong(windowExpr, 1)
-        val w = Session.withGap(Literal(gap, TimeIntervalTypeInfo.INTERVAL_MILLIS))
+        val gapLiteral = getOperandAsLiteral(windowExpr, 1)
+        val w = Session.withGap(gapLiteral)
 
         w.on(time).as(WindowReference("w$", Some(time.resultType)))
     }

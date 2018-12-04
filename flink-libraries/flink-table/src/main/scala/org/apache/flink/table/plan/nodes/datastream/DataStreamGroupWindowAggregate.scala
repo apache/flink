@@ -264,6 +264,10 @@ object DataStreamGroupWindowAggregate {
         if isRowtimeAttribute(timeField) && isTimeIntervalLiteral(size) =>
       stream.window(TumblingEventTimeWindows.of(toTime(size)))
 
+    case TumblingGroupWindow(_, timeField, size)
+      if isRowtimeAttribute(timeField) && isMonthsIntervalLiteral(size) =>
+      stream.window(TumblingEventTimeWindows.of(toMonths(size)))
+
     case TumblingGroupWindow(_, _, size) =>
       // TODO: EventTimeTumblingGroupWindow should sort the stream on event time
       // before applying the  windowing logic. Otherwise, this would be the same as a
@@ -284,6 +288,10 @@ object DataStreamGroupWindowAggregate {
         if isRowtimeAttribute(timeField) && isTimeIntervalLiteral(size)=>
       stream.window(SlidingEventTimeWindows.of(toTime(size), toTime(slide)))
 
+    case SlidingGroupWindow(_, timeField, size, slide)
+      if isRowtimeAttribute(timeField) && isMonthsIntervalLiteral(size) =>
+      stream.window(SlidingEventTimeWindows.of(toMonths(size), toMonths(slide)))
+
     case SlidingGroupWindow(_, _, size, slide) =>
       // TODO: EventTimeTumblingGroupWindow should sort the stream on event time
       // before applying the  windowing logic. Otherwise, this would be the same as a
@@ -292,8 +300,12 @@ object DataStreamGroupWindowAggregate {
         "Event-time grouping windows on row intervals are currently not supported.")
 
     case SessionGroupWindow(_, timeField, gap)
-        if isProctimeAttribute(timeField) =>
+      if isProctimeAttribute(timeField) =>
       stream.window(ProcessingTimeSessionWindows.withGap(toTime(gap)))
+
+    case SessionGroupWindow(_, timeField, gap)
+      if isRowtimeAttribute(timeField) && isMonthsIntervalLiteral(gap) =>
+      stream.window(EventTimeSessionWindows.withGap(toMonths(gap)))
 
     case SessionGroupWindow(_, timeField, gap)
         if isRowtimeAttribute(timeField) =>
@@ -318,6 +330,9 @@ object DataStreamGroupWindowAggregate {
     case TumblingGroupWindow(_, _, size) if isTimeInterval(size.resultType) =>
       stream.windowAll(TumblingEventTimeWindows.of(toTime(size)))
 
+    case TumblingGroupWindow(_, _, size) if isMonthsIntervalLiteral(size) =>
+      stream.windowAll(TumblingEventTimeWindows.of(toMonths(size)))
+
     case TumblingGroupWindow(_, _, size) =>
       // TODO: EventTimeTumblingGroupWindow should sort the stream on event time
       // before applying the  windowing logic. Otherwise, this would be the same as a
@@ -338,6 +353,10 @@ object DataStreamGroupWindowAggregate {
         if isRowtimeAttribute(timeField) && isTimeIntervalLiteral(size)=>
       stream.windowAll(SlidingEventTimeWindows.of(toTime(size), toTime(slide)))
 
+    case SlidingGroupWindow(_, timeField, size, slide)
+      if isRowtimeAttribute(timeField) && isMonthsIntervalLiteral(size)=>
+      stream.windowAll(SlidingEventTimeWindows.of(toMonths(size), toMonths(slide)))
+
     case SlidingGroupWindow(_, _, size, slide) =>
       // TODO: EventTimeTumblingGroupWindow should sort the stream on event time
       // before applying the  windowing logic. Otherwise, this would be the same as a
@@ -348,6 +367,10 @@ object DataStreamGroupWindowAggregate {
     case SessionGroupWindow(_, timeField, gap)
         if isProctimeAttribute(timeField) && isTimeIntervalLiteral(gap) =>
       stream.windowAll(ProcessingTimeSessionWindows.withGap(toTime(gap)))
+
+    case SessionGroupWindow(_, timeField, gap)
+      if isProctimeAttribute(timeField) && isMonthsIntervalLiteral(gap) =>
+      stream.windowAll(ProcessingTimeSessionWindows.withGap(toMonths(gap)))
 
     case SessionGroupWindow(_, timeField, gap)
         if isRowtimeAttribute(timeField) && isTimeIntervalLiteral(gap) =>

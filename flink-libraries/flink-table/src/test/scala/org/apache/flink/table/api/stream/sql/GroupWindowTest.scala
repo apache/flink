@@ -19,11 +19,18 @@
 package org.apache.flink.table.api.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks
+import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
+import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
+import org.apache.flink.table.runtime.utils.StreamITCase
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
+import org.apache.flink.types.Row
 import org.junit.Test
 
 class GroupWindowTest extends TableTestBase {
@@ -305,5 +312,52 @@ class GroupWindowTest extends TableTestBase {
           "w$end AS EXPR$5")
       )
     streamUtil.verifySql(sql, expected)
+  }
+
+  def RunWindowForMonthsInterval(groupWindow: String, interval: String): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    execEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    execEnv.setParallelism(1)
+    val tableEnv = TableEnvironment.getTableEnvironment(execEnv)
+    StreamITCase.clear
+
+    val table = tableEnv.sqlQuery("SELECT * FROM (VALUES " +
+      "('Bob', 1543052856000), " +
+      "('Bob', 1543052857000), " +
+      "('Lucy', 1543054856000)" +
+      ") AS NameTable(name,create_time)")
+
+    var inputStream: DataStream[Row] = tableEnv.toAppendStream(table)
+    inputStream.javaStream.getTransformation.setOutputType(table.getSchema.toRowType)
+    inputStream = inputStream.assignTimestampsAndWatermarks(
+      new AssignerWithPeriodicWatermarks[Row]() {
+        override def getCurrentWatermark = new Watermark(System.nanoTime)
+
+        def extractTimestamp(element: Row, previousElementTimestamp: Long): Long =
+          element.getField(1).asInstanceOf[Long]
+      })
+
+    val tb1 = tableEnv.fromDataStream(inputStream, 'name, 'create_time, 'rowtime.rowtime)
+
+    val groupWhereSql = groupWindow match {
+      case "TUMBLE" => s" GROUP BY TUMBLE(rowtime, $interval),name"
+      case "HOP" => s" GROUP BY HOP(rowtime, $interval),name"
+      case "SESSION" => s" GROUP BY SESSION(rowtime, $interval),name"
+    }
+
+    val result = tableEnv.sqlQuery(s"select name,count(1) from $tb1 " + groupWhereSql)
+    result.addSink(new StreamITCase.StringSink[Row])
+
+    execEnv.execute()
+  }
+
+  @Test
+  def TestWindowForMonthsInterval(): Unit = {
+    RunWindowForMonthsInterval("TUMBLE", "interval '10' month")
+    RunWindowForMonthsInterval("TUMBLE", "INTERVAL '2-10' YEAR TO MONTH")
+    RunWindowForMonthsInterval("HOP", "INTERVAL '1' MONTH, INTERVAL '10' MONTH")
+    RunWindowForMonthsInterval("HOP", "INTERVAL '1' MONTH, INTERVAL '2-10' YEAR TO MONTH")
+    RunWindowForMonthsInterval("SESSION", "interval '10' month")
+    RunWindowForMonthsInterval("SESSION", "INTERVAL '2-10' YEAR TO MONTH")
   }
 }

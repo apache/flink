@@ -73,7 +73,7 @@ class WindowAggregateValidationTest extends TableTestBase {
   def testVariableWindowSize(): Unit = {
     expectedException.expect(classOf[TableException])
     expectedException.expectMessage(
-      "Only constant window intervals with millisecond resolution are supported")
+      "Only constant window intervals with millisecond and months resolution are supported.")
 
     val sql = "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, c * INTERVAL '1' MINUTE)"
     streamUtil.verifySql(sql, "n/a")
@@ -90,19 +90,6 @@ class WindowAggregateValidationTest extends TableTestBase {
       "SELECT SUM(a) AS sumA, weightedAvg(a, b) AS wAvg " +
         "FROM MyTable " +
         "GROUP BY TUMBLE(proctime, INTERVAL '2' HOUR, TIME '10:00:00')"
-
-    streamUtil.verifySql(sqlQuery, "n/a")
-  }
-
-  @Test
-  def testWindowWrongWindowParameter(): Unit = {
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(
-      "Only constant window intervals with millisecond resolution are supported")
-
-    val sqlQuery =
-      "SELECT COUNT(*) FROM MyTable " +
-        "GROUP BY TUMBLE(proctime, INTERVAL '2-10' YEAR TO MONTH)"
 
     streamUtil.verifySql(sqlQuery, "n/a")
   }

@@ -44,6 +44,11 @@ object ExpressionUtils {
     case _ => false
   }
 
+  private[flink] def isMonthsIntervalLiteral(expr: Expression): Boolean = expr match {
+    case Literal(_, TimeIntervalTypeInfo.INTERVAL_MONTHS) => true
+    case _ => false
+  }
+
   private[flink] def isRowCountLiteral(expr: Expression): Boolean = expr match {
     case Literal(_, RowIntervalTypeInfo.INTERVAL_ROWS) => true
     case _ => false
@@ -68,6 +73,12 @@ object ExpressionUtils {
   private[flink] def toTime(expr: Expression): FlinkTime = expr match {
     case Literal(value: Long, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
       FlinkTime.milliseconds(value)
+    case _ => throw new IllegalArgumentException()
+  }
+
+  private[flink] def toMonths(expr: Expression): FlinkTime = expr match {
+    case Literal(value: Long, TimeIntervalTypeInfo.INTERVAL_MONTHS) =>
+      FlinkTime.months(value)
     case _ => throw new IllegalArgumentException()
   }
 

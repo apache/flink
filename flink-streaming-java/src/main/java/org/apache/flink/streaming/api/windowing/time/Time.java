@@ -124,4 +124,11 @@ public final class Time {
 	public static Time days(long days) {
 		return of(days, TimeUnit.DAYS);
 	}
+
+	/**
+	 * Creates a new {@link Time} that represents the given number of months.
+	 */
+	public static Time months(long months) {
+		return of(months, TimeUnit.DAYS);
+	}
 }
