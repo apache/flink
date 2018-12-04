@@ -21,7 +21,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
-import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionParser, Ordering, ResolvedFieldReference, UnresolvedAlias, UnresolvedFieldReference, WindowProperty}
+import org.apache.flink.table.expressions.{AggFunctionCall, Aggregation, Alias, Asc, Expression, ExpressionParser, Flattening, Ordering, ResolvedFieldReference, TableFunctionCall, UnresolvedAlias, UnresolvedFieldReference, WindowProperty}
 import org.apache.flink.table.functions.TemporalTableFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.plan.ProjectionTranslator._
@@ -999,6 +999,47 @@ class Table(
     new OverWindowedTable(this, overWindows.toArray)
   }
 
+  /**
+    * Performs a global aggregate operation with an aggregate function. Use this before a selection
+    * to perform the selection operation. The output will be flattened if the output type is a
+    * composite type.
+    *
+    * Example:
+    *
+    * {{{
+    *   val aggFunc: AggregateFunction[_, _] = new MyAggregateFunction
+    *   tableEnv.registerFunction("aggFunc", aggFunc);
+    *   table.aggregate("aggFunc(a, b) as (f0, f1, f2)").select('f0, 'f1)
+    * }}}
+    */
+  def aggregate(aggregateFunction: Expression): AggregatedTable = {
+    unwrap(aggregateFunction, tableEnv) match {
+      case _: Aggregation =>
+      case _ => throw new ValidationException("Only AggregateFunction can be used in aggregate.")
+    }
+
+    new AggregatedTable(this, Nil, aggregateFunction)
+  }
+
+  /**
+    * Performs a global aggregate operation with an aggregate function. Use this before a selection
+    * to perform the selection operation. The output will be flattened if the output type is a
+    * composite type.
+    *
+    * Example:
+    *
+    * {{{
+    *   val aggFunc: AggregateFunction[_, _] = new MyAggregateFunction
+    *   tableEnv.registerFunction("aggFunc", aggFunc);
+    *   table.aggregate("aggFunc(a, b) as (f0, f1, f2)").select("f0, f1")
+    * }}}
+    */
+  def aggregate(aggregateFunction: String): AggregatedTable = {
+    val withResolvedAggFunctionCall = replaceAggFunctionCall(
+      ExpressionParser.parseExpression(aggregateFunction), tableEnv)
+    aggregate(withResolvedAggFunctionCall)
+  }
+
   var tableName: String = _
 
   /**
@@ -1033,7 +1074,7 @@ class Table(
   */
 class GroupedTable(
   private[flink] val table: Table,
-  private[flink] val groupKey: Seq[Expression]) {
+  private[flink] val groupKeys: Seq[Expression]) {
 
   /**
     * Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
@@ -1054,12 +1095,12 @@ class GroupedTable(
 
     val projectsOnAgg = replaceAggregationsAndProperties(
       expandedFields, table.tableEnv, aggNames, propNames)
-    val projectFields = extractFieldReferences(expandedFields ++ groupKey)
+    val projectFields = extractFieldReferences(expandedFields ++ groupKeys)
 
     new Table(table.tableEnv,
       Project(projectsOnAgg,
-        Aggregate(groupKey, aggNames.map(a => Alias(a._1, a._2)).toSeq,
-          Project(projectFields, table.logicalPlan).validate(table.tableEnv)
+        Aggregate(groupKeys, aggNames.map(a => Alias(a._1, a._2)).toSeq,
+                  Project(projectFields, table.logicalPlan).validate(table.tableEnv)
         ).validate(table.tableEnv)
       ).validate(table.tableEnv))
   }
@@ -1079,6 +1120,47 @@ class GroupedTable(
     //get the correct expression for AggFunctionCall
     val withResolvedAggFunctionCall = fieldExprs.map(replaceAggFunctionCall(_, table.tableEnv))
     select(withResolvedAggFunctionCall: _*)
+  }
+
+  /**
+    * Performs an aggregate operation with an aggregate function. Use this before a selection
+    * to perform the selection operation. The output will be flattened if the output type is a
+    * composite type.
+    *
+    * Example:
+    *
+    * {{{
+    *   val aggFunc: AggregateFunction[_, _] = new MyAggregateFunction
+    *   tableEnv.registerFunction("aggFunc", aggFunc);
+    *   table.groupBy('key).aggregate("aggFunc(a, b) as (f0, f1, f2)").select('key, 'f0, 'f1)
+    * }}}
+    */
+  def aggregate(aggregateFunction: Expression): AggregatedTable = {
+    unwrap(aggregateFunction, table.tableEnv) match {
+      case _: AggFunctionCall | _: Aggregation =>
+      case _ => throw new ValidationException("Only AggregateFunction can be used in aggregate.")
+    }
+
+    new AggregatedTable(table, groupKeys, aggregateFunction)
+  }
+
+  /**
+    * Performs an aggregate operation with an aggregate function. Use this before a selection
+    * to perform the selection operation. The output will be flattened if the output type is a
+    * composite type.
+    *
+    * Example:
+    *
+    * {{{
+    *   val aggFunc: AggregateFunction[_, _] = new MyAggregateFunction
+    *   tableEnv.registerFunction("aggFunc", aggFunc);
+    *   table.groupBy("key").aggregate("aggFunc(a, b) as (f0, f1, f2)").select("key, f0, f1")
+    * }}}
+    */
+  def aggregate(aggregateFunction: String): AggregatedTable = {
+    val withResolvedAggFunctionCall = replaceAggFunctionCall(
+      ExpressionParser.parseExpression(aggregateFunction), table.tableEnv)
+    aggregate(withResolvedAggFunctionCall)
   }
 }
 
@@ -1224,5 +1306,78 @@ class WindowGroupedTable(
     //get the correct expression for AggFunctionCall
     val withResolvedAggFunctionCall = fieldExprs.map(replaceAggFunctionCall(_, table.tableEnv))
     select(withResolvedAggFunctionCall: _*)
+  }
+}
+
+class AggregatedTable(
+    private[flink] val table: Table,
+    private[flink] val groupKeys: Seq[Expression],
+    private[flink] val aggregateFunction: Expression) {
+
+  /**
+    * Performs a selection operation after an aggregate operation. The field expressions
+    * cannot contain table functions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   val aggFunc: AggregateFunction[_, _] = new MyAggregateFunction
+    *   tableEnv.registerFunction("aggFunc", aggFunc);
+    *   table.groupBy('key).aggregate("aggFunc(a, b) as (f0, f1, f2)").select('key, 'f0, 'f1)
+    * }}}
+    */
+  def select(fields: Expression*): Table = {
+    val tableEnv = table.tableEnv
+    val (aggNames, propNames) = extractAggregationsAndProperties(Seq(aggregateFunction), tableEnv)
+    val projectsOnAgg = replaceAggregationsAndProperties(
+      groupKeys ++ Seq(aggregateFunction), tableEnv, aggNames, propNames)
+    val projectFields = extractFieldReferences(groupKeys ++ Seq(aggregateFunction))
+
+    val aggTable = new Table(tableEnv,
+      Project(projectsOnAgg,
+        Aggregate(groupKeys, aggNames.map(a => Alias(a._1, a._2)).toSeq,
+                  Project(projectFields, table.logicalPlan).validate(tableEnv)
+        ).validate(tableEnv)
+      ).validate(tableEnv))
+
+    // expand the aggregate results
+    val projectsOnAggTable =
+      aggTable.logicalPlan.output.take(groupKeys.length) ++
+      expandProjectList(
+        Seq(Flattening(aggTable.logicalPlan.output.last)),
+        aggTable.logicalPlan,
+        tableEnv).zip(extractFieldNames(aggregateFunction)).map(a => Alias(a._1, a._2))
+
+    val expandedFields = expandProjectList(fields, aggTable.logicalPlan, tableEnv)
+    // check there are no aggregate functions in the select after aggregate
+    expandedFields.foreach { f =>
+      unwrap(f, tableEnv) match {
+        case _: TableFunctionCall | _: Aggregation =>
+          throw new ValidationException(
+            "Cannot use TableFunction or AggregateFunction in the select after aggregate.")
+        case _ =>
+      }
+    }
+
+    new Table(tableEnv,
+      Project(expandedFields.map(UnresolvedAlias),
+        Project(projectsOnAggTable.map(UnresolvedAlias), aggTable.logicalPlan).validate(tableEnv)
+      ).validate(tableEnv))
+  }
+
+  /**
+    * Performs a selection operation after an aggregate operation. The field expressions
+    * cannot contain table functions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   val aggFunc: AggregateFunction[_, _] = new MyAggregateFunction
+    *   tableEnv.registerFunction("aggFunc", aggFunc);
+    *   table.groupBy("key").aggregate("aggFunc(a, b) as (f0, f1, f2)").select("key, f0, f1")
+    * }}}
+    */
+  def select(fields: String): Table = {
+    select(ExpressionParser.parseExpressionList(fields): _*)
   }
 }

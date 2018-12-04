@@ -28,7 +28,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.table.utils.{NonMergableCount, Top10}
+import org.apache.flink.table.utils.{CountMinMax, NonMergableCount, Top10}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.junit._
@@ -452,6 +452,38 @@ class AggregationsITCase(
     val expected =
       "1,{1=1}\n2,{2=1, 3=1}\n3,{4=1, 5=1, 6=1}\n4,{8=1, 9=1, 10=1, 7=1}\n" +
         "5,{11=1, 12=1, 13=1, 14=1, 15=1}\n6,{16=1, 17=1, 18=1, 19=1, 20=1, 21=1}"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testNonGroupedAggregate(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val testAgg = new CountMinMax
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+      .aggregate(testAgg('a))
+      .select('f0, 'f1, 'f2)
+
+    val expected = "21,1,21"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testAggregate(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val testAgg = new CountMinMax
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+      .groupBy('b)
+      .aggregate(testAgg('a))
+      .select('b, 'f0, 'f1, 'f2)
+
+    val expected =
+      List("1,1,1,1", "2,2,2,3", "3,3,4,6", "4,4,7,10", "5,5,11,15", "6,6,16,21").mkString("\n")
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

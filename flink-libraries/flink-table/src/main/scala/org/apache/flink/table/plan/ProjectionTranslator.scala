@@ -21,6 +21,7 @@ package org.apache.flink.table.plan
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{OverWindow, TableEnvironment, ValidationException}
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getFieldInfo
 import org.apache.flink.table.plan.logical.{LogicalNode, Project}
 
 import scala.collection.mutable
@@ -416,6 +417,36 @@ object ProjectionTranslator {
 
       // Other expressions
       case e: Expression => e
+    }
+  }
+
+  /**
+    * Unwrap a Call to ScalarFunctionCall, TableFunctionCall, AggFunctionCall or the built-in
+    * expression representation.
+    *
+    * @param field    the expression to unwrap
+    * @param tableEnv the TableEnvironment
+    * @return the unwrapped expression
+    */
+  def unwrap(
+      field: Expression,
+      tableEnv: TableEnvironment): Expression = {
+    field match {
+      case Alias(child, _, _) =>
+        unwrap(child, tableEnv)
+      // Functions calls
+      case c @ Call(name, args: Seq[Expression]) =>
+        val function = tableEnv.functionCatalog.lookupFunction(name, args)
+        unwrap(function, tableEnv)
+      // Other expressions
+      case e: Expression => e
+    }
+  }
+
+  def extractFieldNames(expr: Expression): Seq[String] = {
+    expr match {
+      case Alias(child, name, extraNames) => Seq(name) ++ extraNames
+      case _ => getFieldInfo(expr.resultType)._1
     }
   }
 }

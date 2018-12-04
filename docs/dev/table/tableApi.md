@@ -1682,6 +1682,36 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
 
 {% top %}
 
+### Aggregate
+
+Aggregate performs an aggregate operation with an aggregate function. You have to close the
+"aggregate" with a select statement. The output will be flattened if the output type is a
+composite type.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+tableEnv.registerFunction("myAggFunc", new MyAggregateFunction());
+Table table = input
+  .groupBy("key")
+  .aggregate("myAggFunc(a, b) as (x, y, z)")
+  .select("key, x, y, z")
+{% endhighlight %}
+</div>
+ <div data-lang="scala" markdown="1">
+{% highlight scala %}
+val myAggFunc: AggregateFunction[_, _] = new MyAggregateFunction
+
+val table = input
+  .groupBy('key)
+  .aggregate(myAggFunc('a, 'b) as ('x, 'y, 'z))
+  .select('key, 'x, 'y, 'z)
+{% endhighlight %}
+</div>
+</div>
+
+{% top %}
+
 Data Types
 ----------
 

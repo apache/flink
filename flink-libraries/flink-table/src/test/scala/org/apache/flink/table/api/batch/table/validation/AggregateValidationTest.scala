@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.utils.{TableFunc0, TableTestBase}
 import org.junit._
 
 class AggregateValidationTest extends TableTestBase {
@@ -207,5 +207,59 @@ class AggregateValidationTest extends TableTestBase {
     t.groupBy("b")
     // must fail. UDAGG does not accept String type
     .select("myWeightedAvg(c, a)")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  @throws[Exception]
+  def testAggregationInSelection(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]("Table", 'a, 'b, 'c)
+
+    table
+      .groupBy('a)
+      .aggregate('b.sum as 'd)
+      // must fail. Cannot use AggregateFunction in select after aggregate
+      .select('d.sum)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  @throws[Exception]
+  def testTableFunctionInSelection(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]("Table", 'a, 'b, 'c)
+
+    util.tableEnv.registerFunction("func", new TableFunc0)
+    table
+      .groupBy('a)
+      .aggregate('b.sum as 'd)
+      // must fail. Cannot use TableFunction in select after aggregate
+      .select("func(a)")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  @throws[Exception]
+  def testInvalidExpressionInAggregate(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]("Table", 'a, 'b, 'c)
+
+    table
+      .groupBy('a)
+      // must fail. Only AggregateFunction can be used in aggregate
+      .aggregate('b.log as 'd)
+      .select('a, 'd)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  @throws[Exception]
+  def testInvalidExpressionInAggregate2(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]("Table", 'a, 'b, 'c)
+
+    util.tableEnv.registerFunction("func", new TableFunc0)
+    table
+      .groupBy('a)
+      // must fail. Only AggregateFunction can be used in aggregate
+      .aggregate("func(c) as d")
+      .select('a, 'd)
   }
 }
