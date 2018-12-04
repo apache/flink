@@ -77,7 +77,7 @@ class NonWindowLeftRightJoinWithNonEquiPredicates(
 
     val currentJoinCntState = getJoinCntState(joinCntState, recordFromLeft)
     val inputRow = value.row
-    val cntAndExpiredTime = updateCurrentSide(value, ctx, cleanupTimeState, currentSideState)
+    val cntAndExpiredTime = updateCurrentSide(value, ctx, currentSideState)
     if (!value.change && cntAndExpiredTime.f0 <= 0 && recordFromLeft == isLeftJoin) {
       currentJoinCntState.remove(inputRow)
     }
@@ -113,7 +113,6 @@ class NonWindowLeftRightJoinWithNonEquiPredicates(
       cleanupState(
         leftState,
         rightState,
-        cleanupTimeState,
         getJoinCntState(joinCntState, isLeftJoin))
     }
   }
