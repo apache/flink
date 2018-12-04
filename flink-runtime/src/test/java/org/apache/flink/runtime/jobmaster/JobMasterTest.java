@@ -159,7 +159,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -331,7 +330,7 @@ public class JobMasterTest extends TestLogger {
 		final CompletableFuture<JobID> disconnectedJobManagerFuture = new CompletableFuture<>();
 		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 		final TestingTaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
-			.setHeartbeatJobManagerConsumer(heartbeatResourceIdFuture::complete)
+			.setHeartbeatJobManagerConsumer((taskManagerId, ignored) -> heartbeatResourceIdFuture.complete(taskManagerId))
 			.setDisconnectJobManagerConsumer((jobId, throwable) -> disconnectedJobManagerFuture.complete(jobId))
 			.createTestingTaskExecutorGateway();
 
@@ -1491,7 +1490,7 @@ public class JobMasterTest extends TestLogger {
 			(localTaskManagerLocation, jobMasterGateway) -> jobMasterGateway.disconnectTaskManager(
 				localTaskManagerLocation.getResourceID(),
 				new FlinkException("Test disconnectTaskManager exception.")),
-			(jobMasterGateway, resourceID) -> ignored -> {});
+			(jobMasterGateway, resourceID) -> (ignoredA, ignoredB) -> {});
 	}
 
 	@Test
@@ -1500,7 +1499,7 @@ public class JobMasterTest extends TestLogger {
 		runJobFailureWhenTaskExecutorTerminatesTest(
 			fastHeartbeatServices,
 			(localTaskManagerLocation, jobMasterGateway) -> respondToHeartbeats.set(false),
-			(jobMasterGateway, taskManagerResourceId) -> resourceId -> {
+			(jobMasterGateway, taskManagerResourceId) -> (resourceId, ignored) -> {
 				if (respondToHeartbeats.get()) {
 					jobMasterGateway.heartbeatFromTaskManager(taskManagerResourceId, new AccumulatorReport(Collections.emptyList()));
 				}
@@ -1511,7 +1510,7 @@ public class JobMasterTest extends TestLogger {
 	private void runJobFailureWhenTaskExecutorTerminatesTest(
 			HeartbeatServices heartbeatServices,
 			BiConsumer<LocalTaskManagerLocation, JobMasterGateway> jobReachedRunningState,
-			BiFunction<JobMasterGateway, ResourceID, Consumer<ResourceID>> heartbeatConsumerFunction) throws Exception {
+			BiFunction<JobMasterGateway, ResourceID, BiConsumer<ResourceID, AllocatedSlotReport>> heartbeatConsumerFunction) throws Exception {
 		final JobGraph jobGraph = createSingleVertexJobGraph();
 		final TestingOnCompletionActions onCompletionActions = new TestingOnCompletionActions();
 		final JobMaster jobMaster = createJobMaster(

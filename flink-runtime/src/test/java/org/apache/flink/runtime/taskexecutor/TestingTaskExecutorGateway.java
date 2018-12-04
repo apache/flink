@@ -30,6 +30,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
+import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
@@ -53,7 +54,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	private final String hostname;
 
-	private final Consumer<ResourceID> heartbeatJobManagerConsumer;
+	private final BiConsumer<ResourceID, AllocatedSlotReport> heartbeatJobManagerConsumer;
 
 	private final BiConsumer<JobID, Throwable> disconnectJobManagerConsumer;
 
@@ -74,7 +75,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 	TestingTaskExecutorGateway(
 			String address,
 			String hostname,
-			Consumer<ResourceID> heartbeatJobManagerConsumer,
+			BiConsumer<ResourceID, AllocatedSlotReport> heartbeatJobManagerConsumer,
 			BiConsumer<JobID, Throwable> disconnectJobManagerConsumer,
 			BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>> submitTaskConsumer,
 			Function<Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId>, CompletableFuture<Acknowledge>> requestSlotFunction,
@@ -148,8 +149,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 	}
 
 	@Override
-	public void heartbeatFromJobManager(ResourceID heartbeatOrigin) {
-		heartbeatJobManagerConsumer.accept(heartbeatOrigin);
+	public void heartbeatFromJobManager(ResourceID heartbeatOrigin, AllocatedSlotReport allocatedSlotReport) {
+		heartbeatJobManagerConsumer.accept(heartbeatOrigin, allocatedSlotReport);
 	}
 
 	@Override
