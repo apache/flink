@@ -48,10 +48,11 @@ import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
+import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -72,6 +73,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskStateManager;
@@ -104,6 +106,8 @@ import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -120,9 +124,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -144,7 +150,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	private final TaskManagerConfiguration taskManagerConfiguration;
 
 	/** The heartbeat manager for job manager in the task manager. */
-	private final HeartbeatManager<Void, AccumulatorReport> jobManagerHeartbeatManager;
+	private final HeartbeatManager<AllocatedSlotReport, AccumulatorReport> jobManagerHeartbeatManager;
 
 	/** The heartbeat manager for resource manager in the task manager. */
 	private final HeartbeatManager<Void, SlotReport> resourceManagerHeartbeatManager;
@@ -656,7 +662,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	// ----------------------------------------------------------------------
 
 	@Override
-	public void heartbeatFromJobManager(ResourceID resourceID) {
+	public void heartbeatFromJobManager(ResourceID resourceID, AllocatedSlotReport allocatedSlotReport) {
+		jobManagerHeartbeatManager.receiveHeartbeat(resourceID, allocatedSlotReport);
 		jobManagerHeartbeatManager.requestHeartbeat(resourceID, null);
 	}
 
@@ -1410,6 +1417,64 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 	}
 
+	/**
+	 * Syncs the TaskExecutor's view on its allocated slots with the JobMaster's view.
+	 * Slots which are no longer reported by the JobMaster are being freed.
+	 * Slots which the JobMaster thinks it still owns but which are no longer allocated to it
+	 * will be failed via {@link JobMasterGateway#failSlot}.
+	 *
+	 * @param allocatedSlotReport represents the JobMaster's view on the current slot allocation state
+	 */
+	private void syncSlotsWithSnapshotFromJobMaster(AllocatedSlotReport allocatedSlotReport) {
+		JobManagerConnection jobManagerConnection = jobManagerTable.get(allocatedSlotReport.getJobId());
+		if (jobManagerConnection != null) {
+			final JobMasterGateway jobMasterGateway = jobManagerConnection.getJobManagerGateway();
+
+			failNoLongerAllocatedSlots(allocatedSlotReport, jobMasterGateway);
+
+			freeNoLongerUsedSlots(allocatedSlotReport);
+		} else {
+			log.debug("Ignoring allocated slot report from job {} because there is no active leader.",
+					allocatedSlotReport.getJobId());
+		}
+	}
+
+	private void failNoLongerAllocatedSlots(AllocatedSlotReport allocatedSlotReport, JobMasterGateway jobMasterGateway) {
+		for (AllocatedSlotInfo allocatedSlotInfo : allocatedSlotReport.getAllocatedSlotInfos()) {
+			final AllocationID allocationId = allocatedSlotInfo.getAllocationId();
+			if (!taskSlotTable.isAllocated(
+					allocatedSlotInfo.getSlotIndex(),
+					allocatedSlotReport.getJobId(),
+					allocationId)) {
+				jobMasterGateway.failSlot(
+						getResourceID(),
+						allocationId,
+						new FlinkException(
+							String.format(
+								"Slot %s on TaskExecutor %s is not allocated by job %s.",
+								allocatedSlotInfo.getSlotIndex(),
+								getResourceID(),
+								allocatedSlotReport.getJobId())));
+			}
+		}
+	}
+
+	private void freeNoLongerUsedSlots(AllocatedSlotReport allocatedSlotReport) {
+		final Iterator<AllocationID> slotsTaskManagerSide = taskSlotTable.getActiveSlots(allocatedSlotReport.getJobId());
+		final Set<AllocationID> activeSlots = Sets.newHashSet(slotsTaskManagerSide);
+		final Set<AllocationID> reportedSlots = allocatedSlotReport.getAllocatedSlotInfos().stream()
+				.map(AllocatedSlotInfo::getAllocationId).collect(Collectors.toSet());
+
+		final Sets.SetView<AllocationID> difference = Sets.difference(activeSlots, reportedSlots);
+
+		for (AllocationID allocationID : difference) {
+			freeSlotInternal(
+				allocationID,
+				new FlinkException(
+					String.format("%s is no longer allocated by job %s.", allocationID, allocatedSlotReport.getJobId())));
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Internal utility methods
 	// ------------------------------------------------------------------------
@@ -1599,7 +1664,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 	}
 
-	private class JobManagerHeartbeatListener implements HeartbeatListener<Void, AccumulatorReport> {
+	private class JobManagerHeartbeatListener implements HeartbeatListener<AllocatedSlotReport, AccumulatorReport> {
 
 		@Override
 		public void notifyHeartbeatTimeout(final ResourceID resourceID) {
@@ -1621,8 +1686,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 
 		@Override
-		public void reportPayload(ResourceID resourceID, Void payload) {
-			// nothing to do since the payload is of type Void
+		public void reportPayload(ResourceID resourceID, AllocatedSlotReport allocatedSlotReport) {
+			runAsync(() -> syncSlotsWithSnapshotFromJobMaster(allocatedSlotReport));
 		}
 
 		@Override

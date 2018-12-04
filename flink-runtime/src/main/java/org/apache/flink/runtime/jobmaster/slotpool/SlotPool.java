@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -163,4 +164,12 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull ResourceProfile resourceProfile,
 		@RpcTimeout Time timeout);
+
+	/**
+	 * Create report about the allocated slots belonging to the specified task manager.
+	 *
+	 * @param taskManagerId identifies the task manager
+	 * @return the allocated slots on the task manager
+	 */
+	AllocatedSlotReport createAllocatedSlotReport(ResourceID taskManagerId);
 }

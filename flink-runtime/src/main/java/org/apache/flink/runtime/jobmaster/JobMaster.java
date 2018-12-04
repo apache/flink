@@ -140,7 +140,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private final JobManagerJobMetricGroupFactory jobMetricGroupFactory;
 
-	private final HeartbeatManager<AccumulatorReport, Void> taskManagerHeartbeatManager;
+	private final HeartbeatManager<AccumulatorReport, AllocatedSlotReport> taskManagerHeartbeatManager;
 
 	private final HeartbeatManager<Void, Void> resourceManagerHeartbeatManager;
 
@@ -559,15 +559,15 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 						registeredTaskManagers.put(taskManagerId, Tuple2.of(taskManagerLocation, taskExecutorGateway));
 
 						// monitor the task manager as heartbeat target
-						taskManagerHeartbeatManager.monitorTarget(taskManagerId, new HeartbeatTarget<Void>() {
+						taskManagerHeartbeatManager.monitorTarget(taskManagerId, new HeartbeatTarget<AllocatedSlotReport>() {
 							@Override
-							public void receiveHeartbeat(ResourceID resourceID, Void payload) {
+							public void receiveHeartbeat(ResourceID resourceID, AllocatedSlotReport payload) {
 								// the task manager will not request heartbeat, so this method will never be called currently
 							}
 
 							@Override
-							public void requestHeartbeat(ResourceID resourceID, Void payload) {
-								taskExecutorGateway.heartbeatFromJobManager(resourceID);
+							public void requestHeartbeat(ResourceID resourceID, AllocatedSlotReport allocatedSlotReport) {
+								taskExecutorGateway.heartbeatFromJobManager(resourceID, allocatedSlotReport);
 							}
 						});
 
@@ -1096,7 +1096,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		}
 	}
 
-	private class TaskManagerHeartbeatListener implements HeartbeatListener<AccumulatorReport, Void> {
+	private class TaskManagerHeartbeatListener implements HeartbeatListener<AccumulatorReport, AllocatedSlotReport> {
 
 		private final JobMasterGateway jobMasterGateway;
 
@@ -1119,8 +1119,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		}
 
 		@Override
-		public CompletableFuture<Void> retrievePayload(ResourceID resourceID) {
-			return CompletableFuture.completedFuture(null);
+		public CompletableFuture<AllocatedSlotReport> retrievePayload(ResourceID resourceID) {
+			return callAsync(() -> slotPool.createAllocatedSlotReport(resourceID), RpcUtils.INF_TIMEOUT);
 		}
 	}
 

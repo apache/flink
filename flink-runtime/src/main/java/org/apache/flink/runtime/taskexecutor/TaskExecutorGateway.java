@@ -30,6 +30,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
@@ -152,7 +153,7 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 *
 	 * @param heartbeatOrigin unique id of the job manager
 	 */
-	void heartbeatFromJobManager(ResourceID heartbeatOrigin);
+	void heartbeatFromJobManager(ResourceID heartbeatOrigin, AllocatedSlotReport allocatedSlotReport);
 
 	/**
 	 * Heartbeat request from the resource manager.
