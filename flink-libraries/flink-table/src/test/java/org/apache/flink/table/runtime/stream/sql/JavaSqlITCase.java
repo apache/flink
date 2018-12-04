@@ -25,6 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
@@ -33,8 +34,10 @@ import org.apache.flink.table.runtime.utils.StreamITCase;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 
+import org.junit.Assert;
 import org.junit.Test;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -163,5 +166,36 @@ public class JavaSqlITCase extends AbstractTestBase {
 		expected.add("2,3,Hallo Welt wie");
 
 		StreamITCase.compareWithList(expected);
+	}
+
+	@Test
+	public void testProctime() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+		DataStream<Tuple3<Integer, Long, String>> ds = JavaStreamTestData.getSmall3TupleDataSet(env);
+		tableEnv.registerDataStream("MyTable", ds, "a, b, c, proctime.proctime");
+
+		String sqlQuery = "select proctime from MyTable";
+
+		Table result = tableEnv.sqlQuery(sqlQuery);
+
+		tableEnv
+			.toAppendStream(result, TypeInformation.of(Row.class))
+			.addSink(new SinkFunction<Row>() {
+				@Override
+				public void invoke(Row value, Context context) throws Exception {
+
+					Timestamp procTimestamp = (Timestamp) value.getField(0);
+
+					// validate the second here
+					long procSecondTime = procTimestamp.getTime() / 1000;
+					long sysSecondTime = System.currentTimeMillis() / 1000;
+
+					Assert.assertTrue(procSecondTime == sysSecondTime);
+				}
+			});
+
+		env.execute();
 	}
 }
