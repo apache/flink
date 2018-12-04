@@ -188,9 +188,6 @@ class RowTimeBoundedRangeOver(
         aggregatesIndex = 0
       }
 
-      // keep up timestamps of retract data
-      val retractTsList: JList[Long] = new JArrayList[Long]
-
       // do retraction
       val iter = dataState.iterator()
       while (iter.hasNext) {

@@ -74,7 +74,7 @@ class NonWindowLeftRightJoin(
       recordFromLeft: Boolean): Unit = {
 
     val inputRow = value.row
-    updateCurrentSide(value, ctx, cleanupTimeState, currentSideState)
+    updateCurrentSide(value, ctx, currentSideState)
 
     cRowWrapper.reset()
     cRowWrapper.setCollector(out)

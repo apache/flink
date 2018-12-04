@@ -19,14 +19,13 @@ package org.apache.flink.table.runtime.aggregate
 
 import java.lang.{Long => JLong}
 
-import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
-import org.apache.flink.api.common.state.State
+import org.apache.flink.api.common.state.{State, ValueState, ValueStateDescriptor}
 import org.apache.flink.streaming.api.TimeDomain
-import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
 
-abstract class ProcessFunctionWithCleanupState[IN,OUT](queryConfig: StreamQueryConfig)
-  extends ProcessFunction[IN, OUT]
+abstract class CoProcessFunctionWithCleanupState[IN1, IN2, OUT](queryConfig: StreamQueryConfig)
+  extends CoProcessFunction[IN1, IN2, OUT]
   with CleanupState {
 
   protected val minRetentionTime: Long = queryConfig.getMinIdleStateRetentionTime
@@ -45,7 +44,7 @@ abstract class ProcessFunctionWithCleanupState[IN,OUT](queryConfig: StreamQueryC
   }
 
   protected def registerProcessingCleanupTimer(
-    ctx: ProcessFunction[IN, OUT]#Context,
+    ctx: CoProcessFunction[IN1, IN2, OUT]#Context,
     currentTime: Long): Unit = {
     registerProcessingCleanupTimer(
       stateCleaningEnabled,

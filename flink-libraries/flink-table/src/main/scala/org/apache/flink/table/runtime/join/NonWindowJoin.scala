@@ -18,7 +18,7 @@
 package org.apache.flink.table.runtime.join
 
 import org.apache.flink.api.common.functions.FlatJoinFunction
-import org.apache.flink.api.common.state._
+import org.apache.flink.api.common.state.{MapState, MapStateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
 import org.apache.flink.table.codegen.Compiler
+import org.apache.flink.table.runtime.aggregate.CoProcessFunctionWithCleanupState
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.table.util.Logging
@@ -47,7 +48,7 @@ abstract class NonWindowJoin(
     genJoinFuncName: String,
     genJoinFuncCode: String,
     queryConfig: StreamQueryConfig)
-  extends CoProcessFunction[CRow, CRow, CRow]
+  extends CoProcessFunctionWithCleanupState[CRow, CRow, CRow](queryConfig)
   with Compiler[FlatJoinFunction[Row, Row, Row]]
   with Logging {
 
@@ -60,13 +61,6 @@ abstract class NonWindowJoin(
   // state to hold right stream element
   protected var rightState: MapState[Row, JTuple2[Long, Long]] = _
   protected var cRowWrapper: CRowWrappingMultiOutputCollector = _
-
-  protected val minRetentionTime: Long = queryConfig.getMinIdleStateRetentionTime
-  protected val maxRetentionTime: Long = queryConfig.getMaxIdleStateRetentionTime
-  protected val stateCleaningEnabled: Boolean = minRetentionTime > 1
-
-  // state to record cleanup time for both left and right stream
-  protected var cleanupTimeState: ValueState[Long] = _
 
   // other condition function
   protected var joinFunction: FlatJoinFunction[Row, Row, Row] = _
@@ -95,8 +89,7 @@ abstract class NonWindowJoin(
     rightState = getRuntimeContext.getMapState(rightStateDescriptor)
 
     // initialize timer state
-    val cleanupTimeDescriptor = new ValueStateDescriptor[Long]("cleanupTimeState", classOf[Long])
-    cleanupTimeState = getRuntimeContext.getState(cleanupTimeDescriptor)
+    initCleanupTimeState("NonWindowJoinCleanupTime")
 
     cRowWrapper = new CRowWrappingMultiOutputCollector()
     LOG.debug("Instantiating NonWindowJoin.")
@@ -149,7 +142,7 @@ abstract class NonWindowJoin(
 
     // expired timer has already been removed, delete state directly.
     if (stateCleaningEnabled) {
-      cleanupState(leftState, rightState, cleanupTimeState)
+      cleanupState(leftState, rightState)
     }
   }
 
@@ -180,14 +173,12 @@ abstract class NonWindowJoin(
     *
     * @param value            The input CRow
     * @param ctx              The ctx to register timer or get current time
-    * @param timerState       The state to record last timer
     * @param currentSideState The state to hold current side stream element
     * @return The row number and expired time for current input row
     */
   protected def updateCurrentSide(
       value: CRow,
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
-      timerState: ValueState[Long],
       currentSideState: MapState[Row, JTuple2[Long, Long]]): JTuple2[Long, Long] = {
 
     val inputRow = value.row
@@ -201,7 +192,7 @@ abstract class NonWindowJoin(
 
     cntAndExpiredTime.f1 = getNewExpiredTime(curProcessTime, cntAndExpiredTime.f1)
     // update timer if necessary
-    registerProcessingCleanupTimer(ctx, timerState)
+    registerProcessingCleanupTimer(ctx, curProcessTime)
 
     // update current side stream state
     if (!value.change) {
@@ -219,28 +210,6 @@ abstract class NonWindowJoin(
     cntAndExpiredTime
   }
 
-  protected def registerProcessingCleanupTimer(
-    ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
-    timerState: ValueState[Long]): Unit = {
-
-    if (stateCleaningEnabled) {
-      // last registered timer
-      val curCleanupTime = timerState.value()
-      // check if a cleanup timer is registered and
-      // that the current cleanup timer won't delete state we need to keep
-      if (curCleanupTime == 0 || (curProcessTime + minRetentionTime) > curCleanupTime) {
-        val cleanupTime = curProcessTime + maxRetentionTime
-        // we need to register a new (later) timer
-        ctx.timerService().registerProcessingTimeTimer(cleanupTime)
-        // delete expired timer
-        if (curCleanupTime != 0) {
-          ctx.timerService().deleteProcessingTimeTimer(curCleanupTime)
-        }
-        timerState.update(cleanupTime)
-      }
-    }
-  }
-
   protected def callJoinFunction(
       inputRow: Row,
       inputRowFromLeft: Boolean,
@@ -252,10 +221,5 @@ abstract class NonWindowJoin(
     } else {
       joinFunction.join(otherSideRow, inputRow, cRowWrapper)
     }
-  }
-
-  protected def cleanupState(states: State*): Unit = {
-    // clear all state
-    states.foreach(_.clear())
   }
 }

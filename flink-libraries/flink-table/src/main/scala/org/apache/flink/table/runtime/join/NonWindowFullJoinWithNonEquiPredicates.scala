@@ -74,7 +74,7 @@ class NonWindowFullJoinWithNonEquiPredicates(
 
     val currentJoinCntState = getJoinCntState(joinCntState, recordFromLeft)
     val inputRow = value.row
-    val cntAndExpiredTime = updateCurrentSide(value, ctx, cleanupTimeState, currentSideState)
+    val cntAndExpiredTime = updateCurrentSide(value, ctx, currentSideState)
     if (!value.change && cntAndExpiredTime.f0 <= 0) {
       currentJoinCntState.remove(inputRow)
     }
@@ -108,7 +108,7 @@ class NonWindowFullJoinWithNonEquiPredicates(
 
     // expired timer has already been removed, delete state directly.
     if (stateCleaningEnabled) {
-      cleanupState(leftState, rightState, cleanupTimeState, joinCntState(0), joinCntState(1))
+      cleanupState(leftState, rightState, joinCntState(0), joinCntState(1))
     }
   }
 }

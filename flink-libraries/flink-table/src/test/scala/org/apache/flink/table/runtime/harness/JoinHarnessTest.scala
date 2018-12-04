@@ -1086,7 +1086,7 @@ class JoinHarnessTest extends HarnessTestBase {
     assertEquals(1, testHarness.numKeyedStateEntries())
     assertEquals(1, testHarness.numProcessingTimeTimers())
 
-    // expired all date
+    // expired all data
     testHarness.setProcessingTime(9)
     assertEquals(0, testHarness.numKeyedStateEntries())
     assertEquals(0, testHarness.numProcessingTimeTimers())
@@ -1344,7 +1344,7 @@ class JoinHarnessTest extends HarnessTestBase {
     assertEquals(1, testHarness.numKeyedStateEntries())
     assertEquals(1, testHarness.numProcessingTimeTimers())
 
-    // expired all date
+    // expired all data
     testHarness.setProcessingTime(9)
     assertEquals(0, testHarness.numKeyedStateEntries())
     assertEquals(0, testHarness.numProcessingTimeTimers())
