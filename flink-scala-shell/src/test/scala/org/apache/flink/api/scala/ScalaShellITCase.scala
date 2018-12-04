@@ -176,7 +176,8 @@ class ScalaShellITCase extends TestLogger {
         |    (1, 1L, "Hi"),
         |    (2, 2L, "Hello"),
         |    (3, 2L, "Hello world"))
-        |val t = benv.fromCollection(data).toTable(btenv, 'a, 'b, 'c).select('a,'c).where('a % 2 === 1 )
+        |val t = benv.fromCollection(data).toTable(btenv, 'a, 'b, 'c).select('a,'c).where(
+        |'a% 2 === 1 )
         |val results = t.toDataSet[Row].collect()
         |results.foreach(println)
         |:q
