@@ -32,9 +32,11 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
@@ -44,6 +46,8 @@ import org.apache.flink.runtime.util.clock.Clock;
 import org.apache.flink.runtime.util.clock.SystemClock;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -715,6 +719,20 @@ public class SlotPoolImpl implements SlotPool {
 		}
 	}
 
+	@Override
+	public AllocatedSlotReport createAllocatedSlotReport(ResourceID taskManagerId) {
+		final Set<AllocatedSlot> availableSlotsForTaskManager = availableSlots.getSlotsForTaskManager(taskManagerId);
+		final Set<AllocatedSlot> allocatedSlotsForTaskManager = allocatedSlots.getSlotsForTaskManager(taskManagerId);
+
+		List<AllocatedSlotInfo> allocatedSlotInfos = new ArrayList<>(
+				availableSlotsForTaskManager.size() + allocatedSlotsForTaskManager.size());
+		for (AllocatedSlot allocatedSlot : Iterables.concat(availableSlotsForTaskManager, allocatedSlotsForTaskManager)) {
+			allocatedSlotInfos.add(
+					new AllocatedSlotInfo(allocatedSlot.getPhysicalSlotNumber(), allocatedSlot.getAllocationId()));
+		}
+		return new AllocatedSlotReport(jobId, allocatedSlotInfos);
+	}
+
 	// ------------------------------------------------------------------------
 	//  Internal methods
 	// ------------------------------------------------------------------------
@@ -773,15 +791,9 @@ public class SlotPoolImpl implements SlotPool {
 					componentMainThreadExecutor,
 					(Acknowledge ignored, Throwable throwable) -> {
 						if (throwable != null) {
-							if (registeredTaskManagers.contains(expiredSlot.getTaskManagerId())) {
-								log.debug("Releasing slot [{}] of registered TaskExecutor {} failed. " +
-										"Trying to fulfill a different slot request.", allocationID, expiredSlot.getTaskManagerId(),
-									throwable);
-								tryFulfillSlotRequestOrMakeAvailable(expiredSlot);
-							} else {
-								log.debug("Releasing slot [{}] failed and owning TaskExecutor {} is no " +
-									"longer registered. Discarding slot.", allocationID, expiredSlot.getTaskManagerId());
-							}
+							// The slot status will be synced to task manager in next heartbeat.
+							log.debug("Releasing slot [{}] of registered TaskExecutor {} failed. Discarding slot.",
+										allocationID, expiredSlot.getTaskManagerId(), throwable);
 						}
 					});
 			}
@@ -1198,6 +1210,10 @@ public class SlotPoolImpl implements SlotPool {
 			availableSlots.clear();
 			availableSlotsByTaskManager.clear();
 			availableSlotsByHost.clear();
+		}
+
+		Set<AllocatedSlot> getSlotsForTaskManager(ResourceID resourceId) {
+			return availableSlotsByTaskManager.getOrDefault(resourceId, Collections.emptySet());
 		}
 	}
 

@@ -62,6 +62,8 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
+import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -124,6 +126,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -144,6 +147,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -1659,6 +1663,84 @@ public class TaskExecutorTest extends TestLogger {
 			env.getTestingFatalErrorHandler().clearError();
 
 			assertThat(exception.getMessage(), startsWith(testExceptionMsg));
+		}
+	}
+
+	/**
+	 * Tests that the TaskExecutor syncs its slots view with the JobMaster's view
+	 * via the AllocatedSlotReport reported by the heartbeat (See FLINK-11059).
+	 */
+	@Test(timeout = 10000L)
+	public void testSyncSlotsWithJobMasterByHeartbeat() throws Exception {
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(
+				Arrays.asList(ResourceProfile.UNKNOWN, ResourceProfile.UNKNOWN),
+				timerService);
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder().setTaskSlotTable(taskSlotTable).build();
+
+		final TaskExecutor taskExecutor = createTaskExecutor(taskManagerServices);
+
+		final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+
+		final BlockingQueue<AllocationID> allocationsNotifiedFree = new ArrayBlockingQueue<>(2);
+
+		OneShotLatch initialSlotReporting = new OneShotLatch();
+		testingResourceManagerGateway.setSendSlotReportFunction(resourceIDInstanceIDSlotReportTuple3 -> {
+			initialSlotReporting.trigger();
+			return CompletableFuture.completedFuture(Acknowledge.get());
+
+		});
+
+		testingResourceManagerGateway.setNotifySlotAvailableConsumer(instanceIDSlotIDAllocationIDTuple3 ->
+				allocationsNotifiedFree.offer(instanceIDSlotIDAllocationIDTuple3.f2));
+
+		rpc.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
+		resourceManagerLeaderRetriever.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
+
+		final CountDownLatch slotOfferings = new CountDownLatch(2);
+		final BlockingQueue<AllocationID> failedSlotFutures = new ArrayBlockingQueue<>(2);
+		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
+				.setFailSlotConsumer((resourceID, allocationID, throwable) ->
+					failedSlotFutures.offer(allocationID))
+				.setOfferSlotsFunction((resourceID, slotOffers) -> {
+					slotOffers.forEach((ignored) -> slotOfferings.countDown());
+					return CompletableFuture.completedFuture(new ArrayList<>(slotOffers));
+				})
+				.build();
+		final String jobManagerAddress = jobMasterGateway.getAddress();
+		rpc.registerGateway(jobManagerAddress, jobMasterGateway);
+		jobManagerLeaderRetriever.notifyListener(jobManagerAddress, jobMasterGateway.getFencingToken().toUUID());
+
+		taskExecutor.start();
+
+		try {
+			final TaskExecutorGateway taskExecutorGateway = taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+
+			initialSlotReporting.await();
+
+			final SlotID slotId1 = new SlotID(taskExecutor.getResourceID(), 0);
+			final SlotID slotId2 = new SlotID(taskExecutor.getResourceID(), 1);
+			final AllocationID allocationIdInBoth = new AllocationID();
+			final AllocationID allocationIdOnlyInJM = new AllocationID();
+			final AllocationID allocationIdOnlyInTM = new AllocationID();
+
+			taskExecutorGateway.requestSlot(slotId1, jobId, allocationIdInBoth, "foobar", testingResourceManagerGateway.getFencingToken(), timeout);
+			taskExecutorGateway.requestSlot(slotId2, jobId, allocationIdOnlyInTM, "foobar", testingResourceManagerGateway.getFencingToken(), timeout);
+
+			slotOfferings.await();
+
+			List<AllocatedSlotInfo> allocatedSlotInfos = Arrays.asList(
+					new AllocatedSlotInfo(0, allocationIdInBoth),
+					new AllocatedSlotInfo(1, allocationIdOnlyInJM)
+			);
+			AllocatedSlotReport allocatedSlotReport = new AllocatedSlotReport(jobId, allocatedSlotInfos);
+			taskExecutorGateway.heartbeatFromJobManager(ResourceID.generate(), allocatedSlotReport);
+
+			assertThat(failedSlotFutures.take(), is(allocationIdOnlyInJM));
+			assertThat(allocationsNotifiedFree.take(), is(allocationIdOnlyInTM));
+			assertThat(failedSlotFutures.poll(5L, TimeUnit.MILLISECONDS), nullValue());
+			assertThat(allocationsNotifiedFree.poll(5L, TimeUnit.MILLISECONDS), nullValue());
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
 		}
 	}
 
