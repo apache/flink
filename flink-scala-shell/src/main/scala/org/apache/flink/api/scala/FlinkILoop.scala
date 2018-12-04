@@ -148,6 +148,7 @@ class FlinkILoop(
     "org.apache.flink.api.scala._",
     "org.apache.flink.api.scala.utils._",
     "org.apache.flink.streaming.api.scala._",
+    "org.apache.flink.streaming.api.windowing.time._",
     "org.apache.flink.table.api._",
     "org.apache.flink.table.api.scala._",
     "org.apache.flink.types.Row"
@@ -265,9 +266,10 @@ NOTE: Use the prebound Execution Environments and Table Environment to implement
     * benv.execute("My batch program")
     *
     * val batchTable = btenv.fromDataSet(dataSet)
-    * btenv.registerTable(batchTable, "tableName")
+    * btenv.registerTable("tableName", batchTable)
     * val result = btenv.sqlQuery("SELECT * FROM tableName").collect
-    HINT: You can use print() on a DataSet to print the contents to the shell.
+    HINT: You can use print() on a DataSet to print the contents and collect()
+    a sql query result back to the shell.
 
   Streaming - Use the 'senv' and 'stenv' variable
 
@@ -275,9 +277,8 @@ NOTE: Use the prebound Execution Environments and Table Environment to implement
     * dataStream.countWindowAll(2).sum(0).print()
     *
     * val streamTable = stenv.fromDataStream(dataStream, 'num)
-    * val resultTable = streamTable.select('num).where('num % 2 ===1 )
-    * val resultStream = resultTable.toAppendStream[Row]
-    * resultStream.print
+    * val resultTable = streamTable.select('num).where('num % 2 === 1 )
+    * resultTable.toAppendStream[Row].print()
     * senv.execute("My streaming program")
     HINT: You can only print a DataStream to the shell in local mode.
       """

@@ -172,12 +172,11 @@ class ScalaShellITCase extends TestLogger {
   def testSimpleSelectWithFilterBatchTableAPIQuery: Unit = {
     val input =
       """
-        |import _root_.scala.collection.mutable
-        |val data = new mutable.MutableList[(Int, Long, String)]
-        |    data.+=((1, 1L, "Hi"))
-        |    data.+=((2, 2L, "Hello"))
-        |    data.+=((3, 2L, "Hello world"))
-        |val t = benv.fromCollection(data).toTable(btenv, 'a, 'b, 'c).select("*").where('a % 2 === 1 )
+        |val data = Seq(
+        |    (1, 1L, "Hi"),
+        |    (2, 2L, "Hello"),
+        |    (3, 2L, "Hello world"))
+        |val t = benv.fromCollection(data).toTable(btenv, 'a, 'b, 'c).select('a,'c).where('a % 2 === 1 )
         |val results = t.toDataSet[Row].collect()
         |results.foreach(println)
         |:q
@@ -186,6 +185,8 @@ class ScalaShellITCase extends TestLogger {
     Assert.assertFalse(output.contains("failed"))
     Assert.assertFalse(output.contains("error"))
     Assert.assertFalse(output.contains("Exception"))
+    Assert.assertTrue(output.contains("1,Hi"))
+    Assert.assertTrue(output.contains("3,Hello world"))
   }
 
   @Test
@@ -213,6 +214,9 @@ class ScalaShellITCase extends TestLogger {
         | senv.execute
       """.stripMargin
     val output = processInShell(input)
+    Assert.assertTrue(output.contains("6,1"))
+    Assert.assertTrue(output.contains("1,2"))
+    Assert.assertTrue(output.contains("2,1"))
     Assert.assertFalse(output.contains("failed"))
     Assert.assertFalse(output.contains("error"))
     Assert.assertFalse(output.contains("Exception"))
