@@ -45,6 +45,7 @@ import org.apache.flink.streaming.api.windowing.time.Time
 import scala.collection.JavaConverters._
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.MatchCodeGenerator
 import org.apache.flink.table.plan.logical.MatchRecognize
 import org.apache.flink.table.plan.nodes.CommonMatchRecognize
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
@@ -184,7 +185,7 @@ class DataStreamMatch(
       throw new TableException("All rows per match mode is not supported yet.")
     } else {
       val patternSelectFunction =
-        MatchUtil.generateOneRowPerMatchExpression(
+        MatchCodeGenerator.generateOneRowPerMatchExpression(
           config,
           schema,
           partitionKeys,
@@ -269,7 +270,7 @@ private class PatternVisitor(
 
     val patternDefinition = logicalMatch.patternDefinitions.get(patternName)
     if (patternDefinition != null) {
-      val condition = MatchUtil.generateIterativeCondition(
+      val condition = MatchCodeGenerator.generateIterativeCondition(
         config,
         patternDefinition,
         inputTypeInfo,
