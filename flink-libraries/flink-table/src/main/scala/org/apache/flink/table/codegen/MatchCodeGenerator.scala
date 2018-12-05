@@ -21,24 +21,82 @@ package org.apache.flink.table.codegen
 import java.lang.{Long => JLong}
 import java.util
 
+import org.apache.calcite.rel.RelFieldCollation
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.cep.pattern.conditions.{IterativeCondition, RichIterativeCondition}
-import org.apache.flink.cep.{PatternFlatSelectFunction, PatternSelectFunction, RichPatternFlatSelectFunction, RichPatternSelectFunction}
+import org.apache.flink.cep.{RichPatternFlatSelectFunction, RichPatternSelectFunction}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForTypeInfo, newName}
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.runtime.`match`.{IterativeConditionRunner, PatternSelectFunctionRunner}
 import org.apache.flink.table.utils.EncodingUtils
+import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 import org.apache.flink.util.MathUtils.checkedDownCast
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+
+object MatchCodeGenerator {
+
+  def generateIterativeCondition(
+    config: TableConfig,
+    patternDefinition: RexNode,
+    inputTypeInfo: TypeInformation[_],
+    patternName: String,
+    names: Seq[String])
+  : IterativeConditionRunner = {
+    val generator = new MatchCodeGenerator(config, inputTypeInfo, names, Some(patternName))
+    val condition = generator.generateExpression(patternDefinition)
+    val body =
+      s"""
+         |${condition.code}
+         |return ${condition.resultTerm};
+         |""".stripMargin
+
+    val genCondition = generator
+      .generateMatchFunction("MatchRecognizeCondition",
+        classOf[RichIterativeCondition[Row]],
+        body,
+        condition.resultType)
+    new IterativeConditionRunner(genCondition.name, genCondition.code)
+  }
+
+  def generateOneRowPerMatchExpression(
+    config: TableConfig,
+    returnType: RowSchema,
+    partitionKeys: util.List[RexNode],
+    orderKeys: util.List[RelFieldCollation],
+    measures: util.Map[String, RexNode],
+    inputTypeInfo: TypeInformation[_],
+    patternNames: Seq[String])
+  : PatternSelectFunctionRunner = {
+    val generator = new MatchCodeGenerator(config, inputTypeInfo, patternNames)
+
+    val resultExpression = generator.generateOneRowPerMatchExpression(
+      partitionKeys,
+      measures,
+      returnType)
+    val body =
+      s"""
+         |${resultExpression.code}
+         |return ${resultExpression.resultTerm};
+         |""".stripMargin
+
+    val genFunction = generator.generateMatchFunction(
+      "MatchRecognizePatternSelectFunction",
+      classOf[RichPatternSelectFunction[Row, Row]],
+      body,
+      resultExpression.resultType)
+    new PatternSelectFunctionRunner(genFunction.name, genFunction.code)
+  }
+}
 
 /**
   * A code generator for generating CEP related functions.
