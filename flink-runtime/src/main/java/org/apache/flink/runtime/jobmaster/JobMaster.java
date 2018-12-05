@@ -679,9 +679,13 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 					log.warn("Error while processing checkpoint acknowledgement message", t);
 				}
 			});
-		} else if (executionGraph.getState() == JobStatus.RUNNING) {
-			log.error("Received AcknowledgeCheckpoint message for job {} with no CheckpointCoordinator",
-					jobGraph.getJobID());
+		} else {
+			String errorMessage = "Received AcknowledgeCheckpoint message for job {} with no CheckpointCoordinator";
+			if (executionGraph.getState() == JobStatus.RUNNING) {
+				log.error(errorMessage, jobGraph.getJobID());
+			} else {
+				log.debug(errorMessage, jobGraph.getJobID());
+			}
 		}
 	}
 
@@ -698,9 +702,13 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 					log.error("Error in CheckpointCoordinator while processing {}", decline, e);
 				}
 			});
-		} else if (executionGraph.getState() == JobStatus.RUNNING) {
-			log.error("Received DeclineCheckpoint message for job {} with no CheckpointCoordinator",
-					jobGraph.getJobID());
+		} else {
+			String errorMessage = "Received DeclineCheckpoint message for job {} with no CheckpointCoordinator";
+			if (executionGraph.getState() == JobStatus.RUNNING) {
+				log.error(errorMessage, jobGraph.getJobID());
+			} else {
+				log.debug(errorMessage, jobGraph.getJobID());
+			}
 		}
 	}
 
