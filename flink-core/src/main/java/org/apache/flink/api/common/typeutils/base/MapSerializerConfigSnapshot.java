@@ -50,8 +50,7 @@ public final class MapSerializerConfigSnapshot<K, V> extends CompositeTypeSerial
 			// redirect the compatibility check to the new MapSerializerConfigSnapshot
 			MapSerializer<K, V> mapSerializer = (MapSerializer<K, V>) newSerializer;
 
-			MapSerializerSnapshot<K, V> mapSerializerSnapshot =
-				new MapSerializerSnapshot<>(mapSerializer.getKeySerializer(), mapSerializer.getValueSerializer());
+			MapSerializerSnapshot<K, V> mapSerializerSnapshot = new MapSerializerSnapshot<>(mapSerializer);
 			return mapSerializerSnapshot.resolveSchemaCompatibility(newSerializer);
 		}
 		else {
