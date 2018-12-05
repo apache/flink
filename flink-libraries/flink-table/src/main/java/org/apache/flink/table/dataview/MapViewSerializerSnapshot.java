@@ -57,7 +57,7 @@ public class MapViewSerializerSnapshot<K, V> extends CompositeTypeSerializerSnap
 	@Override
 	protected MapViewSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
 		@SuppressWarnings("unchecked")
-		TypeSerializer<Map<K, V>> mapSerializer = (TypeSerializer<Map<K,V>>) nestedSerializers[0];
+		TypeSerializer<Map<K, V>> mapSerializer = (TypeSerializer<Map<K, V>>) nestedSerializers[0];
 		return new MapViewSerializer<>(mapSerializer);
 	}
 
