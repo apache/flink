@@ -94,9 +94,19 @@ public class CompositeSerializerSnapshot {
 	}
 
 	/**
+	 * Returns the snapshots of the nested serializers.
+	 *
+	 * @return the snapshots of the nested serializers.
+	 */
+	public TypeSerializerSnapshot<?>[] getNestedSerializerSnapshots() {
+		return nestedSnapshots;
+	}
+
+	/**
 	 * Resolves the compatibility of the nested serializer snapshots with the nested
 	 * serializers of the new outer serializer.
 	 */
+	@Deprecated
 	public <T> TypeSerializerSchemaCompatibility<T> resolveCompatibilityWithNested(
 			TypeSerializerSchemaCompatibility<?> outerCompatibility,
 			TypeSerializer<?>... newNestedSerializers) {
