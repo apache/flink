@@ -841,7 +841,7 @@ abstract class CodeGenerator(
       case IS_NOT_DISTINCT_FROM =>
         val left = operands.head
         val right = operands(1)
-        generateDistinctFrom(nullCheck, left, right);
+        generateIsNotDistinctFrom(left, right);
 
       case NOT_EQUALS =>
         val left = operands.head

@@ -193,14 +193,34 @@ object ScalarOperators {
     }
   }
 
-  def generateDistinctFrom(
-      nullCheck: Boolean,
+  def generateIsNotDistinctFrom(
       left: GeneratedExpression,
       right: GeneratedExpression)
     : GeneratedExpression = {
-    val newleft = left.copy(nullTerm = GeneratedExpression.NEVER_NULL)
-    val newright = left.copy(nullTerm = GeneratedExpression.NEVER_NULL)
-    generateEquals(nullCheck, newleft, newright)
+    val resultTerm = newName("result")
+    val nullTerm = newName("isNull")
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(BOOLEAN_TYPE_INFO)
+    val equalExpression = generateEquals(
+      false,
+      left.copy(code = GeneratedExpression.NO_CODE),
+      right.copy(code = GeneratedExpression.NO_CODE))
+
+    val resultCode =
+      s"""
+        |${left.code}
+        |${right.code}
+        |$resultTypeTerm $resultTerm;
+        |if (${left.nullTerm}) {
+        |  $resultTerm = ${right.nullTerm};
+        |} else if (${right.nullTerm}) {
+        |  $resultTerm = ${left.nullTerm};
+        |} else {
+        |  ${equalExpression.code}
+        |  $resultTerm = ${equalExpression.resultTerm};
+        |}
+        |""".stripMargin
+
+    GeneratedExpression(resultTerm, GeneratedExpression.NEVER_NULL, resultCode, BOOLEAN_TYPE_INFO)
   }
   
   def generateEquals(
