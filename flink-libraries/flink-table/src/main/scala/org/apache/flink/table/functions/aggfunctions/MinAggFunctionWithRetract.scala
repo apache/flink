@@ -74,10 +74,11 @@ abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T])
       val v = value.asInstanceOf[T]
 
       var count = acc.map.get(v)
-      count -= 1L
-      if (count == 0) {
+      if (count == null || count == 1) {
         //remove the key v from the map if the number of appearance of the value v is 0
-        acc.map.remove(v)
+        if (count != null) {
+          acc.map.remove(v)
+        }
         //if the total count is 0, we could just simply set the f0(min) to the initial value
         acc.distinctCount -= 1
         if (acc.distinctCount == 0) {
@@ -88,17 +89,21 @@ abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T])
         // value to replace v as the min value
         if (v == acc.min) {
           val iterator = acc.map.keys.iterator()
-          var key = iterator.next()
-          acc.min = key
+          var hasMin = false
           while (iterator.hasNext) {
-            key = iterator.next()
-            if (ord.compare(acc.min, key) > 0) {
+            val key = iterator.next()
+            if (!hasMin || ord.compare(acc.min, key) > 0) {
               acc.min = key
+              hasMin = true
             }
+          }
+
+          if (!hasMin) {
+            acc.distinctCount = 0L
           }
         }
       } else {
-        acc.map.put(v, count)
+        acc.map.put(v, count - 1)
       }
     }
 
