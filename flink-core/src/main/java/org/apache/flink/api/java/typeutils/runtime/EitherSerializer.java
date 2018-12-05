@@ -206,6 +206,6 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 
 	@Override
 	public EitherSerializerSnapshot<L, R> snapshotConfiguration() {
-		return new EitherSerializerSnapshot<>(leftSerializer, rightSerializer);
+		return new EitherSerializerSnapshot<>(this);
 	}
 }

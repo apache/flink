@@ -19,46 +19,31 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompositeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Either;
-
-import javax.annotation.Nullable;
-
-import java.io.IOException;
-
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Configuration snapshot for the {@link EitherSerializer}.
  */
 @Internal
-public final class EitherSerializerSnapshot<L, R> implements TypeSerializerSnapshot<Either<L, R>> {
+public final class EitherSerializerSnapshot<L, R> extends CompositeTypeSerializerSnapshot<Either<L, R>, EitherSerializer> {
 
 	private static final int CURRENT_VERSION = 2;
-
-	/** Snapshot handling for the component serializer snapshot. */
-	@Nullable
-	private CompositeSerializerSnapshot nestedSnapshot;
 
 	/**
 	 * Constructor for read instantiation.
 	 */
 	@SuppressWarnings("unused")
-	public EitherSerializerSnapshot() {}
+	public EitherSerializerSnapshot() {
+		super(EitherSerializer.class);
+	}
 
 	/**
 	 * Constructor to create the snapshot for writing.
 	 */
-	public EitherSerializerSnapshot(
-			TypeSerializer<L> leftSerializer,
-			TypeSerializer<R> rightSerializer) {
-
-		this.nestedSnapshot = new CompositeSerializerSnapshot(leftSerializer, rightSerializer);
+	public EitherSerializerSnapshot(EitherSerializer<L, R> eitherSerializer) {
+		super(eitherSerializer);
 	}
 
 	// ------------------------------------------------------------------------
@@ -69,56 +54,18 @@ public final class EitherSerializerSnapshot<L, R> implements TypeSerializerSnaps
 	}
 
 	@Override
-	public void writeSnapshot(DataOutputView out) throws IOException {
-		checkState(nestedSnapshot != null);
-		nestedSnapshot.writeCompositeSnapshot(out);
+	protected EitherSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+		@SuppressWarnings("unchecked")
+		TypeSerializer<L> leftSerializer = (TypeSerializer<L>) nestedSerializers[0];
+
+		@SuppressWarnings("unchecked")
+		TypeSerializer<R> rightSerializer = (TypeSerializer<R>) nestedSerializers[1];
+
+		return new EitherSerializer<>(leftSerializer, rightSerializer);
 	}
 
 	@Override
-	public void readSnapshot(int readVersion, DataInputView in, ClassLoader classLoader) throws IOException {
-		switch (readVersion) {
-			case 1:
-				readV1(in, classLoader);
-				break;
-			case 2:
-				readV2(in, classLoader);
-				break;
-			default:
-				throw new IllegalArgumentException("Unrecognized version: " + readVersion);
-		}
-	}
-
-	private void readV1(DataInputView in, ClassLoader classLoader) throws IOException {
-		nestedSnapshot = CompositeSerializerSnapshot.legacyReadProductSnapshots(in, classLoader);
-	}
-
-	private void readV2(DataInputView in, ClassLoader classLoader) throws IOException {
-		nestedSnapshot = CompositeSerializerSnapshot.readCompositeSnapshot(in, classLoader);
-	}
-
-	@Override
-	public TypeSerializer<Either<L, R>> restoreSerializer() {
-		checkState(nestedSnapshot != null);
-		return new EitherSerializer<>(
-				nestedSnapshot.getRestoreSerializer(0),
-				nestedSnapshot.getRestoreSerializer(1));
-	}
-
-	@Override
-	public TypeSerializerSchemaCompatibility<Either<L, R>> resolveSchemaCompatibility(
-			TypeSerializer<Either<L, R>> newSerializer) {
-		checkState(nestedSnapshot != null);
-
-		if (newSerializer instanceof EitherSerializer) {
-			EitherSerializer<L, R> serializer = (EitherSerializer<L, R>) newSerializer;
-
-			return nestedSnapshot.resolveCompatibilityWithNested(
-					TypeSerializerSchemaCompatibility.compatibleAsIs(),
-					serializer.getLeftSerializer(),
-					serializer.getRightSerializer());
-		}
-		else {
-			return TypeSerializerSchemaCompatibility.incompatible();
-		}
+	protected TypeSerializer<?>[] getNestedSerializers(EitherSerializer outerSerializer) {
+		return new TypeSerializer<?>[] { outerSerializer.getLeftSerializer(), outerSerializer.getRightSerializer() };
 	}
 }
