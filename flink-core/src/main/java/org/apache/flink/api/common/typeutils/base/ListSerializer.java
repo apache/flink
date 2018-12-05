@@ -175,6 +175,6 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 
 	@Override
 	public TypeSerializerSnapshot<List<T>> snapshotConfiguration() {
-		return new ListSerializerSnapshot<>(elementSerializer);
+		return new ListSerializerSnapshot<>(this);
 	}
 }
