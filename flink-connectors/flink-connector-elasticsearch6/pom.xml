@@ -197,29 +197,57 @@ under the License.
 								<configuration>
 									<shadedArtifactAttached>true</shadedArtifactAttached>
 									<shadedClassifierName>sql-jar</shadedClassifierName>
+									<artifactSet>
+										<includes>
+											<include>*:*</include>
+										</includes>
+										<excludes>
+											<!-- These dependencies are not required. -->
+											<exclude>com.carrotsearch:hppc</exclude>
+											<exclude>com.tdunning:t-digest</exclude>
+											<exclude>joda-time:joda-time</exclude>
+											<exclude>net.sf.jopt-simple:jopt-simple</exclude>
+											<exclude>org.elasticsearch:jna</exclude>
+											<exclude>org.hdrhistogram:HdrHistogram</exclude>
+											<exclude>org.yaml:snakeyaml</exclude>
+										</excludes>
+									</artifactSet>
 									<filters>
 										<filter>
-											<artifact>*:*</artifact>
-											<!-- It is difficult to find out artifacts that are really required by ES. -->
-											<!-- We use hard filters for now to clean up the SQL JAR. -->
+											<artifact>org.elasticsearch:elasticsearch</artifact>
 											<excludes>
-												<exclude>com/carrotsearch/**</exclude>
-												<exclude>com/sun/**</exclude>
-												<exclude>com/tdunning/**</exclude>
 												<exclude>config/**</exclude>
+												<exclude>modules.txt</exclude>
+												<exclude>plugins.txt</exclude>
+												<exclude>org/joda/**</exclude>
+											</excludes>
+										</filter>
+										<filter>
+											<artifact>org.elasticsearch.client:elasticsearch-rest-high-level-client</artifact>
+											<excludes>
 												<exclude>forbidden/**</exclude>
-												<exclude>joptsimple/**</exclude>
+											</excludes>
+										</filter>
+										<filter>
+											<artifact>org.apache.httpcomponents:httpclient</artifact>
+											<excludes>
+												<exclude>mozilla/**</exclude>
+											</excludes>
+										</filter>
+										<filter>
+											<artifact>org.apache.lucene:lucene-analyzers-common</artifact>
+											<excludes>
+												<exclude>org/tartarus/**</exclude>
+											</excludes>
+										</filter>
+										<filter>
+											<artifact>*:*</artifact>
+											<excludes>
+												<!-- exclude Java 9 specific classes as otherwise the shade-plugin crashes -->
+												<exclude>META-INF/versions/**</exclude>
 												<exclude>META-INF/services/com.fasterxml.**</exclude>
 												<exclude>META-INF/services/org.apache.lucene.**</exclude>
 												<exclude>META-INF/services/org.elasticsearch.**</exclude>
-												<exclude>META-INF/versions/**</exclude>
-												<exclude>modules.txt</exclude>
-												<exclude>mozilla/**</exclude>
-												<exclude>org/HdrHistogram/**</exclude>
-												<exclude>org/joda/**</exclude>
-												<exclude>org/tartarus/**</exclude>
-												<exclude>org/yaml/**</exclude>
-												<exclude>plugins.txt</exclude>
 											</excludes>
 										</filter>
 									</filters>
