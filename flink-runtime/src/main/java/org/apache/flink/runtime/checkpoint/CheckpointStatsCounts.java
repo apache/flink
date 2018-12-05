@@ -151,7 +151,7 @@ public class CheckpointStatsCounts implements Serializable {
 	 * {@link #incrementInProgressCheckpoints()}.
 	 */
 	void incrementCompletedCheckpoints() {
-		if (assertDecrementOfInProgressCheckpointsNumber()) {
+		if (canDecrementOfInProgressCheckpointsNumber()) {
 			numInProgressCheckpoints--;
 		}
 		numCompletedCheckpoints++;
@@ -164,7 +164,7 @@ public class CheckpointStatsCounts implements Serializable {
 	 * {@link #incrementInProgressCheckpoints()}.
 	 */
 	void incrementFailedCheckpoints() {
-		if (assertDecrementOfInProgressCheckpointsNumber()) {
+		if (canDecrementOfInProgressCheckpointsNumber()) {
 			numInProgressCheckpoints--;
 		}
 		numFailedCheckpoints++;
@@ -184,13 +184,12 @@ public class CheckpointStatsCounts implements Serializable {
 			numFailedCheckpoints);
 	}
 
-	private boolean assertDecrementOfInProgressCheckpointsNumber() {
+	private boolean canDecrementOfInProgressCheckpointsNumber() {
 		boolean decrementLeadsToNegativeNumber = numInProgressCheckpoints - 1 < 0;
 		if (decrementLeadsToNegativeNumber) {
 			String errorMessage = "Incremented the completed number of checkpoints " +
 				"without incrementing the in progress checkpoints before.";
 			LOG.warn(errorMessage);
-			LOG.debug("Inconsistent CheckpointStatsCounts", new IllegalStateException(errorMessage));
 		}
 		return !decrementLeadsToNegativeNumber;
 	}

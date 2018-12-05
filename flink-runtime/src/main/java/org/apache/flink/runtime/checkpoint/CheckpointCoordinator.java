@@ -50,7 +50,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -1196,16 +1195,11 @@ public class CheckpointCoordinator {
 				currentPeriodicTrigger = null;
 			}
 
-			// take a snapshot of pendingCheckpoints to clear them and prevent aborting them twice
-			// in case of subsequent call of stopCheckpointScheduler()
-			List<PendingCheckpoint> pendingCheckpointsSnapshot =
-				new ArrayList<>(pendingCheckpoints.values());
-			pendingCheckpoints.clear();
-
-			for (PendingCheckpoint p : pendingCheckpointsSnapshot) {
+			for (PendingCheckpoint p : pendingCheckpoints.values()) {
 				p.abortError(new Exception("Checkpoint Coordinator is suspending."));
 			}
 
+			pendingCheckpoints.clear();
 			numUnsuccessfulCheckpointsTriggers.set(0);
 		}
 	}
