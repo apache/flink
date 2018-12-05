@@ -114,7 +114,7 @@ class RowTimeBoundedRangeOver(
     val input = inputC.row
 
     // register state-cleanup timer
-    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+    processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
 
     // triggering timestamp for trigger calculation
     val triggeringTs = input.getField(rowTimeIdx).asInstanceOf[Long]
@@ -164,7 +164,7 @@ class RowTimeBoundedRangeOver(
           // There are records left to process because a watermark has not been received yet.
           // This would only happen if the input stream has stopped. So we don't need to clean up.
           // We leave the state as it is and schedule a new cleanup timer
-          registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+          processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
         }
       }
       return
@@ -233,7 +233,7 @@ class RowTimeBoundedRangeOver(
     lastTriggeringTsState.update(timestamp)
 
     // update cleanup timer
-    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+    processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
   }
 
   override def close(): Unit = {

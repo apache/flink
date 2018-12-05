@@ -95,7 +95,7 @@ class ProcTimeBoundedRangeOver(
 
     val currentTime = ctx.timerService.currentProcessingTime
     // register state-cleanup timer
-    registerProcessingCleanupTimer(ctx, currentTime)
+    processCleanupTimer(ctx, currentTime)
 
     // buffer the event incoming event
 
@@ -117,11 +117,14 @@ class ProcTimeBoundedRangeOver(
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
 
-    if (needToCleanupState(timestamp)) {
-      // clean up and return
-      cleanupState(rowMapState, accumulatorState)
-      function.cleanup()
-      return
+    if (stateCleaningEnabled) {
+      val cleanupTime = cleanupTimeState.value()
+      if (null != cleanupTime && timestamp == cleanupTime) {
+        // clean up and return
+        cleanupState(rowMapState, accumulatorState)
+        function.cleanup()
+        return
+      }
     }
 
     // remove timestamp set outside of ProcessFunction.

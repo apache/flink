@@ -110,7 +110,7 @@ class ProcTimeBoundedRowsOver(
     val currentTime = ctx.timerService.currentProcessingTime
 
     // register state-cleanup timer
-    registerProcessingCleanupTimer(ctx, currentTime)
+    processCleanupTimer(ctx, currentTime)
 
     // initialize state for the processed element
     var accumulators = accumulatorState.value

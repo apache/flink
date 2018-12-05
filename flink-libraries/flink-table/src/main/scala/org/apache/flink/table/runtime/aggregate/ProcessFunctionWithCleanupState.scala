@@ -34,7 +34,7 @@ abstract class ProcessFunctionWithCleanupState[IN,OUT](queryConfig: StreamQueryC
   protected val stateCleaningEnabled: Boolean = minRetentionTime > 1
 
   // holds the latest registered cleanup timer
-  private var cleanupTimeState: ValueState[JLong] = _
+  protected var cleanupTimeState: ValueState[JLong] = _
 
   protected def initCleanupTimeState(stateName: String) {
     if (stateCleaningEnabled) {
@@ -44,25 +44,22 @@ abstract class ProcessFunctionWithCleanupState[IN,OUT](queryConfig: StreamQueryC
     }
   }
 
-  protected def registerProcessingCleanupTimer(
+  protected def processCleanupTimer(
     ctx: ProcessFunction[IN, OUT]#Context,
     currentTime: Long): Unit = {
-    registerProcessingCleanupTimer(
-      stateCleaningEnabled,
-      cleanupTimeState,
-      currentTime,
-      minRetentionTime,
-      maxRetentionTime,
-      ctx.timerService()
-    )
+    if (stateCleaningEnabled) {
+      registerProcessingCleanupTimer(
+        cleanupTimeState,
+        currentTime,
+        minRetentionTime,
+        maxRetentionTime,
+        ctx.timerService()
+      )
+    }
   }
 
   protected def isProcessingTimeTimer(ctx: OnTimerContext): Boolean = {
     ctx.timeDomain() == TimeDomain.PROCESSING_TIME
-  }
-
-  protected def needToCleanupState(timestamp: Long): Boolean = {
-    needToCleanupState(stateCleaningEnabled, cleanupTimeState, timestamp)
   }
 
   protected def cleanupState(states: State*): Unit = {

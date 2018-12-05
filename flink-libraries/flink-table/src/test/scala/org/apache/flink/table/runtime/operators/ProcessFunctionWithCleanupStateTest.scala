@@ -110,7 +110,7 @@ private class MockedProcessFunction(queryConfig: StreamQueryConfig)
       out: Collector[String]): Unit = {
 
     val curTime = ctx.timerService().currentProcessingTime()
-    registerProcessingCleanupTimer(ctx, curTime)
+    processCleanupTimer(ctx, curTime)
     state.update(value._2)
   }
 

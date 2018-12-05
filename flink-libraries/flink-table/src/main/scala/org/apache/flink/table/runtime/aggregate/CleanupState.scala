@@ -31,45 +31,27 @@ import org.apache.flink.streaming.api.TimerService
 trait CleanupState {
 
   def registerProcessingCleanupTimer(
-      stateCleaningEnabled: Boolean,
       cleanupTimeState: ValueState[JLong],
       currentTime: Long,
       minRetentionTime: Long,
       maxRetentionTime: Long,
       timerService: TimerService): Unit = {
 
-    if (stateCleaningEnabled) {
+    // last registered timer
+    val curCleanupTime = cleanupTimeState.value()
 
-      // last registered timer
-      val curCleanupTime = cleanupTimeState.value()
-
-      // check if a cleanup timer is registered and
-      // that the current cleanup timer won't delete state we need to keep
-      if (curCleanupTime == null || (currentTime + minRetentionTime) > curCleanupTime) {
-        // we need to register a new (later) timer
-        val cleanupTime = currentTime + maxRetentionTime
-        // register timer and remember clean-up time
-        timerService.registerProcessingTimeTimer(cleanupTime)
-        // delete expired timer
-        if (curCleanupTime != null) {
-          timerService.deleteProcessingTimeTimer(curCleanupTime)
-        }
-        cleanupTimeState.update(cleanupTime)
+    // check if a cleanup timer is registered and
+    // that the current cleanup timer won't delete state we need to keep
+    if (curCleanupTime == null || (currentTime + minRetentionTime) > curCleanupTime) {
+      // we need to register a new (later) timer
+      val cleanupTime = currentTime + maxRetentionTime
+      // register timer and remember clean-up time
+      timerService.registerProcessingTimeTimer(cleanupTime)
+      // delete expired timer
+      if (curCleanupTime != null) {
+        timerService.deleteProcessingTimeTimer(curCleanupTime)
       }
-    }
-  }
-
-  def needToCleanupState(
-      stateCleaningEnabled: Boolean,
-      cleanupTimeState: ValueState[JLong],
-      timestamp: Long): Boolean = {
-
-    if (stateCleaningEnabled) {
-      val cleanupTime = cleanupTimeState.value()
-      // check that the triggered timer is the last registered processing time timer.
-      null != cleanupTime && timestamp == cleanupTime
-    } else {
-      false
+      cleanupTimeState.update(cleanupTime)
     }
   }
 }

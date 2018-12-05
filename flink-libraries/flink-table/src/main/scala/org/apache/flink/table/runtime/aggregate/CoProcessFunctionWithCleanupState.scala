@@ -46,22 +46,19 @@ abstract class CoProcessFunctionWithCleanupState[IN1, IN2, OUT](queryConfig: Str
   protected def registerProcessingCleanupTimer(
     ctx: CoProcessFunction[IN1, IN2, OUT]#Context,
     currentTime: Long): Unit = {
-    registerProcessingCleanupTimer(
-      stateCleaningEnabled,
-      cleanupTimeState,
-      currentTime,
-      minRetentionTime,
-      maxRetentionTime,
-      ctx.timerService()
-    )
+    if (stateCleaningEnabled) {
+      registerProcessingCleanupTimer(
+        cleanupTimeState,
+        currentTime,
+        minRetentionTime,
+        maxRetentionTime,
+        ctx.timerService()
+      )
+    }
   }
 
   protected def isProcessingTimeTimer(ctx: OnTimerContext): Boolean = {
     ctx.timeDomain() == TimeDomain.PROCESSING_TIME
-  }
-
-  protected def needToCleanupState(timestamp: Long): Boolean = {
-    needToCleanupState(stateCleaningEnabled, cleanupTimeState, timestamp)
   }
 
   protected def cleanupState(states: State*): Unit = {
