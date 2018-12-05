@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapsh
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -244,8 +243,6 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 				((NullableSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
 
 			CompatibilityResult<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
-				previousKvSerializersAndConfigs.get(0).f0,
-				UnloadableDummyTypeSerializer.class,
 				previousKvSerializersAndConfigs.get(0).f1,
 				originalSerializer);
 

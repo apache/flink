@@ -31,7 +31,6 @@ import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -800,14 +799,10 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 						((StateSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
 
 				CompatibilityResult<TXN> txnCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-						previousSerializersAndConfigs.get(0).f0,
-						UnloadableDummyTypeSerializer.class,
 						previousSerializersAndConfigs.get(0).f1,
 						transactionSerializer);
 
 				CompatibilityResult<CONTEXT> contextCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-						previousSerializersAndConfigs.get(1).f0,
-						UnloadableDummyTypeSerializer.class,
 						previousSerializersAndConfigs.get(1).f1,
 						contextSerializer);
 

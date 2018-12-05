@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapsh
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -227,14 +226,10 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 				Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> namespaceSerializerAndSnapshot =
 					previousSerializersAndConfigs.get(NAMESPACE_SERIALIZER_SNAPSHOT_INDEX);
 				CompatibilityResult<K> keyCompatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
-					keySerializerAndSnapshot.f0,
-					UnloadableDummyTypeSerializer.class,
 					keySerializerAndSnapshot.f1,
 					keySerializer);
 
 				CompatibilityResult<N> namespaceCompatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
-					namespaceSerializerAndSnapshot.f0,
-					UnloadableDummyTypeSerializer.class,
 					namespaceSerializerAndSnapshot.f1,
 					namespaceSerializer);
 

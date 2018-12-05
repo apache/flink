@@ -26,7 +26,6 @@ import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
@@ -989,15 +988,11 @@ public class NFA<T> {
 					((NFASerializerConfigSnapshot<?>) configSnapshot).getNestedSerializersAndConfigs();
 
 				CompatibilityResult<T> eventCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-					serializersAndConfigs.get(0).f0,
-					UnloadableDummyTypeSerializer.class,
 					serializersAndConfigs.get(0).f1,
 					eventSerializer);
 
 				CompatibilityResult<org.apache.flink.cep.nfa.SharedBuffer<T>> sharedBufCompatResult =
 					CompatibilityUtil.resolveCompatibilityResult(
-						serializersAndConfigs.get(1).f0,
-						UnloadableDummyTypeSerializer.class,
 						serializersAndConfigs.get(1).f1,
 						sharedBufferSerializer);
 

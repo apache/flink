@@ -94,8 +94,6 @@ class ListViewSerializer[T](val listSerializer: TypeSerializer[java.util.List[T]
         // specifically a ListSerializer, so this cast is safe
         val castedSer = listSerializer.asInstanceOf[ListSerializer[T]]
         val compatResult = CompatibilityUtil.resolveCompatibilityResult(
-          previousListSerializerAndConfig.f0,
-          classOf[UnloadableDummyTypeSerializer[_]],
           previousListSerializerAndConfig.f1,
           castedSer.getElementSerializer)
 

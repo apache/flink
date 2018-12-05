@@ -124,8 +124,6 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
       : CompatibilityResult[Option[A]] = {
 
     val compatResult = CompatibilityUtil.resolveCompatibilityResult(
-      compositeConfigSnapshot.getSingleNestedSerializerAndConfig.f0,
-      classOf[UnloadableDummyTypeSerializer[_]],
       compositeConfigSnapshot.getSingleNestedSerializerAndConfig.f1,
       elemSerializer)
 

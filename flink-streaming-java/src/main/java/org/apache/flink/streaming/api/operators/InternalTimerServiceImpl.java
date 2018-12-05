@@ -143,14 +143,10 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, 
 			// the following is the case where we restore
 			if (restoredTimersSnapshot != null) {
 				CompatibilityResult<K> keySerializerCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-					this.keyDeserializer,
-					null,
 					restoredTimersSnapshot.getKeySerializerConfigSnapshot(),
 					keySerializer);
 
 				CompatibilityResult<N> namespaceSerializerCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-					this.namespaceDeserializer,
-					null,
 					restoredTimersSnapshot.getNamespaceSerializerConfigSnapshot(),
 					namespaceSerializer);
 

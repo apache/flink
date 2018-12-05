@@ -244,7 +244,6 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 	private CompatibilityResult<Object> resolveFieldCompatibility(
 		List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs, int index) {
 		return CompatibilityUtil.resolveCompatibilityResult(
-			previousSerializersAndConfigs.get(index).f0, UnloadableDummyTypeSerializer.class,
 			previousSerializersAndConfigs.get(index).f1, fieldSerializers[index]);
 	}
 

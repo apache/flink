@@ -26,7 +26,6 @@ import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -300,8 +299,6 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 		}
 
 		CompatibilityResult<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
-				previousTypeSerializerAndConfig.f0,
-				UnloadableDummyTypeSerializer.class,
 				previousTypeSerializerAndConfig.f1,
 				typeSerializer);
 

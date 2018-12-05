@@ -28,7 +28,6 @@ import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapsh
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -476,8 +475,6 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 				CompatibilityResult<T> compatResult =
 						CompatibilityUtil.resolveCompatibilityResult(
-								previousSerializerAndConfig.f0,
-								UnloadableDummyTypeSerializer.class,
 								previousSerializerAndConfig.f1,
 								elementSerializer);
 

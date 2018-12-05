@@ -96,14 +96,10 @@ class MapViewSerializer[K, V](val mapSerializer: TypeSerializer[java.util.Map[K,
         // specifically a MapSerializer, so this cast is safe
         val castedSer = mapSerializer.asInstanceOf[MapSerializer[K, V]]
         val keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-          previousKvSerializersAndConfigs.get(0).f0,
-          classOf[UnloadableDummyTypeSerializer[_]],
           previousKvSerializersAndConfigs.get(0).f1,
           castedSer.getKeySerializer)
 
         val valueCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-          previousKvSerializersAndConfigs.get(1).f0,
-          classOf[UnloadableDummyTypeSerializer[_]],
           previousKvSerializersAndConfigs.get(1).f1,
           castedSer.getValueSerializer)
 
