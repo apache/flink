@@ -52,7 +52,7 @@ import java.io.IOException;
 @PublicEvolving
 public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerializer> implements TypeSerializerSnapshot<T> {
 
-	protected CompositeSerializerSnapshot compositeSerializerSnapshot;
+	protected NestedSerializersSnapshotDelegate nestedSerializerSnapshots;
 
 	private final Class<S> correspondingSerializerClass;
 
@@ -73,20 +73,20 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 	@SuppressWarnings("unchecked")
 	public CompositeTypeSerializerSnapshot(S serializerInstance) {
 		Preconditions.checkNotNull(serializerInstance);
-		this.compositeSerializerSnapshot = new CompositeSerializerSnapshot(getNestedSerializers(serializerInstance));
+		this.nestedSerializerSnapshots = new NestedSerializersSnapshotDelegate(getNestedSerializers(serializerInstance));
 		this.correspondingSerializerClass = (Class<S>) serializerInstance.getClass();
 	}
 
 	@Override
 	public final void writeSnapshot(DataOutputView out) throws IOException {
 		writeOuterSnapshot(out);
-		compositeSerializerSnapshot.writeCompositeSnapshot(out);
+		nestedSerializerSnapshots.writeNestedSerializerSnapshots(out);
 	}
 
 	@Override
 	public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
 		readOuterSnapshot(readVersion, in, userCodeClassLoader);
-		this.compositeSerializerSnapshot = CompositeSerializerSnapshot.readCompositeSnapshot(in, userCodeClassLoader);
+		this.nestedSerializerSnapshots = NestedSerializersSnapshotDelegate.readNestedSerializerSnapshots(in, userCodeClassLoader);
 	}
 
 	@Override
@@ -104,15 +104,15 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 
 		// since outer configuration is compatible, the final compatibility result depends only on the nested serializers
 		return constructFinalSchemaCompatibilityResult(
-			compositeSerializerSnapshot.getRestoreSerializers(),
-			compositeSerializerSnapshot.getNestedSerializerSnapshots());
+			nestedSerializerSnapshots.getRestoredNestedSerializers(),
+			nestedSerializerSnapshots.getNestedSerializerSnapshots());
 	}
 
 	@Override
 	public final TypeSerializer<T> restoreSerializer() {
 		@SuppressWarnings("unchecked")
 		TypeSerializer<T> serializer = (TypeSerializer<T>)
-			createOuterSerializerWithNestedSerializers(compositeSerializerSnapshot.getRestoreSerializers());
+			createOuterSerializerWithNestedSerializers(nestedSerializerSnapshots.getRestoredNestedSerializers());
 
 		return serializer;
 	}
