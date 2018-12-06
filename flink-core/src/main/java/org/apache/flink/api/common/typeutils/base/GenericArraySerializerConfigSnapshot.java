@@ -38,8 +38,12 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Point-in-time configuration of a {@link GenericArraySerializer}.
  *
  * @param <C> The component type.
+ *
+ * @deprecated this is deprecated and no longer used by the {@link GenericArraySerializer}.
+ *             It has been replaced by {@link GenericArraySerializerSnapshot}.
  */
 @Internal
+@Deprecated
 public final class GenericArraySerializerConfigSnapshot<C> implements TypeSerializerSnapshot<C[]> {
 
 	private static final int CURRENT_VERSION = 2;
@@ -118,18 +122,12 @@ public final class GenericArraySerializerConfigSnapshot<C> implements TypeSerial
 
 	@Override
 	public TypeSerializerSchemaCompatibility<C[]> resolveSchemaCompatibility(TypeSerializer<C[]> newSerializer) {
-		checkState(componentClass != null && nestedSnapshot != null);
-
 		if (newSerializer instanceof GenericArraySerializer) {
-			GenericArraySerializer<C> serializer = (GenericArraySerializer<C>) newSerializer;
-			TypeSerializerSchemaCompatibility<C> compat = serializer.getComponentClass() == componentClass ?
-					TypeSerializerSchemaCompatibility.compatibleAsIs() :
-					TypeSerializerSchemaCompatibility.incompatible();
-
-			return nestedSnapshot.resolveCompatibilityWithNested(
-					compat, serializer.getComponentSerializer());
-		}
-		else {
+			// delegate to the new snapshot class
+			GenericArraySerializer<C> castedNewSerializer = (GenericArraySerializer<C>) newSerializer;
+			GenericArraySerializerSnapshot<C> newSnapshot = new GenericArraySerializerSnapshot<>(castedNewSerializer);
+			return newSnapshot.resolveSchemaCompatibility(castedNewSerializer);
+		} else {
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 	}

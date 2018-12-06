@@ -206,7 +206,7 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public GenericArraySerializerConfigSnapshot<C> snapshotConfiguration() {
-		return new GenericArraySerializerConfigSnapshot<>(this);
+	public GenericArraySerializerSnapshot<C> snapshotConfiguration() {
+		return new GenericArraySerializerSnapshot<>(this);
 	}
 }
