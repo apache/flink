@@ -29,6 +29,7 @@ import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -192,6 +193,7 @@ public class InputChannelDeploymentDescriptorTest {
 
 	private static IntermediateResultPartition mockPartition(ExecutionVertex producer) {
 		IntermediateResultPartition partition = mock(IntermediateResultPartition.class);
+		when(partition.getResultType()).thenReturn(ResultPartitionType.PIPELINED);
 		when(partition.isConsumable()).thenReturn(true);
 
 		IntermediateResult result = mock(IntermediateResult.class);

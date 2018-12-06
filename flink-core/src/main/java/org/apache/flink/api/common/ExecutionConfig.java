@@ -159,6 +159,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/** Determines if a task fails or not if there is an error in writing its checkpoint data. Default: true */
 	private boolean failTaskOnCheckpointError = true;
 
+	/** The input dependency constraint to schedule tasks. */
+	private InputDependencyConstraint inputDependencyConstraint = InputDependencyConstraint.ANY;
+
 	// ------------------------------- User code values --------------------------------------------
 
 	private GlobalJobParameters globalJobParameters;
@@ -516,6 +519,30 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 */
 	public ExecutionMode getExecutionMode() {
 		return executionMode;
+	}
+
+	/**
+	 * Sets the input dependency constraint for vertex scheduling. It indicates when a task
+	 * should be scheduled considering its inputs status.
+	 *
+	 * The default constraint is {@link InputDependencyConstraint#ANY}.
+	 *
+	 * @param inputDependencyConstraint The input dependency constraint.
+	 */
+	public void setInputDependencyConstraint(InputDependencyConstraint inputDependencyConstraint) {
+		this.inputDependencyConstraint = inputDependencyConstraint;
+	}
+
+	/**
+	 * Gets the input dependency constraint for vertex scheduling. It indicates when a task
+	 * should be scheduled considering its inputs status.
+	 *
+	 * The default constraint is {@link InputDependencyConstraint#ANY}.
+	 *
+	 * @return The input dependency constraint of this job.
+	 */
+	public InputDependencyConstraint getInputDependencyConstraint() {
+		return inputDependencyConstraint;
 	}
 
 	/**
