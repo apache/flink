@@ -104,7 +104,7 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 
 		// since outer configuration is compatible, the final compatibility result depends only on the nested serializers
 		return constructFinalSchemaCompatibilityResult(
-			nestedSerializerSnapshots.getRestoredNestedSerializers(),
+			getNestedSerializers(castedNewSerializer),
 			nestedSerializerSnapshots.getNestedSerializerSnapshots());
 	}
 
@@ -199,20 +199,20 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 	// ------------------------------------------------------------------------------------------
 
 	private TypeSerializerSchemaCompatibility<T> constructFinalSchemaCompatibilityResult(
-			TypeSerializer<?>[] nestedSerializers,
+			TypeSerializer<?>[] newNestedSerializers,
 			TypeSerializerSnapshot<?>[] nestedSerializerSnapshots) {
 
-		Preconditions.checkArgument(nestedSerializers.length == nestedSerializerSnapshots.length,
+		Preconditions.checkArgument(newNestedSerializers.length == nestedSerializerSnapshots.length,
 			"Different number of new serializers and existing serializer snapshots.");
 
-		TypeSerializer<?>[] reconfiguredNestedSerializers = new TypeSerializer[nestedSerializers.length];
+		TypeSerializer<?>[] reconfiguredNestedSerializers = new TypeSerializer[newNestedSerializers.length];
 
 		// check nested serializers for compatibility
 		boolean nestedSerializerRequiresMigration = false;
 		boolean hasReconfiguredNestedSerializers = false;
 		for (int i = 0; i < nestedSerializerSnapshots.length; i++) {
 			TypeSerializerSchemaCompatibility<?> compatibility =
-				resolveCompatibility(nestedSerializers[i], nestedSerializerSnapshots[i]);
+				resolveCompatibility(newNestedSerializers[i], nestedSerializerSnapshots[i]);
 
 			// if any one of the new nested serializers is incompatible, we can just short circuit the result
 			if (compatibility.isIncompatible()) {
@@ -225,7 +225,7 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 				hasReconfiguredNestedSerializers = true;
 				reconfiguredNestedSerializers[i] = compatibility.getReconfiguredSerializer();
 			} else if (compatibility.isCompatibleAsIs()) {
-				reconfiguredNestedSerializers[i] = nestedSerializers[i];
+				reconfiguredNestedSerializers[i] = newNestedSerializers[i];
 			} else {
 				throw new IllegalStateException("Undefined compatibility type.");
 			}
