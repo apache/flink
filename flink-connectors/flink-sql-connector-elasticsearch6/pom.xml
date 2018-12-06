@@ -61,6 +61,7 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes>
 									<include>*:*</include>
