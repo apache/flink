@@ -156,19 +156,17 @@ public class IntermediateResult {
 
 	void resetForNewExecution() {
 		this.numberOfRunningProducers.set(numParallelProducers);
+		for (IntermediateResultPartition partition : partitions) {
+			partition.resetForNewExecution();
+		}
 	}
 
 	int decrementNumberOfRunningProducersAndGetRemaining() {
 		return numberOfRunningProducers.decrementAndGet();
 	}
 
-	boolean isConsumable() {
-		if (resultType.isPipelined()) {
-			return true;
-		}
-		else {
-			return numberOfRunningProducers.get() == 0;
-		}
+	boolean areAllPartitionsFinished() {
+		return numberOfRunningProducers.get() == 0;
 	}
 
 	@Override

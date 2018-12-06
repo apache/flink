@@ -36,6 +36,11 @@ public class IntermediateResultPartition {
 
 	private List<List<ExecutionEdge>> consumers;
 
+	/**
+	 * Whether this partition has produced some data.
+	 */
+	private boolean hasDataProduced = false;
+
 	public IntermediateResultPartition(IntermediateResult totalResult, ExecutionVertex producer, int partitionNumber) {
 		this.totalResult = totalResult;
 		this.producer = producer;
@@ -60,7 +65,7 @@ public class IntermediateResultPartition {
 		return partitionId;
 	}
 
-	ResultPartitionType getResultType() {
+	public ResultPartitionType getResultType() {
 		return totalResult.getResultType();
 	}
 
@@ -68,8 +73,20 @@ public class IntermediateResultPartition {
 		return consumers;
 	}
 
+	public void markDataProduced() {
+		hasDataProduced = true;
+	}
+
 	public boolean isConsumable() {
-		return totalResult.isConsumable();
+		if (getResultType().isPipelined()) {
+			return hasDataProduced;
+		} else {
+			return totalResult.areAllPartitionsFinished();
+		}
+	}
+
+	void resetForNewExecution() {
+		hasDataProduced = false;
 	}
 
 	int addConsumerGroup() {
@@ -93,6 +110,8 @@ public class IntermediateResultPartition {
 		if (!getResultType().isBlocking()) {
 			throw new IllegalStateException("Tried to mark a non-blocking result partition as finished");
 		}
+
+		hasDataProduced = true;
 
 		final int refCnt = totalResult.decrementNumberOfRunningProducersAndGetRemaining();
 
