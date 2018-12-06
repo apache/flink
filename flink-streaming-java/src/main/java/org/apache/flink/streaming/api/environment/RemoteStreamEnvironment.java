@@ -28,6 +28,7 @@ import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import org.slf4j.Logger;
@@ -169,38 +170,45 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		}
 	}
 
-	@Override
-	public JobExecutionResult execute(String jobName) throws ProgramInvocationException {
-		StreamGraph streamGraph = getStreamGraph();
-		streamGraph.setJobName(jobName);
-		transformations.clear();
-		return executeRemotely(streamGraph, jarFiles);
+	protected List<URL> getJarFiles() throws ProgramInvocationException {
+		return jarFiles;
 	}
 
 	/**
 	 * Executes the remote job.
 	 *
-	 * @param streamGraph
-	 *            Stream Graph to execute
+	 * @param streamExecutionEnvironment
+	 *            Execution Environment with Stream Graph to execute
 	 * @param jarFiles
 	 * 			  List of jar file URLs to ship to the cluster
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
-	protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles) throws ProgramInvocationException {
+	public static JobExecutionResult executeRemotely(StreamExecutionEnvironment streamExecutionEnvironment,
+													List<URL> jarFiles,
+													String host,
+													int port,
+													Configuration clientConfiguration,
+													List<URL> globalClasspaths,
+													String jobName,
+													SavepointRestoreSettings savepointRestoreSettings
+	) throws ProgramInvocationException {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
 
 		ClassLoader usercodeClassLoader = JobWithJars.buildUserCodeClassLoader(jarFiles, globalClasspaths,
-			getClass().getClassLoader());
+			streamExecutionEnvironment.getClass().getClassLoader());
 
 		Configuration configuration = new Configuration();
-		configuration.addAll(this.clientConfiguration);
+		configuration.addAll(clientConfiguration);
 
 		configuration.setString(JobManagerOptions.ADDRESS, host);
 		configuration.setInteger(JobManagerOptions.PORT, port);
 
 		configuration.setInteger(RestOptions.PORT, port);
+
+		StreamGraph streamGraph = streamExecutionEnvironment.getStreamGraph();
+		streamGraph.setJobName(jobName);
 
 		final ClusterClient<?> client;
 		try {
@@ -211,10 +219,11 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 				streamGraph.getJobGraph().getJobID(), e);
 		}
 
-		client.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
+		client.setPrintStatusDuringExecution(streamExecutionEnvironment.getConfig().isSysoutLoggingEnabled());
 
 		try {
-			return client.run(streamGraph, jarFiles, globalClasspaths, usercodeClassLoader).getJobExecutionResult();
+			return client.run(streamGraph, jarFiles, globalClasspaths, usercodeClassLoader, savepointRestoreSettings)
+				.getJobExecutionResult();
 		}
 		catch (ProgramInvocationException e) {
 			throw e;
@@ -230,6 +239,16 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			} catch (Exception e) {
 				LOG.warn("Could not properly shut down the cluster client.", e);
 			}
+		}
+	}
+
+	@Override
+	public JobExecutionResult execute(String jobName) throws ProgramInvocationException {
+		try {
+			return RemoteStreamEnvironment.executeRemotely(this,
+				getJarFiles(), host, port, clientConfiguration, globalClasspaths, jobName, SavepointRestoreSettings.none());
+		} finally {
+			transformations.clear();
 		}
 	}
 
@@ -262,4 +281,5 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	public Configuration getClientConfiguration() {
 		return clientConfiguration;
 	}
+
 }

@@ -18,14 +18,13 @@
 
 package org.apache.flink.api.java;
 
-import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.scala.FlinkILoop;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
-import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,30 +67,21 @@ public class ScalaShellRemoteStreamEnvironment extends RemoteStreamEnvironment {
 		this.flinkILoop = flinkILoop;
 	}
 
-	/**
-	 * Executes the remote job.
-	 *
-	 * @param streamGraph
-	 *            Stream Graph to execute
-	 * @param jarFiles
-	 * 			  List of jar file URLs to ship to the cluster
-	 * @return The result of the job execution, containing elapsed time and accumulators.
-	 */
-	@Override
-	protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles) throws ProgramInvocationException {
+	protected List<URL> getJarFiles() throws ProgramInvocationException {
 		URL jarUrl;
 		try {
 			jarUrl = flinkILoop.writeFilesToDisk().getAbsoluteFile().toURI().toURL();
 		} catch (MalformedURLException e) {
+			// TODO: we don't have the actual jobID at this point
 			throw new ProgramInvocationException("Could not write the user code classes to disk.",
-				streamGraph.getJobGraph().getJobID(), e);
+				new JobID(), e);
 		}
 
+		List<URL> jarFiles = super.getJarFiles();
 		List<URL> allJarFiles = new ArrayList<>(jarFiles.size() + 1);
 		allJarFiles.addAll(jarFiles);
 		allJarFiles.add(jarUrl);
-
-		return super.executeRemotely(streamGraph, allJarFiles);
+		return allJarFiles;
 	}
 
 	public void setAsContext() {
