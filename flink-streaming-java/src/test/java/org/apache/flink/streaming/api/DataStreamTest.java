@@ -1092,6 +1092,94 @@ public class DataStreamTest extends TestLogger {
 	}
 
 	/////////////////////////////////////////////////////////////
+	// Split testing
+	/////////////////////////////////////////////////////////////
+
+	@Test
+	public void testConsecutiveSplitRejection() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Integer> src = env.fromElements(0, 0);
+
+		OutputSelector<Integer> outputSelector = new OutputSelector<Integer>() {
+			@Override
+			public Iterable<String> select(Integer value) {
+				return null;
+			}
+		};
+
+		src.split(outputSelector).split(outputSelector).addSink(new DiscardingSink<>());
+
+		expectedException.expect(IllegalStateException.class);
+		expectedException.expectMessage("Error while tranforming SplitTransformation, please use side output instead.");
+
+		env.getStreamGraph();
+	}
+
+	@Test
+	public void testSelectBetweenConsecutiveSplitRejection() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Integer> src = env.fromElements(0, 0);
+
+		OutputSelector<Integer> outputSelector = new OutputSelector<Integer>() {
+			@Override
+			public Iterable<String> select(Integer value) {
+				return null;
+			}
+		};
+
+		src.split(outputSelector).select("dummy").split(outputSelector).addSink(new DiscardingSink<>());
+
+		expectedException.expect(IllegalStateException.class);
+		expectedException.expectMessage("Error while tranforming SplitTransformation, please use side output instead.");
+
+		env.getStreamGraph();
+	}
+
+	@Test
+	public void testUnionBetweenConsecutiveSplitRejection() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Integer> src = env.fromElements(0, 0);
+
+		OutputSelector<Integer> outputSelector = new OutputSelector<Integer>() {
+			@Override
+			public Iterable<String> select(Integer value) {
+				return null;
+			}
+		};
+
+		src.split(outputSelector).select("dummy").union(src.map(x -> x)).split(outputSelector).addSink(new DiscardingSink<>());
+
+		expectedException.expect(IllegalStateException.class);
+		expectedException.expectMessage("Error while tranforming SplitTransformation, please use side output instead.");
+
+		env.getStreamGraph();
+	}
+
+	@Test
+	public void testKeybyBetweenConsecutiveSplitRejection() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Integer> src = env.fromElements(0, 0);
+
+		OutputSelector<Integer> outputSelector = new OutputSelector<Integer>() {
+			@Override
+			public Iterable<String> select(Integer value) {
+				return null;
+			}
+		};
+
+		src.split(outputSelector).select("dummy").keyBy(x -> x).split(outputSelector).addSink(new DiscardingSink<>());
+
+		expectedException.expect(IllegalStateException.class);
+		expectedException.expectMessage("Error while tranforming SplitTransformation, please use side output instead.");
+
+		env.getStreamGraph();
+	}
+
+	/////////////////////////////////////////////////////////////
 	// KeyBy testing
 	/////////////////////////////////////////////////////////////
 
