@@ -59,7 +59,7 @@ Table counts = orders
         .select("a, b.count as cnt");
 
 // conversion to DataSet
-DataSet<Row> result = tableEnv.toDataSet(counts, Row.class);
+DataSet<Row> result = tEnv.toDataSet(counts, Row.class);
 result.print();
 {% endhighlight %}
 
