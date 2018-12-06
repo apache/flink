@@ -45,7 +45,7 @@ public class ArrayListSerializerSnapshot<T> extends CompositeTypeSerializerSnaps
 	}
 
 	@Override
-	public int getCurrentVersion() {
+	public int getCurrentOuterSnapshotVersion() {
 		return CURRENT_VERSION;
 	}
 

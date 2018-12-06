@@ -45,7 +45,7 @@ public class MapSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot
 	}
 
 	@Override
-	public int getCurrentVersion() {
+	public int getCurrentOuterSnapshotVersion() {
 		return CURRENT_VERSION;
 	}
 

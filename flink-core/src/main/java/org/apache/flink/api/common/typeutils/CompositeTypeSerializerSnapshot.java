@@ -46,11 +46,37 @@ import java.io.IOException;
  * class. By default, the base implementations of these methods are empty, i.e. this class assumes that
  * subclasses do not have any outer snapshot that needs to be persisted.
  *
+ * <h2>Snapshot Versioning</h2>
+ *
+ * <p>This base class has its own versioning for the format in which it writes the outer snapshot and the
+ * nested serializer snapshots. The version of the serialization format of this based class is defined
+ * by {@link #getCurrentVersion()}. This is independent of the version in which subclasses writes their outer snapshot,
+ * defined by {@link #getCurrentOuterSnapshotVersion()}.
+ * This means that the outer snapshot's version can be maintained only taking into account changes in how the
+ * outer snapshot is written. Any changes in the base format does not require upticks in the outer snapshot's version.
+ *
  * @param <T> The data type that the originating serializer of this snapshot serializes.
  * @param <S> The type of the originating serializer.
  */
 @PublicEvolving
 public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerializer> implements TypeSerializerSnapshot<T> {
+
+	/** Magic number for integrity checks during deserialization. */
+	private static final int MAGIC_NUMBER = 911108;
+
+	/**
+	 * Current version of the base serialization format.
+	 *
+	 * <p>NOTE: We start from version 3. This version is represented by the {@link #getCurrentVersion()} method.
+	 * Previously, this method was used to represent the outer snapshot's version (now, represented
+	 * by the {@link #getCurrentOuterSnapshotVersion()} method).
+	 * To bridge this transition, we set the starting version of the base format to be at least
+	 * larger than the highest version of previously defined values in implementing subclasses,
+	 * which was 2. This allows us to identify legacy deserialization paths, which did not
+	 * contain versioning for the base format, simply by checking if the read
+	 * version of the snapshot is smaller than 3.
+	 */
+	private static final int VERSION = 3;
 
 	protected NestedSerializersSnapshotDelegate nestedSerializerSnapshots;
 
@@ -78,14 +104,34 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 	}
 
 	@Override
+	public final int getCurrentVersion() {
+		return VERSION;
+	}
+
+	@Override
 	public final void writeSnapshot(DataOutputView out) throws IOException {
+		out.writeInt(MAGIC_NUMBER);
+		out.writeInt(getCurrentOuterSnapshotVersion());
+
 		writeOuterSnapshot(out);
 		nestedSerializerSnapshots.writeNestedSerializerSnapshots(out);
 	}
 
 	@Override
 	public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		readOuterSnapshot(readVersion, in, userCodeClassLoader);
+		if (readVersion >= 3) {
+			final int magicNumber = in.readInt();
+			if (magicNumber != MAGIC_NUMBER) {
+				throw new IOException(String.format("Corrupt data, magic number mismatch. Expected %8x, found %8x",
+					MAGIC_NUMBER, magicNumber));
+			}
+
+			final int outerSnapshotVersion = in.readInt();
+			readOuterSnapshot(outerSnapshotVersion, in, userCodeClassLoader);
+		} else {
+			readOuterSnapshot(readVersion, in, userCodeClassLoader);
+		}
+
 		this.nestedSerializerSnapshots = NestedSerializersSnapshotDelegate.readNestedSerializerSnapshots(in, userCodeClassLoader);
 	}
 
@@ -120,6 +166,13 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 	// ------------------------------------------------------------------------------------------
 	//  Outer serializer access methods
 	// ------------------------------------------------------------------------------------------
+
+	/**
+	 * Returns the version of the current outer snapshot's written binary format.
+	 *
+	 * @return the version of the current outer snapshot's written binary format.
+	 */
+	protected abstract int getCurrentOuterSnapshotVersion();
 
 	/**
 	 * Gets the nested serializers from the outer serializer.
@@ -168,11 +221,11 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 	 * {@link #writeOuterSnapshot(DataOutputView)}, {@link #isOuterSnapshotCompatible(TypeSerializer)}
 	 * needs to be implemented.
 	 *
-	 * @param readVersion the read version of the snapshot.
+	 * @param readOuterSnapshotVersion the read version of the outer snapshot.
 	 * @param in the {@link DataInputView} to read the outer snapshot from.
 	 * @param userCodeClassLoader the user code class loader.
 	 */
-	protected void readOuterSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {}
+	protected void readOuterSnapshot(int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {}
 
 	/**
 	 * Checks whether the outer snapshot is compatible with a given new serializer.

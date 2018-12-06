@@ -49,7 +49,7 @@ public final class EitherSerializerSnapshot<L, R> extends CompositeTypeSerialize
 	// ------------------------------------------------------------------------
 
 	@Override
-	public int getCurrentVersion() {
+	protected int getCurrentOuterSnapshotVersion() {
 		return CURRENT_VERSION;
 	}
 

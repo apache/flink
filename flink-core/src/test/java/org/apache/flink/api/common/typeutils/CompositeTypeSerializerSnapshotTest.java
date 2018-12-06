@@ -336,8 +336,8 @@ public class CompositeTypeSerializerSnapshotTest {
 		}
 
 		@Override
-		public void readOuterSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-			Assert.assertEquals(getCurrentVersion(), readVersion);
+		public void readOuterSnapshot(int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+			Assert.assertEquals(getCurrentOuterSnapshotVersion(), readOuterSnapshotVersion);
 			this.outerConfiguration = in.readUTF();
 		}
 
@@ -347,7 +347,7 @@ public class CompositeTypeSerializerSnapshotTest {
 		}
 
 		@Override
-		public int getCurrentVersion() {
+		public int getCurrentOuterSnapshotVersion() {
 			return 1;
 		}
 	}
