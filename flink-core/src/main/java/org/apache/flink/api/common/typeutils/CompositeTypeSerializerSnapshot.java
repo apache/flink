@@ -55,6 +55,24 @@ import java.io.IOException;
  * This means that the outer snapshot's version can be maintained only taking into account changes in how the
  * outer snapshot is written. Any changes in the base format does not require upticks in the outer snapshot's version.
  *
+ * <h2>Serialization Format</hr>
+ *
+ * <p>The current version of the serialization format of a {@link CompositeTypeSerializerSnapshot} is as follows:
+ *
+ * <pre>{@code
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * | CompositeTypeSerializerSnapshot | CompositeTypeSerializerSnapshot |          Outer snapshot         |
+ * |           version               |          MAGIC_NUMBER           |              version            |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                                               Outer snapshot                                        |
+ * |                                   #writeOuterSnapshot(DataOutputView out)                           |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |      Delegate MAGIC_NUMBER      |         Delegate version        |     Num. nested serializers     |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                                     Nested serializer snapshots                                     |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * }</pre>
+ *
  * @param <T> The data type that the originating serializer of this snapshot serializes.
  * @param <S> The type of the originating serializer.
  */
