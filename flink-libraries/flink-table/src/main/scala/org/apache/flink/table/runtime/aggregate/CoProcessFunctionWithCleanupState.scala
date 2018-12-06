@@ -43,7 +43,7 @@ abstract class CoProcessFunctionWithCleanupState[IN1, IN2, OUT](queryConfig: Str
     }
   }
 
-  protected def registerProcessingCleanupTimer(
+  protected def processCleanupTimer(
     ctx: CoProcessFunction[IN1, IN2, OUT]#Context,
     currentTime: Long): Unit = {
     if (stateCleaningEnabled) {

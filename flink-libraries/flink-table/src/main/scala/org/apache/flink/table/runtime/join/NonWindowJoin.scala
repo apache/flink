@@ -196,7 +196,7 @@ abstract class NonWindowJoin(
 
     cntAndExpiredTime.f1 = getNewExpiredTime(curProcessTime, cntAndExpiredTime.f1)
     // update timer if necessary
-    registerProcessingCleanupTimer(ctx, curProcessTime)
+    processCleanupTimer(ctx, curProcessTime)
 
     // update current side stream state
     if (!value.change) {

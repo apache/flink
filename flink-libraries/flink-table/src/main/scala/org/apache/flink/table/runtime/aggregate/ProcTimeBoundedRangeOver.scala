@@ -137,7 +137,7 @@ class ProcTimeBoundedRangeOver(
     // get the list of elements of current proctime
     val currentElements = rowMapState.get(currentTime)
 
-    // Expired clean-up timers pass the needToCleanupState() check.
+    // Expired clean-up timers pass the needToCleanupState check.
     // Perform a null check to verify that we have data to process.
     if (null == currentElements) {
       return
