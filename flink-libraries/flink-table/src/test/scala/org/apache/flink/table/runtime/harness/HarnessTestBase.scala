@@ -25,20 +25,22 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{LONG_TYPE_INFO, STRIN
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
+import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, TestHarnessUtil}
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
 import org.apache.flink.table.codegen.GeneratedAggregationsFunction
-import org.apache.flink.table.functions.aggfunctions.{CountAggFunction, IntSumWithRetractAggFunction, LongMaxWithRetractAggFunction, LongMinWithRetractAggFunction}
+import org.apache.flink.table.functions.aggfunctions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getAccumulatorTypeOfAggregateFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, RowResultSortComparatorWithWatermarks}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.utils.EncodingUtils
 import org.junit.Rule
-import org.junit.rules.ExpectedException
+import org.junit.rules.{ExpectedException, TemporaryFolder}
 
 class HarnessTestBase {
   // used for accurate exception information checking.
@@ -46,6 +48,19 @@ class HarnessTestBase {
 
   @Rule
   def thrown = expectedException
+
+  val _tempFolder = new TemporaryFolder
+
+  @Rule
+  def tempFolder: TemporaryFolder = _tempFolder
+
+  def getStateBackend: StateBackend = {
+    val dbPath = tempFolder.newFolder().getAbsolutePath
+    val checkpointPath = tempFolder.newFolder().toURI.toString
+    val backend = new RocksDBStateBackend(checkpointPath)
+    backend.setDbStoragePath(dbPath)
+    backend
+  }
 
   val longMinWithRetractAggFunction: String =
     EncodingUtils.encodeObjectToString(new LongMinWithRetractAggFunction)
@@ -55,6 +70,9 @@ class HarnessTestBase {
 
   val intSumWithRetractAggFunction: String =
     EncodingUtils.encodeObjectToString(new IntSumWithRetractAggFunction)
+
+  val intCollectAggFunction: String =
+  EncodingUtils.encodeObjectToString(new CollectAggFunction(Types.INT))
 
   val distinctCountAggFunction: String =
     EncodingUtils.encodeObjectToString(new CountAggFunction())
@@ -74,6 +92,9 @@ class HarnessTestBase {
   protected val sumAggregates: Array[AggregateFunction[_, _]] =
     Array(new IntSumWithRetractAggFunction).asInstanceOf[Array[AggregateFunction[_, _]]]
 
+  protected val collectAggregates: Array[AggregateFunction[_, _]] =
+    Array(new CollectAggFunction(Types.INT)).asInstanceOf[Array[AggregateFunction[_, _]]]
+
   protected val distinctCountAggregates: Array[AggregateFunction[_, _]] =
     Array(new CountAggFunction).asInstanceOf[Array[AggregateFunction[_, _]]]
 
@@ -83,15 +104,19 @@ class HarnessTestBase {
   protected val sumAggregationStateType: RowTypeInfo =
     new RowTypeInfo(sumAggregates.map(getAccumulatorTypeOfAggregateFunction(_)): _*)
 
+  protected val collectAggregationStateType: RowTypeInfo =
+    new RowTypeInfo(collectAggregates.map(getAccumulatorTypeOfAggregateFunction(_)): _*)
+
   protected val distinctCountAggregationStateType: RowTypeInfo =
     new RowTypeInfo(distinctCountAggregates.map(getAccumulatorTypeOfAggregateFunction(_)): _*)
 
   protected val distinctCountDescriptor: String = EncodingUtils.encodeObjectToString(
-    new MapStateDescriptor("distinctAgg0", distinctCountAggregationStateType, Types.LONG))
+    new MapStateDescriptor("distinctAgg0", new RowTypeInfo(Types.INT), Types.LONG))
 
   protected val minMaxFuncName = "MinMaxAggregateHelper"
   protected val sumFuncName = "SumAggregationHelper"
   protected val distinctCountFuncName = "DistinctCountAggregationHelper"
+  protected val collectFuncName = "CollectAggregationHelper"
 
   val minMaxCode: String =
     s"""
@@ -326,6 +351,105 @@ class HarnessTestBase {
       |}
       |""".stripMargin
 
+  val collectAggCode: String =
+    s"""
+      |public final class $collectFuncName
+      |  extends org.apache.flink.table.runtime.aggregate.GeneratedAggregations {
+      |
+      |  transient org.apache.flink.table.functions.aggfunctions.CollectAggFunction collect = null;
+      |  public transient org.apache.flink.table.dataview.StateMapView mapView = null;
+      |  private java.lang.reflect.Field mapViewField = null;
+      |
+      |  public $collectFuncName() throws Exception {
+      |    collect = (org.apache.flink.table.functions.aggfunctions.CollectAggFunction)
+      |      ${classOf[EncodingUtils].getCanonicalName}.decodeStringToObject(
+      |        "$intCollectAggFunction",
+      |        ${classOf[UserDefinedFunction].getCanonicalName}.class);
+      |
+      |    mapViewField = org.apache.flink.table.functions.aggfunctions.CollectAccumulator.class
+      |     .getDeclaredField("map");
+      |    mapViewField.setAccessible(true);
+      |  }
+      |
+      |  public final void setAggregationResults(
+      |    org.apache.flink.types.Row accs,
+      |    org.apache.flink.types.Row output) throws Exception {
+      |
+      |    org.apache.flink.table.functions.AggregateFunction baseClass0 =
+      |      (org.apache.flink.table.functions.AggregateFunction) collect;
+      |
+      |    org.apache.flink.table.functions.aggfunctions.CollectAccumulator acc =
+      |      (org.apache.flink.table.functions.aggfunctions.CollectAccumulator) accs.getField(0);
+      |    mapViewField.set(acc, mapView);
+      |
+      |    output.setField(1, baseClass0.getValue(acc));
+      |  }
+      |
+      |  public final void accumulate(
+      |    org.apache.flink.types.Row accs,
+      |    org.apache.flink.types.Row input) throws Exception {
+      |    org.apache.flink.table.functions.aggfunctions.CollectAccumulator acc =
+      |      (org.apache.flink.table.functions.aggfunctions.CollectAccumulator) accs.getField(0);
+      |    mapViewField.set(acc, mapView);
+      |
+      |    collect.accumulate(acc, (java.lang.Integer) input.getField(1));
+      |  }
+      |
+      |  public final void retract(
+      |    org.apache.flink.types.Row accs,
+      |    org.apache.flink.types.Row input) throws Exception {
+      |    org.apache.flink.table.functions.aggfunctions.CollectAccumulator acc =
+      |      (org.apache.flink.table.functions.aggfunctions.CollectAccumulator) accs.getField(0);
+      |    mapViewField.set(acc, mapView);
+      |
+      |    collect.retract(acc, (java.lang.Integer) input.getField(1));
+      |  }
+      |
+      |  public final org.apache.flink.types.Row createAccumulators() throws Exception {
+      |    org.apache.flink.types.Row accs = new org.apache.flink.types.Row(1);
+      |    accs.setField(0, collect.createAccumulator());
+      |    return accs;
+      |  }
+      |
+      |  public final void setForwardedFields(
+      |    org.apache.flink.types.Row input,
+      |    org.apache.flink.types.Row output) {
+      |    output.setField(0, input.getField(2));
+      |  }
+      |
+      |  public final org.apache.flink.types.Row createOutputRow() {
+      |    return new org.apache.flink.types.Row(2);
+      |  }
+      |
+      |  public final org.apache.flink.types.Row mergeAccumulatorsPair(
+      |    org.apache.flink.types.Row a, org.apache.flink.types.Row b) {
+      |      return a;
+      |  }
+      |
+      |  public final void resetAccumulator(
+      |    org.apache.flink.types.Row accs) {
+      |  }
+      |
+      |  public void open(org.apache.flink.api.common.functions.RuntimeContext ctx) {
+      |    mapView = new org.apache.flink.table.dataview.StateMapView(
+      |      ctx.getMapState(
+      |        new org.apache.flink.api.common.state.MapStateDescriptor(
+      |          "collect",
+      |          org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO,
+      |          org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO
+      |        )
+      |      )
+      |    );
+      |  }
+      |
+      |  public void cleanup() {
+      |  }
+      |
+      |  public void close() {
+      |  }
+      |}
+      |""".stripMargin
+
     val distinctCountAggCode: String =
     s"""
       |public final class $distinctCountFuncName
@@ -487,9 +611,10 @@ class HarnessTestBase {
 
   protected val genMinMaxAggFunction = GeneratedAggregationsFunction(minMaxFuncName, minMaxCode)
   protected val genSumAggFunction = GeneratedAggregationsFunction(sumFuncName, sumAggCode)
+  protected val genCollectAggFunction = GeneratedAggregationsFunction(
+    collectFuncName, collectAggCode)
   protected val genDistinctCountAggFunction = GeneratedAggregationsFunction(
-    distinctCountFuncName,
-    distinctCountAggCode)
+    distinctCountFuncName, distinctCountAggCode)
 
   def createHarnessTester[IN, OUT, KEY](
     operator: OneInputStreamOperator[IN, OUT],
