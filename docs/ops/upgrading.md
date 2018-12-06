@@ -274,7 +274,10 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
-          <td class="text-left"></td>
+          <td class="text-left">There is a known issue with resuming broadcast state created with 1.5.x in versions
+          1.6.x up to 1.6.2, and 1.7.0: <a href="https://issues.apache.org/jira/browse/FLINK-11087">FLINK-11087</a>. Users
+          upgrading to 1.6.x or 1.7.x series need to directly migrate to minor versions higher than 1.6.2 and 1.7.0,
+          respectively.</td>
     </tr>
     <tr>
           <td class="text-center"><strong>1.6.x</strong></td>
