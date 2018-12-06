@@ -234,7 +234,9 @@ public class DataStream<T> {
 	 *            {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}
 	 *            for directing the tuples.
 	 * @return The {@link SplitStream}
+	 * @deprecated Please use side ouput instead.
 	 */
+	@Deprecated
 	public SplitStream<T> split(OutputSelector<T> outputSelector) {
 		return new SplitStream<>(this, clean(outputSelector));
 	}
