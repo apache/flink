@@ -78,7 +78,7 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 	 */
 	private static final int VERSION = 3;
 
-	protected NestedSerializersSnapshotDelegate nestedSerializerSnapshots;
+	private NestedSerializersSnapshotDelegate nestedSerializerSnapshots;
 
 	private final Class<S> correspondingSerializerClass;
 
@@ -118,7 +118,7 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 	}
 
 	@Override
-	public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+	public final void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
 		if (readVersion >= 3) {
 			final int magicNumber = in.readInt();
 			if (magicNumber != MAGIC_NUMBER) {
