@@ -897,7 +897,7 @@ Table result = left.unionAll(right);
         <p>Similar to a SQL INTERSECT clause. Intersect returns records that exist in both tables. If a record is present one or both tables more than once, it is returned just once, i.e., the resulting table has no duplicate records. Both tables must have identical field types.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
-Table right = tableEnv.fromDataSet(ds2, "d, e, f");
+Table right = tableEnv.fromDataSet(ds2, "a, b, c");
 Table result = left.intersect(right);
 {% endhighlight %}
       </td>
@@ -912,7 +912,7 @@ Table result = left.intersect(right);
         <p>Similar to a SQL INTERSECT ALL clause. IntersectAll returns records that exist in both tables. If a record is present in both tables more than once, it is returned as many times as it is present in both tables, i.e., the resulting table might have duplicate records. Both tables must have identical field types.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
-Table right = tableEnv.fromDataSet(ds2, "d, e, f");
+Table right = tableEnv.fromDataSet(ds2, "a, b, c");
 Table result = left.intersectAll(right);
 {% endhighlight %}
       </td>
