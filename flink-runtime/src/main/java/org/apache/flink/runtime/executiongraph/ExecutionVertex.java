@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.Archiveable;
+import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -686,6 +687,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 		if (partition.getIntermediateResult().getResultType().isPipelined()) {
 			// Schedule or update receivers of this partition
+			partition.markDataProduced();
 			execution.scheduleOrUpdateConsumers(partition.getConsumers());
 		}
 		else {
@@ -724,6 +726,56 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		else {
 			return finishedBlockingPartitions;
 		}
+	}
+
+	/**
+	 * Check whether the InputDependencyConstraint is satisfied for this vertex.
+	 *
+	 * @return whether the input constraint is satisfied
+	 */
+	public boolean checkInputDependencyConstraints() {
+		if (getExecutionGraph().getInputDependencyConstraint() == InputDependencyConstraint.ANY) {
+			// InputDependencyConstraint == ANY
+			for (int i = 0; i < inputEdges.length; i++) {
+				if (isInputConsumable(i)) {
+					return true;
+				}
+			}
+			return false;
+		} else {
+			// InputDependencyConstraint == ALL
+			for (int i = 0; i < inputEdges.length; i++) {
+				if (!isInputConsumable(i)) {
+					return false;
+				}
+			}
+			return true;
+		}
+	}
+
+	/**
+	 * An input is consumable when
+	 * 1. the source result is PIPELINED and one of the result partition has produced data.
+	 * 2. the source result is BLOCKING and is FINISHED(all partitions are FINISHED).
+	 *
+	 * @return whether the input is consumable
+	 */
+	public boolean isInputConsumable(int inputNumber) {
+		IntermediateResult result = jobVertex.getInputs().get(inputNumber);
+
+		if (result.getResultType().isPipelined()) {
+			// For PIPELINED result, the input is consumable if any result partition has produced records or is finished
+			for (ExecutionEdge edge : inputEdges[inputNumber]) {
+				if (edge.getSource().hasDataProduced()) {
+					return true;
+				}
+			}
+		} else {
+			// For BLOCKING result, the input is consumable if all the partitions in the result are finished
+			return result.areAllPartitionsFinished();
+		}
+
+		return false;
 	}
 
 	// --------------------------------------------------------------------------------------------

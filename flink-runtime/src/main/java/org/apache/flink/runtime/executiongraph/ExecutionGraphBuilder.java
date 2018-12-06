@@ -180,6 +180,13 @@ public class ExecutionGraphBuilder {
 		executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling());
 
 		try {
+			executionGraph.setInputDependencyConstraint(
+                jobGraph.getSerializedExecutionConfig().deserializeValue(classLoader).getInputDependencyConstraint());
+		} catch (IOException | ClassNotFoundException e) {
+			throw new JobException("Fail to deserialize execution config.", e);
+		}
+
+		try {
 			executionGraph.setJsonPlan(JsonPlanGenerator.generatePlan(jobGraph));
 		}
 		catch (Throwable t) {
