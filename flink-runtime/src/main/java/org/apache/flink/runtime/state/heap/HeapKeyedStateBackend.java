@@ -283,8 +283,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			TypeSerializerSchemaCompatibility<N> namespaceCompatibility =
 				namespaceSerializerSnapshot.resolveSchemaCompatibility(namespaceSerializer);
-			if (namespaceCompatibility.isIncompatible()) {
-				throw new StateMigrationException("For heap backends, the new namespace serializer must not be incompatible.");
+			if (!namespaceCompatibility.isCompatibleAsIs()) {
+				throw new StateMigrationException("For heap backends, the new namespace serializer must be compatible.");
 			}
 
 			@SuppressWarnings("unchecked")
