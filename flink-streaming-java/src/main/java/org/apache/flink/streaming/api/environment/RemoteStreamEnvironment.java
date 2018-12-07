@@ -66,6 +66,8 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	/** The classpaths that need to be attached to each job. */
 	private final List<URL> globalClasspaths;
 
+	private SavepointRestoreSettings savepointRestoreSettings;
+
 	/**
 	 * Creates a new RemoteStreamEnvironment that points to the master
 	 * (JobManager) described by the given host name and port.
@@ -174,6 +176,10 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		return jarFiles;
 	}
 
+	public void setSavepointRestoreSettings(SavepointRestoreSettings savepointRestoreSettings) {
+		this.savepointRestoreSettings = savepointRestoreSettings;
+	}
+
 	/**
 	 * Executes the remote job.
 	 *
@@ -221,6 +227,10 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 		client.setPrintStatusDuringExecution(streamExecutionEnvironment.getConfig().isSysoutLoggingEnabled());
 
+		if (savepointRestoreSettings == null) {
+			savepointRestoreSettings = SavepointRestoreSettings.none();
+		}
+
 		try {
 			return client.run(streamGraph, jarFiles, globalClasspaths, usercodeClassLoader, savepointRestoreSettings)
 				.getJobExecutionResult();
@@ -246,7 +256,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	public JobExecutionResult execute(String jobName) throws ProgramInvocationException {
 		try {
 			return RemoteStreamEnvironment.executeRemotely(this,
-				getJarFiles(), host, port, clientConfiguration, globalClasspaths, jobName, SavepointRestoreSettings.none());
+				getJarFiles(), host, port, clientConfiguration, globalClasspaths, jobName, savepointRestoreSettings);
 		} finally {
 			transformations.clear();
 		}
