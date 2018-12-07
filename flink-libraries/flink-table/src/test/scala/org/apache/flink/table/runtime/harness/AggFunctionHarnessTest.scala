@@ -18,62 +18,84 @@
 
 package org.apache.flink.table.runtime.harness
 
-import java.lang.{Integer => JInt, Long => JLong}
+import java.lang.{Integer => JInt}
 import java.util.concurrent.ConcurrentLinkedQueue
 
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, LegacyKeyedProcessOperator}
+import org.apache.flink.api.scala._
+import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend
+import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.dataview.{DataView, MapView}
+import org.apache.flink.table.dataview.StateMapView
 import org.apache.flink.table.runtime.aggregate.{GeneratedAggregations, GroupAggProcessFunction}
-import org.apache.flink.table.runtime.harness.HarnessTestBase.{TestStreamQueryConfig, TupleRowKeySelector}
+import org.apache.flink.table.runtime.harness.HarnessTestBase.TestStreamQueryConfig
 import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.types.Row
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 class AggFunctionHarnessTest extends HarnessTestBase {
-  protected var queryConfig =
-    new TestStreamQueryConfig(Time.seconds(0), Time.seconds(0))
+  private val queryConfig = new TestStreamQueryConfig(Time.seconds(0), Time.seconds(0))
 
   @Test
   def testCollectAggregate(): Unit = {
-    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
-      new GroupAggProcessFunction(
-        genCollectAggFunction,
-        collectAggregationStateType,
-        false,
-        queryConfig))
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val testHarness = createHarnessTester(
-      processFunction,
-      new TupleRowKeySelector[String](2),
-      BasicTypeInfo.STRING_TYPE_INFO)
+    val data = new mutable.MutableList[(JInt, String)]
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b)
+    tEnv.registerTable("T", t)
+    val sqlQuery = tEnv.sqlQuery(
+      s"""
+         |SELECT
+         |  b, collect(a)
+         |FROM (
+         |  SELECT a, b
+         |  FROM T
+         |  GROUP BY a, b
+         |) GROUP BY b
+         |""".stripMargin)
+
+    val testHarness = createHarnessTester[String, CRow, CRow](
+      sqlQuery.toRetractStream[Row](queryConfig), "groupBy")
+
     testHarness.setStateBackend(getStateBackend)
-
     testHarness.open()
 
-    val state = getState(processFunction, "mapView").asInstanceOf[MapView[JInt, JInt]]
+    val operator = getOperator(testHarness)
+    val state = getState(operator, "acc0_map_dataview").asInstanceOf[MapView[JInt, JInt]]
+    assertTrue(state.isInstanceOf[StateMapView[_, _]])
+    assertTrue(operator.getKeyedStateBackend.isInstanceOf[RocksDBKeyedStateBackend[_]])
 
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
-    testHarness.processElement(new StreamRecord(CRow(1L: JLong, 1: JInt, "aaa"), 1))
+    testHarness.processElement(new StreamRecord(CRow(1: JInt, "aaa"), 1))
     expectedOutput.add(new StreamRecord(CRow("aaa", Map(1 -> 1).asJava), 1))
-    testHarness.processElement(new StreamRecord(CRow(2L: JLong, 1: JInt, "bbb"), 1))
+
+    testHarness.processElement(new StreamRecord(CRow(1: JInt, "bbb"), 1))
     expectedOutput.add(new StreamRecord(CRow("bbb", Map(1 -> 1).asJava), 1))
 
-    testHarness.processElement(new StreamRecord(CRow(3L: JLong, 1: JInt, "aaa"), 1))
+    testHarness.processElement(new StreamRecord(CRow(1: JInt, "aaa"), 1))
+    expectedOutput.add(new StreamRecord(CRow(false, "aaa", Map(1 -> 1).asJava), 1))
     expectedOutput.add(new StreamRecord(CRow("aaa", Map(1 -> 2).asJava), 1))
-    testHarness.processElement(new StreamRecord(CRow(4L: JLong, 2: JInt, "aaa"), 1))
+
+    testHarness.processElement(new StreamRecord(CRow(2: JInt, "aaa"), 1))
+    expectedOutput.add(new StreamRecord(CRow(false, "aaa", Map(1 -> 2).asJava), 1))
     expectedOutput.add(new StreamRecord(CRow("aaa", Map(1 -> 2, 2 -> 1).asJava), 1))
 
     // remove some state: state may be cleaned up by the state backend if not accessed more than ttl
-    processFunction.setCurrentKey("aaa")
+    operator.setCurrentKey(Row.of("aaa"))
     state.remove(2)
 
     // retract after state has been cleaned up
-    testHarness.processElement(new StreamRecord(CRow(false, 5L: JLong, 2: JInt, "aaa"), 1))
+    testHarness.processElement(new StreamRecord(CRow(false, 2: JInt, "aaa"), 1))
 
     val result = testHarness.getOutput
 
@@ -85,11 +107,13 @@ class AggFunctionHarnessTest extends HarnessTestBase {
   private def getState(
       operator: AbstractUdfStreamOperator[_, _],
       stateFieldName: String): DataView = {
-    val field = classOf[GroupAggProcessFunction].getDeclaredField("function")
-    field.setAccessible(true)
+    val function = classOf[GroupAggProcessFunction].getDeclaredField("function")
+    function.setAccessible(true)
     val generatedAggregation =
-      field.get(operator.getUserFunction).asInstanceOf[GeneratedAggregations]
-    generatedAggregation.getClass.getDeclaredField(stateFieldName)
-      .get(generatedAggregation).asInstanceOf[DataView]
+      function.get(operator.getUserFunction).asInstanceOf[GeneratedAggregations]
+    val cls = generatedAggregation.getClass
+    val stateField = cls.getDeclaredField(stateFieldName)
+    stateField.setAccessible(true)
+    stateField.get(generatedAggregation).asInstanceOf[DataView]
   }
 }
