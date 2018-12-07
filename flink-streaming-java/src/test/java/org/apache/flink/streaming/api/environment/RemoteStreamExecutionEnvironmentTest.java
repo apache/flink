@@ -61,8 +61,8 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 				Object[] args = invocation.getArguments();
 				Configuration config = (Configuration) args[0];
 
-				Assert.assertEquals(config.getString(RestOptions.ADDRESS), host);
-				Assert.assertEquals(config.getInteger(RestOptions.PORT), port);
+				Assert.assertEquals(host, config.getString(RestOptions.ADDRESS));
+				Assert.assertEquals(port, config.getInteger(RestOptions.PORT));
 				return mockedClient;
 			}
 		);
