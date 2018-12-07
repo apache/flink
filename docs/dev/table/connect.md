@@ -145,7 +145,7 @@ tableEnvironment
         "      {\"name\": \"user\", \"type\": \"long\"}," +
         "      {\"name\": \"message\", \"type\": [\"string\", \"null\"]}" +
         "    ]" +
-        "}" +
+        "}"
       )
   )
 
