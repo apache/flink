@@ -324,7 +324,9 @@ and occupy local disk space. In the future, we might also offer an implementatio
 and occupy local disk space. For *incremental snapshots*, the local state is based on RocksDB's native checkpointing mechanism. This mechanism is also used as the first step
 to create the primary copy, which means that in this case no additional cost is introduced for creating the secondary copy. We simply keep the native checkpoint directory around
 instead of deleting it after uploading to the distributed store. This local copy can share active files with the working directory of RocksDB (via hard links), so for active
-files also no additional disk space is consumed for task-local recovery with incremental snapshots.
+files also no additional disk space is consumed for task-local recovery with incremental snapshots. Using hard links also means that the RocksDB directories must be on
+the same physical device as all the configure local recovery directories that can be used to store local state, or else establishing hard links can fail (see FLINK-10954).
+Currently, this also prevents using local recovery when RocksDB directories are configured to be located on more than one physical device.
 
 ### Allocation-preserving scheduling
 
