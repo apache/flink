@@ -245,6 +245,8 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			// the new serializer is INCOMPATIBLE, so registering the state should fail
 			backend.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+
+			Assert.fail("should have failed");
 		} catch (Exception e) {
 			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 		}finally {
@@ -288,10 +290,12 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			kvId = new ListStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION));
+				new TestSerializer(SerializerCompatibilityType.INCOMPATIBLE));
 
 			// the new serializer is INCOMPATIBLE, so registering the state should fail
 			backend.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+
+			Assert.fail("should have failed");
 		} catch (Exception e) {
 			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 		} finally {
@@ -358,6 +362,8 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			try {
 				// the new key serializer is incompatible; this should fail the restore
 				restoreKeyedBackend(new TestSerializer(SerializerCompatibilityType.INCOMPATIBLE), snapshot);
+
+				Assert.fail("should have failed");
 			} catch (Exception e) {
 				Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 			}
@@ -365,6 +371,8 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			try {
 				// the new key serializer requires migration; this should fail the restore
 				restoreKeyedBackend(new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION), snapshot);
+
+				Assert.fail("should have failed");
 			} catch (Exception e) {
 				Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 			}
@@ -397,26 +405,33 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			KeyedStateHandle snapshot = runSnapshot(
 				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
 				sharedStateRegistry);
+
+			// test incompatible namespace serializer; start with a freshly restored backend
 			backend.dispose();
-
 			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
-
 			try {
 				// the new namespace serializer is incompatible; this should fail the restore
 				backend.getPartitionedState(
 					new TestType("namespace", 123),
 					new TestSerializer(SerializerCompatibilityType.INCOMPATIBLE),
 					kvId);
+
+				Assert.fail("should have failed");
 			} catch (Exception e) {
 				Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 			}
 
+			// test namespace serializer that requires migration; start with a freshly restored backend
+			backend.dispose();
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
 			try {
 				// the new namespace serializer requires migration; this should fail the restore
 				backend.getPartitionedState(
 					new TestType("namespace", 123),
 					new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION),
 					kvId);
+
+				Assert.fail("should have failed");
 			} catch (Exception e) {
 				Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 			}
@@ -685,10 +700,12 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			descriptor = new MapStateDescriptor<>(
 				stateName,
 				IntSerializer.INSTANCE,
-				new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION));
+				new TestSerializer(SerializerCompatibilityType.INCOMPATIBLE));
 
 			// the new value serializer is INCOMPATIBLE, so registering the state should fail
 			backend.getBroadcastState(descriptor);
+
+			Assert.fail("should have failed.");
 		} catch (Exception e) {
 			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 		} finally {
@@ -726,6 +743,8 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			// the new key serializer is INCOMPATIBLE, so registering the state should fail
 			backend.getBroadcastState(descriptor);
+
+			Assert.fail("should have failed.");
 		} catch (Exception e) {
 			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 		} finally {
