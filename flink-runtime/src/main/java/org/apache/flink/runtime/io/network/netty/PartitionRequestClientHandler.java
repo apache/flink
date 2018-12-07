@@ -233,12 +233,13 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 		super.channelReadComplete(ctx);
 	}
 
+	@SuppressWarnings("unchecked")
 	private boolean decodeMsg(Object msg, boolean isStagedBuffer) throws Throwable {
 		final Class<?> msgClazz = msg.getClass();
 
 		// ---- Buffer --------------------------------------------------------
 		if (msgClazz == NettyMessage.BufferResponse.class) {
-			NettyMessage.BufferResponse bufferOrEvent = (NettyMessage.BufferResponse) msg;
+			NettyMessage.BufferResponse<ByteBuf> bufferOrEvent = (NettyMessage.BufferResponse<ByteBuf>) msg;
 
 			RemoteInputChannel inputChannel = inputChannels.get(bufferOrEvent.receiverId);
 			if (inputChannel == null) {
@@ -284,11 +285,11 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 		return true;
 	}
 
-	private boolean decodeBufferOrEvent(RemoteInputChannel inputChannel, NettyMessage.BufferResponse bufferOrEvent, boolean isStagedBuffer) throws Throwable {
+	private boolean decodeBufferOrEvent(RemoteInputChannel inputChannel, NettyMessage.BufferResponse<ByteBuf> bufferOrEvent, boolean isStagedBuffer) throws Throwable {
 		boolean releaseNettyBuffer = true;
 
 		try {
-			ByteBuf nettyBuffer = bufferOrEvent.getNettyBuffer();
+			ByteBuf nettyBuffer = bufferOrEvent.getBuffer();
 			final int receivedSize = nettyBuffer.readableBytes();
 			if (bufferOrEvent.isBuffer()) {
 				// ---- Buffer ------------------------------------------------
@@ -378,9 +379,9 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 
 		private final AtomicReference<Buffer> availableBuffer = new AtomicReference<Buffer>();
 
-		private NettyMessage.BufferResponse stagedBufferResponse;
+		private NettyMessage.BufferResponse<ByteBuf> stagedBufferResponse;
 
-		private boolean waitForBuffer(BufferProvider bufferProvider, NettyMessage.BufferResponse bufferResponse) {
+		private boolean waitForBuffer(BufferProvider bufferProvider, NettyMessage.BufferResponse<ByteBuf> bufferResponse) {
 
 			stagedBufferResponse = bufferResponse;
 
@@ -447,7 +448,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 					throw new IllegalStateException("Running buffer availability task w/o a buffer.");
 				}
 
-				ByteBuf nettyBuffer = stagedBufferResponse.getNettyBuffer();
+				ByteBuf nettyBuffer = stagedBufferResponse.getBuffer();
 				nettyBuffer.readBytes(buffer.asByteBuf(), nettyBuffer.readableBytes());
 				stagedBufferResponse.releaseBuffer();
 

@@ -289,7 +289,12 @@ public class PartitionRequestClientHandlerTest {
 			int backlog) throws IOException {
 
 		// Mock buffer to serialize
-		BufferResponse resp = new BufferResponse(buffer, sequenceNumber, receivingChannelId, backlog);
+		BufferResponse resp = new BufferResponse<>(
+				new NettyMessage.FlinkBufferHolder(buffer),
+				buffer.isBuffer(),
+				sequenceNumber,
+				receivingChannelId,
+				backlog);
 
 		ByteBuf serialized = resp.write(UnpooledByteBufAllocator.DEFAULT);
 

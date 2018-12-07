@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.net.SSLUtils;
 
+import org.apache.flink.util.MathUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +46,15 @@ public class NettyConfig {
 			.defaultValue(-1)
 			.withDeprecatedKeys("taskmanager.net.num-arenas")
 			.withDescription("The number of Netty arenas.");
+
+	/**
+	 * Arenas allocate chunks of pageSize << maxOrder bytes. With these defaults, this results in
+	 * chunks of 4 MB.
+	 */
+	public static final ConfigOption<Integer> MAX_ORDER = ConfigOptions
+			.key("taskmanager.network.netty.max-order")
+			.defaultValue(9)
+			.withDescription("The power of 2 of the number of pages in each chunk.");
 
 	public static final ConfigOption<Integer> NUM_THREADS_SERVER = ConfigOptions
 			.key("taskmanager.network.netty.server.numThreads")
@@ -84,6 +94,14 @@ public class NettyConfig {
 			.withDescription("The Netty transport type, either \"nio\" or \"epoll\"");
 
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Arenas allocate chunks of pageSize << maxOrder bytes. With these defaults, this results in
+	 * chunks of 4 MB.
+	 *
+	 * @see #MAX_ORDER
+	 */
+	static final int DEFAULT_PAGE_SIZE = 8192;
 
 	enum TransportType {
 		NIO, EPOLL, AUTO
@@ -210,6 +228,20 @@ public class NettyConfig {
 
 	public boolean isCreditBasedEnabled() {
 		return config.getBoolean(TaskManagerOptions.NETWORK_CREDIT_MODEL);
+	}
+
+	public int getPageSize() {
+		return DEFAULT_PAGE_SIZE;
+	}
+
+	public int getMaxOrder() {
+		int maxOrder = config.getInteger(MAX_ORDER);
+
+		// Assert the chunk size is not too small to fulfill the requirements of a single thread.
+		// We require the chunk size to be larger than 1MB based on the experiment results.
+		int minimumMaxOrder = 20 - MathUtils.log2strict(getPageSize());
+
+		return Math.max(minimumMaxOrder, maxOrder);
 	}
 
 	public Configuration getConfig() {

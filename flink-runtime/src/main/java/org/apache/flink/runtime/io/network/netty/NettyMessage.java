@@ -44,7 +44,6 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.net.ProtocolException;
 import java.nio.ByteBuffer;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -203,6 +202,7 @@ public abstract class NettyMessage {
 	 */
 	static class NettyMessageDecoder extends LengthFieldBasedFrameDecoder {
 		private final boolean restoreOldNettyBehaviour;
+		private final NoDataBufferMessageParser noDataBufferMessageParser;
 
 		/**
 		 * Creates a new message decoded with the required frame properties.
@@ -214,6 +214,7 @@ public abstract class NettyMessage {
 		NettyMessageDecoder(boolean restoreOldNettyBehaviour) {
 			super(Integer.MAX_VALUE, 0, 4, -4, 4);
 			this.restoreOldNettyBehaviour = restoreOldNettyBehaviour;
+			this.noDataBufferMessageParser = new NoDataBufferMessageParser();
 		}
 
 		@Override
@@ -234,31 +235,11 @@ public abstract class NettyMessage {
 				byte msgId = msg.readByte();
 
 				final NettyMessage decodedMsg;
-				switch (msgId) {
-					case BufferResponse.ID:
-						decodedMsg = BufferResponse.readFrom(msg);
-						break;
-					case PartitionRequest.ID:
-						decodedMsg = PartitionRequest.readFrom(msg);
-						break;
-					case TaskEventRequest.ID:
-						decodedMsg = TaskEventRequest.readFrom(msg, getClass().getClassLoader());
-						break;
-					case ErrorResponse.ID:
-						decodedMsg = ErrorResponse.readFrom(msg);
-						break;
-					case CancelPartitionRequest.ID:
-						decodedMsg = CancelPartitionRequest.readFrom(msg);
-						break;
-					case CloseRequest.ID:
-						decodedMsg = CloseRequest.readFrom(msg);
-						break;
-					case AddCredit.ID:
-						decodedMsg = AddCredit.readFrom(msg);
-						break;
-					default:
-						throw new ProtocolException(
-							"Received unknown message from producer: " + msg);
+
+				if (msgId == BufferResponse.ID) {
+					decodedMsg = BufferResponse.readFrom(msg);
+				} else {
+					decodedMsg = noDataBufferMessageParser.parseMessageHeader(msgId, msg).getParsedMessage();
 				}
 
 				return decodedMsg;
@@ -293,15 +274,114 @@ public abstract class NettyMessage {
 		}
 	}
 
+	/**
+	 * Holds a buffer object who has the view of netty {@link ByteBuf}.
+	 */
+	interface BufferHolder<T> {
+		/**
+		 * Gets the original buffer object.
+		 *
+		 * @return the original buffer object.
+		 */
+		T getBuffer();
+
+		/**
+		 * Gets the view that casts the buffer object as a netty ByteBuf.
+		 *
+		 * @return the view of the buffer object as a netty ByteBuf.
+		 */
+		ByteBuf asByteBuf();
+
+		/**
+		 * Notification of the buffer object is going to be written.
+		 *
+		 * @param allocator the ByteBuf allocator of current netty pipeline.
+		 */
+		void onWrite(ByteBufAllocator allocator);
+
+		/**
+		 * Releases the underlying buffer object.
+		 */
+		void release();
+	}
+
+	/**
+	 * The buffer holder to hold a netty {@link ByteBuf}.
+	 */
+	static class NettyBufferHolder implements BufferHolder<ByteBuf> {
+		private ByteBuf byteBuf;
+
+		NettyBufferHolder(@Nullable ByteBuf byteBuf) {
+			this.byteBuf = byteBuf;
+		}
+
+		@Override
+		@Nullable
+		public ByteBuf getBuffer() {
+			return byteBuf;
+		}
+
+		@Override
+		public ByteBuf asByteBuf() {
+			return byteBuf;
+		}
+
+		@Override
+		public void onWrite(ByteBufAllocator allocator) {
+			// No operations.
+		}
+
+		@Override
+		public void release() {
+			byteBuf.release();
+		}
+	}
+
+	/**
+	 * The buffer holder to hold a flink {@link Buffer}.
+	 */
+	static class FlinkBufferHolder implements BufferHolder<Buffer> {
+		private Buffer buffer;
+
+		FlinkBufferHolder(@Nullable Buffer buffer) {
+			this.buffer = buffer;
+		}
+
+		@Override
+		@Nullable
+		public Buffer getBuffer() {
+			return buffer;
+		}
+
+		@Override
+		public ByteBuf asByteBuf() {
+			return buffer == null ? null : buffer.asByteBuf();
+		}
+
+		@Override
+		public void onWrite(ByteBufAllocator allocator) {
+			// in order to forward the buffer to netty, it needs an allocator set
+			buffer.setAllocator(allocator);
+		}
+
+		@Override
+		public void release() {
+			buffer.recycleBuffer();
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	// Server responses
 	// ------------------------------------------------------------------------
 
-	static class BufferResponse extends NettyMessage {
+	static class BufferResponse<T> extends NettyMessage {
 
-		private static final byte ID = 0;
+		static final byte ID = 0;
 
-		final ByteBuf buffer;
+		// receiver ID (16), sequence number (4), backlog (4), isBuffer (1), buffer size (4)
+		static final int MESSAGE_HEADER_LENGTH = 16 + 4 + 4 + 1 + 4;
+
+		final BufferHolder<T> bufferHolder;
 
 		final InputChannelID receiverId;
 
@@ -311,41 +391,58 @@ public abstract class NettyMessage {
 
 		final boolean isBuffer;
 
-		private BufferResponse(
-				ByteBuf buffer,
+		final int bufferSize;
+
+		BufferResponse(
+				BufferHolder<T> bufferHolder,
 				boolean isBuffer,
 				int sequenceNumber,
 				InputChannelID receiverId,
 				int backlog) {
-			this.buffer = checkNotNull(buffer);
+			this.bufferHolder = checkNotNull(bufferHolder);
+			checkNotNull(bufferHolder.getBuffer());
+
 			this.isBuffer = isBuffer;
 			this.sequenceNumber = sequenceNumber;
 			this.receiverId = checkNotNull(receiverId);
 			this.backlog = backlog;
+			this.bufferSize = bufferHolder.asByteBuf().readableBytes();
 		}
 
-		BufferResponse(
-				Buffer buffer,
+		private BufferResponse(
+				BufferHolder<T> bufferHolder,
+				boolean isBuffer,
 				int sequenceNumber,
 				InputChannelID receiverId,
-				int backlog) {
-			this.buffer = checkNotNull(buffer).asByteBuf();
-			this.isBuffer = buffer.isBuffer();
+				int backlog,
+				int bufferSize) {
+			this.bufferHolder = checkNotNull(bufferHolder);
+
+			this.isBuffer = isBuffer;
 			this.sequenceNumber = sequenceNumber;
 			this.receiverId = checkNotNull(receiverId);
 			this.backlog = backlog;
+			this.bufferSize = bufferSize;
 		}
 
 		boolean isBuffer() {
 			return isBuffer;
 		}
 
-		ByteBuf getNettyBuffer() {
-			return buffer;
+		T getBuffer() {
+			return bufferHolder.getBuffer();
+		}
+
+		ByteBuf asByteBuf() {
+			return bufferHolder.asByteBuf();
+		}
+
+		public int getBufferSize() {
+			return bufferSize;
 		}
 
 		void releaseBuffer() {
-			buffer.release();
+			bufferHolder.release();
 		}
 
 		// --------------------------------------------------------------------
@@ -354,44 +451,45 @@ public abstract class NettyMessage {
 
 		@Override
 		ByteBuf write(ByteBufAllocator allocator) throws IOException {
-			// receiver ID (16), sequence number (4), backlog (4), isBuffer (1), buffer size (4)
-			final int messageHeaderLength = 16 + 4 + 4 + 1 + 4;
-
 			ByteBuf headerBuf = null;
 			try {
-				if (buffer instanceof Buffer) {
-					// in order to forward the buffer to netty, it needs an allocator set
-					((Buffer) buffer).setAllocator(allocator);
-				}
+				bufferHolder.onWrite(allocator);
 
 				// only allocate header buffer - we will combine it with the data buffer below
-				headerBuf = allocateBuffer(allocator, ID, messageHeaderLength, buffer.readableBytes(), false);
+				headerBuf = allocateBuffer(allocator, ID, MESSAGE_HEADER_LENGTH, bufferSize, false);
 
 				receiverId.writeTo(headerBuf);
 				headerBuf.writeInt(sequenceNumber);
 				headerBuf.writeInt(backlog);
 				headerBuf.writeBoolean(isBuffer);
-				headerBuf.writeInt(buffer.readableBytes());
+				headerBuf.writeInt(bufferSize);
 
 				CompositeByteBuf composityBuf = allocator.compositeDirectBuffer();
 				composityBuf.addComponent(headerBuf);
-				composityBuf.addComponent(buffer);
+				composityBuf.addComponent(bufferHolder.asByteBuf());
 				// update writer index since we have data written to the components:
-				composityBuf.writerIndex(headerBuf.writerIndex() + buffer.writerIndex());
+				composityBuf.writerIndex(headerBuf.writerIndex() + bufferHolder.asByteBuf().writerIndex());
 				return composityBuf;
 			}
 			catch (Throwable t) {
 				if (headerBuf != null) {
 					headerBuf.release();
 				}
-				buffer.release();
+				bufferHolder.release();
 
 				ExceptionUtils.rethrowIOException(t);
 				return null; // silence the compiler
 			}
 		}
 
-		static BufferResponse readFrom(ByteBuf buffer) {
+		/**
+		 * Parses the whole BufferResponse message and composes a new BufferResponse with both header parsed and
+		 * data buffer filled in. This method is used in non-credit-based network stack.
+		 *
+		 * @param buffer the whole serialized BufferResponse message.
+		 * @return a BufferResponse object with the header parsed and the data buffer filled in.
+		 */
+		static BufferResponse<ByteBuf> readFrom(ByteBuf buffer) {
 			InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
 			int sequenceNumber = buffer.readInt();
 			int backlog = buffer.readInt();
@@ -399,13 +497,52 @@ public abstract class NettyMessage {
 			int size = buffer.readInt();
 
 			ByteBuf retainedSlice = buffer.readSlice(size).retain();
-			return new BufferResponse(retainedSlice, isBuffer, sequenceNumber, receiverId, backlog);
+			return new BufferResponse<>(
+					new NettyBufferHolder(retainedSlice),
+					isBuffer,
+					sequenceNumber,
+					receiverId,
+					backlog,
+					size);
+		}
+
+		/**
+		 * Parses the message header part and composes a new BufferResponse with an empty data buffer. The
+		 * data buffer will be filled in later. This method is used in credit-based network stack.
+		 *
+		 * @param messageHeader the serialized message header.
+		 * @param bufferAllocator the allocator for network buffer.
+		 * @return a BufferResponse object with the header parsed and the data buffer to fill in later.
+		 */
+		static BufferResponse<Buffer> readFrom(ByteBuf messageHeader, NetworkBufferAllocator bufferAllocator) {
+			InputChannelID receiverId = InputChannelID.fromByteBuf(messageHeader);
+			int sequenceNumber = messageHeader.readInt();
+			int backlog = messageHeader.readInt();
+			boolean isBuffer = messageHeader.readBoolean();
+			int size = messageHeader.readInt();
+
+			Buffer dataBuffer = null;
+			if (size != 0) {
+				if (isBuffer) {
+					dataBuffer = bufferAllocator.allocatePooledNetworkBuffer(receiverId, size);
+				} else {
+					dataBuffer = bufferAllocator.allocateUnPooledNetworkBuffer(size);
+				}
+			}
+
+			return new BufferResponse<>(
+					new FlinkBufferHolder(dataBuffer),
+					isBuffer,
+					sequenceNumber,
+					receiverId,
+					backlog,
+					size);
 		}
 	}
 
 	static class ErrorResponse extends NettyMessage {
 
-		private static final byte ID = 1;
+		static final byte ID = 1;
 
 		final Throwable cause;
 
@@ -480,7 +617,7 @@ public abstract class NettyMessage {
 
 	static class PartitionRequest extends NettyMessage {
 
-		private static final byte ID = 2;
+		static final byte ID = 2;
 
 		final ResultPartitionID partitionId;
 
@@ -541,7 +678,7 @@ public abstract class NettyMessage {
 
 	static class TaskEventRequest extends NettyMessage {
 
-		private static final byte ID = 3;
+		static final byte ID = 3;
 
 		final TaskEvent event;
 
@@ -614,7 +751,7 @@ public abstract class NettyMessage {
 	 */
 	static class CancelPartitionRequest extends NettyMessage {
 
-		private static final byte ID = 4;
+		static final byte ID = 4;
 
 		final InputChannelID receiverId;
 
@@ -648,7 +785,7 @@ public abstract class NettyMessage {
 
 	static class CloseRequest extends NettyMessage {
 
-		private static final byte ID = 5;
+		static final byte ID = 5;
 
 		CloseRequest() {
 		}
@@ -668,7 +805,7 @@ public abstract class NettyMessage {
 	 */
 	static class AddCredit extends NettyMessage {
 
-		private static final byte ID = 6;
+		static final byte ID = 6;
 
 		final ResultPartitionID partitionId;
 

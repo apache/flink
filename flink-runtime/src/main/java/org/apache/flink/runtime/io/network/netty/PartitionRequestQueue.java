@@ -241,8 +241,9 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 						registerAvailableReader(reader);
 					}
 
-					BufferResponse msg = new BufferResponse(
-						next.buffer(),
+					BufferResponse msg = new BufferResponse<>(
+						new NettyMessage.FlinkBufferHolder(next.buffer()),
+						next.buffer().isBuffer(),
 						reader.getSequenceNumber(),
 						reader.getReceiverId(),
 						next.buffersInBacklog());
