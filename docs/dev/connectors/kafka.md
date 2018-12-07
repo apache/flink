@@ -617,7 +617,7 @@ Note that the partitioner implementation must be serializable, as they will be t
 Also, keep in mind that any state in the partitioner will be lost on job failures since the partitioner
 is not part of the producer's checkpointed state.
 
-It is also possible to completely avoid using and kind of partitioner, and simply let Kafka partition
+It is also possible to completely avoid using any kind of partitioner, and simply let Kafka partition
 the written records by their attached key (as determined for each record using the provided serialization schema).
 To do this, provide a `null` custom partitioner when instantiating the producer. It is important
 to provide `null` as the custom partitioner; as explained above, if a custom partitioner is not specified
@@ -681,13 +681,13 @@ chosen by passing appropriate `semantic` parameter to the `FlinkKafkaProducer011
 
 `Semantic.EXACTLY_ONCE` mode relies on the ability to commit transactions
 that were started before taking a checkpoint, after recovering from the said checkpoint. If the time
-between Flink application crash and completed restart is larger then Kafka's transaction timeout
+between Flink application crash and completed restart is larger than Kafka's transaction timeout
 there will be data loss (Kafka will automatically abort transactions that exceeded timeout time).
 Having this in mind, please configure your transaction timeout appropriately to your expected down
 times.
 
 Kafka brokers by default have `transaction.max.timeout.ms` set to 15 minutes. This property will
-not allow to set transaction timeouts for the producers larger then it's value.
+not allow to set transaction timeouts for the producers larger than it's value.
 `FlinkKafkaProducer011` by default sets the `transaction.timeout.ms` property in producer config to
 1 hour, thus `transaction.max.timeout.ms` should be increased before using the
 `Semantic.EXACTLY_ONCE` mode.
@@ -713,14 +713,14 @@ the consumers until `transaction1` is committed or aborted. This has two implica
 **Note**:  `Semantic.EXACTLY_ONCE` mode uses a fixed size pool of KafkaProducers
 per each `FlinkKafkaProducer011` instance. One of each of those producers is used per one
 checkpoint. If the number of concurrent checkpoints exceeds the pool size, `FlinkKafkaProducer011`
-will throw an exception and will fail the whole application. Please configure max pool size and max
-number of concurrent checkpoints accordingly.
+will throw an exception and will fail the whole application. Please configure max pool size(`FlinkKafkaProducer011.kafkaProducersPoolSize`) 
+and max number of concurrent checkpoints(`CheckpointConfig.maxConcurrentCheckpoints`) accordingly.
 
 **Note**: `Semantic.EXACTLY_ONCE` takes all possible measures to not leave any lingering transactions
-that would block the consumers from reading from Kafka topic more then it is necessary. However in the
+that would block the consumers from reading from Kafka topic more than it is necessary. However in the
 event of failure of Flink application before first checkpoint, after restarting such application there
 is no information in the system about previous pool sizes. Thus it is unsafe to scale down Flink
-application before first checkpoint completes, by factor larger then `FlinkKafkaProducer011.SAFE_SCALE_DOWN_FACTOR`.
+application(`getNumberOfParallelSubtasks()`) before first checkpoint completes, by factor larger than `FlinkKafkaProducer011.SAFE_SCALE_DOWN_FACTOR`.
 
 ## Using Kafka timestamps and Flink event time in Kafka 0.10
 
