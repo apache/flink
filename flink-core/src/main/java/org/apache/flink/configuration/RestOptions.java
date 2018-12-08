@@ -38,6 +38,17 @@ public class RestOptions {
 			.withDescription("The address that the server binds itself.");
 
 	/**
+	 * The port range that the server could bind itself to.
+	 */
+	public static final ConfigOption<String> BIND_PORT =
+		key("rest.bind-port")
+			.defaultValue("8081")
+			.withDescription("The port that the server binds itself. Accepts a list of ports (“50100,50101”), ranges" +
+				" (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid" +
+				" collisions when multiple Rest servers are running on the same machine.");
+
+
+	/**
 	 * The address that should be used by clients to connect to the server.
 	 */
 	public static final ConfigOption<String> ADDRESS =
@@ -47,13 +58,13 @@ public class RestOptions {
 			.withDescription("The address that should be used by clients to connect to the server.");
 
 	/**
-	 * The port that the server listens on / the client connects to.
+	 * The port that the client connects to.
 	 */
 	public static final ConfigOption<Integer> PORT =
 		key("rest.port")
 			.defaultValue(8081)
 			.withDeprecatedKeys("web.port")
-			.withDescription("The port that the server listens on / the client connects to.");
+			.withDescription("The port that the client connects to.");
 
 	/**
 	 * The time in ms that the client waits for the leader address, e.g., Dispatcher or

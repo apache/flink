@@ -31,6 +31,7 @@ import org.apache.flink.runtime.rest.handler.router.RouterHandler;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
@@ -53,12 +54,14 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -76,7 +79,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 	private final String restAddress;
 	private final String restBindAddress;
-	private final int restBindPort;
+	private final String restBindPort;
 	@Nullable
 	private final SSLHandlerFactory sslHandlerFactory;
 	private final int maxContentLength;
@@ -181,14 +184,44 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 				.channel(NioServerSocketChannel.class)
 				.childHandler(initializer);
 
-			log.debug("Binding rest endpoint to {}:{}.", restBindAddress, restBindPort);
-			final ChannelFuture channel;
-			if (restBindAddress == null) {
-				channel = bootstrap.bind(restBindPort);
-			} else {
-				channel = bootstrap.bind(restBindAddress, restBindPort);
+			ChannelFuture channel;
+
+			// parse port range definition and create port iterator
+			Iterator<Integer> portsIterator;
+			try {
+				portsIterator = NetUtils.getPortRangeFromString(restBindPort);
+			} catch (Exception e) {
+				throw new IllegalArgumentException("Invalid port range definition: " + restBindPort);
 			}
-			serverChannel = channel.syncUninterruptibly().channel();
+
+			int chosenPort = 0;
+			while (portsIterator.hasNext()) {
+				try {
+					chosenPort = portsIterator.next();
+					if (restBindAddress == null) {
+						channel = bootstrap.bind(chosenPort);
+					} else {
+						channel = bootstrap.bind(restBindAddress, chosenPort);
+					}
+					serverChannel = channel.syncUninterruptibly().channel();
+					break;
+				} catch (Exception e) {
+					// we can continue to try if this contains a netty channel exception
+					Throwable cause = e.getCause();
+					if (!(cause instanceof org.jboss.netty.channel.ChannelException ||
+						cause instanceof java.net.BindException)) {
+						throw e;
+					} // else fall through the loop and try the next port
+				}
+			}
+
+			if (serverChannel == null) {
+				// if we come here, we have exhausted the port range
+				throw new BindException("Could not start task manager on any port in port range "
+					+ restBindPort);
+			}
+
+			log.debug("Binding rest endpoint to {}:{}.", restBindAddress, chosenPort);
 
 			final InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
 			final String advertisedAddress;

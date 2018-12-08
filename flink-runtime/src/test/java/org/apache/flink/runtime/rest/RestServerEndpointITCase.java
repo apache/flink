@@ -169,7 +169,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
 	private static Configuration getBaseConfig() {
 		final Configuration config = new Configuration();
-		config.setInteger(RestOptions.PORT, 0);
+		config.setString(RestOptions.BIND_PORT, "0");
 		config.setString(RestOptions.ADDRESS, "localhost");
 		config.setInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
 		config.setInteger(RestOptions.CLIENT_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
@@ -601,7 +601,10 @@ public class RestServerEndpointITCase extends TestLogger {
 		protected void startInternal() {}
 	}
 
-	private static class TestHandler extends AbstractRestHandler<RestfulGateway, TestRequest, TestResponse, TestParameters> {
+	/**
+	 * Test handler.
+	 */
+	public static class TestHandler extends AbstractRestHandler<RestfulGateway, TestRequest, TestResponse, TestParameters> {
 
 		private CompletableFuture<Void> closeFuture = CompletableFuture.completedFuture(null);
 
@@ -749,7 +752,10 @@ public class RestServerEndpointITCase extends TestLogger {
 		}
 	}
 
-	private static class TestHeaders implements MessageHeaders<TestRequest, TestResponse, TestParameters> {
+	/**
+	 * Test headers.
+	 */
+	public static class TestHeaders implements MessageHeaders<TestRequest, TestResponse, TestParameters> {
 
 		@Override
 		public HttpMethodWrapper getHttpMethod() {
