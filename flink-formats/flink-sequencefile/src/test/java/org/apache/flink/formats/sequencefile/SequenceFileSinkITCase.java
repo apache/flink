@@ -78,7 +78,7 @@ public class SequenceFileSinkITCase extends AbstractTestBase {
 		}).addSink(
 			StreamingFileSink.forBulkFormat(
 				testPath,
-				new SequenceFileWriterFactory<>(SequenceFileWriterFactory.getHadoopConfFromPath(testPath), LongWritable.class, Text.class, "BZip2")
+				new SequenceFileWriterFactory<>(SequenceFileWriterFactory.getHadoopConfigFromPath(testPath), LongWritable.class, Text.class, "BZip2")
 			).build());
 
 		env.execute();
@@ -113,4 +113,5 @@ public class SequenceFileSinkITCase extends AbstractTestBase {
 		assertEquals(expected, results);
 	}
 }
+
 

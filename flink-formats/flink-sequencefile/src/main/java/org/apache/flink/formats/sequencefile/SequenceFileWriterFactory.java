@@ -33,6 +33,11 @@ import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A factory that creates a SequenceFile {@link BulkWriter}.
@@ -44,7 +49,7 @@ import java.io.IOException;
 public class SequenceFileWriterFactory<K extends Writable, V extends Writable> implements BulkWriter.Factory<Tuple2<K, V>> {
 	private static final long serialVersionUID = 1L;
 
-	private final SerializableHadoopConfiguration serdeHadoopConf;
+	private final SerializableHadoopConfiguration serdeHadoopConfig;
 	private final Class<K> keyClass;
 	private final Class<V> valueClass;
 	private final String compressionCodecName;
@@ -86,33 +91,35 @@ public class SequenceFileWriterFactory<K extends Writable, V extends Writable> i
 	 * @param compressionType      The type of compression level.
 	 */
 	public SequenceFileWriterFactory(Configuration hadoopConf, Class<K> keyClass, Class<V> valueClass, String compressionCodecName, SequenceFile.CompressionType compressionType) {
-		this.serdeHadoopConf = new SerializableHadoopConfiguration(hadoopConf);
-		this.keyClass = keyClass;
-		this.valueClass = valueClass;
-		this.compressionCodecName = compressionCodecName;
-		this.compressionType = compressionType;
+		this.serdeHadoopConfig = new SerializableHadoopConfiguration(checkNotNull(hadoopConf));
+		this.keyClass = checkNotNull(keyClass);
+		this.valueClass = checkNotNull(valueClass);
+		this.compressionCodecName = checkNotNull(compressionCodecName);
+		this.compressionType = checkNotNull(compressionType);
 	}
 
 	@Override
-	public BulkWriter<Tuple2<K, V>> create(FSDataOutputStream out) throws IOException {
+	public SequenceFileWriter<K, V> create(FSDataOutputStream out) throws IOException {
 		org.apache.hadoop.fs.FSDataOutputStream stream = new org.apache.hadoop.fs.FSDataOutputStream(out, null);
-		CompressionCodec compressionCodec = getCompressionCodec(serdeHadoopConf.get(), compressionCodecName);
-		SequenceFile.Writer writer = SequenceFile.createWriter(serdeHadoopConf.get(),
+		CompressionCodec compressionCodec = getCompressionCodec(serdeHadoopConfig.get(), compressionCodecName);
+		SequenceFile.Writer writer = SequenceFile.createWriter(
+			serdeHadoopConfig.get(),
 			SequenceFile.Writer.stream(stream),
 			SequenceFile.Writer.keyClass(keyClass),
 			SequenceFile.Writer.valueClass(valueClass),
 			SequenceFile.Writer.compression(compressionType, compressionCodec));
-		return new SequenceFileWriter(writer);
+		return new SequenceFileWriter<>(writer);
 	}
 
 	private CompressionCodec getCompressionCodec(Configuration conf, String compressionCodecName) {
-		CompressionCodec codec = null;
-		if (!compressionCodecName.equals("None")) {
-			CompressionCodecFactory codecFactory = new CompressionCodecFactory(conf);
-			codec = codecFactory.getCodecByName(compressionCodecName);
-			if (codec == null) {
-				throw new RuntimeException("Codec " + compressionCodecName + " not found.");
-			}
+		if (compressionCodecName.equals("None")) {
+			return null;
+		}
+
+		CompressionCodecFactory codecFactory = new CompressionCodecFactory(checkNotNull(conf));
+		CompressionCodec codec = codecFactory.getCodecByName(compressionCodecName);
+		if (codec == null) {
+			throw new RuntimeException("Codec " + compressionCodecName + " not found.");
 		}
 		return codec;
 	}
@@ -125,12 +132,36 @@ public class SequenceFileWriterFactory<K extends Writable, V extends Writable> i
 	 * @return Hadoop configuration.
 	 * @throws IOException
 	 */
-	public static Configuration getHadoopConfFromPath(Path path) throws IOException {
+	public static Configuration getHadoopConfigFromPath(Path path) throws IOException {
 		FileSystem fs = FileSystem.getUnguardedFileSystem(path.toUri());
 		if (fs != null && fs instanceof HadoopFileSystem) {
 			return ((HadoopFileSystem) fs).getHadoopFileSystem().getConf();
 		} else {
 			return new Configuration();
+		}
+	}
+
+	/**
+	 * The wrapper class for serialization of {@link Configuration}.
+	 */
+	private class SerializableHadoopConfiguration implements Serializable {
+		private transient Configuration hadoopConfig;
+
+		private SerializableHadoopConfiguration(Configuration hadoopConfig) {
+			this.hadoopConfig = hadoopConfig;
+		}
+
+		private Configuration get() {
+			return this.hadoopConfig;
+		}
+
+		private void writeObject(ObjectOutputStream out) throws IOException {
+			this.hadoopConfig.write(out);
+		}
+
+		private void readObject(ObjectInputStream in) throws IOException {
+			this.hadoopConfig = new Configuration();
+			this.hadoopConfig.readFields(in);
 		}
 	}
 }

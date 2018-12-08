@@ -40,7 +40,7 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> implemen
 	private final SequenceFile.Writer writer;
 
 	public SequenceFileWriter(SequenceFile.Writer writer) {
-		this.writer = checkNotNull(writer, "sequenceFileWriter");
+		this.writer = checkNotNull(writer);
 	}
 
 	@Override
@@ -50,7 +50,7 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> implemen
 
 	@Override
 	public void flush() throws IOException {
-		writer.hflush();
+		writer.hsync();
 	}
 
 	@Override
@@ -58,3 +58,4 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> implemen
 		writer.close();
 	}
 }
+
