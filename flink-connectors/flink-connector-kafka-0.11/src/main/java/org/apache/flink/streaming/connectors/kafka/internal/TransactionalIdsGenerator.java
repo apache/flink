@@ -55,7 +55,7 @@ public class TransactionalIdsGenerator {
 		checkArgument(safeScaleDownFactor > 0);
 		checkArgument(subtaskIndex >= 0);
 
-		this.prefix = checkNotNull(prefix);
+		this.prefix = checkNotNull(prefix).replaceAll("%", "%%");
 		this.subtaskIndex = subtaskIndex;
 		this.totalNumberOfSubtasks = totalNumberOfSubtasks;
 		this.poolSize = poolSize;

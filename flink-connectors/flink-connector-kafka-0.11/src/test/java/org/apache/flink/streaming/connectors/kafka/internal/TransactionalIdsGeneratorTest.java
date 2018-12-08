@@ -45,6 +45,24 @@ public class TransactionalIdsGeneratorTest {
 			generator.generateIdsToUse(36));
 	}
 
+	@Test
+	public void testGenerateIdsWithPercentageToUse() {
+		TransactionalIdsGenerator generator = new TransactionalIdsGenerator("test%", 2, SUBTASKS_COUNT, POOL_SIZE, SAFE_SCALE_DOWN_FACTOR);
+
+		assertEquals(
+			new HashSet<>(Arrays.asList("test%-42", "test%-43", "test%-44")),
+			generator.generateIdsToUse(36));
+	}
+
+	@Test
+	public void testGenerateIdsWithMultiplePercentageToUse() {
+		TransactionalIdsGenerator generator = new TransactionalIdsGenerator("test%%", 2, SUBTASKS_COUNT, POOL_SIZE, SAFE_SCALE_DOWN_FACTOR);
+
+		assertEquals(
+			new HashSet<>(Arrays.asList("test%%-42", "test%%-43", "test%%-44")),
+			generator.generateIdsToUse(36));
+	}
+
 	/**
 	 * Ids to abort and to use should never clash between subtasks.
 	 */
