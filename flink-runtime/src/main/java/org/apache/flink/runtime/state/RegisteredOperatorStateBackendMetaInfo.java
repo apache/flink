@@ -73,7 +73,7 @@ public class RegisteredOperatorStateBackendMetaInfo<S> extends RegisteredStateMe
 			snapshot.getName(),
 			StateSerializerProvider.fromRestoredState(
 				(TypeSerializerSnapshot<S>) Preconditions.checkNotNull(
-					snapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER))),
+					snapshot.getTypeSerializerSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER))),
 			OperatorStateHandle.Mode.valueOf(
 				snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE)));
 

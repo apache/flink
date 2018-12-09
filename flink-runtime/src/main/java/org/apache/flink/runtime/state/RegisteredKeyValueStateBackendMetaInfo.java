@@ -87,10 +87,10 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 			snapshot.getName(),
 			StateSerializerProvider.fromRestoredState(
 				(TypeSerializerSnapshot<N>) Preconditions.checkNotNull(
-					snapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER))),
+					snapshot.getTypeSerializerSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER))),
 			StateSerializerProvider.fromRestoredState(
 				(TypeSerializerSnapshot<S>) Preconditions.checkNotNull(
-					snapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER))),
+					snapshot.getTypeSerializerSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER))),
 			null);
 
 		Preconditions.checkState(StateMetaInfoSnapshot.BackendStateType.KEY_VALUE == snapshot.getBackendStateType());
