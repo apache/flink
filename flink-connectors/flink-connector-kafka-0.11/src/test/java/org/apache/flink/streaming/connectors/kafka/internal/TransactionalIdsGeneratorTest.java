@@ -47,7 +47,9 @@ public class TransactionalIdsGeneratorTest {
 
 	@Test
 	public void testGenerateIdsWithPercentageToUse() {
-		TransactionalIdsGenerator generator = new TransactionalIdsGenerator("test%", 2, SUBTASKS_COUNT, POOL_SIZE, SAFE_SCALE_DOWN_FACTOR);
+		TransactionalIdsGenerator generator =
+			new TransactionalIdsGenerator("test%", 2, SUBTASKS_COUNT, POOL_SIZE,
+				SAFE_SCALE_DOWN_FACTOR);
 
 		assertEquals(
 			new HashSet<>(Arrays.asList("test%-42", "test%-43", "test%-44")),
@@ -56,7 +58,9 @@ public class TransactionalIdsGeneratorTest {
 
 	@Test
 	public void testGenerateIdsWithMultiplePercentageToUse() {
-		TransactionalIdsGenerator generator = new TransactionalIdsGenerator("test%%", 2, SUBTASKS_COUNT, POOL_SIZE, SAFE_SCALE_DOWN_FACTOR);
+		TransactionalIdsGenerator generator =
+			new TransactionalIdsGenerator("test%%", 2, SUBTASKS_COUNT,
+				POOL_SIZE, SAFE_SCALE_DOWN_FACTOR);
 
 		assertEquals(
 			new HashSet<>(Arrays.asList("test%%-42", "test%%-43", "test%%-44")),
