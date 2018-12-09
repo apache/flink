@@ -51,7 +51,7 @@ public class RegisteredPriorityQueueStateBackendMetaInfo<T> extends RegisteredSt
 			snapshot.getName(),
 			StateSerializerProvider.fromRestoredState(
 				(TypeSerializerSnapshot<T>) Preconditions.checkNotNull(
-					snapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER))));
+					snapshot.getTypeSerializerSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER))));
 
 		Preconditions.checkState(StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE == snapshot.getBackendStateType());
 	}

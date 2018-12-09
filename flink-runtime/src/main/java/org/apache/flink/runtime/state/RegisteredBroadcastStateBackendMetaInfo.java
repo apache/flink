@@ -75,10 +75,10 @@ public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredSta
 				snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE)),
 			StateSerializerProvider.fromRestoredState(
 				(TypeSerializerSnapshot<K>) Preconditions.checkNotNull(
-					snapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER))),
+					snapshot.getTypeSerializerSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER))),
 			StateSerializerProvider.fromRestoredState(
 				(TypeSerializerSnapshot<V>) Preconditions.checkNotNull(
-					snapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER))));
+					snapshot.getTypeSerializerSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER))));
 
 		Preconditions.checkState(StateMetaInfoSnapshot.BackendStateType.BROADCAST == snapshot.getBackendStateType());
 	}
