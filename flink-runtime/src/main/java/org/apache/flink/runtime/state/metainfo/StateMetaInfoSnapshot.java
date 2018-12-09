@@ -150,17 +150,6 @@ public class StateMetaInfoSnapshot {
 		return name;
 	}
 
-	@Nullable
-	public TypeSerializer<?> restoreTypeSerializer(@Nonnull String key) {
-		TypeSerializerSnapshot<?> configSnapshot = getTypeSerializerConfigSnapshot(key);
-		return (configSnapshot != null) ? configSnapshot.restoreSerializer() : null;
-	}
-
-	@Nullable
-	public TypeSerializer<?> restoreTypeSerializer(@Nonnull CommonSerializerKeys key) {
-		return restoreTypeSerializer(key.toString());
-	}
-
 	@Nonnull
 	public Map<String, TypeSerializerSnapshot<?>> getSerializerConfigSnapshotsImmutable() {
 		return Collections.unmodifiableMap(serializerConfigSnapshots);
