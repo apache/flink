@@ -464,15 +464,15 @@ object UserDefinedFunctionUtils {
     * Remove StateView fields from accumulator type information.
     *
     * @param index index of aggregate function
-    * @param aggFun aggregate function
+    * @param acc accumulator
     * @param accType accumulator type information, only support pojo type
     * @param isStateBackedDataViews is data views use state backend
     * @return mapping of accumulator type information and data view config which contains id,
     *         field name and state descriptor
     */
-  def removeStateViewFieldsFromAccTypeInfo(
+  def removeStateViewFieldsFromAccTypeInfo[ACC](
       index: Int,
-      aggFun: AggregateFunction[_, _],
+      acc: ACC,
       accType: TypeInformation[_],
       isStateBackedDataViews: Boolean)
     : (TypeInformation[_], Option[Seq[DataViewSpec[_]]]) = {
@@ -489,7 +489,6 @@ object UserDefinedFunctionUtils {
       )
     }
 
-    val acc = aggFun.createAccumulator()
     accType match {
       case pojoType: PojoTypeInfo[_] if pojoType.getArity > 0 =>
         val arity = pojoType.getArity

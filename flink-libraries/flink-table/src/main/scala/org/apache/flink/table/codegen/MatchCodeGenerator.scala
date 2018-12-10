@@ -651,7 +651,7 @@ class MatchCodeGenerator(
 
   class AggBuilder(variable: String) {
 
-    private val aggregates = new mutable.ListBuffer[RexCall]()
+    private val  aggregates = new mutable.ListBuffer[RexCall]()
 
     private val variableUID = newName("variable")
 
@@ -727,7 +727,7 @@ class MatchCodeGenerator(
         matchAgg.aggregations.map(_.aggFunction).toArray,
         matchAgg.aggregations.map(_.inputIndices).toArray,
         matchAgg.aggregations.indices.toArray,
-        Array.fill(matchAgg.aggregations.size)(false),
+        matchAgg.getDistinctAccMapping,
         isStateBackedDataViews = false,
         partialResults = false,
         Array.emptyIntArray,
@@ -771,18 +771,26 @@ class MatchCodeGenerator(
           callsWithIndices.map(_._2).toArray)
       })
 
+      val distinctAccMap: mutable.Map[util.List[Integer], Integer] = mutable.Map()
       val aggs = logicalAggregates.zipWithIndex.map {
         case (agg, index) =>
           val result = AggregateUtil.extractAggregateCallMetadata(
             agg.function,
             isDistinct = false, // TODO properly set once supported in Calcite
+            distinctAccMap,
+            new util.ArrayList[Integer](), // TODO properly set once supported in Calcite
+            aggregates.length,
             agg.inputTypes,
             needRetraction = false,
             config,
             isStateBackedDataViews = false,
             index)
 
-          SingleAggCall(result.aggregateFunction, agg.exprIndices.toArray, result.accumulatorSpecs)
+          SingleAggCall(
+            result.aggregateFunction,
+            agg.exprIndices.toArray,
+            result.accumulatorSpecs,
+            result.distinctAccIndex)
       }
 
       MatchAgg(aggs, inputRows.values.map(_._1).toSeq)
@@ -857,14 +865,25 @@ class MatchCodeGenerator(
     private case class SingleAggCall(
       aggFunction: TableAggregateFunction[_, _],
       inputIndices: Array[Int],
-      dataViews: Seq[DataViewSpec[_]]
+      dataViews: Seq[DataViewSpec[_]],
+      distinctAccIndex: Int
     )
 
     private case class MatchAgg(
       aggregations: Seq[SingleAggCall],
-      inputExprs: Seq[RexNode]
-    )
+      inputExprs: Seq[RexNode]) {
 
+      def getDistinctAccMapping: Array[(Integer, util.List[Integer])] = {
+        val distinctAccMapping = mutable.Map[Integer, util.List[Integer]]()
+        aggregations.map(_.distinctAccIndex).zipWithIndex.foreach {
+          case (distinctAccIndex, aggIndex) =>
+            distinctAccMapping
+              .getOrElseUpdate(distinctAccIndex, new util.ArrayList[Integer]())
+              .add(aggIndex)
+        }
+        distinctAccMapping.toArray
+      }
+    }
   }
 
 }

@@ -17,9 +17,9 @@
  */
 package org.apache.flink.table.runtime.harness
 
+import java.lang.reflect.Field
 import java.util.{Comparator, Queue => JQueue}
 
-import org.apache.flink.api.common.state.{MapStateDescriptor, StateDescriptor}
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -32,7 +32,7 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, OneInputStreamOperatorTestHarness, TestHarnessUtil}
 import org.apache.flink.table.api.dataview.DataView
-import org.apache.flink.table.api.{StreamQueryConfig, Types}
+import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.GeneratedAggregationsFunction
 import org.apache.flink.table.functions.aggfunctions.{CountAggFunction, IntSumWithRetractAggFunction, LongMaxWithRetractAggFunction, LongMinWithRetractAggFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getAccumulatorTypeOfAggregateFunction
@@ -83,15 +83,8 @@ class HarnessTestBase extends StreamingWithStateTestBase {
   protected val sumAggregationStateType: RowTypeInfo =
     new RowTypeInfo(sumAggregates.map(getAccumulatorTypeOfAggregateFunction(_)): _*)
 
-  protected val distinctCountAggregationStateType: RowTypeInfo =
-    new RowTypeInfo(distinctCountAggregates.map(getAccumulatorTypeOfAggregateFunction(_)): _*)
-
-  protected val distinctCountDescriptor: String = EncodingUtils.encodeObjectToString(
-    new MapStateDescriptor("distinctAgg0", distinctCountAggregationStateType, Types.LONG))
-
   protected val minMaxFuncName = "MinMaxAggregateHelper"
   protected val sumFuncName = "SumAggregationHelper"
-  protected val distinctCountFuncName = "DistinctCountAggregationHelper"
 
   val minMaxCode: String =
     s"""
@@ -326,170 +319,8 @@ class HarnessTestBase extends StreamingWithStateTestBase {
       |}
       |""".stripMargin
 
-    val distinctCountAggCode: String =
-    s"""
-      |public final class $distinctCountFuncName
-      |  extends org.apache.flink.table.runtime.aggregate.GeneratedAggregations {
-      |
-      |  final org.apache.flink.table.functions.aggfunctions.CountAggFunction count;
-      |
-      |  final org.apache.flink.table.api.dataview.MapView acc0_distinctValueMap_dataview;
-      |
-      |  final java.lang.reflect.Field distinctValueMap =
-      |      org.apache.flink.api.java.typeutils.TypeExtractor.getDeclaredField(
-      |        org.apache.flink.table.functions.aggfunctions.DistinctAccumulator.class,
-      |        "distinctValueMap");
-      |
-      |
-      |  private final org.apache.flink.table.runtime.aggregate.SingleElementIterable<org.apache
-      |    .flink.table.functions.aggfunctions.CountAccumulator> accIt0 =
-      |      new org.apache.flink.table.runtime.aggregate.SingleElementIterable<org.apache.flink
-      |      .table
-      |      .functions.aggfunctions.CountAccumulator>();
-      |
-      |  public $distinctCountFuncName() throws Exception {
-      |
-      |    count = (org.apache.flink.table.functions.aggfunctions.CountAggFunction)
-      |      ${classOf[EncodingUtils].getCanonicalName}.decodeStringToObject(
-      |      "$distinctCountAggFunction",
-      |      ${classOf[UserDefinedFunction].getCanonicalName}.class);
-      |
-      |    distinctValueMap.setAccessible(true);
-      |  }
-      |
-      |  public void open(org.apache.flink.api.common.functions.RuntimeContext ctx) {
-      |    org.apache.flink.api.common.state.StateDescriptor acc0_distinctValueMap_dataview_desc =
-      |      (org.apache.flink.api.common.state.StateDescriptor)
-      |      ${classOf[EncodingUtils].getCanonicalName}.decodeStringToObject(
-      |      "$distinctCountDescriptor",
-      |      ${classOf[StateDescriptor[_, _]].getCanonicalName}.class,
-      |      ctx.getUserCodeClassLoader());
-      |    acc0_distinctValueMap_dataview = new org.apache.flink.table.dataview.StateMapView(
-      |          ctx.getMapState((org.apache.flink.api.common.state.MapStateDescriptor)
-      |          acc0_distinctValueMap_dataview_desc));
-      |  }
-      |
-      |  public final void setAggregationResults(
-      |    org.apache.flink.types.Row accs,
-      |    org.apache.flink.types.Row output) {
-      |
-      |    org.apache.flink.table.functions.AggregateFunction baseClass0 =
-      |      (org.apache.flink.table.functions.AggregateFunction)
-      |      count;
-      |
-      |    org.apache.flink.table.functions.aggfunctions.DistinctAccumulator distinctAcc0 =
-      |      (org.apache.flink.table.functions.aggfunctions.DistinctAccumulator) accs.getField(0);
-      |    org.apache.flink.table.functions.aggfunctions.CountAccumulator acc0 =
-      |      (org.apache.flink.table.functions.aggfunctions.CountAccumulator)
-      |      distinctAcc0.getRealAcc();
-      |
-      |    output.setField(1, baseClass0.getValue(acc0));
-      |  }
-      |
-      |  public final void accumulate(
-      |    org.apache.flink.types.Row accs,
-      |    org.apache.flink.types.Row input) throws Exception {
-      |
-      |    org.apache.flink.table.functions.aggfunctions.DistinctAccumulator distinctAcc0 =
-      |      (org.apache.flink.table.functions.aggfunctions.DistinctAccumulator) accs.getField(0);
-      |
-      |    distinctValueMap.set(distinctAcc0, acc0_distinctValueMap_dataview);
-      |
-      |    if (distinctAcc0.add(
-      |          org.apache.flink.types.Row.of((java.lang.Integer) input.getField(1)))) {
-      |        org.apache.flink.table.functions.aggfunctions.CountAccumulator acc0 =
-      |          (org.apache.flink.table.functions.aggfunctions.CountAccumulator)
-      |          distinctAcc0.getRealAcc();
-      |
-      |
-      |        count.accumulate(acc0, (java.lang.Integer) input.getField(1));
-      |    }
-      |  }
-      |
-      |  public final void retract(
-      |    org.apache.flink.types.Row accs,
-      |    org.apache.flink.types.Row input) throws Exception {
-      |
-      |    org.apache.flink.table.functions.aggfunctions.DistinctAccumulator distinctAcc0 =
-      |      (org.apache.flink.table.functions.aggfunctions.DistinctAccumulator) accs.getField(0);
-      |
-      |    distinctValueMap.set(distinctAcc0, acc0_distinctValueMap_dataview);
-      |
-      |    if (distinctAcc0.remove(
-      |          org.apache.flink.types.Row.of((java.lang.Integer) input.getField(1)))) {
-      |        org.apache.flink.table.functions.aggfunctions.CountAccumulator acc0 =
-      |          (org.apache.flink.table.functions.aggfunctions.CountAccumulator)
-      |            distinctAcc0.getRealAcc();
-      |
-      |        count.retract(acc0 , (java.lang.Integer) input.getField(1));
-      |      }
-      |  }
-      |
-      |  public final org.apache.flink.types.Row createAccumulators()
-      |     {
-      |
-      |      org.apache.flink.types.Row accs = new org.apache.flink.types.Row(1);
-      |
-      |      org.apache.flink.table.functions.aggfunctions.CountAccumulator acc0 =
-      |        (org.apache.flink.table.functions.aggfunctions.CountAccumulator)
-      |        count.createAccumulator();
-      |      org.apache.flink.table.functions.aggfunctions.DistinctAccumulator distinctAcc0 =
-      |        (org.apache.flink.table.functions.aggfunctions.DistinctAccumulator)
-      |        new org.apache.flink.table.functions.aggfunctions.DistinctAccumulator (acc0);
-      |      accs.setField(
-      |        0,
-      |        distinctAcc0);
-      |
-      |        return accs;
-      |  }
-      |
-      |  public final void setForwardedFields(
-      |    org.apache.flink.types.Row input,
-      |    org.apache.flink.types.Row output)
-      |     {
-      |
-      |    output.setField(
-      |      0,
-      |      input.getField(0));
-      |  }
-      |
-      |  public final void setConstantFlags(org.apache.flink.types.Row output)
-      |     {
-      |
-      |  }
-      |
-      |  public final org.apache.flink.types.Row createOutputRow() {
-      |    return new org.apache.flink.types.Row(2);
-      |  }
-      |
-      |
-      |  public final org.apache.flink.types.Row mergeAccumulatorsPair(
-      |    org.apache.flink.types.Row a,
-      |    org.apache.flink.types.Row b)
-      |            {
-      |
-      |      return a;
-      |
-      |  }
-      |
-      |  public final void resetAccumulator(
-      |    org.apache.flink.types.Row accs) {
-      |  }
-      |
-      |  public void cleanup() {
-      |    acc0_distinctValueMap_dataview.clear();
-      |  }
-      |
-      |  public void close() {
-      |  }
-      |}
-      |""".stripMargin
-
   protected val genMinMaxAggFunction = GeneratedAggregationsFunction(minMaxFuncName, minMaxCode)
   protected val genSumAggFunction = GeneratedAggregationsFunction(sumFuncName, sumAggCode)
-  protected val genDistinctCountAggFunction = GeneratedAggregationsFunction(
-    distinctCountFuncName,
-    distinctCountAggCode)
 
   def createHarnessTester[KEY, IN, OUT](
       dataStream: DataStream[_],
@@ -551,6 +382,20 @@ class HarnessTestBase extends StreamingWithStateTestBase {
     val stateField = cls.getDeclaredField(stateFieldName)
     stateField.setAccessible(true)
     stateField.get(generatedAggregation).asInstanceOf[DataView]
+  }
+
+  def getGeneratedAggregationFields(
+      operator: AbstractUdfStreamOperator[_, _],
+      funcName: String,
+      funcClass: Class[_]): Array[Field] = {
+    val function = funcClass.getDeclaredField(funcName)
+    function.setAccessible(true)
+    val generatedAggregation =
+      function.get(operator.getUserFunction).asInstanceOf[GeneratedAggregations]
+    val cls = generatedAggregation.getClass
+    val fields = cls.getDeclaredFields
+    fields.foreach(_.setAccessible(true))
+    fields
   }
 
   def createHarnessTester[IN, OUT, KEY](
