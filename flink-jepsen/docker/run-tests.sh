@@ -17,6 +17,8 @@
 # limitations under the License.
 ################################################################################
 
+set -euo pipefail
+
 dockerdir=$(dirname $0)
 dockerdir=$(cd ${dockerdir}; pwd)
 
@@ -26,6 +28,27 @@ n2
 n3
 EOF
 
-common_jepsen_args+=(--nodes-file ${dockerdir}/nodes)
+common_jepsen_args+=(--ha-storage-dir hdfs:///flink
+--test-spec "${dockerdir}/data-stream-test-program-parallelism-1.edn"
+--tarball ${2}
+--ssh-private-key ~/.ssh/id_rsa
+--nodes-file ${dockerdir}/nodes)
 
-. ${dockerdir}/../scripts/run-tests.sh ${1} ${2} 1
+for i in $(seq 1 ${1})
+do
+  echo "Executing run #${i} of ${1}"
+  lein run test "${common_jepsen_args[@]}" --nemesis-gen kill-task-managers --deployment-mode yarn-session
+  lein run test "${common_jepsen_args[@]}" --nemesis-gen kill-job-managers --deployment-mode yarn-session
+  lein run test "${common_jepsen_args[@]}" --nemesis-gen fail-name-node-during-recovery --deployment-mode yarn-session
+
+  lein run test "${common_jepsen_args[@]}" --nemesis-gen kill-task-managers --deployment-mode yarn-job
+  lein run test "${common_jepsen_args[@]}" --nemesis-gen kill-job-managers --deployment-mode yarn-job
+  lein run test "${common_jepsen_args[@]}" --nemesis-gen fail-name-node-during-recovery --deployment-mode yarn-job
+
+  lein run test "${common_jepsen_args[@]}" --nemesis-gen kill-task-managers --deployment-mode mesos-session
+  lein run test "${common_jepsen_args[@]}" --nemesis-gen kill-job-managers --deployment-mode mesos-session
+
+  lein run test "${common_jepsen_args[@]}" --nemesis-gen kill-job-managers --deployment-mode standalone-session
+  lein run test "${common_jepsen_args[@]}" --nemesis-gen kill-job-managers --client-gen cancel-jobs --deployment-mode standalone-session
+  echo
+done

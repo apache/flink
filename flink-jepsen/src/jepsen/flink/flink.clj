@@ -37,15 +37,15 @@
    :standalone-session {:db                  (fdb/flink-standalone-db)
                         :deployment-strategy fdb/submit-job-from-first-node!}})
 
-(def poll-job-running {:type :invoke, :f :job-running?, :value nil})
-(def cancel-job {:type :invoke, :f :cancel-job, :value nil})
-(def poll-job-running-loop (gen/seq (cycle [poll-job-running (gen/sleep 5)])))
+(def poll-jobs-running {:type :invoke, :f :jobs-running?, :value nil})
+(def cancel-jobs {:type :invoke, :f :cancel-jobs, :value nil})
+(def poll-jobs-running-loop (gen/seq (cycle [poll-jobs-running (gen/sleep 5)])))
 
 (defn default-client-gen
   "Client generator that polls for the job running status."
   []
   (->
-    poll-job-running-loop
+    poll-jobs-running-loop
     (gen/singlethreaded)))
 
 (defn cancelling-client-gen
@@ -53,13 +53,13 @@
   []
   (->
     (gen/concat (gen/time-limit 15 (default-client-gen))
-                (gen/once cancel-job)
+                (gen/once cancel-jobs)
                 (default-client-gen))
     (gen/singlethreaded)))
 
 (def client-gens
   {:poll-job-running default-client-gen
-   :cancel-job       cancelling-client-gen})
+   :cancel-jobs      cancelling-client-gen})
 
 (defn flink-test
   [opts]
@@ -94,6 +94,10 @@
        (clojure.string/join ", ")
        (str "Must be one of: ")))
 
+(defn read-test-spec
+  [path]
+  (clojure.edn/read-string (slurp path)))
+
 (defn -main
   [& args]
   (cli/run!
@@ -101,10 +105,8 @@
       (cli/single-test-cmd
         {:test-fn  flink-test
          :tarball  fdb/default-flink-dist-url
-         :opt-spec [[nil "--ha-storage-dir DIR" "high-availability.storageDir"]
-                    [nil "--job-jar JAR" "Path to the job jar"]
-                    [nil "--job-args ARGS" "CLI arguments for the flink job"]
-                    [nil "--main-class CLASS" "Job main class"]
+         :opt-spec [[nil "--test-spec FILE" "" :parse-fn read-test-spec]
+                    [nil "--ha-storage-dir DIR" "high-availability.storageDir"]
                     [nil "--nemesis-gen GEN" (str "Which nemesis should be used?"
                                                   (keys-as-allowed-values-help-text fn/nemesis-generator-factories))
                      :parse-fn keyword

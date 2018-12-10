@@ -107,7 +107,7 @@
                           job-running-history (->>
                                                 history
                                                 (filter (fn [op] (>= (- (:time op) @t) 0)))
-                                                (flink-checker/get-job-running-history)
+                                                (flink-checker/all-jobs-running?-history)
                                                 (take-last-with-default job-running-healthy-threshold false))]
                       (if (or
                             (every? true? job-running-history)
