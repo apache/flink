@@ -401,12 +401,14 @@ DataSet<Integer> result = in.partitionByRange(0)
     <tr>
       <td><strong>Custom Partitioning</strong></td>
       <td>
-        <p>Manually specify a partitioning over the data.
+        <p>Assigns records based on a key to a specific partition using a custom Partitioner function. 
+          The key can be specified as position key, expression key, and key selector function.
           <br/>
-          <i>Note</i>: This method works only on single field keys.</p>
+          <i>Note</i>: This method only works with a single field key.</p>
 {% highlight java %}
 DataSet<Tuple2<String,Integer>> in = // [...]
-DataSet<Integer> result = in.partitionCustom(Partitioner<K> partitioner, key)
+DataSet<Integer> result = in.partitionCustom(partitioner, key)
+                            .mapPartition(new PartitionMapper());
 {% endhighlight %}
       </td>
     </tr>
@@ -704,13 +706,14 @@ val result = in.partitionByRange(0).mapPartition { ... }
     <tr>
       <td><strong>Custom Partitioning</strong></td>
       <td>
-        <p>Manually specify a partitioning over the data.
+        <p>Assigns records based on a key to a specific partition using a custom Partitioner function. 
+          The key can be specified as position key, expression key, and key selector function.
           <br/>
-          <i>Note</i>: This method works only on single field keys.</p>
+          <i>Note</i>: This method only works with a single field key.</p>
 {% highlight scala %}
 val in: DataSet[(Int, String)] = // [...]
 val result = in
-  .partitionCustom(partitioner: Partitioner[K], key)
+  .partitionCustom(partitioner, key).mapPartition { ... }
 {% endhighlight %}
       </td>
     </tr>
