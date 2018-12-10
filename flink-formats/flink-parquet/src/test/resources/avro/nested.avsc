@@ -25,8 +25,8 @@
         "type": "record",
         "name": "ArrayItem",
         "fields": [
-           {"name": "type", "type": ["null", "string"]},
-           {"name": "value", "type": ["null", "string"]}]}
+           {"name": "type", "type": "string"},
+           {"name": "value", "type": "string"}]}
         }]
       }
   ],

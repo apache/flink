@@ -83,31 +83,33 @@ public class TestUtil {
 	};
 
 	protected static final Type[] SIMPLE_STANDARD_TYPES = {
-		Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.OPTIONAL).named("foo"),
+		Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.OPTIONAL)
+			.as(OriginalType.INT_64).named("foo"),
 		Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.OPTIONAL)
 			.as(OriginalType.UTF8).named("bar"),
 		Types.optionalGroup()
 			.addField(Types.repeatedGroup().addField(
-				Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.OPTIONAL)
-					.named("element")).named("list")).as(OriginalType.LIST)
+				Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.REQUIRED)
+					.as(OriginalType.INT_64).named("element")).named("list")).as(OriginalType.LIST)
 			.named("arr")};
 
 	protected static final Type[] NESTED_TYPES = {
-		Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.OPTIONAL).named("foo"),
-		Types.optionalMap()
-			.value(Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.OPTIONAL)
-				.as(OriginalType.UTF8).named("value"))
+		Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.OPTIONAL)
+			.as(OriginalType.INT_64).named("foo"),
+		Types.optionalMap().value(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.OPTIONAL)
+			.as(OriginalType.UTF8)
 			.named("spamMap"),
 		Types.optionalGroup().addField(
-			Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.OPTIONAL).named("spam")).named("bar"),
+			Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.OPTIONAL).as(OriginalType.INT_64)
+				.named("spam")).named("bar"),
 		Types.optionalGroup()
 			.addField(Types.repeatedGroup().addField(
-				Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.OPTIONAL)
+				Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.REQUIRED).as(OriginalType.INT_64)
 				.named("element")).named("list")).as(OriginalType.LIST)
 			.named("arr"),
 		Types.optionalGroup()
 			.addField(Types.repeatedGroup().addField(
-				Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.OPTIONAL).as(OriginalType.UTF8)
+				Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.REQUIRED).as(OriginalType.UTF8)
 				.named("element")).named("list")).as(OriginalType.LIST)
 			.named("strArray"),
 		Types.optionalMap().value(Types.optionalGroup()
@@ -118,9 +120,9 @@ public class TestUtil {
 			.named("value"))
 			.named("nestedMap"),
 		Types.optionalGroup().addField(Types.repeatedGroup()
-			.addField(Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.OPTIONAL)
+			.addField(Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.REQUIRED)
 				.as(OriginalType.UTF8).named("type"))
-			.addField(Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.OPTIONAL)
+			.addField(Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.REQUIRED)
 				.as(OriginalType.UTF8).named("value"))
 			.named("element")).as(OriginalType.LIST)
 			.named("nestedArray")

@@ -76,18 +76,20 @@ public abstract class ParquetInputFormat<E>
 	 */
 	private boolean skipCorruptedRecord = false;
 
-	private transient Counter recordConsumed;
-
-	private transient MessageType expectedFileSchema;
+	/**
+	 * The flag to specify whether to skip current split when read schema is mismatch with file schema.
+	 */
+	private boolean skipThisSplit = false;
 
 	private TypeInformation[] fieldTypes;
 
 	private String[] fieldNames;
 
-	private boolean skipThisSplit = false;
+	private transient Counter recordConsumed;
+
+	private transient MessageType expectedFileSchema;
 
 	private transient ParquetRecordReader<Row> parquetRecordReader;
-
 
 	/**
 	 * Read parquet files with given parquet file schema.
@@ -157,7 +159,7 @@ public abstract class ParquetInputFormat<E>
 		ParquetReadOptions options = ParquetReadOptions.builder().build();
 		ParquetFileReader fileReader = new ParquetFileReader(inputFile, options);
 		MessageType fileSchema = fileReader.getFileMetaData().getSchema();
-		MessageType readSchema = getFileSchema(fileSchema);
+		MessageType readSchema = getReadSchema(fileSchema);
 		if (skipThisSplit) {
 			LOG.warn(String.format(
 				"Escaped the file split [%s] due to mismatch of file schema to expected result schema",
@@ -243,7 +245,7 @@ public abstract class ParquetInputFormat<E>
 	 */
 	protected abstract E convert(Row row);
 
-	private MessageType getFileSchema(MessageType schema) {
+	private MessageType getReadSchema(MessageType schema) {
 		RowTypeInfo fileTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(schema);
 		List<Type> types = new ArrayList<>();
 		for (int i = 0; i < fieldNames.length; ++i) {
