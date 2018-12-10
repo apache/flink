@@ -20,6 +20,8 @@ package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
 
+import javax.annotation.Nullable;
+
 /**
  * Utilits for working with {@link WrappingProxy}.
  */
@@ -31,15 +33,19 @@ public final class WrappingProxyUtil {
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T> T stripProxy(T object) {
-
-		T previous = null;
-
-		while (object instanceof WrappingProxy && previous != object) {
-			previous = object;
-			object = ((WrappingProxy<T>) object).getWrappedDelegate();
+	public static <T> T stripProxy(@Nullable final WrappingProxy<T> wrappingProxy) {
+		if (wrappingProxy == null) {
+			return null;
 		}
 
-		return object;
+		WrappingProxy<T> previous = null;
+		Object delegate = wrappingProxy.getWrappedDelegate();
+
+		while (delegate instanceof WrappingProxy && previous != delegate) {
+			previous = (WrappingProxy<T>) delegate;
+			delegate = ((WrappingProxy<T>) delegate).getWrappedDelegate();
+		}
+
+		return (T) delegate;
 	}
 }
