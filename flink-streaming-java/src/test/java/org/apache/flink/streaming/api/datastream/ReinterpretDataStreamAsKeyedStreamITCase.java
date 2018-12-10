@@ -122,7 +122,9 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 		public void run(SourceContext<Tuple2<Integer, Integer>> out) throws Exception {
 			Random random = new Random(42);
 			while (--remainingEvents >= 0) {
-				out.collect(new Tuple2<>(random.nextInt(numKeys), 1));
+				synchronized (out.getCheckpointLock()) {
+					out.collect(new Tuple2<>(random.nextInt(numKeys), 1));
+				}
 			}
 		}
 
