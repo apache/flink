@@ -18,6 +18,7 @@
 package org.apache.flink.table.runtime.aggregate
 
 import java.util
+import java.util.{ArrayList => JArrayList, List => JList}
 
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.core.AggregateCall
@@ -27,7 +28,8 @@ import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
 import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction, AggregateFunction => DataStreamAggFunction, _}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, RowTypeInfo}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction, WindowFunction}
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
@@ -36,7 +38,6 @@ import org.apache.flink.table.api.{StreamQueryConfig, TableConfig, TableExceptio
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.AggregationCodeGenerator
-import org.apache.flink.table.dataview.MapViewTypeInfo
 import org.apache.flink.table.expressions.ExpressionUtils.isTimeIntervalLiteral
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.aggfunctions._
@@ -51,11 +52,11 @@ import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 object AggregateUtil {
 
   type CalcitePair[T, R] = org.apache.calcite.util.Pair[T, R]
-  type JavaList[T] = java.util.List[T]
 
   /**
     * Create an [[org.apache.flink.streaming.api.functions.ProcessFunction]] for unbounded OVER
@@ -88,6 +89,7 @@ object AggregateUtil {
     val aggregateMetadata = extractAggregateMetadata(
         namedAggregates.map(_.getKey),
         aggregateInputType,
+        inputFieldTypeInfo.length,
         needRetraction = false,
         tableConfig,
         isStateBackedDataViews = true)
@@ -104,7 +106,7 @@ object AggregateUtil {
       aggregateMetadata.getAggregateFunctions,
       aggregateMetadata.getAggregateIndices,
       aggMapping,
-      aggregateMetadata.getAggregatesDistinctFlags,
+      aggregateMetadata.getDistinctAccMapping,
       isStateBackedDataViews = true,
       partialResults = false,
       forwardMapping,
@@ -172,6 +174,7 @@ object AggregateUtil {
     val aggregateMetadata = extractAggregateMetadata(
         namedAggregates.map(_.getKey),
         inputRowType,
+        inputFieldTypes.length,
         consumeRetraction,
         tableConfig,
         isStateBackedDataViews = true)
@@ -185,7 +188,7 @@ object AggregateUtil {
       aggregateMetadata.getAggregateFunctions,
       aggregateMetadata.getAggregateIndices,
       aggMapping,
-      aggregateMetadata.getAggregatesDistinctFlags,
+      aggregateMetadata.getDistinctAccMapping,
       isStateBackedDataViews = true,
       partialResults = false,
       groupings,
@@ -240,6 +243,7 @@ object AggregateUtil {
     val aggregateMetadata = extractAggregateMetadata(
         namedAggregates.map(_.getKey),
         aggregateInputType,
+        inputFieldTypeInfo.length,
         needRetract,
         tableConfig,
         isStateBackedDataViews = true)
@@ -257,7 +261,7 @@ object AggregateUtil {
       aggregateMetadata.getAggregateFunctions,
       aggregateMetadata.getAggregateIndices,
       aggMapping,
-      aggregateMetadata.getAggregatesDistinctFlags,
+      aggregateMetadata.getDistinctAccMapping,
       isStateBackedDataViews = true,
       partialResults = false,
       forwardMapping,
@@ -346,6 +350,7 @@ object AggregateUtil {
     val aggregateMetadata = extractAggregateMetadata(
       namedAggregates.map(_.getKey),
       inputType,
+      inputFieldTypeInfo.length,
       needRetract,
       tableConfig)
 
@@ -385,8 +390,9 @@ object AggregateUtil {
         throw new UnsupportedOperationException(s"$window is currently not supported on batch")
     }
 
-    val aggMapping = aggregateMetadata.getAdjustedMapping(groupings.length)
-    val outputArity = aggregateMetadata.getAggregateCallsCount + groupings.length + 1
+    val aggMapping = aggregateMetadata.getAdjustedMapping(groupings.length, partialResults = true)
+    val outputArity = aggregateMetadata.getAggregateCallsCount + groupings.length +
+      aggregateMetadata.getDistinctAccCount + 1
 
     val genFunction = generator.generateAggregations(
       "DataSetAggregatePrepareMapHelper",
@@ -394,7 +400,7 @@ object AggregateUtil {
       aggregateMetadata.getAggregateFunctions,
       aggregateMetadata.getAggregateIndices,
       aggMapping,
-      aggregateMetadata.getAggregatesDistinctFlags,
+      aggregateMetadata.getDistinctAccMapping,
       isStateBackedDataViews = false,
       partialResults = true,
       groupings,
@@ -455,6 +461,7 @@ object AggregateUtil {
     val aggregateMetadata = extractAggregateMetadata(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
+      physicalInputTypes.length,
       needRetract,
       tableConfig)
 
@@ -465,19 +472,20 @@ object AggregateUtil {
       physicalInputRowType,
       Some(Array(BasicTypeInfo.LONG_TYPE_INFO)))
 
-    val keysAndAggregatesArity = groupings.length + namedAggregates.length
+    val aggMappings = aggregateMetadata.getAdjustedMapping(groupings.length, partialResults = true)
+    val keysAndAggregatesArity =
+      groupings.length + namedAggregates.length + aggregateMetadata.getDistinctAccCount
 
     window match {
       case SlidingGroupWindow(_, _, size, slide) if isTimeInterval(size.resultType) =>
         // sliding time-window for partial aggregations
-        val aggMappings = aggregateMetadata.getAdjustedMapping(groupings.length)
         val genFunction = generator.generateAggregations(
           "DataSetAggregatePrepareMapHelper",
           physicalInputTypes,
           aggregateMetadata.getAggregateFunctions,
           aggregateMetadata.getAggregateIndices,
           aggMappings,
-          aggregateMetadata.getAggregatesDistinctFlags,
+          aggregateMetadata.getDistinctAccMapping,
           isStateBackedDataViews = false,
           partialResults = true,
           groupings.indices.toArray,
@@ -573,10 +581,11 @@ object AggregateUtil {
     val aggregateMetadata = extractAggregateMetadata(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
+      physicalInputTypes.length,
       needRetract,
       tableConfig)
 
-    val aggMapping = aggregateMetadata.getAdjustedMapping(groupings.length)
+    val aggMapping = aggregateMetadata.getAdjustedMapping(groupings.length, partialResults = true)
 
     val genPreAggFunction = generator.generateAggregations(
       "GroupingWindowAggregateHelper",
@@ -584,12 +593,12 @@ object AggregateUtil {
       aggregateMetadata.getAggregateFunctions,
       aggregateMetadata.getAggregateIndices,
       aggMapping,
-      aggregateMetadata.getAggregatesDistinctFlags,
+      aggregateMetadata.getDistinctAccMapping,
       isStateBackedDataViews = false,
       partialResults = true,
       groupings.indices.toArray,
       Some(aggMapping),
-      outputType.getFieldCount,
+      outputType.getFieldCount + aggregateMetadata.getDistinctAccCount,
       needRetract,
       needMerge = true,
       needReset = true,
@@ -602,7 +611,7 @@ object AggregateUtil {
       aggregateMetadata.getAggregateFunctions,
       aggregateMetadata.getAggregateIndices,
       aggMapping,
-      aggregateMetadata.getAggregatesDistinctFlags,
+      aggregateMetadata.getDistinctAccMapping,
       isStateBackedDataViews = false,
       partialResults = false,
       groupings.indices.toArray,
@@ -730,12 +739,13 @@ object AggregateUtil {
     val aggregateMetadata = extractAggregateMetadata(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
+      physicalInputTypes.length,
       needRetract,
       tableConfig)
 
-    val aggMapping = aggregateMetadata.getAdjustedMapping(groupings.length)
-
-    val keysAndAggregatesArity = groupings.length + namedAggregates.length
+    val aggMapping = aggregateMetadata.getAdjustedMapping(groupings.length, partialResults = true)
+    val keysAndAggregatesArity = groupings.length + aggregateMetadata.getAggregateCallsCount +
+      aggregateMetadata.getDistinctAccCount
 
     window match {
       case SessionGroupWindow(_, _, gap) =>
@@ -753,12 +763,12 @@ object AggregateUtil {
           aggregateMetadata.getAggregateFunctions,
           aggregateMetadata.getAggregateIndices,
           aggMapping,
-          aggregateMetadata.getAggregatesDistinctFlags,
+          aggregateMetadata.getDistinctAccMapping,
           isStateBackedDataViews = false,
           partialResults = true,
           groupings.indices.toArray,
           Some(aggMapping),
-          groupings.length + aggregateMetadata.getAggregateCallsCount + 2,
+          keysAndAggregatesArity + 2,
           needRetract,
           needMerge = true,
           needReset = true,
@@ -807,11 +817,13 @@ object AggregateUtil {
     val aggregateMetadata = extractAggregateMetadata(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
+      physicalInputTypes.length,
       needRetract,
       tableConfig)
 
-    val aggMapping = aggregateMetadata.getAdjustedMapping(groupings.length)
-    val keysAndAggregatesArity = groupings.length + namedAggregates.length
+    val aggMapping = aggregateMetadata.getAdjustedMapping(groupings.length, partialResults = true)
+    val keysAndAggregatesArity =
+      groupings.length + namedAggregates.length + aggregateMetadata.getDistinctAccCount
 
     window match {
 
@@ -830,7 +842,7 @@ object AggregateUtil {
           aggregateMetadata.getAggregateFunctions,
           aggregateMetadata.getAggregateIndices,
           aggMapping,
-          aggregateMetadata.getAggregatesDistinctFlags,
+          aggregateMetadata.getDistinctAccMapping,
           isStateBackedDataViews = false,
           partialResults = true,
           groupings.indices.toArray,
@@ -876,6 +888,7 @@ object AggregateUtil {
     val aggregateMetadata = extractAggregateMetadata(
       namedAggregates.map(_.getKey),
       inputType,
+      inputFieldTypeInfo.length,
       needRetract,
       tableConfig)
 
@@ -890,7 +903,9 @@ object AggregateUtil {
 
     if (doAllSupportPartialMerge(aggregateMetadata.getAggregateFunctions)) {
 
-      val aggMapping = aggregateMetadata.getAdjustedMapping(groupings.length)
+      val aggMapping = aggregateMetadata.getAdjustedMapping(groupings.length, partialResults = true)
+      val keysAndAggregatesArity = groupings.length + aggregateMetadata.getAggregateCallsCount +
+        aggregateMetadata.getDistinctAccCount
 
       // compute preaggregation type
       val preAggFieldTypes = gkeyOutMapping.map(_._2)
@@ -904,12 +919,12 @@ object AggregateUtil {
         aggregateMetadata.getAggregateFunctions,
         aggregateMetadata.getAggregateIndices,
         aggMapping,
-        aggregateMetadata.getAggregatesDistinctFlags,
+        aggregateMetadata.getDistinctAccMapping,
         isStateBackedDataViews = false,
         partialResults = true,
         groupings,
         None,
-        groupings.length + aggregateMetadata.getAggregateCallsCount,
+        keysAndAggregatesArity,
         needRetract,
         needMerge = false,
         needReset = true,
@@ -932,7 +947,7 @@ object AggregateUtil {
         aggregateMetadata.getAggregateFunctions,
         aggregateMetadata.getAggregateIndices,
         aggOutFields,
-        aggregateMetadata.getAggregatesDistinctFlags,
+        aggregateMetadata.getDistinctAccMapping,
         isStateBackedDataViews = false,
         partialResults = false,
         gkeyMapping,
@@ -957,7 +972,7 @@ object AggregateUtil {
         aggregateMetadata.getAggregateFunctions,
         aggregateMetadata.getAggregateIndices,
         aggOutFields,
-        aggregateMetadata.getAggregatesDistinctFlags,
+        aggregateMetadata.getDistinctAccMapping,
         isStateBackedDataViews = false,
         partialResults = false,
         groupings,
@@ -1046,6 +1061,7 @@ object AggregateUtil {
       extractAggregateMetadata(
         namedAggregates.map(_.getKey),
         inputType,
+        inputFieldTypeInfo.length,
         needRetract,
         tableConfig)
 
@@ -1058,7 +1074,7 @@ object AggregateUtil {
       aggregateMetadata.getAggregateFunctions,
       aggregateMetadata.getAggregateIndices,
       aggMapping,
-      aggregateMetadata.getAggregatesDistinctFlags,
+      aggregateMetadata.getDistinctAccMapping,
       isStateBackedDataViews = false,
       partialResults = false,
       groupingKeys,
@@ -1088,6 +1104,7 @@ object AggregateUtil {
     val aggregateList = extractAggregateMetadata(
       aggregateCalls,
       inputType,
+      inputType.getFieldCount,
       needRetraction = false,
       tableConfig).getAggregateFunctions
 
@@ -1173,22 +1190,30 @@ object AggregateUtil {
     * [[GeneratedAggregations]] function.
     */
   private[flink] class AggregateMetadata(
-    private val aggregates: Seq[(AggregateCallMetadata, Array[Int])]) {
+    private val aggregates: Seq[(AggregateCallMetadata, Array[Int])],
+    private val distinctAccTypesWithSpecs: Seq[(TypeInformation[_], Seq[DataViewSpec[_]])]) {
 
     def getAggregateFunctions: Array[TableAggregateFunction[_, _]] = {
       aggregates.map(_._1.aggregateFunction).toArray
     }
 
     def getAggregatesAccumulatorTypes: Array[TypeInformation[_]] = {
-      aggregates.map(_._1.accumulatorType).toArray
+      aggregates.map(_._1.accumulatorType).toArray ++ distinctAccTypesWithSpecs.map(_._1)
     }
 
     def getAggregatesAccumulatorSpecs: Array[Seq[DataViewSpec[_]]] = {
-      aggregates.map(_._1.accumulatorSpecs).toArray
+      aggregates.map(_._1.accumulatorSpecs).toArray ++ distinctAccTypesWithSpecs.map(_._2)
     }
 
-    def getAggregatesDistinctFlags: Array[Boolean] = {
-      aggregates.map(_._1.isDistinct).toArray
+    def getDistinctAccMapping: Array[(Integer, JList[Integer])] = {
+      val distinctAccMapping = mutable.Map[Integer, JList[Integer]]()
+      aggregates.map(_._1.distinctAccIndex).zipWithIndex.foreach {
+        case (distinctAccIndex, aggIndex) =>
+          distinctAccMapping
+            .getOrElseUpdate(distinctAccIndex, new JArrayList[Integer]())
+            .add(aggIndex)
+      }
+      distinctAccMapping.toArray
     }
 
     def getAggregateCallsCount: Int = {
@@ -1199,8 +1224,13 @@ object AggregateUtil {
       aggregates.map(_._2).toArray
     }
 
-    def getAdjustedMapping(offset: Int): Array[Int] = {
-      (0 until getAggregateCallsCount).map(_ + offset).toArray
+    def getAdjustedMapping(offset: Int, partialResults: Boolean = false): Array[Int] = {
+      val accCount = getAggregateCallsCount + (if (partialResults) getDistinctAccCount else 0)
+      (0 until accCount).map(_ + offset).toArray
+    }
+
+    def getDistinctAccCount: Int = {
+      getDistinctAccMapping.count(_._1 >= 0)
     }
   }
 
@@ -1212,7 +1242,7 @@ object AggregateUtil {
     aggregateFunction: TableAggregateFunction[_, _],
     accumulatorType: TypeInformation[_],
     accumulatorSpecs: Seq[DataViewSpec[_]],
-    isDistinct: Boolean
+    distinctAccIndex: Int
   )
 
   /**
@@ -1221,6 +1251,11 @@ object AggregateUtil {
     *
     * @param aggregateFunction calcite's aggregate function
     * @param isDistinct true if should be distinct aggregation
+    * @param distinctAccMap mapping of the distinct aggregate input fields index
+    *                       to the corresponding acc index
+    * @param argList indexes of the input fields of given aggregates
+    * @param aggregateCount number of aggregates
+    * @param inputFieldsCount number of input fields
     * @param aggregateInputTypes input types of given aggregate
     * @param needRetraction if the [[TableAggregateFunction]] should produce retractions
     * @param tableConfig tableConfig, required for decimal precision
@@ -1235,6 +1270,10 @@ object AggregateUtil {
   private[flink] def extractAggregateCallMetadata(
       aggregateFunction: SqlAggFunction,
       isDistinct: Boolean,
+      distinctAccMap: mutable.Map[util.Set[Integer], Integer],
+      argList: util.List[Integer],
+      aggregateCount: Int,
+      inputFieldsCount: Int,
       aggregateInputTypes: Seq[RelDataType],
       needRetraction: Boolean,
       tableConfig: TableConfig,
@@ -1258,48 +1297,36 @@ object AggregateUtil {
 
       removeStateViewFieldsFromAccTypeInfo(
         uniqueIdWithinAggregate,
-        aggregate,
+        aggregate.createAccumulator(),
         accType,
         isStateBackedDataViews)
     }
 
     // create distinct accumulator filter argument
-    val distinctAccumulatorType = if (isDistinct) {
-      createDistinctAccumulatorType(aggregateInputTypes, isStateBackedDataViews, accumulatorType)
+    val distinctAccIndex = if (isDistinct) {
+      getDistinctAccIndex(distinctAccMap, argList, aggregateCount, inputFieldsCount)
     } else {
-      accumulatorType
+      -1
     }
 
-    AggregateCallMetadata(aggregate, distinctAccumulatorType, accSpecs.getOrElse(Seq()), isDistinct)
+    AggregateCallMetadata(aggregate, accumulatorType, accSpecs.getOrElse(Seq()), distinctAccIndex)
   }
 
-  private def createDistinctAccumulatorType(
-      aggregateInputTypes: Seq[RelDataType],
-      isStateBackedDataViews: Boolean,
-      accumulatorType: TypeInformation[_])
-    : PojoTypeInfo[DistinctAccumulator[_]] = {
-    // Using Pojo fields for the real underlying accumulator
-    val pojoFields = new util.ArrayList[PojoField]()
-    pojoFields.add(new PojoField(
-      classOf[DistinctAccumulator[_]].getDeclaredField("realAcc"),
-      accumulatorType)
-    )
-    // If StateBackend is not enabled, the distinct mapping also needs
-    // to be added to the Pojo fields.
-    if (!isStateBackedDataViews) {
+  private def getDistinctAccIndex(
+      distinctAccMap: mutable.Map[util.Set[Integer], Integer],
+      argList: util.List[Integer],
+      aggregateCount: Int,
+      inputFieldsCount: Int): Int = {
 
-      val argTypes: Array[TypeInformation[_]] = aggregateInputTypes
-        .map(FlinkTypeFactory.toTypeInfo).toArray
+    val argListWithoutConstants = argList.toSet.filter(i => i > -1 && i < inputFieldsCount)
+    distinctAccMap.get(argListWithoutConstants) match {
+      case None =>
+        val index: Int = aggregateCount + distinctAccMap.size
+        distinctAccMap.put(argListWithoutConstants, index)
+        index
 
-      val mapViewTypeInfo = new MapViewTypeInfo(
-        new RowTypeInfo(argTypes: _*),
-        BasicTypeInfo.LONG_TYPE_INFO)
-      pojoFields.add(new PojoField(
-        classOf[DistinctAccumulator[_]].getDeclaredField("distinctValueMap"),
-        mapViewTypeInfo)
-      )
+      case Some(index) => index
     }
-    new PojoTypeInfo(classOf[DistinctAccumulator[_]], pojoFields)
   }
 
   /**
@@ -1308,6 +1335,7 @@ object AggregateUtil {
     *
     * @param aggregateCalls calcite's aggregate function
     * @param aggregateInputType input type of given aggregates
+    * @param inputFieldsCount number of input fields
     * @param needRetraction if the [[TableAggregateFunction]] should produce retractions
     * @param tableConfig tableConfig, required for decimal precision
     * @param isStateBackedDataViews if data should be backed by state backend
@@ -1320,10 +1348,13 @@ object AggregateUtil {
   private def extractAggregateMetadata(
       aggregateCalls: Seq[AggregateCall],
       aggregateInputType: RelDataType,
+      inputFieldsCount: Int,
       needRetraction: Boolean,
       tableConfig: TableConfig,
       isStateBackedDataViews: Boolean = false)
     : AggregateMetadata = {
+
+    val distinctAccMap = mutable.Map[util.Set[Integer], Integer]()
 
     val aggregatesWithIndices = aggregateCalls.zipWithIndex.map {
       case (aggregateCall, index) =>
@@ -1340,8 +1371,13 @@ object AggregateUtil {
         }
 
         val inputTypes = argList.map(aggregateInputType.getFieldList.get(_).getType)
-        val aggregateCallMetadata = extractAggregateCallMetadata(aggregateCall.getAggregation,
+        val aggregateCallMetadata = extractAggregateCallMetadata(
+          aggregateCall.getAggregation,
           aggregateCall.isDistinct,
+          distinctAccMap,
+          argList,
+          aggregateCalls.length,
+          inputFieldsCount,
           inputTypes,
           needRetraction,
           tableConfig,
@@ -1351,8 +1387,19 @@ object AggregateUtil {
         (aggregateCallMetadata, aggFieldIndices)
     }
 
+    val distinctAccType = Types.POJO(classOf[DistinctAccumulator])
+
+    val distinctAccTypesWithSpecs = (0 until distinctAccMap.size).map { idx =>
+      val (accType, accSpec) = removeStateViewFieldsFromAccTypeInfo(
+        aggregateCalls.length + idx,
+        new DistinctAccumulator(),
+        distinctAccType,
+        isStateBackedDataViews)
+      (accType, accSpec.getOrElse(Seq()))
+    }
+
     // store the aggregate fields of each aggregate function, by the same order of aggregates.
-    new AggregateMetadata(aggregatesWithIndices)
+    new AggregateMetadata(aggregatesWithIndices, distinctAccTypesWithSpecs)
   }
 
   /**

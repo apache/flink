@@ -349,4 +349,80 @@ public class JavaUserDefinedAggFunctions {
 			isCloseCalled = true;
 		}
 	}
+
+	/**
+	 * Count accumulator.
+	 */
+	public static class MultiArgCountAcc {
+		public long count;
+	}
+
+	/**
+	 * Count aggregate function with multiple arguments.
+	 */
+	public static class MultiArgCount extends AggregateFunction<Long, MultiArgCountAcc> {
+
+		@Override
+		public MultiArgCountAcc createAccumulator() {
+			MultiArgCountAcc acc = new MultiArgCountAcc();
+			acc.count = 0L;
+			return acc;
+		}
+
+		public void accumulate(MultiArgCountAcc acc, Object in1, Object in2) {
+			if (in1 != null && in2 != null) {
+				acc.count += 1;
+			}
+		}
+
+		public void retract(MultiArgCountAcc acc, Object in1, Object in2) {
+			if (in1 != null && in2 != null) {
+				acc.count -= 1;
+			}
+		}
+
+		public void merge(MultiArgCountAcc accumulator, java.lang.Iterable<MultiArgCountAcc> iterable) {
+			for (MultiArgCountAcc otherAcc : iterable) {
+				accumulator.count += otherAcc.count;
+			}
+		}
+
+		@Override
+		public Long getValue(MultiArgCountAcc acc) {
+			return acc.count;
+		}
+	}
+
+	/**
+	 * Sum accumulator.
+	 */
+	public static class MultiArgSumAcc {
+		public long count;
+	}
+
+	/**
+	 * Sum aggregate function with multiple arguments.
+	 */
+	public static class MultiArgSum extends AggregateFunction<Long, MultiArgSumAcc> {
+
+		@Override
+		public MultiArgSumAcc createAccumulator() {
+			MultiArgSumAcc acc = new MultiArgSumAcc();
+			acc.count = 0L;
+			return acc;
+		}
+
+		public void accumulate(MultiArgSumAcc acc, long in1, long in2) {
+			acc.count += in1 + in2;
+		}
+
+		public void retract(MultiArgSumAcc acc, long in1, long in2) {
+			acc.count -= in1 + in2;
+		}
+
+		@Override
+		public Long getValue(MultiArgSumAcc acc) {
+			return acc.count;
+		}
+	}
 }

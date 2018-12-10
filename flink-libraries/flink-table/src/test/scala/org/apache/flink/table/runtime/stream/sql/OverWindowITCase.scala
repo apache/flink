@@ -31,6 +31,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment}
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.MultiArgCount
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
 import org.junit.Assert._
@@ -911,6 +912,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get5TupleDataStream(env)
       .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
     tEnv.registerTable("MyTable", t)
+    tEnv.registerFunction("myCount", new MultiArgCount)
 
     val sqlQuery = "SELECT a, " +
       "  COUNT(e) OVER (" +
@@ -918,6 +920,10 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "  SUM(DISTINCT e) OVER (" +
       "    PARTITION BY a ORDER BY proctime RANGE UNBOUNDED preceding), " +
       "  MIN(DISTINCT e) OVER (" +
+      "    PARTITION BY a ORDER BY proctime RANGE UNBOUNDED preceding), " +
+      "  myCount(DISTINCT e, 1) OVER (" +
+      "    PARTITION BY a ORDER BY proctime RANGE UNBOUNDED preceding), " +
+      "  myCount(DISTINCT 1, e) OVER (" +
       "    PARTITION BY a ORDER BY proctime RANGE UNBOUNDED preceding) " +
       "FROM MyTable"
 
@@ -926,21 +932,21 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "1,1,1,1",
-      "2,1,2,2",
-      "2,2,3,1",
-      "3,1,2,2",
-      "3,2,2,2",
-      "3,3,5,2",
-      "4,1,2,2",
-      "4,2,3,1",
-      "4,3,3,1",
-      "4,4,3,1",
-      "5,1,1,1",
-      "5,2,4,1",
-      "5,3,4,1",
-      "5,4,6,1",
-      "5,5,6,1")
+      "1,1,1,1,1,1",
+      "2,1,2,2,1,1",
+      "2,2,3,1,2,2",
+      "3,1,2,2,1,1",
+      "3,2,2,2,1,1",
+      "3,3,5,2,2,2",
+      "4,1,2,2,1,1",
+      "4,2,3,1,2,2",
+      "4,3,3,1,2,2",
+      "4,4,3,1,2,2",
+      "5,1,1,1,1,1",
+      "5,2,4,1,2,2",
+      "5,3,4,1,2,2",
+      "5,4,6,1,3,3",
+      "5,5,6,1,3,3")
     assertEquals(expected, StreamITCase.testResults)
   }
 
@@ -973,6 +979,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     tEnv.registerTable("MyTable", table)
     tEnv.registerFunction("CntNullNonNull", new CountNullNonNull)
+    tEnv.registerFunction("myCount", new MultiArgCount)
 
     val sqlQuery = "SELECT " +
       "  c, " +
@@ -980,6 +987,10 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "  COUNT(DISTINCT c) " +
       "    OVER (PARTITION BY b ORDER BY rtime RANGE UNBOUNDED preceding), " +
       "  CntNullNonNull(DISTINCT c) " +
+      "    OVER (PARTITION BY b ORDER BY rtime RANGE UNBOUNDED preceding), " +
+      "  myCount(DISTINCT c, 1) " +
+      "    OVER (PARTITION BY b ORDER BY rtime RANGE UNBOUNDED preceding), " +
+      "  myCount(DISTINCT 1, c) " +
       "    OVER (PARTITION BY b ORDER BY rtime RANGE UNBOUNDED preceding)" +
       "FROM " +
       "  MyTable"
@@ -989,9 +1000,9 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "null,1,0,0|1", "null,1,0,0|1", "null,2,0,0|1", "null,1,2,2|1",
-      "Hello,1,1,1|1", "Hello,1,1,1|1", "Hello,2,1,1|1",
-      "Hello World,1,2,2|1", "Hello World,2,2,2|1", "Hello World,2,2,2|1")
+      "null,1,0,0|1,0,0", "null,1,0,0|1,0,0", "null,2,0,0|1,0,0", "null,1,2,2|1,2,2",
+      "Hello,1,1,1|1,1,1", "Hello,1,1,1|1,1,1", "Hello,2,1,1|1,1,1",
+      "Hello World,1,2,2|1,2,2", "Hello World,2,2,2|1,2,2", "Hello World,2,2,2|1,2,2")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 

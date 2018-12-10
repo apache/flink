@@ -28,30 +28,19 @@ import org.apache.flink.types.Row
 /**
   * Wraps an accumulator and adds a map to filter distinct values.
   *
-  * @param realAcc the wrapped accumulator.
   * @param distinctValueMap the [[MapView]] that stores the distinct filter hash map.
-  *
-  * @tparam ACC the accumulator type for the realAcc.
   */
-class DistinctAccumulator[ACC](
-    var realAcc: ACC,
-    var distinctValueMap: MapView[Row, JLong]) {
+class DistinctAccumulator(var distinctValueMap: MapView[Row, JLong]) {
 
   def this() {
-    this(null.asInstanceOf[ACC], new MapView[Row, JLong]())
+    this(new MapView[Row, JLong]())
   }
 
-  def this(realAcc: ACC) {
-    this(realAcc, new MapView[Row, JLong]())
-  }
-
-  def getRealAcc: ACC = realAcc
-
-  def canEqual(a: Any): Boolean = a.isInstanceOf[DistinctAccumulator[ACC]]
+  def canEqual(a: Any): Boolean = a.isInstanceOf[DistinctAccumulator]
 
   override def equals(that: Any): Boolean =
     that match {
-      case that: DistinctAccumulator[ACC] => that.canEqual(this) &&
+      case that: DistinctAccumulator => that.canEqual(this) &&
         this.distinctValueMap == that.distinctValueMap
       case _ => false
     }
