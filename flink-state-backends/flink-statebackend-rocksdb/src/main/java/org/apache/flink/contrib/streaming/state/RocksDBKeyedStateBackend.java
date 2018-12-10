@@ -111,7 +111,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -212,14 +211,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 */
 	private final LinkedHashMap<String, Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase>> kvStateInformation;
 
-	/**
-	 * Map of state names to their corresponding restored state meta info.
-	 *
-	 * <p>TODO this map can be removed when eager-state registration is in place.
-	 * TODO we currently need this cached to check state migration strategies when new serializers are registered.
-	 */
-	private final Map<String, StateMetaInfoSnapshot> restoredKvStateMetaInfos;
-
 	/** Number of bytes required to prefix the key groups. */
 	private final int keyGroupPrefixBytes;
 
@@ -296,7 +287,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.keyGroupPrefixBytes =
 			RocksDBKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(getNumberOfKeyGroups());
 		this.kvStateInformation = new LinkedHashMap<>();
-		this.restoredKvStateMetaInfos = new HashMap<>();
 
 		this.writeOptions = new WriteOptions().setDisableWAL(true);
 
@@ -424,7 +414,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			IOUtils.closeQuietly(dbOptions);
 			IOUtils.closeQuietly(writeOptions);
 			kvStateInformation.clear();
-			restoredKvStateMetaInfos.clear();
 
 			cleanInstanceBasePath();
 		}
@@ -510,7 +499,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		// clear all meta data
 		kvStateInformation.clear();
-		restoredKvStateMetaInfos.clear();
 
 		try {
 			RocksDBIncrementalRestoreOperation<K> incrementalRestoreOperation = null;
@@ -752,8 +740,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(
 						nameBytes,
 						rocksDBKeyedStateBackend.columnOptions);
-
-					rocksDBKeyedStateBackend.restoredKvStateMetaInfos.put(restoredMetaInfo.getName(), restoredMetaInfo);
 
 					ColumnFamilyHandle columnFamily = rocksDBKeyedStateBackend.db.createColumnFamily(columnFamilyDescriptor);
 
@@ -1166,7 +1152,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					stateBackend.columnOptions);
 
 				columnFamilyDescriptors.add(columnFamilyDescriptor);
-				stateBackend.restoredKvStateMetaInfos.put(stateMetaInfoSnapshot.getName(), stateMetaInfoSnapshot);
 			}
 			return columnFamilyDescriptors;
 		}
