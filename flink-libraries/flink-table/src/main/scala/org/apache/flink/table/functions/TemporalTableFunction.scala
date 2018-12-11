@@ -65,7 +65,7 @@ class TemporalTableFunction private(
 }
 
 object TemporalTableFunction {
-  def create(
+  private[flink] def create(
       table: Table,
       timeAttribute: Expression,
       primaryKey: String): TemporalTableFunction = {
