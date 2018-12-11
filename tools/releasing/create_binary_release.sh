@@ -88,10 +88,10 @@ make_binary_release() {
 }
 
 if [ "$SCALA_VERSION" == "none" ] && [ "$HADOOP_VERSION" == "none" ]; then
-  make_binary_release "" "-DwithoutHadoop" "2.11"
-  make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "2.11"
-  make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "2.11"
-  make_binary_release "hadoop27" "-Dhadoop.version=2.7.5" "2.11"
+  #make_binary_release "" "-DwithoutHadoop" "2.11"
+  #make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "2.11"
+  #make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "2.11"
+  #make_binary_release "hadoop27" "-Dhadoop.version=2.7.5" "2.11"
   make_binary_release "hadoop28" "-Dhadoop.version=2.8.3" "2.11"
 elif [ "$SCALA_VERSION" == none ] && [ "$HADOOP_VERSION" != "none" ]
 then
