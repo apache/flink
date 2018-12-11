@@ -92,5 +92,4 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 		JobExecutionResult actualResult = env.execute("fakeJobName");
 		Assert.assertEquals(expectedResult, actualResult);
 	}
-
 }
