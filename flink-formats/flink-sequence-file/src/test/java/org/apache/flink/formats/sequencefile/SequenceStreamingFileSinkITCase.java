@@ -26,8 +26,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.util.AbstractTestBase;
-import org.apache.flink.test.util.FiniteTestSource;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
@@ -49,26 +49,31 @@ import static org.junit.Assert.assertTrue;
  * Integration test case for writing bulk encoded files with the
  * {@link StreamingFileSink} with SequenceFile.
  */
-public class SequenceFileSinkITCase extends AbstractTestBase {
-	@Test
-	public void testWriteSequenceFile() throws Exception {
-		final File folder = TEMPORARY_FOLDER.newFolder();
+public class SequenceStreamingFileSinkITCase extends AbstractTestBase {
 
-		final List<Tuple2<Long, String>> data = Arrays.asList(
+	private final Configuration configuration = new Configuration();
+
+	private final List<Tuple2<Long, String>> testData = Arrays.asList(
 			new Tuple2<>(1L, "a"),
 			new Tuple2<>(2L, "b"),
 			new Tuple2<>(3L, "c")
-		);
+	);
+
+	@Test
+	public void testWriteSequenceFile() throws Exception {
+		final File folder = TEMPORARY_FOLDER.newFolder();
+		final Path testPath = Path.fromLocalFile(folder);
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.enableCheckpointing(100);
 
 		DataStream<Tuple2<Long, String>> stream = env.addSource(
-			new FiniteTestSource<>(data), TypeInformation.of(new TypeHint<Tuple2<Long, String>>() {
-			}));
+				new FiniteTestSource<>(testData),
+				TypeInformation.of(new TypeHint<Tuple2<Long, String>>() {
 
-		Path testPath = Path.fromLocalFile(folder);
+				})
+		);
 
 		stream.map(new MapFunction<Tuple2<Long, String>, Tuple2<LongWritable, Text>>() {
 			@Override
@@ -78,17 +83,17 @@ public class SequenceFileSinkITCase extends AbstractTestBase {
 		}).addSink(
 			StreamingFileSink.forBulkFormat(
 				testPath,
-				new SequenceFileWriterFactory<>(SequenceFileWriterFactory.getHadoopConfigFromPath(testPath), LongWritable.class, Text.class, "BZip2")
+				new SequenceFileWriterFactory<>(configuration, LongWritable.class, Text.class, "BZip2")
 			).build());
 
 		env.execute();
 
-		validateResults(folder, data);
+		validateResults(folder, testData);
 	}
 
 	private List<Tuple2<Long, String>> readSequenceFile(File file) throws IOException {
 		SequenceFile.Reader reader = new SequenceFile.Reader(
-			new Configuration(), SequenceFile.Reader.file(new org.apache.hadoop.fs.Path(file.toURI())));
+			configuration, SequenceFile.Reader.file(new org.apache.hadoop.fs.Path(file.toURI())));
 		LongWritable key = new LongWritable();
 		Text val = new Text();
 		ArrayList<Tuple2<Long, String>> results = new ArrayList<>();
@@ -104,14 +109,15 @@ public class SequenceFileSinkITCase extends AbstractTestBase {
 		assertNotNull(buckets);
 		assertEquals(1, buckets.length);
 
-		File[] partFiles = buckets[0].listFiles();
+		final File[] partFiles = buckets[0].listFiles();
 		assertNotNull(partFiles);
-		assertEquals(1, partFiles.length);
-		assertTrue(partFiles[0].length() > 0);
+		assertEquals(2, partFiles.length);
 
-		List<Tuple2<Long, String>> results = readSequenceFile(partFiles[0]);
-		assertEquals(expected, results);
+		for (File partFile : partFiles) {
+			assertTrue(partFile.length() > 0);
+
+			final List<Tuple2<Long, String>> fileContent = readSequenceFile(partFile);
+			assertEquals(expected, fileContent);
+		}
 	}
 }
-
-
