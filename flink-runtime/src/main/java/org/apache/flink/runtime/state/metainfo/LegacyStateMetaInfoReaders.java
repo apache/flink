@@ -138,11 +138,6 @@ public class LegacyStateMetaInfoReaders {
 
 		static final OperatorBackendStateMetaInfoReaderV2V3 INSTANCE = new OperatorBackendStateMetaInfoReaderV2V3();
 
-		private static final String[] ORDERED_KEY_STRINGS =
-			new String[]{
-				StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.toString(),
-				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString()};
-
 		@Nonnull
 		@Override
 		public StateMetaInfoSnapshot readStateMetaInfoSnapshot(
@@ -162,21 +157,44 @@ public class LegacyStateMetaInfoReaders {
 			final int listSize = stateSerializerAndConfigList.size();
 			StateMetaInfoSnapshot.BackendStateType stateType = listSize == 1 ?
 				StateMetaInfoSnapshot.BackendStateType.OPERATOR : StateMetaInfoSnapshot.BackendStateType.BROADCAST;
+
 			Map<String, TypeSerializer<?>> serializerMap = new HashMap<>(listSize);
 			Map<String, TypeSerializerConfigSnapshot> serializerConfigsMap = new HashMap<>(listSize);
-			for (int i = 0; i < listSize; ++i) {
-				Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> serializerAndConf =
-					stateSerializerAndConfigList.get(i);
 
-				// this particular mapping happens to support both, V2 and V3
-				String serializerKey = ORDERED_KEY_STRINGS[ORDERED_KEY_STRINGS.length - 1 - i];
+			switch (stateType) {
+				case OPERATOR:
+					Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> serializerAndConf =
+						stateSerializerAndConfigList.get(0);
 
-				serializerMap.put(
-					serializerKey,
-					serializerAndConf.f0);
-				serializerConfigsMap.put(
-					serializerKey,
-					serializerAndConf.f1);
+					serializerMap.put(
+						StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
+						serializerAndConf.f0);
+					serializerConfigsMap.put(
+						StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
+						serializerAndConf.f1);
+					break;
+				case BROADCAST:
+					Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> keySerializerAndConf =
+						stateSerializerAndConfigList.get(0);
+					Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> valueSerializerAndConf =
+						stateSerializerAndConfigList.get(1);
+
+					serializerMap.put(
+						StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.toString(),
+						keySerializerAndConf.f0);
+					serializerConfigsMap.put(
+						StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.toString(),
+						keySerializerAndConf.f1);
+
+					serializerMap.put(
+						StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
+						valueSerializerAndConf.f0);
+					serializerConfigsMap.put(
+						StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
+						valueSerializerAndConf.f1);
+					break;
+				default:
+					throw new IllegalStateException("Unknown operator state type " + stateType);
 			}
 
 			return new StateMetaInfoSnapshot(
