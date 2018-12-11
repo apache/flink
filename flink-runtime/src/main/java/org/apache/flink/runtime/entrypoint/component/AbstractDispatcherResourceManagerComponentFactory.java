@@ -174,7 +174,6 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				metricRegistry.getMetricQueryServicePath(),
 				archivedExecutionGraphStore,
 				fatalErrorHandler,
-				webMonitorEndpoint.getRestBaseUrl(),
 				historyServerArchivist);
 
 			log.debug("Starting ResourceManager.");

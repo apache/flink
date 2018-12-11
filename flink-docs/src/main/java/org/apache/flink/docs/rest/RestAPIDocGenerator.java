@@ -358,8 +358,8 @@ public class RestAPIDocGenerator {
 		}
 
 		@Override
-		public List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
-			return super.initializeHandlers(restAddressFuture);
+		public List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture) {
+			return super.initializeHandlers(localAddressFuture);
 		}
 
 		private enum NoOpElectionService implements LeaderElectionService {
@@ -399,7 +399,7 @@ public class RestAPIDocGenerator {
 	 * Interface to expose the supported {@link MessageHeaders} of a {@link RestServerEndpoint}.
 	 */
 	private interface DocumentingRestEndpoint {
-		List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture);
+		List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture);
 
 		default List<MessageHeaders> getSpecs() {
 			Comparator<String> comparator = new RestServerEndpoint.RestHandlerUrlComparator.CaseInsensitiveOrderComparator();

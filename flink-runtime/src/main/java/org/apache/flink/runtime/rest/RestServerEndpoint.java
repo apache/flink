@@ -114,10 +114,10 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 	 * This method is called at the beginning of {@link #start()} to setup all handlers that the REST server endpoint
 	 * implementation requires.
 	 *
-	 * @param restAddressFuture future rest address of the RestServerEndpoint
+	 * @param localAddressFuture future rest address of the RestServerEndpoint
 	 * @return Collection of AbstractRestHandler which are added to the server endpoint
 	 */
-	protected abstract List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture);
+	protected abstract List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture);
 
 	/**
 	 * Starts this REST server endpoint.

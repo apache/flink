@@ -128,9 +128,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	@Nullable
 	private final String metricQueryServicePath;
 
-	@Nullable
-	protected final String restAddress;
-
 	private final Map<JobID, CompletableFuture<Void>> jobManagerTerminationFutures;
 
 	private CompletableFuture<Void> recoveryOperation = CompletableFuture.completedFuture(null);
@@ -149,7 +146,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			JobManagerRunnerFactory jobManagerRunnerFactory,
 			FatalErrorHandler fatalErrorHandler,
-			@Nullable String restAddress,
 			HistoryServerArchivist historyServerArchivist) throws Exception {
 		super(rpcService, endpointId);
 
@@ -172,8 +168,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		jobManagerRunnerFutures = new HashMap<>(16);
 
 		leaderElectionService = highAvailabilityServices.getDispatcherLeaderElectionService();
-
-		this.restAddress = restAddress;
 
 		this.historyServerArchivist = Preconditions.checkNotNull(historyServerArchivist);
 
@@ -395,15 +389,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		return jobMasterGatewayFuture.thenCompose(
 			(JobMasterGateway jobMasterGateway) ->
 				jobMasterGateway.rescaleJob(newParallelism, rescalingBehaviour, timeout));
-	}
-
-	@Override
-	public CompletableFuture<String> requestRestAddress(Time timeout) {
-		if (restAddress != null) {
-			return CompletableFuture.completedFuture(restAddress);
-		} else {
-			return FutureUtils.completedExceptionally(new DispatcherException("The Dispatcher has not been started with a REST endpoint."));
-		}
 	}
 
 	@Override

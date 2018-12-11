@@ -49,12 +49,10 @@ public class JobExecutionResultHandler
 	extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, JobExecutionResultResponseBody, JobMessageParameters> {
 
 	public JobExecutionResultHandler(
-			final CompletableFuture<String> localRestAddress,
 			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout,
 			final Map<String, String> responseHeaders) {
 		super(
-			localRestAddress,
 			leaderRetriever,
 			timeout,
 			responseHeaders,

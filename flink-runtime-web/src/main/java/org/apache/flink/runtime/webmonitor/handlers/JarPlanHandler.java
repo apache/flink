@@ -56,7 +56,6 @@ public class JarPlanHandler
 	private final Function<JobGraph, JobPlanInfo> planGenerator;
 
 	public JarPlanHandler(
-			final CompletableFuture<String> localRestAddress,
 			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout,
 			final Map<String, String> responseHeaders,
@@ -65,13 +64,17 @@ public class JarPlanHandler
 			final Configuration configuration,
 			final Executor executor) {
 		this(
-			localRestAddress, leaderRetriever, timeout, responseHeaders,
-			messageHeaders, jarDir, configuration, executor,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			messageHeaders,
+			jarDir,
+			configuration,
+			executor,
 			jobGraph -> new JobPlanInfo(JsonPlanGenerator.generatePlan(jobGraph)));
 	}
 
 	public JarPlanHandler(
-			final CompletableFuture<String> localRestAddress,
 			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout,
 			final Map<String, String> responseHeaders,
@@ -80,7 +83,7 @@ public class JarPlanHandler
 			final Configuration configuration,
 			final Executor executor,
 			final Function<JobGraph, JobPlanInfo> planGenerator) {
-		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 		this.jarDir = requireNonNull(jarDir);
 		this.configuration = requireNonNull(configuration);
 		this.executor = requireNonNull(executor);
