@@ -42,9 +42,7 @@ class CRowSerializerTest extends TestLogger {
   def testDefaultConstructor(): Unit = {
     new CRowSerializer.CRowSerializerConfigSnapshot()
 
-    val serializerConfigSnapshotClass = Class.forName(
-      "org.apache.flink.table.runtime.types.CRowSerializer$CRowSerializerConfigSnapshot")
-    InstantiationUtil.instantiate(serializerConfigSnapshotClass)
+    InstantiationUtil.instantiate(classOf[CRowSerializer.CRowSerializerConfigSnapshot])
   }
 
   @Test
