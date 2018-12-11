@@ -1037,7 +1037,7 @@ object AggregateUtil {
       groupingKeys: Array[Int],
       needMerge: Boolean,
       tableConfig: TableConfig)
-    : (DataStreamAggFunction[CRow, Row, Row], RowTypeInfo, RowTypeInfo) = {
+    : (DataStreamAggFunction[CRow, Row, Row], RowTypeInfo) = {
 
     val needRetract = false
     val (aggFields, aggregates, isDistinctAggs, accTypes, _) =
@@ -1068,13 +1068,10 @@ object AggregateUtil {
       None
     )
 
-    val aggResultTypes = namedAggregates.map(a => FlinkTypeFactory.toTypeInfo(a.left.getType))
-
     val accumulatorRowType = new RowTypeInfo(accTypes: _*)
-    val aggResultRowType = new RowTypeInfo(aggResultTypes: _*)
     val aggFunction = new AggregateAggFunction(genFunction)
 
-    (aggFunction, accumulatorRowType, aggResultRowType)
+    (aggFunction, accumulatorRowType)
   }
 
   /**
