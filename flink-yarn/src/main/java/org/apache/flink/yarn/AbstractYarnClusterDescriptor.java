@@ -999,7 +999,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		appMasterEnv.put(YarnConfigKeys.FLINK_YARN_FILES, yarnFilesDir.toUri().toString());
 
 		// https://github.com/apache/hadoop/blob/trunk/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-site/src/site/markdown/YarnApplicationSecurity.md#identity-on-an-insecure-cluster-hadoop_user_name
-		appMasterEnv.put(YarnConfigKeys.ENV_HADOOP_USER_NAME, UserGroupInformation.getCurrentUser().getUserName());
+		final String hadoopUserName = UserGroupInformation.getCurrentUser().getUserName();
+		appMasterEnv.put(YarnConfigKeys.ENV_HADOOP_USER_NAME, hadoopUserName);
 
 		if (remotePathKeytab != null) {
 			appMasterEnv.put(YarnConfigKeys.KEYTAB_PATH, remotePathKeytab.toString());
@@ -1068,7 +1069,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 						+ appState + " during deployment. \n" +
 						"Diagnostics from YARN: " + report.getDiagnostics() + "\n" +
 						"If log aggregation is enabled on your cluster, use this command to further investigate the issue:\n" +
-						"yarn logs -applicationId " + appId);
+						"yarn logs -applicationId " + appId + " -appOwner " + hadoopUserName);
 					//break ..
 				case RUNNING:
 					LOG.info("YARN application has been deployed successfully.");
