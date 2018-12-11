@@ -134,6 +134,7 @@ We can simply import the dataset then using:
 {% highlight scala %}
 
 import org.apache.flink.ml.MLUtils
+import org.apache.flink.ml.math.Vector
 
 val astroTrain: DataSet[LabeledVector] = MLUtils.readLibSVM(env, "/path/to/svmguide1")
 val astroTest: DataSet[(Vector, Double)] = MLUtils.readLibSVM(env, "/path/to/svmguide1.t")
