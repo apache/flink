@@ -333,5 +333,4 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	public Configuration getClientConfiguration() {
 		return clientConfiguration;
 	}
-
 }
