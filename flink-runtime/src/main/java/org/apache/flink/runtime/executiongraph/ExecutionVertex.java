@@ -62,6 +62,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -71,6 +72,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 
@@ -687,7 +689,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 		if (partition.getIntermediateResult().getResultType().isPipelined()) {
 			// Schedule or update receivers of this partition
-			partition.markDataProduced();
+			partition.markSomePipelinedDataProduced();
 			execution.scheduleOrUpdateConsumers(partition.getConsumers());
 		}
 		else {
@@ -736,20 +738,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	public boolean checkInputDependencyConstraints() {
 		if (getExecutionGraph().getInputDependencyConstraint() == InputDependencyConstraint.ANY) {
 			// InputDependencyConstraint == ANY
-			for (int i = 0; i < inputEdges.length; i++) {
-				if (isInputConsumable(i)) {
-					return true;
-				}
-			}
-			return false;
+			return IntStream.range(0, inputEdges.length).anyMatch(this::isInputConsumable);
 		} else {
 			// InputDependencyConstraint == ALL
-			for (int i = 0; i < inputEdges.length; i++) {
-				if (!isInputConsumable(i)) {
-					return false;
-				}
-			}
-			return true;
+			return IntStream.range(0, inputEdges.length).allMatch(this::isInputConsumable);
 		}
 	}
 
@@ -765,17 +757,12 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 		if (result.getResultType().isPipelined()) {
 			// For PIPELINED result, the input is consumable if any result partition has produced records or is finished
-			for (ExecutionEdge edge : inputEdges[inputNumber]) {
-				if (edge.getSource().hasDataProduced()) {
-					return true;
-				}
-			}
+			return Arrays.stream(inputEdges[inputNumber]).map(ExecutionEdge::getSource).anyMatch(
+					IntermediateResultPartition::isSomePipelinedDataProduced);
 		} else {
 			// For BLOCKING result, the input is consumable if all the partitions in the result are finished
 			return result.areAllPartitionsFinished();
 		}
-
-		return false;
 	}
 
 	// --------------------------------------------------------------------------------------------

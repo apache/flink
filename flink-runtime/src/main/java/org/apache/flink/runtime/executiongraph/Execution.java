@@ -718,6 +718,26 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 	}
 
+	private void scheduleConsumer(ExecutionVertex consumerVertex) {
+		CompletableFuture.supplyAsync(
+			() -> {
+				try {
+					final ExecutionGraph executionGraph = consumerVertex.getExecutionGraph();
+					consumerVertex.scheduleForExecution(
+							executionGraph.getSlotProvider(),
+							executionGraph.isQueuedSchedulingAllowed(),
+							LocationPreferenceConstraint.ANY, // there must be at least one known location
+							Collections.emptySet());
+				} catch (Throwable t) {
+					consumerVertex.fail(new IllegalStateException("Could not schedule consumer " +
+							"vertex " + consumerVertex, t));
+				}
+
+				return null;
+			},
+			executor);
+	}
+
 	void scheduleOrUpdateConsumers(List<List<ExecutionEdge>> allConsumers) {
 		final int numConsumers = allConsumers.size();
 
@@ -747,33 +767,17 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				consumerVertex.cachePartitionInfo(PartialInputChannelDeploymentDescriptor.fromEdge(
 						partition, partitionExecution));
 
-				// Schedule the consumer vertex if its inputs constraint is satisfied, otherwise postpone the scheduling
+				// When deploying a consuming task, its task deployment descriptor will contain all
+				// deployment information available at the respective time. It is possible that some
+				// of the partitions to be consumed have not been created yet. These are updated
+				// runtime via the update messages.
+				//
+				// TODO The current approach may send many update messages even though the consuming
+				// task has already been deployed with all necessary information. We have to check
+				// whether this is a problem and fix it, if it is.
 				if (consumerVertex.checkInputDependencyConstraints()) {
-					// When deploying a consuming task, its task deployment descriptor will contain all
-					// deployment information available at the respective time. It is possible that some
-					// of the partitions to be consumed have not been created yet. These are updated
-					// runtime via the update messages.
-					//
-					// TODO The current approach may send many update messages even though the consuming
-					// task has already been deployed with all necessary information. We have to check
-					// whether this is a problem and fix it, if it is.
-					CompletableFuture.supplyAsync(
-						() -> {
-							try {
-								final ExecutionGraph executionGraph = consumerVertex.getExecutionGraph();
-								consumerVertex.scheduleForExecution(
-									executionGraph.getSlotProvider(),
-									executionGraph.isQueuedSchedulingAllowed(),
-									LocationPreferenceConstraint.ANY, // there must be at least one known location
-									Collections.emptySet());
-							} catch (Throwable t) {
-								consumerVertex.fail(new IllegalStateException("Could not schedule consumer " +
-									"vertex " + consumerVertex, t));
-							}
-
-							return null;
-						},
-						executor);
+					// Schedule the consumer vertex if its inputs constraint is satisfied, otherwise skip the scheduling
+					scheduleConsumer(consumerVertex);
 				}
 
 				// double check to resolve race conditions

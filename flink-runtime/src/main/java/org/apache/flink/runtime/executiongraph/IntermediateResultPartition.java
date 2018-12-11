@@ -37,9 +37,9 @@ public class IntermediateResultPartition {
 	private List<List<ExecutionEdge>> consumers;
 
 	/**
-	 * Whether this partition has data produced. For pipelined result only.
+	 * Whether this partition has produced some data. For pipelined result only.
 	 */
-	private boolean dataProduced = false;
+	private boolean isSomePipelinedDataProduced = false;
 
 	public IntermediateResultPartition(IntermediateResult totalResult, ExecutionVertex producer, int partitionNumber) {
 		this.totalResult = totalResult;
@@ -73,24 +73,24 @@ public class IntermediateResultPartition {
 		return consumers;
 	}
 
-	public void markDataProduced() {
-		dataProduced = true;
+	public void markSomePipelinedDataProduced() {
+		isSomePipelinedDataProduced = true;
 	}
 
-	public boolean hasDataProduced() {
-		return dataProduced;
+	public boolean isSomePipelinedDataProduced() {
+		return isSomePipelinedDataProduced;
 	}
 
 	public boolean isConsumable() {
 		if (getResultType().isPipelined()) {
-			return dataProduced;
+			return isSomePipelinedDataProduced;
 		} else {
 			return totalResult.areAllPartitionsFinished();
 		}
 	}
 
 	void resetForNewExecution() {
-		dataProduced = false;
+		isSomePipelinedDataProduced = false;
 	}
 
 	int addConsumerGroup() {

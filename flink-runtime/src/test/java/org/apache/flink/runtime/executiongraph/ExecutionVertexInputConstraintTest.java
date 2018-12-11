@@ -85,6 +85,8 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 		ev11.scheduleOrUpdateConsumers(new ResultPartitionID(partition11.getPartitionId(),
 			ev11.getCurrentExecutionAttempt().getAttemptId()));
 		assertTrue(ev31.isInputConsumable(0));
+		// Input0 of ev32 is not consumable. It consumes the same PIPELINED result with ev31 but not the same partition
+		assertFalse(ev32.isInputConsumable(0));
 
 		// The blocking input not consumable if only one partition is FINISHED
 		ev21.getCurrentExecutionAttempt().markFinished();
