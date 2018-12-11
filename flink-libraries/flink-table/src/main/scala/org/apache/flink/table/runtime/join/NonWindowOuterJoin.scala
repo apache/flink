@@ -73,7 +73,7 @@ abstract class NonWindowOuterJoin(
     * @param otherSideState   the other side state
     * @return the number of matched rows
     */
-  protected def preservedJoin(
+  def preservedJoin(
       inputRow: Row,
       inputRowFromLeft: Boolean,
       otherSideState: MapState[Row, JTuple2[Long, Long]]): Long = {
@@ -106,7 +106,7 @@ abstract class NonWindowOuterJoin(
     * RowWrapper has been reset before we call retractJoin and we also assume that the current
     * change of cRowWrapper is equal to value.change.
     */
-  protected def retractJoin(
+  def retractJoin(
       value: CRow,
       inputRowFromLeft: Boolean,
       currentSideState: MapState[Row, JTuple2[Long, Long]],
@@ -152,8 +152,7 @@ abstract class NonWindowOuterJoin(
     * Return approximate number of records in corresponding state. Only check if record number is
     * 0, 1 or bigger.
     */
-  protected def approxiRecordNumInState(
-      currentSideState: MapState[Row, JTuple2[Long, Long]]): Long = {
+  def approxiRecordNumInState(currentSideState: MapState[Row, JTuple2[Long, Long]]): Long = {
     var recordNum = 0L
     val it = currentSideState.iterator()
     while(it.hasNext && recordNum < 2) {
@@ -165,7 +164,7 @@ abstract class NonWindowOuterJoin(
   /**
     * Append input row with default null value if there is no match and Collect.
     */
-  protected def collectAppendNull(
+  def collectAppendNull(
       inputRow: Row,
       inputFromLeft: Boolean,
       out: Collector[Row]): Unit = {

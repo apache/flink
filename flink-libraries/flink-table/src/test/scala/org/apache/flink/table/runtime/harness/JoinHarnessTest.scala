@@ -21,18 +21,21 @@ import java.lang.{Integer => JInt, Long => JLong}
 import java.util.concurrent.ConcurrentLinkedQueue
 
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.operators.join.JoinType
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.runtime.harness.HarnessTestBase.{TestStreamQueryConfig, TupleRowKeySelector}
+import org.apache.flink.table.api.{StreamQueryConfig, Types}
+import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, RowResultSortComparatorWithWatermarks, TestStreamQueryConfig, TupleRowKeySelector}
 import org.apache.flink.table.runtime.join._
 import org.apache.flink.table.runtime.operators.KeyedCoProcessOperatorWithWatermarkDelay
-import org.apache.flink.table.runtime.types.CRow
-import org.junit.Assert.assertEquals
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.types.Row
+import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 
 /**
@@ -827,6 +830,14 @@ class JoinHarnessTest extends HarnessTestBase {
   @Test
   def testNonWindowInnerJoin() {
 
+    val joinReturnType = CRowTypeInfo(new RowTypeInfo(
+      Array[TypeInformation[_]](
+        INT_TYPE_INFO,
+        STRING_TYPE_INFO,
+        INT_TYPE_INFO,
+        STRING_TYPE_INFO),
+      Array("a", "b", "c", "d")))
+
     val joinProcessFunc = new NonWindowInnerJoin(
       rowType,
       rowType,
@@ -868,32 +879,35 @@ class JoinHarnessTest extends HarnessTestBase {
     // right stream input and output normally
     testHarness.processElement2(new StreamRecord(
       CRow(1: JInt, "Hi1")))
-    // lkeys(1, 2) rkeys(1) timer_key_time(1:5, 2:6)
-    assertEquals(5, testHarness.numKeyedStateEntries())
-    assertEquals(2, testHarness.numProcessingTimeTimers())
+    assertEquals(6, testHarness.numKeyedStateEntries())
+    assertEquals(3, testHarness.numProcessingTimeTimers())
     testHarness.setProcessingTime(4)
     testHarness.processElement2(new StreamRecord(
       CRow(2: JInt, "Hello1")))
-    // lkeys(1, 2) rkeys(1, 2) timer_key_time(1:5, 2:6)
-    assertEquals(6, testHarness.numKeyedStateEntries())
-    assertEquals(2, testHarness.numProcessingTimeTimers())
+    assertEquals(8, testHarness.numKeyedStateEntries())
+    assertEquals(4, testHarness.numProcessingTimeTimers())
 
-    // expired stream record with key value of 1
+    // expired left stream record with key value of 1
     testHarness.setProcessingTime(5)
     testHarness.processElement2(new StreamRecord(
       CRow(1: JInt, "Hi2")))
-    // lkeys(2) rkeys(1, 2) timer_key_time(1:9, 2:6)
-    assertEquals(5, testHarness.numKeyedStateEntries())
+    assertEquals(6, testHarness.numKeyedStateEntries())
+    assertEquals(3, testHarness.numProcessingTimeTimers())
+
+    // expired all left stream record
+    testHarness.setProcessingTime(6)
+    assertEquals(4, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
-    // expired all left stream records
-    testHarness.setProcessingTime(6)
-    // lkeys() rkeys(1) timer_key_time(1:9)
+    // expired right stream record with key value of 2
+    testHarness.setProcessingTime(8)
     assertEquals(2, testHarness.numKeyedStateEntries())
     assertEquals(1, testHarness.numProcessingTimeTimers())
 
-    // expired all stream records
-    testHarness.setProcessingTime(9)
+    testHarness.setProcessingTime(10)
+    assertTrue(testHarness.numKeyedStateEntries() > 0)
+    // expired all right stream record
+    testHarness.setProcessingTime(11)
     assertEquals(0, testHarness.numKeyedStateEntries())
     assertEquals(0, testHarness.numProcessingTimeTimers())
 
@@ -961,37 +975,32 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(1: JInt, "Hi1")))
     testHarness.processElement2(new StreamRecord(
       CRow(false, 1: JInt, "Hi1")))
-    // lkeys(1, 2) rkeys() timer_key_time(1:5, 2:6)
-    assertEquals(4, testHarness.numKeyedStateEntries())
-    assertEquals(2, testHarness.numProcessingTimeTimers())
+    assertEquals(5, testHarness.numKeyedStateEntries())
+    assertEquals(3, testHarness.numProcessingTimeTimers())
     testHarness.setProcessingTime(4)
     testHarness.processElement2(new StreamRecord(
       CRow(2: JInt, "Hello1")))
-    // lkeys(1, 2) rkeys(2) timer_key_time(1:5, 2:6)
-    assertEquals(5, testHarness.numKeyedStateEntries())
-    assertEquals(2, testHarness.numProcessingTimeTimers())
+    assertEquals(7, testHarness.numKeyedStateEntries())
+    assertEquals(4, testHarness.numProcessingTimeTimers())
 
     testHarness.processElement1(new StreamRecord(
       CRow(false, 1: JInt, "aaa")))
-    // expired stream records with key value of 1
+    // expired left stream record with key value of 1
     testHarness.setProcessingTime(5)
-    // lkeys(2) rkeys(2) timer_key_time(2:6)
     testHarness.processElement2(new StreamRecord(
       CRow(1: JInt, "Hi2")))
     testHarness.processElement2(new StreamRecord(
       CRow(false, 1: JInt, "Hi2")))
-    // lkeys(2) rkeys(2) timer_key_time(1:9, 2:6)
-    assertEquals(4, testHarness.numKeyedStateEntries())
+    assertEquals(5, testHarness.numKeyedStateEntries())
+    assertEquals(3, testHarness.numProcessingTimeTimers())
+
+    // expired all left stream record
+    testHarness.setProcessingTime(6)
+    assertEquals(3, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
-    // expired all stream records
-    testHarness.setProcessingTime(6)
-    // lkeys() rkeys() timer_key_time(1:9)
-    assertEquals(1, testHarness.numKeyedStateEntries())
-    assertEquals(1, testHarness.numProcessingTimeTimers())
-
-    // expired all data
-    testHarness.setProcessingTime(9)
+    // expired right stream record with key value of 2
+    testHarness.setProcessingTime(8)
     assertEquals(0, testHarness.numKeyedStateEntries())
     assertEquals(0, testHarness.numProcessingTimeTimers())
 
@@ -1058,36 +1067,32 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(1: JInt, "Hi1")))
     testHarness.processElement2(new StreamRecord(
       CRow(false, 1: JInt, "Hi1")))
-    // lkeys(1, 2) rkeys() timer_key_time(1:5, 2:6)
-    assertEquals(4, testHarness.numKeyedStateEntries())
-    assertEquals(2, testHarness.numProcessingTimeTimers())
+    assertEquals(5, testHarness.numKeyedStateEntries())
+    assertEquals(3, testHarness.numProcessingTimeTimers())
     testHarness.setProcessingTime(4)
     testHarness.processElement2(new StreamRecord(
       CRow(2: JInt, "Hello1")))
-    // lkeys(1, 2) rkeys(2) timer_key_time(1:5, 2:6)
-    assertEquals(5, testHarness.numKeyedStateEntries())
-    assertEquals(2, testHarness.numProcessingTimeTimers())
+    assertEquals(7, testHarness.numKeyedStateEntries())
+    assertEquals(4, testHarness.numProcessingTimeTimers())
 
     testHarness.processElement1(new StreamRecord(
       CRow(false, 1: JInt, "aaa")))
-    // expired stream records with key value of 1
+    // expired left stream record with key value of 1
     testHarness.setProcessingTime(5)
     testHarness.processElement2(new StreamRecord(
       CRow(1: JInt, "Hi2")))
     testHarness.processElement2(new StreamRecord(
       CRow(false, 1: JInt, "Hi2")))
-    // lkeys(2) rkeys(2) timer_key_time(1:9, 2:6)
-    assertEquals(4, testHarness.numKeyedStateEntries())
+    assertEquals(5, testHarness.numKeyedStateEntries())
+    assertEquals(3, testHarness.numProcessingTimeTimers())
+
+    // expired all left stream record
+    testHarness.setProcessingTime(6)
+    assertEquals(3, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
-    // expired stream records with key value of 2
-    testHarness.setProcessingTime(6)
-    // lkeys() rkeys() timer_key_time(1:9)
-    assertEquals(1, testHarness.numKeyedStateEntries())
-    assertEquals(1, testHarness.numProcessingTimeTimers())
-
-    // expired all data
-    testHarness.setProcessingTime(9)
+    // expired right stream record with key value of 2
+    testHarness.setProcessingTime(8)
     assertEquals(0, testHarness.numKeyedStateEntries())
     assertEquals(0, testHarness.numProcessingTimeTimers())
 
@@ -1155,7 +1160,7 @@ class JoinHarnessTest extends HarnessTestBase {
     testHarness.processElement1(new StreamRecord(
       CRow(1: JInt, "bbb")))
     assertEquals(1, testHarness.numProcessingTimeTimers())
-    // lkeys(1) rkeys() timer_key_time(1:5)
+    // 1 left timer(5), 1 left key(1), 1 join cnt
     assertEquals(3, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(2)
     testHarness.processElement1(new StreamRecord(
@@ -1163,8 +1168,7 @@ class JoinHarnessTest extends HarnessTestBase {
     testHarness.processElement1(new StreamRecord(
       CRow(2: JInt, "bbb")))
     assertEquals(2, testHarness.numProcessingTimeTimers())
-    // lkeys(1, 2) rkeys() timer_key_time(1:5, 2:6)
-    // l_join_cnt_keys(1, 2)
+    // 2 left timer(5,6), 2 left key(1,2), 2 join cnt
     assertEquals(6, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(3)
 
@@ -1173,19 +1177,17 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(1: JInt, "Hi1")))
     testHarness.processElement2(new StreamRecord(
       CRow(false, 1: JInt, "bbb")))
-    // lkeys(1, 2) rkeys(1) timer_key_time(1:5, 2:6)
-    // l_join_cnt_keys(1, 2)
-    assertEquals(7, testHarness.numKeyedStateEntries())
-    assertEquals(2, testHarness.numProcessingTimeTimers())
+    // 2 left timer(5,6), 2 left keys(1,2), 2 join cnt, 1 right timer(7), 1 right key(1)
+    assertEquals(8, testHarness.numKeyedStateEntries())
+    assertEquals(3, testHarness.numProcessingTimeTimers())
     testHarness.setProcessingTime(4)
     testHarness.processElement2(new StreamRecord(
       CRow(2: JInt, "ccc")))
     testHarness.processElement2(new StreamRecord(
       CRow(2: JInt, "Hello")))
-    // lkeys(1, 2) rkeys(1, 2) timer_key_time(1:5, 2:6)
-    // l_join_cnt_keys(1, 2)
-    assertEquals(8, testHarness.numKeyedStateEntries())
-    assertEquals(2, testHarness.numProcessingTimeTimers())
+    // 2 left timer(5,6), 2 left keys(1,2), 2 join cnt, 2 right timer(7,8), 2 right key(1,2)
+    assertEquals(10, testHarness.numKeyedStateEntries())
+    assertEquals(4, testHarness.numProcessingTimeTimers())
 
     testHarness.processElement1(new StreamRecord(
       CRow(false, 1: JInt, "aaa")))
@@ -1195,29 +1197,22 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(false, 1: JInt, "Hi2")))
     testHarness.processElement2(new StreamRecord(
       CRow(false, 1: JInt, "Hi1")))
-    // lkeys(1, 2) rkeys(2) timer_key_time(1:8, 2:6)
-    // l_join_cnt_keys(1, 2)
-    assertEquals(7, testHarness.numKeyedStateEntries())
+    // expired left stream record with key value of 1
     testHarness.setProcessingTime(5)
-    // [1]. this will clean up left stream records with expired time of 5
     testHarness.processElement2(new StreamRecord(
       CRow(1: JInt, "Hi3")))
-    // [2]. there are no elements can be connected, since be cleaned by [1]
     testHarness.processElement2(new StreamRecord(
       CRow(false, 1: JInt, "Hi3")))
-    // lkeys(1, 2) rkeys(2) timer_key_time(1:8, 2:6)
-    // l_join_cnt_keys(1, 2)
-    assertEquals(7, testHarness.numKeyedStateEntries())
+    // 1 left timer(6), 1 left keys(2), 1 join cnt, 2 right timer(7,8), 1 right key(2)
+    assertEquals(6, testHarness.numKeyedStateEntries())
+    assertEquals(3, testHarness.numProcessingTimeTimers())
+
+    // expired all left stream record
+    testHarness.setProcessingTime(6)
+    assertEquals(3, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
-    // expired all records with key value of 2
-    testHarness.setProcessingTime(6)
-    // lkeys(1) rkeys() timer_key_time(1:8)
-    // l_join_cnt_keys(1)
-    assertEquals(3, testHarness.numKeyedStateEntries())
-    assertEquals(1, testHarness.numProcessingTimeTimers())
-
-    // expired all data
+    // expired right stream record with key value of 2
     testHarness.setProcessingTime(8)
     assertEquals(0, testHarness.numKeyedStateEntries())
     assertEquals(0, testHarness.numProcessingTimeTimers())
@@ -1258,12 +1253,6 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(false, 1: JInt, "bbb", 1: JInt, "Hi1")))
     expectedOutput.add(new StreamRecord(
       CRow(1: JInt, "bbb", null: JInt, null)))
-    // processing time of 5
-    // timer of 8, we use only one timer state now
-    expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "bbb", null: JInt, null)))
-    expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "bbb", 1: JInt, "Hi3")))
     verify(expectedOutput, result)
 
     testHarness.close()
@@ -1316,36 +1305,32 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(1: JInt, "Hi1")))
     testHarness.processElement1(new StreamRecord(
       CRow(false, 1: JInt, "Hi1")))
-    // lkeys() rkeys(1, 2) timer_key_time(1:5, 2:6)
-    assertEquals(4, testHarness.numKeyedStateEntries())
-    assertEquals(2, testHarness.numProcessingTimeTimers())
+    assertEquals(5, testHarness.numKeyedStateEntries())
+    assertEquals(3, testHarness.numProcessingTimeTimers())
     testHarness.setProcessingTime(4)
     testHarness.processElement1(new StreamRecord(
       CRow(2: JInt, "Hello1")))
-    // lkeys(2) rkeys(1, 2) timer_key_time(1:5, 2:6)
-    assertEquals(5, testHarness.numKeyedStateEntries())
-    assertEquals(2, testHarness.numProcessingTimeTimers())
+    assertEquals(7, testHarness.numKeyedStateEntries())
+    assertEquals(4, testHarness.numProcessingTimeTimers())
 
     testHarness.processElement2(new StreamRecord(
       CRow(false, 1: JInt, "aaa")))
-    // expired stream records with key value of 1
+    // expired right stream record with key value of 1
     testHarness.setProcessingTime(5)
     testHarness.processElement1(new StreamRecord(
       CRow(1: JInt, "Hi2")))
     testHarness.processElement1(new StreamRecord(
       CRow(false, 1: JInt, "Hi2")))
-    // lkeys(2) rkeys(2) timer_key_time(1:9, 2:6)
-    assertEquals(4, testHarness.numKeyedStateEntries())
+    assertEquals(5, testHarness.numKeyedStateEntries())
+    assertEquals(3, testHarness.numProcessingTimeTimers())
+
+    // expired all right stream record
+    testHarness.setProcessingTime(6)
+    assertEquals(3, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
-    // expired stream records with key value of 2
-    testHarness.setProcessingTime(6)
-    // lkeys() rkeys() timer_key_time(1:9)
-    assertEquals(1, testHarness.numKeyedStateEntries())
-    assertEquals(1, testHarness.numProcessingTimeTimers())
-
-    // expired all data
-    testHarness.setProcessingTime(9)
+    // expired left stream record with key value of 2
+    testHarness.setProcessingTime(8)
     assertEquals(0, testHarness.numKeyedStateEntries())
     assertEquals(0, testHarness.numProcessingTimeTimers())
 
@@ -1413,17 +1398,15 @@ class JoinHarnessTest extends HarnessTestBase {
     testHarness.processElement2(new StreamRecord(
       CRow(1: JInt, "bbb")))
     assertEquals(1, testHarness.numProcessingTimeTimers())
-    // lkeys() rkeys(1) timer_key_time(1:5)
-    // r_join_cnt_keys(1)
+    // 1 right timer(5), 1 right key(1), 1 join cnt
     assertEquals(3, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(2)
     testHarness.processElement2(new StreamRecord(
       CRow(1: JInt, "aaa")))
     testHarness.processElement2(new StreamRecord(
       CRow(2: JInt, "bbb")))
-    // lkeys() rkeys(1, 2) timer_key_time(1:5, 2:6)
-    // r_join_cnt_keys(1, 2)
     assertEquals(2, testHarness.numProcessingTimeTimers())
+    // 2 right timer(5,6), 2 right key(1,2), 2 join cnt
     assertEquals(6, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(3)
 
@@ -1432,19 +1415,17 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(1: JInt, "Hi1")))
     testHarness.processElement1(new StreamRecord(
       CRow(false, 1: JInt, "bbb")))
-    // lkeys(1) rkeys(1, 2) timer_key_time(1:5, 2:6)
-    // r_join_cnt_keys(1, 2)
-    assertEquals(7, testHarness.numKeyedStateEntries())
-    assertEquals(2, testHarness.numProcessingTimeTimers())
+    // 2 right timer(5,6), 2 right keys(1,2), 2 join cnt, 1 left timer(7), 1 left key(1)
+    assertEquals(8, testHarness.numKeyedStateEntries())
+    assertEquals(3, testHarness.numProcessingTimeTimers())
     testHarness.setProcessingTime(4)
     testHarness.processElement1(new StreamRecord(
       CRow(2: JInt, "ccc")))
     testHarness.processElement1(new StreamRecord(
       CRow(2: JInt, "Hello")))
-    // lkeys(1, 2) rkeys(1, 2) timer_key_time(1:5, 2:6)
-    // r_join_cnt_keys(1, 2)
-    assertEquals(8, testHarness.numKeyedStateEntries())
-    assertEquals(2, testHarness.numProcessingTimeTimers())
+    // 2 right timer(5,6), 2 right keys(1,2), 2 join cnt, 2 left timer(7,8), 2 left key(1,2)
+    assertEquals(10, testHarness.numKeyedStateEntries())
+    assertEquals(4, testHarness.numProcessingTimeTimers())
 
     testHarness.processElement2(new StreamRecord(
       CRow(false, 1: JInt, "aaa")))
@@ -1454,27 +1435,22 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(false, 1: JInt, "Hi2")))
     testHarness.processElement1(new StreamRecord(
       CRow(false, 1: JInt, "Hi1")))
-    // lkeys(2) rkeys(1, 2) timer_key_time(1:8, 2:6)
-    // r_join_cnt_keys(1, 2)
-    assertEquals(7, testHarness.numKeyedStateEntries())
+    // expired right stream record with key value of 1
     testHarness.setProcessingTime(5)
     testHarness.processElement1(new StreamRecord(
       CRow(1: JInt, "Hi3")))
     testHarness.processElement1(new StreamRecord(
       CRow(false, 1: JInt, "Hi3")))
-    // lkeys(2) rkeys(1, 2) timer_key_time(1:8, 2:6)
-    // r_join_cnt_keys(1, 2)
-    assertEquals(7, testHarness.numKeyedStateEntries())
-    assertEquals(2, testHarness.numProcessingTimeTimers())
+    // 1 right timer(6), 1 right keys(2), 1 join cnt, 2 left timer(7,8), 1 left key(2)
+    assertEquals(6, testHarness.numKeyedStateEntries())
+    assertEquals(3, testHarness.numProcessingTimeTimers())
 
-    // expired all stream records with key value of 2
-    // lkeys() rkeys(1) timer_key_time(1:8)
-    // r_join_cnt_keys(1)
+    // expired all right stream record
     testHarness.setProcessingTime(6)
     assertEquals(3, testHarness.numKeyedStateEntries())
-    assertEquals(1, testHarness.numProcessingTimeTimers())
+    assertEquals(2, testHarness.numProcessingTimeTimers())
 
-    // expired all data
+    // expired left stream record with key value of 2
     testHarness.setProcessingTime(8)
     assertEquals(0, testHarness.numKeyedStateEntries())
     assertEquals(0, testHarness.numProcessingTimeTimers())
@@ -1515,12 +1491,6 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(false, 1: JInt, "Hi1", 1: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
       CRow(null: JInt, null, 1: JInt, "bbb")))
-    // processing time of 5
-    // timer of 8, we use only one timer state now
-    expectedOutput.add(new StreamRecord(
-      CRow(false, null: JInt, null, 1: JInt, "bbb")))
-    expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "Hi3", 1: JInt, "bbb")))
     verify(expectedOutput, result)
 
     testHarness.close()
@@ -1554,8 +1524,8 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(1: JInt, "bbb")))
     testHarness.processElement1(new StreamRecord(
       CRow(1: JInt, "ccc")))
-    // lkeys(1) rkeys() timer_key_time(1:5)
     assertEquals(1, testHarness.numProcessingTimeTimers())
+    // 1 left timer(5), 1 left key(1)
     assertEquals(2, testHarness.numKeyedStateEntries())
 
     testHarness.setProcessingTime(2)
@@ -1564,7 +1534,8 @@ class JoinHarnessTest extends HarnessTestBase {
     testHarness.processElement2(new StreamRecord(
       CRow(2: JInt, "ccc")))
     assertEquals(2, testHarness.numProcessingTimeTimers())
-    // lkeys(1) rkeys(2) timer_key_time(1:5, 2:6)
+    // 1 left timer(5), 1 left key(1)
+    // 1 right timer(6), 1 right key(1)
     assertEquals(4, testHarness.numKeyedStateEntries())
 
     testHarness.setProcessingTime(3)
@@ -1572,16 +1543,18 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(2: JInt, "aaa")))
     testHarness.processElement1(new StreamRecord(
       CRow(2: JInt, "ddd")))
-    // lkeys(1, 2) rkeys(2) timer_key_time(1:5, 2:6)
-    assertEquals(2, testHarness.numProcessingTimeTimers())
-    assertEquals(5, testHarness.numKeyedStateEntries())
+    assertEquals(3, testHarness.numProcessingTimeTimers())
+    // 2 left timer(5,7), 2 left key(1,2)
+    // 1 right timer(6), 1 right key(1)
+    assertEquals(6, testHarness.numKeyedStateEntries())
     testHarness.processElement2(new StreamRecord(
       CRow(1: JInt, "aaa")))
     testHarness.processElement2(new StreamRecord(
       CRow(1: JInt, "ddd")))
-    // lkeys(1, 2) rkeys(1, 2) timer_key_time(1:5, 2:6)
-    assertEquals(2, testHarness.numProcessingTimeTimers())
-    assertEquals(6, testHarness.numKeyedStateEntries())
+    assertEquals(4, testHarness.numProcessingTimeTimers())
+    // 2 left timer(5,7), 2 left key(1,2)
+    // 2 right timer(6,7), 2 right key(1,2)
+    assertEquals(8, testHarness.numKeyedStateEntries())
 
     testHarness.setProcessingTime(4)
     testHarness.processElement1(new StreamRecord(
@@ -1592,26 +1565,28 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(false, 1: JInt, "aaa")))
     testHarness.processElement2(new StreamRecord(
       CRow(false, 1: JInt, "ddd")))
-    // lkeys(1) rkeys(2) timer_key_time(1:8, 2:6)
-    assertEquals(2, testHarness.numProcessingTimeTimers())
-    assertEquals(4, testHarness.numKeyedStateEntries())
+    assertEquals(4, testHarness.numProcessingTimeTimers())
+    // 2 left timer(5,7), 1 left key(1)
+    // 2 right timer(6,7), 1 right key(2)
+    assertEquals(6, testHarness.numKeyedStateEntries())
 
     testHarness.setProcessingTime(5)
-    assertEquals(2, testHarness.numProcessingTimeTimers())
+    assertEquals(3, testHarness.numProcessingTimeTimers())
+    // 1 left timer(7)
+    // 2 right timer(6,7), 1 right key(2)
     assertEquals(4, testHarness.numKeyedStateEntries())
 
     testHarness.setProcessingTime(6)
-    // lkeys(1) rkeys() timer_key_time(1:8)
-    assertEquals(1, testHarness.numProcessingTimeTimers())
+    assertEquals(2, testHarness.numProcessingTimeTimers())
+    // 1 left timer(7)
+    // 2 right timer(7)
     assertEquals(2, testHarness.numKeyedStateEntries())
 
     testHarness.setProcessingTime(7)
-    assertEquals(1, testHarness.numProcessingTimeTimers())
-    assertEquals(2, testHarness.numKeyedStateEntries())
-
-    testHarness.setProcessingTime(8)
     assertEquals(0, testHarness.numProcessingTimeTimers())
     assertEquals(0, testHarness.numKeyedStateEntries())
+
+    testHarness.setProcessingTime(8)
     testHarness.processElement1(new StreamRecord(
       CRow(1: JInt, "bbb")))
     testHarness.processElement2(new StreamRecord(
@@ -1718,9 +1693,8 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(1: JInt, "bbb")))
     testHarness.processElement1(new StreamRecord(
       CRow(1: JInt, "ccc")))
-    // lkeys(1) rkeys() timer_key_time(1:5)
-    // l_join_cnt_keys(1) r_join_cnt_keys()
     assertEquals(1, testHarness.numProcessingTimeTimers())
+    // 1 left timer(5), 1 left key(1), 1 left joincnt key(1)
     assertEquals(3, testHarness.numKeyedStateEntries())
 
     testHarness.setProcessingTime(2)
@@ -1728,9 +1702,9 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(2: JInt, "bbb")))
     testHarness.processElement2(new StreamRecord(
       CRow(2: JInt, "ccc")))
-    // lkeys(1) rkeys(2) timer_key_time(1:5, 2:6)
-    // l_join_cnt_keys(1) r_join_cnt_keys(2)
     assertEquals(2, testHarness.numProcessingTimeTimers())
+    // 1 left timer(5), 1 left key(1), 1 left joincnt key(1)
+    // 1 right timer(6), 1 right key(1), 1 right joincnt key(1)
     assertEquals(6, testHarness.numKeyedStateEntries())
 
     testHarness.setProcessingTime(3)
@@ -1738,46 +1712,46 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(2: JInt, "aaa")))
     testHarness.processElement1(new StreamRecord(
       CRow(2: JInt, "ddd")))
-    // lkeys(1, 2) rkeys(2) timer_key_time(1:5, 2:6)
-    // l_join_cnt_keys(1, 2) r_join_cnt_keys(2)
-    assertEquals(2, testHarness.numProcessingTimeTimers())
-    assertEquals(8, testHarness.numKeyedStateEntries())
+    assertEquals(3, testHarness.numProcessingTimeTimers())
+    // 2 left timer(5,7), 2 left key(1,2), 2 left joincnt key(1,2)
+    // 1 right timer(6), 1 right key(1), 1 right joincnt key(1)
+    assertEquals(9, testHarness.numKeyedStateEntries())
     testHarness.processElement2(new StreamRecord(
       CRow(1: JInt, "aaa")))
     testHarness.processElement2(new StreamRecord(
       CRow(1: JInt, "ddd")))
-    // lkeys(1, 2) rkeys(1, 2) timer_key_time(1:5, 2:6)
-    // l_join_cnt_keys(1, 2) r_join_cnt_keys(1, 2)
-    assertEquals(2, testHarness.numProcessingTimeTimers())
-    assertEquals(10, testHarness.numKeyedStateEntries())
+    assertEquals(4, testHarness.numProcessingTimeTimers())
+    // 2 left timer(5,7), 2 left key(1,2), 2 left joincnt key(1,2)
+    // 2 right timer(6,7), 2 right key(1,2), 2 right joincnt key(1,2)
+    assertEquals(12, testHarness.numKeyedStateEntries())
 
     testHarness.setProcessingTime(4)
     testHarness.processElement1(new StreamRecord(
       CRow(false, 2: JInt, "aaa")))
     testHarness.processElement2(new StreamRecord(
       CRow(false, 1: JInt, "ddd")))
-    // lkeys(1, 2) rkeys(1, 2) timer_key_time(1:8, 2:6)
-    // l_join_cnt_keys(1, 2) r_join_cnt_keys(1, 2)
-    assertEquals(2, testHarness.numProcessingTimeTimers())
-    assertEquals(10, testHarness.numKeyedStateEntries())
+    assertEquals(4, testHarness.numProcessingTimeTimers())
+    // 2 left timer(5,7), 2 left key(1,2), 2 left joincnt key(1,2)
+    // 2 right timer(6,7), 2 right key(1,2), 2 right joincnt key(1,2)
+    assertEquals(12, testHarness.numKeyedStateEntries())
 
     testHarness.setProcessingTime(5)
-    assertEquals(2, testHarness.numProcessingTimeTimers())
-    assertEquals(10, testHarness.numKeyedStateEntries())
+    assertEquals(3, testHarness.numProcessingTimeTimers())
+    // 1 left timer(7), 1 left key(2), 1 left joincnt key(2)
+    // 2 right timer(6,7), 2 right key(1,2), 2 right joincnt key(1,2)
+    assertEquals(9, testHarness.numKeyedStateEntries())
 
     testHarness.setProcessingTime(6)
-    // lkeys(1) rkeys(1) timer_key_time(1:8)
-    // l_join_cnt_keys(1) r_join_cnt_keys(1)
-    assertEquals(1, testHarness.numProcessingTimeTimers())
-    assertEquals(5, testHarness.numKeyedStateEntries())
+    assertEquals(2, testHarness.numProcessingTimeTimers())
+    // 1 left timer(7), 1 left key(2), 1 left joincnt key(2)
+    // 1 right timer(7), 1 right key(2), 1 right joincnt key(2)
+    assertEquals(6, testHarness.numKeyedStateEntries())
 
     testHarness.setProcessingTime(7)
-    assertEquals(1, testHarness.numProcessingTimeTimers())
-    assertEquals(5, testHarness.numKeyedStateEntries())
-
-    testHarness.setProcessingTime(8)
     assertEquals(0, testHarness.numProcessingTimeTimers())
     assertEquals(0, testHarness.numKeyedStateEntries())
+
+    testHarness.setProcessingTime(8)
     testHarness.processElement1(new StreamRecord(
       CRow(1: JInt, "bbb")))
     testHarness.processElement2(new StreamRecord(

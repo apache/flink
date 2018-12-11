@@ -71,7 +71,7 @@ class ProcTimeUnboundedOver(
     out: Collector[CRow]): Unit = {
 
     // register state-cleanup timer
-    processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
 
     val input = inputC.row
 
@@ -95,7 +95,7 @@ class ProcTimeUnboundedOver(
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
 
-    if (stateCleaningEnabled) {
+    if (needToCleanupState(timestamp)) {
       cleanupState(state)
       function.cleanup()
     }
