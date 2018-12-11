@@ -44,9 +44,8 @@ import java.io.IOException;
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <V> The type of values kept internally in state.
- * @param <S> The type of {@link State}.
  */
-public abstract class AbstractRocksDBState<K, N, V, S extends State> implements InternalKvState<K, N, V>, State {
+public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K, N, V>, State {
 
 	/** Serializer for the namespace. */
 	final TypeSerializer<N> namespaceSerializer;

@@ -41,7 +41,7 @@ import java.util.Collection;
  * @param <V> The type of value that the state state stores.
  */
 class RocksDBReducingState<K, N, V>
-	extends AbstractRocksDBAppendingState<K, N, V, V, V, ReducingState<V>>
+	extends AbstractRocksDBAppendingState<K, N, V, V, V>
 	implements InternalReducingState<K, N, V> {
 
 	/** User-specified reduce function. */
