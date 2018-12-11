@@ -24,14 +24,13 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.api.dataview.{DataView, MapView}
+import org.apache.flink.table.api.dataview.MapView
 import org.apache.flink.table.dataview.StateMapView
-import org.apache.flink.table.runtime.aggregate.{GeneratedAggregations, GroupAggProcessFunction}
+import org.apache.flink.table.runtime.aggregate.GroupAggProcessFunction
 import org.apache.flink.table.runtime.harness.HarnessTestBase.TestStreamQueryConfig
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
@@ -70,7 +69,11 @@ class AggFunctionHarnessTest extends HarnessTestBase {
     testHarness.open()
 
     val operator = getOperator(testHarness)
-    val state = getState(operator, "acc0_map_dataview").asInstanceOf[MapView[JInt, JInt]]
+    val state = getState(
+      operator,
+      "function",
+      classOf[GroupAggProcessFunction],
+      "acc0_map_dataview").asInstanceOf[MapView[JInt, JInt]]
     assertTrue(state.isInstanceOf[StateMapView[_, _]])
     assertTrue(operator.getKeyedStateBackend.isInstanceOf[RocksDBKeyedStateBackend[_]])
 
@@ -102,18 +105,5 @@ class AggFunctionHarnessTest extends HarnessTestBase {
     verify(expectedOutput, result)
 
     testHarness.close()
-  }
-
-  private def getState(
-      operator: AbstractUdfStreamOperator[_, _],
-      stateFieldName: String): DataView = {
-    val function = classOf[GroupAggProcessFunction].getDeclaredField("function")
-    function.setAccessible(true)
-    val generatedAggregation =
-      function.get(operator.getUserFunction).asInstanceOf[GeneratedAggregations]
-    val cls = generatedAggregation.getClass
-    val stateField = cls.getDeclaredField(stateFieldName)
-    stateField.setAccessible(true)
-    stateField.get(generatedAggregation).asInstanceOf[DataView]
   }
 }

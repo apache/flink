@@ -31,11 +31,13 @@ import org.apache.flink.streaming.api.transformations._
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, OneInputStreamOperatorTestHarness, TestHarnessUtil}
+import org.apache.flink.table.api.dataview.DataView
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
 import org.apache.flink.table.codegen.GeneratedAggregationsFunction
 import org.apache.flink.table.functions.aggfunctions.{CountAggFunction, IntSumWithRetractAggFunction, LongMaxWithRetractAggFunction, LongMinWithRetractAggFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getAccumulatorTypeOfAggregateFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.runtime.aggregate.GeneratedAggregations
 import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, RowResultSortComparatorWithWatermarks}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase
@@ -85,7 +87,7 @@ class HarnessTestBase extends StreamingWithStateTestBase {
     new RowTypeInfo(distinctCountAggregates.map(getAccumulatorTypeOfAggregateFunction(_)): _*)
 
   protected val distinctCountDescriptor: String = EncodingUtils.encodeObjectToString(
-    new MapStateDescriptor("distinctAgg0", new RowTypeInfo(Types.INT), Types.LONG))
+    new MapStateDescriptor("distinctAgg0", distinctCountAggregationStateType, Types.LONG))
 
   protected val minMaxFuncName = "MinMaxAggregateHelper"
   protected val sumFuncName = "SumAggregationHelper"
@@ -529,17 +531,26 @@ class HarnessTestBase extends StreamingWithStateTestBase {
         } else {
           extractExpectedTransformation(one.getInput, prefixOperatorName)
         }
-      case two: TwoInputTransformation[_, _, _] =>
-        if (two.getName.startsWith(prefixOperatorName)) {
-          two
-        } else {
-          extractFromInputs(two.getInput1, two.getInput2)
-        }
       case union: UnionTransformation[_] => extractFromInputs(union.getInputs.toSeq: _*)
       case p: PartitionTransformation[_] => extractFromInputs(p.getInput)
       case _: SourceTransformation[_] => null
-      case _ => throw new Exception("This should not happen.")
+      case _ => throw new UnsupportedOperationException("This should not happen.")
     }
+  }
+
+  def getState(
+      operator: AbstractUdfStreamOperator[_, _],
+      funcName: String,
+      funcClass: Class[_],
+      stateFieldName: String): DataView = {
+    val function = funcClass.getDeclaredField(funcName)
+    function.setAccessible(true)
+    val generatedAggregation =
+      function.get(operator.getUserFunction).asInstanceOf[GeneratedAggregations]
+    val cls = generatedAggregation.getClass
+    val stateField = cls.getDeclaredField(stateFieldName)
+    stateField.setAccessible(true)
+    stateField.get(generatedAggregation).asInstanceOf[DataView]
   }
 
   def createHarnessTester[IN, OUT, KEY](
@@ -550,12 +561,11 @@ class HarnessTestBase extends StreamingWithStateTestBase {
   }
 
   def getOperator(testHarness: OneInputStreamOperatorTestHarness[_, _])
-  : AbstractUdfStreamOperator[_, _] = {
+      : AbstractUdfStreamOperator[_, _] = {
     val operatorField = classOf[OneInputStreamOperatorTestHarness[_, _]]
       .getDeclaredField("oneInputOperator")
     operatorField.setAccessible(true)
-    operatorField.get(testHarness)
-      .asInstanceOf[AbstractUdfStreamOperator[_, _]]
+    operatorField.get(testHarness).asInstanceOf[AbstractUdfStreamOperator[_, _]]
   }
 
   def verify(expected: JQueue[Object], actual: JQueue[Object]): Unit = {
