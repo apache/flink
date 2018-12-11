@@ -34,11 +34,14 @@ import org.apache.flink.table.runtime.utils.StreamITCase;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 /**
@@ -186,13 +189,18 @@ public class JavaSqlITCase extends AbstractTestBase {
 				@Override
 				public void invoke(Row value, Context context) throws Exception {
 
+					Calendar calendar = Calendar.getInstance();
+
 					Timestamp procTimestamp = (Timestamp) value.getField(0);
+					calendar.setTimeInMillis(procTimestamp.getTime());
+					int procHour = calendar.get(Calendar.HOUR_OF_DAY);
 
-					// validate the second here
-					long procSecondTime = procTimestamp.getTime() / 1000;
-					long sysSecondTime = context.currentProcessingTime() / 1000;
+					calendar.setTimeInMillis(System.currentTimeMillis());
+					int sysHour = calendar.get(Calendar.HOUR_OF_DAY);
 
-					Assert.assertTrue(procSecondTime == sysSecondTime);
+					// just need to validate hour
+					Assert.assertTrue(procHour == sysHour);
+
 				}
 			});
 
