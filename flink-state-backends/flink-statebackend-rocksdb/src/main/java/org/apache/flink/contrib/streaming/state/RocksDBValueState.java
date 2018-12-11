@@ -40,7 +40,7 @@ import java.io.IOException;
  * @param <V> The type of value that the state state stores.
  */
 class RocksDBValueState<K, N, V>
-	extends AbstractRocksDBState<K, N, V, ValueState<V>>
+	extends AbstractRocksDBState<K, N, V>
 	implements InternalValueState<K, N, V> {
 
 	/**
