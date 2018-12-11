@@ -37,9 +37,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @PublicEvolving
 public class SequenceFileWriter<K extends Writable, V extends Writable> implements BulkWriter<Tuple2<K, V>> {
+
 	private final SequenceFile.Writer writer;
 
-	public SequenceFileWriter(SequenceFile.Writer writer) {
+	SequenceFileWriter(SequenceFile.Writer writer) {
 		this.writer = checkNotNull(writer);
 	}
 
@@ -58,4 +59,3 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> implemen
 		writer.close();
 	}
 }
-
