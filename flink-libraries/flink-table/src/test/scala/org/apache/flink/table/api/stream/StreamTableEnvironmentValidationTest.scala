@@ -38,7 +38,7 @@ class StreamTableEnvironmentValidationTest extends TableTestBase {
   def testInvalidRowtimeAliasByPosition(): Unit = {
     val util = streamTestUtil()
     // don't allow aliasing by position
-    util.addTable[(Long, Int, String, Int, Long)](('a as 'b).rowtime, 'b, 'c, 'd, 'e)
+    util.addTable[(Long, Int, String, Int, Long)]('a.rowtime as 'b, 'b, 'c, 'd, 'e)
   }
 
   @Test(expected = classOf[TableException])
@@ -178,13 +178,13 @@ class StreamTableEnvironmentValidationTest extends TableTestBase {
   def testInvalidAliasWithRowtimeAttribute(): Unit = {
     val util = streamTestUtil()
     // aliased field does not exist
-    util.addTable[(Int, Long, String)]('_1, ('newnew as 'new).rowtime, '_3)
+    util.addTable[(Int, Long, String)]('_1, 'newnew.rowtime as 'new, '_3)
   }
 
   @Test(expected = classOf[TableException])
   def testInvalidAliasWithRowtimeAttribute2(): Unit = {
     val util = streamTestUtil()
     // aliased field has wrong type
-    util.addTable[(Int, Long, String)]('_1, ('_3 as 'new).rowtime, '_2)
+    util.addTable[(Int, Long, String)]('_1, '_3.rowtime as 'new, '_2)
   }
 }
