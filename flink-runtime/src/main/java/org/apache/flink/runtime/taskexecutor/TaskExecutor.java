@@ -272,6 +272,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	public void start() throws Exception {
 		super.start();
 
+		startRegistrationTimeout();
 		// start by connecting to the ResourceManager
 		try {
 			resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
@@ -286,8 +287,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		jobLeaderService.start(getAddress(), getRpcService(), haServices, new JobLeaderListenerImpl());
 
 		fileCache = new FileCache(taskManagerConfiguration.getTmpDirectories(), blobCacheService.getPermanentBlobService());
-
-		startRegistrationTimeout();
 	}
 
 	/**
@@ -1024,11 +1023,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 	}
 
-	private void stopRegistrationTimeout() {
+	@VisibleForTesting
+	void stopRegistrationTimeout() {
 		currentRegistrationTimeoutId = null;
 	}
 
-	private void registrationTimeout(@Nonnull UUID registrationTimeoutId) {
+	@VisibleForTesting
+	void registrationTimeout(@Nonnull UUID registrationTimeoutId) {
 		if (registrationTimeoutId.equals(currentRegistrationTimeoutId)) {
 			final Time maxRegistrationDuration = taskManagerConfiguration.getMaxRegistrationDuration();
 
@@ -1478,6 +1479,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	@VisibleForTesting
 	HeartbeatManager<Void, SlotReport> getResourceManagerHeartbeatManager() {
 		return resourceManagerHeartbeatManager;
+	}
+
+	@VisibleForTesting
+	UUID getCurrentRegistrationTimeoutId() {
+		return currentRegistrationTimeoutId;
 	}
 
 	// ------------------------------------------------------------------------
