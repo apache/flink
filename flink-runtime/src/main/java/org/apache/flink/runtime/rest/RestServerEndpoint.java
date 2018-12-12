@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.RedirectingSslHandler;
@@ -190,6 +191,8 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 			Iterator<Integer> portsIterator;
 			try {
 				portsIterator = NetUtils.getPortRangeFromString(restBindPort);
+			} catch (IllegalConfigurationException e) {
+				throw e;
 			} catch (Exception e) {
 				throw new IllegalArgumentException("Invalid port range definition: " + restBindPort);
 			}
