@@ -16,28 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.context;
+package org.apache.flink.cep.time;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.cep.functions.PatternProcessFunction;
+import org.apache.flink.annotation.Internal;
 
 /**
- * Enables access to time related characteristics such as current processing time or timestamp of currently processed
- * element. Used in {@link PatternProcessFunction} and
- * {@link org.apache.flink.cep.pattern.conditions.IterativeCondition}
+ * Enables to provide time characteristic to {@link org.apache.flink.cep.nfa.NFA} for use in
+ * {@link org.apache.flink.cep.pattern.conditions.IterativeCondition}.
  */
-@PublicEvolving
-public interface TimerContext {
+@Internal
+public interface TimerService {
 
 	/**
-	 * Timestamp of the element currently being processed.
-	 *
-	 * <p>In case of {@link org.apache.flink.streaming.api.TimeCharacteristic#ProcessingTime} this will be set to the
-	 * time when event entered the cep operator.
+	 * Current processing time as returned from {@link org.apache.flink.streaming.api.TimerService}.
 	 */
-	long timestamp();
-
-	/** Returns the current processing time. */
 	long currentProcessingTime();
 
 }

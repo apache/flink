@@ -29,6 +29,7 @@ import org.apache.flink.cep.pattern.Quantifier;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.cep.utils.TestSharedBuffer;
+import org.apache.flink.cep.utils.TestTimerService;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
@@ -420,7 +421,8 @@ public class NFAITCase extends TestLogger {
 					nfaState,
 					event.getValue(),
 					event.getTimestamp(),
-					AfterMatchSkipStrategy.noSkip());
+					AfterMatchSkipStrategy.noSkip(),
+					new TestTimerService());
 
 			resultingPatterns.addAll(matchedPatterns);
 			resultingTimeoutPatterns.addAll(timeoutPatterns);
@@ -2830,10 +2832,13 @@ public class NFAITCase extends TestLogger {
 		Event a = new Event(40, "a", 1.0);
 		Event b = new Event(41, "b", 2.0);
 
+		NFA<Event> nfa = compile(pattern, false);
+		TestTimerService timerService = new TestTimerService();
 		try (SharedBufferAccessor<Event> accessor = Mockito.spy(sharedBuffer.getAccessor())) {
-			NFA<Event> nfa = compile(pattern, false);
-			nfa.process(accessor, nfa.createInitialNFAState(), a, 1, AfterMatchSkipStrategy.noSkip());
-			nfa.process(accessor, nfa.createInitialNFAState(), b, 2, AfterMatchSkipStrategy.noSkip());
+			nfa.process(accessor, nfa.createInitialNFAState(), a, 1, AfterMatchSkipStrategy.noSkip(),
+				timerService);
+			nfa.process(accessor, nfa.createInitialNFAState(), b, 2, AfterMatchSkipStrategy.noSkip(),
+				timerService);
 			Mockito.verify(accessor, Mockito.never()).advanceTime(anyLong());
 			nfa.advanceTime(accessor, nfa.createInitialNFAState(), 2);
 			Mockito.verify(accessor, Mockito.times(1)).advanceTime(2);

@@ -25,6 +25,7 @@ import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.ArrayList;
@@ -41,16 +42,19 @@ public final class NFATestHarness {
 	private final NFA<Event> nfa;
 	private final NFAState nfaState;
 	private final AfterMatchSkipStrategy afterMatchSkipStrategy;
+	private final TimerService timerService;
 
 	private NFATestHarness(
 			SharedBuffer<Event> sharedBuffer,
 			NFA<Event> nfa,
 			NFAState nfaState,
-			AfterMatchSkipStrategy afterMatchSkipStrategy) {
+			AfterMatchSkipStrategy afterMatchSkipStrategy,
+			TimerService timerService) {
 		this.sharedBuffer = sharedBuffer;
 		this.nfa = nfa;
 		this.nfaState = nfaState;
 		this.afterMatchSkipStrategy = afterMatchSkipStrategy;
+		this.timerService = timerService;
 	}
 
 	/**
@@ -68,7 +72,7 @@ public final class NFATestHarness {
 	}
 
 	public List<List<Event>> feedRecords(List<StreamRecord<Event>> inputEvents) throws Exception {
-		List<List<Event>> resultingPatterns = new ArrayList<>();
+		final List<List<Event>> resultingPatterns = new ArrayList<>();
 		for (StreamRecord<Event> inputEvent : inputEvents) {
 			resultingPatterns.addAll(feedRecord(inputEvent));
 		}
@@ -76,8 +80,8 @@ public final class NFATestHarness {
 	}
 
 	public List<List<Event>> feedRecord(StreamRecord<Event> inputEvent) throws Exception {
-		List<List<Event>> resultingPatterns = new ArrayList<>();
-		Collection<Map<String, List<Event>>> matches = consumeRecord(inputEvent);
+		final List<List<Event>> resultingPatterns = new ArrayList<>();
+		final Collection<Map<String, List<Event>>> matches = consumeRecord(inputEvent);
 		for (Map<String, List<Event>> p : matches) {
 			List<Event> res = new ArrayList<>();
 			for (List<Event> le : p.values()) {
@@ -89,7 +93,7 @@ public final class NFATestHarness {
 	}
 
 	public Collection<Map<String, List<Event>>> consumeRecords(Collection<StreamRecord<Event>> inputEvents) throws Exception {
-		List<Map<String, List<Event>>> resultingPatterns = new ArrayList<>();
+		final List<Map<String, List<Event>>> resultingPatterns = new ArrayList<>();
 		for (StreamRecord<Event> inputEvent : inputEvents) {
 			resultingPatterns.addAll(consumeRecord(inputEvent));
 		}
@@ -105,7 +109,8 @@ public final class NFATestHarness {
 				nfaState,
 				inputEvent.getValue(),
 				inputEvent.getTimestamp(),
-				afterMatchSkipStrategy);
+				afterMatchSkipStrategy,
+				timerService);
 		}
 	}
 
@@ -129,12 +134,13 @@ public final class NFATestHarness {
 
 		@Override
 		public NFATestHarness build() {
-			NFA<Event> nfa = NFAUtils.compile(pattern, timeoutHandling);
+			final NFA<Event> nfa = NFAUtils.compile(pattern, timeoutHandling);
 			return new NFATestHarness(
 				sharedBuffer,
 				nfa,
 				nfa.createInitialNFAState(),
-				afterMatchSkipStrategy);
+				afterMatchSkipStrategy,
+				timerService);
 		}
 	}
 
@@ -159,7 +165,12 @@ public final class NFATestHarness {
 
 		@Override
 		public NFATestHarness build() {
-			return new NFATestHarness(sharedBuffer, nfa, nfaState, afterMatchSkipStrategy);
+			return new NFATestHarness(
+				sharedBuffer,
+				nfa,
+				nfaState,
+				afterMatchSkipStrategy,
+				timerService);
 		}
 	}
 
@@ -171,6 +182,7 @@ public final class NFATestHarness {
 
 		SharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
 		AfterMatchSkipStrategy afterMatchSkipStrategy;
+		TimerService timerService = new TestTimerService();
 
 		NFATestHarnessBuilderBase(AfterMatchSkipStrategy skipStrategy) {
 			this.afterMatchSkipStrategy = skipStrategy;
@@ -183,6 +195,11 @@ public final class NFATestHarness {
 
 		public NFATestHarnessBuilderBase withAfterMatchSkipStrategy(AfterMatchSkipStrategy afterMatchSkipStrategy) {
 			this.afterMatchSkipStrategy = afterMatchSkipStrategy;
+			return this;
+		}
+
+		public NFATestHarnessBuilderBase withTimerService(TimerService timerService) {
+			this.timerService = timerService;
 			return this;
 		}
 
