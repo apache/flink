@@ -194,7 +194,7 @@ The following example shows how to use Hadoop `Mapper` and `Reducer` functions.
 // Obtain data to process somehow.
 DataSet<Tuple2<LongWritable, Text>> text = [...]
 
-DataSet<Tuple2<LongWritable, Text>> result = text
+DataSet<Tuple2<Text, LongWritable>> result = text
   // use Hadoop Mapper (Tokenizer) as MapFunction
   .flatMap(new HadoopMapFunction<LongWritable, Text, Text, LongWritable>(
     new Tokenizer()
