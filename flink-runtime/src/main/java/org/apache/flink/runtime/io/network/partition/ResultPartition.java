@@ -378,7 +378,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	}
 
 	/**
-	 * Whether this partition is released (all subpartitions are consumed).
+	 * Whether this partition is released, e.g. all subpartitions are consumed or task is cancelled.
 	 */
 	public boolean isReleased() {
 		return isReleased.get();
