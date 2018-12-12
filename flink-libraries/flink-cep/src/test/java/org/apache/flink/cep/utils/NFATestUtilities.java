@@ -16,77 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.nfa;
+package org.apache.flink.cep.utils;
 
 import org.apache.flink.cep.Event;
-import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
-import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
-import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
-import org.apache.flink.cep.utils.TestSharedBuffer;
+import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.Assert;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Base method for IT tests of {@link NFA}. It provides utility methods.
  */
 public class NFATestUtilities {
 
-	public static List<List<Event>> feedNFA(
-		List<StreamRecord<Event>> inputEvents,
-		NFA<Event> nfa) throws Exception {
-		return feedNFA(inputEvents, nfa, nfa.createInitialNFAState(), AfterMatchSkipStrategy.noSkip());
-	}
-
+	@Deprecated
 	public static List<List<Event>> feedNFA(
 			List<StreamRecord<Event>> inputEvents,
-			NFA<Event> nfa,
-			NFAState nfaState) throws Exception {
-		return feedNFA(inputEvents, nfa, nfaState, AfterMatchSkipStrategy.noSkip());
-	}
-
-	public static List<List<Event>> feedNFA(
-		List<StreamRecord<Event>> inputEvents,
-		NFA<Event> nfa,
-		AfterMatchSkipStrategy afterMatchSkipStrategy) throws Exception {
-		return feedNFA(inputEvents, nfa, nfa.createInitialNFAState(), afterMatchSkipStrategy);
-	}
-
-	public static List<List<Event>> feedNFA(
-			List<StreamRecord<Event>> inputEvents,
-			NFA<Event> nfa,
-			NFAState nfaState,
-			AfterMatchSkipStrategy afterMatchSkipStrategy) throws Exception {
-		List<List<Event>> resultingPatterns = new ArrayList<>();
-
-		SharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
-
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
-				nfa.advanceTime(sharedBufferAccessor, nfaState, inputEvent.getTimestamp());
-				Collection<Map<String, List<Event>>> patterns = nfa.process(
-					sharedBufferAccessor,
-					nfaState,
-					inputEvent.getValue(),
-					inputEvent.getTimestamp(),
-					afterMatchSkipStrategy);
-				for (Map<String, List<Event>> p: patterns) {
-					List<Event> res = new ArrayList<>();
-					for (List<Event> le: p.values()) {
-						res.addAll(le);
-					}
-					resultingPatterns.add(res);
-				}
-			}
-		}
-		return resultingPatterns;
+			NFA<Event> nfa) throws Exception {
+		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).build();
+		return nfaTestHarness.feedRecords(inputEvents);
 	}
 
 	public static void compareMaps(List<List<Event>> actual, List<List<Event>> expected) {
