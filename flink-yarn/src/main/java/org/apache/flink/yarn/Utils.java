@@ -565,7 +565,20 @@ public final class Utils {
 						new File(fileLocation),
 						HadoopUtils.getHadoopConfiguration(flinkConfig));
 
-				cred.writeTokenStorageToStream(dob);
+				// Filter out AMRMToken before setting the tokens to the TaskManager container context.
+				Method getAllTokensMethod = Credentials.class.getMethod("getAllTokens");
+				Credentials taskManagerCred = new Credentials();
+				final Text amRmTokenKind = new Text("YARN_AM_RM_TOKEN");
+				Collection<Token<? extends TokenIdentifier>> userTokens =
+					(Collection<Token<? extends TokenIdentifier>>) getAllTokensMethod.invoke(cred);
+				for (Token<? extends TokenIdentifier> token : userTokens) {
+					if (!token.getKind().equals(amRmTokenKind)) {
+						final Text id = new Text(token.getIdentifier());
+						taskManagerCred.addToken(id, token);
+					}
+				}
+
+				taskManagerCred.writeTokenStorageToStream(dob);
 				ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
 				ctx.setTokens(securityTokens);
 			} catch (Throwable t) {
