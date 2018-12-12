@@ -174,14 +174,6 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Set savepoint restore settings that will be used when executing the job.
-	 * @param savepointRestoreSettings savepoint restore settings
-	 */
-	public void setSavepointRestoreSettings(SavepointRestoreSettings savepointRestoreSettings) {
-		this.savepointRestoreSettings = savepointRestoreSettings;
-	}
-
-	/**
 	 * Executes the job remotely.
 	 *
 	 * <p>This method can be used independent of the {@link StreamExecutionEnvironment} type.
@@ -281,6 +273,14 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		streamGraph.setJobName(jobName);
 		transformations.clear();
 		return executeRemotely(streamGraph, jarFiles);
+	}
+
+	/**
+	 * Execute the job with savepoint restore.
+	 */
+	public JobExecutionResult execute(String jobName, SavepointRestoreSettings savepointRestoreSettings) throws ProgramInvocationException {
+		this.savepointRestoreSettings = savepointRestoreSettings;
+		return execute(jobName);
 	}
 
 	/**

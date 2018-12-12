@@ -83,13 +83,12 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 		RestClusterClient mockedClient = Mockito.mock(RestClusterClient.class);
 		JobExecutionResult expectedResult = new JobExecutionResult(null, 0, null);
 		SavepointRestoreSettings restoreSettings = SavepointRestoreSettings.forPath("fakePath");
-		env.setSavepointRestoreSettings(restoreSettings);
 
 		PowerMockito.whenNew(RestClusterClient.class).withAnyArguments().thenReturn(mockedClient);
 		when(mockedClient.run(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.eq(restoreSettings)))
 			.thenReturn(expectedResult);
 
-		JobExecutionResult actualResult = env.execute("fakeJobName");
+		JobExecutionResult actualResult = env.execute("fakeJobName", restoreSettings);
 		Assert.assertEquals(expectedResult, actualResult);
 	}
 }
