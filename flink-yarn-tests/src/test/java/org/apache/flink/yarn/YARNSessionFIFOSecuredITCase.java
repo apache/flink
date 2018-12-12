@@ -26,7 +26,10 @@ import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.test.util.SecureTestEnvironment;
 import org.apache.flink.test.util.TestingSecurityContext;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
 import org.hamcrest.Matchers;
@@ -39,6 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Callable;
 
 /**
@@ -116,6 +120,21 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 			"The JobManager and the TaskManager should both run with Kerberos.",
 			jobManagerRunsWithKerberos && taskManagerRunsWithKerberos,
 			Matchers.is(true));
+
+		final List<String> amRMTokens = Lists.newArrayList(AMRMTokenIdentifier.KIND_NAME.toString());
+		final String jobmanagerContainerId = getContainerIdByLogName("jobmanager.log");
+		final String taskmanagerContainerId = getContainerIdByLogName("taskmanager.log");
+		final boolean jobmanagerWithAmRmToken = verifyTokenKindInContainerCredentials(amRMTokens, jobmanagerContainerId);
+		final boolean taskmanagerWithAmRmToken = verifyTokenKindInContainerCredentials(amRMTokens, taskmanagerContainerId);
+
+		Assert.assertThat(
+			"The JobManager should have AMRMToken.",
+			jobmanagerWithAmRmToken,
+			Matchers.is(true));
+		Assert.assertThat(
+			"The TaskManager should not have AMRMToken.",
+			taskmanagerWithAmRmToken,
+			Matchers.is(false));
 	}
 
 	/* For secure cluster testing, it is enough to run only one test and override below test methods
