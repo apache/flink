@@ -256,7 +256,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	@Override
 	public boolean canBeReleased() {
-		return this.taskSlotTable.canBeReleased();
+		return taskSlotTable.canBeReleased();
 	}
 
 	// ------------------------------------------------------------------------

@@ -328,6 +328,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		}
 
 		availableReaders.clear();
+		readersToClose.clear();
 		allReaders.clear();
 	}
 

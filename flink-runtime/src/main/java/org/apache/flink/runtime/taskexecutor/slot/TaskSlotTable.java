@@ -277,7 +277,6 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 
 	/**
 	 * This can be safely released if all slots can be released.
-	 * @return
 	 */
 	public boolean canBeReleased() {
 		for (TaskSlot taskSlot : taskSlots) {

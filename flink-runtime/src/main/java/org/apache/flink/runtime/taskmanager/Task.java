@@ -875,11 +875,11 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	public boolean canBeReleased() {
 		for (ResultPartition producedPartition : producedPartitions) {
 			if (!producedPartition.isReleased()) {
-				LOG.debug("Task can NOT be released, execution ID {}", this.getExecutionId());
+				LOG.debug("Task can NOT be released, execution ID {}", getExecutionId());
 				return false;
 			}
 		}
-		LOG.debug("Task can be released, execution ID {}", this.getExecutionId());
+		LOG.debug("Task can be released, execution ID {}", getExecutionId());
 		return true;
 	}
 
