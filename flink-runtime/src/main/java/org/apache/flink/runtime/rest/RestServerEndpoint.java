@@ -206,10 +206,9 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 					serverChannel = channel.syncUninterruptibly().channel();
 					break;
 				} catch (Exception e) {
-					// we can continue to try if this contains a netty channel exception
-					Throwable cause = e.getCause();
-					if (!(cause instanceof org.jboss.netty.channel.ChannelException ||
-						cause instanceof java.net.BindException)) {
+					// we can continue the loop to try follow-up ports if this contains a netty channel exception
+					if (!(e instanceof org.jboss.netty.channel.ChannelException ||
+						e instanceof java.net.BindException)) {
 						throw e;
 					} // else fall through the loop and try the next port
 				}

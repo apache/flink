@@ -126,6 +126,80 @@ public class RestServerEndpointConfigurationTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testRestServerBindPortConflict() throws Exception {
+		RestServerEndpoint serverEndpoint1 = null;
+		RestServerEndpoint serverEndpoint2 = null;
+		RestClient restClient = null;
+
+		try {
+			final Configuration config = new Configuration();
+			config.setString(RestOptions.ADDRESS, "localhost");
+			config.setString(RestOptions.BIND_PORT, "12345,12346");
+
+			RestServerEndpointITCase.TestHandler testHandler;
+
+			RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
+			RestClientConfiguration clientConfig = RestClientConfiguration.fromConfiguration(config);
+
+			final String restAddress = "http://localhost:1234";
+			RestfulGateway mockRestfulGateway = mock(RestfulGateway.class);
+			when(mockRestfulGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(restAddress));
+
+			final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->
+				CompletableFuture.completedFuture(mockRestfulGateway);
+
+			testHandler = new RestServerEndpointITCase.TestHandler(
+				CompletableFuture.completedFuture(restAddress),
+				mockGatewayRetriever,
+				RpcUtils.INF_TIMEOUT);
+
+			RestServerEndpointITCase.TestVersionHandler testVersionHandler = new RestServerEndpointITCase.TestVersionHandler(
+				CompletableFuture.completedFuture(restAddress),
+				mockGatewayRetriever,
+				RpcUtils.INF_TIMEOUT);
+
+			final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = Arrays.asList(
+				Tuple2.of(new RestServerEndpointITCase.TestHeaders(), testHandler),
+				Tuple2.of(testVersionHandler.getMessageHeaders(), testVersionHandler));
+
+			serverEndpoint1 = new RestServerEndpointITCase.TestRestServerEndpoint(serverConfig, handlers);
+			serverEndpoint2 = new RestServerEndpointITCase.TestRestServerEndpoint(serverConfig, handlers);
+			restClient = new RestServerEndpointITCase.TestRestClient(clientConfig);
+
+			//start two rest server instances, the first one pick port : 12345
+			//the second one pick port : 12345 firstly, but will conflict with the first instance,
+			//then the expected behavior is that it should choose port : 12346
+			serverEndpoint1.start();
+			serverEndpoint2.start();
+
+			CompletableFuture<EmptyResponseBody> response = restClient.sendRequest(
+				config.getString(RestOptions.ADDRESS),
+				12346,		//connect to the second port
+				RestServerEndpointITCase.TestVersionHeaders.INSTANCE,
+				EmptyMessageParameters.getInstance(),
+				EmptyRequestBody.getInstance(),
+				Collections.emptyList()
+			);
+
+			response.get(5, TimeUnit.SECONDS);
+		} catch (Exception e) {
+			throw e;
+		} finally {
+			if (restClient != null) {
+				restClient.shutdown(timeout);
+			}
+
+			if (serverEndpoint1 != null) {
+				serverEndpoint1.closeAsync().get(timeout.getSize(), timeout.getUnit());
+			}
+
+			if (serverEndpoint2 != null) {
+				serverEndpoint2.closeAsync().get(timeout.getSize(), timeout.getUnit());
+			}
+		}
+	}
+
 	private void testRestServerBindPortAndConnectionPort(String bindPort, int connectPort) throws Exception {
 		RestServerEndpoint serverEndpoint = null;
 		RestClient restClient = null;
@@ -134,7 +208,6 @@ public class RestServerEndpointConfigurationTest extends TestLogger {
 			final Configuration config = new Configuration();
 			config.setString(RestOptions.ADDRESS, "localhost");
 			config.setString(RestOptions.BIND_PORT, bindPort);
-			config.setInteger(RestOptions.PORT, connectPort);
 
 			RestServerEndpointITCase.TestHandler testHandler;
 
@@ -169,7 +242,7 @@ public class RestServerEndpointConfigurationTest extends TestLogger {
 
 			CompletableFuture<EmptyResponseBody> response = restClient.sendRequest(
 				config.getString(RestOptions.ADDRESS),
-				config.getInteger(RestOptions.PORT),
+				connectPort,
 				RestServerEndpointITCase.TestVersionHeaders.INSTANCE,
 				EmptyMessageParameters.getInstance(),
 				EmptyRequestBody.getInstance(),
