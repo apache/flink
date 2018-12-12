@@ -30,7 +30,7 @@ Flink is able to process streaming data based on different notions of *time*.
 
 For more information about time handling in Flink, see the introduction about [Event Time and Watermarks]({{ site.baseurl }}/dev/event_time.html).
 
-This pages explains how time attributes can be defined for time-based operations in Flink's Table API & SQL.
+This page explains how time attributes can be defined for time-based operations in Flink's Table API & SQL.
 
 * This will be replaced by the TOC
 {:toc}
