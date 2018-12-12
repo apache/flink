@@ -26,7 +26,7 @@ import javax.annotation.Nullable;
 import static java.lang.String.format;
 
 /**
- * Utilits for working with {@link WrappingProxy}.
+ * Utilities for working with {@link WrappingProxy}.
  */
 @Internal
 public final class WrappingProxyUtil {
