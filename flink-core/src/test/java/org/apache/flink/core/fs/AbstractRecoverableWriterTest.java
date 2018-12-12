@@ -91,7 +91,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 
 		final RecoverableFsDataOutputStream stream = writer.open(path);
 		for (Map.Entry<Path, String> fileContents : getFileContentByPath(testDir).entrySet()) {
-			Assert.assertTrue(fileContents.getKey().getName().startsWith(".part-0.inprogress."));
+			Assert.assertTrue(fileContents.getKey().getName().startsWith(".part-0.inprogress"));
 			Assert.assertTrue(fileContents.getValue().isEmpty());
 		}
 
@@ -101,6 +101,65 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 			Assert.assertEquals("part-0", fileContents.getKey().getName());
 			Assert.assertTrue(fileContents.getValue().isEmpty());
 		}
+	}
+
+	@Test
+	public void testOverwritingUponReopeningClosedUncommittedFiles() throws Exception {
+		final Path testDir = getBasePathForTest();
+
+		final Path path = new Path(testDir, "part-0");
+
+		final RecoverableWriter initWriter = getNewFileSystemWriter();
+		final RecoverableFsDataOutputStream initStream = initWriter.open(path);
+		writeCompletedPart(initStream, testData1);
+
+		final RecoverableWriter newWriter = getNewFileSystemWriter();
+		final RecoverableFsDataOutputStream newStream = newWriter.open(path);
+
+		final RecoverableFsDataOutputStream.Committer committer =
+				writeCompletedPart(newStream, testData2);
+		committer.commit();
+
+		for (Map.Entry<Path, String> fileContents : getFileContentByPath(testDir).entrySet()) {
+			Assert.assertEquals("part-0", fileContents.getKey().getName());
+			Assert.assertEquals(testData2, fileContents.getValue());
+		}
+	}
+
+	@Test
+	public void testOverwritingUponReopeningNotClosedUncommittedFiles() throws Exception {
+		final Path testDir = getBasePathForTest();
+
+		final Path path = new Path(testDir, "part-0");
+
+		final RecoverableWriter initWriter = getNewFileSystemWriter();
+		final RecoverableFsDataOutputStream initStream = initWriter.open(path);
+		writeUncompletedPart(initStream, testData1);
+
+		final RecoverableWriter newWriter = getNewFileSystemWriter();
+		final RecoverableFsDataOutputStream newStream = newWriter.open(path);
+
+		final RecoverableFsDataOutputStream.Committer committer =
+				writeCompletedPart(newStream, testData2);
+		committer.commit();
+
+		for (Map.Entry<Path, String> fileContents : getFileContentByPath(testDir).entrySet()) {
+			Assert.assertEquals("part-0", fileContents.getKey().getName());
+			Assert.assertEquals(testData2, fileContents.getValue());
+		}
+	}
+
+	private RecoverableFsDataOutputStream.Committer writeCompletedPart(
+			final RecoverableFsDataOutputStream stream,
+			final String data) throws IOException {
+		writeUncompletedPart(stream, data);
+		return stream.closeForCommit();
+	}
+
+	private void writeUncompletedPart(
+			final RecoverableFsDataOutputStream stream,
+			final String data) throws IOException {
+		stream.write(bytesOf(data));
 	}
 
 	@Test
@@ -224,7 +283,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 			Assert.assertEquals(1L, files.size());
 
 			for (Map.Entry<Path, String> fileContents : files.entrySet()) {
-				Assert.assertTrue(fileContents.getKey().getName().startsWith(".part-0.inprogress."));
+				Assert.assertTrue(fileContents.getKey().getName().startsWith(".part-0.inprogress"));
 				Assert.assertEquals(expectedPostRecoveryContents, fileContents.getValue());
 			}
 
@@ -358,6 +417,8 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 		fail();
 	}
 
+	// ------------------------------------- Helper Methods ------------------------------------- //
+
 	private Map<Path, String> getFileContentByPath(Path directory) throws Exception {
 		Map<Path, String> contents = new HashMap<>();
 
@@ -372,6 +433,10 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 			contents.put(file.getPath(), new String(serContents, StandardCharsets.UTF_8));
 		}
 		return contents;
+	}
+
+	private static byte[] bytesOf(String text) {
+		return text.getBytes(StandardCharsets.UTF_8);
 	}
 
 	private static String randomName() {

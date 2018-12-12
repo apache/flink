@@ -145,13 +145,13 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 			Assert.assertEquals(2L, fileCounter);
 
 			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 5), 5L));
-			TestUtils.checkLocalFs(outDir, 3, 0); // the previous part-0-1 in progress is simply ignored (random extension)
+			TestUtils.checkLocalFs(outDir, 2, 0); // the previous part-0-1 in progress is overwritten
 
 			testHarness.snapshot(2L, 2L);
 
 			// this will close the new part-0-1
 			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 6), 6L));
-			TestUtils.checkLocalFs(outDir, 3, 0);
+			TestUtils.checkLocalFs(outDir, 2, 0);
 
 			fileCounter = 0;
 			for (Map.Entry<File, String> fileContents : TestUtils.getFileContentByPath(outDir).entrySet()) {
@@ -165,11 +165,11 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 					}
 				}
 			}
-			Assert.assertEquals(3L, fileCounter);
+			Assert.assertEquals(2L, fileCounter);
 
 			// this will publish part-0-0
 			testHarness.notifyOfCompletedCheckpoint(2L);
-			TestUtils.checkLocalFs(outDir, 2, 1);
+			TestUtils.checkLocalFs(outDir, 1, 1);
 
 			fileCounter = 0;
 			for (Map.Entry<File, String> fileContents : TestUtils.getFileContentByPath(outDir).entrySet()) {
@@ -183,7 +183,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 					}
 				}
 			}
-			Assert.assertEquals(3L, fileCounter);
+			Assert.assertEquals(2L, fileCounter);
 		}
 	}
 

@@ -56,7 +56,11 @@ class LocalRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
 		this.targetFile = checkNotNull(targetFile);
 		this.tempFile = checkNotNull(tempFile);
 
-		this.fileChannel = FileChannel.open(tempFile.toPath(), StandardOpenOption.WRITE, StandardOpenOption.CREATE_NEW);
+		this.fileChannel = FileChannel.open(
+				tempFile.toPath(),
+				StandardOpenOption.CREATE,
+				StandardOpenOption.TRUNCATE_EXISTING,
+				StandardOpenOption.WRITE);
 		this.fos = Channels.newOutputStream(fileChannel);
 	}
 

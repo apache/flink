@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.fs.hdfs;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream.Committer;
@@ -28,7 +27,6 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.util.HadoopUtils;
 
 import java.io.IOException;
-import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -62,7 +60,7 @@ public class HadoopRecoverableWriter implements RecoverableWriter {
 	@Override
 	public RecoverableFsDataOutputStream open(Path filePath) throws IOException {
 		final org.apache.hadoop.fs.Path targetFile = HadoopFileSystem.toHadoopPath(filePath);
-		final org.apache.hadoop.fs.Path tempFile = generateStagingTempFilePath(fs, targetFile);
+		final org.apache.hadoop.fs.Path tempFile = generateStagingTempFilePath(targetFile);
 		return new HadoopRecoverableFsDataOutputStream(fs, targetFile, tempFile);
 	}
 
@@ -121,11 +119,7 @@ public class HadoopRecoverableWriter implements RecoverableWriter {
 		return true;
 	}
 
-	@VisibleForTesting
-	static org.apache.hadoop.fs.Path generateStagingTempFilePath(
-			org.apache.hadoop.fs.FileSystem fs,
-			org.apache.hadoop.fs.Path targetFile) throws IOException {
-
+	private static org.apache.hadoop.fs.Path generateStagingTempFilePath(org.apache.hadoop.fs.Path targetFile) {
 		checkArgument(targetFile.isAbsolute(), "targetFile must be absolute");
 
 		final org.apache.hadoop.fs.Path parent = targetFile.getParent();
@@ -133,12 +127,6 @@ public class HadoopRecoverableWriter implements RecoverableWriter {
 
 		checkArgument(parent != null, "targetFile must not be the root directory");
 
-		while (true) {
-			org.apache.hadoop.fs.Path candidate = new org.apache.hadoop.fs.Path(
-					parent, "." + name + ".inprogress." + UUID.randomUUID().toString());
-			if (!fs.exists(candidate)) {
-				return candidate;
-			}
-		}
+		return new org.apache.hadoop.fs.Path(parent, "." + name + ".inprogress");
 	}
 }
