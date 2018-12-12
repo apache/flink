@@ -902,6 +902,37 @@ One has to keep in mind that in case of the `SKIP TO FIRST/LAST variable` strate
 variable (e.g. for pattern `A*`). In such cases, a runtime exception will be thrown as the standard requires a valid row to continue the
 matching.
 
+Time attributes
+---------------
+
+In order to apply some subsequent queries on top of the `MATCH_RECOGNIZE` it might be required to use [time attributes](time_attributes.html). To select those there
+are available two functions:
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Function</th>
+      <th class="text-left">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        <code>MATCH_ROWTIME()</code><br/>
+      </td>
+      <td><p>Returns the timestamp of the last row that was mapped to the given pattern.</p>
+      <p>The resulting attribute is a <a href="streaming/time_attributes.html">rowtime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
+    </tr>
+    <tr>
+      <td>
+        <code>MATCH_PROCTIME()</code><br/>
+      </td>
+      <td><p>Returns a <a href="streaming/time_attributes.html#processing-time">proctime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
+    </tr>
+  </tbody>
+</table>
+
 Controlling Memory Consumption
 ------------------------------
 
