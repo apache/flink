@@ -22,6 +22,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.util.OperatingSystem;
 
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.Assume;
@@ -35,7 +40,11 @@ import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.File;
+import java.lang.reflect.Field;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -47,6 +56,7 @@ import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_HADOOP_USER_NAME;
 import static org.apache.flink.yarn.YarnConfigKeys.FLINK_JAR_PATH;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyString;
@@ -100,6 +110,19 @@ public class YarnApplicationMasterRunnerTest {
 		env.put(FLINK_JAR_PATH, root.toURI().toString());
 		env = Collections.unmodifiableMap(env);
 
+		File credentialFile = folder.newFile("container_tokens");
+		final Text amRmTokenKind = new Text("YARN_AM_RM_TOKEN");
+		final Text hdfsDelegationTokenKind = new Text("HDFS_DELEGATION_TOKEN");
+		final Text service = new Text("test-service");
+		Credentials amCredentials = new Credentials();
+		amCredentials.addToken(amRmTokenKind, new Token<>(new byte[4], new byte[4], amRmTokenKind, service));
+		amCredentials.addToken(hdfsDelegationTokenKind, new Token<>(new byte[4], new byte[4],
+			hdfsDelegationTokenKind, service));
+		amCredentials.writeTokenStorageFile(new Path(credentialFile.getAbsolutePath()), yarnConf);
+		Map<String, String> systemEnv = new HashMap<>();
+		systemEnv.put("HADOOP_TOKEN_FILE_LOCATION", credentialFile.getAbsolutePath());
+		setEnv(systemEnv);
+
 		ContaineredTaskManagerParameters tmParams = mock(ContaineredTaskManagerParameters.class);
 		Configuration taskManagerConf = new Configuration();
 
@@ -108,5 +131,39 @@ public class YarnApplicationMasterRunnerTest {
 		ContainerLaunchContext ctx = Utils.createTaskExecutorContext(flinkConf, yarnConf, env, tmParams,
 			taskManagerConf, workingDirectory, taskManagerMainClass, LOG);
 		assertEquals("file", ctx.getLocalResources().get("flink.jar").getResource().getScheme());
+
+		Credentials credentials = new Credentials();
+		try(DataInputStream dis = new DataInputStream(new ByteArrayInputStream(ctx.getTokens().array()))) {
+			credentials.readTokenStorageStream(dis);
+		}
+		Collection<Token<? extends TokenIdentifier>> tokens = credentials.getAllTokens();
+		boolean hasHdfsDelegationToken = false;
+		boolean hasAmRmToken = false;
+		for (Token<? extends TokenIdentifier> token : tokens) {
+			if (token.getKind().equals(amRmTokenKind)) {
+				hasAmRmToken = true;
+			} else if (token.getKind().equals(hdfsDelegationTokenKind)) {
+				hasHdfsDelegationToken = true;
+			}
+		}
+		assertTrue(hasHdfsDelegationToken);
+		assertFalse(hasAmRmToken);
+	}
+
+	// A helper method used for setting system env variables for the test.
+	// See https://stackoverflow.com/a/496849/6558955
+	private static void setEnv(Map<String, String> newEnv) throws Exception {
+		Class[] classes = Collections.class.getDeclaredClasses();
+		Map<String, String> env = System.getenv();
+		for(Class cl : classes) {
+			if("java.util.Collections$UnmodifiableMap".equals(cl.getName())) {
+				Field field = cl.getDeclaredField("m");
+				field.setAccessible(true);
+				Object obj = field.get(env);
+				Map<String, String> map = (Map<String, String>) obj;
+				map.clear();
+				map.putAll(newEnv);
+			}
+		}
 	}
 }
