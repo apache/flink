@@ -149,6 +149,29 @@ public class TestType implements HeapPriorityQueueElement, PriorityComparable<Te
 	}
 
 	/**
+	 * A serializer that is meant to be compatible with any of the serializers only ofter being reconfigured as a new instance.
+	 */
+	public static class ReconfigurationRequiringTestTypeSerializer extends TestTypeSerializerBase {
+
+		private static final long serialVersionUID = -7254527815207212324L;
+
+		@Override
+		public void serialize(TestType record, DataOutputView target) throws IOException {
+			throw new UnsupportedOperationException("The serializer should have been reconfigured as a new instance; shouldn't be used.");
+		}
+
+		@Override
+		public TestType deserialize(DataInputView source) throws IOException {
+			throw new UnsupportedOperationException("The serializer should have been reconfigured as a new instance; shouldn't be used.");
+		}
+
+		@Override
+		public TypeSerializerSnapshot<TestType> snapshotConfiguration() {
+			throw new UnsupportedOperationException("The serializer should have been reconfigured as a new instance; shouldn't be used.");
+		}
+	}
+
+	/**
 	 * A serializer that is meant to be incompatible with any of the serializers.
 	 */
 	public static class IncompatibleTestTypeSerializer extends TestTypeSerializerBase {
