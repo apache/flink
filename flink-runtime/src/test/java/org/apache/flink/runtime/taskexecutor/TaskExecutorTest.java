@@ -1944,7 +1944,7 @@ public class TaskExecutorTest extends TestLogger {
 	}
 
 	/**
-	 * A implementation of {@link TaskSlotTable} that can blocking with a future when starting.
+	 * A implementation of {@link TaskSlotTable} that can be blocked with a future when starting.
 	 */
 	private static final class BlockingTaskSlotTable extends TaskSlotTable {
 
