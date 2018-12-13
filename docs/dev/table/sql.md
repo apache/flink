@@ -2187,8 +2187,7 @@ DATE_FORMAT(timestamp, format)
 {% endhighlight %}
       </td>
       <td>
-        <p>Formats <code>timestamp</code> as a string using a specified <code>format</code> string. The format must be compatible with MySQL's date formatting syntax as used by the <code>date_parse</code> function. The format specification is given in the <a href="#date-format-specifier">Date Format Specifier table</a> below.</p>
-        <p>For example <code>DATE_FORMAT(ts, '%Y, %d %M')</code> results in strings formatted as <code>"2017, 05 May"</code>.</p>
+        <p><span class="label label-danger">Attention</span> This function has serious bugs and should not be used for now. Please implement a custom UDF instead or use EXTRACT as a workaround.</p>
       </td>
     </tr>
 
