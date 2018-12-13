@@ -133,7 +133,7 @@ public class YarnApplicationMasterRunnerTest {
 		assertEquals("file", ctx.getLocalResources().get("flink.jar").getResource().getScheme());
 
 		Credentials credentials = new Credentials();
-		try(DataInputStream dis = new DataInputStream(new ByteArrayInputStream(ctx.getTokens().array()))) {
+		try (DataInputStream dis = new DataInputStream(new ByteArrayInputStream(ctx.getTokens().array()))) {
 			credentials.readTokenStorageStream(dis);
 		}
 		Collection<Token<? extends TokenIdentifier>> tokens = credentials.getAllTokens();
@@ -155,8 +155,8 @@ public class YarnApplicationMasterRunnerTest {
 	private static void setEnv(Map<String, String> newEnv) throws Exception {
 		Class[] classes = Collections.class.getDeclaredClasses();
 		Map<String, String> env = System.getenv();
-		for(Class cl : classes) {
-			if("java.util.Collections$UnmodifiableMap".equals(cl.getName())) {
+		for (Class cl : classes) {
+			if ("java.util.Collections$UnmodifiableMap".equals(cl.getName())) {
 				Field field = cl.getDeclaredField("m");
 				field.setAccessible(true);
 				Object obj = field.get(env);
