@@ -3487,7 +3487,7 @@ DATE_FORMAT(timestamp, string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that formats <i>timestamp</i> with a specified format <i>string</i>. The format specification is given in the <a href="#date-format-specifiers">Date Format Specifier table</a>.</p>
+        <p><span class="label label-danger">Attention</span> This function has serious bugs and should not be used for now. Please implement a custom UDF instead or use EXTRACT as a workaround.</p>
       </td>
     </tr>
 
