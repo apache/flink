@@ -25,7 +25,7 @@ import org.apache.flink.table.expressions.{AggFunctionCall, Aggregation, Alias, 
 import org.apache.flink.table.functions.TemporalTableFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.plan.ProjectionTranslator._
-import org.apache.flink.table.plan.logical.{Minus, _}
+import org.apache.flink.table.plan.logical.{Minus, Project, _}
 import org.apache.flink.table.sinks.TableSink
 
 import _root_.scala.annotation.varargs
@@ -1013,12 +1013,7 @@ class Table(
     * }}}
     */
   def aggregate(aggregateFunction: Expression): AggregatedTable = {
-    unwrap(aggregateFunction, tableEnv) match {
-      case _: Aggregation =>
-      case _ => throw new ValidationException("Only AggregateFunction can be used in aggregate.")
-    }
-
-    new AggregatedTable(this, Nil, aggregateFunction)
+    groupBy().aggregate(aggregateFunction)
   }
 
   /**
@@ -1035,9 +1030,7 @@ class Table(
     * }}}
     */
   def aggregate(aggregateFunction: String): AggregatedTable = {
-    val withResolvedAggFunctionCall = replaceAggFunctionCall(
-      ExpressionParser.parseExpression(aggregateFunction), tableEnv)
-    aggregate(withResolvedAggFunctionCall)
+    groupBy().aggregate(aggregateFunction)
   }
 
   var tableName: String = _
@@ -1348,7 +1341,13 @@ class AggregatedTable(
         aggTable.logicalPlan,
         tableEnv).zip(extractFieldNames(aggregateFunction)).map(a => Alias(a._1, a._2))
 
-    val expandedFields = expandProjectList(fields, aggTable.logicalPlan, tableEnv)
+    val flattenedAggTable = new Table(
+      tableEnv,
+      Project(
+        projectsOnAggTable.map(UnresolvedAlias),
+        aggTable.logicalPlan).validate(tableEnv))
+
+    val expandedFields = expandProjectList(fields, flattenedAggTable.logicalPlan, tableEnv)
     // check there are no aggregate functions in the select after aggregate
     expandedFields.foreach { f =>
       unwrap(f, tableEnv) match {
@@ -1360,9 +1359,8 @@ class AggregatedTable(
     }
 
     new Table(tableEnv,
-      Project(expandedFields.map(UnresolvedAlias),
-        Project(projectsOnAggTable.map(UnresolvedAlias), aggTable.logicalPlan).validate(tableEnv)
-      ).validate(tableEnv))
+      Project(expandedFields.map(UnresolvedAlias), flattenedAggTable.logicalPlan)
+        .validate(tableEnv))
   }
 
   /**

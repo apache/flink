@@ -171,7 +171,7 @@ class AggregateStringExpressionTest extends TableTestBase {
   }
 
 
-  def testNonGroupedTableAggregate(): Unit = {
+  def testNonGroupedAggregate2(): Unit = {
     val util = streamTestUtil()
     val t = util.addTable[(Int, Long, String)]('a, 'b, 'c)
 
@@ -192,7 +192,7 @@ class AggregateStringExpressionTest extends TableTestBase {
   }
 
   @Test
-  def testTableAggregate(): Unit = {
+  def testGroupedAggregate2(): Unit = {
     val util = streamTestUtil()
     val t = util.addTable[(Int, Long, String)]('a, 'b, 'c)
 
@@ -215,7 +215,7 @@ class AggregateStringExpressionTest extends TableTestBase {
   }
 
   @Test
-  def testTableAggregateWithAlias(): Unit = {
+  def testAggregateWithAlias(): Unit = {
     val util = streamTestUtil()
     val t = util.addTable[(Int, Long, String)]('a, 'b, 'c)
 

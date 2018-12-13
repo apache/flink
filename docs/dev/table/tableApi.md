@@ -1684,14 +1684,14 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
 
 ### Aggregate
 
-Aggregate performs an aggregate operation with an aggregate function. You have to close the
-"aggregate" with a select statement. The output will be flattened if the output type is a
-composite type.
+Aggregate performs an aggregate operation with an aggregate function. You have to close the "aggregate" with a select statement and it does not support aggregate functions in the select statement The output will be flattened if the output type is a composite type.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-tableEnv.registerFunction("myAggFunc", new MyAggregateFunction());
+AggregateFunction myAggFunc = new MyAggregateFunction();
+
+tableEnv.registerFunction("myAggFunc", myAggFunc);
 Table table = input
   .groupBy("key")
   .aggregate("myAggFunc(a, b) as (x, y, z)")

@@ -445,7 +445,7 @@ object ProjectionTranslator {
 
   def extractFieldNames(expr: Expression): Seq[String] = {
     expr match {
-      case Alias(child, name, extraNames) => Seq(name) ++ extraNames
+      case Alias(_, name, extraNames) => Seq(name) ++ extraNames
       case _ => getFieldInfo(expr.resultType)._1
     }
   }

@@ -345,6 +345,36 @@ class AggregateTest extends TableTestBase {
   }
 
   @Test
+  def testSelectStar(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)](
+      "MyTable", 'a, 'b, 'c)
+
+    val testAgg = new CountMinMax
+    val resultTable = table
+      .groupBy('b)
+      .aggregate(testAgg('a))
+      .select('*)
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamGroupAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "b", "a")
+          ),
+          term("groupBy", "b"),
+          term("select", "b", "CountMinMax(a) AS TMP_0")
+        ),
+        term("select", "b", "TMP_0.f0 AS f0", "TMP_0.f1 AS f1", "TMP_0.f2 AS f2")
+      )
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
   def testAggregateWithScalarResult(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)](
