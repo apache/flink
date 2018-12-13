@@ -253,7 +253,7 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 
 		@Override
 		public void close() throws IOException {
-			closed.set(true);
+			assertTrue("TestCloseable was already closed", closed.compareAndSet(false, true));
 		}
 
 		public boolean isClosed() {
