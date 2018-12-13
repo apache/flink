@@ -42,8 +42,13 @@ public class V1TestTypeSerializerSnapshot implements TypeSerializerSnapshot<Test
 			return TypeSerializerSchemaCompatibility.compatibleAsIs();
 		} else if (newSerializer instanceof TestType.V2TestTypeSerializer) {
 			return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
-		} else {
+		} else if (newSerializer instanceof TestType.ReconfigurationRequiringTestTypeSerializer) {
+			// we mimic the reconfiguration by just re-instantiating the correct serializer
+			return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(new TestType.V1TestTypeSerializer());
+		} else if (newSerializer instanceof TestType.IncompatibleTestTypeSerializer) {
 			return TypeSerializerSchemaCompatibility.incompatible();
+		} else {
+			throw new IllegalStateException("Unknown serializer class for TestType.");
 		}
 	}
 
