@@ -76,7 +76,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 
 import scala.concurrent.ExecutionContext;
-import scala.concurrent.ExecutionContext$;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;

@@ -61,7 +61,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Test base for scheduler related test cases. The test are
- * executed with the {@link Scheduler} and the {@link SlotPool}.
+ * executed with the {@link SlotPool}.
  */
 public class SchedulerTestBase extends TestLogger {
 
