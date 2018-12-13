@@ -22,18 +22,19 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.executiongraph.DummyJobInformation;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.TestingSlotProvider;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -86,7 +87,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 			timeout,
 			new NoRestartStrategy(),
 			new RestartAllStrategy.Factory(),
-			new Scheduler(TestingUtils.defaultExecutionContext()),
+			new TestingSlotProvider(ignored -> new CompletableFuture<>()),
 			ClassLoader.getSystemClassLoader(),
 			VoidBlobWriter.getInstance(),
 			timeout);

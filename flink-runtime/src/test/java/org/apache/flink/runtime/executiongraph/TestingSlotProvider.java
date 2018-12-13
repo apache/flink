@@ -39,7 +39,7 @@ import java.util.function.Function;
 /**
  * {@link SlotProvider} implementation for testing purposes.
  */
-final class TestingSlotProvider implements SlotProvider {
+public final class TestingSlotProvider implements SlotProvider {
 
 	private final ConcurrentMap<SlotRequestId, CompletableFuture<LogicalSlot>> slotFutures;
 
@@ -47,7 +47,7 @@ final class TestingSlotProvider implements SlotProvider {
 
 	private volatile Consumer<SlotRequestId> slotCanceller = ignored -> {};
 
-	TestingSlotProvider(Function<SlotRequestId, CompletableFuture<LogicalSlot>> slotFutureCreator) {
+	public TestingSlotProvider(Function<SlotRequestId, CompletableFuture<LogicalSlot>> slotFutureCreator) {
 		this.slotFutureCreator = slotFutureCreator;
 		this.slotFutures = new ConcurrentHashMap<>(4);
 	}
