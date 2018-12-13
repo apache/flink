@@ -136,6 +136,19 @@ public class StateSerializerProviderTest {
 	}
 
 	@Test
+	public void testRegisterNewSerializerRequiringReconfiguration() {
+		TestType.V1TestTypeSerializer serializer = new TestType.V1TestTypeSerializer();
+		StateSerializerProvider<TestType> testProvider = StateSerializerProvider.fromRestoredState(serializer.snapshotConfiguration());
+
+		// register serializer that requires reconfiguration, and verify that
+		// the resulting current schema serializer is the reconfigured one
+		TypeSerializerSchemaCompatibility<TestType> schemaCompatibility =
+			testProvider.registerNewSerializerForRestoredState(new TestType.ReconfigurationRequiringTestTypeSerializer());
+		assertTrue(schemaCompatibility.isCompatibleWithReconfiguredSerializer());
+		assertTrue(testProvider.currentSchemaSerializer().getClass() == TestType.V1TestTypeSerializer.class);
+	}
+
+	@Test
 	public void testRegisterIncompatibleSerializer() {
 		TestType.V1TestTypeSerializer serializer = new TestType.V1TestTypeSerializer();
 		StateSerializerProvider<TestType> testProvider = StateSerializerProvider.fromRestoredState(serializer.snapshotConfiguration());

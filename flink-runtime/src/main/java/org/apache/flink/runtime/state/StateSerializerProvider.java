@@ -199,7 +199,11 @@ public abstract class StateSerializerProvider<T> {
 			if (result.isIncompatible()) {
 				this.isRegisteredWithIncompatibleSerializer = true;
 			}
-			this.registeredSerializer = newSerializer;
+			if (result.isCompatibleWithReconfiguredSerializer()) {
+				this.registeredSerializer = result.getReconfiguredSerializer();
+			} else {
+				this.registeredSerializer = newSerializer;
+			}
 			return result;
 		}
 
