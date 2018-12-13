@@ -163,6 +163,10 @@ public class MultipartUploadResource extends ExternalResource {
 		return jsonHandler;
 	}
 
+	public Path getUploadDirectory() {
+		return configuredUploadDir;
+	}
+
 	public void resetState() {
 		mixedHandler.lastReceivedRequest = null;
 		jsonHandler.lastReceivedRequest = null;
