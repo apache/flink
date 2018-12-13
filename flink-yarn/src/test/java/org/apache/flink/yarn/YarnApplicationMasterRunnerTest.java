@@ -19,6 +19,7 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.util.OperatingSystem;
 
@@ -43,7 +44,6 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.File;
-import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -121,7 +121,7 @@ public class YarnApplicationMasterRunnerTest {
 		amCredentials.writeTokenStorageFile(new Path(credentialFile.getAbsolutePath()), yarnConf);
 		Map<String, String> systemEnv = new HashMap<>();
 		systemEnv.put("HADOOP_TOKEN_FILE_LOCATION", credentialFile.getAbsolutePath());
-		setEnv(systemEnv);
+		CommonTestUtils.setEnv(systemEnv);
 
 		ContaineredTaskManagerParameters tmParams = mock(ContaineredTaskManagerParameters.class);
 		Configuration taskManagerConf = new Configuration();
@@ -148,22 +148,5 @@ public class YarnApplicationMasterRunnerTest {
 		}
 		assertTrue(hasHdfsDelegationToken);
 		assertFalse(hasAmRmToken);
-	}
-
-	// A helper method used for setting system env variables for the test.
-	// See https://stackoverflow.com/a/496849/6558955
-	private static void setEnv(Map<String, String> newEnv) throws Exception {
-		Class[] classes = Collections.class.getDeclaredClasses();
-		Map<String, String> env = System.getenv();
-		for (Class cl : classes) {
-			if ("java.util.Collections$UnmodifiableMap".equals(cl.getName())) {
-				Field field = cl.getDeclaredField("m");
-				field.setAccessible(true);
-				Object obj = field.get(env);
-				Map<String, String> map = (Map<String, String>) obj;
-				map.clear();
-				map.putAll(newEnv);
-			}
-		}
 	}
 }
