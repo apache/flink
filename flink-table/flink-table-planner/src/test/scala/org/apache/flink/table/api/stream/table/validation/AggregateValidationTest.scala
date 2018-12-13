@@ -19,7 +19,7 @@
 package org.apache.flink.table.api.stream.table.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{ExpressionParserException, ValidationException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils.{TableFunc0, TableTestBase}
 import org.junit.Test
@@ -96,5 +96,17 @@ class AggregateValidationTest extends TableTestBase {
       // must fail. Only AggregateFunction can be used in aggregate
       .aggregate("func(c) as d")
       .select('a, 'd)
+  }
+
+  @Test(expected = classOf[ExpressionParserException])
+  def testMultipleAggregateExpressionInAggregate(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
+
+    util.tableEnv.registerFunction("func", new TableFunc0)
+    table
+      .groupBy('a)
+      // must fail. Only AggregateFunction can be used in aggregate
+      .aggregate("sum(c), count(b)")
   }
 }
