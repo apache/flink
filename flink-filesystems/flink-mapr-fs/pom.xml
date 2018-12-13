@@ -61,7 +61,7 @@ under the License.
 		<dependency>
 			<groupId>com.mapr.hadoop</groupId>
 			<artifactId>maprfs</artifactId>
-			<version>5.2.1-mapr</version>
+			<version>5.2.2-mapr</version>
 			<optional>true</optional>
 		</dependency>
 
