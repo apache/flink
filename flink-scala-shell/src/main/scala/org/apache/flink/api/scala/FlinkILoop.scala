@@ -149,7 +149,6 @@ class FlinkILoop(
     "org.apache.flink.api.scala.utils._",
     "org.apache.flink.streaming.api.scala._",
     "org.apache.flink.streaming.api.windowing.time._",
-    "org.apache.flink.table.api._",
     "org.apache.flink.table.api.scala._",
     "org.apache.flink.types.Row"
   )
