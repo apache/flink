@@ -93,7 +93,8 @@ class AggFunctionHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(CRow(false, "aaa", Map(1 -> 2).asJava), 1))
     expectedOutput.add(new StreamRecord(CRow("aaa", Map(1 -> 2, 2 -> 1).asJava), 1))
 
-    // remove some state: state may be cleaned up by the state backend if not accessed more than ttl
+    // remove some state: state may be cleaned up by the state backend
+    // if not accessed beyond ttl time
     operator.setCurrentKey(Row.of("aaa"))
     state.remove(2)
 
