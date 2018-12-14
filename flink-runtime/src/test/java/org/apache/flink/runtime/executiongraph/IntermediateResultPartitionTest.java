@@ -37,14 +37,7 @@ public class IntermediateResultPartitionTest extends TestLogger {
 
 	@Test
 	public void testPipelinedPartitionConsumable() throws Exception {
-		ExecutionJobVertex jobVertex = getExecutionVertex(new JobVertexID(), new DirectScheduledExecutorService());
-		IntermediateResult result =
-			new IntermediateResult(new IntermediateDataSetID(), jobVertex, 2, ResultPartitionType.PIPELINED);
-		ExecutionVertex vertex1 =
-			new ExecutionVertex(jobVertex, 0, new IntermediateResult[]{result}, Time.minutes(1));
-		ExecutionVertex vertex2 =
-			new ExecutionVertex(jobVertex, 1, new IntermediateResult[]{result}, Time.minutes(1));
-
+		IntermediateResult result = createResult(ResultPartitionType.PIPELINED, 2);
 		IntermediateResultPartition partition1 = result.getPartitions()[0];
 		IntermediateResultPartition partition2 = result.getPartitions()[1];
 
@@ -65,14 +58,7 @@ public class IntermediateResultPartitionTest extends TestLogger {
 
 	@Test
 	public void testBlockingPartitionConsumable() throws Exception {
-		ExecutionJobVertex jobVertex = getExecutionVertex(new JobVertexID(), new DirectScheduledExecutorService());
-		IntermediateResult result =
-			new IntermediateResult(new IntermediateDataSetID(), jobVertex, 2, ResultPartitionType.BLOCKING);
-		ExecutionVertex vertex1 =
-			new ExecutionVertex(jobVertex, 0, new IntermediateResult[]{result}, Time.minutes(1));
-		ExecutionVertex vertex2 =
-			new ExecutionVertex(jobVertex, 1, new IntermediateResult[]{result}, Time.minutes(1));
-
+		IntermediateResult result = createResult(ResultPartitionType.BLOCKING, 2);
 		IntermediateResultPartition partition1 = result.getPartitions()[0];
 		IntermediateResultPartition partition2 = result.getPartitions()[1];
 
@@ -94,5 +80,20 @@ public class IntermediateResultPartitionTest extends TestLogger {
 		result.resetForNewExecution();
 		assertFalse(partition1.isConsumable());
 		assertFalse(partition2.isConsumable());
+	}
+
+	private static IntermediateResult createResult(
+			ResultPartitionType resultPartitionType,
+			int producerCount) throws Exception {
+
+		ExecutionJobVertex jobVertex = getExecutionVertex(new JobVertexID(), new DirectScheduledExecutorService());
+		IntermediateResult result =
+				new IntermediateResult(new IntermediateDataSetID(), jobVertex, producerCount, resultPartitionType);
+		for (int i = 0; i < producerCount; i++) {
+			// Generate result partition in the result
+			new ExecutionVertex(jobVertex, i, new IntermediateResult[]{result}, Time.minutes(1));
+		}
+
+		return result;
 	}
 }

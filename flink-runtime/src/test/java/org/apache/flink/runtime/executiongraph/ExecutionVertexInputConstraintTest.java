@@ -53,26 +53,13 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 
 	@Test
 	public void testInputConsumable() throws Exception {
-		JobVertex v1 = new JobVertex("vertex1");
-		JobVertex v2 = new JobVertex("vertex2");
-		JobVertex v3 = new JobVertex("vertex3");
-		v1.setParallelism(2);
-		v2.setParallelism(2);
-		v3.setParallelism(2);
-		v1.setInvokableClass(AbstractInvokable.class);
-		v2.setInvokableClass(AbstractInvokable.class);
-		v3.setInvokableClass(AbstractInvokable.class);
-		v3.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-		v3.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
-		List<JobVertex> ordered = Arrays.asList(v1, v2, v3);
-		ExecutionGraph eg = createExecutionGraph(ordered);
-
-		ExecutionVertex ev11 = eg.getJobVertex(v1.getID()).getTaskVertices()[0];
-		ExecutionVertex ev12 = eg.getJobVertex(v1.getID()).getTaskVertices()[1];
-		ExecutionVertex ev21 = eg.getJobVertex(v2.getID()).getTaskVertices()[0];
-		ExecutionVertex ev22 = eg.getJobVertex(v2.getID()).getTaskVertices()[1];
-		ExecutionVertex ev31 = eg.getJobVertex(v3.getID()).getTaskVertices()[0];
-		ExecutionVertex ev32 = eg.getJobVertex(v3.getID()).getTaskVertices()[1];
+		List<JobVertex> vertices = createOrderedVertices();
+		ExecutionGraph eg = createExecutionGraph(vertices, InputDependencyConstraint.ALL);
+		ExecutionVertex ev11 = eg.getJobVertex(vertices.get(0).getID()).getTaskVertices()[0];
+		ExecutionVertex ev21 = eg.getJobVertex(vertices.get(1).getID()).getTaskVertices()[0];
+		ExecutionVertex ev22 = eg.getJobVertex(vertices.get(1).getID()).getTaskVertices()[1];
+		ExecutionVertex ev31 = eg.getJobVertex(vertices.get(2).getID()).getTaskVertices()[0];
+		ExecutionVertex ev32 = eg.getJobVertex(vertices.get(2).getID()).getTaskVertices()[1];
 
 		eg.scheduleForExecution();
 
@@ -105,27 +92,12 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 
 	@Test
 	public void testInputConstraintANY() throws Exception {
-		JobVertex v1 = new JobVertex("vertex1");
-		JobVertex v2 = new JobVertex("vertex2");
-		JobVertex v3 = new JobVertex("vertex3");
-		v1.setParallelism(2);
-		v2.setParallelism(2);
-		v3.setParallelism(2);
-		v1.setInvokableClass(AbstractInvokable.class);
-		v2.setInvokableClass(AbstractInvokable.class);
-		v3.setInvokableClass(AbstractInvokable.class);
-		v3.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-		v3.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
-		List<JobVertex> ordered = Arrays.asList(v1, v2, v3);
-		ExecutionGraph eg = createExecutionGraph(ordered);
-		eg.setInputDependencyConstraint(InputDependencyConstraint.ANY);
-
-		ExecutionVertex ev11 = eg.getJobVertex(v1.getID()).getTaskVertices()[0];
-		ExecutionVertex ev12 = eg.getJobVertex(v1.getID()).getTaskVertices()[1];
-		ExecutionVertex ev21 = eg.getJobVertex(v2.getID()).getTaskVertices()[0];
-		ExecutionVertex ev22 = eg.getJobVertex(v2.getID()).getTaskVertices()[1];
-		ExecutionVertex ev31 = eg.getJobVertex(v3.getID()).getTaskVertices()[0];
-		ExecutionVertex ev32 = eg.getJobVertex(v3.getID()).getTaskVertices()[1];
+		List<JobVertex> vertices = createOrderedVertices();
+		ExecutionGraph eg = createExecutionGraph(vertices, InputDependencyConstraint.ANY);
+		ExecutionVertex ev11 = eg.getJobVertex(vertices.get(0).getID()).getTaskVertices()[0];
+		ExecutionVertex ev21 = eg.getJobVertex(vertices.get(1).getID()).getTaskVertices()[0];
+		ExecutionVertex ev22 = eg.getJobVertex(vertices.get(1).getID()).getTaskVertices()[1];
+		ExecutionVertex ev31 = eg.getJobVertex(vertices.get(2).getID()).getTaskVertices()[0];
 
 		eg.scheduleForExecution();
 
@@ -148,32 +120,17 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 		waitUntilExecutionVertexState(ev22, ExecutionState.DEPLOYING, 2000L);
 		ev21.getCurrentExecutionAttempt().markFinished();
 		ev22.getCurrentExecutionAttempt().markFinished();
-		assertTrue(ev31.isInputConsumable(1));
+		assertTrue(ev31.checkInputDependencyConstraints());
 	}
 
 	@Test
 	public void testInputConstraintALL() throws Exception {
-		JobVertex v1 = new JobVertex("vertex1");
-		JobVertex v2 = new JobVertex("vertex2");
-		JobVertex v3 = new JobVertex("vertex3");
-		v1.setParallelism(2);
-		v2.setParallelism(2);
-		v3.setParallelism(2);
-		v1.setInvokableClass(AbstractInvokable.class);
-		v2.setInvokableClass(AbstractInvokable.class);
-		v3.setInvokableClass(AbstractInvokable.class);
-		v3.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-		v3.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
-		List<JobVertex> ordered = Arrays.asList(v1, v2, v3);
-		ExecutionGraph eg = createExecutionGraph(ordered);
-		eg.setInputDependencyConstraint(InputDependencyConstraint.ALL);
-
-		ExecutionVertex ev11 = eg.getJobVertex(v1.getID()).getTaskVertices()[0];
-		ExecutionVertex ev12 = eg.getJobVertex(v1.getID()).getTaskVertices()[1];
-		ExecutionVertex ev21 = eg.getJobVertex(v2.getID()).getTaskVertices()[0];
-		ExecutionVertex ev22 = eg.getJobVertex(v2.getID()).getTaskVertices()[1];
-		ExecutionVertex ev31 = eg.getJobVertex(v3.getID()).getTaskVertices()[0];
-		ExecutionVertex ev32 = eg.getJobVertex(v3.getID()).getTaskVertices()[1];
+		List<JobVertex> vertices = createOrderedVertices();
+		ExecutionGraph eg = createExecutionGraph(vertices, InputDependencyConstraint.ALL);
+		ExecutionVertex ev11 = eg.getJobVertex(vertices.get(0).getID()).getTaskVertices()[0];
+		ExecutionVertex ev21 = eg.getJobVertex(vertices.get(1).getID()).getTaskVertices()[0];
+		ExecutionVertex ev22 = eg.getJobVertex(vertices.get(1).getID()).getTaskVertices()[1];
+		ExecutionVertex ev31 = eg.getJobVertex(vertices.get(2).getID()).getTaskVertices()[0];
 
 		eg.scheduleForExecution();
 
@@ -189,7 +146,7 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 		// Input2 consumable satisfies the constraint
 		ev21.getCurrentExecutionAttempt().markFinished();
 		ev22.getCurrentExecutionAttempt().markFinished();
-		assertTrue(ev31.isInputConsumable(1));
+		assertTrue(ev31.checkInputDependencyConstraints());
 
 		// Inputs constraint not satisfied after failover
 		ev11.fail(new Exception());
@@ -197,10 +154,27 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 		assertFalse(ev31.checkInputDependencyConstraints());
 	}
 
-	private static ExecutionGraph createExecutionGraph(List<JobVertex> ordered) throws Exception {
+	private static List<JobVertex> createOrderedVertices() {
+		JobVertex v1 = new JobVertex("vertex1");
+		JobVertex v2 = new JobVertex("vertex2");
+		JobVertex v3 = new JobVertex("vertex3");
+		v1.setParallelism(2);
+		v2.setParallelism(2);
+		v3.setParallelism(2);
+		v1.setInvokableClass(AbstractInvokable.class);
+		v2.setInvokableClass(AbstractInvokable.class);
+		v3.setInvokableClass(AbstractInvokable.class);
+		v3.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+		v3.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+		return Arrays.asList(v1, v2, v3);
+	}
+
+	private static ExecutionGraph createExecutionGraph(
+			List<JobVertex> orderedVertices,
+			InputDependencyConstraint inputDependencyConstraint) throws Exception {
+
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
-
 		final SlotProvider slotProvider = new SimpleSlotProvider(jobId, 20);
 
 		ExecutionGraph eg = new ExecutionGraph(
@@ -213,8 +187,8 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 			new FixedDelayRestartStrategy(1, 0),
 			new RestartAllStrategy.Factory(),
 			slotProvider);
-
-		eg.attachJobGraph(ordered);
+		eg.attachJobGraph(orderedVertices);
+		eg.setInputDependencyConstraint(inputDependencyConstraint);
 
 		return eg;
 	}
