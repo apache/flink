@@ -72,7 +72,7 @@ tableEnv.registerFunction("hashCode", new HashCode(10));
 myTable.select("string, string.hashCode(), hashCode(string)");
 
 // use the function in SQL API
-tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable");
+tableEnv.sqlQuery("SELECT string, hashCode(string) FROM MyTable");
 {% endhighlight %}
 </div>
 
@@ -93,7 +93,7 @@ myTable.select('string, hashCode('string))
 
 // register and use the function in SQL
 tableEnv.registerFunction("hashCode", new HashCode(10))
-tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable")
+tableEnv.sqlQuery("SELECT string, hashCode(string) FROM MyTable")
 {% endhighlight %}
 </div>
 </div>
