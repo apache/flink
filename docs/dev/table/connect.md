@@ -36,6 +36,8 @@ Dependencies
 
 The following tables list all available connectors and formats. Their mutual compatibility is tagged in the corresponding sections for [table connectors](connect.html#table-connectors) and [table formats](connect.html#table-formats). The following tables provide dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
 
+{% if site.is_stable %}
+
 ### Connectors
 
 | Name              | Version             | Maven dependency             | SQL Client JAR         |
@@ -56,7 +58,11 @@ The following tables list all available connectors and formats. Their mutual com
 | JSON              | `flink-json`                 | [Download](http://central.maven.org/maven2/org/apache/flink/flink-json/{{site.version}}/flink-json-{{site.version}}-sql-jar.jar) |
 | Apache Avro       | `flink-avro`                 | [Download](http://central.maven.org/maven2/org/apache/flink/flink-avro/{{site.version}}/flink-avro-{{site.version}}-sql-jar.jar) |
 
-**Note:** These tables are only suitable for stable releases.
+{% else %}
+
+These tables are only available for stable releases.
+
+{% endif %}
 
 {% top %}
 
