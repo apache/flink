@@ -119,17 +119,24 @@ public class YarnApplicationMasterRunnerTest {
 		amCredentials.addToken(hdfsDelegationTokenKind, new Token<>(new byte[4], new byte[4],
 			hdfsDelegationTokenKind, service));
 		amCredentials.writeTokenStorageFile(new Path(credentialFile.getAbsolutePath()), yarnConf);
-		Map<String, String> systemEnv = new HashMap<>();
-		systemEnv.put("HADOOP_TOKEN_FILE_LOCATION", credentialFile.getAbsolutePath());
-		CommonTestUtils.setEnv(systemEnv);
 
 		ContaineredTaskManagerParameters tmParams = mock(ContaineredTaskManagerParameters.class);
 		Configuration taskManagerConf = new Configuration();
 
 		String workingDirectory = root.getAbsolutePath();
 		Class<?> taskManagerMainClass = YarnApplicationMasterRunnerTest.class;
-		ContainerLaunchContext ctx = Utils.createTaskExecutorContext(flinkConf, yarnConf, env, tmParams,
-			taskManagerConf, workingDirectory, taskManagerMainClass, LOG);
+		ContainerLaunchContext ctx;
+
+		final Map<String, String> originalEnv = System.getenv();
+		try {
+			Map<String, String> systemEnv = new HashMap<>(originalEnv);
+			systemEnv.put("HADOOP_TOKEN_FILE_LOCATION", credentialFile.getAbsolutePath());
+			CommonTestUtils.setEnv(systemEnv);
+			ctx = Utils.createTaskExecutorContext(flinkConf, yarnConf, env, tmParams,
+				taskManagerConf, workingDirectory, taskManagerMainClass, LOG);
+		} finally {
+			CommonTestUtils.setEnv(originalEnv);
+		}
 		assertEquals("file", ctx.getLocalResources().get("flink.jar").getResource().getScheme());
 
 		Credentials credentials = new Credentials();
