@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
@@ -107,11 +108,27 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	 * @throws Exception
 	 */
 	public ZooKeeperCompletedCheckpointStore(
-			int maxNumberOfCheckpointsToRetain,
-			CuratorFramework client,
-			String checkpointsPath,
-			RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage,
-			Executor executor) throws Exception {
+		int maxNumberOfCheckpointsToRetain,
+		CuratorFramework client,
+		String checkpointsPath,
+		RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage,
+		Executor executor) throws Exception {
+		this(maxNumberOfCheckpointsToRetain,
+			client,
+			checkpointsPath,
+			stateStorage,
+			executor,
+			null);
+	}
+
+	@VisibleForTesting
+	ZooKeeperCompletedCheckpointStore(
+		int maxNumberOfCheckpointsToRetain,
+		CuratorFramework client,
+		String checkpointsPath,
+		RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage,
+		Executor executor,
+		ZooKeeperStateHandleStore<CompletedCheckpoint> checkpointsInZooKeeper) throws Exception {
 
 		checkArgument(maxNumberOfCheckpointsToRetain >= 1, "Must retain at least one checkpoint.");
 		checkNotNull(stateStorage, "State storage");
@@ -123,12 +140,14 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 		// Ensure that the checkpoints path exists
 		client.newNamespaceAwareEnsurePath(checkpointsPath)
-				.ensure(client.getZookeeperClient());
+			.ensure(client.getZookeeperClient());
 
 		// All operations will have the path as root
 		this.client = client.usingNamespace(client.getNamespace() + checkpointsPath);
 
-		this.checkpointsInZooKeeper = new ZooKeeperStateHandleStore<>(this.client, stateStorage);
+		this.checkpointsInZooKeeper = (checkpointsInZooKeeper != null) ?
+			checkpointsInZooKeeper :
+			new ZooKeeperStateHandleStore<>(this.client, stateStorage);
 
 		this.completedCheckpoints = new ArrayDeque<>(maxNumberOfCheckpointsToRetain + 1);
 
