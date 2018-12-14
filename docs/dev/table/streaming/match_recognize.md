@@ -107,7 +107,7 @@ The table has a following schema:
 
 {% highlight text %}
 Ticker
-     |-- symbol: Long                             # symbol of the stock
+     |-- symbol: String                           # symbol of the stock
      |-- price: Long                              # price of the stock
      |-- tax: Long                                # tax liability of the stock
      |-- rowtime: TimeIndicatorTypeInfo(rowtime)  # point in time when the change to those values happened
@@ -256,13 +256,13 @@ FROM Ticker
         ORDER BY rowtime
         MEASURES
             C.price AS lastPrice
-        PATTERN (A B* C)
         ONE ROW PER MATCH
         AFTER MATCH SKIP PAST LAST ROW
+        PATTERN (A B* C)
         DEFINE
             A AS A.price > 10,
             B AS B.price < 15,
-            C AS B.price > 12
+            C AS C.price > 12
     )
 {% endhighlight %}
 
@@ -293,6 +293,7 @@ The same query where `B*` is modified to `B*?`, which means that `B*` should be 
  symbol   lastPrice
 ======== ===========
  XYZ      13
+ XYZ      16
 {% endhighlight %}
 
 The pattern variable `B` matches only to the row with price `12` instead of swallowing the rows with prices `12`, `13`, and `14`.
@@ -335,9 +336,9 @@ FROM Ticker
         MEASURES
             C.rowtime AS dropTime,
             A.price - C.price AS dropDiff
-        PATTERN (A B* C) WITHIN INTERVAL '1' HOUR
         ONE ROW PER MATCH
         AFTER MATCH SKIP PAST LAST ROW
+        PATTERN (A B* C) WITHIN INTERVAL '1' HOUR
         DEFINE
             B AS B.price > A.price - 10
             C AS C.price < A.price - 10
@@ -399,8 +400,8 @@ FROM Ticker
             FIRST(A.price) AS startPrice,
             LAST(A.price) AS topPrice,
             B.price AS lastPrice
-        PATTERN (A+ B)
         ONE ROW PER MATCH
+        PATTERN (A+ B)
         DEFINE
             A AS LAST(A.price, 1) IS NULL OR A.price > LAST(A.price, 1),
             B AS B.price < LAST(A.price)
@@ -769,9 +770,9 @@ FROM Ticker
             SUM(A.price) AS sumPrice,
             FIRST(rowtime) AS startTime,
             LAST(rowtime) AS endTime
-        PATTERN (A+ C)
         ONE ROW PER MATCH
         [AFTER MATCH STRATEGY]
+        PATTERN (A+ C)
         DEFINE
             A AS SUM(A.price) < 30
     )
@@ -842,7 +843,7 @@ The last result matched against the rows #5, #6.
 This combination will produce a runtime exception because one would always try to start a new match where the
 last one started. This would produce an infinite loop and, thus, is prohibited.
 
-One has to keep in mind that in case of the `SKIP TO FIRST/LAST variable`strategy it might be possible that there are no rows mapped to that
+One has to keep in mind that in case of the `SKIP TO FIRST/LAST variable` strategy it might be possible that there are no rows mapped to that
 variable (e.g. for pattern `A*`). In such cases, a runtime exception will be thrown as the standard requires a valid row to continue the
 matching.
 
