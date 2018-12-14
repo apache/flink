@@ -191,7 +191,8 @@ class DataStreamMatch(
           orderKeys,
           measures,
           inputTypeInfo,
-          patternNames.toSeq)
+          patternNames.toSeq,
+          logicalMatch.subsets)
       patternStream.flatSelect[CRow](patternSelectFunction, outTypeInfo)
     }
   }

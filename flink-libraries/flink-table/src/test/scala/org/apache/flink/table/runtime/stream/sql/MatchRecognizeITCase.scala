@@ -595,6 +595,149 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     val expected = mutable.MutableList("1,PREF:a,6", "7,PREF:a,9")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+
+  @Test
+  def testSubsetsEventTime(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = new mutable.MutableList[(String, String, Long)]
+    data += (("A", "q", 14L))
+    data += (("A", "e", 13L))
+    data += (("A", "t", 11L))
+    data += (("B", "r", 15L))
+    data += (("B", "y", 16L))
+    data += (("B", "w", 17L))
+    data += (("C", "u", 18L))
+
+    val t = env.fromCollection(data)
+      .assignAscendingTimestamps(e => e._3 - 10)
+      .toTable(tEnv, 'symbol, 'tag, 'tstamp.rowtime)
+    tEnv.registerTable("subsetTBL1", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT T.f_tag, T.l_tag from subsetTBL1
+         |MATCH_RECOGNIZE (
+         |  ORDER BY tstamp
+         |  MEASURES
+         |    FIRST(X.tag) AS f_tag,
+         |    LAST(X.tag) AS l_tag
+         |  ONE ROW PER MATCH
+         |  AFTER MATCH SKIP PAST LAST ROW
+         |  PATTERN (A+ B+ C)
+         |  SUBSET X= (A,B)
+         |  DEFINE
+         |    A AS A.symbol = 'A',
+         |    B AS B.symbol = 'B',
+         |    C AS C.symbol = 'C'
+         |) AS T
+         |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List("t,w")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testSubsetsProcTime(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = new mutable.MutableList[(String, String)]
+    data += (("B", "q"))
+    data += (("B", "e"))
+    data += (("B", "t"))
+    data += (("A", "r"))
+
+    val t = env.fromCollection(data)
+      .toTable(tEnv, 'symbol, 'tag, 'proctime.proctime)
+    tEnv.registerTable("subsetTBL2", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT T.f_tag, T.l_tag from subsetTBL2
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    FIRST(X.tag) AS f_tag,
+         |    LAST(X.tag) AS l_tag
+         |  ONE ROW PER MATCH
+         |  AFTER MATCH SKIP PAST LAST ROW
+         |  PATTERN (B* A)
+         |  SUBSET X= (A,B)
+         |  DEFINE
+         |    A AS A.symbol = 'A',
+         |    B AS B.symbol = 'B'
+         |) AS T
+         |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List("r,t")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testMultiSubsets(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = new mutable.MutableList[(String, String)]
+    data += (("B", "q"))
+    data += (("B", "e"))
+    data += (("B", "t"))
+    data += (("A", "r"))
+    data += (("A", "x"))
+    data += (("A", "c"))
+    data += (("C", "z"))
+    data += (("A", "m"))
+
+    val t = env.fromCollection(data)
+      .toTable(tEnv, 'symbol, 'tag, 'proctime.proctime)
+    tEnv.registerTable("subsetTBL3", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT T.xf_tag, T.xl_tag, T.yf_tag, T.yl_tag from subsetTBL3
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    FIRST(X.tag) AS xf_tag,
+         |    LAST(X.tag) AS xl_tag,
+         |    FIRST(Y.tag) AS yf_tag,
+         |    LAST(Y.tag) AS yl_tag
+         |  ONE ROW PER MATCH
+         |  AFTER MATCH SKIP PAST LAST ROW
+         |  PATTERN (B* A+ C)
+         |  SUBSET X= (A,B),
+         |         Y= (B,C)
+         |  DEFINE
+         |    A AS A.symbol = 'A',
+         |    B AS B.symbol = 'B',
+         |    C AS C.symbol = 'C'
+         |) AS T
+         |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List("r,t,q,z")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
 }
 
 class ToMillis extends ScalarFunction {

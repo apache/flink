@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.`match`
 
 import java.util
 
+import com.google.common.collect.ImmutableMap
 import org.apache.calcite.rel.RelFieldCollation
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -66,9 +67,10 @@ object MatchUtil {
       orderKeys: util.List[RelFieldCollation],
       measures: util.Map[String, RexNode],
       inputTypeInfo: TypeInformation[_],
-      patternNames: Seq[String])
+      patternNames: Seq[String],
+      subsets: ImmutableMap[String, util.SortedSet[String]])
     : PatternFlatSelectFunction[Row, CRow] = {
-    val generator = new MatchCodeGenerator(config, inputTypeInfo, patternNames)
+    val generator = new MatchCodeGenerator(config, inputTypeInfo, patternNames, subsets = Some(subsets))
 
     val resultExpression = generator.generateOneRowPerMatchExpression(
       partitionKeys,

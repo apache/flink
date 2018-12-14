@@ -21,6 +21,7 @@ package org.apache.flink.table.codegen
 import java.lang.{Long => JLong}
 import java.util
 
+import com.google.common.collect.ImmutableMap
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.flink.api.common.functions._
@@ -53,7 +54,8 @@ class MatchCodeGenerator(
     config: TableConfig,
     input: TypeInformation[_],
     patternNames: Seq[String],
-    currentPattern: Option[String] = None)
+    currentPattern: Option[String] = None,
+    subsets: Option[ImmutableMap[String, util.SortedSet[String]]] = None)
   extends CodeGenerator(config, false, input){
 
   private case class GeneratedPatternList(resultTerm: String, code: String)
@@ -398,7 +400,18 @@ class MatchCodeGenerator(
       case None =>
         val exp = currentPattern match {
           case Some(p) => generateDefinePatternVariableExp(patternFieldAlpha, p)
-          case None => generateMeasurePatternVariableExp(patternFieldAlpha)
+          case None =>
+            if (subsets.get.containsKey(patternFieldAlpha)) {
+              // merge these patterns of subsets in order
+              val patternsExps = subsets.get.get(patternFieldAlpha).iterator().asScala.map(pattern => {
+                reusablePatternLists.getOrElse(pattern, {
+                  generateMeasurePatternVariableExp(pattern)
+                })
+              }).toArray
+              mergeExpsInSubset(patternsExps)
+            } else {
+              generateMeasurePatternVariableExp(patternFieldAlpha)
+            }
         }
         reusablePatternLists(patternFieldAlpha) = exp
         exp
@@ -422,6 +435,23 @@ class MatchCodeGenerator(
          |""".stripMargin
 
     GeneratedExpression(rowNameTerm, isRowNull, funcCode, input)
+  }
+
+  private def mergeExpsInSubset(exps: Array[GeneratedPatternList]): GeneratedPatternList = {
+    val listName = newName("patternEvents")
+
+    val loopAppend = exps.map(patternList => {
+      j"""$listName.addAll((java.util.List)${patternList.resultTerm});"""
+    }).mkString("\n")
+
+    val code =
+      j"""
+         |java.util.List $listName = new java.util.ArrayList();
+         |${exps.map(_.code).mkString("\n")}
+         |$loopAppend
+       """.stripMargin
+
+    GeneratedPatternList(listName, code)
   }
 
   private def generatePatternFieldRef(fieldRef: RexPatternFieldRef): GeneratedExpression = {
