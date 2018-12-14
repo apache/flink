@@ -41,10 +41,7 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.util.Collections;
-import java.util.Optional;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Tests for the {@link LeaderRetrievalHandler}.
@@ -67,10 +64,9 @@ public class LeaderRetrievalHandlerTest extends TestLogger {
 		final Configuration configuration = new Configuration();
 		final Router router = new Router();
 		final Time timeout = Time.seconds(10L);
-		final GatewayRetriever<RestfulGateway> gatewayRetriever = mock(GatewayRetriever.class);
-		final RestfulGateway gateway = mock(RestfulGateway.class);
-
-		when(gatewayRetriever.getNow()).thenReturn(Optional.empty(), Optional.of(gateway));
+		final CompletableFuture<RestfulGateway> gatewayFuture = new CompletableFuture<>();
+		final GatewayRetriever<RestfulGateway> gatewayRetriever = () -> gatewayFuture;
+		final RestfulGateway gateway = TestingRestfulGateway.newBuilder().build();
 
 		final TestingHandler testingHandler = new TestingHandler(
 			gatewayRetriever,
@@ -95,6 +91,8 @@ public class LeaderRetrievalHandlerTest extends TestLogger {
 			Assert.assertEquals(HttpResponseStatus.SERVICE_UNAVAILABLE, response.getStatus());
 
 			// 2. with leader
+			gatewayFuture.complete(gateway);
+
 			httpClient.sendGetRequest(restPath, FutureUtils.toFiniteDuration(timeout));
 
 			response = httpClient.getNextResponse(FutureUtils.toFiniteDuration(timeout));

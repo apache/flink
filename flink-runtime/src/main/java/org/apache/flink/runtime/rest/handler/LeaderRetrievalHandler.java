@@ -80,11 +80,11 @@ public abstract class LeaderRetrievalHandler<T extends RestfulGateway> extends S
 				try {
 					respondAsLeader(channelHandlerContext, routedRequest, gateway);
 				} catch (Exception e) {
-					logger.error("Error while responding as leader.", e);
+					logger.error("Error while responding to the http request.", e);
 					HandlerUtils.sendErrorResponse(
 						channelHandlerContext,
 						request,
-						new ErrorResponseBody("Error while responding to the request."),
+						new ErrorResponseBody("Error while responding to the http request."),
 						HttpResponseStatus.INTERNAL_SERVER_ERROR,
 						responseHeaders);
 				}
