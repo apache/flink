@@ -1166,7 +1166,7 @@ ClusterBuilder builder = ... // configure Cassandra cluster connection
 CassandraAppendTableSink sink = new CassandraAppendTableSink(
   builder,
   // the query must match the schema of the table
-  INSERT INTO flink.myTable (id, name, value) VALUES (?, ?, ?));
+  "INSERT INTO flink.myTable (id, name, value) VALUES (?, ?, ?)");
 
 tableEnv.registerTableSink(
   "cassandraOutputTable",
