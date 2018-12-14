@@ -107,7 +107,7 @@ The table has a following schema:
 
 {% highlight text %}
 Ticker
-     |-- symbol: Long                             # symbol of the stock
+     |-- symbol: String                           # symbol of the stock
      |-- price: Long                              # price of the stock
      |-- tax: Long                                # tax liability of the stock
      |-- rowtime: TimeIndicatorTypeInfo(rowtime)  # point in time when the change to those values happened
@@ -293,6 +293,7 @@ The same query where `B*` is modified to `B*?`, which means that `B*` should be 
  symbol   lastPrice
 ======== ===========
  XYZ      13
+ XYZ      16
 {% endhighlight %}
 
 The pattern variable `B` matches only to the row with price `12` instead of swallowing the rows with prices `12`, `13`, and `14`.
@@ -842,7 +843,7 @@ The last result matched against the rows #5, #6.
 This combination will produce a runtime exception because one would always try to start a new match where the
 last one started. This would produce an infinite loop and, thus, is prohibited.
 
-One has to keep in mind that in case of the `SKIP TO FIRST/LAST variable`strategy it might be possible that there are no rows mapped to that
+One has to keep in mind that in case of the `SKIP TO FIRST/LAST variable` strategy it might be possible that there are no rows mapped to that
 variable (e.g. for pattern `A*`). In such cases, a runtime exception will be thrown as the standard requires a valid row to continue the
 matching.
 
