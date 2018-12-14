@@ -230,7 +230,7 @@ public class CustomTypeSplit extends TableFunction<Row> {
         for (String s : str.split(" ")) {
             Row row = new Row(2);
             row.setField(0, s);
-            row.setField(1, s.length);
+            row.setField(1, s.length());
             collect(row);
         }
     }
