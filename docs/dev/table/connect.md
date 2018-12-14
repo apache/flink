@@ -154,7 +154,7 @@ tableEnvironment
     new Schema()
       .field("rowtime", Types.SQL_TIMESTAMP)
         .rowtime(new Rowtime()
-          .timestampsFromField("ts")
+          .timestampsFromField("timestamp")
           .watermarksPeriodicBounded(60000)
         )
       .field("user", Types.LONG)
