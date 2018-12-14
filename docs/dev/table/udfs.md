@@ -110,8 +110,8 @@ public static class TimestampModifier extends ScalarFunction {
     return t % 1000;
   }
 
-  public TypeInformation<?> getResultType(signature: Class<?>[]) {
-    return Types.TIMESTAMP;
+  public TypeInformation<?> getResultType(Class<?>[] signature) {
+    return Types.SQL_TIMESTAMP;
   }
 }
 {% endhighlight %}
