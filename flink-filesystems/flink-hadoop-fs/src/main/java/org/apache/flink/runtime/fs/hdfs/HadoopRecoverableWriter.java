@@ -60,6 +60,14 @@ public class HadoopRecoverableWriter implements RecoverableWriter {
 	@Override
 	public RecoverableFsDataOutputStream open(Path filePath) throws IOException {
 		final org.apache.hadoop.fs.Path targetFile = HadoopFileSystem.toHadoopPath(filePath);
+
+		// the finalized part must not exist already
+		if (fs.exists(targetFile)) {
+			throw new IOException("File \"" + filePath + "\" already exists." +
+					" This can be either because another job is writing at the bucket or an accidental \"split-brain\" scenario." +
+					" In any case, please investigate or report as this can have implications on the correctness of your data.");
+		}
+
 		final org.apache.hadoop.fs.Path tempFile = generateStagingTempFilePath(targetFile);
 		return new HadoopRecoverableFsDataOutputStream(fs, targetFile, tempFile);
 	}
