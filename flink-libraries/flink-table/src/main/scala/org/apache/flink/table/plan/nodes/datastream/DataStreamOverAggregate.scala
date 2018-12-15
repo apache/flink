@@ -212,7 +212,7 @@ class DataStreamOverAggregate(
     val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
 
     // get the output types
-    val returnTypeInfo = CRowTypeInfo(schema.typeInfo)
+    val returnTypeInfo =  CRowTypeInfo.of(schema.typeInfo)
 
     val processFunction = AggregateUtil.createUnboundedOverProcessFunction(
       generator,
@@ -266,7 +266,7 @@ class DataStreamOverAggregate(
       getLowerBoundary(logicWindow, overWindow, getInput()) + (if (isRowsClause) 1 else 0)
 
     // get the output types
-    val returnTypeInfo = CRowTypeInfo(schema.typeInfo)
+    val returnTypeInfo =  CRowTypeInfo.of(schema.typeInfo)
 
     val processFunction = AggregateUtil.createBoundedOverProcessFunction(
       generator,

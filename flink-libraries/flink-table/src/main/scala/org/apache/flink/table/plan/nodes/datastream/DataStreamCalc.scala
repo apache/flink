@@ -128,7 +128,7 @@ class DataStreamCalc(
     val processFunc = new CRowProcessRunner(
       genFunction.name,
       genFunction.code,
-      CRowTypeInfo(schema.typeInfo))
+      CRowTypeInfo.of(schema.typeInfo))
 
     inputDataStream
       .process(processFunc)

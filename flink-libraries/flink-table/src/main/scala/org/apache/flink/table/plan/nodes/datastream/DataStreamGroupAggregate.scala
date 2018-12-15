@@ -112,7 +112,7 @@ class DataStreamGroupAggregate(
 
     val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
 
-    val outRowType = CRowTypeInfo(schema.typeInfo)
+    val outRowType =  CRowTypeInfo.of(schema.typeInfo)
 
     val generator = new AggregationCodeGenerator(
       tableEnv.getConfig,

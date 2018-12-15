@@ -44,7 +44,7 @@ trait StreamScan extends CommonScan[CRow] with DataStreamRel {
 
     val inputType = input.getType
     val internalType = schema.typeInfo
-    val cRowType = CRowTypeInfo(internalType)
+    val cRowType =  CRowTypeInfo.of(internalType)
 
     val hasTimeIndicator = fieldIdxs.exists(f =>
       f == TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER ||
@@ -59,7 +59,7 @@ trait StreamScan extends CommonScan[CRow] with DataStreamRel {
       input.asInstanceOf[DataStream[Row]].map(new RichMapFunction[Row, CRow] {
         @transient private var outCRow: CRow = null
         override def open(parameters: Configuration): Unit = {
-          outCRow = new CRow(null, change = true)
+          outCRow = new CRow(null, true)
         }
 
         override def map(v: Row): CRow = {

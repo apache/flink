@@ -65,7 +65,7 @@ class HarnessTestBase {
     LONG_TYPE_INFO),
     Array("rowtime", "a", "b"))
 
-  protected val minMaxCRowType = new CRowTypeInfo(MinMaxRowType)
+  protected val minMaxCRowType = CRowTypeInfo.of(MinMaxRowType)
 
   protected val minMaxAggregates: Array[AggregateFunction[_, _]] =
     Array(new LongMinWithRetractAggFunction,

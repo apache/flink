@@ -123,7 +123,7 @@ object AggregateUtil {
         new RowTimeUnboundedRowsOver(
           genFunction,
           aggregationStateType,
-          CRowTypeInfo(inputTypeInfo),
+          CRowTypeInfo.of(inputTypeInfo),
           rowTimeIdx.get,
           queryConfig)
       } else {
@@ -131,7 +131,7 @@ object AggregateUtil {
         new RowTimeUnboundedRangeOver(
           genFunction,
           aggregationStateType,
-          CRowTypeInfo(inputTypeInfo),
+          CRowTypeInfo.of(inputTypeInfo),
           rowTimeIdx.get,
           queryConfig)
       }
@@ -247,7 +247,7 @@ object AggregateUtil {
         isStateBackedDataViews = true)
 
     val aggregationStateType: RowTypeInfo = new RowTypeInfo(accTypes: _*)
-    val inputRowType = CRowTypeInfo(inputTypeInfo)
+    val inputRowType =  CRowTypeInfo.of(inputTypeInfo)
 
     val forwardMapping = (0 until inputType.getFieldCount).toArray
     val aggMapping = aggregates.indices.map(x => x + inputType.getFieldCount).toArray

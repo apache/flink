@@ -141,7 +141,7 @@ class DataStreamSort(
     inputDS: DataStream[CRow],
     execCfg: ExecutionConfig): DataStream[CRow] = {
 
-   val returnTypeInfo = CRowTypeInfo(schema.typeInfo)
+   val returnTypeInfo =  CRowTypeInfo.of(schema.typeInfo)
     
     // if the order has secondary sorting fields in addition to the proctime
     if (sortCollation.getFieldCollations.size() > 1) {
@@ -173,7 +173,7 @@ class DataStreamSort(
     inputDS: DataStream[CRow],
     execCfg: ExecutionConfig): DataStream[CRow] = {
 
-    val returnTypeInfo = CRowTypeInfo(schema.typeInfo)
+    val returnTypeInfo = CRowTypeInfo.of(schema.typeInfo)
        
     val processFunction = SortUtil.createRowTimeSortFunction(
       sortCollation,

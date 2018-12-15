@@ -152,14 +152,14 @@ class DataStreamGroupWindowAggregate(
 
       inputDS
         .process(
-          new RowtimeProcessFunction(timeIdx, CRowTypeInfo(inputSchema.typeInfo)))
+          new RowtimeProcessFunction(timeIdx,  CRowTypeInfo.of(inputSchema.typeInfo)))
         .setParallelism(inputDS.getParallelism)
         .name(s"time attribute: ($timeAttribute)")
     } else {
       inputDS
     }
 
-    val outRowType = CRowTypeInfo(schema.typeInfo)
+    val outRowType =  CRowTypeInfo.of(schema.typeInfo)
 
     val aggString = aggregationToString(
       inputSchema.relDataType,

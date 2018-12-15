@@ -44,7 +44,7 @@ class TableEnvironmentValidationTest extends TableTestBase {
 
   val rowType = new RowTypeInfo(INT_TYPE_INFO, STRING_TYPE_INFO,DOUBLE_TYPE_INFO)
 
-  val cRowType = new CRowTypeInfo(rowType)
+  val cRowType = CRowTypeInfo.of(rowType)
 
   val caseClassType: TypeInformation[CClass] = implicitly[TypeInformation[CClass]]
 

@@ -120,7 +120,7 @@ class DataStreamJoin(
         joinTranslator.getRightKeySelector())
       .transform(
         joinOpName,
-        CRowTypeInfo(schema.typeInfo),
+        CRowTypeInfo.of(schema.typeInfo),
         joinOperator)
   }
 

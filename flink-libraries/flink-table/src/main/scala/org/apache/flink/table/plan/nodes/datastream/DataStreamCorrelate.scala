@@ -126,7 +126,7 @@ class DataStreamCorrelate(
       process.code,
       collector.name,
       collector.code,
-      CRowTypeInfo(process.returnType))
+      CRowTypeInfo.of(process.returnType))
 
     val inputParallelism = inputDS.getParallelism
 

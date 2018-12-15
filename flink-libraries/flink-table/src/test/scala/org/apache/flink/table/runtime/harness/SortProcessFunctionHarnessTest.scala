@@ -69,7 +69,7 @@ class SortProcessFunctionHarnessTest {
     
     val collectionRowComparator = new CollectionRowComparator(rowComp)
     
-    val inputCRowType = CRowTypeInfo(rT)
+    val inputCRowType = CRowTypeInfo.of(rT)
     
     val processFunction = new LegacyKeyedProcessOperator[Integer,CRow,CRow](
       new ProcTimeSortProcessFunction(
@@ -168,7 +168,7 @@ class SortProcessFunctionHarnessTest {
 
     val collectionRowComparator = new CollectionRowComparator(rowComp)
 
-    val inputCRowType = CRowTypeInfo(rT)
+    val inputCRowType = CRowTypeInfo.of(rT)
 
     val processFunction = new LegacyKeyedProcessOperator[Integer,CRow,CRow](
       new RowTimeSortProcessFunction(

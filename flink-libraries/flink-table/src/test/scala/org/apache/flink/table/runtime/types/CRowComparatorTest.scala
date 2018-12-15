@@ -34,7 +34,7 @@ class CRowComparatorTest extends ComparatorTestBase[CRow] {
     BasicTypeInfo.LONG_TYPE_INFO
   )
 
-  val cRowType = new CRowTypeInfo(rowType)
+  val cRowType = CRowTypeInfo.of(rowType)
 
   override protected def createComparator(asc: Boolean): TypeComparator[CRow] = {
     cRowType.createComparator(

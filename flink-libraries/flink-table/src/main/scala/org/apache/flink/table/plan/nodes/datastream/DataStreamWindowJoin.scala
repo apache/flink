@@ -128,7 +128,7 @@ class DataStreamWindowJoin(
     val leftKeys = joinInfo.leftKeys.toIntArray
     val rightKeys = joinInfo.rightKeys.toIntArray
     val relativeWindowSize = leftUpperBound - leftLowerBound
-    val returnTypeInfo = CRowTypeInfo(schema.typeInfo)
+    val returnTypeInfo =  CRowTypeInfo.of(schema.typeInfo)
 
     // generate join function
     val joinFunction =

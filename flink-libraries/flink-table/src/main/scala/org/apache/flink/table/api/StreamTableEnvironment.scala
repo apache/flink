@@ -917,7 +917,7 @@ abstract class StreamTableEnvironment(
           t
         }
       }
-      CRowTypeInfo(new RowTypeInfo(convFieldTypes, origRowType.getFieldNames))
+      CRowTypeInfo.of(new RowTypeInfo(convFieldTypes, origRowType.getFieldNames))
     } else {
       plan.getType
     }

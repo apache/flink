@@ -76,7 +76,7 @@ object SortUtil {
       None
     }
 
-    val inputCRowType = CRowTypeInfo(inputTypeInfo)
+    val inputCRowType =  CRowTypeInfo.of(inputTypeInfo)
  
     new RowTimeSortProcessFunction(
       inputCRowType,
@@ -106,7 +106,7 @@ object SortUtil {
 
     val collectionRowComparator = new CollectionRowComparator(rowComp)
     
-    val inputCRowType = CRowTypeInfo(inputTypeInfo)
+    val inputCRowType =  CRowTypeInfo.of(inputTypeInfo)
     
     new ProcTimeSortProcessFunction(
       inputCRowType,

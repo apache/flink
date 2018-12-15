@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.runtime.harness
 
-import java.lang.{Integer => JInt, Long => JLong}
+import java.lang.{Integer => JInt, Long => JLong, Boolean => JBoolean}
 import java.util.concurrent.ConcurrentLinkedQueue
 
 import org.apache.flink.api.common.time.Time
@@ -164,28 +164,28 @@ class JoinHarnessTest extends HarnessTestBase {
 
     testHarness.setProcessingTime(1)
     testHarness.processElement1(new StreamRecord(
-      CRow(1L: JLong, "1a1"), 1))
+      CRow.of(1L: JLong, "1a1"), 1))
     assertEquals(1, testHarness.numProcessingTimeTimers())
     testHarness.setProcessingTime(2)
     testHarness.processElement1(new StreamRecord(
-      CRow(2L: JLong, "2a2"), 2))
+      CRow.of(2L: JLong, "2a2"), 2))
 
     // timers for key = 1 and key = 2
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
     testHarness.setProcessingTime(3)
     testHarness.processElement1(new StreamRecord(
-      CRow(1L: JLong, "1a3"), 3))
+      CRow.of(1L: JLong, "1a3"), 3))
     assertEquals(4, testHarness.numKeyedStateEntries())
 
     // The number of timers won't increase.
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
     testHarness.processElement2(new StreamRecord(
-      CRow(1L: JLong, "1b3"), 3))
+      CRow.of(1L: JLong, "1b3"), 3))
     testHarness.setProcessingTime(4)
     testHarness.processElement2(new StreamRecord(
-      CRow(2L: JLong, "2b4"), 4))
+      CRow.of(2L: JLong, "2b4"), 4))
 
     // The number of states should be doubled.
     assertEquals(8, testHarness.numKeyedStateEntries())
@@ -195,38 +195,38 @@ class JoinHarnessTest extends HarnessTestBase {
     // The left row (key = 1) with timestamp = 1 will be eagerly removed here.
     testHarness.setProcessingTime(13)
     testHarness.processElement2(new StreamRecord(
-      CRow(1L: JLong, "1b13"), 13))
+      CRow.of(1L: JLong, "1b13"), 13))
 
     // Test for +20 boundary (13 + 20 = 33).
     testHarness.setProcessingTime(33)
     assertEquals(4, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
     testHarness.processElement1(new StreamRecord(
-      CRow(1L: JLong, "1a33"), 33))
+      CRow.of(1L: JLong, "1a33"), 33))
 
     testHarness.processElement1(new StreamRecord(
-      CRow(2L: JLong, "2a33"), 33))
+      CRow.of(2L: JLong, "2a33"), 33))
 
     // The left row (key = 2) with timestamp = 2 will be eagerly removed here.
     testHarness.processElement2(new StreamRecord(
-      CRow(2L: JLong, "2b33"), 33))
+      CRow.of(2L: JLong, "2b33"), 33))
 
     val result = testHarness.getOutput
 
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      CRow(1L: JLong, "1a1", 1L: JLong, "1b3"), 3))
+      CRow.of(1L: JLong, "1a1", 1L: JLong, "1b3"), 3))
     expectedOutput.add(new StreamRecord(
-      CRow(1L: JLong, "1a3", 1L: JLong, "1b3"), 3))
+      CRow.of(1L: JLong, "1a3", 1L: JLong, "1b3"), 3))
     expectedOutput.add(new StreamRecord(
-      CRow(2L: JLong, "2a2", 2L: JLong, "2b4"), 4))
+      CRow.of(2L: JLong, "2a2", 2L: JLong, "2b4"), 4))
     expectedOutput.add(new StreamRecord(
-      CRow(1L: JLong, "1a3", 1L: JLong, "1b13"), 13))
+      CRow.of(1L: JLong, "1a3", 1L: JLong, "1b13"), 13))
     expectedOutput.add(new StreamRecord(
-      CRow(1L: JLong, "1a33", 1L: JLong, "1b13"), 33))
+      CRow.of(1L: JLong, "1a33", 1L: JLong, "1b13"), 33))
     expectedOutput.add(new StreamRecord(
-      CRow(2L: JLong, "2a33", 2L: JLong, "2b33"), 33))
+      CRow.of(2L: JLong, "2a33", 2L: JLong, "2b33"), 33))
 
     verify(expectedOutput, result)
 
@@ -254,19 +254,19 @@ class JoinHarnessTest extends HarnessTestBase {
 
     testHarness.setProcessingTime(1)
     testHarness.processElement1(new StreamRecord(
-      CRow(1L: JLong, "1a1"), 1))
+      CRow.of(1L: JLong, "1a1"), 1))
     testHarness.setProcessingTime(2)
     testHarness.processElement1(new StreamRecord(
-      CRow(2L: JLong, "2a2"), 2))
+      CRow.of(2L: JLong, "2a2"), 2))
     testHarness.setProcessingTime(3)
     testHarness.processElement1(new StreamRecord(
-      CRow(1L: JLong, "1a3"), 3))
+      CRow.of(1L: JLong, "1a3"), 3))
     assertEquals(4, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
     // All the right rows will not be cached.
     testHarness.processElement2(new StreamRecord(
-      CRow(1L: JLong, "1b3"), 3))
+      CRow.of(1L: JLong, "1b3"), 3))
     assertEquals(4, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
@@ -275,14 +275,14 @@ class JoinHarnessTest extends HarnessTestBase {
     // Meets a.proctime <= b.proctime - 5.
     // This row will only be joined without being cached (7 >= 7 - 5).
     testHarness.processElement2(new StreamRecord(
-      CRow(2L: JLong, "2b7"), 7))
+      CRow.of(2L: JLong, "2b7"), 7))
     assertEquals(4, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
     testHarness.setProcessingTime(12)
     // The left row (key = 1) with timestamp = 1 will be eagerly removed here.
     testHarness.processElement2(new StreamRecord(
-      CRow(1L: JLong, "1b12"), 12))
+      CRow.of(1L: JLong, "1b12"), 12))
 
     // We add a delay (relativeWindowSize / 2) for cleaning up state.
     // No timers will be triggered here.
@@ -306,9 +306,9 @@ class JoinHarnessTest extends HarnessTestBase {
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      CRow(2L: JLong, "2a2", 2L: JLong, "2b7"), 7))
+      CRow.of(2L: JLong, "2a2", 2L: JLong, "2b7"), 7))
     expectedOutput.add(new StreamRecord(
-      CRow(1L: JLong, "1a3", 1L: JLong, "1b12"), 12))
+      CRow.of(1L: JLong, "1a3", 1L: JLong, "1b12"), 12))
 
     verify(expectedOutput, result)
 
@@ -341,24 +341,24 @@ class JoinHarnessTest extends HarnessTestBase {
 
     // Test late data.
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(1L: JLong, "k1"), 0))
+      CRow.of(1L: JLong, "k1"), 0))
 
     // Though (1L, "k1") is actually late, it will also be cached.
     assertEquals(1, testHarness.numEventTimeTimers())
 
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(2L: JLong, "k1"), 0))
+      CRow.of(2L: JLong, "k1"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(2L: JLong, "k1"), 0))
+      CRow.of(2L: JLong, "k1"), 0))
 
     assertEquals(2, testHarness.numEventTimeTimers())
     assertEquals(4, testHarness.numKeyedStateEntries())
 
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(5L: JLong, "k1"), 0))
+      CRow.of(5L: JLong, "k1"), 0))
 
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(15L: JLong, "k1"), 0))
+      CRow.of(15L: JLong, "k1"), 0))
 
     testHarness.processWatermark1(new Watermark(20))
     testHarness.processWatermark2(new Watermark(20))
@@ -366,7 +366,7 @@ class JoinHarnessTest extends HarnessTestBase {
     assertEquals(4, testHarness.numKeyedStateEntries())
 
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(35L: JLong, "k1"), 0))
+      CRow.of(35L: JLong, "k1"), 0))
 
     // The right rows with timestamp = 2 and 5 will be removed here.
     // The left rows with timestamp = 2 and 15 will be removed here.
@@ -374,9 +374,9 @@ class JoinHarnessTest extends HarnessTestBase {
     testHarness.processWatermark2(new Watermark(38))
 
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(40L: JLong, "k2"), 0))
+      CRow.of(40L: JLong, "k2"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(39L: JLong, "k2"), 0))
+      CRow.of(39L: JLong, "k2"), 0))
 
     assertEquals(6, testHarness.numKeyedStateEntries())
 
@@ -390,19 +390,19 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new Watermark(-19))
     // This result is produced by the late row (1, "k1").
     expectedOutput.add(new StreamRecord(
-      CRow(1L: JLong, "k1", 2L: JLong, "k1"), 0))
+      CRow.of(1L: JLong, "k1", 2L: JLong, "k1"), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(2L: JLong, "k1", 2L: JLong, "k1"), 0))
+      CRow.of(2L: JLong, "k1", 2L: JLong, "k1"), 0))
     expectedOutput.add(new StreamRecord(
-        CRow(5L: JLong, "k1", 2L: JLong, "k1"), 0))
+      CRow.of(5L: JLong, "k1", 2L: JLong, "k1"), 0))
     expectedOutput.add(new StreamRecord(
-        CRow(5L: JLong, "k1", 15L: JLong, "k1"), 0))
+      CRow.of(5L: JLong, "k1", 15L: JLong, "k1"), 0))
     expectedOutput.add(new Watermark(0))
     expectedOutput.add(new StreamRecord(
-        CRow(35L: JLong, "k1", 15L: JLong, "k1"), 0))
+      CRow.of(35L: JLong, "k1", 15L: JLong, "k1"), 0))
     expectedOutput.add(new Watermark(18))
     expectedOutput.add(new StreamRecord(
-        CRow(40L: JLong, "k2", 39L: JLong, "k2"), 0))
+      CRow.of(40L: JLong, "k2", 39L: JLong, "k2"), 0))
     expectedOutput.add(new Watermark(41))
 
     val result = testHarness.getOutput
@@ -436,7 +436,7 @@ class JoinHarnessTest extends HarnessTestBase {
 
     // This row will not be cached.
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(2L: JLong, "k1"), 0))
+      CRow.of(2L: JLong, "k1"), 0))
 
     assertEquals(0, testHarness.numKeyedStateEntries())
 
@@ -444,19 +444,19 @@ class JoinHarnessTest extends HarnessTestBase {
     testHarness.processWatermark2(new Watermark(2))
 
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(3L: JLong, "k1"), 0))
+      CRow.of(3L: JLong, "k1"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(3L: JLong, "k1"), 0))
+      CRow.of(3L: JLong, "k1"), 0))
 
     // Test for -10 boundary (13 - 10 = 3).
     // This row from the right stream will be cached.
     // The clean time for the left stream is 13 - 7 + 1 - 1 = 8
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(13L: JLong, "k1"), 0))
+      CRow.of(13L: JLong, "k1"), 0))
 
     // Test for -7 boundary (13 - 7 = 6).
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(6L: JLong, "k1"), 0))
+      CRow.of(6L: JLong, "k1"), 0))
 
     assertEquals(4, testHarness.numKeyedStateEntries())
 
@@ -477,9 +477,9 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new Watermark(-9))
     expectedOutput.add(new Watermark(-8))
     expectedOutput.add(new StreamRecord(
-      CRow(3L: JLong, "k1", 13L: JLong, "k1"), 0))
+      CRow.of(3L: JLong, "k1", 13L: JLong, "k1"), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(6L: JLong, "k1", 13L: JLong, "k1"), 0))
+      CRow.of(6L: JLong, "k1", 13L: JLong, "k1"), 0))
     expectedOutput.add(new Watermark(0))
     expectedOutput.add(new Watermark(8))
 
@@ -510,9 +510,9 @@ class JoinHarnessTest extends HarnessTestBase {
     testHarness.open()
 
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(1L: JLong, "k1"), 0))
+      CRow.of(1L: JLong, "k1"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(1L: JLong, "k2"), 0))
+      CRow.of(1L: JLong, "k2"), 0))
 
     assertEquals(2, testHarness.numEventTimeTimers())
     assertEquals(4, testHarness.numKeyedStateEntries())
@@ -532,9 +532,9 @@ class JoinHarnessTest extends HarnessTestBase {
     assertEquals(0, testHarness.numKeyedStateEntries())
 
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(2L: JLong, "k1"), 0))
+      CRow.of(2L: JLong, "k1"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(2L: JLong, "k2"), 0))
+      CRow.of(2L: JLong, "k2"), 0))
 
     // The late rows with timestamp = 2 will not be cached, but a null padding result for the left
     // row will be emitted.
@@ -543,26 +543,26 @@ class JoinHarnessTest extends HarnessTestBase {
 
     // Make sure the common (inner) join can be performed.
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(19L: JLong, "k1"), 0))
+      CRow.of(19L: JLong, "k1"), 0))
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(20L: JLong, "k1"), 0))
+      CRow.of(20L: JLong, "k1"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(26L: JLong, "k1"), 0))
+      CRow.of(26L: JLong, "k1"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(25L: JLong, "k1"), 0))
+      CRow.of(25L: JLong, "k1"), 0))
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(21L: JLong, "k1"), 0))
+      CRow.of(21L: JLong, "k1"), 0))
 
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(39L: JLong, "k2"), 0))
+      CRow.of(39L: JLong, "k2"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(40L: JLong, "k2"), 0))
+      CRow.of(40L: JLong, "k2"), 0))
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(50L: JLong, "k2"), 0))
+      CRow.of(50L: JLong, "k2"), 0))
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(49L: JLong, "k2"), 0))
+      CRow.of(49L: JLong, "k2"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(41L: JLong, "k2"), 0))
+      CRow.of(41L: JLong, "k2"), 0))
 
     testHarness.processWatermark1(new Watermark(100))
     testHarness.processWatermark2(new Watermark(100))
@@ -570,26 +570,26 @@ class JoinHarnessTest extends HarnessTestBase {
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
     // The timestamp 14 is set with the triggered timer.
     expectedOutput.add(new StreamRecord(
-      CRow(1L: JLong, "k1", null: JLong, null: String), 14))
+      CRow.of(1L: JLong, "k1", null: JLong, null: String), 14))
     expectedOutput.add(new Watermark(5))
     expectedOutput.add(new Watermark(9))
     expectedOutput.add(new StreamRecord(
-      CRow(2L: JLong, "k1", null: JLong, null: String), 0))
+      CRow.of(2L: JLong, "k1", null: JLong, null: String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(20L: JLong, "k1", 25L: JLong, "k1": String), 0))
+      CRow.of(20L: JLong, "k1", 25L: JLong, "k1": String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(21L: JLong, "k1", 25L: JLong, "k1": String), 0))
+      CRow.of(21L: JLong, "k1", 25L: JLong, "k1": String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(21L: JLong, "k1", 26L: JLong, "k1": String), 0))
+      CRow.of(21L: JLong, "k1", 26L: JLong, "k1": String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(49L: JLong, "k2", 40L: JLong, "k2": String), 0))
+      CRow.of(49L: JLong, "k2", 40L: JLong, "k2": String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(49L: JLong, "k2", 41L: JLong, "k2": String), 0))
+      CRow.of(49L: JLong, "k2", 41L: JLong, "k2": String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(50L: JLong, "k2", 41L: JLong, "k2": String), 0))
+      CRow.of(50L: JLong, "k2", 41L: JLong, "k2": String), 0))
     // The timestamp 32 is set with the triggered timer.
     expectedOutput.add(new StreamRecord(
-      CRow(19L: JLong, "k1", null: JLong, null: String), 32))
+      CRow.of(19L: JLong, "k1", null: JLong, null: String), 32))
     expectedOutput.add(new Watermark(91))
 
 
@@ -620,9 +620,9 @@ class JoinHarnessTest extends HarnessTestBase {
     testHarness.open()
 
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(1L: JLong, "k1"), 0))
+      CRow.of(1L: JLong, "k1"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(1L: JLong, "k2"), 0))
+      CRow.of(1L: JLong, "k2"), 0))
 
     assertEquals(2, testHarness.numEventTimeTimers())
     assertEquals(4, testHarness.numKeyedStateEntries())
@@ -642,9 +642,9 @@ class JoinHarnessTest extends HarnessTestBase {
     assertEquals(0, testHarness.numKeyedStateEntries())
 
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(2L: JLong, "k1"), 0))
+      CRow.of(2L: JLong, "k1"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(2L: JLong, "k2"), 0))
+      CRow.of(2L: JLong, "k2"), 0))
 
     // The late rows with timestamp = 2 will not be cached, but a null padding result for the right
     // row will be emitted.
@@ -653,26 +653,26 @@ class JoinHarnessTest extends HarnessTestBase {
 
     // Make sure the common (inner) join can be performed.
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(19L: JLong, "k1"), 0))
+      CRow.of(19L: JLong, "k1"), 0))
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(20L: JLong, "k1"), 0))
+      CRow.of(20L: JLong, "k1"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(26L: JLong, "k1"), 0))
+      CRow.of(26L: JLong, "k1"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(25L: JLong, "k1"), 0))
+      CRow.of(25L: JLong, "k1"), 0))
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(21L: JLong, "k1"), 0))
+      CRow.of(21L: JLong, "k1"), 0))
 
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(39L: JLong, "k2"), 0))
+      CRow.of(39L: JLong, "k2"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(40L: JLong, "k2"), 0))
+      CRow.of(40L: JLong, "k2"), 0))
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(50L: JLong, "k2"), 0))
+      CRow.of(50L: JLong, "k2"), 0))
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(49L: JLong, "k2"), 0))
+      CRow.of(49L: JLong, "k2"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(41L: JLong, "k2"), 0))
+      CRow.of(41L: JLong, "k2"), 0))
 
     testHarness.processWatermark1(new Watermark(100))
     testHarness.processWatermark2(new Watermark(100))
@@ -681,25 +681,25 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new Watermark(5))
     // The timestamp 18 is set with the triggered timer.
     expectedOutput.add(new StreamRecord(
-      CRow(null: JLong, null: String, 1L: JLong, "k2": String), 18))
+      CRow.of(null: JLong, null: String, 1L: JLong, "k2": String), 18))
     expectedOutput.add(new Watermark(9))
     expectedOutput.add(new StreamRecord(
-      CRow(null: JLong, null: String, 2L: JLong, "k2": String), 0))
+      CRow.of(null: JLong, null: String, 2L: JLong, "k2": String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(20L: JLong, "k1", 25L: JLong, "k1": String), 0))
+      CRow.of(20L: JLong, "k1", 25L: JLong, "k1": String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(21L: JLong, "k1", 25L: JLong, "k1": String), 0))
+      CRow.of(21L: JLong, "k1", 25L: JLong, "k1": String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(21L: JLong, "k1", 26L: JLong, "k1": String), 0))
+      CRow.of(21L: JLong, "k1", 26L: JLong, "k1": String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(49L: JLong, "k2", 40L: JLong, "k2": String), 0))
+      CRow.of(49L: JLong, "k2", 40L: JLong, "k2": String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(49L: JLong, "k2", 41L: JLong, "k2": String), 0))
+      CRow.of(49L: JLong, "k2", 41L: JLong, "k2": String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(50L: JLong, "k2", 41L: JLong, "k2": String), 0))
+      CRow.of(50L: JLong, "k2", 41L: JLong, "k2": String), 0))
     // The timestamp 56 is set with the triggered timer.
     expectedOutput.add(new StreamRecord(
-      CRow(null: JLong, null: String, 39L: JLong, "k2": String), 56))
+      CRow.of(null: JLong, null: String, 39L: JLong, "k2": String), 56))
     expectedOutput.add(new Watermark(91))
 
     val result = testHarness.getOutput
@@ -729,9 +729,9 @@ class JoinHarnessTest extends HarnessTestBase {
     testHarness.open()
 
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(1L: JLong, "k1"), 0))
+      CRow.of(1L: JLong, "k1"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(1L: JLong, "k2"), 0))
+      CRow.of(1L: JLong, "k2"), 0))
 
     assertEquals(2, testHarness.numEventTimeTimers())
     assertEquals(4, testHarness.numKeyedStateEntries())
@@ -751,9 +751,9 @@ class JoinHarnessTest extends HarnessTestBase {
     assertEquals(0, testHarness.numKeyedStateEntries())
 
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(2L: JLong, "k1"), 0))
+      CRow.of(2L: JLong, "k1"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(2L: JLong, "k2"), 0))
+      CRow.of(2L: JLong, "k2"), 0))
 
     // The late rows with timestamp = 2 will not be cached, but a null padding result for the right
     // row will be emitted.
@@ -762,26 +762,26 @@ class JoinHarnessTest extends HarnessTestBase {
 
     // Make sure the common (inner) join can be performed.
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(19L: JLong, "k1"), 0))
+      CRow.of(19L: JLong, "k1"), 0))
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(20L: JLong, "k1"), 0))
+      CRow.of(20L: JLong, "k1"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(26L: JLong, "k1"), 0))
+      CRow.of(26L: JLong, "k1"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(25L: JLong, "k1"), 0))
+      CRow.of(25L: JLong, "k1"), 0))
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(21L: JLong, "k1"), 0))
+      CRow.of(21L: JLong, "k1"), 0))
 
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(39L: JLong, "k2"), 0))
+      CRow.of(39L: JLong, "k2"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(40L: JLong, "k2"), 0))
+      CRow.of(40L: JLong, "k2"), 0))
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(50L: JLong, "k2"), 0))
+      CRow.of(50L: JLong, "k2"), 0))
     testHarness.processElement1(new StreamRecord[CRow](
-      CRow(49L: JLong, "k2"), 0))
+      CRow.of(49L: JLong, "k2"), 0))
     testHarness.processElement2(new StreamRecord[CRow](
-      CRow(41L: JLong, "k2"), 0))
+      CRow.of(41L: JLong, "k2"), 0))
 
     testHarness.processWatermark1(new Watermark(100))
     testHarness.processWatermark2(new Watermark(100))
@@ -789,34 +789,34 @@ class JoinHarnessTest extends HarnessTestBase {
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
     // The timestamp 14 is set with the triggered timer.
     expectedOutput.add(new StreamRecord(
-      CRow(1L: JLong, "k1", null: JLong, null: String), 14))
+      CRow.of(1L: JLong, "k1", null: JLong, null: String), 14))
     expectedOutput.add(new Watermark(5))
     // The timestamp 18 is set with the triggered timer.
     expectedOutput.add(new StreamRecord(
-      CRow(null: JLong, null: String, 1L: JLong, "k2": String), 18))
+      CRow.of(null: JLong, null: String, 1L: JLong, "k2": String), 18))
     expectedOutput.add(new Watermark(9))
     expectedOutput.add(new StreamRecord(
-      CRow(2L: JLong, "k1", null: JLong, null: String), 0))
+      CRow.of(2L: JLong, "k1", null: JLong, null: String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(null: JLong, null: String, 2L: JLong, "k2": String), 0))
+      CRow.of(null: JLong, null: String, 2L: JLong, "k2": String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(20L: JLong, "k1", 25L: JLong, "k1": String), 0))
+      CRow.of(20L: JLong, "k1", 25L: JLong, "k1": String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(21L: JLong, "k1", 25L: JLong, "k1": String), 0))
+      CRow.of(21L: JLong, "k1", 25L: JLong, "k1": String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(21L: JLong, "k1", 26L: JLong, "k1": String), 0))
+      CRow.of(21L: JLong, "k1", 26L: JLong, "k1": String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(49L: JLong, "k2", 40L: JLong, "k2": String), 0))
+      CRow.of(49L: JLong, "k2", 40L: JLong, "k2": String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(49L: JLong, "k2", 41L: JLong, "k2": String), 0))
+      CRow.of(49L: JLong, "k2", 41L: JLong, "k2": String), 0))
     expectedOutput.add(new StreamRecord(
-      CRow(50L: JLong, "k2", 41L: JLong, "k2": String), 0))
+      CRow.of(50L: JLong, "k2", 41L: JLong, "k2": String), 0))
     // The timestamp 32 is set with the triggered timer.
     expectedOutput.add(new StreamRecord(
-      CRow(19L: JLong, "k1", null: JLong, null: String), 32))
+      CRow.of(19L: JLong, "k1", null: JLong, null: String), 32))
     // The timestamp 56 is set with the triggered timer.
     expectedOutput.add(new StreamRecord(
-      CRow(null: JLong, null: String, 39L: JLong, "k2": String), 56))
+      CRow.of(null: JLong, null: String, 39L: JLong, "k2": String), 56))
     expectedOutput.add(new Watermark(91))
 
     val result = testHarness.getOutput
@@ -849,31 +849,31 @@ class JoinHarnessTest extends HarnessTestBase {
     // left stream input
     testHarness.setProcessingTime(1)
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "aaa")))
+      CRow.of(1: JInt, "aaa")))
     assertEquals(1, testHarness.numProcessingTimeTimers())
     assertEquals(2, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(2)
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "aaa")))
+      CRow.of(1: JInt, "aaa")))
     testHarness.processElement1(new StreamRecord(
-      CRow(2: JInt, "bbb")))
+      CRow.of(2: JInt, "bbb")))
     assertEquals(2, testHarness.numProcessingTimeTimers())
     assertEquals(4, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(3)
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "aaa")))
+      CRow.of(1: JInt, "aaa")))
     assertEquals(4, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
     // right stream input and output normally
     testHarness.processElement2(new StreamRecord(
-      CRow(1: JInt, "Hi1")))
+      CRow.of(1: JInt, "Hi1")))
     // lkeys(1, 2) rkeys(1) timer_key_time(1:5, 2:6)
     assertEquals(5, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
     testHarness.setProcessingTime(4)
     testHarness.processElement2(new StreamRecord(
-      CRow(2: JInt, "Hello1")))
+      CRow.of(2: JInt, "Hello1")))
     // lkeys(1, 2) rkeys(1, 2) timer_key_time(1:5, 2:6)
     assertEquals(6, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
@@ -881,7 +881,7 @@ class JoinHarnessTest extends HarnessTestBase {
     // expired stream record with key value of 1
     testHarness.setProcessingTime(5)
     testHarness.processElement2(new StreamRecord(
-      CRow(1: JInt, "Hi2")))
+      CRow.of(1: JInt, "Hi2")))
     // lkeys(2) rkeys(1, 2) timer_key_time(1:9, 2:6)
     assertEquals(5, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
@@ -902,13 +902,13 @@ class JoinHarnessTest extends HarnessTestBase {
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "aaa", 1: JInt, "Hi1")))
+      CRow.of(1: JInt, "aaa", 1: JInt, "Hi1")))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "aaa", 1: JInt, "Hi1")))
+      CRow.of(1: JInt, "aaa", 1: JInt, "Hi1")))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "aaa", 1: JInt, "Hi1")))
+      CRow.of(1: JInt, "aaa", 1: JInt, "Hi1")))
     expectedOutput.add(new StreamRecord(
-      CRow(2: JInt, "bbb", 2: JInt, "Hello1")))
+      CRow.of(2: JInt, "bbb", 2: JInt, "Hello1")))
 
     verify(expectedOutput, result)
 
@@ -940,46 +940,46 @@ class JoinHarnessTest extends HarnessTestBase {
     // left stream input
     testHarness.setProcessingTime(1)
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "aaa")))
+      CRow.of(1: JInt, "aaa")))
     assertEquals(1, testHarness.numProcessingTimeTimers())
     assertEquals(2, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(2)
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "aaa")))
+      CRow.of(1: JInt, "aaa")))
     testHarness.processElement1(new StreamRecord(
-      CRow(2: JInt, "bbb")))
+      CRow.of(2: JInt, "bbb")))
     assertEquals(2, testHarness.numProcessingTimeTimers())
     assertEquals(4, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(3)
     testHarness.processElement1(new StreamRecord(
-      CRow(false, 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, 1: JInt, "aaa")))
     assertEquals(4, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
     // right stream input and output normally
     testHarness.processElement2(new StreamRecord(
-      CRow(1: JInt, "Hi1")))
+      CRow.of(1: JInt, "Hi1")))
     testHarness.processElement2(new StreamRecord(
-      CRow(false, 1: JInt, "Hi1")))
+      CRow.of(false: JBoolean, 1: JInt, "Hi1")))
     // lkeys(1, 2) rkeys() timer_key_time(1:5, 2:6)
     assertEquals(4, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
     testHarness.setProcessingTime(4)
     testHarness.processElement2(new StreamRecord(
-      CRow(2: JInt, "Hello1")))
+      CRow.of(2: JInt, "Hello1")))
     // lkeys(1, 2) rkeys(2) timer_key_time(1:5, 2:6)
     assertEquals(5, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
     testHarness.processElement1(new StreamRecord(
-      CRow(false, 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, 1: JInt, "aaa")))
     // expired stream records with key value of 1
     testHarness.setProcessingTime(5)
     // lkeys(2) rkeys(2) timer_key_time(2:6)
     testHarness.processElement2(new StreamRecord(
-      CRow(1: JInt, "Hi2")))
+      CRow.of(1: JInt, "Hi2")))
     testHarness.processElement2(new StreamRecord(
-      CRow(false, 1: JInt, "Hi2")))
+      CRow.of(false: JBoolean, 1: JInt, "Hi2")))
     // lkeys(2) rkeys(2) timer_key_time(1:9, 2:6)
     assertEquals(4, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
@@ -1000,11 +1000,11 @@ class JoinHarnessTest extends HarnessTestBase {
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "aaa", 1: JInt, "Hi1")))
+      CRow.of(1: JInt, "aaa", 1: JInt, "Hi1")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "aaa", 1: JInt, "Hi1")))
+      CRow.of(false: JBoolean, 1: JInt, "aaa", 1: JInt, "Hi1")))
     expectedOutput.add(new StreamRecord(
-      CRow(2: JInt, "bbb", 2: JInt, "Hello1")))
+      CRow.of(2: JInt, "bbb", 2: JInt, "Hello1")))
 
     verify(expectedOutput, result)
 
@@ -1037,45 +1037,45 @@ class JoinHarnessTest extends HarnessTestBase {
     // left stream input
     testHarness.setProcessingTime(1)
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "aaa")))
+      CRow.of(1: JInt, "aaa")))
     assertEquals(1, testHarness.numProcessingTimeTimers())
     assertEquals(2, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(2)
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "aaa")))
+      CRow.of(1: JInt, "aaa")))
     testHarness.processElement1(new StreamRecord(
-      CRow(2: JInt, "bbb")))
+      CRow.of(2: JInt, "bbb")))
     assertEquals(2, testHarness.numProcessingTimeTimers())
     assertEquals(4, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(3)
     testHarness.processElement1(new StreamRecord(
-      CRow(false, 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, 1: JInt, "aaa")))
     assertEquals(4, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
     // right stream input and output normally
     testHarness.processElement2(new StreamRecord(
-      CRow(1: JInt, "Hi1")))
+      CRow.of(1: JInt, "Hi1")))
     testHarness.processElement2(new StreamRecord(
-      CRow(false, 1: JInt, "Hi1")))
+      CRow.of(false: JBoolean, 1: JInt, "Hi1")))
     // lkeys(1, 2) rkeys() timer_key_time(1:5, 2:6)
     assertEquals(4, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
     testHarness.setProcessingTime(4)
     testHarness.processElement2(new StreamRecord(
-      CRow(2: JInt, "Hello1")))
+      CRow.of(2: JInt, "Hello1")))
     // lkeys(1, 2) rkeys(2) timer_key_time(1:5, 2:6)
     assertEquals(5, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
     testHarness.processElement1(new StreamRecord(
-      CRow(false, 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, 1: JInt, "aaa")))
     // expired stream records with key value of 1
     testHarness.setProcessingTime(5)
     testHarness.processElement2(new StreamRecord(
-      CRow(1: JInt, "Hi2")))
+      CRow.of(1: JInt, "Hi2")))
     testHarness.processElement2(new StreamRecord(
-      CRow(false, 1: JInt, "Hi2")))
+      CRow.of(false: JBoolean, 1: JInt, "Hi2")))
     // lkeys(2) rkeys(2) timer_key_time(1:9, 2:6)
     assertEquals(4, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
@@ -1096,27 +1096,27 @@ class JoinHarnessTest extends HarnessTestBase {
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "aaa", null: JInt, null)))
+      CRow.of(1: JInt, "aaa", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "aaa", null: JInt, null)))
+      CRow.of(1: JInt, "aaa", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(2: JInt, "bbb", null: JInt, null)))
+      CRow.of(2: JInt, "bbb", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "aaa", null: JInt, null)))
+      CRow.of(false: JBoolean, 1: JInt, "aaa", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "aaa", null: JInt, null)))
+      CRow.of(false: JBoolean, 1: JInt, "aaa", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "aaa", 1: JInt, "Hi1")))
+      CRow.of(1: JInt, "aaa", 1: JInt, "Hi1")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "aaa", 1: JInt, "Hi1")))
+      CRow.of(false: JBoolean, 1: JInt, "aaa", 1: JInt, "Hi1")))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "aaa", null: JInt, null)))
+      CRow.of(1: JInt, "aaa", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 2: JInt, "bbb", null: JInt, null)))
+      CRow.of(false: JBoolean, 2: JInt, "bbb", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(2: JInt, "bbb", 2: JInt, "Hello1")))
+      CRow.of(2: JInt, "bbb", 2: JInt, "Hello1")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "aaa", null: JInt, null)))
+      CRow.of(false: JBoolean, 1: JInt, "aaa", null: JInt, null)))
 
     verify(expectedOutput, result)
 
@@ -1149,19 +1149,19 @@ class JoinHarnessTest extends HarnessTestBase {
     // left stream input
     testHarness.setProcessingTime(1)
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "aaa")))
+      CRow.of(1: JInt, "aaa")))
     testHarness.processElement1(new StreamRecord(
-      CRow(false, 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, 1: JInt, "aaa")))
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "bbb")))
+      CRow.of(1: JInt, "bbb")))
     assertEquals(1, testHarness.numProcessingTimeTimers())
     // lkeys(1) rkeys() timer_key_time(1:5)
     assertEquals(3, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(2)
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "aaa")))
+      CRow.of(1: JInt, "aaa")))
     testHarness.processElement1(new StreamRecord(
-      CRow(2: JInt, "bbb")))
+      CRow.of(2: JInt, "bbb")))
     assertEquals(2, testHarness.numProcessingTimeTimers())
     // lkeys(1, 2) rkeys() timer_key_time(1:5, 2:6)
     // l_join_cnt_keys(1, 2)
@@ -1170,41 +1170,41 @@ class JoinHarnessTest extends HarnessTestBase {
 
     // right stream input and output normally
     testHarness.processElement2(new StreamRecord(
-      CRow(1: JInt, "Hi1")))
+      CRow.of(1: JInt, "Hi1")))
     testHarness.processElement2(new StreamRecord(
-      CRow(false, 1: JInt, "bbb")))
+      CRow.of(false: JBoolean, 1: JInt, "bbb")))
     // lkeys(1, 2) rkeys(1) timer_key_time(1:5, 2:6)
     // l_join_cnt_keys(1, 2)
     assertEquals(7, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
     testHarness.setProcessingTime(4)
     testHarness.processElement2(new StreamRecord(
-      CRow(2: JInt, "ccc")))
+      CRow.of(2: JInt, "ccc")))
     testHarness.processElement2(new StreamRecord(
-      CRow(2: JInt, "Hello")))
+      CRow.of(2: JInt, "Hello")))
     // lkeys(1, 2) rkeys(1, 2) timer_key_time(1:5, 2:6)
     // l_join_cnt_keys(1, 2)
     assertEquals(8, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
     testHarness.processElement1(new StreamRecord(
-      CRow(false, 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, 1: JInt, "aaa")))
     testHarness.processElement2(new StreamRecord(
-      CRow(1: JInt, "Hi2")))
+      CRow.of(1: JInt, "Hi2")))
     testHarness.processElement2(new StreamRecord(
-      CRow(false, 1: JInt, "Hi2")))
+      CRow.of(false: JBoolean, 1: JInt, "Hi2")))
     testHarness.processElement2(new StreamRecord(
-      CRow(false, 1: JInt, "Hi1")))
+      CRow.of(false: JBoolean, 1: JInt, "Hi1")))
     // lkeys(1, 2) rkeys(2) timer_key_time(1:8, 2:6)
     // l_join_cnt_keys(1, 2)
     assertEquals(7, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(5)
     // [1]. this will clean up left stream records with expired time of 5
     testHarness.processElement2(new StreamRecord(
-      CRow(1: JInt, "Hi3")))
+      CRow.of(1: JInt, "Hi3")))
     // [2]. there are no elements can be connected, since be cleaned by [1]
     testHarness.processElement2(new StreamRecord(
-      CRow(false, 1: JInt, "Hi3")))
+      CRow.of(false: JBoolean, 1: JInt, "Hi3")))
     // lkeys(1, 2) rkeys(2) timer_key_time(1:8, 2:6)
     // l_join_cnt_keys(1, 2)
     assertEquals(7, testHarness.numKeyedStateEntries())
@@ -1227,43 +1227,43 @@ class JoinHarnessTest extends HarnessTestBase {
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "aaa", null: JInt, null)))
+      CRow.of(1: JInt, "aaa", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "aaa", null: JInt, null)))
+      CRow.of(false: JBoolean, 1: JInt, "aaa", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "bbb", null: JInt, null)))
+      CRow.of(1: JInt, "bbb", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "aaa", null: JInt, null)))
+      CRow.of(1: JInt, "aaa", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(2: JInt, "bbb", null: JInt, null)))
+      CRow.of(2: JInt, "bbb", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "bbb", null: JInt, null)))
+      CRow.of(false: JBoolean, 1: JInt, "bbb", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "aaa", null: JInt, null)))
+      CRow.of(false: JBoolean, 1: JInt, "aaa", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "aaa", 1: JInt, "Hi1")))
+      CRow.of(1: JInt, "aaa", 1: JInt, "Hi1")))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "bbb", 1: JInt, "Hi1")))
+      CRow.of(1: JInt, "bbb", 1: JInt, "Hi1")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 2: JInt, "bbb", null: JInt, null)))
+      CRow.of(false: JBoolean, 2: JInt, "bbb", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(2: JInt, "bbb", 2: JInt, "Hello")))
+      CRow.of(2: JInt, "bbb", 2: JInt, "Hello")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "aaa", 1: JInt, "Hi1")))
+      CRow.of(false: JBoolean, 1: JInt, "aaa", 1: JInt, "Hi1")))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "bbb", 1: JInt, "Hi2")))
+      CRow.of(1: JInt, "bbb", 1: JInt, "Hi2")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "bbb", 1: JInt, "Hi2")))
+      CRow.of(false: JBoolean, 1: JInt, "bbb", 1: JInt, "Hi2")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "bbb", 1: JInt, "Hi1")))
+      CRow.of(false: JBoolean, 1: JInt, "bbb", 1: JInt, "Hi1")))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "bbb", null: JInt, null)))
+      CRow.of(1: JInt, "bbb", null: JInt, null)))
     // processing time of 5
     // timer of 8, we use only one timer state now
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "bbb", null: JInt, null)))
+      CRow.of(false: JBoolean, 1: JInt, "bbb", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "bbb", 1: JInt, "Hi3")))
+      CRow.of(1: JInt, "bbb", 1: JInt, "Hi3")))
     verify(expectedOutput, result)
 
     testHarness.close()
@@ -1277,7 +1277,7 @@ class JoinHarnessTest extends HarnessTestBase {
       rowType,
       "TestJoinFunction",
       funcCode,
-      false,
+      false: JBoolean,
       queryConfig)
 
     val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
@@ -1295,45 +1295,45 @@ class JoinHarnessTest extends HarnessTestBase {
     // right stream input
     testHarness.setProcessingTime(1)
     testHarness.processElement2(new StreamRecord(
-      CRow(1: JInt, "aaa")))
+      CRow.of(1: JInt, "aaa")))
     assertEquals(1, testHarness.numProcessingTimeTimers())
     assertEquals(2, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(2)
     testHarness.processElement2(new StreamRecord(
-      CRow(1: JInt, "aaa")))
+      CRow.of(1: JInt, "aaa")))
     testHarness.processElement2(new StreamRecord(
-      CRow(2: JInt, "bbb")))
+      CRow.of(2: JInt, "bbb")))
     assertEquals(2, testHarness.numProcessingTimeTimers())
     assertEquals(4, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(3)
     testHarness.processElement2(new StreamRecord(
-      CRow(false, 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, 1: JInt, "aaa")))
     assertEquals(4, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
     // left stream input and output normally
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "Hi1")))
+      CRow.of(1: JInt, "Hi1")))
     testHarness.processElement1(new StreamRecord(
-      CRow(false, 1: JInt, "Hi1")))
+      CRow.of(false: JBoolean, 1: JInt, "Hi1")))
     // lkeys() rkeys(1, 2) timer_key_time(1:5, 2:6)
     assertEquals(4, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
     testHarness.setProcessingTime(4)
     testHarness.processElement1(new StreamRecord(
-      CRow(2: JInt, "Hello1")))
+      CRow.of(2: JInt, "Hello1")))
     // lkeys(2) rkeys(1, 2) timer_key_time(1:5, 2:6)
     assertEquals(5, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
     testHarness.processElement2(new StreamRecord(
-      CRow(false, 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, 1: JInt, "aaa")))
     // expired stream records with key value of 1
     testHarness.setProcessingTime(5)
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "Hi2")))
+      CRow.of(1: JInt, "Hi2")))
     testHarness.processElement1(new StreamRecord(
-      CRow(false, 1: JInt, "Hi2")))
+      CRow.of(false: JBoolean, 1: JInt, "Hi2")))
     // lkeys(2) rkeys(2) timer_key_time(1:9, 2:6)
     assertEquals(4, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
@@ -1354,27 +1354,27 @@ class JoinHarnessTest extends HarnessTestBase {
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 1: JInt, "aaa")))
+      CRow.of(null: JInt, null, 1: JInt, "aaa")))
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 1: JInt, "aaa")))
+      CRow.of(null: JInt, null, 1: JInt, "aaa")))
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 2: JInt, "bbb")))
+      CRow.of(null: JInt, null, 2: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, null: JInt, null, 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, null: JInt, null, 1: JInt, "aaa")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, null: JInt, null, 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, null: JInt, null, 1: JInt, "aaa")))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "Hi1", 1: JInt, "aaa")))
+      CRow.of(1: JInt, "Hi1", 1: JInt, "aaa")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "Hi1", 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, 1: JInt, "Hi1", 1: JInt, "aaa")))
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 1: JInt, "aaa")))
+      CRow.of(null: JInt, null, 1: JInt, "aaa")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, null: JInt, null, 2: JInt, "bbb")))
+      CRow.of(false: JBoolean, null: JInt, null, 2: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(2: JInt, "Hello1", 2: JInt, "bbb")))
+      CRow.of(2: JInt, "Hello1", 2: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, null: JInt, null, 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, null: JInt, null, 1: JInt, "aaa")))
 
     verify(expectedOutput, result)
 
@@ -1389,7 +1389,7 @@ class JoinHarnessTest extends HarnessTestBase {
       rowType,
       "TestJoinFunction",
       funcCodeWithNonEqualPred2,
-      false,
+      false: JBoolean,
       queryConfig)
 
     val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
@@ -1407,20 +1407,20 @@ class JoinHarnessTest extends HarnessTestBase {
     // right stream input
     testHarness.setProcessingTime(1)
     testHarness.processElement2(new StreamRecord(
-      CRow(1: JInt, "aaa")))
+      CRow.of(1: JInt, "aaa")))
     testHarness.processElement2(new StreamRecord(
-      CRow(false, 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, 1: JInt, "aaa")))
     testHarness.processElement2(new StreamRecord(
-      CRow(1: JInt, "bbb")))
+      CRow.of(1: JInt, "bbb")))
     assertEquals(1, testHarness.numProcessingTimeTimers())
     // lkeys() rkeys(1) timer_key_time(1:5)
     // r_join_cnt_keys(1)
     assertEquals(3, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(2)
     testHarness.processElement2(new StreamRecord(
-      CRow(1: JInt, "aaa")))
+      CRow.of(1: JInt, "aaa")))
     testHarness.processElement2(new StreamRecord(
-      CRow(2: JInt, "bbb")))
+      CRow.of(2: JInt, "bbb")))
     // lkeys() rkeys(1, 2) timer_key_time(1:5, 2:6)
     // r_join_cnt_keys(1, 2)
     assertEquals(2, testHarness.numProcessingTimeTimers())
@@ -1429,39 +1429,39 @@ class JoinHarnessTest extends HarnessTestBase {
 
     // left stream input and output normally
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "Hi1")))
+      CRow.of(1: JInt, "Hi1")))
     testHarness.processElement1(new StreamRecord(
-      CRow(false, 1: JInt, "bbb")))
+      CRow.of(false: JBoolean, 1: JInt, "bbb")))
     // lkeys(1) rkeys(1, 2) timer_key_time(1:5, 2:6)
     // r_join_cnt_keys(1, 2)
     assertEquals(7, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
     testHarness.setProcessingTime(4)
     testHarness.processElement1(new StreamRecord(
-      CRow(2: JInt, "ccc")))
+      CRow.of(2: JInt, "ccc")))
     testHarness.processElement1(new StreamRecord(
-      CRow(2: JInt, "Hello")))
+      CRow.of(2: JInt, "Hello")))
     // lkeys(1, 2) rkeys(1, 2) timer_key_time(1:5, 2:6)
     // r_join_cnt_keys(1, 2)
     assertEquals(8, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
     testHarness.processElement2(new StreamRecord(
-      CRow(false, 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, 1: JInt, "aaa")))
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "Hi2")))
+      CRow.of(1: JInt, "Hi2")))
     testHarness.processElement1(new StreamRecord(
-      CRow(false, 1: JInt, "Hi2")))
+      CRow.of(false: JBoolean, 1: JInt, "Hi2")))
     testHarness.processElement1(new StreamRecord(
-      CRow(false, 1: JInt, "Hi1")))
+      CRow.of(false: JBoolean, 1: JInt, "Hi1")))
     // lkeys(2) rkeys(1, 2) timer_key_time(1:8, 2:6)
     // r_join_cnt_keys(1, 2)
     assertEquals(7, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(5)
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "Hi3")))
+      CRow.of(1: JInt, "Hi3")))
     testHarness.processElement1(new StreamRecord(
-      CRow(false, 1: JInt, "Hi3")))
+      CRow.of(false: JBoolean, 1: JInt, "Hi3")))
     // lkeys(2) rkeys(1, 2) timer_key_time(1:8, 2:6)
     // r_join_cnt_keys(1, 2)
     assertEquals(7, testHarness.numKeyedStateEntries())
@@ -1484,43 +1484,43 @@ class JoinHarnessTest extends HarnessTestBase {
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 1: JInt, "aaa")))
+      CRow.of(null: JInt, null, 1: JInt, "aaa")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, null: JInt, null, 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, null: JInt, null, 1: JInt, "aaa")))
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 1: JInt, "bbb")))
+      CRow.of(null: JInt, null, 1: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 1: JInt, "aaa")))
+      CRow.of(null: JInt, null, 1: JInt, "aaa")))
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 2: JInt, "bbb")))
+      CRow.of(null: JInt, null, 2: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, null: JInt, null, 1: JInt, "bbb")))
+      CRow.of(false: JBoolean, null: JInt, null, 1: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, null: JInt, null, 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, null: JInt, null, 1: JInt, "aaa")))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "Hi1", 1: JInt, "aaa")))
+      CRow.of(1: JInt, "Hi1", 1: JInt, "aaa")))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "Hi1", 1: JInt, "bbb")))
+      CRow.of(1: JInt, "Hi1", 1: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, null: JInt, null, 2: JInt, "bbb")))
+      CRow.of(false: JBoolean, null: JInt, null, 2: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(2: JInt, "Hello", 2: JInt, "bbb")))
+      CRow.of(2: JInt, "Hello", 2: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "Hi1", 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, 1: JInt, "Hi1", 1: JInt, "aaa")))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "Hi2", 1: JInt, "bbb")))
+      CRow.of(1: JInt, "Hi2", 1: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "Hi2", 1: JInt, "bbb")))
+      CRow.of(false: JBoolean, 1: JInt, "Hi2", 1: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "Hi1", 1: JInt, "bbb")))
+      CRow.of(false: JBoolean, 1: JInt, "Hi1", 1: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 1: JInt, "bbb")))
+      CRow.of(null: JInt, null, 1: JInt, "bbb")))
     // processing time of 5
     // timer of 8, we use only one timer state now
     expectedOutput.add(new StreamRecord(
-      CRow(false, null: JInt, null, 1: JInt, "bbb")))
+      CRow.of(false: JBoolean, null: JInt, null, 1: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "Hi3", 1: JInt, "bbb")))
+      CRow.of(1: JInt, "Hi3", 1: JInt, "bbb")))
     verify(expectedOutput, result)
 
     testHarness.close()
@@ -1551,47 +1551,47 @@ class JoinHarnessTest extends HarnessTestBase {
     // left stream input
     testHarness.setProcessingTime(1)
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "bbb")))
+      CRow.of(1: JInt, "bbb")))
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "ccc")))
+      CRow.of(1: JInt, "ccc")))
     // lkeys(1) rkeys() timer_key_time(1:5)
     assertEquals(1, testHarness.numProcessingTimeTimers())
     assertEquals(2, testHarness.numKeyedStateEntries())
 
     testHarness.setProcessingTime(2)
     testHarness.processElement2(new StreamRecord(
-      CRow(2: JInt, "bbb")))
+      CRow.of(2: JInt, "bbb")))
     testHarness.processElement2(new StreamRecord(
-      CRow(2: JInt, "ccc")))
+      CRow.of(2: JInt, "ccc")))
     assertEquals(2, testHarness.numProcessingTimeTimers())
     // lkeys(1) rkeys(2) timer_key_time(1:5, 2:6)
     assertEquals(4, testHarness.numKeyedStateEntries())
 
     testHarness.setProcessingTime(3)
     testHarness.processElement1(new StreamRecord(
-      CRow(2: JInt, "aaa")))
+      CRow.of(2: JInt, "aaa")))
     testHarness.processElement1(new StreamRecord(
-      CRow(2: JInt, "ddd")))
+      CRow.of(2: JInt, "ddd")))
     // lkeys(1, 2) rkeys(2) timer_key_time(1:5, 2:6)
     assertEquals(2, testHarness.numProcessingTimeTimers())
     assertEquals(5, testHarness.numKeyedStateEntries())
     testHarness.processElement2(new StreamRecord(
-      CRow(1: JInt, "aaa")))
+      CRow.of(1: JInt, "aaa")))
     testHarness.processElement2(new StreamRecord(
-      CRow(1: JInt, "ddd")))
+      CRow.of(1: JInt, "ddd")))
     // lkeys(1, 2) rkeys(1, 2) timer_key_time(1:5, 2:6)
     assertEquals(2, testHarness.numProcessingTimeTimers())
     assertEquals(6, testHarness.numKeyedStateEntries())
 
     testHarness.setProcessingTime(4)
     testHarness.processElement1(new StreamRecord(
-      CRow(false, 2: JInt, "aaa")))
+      CRow.of(false: JBoolean, 2: JInt, "aaa")))
     testHarness.processElement1(new StreamRecord(
-      CRow(false, 2: JInt, "ddd")))
+      CRow.of(false: JBoolean, 2: JInt, "ddd")))
     testHarness.processElement2(new StreamRecord(
-      CRow(false, 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, 1: JInt, "aaa")))
     testHarness.processElement2(new StreamRecord(
-      CRow(false, 1: JInt, "ddd")))
+      CRow.of(false: JBoolean, 1: JInt, "ddd")))
     // lkeys(1) rkeys(2) timer_key_time(1:8, 2:6)
     assertEquals(2, testHarness.numProcessingTimeTimers())
     assertEquals(4, testHarness.numKeyedStateEntries())
@@ -1613,78 +1613,78 @@ class JoinHarnessTest extends HarnessTestBase {
     assertEquals(0, testHarness.numProcessingTimeTimers())
     assertEquals(0, testHarness.numKeyedStateEntries())
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "bbb")))
+      CRow.of(1: JInt, "bbb")))
     testHarness.processElement2(new StreamRecord(
-      CRow(2: JInt, "bbb")))
+      CRow.of(2: JInt, "bbb")))
 
     val result = testHarness.getOutput
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     // processing time 1
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "bbb", null: JInt, null)))
+      CRow.of(1: JInt, "bbb", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "ccc", null: JInt, null)))
+      CRow.of(1: JInt, "ccc", null: JInt, null)))
     // processing time 2
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 2: JInt, "bbb")))
+      CRow.of(null: JInt, null, 2: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 2: JInt, "ccc")))
+      CRow.of(null: JInt, null, 2: JInt, "ccc")))
     // processing time 3
     expectedOutput.add(new StreamRecord(
-      CRow(false, null: JInt, null, 2: JInt, "bbb")))
+      CRow.of(false: JBoolean, null: JInt, null, 2: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, null: JInt, null, 2: JInt, "ccc")))
+      CRow.of(false: JBoolean, null: JInt, null, 2: JInt, "ccc")))
     expectedOutput.add(new StreamRecord(
-      CRow(2: JInt, "aaa", 2: JInt, "bbb")))
+      CRow.of(2: JInt, "aaa", 2: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(2: JInt, "aaa", 2: JInt, "ccc")))
+      CRow.of(2: JInt, "aaa", 2: JInt, "ccc")))
     expectedOutput.add(new StreamRecord(
-      CRow(2: JInt, "ddd", 2: JInt, "bbb")))
+      CRow.of(2: JInt, "ddd", 2: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(2: JInt, "ddd", 2: JInt, "ccc")))
+      CRow.of(2: JInt, "ddd", 2: JInt, "ccc")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "bbb", null: JInt, null)))
+      CRow.of(false: JBoolean, 1: JInt, "bbb", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "ccc", null: JInt, null)))
+      CRow.of(false: JBoolean, 1: JInt, "ccc", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "bbb", 1: JInt, "aaa")))
+      CRow.of(1: JInt, "bbb", 1: JInt, "aaa")))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "ccc", 1: JInt, "aaa")))
+      CRow.of(1: JInt, "ccc", 1: JInt, "aaa")))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "bbb", 1: JInt, "ddd")))
+      CRow.of(1: JInt, "bbb", 1: JInt, "ddd")))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "ccc", 1: JInt, "ddd")))
+      CRow.of(1: JInt, "ccc", 1: JInt, "ddd")))
     // processing time 4
     expectedOutput.add(new StreamRecord(
-      CRow(false, 2: JInt, "aaa", 2: JInt, "bbb")))
+      CRow.of(false: JBoolean, 2: JInt, "aaa", 2: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 2: JInt, "aaa", 2: JInt, "ccc")))
+      CRow.of(false: JBoolean, 2: JInt, "aaa", 2: JInt, "ccc")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 2: JInt, "ddd", 2: JInt, "bbb")))
+      CRow.of(false: JBoolean, 2: JInt, "ddd", 2: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 2: JInt, "ddd", 2: JInt, "ccc")))
+      CRow.of(false: JBoolean, 2: JInt, "ddd", 2: JInt, "ccc")))
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 2: JInt, "bbb")))
+      CRow.of(null: JInt, null, 2: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 2: JInt, "ccc")))
+      CRow.of(null: JInt, null, 2: JInt, "ccc")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "bbb", 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, 1: JInt, "bbb", 1: JInt, "aaa")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "ccc", 1: JInt, "aaa")))
+      CRow.of(false: JBoolean, 1: JInt, "ccc", 1: JInt, "aaa")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "bbb", 1: JInt, "ddd")))
+      CRow.of(false: JBoolean, 1: JInt, "bbb", 1: JInt, "ddd")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "ccc", 1: JInt, "ddd")))
+      CRow.of(false: JBoolean, 1: JInt, "ccc", 1: JInt, "ddd")))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "bbb", null: JInt, null)))
+      CRow.of(1: JInt, "bbb", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "ccc", null: JInt, null)))
+      CRow.of(1: JInt, "ccc", null: JInt, null)))
     // processing time 8
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "bbb", null: JInt, null)))
+      CRow.of(1: JInt, "bbb", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 2: JInt, "bbb")))
+      CRow.of(null: JInt, null, 2: JInt, "bbb")))
 
     verify(expectedOutput, result)
     testHarness.close()
@@ -1715,9 +1715,9 @@ class JoinHarnessTest extends HarnessTestBase {
     // left stream input
     testHarness.setProcessingTime(1)
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "bbb")))
+      CRow.of(1: JInt, "bbb")))
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "ccc")))
+      CRow.of(1: JInt, "ccc")))
     // lkeys(1) rkeys() timer_key_time(1:5)
     // l_join_cnt_keys(1) r_join_cnt_keys()
     assertEquals(1, testHarness.numProcessingTimeTimers())
@@ -1725,9 +1725,9 @@ class JoinHarnessTest extends HarnessTestBase {
 
     testHarness.setProcessingTime(2)
     testHarness.processElement2(new StreamRecord(
-      CRow(2: JInt, "bbb")))
+      CRow.of(2: JInt, "bbb")))
     testHarness.processElement2(new StreamRecord(
-      CRow(2: JInt, "ccc")))
+      CRow.of(2: JInt, "ccc")))
     // lkeys(1) rkeys(2) timer_key_time(1:5, 2:6)
     // l_join_cnt_keys(1) r_join_cnt_keys(2)
     assertEquals(2, testHarness.numProcessingTimeTimers())
@@ -1735,17 +1735,17 @@ class JoinHarnessTest extends HarnessTestBase {
 
     testHarness.setProcessingTime(3)
     testHarness.processElement1(new StreamRecord(
-      CRow(2: JInt, "aaa")))
+      CRow.of(2: JInt, "aaa")))
     testHarness.processElement1(new StreamRecord(
-      CRow(2: JInt, "ddd")))
+      CRow.of(2: JInt, "ddd")))
     // lkeys(1, 2) rkeys(2) timer_key_time(1:5, 2:6)
     // l_join_cnt_keys(1, 2) r_join_cnt_keys(2)
     assertEquals(2, testHarness.numProcessingTimeTimers())
     assertEquals(8, testHarness.numKeyedStateEntries())
     testHarness.processElement2(new StreamRecord(
-      CRow(1: JInt, "aaa")))
+      CRow.of(1: JInt, "aaa")))
     testHarness.processElement2(new StreamRecord(
-      CRow(1: JInt, "ddd")))
+      CRow.of(1: JInt, "ddd")))
     // lkeys(1, 2) rkeys(1, 2) timer_key_time(1:5, 2:6)
     // l_join_cnt_keys(1, 2) r_join_cnt_keys(1, 2)
     assertEquals(2, testHarness.numProcessingTimeTimers())
@@ -1753,9 +1753,9 @@ class JoinHarnessTest extends HarnessTestBase {
 
     testHarness.setProcessingTime(4)
     testHarness.processElement1(new StreamRecord(
-      CRow(false, 2: JInt, "aaa")))
+      CRow.of(false: JBoolean, 2: JInt, "aaa")))
     testHarness.processElement2(new StreamRecord(
-      CRow(false, 1: JInt, "ddd")))
+      CRow.of(false: JBoolean, 1: JInt, "ddd")))
     // lkeys(1, 2) rkeys(1, 2) timer_key_time(1:8, 2:6)
     // l_join_cnt_keys(1, 2) r_join_cnt_keys(1, 2)
     assertEquals(2, testHarness.numProcessingTimeTimers())
@@ -1779,68 +1779,68 @@ class JoinHarnessTest extends HarnessTestBase {
     assertEquals(0, testHarness.numProcessingTimeTimers())
     assertEquals(0, testHarness.numKeyedStateEntries())
     testHarness.processElement1(new StreamRecord(
-      CRow(1: JInt, "bbb")))
+      CRow.of(1: JInt, "bbb")))
     testHarness.processElement2(new StreamRecord(
-      CRow(2: JInt, "bbb")))
+      CRow.of(2: JInt, "bbb")))
 
     val result = testHarness.getOutput
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     // processing time 1
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "bbb", null: JInt, null)))
+      CRow.of(1: JInt, "bbb", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "ccc", null: JInt, null)))
+      CRow.of(1: JInt, "ccc", null: JInt, null)))
     // processing time 2
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 2: JInt, "bbb")))
+      CRow.of(null: JInt, null, 2: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 2: JInt, "ccc")))
+      CRow.of(null: JInt, null, 2: JInt, "ccc")))
     // processing time 3
     expectedOutput.add(new StreamRecord(
-      CRow(false, null: JInt, null, 2: JInt, "bbb")))
+      CRow.of(false: JBoolean, null: JInt, null, 2: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, null: JInt, null, 2: JInt, "ccc")))
+      CRow.of(false: JBoolean, null: JInt, null, 2: JInt, "ccc")))
     expectedOutput.add(new StreamRecord(
-      CRow(2: JInt, "aaa", 2: JInt, "bbb")))
+      CRow.of(2: JInt, "aaa", 2: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(2: JInt, "aaa", 2: JInt, "ccc")))
+      CRow.of(2: JInt, "aaa", 2: JInt, "ccc")))
     // can not find matched row due to NonEquiJoinPred
     expectedOutput.add(new StreamRecord(
-      CRow(2: JInt, "ddd", null: JInt, null)))
+      CRow.of(2: JInt, "ddd", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "bbb", null: JInt, null)))
+      CRow.of(false: JBoolean, 1: JInt, "bbb", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "ccc", null: JInt, null)))
+      CRow.of(false: JBoolean, 1: JInt, "ccc", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "bbb", 1: JInt, "ddd")))
+      CRow.of(1: JInt, "bbb", 1: JInt, "ddd")))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "ccc", 1: JInt, "ddd")))
+      CRow.of(1: JInt, "ccc", 1: JInt, "ddd")))
     // can not find matched row due to NonEquiJoinPred
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 1: JInt, "aaa")))
+      CRow.of(null: JInt, null, 1: JInt, "aaa")))
     // processing time 4
     expectedOutput.add(new StreamRecord(
-      CRow(false, 2: JInt, "aaa", 2: JInt, "bbb")))
+      CRow.of(false: JBoolean, 2: JInt, "aaa", 2: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 2: JInt, "aaa", 2: JInt, "ccc")))
+      CRow.of(false: JBoolean, 2: JInt, "aaa", 2: JInt, "ccc")))
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 2: JInt, "bbb")))
+      CRow.of(null: JInt, null, 2: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 2: JInt, "ccc")))
+      CRow.of(null: JInt, null, 2: JInt, "ccc")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "bbb", 1: JInt, "ddd")))
+      CRow.of(false: JBoolean, 1: JInt, "bbb", 1: JInt, "ddd")))
     expectedOutput.add(new StreamRecord(
-      CRow(false, 1: JInt, "ccc", 1: JInt, "ddd")))
+      CRow.of(false: JBoolean, 1: JInt, "ccc", 1: JInt, "ddd")))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "bbb", null: JInt, null)))
+      CRow.of(1: JInt, "bbb", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "ccc", null: JInt, null)))
+      CRow.of(1: JInt, "ccc", null: JInt, null)))
     // processing time 8
     expectedOutput.add(new StreamRecord(
-      CRow(1: JInt, "bbb", null: JInt, null)))
+      CRow.of(1: JInt, "bbb", null: JInt, null)))
     expectedOutput.add(new StreamRecord(
-      CRow(null: JInt, null, 2: JInt, "bbb")))
+      CRow.of(null: JInt, null, 2: JInt, "bbb")))
 
     verify(expectedOutput, result)
     testHarness.close()

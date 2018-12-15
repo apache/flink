@@ -179,7 +179,7 @@ class DataStreamMatch(
     }
 
     val measures = logicalMatch.measures
-    val outTypeInfo = CRowTypeInfo(schema.typeInfo)
+    val outTypeInfo =  CRowTypeInfo.of(schema.typeInfo)
     if (logicalMatch.allRows) {
       throw new TableException("All rows per match mode is not supported yet.")
     } else {
@@ -232,7 +232,8 @@ class DataStreamMatch(
     timeOrderField.getType match {
       case _ if FlinkTypeFactory.isRowtimeIndicatorType(timeOrderField.getType) =>
         (crowInput.process(
-          new RowtimeProcessFunction(timeOrderField.getIndex, CRowTypeInfo(inputSchema.typeInfo))
+          new RowtimeProcessFunction(timeOrderField.getIndex,
+            CRowTypeInfo.of(inputSchema.typeInfo))
         ).setParallelism(crowInput.getParallelism),
           rowComparator)
       case _ =>

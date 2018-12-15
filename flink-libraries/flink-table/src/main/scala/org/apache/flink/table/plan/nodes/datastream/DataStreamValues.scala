@@ -62,7 +62,7 @@ class DataStreamValues(
 
     val config = tableEnv.getConfig
 
-    val returnType = CRowTypeInfo(schema.typeInfo)
+    val returnType =  CRowTypeInfo.of(schema.typeInfo)
     val generator = new InputFormatCodeGenerator(config)
 
     // generate code for every record

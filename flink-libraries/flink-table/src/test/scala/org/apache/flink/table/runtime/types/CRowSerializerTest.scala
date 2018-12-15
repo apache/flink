@@ -28,7 +28,7 @@ class CRowSerializerTest extends TestLogger {
     */
   @Test
   def testDefaultConstructor(): Unit = {
-    new CRowSerializer.CRowSerializerConfigSnapshot()
+    new CRowSerializer().getCRowSerializerConfigSnapshot()
   }
 
 }
