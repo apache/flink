@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.runtime.concurrent;
+
+import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,37 +33,42 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-public class DirectExecutorService implements ExecutorService {
-	private boolean _shutdown = false;
+/** The direct executor service directly executes the runnables and the callables in the calling thread. */
+class DirectExecutorService implements ExecutorService {
+	static final DirectExecutorService INSTANCE = new DirectExecutorService();
+
+	private boolean isShutdown = false;
 
 	@Override
 	public void shutdown() {
-		_shutdown = true;
+		isShutdown = true;
 	}
 
 	@Override
+	@Nonnull
 	public List<Runnable> shutdownNow() {
-		_shutdown = true;
+		isShutdown = true;
 		return Collections.emptyList();
 	}
 
 	@Override
 	public boolean isShutdown() {
-		return _shutdown;
+		return isShutdown;
 	}
 
 	@Override
 	public boolean isTerminated() {
-		return _shutdown;
+		return isShutdown;
 	}
 
 	@Override
-	public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-		return _shutdown;
+	public boolean awaitTermination(long timeout, @Nonnull TimeUnit unit) {
+		return isShutdown;
 	}
 
 	@Override
-	public <T> Future<T> submit(Callable<T> task) {
+	@Nonnull
+	public <T> Future<T> submit(@Nonnull Callable<T> task) {
 		try {
 			T result = task.call();
 
@@ -72,34 +79,40 @@ public class DirectExecutorService implements ExecutorService {
 	}
 
 	@Override
-	public <T> Future<T> submit(Runnable task, T result) {
+	@Nonnull
+	public <T> Future<T> submit(@Nonnull Runnable task, T result) {
 		task.run();
 
 		return new CompletedFuture<>(result, null);
 	}
 
 	@Override
-	public Future<?> submit(Runnable task) {
+	@Nonnull
+	public Future<?> submit(@Nonnull Runnable task) {
 		task.run();
 		return new CompletedFuture<>(null, null);
 	}
 
 	@Override
-	public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks) throws InterruptedException {
+	@Nonnull
+	public <T> List<Future<T>> invokeAll(@Nonnull Collection<? extends Callable<T>> tasks) {
 		ArrayList<Future<T>> result = new ArrayList<>();
 
 		for (Callable<T> task : tasks) {
 			try {
-				result.add(new CompletedFuture<T>(task.call(), null));
+				result.add(new CompletedFuture<>(task.call(), null));
 			} catch (Exception e) {
-				result.add(new CompletedFuture<T>(null, e));
+				result.add(new CompletedFuture<>(null, e));
 			}
 		}
 		return result;
 	}
 
 	@Override
-	public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException {
+	@Nonnull
+	public <T> List<Future<T>> invokeAll(
+		@Nonnull Collection<? extends Callable<T>> tasks, long timeout, @Nonnull TimeUnit unit) {
+
 		long end = System.currentTimeMillis() + unit.toMillis(timeout);
 		Iterator<? extends Callable<T>> iterator = tasks.iterator();
 		ArrayList<Future<T>> result = new ArrayList<>();
@@ -108,13 +121,13 @@ public class DirectExecutorService implements ExecutorService {
 			Callable<T> callable = iterator.next();
 
 			try {
-				result.add(new CompletedFuture<T>(callable.call(), null));
+				result.add(new CompletedFuture<>(callable.call(), null));
 			} catch (Exception e) {
-				result.add(new CompletedFuture<T>(null, e));
+				result.add(new CompletedFuture<>(null, e));
 			}
 		}
 
-		while(iterator.hasNext()) {
+		while (iterator.hasNext()) {
 			iterator.next();
 			result.add(new Future<T>() {
 				@Override
@@ -133,12 +146,12 @@ public class DirectExecutorService implements ExecutorService {
 				}
 
 				@Override
-				public T get() throws InterruptedException, ExecutionException {
+				public T get() {
 					throw new CancellationException("Task has been cancelled.");
 				}
 
 				@Override
-				public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+				public T get(long timeout, @Nonnull TimeUnit unit) {
 					throw new CancellationException("Task has been cancelled.");
 				}
 			});
@@ -148,7 +161,8 @@ public class DirectExecutorService implements ExecutorService {
 	}
 
 	@Override
-	public <T> T invokeAny(Collection<? extends Callable<T>> tasks) throws InterruptedException, ExecutionException {
+	@Nonnull
+	public <T> T invokeAny(@Nonnull Collection<? extends Callable<T>> tasks) throws ExecutionException {
 		Exception exception = null;
 
 		for (Callable<T> task : tasks) {
@@ -164,7 +178,11 @@ public class DirectExecutorService implements ExecutorService {
 	}
 
 	@Override
-	public <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+	public <T> T invokeAny(
+		@Nonnull Collection<? extends Callable<T>> tasks,
+		long timeout,
+		@Nonnull TimeUnit unit) throws ExecutionException, TimeoutException {
+
 		long end = System.currentTimeMillis() + unit.toMillis(timeout);
 		Exception exception = null;
 
@@ -189,15 +207,15 @@ public class DirectExecutorService implements ExecutorService {
 	}
 
 	@Override
-	public void execute(Runnable command) {
+	public void execute(@Nonnull Runnable command) {
 		command.run();
 	}
 
-	public static class CompletedFuture<V> implements Future<V> {
+	static class CompletedFuture<V> implements Future<V> {
 		private final V value;
 		private final Exception exception;
 
-		public CompletedFuture(V value, Exception exception) {
+		CompletedFuture(V value, Exception exception) {
 			this.value = value;
 			this.exception = exception;
 		}
@@ -218,7 +236,7 @@ public class DirectExecutorService implements ExecutorService {
 		}
 
 		@Override
-		public V get() throws InterruptedException, ExecutionException {
+		public V get() throws ExecutionException {
 			if (exception != null) {
 				throw new ExecutionException(exception);
 			} else {
@@ -227,7 +245,7 @@ public class DirectExecutorService implements ExecutorService {
 		}
 
 		@Override
-		public V get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+		public V get(long timeout, @Nonnull TimeUnit unit) throws ExecutionException {
 			return get();
 		}
 	}
