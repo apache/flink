@@ -256,13 +256,14 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends RedirectH
 		}
 
 		try {
+			String filePath = file.getPath();
 			long fileLength = raf.length();
 
 			HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
 			setContentTypeHeader(response, file);
 
 			// since the log and out files are rapidly changing, we don't want to browser to cache them
-			if (!(requestPath.contains("log") || requestPath.contains("out"))) {
+			if (!(filePath.endsWith(".log") || filePath.endsWith(".out"))) {
 				setDateAndCacheHeaders(response, file);
 			}
 			if (HttpHeaders.isKeepAlive(request)) {
