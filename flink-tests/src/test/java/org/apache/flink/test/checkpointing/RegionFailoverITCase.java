@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.client.program.ClusterClient;
@@ -62,7 +63,7 @@ public class RegionFailoverITCase extends TestLogger {
 	private static volatile int numCompletedCheckpoints = 0;
 	private static volatile AtomicInteger jobFailedCnt = new AtomicInteger(0);
 
-	private static Map<Long, Integer> snapshotIndicesOfSubTask0 = new HashMap<>();
+	private static Map<Long, Integer> snapshotIndicesOfSubTask = new HashMap<>();
 
 	private static MiniClusterWithClientResource cluster;
 
@@ -82,6 +83,8 @@ public class RegionFailoverITCase extends TestLogger {
 				.setNumberTaskManagers(2)
 				.setNumberSlotsPerTaskManager(2).build());
 		cluster.before();
+		jobFailedCnt.set(0);
+		numCompletedCheckpoints = 0;
 	}
 
 	@AfterClass
@@ -95,10 +98,10 @@ public class RegionFailoverITCase extends TestLogger {
 	/**
 	 * Tests that a simple job (Source -> Map) with multi regions could restore with operator state.
 	 *
-	 * <p>The subtask-0 of Map function would fail {@code NUM_OF_RESTARTS} times, and it will verify whether the restored state is
-	 * identical to last completed checkpoint's.
+	 * <p>The last subtask of Map function in the 1st stream graph would fail {@code NUM_OF_RESTARTS} times,
+	 * and it will verify whether the restored state is identical to last completed checkpoint's.
 	 */
-	@Test(timeout = 10000)
+	@Test(timeout = 60000)
 	public void testMultiRegionFailover() {
 		try {
 			JobGraph jobGraph = createJobGraph();
@@ -127,6 +130,10 @@ public class RegionFailoverITCase extends TestLogger {
 			.setParallelism(NUM_OF_REGIONS)
 			.map(new FailingMapperFunction(NUM_OF_RESTARTS))
 			.setParallelism(NUM_OF_REGIONS);
+
+		// another stream graph totally disconnected with the above one.
+		env.addSource(new StringGeneratingSourceFunction(NUM_ELEMENTS, NUM_ELEMENTS / NUM_OF_RESTARTS)).setParallelism(1)
+			.map((MapFunction<Integer, Object>) value -> value).setParallelism(1);
 
 		return env.getStreamGraph().getJobGraph();
 	}
@@ -187,9 +194,6 @@ public class RegionFailoverITCase extends TestLogger {
 
 		@Override
 		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
-			if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
-				snapshotIndicesOfSubTask0.put(checkpointId, index);
-			}
 			return Collections.singletonList(this.index);
 		}
 
@@ -200,16 +204,19 @@ public class RegionFailoverITCase extends TestLogger {
 				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
 			this.index = state.get(0);
-			if (index != snapshotIndicesOfSubTask0.get(lastCompletedCheckpointId)) {
-				throw new RuntimeException("Test failed due to unexpected recovered index: " + index +
-					", while last completed checkpoint record index: " + snapshotIndicesOfSubTask0.get(lastCompletedCheckpointId));
+			if (getRuntimeContext().getIndexOfThisSubtask() == NUM_OF_REGIONS - 1) {
+				if (index != snapshotIndicesOfSubTask.get(lastCompletedCheckpointId)) {
+					throw new RuntimeException("Test failed due to unexpected recovered index: " + index +
+						", while last completed checkpoint record index: " + snapshotIndicesOfSubTask.get(lastCompletedCheckpointId));
+				}
 			}
 		}
 
 		@Override
 		public void notifyCheckpointComplete(long checkpointId) throws Exception {
-			if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
+			if (getRuntimeContext().getIndexOfThisSubtask() == NUM_OF_REGIONS - 1) {
 				lastCompletedCheckpointId = checkpointId;
+				snapshotIndicesOfSubTask.put(checkpointId, index);
 				numCompletedCheckpoints++;
 			}
 		}

@@ -2078,7 +2078,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				// restore the store using region failover strategy
 				List<ExecutionVertex> executionVertices = getExecutionVertices(jobVertex1, jobVertex2);
 
-				coord.restoreLatestCheckpointedState(executionVertices, true, false);
+				coord.restoreLatestCheckpointedState(executionVertices, true);
 		}
 
 		// validate that all shared states are registered again after the recovery.

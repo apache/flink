@@ -162,7 +162,7 @@ public class CheckpointStateRestoreTest {
 					break;
 				case RestartPipelinedRegionStrategy:
 					List<ExecutionVertex> executionVertices = getExecutionVertices(stateful, stateless);
-					coord.restoreLatestCheckpointedState(executionVertices, true, false);
+					coord.restoreLatestCheckpointedState(executionVertices, true);
 			}
 
 			// verify that each stateful vertex got the state
@@ -225,7 +225,7 @@ public class CheckpointStateRestoreTest {
 					break;
 				case RestartPipelinedRegionStrategy:
 					try {
-						coord.restoreLatestCheckpointedState(new ArrayList<>(), true, false);
+						coord.restoreLatestCheckpointedState(new ArrayList<>(), true);
 						fail("this should throw an exception");
 					} catch (IllegalStateException e) {
 						// expected
@@ -242,6 +242,7 @@ public class CheckpointStateRestoreTest {
 	 * Tests that the allow non restored state flag is correctly handled.
 	 *
 	 * <p>The flag only applies for state that is part of the checkpoint.
+	 * RestartPipelinedRegionStrategy would always allow non restored state when failover.
 	 */
 	@Test
 	public void testNonRestoredState() throws Exception {
@@ -312,8 +313,7 @@ public class CheckpointStateRestoreTest {
 				coord.restoreLatestCheckpointedState(tasks, true, true);
 				break;
 			case RestartPipelinedRegionStrategy:
-				coord.restoreLatestCheckpointedState(executionVertices, true, false);
-				coord.restoreLatestCheckpointedState(executionVertices, true, true);
+				coord.restoreLatestCheckpointedState(executionVertices, true);
 		}
 
 		coord.restoreLatestCheckpointedState(tasks, true, false);
@@ -349,7 +349,7 @@ public class CheckpointStateRestoreTest {
 				coord.restoreLatestCheckpointedState(tasks, true, true);
 				break;
 			case RestartPipelinedRegionStrategy:
-				coord.restoreLatestCheckpointedState(executionVertices, true, true);
+				coord.restoreLatestCheckpointedState(executionVertices, true);
 		}
 
 		// (ii) Don't allow non restored state (should fail)
