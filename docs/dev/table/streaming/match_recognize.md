@@ -41,19 +41,19 @@ The following example illustrates the syntax for basic pattern recognition:
 {% highlight sql %}
 SELECT T.aid, T.bid, T.cid
 FROM MyTable
-MATCH_RECOGNIZE (
-  PARTITION BY userid
-  ORDER BY proctime
-  MEASURES
-    A.id AS aid,
-    B.id AS bid,
-    C.id AS cid
-  PATTERN (A B C)
-  DEFINE
-    A AS name = 'a',
-    B AS name = 'b',
-    C AS name = 'c'
-) AS T
+    MATCH_RECOGNIZE (
+      PARTITION BY userid
+      ORDER BY proctime
+      MEASURES
+        A.id AS aid,
+        B.id AS bid,
+        C.id AS cid
+      PATTERN (A B C)
+      DEFINE
+        A AS name = 'a',
+        B AS name = 'b',
+        C AS name = 'c'
+    ) AS T
 {% endhighlight %}
 
 This page will explain each keyword in more detail and will illustrate more complex examples.
@@ -136,22 +136,22 @@ The task is now to find periods of a constantly decreasing price of a single tic
 {% highlight sql %}
 SELECT *
 FROM Ticker
-MATCH_RECOGNIZE (
-    PARTITION BY symbol
-    ORDER BY rowtime
-    MEASURES
-        START_ROW.rowtime AS start_tstamp,
-        LAST(PRICE_DOWN.rowtime) AS bottom_tstamp,
-        LAST(PRICE_UP.rowtime) AS end_tstamp
-    ONE ROW PER MATCH
-    AFTER MATCH SKIP TO LAST PRICE_UP
-    PATTERN (START_ROW PRICE_DOWN+ PRICE_UP)
-    DEFINE
-        PRICE_DOWN AS
-            (LAST(PRICE_DOWN.price, 1) IS NULL AND PRICE_DOWN.price < START_ROW.price) OR
-                PRICE_DOWN.price < LAST(PRICE_DOWN.price, 1),
-        PRICE_UP AS
-            PRICE_UP.price > LAST(PRICE_DOWN.price, 1)
+    MATCH_RECOGNIZE (
+        PARTITION BY symbol
+        ORDER BY rowtime
+        MEASURES
+            START_ROW.rowtime AS start_tstamp,
+            LAST(PRICE_DOWN.rowtime) AS bottom_tstamp,
+            LAST(PRICE_UP.rowtime) AS end_tstamp
+        ONE ROW PER MATCH
+        AFTER MATCH SKIP TO LAST PRICE_UP
+        PATTERN (START_ROW PRICE_DOWN+ PRICE_UP)
+        DEFINE
+            PRICE_DOWN AS
+                (LAST(PRICE_DOWN.price, 1) IS NULL AND PRICE_DOWN.price < START_ROW.price) OR
+                    PRICE_DOWN.price < LAST(PRICE_DOWN.price, 1),
+            PRICE_UP AS
+                PRICE_UP.price > LAST(PRICE_DOWN.price, 1)
     ) MR;
 {% endhighlight %}
 
@@ -223,18 +223,18 @@ This task can be performed with the following query:
 {% highlight sql %}
 SELECT *
 FROM Ticker
-MATCH_RECOGNIZE (
-    PARTITION BY symbol
-    ORDER BY rowtime
-    MEASURES
-        FIRST(A.rowtime) AS start_tstamp,
-        LAST(A.rowtime) AS end_tstamp,
-        AVG(A.price) AS avgPrice
-    ONE ROW PER MATCH
-    AFTER MATCH SKIP TO FIRST B
-    PATTERN (A+ B)
-    DEFINE
-        A AS AVG(A.price) < 15
+    MATCH_RECOGNIZE (
+        PARTITION BY symbol
+        ORDER BY rowtime
+        MEASURES
+            FIRST(A.rowtime) AS start_tstamp,
+            LAST(A.rowtime) AS end_tstamp,
+            AVG(A.price) AS avgPrice
+        ONE ROW PER MATCH
+        AFTER MATCH SKIP TO FIRST B
+        PATTERN (A+ B)
+        DEFINE
+            A AS AVG(A.price) < 15
     ) MR;
 {% endhighlight %}
 
