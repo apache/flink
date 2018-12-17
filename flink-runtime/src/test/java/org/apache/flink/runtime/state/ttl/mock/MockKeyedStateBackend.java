@@ -45,6 +45,7 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
+import org.apache.flink.runtime.state.StateSnapshotTransformers;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSet;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
@@ -131,11 +132,9 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		Optional<StateSnapshotTransformer<SEV>> original = snapshotTransformFactory.createForDeserializedState();
 		if (original.isPresent()) {
 			if (stateDesc instanceof ListStateDescriptor) {
-				return (StateSnapshotTransformer<SV>) new StateSnapshotTransformer
-					.ListStateSnapshotTransformer<>(original.get());
+				return (StateSnapshotTransformer<SV>) new StateSnapshotTransformers.ListStateSnapshotTransformer<>(original.get());
 			} else if (stateDesc instanceof MapStateDescriptor) {
-				return (StateSnapshotTransformer<SV>) new StateSnapshotTransformer
-					.MapStateSnapshotTransformer<>(original.get());
+				return (StateSnapshotTransformer<SV>) new StateSnapshotTransformers.MapStateSnapshotTransformer<>(original.get());
 			} else {
 				return (StateSnapshotTransformer<SV>) original.get();
 			}

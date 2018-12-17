@@ -3614,6 +3614,22 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	}
 
 	@Test
+	public void testNonConcurrentSnapshotTransformerAccess() throws Exception {
+		BlockerCheckpointStreamFactory streamFactory = new BlockerCheckpointStreamFactory(1024 * 1024);
+		AbstractKeyedStateBackend<Integer> backend = null;
+		try {
+			backend = createKeyedBackend(IntSerializer.INSTANCE);
+			new StateSnapshotTransformerTest(backend, streamFactory)
+				.testNonConcurrentSnapshotTransformerAccess();
+		} finally {
+			if (backend != null) {
+				IOUtils.closeQuietly(backend);
+				backend.dispose();
+			}
+		}
+	}
+
+	@Test
 	public void testAsyncSnapshot() throws Exception {
 		OneShotLatch waiter = new OneShotLatch();
 		BlockerCheckpointStreamFactory streamFactory = new BlockerCheckpointStreamFactory(1024 * 1024);

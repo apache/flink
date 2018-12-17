@@ -27,10 +27,12 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
@@ -65,7 +67,28 @@ public class MockStateBackend extends AbstractStateBackend {
 
 			@Override
 			public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId) {
-				return null;
+				return new CheckpointStorageLocation() {
+
+					@Override
+					public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) {
+						return null;
+					}
+
+					@Override
+					public CheckpointMetadataOutputStream createMetadataOutputStream() {
+						return null;
+					}
+
+					@Override
+					public void disposeOnFailure() {
+
+					}
+
+					@Override
+					public CheckpointStorageLocationReference getLocationReference() {
+						return null;
+					}
+				};
 			}
 
 			@Override
