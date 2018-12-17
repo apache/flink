@@ -73,7 +73,7 @@ abstract class MaxWithRetractAggFunction[T](implicit ord: Ordering[T])
     if (value != null) {
       val v = value.asInstanceOf[T]
 
-      var count = acc.map.get(v)
+      val count = acc.map.get(v)
       if (count == null || count == 1) {
         //remove the key v from the map if the number of appearance of the value v is 0
         if (count != null) {
