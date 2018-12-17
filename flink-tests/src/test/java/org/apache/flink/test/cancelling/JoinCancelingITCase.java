@@ -122,9 +122,11 @@ public class JoinCancelingITCase extends CancelingTestBase {
 
 	private static final class SimpleMatcher<IN> implements JoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
 		private static final long serialVersionUID = 1L;
+		private static final int WAIT_TIME_PER_RECORD = 300; // 0.3 sec.
 
 		@Override
 		public Tuple2<IN, IN> join(Tuple2<IN, IN> first, Tuple2<IN, IN> second) throws Exception {
+			Thread.sleep(WAIT_TIME_PER_RECORD);
 			return new Tuple2<>(first.f0, second.f0);
 		}
 	}
