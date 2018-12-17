@@ -56,6 +56,11 @@ public class Bucket<IN, BucketID> {
 
 	private static final String PART_PREFIX = "part";
 
+	// TODO: mega big hack to make it so we can have a suffix
+	// this needs to be replaced with something more real
+	// but we can do this without having to publish any parts
+	private static final String PART_SUFFIX_KEY = "flink.streaming-file-sink.suffix";
+
 	private final BucketID bucketId;
 
 	private final Path bucketPath;
@@ -230,7 +235,9 @@ public class Bucket<IN, BucketID> {
 	}
 
 	private Path assembleNewPartPath() {
-		return new Path(bucketPath, PART_PREFIX + '-' + subtaskIndex + '-' + partCounter);
+		// TODO: also part of mega big hack
+		String suffix = System.getProperty(PART_SUFFIX_KEY, "");
+		return new Path(bucketPath, PART_PREFIX + '-' + subtaskIndex + '-' + partCounter + suffix);
 	}
 
 	private CommitRecoverable closePartFile() throws IOException {
