@@ -776,9 +776,14 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				// TODO The current approach may send many update messages even though the consuming
 				// task has already been deployed with all necessary information. We have to check
 				// whether this is a problem and fix it, if it is.
+
+				// Schedule the consumer vertex if its inputs constraint is satisfied, otherwise skip the scheduling.
+				// A shortcut of input constraint check is added for InputDependencyConstraint.ANY since
+				// at least one of the consumer vertex's inputs is consumable here. This is to avoid the
+				// O(N) complexity introduced by input constraint check for InputDependencyConstraint.ANY,
+				// as we do not want the default scheduling performance to be affected.
 				if (consumerVertex.getExecutionGraph().getInputDependencyConstraint() == InputDependencyConstraint.ANY ||
 						consumerVertex.checkInputDependencyConstraints()) {
-					// Schedule the consumer vertex if its inputs constraint is satisfied, otherwise skip the scheduling
 					scheduleConsumer(consumerVertex);
 				}
 
