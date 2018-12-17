@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.CollectionStateSnapshotTransformer.TransformStrategy;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,6 +45,7 @@ import static org.apache.flink.runtime.state.StateSnapshotTransformer.Collection
  * @param <T> type of state
  */
 @FunctionalInterface
+@NotThreadSafe
 public interface StateSnapshotTransformer<T> {
 	/**
 	 * Transform or filter out state values which are included or skipped in the snapshot.
@@ -120,6 +122,17 @@ public interface StateSnapshotTransformer<T> {
 		}
 	}
 
+	class ListStateSnapshotTransformFactory<T> extends StateSnapshotTransformFactoryWrapAdaptor<T, List<T>> {
+		public ListStateSnapshotTransformFactory(StateSnapshotTransformFactory<T> originalSnapshotTransformFactory) {
+			super(originalSnapshotTransformFactory);
+		}
+
+		@Override
+		public Optional<StateSnapshotTransformer<List<T>>> createForDeserializedState() {
+			return originalSnapshotTransformFactory.createForDeserializedState().map(ListStateSnapshotTransformer::new);
+		}
+	}
+
 	/**
 	 * General implementation of map state transformer.
 	 *
@@ -149,6 +162,17 @@ public interface StateSnapshotTransformer<T> {
 				anyChange |= transformedValue == null || !Objects.equals(entry.getValue(), transformedValue);
 			}
 			return anyChange ? (transformedMap.isEmpty() ? null : transformedMap) : map;
+		}
+	}
+
+	class MapStateSnapshotTransformFactory<K, V> extends StateSnapshotTransformFactoryWrapAdaptor<V, Map<K, V>> {
+		public MapStateSnapshotTransformFactory(StateSnapshotTransformFactory<V> originalSnapshotTransformFactory) {
+			super(originalSnapshotTransformFactory);
+		}
+
+		@Override
+		public Optional<StateSnapshotTransformer<Map<K, V>>> createForDeserializedState() {
+			return originalSnapshotTransformFactory.createForDeserializedState().map(MapStateSnapshotTransformer::new);
 		}
 	}
 
@@ -182,5 +206,18 @@ public interface StateSnapshotTransformer<T> {
 		Optional<StateSnapshotTransformer<T>> createForDeserializedState();
 
 		Optional<StateSnapshotTransformer<byte[]>> createForSerializedState();
+	}
+
+	abstract class StateSnapshotTransformFactoryWrapAdaptor<S, T> implements StateSnapshotTransformFactory<T> {
+		final StateSnapshotTransformFactory<S> originalSnapshotTransformFactory;
+
+		StateSnapshotTransformFactoryWrapAdaptor(StateSnapshotTransformFactory<S> originalSnapshotTransformFactory) {
+			this.originalSnapshotTransformFactory = originalSnapshotTransformFactory;
+		}
+
+		@Override
+		public Optional<StateSnapshotTransformer<byte[]>> createForSerializedState() {
+			throw new UnsupportedOperationException();
+		}
 	}
 }

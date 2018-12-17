@@ -147,7 +147,8 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 					localKeySerializer.serialize(element.key, dov);
 					localStateSerializer.serialize(element.state, dov);
 				};
-			StateSnapshotTransformer<S> stateSnapshotTransformer = owningStateTable.metaInfo.getSnapshotTransformer();
+			StateSnapshotTransformer<S> stateSnapshotTransformer = owningStateTable.metaInfo.
+				getStateSnapshotTransformFactory().createForDeserializedState().orElse(null);
 			StateTableKeyGroupPartitioner<K, N, S> stateTableKeyGroupPartitioner = stateSnapshotTransformer != null ?
 				new TransformingStateTableKeyGroupPartitioner<>(
 					snapshotData,
