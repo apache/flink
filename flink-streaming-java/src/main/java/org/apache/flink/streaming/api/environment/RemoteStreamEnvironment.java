@@ -67,7 +67,8 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	/** The classpaths that need to be attached to each job. */
 	private final List<URL> globalClasspaths;
 
-	private SavepointRestoreSettings savepointRestoreSettings;
+	/** The savepoint restore settings for job execution. */
+	private final SavepointRestoreSettings savepointRestoreSettings;
 
 	/**
 	 * Creates a new RemoteStreamEnvironment that points to the master
@@ -137,6 +138,36 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 *            The protocol must be supported by the {@link java.net.URLClassLoader}.
 	 */
 	public RemoteStreamEnvironment(String host, int port, Configuration clientConfiguration, String[] jarFiles, URL[] globalClasspaths) {
+		this(host, port, clientConfiguration, jarFiles, null, null);
+	}
+
+	/**
+	 * Creates a new RemoteStreamEnvironment that points to the master
+	 * (JobManager) described by the given host name and port.
+	 *
+	 * @param host
+	 *            The host name or address of the master (JobManager), where the
+	 *            program should be executed.
+	 * @param port
+	 *            The port of the master (JobManager), where the program should
+	 *            be executed.
+	 * @param clientConfiguration
+	 *            The configuration used to parametrize the client that connects to the
+	 *            remote cluster.
+	 * @param jarFiles
+	 *            The JAR files with code that needs to be shipped to the
+	 *            cluster. If the program uses user-defined functions,
+	 *            user-defined input formats, or any libraries, those must be
+	 *            provided in the JAR files.
+	 * @param globalClasspaths
+	 *            The paths of directories and JAR files that are added to each user code
+	 *            classloader on all nodes in the cluster. Note that the paths must specify a
+	 *            protocol (e.g. file://) and be accessible on all nodes (e.g. by means of a NFS share).
+	 *            The protocol must be supported by the {@link java.net.URLClassLoader}.
+	 * @param savepointRestoreSettings
+	 *            Optional savepoint restore settings for job execution.
+	 */
+	public RemoteStreamEnvironment(String host, int port, Configuration clientConfiguration, String[] jarFiles, URL[] globalClasspaths, SavepointRestoreSettings savepointRestoreSettings) {
 		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
 			throw new InvalidProgramException(
 					"The RemoteEnvironment cannot be used when submitting a program through a client, " +
@@ -171,6 +202,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		else {
 			this.globalClasspaths = Arrays.asList(globalClasspaths);
 		}
+		this.savepointRestoreSettings = savepointRestoreSettings;
 	}
 
 	/**
@@ -273,14 +305,6 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		streamGraph.setJobName(jobName);
 		transformations.clear();
 		return executeRemotely(streamGraph, jarFiles);
-	}
-
-	/**
-	 * Execute the job with savepoint restore.
-	 */
-	public JobExecutionResult execute(String jobName, SavepointRestoreSettings savepointRestoreSettings) throws ProgramInvocationException {
-		this.savepointRestoreSettings = savepointRestoreSettings;
-		return execute(jobName);
 	}
 
 	/**

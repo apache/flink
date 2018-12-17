@@ -77,18 +77,19 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 
 	@Test
 	public void testRemoteExecutionWithSavepoint() throws Exception {
-		RemoteStreamEnvironment env = new RemoteStreamEnvironment("fakeHost", 1);
+		SavepointRestoreSettings restoreSettings = SavepointRestoreSettings.forPath("fakePath");
+		RemoteStreamEnvironment env = new RemoteStreamEnvironment("fakeHost", 1,
+			null, new String[]{}, null, restoreSettings);
 		env.fromElements(1).map(x -> x * 2);
 
 		RestClusterClient mockedClient = Mockito.mock(RestClusterClient.class);
 		JobExecutionResult expectedResult = new JobExecutionResult(null, 0, null);
-		SavepointRestoreSettings restoreSettings = SavepointRestoreSettings.forPath("fakePath");
 
 		PowerMockito.whenNew(RestClusterClient.class).withAnyArguments().thenReturn(mockedClient);
 		when(mockedClient.run(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.eq(restoreSettings)))
 			.thenReturn(expectedResult);
 
-		JobExecutionResult actualResult = env.execute("fakeJobName", restoreSettings);
+		JobExecutionResult actualResult = env.execute("fakeJobName");
 		Assert.assertEquals(expectedResult, actualResult);
 	}
 }
