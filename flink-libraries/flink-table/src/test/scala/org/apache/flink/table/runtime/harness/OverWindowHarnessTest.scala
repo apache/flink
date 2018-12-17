@@ -22,113 +22,122 @@ import java.lang.{Long => JLong}
 import java.util.concurrent.ConcurrentLinkedQueue
 
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator
+import org.apache.flink.api.scala._
+import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend
+import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.table.api.{StreamQueryConfig, Types}
-import org.apache.flink.table.runtime.aggregate._
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment}
 import org.apache.flink.table.runtime.harness.HarnessTestBase._
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class OverWindowHarnessTest extends HarnessTestBase{
 
-  protected var queryConfig: StreamQueryConfig =
+  private val queryConfig: StreamQueryConfig =
     new TestStreamQueryConfig(Time.seconds(2), Time.seconds(3))
 
   @Test
   def testProcTimeBoundedRowsOver(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
-      new ProcTimeBoundedRowsOver(
-        genMinMaxAggFunction,
-        2,
-        minMaxAggregationStateType,
-        minMaxCRowType,
-        queryConfig))
+    val data = Seq[(JLong, String, JLong)]()
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    tEnv.registerTable("T", t)
+    val sqlQuery = tEnv.sqlQuery(
+      s"""
+         |SELECT a, b, c,
+         |  MIN(c) OVER (PARTITION BY b ORDER BY proctime ROWS BETWEEN 1 PRECEDING AND CURRENT ROW),
+         |  MAX(c) OVER (PARTITION BY b ORDER BY proctime ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)
+         |FROM T
+         |""".stripMargin)
 
-    val testHarness =
-      createHarnessTester(
-        processFunction,
-        new TupleRowKeySelector[String](1),
-        Types.STRING)
+    val testHarness = createHarnessTester[String, CRow, CRow](
+      tEnv.toAppendStream[Row](sqlQuery, queryConfig), "over")
 
+    testHarness.setStateBackend(getStateBackend)
     testHarness.open()
+
+    val operator = getOperator(testHarness)
+    assertTrue(operator.getKeyedStateBackend.isInstanceOf[RocksDBKeyedStateBackend[_]])
 
     // register cleanup timer with 3001
     testHarness.setProcessingTime(1)
 
     testHarness.processElement(new StreamRecord(
-      CRow(1L: JLong, "aaa", 1L: JLong)))
+      CRow(1L: JLong, "aaa", 1L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(1L: JLong, "bbb", 10L: JLong)))
+      CRow(1L: JLong, "bbb", 10L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(1L: JLong, "aaa", 2L: JLong)))
+      CRow(1L: JLong, "aaa", 2L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(1L: JLong, "aaa", 3L: JLong)))
+      CRow(1L: JLong, "aaa", 3L: JLong, null)))
 
     // register cleanup timer with 4100
     testHarness.setProcessingTime(1100)
     testHarness.processElement(new StreamRecord(
-      CRow(1L: JLong, "bbb", 20L: JLong)))
+      CRow(1L: JLong, "bbb", 20L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(1L: JLong, "aaa", 4L: JLong)))
+      CRow(1L: JLong, "aaa", 4L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(1L: JLong, "aaa", 5L: JLong)))
+      CRow(1L: JLong, "aaa", 5L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(1L: JLong, "aaa", 6L: JLong)))
+      CRow(1L: JLong, "aaa", 6L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(1L: JLong, "bbb", 30L: JLong)))
+      CRow(1L: JLong, "bbb", 30L: JLong, null)))
 
     // register cleanup timer with 6001
     testHarness.setProcessingTime(3001)
     testHarness.processElement(new StreamRecord(
-      CRow(2L: JLong, "aaa", 7L: JLong)))
+      CRow(2L: JLong, "aaa", 7L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(2L: JLong, "aaa", 8L: JLong)))
+      CRow(2L: JLong, "aaa", 8L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(2L: JLong, "aaa", 9L: JLong)))
+      CRow(2L: JLong, "aaa", 9L: JLong, null)))
 
     // trigger cleanup timer and register cleanup timer with 9002
     testHarness.setProcessingTime(6002)
     testHarness.processElement(new StreamRecord(
-        CRow(2L: JLong, "aaa", 10L: JLong)))
+        CRow(2L: JLong, "aaa", 10L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(2L: JLong, "bbb", 40L: JLong)))
+      CRow(2L: JLong, "bbb", 40L: JLong, null)))
 
     val result = testHarness.getOutput
 
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      CRow(1L: JLong, "aaa", 1L: JLong, 1L: JLong, 1L: JLong)))
+      CRow(1L: JLong, "aaa", 1L: JLong, null, 1L: JLong, 1L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(1L: JLong, "bbb", 10L: JLong, 10L: JLong, 10L: JLong)))
+      CRow(1L: JLong, "bbb", 10L: JLong, null, 10L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(1L: JLong, "aaa", 2L: JLong, 1L: JLong, 2L: JLong)))
+      CRow(1L: JLong, "aaa", 2L: JLong, null, 1L: JLong, 2L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(1L: JLong, "aaa", 3L: JLong, 2L: JLong, 3L: JLong)))
+      CRow(1L: JLong, "aaa", 3L: JLong, null, 2L: JLong, 3L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(1L: JLong, "bbb", 20L: JLong, 10L: JLong, 20L: JLong)))
+      CRow(1L: JLong, "bbb", 20L: JLong, null, 10L: JLong, 20L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(1L: JLong, "aaa", 4L: JLong, 3L: JLong, 4L: JLong)))
+      CRow(1L: JLong, "aaa", 4L: JLong, null, 3L: JLong, 4L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(1L: JLong, "aaa", 5L: JLong, 4L: JLong, 5L: JLong)))
+      CRow(1L: JLong, "aaa", 5L: JLong, null, 4L: JLong, 5L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(1L: JLong, "aaa", 6L: JLong, 5L: JLong, 6L: JLong)))
+      CRow(1L: JLong, "aaa", 6L: JLong, null, 5L: JLong, 6L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(1L: JLong, "bbb", 30L: JLong, 20L: JLong, 30L: JLong)))
+      CRow(1L: JLong, "bbb", 30L: JLong, null, 20L: JLong, 30L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(2L: JLong, "aaa", 7L: JLong, 6L: JLong, 7L: JLong)))
+      CRow(2L: JLong, "aaa", 7L: JLong, null, 6L: JLong, 7L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(2L: JLong, "aaa", 8L: JLong, 7L: JLong, 8L: JLong)))
+      CRow(2L: JLong, "aaa", 8L: JLong, null, 7L: JLong, 8L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(2L: JLong, "aaa", 9L: JLong, 8L: JLong, 9L: JLong)))
+      CRow(2L: JLong, "aaa", 9L: JLong, null, 8L: JLong, 9L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(2L: JLong, "aaa", 10L: JLong, 10L: JLong, 10L: JLong)))
+      CRow(2L: JLong, "aaa", 10L: JLong, null, 10L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(2L: JLong, "bbb", 40L: JLong, 40L: JLong, 40L: JLong)))
+      CRow(2L: JLong, "bbb", 40L: JLong, null, 40L: JLong, 40L: JLong)))
 
     verify(expectedOutput, result)
 
@@ -140,71 +149,79 @@ class OverWindowHarnessTest extends HarnessTestBase{
     */
   @Test
   def testProcTimeBoundedRangeOver(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
-      new ProcTimeBoundedRangeOver(
-        genMinMaxAggFunction,
-        4000,
-        minMaxAggregationStateType,
-        minMaxCRowType,
-        queryConfig))
+    val data = Seq[(JLong, String, JLong)]()
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    tEnv.registerTable("T", t)
+    val sqlQuery = tEnv.sqlQuery(
+      s"""
+         |SELECT a, b, c,
+         |  MIN(c) OVER (PARTITION BY b ORDER BY proctime RANGE
+         |    BETWEEN INTERVAL '4' SECOND PRECEDING AND CURRENT ROW),
+         |  MAX(c) OVER (PARTITION BY b ORDER BY proctime RANGE
+         |    BETWEEN INTERVAL '4' SECOND PRECEDING AND CURRENT ROW)
+         |FROM T
+         |""".stripMargin)
 
-    val testHarness =
-      createHarnessTester(
-        processFunction,
-        new TupleRowKeySelector[String](1),
-        Types.STRING)
+    val testHarness = createHarnessTester[String, CRow, CRow](
+      tEnv.toAppendStream[Row](sqlQuery, queryConfig), "over")
 
+    testHarness.setStateBackend(getStateBackend)
     testHarness.open()
+
+    val operator = getOperator(testHarness)
+    assertTrue(operator.getKeyedStateBackend.isInstanceOf[RocksDBKeyedStateBackend[_]])
 
     // register cleanup timer with 3003
     testHarness.setProcessingTime(3)
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 1L: JLong)))
+      CRow(0L: JLong, "aaa", 1L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "bbb", 10L: JLong)))
+      CRow(0L: JLong, "bbb", 10L: JLong, null)))
 
     testHarness.setProcessingTime(4)
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 2L: JLong)))
+      CRow(0L: JLong, "aaa", 2L: JLong, null)))
 
     // trigger cleanup timer and register cleanup timer with 6003
     testHarness.setProcessingTime(3003)
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 3L: JLong)))
+      CRow(0L: JLong, "aaa", 3L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "bbb", 20L: JLong)))
+      CRow(0L: JLong, "bbb", 20L: JLong, null)))
 
     testHarness.setProcessingTime(5)
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 4L: JLong)))
+      CRow(0L: JLong, "aaa", 4L: JLong, null)))
 
     // register cleanup timer with 9002
     testHarness.setProcessingTime(6002)
 
     testHarness.setProcessingTime(7002)
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 5L: JLong)))
+      CRow(0L: JLong, "aaa", 5L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 6L: JLong)))
+      CRow(0L: JLong, "aaa", 6L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "bbb", 30L: JLong)))
+      CRow(0L: JLong, "bbb", 30L: JLong, null)))
 
     // register cleanup timer with 14002
     testHarness.setProcessingTime(11002)
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 7L: JLong)))
+      CRow(0L: JLong, "aaa", 7L: JLong, null)))
 
     testHarness.setProcessingTime(11004)
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 8L: JLong)))
+      CRow(0L: JLong, "aaa", 8L: JLong, null)))
 
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 9L: JLong)))
+      CRow(0L: JLong, "aaa", 9L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 10L: JLong)))
+      CRow(0L: JLong, "aaa", 10L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "bbb", 40L: JLong)))
+      CRow(0L: JLong, "bbb", 40L: JLong, null)))
 
     testHarness.setProcessingTime(11006)
 
@@ -213,12 +230,12 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     // timer registered for 23000
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "ccc", 10L: JLong)))
+      CRow(0L: JLong, "ccc", 10L: JLong, null)))
 
     // update clean-up timer to 25500. Previous timer should not clean up
     testHarness.setProcessingTime(22500)
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "ccc", 20L: JLong)))
+      CRow(0L: JLong, "ccc", 20L: JLong, null)))
 
     // 23000 clean-up timer should fire but not fail with an NPE
     testHarness.setProcessingTime(23001)
@@ -229,37 +246,37 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     // all elements at the same proc timestamp have the same value per key
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 1L: JLong, 1L: JLong, 1L: JLong)))
+      CRow(0L: JLong, "aaa", 1L: JLong, null, 1L: JLong, 1L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "bbb", 10L: JLong, 10L: JLong, 10L: JLong)))
+      CRow(0L: JLong, "bbb", 10L: JLong, null, 10L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 2L: JLong, 1L: JLong, 2L: JLong)))
+      CRow(0L: JLong, "aaa", 2L: JLong, null, 1L: JLong, 2L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 3L: JLong, 3L: JLong, 4L: JLong)))
+      CRow(0L: JLong, "aaa", 3L: JLong, null, 3L: JLong, 4L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "bbb", 20L: JLong, 20L: JLong, 20L: JLong)))
+      CRow(0L: JLong, "bbb", 20L: JLong, null, 20L: JLong, 20L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 4L: JLong, 4L: JLong, 4L: JLong)))
+      CRow(0L: JLong, "aaa", 4L: JLong, null, 4L: JLong, 4L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 5L: JLong, 5L: JLong, 6L: JLong)))
+      CRow(0L: JLong, "aaa", 5L: JLong, null, 5L: JLong, 6L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 6L: JLong, 5L: JLong, 6L: JLong)))
+      CRow(0L: JLong, "aaa", 6L: JLong, null, 5L: JLong, 6L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "bbb", 30L: JLong, 30L: JLong, 30L: JLong)))
+      CRow(0L: JLong, "bbb", 30L: JLong, null, 30L: JLong, 30L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 7L: JLong, 7L: JLong, 7L: JLong)))
+      CRow(0L: JLong, "aaa", 7L: JLong, null, 7L: JLong, 7L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 8L: JLong, 7L: JLong, 10L: JLong)))
+      CRow(0L: JLong, "aaa", 8L: JLong, null, 7L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 9L: JLong, 7L: JLong, 10L: JLong)))
+      CRow(0L: JLong, "aaa", 9L: JLong, null, 7L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 10L: JLong, 7L: JLong, 10L: JLong)))
+      CRow(0L: JLong, "aaa", 10L: JLong, null, 7L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "bbb", 40L: JLong, 40L: JLong, 40L: JLong)))
+      CRow(0L: JLong, "bbb", 40L: JLong, null, 40L: JLong, 40L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "ccc", 10L: JLong, 10L: JLong, 10L: JLong)))
+      CRow(0L: JLong, "ccc", 10L: JLong, null, 10L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "ccc", 20L: JLong, 10L: JLong, 20L: JLong)))
+      CRow(0L: JLong, "ccc", 20L: JLong, null, 10L: JLong, 20L: JLong)))
 
     verify(expectedOutput, result)
 
@@ -268,88 +285,98 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
   @Test
   def testProcTimeUnboundedOver(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
-      new ProcTimeUnboundedOver(
-        genMinMaxAggFunction,
-        minMaxAggregationStateType,
-        queryConfig))
+    val data = Seq[(JLong, String, JLong)]()
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    tEnv.registerTable("T", t)
+    val sqlQuery = tEnv.sqlQuery(
+      s"""
+         |SELECT a, b, c,
+         |  MIN(c) OVER (PARTITION BY b ORDER BY proctime RANGE
+         |    BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW),
+         |  MAX(c) OVER (PARTITION BY b ORDER BY proctime RANGE
+         |    BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+         |FROM T
+         |""".stripMargin)
 
-    val testHarness =
-      createHarnessTester(
-        processFunction,
-        new TupleRowKeySelector[String](1),
-        Types.STRING)
+    val testHarness = createHarnessTester[String, CRow, CRow](
+      tEnv.toAppendStream[Row](sqlQuery, queryConfig), "over")
 
+    testHarness.setStateBackend(getStateBackend)
     testHarness.open()
+
+    val operator = getOperator(testHarness)
+    assertTrue(operator.getKeyedStateBackend.isInstanceOf[RocksDBKeyedStateBackend[_]])
 
     // register cleanup timer with 4003
     testHarness.setProcessingTime(1003)
 
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 1L: JLong)))
+      CRow(0L: JLong, "aaa", 1L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "bbb", 10L: JLong)))
+      CRow(0L: JLong, "bbb", 10L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 2L: JLong)))
+      CRow(0L: JLong, "aaa", 2L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 3L: JLong)))
+      CRow(0L: JLong, "aaa", 3L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "bbb", 20L: JLong)))
+      CRow(0L: JLong, "bbb", 20L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 4L: JLong)))
+      CRow(0L: JLong, "aaa", 4L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 5L: JLong)))
+      CRow(0L: JLong, "aaa", 5L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 6L: JLong)))
+      CRow(0L: JLong, "aaa", 6L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "bbb", 30L: JLong)))
+      CRow(0L: JLong, "bbb", 30L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 7L: JLong)))
+      CRow(0L: JLong, "aaa", 7L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 8L: JLong)))
+      CRow(0L: JLong, "aaa", 8L: JLong, null)))
 
     // trigger cleanup timer and register cleanup timer with 8003
     testHarness.setProcessingTime(5003)
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 9L: JLong)))
+      CRow(0L: JLong, "aaa", 9L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "aaa", 10L: JLong)))
+      CRow(0L: JLong, "aaa", 10L: JLong, null)))
     testHarness.processElement(new StreamRecord(
-      CRow(0L: JLong, "bbb", 40L: JLong)))
+      CRow(0L: JLong, "bbb", 40L: JLong, null)))
 
     val result = testHarness.getOutput
 
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 1L: JLong, 1L: JLong, 1L: JLong)))
+      CRow(0L: JLong, "aaa", 1L: JLong, null, 1L: JLong, 1L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "bbb", 10L: JLong, 10L: JLong, 10L: JLong)))
+      CRow(0L: JLong, "bbb", 10L: JLong, null, 10L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 2L: JLong, 1L: JLong, 2L: JLong)))
+      CRow(0L: JLong, "aaa", 2L: JLong, null, 1L: JLong, 2L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 3L: JLong, 1L: JLong, 3L: JLong)))
+      CRow(0L: JLong, "aaa", 3L: JLong, null, 1L: JLong, 3L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "bbb", 20L: JLong, 10L: JLong, 20L: JLong)))
+      CRow(0L: JLong, "bbb", 20L: JLong, null, 10L: JLong, 20L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 4L: JLong, 1L: JLong, 4L: JLong)))
+      CRow(0L: JLong, "aaa", 4L: JLong, null, 1L: JLong, 4L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 5L: JLong, 1L: JLong, 5L: JLong)))
+      CRow(0L: JLong, "aaa", 5L: JLong, null, 1L: JLong, 5L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 6L: JLong, 1L: JLong, 6L: JLong)))
+      CRow(0L: JLong, "aaa", 6L: JLong, null, 1L: JLong, 6L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "bbb", 30L: JLong, 10L: JLong, 30L: JLong)))
+      CRow(0L: JLong, "bbb", 30L: JLong, null, 10L: JLong, 30L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 7L: JLong, 1L: JLong, 7L: JLong)))
+      CRow(0L: JLong, "aaa", 7L: JLong, null, 1L: JLong, 7L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 8L: JLong, 1L: JLong, 8L: JLong)))
+      CRow(0L: JLong, "aaa", 8L: JLong, null, 1L: JLong, 8L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 9L: JLong, 9L: JLong, 9L: JLong)))
+      CRow(0L: JLong, "aaa", 9L: JLong, null, 9L: JLong, 9L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "aaa", 10L: JLong, 9L: JLong, 10L: JLong)))
+      CRow(0L: JLong, "aaa", 10L: JLong, null, 9L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      CRow(0L: JLong, "bbb", 40L: JLong, 40L: JLong, 40L: JLong)))
+      CRow(0L: JLong, "bbb", 40L: JLong, null, 40L: JLong, 40L: JLong)))
 
     verify(expectedOutput, result)
     testHarness.close()
@@ -360,21 +387,26 @@ class OverWindowHarnessTest extends HarnessTestBase{
     */
   @Test
   def testRowTimeBoundedRangeOver(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
-      new RowTimeBoundedRangeOver(
-        genMinMaxAggFunction,
-        minMaxAggregationStateType,
-        minMaxCRowType,
-        4000,
-        0,
-        new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))))
+    val data = Seq[(JLong, String, JLong)]()
+    val t = env.fromCollection(data).toTable(tEnv, 'a.rowtime, 'b, 'c)
+    tEnv.registerTable("T", t)
+    val sqlQuery = tEnv.sqlQuery(
+      s"""
+         |SELECT a, b, c,
+         |  MIN(c) OVER (PARTITION BY b ORDER BY a RANGE
+         |    BETWEEN INTERVAL '4' SECOND PRECEDING AND CURRENT ROW),
+         |  MAX(c) OVER (PARTITION BY b ORDER BY a RANGE
+         |    BETWEEN INTERVAL '4' SECOND PRECEDING AND CURRENT ROW)
+         |FROM T
+         |""".stripMargin)
 
-    val testHarness =
-      createHarnessTester(
-        processFunction,
-        new TupleRowKeySelector[String](1),
-        BasicTypeInfo.STRING_TYPE_INFO)
+    val queryConfig = new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))
+    val testHarness = createHarnessTester[String, CRow, CRow](
+      tEnv.toAppendStream[Row](sqlQuery, queryConfig), "over")
 
     testHarness.open()
 
@@ -444,7 +476,6 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.setProcessingTime(4499)
     assert(testHarness.numKeyedStateEntries() > 0) // check that we have state
     testHarness.setProcessingTime(4500)
-    val x = testHarness.numKeyedStateEntries()
     assert(testHarness.numKeyedStateEntries() == 0) // check that all state is gone
 
     // check that state is only removed if all data was processed
@@ -510,21 +541,26 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
   @Test
   def testRowTimeBoundedRowsOver(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
-      new RowTimeBoundedRowsOver(
-        genMinMaxAggFunction,
-        minMaxAggregationStateType,
-        minMaxCRowType,
-        3,
-        0,
-        new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))))
+    val data = Seq[(JLong, String, JLong)]()
+    val t = env.fromCollection(data).toTable(tEnv, 'a.rowtime, 'b, 'c)
+    tEnv.registerTable("T", t)
+    val sqlQuery = tEnv.sqlQuery(
+      s"""
+         |SELECT a, b, c,
+         |  MIN(c) OVER (PARTITION BY b ORDER BY a ROWS
+         |    BETWEEN INTERVAL '0.002' SECOND PRECEDING AND CURRENT ROW),
+         |  MAX(c) OVER (PARTITION BY b ORDER BY a ROWS
+         |    BETWEEN INTERVAL '0.002' SECOND PRECEDING AND CURRENT ROW)
+         |FROM T
+         |""".stripMargin)
 
-    val testHarness =
-      createHarnessTester(
-        processFunction,
-        new TupleRowKeySelector[String](1),
-        BasicTypeInfo.STRING_TYPE_INFO)
+    val queryConfig = new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))
+    val testHarness = createHarnessTester[String, CRow, CRow](
+      tEnv.toAppendStream[Row](sqlQuery, queryConfig), "over")
 
     testHarness.open()
 
@@ -658,20 +694,26 @@ class OverWindowHarnessTest extends HarnessTestBase{
     */
   @Test
   def testRowTimeUnboundedRangeOver(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
-      new RowTimeUnboundedRangeOver(
-        genMinMaxAggFunction,
-        minMaxAggregationStateType,
-        minMaxCRowType,
-        0,
-        new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))))
+    val data = Seq[(JLong, String, JLong)]()
+    val t = env.fromCollection(data).toTable(tEnv, 'a.rowtime, 'b, 'c)
+    tEnv.registerTable("T", t)
+    val sqlQuery = tEnv.sqlQuery(
+      s"""
+         |SELECT a, b, c,
+         |  MIN(c) OVER (PARTITION BY b ORDER BY a RANGE
+         |    BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW),
+         |  MAX(c) OVER (PARTITION BY b ORDER BY a RANGE
+         |    BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+         |FROM T
+         |""".stripMargin)
 
-    val testHarness =
-      createHarnessTester(
-        processFunction,
-        new TupleRowKeySelector[String](1),
-        BasicTypeInfo.STRING_TYPE_INFO)
+    val queryConfig = new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))
+    val testHarness = createHarnessTester[String, CRow, CRow](
+      tEnv.toAppendStream[Row](sqlQuery, queryConfig), "over")
 
     testHarness.open()
 
@@ -794,20 +836,26 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
   @Test
   def testRowTimeUnboundedRowsOver(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
-      new RowTimeUnboundedRowsOver(
-        genMinMaxAggFunction,
-        minMaxAggregationStateType,
-        minMaxCRowType,
-        0,
-        new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))))
+    val data = Seq[(JLong, String, JLong)]()
+    val t = env.fromCollection(data).toTable(tEnv, 'a.rowtime, 'b, 'c)
+    tEnv.registerTable("T", t)
+    val sqlQuery = tEnv.sqlQuery(
+      s"""
+         |SELECT a, b, c,
+         |  MIN(c) OVER (PARTITION BY b ORDER BY a ROWS
+         |    BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW),
+         |  MAX(c) OVER (PARTITION BY b ORDER BY a ROWS
+         |    BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+         |FROM T
+         |""".stripMargin)
 
-    val testHarness =
-      createHarnessTester(
-        processFunction,
-        new TupleRowKeySelector[String](1),
-        BasicTypeInfo.STRING_TYPE_INFO)
+    val queryConfig = new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))
+    val testHarness = createHarnessTester[String, CRow, CRow](
+      tEnv.toAppendStream[Row](sqlQuery, queryConfig), "over")
 
     testHarness.open()
 

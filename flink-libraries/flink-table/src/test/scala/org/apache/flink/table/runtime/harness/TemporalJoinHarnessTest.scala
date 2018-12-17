@@ -17,6 +17,8 @@
  */
 package org.apache.flink.table.runtime.harness
 
+import java.lang.{Integer => JInt, Long => JLong}
+import java.sql.Timestamp
 import java.util
 import java.util.concurrent.ConcurrentLinkedQueue
 
@@ -25,14 +27,18 @@ import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.ImmutableIntList
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.functions.KeySelector
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.scala._
+import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend
+import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness
-import org.apache.flink.table.api.{TableConfig, Types, ValidationException}
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{TableConfig, TableEnvironment, Types, ValidationException}
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin
 import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin.TEMPORAL_JOIN_CONDITION
@@ -42,6 +48,7 @@ import org.apache.flink.table.runtime.CRowKeySelector
 import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, TestStreamQueryConfig}
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+import org.apache.flink.types.Row
 import org.hamcrest.CoreMatchers
 import org.hamcrest.Matchers.{endsWith, startsWith}
 import org.junit.Assert.assertTrue
@@ -69,45 +76,40 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
 
   private val RATES_ROWTIME = "r_rowtime"
 
-  private val ordersRowtimeType = new RowTypeInfo(
-    Array[TypeInformation[_]](
-      Types.LONG,
-      Types.STRING,
-      TimeIndicatorTypeInfo.ROWTIME_INDICATOR),
-    Array("o_amount", ORDERS_KEY, ORDERS_ROWTIME))
+  private val ordersRowtimeFields = Array("o_amount", ORDERS_KEY, ORDERS_ROWTIME)
+
+  private val ordersProctimeFields = Array("o_amount", ORDERS_KEY, ORDERS_PROCTIME)
+
+  private val ratesRowtimeFields = Array(RATES_KEY, "r_rate", RATES_ROWTIME)
+
+  private val ratesProctimeFields = Array(RATES_KEY, "r_rate", "r_proctime")
 
   private val ordersProctimeType = new RowTypeInfo(
     Array[TypeInformation[_]](
       Types.LONG,
       Types.STRING,
       TimeIndicatorTypeInfo.PROCTIME_INDICATOR),
-    Array("o_amount", ORDERS_KEY, ORDERS_PROCTIME))
-
-  private val ratesRowtimeType = new RowTypeInfo(
-    Array[TypeInformation[_]](
-      Types.STRING,
-      Types.LONG,
-      TimeIndicatorTypeInfo.ROWTIME_INDICATOR),
-    Array(RATES_KEY, "r_rate", RATES_ROWTIME))
+    ordersProctimeFields)
 
   private val ratesProctimeType = new RowTypeInfo(
     Array[TypeInformation[_]](
       Types.STRING,
       Types.LONG,
       TimeIndicatorTypeInfo.PROCTIME_INDICATOR),
-    Array(RATES_KEY, "r_rate", "r_proctime"))
-
-  private val joinRowtimeType = new RowTypeInfo(
-    ordersRowtimeType.getFieldTypes ++ ratesRowtimeType.getFieldTypes,
-    ordersRowtimeType.getFieldNames ++ ratesRowtimeType.getFieldNames)
+    ratesProctimeFields)
 
   private val rexBuilder = new RexBuilder(typeFactory)
 
   @Test
   def testRowtime() {
-    val testHarness = createTestHarness(new OrdersRatesRowtimeTemporalJoinInfo())
+    val testHarness = createTestHarness[(JLong, String, Timestamp), (String, JLong, Timestamp)](
+      isRowtime = true,
+      ordersRowtimeFields,
+      ratesRowtimeFields)
 
-    testHarness.open()
+    val operator = getOperator(testHarness)
+    assertTrue(operator.getKeyedStateBackend.isInstanceOf[RocksDBKeyedStateBackend[_]])
+
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     // process without conversion rates
@@ -160,9 +162,14 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
 
   @Test
   def testEventsWithSameRowtime() {
-    val testHarness = createTestHarness(new OrdersRatesRowtimeTemporalJoinInfo())
+    val testHarness = createTestHarness[(JLong, String, Timestamp), (String, JLong, Timestamp)](
+      isRowtime = true,
+      ordersRowtimeFields,
+      ratesRowtimeFields)
 
-    testHarness.open()
+    val operator = getOperator(testHarness)
+    assertTrue(operator.getKeyedStateBackend.isInstanceOf[RocksDBKeyedStateBackend[_]])
+
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     val time1 = 1L
@@ -184,9 +191,13 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
 
   @Test
   def testRowtimePickCorrectRowFromTemporalTable() {
-    val testHarness = createTestHarness(new OrdersRatesRowtimeTemporalJoinInfo())
+    val testHarness = createTestHarness[(JLong, String, Timestamp), (String, JLong, Timestamp)](
+      isRowtime = true,
+      ordersRowtimeFields,
+      ratesRowtimeFields)
 
-    testHarness.open()
+    val operator = getOperator(testHarness)
+    assertTrue(operator.getKeyedStateBackend.isInstanceOf[RocksDBKeyedStateBackend[_]])
 
     val expectedOutput = processEuro(testHarness)
 
@@ -199,9 +210,13 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
 
   @Test
   def testRowtimeWatermarkHandling() {
-    val testHarness = createTestHarness(new OrdersRatesRowtimeTemporalJoinInfo())
+    val testHarness = createTestHarness[(JLong, String, Timestamp), (String, JLong, Timestamp)](
+      isRowtime = true,
+      ordersRowtimeFields,
+      ratesRowtimeFields)
 
-    testHarness.open()
+    val operator = getOperator(testHarness)
+    assertTrue(operator.getKeyedStateBackend.isInstanceOf[RocksDBKeyedStateBackend[_]])
 
     val expectedOutput = processEuro(testHarness)
 
@@ -225,9 +240,13 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
     */
   @Test
   def testRowtimeStateCleanUpShouldAlwaysKeepOneLatestRow() {
-    val testHarness = createTestHarness(new OrdersRatesRowtimeTemporalJoinInfo())
+    val testHarness = createTestHarness[(JLong, String, Timestamp), (String, JLong, Timestamp)](
+      isRowtime = true,
+      ordersRowtimeFields,
+      ratesRowtimeFields)
 
-    testHarness.open()
+    val operator = getOperator(testHarness)
+    assertTrue(operator.getKeyedStateBackend.isInstanceOf[RocksDBKeyedStateBackend[_]])
 
     val expectedOutput = processEuro(testHarness)
 
@@ -285,9 +304,14 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
 
   @Test
   def testProctime() {
-    val testHarness = createTestHarness(new OrdersRatesProctimeTemporalJoinInfo)
+    val testHarness = createTestHarness[(JLong, String), (String, JLong)](
+      isRowtime = false,
+      ordersProctimeFields,
+      ratesProctimeFields)
 
-    testHarness.open()
+    val operator = getOperator(testHarness)
+    assertTrue(operator.getKeyedStateBackend.isInstanceOf[RocksDBKeyedStateBackend[_]])
+
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     // process without conversion rates
@@ -330,57 +354,48 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
 
   @Test
   def testNonEquiProctime() {
-    val testHarness = createTestHarness(
-      new ProctimeTemporalJoinInfo(
-        new RowTypeInfo(
-          ordersProctimeType.getFieldTypes :+ Types.INT,
-          ordersProctimeType.getFieldNames :+ "foo"),
-        new RowTypeInfo(
-          ratesProctimeType.getFieldTypes :+ Types.INT,
-          ratesProctimeType.getFieldNames :+ "bar"),
-        ORDERS_KEY,
-        RATES_KEY,
-        ORDERS_PROCTIME) {
-        /**
-          * @return [[LogicalTemporalTableJoin.TEMPORAL_JOIN_CONDITION]](...) AND
-          *        leftInputRef(3) > rightInputRef(3)
-          */
-        override def getRemaining(rexBuilder: RexBuilder): RexNode = {
-          rexBuilder.makeCall(
-            SqlStdOperatorTable.AND,
-            super.getRemaining(rexBuilder),
-            rexBuilder.makeCall(
-              SqlStdOperatorTable.GREATER_THAN,
-              makeLeftInputRef("foo"),
-              makeRightInputRef("bar")))
-        }
-      })
+    val sql =
+      s"""
+         |SELECT *
+         |FROM
+         |  Orders as o,
+         |  LATERAL TABLE (Rates(o.$ORDERS_PROCTIME)) AS r
+         |WHERE r.$RATES_KEY = o.$ORDERS_KEY AND o_foo > r_bar
+         |""".stripMargin
 
-    testHarness.open()
+    val testHarness = createTestHarness[(JLong, String, JInt), (String, JLong, JInt)](
+      isRowtime = false,
+      Array("o_amount", ORDERS_KEY, "o_foo", ORDERS_PROCTIME),
+      Array(RATES_KEY, "r_rate", "r_bar", "r_proctime"),
+      sql = Some(sql))
+
+    val operator = getOperator(testHarness)
+    assertTrue(operator.getKeyedStateBackend.isInstanceOf[RocksDBKeyedStateBackend[_]])
+
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     // initiate conversion rates
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 114L, null, 42)))
-    testHarness.processElement2(new StreamRecord(CRow("Yen", 1L, null, 42)))
+    testHarness.processElement2(new StreamRecord(CRow("Euro", 114L, 42, null)))
+    testHarness.processElement2(new StreamRecord(CRow("Yen", 1L, 42, null)))
 
     // process with conversion rates
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", null, 0)))
-    testHarness.processElement1(new StreamRecord(CRow(50L, "Yen", null, 44)))
+    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 0, null)))
+    testHarness.processElement1(new StreamRecord(CRow(50L, "Yen", 44, null)))
 
-    expectedOutput.add(new StreamRecord(CRow(50L, "Yen", null, 44, "Yen", 1L, null, 42)))
+    expectedOutput.add(new StreamRecord(CRow(50L, "Yen", 44, null, "Yen", 1L, 42, null)))
 
     // update Euro
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 116L, null, 44)))
+    testHarness.processElement2(new StreamRecord(CRow("Euro", 116L, 44, null)))
 
     // process Euro
-    testHarness.processElement1(new StreamRecord(CRow(3L, "Euro", null, 42)))
-    testHarness.processElement1(new StreamRecord(CRow(4L, "Euro", null, 44)))
-    testHarness.processElement1(new StreamRecord(CRow(5L, "Euro", null, 1337)))
+    testHarness.processElement1(new StreamRecord(CRow(3L, "Euro", 42, null)))
+    testHarness.processElement1(new StreamRecord(CRow(4L, "Euro", 44, null)))
+    testHarness.processElement1(new StreamRecord(CRow(5L, "Euro", 1337, null)))
 
-    expectedOutput.add(new StreamRecord(CRow(5L, "Euro", null, 1337, "Euro", 116L, null, 44)))
+    expectedOutput.add(new StreamRecord(CRow(5L, "Euro", 1337, null, "Euro", 116L, 44, null)))
 
     // process US Dollar
-    testHarness.processElement1(new StreamRecord(CRow(5L, "US Dollar", null, 1337)))
+    testHarness.processElement1(new StreamRecord(CRow(5L, "US Dollar", 1337, null)))
 
     verify(expectedOutput, testHarness.getOutput, new RowResultSortComparator())
 
@@ -514,20 +529,53 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
     translateJoin(new OrdersRatesProctimeTemporalJoinInfo, JoinRelType.FULL)
   }
 
-  def createTestHarness(temporalJoinInfo: TemporalJoinInfo)
-    : KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow] = {
+  def createTestHarness[IN1: TypeInformation, IN2: TypeInformation](
+      isRowtime: Boolean,
+      ordersFields: Seq[String],
+      ratesFields: Seq[String],
+      ordersKey: String = ORDERS_KEY,
+      ratesKey: String = RATES_KEY,
+      sql: Option[String] = None
+  ): KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow] = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    if (isRowtime) {
+      env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    }
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val (leftKeySelector, rightKeySelector, joinOperator) =
-      translateJoin(temporalJoinInfo)
+    val ordersFieldExprs = ordersFields.map(f => symbol2FieldExpression(Symbol(f)))
+    val orders = env.fromCollection(Seq[IN1]()).toTable(
+      tEnv,
+      ordersFieldExprs.dropRight(1) :+
+        (if (isRowtime) ordersFieldExprs.last.rowtime else ordersFieldExprs.last.proctime): _*)
+    tEnv.registerTable("Orders", orders)
 
-    new KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow](
-      joinOperator,
-      leftKeySelector.asInstanceOf[KeySelector[CRow, String]],
-      rightKeySelector.asInstanceOf[KeySelector[CRow, String]],
-      BasicTypeInfo.STRING_TYPE_INFO,
-      1,
-      1,
-      0)
+    val ratesFieldExprs = ratesFields.map(f => symbol2FieldExpression(Symbol(f)))
+    val rates = env.fromCollection(Seq[IN2]()).toTable(
+      tEnv,
+      ratesFieldExprs.dropRight(1) :+
+        (if (isRowtime) ratesFieldExprs.last.rowtime else ratesFieldExprs.last.proctime): _*)
+    tEnv.registerTable("RatesTable", rates)
+    tEnv.registerFunction(
+      "Rates",
+      tEnv.scan("RatesTable").createTemporalTableFunction(ratesFields.last, ratesKey))
+
+    val sqlQuery = tEnv.sqlQuery(sql.getOrElse(
+      s"""
+         |SELECT *
+         |FROM
+         |  Orders as o,
+         |  LATERAL TABLE (Rates(o.${ordersFields.last})) AS r
+         |WHERE r.$ratesKey = o.$ordersKey
+         |""".stripMargin))
+
+    val testHarness = createHarnessTester[String, CRow, CRow, CRow](
+      tEnv.toAppendStream[Row](sqlQuery, queryConfig), "InnerJoin")
+
+    testHarness.setStateBackend(getStateBackend)
+    testHarness.open()
+
+    testHarness
   }
 
   // ---------------------- Row time TTL tests ----------------------
@@ -535,7 +583,10 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
   @Test
   def testRowTimeJoinCleanupTimerUpdatedFromProbeSide(): Unit = {
     // min=2ms max=4ms
-    val testHarness = createTestHarness(new OrdersRatesRowtimeTemporalJoinInfo())
+    val testHarness = createTestHarness[(JLong, String, Timestamp), (String, JLong, Timestamp)](
+      isRowtime = true,
+      ordersRowtimeFields,
+      ratesRowtimeFields)
 
     testHarness.open()
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
@@ -578,7 +629,10 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
   @Test
   def testRowTimeJoinCleanupTimerUpdatedFromBuildSide(): Unit = {
     // min=2ms max=4ms
-    val testHarness = createTestHarness(new OrdersRatesRowtimeTemporalJoinInfo())
+    val testHarness = createTestHarness[(JLong, String, Timestamp), (String, JLong, Timestamp)](
+      isRowtime = true,
+      ordersRowtimeFields,
+      ratesRowtimeFields)
 
     testHarness.open()
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
@@ -620,7 +674,10 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
   @Test
   def testRowTimeJoinCleanupTimerUpdatedAfterEvaluation(): Unit = {
     // min=2ms max=4ms
-    val testHarness = createTestHarness(new OrdersRatesRowtimeTemporalJoinInfo())
+    val testHarness = createTestHarness[(JLong, String, Timestamp), (String, JLong, Timestamp)](
+      isRowtime = true,
+      ordersRowtimeFields,
+      ratesRowtimeFields)
 
     testHarness.open()
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
@@ -663,7 +720,10 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
   @Test
   def testProcessingTimeJoinCleanupTimerUpdatedFromProbeSide(): Unit = {
     // min=2ms max=4ms
-    val testHarness = createTestHarness(new OrdersRatesProctimeTemporalJoinInfo())
+    val testHarness = createTestHarness[(JLong, String, Timestamp), (String, JLong, Timestamp)](
+      isRowtime = true,
+      ordersRowtimeFields,
+      ratesRowtimeFields)
 
     testHarness.open()
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
@@ -700,7 +760,10 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
   @Test
   def testProcessingTimeJoinCleanupTimerUpdatedFromBuildSide(): Unit = {
     // min=2ms max=4ms
-    val testHarness = createTestHarness(new OrdersRatesProctimeTemporalJoinInfo())
+    val testHarness = createTestHarness[(JLong, String, Timestamp), (String, JLong, Timestamp)](
+      isRowtime = true,
+      ordersRowtimeFields,
+      ratesRowtimeFields)
 
     testHarness.open()
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
@@ -816,60 +879,6 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
       LogicalTemporalTableJoin.makeProcTimeTemporalJoinConditionCall(
         rexBuilder,
         makeLeftInputRef(leftTimeAttribute),
-        makeRightInputRef(rightKey))
-    }
-  }
-
-  class OrdersRatesRowtimeTemporalJoinInfo()
-    extends RowtimeTemporalJoinInfo(
-      ordersRowtimeType,
-      ratesRowtimeType,
-      ORDERS_KEY,
-      RATES_KEY,
-      ORDERS_ROWTIME,
-      RATES_ROWTIME)
-
-  class RowtimeTemporalJoinInfo(
-      leftRowType: RowTypeInfo,
-      rightRowType: RowTypeInfo,
-      leftKey: String,
-      rightKey: String,
-      leftTimeAttribute: String,
-      rightTimeAttribute: String)
-    extends TemporalJoinInfo(
-      leftRowType,
-      rightRowType,
-      leftKey,
-      rightKey) {
-    override def getRemaining(rexBuilder: RexBuilder): RexNode = {
-      LogicalTemporalTableJoin.makeRowTimeTemporalJoinConditionCall(
-        rexBuilder,
-        makeLeftInputRef(leftTimeAttribute),
-        makeRightInputRef(rightTimeAttribute),
-        makeRightInputRef(rightKey))
-    }
-  }
-
-  class MissingTemporalJoinConditionJoinInfo(
-      leftRowType: RowTypeInfo,
-      rightRowType: RowTypeInfo,
-      leftKey: String,
-      rightKey: String,
-      isEquiJoin: Boolean)
-    extends TemporalJoinInfo(leftRowType, rightRowType, leftKey, rightKey) {
-
-    override def isEqui: Boolean = isEquiJoin
-
-    override def getRemaining(rexBuilder: RexBuilder): RexNode = if (isEquiJoin) {
-      rexBuilder.makeLiteral(true)
-    }
-    else {
-      rexBuilder.makeCall(
-        SqlStdOperatorTable.GREATER_THAN,
-        rexBuilder.makeCall(
-          SqlStdOperatorTable.CONCAT,
-          rexBuilder.makeLiteral("A"),
-          makeLeftInputRef(leftKey)),
         makeRightInputRef(rightKey))
     }
   }

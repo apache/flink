@@ -21,67 +21,28 @@ package org.apache.flink.table.runtime.harness
 import java.lang.{Integer => JInt, Long => JLong}
 import java.util.concurrent.ConcurrentLinkedQueue
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
-import org.apache.flink.api.java.functions.KeySelector
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.java.typeutils.runtime.RowComparator
+import org.apache.flink.api.scala._
+import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, TestHarnessUtil}
-import org.apache.flink.table.runtime.aggregate.{CollectionRowComparator, ProcTimeSortProcessFunction, RowTimeSortProcessFunction}
-import org.apache.flink.table.runtime.harness.SortProcessFunctionHarnessTest.TupleRowSelector
-import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class SortProcessFunctionHarnessTest {
-  
+class SortProcessFunctionHarnessTest extends HarnessTestBase {
+
   @Test
   def testSortProcTimeHarnessPartitioned(): Unit = {
-    
-    val rT =  new RowTypeInfo(Array[TypeInformation[_]](
-      INT_TYPE_INFO,
-      LONG_TYPE_INFO,
-      INT_TYPE_INFO,
-      STRING_TYPE_INFO,
-      LONG_TYPE_INFO),
-      Array("a", "b", "c", "d", "e"))
-    
-    val indexes = Array(1, 2)
-      
-    val fieldComps = Array[TypeComparator[AnyRef]](
-      LONG_TYPE_INFO.createComparator(true, null).asInstanceOf[TypeComparator[AnyRef]],
-      INT_TYPE_INFO.createComparator(false, null).asInstanceOf[TypeComparator[AnyRef]] )
-    val booleanOrders = Array(true, false)    
-    
+    val testHarness = createTestHarness(isRowtime = false)
 
-    val rowComp = new RowComparator(
-      rT.getTotalFields,
-      indexes,
-      fieldComps,
-      new Array[TypeSerializer[AnyRef]](0), //used only for serialized comparisons
-      booleanOrders)
-    
-    val collectionRowComparator = new CollectionRowComparator(rowComp)
-    
-    val inputCRowType = CRowTypeInfo(rT)
-    
-    val processFunction = new LegacyKeyedProcessOperator[Integer,CRow,CRow](
-      new ProcTimeSortProcessFunction(
-        inputCRowType,
-        collectionRowComparator))
-  
-   val testHarness = new KeyedOneInputStreamOperatorTestHarness[Integer, CRow, CRow](
-      processFunction, 
-      new TupleRowSelector(0), 
-      BasicTypeInfo.INT_TYPE_INFO)
-    
-   testHarness.open()
+    val operator = getOperator(testHarness)
+    assertTrue(operator.getKeyedStateBackend.isInstanceOf[RocksDBKeyedStateBackend[_]])
 
    testHarness.setProcessingTime(3)
 
@@ -143,47 +104,11 @@ class SortProcessFunctionHarnessTest {
 
   @Test
   def testSortRowTimeHarnessPartitioned(): Unit = {
+    val testHarness = createTestHarness(isRowtime = true)
 
-    val rT =  new RowTypeInfo(Array[TypeInformation[_]](
-      INT_TYPE_INFO,
-      LONG_TYPE_INFO,
-      INT_TYPE_INFO,
-      STRING_TYPE_INFO,
-      TimeIndicatorTypeInfo.ROWTIME_INDICATOR),
-      Array("a", "b", "c", "d", "e"))
+    val operator = getOperator(testHarness)
+    assertTrue(operator.getKeyedStateBackend.isInstanceOf[RocksDBKeyedStateBackend[_]])
 
-    val indexes = Array(1, 2)
-
-    val fieldComps = Array[TypeComparator[AnyRef]](
-      LONG_TYPE_INFO.createComparator(true, null).asInstanceOf[TypeComparator[AnyRef]],
-      INT_TYPE_INFO.createComparator(false, null).asInstanceOf[TypeComparator[AnyRef]] )
-    val booleanOrders = Array(true, false)
-
-    val rowComp = new RowComparator(
-      rT.getTotalFields,
-      indexes,
-      fieldComps,
-      new Array[TypeSerializer[AnyRef]](0), //used only for serialized comparisons
-      booleanOrders)
-
-    val collectionRowComparator = new CollectionRowComparator(rowComp)
-
-    val inputCRowType = CRowTypeInfo(rT)
-
-    val processFunction = new LegacyKeyedProcessOperator[Integer,CRow,CRow](
-      new RowTimeSortProcessFunction(
-        inputCRowType,
-        4,
-        Some(collectionRowComparator)))
-
-   val testHarness = new KeyedOneInputStreamOperatorTestHarness[Integer, CRow, CRow](
-      processFunction,
-      new TupleRowSelector(0),
-      BasicTypeInfo.INT_TYPE_INFO)
-
-   testHarness.open()
-
-   testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime)
    testHarness.processWatermark(3)
 
       // timestamp is ignored in processing time
@@ -261,17 +186,39 @@ class SortProcessFunctionHarnessTest {
     testHarness.close()
         
   }
-}
 
-object SortProcessFunctionHarnessTest {
-
-  /**
-   * Simple test class that returns a specified field as the selector function
-   */
-  class TupleRowSelector(private val selectorField: Int) extends KeySelector[CRow, Integer] {
-
-    override def getKey(value: CRow): Integer = {
-      value.row.getField(selectorField).asInstanceOf[Integer]
+  private def createTestHarness(isRowtime: Boolean)
+      : KeyedOneInputStreamOperatorTestHarness[String, CRow, CRow] = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    if (isRowtime) {
+      env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     }
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val data = Seq[(JInt, JLong, JInt, String)]()
+
+    val timeAttributeField = if (isRowtime) "rowtime" else "proctime"
+    val timeAttributeFieldExpr = if (isRowtime) {
+      symbol2FieldExpression(Symbol(timeAttributeField)).rowtime
+    } else {
+      symbol2FieldExpression(Symbol(timeAttributeField)).proctime
+    }
+    val t = env.fromCollection(data).toTable(
+      tEnv, 'a, 'b, 'c, 'd, timeAttributeFieldExpr)
+    tEnv.registerTable("T", t)
+    val sqlQuery = tEnv.sqlQuery(
+      s"""
+         |SELECT *
+         |FROM T
+         |ORDER BY $timeAttributeField, b ASC, c DESC
+         |""".stripMargin)
+
+    val testHarness = createHarnessTester[String, CRow, CRow](
+      tEnv.toAppendStream[Row](sqlQuery), "Process")
+
+    testHarness.setStateBackend(getStateBackend)
+    testHarness.open()
+
+    testHarness
   }
 }
