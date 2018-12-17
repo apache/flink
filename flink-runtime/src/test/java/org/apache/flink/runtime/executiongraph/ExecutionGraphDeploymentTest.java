@@ -52,9 +52,10 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -67,6 +68,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -164,7 +166,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy(),
 				new RestartAllStrategy.Factory(),
-				new Scheduler(TestingUtils.defaultExecutionContext()),
+				new TestingSlotProvider(ignore -> new CompletableFuture<>()),
 				ExecutionGraph.class.getClassLoader(),
 				blobWriter,
 				AkkaUtils.getDefaultTimeout());
@@ -426,14 +428,12 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
-		Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
+		final ArrayDeque<CompletableFuture<LogicalSlot>> slotFutures = new ArrayDeque<>();
 		for (int i = 0; i < dop1; i++) {
-			scheduler.newInstanceAvailable(
-				ExecutionGraphTestUtils.getInstance(
-					new ActorTaskManagerGateway(
-						new ExecutionGraphTestUtils.SimpleActorGateway(
-							TestingUtils.directExecutionContext()))));
+			slotFutures.addLast(CompletableFuture.completedFuture(new TestingLogicalSlot()));
 		}
+
+		final SlotProvider slotProvider = new TestingSlotProvider(ignore -> slotFutures.removeFirst());
 
 		final JobInformation jobInformation = new DummyJobInformation(
 			jobId,
@@ -447,7 +447,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
 			new RestartAllStrategy.Factory(),
-			scheduler,
+			slotProvider,
 			ExecutionGraph.class.getClassLoader(),
 			blobWriter,
 			AkkaUtils.getDefaultTimeout());
@@ -458,8 +458,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		List<JobVertex> ordered = Arrays.asList(v1, v2);
 		eg.attachJobGraph(ordered);
-
-		assertEquals(dop1, scheduler.getNumberOfAvailableSlots());
 
 		// schedule, this triggers mock deployment
 		eg.scheduleForExecution();
@@ -508,14 +506,12 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		v1.setInvokableClass(BatchTask.class);
 		v2.setInvokableClass(BatchTask.class);
 
-		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
+		final ArrayDeque<CompletableFuture<LogicalSlot>> slotFutures = new ArrayDeque<>();
 		for (int i = 0; i < dop1 + dop2; i++) {
-			scheduler.newInstanceAvailable(
-					ExecutionGraphTestUtils.getInstance(
-							new ActorTaskManagerGateway(
-									new ExecutionGraphTestUtils.SimpleActorGateway(
-											TestingUtils.directExecutionContext()))));
+			slotFutures.addLast(CompletableFuture.completedFuture(new TestingLogicalSlot()));
 		}
+
+		final SlotProvider slotProvider = new TestingSlotProvider(ignore -> slotFutures.removeFirst());
 
 		final JobInformation jobInformation = new DummyJobInformation(
 			jobId,
@@ -529,7 +525,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
 			new RestartAllStrategy.Factory(),
-			scheduler,
+			slotProvider,
 			ExecutionGraph.class.getClassLoader(),
 			blobWriter,
 			AkkaUtils.getDefaultTimeout());
@@ -539,8 +535,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		List<JobVertex> ordered = Arrays.asList(v1, v2);
 		eg.attachJobGraph(ordered);
-
-		assertEquals(dop1 + dop2, scheduler.getNumberOfAvailableSlots());
 
 		// schedule, this triggers mock deployment
 		eg.scheduleForExecution();
