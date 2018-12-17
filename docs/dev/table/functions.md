@@ -3487,7 +3487,7 @@ DATE_FORMAT(timestamp, string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that formats <i>timestamp</i> with a specified format <i>string</i>. The format specification is given in the <a href="#date-format-specifiers">Date Format Specifier table</a>.</p>
+        <p><span class="label label-danger">Attention</span> This function has serious bugs and should not be used for now. Please implement a custom UDF instead or use EXTRACT as a workaround.</p>
       </td>
     </tr>
 
@@ -3756,8 +3756,7 @@ dateFormat(TIMESTAMP, STRING)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that formats <i>TIMESTAMP</i> with a specified format <i>STRING</i>. The format specification is given in the <a href="#date-format-specifiers">Date Format Specifier table</a>.</p>
-        <p>E.g., <code>dateFormat(ts, '%Y, %d %M')</code> results in strings formatted as "2017, 05 May".</p>
+        <p><span class="label label-danger">Attention</span> This function has serious bugs and should not be used for now. Please implement a custom UDF instead or use extract() as a workaround.</p>
       </td>
     </tr>
 
@@ -4014,8 +4013,7 @@ dateFormat(TIMESTAMP, STRING)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that formats <i>TIMESTAMP</i> with a specified format <i>STRING</i>. The format specification is given in the <a href="#date-format-specifiers">Date Format Specifier table</a>.</p>
-        <p>E.g., <code>dateFormat('ts, "%Y, %d %M")</code> results in strings formatted as "2017, 05 May".</p>
+        <p><span class="label label-danger">Attention</span> This function has serious bugs and should not be used for now. Please implement a custom UDF instead or use extract() as a workaround.</p>
       </td>
     </tr>
 

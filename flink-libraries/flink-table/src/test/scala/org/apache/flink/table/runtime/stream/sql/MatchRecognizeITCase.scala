@@ -22,12 +22,14 @@ import java.sql.Timestamp
 import java.util.TimeZone
 
 import org.apache.flink.api.common.time.Time
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.{TableConfig, TableEnvironment}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.functions.{FunctionContext, ScalarFunction}
+import org.apache.flink.table.api.{TableConfig, TableEnvironment, Types}
+import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
+import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase, UserDefinedFunctionTestUtils}
 import org.apache.flink.types.Row
@@ -39,7 +41,7 @@ import scala.collection.mutable
 class MatchRecognizeITCase extends StreamingWithStateTestBase {
 
   @Test
-  def testSimpleCEP(): Unit = {
+  def testSimplePattern(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -86,7 +88,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
   }
 
   @Test
-  def testSimpleCEPWithNulls(): Unit = {
+  def testSimplePatternWithNulls(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -464,6 +466,132 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
+  /**
+    * This query checks:
+    *
+    * 1. count(D.price) produces 0, because no rows matched to D
+    * 2. sum(D.price) produces null, because no rows matched to D
+    * 3. aggregates that take multiple parameters work
+    * 4. aggregates with expressions work
+    */
+  @Test
+  def testAggregates(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    tEnv.getConfig.setMaxGeneratedCodeLength(1)
+    StreamITCase.clear
+
+    val data = new mutable.MutableList[(Int, String, Long, Double, Int)]
+    data.+=((1, "a", 1, 0.8, 1))
+    data.+=((2, "z", 2, 0.8, 3))
+    data.+=((3, "b", 1, 0.8, 2))
+    data.+=((4, "c", 1, 0.8, 5))
+    data.+=((5, "d", 4, 0.1, 5))
+    data.+=((6, "a", 2, 1.5, 2))
+    data.+=((7, "b", 2, 0.8, 3))
+    data.+=((8, "c", 1, 0.8, 2))
+    data.+=((9, "h", 4, 0.8, 3))
+    data.+=((10, "h", 4, 0.8, 3))
+    data.+=((11, "h", 2, 0.8, 3))
+    data.+=((12, "h", 2, 0.8, 3))
+
+    val t = env.fromCollection(data)
+      .toTable(tEnv, 'id, 'name, 'price, 'rate, 'weight, 'proctime.proctime)
+    tEnv.registerTable("MyTable", t)
+    tEnv.registerFunction("weightedAvg", new WeightedAvg)
+
+    val sqlQuery =
+      s"""
+         |SELECT *
+         |FROM MyTable
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    FIRST(id) as startId,
+         |    SUM(A.price) AS sumA,
+         |    COUNT(D.price) AS countD,
+         |    SUM(D.price) as sumD,
+         |    weightedAvg(price, weight) as wAvg,
+         |    AVG(B.price) AS avgB,
+         |    SUM(B.price * B.rate) as sumExprB,
+         |    LAST(id) as endId
+         |  AFTER MATCH SKIP PAST LAST ROW
+         |  PATTERN (A+ B+ C D? E )
+         |  DEFINE
+         |    A AS SUM(A.price) < 6,
+         |    B AS SUM(B.price * B.rate) < SUM(A.price) AND
+         |         SUM(B.price * B.rate) > 0.2 AND
+         |         SUM(B.price) >= 1 AND
+         |         AVG(B.price) >= 1 AND
+         |         weightedAvg(price, weight) > 1
+         |) AS T
+         |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList("1,5,0,null,2,3,3.4,8", "9,4,0,null,3,4,3.2,12")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testAggregatesWithNullInputs(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    tEnv.getConfig.setMaxGeneratedCodeLength(1)
+    StreamITCase.clear
+
+    val data = new mutable.MutableList[Row]
+    data.+=(Row.of(Int.box(1), "a", Int.box(10)))
+    data.+=(Row.of(Int.box(2), "z", Int.box(10)))
+    data.+=(Row.of(Int.box(3), "b", null))
+    data.+=(Row.of(Int.box(4), "c", null))
+    data.+=(Row.of(Int.box(5), "d", Int.box(3)))
+    data.+=(Row.of(Int.box(6), "c", Int.box(3)))
+    data.+=(Row.of(Int.box(7), "c", Int.box(3)))
+    data.+=(Row.of(Int.box(8), "c", Int.box(3)))
+    data.+=(Row.of(Int.box(9), "c", Int.box(2)))
+
+    val t = env.fromCollection(data)(Types.ROW(
+      BasicTypeInfo.INT_TYPE_INFO,
+      BasicTypeInfo.STRING_TYPE_INFO,
+      BasicTypeInfo.INT_TYPE_INFO))
+      .toTable(tEnv, 'id, 'name, 'price, 'proctime.proctime)
+    tEnv.registerTable("MyTable", t)
+    tEnv.registerFunction("weightedAvg", new WeightedAvg)
+
+    val sqlQuery =
+      s"""
+         |SELECT *
+         |FROM MyTable
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    SUM(A.price) as sumA,
+         |    COUNT(A.id) as countAId,
+         |    COUNT(A.price) as countAPrice,
+         |    COUNT(*) as countAll,
+         |    COUNT(price) as countAllPrice,
+         |    LAST(id) as endId
+         |  AFTER MATCH SKIP PAST LAST ROW
+         |  PATTERN (A+ C)
+         |  DEFINE
+         |    A AS SUM(A.price) < 30,
+         |    C AS C.name = 'c'
+         |) AS T
+         |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList("29,7,5,8,6,8")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
   @Test
   def testAccessingProctime(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -567,9 +695,11 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
       .toTable(tEnv, 'id, 'name, 'price, 'proctime.proctime)
     tEnv.registerTable("MyTable", t)
     tEnv.registerFunction("prefix", new PrefixingScalarFunc)
+    tEnv.registerFunction("countFrom", new RichAggFunc)
     val prefix = "PREF"
+    val startFrom = 4
     UserDefinedFunctionTestUtils
-      .setJobParameters(env, Map("prefix" -> prefix))
+      .setJobParameters(env, Map("prefix" -> prefix, "start" -> startFrom.toString))
 
     val sqlQuery =
       s"""
@@ -580,11 +710,12 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
          |  MEASURES
          |    FIRST(id) as firstId,
          |    prefix(A.name) as prefixedNameA,
+         |    countFrom(A.price) as countFromA,
          |    LAST(id) as lastId
          |  AFTER MATCH SKIP PAST LAST ROW
          |  PATTERN (A+ C)
          |  DEFINE
-         |    A AS prefix(A.name) = '$prefix:a'
+         |    A AS prefix(A.name) = '$prefix:a' AND countFrom(A.price) <= ${startFrom + 4}
          |) AS T
          |""".stripMargin
 
@@ -592,7 +723,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = mutable.MutableList("1,PREF:a,6", "7,PREF:a,9")
+    val expected = mutable.MutableList("1,PREF:a,8,5", "7,PREF:a,6,9")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }
@@ -614,4 +745,27 @@ private class PrefixingScalarFunc extends ScalarFunction {
   def eval(value: String): String = {
     s"$prefix:$value"
   }
+}
+
+private case class CountAcc(var count: Long)
+
+private class RichAggFunc extends AggregateFunction[Long, CountAcc] {
+
+  private var start : Long = 0
+
+  override def open(context: FunctionContext): Unit = {
+    start = context.getJobParameter("start", "0").toLong
+  }
+
+  override def close(): Unit = {
+    start = 0
+  }
+
+  def accumulate(countAcc: CountAcc, value: Long): Unit = {
+    countAcc.count += value
+  }
+
+  override def createAccumulator(): CountAcc = CountAcc(start)
+
+  override def getValue(accumulator: CountAcc): Long = accumulator.count
 }

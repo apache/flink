@@ -149,14 +149,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	@Rule
 	public final ExpectedException expectedException = ExpectedException.none();
 
-	/**
-	 * The serialization timeliness behaviour of the state backend under test.
-	 */
-	public enum BackendSerializationTimeliness {
-		ON_ACCESS,
-		ON_CHECKPOINTS
-	}
-
 	// lazily initialized stream storage
 	private CheckpointStorageLocation checkpointStorageLocation;
 
@@ -3143,6 +3135,57 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		assertNull(state.entries());
 
 		backend.dispose();
+	}
+
+	@Test
+	public void testSnapshotNonAccessedState() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+		AbstractKeyedStateBackend<String> backend = createKeyedBackend(StringSerializer.INSTANCE);
+
+		final String stateName = "test-name";
+		try {
+			MapStateDescriptor<Integer, String> kvId = new MapStateDescriptor<>(stateName, Integer.class, String.class);
+			MapState<Integer, String> mapState = backend
+				.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+			// write some state to be snapshotted
+			backend.setCurrentKey("1");
+			mapState.put(11, "foo");
+			backend.setCurrentKey("2");
+			mapState.put(8, "bar");
+			backend.setCurrentKey("3");
+			mapState.put(91, "hello world");
+
+			// take a snapshot, and then restore backend with snapshot
+			KeyedStateHandle snapshot = runSnapshot(
+				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				sharedStateRegistry);
+			backend.dispose();
+
+			backend = restoreKeyedBackend(StringSerializer.INSTANCE, snapshot);
+
+			// now take a snapshot again without accessing the state
+			snapshot = runSnapshot(
+				backend.snapshot(2L, 3L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				sharedStateRegistry);
+			backend.dispose();
+
+			// we restore again and try to access previous state
+			backend = restoreKeyedBackend(StringSerializer.INSTANCE, snapshot);
+			mapState = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+			backend.setCurrentKey("1");
+			assertEquals("foo", mapState.get(11));
+			backend.setCurrentKey("2");
+			assertEquals("bar", mapState.get(8));
+			backend.setCurrentKey("3");
+			assertEquals("hello world", mapState.get(91));
+
+			snapshot.discardState();
+		} finally {
+			backend.dispose();
+		}
 	}
 
 	/**

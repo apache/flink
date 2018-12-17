@@ -41,19 +41,19 @@ The following example illustrates the syntax for basic pattern recognition:
 {% highlight sql %}
 SELECT T.aid, T.bid, T.cid
 FROM MyTable
-MATCH_RECOGNIZE (
-  PARTITION BY userid
-  ORDER BY proctime
-  MEASURES
-    A.id AS aid,
-    B.id AS bid,
-    C.id AS cid
-  PATTERN (A B C)
-  DEFINE
-    A AS name = 'a',
-    B AS name = 'b',
-    C AS name = 'c'
-) AS T
+    MATCH_RECOGNIZE (
+      PARTITION BY userid
+      ORDER BY proctime
+      MEASURES
+        A.id AS aid,
+        B.id AS bid,
+        C.id AS cid
+      PATTERN (A B C)
+      DEFINE
+        A AS name = 'a',
+        B AS name = 'b',
+        C AS name = 'c'
+    ) AS T
 {% endhighlight %}
 
 This page will explain each keyword in more detail and will illustrate more complex examples.
@@ -107,7 +107,7 @@ The table has a following schema:
 
 {% highlight text %}
 Ticker
-     |-- symbol: Long                             # symbol of the stock
+     |-- symbol: String                           # symbol of the stock
      |-- price: Long                              # price of the stock
      |-- tax: Long                                # tax liability of the stock
      |-- rowtime: TimeIndicatorTypeInfo(rowtime)  # point in time when the change to those values happened
@@ -136,22 +136,22 @@ The task is now to find periods of a constantly decreasing price of a single tic
 {% highlight sql %}
 SELECT *
 FROM Ticker
-MATCH_RECOGNIZE (
-    PARTITION BY symbol
-    ORDER BY rowtime
-    MEASURES
-        START_ROW.rowtime AS start_tstamp,
-        LAST(PRICE_DOWN.rowtime) AS bottom_tstamp,
-        LAST(PRICE_UP.rowtime) AS end_tstamp
-    ONE ROW PER MATCH
-    AFTER MATCH SKIP TO LAST PRICE_UP
-    PATTERN (START_ROW PRICE_DOWN+ PRICE_UP)
-    DEFINE
-        PRICE_DOWN AS
-            (LAST(PRICE_DOWN.price, 1) IS NULL AND PRICE_DOWN.price < START_ROW.price) OR
-                PRICE_DOWN.price < LAST(PRICE_DOWN.price, 1),
-        PRICE_UP AS
-            PRICE_UP.price > LAST(PRICE_DOWN.price, 1)
+    MATCH_RECOGNIZE (
+        PARTITION BY symbol
+        ORDER BY rowtime
+        MEASURES
+            START_ROW.rowtime AS start_tstamp,
+            LAST(PRICE_DOWN.rowtime) AS bottom_tstamp,
+            LAST(PRICE_UP.rowtime) AS end_tstamp
+        ONE ROW PER MATCH
+        AFTER MATCH SKIP TO LAST PRICE_UP
+        PATTERN (START_ROW PRICE_DOWN+ PRICE_UP)
+        DEFINE
+            PRICE_DOWN AS
+                (LAST(PRICE_DOWN.price, 1) IS NULL AND PRICE_DOWN.price < START_ROW.price) OR
+                    PRICE_DOWN.price < LAST(PRICE_DOWN.price, 1),
+            PRICE_UP AS
+                PRICE_UP.price > LAST(PRICE_DOWN.price, 1)
     ) MR;
 {% endhighlight %}
 
@@ -211,6 +211,65 @@ If a condition is not defined for a pattern variable, a default condition will b
 
 For a more detailed explanation about expressions that can be used in those clauses, please have a look at the [event stream navigation](#pattern-navigation) section.
 
+### Aggregations
+
+Aggregations can be used in `DEFINE` and `MEASURES` clauses. Both [built-in]({{ site.baseurl }}/dev/table/sql.html#built-in-functions) and custom [user defined]({{ site.baseurl }}/dev/table/udfs.html) functions are supported.
+
+Aggregate functions are applied to each subset of rows mapped to a match. In order to understand how those subsets are evaluated have a look at the [event stream navigation](#pattern-navigation) section.
+
+The task of the following example is to find the longest period of time for which the average price of a ticker did not go below certain threshold. It shows how expressible `MATCH_RECOGNIZE` can become with aggregations.
+This task can be performed with the following query:
+
+{% highlight sql %}
+SELECT *
+FROM Ticker
+    MATCH_RECOGNIZE (
+        PARTITION BY symbol
+        ORDER BY rowtime
+        MEASURES
+            FIRST(A.rowtime) AS start_tstamp,
+            LAST(A.rowtime) AS end_tstamp,
+            AVG(A.price) AS avgPrice
+        ONE ROW PER MATCH
+        AFTER MATCH SKIP TO FIRST B
+        PATTERN (A+ B)
+        DEFINE
+            A AS AVG(A.price) < 15
+    ) MR;
+{% endhighlight %}
+
+Given this query and following input values:
+
+{% highlight text %}
+symbol         rowtime         price    tax
+======  ====================  ======= =======
+'ACME'  '01-Apr-11 10:00:00'   12      1
+'ACME'  '01-Apr-11 10:00:01'   17      2
+'ACME'  '01-Apr-11 10:00:02'   13      1
+'ACME'  '01-Apr-11 10:00:03'   16      3
+'ACME'  '01-Apr-11 10:00:04'   25      2
+'ACME'  '01-Apr-11 10:00:05'   2       1
+'ACME'  '01-Apr-11 10:00:06'   4       1
+'ACME'  '01-Apr-11 10:00:07'   10      2
+'ACME'  '01-Apr-11 10:00:08'   15      2
+'ACME'  '01-Apr-11 10:00:09'   25      2
+'ACME'  '01-Apr-11 10:00:10'   30      1
+{% endhighlight %}
+
+The query will accumulate events as part of the pattern variable `A` as long as the average price of them does not exceed `15`. For example, such a limit exceeding happens at `01-Apr-11 10:00:04`.
+The following period exceeds the average price of `15` again at `01-Apr-11 10:00:10`. Thus the results for said query will be:
+
+{% highlight text %}
+ symbol       start_tstamp       end_tstamp          avgPrice
+=========  ==================  ==================  ============
+ACME       01-APR-11 10:00:00  01-APR-11 10:00:03     14.5
+ACME       01-APR-11 10:00:04  01-APR-11 10:00:09     13.5
+{% endhighlight %}
+
+<span class="label label-info">Note</span> Aggregations can be applied to expressions, but only if they reference a single pattern variable. Thus `SUM(A.price * A.tax)` is a valid one, but `AVG(A.price * B.tax)` is not.
+
+<span class="label label-danger">Attention</span> `DISTINCT` aggregations are not supported.
+
 Defining a Pattern
 ------------------
 
@@ -256,13 +315,13 @@ FROM Ticker
         ORDER BY rowtime
         MEASURES
             C.price AS lastPrice
-        PATTERN (A B* C)
         ONE ROW PER MATCH
         AFTER MATCH SKIP PAST LAST ROW
+        PATTERN (A B* C)
         DEFINE
             A AS A.price > 10,
             B AS B.price < 15,
-            C AS B.price > 12
+            C AS C.price > 12
     )
 {% endhighlight %}
 
@@ -293,6 +352,7 @@ The same query where `B*` is modified to `B*?`, which means that `B*` should be 
  symbol   lastPrice
 ======== ===========
  XYZ      13
+ XYZ      16
 {% endhighlight %}
 
 The pattern variable `B` matches only to the row with price `12` instead of swallowing the rows with prices `12`, `13`, and `14`.
@@ -335,9 +395,9 @@ FROM Ticker
         MEASURES
             C.rowtime AS dropTime,
             A.price - C.price AS dropDiff
-        PATTERN (A B* C) WITHIN INTERVAL '1' HOUR
         ONE ROW PER MATCH
         AFTER MATCH SKIP PAST LAST ROW
+        PATTERN (A B* C) WITHIN INTERVAL '1' HOUR
         DEFINE
             B AS B.price > A.price - 10
             C AS C.price < A.price - 10
@@ -399,8 +459,8 @@ FROM Ticker
             FIRST(A.price) AS startPrice,
             LAST(A.price) AS topPrice,
             B.price AS lastPrice
-        PATTERN (A+ B)
         ONE ROW PER MATCH
+        PATTERN (A+ B)
         DEFINE
             A AS LAST(A.price, 1) IS NULL OR A.price > LAST(A.price, 1),
             B AS B.price < LAST(A.price)
@@ -546,8 +606,6 @@ The table consists of the following columns:
 </table>
 
 As can be seen in the table, the first row is mapped to pattern variable `A` and subsequent rows are mapped to pattern variable `B`. However, the last row does not fulfill the `B` condition because the sum over all mapped rows `SUM(price)` and the sum over all rows in `B` exceed the specified thresholds.
-
-<span class="label label-danger">Attention</span> Please note that aggregations such as `SUM` are not supported yet. They are only used for explanation here.
 
 ### Logical Offsets
 
@@ -769,17 +827,15 @@ FROM Ticker
             SUM(A.price) AS sumPrice,
             FIRST(rowtime) AS startTime,
             LAST(rowtime) AS endTime
-        PATTERN (A+ C)
         ONE ROW PER MATCH
         [AFTER MATCH STRATEGY]
+        PATTERN (A+ C)
         DEFINE
             A AS SUM(A.price) < 30
     )
 {% endhighlight %}
 
 The query returns the sum of the prices of all rows mapped to `A` and the first and last timestamp of the overall match.
-
-<span class="label label-danger">Attention</span> Please note that aggregations such as `SUM` are not supported yet. They are only used for explanation here.
 
 The query will produce different results based on which `AFTER MATCH` strategy was used:
 
@@ -842,7 +898,7 @@ The last result matched against the rows #5, #6.
 This combination will produce a runtime exception because one would always try to start a new match where the
 last one started. This would produce an infinite loop and, thus, is prohibited.
 
-One has to keep in mind that in case of the `SKIP TO FIRST/LAST variable`strategy it might be possible that there are no rows mapped to that
+One has to keep in mind that in case of the `SKIP TO FIRST/LAST variable` strategy it might be possible that there are no rows mapped to that
 variable (e.g. for pattern `A*`). In such cases, a runtime exception will be thrown as the standard requires a valid row to continue the
 matching.
 
@@ -901,5 +957,6 @@ Unsupported features include:
 * `SUBSET` - which allows creating logical groups of pattern variables and using those groups in the `DEFINE` and `MEASURES` clauses.
 * Physical offsets - `PREV/NEXT`, which indexes all events seen rather than only those that were mapped to a pattern variable(as in [logical offsets](#logical-offsets) case).
 * Extracting time attributes - there is currently no possibility to get a time attribute for subsequent time-based operations.
-* Aggregates - one cannot use aggregates in `MEASURES` nor `DEFINE` clauses.
 * `MATCH_RECOGNIZE` is supported only for SQL. There is no equivalent in the Table API.
+* Aggregations:
+  * distinct aggregations are not supported.

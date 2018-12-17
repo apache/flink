@@ -25,27 +25,27 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{LONG_TYPE_INFO, STRIN
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator
+import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, OneInputStreamOperator}
+import org.apache.flink.streaming.api.scala.DataStream
+import org.apache.flink.streaming.api.transformations._
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, TestHarnessUtil}
+import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, OneInputStreamOperatorTestHarness, TestHarnessUtil}
+import org.apache.flink.table.api.dataview.DataView
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
 import org.apache.flink.table.codegen.GeneratedAggregationsFunction
 import org.apache.flink.table.functions.aggfunctions.{CountAggFunction, IntSumWithRetractAggFunction, LongMaxWithRetractAggFunction, LongMinWithRetractAggFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getAccumulatorTypeOfAggregateFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.runtime.aggregate.GeneratedAggregations
 import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, RowResultSortComparatorWithWatermarks}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase
 import org.apache.flink.table.utils.EncodingUtils
-import org.junit.Rule
-import org.junit.rules.ExpectedException
 
-class HarnessTestBase {
-  // used for accurate exception information checking.
-  val expectedException = ExpectedException.none()
+import _root_.scala.collection.JavaConversions._
 
-  @Rule
-  def thrown = expectedException
+class HarnessTestBase extends StreamingWithStateTestBase {
 
   val longMinWithRetractAggFunction: String =
     EncodingUtils.encodeObjectToString(new LongMinWithRetractAggFunction)
@@ -491,11 +491,81 @@ class HarnessTestBase {
     distinctCountFuncName,
     distinctCountAggCode)
 
+  def createHarnessTester[KEY, IN, OUT](
+      dataStream: DataStream[_],
+      prefixOperatorName: String)
+  : KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT] = {
+
+    val transformation = extractExpectedTransformation(
+      dataStream.javaStream.getTransformation,
+      prefixOperatorName).asInstanceOf[OneInputTransformation[_, _]]
+    if (transformation == null) {
+      throw new Exception("Can not find the expected transformation")
+    }
+
+    val processOperator = transformation.getOperator.asInstanceOf[OneInputStreamOperator[IN, OUT]]
+    val keySelector = transformation.getStateKeySelector.asInstanceOf[KeySelector[IN, KEY]]
+    val keyType = transformation.getStateKeyType.asInstanceOf[TypeInformation[KEY]]
+
+    createHarnessTester(processOperator, keySelector, keyType)
+      .asInstanceOf[KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT]]
+  }
+
+  private def extractExpectedTransformation(
+      transformation: StreamTransformation[_],
+      prefixOperatorName: String): StreamTransformation[_] = {
+    def extractFromInputs(inputs: StreamTransformation[_]*): StreamTransformation[_] = {
+      for (input <- inputs) {
+        val t = extractExpectedTransformation(input, prefixOperatorName)
+        if (t != null) {
+          return t
+        }
+      }
+      null
+    }
+
+    transformation match {
+      case one: OneInputTransformation[_, _] =>
+        if (one.getName.startsWith(prefixOperatorName)) {
+          one
+        } else {
+          extractExpectedTransformation(one.getInput, prefixOperatorName)
+        }
+      case union: UnionTransformation[_] => extractFromInputs(union.getInputs.toSeq: _*)
+      case p: PartitionTransformation[_] => extractFromInputs(p.getInput)
+      case _: SourceTransformation[_] => null
+      case _ => throw new UnsupportedOperationException("This should not happen.")
+    }
+  }
+
+  def getState(
+      operator: AbstractUdfStreamOperator[_, _],
+      funcName: String,
+      funcClass: Class[_],
+      stateFieldName: String): DataView = {
+    val function = funcClass.getDeclaredField(funcName)
+    function.setAccessible(true)
+    val generatedAggregation =
+      function.get(operator.getUserFunction).asInstanceOf[GeneratedAggregations]
+    val cls = generatedAggregation.getClass
+    val stateField = cls.getDeclaredField(stateFieldName)
+    stateField.setAccessible(true)
+    stateField.get(generatedAggregation).asInstanceOf[DataView]
+  }
+
   def createHarnessTester[IN, OUT, KEY](
     operator: OneInputStreamOperator[IN, OUT],
     keySelector: KeySelector[IN, KEY],
     keyType: TypeInformation[KEY]): KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT] = {
     new KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT](operator, keySelector, keyType)
+  }
+
+  def getOperator(testHarness: OneInputStreamOperatorTestHarness[_, _])
+      : AbstractUdfStreamOperator[_, _] = {
+    val operatorField = classOf[OneInputStreamOperatorTestHarness[_, _]]
+      .getDeclaredField("oneInputOperator")
+    operatorField.setAccessible(true)
+    operatorField.get(testHarness).asInstanceOf[AbstractUdfStreamOperator[_, _]]
   }
 
   def verify(expected: JQueue[Object], actual: JQueue[Object]): Unit = {

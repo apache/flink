@@ -145,7 +145,7 @@ tableEnvironment
         "      {\"name\": \"user\", \"type\": \"long\"}," +
         "      {\"name\": \"message\", \"type\": [\"string\", \"null\"]}" +
         "    ]" +
-        "}" +
+        "}"
       )
   )
 
@@ -154,7 +154,7 @@ tableEnvironment
     new Schema()
       .field("rowtime", Types.SQL_TIMESTAMP)
         .rowtime(new Rowtime()
-          .timestampsFromField("ts")
+          .timestampsFromField("timestamp")
           .watermarksPeriodicBounded(60000)
         )
       .field("user", Types.LONG)
@@ -1166,7 +1166,7 @@ ClusterBuilder builder = ... // configure Cassandra cluster connection
 CassandraAppendTableSink sink = new CassandraAppendTableSink(
   builder,
   // the query must match the schema of the table
-  INSERT INTO flink.myTable (id, name, value) VALUES (?, ?, ?));
+  "INSERT INTO flink.myTable (id, name, value) VALUES (?, ?, ?)");
 
 tableEnv.registerTableSink(
   "cassandraOutputTable",
@@ -1187,7 +1187,7 @@ val builder: ClusterBuilder = ... // configure Cassandra cluster connection
 val sink: CassandraAppendTableSink = new CassandraAppendTableSink(
   builder,
   // the query must match the schema of the table
-  INSERT INTO flink.myTable (id, name, value) VALUES (?, ?, ?))
+  "INSERT INTO flink.myTable (id, name, value) VALUES (?, ?, ?)")
 
 tableEnv.registerTableSink(
   "cassandraOutputTable",

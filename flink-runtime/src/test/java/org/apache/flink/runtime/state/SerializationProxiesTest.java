@@ -251,7 +251,7 @@ public class SerializationProxiesTest {
 		Assert.assertEquals(expected.getBackendStateType(), actual.getBackendStateType());
 		Assert.assertEquals(expected.getOptionsImmutable(), actual.getOptionsImmutable());
 		Assert.assertEquals(
-			expected.getSerializerConfigSnapshotsImmutable(),
-			actual.getSerializerConfigSnapshotsImmutable());
+			expected.getSerializerSnapshotsImmutable(),
+			actual.getSerializerSnapshotsImmutable());
 	}
 }

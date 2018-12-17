@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.util;
 
-import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.util.OperatingSystem;
 

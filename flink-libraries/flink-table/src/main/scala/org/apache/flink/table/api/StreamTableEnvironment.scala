@@ -669,10 +669,13 @@ abstract class StreamTableEnvironment(
       case (RowtimeAttribute(UnresolvedFieldReference(name)), idx) =>
         extractRowtime(idx, name, None)
 
-      case (RowtimeAttribute(Alias(UnresolvedFieldReference(origName), name, _)), idx) =>
+      case (Alias(RowtimeAttribute(UnresolvedFieldReference(origName)), name, _), idx) =>
         extractRowtime(idx, name, Some(origName))
 
       case (ProctimeAttribute(UnresolvedFieldReference(name)), idx) =>
+        extractProctime(idx, name)
+
+      case (Alias(ProctimeAttribute(UnresolvedFieldReference(_)), name, _), idx) =>
         extractProctime(idx, name)
 
       case (UnresolvedFieldReference(name), _) => fieldNames = name :: fieldNames

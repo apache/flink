@@ -34,21 +34,20 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
-import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.runtime.testutils.statemigration.TestType;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.RunnableFuture;
 
 /**
@@ -69,17 +68,6 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 	// lazily initialized stream storage
 	private CheckpointStorageLocation checkpointStorageLocation;
 
-	/**
-	 * The compatibility behaviour of {@link TestSerializer}.
-	 * This controls what format the serializer writes in, as well as
-	 * the result of the compatibility check against the prior serializer snapshot.
-	 */
-	public enum SerializerCompatibilityType {
-		COMPATIBLE_AS_IS,
-		REQUIRES_MIGRATION,
-		INCOMPATIBLE
-	}
-
 	// -------------------------------------------------------------------------------
 	//  Keyed state backend migration tests
 	// -------------------------------------------------------------------------------
@@ -95,7 +83,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		try {
 			ValueStateDescriptor<TestType> kvId = new ValueStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+				new TestType.V1TestTypeSerializer());
 			ValueState<TestType> valueState = backend
 				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
 
@@ -113,10 +101,10 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
 
-			// the new serializer is REQUIRES_MIGRATION, and has a completely new serialization schema.
+			// the new serializer is V2, and has a completely new serialization schema.
 			kvId = new ValueStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION));
+				new TestType.V2TestTypeSerializer());
 			valueState = backend
 				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
 
@@ -151,7 +139,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		try {
 			ListStateDescriptor<TestType> kvId = new ListStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+				new TestType.V1TestTypeSerializer());
 			ListState<TestType> listState = backend
 				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
 
@@ -174,10 +162,10 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
 
-			// the new serializer is REQUIRES_MIGRATION, and has a completely new serialization schema.
+			// the new serializer is V2, and has a completely new serialization schema.
 			kvId = new ListStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION));
+				new TestType.V2TestTypeSerializer());
 			listState = backend
 				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
 
@@ -221,7 +209,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		try {
 			ValueStateDescriptor<TestType> kvId = new ValueStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+				new TestType.V1TestTypeSerializer());
 			ValueState<TestType> valueState = backend
 				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
 
@@ -241,10 +229,12 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			kvId = new ValueStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.INCOMPATIBLE));
+				new TestType.IncompatibleTestTypeSerializer());
 
 			// the new serializer is INCOMPATIBLE, so registering the state should fail
 			backend.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+
+			Assert.fail("should have failed");
 		} catch (Exception e) {
 			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 		}finally {
@@ -263,7 +253,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		try {
 			ListStateDescriptor<TestType> kvId = new ListStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+				new TestType.V1TestTypeSerializer());
 			ListState<TestType> listState = backend
 				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
 
@@ -288,10 +278,12 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			kvId = new ListStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION));
+				new TestType.IncompatibleTestTypeSerializer());
 
 			// the new serializer is INCOMPATIBLE, so registering the state should fail
 			backend.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+
+			Assert.fail("should have failed");
 		} catch (Exception e) {
 			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 		} finally {
@@ -308,7 +300,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 		try {
 			InternalPriorityQueue<TestType> internalPriorityQueue = backend.create(
-				"testPriorityQueue", new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+				"testPriorityQueue", new TestType.V1TestTypeSerializer());
 
 			internalPriorityQueue.add(new TestType("key-1", 123));
 			internalPriorityQueue.add(new TestType("key-2", 346));
@@ -321,7 +313,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
 			backend.create(
-				"testPriorityQueue", new TestSerializer(SerializerCompatibilityType.INCOMPATIBLE));
+				"testPriorityQueue", new TestType.IncompatibleTestTypeSerializer());
 
 			Assert.fail("should have failed");
 		} catch (Exception e) {
@@ -337,7 +329,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
 		AbstractKeyedStateBackend<TestType> backend = createKeyedBackend(
-			new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+			new TestType.V1TestTypeSerializer());
 
 		final String stateName = "test-name";
 		try {
@@ -357,14 +349,18 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			try {
 				// the new key serializer is incompatible; this should fail the restore
-				restoreKeyedBackend(new TestSerializer(SerializerCompatibilityType.INCOMPATIBLE), snapshot);
+				restoreKeyedBackend(new TestType.IncompatibleTestTypeSerializer(), snapshot);
+
+				Assert.fail("should have failed");
 			} catch (Exception e) {
 				Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 			}
 
 			try {
 				// the new key serializer requires migration; this should fail the restore
-				restoreKeyedBackend(new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION), snapshot);
+				restoreKeyedBackend(new TestType.V2TestTypeSerializer(), snapshot);
+
+				Assert.fail("should have failed");
 			} catch (Exception e) {
 				Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 			}
@@ -386,7 +382,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			ValueState<Integer> valueState = backend
 				.getPartitionedState(
 					new TestType("namespace", 123),
-					new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS),
+					new TestType.V1TestTypeSerializer(),
 					kvId);
 
 			backend.setCurrentKey(1);
@@ -397,26 +393,33 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			KeyedStateHandle snapshot = runSnapshot(
 				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
 				sharedStateRegistry);
+
+			// test incompatible namespace serializer; start with a freshly restored backend
 			backend.dispose();
-
 			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
-
 			try {
 				// the new namespace serializer is incompatible; this should fail the restore
 				backend.getPartitionedState(
 					new TestType("namespace", 123),
-					new TestSerializer(SerializerCompatibilityType.INCOMPATIBLE),
+					new TestType.IncompatibleTestTypeSerializer(),
 					kvId);
+
+				Assert.fail("should have failed");
 			} catch (Exception e) {
 				Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 			}
 
+			// test namespace serializer that requires migration; start with a freshly restored backend
+			backend.dispose();
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
 			try {
 				// the new namespace serializer requires migration; this should fail the restore
 				backend.getPartitionedState(
 					new TestType("namespace", 123),
-					new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION),
+					new TestType.V2TestTypeSerializer(),
 					kvId);
+
+				Assert.fail("should have failed");
 			} catch (Exception e) {
 				Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 			}
@@ -439,7 +442,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		try {
 			ListStateDescriptor<TestType> descriptor = new ListStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+				new TestType.V1TestTypeSerializer());
 			ListState<TestType> state = backend.getListState(descriptor);
 
 			state.add(new TestType("foo", 13));
@@ -453,7 +456,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			descriptor = new ListStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION));
+				new TestType.V2TestTypeSerializer());
 			state = backend.getListState(descriptor);
 
 			// the state backend should have decided whether or not it needs to perform state migration;
@@ -478,7 +481,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		try {
 			ListStateDescriptor<TestType> descriptor = new ListStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+				new TestType.V1TestTypeSerializer());
 			ListState<TestType> state = backend.getUnionListState(descriptor);
 
 			state.add(new TestType("foo", 13));
@@ -492,7 +495,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			descriptor = new ListStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION));
+				new TestType.V2TestTypeSerializer());
 			state = backend.getUnionListState(descriptor);
 
 			// the state backend should have decided whether or not it needs to perform state migration;
@@ -518,7 +521,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			MapStateDescriptor<Integer, TestType> descriptor = new MapStateDescriptor<>(
 				stateName,
 				IntSerializer.INSTANCE,
-				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+				new TestType.V1TestTypeSerializer());
 			BroadcastState<Integer, TestType> state = backend.getBroadcastState(descriptor);
 
 			state.put(3, new TestType("foo", 13));
@@ -533,7 +536,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			descriptor = new MapStateDescriptor<>(
 				stateName,
 				IntSerializer.INSTANCE,
-				new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION));
+				new TestType.V2TestTypeSerializer());
 			state = backend.getBroadcastState(descriptor);
 
 			// the state backend should have decided whether or not it needs to perform state migration;
@@ -556,7 +559,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		try {
 			MapStateDescriptor<TestType, Integer> descriptor = new MapStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS),
+				new TestType.V1TestTypeSerializer(),
 				IntSerializer.INSTANCE);
 			BroadcastState<TestType, Integer> state = backend.getBroadcastState(descriptor);
 
@@ -571,7 +574,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			descriptor = new MapStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION),
+				new TestType.V2TestTypeSerializer(),
 				IntSerializer.INSTANCE);
 			state = backend.getBroadcastState(descriptor);
 
@@ -595,7 +598,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		try {
 			ListStateDescriptor<TestType> descriptor = new ListStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+				new TestType.V1TestTypeSerializer());
 			ListState<TestType> state = backend.getListState(descriptor);
 
 			state.add(new TestType("foo", 13));
@@ -609,7 +612,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			descriptor = new ListStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.INCOMPATIBLE));
+				new TestType.IncompatibleTestTypeSerializer());
 
 			// the new serializer is INCOMPATIBLE, so registering the state should fail
 			backend.getListState(descriptor);
@@ -632,7 +635,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		try {
 			ListStateDescriptor<TestType> descriptor = new ListStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+				new TestType.V1TestTypeSerializer());
 			ListState<TestType> state = backend.getUnionListState(descriptor);
 
 			state.add(new TestType("foo", 13));
@@ -646,7 +649,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			descriptor = new ListStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.INCOMPATIBLE));
+				new TestType.IncompatibleTestTypeSerializer());
 
 			// the new serializer is INCOMPATIBLE, so registering the state should fail
 			backend.getUnionListState(descriptor);
@@ -670,7 +673,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			MapStateDescriptor<Integer, TestType> descriptor = new MapStateDescriptor<>(
 				stateName,
 				IntSerializer.INSTANCE,
-				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS));
+				new TestType.V1TestTypeSerializer());
 			BroadcastState<Integer, TestType> state = backend.getBroadcastState(descriptor);
 
 			state.put(3, new TestType("foo", 13));
@@ -685,10 +688,12 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			descriptor = new MapStateDescriptor<>(
 				stateName,
 				IntSerializer.INSTANCE,
-				new TestSerializer(SerializerCompatibilityType.REQUIRES_MIGRATION));
+				new TestType.IncompatibleTestTypeSerializer());
 
 			// the new value serializer is INCOMPATIBLE, so registering the state should fail
 			backend.getBroadcastState(descriptor);
+
+			Assert.fail("should have failed.");
 		} catch (Exception e) {
 			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 		} finally {
@@ -706,7 +711,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		try {
 			MapStateDescriptor<TestType, Integer> descriptor = new MapStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS),
+				new TestType.V1TestTypeSerializer(),
 				IntSerializer.INSTANCE);
 			BroadcastState<TestType, Integer> state = backend.getBroadcastState(descriptor);
 
@@ -721,11 +726,13 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			descriptor = new MapStateDescriptor<>(
 				stateName,
-				new TestSerializer(SerializerCompatibilityType.INCOMPATIBLE),
+				new TestType.IncompatibleTestTypeSerializer(),
 				IntSerializer.INSTANCE);
 
 			// the new key serializer is INCOMPATIBLE, so registering the state should fail
 			backend.getBroadcastState(descriptor);
+
+			Assert.fail("should have failed.");
 		} catch (Exception e) {
 			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 		} finally {
@@ -736,223 +743,6 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 	// -------------------------------------------------------------------------------
 	//  Test types, serializers, and serializer snapshots
 	// -------------------------------------------------------------------------------
-
-	/**
-	 * The type used as state under tests.
-	 *
-	 * <p>This is implemented so that the type can also be used as keyed priority queue state.
-	 */
-	private static class TestType implements HeapPriorityQueueElement, PriorityComparable<TestType>, Keyed<String> {
-
-		private int index;
-
-		private final int value;
-		private final String key;
-
-		public TestType(String key, int value) {
-			this.key = key;
-			this.value = value;
-		}
-
-		@Override
-		public String getKey() {
-			return key;
-		}
-
-		@Override
-		public int comparePriorityTo(@Nonnull TestType other) {
-			return Integer.compare(value, other.value);
-		}
-
-		@Override
-		public int getInternalIndex() {
-			return index;
-		}
-
-		@Override
-		public void setInternalIndex(int newIndex) {
-			this.index = newIndex;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (obj == null || !(obj instanceof StateBackendMigrationTestBase.TestType)) {
-				return false;
-			}
-
-			if (obj == this) {
-				return true;
-			}
-
-			TestType other = (TestType) obj;
-			return Objects.equals(key, other.key) && value == other.value;
-		}
-
-		@Override
-		public int hashCode() {
-			return 31 * key.hashCode() + value;
-		}
-	}
-
-	private static class TestSerializer extends TypeSerializer<TestType> {
-
-		private static final String MIGRATION_PAYLOAD = "random-migration-payload";
-
-		private final SerializerCompatibilityType compatibilityType;
-
-		TestSerializer(SerializerCompatibilityType compatibilityType) {
-			this.compatibilityType = compatibilityType;
-		}
-
-		// --------------------------------------------------------------------------------
-		//  State serialization relevant methods
-		// --------------------------------------------------------------------------------
-
-		@Override
-		public void serialize(TestType record, DataOutputView target) throws IOException {
-			switch (compatibilityType) {
-				case COMPATIBLE_AS_IS:
-					target.writeUTF(record.getKey());
-					target.writeInt(record.value);
-					break;
-
-				case REQUIRES_MIGRATION:
-					target.writeUTF(record.getKey());
-					target.writeUTF(MIGRATION_PAYLOAD);
-					target.writeInt(record.value);
-					target.writeBoolean(true);
-					break;
-
-				case INCOMPATIBLE:
-					// the serializer shouldn't be used in this case
-					throw new UnsupportedOperationException();
-			}
-		}
-
-		@Override
-		public TestType deserialize(DataInputView source) throws IOException {
-			String key;
-			int value;
-
-			switch (compatibilityType) {
-				case COMPATIBLE_AS_IS:
-					key = source.readUTF();
-					value = source.readInt();
-					break;
-
-				case REQUIRES_MIGRATION:
-					key = source.readUTF();
-					Assert.assertEquals(MIGRATION_PAYLOAD, source.readUTF());
-					value = source.readInt();
-					Assert.assertTrue(source.readBoolean());
-					break;
-
-				default:
-				case INCOMPATIBLE:
-					// the serializer shouldn't be used in this case
-					throw new UnsupportedOperationException();
-			}
-
-			return new TestType(key, value);
-		}
-
-		@Override
-		public TestType copy(TestType from) {
-			return new TestType(from.key, from.value);
-		}
-
-		@Override
-		public TypeSerializerSnapshot<TestType> snapshotConfiguration() {
-			return new TestSerializerSnapshot();
-		}
-
-		// --------------------------------------------------------------------------------
-		//  Miscellaneous serializer methods
-		// --------------------------------------------------------------------------------
-
-		@Override
-		public void copy(DataInputView source, DataOutputView target) throws IOException {
-			serialize(deserialize(source), target);
-		}
-
-		@Override
-		public TestType deserialize(TestType reuse, DataInputView source) throws IOException {
-			return deserialize(source);
-		}
-
-		@Override
-		public TestType copy(TestType from, TestType reuse) {
-			return copy(from);
-		}
-
-		@Override
-		public TestType createInstance() {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public TypeSerializer<TestType> duplicate() {
-			return this;
-		}
-
-		@Override
-		public boolean isImmutableType() {
-			return false;
-		}
-
-		@Override
-		public int getLength() {
-			return -1;
-		}
-
-		@Override
-		public boolean canEqual(Object obj) {
-			return getClass().equals(obj.getClass());
-		}
-
-		@Override
-		public int hashCode() {
-			return getClass().hashCode();
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			return obj == this;
-		}
-	}
-
-	public static class TestSerializerSnapshot implements TypeSerializerSnapshot<TestType> {
-
-		@Override
-		public int getCurrentVersion() {
-			return 1;
-		}
-
-		@Override
-		public TypeSerializer<TestType> restoreSerializer() {
-			return new TestSerializer(SerializerCompatibilityType.COMPATIBLE_AS_IS);
-		}
-
-		@Override
-		public TypeSerializerSchemaCompatibility<TestType> resolveSchemaCompatibility(TypeSerializer<TestType> newSerializer) {
-			switch (((TestSerializer) newSerializer).compatibilityType) {
-				case COMPATIBLE_AS_IS:
-					return TypeSerializerSchemaCompatibility.compatibleAsIs();
-				case REQUIRES_MIGRATION:
-					return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
-				case INCOMPATIBLE:
-					return TypeSerializerSchemaCompatibility.incompatible();
-				default:
-					throw new UnsupportedOperationException();
-			}
-		}
-
-		@Override
-		public void writeSnapshot(DataOutputView out) throws IOException {}
-
-		@Override
-		public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {}
-	}
 
 	public static class CustomVoidNamespaceSerializer extends TypeSerializer<VoidNamespace> {
 
