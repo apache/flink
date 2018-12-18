@@ -59,7 +59,7 @@ public abstract class StateSerializerProvider<T> {
 	 * The registered serializer for the state.
 	 *
 	 * <p>In the case that this provider was created from a restored serializer snapshot via
-	 * {@link #fromRestoredState(TypeSerializerSnapshot)}, but a new serializer was never registered
+	 * {@link #fromPreviousSerializerSnapshot(TypeSerializerSnapshot)}, but a new serializer was never registered
 	 * for the state (i.e., this is the case if a restored state was never accessed), this would be {@code null}.
 	 */
 	@Nullable
@@ -69,7 +69,7 @@ public abstract class StateSerializerProvider<T> {
 	 * The state's previous serializer's snapshot.
 	 *
 	 * <p>In the case that this provider was created from a registered state serializer instance via
-	 * {@link #fromNewState(TypeSerializer)}, but a serializer snapshot was never supplied to this
+	 * {@link #fromNewRegisteredSerializer(TypeSerializer)}, but a serializer snapshot was never supplied to this
 	 * provider (i.e. because the registered serializer was for a new state, not a restored one), this
 	 * would be {@code null}.
 	 */
@@ -100,7 +100,7 @@ public abstract class StateSerializerProvider<T> {
 	 *
 	 * @return a new {@link StateSerializerProvider}.
 	 */
-	public static <T> StateSerializerProvider<T> fromRestoredState(TypeSerializerSnapshot<T> stateSerializerSnapshot) {
+	public static <T> StateSerializerProvider<T> fromPreviousSerializerSnapshot(TypeSerializerSnapshot<T> stateSerializerSnapshot) {
 		return new LazilyRegisteredStateSerializerProvider<>(stateSerializerSnapshot);
 	}
 
@@ -116,7 +116,7 @@ public abstract class StateSerializerProvider<T> {
 	 *
 	 * @return a new {@link StateSerializerProvider}.
 	 */
-	public static <T> StateSerializerProvider<T> fromNewState(TypeSerializer<T> registeredStateSerializer) {
+	public static <T> StateSerializerProvider<T> fromNewRegisteredSerializer(TypeSerializer<T> registeredStateSerializer) {
 		return new EagerlyRegisteredStateSerializerProvider<>(registeredStateSerializer);
 	}
 
