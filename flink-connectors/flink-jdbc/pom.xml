@@ -59,6 +59,5 @@ under the License.
 			<version>10.10.1.1</version>
 			<scope>test</scope>
 		</dependency>
-
 	</dependencies>
 </project>
