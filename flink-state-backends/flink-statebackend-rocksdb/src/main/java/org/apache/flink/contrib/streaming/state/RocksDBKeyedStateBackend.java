@@ -1359,7 +1359,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		restoredKvStateMetaInfo.updateSnapshotTransformer(snapshotTransformer);
 
 		TypeSerializerSchemaCompatibility<N> s = restoredKvStateMetaInfo.updateNamespaceSerializer(namespaceSerializer);
-		if (!s.isCompatibleAsIs()) {
+		if (s.isCompatibleAfterMigration() || s.isIncompatible()) {
 			throw new StateMigrationException("The new namespace serializer must be compatible.");
 		}
 
