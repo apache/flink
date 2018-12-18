@@ -121,10 +121,10 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	private final TernaryBoolean enableIncrementalCheckpointing;
 
 	/** This determines the type of priority queue state. */
-	private final PriorityQueueStateType priorityQueueStateType;
+	private PriorityQueueStateType priorityQueueStateType;
 
 	/** The default rocksdb metrics options. */
-	private final RocksDBNativeMetricOptions defaultMetricOptions;
+	private RocksDBNativeMetricOptions defaultMetricOptions;
 
 	// -- runtime values, set on TaskManager when initializing / using the backend
 
@@ -238,9 +238,6 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	public RocksDBStateBackend(StateBackend checkpointStreamBackend, TernaryBoolean enableIncrementalCheckpointing) {
 		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
-		// for now, we use still the heap-based implementation as default
-		this.priorityQueueStateType = PriorityQueueStateType.HEAP;
-		this.defaultMetricOptions = new RocksDBNativeMetricOptions();
 	}
 
 	/**
@@ -276,10 +273,12 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		this.enableIncrementalCheckpointing = original.enableIncrementalCheckpointing.resolveUndefined(
 			config.getBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS));
 
-		final String priorityQueueTypeString = config.getString(TIMER_SERVICE_FACTORY);
-
-		this.priorityQueueStateType = priorityQueueTypeString.length() > 0 ?
-			PriorityQueueStateType.valueOf(priorityQueueTypeString.toUpperCase()) : original.priorityQueueStateType;
+		if (original.priorityQueueStateType != null) {
+			this.priorityQueueStateType = original.priorityQueueStateType;
+		} else {
+			final String priorityQueueTypeString = config.getString(TIMER_SERVICE_FACTORY);
+			this.priorityQueueStateType = PriorityQueueStateType.valueOf(priorityQueueTypeString.toUpperCase());
+		}
 
 		// configure local directories
 		if (original.localRocksDbDirectories != null) {
@@ -301,7 +300,11 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		}
 
 		// configure metric options
-		this.defaultMetricOptions = RocksDBNativeMetricOptions.fromConfig(config);
+		if (original.defaultMetricOptions != null) {
+			this.defaultMetricOptions = original.defaultMetricOptions;
+		} else {
+			this.defaultMetricOptions = RocksDBNativeMetricOptions.fromConfig(config);
+		}
 
 		// copy remaining settings
 		this.predefinedOptions = original.predefinedOptions;
