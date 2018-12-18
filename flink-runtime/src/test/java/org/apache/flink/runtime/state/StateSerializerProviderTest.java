@@ -133,6 +133,9 @@ public class StateSerializerProviderTest {
 		TypeSerializerSchemaCompatibility<TestType> schemaCompatibility =
 			testProvider.registerNewSerializerForRestoredState(new TestType.V2TestTypeSerializer());
 		assertTrue(schemaCompatibility.isCompatibleAfterMigration());
+
+		assertTrue(testProvider.currentSchemaSerializer() instanceof TestType.V2TestTypeSerializer);
+		assertTrue(testProvider.previousSchemaSerializer() instanceof TestType.V1TestTypeSerializer);
 	}
 
 	@Test
@@ -161,6 +164,8 @@ public class StateSerializerProviderTest {
 		try {
 			// a serializer for the current schema will no longer be accessible
 			testProvider.currentSchemaSerializer();
+
+			fail();
 		} catch (Exception excepted) {
 			// success
 		}
