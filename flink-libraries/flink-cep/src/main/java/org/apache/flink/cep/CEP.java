@@ -48,7 +48,10 @@ public class CEP {
 	 * @param <T> Type of the input events
 	 * @return Resulting pattern stream
 	 */
-	public static <T> PatternStream<T> pattern(DataStream<T> input, Pattern<T, ?> pattern, EventComparator<T> comparator) {
+	public static <T> PatternStream<T> pattern(
+			DataStream<T> input,
+			Pattern<T, ?> pattern,
+			EventComparator<T> comparator) {
 		return new PatternStream<>(input, pattern, comparator);
 	}
 }
