@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep;
+package org.apache.flink.cep.operator;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -25,7 +25,6 @@ import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
@@ -33,100 +32,84 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.cep.pattern.conditions.RichAndCondition;
-import org.apache.flink.cep.pattern.conditions.RichCompositeIterativeCondition;
-import org.apache.flink.cep.pattern.conditions.RichIterativeCondition;
-import org.apache.flink.cep.pattern.conditions.RichNotCondition;
-import org.apache.flink.cep.pattern.conditions.RichOrCondition;
+import org.apache.flink.cep.Event;
+import org.apache.flink.cep.functions.PatternProcessFunction;
+import org.apache.flink.cep.nfa.NFA;
+import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.cep.operator.CepOperatorTestUtilities.getCepTestHarness;
+import static org.apache.flink.cep.operator.CepRuntimeContextTest.MockProcessFunctionAsserter.assertFunction;
+import static org.apache.flink.cep.utils.CepOperatorBuilder.createOperatorForNFA;
+import static org.apache.flink.cep.utils.EventBuilder.event;
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * Test cases for {@link CepRuntimeContext}.
  */
-public class CepRuntimeContextTest {
+public class CepRuntimeContextTest extends TestLogger {
 
 	@Test
-	public void testRichCompositeIterativeCondition() throws Exception {
-		RichIterativeCondition<Integer> first = new TestRichIterativeCondition();
-		RichIterativeCondition<Integer> second = new TestRichIterativeCondition();
-		RichIterativeCondition<Integer> third = new TestRichIterativeCondition();
+	public void testCepRuntimeContextIsSetInNFA() throws Exception {
 
-		RichCompositeIterativeCondition function = new RichCompositeIterativeCondition(first, second, third) {
-			@Override
-			public boolean filter(Object value, Context ctx) throws Exception {
-				return false;
-			}
-		};
-		function.setRuntimeContext(mock(RuntimeContext.class));
+		@SuppressWarnings("unchecked")
+		final NFA<Event> mockNFA = mock(NFA.class);
 
-		assertTrue(first.getRuntimeContext() instanceof CepRuntimeContext);
-		assertTrue(second.getRuntimeContext() instanceof CepRuntimeContext);
-		assertTrue(third.getRuntimeContext() instanceof CepRuntimeContext);
+		try (
+			OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(
+				createOperatorForNFA(mockNFA).build())) {
+
+			harness.open();
+			verify(mockNFA).open(any(CepRuntimeContext.class), any(Configuration.class));
+		}
 	}
 
 	@Test
-	public void testRichAndCondition() throws Exception {
-		RichIterativeCondition<Integer> left = new TestRichIterativeCondition();
-		RichIterativeCondition<Integer> right = new TestRichIterativeCondition();
+	public void testCepRuntimeContextIsSetInProcessFunction() throws Exception {
 
-		RichAndCondition function = new RichAndCondition<>(left, right);
-		function.setRuntimeContext(mock(RuntimeContext.class));
+		final VerifyRuntimeContextProcessFunction processFunction = new VerifyRuntimeContextProcessFunction();
 
-		assertTrue(left.getRuntimeContext() instanceof CepRuntimeContext);
-		assertTrue(right.getRuntimeContext() instanceof CepRuntimeContext);
+		try (
+			OneInputStreamOperatorTestHarness<Event, Event> harness = getCepTestHarness(
+				createOperatorForNFA(getSingleElementAlwaysTrueNFA())
+					.withFunction(processFunction)
+					.build())) {
+
+			harness.open();
+			Event record = event().withName("A").build();
+			harness.processElement(record, 0);
+
+			assertFunction(processFunction)
+				.checkOpenCalled()
+				.checkCloseCalled()
+				.checkProcessMatchCalled();
+		}
+	}
+
+	private NFA<Event> getSingleElementAlwaysTrueNFA() {
+		return NFACompiler.compileFactory(Pattern.<Event>begin("A"), false).createNFA();
 	}
 
 	@Test
-	public void testRichOrCondition() throws Exception {
-		RichIterativeCondition<Integer> left = new TestRichIterativeCondition();
-		RichIterativeCondition<Integer> right = new TestRichIterativeCondition();
-
-		RichOrCondition function = new RichOrCondition<>(left, right);
-		function.setRuntimeContext(mock(RuntimeContext.class));
-
-		assertTrue(left.getRuntimeContext() instanceof CepRuntimeContext);
-		assertTrue(right.getRuntimeContext() instanceof CepRuntimeContext);
-	}
-
-	@Test
-	public void testRichNotCondition() {
-		RichIterativeCondition<Integer> original = new TestRichIterativeCondition();
-
-		RichNotCondition function = new RichNotCondition<>(original);
-		function.setRuntimeContext(mock(RuntimeContext.class));
-
-		assertTrue(original.getRuntimeContext() instanceof CepRuntimeContext);
-	}
-
-	@Test
-	public void testRichPatternSelectFunction() {
-		verifyRuntimeContext(new TestRichPatternSelectFunction());
-	}
-
-	@Test
-	public void testRichPatternFlatSelectFunction() {
-		verifyRuntimeContext(new TestRichPatternFlatSelectFunction());
-	}
-
-	@Test
-	public void testRichIterativeCondition() {
-		verifyRuntimeContext(new TestRichIterativeCondition());
-	}
-
-	private void verifyRuntimeContext(final RichFunction function) {
+	public void testCepRuntimeContext() {
 		final String taskName = "foobarTask";
 		final MetricGroup metricGroup = new UnregisteredMetricsGroup();
 		final int numberOfParallelSubtasks = 42;
@@ -149,11 +132,8 @@ public class CepRuntimeContextTest {
 		when(mockedRuntimeContext.getUserCodeClassLoader()).thenReturn(userCodeClassLoader);
 		when(mockedRuntimeContext.getDistributedCache()).thenReturn(distributedCache);
 
-		function.setRuntimeContext(mockedRuntimeContext);
+		RuntimeContext runtimeContext = new CepRuntimeContext(mockedRuntimeContext);
 
-		RuntimeContext runtimeContext = function.getRuntimeContext();
-
-		assertTrue(runtimeContext instanceof CepRuntimeContext);
 		assertEquals(taskName, runtimeContext.getTaskName());
 		assertEquals(metricGroup, runtimeContext.getMetricGroup());
 		assertEquals(numberOfParallelSubtasks, runtimeContext.getNumberOfParallelSubtasks());
@@ -289,30 +269,64 @@ public class CepRuntimeContextTest {
 		}
 	}
 
-	private static class TestRichIterativeCondition extends RichIterativeCondition<Integer> {
-		private static final long serialVersionUID = 1L;
+	/* Test Utils */
+	static class MockProcessFunctionAsserter {
+		private final VerifyRuntimeContextProcessFunction function;
 
-		@Override
-		public boolean filter(Integer value, Context<Integer> ctx) throws Exception {
-			return false;
+		static MockProcessFunctionAsserter assertFunction(VerifyRuntimeContextProcessFunction function) {
+			return new MockProcessFunctionAsserter(function);
+		}
+
+		private MockProcessFunctionAsserter(VerifyRuntimeContextProcessFunction function) {
+			this.function = function;
+		}
+
+		MockProcessFunctionAsserter checkOpenCalled() {
+			assertThat(function.openCalled, is(true));
+			return this;
+		}
+
+		MockProcessFunctionAsserter checkCloseCalled() {
+			assertThat(function.openCalled, is(true));
+			return this;
+		}
+
+		MockProcessFunctionAsserter checkProcessMatchCalled() {
+			assertThat(function.processMatchCalled, is(true));
+			return this;
 		}
 	}
 
-	private static class TestRichPatternSelectFunction extends RichPatternSelectFunction<Integer, Integer> {
-		private static final long serialVersionUID = 1L;
+	private static class VerifyRuntimeContextProcessFunction extends PatternProcessFunction<Event, Event> {
+
+		boolean openCalled = false;
+		boolean closeCalled = false;
+		boolean processMatchCalled = false;
 
 		@Override
-		public Integer select(Map<String, List<Integer>> pattern) throws Exception {
-			return null;
+		public void open(Configuration parameters) throws Exception {
+			super.open(parameters);
+			verifyContext();
+			openCalled = true;
 		}
-	}
 
-	private static class TestRichPatternFlatSelectFunction extends RichPatternFlatSelectFunction<Integer, Integer> {
-		private static final long serialVersionUID = 1L;
+		private void verifyContext() {
+			if (!(getRuntimeContext() instanceof CepRuntimeContext)) {
+				fail("Runtime context was not wrapped in CepRuntimeContext");
+			}
+		}
 
 		@Override
-		public void flatSelect(Map<String, List<Integer>> pattern, Collector<Integer> out) throws Exception {
-			// no op
+		public void close() throws Exception {
+			super.close();
+			verifyContext();
+			closeCalled = true;
+		}
+
+		@Override
+		public void processMatch(Map<String, List<Event>> match, Context ctx, Collector<Event> out) throws Exception {
+			verifyContext();
+			processMatchCalled = true;
 		}
 	}
 }

@@ -36,25 +36,25 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.NFA.MigratedNFA;
 import org.apache.flink.cep.nfa.NFAState;
 import org.apache.flink.cep.nfa.NFAStateSerializer;
-import org.apache.flink.cep.nfa.State;
-import org.apache.flink.cep.nfa.StateTransition;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
-import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
@@ -127,6 +127,9 @@ public class CepOperator<IN, KEY, OUT>
 	/** Main output collector, that sets a proper timestamp to the StreamRecord. */
 	private transient TimestampedCollector<OUT> collector;
 
+	/** Wrapped RuntimeContext that limits the underlying context features. */
+	private transient CepRuntimeContext cepRuntimeContext;
+
 	public CepOperator(
 			final TypeSerializer<IN> inputSerializer,
 			final boolean isProcessingTime,
@@ -149,6 +152,13 @@ public class CepOperator<IN, KEY, OUT>
 		} else {
 			this.afterMatchSkipStrategy = afterMatchSkipStrategy;
 		}
+	}
+
+	@Override
+	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
+		super.setup(containingTask, config, output);
+		this.cepRuntimeContext = new CepRuntimeContext(getRuntimeContext());
+		FunctionUtils.setFunctionRuntimeContext(getUserFunction(), this.cepRuntimeContext);
 	}
 
 	@Override
@@ -201,8 +211,8 @@ public class CepOperator<IN, KEY, OUT>
 				VoidNamespaceSerializer.INSTANCE,
 				this);
 
-		this.nfa = nfaFactory.createNFA();
-		openNFA(nfa);
+		nfa = nfaFactory.createNFA();
+		nfa.open(cepRuntimeContext, new Configuration());
 
 		context = new ContextFunctionImpl();
 		collector = new TimestampedCollector<>(output);
@@ -211,8 +221,7 @@ public class CepOperator<IN, KEY, OUT>
 	@Override
 	public void close() throws Exception {
 		super.close();
-
-		closeNFA(nfa);
+		nfa.close();
 	}
 
 	@Override
@@ -495,26 +504,6 @@ public class CepOperator<IN, KEY, OUT>
 		@Override
 		public long currentProcessingTime() {
 			return timerService.currentProcessingTime();
-		}
-	}
-
-	private void openNFA(NFA<IN> nfa) throws Exception {
-		Configuration conf = new Configuration();
-		for (State<IN> state : nfa.getStates()) {
-			for (StateTransition<IN> transition : state.getStateTransitions()) {
-				IterativeCondition condition = transition.getCondition();
-				FunctionUtils.setFunctionRuntimeContext(condition, getRuntimeContext());
-				FunctionUtils.openFunction(condition, conf);
-			}
-		}
-	}
-
-	private void closeNFA(NFA<IN> nfa) throws Exception {
-		for (State<IN> state : nfa.getStates()) {
-			for (StateTransition<IN> transition : state.getStateTransitions()) {
-				IterativeCondition condition = transition.getCondition();
-				FunctionUtils.closeFunction(condition);
-			}
 		}
 	}
 
