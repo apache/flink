@@ -249,7 +249,7 @@ public class NFA<T> {
 					Map<String, List<T>> timedOutPattern = sharedBufferAccessor.materializeMatch(extractCurrentMatches(
 						sharedBufferAccessor,
 						computationState));
-					timeoutResult.add(Tuple2.of(timedOutPattern, timestamp));
+					timeoutResult.add(Tuple2.of(timedOutPattern, computationState.getStartTimestamp() + windowTime));
 				}
 
 				sharedBufferAccessor.releaseNode(computationState.getPreviousBufferEntry());
