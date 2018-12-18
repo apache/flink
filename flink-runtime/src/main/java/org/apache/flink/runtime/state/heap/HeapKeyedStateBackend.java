@@ -395,7 +395,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					// check for key serializer compatibility; this also reconfigures the
 					// key serializer to be compatible, if it is required and is possible
 					TypeSerializerSchemaCompatibility<K> keySerializerSchemaCompat =
-						checkKeySerializerSchemaCompatibility(serializationProxy.getKeySerializerConfigSnapshot());
+						checkKeySerializerSchemaCompatibility(serializationProxy.getKeySerializerSnapshot());
 					if (keySerializerSchemaCompat.isCompatibleAfterMigration() || keySerializerSchemaCompat.isIncompatible()) {
 						throw new StateMigrationException("The new key serializer must be compatible.");
 					}
