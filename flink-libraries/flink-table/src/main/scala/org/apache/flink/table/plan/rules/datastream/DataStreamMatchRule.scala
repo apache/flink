@@ -18,15 +18,23 @@
 
 package org.apache.flink.table.plan.rules.datastream
 
-import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
+import java.util.{List => JList}
+
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.flink.table.api.TableException
+import org.apache.calcite.rex.{RexInputRef, RexNode}
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.plan.logical.MatchRecognize
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamMatch
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalMatch
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.plan.util.RexDefaultVisitor
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 class DataStreamMatchRule
   extends ConverterRule(
@@ -34,6 +42,14 @@ class DataStreamMatchRule
     FlinkConventions.LOGICAL,
     FlinkConventions.DATASTREAM,
     "DataStreamMatchRule") {
+
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val logicalMatch: FlinkLogicalMatch = call.rel(0).asInstanceOf[FlinkLogicalMatch]
+
+    // This check might be obsolete once CALCITE-2747 is resolved
+    validateAmbiguousColumns(logicalMatch)
+    true
+  }
 
   override def convert(rel: RelNode): RelNode = {
     val logicalMatch: FlinkLogicalMatch = rel.asInstanceOf[FlinkLogicalMatch]
@@ -70,6 +86,47 @@ class DataStreamMatchRule
       ),
       new RowSchema(logicalMatch.getRowType),
       new RowSchema(logicalMatch.getInput.getRowType))
+  }
+
+  private def validateAmbiguousColumns(logicalMatch: FlinkLogicalMatch): Unit = {
+    if (logicalMatch.isAllRows) {
+      throw new TableException("All rows per match mode is not supported yet.")
+    } else {
+      val refNameFinder = new RefNameFinder(logicalMatch.getInput.getRowType)
+      validateAmbiguousColumnsOnRowPerMatch(
+        logicalMatch.getPartitionKeys,
+        logicalMatch.getMeasures.keySet().asScala,
+        logicalMatch.getRowType,
+        refNameFinder)
+    }
+  }
+
+  private def validateAmbiguousColumnsOnRowPerMatch(
+      partitionKeys: JList[RexNode],
+      measuresNames: mutable.Set[String],
+      expectedSchema: RelDataType,
+      refNameFinder: RefNameFinder)
+    : Unit = {
+    val actualSize = partitionKeys.size() + measuresNames.size
+    val expectedSize = expectedSchema.getFieldCount
+    if (actualSize != expectedSize) {
+      //try to find ambiguous column
+
+      val ambiguousColumns = partitionKeys.asScala.map(_.accept(refNameFinder))
+        .filter(measuresNames.contains).mkString("{", ", ", "}")
+
+      throw new ValidationException(s"Columns ambiguously defined: $ambiguousColumns")
+    }
+  }
+
+  private class RefNameFinder(inputSchema: RelDataType) extends RexDefaultVisitor[String] {
+
+    override def visitInputRef(inputRef: RexInputRef): String = {
+      inputSchema.getFieldList.get(inputRef.getIndex).getName
+    }
+
+    override def visitNode(rexNode: RexNode): String =
+      throw new TableException(s"PARTITION BY clause accepts only input reference. Found $rexNode")
   }
 }
 

@@ -180,6 +180,35 @@ class MatchOperatorValidationTest extends TableTestBase {
   }
 
   @Test
+  def testValidatingAmbiguousColumns(): Unit = {
+    thrown.expectMessage("Columns ambiguously defined: {symbol, price}")
+    thrown.expect(classOf[ValidationException])
+
+    val sqlQuery =
+      s"""
+         |SELECT *
+         |FROM Ticker
+         |MATCH_RECOGNIZE (
+         |  PARTITION BY symbol, price
+         |  ORDER BY proctime
+         |  MEASURES
+         |    A.symbol AS symbol,
+         |    A.price AS price
+         |  PATTERN (A)
+         |  DEFINE
+         |    A AS symbol = 'a'
+         |) AS T
+         |""".stripMargin
+
+    streamUtils.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+  }
+
+  // ***************************************************************************************
+  // * Those validations are temporary. We should remove those tests once we support those *
+  // * features.                                                                           *
+  // ***************************************************************************************
+
+  @Test
   def testPatternsProducingEmptyMatchesAreNotSupported(): Unit = {
     thrown.expectMessage("Patterns that can produce empty matches are not supported. " +
       "There must be at least one non-optional state.")
