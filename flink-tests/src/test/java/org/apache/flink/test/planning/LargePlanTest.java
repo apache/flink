@@ -34,9 +34,9 @@ import org.junit.Test;
  */
 public class LargePlanTest {
 
-	@Test(expected = OptimizerPlanEnvironment.ProgramAbortException.class, timeout = 15_000)
+	@Test(expected = OptimizerPlanEnvironment.ProgramAbortException.class, timeout = 30_000)
 	public void testPlanningOfLargePlan() throws Exception {
-		runProgram(new PreviewPlanEnvironment(), 10, 50);
+		runProgram(new PreviewPlanEnvironment(), 10, 20);
 	}
 
 	private static void runProgram(ExecutionEnvironment env, int depth, int width) throws Exception {
