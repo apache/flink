@@ -34,11 +34,18 @@ public class EntropyInjectingTestFileSystem extends LocalFileSystem implements E
 
 	public static final String ENTROPY_INJECTION_KEY = "_entropy_";
 
+	public static final String ENTROPY_KEY_REPLACEMENT = "";
+
 	public static final String ENTROPY = "_resolved_";
 
 	@Override
 	public String getEntropyInjectionKey() {
 		return ENTROPY_INJECTION_KEY;
+	}
+
+	@Override
+	public String getEntropyKeyReplacement() {
+		return ENTROPY_KEY_REPLACEMENT;
 	}
 
 	@Override

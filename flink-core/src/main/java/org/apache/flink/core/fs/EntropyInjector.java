@@ -54,7 +54,7 @@ public class EntropyInjector {
 
 		// check and possibly inject entropy into the path
 		final EntropyInjectingFileSystem efs = getEntropyFs(fs);
-		final Path processedPath = efs == null ? path : resolveEntropy(path, efs, true);
+		final Path processedPath = efs == null ? path : resolveEntropy(path, efs, efs.generateEntropy());
 
 		// create the stream on the original file system to let the safety net
 		// take its effect
@@ -63,21 +63,22 @@ public class EntropyInjector {
 	}
 
 	/**
-	 * Removes the entropy marker string from the path, if the given file system is an
-	 * entropy-injecting file system (implements {@link EntropyInjectingFileSystem}) and
+	 * Replaces the entropy marker string in the path with the configured entropy key replacement, if the given
+	 * file system is an entropy-injecting file system (implements {@link EntropyInjectingFileSystem}) and
 	 * the entropy marker key is present. Otherwise, this returns the path as is.
 	 *
 	 * @param path The path to filter.
 	 * @return The path without the marker string.
 	 */
-	public static Path removeEntropyMarkerIfPresent(FileSystem fs, Path path) {
+	public static Path replaceEntropyMarkerIfPresent(FileSystem fs, Path path) {
 		final EntropyInjectingFileSystem efs = getEntropyFs(fs);
 		if (efs == null) {
 			return path;
 		}
 		else  {
 			try {
-				return resolveEntropy(path, efs, false);
+				String entropyKeyReplacement = efs.getEntropyKeyReplacement();
+				return resolveEntropy(path, efs, entropyKeyReplacement);
 			}
 			catch (IOException e) {
 				// this should never happen, because the path was valid before and we only remove characters.
@@ -109,7 +110,7 @@ public class EntropyInjector {
 	}
 
 	@VisibleForTesting
-	static Path resolveEntropy(Path path, EntropyInjectingFileSystem efs, boolean injectEntropy) throws IOException {
+	static Path resolveEntropy(Path path, EntropyInjectingFileSystem efs, String entropyValue) throws IOException {
 		final String entropyInjectionKey = efs.getEntropyInjectionKey();
 
 		if (entropyInjectionKey == null) {
@@ -124,21 +125,11 @@ public class EntropyInjector {
 				return path;
 			}
 			else {
-				final StringBuilder buffer = new StringBuilder(checkpointPath.length());
-				buffer.append(checkpointPath, 0, indexOfKey);
-
-				if (injectEntropy) {
-					buffer.append(efs.generateEntropy());
-				}
-
-				buffer.append(checkpointPath, indexOfKey + entropyInjectionKey.length(), checkpointPath.length());
-
-				final String rewrittenPath = buffer.toString();
 				try {
 					return new Path(new URI(
 							originalUri.getScheme(),
 							originalUri.getAuthority(),
-							rewrittenPath,
+							rewriteCheckpointPath(checkpointPath, entropyInjectionKey, entropyValue),
 							originalUri.getQuery(),
 							originalUri.getFragment()).normalize());
 				}
@@ -147,6 +138,20 @@ public class EntropyInjector {
 					throw new IOException("URI format error while processing path for entropy injection", e);
 				}
 			}
+		}
+	}
+
+	static String rewriteCheckpointPath(String checkpointPath, String entropyKey, String entropyValue) {
+		final int indexOfKey = checkpointPath.indexOf(entropyKey);
+		if (indexOfKey == -1) {
+			return checkpointPath;
+		}
+		else {
+			final StringBuilder buffer = new StringBuilder(checkpointPath.length());
+			buffer.append(checkpointPath, 0, indexOfKey);
+			buffer.append(entropyValue);
+			buffer.append(checkpointPath, indexOfKey + entropyKey.length(), checkpointPath.length());
+			return buffer.toString();
 		}
 	}
 

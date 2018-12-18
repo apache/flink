@@ -45,6 +45,7 @@ import static org.junit.Assert.assertThat;
 public class FsStateBackendEntropyTest {
 
 	static final String ENTROPY_MARKER = "__ENTROPY__";
+	static final String ENTROPY_REPLACEMENT = "+REPLACEMENT+";
 	static final String RESOLVED_MARKER = "+RESOLVED+";
 
 	@Rule
@@ -113,6 +114,11 @@ public class FsStateBackendEntropyTest {
 		@Override
 		public String getEntropyInjectionKey() {
 			return ENTROPY_MARKER;
+		}
+
+		@Override
+		public String getEntropyKeyReplacement() {
+			return ENTROPY_REPLACEMENT;
 		}
 
 		@Override

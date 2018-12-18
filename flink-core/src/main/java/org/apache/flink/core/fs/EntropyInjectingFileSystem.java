@@ -43,6 +43,12 @@ public interface EntropyInjectingFileSystem {
 	String getEntropyInjectionKey();
 
 	/**
+	 * Gets the replacement string for the entropy key when creating files that do not require
+	 * entropy injection (e.g. checkpoint metadata files).
+	 */
+	String getEntropyKeyReplacement();
+
+	/**
 	 * Creates a string with random entropy to be injected into a path.
 	 */
 	String generateEntropy();

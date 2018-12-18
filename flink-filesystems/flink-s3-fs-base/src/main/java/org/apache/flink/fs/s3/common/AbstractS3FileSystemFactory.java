@@ -67,7 +67,18 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
 			.withDescription(
 					"This option can be used to improve performance due to sharding issues on Amazon S3. " +
 					"For file creations with entropy injection, this key will be replaced by random " +
-					"alphanumeric characters. For other file creations, the key will be filtered out.");
+					"alphanumeric characters. For other file creations, the key will be replaced.");
+
+	/**
+	 * The replacement string to replace the entropy key with, when creating files that do not require
+	 * entropy while entropy injection is configured.
+	 */
+	public static final ConfigOption<String> ENTROPY_INJECT_KEY_REPLACEMENT_OPTION = ConfigOptions
+			.key("s3.entropy.replacement")
+			.defaultValue("")
+			.withDescription(
+					"When '" + ENTROPY_INJECT_KEY_OPTION.key() + "' is set, this option defines the replacement " +
+					"string for entropy key when creating files that do not require entropy injection.");
 
 	/**
 	 * The number of entropy characters, in case entropy injection is configured.
@@ -125,6 +136,7 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
 
 			// load the entropy injection settings
 			String entropyInjectionKey = flinkConfig.getString(ENTROPY_INJECT_KEY_OPTION);
+			String entropyKeyReplacement = flinkConfig.getString(ENTROPY_INJECT_KEY_REPLACEMENT_OPTION);
 			int numEntropyChars = -1;
 			if (entropyInjectionKey != null) {
 				if (entropyInjectionKey.matches(INVALID_ENTROPY_KEY_CHARS)) {
@@ -147,6 +159,7 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
 					fs,
 					localTmpDirectory,
 					entropyInjectionKey,
+					entropyKeyReplacement,
 					numEntropyChars,
 					s3AccessHelper,
 					s3minPartSize,

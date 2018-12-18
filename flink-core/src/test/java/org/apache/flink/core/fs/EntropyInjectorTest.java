@@ -42,56 +42,63 @@ public class EntropyInjectorTest {
 
 	@Test
 	public void testEmptyPath() throws Exception {
-		EntropyInjectingFileSystem efs = new TestEntropyInjectingFs("test", "ignored");
+		EntropyInjectingFileSystem efs = new TestEntropyInjectingFs("test", "ignored", "ignored");
 		Path path = new Path("hdfs://localhost:12345");
 
-		assertEquals(path, EntropyInjector.resolveEntropy(path, efs, true));
-		assertEquals(path, EntropyInjector.resolveEntropy(path, efs, false));
+		assertEquals(path, EntropyInjector.resolveEntropy(path, efs, efs.generateEntropy()));
 	}
 
 	@Test
 	public void testFullUriNonMatching() throws Exception {
-		EntropyInjectingFileSystem efs = new TestEntropyInjectingFs("_entropy_key_", "ignored");
+		EntropyInjectingFileSystem efs = new TestEntropyInjectingFs("_entropy_key_", "ignored", "ignored");
 		Path path = new Path("s3://hugo@myawesomehost:55522/path/to/the/file");
 
-		assertEquals(path, EntropyInjector.resolveEntropy(path, efs, true));
-		assertEquals(path, EntropyInjector.resolveEntropy(path, efs, false));
+		assertEquals(path, EntropyInjector.resolveEntropy(path, efs, efs.generateEntropy()));
 	}
 
 	@Test
 	public void testFullUriMatching() throws Exception {
-		EntropyInjectingFileSystem efs = new TestEntropyInjectingFs("s0mek3y", "12345678");
+		EntropyInjectingFileSystem efs = new TestEntropyInjectingFs("s0mek3y", "", "12345678");
 		Path path = new Path("s3://hugo@myawesomehost:55522/path/s0mek3y/the/file");
 
-		assertEquals(new Path("s3://hugo@myawesomehost:55522/path/12345678/the/file"), EntropyInjector.resolveEntropy(path, efs, true));
-		assertEquals(new Path("s3://hugo@myawesomehost:55522/path/the/file"), EntropyInjector.resolveEntropy(path, efs, false));
+		assertEquals(new Path("s3://hugo@myawesomehost:55522/path/12345678/the/file"), EntropyInjector.resolveEntropy(path, efs, efs.generateEntropy()));
+		assertEquals(new Path("s3://hugo@myawesomehost:55522/path/the/file"), EntropyInjector.resolveEntropy(path, efs, efs.getEntropyKeyReplacement()));
 	}
 
 	@Test
 	public void testPathOnlyNonMatching() throws Exception {
-		EntropyInjectingFileSystem efs = new TestEntropyInjectingFs("_entropy_key_", "ignored");
+		EntropyInjectingFileSystem efs = new TestEntropyInjectingFs("_entropy_key_", "", "ignored");
 		Path path = new Path("/path/file");
 
-		assertEquals(path, EntropyInjector.resolveEntropy(path, efs, true));
-		assertEquals(path, EntropyInjector.resolveEntropy(path, efs, false));
+		assertEquals(path, EntropyInjector.resolveEntropy(path, efs, efs.generateEntropy()));
+		assertEquals(path, EntropyInjector.resolveEntropy(path, efs, efs.getEntropyKeyReplacement()));
 	}
 
 	@Test
 	public void testPathOnlyMatching() throws Exception {
-		EntropyInjectingFileSystem efs = new TestEntropyInjectingFs("_entropy_key_", "xyzz");
+		EntropyInjectingFileSystem efs = new TestEntropyInjectingFs("_entropy_key_", "", "xyzz");
 		Path path = new Path("/path/_entropy_key_/file");
 
-		assertEquals(new Path("/path/xyzz/file"), EntropyInjector.resolveEntropy(path, efs, true));
-		assertEquals(new Path("/path/file"), EntropyInjector.resolveEntropy(path, efs, false));
+		assertEquals(new Path("/path/xyzz/file"), EntropyInjector.resolveEntropy(path, efs, efs.generateEntropy()));
+		assertEquals(new Path("/path/file"), EntropyInjector.resolveEntropy(path, efs, efs.getEntropyKeyReplacement()));
 	}
 
 	@Test
 	public void testEntropyNotFullSegment() throws Exception {
-		EntropyInjectingFileSystem efs = new TestEntropyInjectingFs("_entropy_key_", "pqr");
+		EntropyInjectingFileSystem efs = new TestEntropyInjectingFs("_entropy_key_", "metadata", "pqr");
 		Path path = new Path("s3://myhost:122/entropy-_entropy_key_-suffix/file");
 
-		assertEquals(new Path("s3://myhost:122/entropy-pqr-suffix/file"), EntropyInjector.resolveEntropy(path, efs, true));
-		assertEquals(new Path("s3://myhost:122/entropy--suffix/file"), EntropyInjector.resolveEntropy(path, efs, false));
+		assertEquals(new Path("s3://myhost:122/entropy-pqr-suffix/file"), EntropyInjector.resolveEntropy(path, efs, efs.generateEntropy()));
+		assertEquals(new Path("s3://myhost:122/entropy-metadata-suffix/file"), EntropyInjector.resolveEntropy(path, efs, efs.getEntropyKeyReplacement()));
+	}
+
+	@Test
+	public void testEntropyReplacement() throws Exception {
+		EntropyInjectingFileSystem efs = new TestEntropyInjectingFs("_entropy_key_", "metadata", "xyzz");
+		Path path = new Path("/path/_entropy_key_/file");
+
+		assertEquals(new Path("/path/xyzz/file"), EntropyInjector.resolveEntropy(path, efs, efs.generateEntropy()));
+		assertEquals(new Path("/path/metadata/file"), EntropyInjector.resolveEntropy(path, efs, efs.getEntropyKeyReplacement()));
 	}
 
 	@Test
@@ -112,9 +119,8 @@ public class EntropyInjectorTest {
 	public void testCreateEntropyAwareEntropyFs() throws Exception {
 		File folder = TMP_FOLDER.newFolder();
 		Path path = new Path(Path.fromLocalFile(folder), "_entropy_/file");
-		Path pathWithEntropy = new Path(Path.fromLocalFile(folder), "test-entropy/file");
 
-		FileSystem fs = new TestEntropyInjectingFs("_entropy_", "test-entropy");
+		FileSystem fs = new TestEntropyInjectingFs("_entropy_", "", "test-entropy");
 
 		OutputStreamAndPath out = EntropyInjector.createEntropyAware(fs, path, WriteMode.NO_OVERWRITE);
 
@@ -127,6 +133,7 @@ public class EntropyInjectorTest {
 	@Test
 	public void testWithSafetyNet() throws Exception {
 		final String entropyKey = "__ekey__";
+		final String entropyKeyReplacement = "";
 		final String entropyValue = "abc";
 
 		final File folder = TMP_FOLDER.newFolder();
@@ -134,7 +141,7 @@ public class EntropyInjectorTest {
 		final Path path = new Path(Path.fromLocalFile(folder), entropyKey + "/path/");
 		final Path pathWithEntropy = new Path(Path.fromLocalFile(folder), entropyValue + "/path/");
 
-		TestEntropyInjectingFs efs = new TestEntropyInjectingFs(entropyKey, entropyValue);
+		TestEntropyInjectingFs efs = new TestEntropyInjectingFs(entropyKey, entropyKeyReplacement, entropyValue);
 
 		FSDataOutputStream out;
 
@@ -166,16 +173,24 @@ public class EntropyInjectorTest {
 
 		private final String key;
 
+		private final String keyReplacement;
+
 		private final String entropy;
 
-		TestEntropyInjectingFs(String key, String entropy) {
+		TestEntropyInjectingFs(String key, String keyReplacement, String entropy) {
 			this.key = key;
+			this.keyReplacement = keyReplacement;
 			this.entropy = entropy;
 		}
 
 		@Override
 		public String getEntropyInjectionKey() {
 			return key;
+		}
+
+		@Override
+		public String getEntropyKeyReplacement() {
+			return keyReplacement;
 		}
 
 		@Override

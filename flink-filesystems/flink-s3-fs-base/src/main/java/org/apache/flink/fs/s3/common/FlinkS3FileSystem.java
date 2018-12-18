@@ -48,6 +48,8 @@ public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInject
 	@Nullable
 	private final String entropyInjectionKey;
 
+	private final String entropyKeyReplacement;
+
 	private final int entropyLength;
 
 	// ------------------- Recoverable Writer Parameters -------------------
@@ -75,13 +77,15 @@ public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInject
 	 * <p>This constructor additionally configures the entropy injection for the file system.
 	 *
 	 * @param hadoopS3FileSystem The Hadoop FileSystem that will be used under the hood.
-	 * @param entropyInjectionKey The substring that will be replaced by entropy or removed.
+	 * @param entropyInjectionKey The substring that will be replaced by entropy or by the key replacement.
+	 * @param entropyKeyReplacement The string that will be replace the entropy for files that do not require entropy.
 	 * @param entropyLength The number of random alphanumeric characters to inject as entropy.
 	 */
 	public FlinkS3FileSystem(
 			org.apache.hadoop.fs.FileSystem hadoopS3FileSystem,
 			String localTmpDirectory,
 			@Nullable String entropyInjectionKey,
+			String entropyKeyReplacement,
 			int entropyLength,
 			@Nullable S3AccessHelper s3UploadHelper,
 			long s3uploadPartSize,
@@ -94,6 +98,7 @@ public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInject
 		}
 
 		this.entropyInjectionKey = entropyInjectionKey;
+		this.entropyKeyReplacement = entropyKeyReplacement;
 		this.entropyLength = entropyLength;
 
 		// recoverable writer parameter configuration initialization
@@ -113,6 +118,11 @@ public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInject
 	@Override
 	public String getEntropyInjectionKey() {
 		return entropyInjectionKey;
+	}
+
+	@Override
+	public String getEntropyKeyReplacement() {
+		return entropyKeyReplacement;
 	}
 
 	@Override
