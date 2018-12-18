@@ -740,7 +740,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				// check for key serializer compatibility; this also reconfigures the
 				// key serializer to be compatible, if it is required and is possible
 				TypeSerializerSchemaCompatibility<K> keySerializerSchemaCompat =
-					rocksDBKeyedStateBackend.checkKeySerializerSchemaCompatibility(serializationProxy.getKeySerializerConfigSnapshot());
+					rocksDBKeyedStateBackend.checkKeySerializerSchemaCompatibility(serializationProxy.getKeySerializerSnapshot());
 				if (keySerializerSchemaCompat.isCompatibleAfterMigration() || keySerializerSchemaCompat.isIncompatible()) {
 					throw new StateMigrationException("The new key serializer must be compatible.");
 				}
@@ -1291,7 +1291,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					// check for key serializer compatibility; this also reconfigures the
 					// key serializer to be compatible, if it is required and is possible
 					TypeSerializerSchemaCompatibility<T> keySerializerSchemaCompat =
-						stateBackend.checkKeySerializerSchemaCompatibility(serializationProxy.getKeySerializerConfigSnapshot());
+						stateBackend.checkKeySerializerSchemaCompatibility(serializationProxy.getKeySerializerSnapshot());
 					if (keySerializerSchemaCompat.isCompatibleAfterMigration() || keySerializerSchemaCompat.isIncompatible()) {
 						throw new StateMigrationException("The new key serializer must be compatible.");
 					}

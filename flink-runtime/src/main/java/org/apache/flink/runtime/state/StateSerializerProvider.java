@@ -162,7 +162,7 @@ public abstract class StateSerializerProvider<T> {
 		// if we are not yet registered with a new serializer,
 		// we can just use the restore serializer to read / write the state.
 		return previousSchemaSerializer();
-	};
+	}
 
 	/**
 	 * Gets the serializer that recognizes the previous serialization schema of the state.
