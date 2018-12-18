@@ -53,6 +53,8 @@ public abstract class CancelingTestBase extends TestLogger {
 
 	protected static final int PARALLELISM = 4;
 
+	protected static final long GET_FUTURE_TIMEOUT = 1000; // 1000 milliseconds
+
 	// --------------------------------------------------------------------------------------------
 
 	@ClassRule
@@ -95,10 +97,10 @@ public abstract class CancelingTestBase extends TestLogger {
 
 		Deadline submissionDeadLine = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
 
-		JobStatus jobStatus = client.getJobStatus(jobSubmissionResult.getJobID()).get(submissionDeadLine.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+		JobStatus jobStatus = client.getJobStatus(jobSubmissionResult.getJobID()).get(GET_FUTURE_TIMEOUT, TimeUnit.MILLISECONDS);
 		while (jobStatus != JobStatus.RUNNING && submissionDeadLine.hasTimeLeft()) {
 			Thread.sleep(50);
-			jobStatus = client.getJobStatus(jobSubmissionResult.getJobID()).get(submissionDeadLine.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			jobStatus = client.getJobStatus(jobSubmissionResult.getJobID()).get(GET_FUTURE_TIMEOUT, TimeUnit.MILLISECONDS);
 		}
 		if (jobStatus != JobStatus.RUNNING) {
 			Assert.fail("Job not in state RUNNING.");
@@ -110,10 +112,10 @@ public abstract class CancelingTestBase extends TestLogger {
 
 		Deadline cancelDeadline = new FiniteDuration(maxTimeTillCanceled, TimeUnit.MILLISECONDS).fromNow();
 
-		JobStatus jobStatusAfterCancel = client.getJobStatus(jobSubmissionResult.getJobID()).get(cancelDeadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+		JobStatus jobStatusAfterCancel = client.getJobStatus(jobSubmissionResult.getJobID()).get(GET_FUTURE_TIMEOUT, TimeUnit.MILLISECONDS);
 		while (jobStatusAfterCancel != JobStatus.CANCELED && cancelDeadline.hasTimeLeft()) {
 			Thread.sleep(50);
-			jobStatusAfterCancel = client.getJobStatus(jobSubmissionResult.getJobID()).get(cancelDeadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			jobStatusAfterCancel = client.getJobStatus(jobSubmissionResult.getJobID()).get(GET_FUTURE_TIMEOUT, TimeUnit.MILLISECONDS);
 		}
 		if (jobStatusAfterCancel != JobStatus.CANCELED) {
 			Assert.fail("Failed to cancel job with ID " + jobSubmissionResult.getJobID() + '.');
