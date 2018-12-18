@@ -167,6 +167,86 @@ public class StateSerializerProviderTest {
 	}
 
 	// --------------------------------------------------------------------------------
+	//  Tests for #setPreviousSerializerSnapshotForRestoredState(TypeSerializerSnapshot)
+	// --------------------------------------------------------------------------------
+
+	@Test(expected = UnsupportedOperationException.class)
+	public void testSetSerializerSnapshotWithLazilyRegisteredSerializerProviderShouldFail() {
+		TestType.V1TestTypeSerializer serializer = new TestType.V1TestTypeSerializer();
+		StateSerializerProvider<TestType> testProvider = StateSerializerProvider.fromRestoredState(serializer.snapshotConfiguration());
+
+		testProvider.setPreviousSerializerSnapshotForRestoredState(serializer.snapshotConfiguration());
+	}
+
+	@Test(expected = UnsupportedOperationException.class)
+	public void testSetSerializerSnapshotTwiceWithEagerlyRegisteredSerializerProviderShouldFail() {
+		TestType.V1TestTypeSerializer serializer = new TestType.V1TestTypeSerializer();
+		StateSerializerProvider<TestType> testProvider = StateSerializerProvider.fromNewState(serializer);
+
+		testProvider.setPreviousSerializerSnapshotForRestoredState(serializer.snapshotConfiguration());
+
+		// second registration should fail
+		testProvider.setPreviousSerializerSnapshotForRestoredState(serializer.snapshotConfiguration());
+	}
+
+	@Test
+	public void testEagerlyRegisterNewCompatibleAsIsSerializer() {
+		StateSerializerProvider<TestType> testProvider = StateSerializerProvider.fromNewState(new TestType.V1TestTypeSerializer());
+
+		// set previous serializer snapshot for state, which should let the new serializer be considered compatible as is
+		TypeSerializerSchemaCompatibility<TestType> schemaCompatibility =
+			testProvider.setPreviousSerializerSnapshotForRestoredState(new TestType.V1TestTypeSerializer().snapshotConfiguration());
+		assertTrue(schemaCompatibility.isCompatibleAsIs());
+
+		assertTrue(testProvider.currentSchemaSerializer() instanceof TestType.V1TestTypeSerializer);
+		assertTrue(testProvider.previousSchemaSerializer() instanceof TestType.V1TestTypeSerializer);
+	}
+
+	@Test
+	public void testEagerlyRegisterCompatibleAfterMigrationSerializer() {
+		StateSerializerProvider<TestType> testProvider = StateSerializerProvider.fromNewState(new TestType.V2TestTypeSerializer());
+
+		// set previous serializer snapshot for state, which should let the new serializer be considered compatible after migration
+		TypeSerializerSchemaCompatibility<TestType> schemaCompatibility =
+			testProvider.setPreviousSerializerSnapshotForRestoredState(new TestType.V1TestTypeSerializer().snapshotConfiguration());
+		assertTrue(schemaCompatibility.isCompatibleAfterMigration());
+
+		assertTrue(testProvider.currentSchemaSerializer() instanceof TestType.V2TestTypeSerializer);
+		assertTrue(testProvider.previousSchemaSerializer() instanceof TestType.V1TestTypeSerializer);
+	}
+
+	@Test
+	public void testEagerlyRegisterNewSerializerRequiringReconfiguration() {
+		StateSerializerProvider<TestType> testProvider = StateSerializerProvider.fromNewState(new TestType.ReconfigurationRequiringTestTypeSerializer());
+
+		// set previous serializer snapshot, which should let the new serializer be considered to require reconfiguration,
+		// and verify that the resulting current schema serializer is the reconfigured one
+		TypeSerializerSchemaCompatibility<TestType> schemaCompatibility =
+			testProvider.setPreviousSerializerSnapshotForRestoredState(new TestType.V1TestTypeSerializer().snapshotConfiguration());
+		assertTrue(schemaCompatibility.isCompatibleWithReconfiguredSerializer());
+		assertTrue(testProvider.currentSchemaSerializer().getClass() == TestType.V1TestTypeSerializer.class);
+	}
+
+	@Test
+	public void testEagerlyRegisterIncompatibleSerializer() {
+		StateSerializerProvider<TestType> testProvider = StateSerializerProvider.fromNewState(new TestType.IncompatibleTestTypeSerializer());
+
+		// set previous serializer snapshot for state, which should let the new serializer be considered incompatible
+		TypeSerializerSchemaCompatibility<TestType> schemaCompatibility =
+			testProvider.setPreviousSerializerSnapshotForRestoredState(new TestType.V1TestTypeSerializer().snapshotConfiguration());
+		assertTrue(schemaCompatibility.isIncompatible());
+
+		try {
+			// a serializer for the current schema will no longer be accessible
+			testProvider.currentSchemaSerializer();
+
+			fail();
+		} catch (Exception excepted) {
+			// success
+		}
+	}
+
+	// --------------------------------------------------------------------------------
 	//  Utilities
 	// --------------------------------------------------------------------------------
 
