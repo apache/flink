@@ -34,7 +34,7 @@ This page describes how to declare built-in table sources and/or table sinks and
 Dependencies
 ------------
 
-The following table list all available connectors and formats. Their mutual compatibility is tagged in the corresponding sections for [table connectors](connect.html#table-connectors) and [table formats](connect.html#table-formats). The following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
+The following tables list all available connectors and formats. Their mutual compatibility is tagged in the corresponding sections for [table connectors](connect.html#table-connectors) and [table formats](connect.html#table-formats). The following tables provide dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
 
 {% if site.is_stable %}
 
@@ -60,7 +60,7 @@ The following table list all available connectors and formats. Their mutual comp
 
 {% else %}
 
-This table is only available for stable releases.
+These tables are only available for stable releases.
 
 {% endif %}
 
