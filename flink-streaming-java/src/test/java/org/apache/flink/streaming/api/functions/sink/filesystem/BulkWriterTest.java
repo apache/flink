@@ -84,10 +84,10 @@ public class BulkWriterTest extends TestLogger {
 			Map<File, String> contents = TestUtils.getFileContentByPath(outDir);
 			int fileCounter = 0;
 			for (Map.Entry<File, String> fileContents : contents.entrySet()) {
-				if (fileContents.getKey().getName().contains(".part-0-0.inprogress")) {
+				if (fileContents.getKey().getName().contains(".part-0-0" + Bucket.FILE_POSTFIX + ".inprogress")) {
 					fileCounter++;
 					Assert.assertEquals("test1@1\n", fileContents.getValue());
-				} else if (fileContents.getKey().getName().contains(".part-0-1.inprogress")) {
+				} else if (fileContents.getKey().getName().contains(".part-0-1" + Bucket.FILE_POSTFIX + ".inprogress")) {
 					fileCounter++;
 					Assert.assertEquals("test1@2\ntest1@3\n", fileContents.getValue());
 				}
