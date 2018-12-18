@@ -18,15 +18,15 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.dropwizard.metrics.DropwizardHistogramWrapper;
-import org.apache.flink.dropwizard.metrics.DropwizardMeterWrapper;
-import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.MeterView;
+import org.apache.flink.metrics.View;
 import org.apache.flink.types.Row;
 
-import com.codahale.metrics.ExponentiallyDecayingReservoir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,11 +46,10 @@ import java.sql.SQLException;
 public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private static final long serialVersionUID = 1L;
 	static final int DEFAULT_BATCH_INTERVAL = 5000;
-	static final String FLUSH_SCOPE = "flush";
-	static final String FLUSH_RATE_METER_NAME = "rate";
-	static final String BATCH_LIMIT_REACHED_RATE_METER_NAME = "batchLimitReachedRate";
-	static final String FLUSH_DURATION_HISTO_NAME = "durationMs";
-	static final String FLUSH_BATCH_COUNT_HISTO_NAME = "batchCount";
+	static final String FLUSH_SCOPE = "jdbc";
+	static final String FLUSH_RATE_NAME = "flushRate";
+	static final String FLUSH_DURATION_NAME = "flushDurationMs";
+	static final String FLUSH_BATCH_SIZE_NAME = "flushBatchSize";
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCOutputFormat.class);
 
@@ -64,14 +63,22 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private Connection dbConn;
 	private PreparedStatement upload;
 
-	private int batchCount = 0;
+	private static long batchSize = 0;
 
 	private int[] typesArray;
 
-	private Meter batchLimitReachedMeter;
 	private Meter flushMeter;
-	private Histogram flushDurationMsHisto;
-	private Histogram flushBatchCountHisto;
+
+	private Ticker ticker = Ticker.systemTicker();
+
+	@VisibleForTesting
+	Gauge<Long> flushDurationMs;
+	@VisibleForTesting
+	private Gauge<Long> flushBatchSize;
+	@VisibleForTesting
+	private static long timeBeforeFlush;
+	@VisibleForTesting
+	private static long timeAfterFlush;
 
 	public JDBCOutputFormat() {
 	}
@@ -100,19 +107,15 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 		this.flushMeter = getRuntimeContext()
 			.getMetricGroup()
 			.addGroup(FLUSH_SCOPE)
-			.meter(FLUSH_RATE_METER_NAME, new DropwizardMeterWrapper(new com.codahale.metrics.Meter()));
-		this.batchLimitReachedMeter = getRuntimeContext()
+			.meter(FLUSH_RATE_NAME, new MeterView(View.UPDATE_INTERVAL_SECONDS));
+		this.flushDurationMs = getRuntimeContext()
 			.getMetricGroup()
 			.addGroup(FLUSH_SCOPE)
-			.meter(BATCH_LIMIT_REACHED_RATE_METER_NAME, new DropwizardMeterWrapper(new com.codahale.metrics.Meter()));
-		this.flushDurationMsHisto = getRuntimeContext()
+			.gauge(FLUSH_DURATION_NAME, new JDBCGauge(JDBCGaugeType.FLUSH_DURATION));
+		this.flushBatchSize = getRuntimeContext()
 			.getMetricGroup()
 			.addGroup(FLUSH_SCOPE)
-			.histogram(FLUSH_DURATION_HISTO_NAME, new DropwizardHistogramWrapper(new com.codahale.metrics.Histogram(new ExponentiallyDecayingReservoir())));
-		this.flushBatchCountHisto = getRuntimeContext()
-			.getMetricGroup()
-			.addGroup(FLUSH_SCOPE)
-			.histogram(FLUSH_BATCH_COUNT_HISTO_NAME, new DropwizardHistogramWrapper(new com.codahale.metrics.Histogram(new ExponentiallyDecayingReservoir())));
+			.gauge(FLUSH_BATCH_SIZE_NAME, new JDBCGauge(JDBCGaugeType.BATCH_SIZE));
 	}
 
 	private void establishConnection() throws SQLException, ClassNotFoundException {
@@ -231,14 +234,13 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 				}
 			}
 			upload.addBatch();
-			batchCount++;
+			batchSize++;
 		} catch (SQLException e) {
 			throw new RuntimeException("Preparation of JDBC statement failed.", e);
 		}
 
-		if (batchCount >= batchInterval) {
+		if (batchSize >= batchInterval) {
 			// execute batch
-			batchLimitReachedMeter.markEvent();
 			flush();
 		}
 	}
@@ -246,11 +248,10 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	void flush() {
 		try {
 			flushMeter.markEvent();
-			flushBatchCountHisto.update(batchCount);
-			long before = System.currentTimeMillis();
+			timeBeforeFlush = ticker.read();
 			upload.executeBatch();
-			flushDurationMsHisto.update(System.currentTimeMillis() - before);
-			batchCount = 0;
+			timeAfterFlush = ticker.read();
+			batchSize = 0;
 		} catch (SQLException e) {
 			throw new RuntimeException("Execution of JDBC statement failed.", e);
 		}
@@ -339,6 +340,11 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 			return this;
 		}
 
+		public JDBCOutputFormatBuilder setTicker(Ticker ticker) {
+			format.ticker = ticker;
+			return this;
+		}
+
 		/**
 		 * Finalizes the configuration and checks validity.
 		 *
@@ -365,4 +371,60 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 		}
 	}
 
+	// ------------------------- Metrics ----------------------------------
+
+	/**
+	 * Gauge types.
+	 */
+	@VisibleForTesting
+	public enum JDBCGaugeType {
+		FLUSH_DURATION,
+		BATCH_SIZE
+	}
+
+	/**
+	 * Gauge for getting current flush duration and batch size.
+	 */
+	@VisibleForTesting
+	public static class JDBCGauge implements Gauge<Long> {
+		private final JDBCGaugeType gaugeType;
+
+		public JDBCGauge(JDBCGaugeType gaugeType) {
+			this.gaugeType = gaugeType;
+		}
+
+		@Override
+		public Long getValue() {
+			switch (gaugeType) {
+				case FLUSH_DURATION:
+					long delta = timeAfterFlush - timeBeforeFlush;
+					return (timeAfterFlush > timeBeforeFlush) ? delta : 0L;
+				case BATCH_SIZE:
+					return batchSize;
+				default:
+					throw new RuntimeException("Unknown gauge type: " + gaugeType);
+			}
+		}
+	}
+
+	// ------------------------- Time ----------------------------------
+
+	public static abstract class Ticker {
+
+		protected Ticker() {}
+
+		public abstract long read();
+
+		public static Ticker systemTicker() {
+			return SYSTEM_TICKER;
+		}
+
+		private static final Ticker SYSTEM_TICKER =
+			new Ticker() {
+				@Override
+				public long read() {
+					return System.currentTimeMillis();
+				}
+			};
+	}
 }
