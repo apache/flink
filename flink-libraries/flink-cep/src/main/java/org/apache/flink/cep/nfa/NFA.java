@@ -35,7 +35,6 @@ import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
-import org.apache.flink.cep.operator.AbstractKeyedCEPPatternOperator;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -61,7 +60,7 @@ import static org.apache.flink.cep.nfa.MigrationUtils.deserializeComputationStat
 /**
  * Non-deterministic finite automaton implementation.
  *
- * <p>The {@link AbstractKeyedCEPPatternOperator CEP operator}
+ * <p>The {@link org.apache.flink.cep.operator.CepOperator CEP operator}
  * keeps one NFA per key, for keyed input streams, and a single global NFA for non-keyed ones.
  * When an event gets processed, it updates the NFA's internal state machine.
  *
