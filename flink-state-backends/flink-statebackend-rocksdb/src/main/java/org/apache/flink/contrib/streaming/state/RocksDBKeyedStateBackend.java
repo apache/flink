@@ -336,7 +336,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		final TypeSerializer<N> namespaceSerializer = registeredKeyValueStateBackendMetaInfo.getNamespaceSerializer();
 		final DataOutputSerializer namespaceOutputView = new DataOutputSerializer(8);
-		boolean ambiguousKeyPossible = RocksDBKeySerializationUtils.isAmbiguousKeyPossible(keySerializer, namespaceSerializer);
+		boolean ambiguousKeyPossible = RocksDBKeySerializationUtils.isAmbiguousKeyPossible(getKeySerializer(), namespaceSerializer);
 		final byte[] nameSpaceBytes;
 		try {
 			RocksDBKeySerializationUtils.writeNameSpace(
@@ -352,7 +352,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		RocksIteratorWrapper iterator = getRocksIterator(db, columnInfo.f0);
 		iterator.seekToFirst();
 
-		final RocksStateKeysIterator<K> iteratorWrapper = new RocksStateKeysIterator<>(iterator, state, keySerializer, keyGroupPrefixBytes,
+		final RocksStateKeysIterator<K> iteratorWrapper = new RocksStateKeysIterator<>(iterator, state, getKeySerializer(), keyGroupPrefixBytes,
 			ambiguousKeyPossible, nameSpaceBytes);
 
 		Stream<K> targetStream = StreamSupport.stream(Spliterators.spliteratorUnknownSize(iteratorWrapper, Spliterator.ORDERED), false);
@@ -536,7 +536,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			new RocksFullSnapshotStrategy<>(
 				db,
 				rocksDBResourceGuard,
-				keySerializer,
+				getKeySerializer(),
 				kvStateInformation,
 				keyGroupRange,
 				keyGroupPrefixBytes,
@@ -563,7 +563,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			this.checkpointSnapshotStrategy = new RocksIncrementalSnapshotStrategy<>(
 				db,
 				rocksDBResourceGuard,
-				keySerializer,
+				getKeySerializer(),
 				kvStateInformation,
 				keyGroupRange,
 				keyGroupPrefixBytes,
@@ -655,6 +655,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		/** The compression decorator that was used for writing the state, as determined by the meta data. */
 		private StreamCompressionDecorator keygroupStreamCompressionDecorator;
 
+		private boolean isKeySerializerCompatibilityChecked;
+
 		/**
 		 * Creates a restore operation object for the given state backend instance.
 		 *
@@ -720,11 +722,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			serializationProxy.read(currentStateHandleInView);
 
-			// check for key serializer compatibility; this also reconfigures the
-			// key serializer to be compatible, if it is required and is possible
-			if (!serializationProxy.getKeySerializerConfigSnapshot()
-					.resolveSchemaCompatibility(rocksDBKeyedStateBackend.keySerializer).isCompatibleAsIs()) {
-				throw new StateMigrationException("The new key serializer must be compatible.");
+			if (!isKeySerializerCompatibilityChecked) {
+				// check for key serializer compatibility; this also reconfigures the
+				// key serializer to be compatible, if it is required and is possible
+				TypeSerializerSchemaCompatibility<K> keySerializerSchemaCompat =
+					rocksDBKeyedStateBackend.checkKeySerializerSchemaCompatibility(serializationProxy.getKeySerializerConfigSnapshot());
+				if (keySerializerSchemaCompat.isCompatibleAfterMigration() || keySerializerSchemaCompat.isIncompatible()) {
+					throw new StateMigrationException("The new key serializer must be compatible.");
+				}
+
+				isKeySerializerCompatibilityChecked = true;
 			}
 
 			this.keygroupStreamCompressionDecorator = serializationProxy.isUsingKeyGroupCompression() ?
@@ -821,6 +828,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private final SortedMap<Long, Set<StateHandleID>> restoredSstFiles;
 		private UUID restoredBackendUID;
 		private long lastCompletedCheckpointId;
+		private boolean isKeySerializerCompatibilityChecked;
 
 		private RocksDBIncrementalRestoreOperation(RocksDBKeyedStateBackend<T> stateBackend) {
 
@@ -1265,11 +1273,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				DataInputView in = new DataInputViewStreamWrapper(inputStream);
 				serializationProxy.read(in);
 
-				// check for key serializer compatibility; this also reconfigures the
-				// key serializer to be compatible, if it is required and is possible
-				if (!serializationProxy.getKeySerializerConfigSnapshot()
-						.resolveSchemaCompatibility(stateBackend.keySerializer).isCompatibleAsIs()) {
-					throw new StateMigrationException("The new key serializer must be compatible.");
+				if (!isKeySerializerCompatibilityChecked) {
+					// check for key serializer compatibility; this also reconfigures the
+					// key serializer to be compatible, if it is required and is possible
+					TypeSerializerSchemaCompatibility<T> keySerializerSchemaCompat =
+						stateBackend.checkKeySerializerSchemaCompatibility(serializationProxy.getKeySerializerConfigSnapshot());
+					if (keySerializerSchemaCompat.isCompatibleAfterMigration() || keySerializerSchemaCompat.isIncompatible()) {
+						throw new StateMigrationException("The new key serializer must be compatible.");
+					}
+
+					isKeySerializerCompatibilityChecked = true;
 				}
 
 				return serializationProxy.getStateMetaInfoSnapshots();
