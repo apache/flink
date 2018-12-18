@@ -94,16 +94,21 @@ for each key that the operation sees). The value can be set using `update(T)` an
 `T value()`.
 
 * `ListState<T>`: This keeps a list of elements. You can append elements and retrieve an `Iterable`
-over all currently stored elements. Elements are added using `add(T)`, the Iterable can
-be retrieved using `Iterable<T> get()`.
+over all currently stored elements. Elements are added using `add(T)` or `addAll(List<T>)`, the Iterable can
+be retrieved using `Iterable<T> get()`. You can also override the existing list with `update(List<T>)`
 
 * `ReducingState<T>`: This keeps a single value that represents the aggregation of all values
-added to the state. The interface is the same as for `ListState` but elements added using
+added to the state. The interface is similar to `ListState` but elements added using
 `add(T)` are reduced to an aggregate using a specified `ReduceFunction`.
+
+* `AggregatingState<IN, OUT>`: This keeps a single value that represents the aggregation of all values
+added to the state. Contrary to `ReducingState`, the aggregate type may be different from the type
+of elements that are added to the state. The interface is the same as for `ListState` but elements
+added using `add(IN)` are aggregated using a specified `AggregateFunction`.
 
 * `FoldingState<T, ACC>`: This keeps a single value that represents the aggregation of all values
 added to the state. Contrary to `ReducingState`, the aggregate type may be different from the type
-of elements that are added to the state. The interface is the same as for `ListState` but elements
+of elements that are added to the state. The interface is similar to `ListState` but elements
 added using `add(T)` are folded into an aggregate using a specified `FoldFunction`.
 
 * `MapState<UK, UV>`: This keeps a list of mappings. You can put key-value pairs into the state and
@@ -114,9 +119,7 @@ views for mappings, keys and values can be retrieved using `entries()`, `keys()`
 All types of state also have a method `clear()` that clears the state for the currently
 active key, i.e. the key of the input element.
 
-<span class="label label-danger">Attention</span> `FoldingState` will be deprecated in one of
-the next versions of Flink and will be completely removed in the future. A more general
-alternative will be provided.
+<span class="label label-danger">Attention</span> `FoldingState` and `FoldingStateDescriptor` have been deprecated in Flink 1.4 and will be completely removed in the future. Please use `AggregatingState` and `AggregatingStateDescriptor` instead.
 
 It is important to keep in mind that these state objects are only used for interfacing
 with state. The state is not necessarily stored inside but might reside on disk or somewhere else.
@@ -139,6 +142,7 @@ is available in a `RichFunction` has these methods for accessing state:
 * `ValueState<T> getState(ValueStateDescriptor<T>)`
 * `ReducingState<T> getReducingState(ReducingStateDescriptor<T>)`
 * `ListState<T> getListState(ListStateDescriptor<T>)`
+* `AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT>)`
 * `FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC>)`
 * `MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV>)`
 
@@ -262,6 +266,136 @@ a `ValueState`. Once the count reaches 2 it will emit the average and clear the 
 we start over from `0`. Note that this would keep a different state value for each different input
 key if we had tuples with different values in the first field.
 
+### State Time-To-Live (TTL)
+
+A *time-to-live* (TTL) can be assigned to the keyed state of any type. If a TTL is configured and a
+state value has expired, the stored value will be cleaned up on a best effort basis which is
+discussed in more detail below.
+
+All state collection types support per-entry TTLs. This means that list elements and map entries
+expire independently.
+
+In order to use state TTL one must first build a `StateTtlConfig` configuration object. The TTL 
+functionality can then be enabled in any state descriptor by passing the configuration:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.time.Time;
+
+StateTtlConfig ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
+    .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
+    .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
+    .build();
+    
+ValueStateDescriptor<String> stateDescriptor = new ValueStateDescriptor<>("text state", String.class);
+stateDescriptor.enableTimeToLive(ttlConfig);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.common.state.StateTtlConfig
+import org.apache.flink.api.common.state.ValueStateDescriptor
+import org.apache.flink.api.common.time.Time
+
+val ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
+    .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
+    .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
+    .build
+    
+val stateDescriptor = new ValueStateDescriptor[String]("text state", classOf[String])
+stateDescriptor.enableTimeToLive(ttlConfig)
+{% endhighlight %}
+</div>
+</div>
+
+The configuration has several options to consider:
+
+The first parameter of the `newBuilder` method is mandatory, it is the time-to-live value.
+
+The update type configures when the state TTL is refreshed (by default `OnCreateAndWrite`):
+
+ - `StateTtlConfig.UpdateType.OnCreateAndWrite` - only on creation and write access
+ - `StateTtlConfig.UpdateType.OnReadAndWrite` - also on read access
+ 
+The state visibility configures whether the expired value is returned on read access 
+if it is not cleaned up yet (by default `NeverReturnExpired`):
+
+ - `StateTtlConfig.StateVisibility.NeverReturnExpired` - expired value is never returned
+ - `StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp` - returned if still available
+ 
+In case of `NeverReturnExpired`, the expired state behaves as if it does not exist anymore, 
+even if it still has to be removed. The option can be useful for use cases 
+where data has to become unavailable for read access strictly after TTL, 
+e.g. application working with privacy sensitive data.
+ 
+Another option `ReturnExpiredIfNotCleanedUp` allows to return the expired state before its cleanup.
+
+**Notes:** 
+
+- The state backends store the timestamp of the last modification along with the user value, 
+which means that enabling this feature increases consumption of state storage. 
+Heap state backend stores an additional Java object with a reference to the user state object 
+and a primitive long value in memory. The RocksDB state backend adds 8 bytes per stored value, list entry or map entry.
+
+- Only TTLs in reference to *processing time* are currently supported.
+
+- Trying to restore state, which was previously configured without TTL, using TTL enabled descriptor or vice versa
+will lead to compatibility failure and `StateMigrationException`.
+
+- The TTL configuration is not part of check- or savepoints but rather a way of how Flink treats it in the currently running job.
+
+- The map state with TTL currently supports null user values only if the user value serializer can handle null values. 
+If the serializer does not support null values, it can be wrapped with `NullableSerializer` at the cost of an extra byte in the serialized form.
+
+#### Cleanup of Expired State
+
+Currently, expired values are only removed when they are read out explicitly, 
+e.g. by calling `ValueState.value()`.
+
+<span class="label label-danger">Attention</span> This means that by default if expired state is not read, 
+it won't be removed, possibly leading to ever growing state. This might change in future releases. 
+
+Additionally, you can activate the cleanup at the moment of taking the full state snapshot which 
+will reduce its size. The local state is not cleaned up under the current implementation 
+but it will not include the removed expired state in case of restoration from the previous snapshot.
+It can be configured in `StateTtlConfig`:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.api.common.time.Time;
+
+StateTtlConfig ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
+    .cleanupFullSnapshot()
+    .build();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.common.state.StateTtlConfig
+import org.apache.flink.api.common.time.Time
+
+val ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
+    .cleanupFullSnapshot
+    .build
+{% endhighlight %}
+</div>
+</div>
+
+This option is not applicable for the incremental checkpointing in the RocksDB state backend.
+
+More strategies will be added in the future for cleaning up expired state automatically in the background.
+
 ### State in the Scala DataStream API
 
 In addition to the interface described above, the Scala API has shortcuts for stateful
@@ -327,8 +461,7 @@ the basic even-split redistribution list state:
 {% highlight java %}
 public class BufferingSink
         implements SinkFunction<Tuple2<String, Integer>>,
-                   CheckpointedFunction,
-                   CheckpointedRestoring<ArrayList<Tuple2<String, Integer>>> {
+                   CheckpointedFunction {
 
     private final int threshold;
 
@@ -365,7 +498,7 @@ public class BufferingSink
         ListStateDescriptor<Tuple2<String, Integer>> descriptor =
             new ListStateDescriptor<>(
                 "buffered-elements",
-                TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {}));
+                TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}));
 
         checkpointedState = context.getOperatorStateStore().getListState(descriptor);
 
@@ -375,12 +508,6 @@ public class BufferingSink
             }
         }
     }
-
-    @Override
-    public void restoreState(ArrayList<Tuple2<String, Integer>> state) throws Exception {
-        // this is from the CheckpointedRestoring interface.
-        this.bufferedElements.addAll(state);
-    }
 }
 {% endhighlight %}
 </div>
@@ -389,11 +516,10 @@ public class BufferingSink
 {% highlight scala %}
 class BufferingSink(threshold: Int = 0)
   extends SinkFunction[(String, Int)]
-    with CheckpointedFunction
-    with CheckpointedRestoring[List[(String, Int)]] {
+    with CheckpointedFunction {
 
   @transient
-  private var checkpointedState: ListState[(String, Int)] = null
+  private var checkpointedState: ListState[(String, Int)] = _
 
   private val bufferedElements = ListBuffer[(String, Int)]()
 
@@ -429,9 +555,6 @@ class BufferingSink(threshold: Int = 0)
     }
   }
 
-  override def restoreState(state: List[(String, Int)]): Unit = {
-    bufferedElements ++= state
-  }
 }
 {% endhighlight %}
 </div>
@@ -594,3 +717,5 @@ class CounterSource
 </div>
 
 Some operators might need the information when a checkpoint is fully acknowledged by Flink to communicate that with the outside world. In this case see the `org.apache.flink.runtime.state.CheckpointListener` interface.
+
+{% top %}

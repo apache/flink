@@ -23,6 +23,15 @@ package org.apache.flink.streaming.connectors.kafka;
  */
 @SuppressWarnings("serial")
 public class Kafka08ProducerITCase extends KafkaProducerTestBase {
+	@Override
+	public void testExactlyOnceRegularSink() throws Exception {
+		// Kafka08 does not support exactly once semantic
+	}
+
+	@Override
+	public void testExactlyOnceCustomOperator() throws Exception {
+		// Kafka08 does not support exactly once semantic
+	}
 
 	@Override
 	public void testOneToOneAtLeastOnceRegularSink() throws Exception {

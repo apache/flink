@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 
@@ -151,8 +152,8 @@ public abstract class RetryingRegistration<F extends Serializable, G extends Rpc
 	 * Cancels the registration procedure.
 	 */
 	public void cancel() {
-		completionFuture.cancel(false);
 		canceled = true;
+		completionFuture.cancel(false);
 	}
 
 	/**
@@ -206,7 +207,22 @@ public abstract class RetryingRegistration<F extends Serializable, G extends Rpc
 			resourceManagerAcceptFuture.whenCompleteAsync(
 				(Void v, Throwable failure) -> {
 					if (failure != null && !canceled) {
-						log.warn("Could not resolve {} address {}, retrying in {} ms", targetName, targetAddress, delayOnError, failure);
+						final Throwable strippedFailure = ExceptionUtils.stripCompletionException(failure);
+						if (log.isDebugEnabled()) {
+							log.debug(
+								"Could not resolve {} address {}, retrying in {} ms.",
+								targetName,
+								targetAddress,
+								delayOnError,
+								strippedFailure);
+						} else {
+							log.info(
+								"Could not resolve {} address {}, retrying in {} ms: {}.",
+								targetName,
+								targetAddress,
+								delayOnError,
+								strippedFailure.getMessage());
+						}
 
 						startRegistrationLater(delayOnError);
 					}
@@ -263,7 +279,7 @@ public abstract class RetryingRegistration<F extends Serializable, G extends Rpc
 			registrationAcceptFuture.whenCompleteAsync(
 				(Void v, Throwable failure) -> {
 					if (failure != null && !isCanceled()) {
-						if (failure instanceof TimeoutException) {
+						if (ExceptionUtils.stripCompletionException(failure) instanceof TimeoutException) {
 							// we simply have not received a response in time. maybe the timeout was
 							// very low (initial fast registration attempts), maybe the target endpoint is
 							// currently down.

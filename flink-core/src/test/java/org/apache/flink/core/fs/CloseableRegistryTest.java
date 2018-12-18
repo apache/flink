@@ -24,16 +24,14 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Tests for the {@link CloseableRegistry}.
+ */
 public class CloseableRegistryTest extends AbstractCloseableRegistryTest<Closeable, Object> {
 
 	@Override
-	protected Closeable createCloseable() {
-		return new Closeable() {
-			@Override
-			public void close() throws IOException {
-
-			}
-		};
+	protected void registerCloseable(final Closeable closeable) throws IOException {
+		closeableRegistry.registerCloseable(closeable);
 	}
 
 	@Override

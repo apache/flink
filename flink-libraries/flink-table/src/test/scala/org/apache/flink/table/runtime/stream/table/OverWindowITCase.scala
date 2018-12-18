@@ -52,7 +52,8 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       (7L, 7, "Hello World"),
       (8L, 8, "Hello World"),
       (8L, 8, "Hello World"),
-      (20L, 20, "Hello World"))
+      (20L, 20, "Hello World"),
+      (20L, 20, null.asInstanceOf[String]))
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
@@ -80,7 +81,47 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     val expected = Seq(
       "Hello World,1,7,1", "Hello World,2,7,2", "Hello World,3,7,2", "Hello World,4,13,3",
-      "Hello,1,1,1", "Hello,2,1,2", "Hello,3,2,3", "Hello,4,3,4", "Hello,5,3,5", "Hello,6,4,6")
+      "Hello,1,1,1", "Hello,2,1,2", "Hello,3,2,3", "Hello,4,3,4", "Hello,5,3,5", "Hello,6,4,6",
+      "null,1,20,1")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testOverWindowWithConstant(): Unit = {
+
+    val data = List(
+      (1L, 1, "Hello"),
+      (2L, 2, "Hello"),
+      (3L, 3, "Hello"),
+      (4L, 4, "Hello"),
+      (5L, 5, "Hello"),
+      (6L, 6, "Hello"),
+      (7L, 7, "Hello World"),
+      (8L, 8, "Hello World"),
+      (8L, 8, "Hello World"),
+      (20L, 20, "Hello World"))
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+    StreamITCase.clear
+    val stream = env.fromCollection(data)
+    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    val weightAvgFun = new WeightedAvg
+
+    val windowedTable = table
+      .window(
+        Over partitionBy 'c orderBy 'proctime preceding UNBOUNDED_ROW as 'w)
+      .select('c, weightAvgFun('a, 42, 'b, "2") over 'w as 'wAvg)
+
+    val results = windowedTable.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq(
+      "Hello World,12", "Hello World,9", "Hello World,9", "Hello World,9", "Hello,3",
+      "Hello,3", "Hello,4", "Hello,4", "Hello,5", "Hello,5")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 

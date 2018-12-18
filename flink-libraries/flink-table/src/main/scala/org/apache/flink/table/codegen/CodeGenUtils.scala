@@ -198,6 +198,11 @@ object CodeGenUtils {
       throw new CodeGenException("Array expression type expected.")
     }
 
+  def requireMap(genExpr: GeneratedExpression): Unit =
+    if (!TypeCheckUtils.isMap(genExpr.resultType)) {
+      throw new CodeGenException("Map expression type expected.")
+    }
+
   def requireInteger(genExpr: GeneratedExpression): Unit =
     if (!TypeCheckUtils.isInteger(genExpr.resultType)) {
       throw new CodeGenException("Integer expression type expected.")

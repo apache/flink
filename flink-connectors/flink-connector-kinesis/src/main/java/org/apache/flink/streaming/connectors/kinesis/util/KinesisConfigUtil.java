@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
@@ -27,9 +28,13 @@ import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConsta
 
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -38,6 +43,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Utilities for Flink Kinesis connector configuration.
  */
+@Internal
 public class KinesisConfigUtil {
 
 	/** Maximum number of items to pack into an PutRecords request. **/
@@ -63,10 +69,15 @@ public class KinesisConfigUtil {
 	protected static final String THREAD_POOL_SIZE = "ThreadPoolSize";
 
 	/** Default values for RateLimit. **/
-	protected static final String DEFAULT_RATE_LIMIT = "100";
+	protected static final long DEFAULT_RATE_LIMIT = 100L;
+
+	/** Default value for ThreadingModel. **/
+	protected static final KinesisProducerConfiguration.ThreadingModel DEFAULT_THREADING_MODEL = KinesisProducerConfiguration.ThreadingModel.POOLED;
 
 	/** Default values for ThreadPoolSize. **/
 	protected static final int DEFAULT_THREAD_POOL_SIZE = 10;
+
+	private static final Logger LOG = LoggerFactory.getLogger(KinesisConfigUtil.class);
 
 	/**
 	 * Validate configuration properties for {@link FlinkKinesisConsumer}.
@@ -75,6 +86,12 @@ public class KinesisConfigUtil {
 		checkNotNull(config, "config can not be null");
 
 		validateAwsConfiguration(config);
+
+		if (!(config.containsKey(AWSConfigConstants.AWS_REGION) ^ config.containsKey(ConsumerConfigConstants.AWS_ENDPOINT))) {
+			// per validation in AwsClientBuilder
+			throw new IllegalArgumentException(String.format("For FlinkKinesisConsumer either AWS region ('%s') or AWS endpoint ('%s') must be set in the config.",
+					AWSConfigConstants.AWS_REGION, AWSConfigConstants.AWS_ENDPOINT));
+		}
 
 		if (config.containsKey(ConsumerConfigConstants.STREAM_INITIAL_POSITION)) {
 			String initPosType = config.getProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION);
@@ -137,14 +154,14 @@ public class KinesisConfigUtil {
 		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS,
 			"Invalid value given for shard discovery sleep interval in milliseconds. Must be a valid non-negative long value.");
 
-		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE,
-			"Invalid value given for describe stream operation base backoff milliseconds. Must be a valid non-negative long value.");
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_BASE,
+			"Invalid value given for list shards operation base backoff milliseconds. Must be a valid non-negative long value.");
 
-		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX,
-			"Invalid value given for describe stream operation max backoff milliseconds. Must be a valid non-negative long value.");
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_MAX,
+			"Invalid value given for list shards operation max backoff milliseconds. Must be a valid non-negative long value.");
 
-		validateOptionalPositiveDoubleProperty(config, ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT,
-			"Invalid value given for describe stream operation backoff exponential constant. Must be a valid non-negative double value.");
+		validateOptionalPositiveDoubleProperty(config, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT,
+			"Invalid value given for list shards operation backoff exponential constant. Must be a valid non-negative double value.");
 
 		if (config.containsKey(ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS)) {
 			checkArgument(
@@ -176,6 +193,23 @@ public class KinesisConfigUtil {
 		return configProps;
 	}
 
+	public static Properties replaceDeprecatedConsumerKeys(Properties configProps) {
+		HashMap<String, String> deprecatedOldKeyToNewKeys = new HashMap<>();
+		deprecatedOldKeyToNewKeys.put(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_BASE);
+		deprecatedOldKeyToNewKeys.put(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_MAX);
+		deprecatedOldKeyToNewKeys.put(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT);
+		for (Map.Entry<String, String> entry : deprecatedOldKeyToNewKeys.entrySet()) {
+			String deprecatedOldKey = entry.getKey();
+			String newKey = entry.getValue();
+			if (configProps.containsKey(deprecatedOldKey)) {
+				LOG.warn("Please note {} property has been deprecated. Please use the {} new property key", deprecatedOldKey, newKey);
+				configProps.setProperty(newKey, configProps.getProperty(deprecatedOldKey));
+				configProps.remove(deprecatedOldKey);
+			}
+		}
+		return configProps;
+	}
+
 	/**
 	 * Validate configuration properties for {@link FlinkKinesisProducer},
 	 * and return a constructed KinesisProducerConfiguration.
@@ -185,33 +219,29 @@ public class KinesisConfigUtil {
 
 		validateAwsConfiguration(config);
 
-		// Override KPL default value if it's not specified by user
-		if (!config.containsKey(RATE_LIMIT)) {
-			config.setProperty(RATE_LIMIT, DEFAULT_RATE_LIMIT);
+		if (!config.containsKey(AWSConfigConstants.AWS_REGION)) {
+			// per requirement in Amazon Kinesis Producer Library
+			throw new IllegalArgumentException(String.format("For FlinkKinesisProducer AWS region ('%s') must be set in the config.", AWSConfigConstants.AWS_REGION));
 		}
 
 		KinesisProducerConfiguration kpc = KinesisProducerConfiguration.fromProperties(config);
+		kpc.setRegion(config.getProperty(AWSConfigConstants.AWS_REGION));
 
 		kpc.setCredentialsProvider(AWSUtil.getCredentialsProvider(config));
 
 		// we explicitly lower the credential refresh delay (default is 5 seconds)
-		// to avoid a ignorable interruption warning that occurs when shutting down the
+		// to avoid an ignorable interruption warning that occurs when shutting down the
 		// KPL client. See https://github.com/awslabs/amazon-kinesis-producer/issues/10.
 		kpc.setCredentialsRefreshDelay(100);
 
-		// Because of bug https://github.com/awslabs/amazon-kinesis-producer/issues/124
-		// KPL cannot set ThreadingModel and ThreadPoolSize using Java reflection
-		// Thus we have to set them explicitly
-		if (config.containsKey(THREADING_MODEL)) {
-			kpc.setThreadingModel(
-					KinesisProducerConfiguration.ThreadingModel.valueOf(config.getProperty(THREADING_MODEL)));
-		} else {
-			kpc.setThreadingModel(KinesisProducerConfiguration.ThreadingModel.POOLED);
+		// Override default values if they aren't specified by users
+		if (!config.containsKey(RATE_LIMIT)) {
+			kpc.setRateLimit(DEFAULT_RATE_LIMIT);
 		}
-
-		if (config.containsKey(THREAD_POOL_SIZE)) {
-			kpc.setThreadPoolSize(Integer.parseInt(config.getProperty(THREAD_POOL_SIZE)));
-		} else {
+		if (!config.containsKey(THREADING_MODEL)) {
+			kpc.setThreadingModel(DEFAULT_THREADING_MODEL);
+		}
+		if (!config.containsKey(THREAD_POOL_SIZE)) {
 			kpc.setThreadPoolSize(DEFAULT_THREAD_POOL_SIZE);
 		}
 
@@ -247,9 +277,7 @@ public class KinesisConfigUtil {
 			}
 		}
 
-		if (!config.containsKey(AWSConfigConstants.AWS_REGION)) {
-			throw new IllegalArgumentException("The AWS region ('" + AWSConfigConstants.AWS_REGION + "') must be set in the config.");
-		} else {
+		if (config.containsKey(AWSConfigConstants.AWS_REGION)) {
 			// specified AWS Region name must be recognizable
 			if (!AWSUtil.isValidRegion(config.getProperty(AWSConfigConstants.AWS_REGION))) {
 				StringBuilder sb = new StringBuilder();

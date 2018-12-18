@@ -54,10 +54,6 @@ case class In(expression: Expression, elements: Seq[Expression]) extends Express
         if (elements.length != 1) {
           return ValidationFailure("IN operator supports only one table reference.")
         }
-        if (table.tableEnv.isInstanceOf[StreamTableEnvironment]) {
-          return ValidationFailure(
-            "Sub-query IN operator on stream tables is currently not supported.")
-        }
         val tableOutput = table.logicalPlan.output
         if (tableOutput.length > 1) {
           return ValidationFailure(

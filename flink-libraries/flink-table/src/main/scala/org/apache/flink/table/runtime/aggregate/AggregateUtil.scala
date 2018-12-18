@@ -27,16 +27,16 @@ import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
 import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction, AggregateFunction => DataStreamAggFunction, _}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, RowTypeInfo}
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction, WindowFunction}
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
 import org.apache.flink.table.api.dataview.DataViewSpec
-import org.apache.flink.table.api.{StreamQueryConfig, TableException}
+import org.apache.flink.table.api.{StreamQueryConfig, TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.AggregationCodeGenerator
+import org.apache.flink.table.dataview.MapViewTypeInfo
 import org.apache.flink.table.expressions.ExpressionUtils.isTimeIntervalLiteral
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.aggfunctions._
@@ -51,7 +51,6 @@ import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
 
 object AggregateUtil {
 
@@ -64,6 +63,7 @@ object AggregateUtil {
     *
     * @param generator       code generator instance
     * @param namedAggregates Physical calls to aggregate functions and their output field names
+    * @param aggregateInputType Physical type of the aggregate functions's input row.
     * @param inputType Physical type of the row.
     * @param inputTypeInfo Physical type information of the row.
     * @param inputFieldTypeInfo Physical type information of the row's fields.
@@ -74,45 +74,50 @@ object AggregateUtil {
   private[flink] def createUnboundedOverProcessFunction(
       generator: AggregationCodeGenerator,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      aggregateInputType: RelDataType,
       inputType: RelDataType,
       inputTypeInfo: TypeInformation[Row],
       inputFieldTypeInfo: Seq[TypeInformation[_]],
       queryConfig: StreamQueryConfig,
+      tableConfig: TableConfig,
       rowTimeIdx: Option[Int],
       isPartitioned: Boolean,
       isRowsClause: Boolean)
     : ProcessFunction[CRow, CRow] = {
 
-    val (aggFields, aggregates, accTypes, accSpecs) =
-      transformToAggregateFunctions(
+    val aggregateMetadata = extractAggregateMetadata(
         namedAggregates.map(_.getKey),
-        inputType,
+        aggregateInputType,
         needRetraction = false,
+        tableConfig,
         isStateBackedDataViews = true)
 
-    val aggregationStateType: RowTypeInfo = new RowTypeInfo(accTypes: _*)
 
     val forwardMapping = (0 until inputType.getFieldCount).toArray
-    val aggMapping = aggregates.indices.map(x => x + inputType.getFieldCount).toArray
-    val outputArity = inputType.getFieldCount + aggregates.length
+    val aggMapping = aggregateMetadata.getAdjustedMapping(inputType.getFieldCount)
+
+    val outputArity = inputType.getFieldCount + aggregateMetadata.getAggregateCallsCount
 
     val genFunction = generator.generateAggregations(
       "UnboundedProcessingOverAggregateHelper",
       inputFieldTypeInfo,
-      aggregates,
-      aggFields,
+      aggregateMetadata.getAggregateFunctions,
+      aggregateMetadata.getAggregateIndices,
       aggMapping,
+      aggregateMetadata.getAggregatesDistinctFlags,
+      isStateBackedDataViews = true,
       partialResults = false,
       forwardMapping,
-      None,
       None,
       outputArity,
       needRetract = false,
       needMerge = false,
       needReset = false,
-      accConfig = Some(accSpecs)
+      accConfig = Some(aggregateMetadata.getAggregatesAccumulatorSpecs)
     )
 
+    val aggregationStateType: RowTypeInfo = new RowTypeInfo(aggregateMetadata
+      .getAggregatesAccumulatorTypes: _*)
     if (rowTimeIdx.isDefined) {
       if (isRowsClause) {
         // ROWS unbounded over process function
@@ -160,39 +165,40 @@ object AggregateUtil {
       inputFieldTypes: Seq[TypeInformation[_]],
       groupings: Array[Int],
       queryConfig: StreamQueryConfig,
+      tableConfig: TableConfig,
       generateRetraction: Boolean,
       consumeRetraction: Boolean): ProcessFunction[CRow, CRow] = {
 
-    val (aggFields, aggregates, accTypes, accSpecs) =
-      transformToAggregateFunctions(
+    val aggregateMetadata = extractAggregateMetadata(
         namedAggregates.map(_.getKey),
         inputRowType,
         consumeRetraction,
+        tableConfig,
         isStateBackedDataViews = true)
 
-    val aggMapping = aggregates.indices.map(_ + groupings.length).toArray
-
-    val outputArity = groupings.length + aggregates.length
-
-    val aggregationStateType: RowTypeInfo = new RowTypeInfo(accTypes: _*)
+    val aggMapping = aggregateMetadata.getAdjustedMapping(groupings.length)
+    val outputArity = groupings.length + aggregateMetadata.getAggregateCallsCount
 
     val genFunction = generator.generateAggregations(
       "NonWindowedAggregationHelper",
       inputFieldTypes,
-      aggregates,
-      aggFields,
+      aggregateMetadata.getAggregateFunctions,
+      aggregateMetadata.getAggregateIndices,
       aggMapping,
+      aggregateMetadata.getAggregatesDistinctFlags,
+      isStateBackedDataViews = true,
       partialResults = false,
       groupings,
-      None,
       None,
       outputArity,
       consumeRetraction,
       needMerge = false,
       needReset = false,
-      accConfig = Some(accSpecs)
+      accConfig = Some(aggregateMetadata.getAggregatesAccumulatorSpecs)
     )
 
+    val aggregationStateType: RowTypeInfo = new RowTypeInfo(aggregateMetadata
+      .getAggregatesAccumulatorTypes: _*)
     new GroupAggProcessFunction(
       genFunction,
       aggregationStateType,
@@ -207,6 +213,7 @@ object AggregateUtil {
     *
     * @param generator       code generator instance
     * @param namedAggregates Physical calls to aggregate functions and their output field names
+    * @param aggregateInputType Physical type of the aggregate functions's input row.
     * @param inputType Physical type of the row.
     * @param inputTypeInfo Physical type information of the row.
     * @param inputFieldTypeInfo Physical type information of the row's fields.
@@ -218,47 +225,52 @@ object AggregateUtil {
   private[flink] def createBoundedOverProcessFunction(
       generator: AggregationCodeGenerator,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      aggregateInputType: RelDataType,
       inputType: RelDataType,
       inputTypeInfo: TypeInformation[Row],
       inputFieldTypeInfo: Seq[TypeInformation[_]],
       precedingOffset: Long,
       queryConfig: StreamQueryConfig,
+      tableConfig: TableConfig,
       isRowsClause: Boolean,
       rowTimeIdx: Option[Int])
     : ProcessFunction[CRow, CRow] = {
 
     val needRetract = true
-    val (aggFields, aggregates, accTypes, accSpecs) =
-      transformToAggregateFunctions(
+    val aggregateMetadata = extractAggregateMetadata(
         namedAggregates.map(_.getKey),
-        inputType,
+        aggregateInputType,
         needRetract,
+        tableConfig,
         isStateBackedDataViews = true)
 
-    val aggregationStateType: RowTypeInfo = new RowTypeInfo(accTypes: _*)
     val inputRowType = CRowTypeInfo(inputTypeInfo)
 
     val forwardMapping = (0 until inputType.getFieldCount).toArray
-    val aggMapping = aggregates.indices.map(x => x + inputType.getFieldCount).toArray
-    val outputArity = inputType.getFieldCount + aggregates.length
+    val aggMapping = aggregateMetadata.getAdjustedMapping(inputType.getFieldCount)
+
+    val outputArity = inputType.getFieldCount + aggregateMetadata.getAggregateCallsCount
 
     val genFunction = generator.generateAggregations(
       "BoundedOverAggregateHelper",
       inputFieldTypeInfo,
-      aggregates,
-      aggFields,
+      aggregateMetadata.getAggregateFunctions,
+      aggregateMetadata.getAggregateIndices,
       aggMapping,
+      aggregateMetadata.getAggregatesDistinctFlags,
+      isStateBackedDataViews = true,
       partialResults = false,
       forwardMapping,
-      None,
       None,
       outputArity,
       needRetract,
       needMerge = false,
       needReset = false,
-      accConfig = Some(accSpecs)
+      accConfig = Some(aggregateMetadata.getAggregatesAccumulatorSpecs)
     )
 
+    val aggregationStateType: RowTypeInfo = new RowTypeInfo(aggregateMetadata
+      .getAggregatesAccumulatorTypes: _*)
     if (rowTimeIdx.isDefined) {
       if (isRowsClause) {
         new RowTimeBoundedRowsOver(
@@ -326,20 +338,22 @@ object AggregateUtil {
     groupings: Array[Int],
     inputType: RelDataType,
     inputFieldTypeInfo: Seq[TypeInformation[_]],
-    isParserCaseSensitive: Boolean)
+    isParserCaseSensitive: Boolean,
+    tableConfig: TableConfig)
   : MapFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates, accTypes, _) = transformToAggregateFunctions(
+    val aggregateMetadata = extractAggregateMetadata(
       namedAggregates.map(_.getKey),
       inputType,
-      needRetract)
+      needRetract,
+      tableConfig)
 
     val mapReturnType: RowTypeInfo =
       createRowTypeForKeysAndAggregates(
         groupings,
-        aggregates,
-        accTypes,
+        aggregateMetadata.getAggregateFunctions,
+        aggregateMetadata.getAggregatesAccumulatorTypes,
         inputType,
         Some(Array(BasicTypeInfo.LONG_TYPE_INFO)))
 
@@ -359,7 +373,7 @@ object AggregateUtil {
       case SlidingGroupWindow(_, time, size, slide) =>
         val timeFieldPos = getTimeFieldPosition(time, inputType, isParserCaseSensitive)
         size match {
-          case Literal(value: Long, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
+          case Literal(_: Long, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
             // pre-tumble incremental aggregates on time-windows
             val timeFieldPos = getTimeFieldPosition(time, inputType, isParserCaseSensitive)
             val preTumblingSize = determineLargestTumblingSize(asLong(size), asLong(slide))
@@ -371,18 +385,19 @@ object AggregateUtil {
         throw new UnsupportedOperationException(s"$window is currently not supported on batch")
     }
 
-    val aggMapping = aggregates.indices.toArray.map(_ + groupings.length)
-    val outputArity = aggregates.length + groupings.length + 1
+    val aggMapping = aggregateMetadata.getAdjustedMapping(groupings.length)
+    val outputArity = aggregateMetadata.getAggregateCallsCount + groupings.length + 1
 
     val genFunction = generator.generateAggregations(
       "DataSetAggregatePrepareMapHelper",
       inputFieldTypeInfo,
-      aggregates,
-      aggFieldIndexes,
+      aggregateMetadata.getAggregateFunctions,
+      aggregateMetadata.getAggregateIndices,
       aggMapping,
+      aggregateMetadata.getAggregatesDistinctFlags,
+      isStateBackedDataViews = false,
       partialResults = true,
       groupings,
-      None,
       None,
       outputArity,
       needRetract,
@@ -432,19 +447,21 @@ object AggregateUtil {
       groupings: Array[Int],
       physicalInputRowType: RelDataType,
       physicalInputTypes: Seq[TypeInformation[_]],
-      isParserCaseSensitive: Boolean)
+      isParserCaseSensitive: Boolean,
+      tableConfig: TableConfig)
     : RichGroupReduceFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates, accTypes, _) = transformToAggregateFunctions(
+    val aggregateMetadata = extractAggregateMetadata(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
-      needRetract)
+      needRetract,
+      tableConfig)
 
     val returnType: RowTypeInfo = createRowTypeForKeysAndAggregates(
       groupings,
-      aggregates,
-      accTypes,
+      aggregateMetadata.getAggregateFunctions,
+      aggregateMetadata.getAggregatesAccumulatorTypes,
       physicalInputRowType,
       Some(Array(BasicTypeInfo.LONG_TYPE_INFO)))
 
@@ -453,16 +470,18 @@ object AggregateUtil {
     window match {
       case SlidingGroupWindow(_, _, size, slide) if isTimeInterval(size.resultType) =>
         // sliding time-window for partial aggregations
+        val aggMappings = aggregateMetadata.getAdjustedMapping(groupings.length)
         val genFunction = generator.generateAggregations(
           "DataSetAggregatePrepareMapHelper",
           physicalInputTypes,
-          aggregates,
-          aggFieldIndexes,
-          aggregates.indices.map(_ + groupings.length).toArray,
+          aggregateMetadata.getAggregateFunctions,
+          aggregateMetadata.getAggregateIndices,
+          aggMappings,
+          aggregateMetadata.getAggregatesDistinctFlags,
+          isStateBackedDataViews = false,
           partialResults = true,
           groupings.indices.toArray,
-          Some(aggregates.indices.map(_ + groupings.length).toArray),
-          None,
+          Some(aggMappings),
           keysAndAggregatesArity + 1,
           needRetract,
           needMerge = true,
@@ -546,27 +565,30 @@ object AggregateUtil {
       outputType: RelDataType,
       groupings: Array[Int],
       properties: Seq[NamedWindowProperty],
+      tableConfig: TableConfig,
       isInputCombined: Boolean = false)
     : RichGroupReduceFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates, _, _) = transformToAggregateFunctions(
+    val aggregateMetadata = extractAggregateMetadata(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
-      needRetract)
+      needRetract,
+      tableConfig)
 
-    val aggMapping = aggregates.indices.toArray.map(_ + groupings.length)
+    val aggMapping = aggregateMetadata.getAdjustedMapping(groupings.length)
 
     val genPreAggFunction = generator.generateAggregations(
       "GroupingWindowAggregateHelper",
       physicalInputTypes,
-      aggregates,
-      aggFieldIndexes,
+      aggregateMetadata.getAggregateFunctions,
+      aggregateMetadata.getAggregateIndices,
       aggMapping,
+      aggregateMetadata.getAggregatesDistinctFlags,
+      isStateBackedDataViews = false,
       partialResults = true,
-      groupings,
-      Some(aggregates.indices.map(_ + groupings.length).toArray),
-      None,
+      groupings.indices.toArray,
+      Some(aggMapping),
       outputType.getFieldCount,
       needRetract,
       needMerge = true,
@@ -577,13 +599,14 @@ object AggregateUtil {
     val genFinalAggFunction = generator.generateAggregations(
       "GroupingWindowAggregateHelper",
       physicalInputTypes,
-      aggregates,
-      aggFieldIndexes,
+      aggregateMetadata.getAggregateFunctions,
+      aggregateMetadata.getAggregateIndices,
       aggMapping,
+      aggregateMetadata.getAggregatesDistinctFlags,
+      isStateBackedDataViews = false,
       partialResults = false,
       groupings.indices.toArray,
-      Some(aggregates.indices.map(_ + groupings.length).toArray),
-      None,
+      Some(aggMapping),
       outputType.getFieldCount,
       needRetract,
       needMerge = true,
@@ -596,8 +619,8 @@ object AggregateUtil {
     window match {
       case TumblingGroupWindow(_, _, size) if isTimeInterval(size.resultType) =>
         // tumbling time window
-        val (startPos, endPos, _) = computeWindowPropertyPos(properties)
-        if (doAllSupportPartialMerge(aggregates)) {
+        val (startPos, endPos, timePos) = computeWindowPropertyPos(properties)
+        if (doAllSupportPartialMerge(aggregateMetadata.getAggregateFunctions)) {
           // for incremental aggregations
           new DataSetTumbleTimeWindowAggReduceCombineFunction(
             genPreAggFunction,
@@ -605,6 +628,7 @@ object AggregateUtil {
             asLong(size),
             startPos,
             endPos,
+            timePos,
             keysAndAggregatesArity)
         }
         else {
@@ -614,6 +638,7 @@ object AggregateUtil {
             asLong(size),
             startPos,
             endPos,
+            timePos,
             outputType.getFieldCount)
         }
       case TumblingGroupWindow(_, _, size) =>
@@ -623,18 +648,19 @@ object AggregateUtil {
           asLong(size))
 
       case SessionGroupWindow(_, _, gap) =>
-        val (startPos, endPos, _) = computeWindowPropertyPos(properties)
+        val (startPos, endPos, timePos) = computeWindowPropertyPos(properties)
         new DataSetSessionWindowAggReduceGroupFunction(
           genFinalAggFunction,
           keysAndAggregatesArity,
           startPos,
           endPos,
+          timePos,
           asLong(gap),
           isInputCombined)
 
       case SlidingGroupWindow(_, _, size, _) if isTimeInterval(size.resultType) =>
-        val (startPos, endPos, _) = computeWindowPropertyPos(properties)
-        if (doAllSupportPartialMerge(aggregates)) {
+        val (startPos, endPos, timePos) = computeWindowPropertyPos(properties)
+        if (doAllSupportPartialMerge(aggregateMetadata.getAggregateFunctions)) {
           // for partial aggregations
           new DataSetSlideWindowAggReduceCombineFunction(
             genPreAggFunction,
@@ -642,6 +668,7 @@ object AggregateUtil {
             keysAndAggregatesArity,
             startPos,
             endPos,
+            timePos,
             asLong(size))
         }
         else {
@@ -651,6 +678,7 @@ object AggregateUtil {
             keysAndAggregatesArity,
             startPos,
             endPos,
+            timePos,
             asLong(size))
         }
 
@@ -658,6 +686,7 @@ object AggregateUtil {
         new DataSetSlideWindowAggReduceGroupFunction(
             genFinalAggFunction,
             keysAndAggregatesArity,
+            None,
             None,
             None,
             asLong(size))
@@ -694,15 +723,17 @@ object AggregateUtil {
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     physicalInputRowType: RelDataType,
     physicalInputTypes: Seq[TypeInformation[_]],
-    groupings: Array[Int]): MapPartitionFunction[Row, Row] = {
+    groupings: Array[Int],
+    tableConfig: TableConfig): MapPartitionFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates, accTypes, _) = transformToAggregateFunctions(
+    val aggregateMetadata = extractAggregateMetadata(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
-      needRetract)
+      needRetract,
+      tableConfig)
 
-    val aggMapping = aggregates.indices.map(_ + groupings.length).toArray
+    val aggMapping = aggregateMetadata.getAdjustedMapping(groupings.length)
 
     val keysAndAggregatesArity = groupings.length + namedAggregates.length
 
@@ -711,22 +742,23 @@ object AggregateUtil {
         val combineReturnType: RowTypeInfo =
           createRowTypeForKeysAndAggregates(
             groupings,
-            aggregates,
-            accTypes,
+            aggregateMetadata.getAggregateFunctions,
+            aggregateMetadata.getAggregatesAccumulatorTypes,
             physicalInputRowType,
             Option(Array(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO)))
 
         val genFunction = generator.generateAggregations(
           "GroupingWindowAggregateHelper",
           physicalInputTypes,
-          aggregates,
-          aggFieldIndexes,
+          aggregateMetadata.getAggregateFunctions,
+          aggregateMetadata.getAggregateIndices,
           aggMapping,
+          aggregateMetadata.getAggregatesDistinctFlags,
+          isStateBackedDataViews = false,
           partialResults = true,
           groupings.indices.toArray,
-          Some(aggregates.indices.map(_ + groupings.length).toArray),
-          None,
-          groupings.length + aggregates.length + 2,
+          Some(aggMapping),
+          groupings.length + aggregateMetadata.getAggregateCallsCount + 2,
           needRetract,
           needMerge = true,
           needReset = true,
@@ -767,17 +799,18 @@ object AggregateUtil {
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       physicalInputRowType: RelDataType,
       physicalInputTypes: Seq[TypeInformation[_]],
-      groupings: Array[Int])
+      groupings: Array[Int],
+      tableConfig: TableConfig)
     : GroupCombineFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates, accTypes, _) = transformToAggregateFunctions(
+    val aggregateMetadata = extractAggregateMetadata(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
-      needRetract)
+      needRetract,
+      tableConfig)
 
-    val aggMapping = aggregates.indices.map(_ + groupings.length).toArray
-
+    val aggMapping = aggregateMetadata.getAdjustedMapping(groupings.length)
     val keysAndAggregatesArity = groupings.length + namedAggregates.length
 
     window match {
@@ -786,22 +819,23 @@ object AggregateUtil {
         val combineReturnType: RowTypeInfo =
           createRowTypeForKeysAndAggregates(
             groupings,
-            aggregates,
-            accTypes,
+            aggregateMetadata.getAggregateFunctions,
+            aggregateMetadata.getAggregatesAccumulatorTypes,
             physicalInputRowType,
             Option(Array(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO)))
 
         val genFunction = generator.generateAggregations(
           "GroupingWindowAggregateHelper",
           physicalInputTypes,
-          aggregates,
-          aggFieldIndexes,
+          aggregateMetadata.getAggregateFunctions,
+          aggregateMetadata.getAggregateIndices,
           aggMapping,
+          aggregateMetadata.getAggregatesDistinctFlags,
+          isStateBackedDataViews = false,
           partialResults = true,
           groupings.indices.toArray,
-          Some(aggregates.indices.map(_ + groupings.length).toArray),
-          None,
-          groupings.length + aggregates.length + 2,
+          Some(aggMapping),
+          keysAndAggregatesArity + 2,
           needRetract,
           needMerge = true,
           needReset = true,
@@ -833,15 +867,17 @@ object AggregateUtil {
       inputFieldTypeInfo: Seq[TypeInformation[_]],
       outputType: RelDataType,
       groupings: Array[Int],
-      inGroupingSet: Boolean): (Option[DataSetPreAggFunction],
+      tableConfig: TableConfig): (
+        Option[DataSetPreAggFunction],
         Option[TypeInformation[Row]],
-        RichGroupReduceFunction[Row, Row]) = {
+        Either[DataSetAggFunction, DataSetFinalAggFunction]) = {
 
     val needRetract = false
-    val (aggInFields, aggregates, accTypes, _) = transformToAggregateFunctions(
+    val aggregateMetadata = extractAggregateMetadata(
       namedAggregates.map(_.getKey),
       inputType,
-      needRetract)
+      needRetract,
+      tableConfig)
 
     val (gkeyOutMapping, aggOutMapping) = getOutputMappings(
       namedAggregates,
@@ -850,39 +886,30 @@ object AggregateUtil {
       outputType
     )
 
-    val constantFlags: Option[Array[(Int, Boolean)]] =
-    if (inGroupingSet) {
-
-      val groupingSetsMapping = getGroupingSetsIndicatorMapping(inputType, outputType)
-      val nonNullKeysFields = gkeyOutMapping.map(_._1)
-      val flags = for ((in, out) <- groupingSetsMapping) yield
-        (out, !nonNullKeysFields.contains(in))
-      Some(flags)
-    } else {
-      None
-    }
-
     val aggOutFields = aggOutMapping.map(_._1)
 
-    if (doAllSupportPartialMerge(aggregates)) {
+    if (doAllSupportPartialMerge(aggregateMetadata.getAggregateFunctions)) {
+
+      val aggMapping = aggregateMetadata.getAdjustedMapping(groupings.length)
 
       // compute preaggregation type
       val preAggFieldTypes = gkeyOutMapping.map(_._2)
         .map(inputType.getFieldList.get(_).getType)
-        .map(FlinkTypeFactory.toTypeInfo) ++ accTypes
+        .map(FlinkTypeFactory.toTypeInfo) ++ aggregateMetadata.getAggregatesAccumulatorTypes
       val preAggRowType = new RowTypeInfo(preAggFieldTypes: _*)
 
       val genPreAggFunction = generator.generateAggregations(
         "DataSetAggregatePrepareMapHelper",
         inputFieldTypeInfo,
-        aggregates,
-        aggInFields,
-        aggregates.indices.map(_ + groupings.length).toArray,
+        aggregateMetadata.getAggregateFunctions,
+        aggregateMetadata.getAggregateIndices,
+        aggMapping,
+        aggregateMetadata.getAggregatesDistinctFlags,
+        isStateBackedDataViews = false,
         partialResults = true,
         groupings,
         None,
-        None,
-        groupings.length + aggregates.length,
+        groupings.length + aggregateMetadata.getAggregateCallsCount,
         needRetract,
         needMerge = false,
         needReset = true,
@@ -902,13 +929,14 @@ object AggregateUtil {
       val genFinalAggFunction = generator.generateAggregations(
         "DataSetAggregateFinalHelper",
         inputFieldTypeInfo,
-        aggregates,
-        aggInFields,
+        aggregateMetadata.getAggregateFunctions,
+        aggregateMetadata.getAggregateIndices,
         aggOutFields,
+        aggregateMetadata.getAggregatesDistinctFlags,
+        isStateBackedDataViews = false,
         partialResults = false,
         gkeyMapping,
-        Some(aggregates.indices.map(_ + groupings.length).toArray),
-        constantFlags,
+        Some(aggMapping),
         outputType.getFieldCount,
         needRetract,
         needMerge = true,
@@ -919,20 +947,21 @@ object AggregateUtil {
       (
         Some(new DataSetPreAggFunction(genPreAggFunction)),
         Some(preAggRowType),
-        new DataSetFinalAggFunction(genFinalAggFunction)
+        Right(new DataSetFinalAggFunction(genFinalAggFunction))
       )
     }
     else {
       val genFunction = generator.generateAggregations(
         "DataSetAggregateHelper",
         inputFieldTypeInfo,
-        aggregates,
-        aggInFields,
+        aggregateMetadata.getAggregateFunctions,
+        aggregateMetadata.getAggregateIndices,
         aggOutFields,
+        aggregateMetadata.getAggregatesDistinctFlags,
+        isStateBackedDataViews = false,
         partialResults = false,
         groupings,
         None,
-        constantFlags,
         outputType.getFieldCount,
         needRetract,
         needMerge = false,
@@ -943,7 +972,7 @@ object AggregateUtil {
       (
         None,
         None,
-        new DataSetAggFunction(genFunction)
+        Left(new DataSetAggFunction(genFunction))
       )
     }
 
@@ -981,7 +1010,7 @@ object AggregateUtil {
       numAggregates: Int,
       finalRowArity: Int,
       properties: Seq[NamedWindowProperty]):
-    WindowFunction[Row, CRow, Tuple, DataStreamWindow] = {
+    WindowFunction[Row, CRow, Row, DataStreamWindow] = {
 
     if (isTimeWindow(window)) {
       val (startPos, endPos, timePos) = computeWindowPropertyPos(properties)
@@ -992,7 +1021,7 @@ object AggregateUtil {
         endPos,
         timePos,
         finalRowArity)
-        .asInstanceOf[WindowFunction[Row, CRow, Tuple, DataStreamWindow]]
+        .asInstanceOf[WindowFunction[Row, CRow, Row, DataStreamWindow]]
     } else {
       new IncrementalAggregateWindowFunction(
         numGroupingKeys,
@@ -1008,28 +1037,31 @@ object AggregateUtil {
       inputFieldTypeInfo: Seq[TypeInformation[_]],
       outputType: RelDataType,
       groupingKeys: Array[Int],
-      needMerge: Boolean)
-    : (DataStreamAggFunction[CRow, Row, Row], RowTypeInfo, RowTypeInfo) = {
+      needMerge: Boolean,
+      tableConfig: TableConfig)
+    : (DataStreamAggFunction[CRow, Row, Row], RowTypeInfo) = {
 
     val needRetract = false
-    val (aggFields, aggregates, accTypes, _) =
-      transformToAggregateFunctions(
+    val aggregateMetadata =
+      extractAggregateMetadata(
         namedAggregates.map(_.getKey),
         inputType,
-        needRetract)
+        needRetract,
+        tableConfig)
 
-    val aggMapping = aggregates.indices.toArray
-    val outputArity = aggregates.length
+    val aggMapping = aggregateMetadata.getAdjustedMapping(0)
+    val outputArity = aggregateMetadata.getAggregateCallsCount
 
     val genFunction = generator.generateAggregations(
       "GroupingWindowAggregateHelper",
       inputFieldTypeInfo,
-      aggregates,
-      aggFields,
+      aggregateMetadata.getAggregateFunctions,
+      aggregateMetadata.getAggregateIndices,
       aggMapping,
+      aggregateMetadata.getAggregatesDistinctFlags,
+      isStateBackedDataViews = false,
       partialResults = false,
       groupingKeys,
-      None,
       None,
       outputArity,
       needRetract,
@@ -1038,13 +1070,10 @@ object AggregateUtil {
       None
     )
 
-    val aggResultTypes = namedAggregates.map(a => FlinkTypeFactory.toTypeInfo(a.left.getType))
-
-    val accumulatorRowType = new RowTypeInfo(accTypes: _*)
-    val aggResultRowType = new RowTypeInfo(aggResultTypes: _*)
+    val accumulatorRowType = new RowTypeInfo(aggregateMetadata.getAggregatesAccumulatorTypes: _*)
     val aggFunction = new AggregateAggFunction(genFunction)
 
-    (aggFunction, accumulatorRowType, aggResultRowType)
+    (aggFunction, accumulatorRowType)
   }
 
   /**
@@ -1053,12 +1082,14 @@ object AggregateUtil {
   private[flink] def doAllSupportPartialMerge(
     aggregateCalls: Seq[AggregateCall],
     inputType: RelDataType,
-    groupKeysCount: Int): Boolean = {
+    groupKeysCount: Int,
+    tableConfig: TableConfig): Boolean = {
 
-    val aggregateList = transformToAggregateFunctions(
+    val aggregateList = extractAggregateMetadata(
       aggregateCalls,
       inputType,
-      needRetraction = false)._2
+      needRetraction = false,
+      tableConfig).getAggregateFunctions
 
     doAllSupportPartialMerge(aggregateList)
   }
@@ -1094,50 +1125,6 @@ object AggregateUtil {
     (groupOutMapping, aggOutMapping)
   }
 
-  /**
-    * Determines the mapping of grouping keys to boolean indicators that describe the
-    * current grouping set.
-    *
-    * E.g.: Given we group on f1 and f2 of the input type, the output type contains two
-    * boolean indicator fields i$f1 and i$f2.
-    */
-  private def getGroupingSetsIndicatorMapping(
-    inputType: RelDataType,
-    outputType: RelDataType): Array[(Int, Int)] = {
-
-    val inputFields = inputType.getFieldList.map(_.getName)
-
-    // map from field -> i$field or field -> i$field_0
-    val groupingFields = inputFields.map(inputFieldName => {
-      val base = "i$" + inputFieldName
-      var name = base
-      var i = 0
-      while (inputFields.contains(name)) {
-          name = base + "_" + i // if i$XXX is already a field it will be suffixed by _NUMBER
-          i = i + 1
-        }
-        inputFieldName -> name
-      }).toMap
-
-    val outputFields = outputType.getFieldList
-
-    var mappingsBuffer = ArrayBuffer[(Int, Int)]()
-    for (i <- outputFields.indices) {
-      for (j <- outputFields.indices) {
-        val possibleKey = outputFields(i).getName
-        val possibleIndicator1 = outputFields(j).getName
-        // get indicator for output field
-        val possibleIndicator2 = groupingFields.getOrElse(possibleKey, null)
-
-        // check if indicator names match
-        if (possibleIndicator1 == possibleIndicator2) {
-          mappingsBuffer += ((i, j))
-        }
-      }
-    }
-    mappingsBuffer.toArray
-  }
-
   private def isTimeWindow(window: LogicalWindow) = {
     window match {
       case TumblingGroupWindow(_, _, size) => isTimeIntervalLiteral(size)
@@ -1146,301 +1133,493 @@ object AggregateUtil {
     }
   }
 
+  /**
+    * Computes the positions of (window start, window end, rowtime).
+    */
   private[flink] def computeWindowPropertyPos(
       properties: Seq[NamedWindowProperty]): (Option[Int], Option[Int], Option[Int]) = {
 
     val propPos = properties.foldRight(
       (None: Option[Int], None: Option[Int], None: Option[Int], 0)) {
-      case (p, (s, e, t, i)) => p match {
+      case (p, (s, e, rt, i)) => p match {
         case NamedWindowProperty(_, prop) =>
           prop match {
             case WindowStart(_) if s.isDefined =>
-              throw new TableException("Duplicate WindowStart property encountered. This is a bug.")
-            case WindowStart(_) =>
-              (Some(i), e, t, i - 1)
-            case WindowEnd(_) if e.isDefined =>
-              throw new TableException("Duplicate WindowEnd property encountered. This is a bug.")
-            case WindowEnd(_) =>
-              (s, Some(i), t, i - 1)
-            case RowtimeAttribute(_) if t.isDefined =>
               throw new TableException(
-                "Duplicate Window rowtime property encountered. This is a bug.")
+                "Duplicate window start property encountered. This is a bug.")
+            case WindowStart(_) =>
+              (Some(i), e, rt, i - 1)
+            case WindowEnd(_) if e.isDefined =>
+              throw new TableException(
+                "Duplicate window end property encountered. This is a bug.")
+            case WindowEnd(_) =>
+              (s, Some(i), rt, i - 1)
+            case RowtimeAttribute(_) if rt.isDefined =>
+              throw new TableException(
+                "Duplicate window rowtime property encountered. This is a bug.")
             case RowtimeAttribute(_) =>
               (s, e, Some(i), i - 1)
+            case ProctimeAttribute(_) =>
+              // ignore this property, it will be null at the position later
+              (s, e, rt, i - 1)
           }
       }
     }
     (propPos._1, propPos._2, propPos._3)
   }
 
-  private def transformToAggregateFunctions(
-      aggregateCalls: Seq[AggregateCall],
-      inputType: RelDataType,
+  /**
+    * Meta info of a multiple [[AggregateCall]] required to generate a single
+    * [[GeneratedAggregations]] function.
+    */
+  private[flink] class AggregateMetadata(
+    private val aggregates: Seq[(AggregateCallMetadata, Array[Int])]) {
+
+    def getAggregateFunctions: Array[TableAggregateFunction[_, _]] = {
+      aggregates.map(_._1.aggregateFunction).toArray
+    }
+
+    def getAggregatesAccumulatorTypes: Array[TypeInformation[_]] = {
+      aggregates.map(_._1.accumulatorType).toArray
+    }
+
+    def getAggregatesAccumulatorSpecs: Array[Seq[DataViewSpec[_]]] = {
+      aggregates.map(_._1.accumulatorSpecs).toArray
+    }
+
+    def getAggregatesDistinctFlags: Array[Boolean] = {
+      aggregates.map(_._1.isDistinct).toArray
+    }
+
+    def getAggregateCallsCount: Int = {
+      aggregates.length
+    }
+
+    def getAggregateIndices: Array[Array[Int]] = {
+      aggregates.map(_._2).toArray
+    }
+
+    def getAdjustedMapping(offset: Int): Array[Int] = {
+      (0 until getAggregateCallsCount).map(_ + offset).toArray
+    }
+  }
+
+  /**
+    * Meta info of a single [[SqlAggFunction]] required to generate [[GeneratedAggregations]]
+    * function.
+    */
+  private[flink] case class AggregateCallMetadata(
+    aggregateFunction: TableAggregateFunction[_, _],
+    accumulatorType: TypeInformation[_],
+    accumulatorSpecs: Seq[DataViewSpec[_]],
+    isDistinct: Boolean
+  )
+
+  /**
+    * Prepares metadata [[AggregateCallMetadata]] required to generate code for
+    * [[GeneratedAggregations]] for a single [[SqlAggFunction]].
+    *
+    * @param aggregateFunction calcite's aggregate function
+    * @param isDistinct true if should be distinct aggregation
+    * @param aggregateInputTypes input types of given aggregate
+    * @param needRetraction if the [[TableAggregateFunction]] should produce retractions
+    * @param tableConfig tableConfig, required for decimal precision
+    * @param isStateBackedDataViews if data should be backed by state backend
+    * @param uniqueIdWithinAggregate index within an AggregateCallMetadata, used to create unique
+    *                                state names for each aggregate function
+    * @return the result contains required metadata:
+    *   - flink's aggregate function
+    *   - required accumulator information (type and specifications)
+    *   - if the aggregate is distinct
+    */
+  private[flink] def extractAggregateCallMetadata(
+      aggregateFunction: SqlAggFunction,
+      isDistinct: Boolean,
+      aggregateInputTypes: Seq[RelDataType],
       needRetraction: Boolean,
+      tableConfig: TableConfig,
+      isStateBackedDataViews: Boolean,
+      uniqueIdWithinAggregate: Int)
+    : AggregateCallMetadata = {
+    // store the aggregate fields of each aggregate function, by the same order of aggregates.
+    // create aggregate function instances by function type and aggregate field data type.
+
+    val aggregate: TableAggregateFunction[_, _] = createFlinkAggFunction(
+      aggregateFunction,
+      needRetraction,
+      aggregateInputTypes,
+      tableConfig)
+
+    val (accumulatorType, accSpecs) = aggregateFunction match {
+      case collect: SqlAggFunction if collect.getKind == SqlKind.COLLECT =>
+        removeStateViewFieldsFromAccTypeInfo(
+          uniqueIdWithinAggregate,
+          aggregate,
+          aggregate.getAccumulatorType,
+          isStateBackedDataViews)
+
+      case udagg: AggSqlFunction =>
+        removeStateViewFieldsFromAccTypeInfo(
+          uniqueIdWithinAggregate,
+          aggregate,
+          udagg.accType,
+          isStateBackedDataViews)
+
+      case _ =>
+        (getAccumulatorTypeOfAggregateFunction(aggregate), None)
+    }
+
+    // create distinct accumulator filter argument
+    val distinctAccumulatorType = if (isDistinct) {
+      createDistinctAccumulatorType(aggregateInputTypes, isStateBackedDataViews, accumulatorType)
+    } else {
+      accumulatorType
+    }
+
+    AggregateCallMetadata(aggregate, distinctAccumulatorType, accSpecs.getOrElse(Seq()), isDistinct)
+  }
+
+  private def createDistinctAccumulatorType(
+      aggregateInputTypes: Seq[RelDataType],
+      isStateBackedDataViews: Boolean,
+      accumulatorType: TypeInformation[_])
+    : PojoTypeInfo[DistinctAccumulator[_]] = {
+    // Using Pojo fields for the real underlying accumulator
+    val pojoFields = new util.ArrayList[PojoField]()
+    pojoFields.add(new PojoField(
+      classOf[DistinctAccumulator[_]].getDeclaredField("realAcc"),
+      accumulatorType)
+    )
+    // If StateBackend is not enabled, the distinct mapping also needs
+    // to be added to the Pojo fields.
+    if (!isStateBackedDataViews) {
+
+      val argTypes: Array[TypeInformation[_]] = aggregateInputTypes
+        .map(FlinkTypeFactory.toTypeInfo).toArray
+
+      val mapViewTypeInfo = new MapViewTypeInfo(
+        new RowTypeInfo(argTypes: _*),
+        BasicTypeInfo.LONG_TYPE_INFO)
+      pojoFields.add(new PojoField(
+        classOf[DistinctAccumulator[_]].getDeclaredField("distinctValueMap"),
+        mapViewTypeInfo)
+      )
+    }
+    new PojoTypeInfo(classOf[DistinctAccumulator[_]], pojoFields)
+  }
+
+  /**
+    * Prepares metadata [[AggregateMetadata]] required to generate code for
+    * [[GeneratedAggregations]] for all [[AggregateCall]].
+    *
+    * @param aggregateCalls calcite's aggregate function
+    * @param aggregateInputType input type of given aggregates
+    * @param needRetraction if the [[TableAggregateFunction]] should produce retractions
+    * @param tableConfig tableConfig, required for decimal precision
+    * @param isStateBackedDataViews if data should be backed by state backend
+    * @return the result contains required metadata:
+    * - flink's aggregate function
+    * - required accumulator information (type and specifications)
+    * - indices important for each aggregate
+    * - if the aggregate is distinct
+    */
+  private def extractAggregateMetadata(
+      aggregateCalls: Seq[AggregateCall],
+      aggregateInputType: RelDataType,
+      needRetraction: Boolean,
+      tableConfig: TableConfig,
       isStateBackedDataViews: Boolean = false)
-  : (Array[Array[Int]],
-    Array[TableAggregateFunction[_, _]],
-    Array[TypeInformation[_]],
-    Array[Seq[DataViewSpec[_]]]) = {
+    : AggregateMetadata = {
+
+    val aggregatesWithIndices = aggregateCalls.zipWithIndex.map {
+      case (aggregateCall, index) =>
+        val argList: util.List[Integer] = aggregateCall.getArgList
+
+        val aggFieldIndices = if (argList.isEmpty) {
+          if (aggregateCall.getAggregation.isInstanceOf[SqlCountAggFunction]) {
+            Array[Int](-1)
+          } else {
+            throw new TableException("Aggregate fields should not be empty.")
+          }
+        } else {
+          argList.asScala.map(i => i.intValue).toArray
+        }
+
+        val inputTypes = argList.map(aggregateInputType.getFieldList.get(_).getType)
+        val aggregateCallMetadata = extractAggregateCallMetadata(aggregateCall.getAggregation,
+          aggregateCall.isDistinct,
+          inputTypes,
+          needRetraction,
+          tableConfig,
+          isStateBackedDataViews,
+          index)
+
+        (aggregateCallMetadata, aggFieldIndices)
+    }
 
     // store the aggregate fields of each aggregate function, by the same order of aggregates.
-    val aggFieldIndexes = new Array[Array[Int]](aggregateCalls.size)
-    val aggregates = new Array[TableAggregateFunction[_ <: Any, _ <: Any]](aggregateCalls.size)
-    val accTypes = new Array[TypeInformation[_]](aggregateCalls.size)
+    new AggregateMetadata(aggregatesWithIndices)
+  }
 
-    // create aggregate function instances by function type and aggregate field data type.
-    aggregateCalls.zipWithIndex.foreach { case (aggregateCall, index) =>
-      val argList: util.List[Integer] = aggregateCall.getArgList
-      if (argList.isEmpty) {
-        if (aggregateCall.getAggregation.isInstanceOf[SqlCountAggFunction]) {
-          aggFieldIndexes(index) = Array[Int](0)
-        } else {
-          throw new TableException("Aggregate fields should not be empty.")
-        }
-      } else {
-        aggFieldIndexes(index) = argList.asScala.map(i => i.intValue).toArray
-      }
-      val sqlTypeName = inputType.getFieldList.get(aggFieldIndexes(index)(0)).getType
-        .getSqlTypeName
-      aggregateCall.getAggregation match {
+  /**
+    * Converts calcite's [[SqlAggFunction]] to a Flink's UDF [[TableAggregateFunction]].
+    * create aggregate function instances by function type and aggregate field data type.
+    */
+  private def createFlinkAggFunction(
+      aggFunc: SqlAggFunction,
+      needRetraction: Boolean,
+      inputDataType: Seq[RelDataType],
+      tableConfig: TableConfig)
+    : TableAggregateFunction[_ <: Any, _ <: Any] = {
 
-        case _: SqlSumAggFunction =>
-          if (needRetraction) {
-            aggregates(index) = sqlTypeName match {
-              case TINYINT =>
-                new ByteSumWithRetractAggFunction
-              case SMALLINT =>
-                new ShortSumWithRetractAggFunction
-              case INTEGER =>
-                new IntSumWithRetractAggFunction
-              case BIGINT =>
-                new LongSumWithRetractAggFunction
-              case FLOAT =>
-                new FloatSumWithRetractAggFunction
-              case DOUBLE =>
-                new DoubleSumWithRetractAggFunction
-              case DECIMAL =>
-                new DecimalSumWithRetractAggFunction
-              case sqlType: SqlTypeName =>
-                throw new TableException(s"Sum aggregate does no support type: '$sqlType'")
-            }
-          } else {
-            aggregates(index) = sqlTypeName match {
-              case TINYINT =>
-                new ByteSumAggFunction
-              case SMALLINT =>
-                new ShortSumAggFunction
-              case INTEGER =>
-                new IntSumAggFunction
-              case BIGINT =>
-                new LongSumAggFunction
-              case FLOAT =>
-                new FloatSumAggFunction
-              case DOUBLE =>
-                new DoubleSumAggFunction
-              case DECIMAL =>
-                new DecimalSumAggFunction
-              case sqlType: SqlTypeName =>
-                throw new TableException(s"Sum aggregate does no support type: '$sqlType'")
-            }
-          }
+    lazy val outputType = inputDataType.get(0)
+    lazy val outputTypeName = if (inputDataType.isEmpty) {
+      throw new TableException("Aggregate fields should not be empty.")
+    } else {
+      outputType.getSqlTypeName
+    }
 
-        case _: SqlSumEmptyIsZeroAggFunction =>
-          if (needRetraction) {
-            aggregates(index) = sqlTypeName match {
-              case TINYINT =>
-                new ByteSum0WithRetractAggFunction
-              case SMALLINT =>
-                new ShortSum0WithRetractAggFunction
-              case INTEGER =>
-                new IntSum0WithRetractAggFunction
-              case BIGINT =>
-                new LongSum0WithRetractAggFunction
-              case FLOAT =>
-                new FloatSum0WithRetractAggFunction
-              case DOUBLE =>
-                new DoubleSum0WithRetractAggFunction
-              case DECIMAL =>
-                new DecimalSum0WithRetractAggFunction
-              case sqlType: SqlTypeName =>
-                throw new TableException(s"Sum0 aggregate does no support type: '$sqlType'")
-            }
-          } else {
-            aggregates(index) = sqlTypeName match {
-              case TINYINT =>
-                new ByteSum0AggFunction
-              case SMALLINT =>
-                new ShortSum0AggFunction
-              case INTEGER =>
-                new IntSum0AggFunction
-              case BIGINT =>
-                new LongSum0AggFunction
-              case FLOAT =>
-                new FloatSum0AggFunction
-              case DOUBLE =>
-                new DoubleSum0AggFunction
-              case DECIMAL =>
-                new DecimalSum0AggFunction
-              case sqlType: SqlTypeName =>
-                throw new TableException(s"Sum0 aggregate does no support type: '$sqlType'")
-            }
-          }
+    aggFunc match {
 
-        case _: SqlAvgAggFunction =>
-          aggregates(index) = sqlTypeName match {
+      case collect: SqlAggFunction if collect.getKind == SqlKind.COLLECT =>
+        new CollectAggFunction(FlinkTypeFactory.toTypeInfo(outputType))
+
+      case udagg: AggSqlFunction =>
+        udagg.getFunction
+
+      case _: SqlCountAggFunction =>
+        new CountAggFunction
+
+      case _: SqlSumAggFunction =>
+        if (needRetraction) {
+          outputTypeName match {
             case TINYINT =>
-              new ByteAvgAggFunction
+              new ByteSumWithRetractAggFunction
             case SMALLINT =>
-              new ShortAvgAggFunction
+              new ShortSumWithRetractAggFunction
             case INTEGER =>
-              new IntAvgAggFunction
+              new IntSumWithRetractAggFunction
             case BIGINT =>
-              new LongAvgAggFunction
+              new LongSumWithRetractAggFunction
             case FLOAT =>
-              new FloatAvgAggFunction
+              new FloatSumWithRetractAggFunction
             case DOUBLE =>
-              new DoubleAvgAggFunction
+              new DoubleSumWithRetractAggFunction
             case DECIMAL =>
-              new DecimalAvgAggFunction
+              new DecimalSumWithRetractAggFunction
             case sqlType: SqlTypeName =>
-              throw new TableException(s"Avg aggregate does no support type: '$sqlType'")
+              throw new TableException(s"Sum aggregate does no support type: '$sqlType'")
           }
+        } else {
+          outputTypeName match {
+            case TINYINT =>
+              new ByteSumAggFunction
+            case SMALLINT =>
+              new ShortSumAggFunction
+            case INTEGER =>
+              new IntSumAggFunction
+            case BIGINT =>
+              new LongSumAggFunction
+            case FLOAT =>
+              new FloatSumAggFunction
+            case DOUBLE =>
+              new DoubleSumAggFunction
+            case DECIMAL =>
+              new DecimalSumAggFunction
+            case sqlType: SqlTypeName =>
+              throw new TableException(s"Sum aggregate does no support type: '$sqlType'")
+          }
+        }
 
-        case sqlMinMaxFunction: SqlMinMaxAggFunction =>
-          aggregates(index) = if (sqlMinMaxFunction.getKind == SqlKind.MIN) {
-            if (needRetraction) {
-              sqlTypeName match {
-                case TINYINT =>
-                  new ByteMinWithRetractAggFunction
-                case SMALLINT =>
-                  new ShortMinWithRetractAggFunction
-                case INTEGER =>
-                  new IntMinWithRetractAggFunction
-                case BIGINT =>
-                  new LongMinWithRetractAggFunction
-                case FLOAT =>
-                  new FloatMinWithRetractAggFunction
-                case DOUBLE =>
-                  new DoubleMinWithRetractAggFunction
-                case DECIMAL =>
-                  new DecimalMinWithRetractAggFunction
-                case BOOLEAN =>
-                  new BooleanMinWithRetractAggFunction
-                case VARCHAR | CHAR =>
-                  new StringMinWithRetractAggFunction
-                case sqlType: SqlTypeName =>
-                  throw new TableException(
-                    s"Min with retract aggregate does no support type: '$sqlType'")
-              }
-            } else {
-              sqlTypeName match {
-                case TINYINT =>
-                  new ByteMinAggFunction
-                case SMALLINT =>
-                  new ShortMinAggFunction
-                case INTEGER =>
-                  new IntMinAggFunction
-                case BIGINT =>
-                  new LongMinAggFunction
-                case FLOAT =>
-                  new FloatMinAggFunction
-                case DOUBLE =>
-                  new DoubleMinAggFunction
-                case DECIMAL =>
-                  new DecimalMinAggFunction
-                case BOOLEAN =>
-                  new BooleanMinAggFunction
-                case VARCHAR | CHAR =>
-                  new StringMinAggFunction
-                case sqlType: SqlTypeName =>
-                  throw new TableException(s"Min aggregate does no support type: '$sqlType'")
-              }
+      case _: SqlSumEmptyIsZeroAggFunction =>
+        if (needRetraction) {
+          outputTypeName match {
+            case TINYINT =>
+              new ByteSum0WithRetractAggFunction
+            case SMALLINT =>
+              new ShortSum0WithRetractAggFunction
+            case INTEGER =>
+              new IntSum0WithRetractAggFunction
+            case BIGINT =>
+              new LongSum0WithRetractAggFunction
+            case FLOAT =>
+              new FloatSum0WithRetractAggFunction
+            case DOUBLE =>
+              new DoubleSum0WithRetractAggFunction
+            case DECIMAL =>
+              new DecimalSum0WithRetractAggFunction
+            case sqlType: SqlTypeName =>
+              throw new TableException(s"Sum0 aggregate does no support type: '$sqlType'")
+          }
+        } else {
+          outputTypeName match {
+            case TINYINT =>
+              new ByteSum0AggFunction
+            case SMALLINT =>
+              new ShortSum0AggFunction
+            case INTEGER =>
+              new IntSum0AggFunction
+            case BIGINT =>
+              new LongSum0AggFunction
+            case FLOAT =>
+              new FloatSum0AggFunction
+            case DOUBLE =>
+              new DoubleSum0AggFunction
+            case DECIMAL =>
+              new DecimalSum0AggFunction
+            case sqlType: SqlTypeName =>
+              throw new TableException(s"Sum0 aggregate does no support type: '$sqlType'")
+          }
+        }
+
+      case a: SqlAvgAggFunction if a.kind == SqlKind.AVG =>
+        outputTypeName match {
+          case TINYINT =>
+            new ByteAvgAggFunction
+          case SMALLINT =>
+            new ShortAvgAggFunction
+          case INTEGER =>
+            new IntAvgAggFunction
+          case BIGINT =>
+            new LongAvgAggFunction
+          case FLOAT =>
+            new FloatAvgAggFunction
+          case DOUBLE =>
+            new DoubleAvgAggFunction
+          case DECIMAL =>
+            new DecimalAvgAggFunction(tableConfig.getDecimalContext)
+          case sqlType: SqlTypeName =>
+            throw new TableException(s"Avg aggregate does no support type: '$sqlType'")
+        }
+
+      case sqlMinMaxFunction: SqlMinMaxAggFunction =>
+        if (sqlMinMaxFunction.getKind == SqlKind.MIN) {
+          if (needRetraction) {
+            outputTypeName match {
+              case TINYINT =>
+                new ByteMinWithRetractAggFunction
+              case SMALLINT =>
+                new ShortMinWithRetractAggFunction
+              case INTEGER =>
+                new IntMinWithRetractAggFunction
+              case BIGINT =>
+                new LongMinWithRetractAggFunction
+              case FLOAT =>
+                new FloatMinWithRetractAggFunction
+              case DOUBLE =>
+                new DoubleMinWithRetractAggFunction
+              case DECIMAL =>
+                new DecimalMinWithRetractAggFunction
+              case BOOLEAN =>
+                new BooleanMinWithRetractAggFunction
+              case VARCHAR | CHAR =>
+                new StringMinWithRetractAggFunction
+              case TIMESTAMP =>
+                new TimestampMinWithRetractAggFunction
+              case DATE =>
+                new DateMinWithRetractAggFunction
+              case TIME =>
+                new TimeMinWithRetractAggFunction
+              case sqlType: SqlTypeName =>
+                throw new TableException(
+                  s"Min with retract aggregate does no support type: '$sqlType'")
             }
           } else {
-            if (needRetraction) {
-              sqlTypeName match {
-                case TINYINT =>
-                  new ByteMaxWithRetractAggFunction
-                case SMALLINT =>
-                  new ShortMaxWithRetractAggFunction
-                case INTEGER =>
-                  new IntMaxWithRetractAggFunction
-                case BIGINT =>
-                  new LongMaxWithRetractAggFunction
-                case FLOAT =>
-                  new FloatMaxWithRetractAggFunction
-                case DOUBLE =>
-                  new DoubleMaxWithRetractAggFunction
-                case DECIMAL =>
-                  new DecimalMaxWithRetractAggFunction
-                case BOOLEAN =>
-                  new BooleanMaxWithRetractAggFunction
-                case VARCHAR | CHAR =>
-                  new StringMaxWithRetractAggFunction
-                case sqlType: SqlTypeName =>
-                  throw new TableException(
-                    s"Max with retract aggregate does no support type: '$sqlType'")
-              }
-            } else {
-              sqlTypeName match {
-                case TINYINT =>
-                  new ByteMaxAggFunction
-                case SMALLINT =>
-                  new ShortMaxAggFunction
-                case INTEGER =>
-                  new IntMaxAggFunction
-                case BIGINT =>
-                  new LongMaxAggFunction
-                case FLOAT =>
-                  new FloatMaxAggFunction
-                case DOUBLE =>
-                  new DoubleMaxAggFunction
-                case DECIMAL =>
-                  new DecimalMaxAggFunction
-                case BOOLEAN =>
-                  new BooleanMaxAggFunction
-                case VARCHAR | CHAR =>
-                  new StringMaxAggFunction
-                case sqlType: SqlTypeName =>
-                  throw new TableException(s"Max aggregate does no support type: '$sqlType'")
-              }
+            outputTypeName match {
+              case TINYINT =>
+                new ByteMinAggFunction
+              case SMALLINT =>
+                new ShortMinAggFunction
+              case INTEGER =>
+                new IntMinAggFunction
+              case BIGINT =>
+                new LongMinAggFunction
+              case FLOAT =>
+                new FloatMinAggFunction
+              case DOUBLE =>
+                new DoubleMinAggFunction
+              case DECIMAL =>
+                new DecimalMinAggFunction
+              case BOOLEAN =>
+                new BooleanMinAggFunction
+              case VARCHAR | CHAR =>
+                new StringMinAggFunction
+              case TIMESTAMP =>
+                new TimestampMinAggFunction
+              case DATE =>
+                new DateMinAggFunction
+              case TIME =>
+                new TimeMinAggFunction
+              case sqlType: SqlTypeName =>
+                throw new TableException(s"Min aggregate does no support type: '$sqlType'")
             }
           }
-
-        case _: SqlCountAggFunction =>
-          aggregates(index) = new CountAggFunction
-
-        case udagg: AggSqlFunction =>
-          aggregates(index) = udagg.getFunction
-          accTypes(index) = udagg.accType
-
-        case unSupported: SqlAggFunction =>
-          throw new TableException(s"unsupported Function: '${unSupported.getName}'")
-      }
-    }
-
-    val accSpecs = new Array[Seq[DataViewSpec[_]]](aggregateCalls.size)
-
-    // create accumulator type information for every aggregate function
-    aggregates.zipWithIndex.foreach { case (agg, index) =>
-      if (accTypes(index) != null) {
-        val (accType, specs) = removeStateViewFieldsFromAccTypeInfo(index,
-          agg,
-          accTypes(index),
-          isStateBackedDataViews)
-        if (specs.isDefined) {
-          accSpecs(index) = specs.get
-          accTypes(index) = accType
         } else {
-          accSpecs(index) = Seq()
+          if (needRetraction) {
+            outputTypeName match {
+              case TINYINT =>
+                new ByteMaxWithRetractAggFunction
+              case SMALLINT =>
+                new ShortMaxWithRetractAggFunction
+              case INTEGER =>
+                new IntMaxWithRetractAggFunction
+              case BIGINT =>
+                new LongMaxWithRetractAggFunction
+              case FLOAT =>
+                new FloatMaxWithRetractAggFunction
+              case DOUBLE =>
+                new DoubleMaxWithRetractAggFunction
+              case DECIMAL =>
+                new DecimalMaxWithRetractAggFunction
+              case BOOLEAN =>
+                new BooleanMaxWithRetractAggFunction
+              case VARCHAR | CHAR =>
+                new StringMaxWithRetractAggFunction
+              case TIMESTAMP =>
+                new TimestampMaxWithRetractAggFunction
+              case DATE =>
+                new DateMaxWithRetractAggFunction
+              case TIME =>
+                new TimeMaxWithRetractAggFunction
+              case sqlType: SqlTypeName =>
+                throw new TableException(
+                  s"Max with retract aggregate does no support type: '$sqlType'")
+            }
+          } else {
+            outputTypeName match {
+              case TINYINT =>
+                new ByteMaxAggFunction
+              case SMALLINT =>
+                new ShortMaxAggFunction
+              case INTEGER =>
+                new IntMaxAggFunction
+              case BIGINT =>
+                new LongMaxAggFunction
+              case FLOAT =>
+                new FloatMaxAggFunction
+              case DOUBLE =>
+                new DoubleMaxAggFunction
+              case DECIMAL =>
+                new DecimalMaxAggFunction
+              case BOOLEAN =>
+                new BooleanMaxAggFunction
+              case VARCHAR | CHAR =>
+                new StringMaxAggFunction
+              case TIMESTAMP =>
+                new TimestampMaxAggFunction
+              case DATE =>
+                new DateMaxAggFunction
+              case TIME =>
+                new TimeMaxAggFunction
+              case sqlType: SqlTypeName =>
+                throw new TableException(s"Max aggregate does no support type: '$sqlType'")
+            }
+          }
         }
-      } else {
-        accSpecs(index) = Seq()
-        accTypes(index) = getAccumulatorTypeOfAggregateFunction(agg)
-      }
-    }
 
-    (aggFieldIndexes, aggregates, accTypes, accSpecs)
+      case unSupported: SqlAggFunction =>
+        throw new TableException(s"Unsupported Function: '${unSupported.getName}'")
+    }
   }
 
   private def createRowTypeForKeysAndAggregates(
@@ -1484,10 +1663,10 @@ object AggregateUtil {
         if (relDataType.length == 1) {
           relDataType.head.getIndex
         } else {
-          throw TableException(
+          throw new TableException(
             s"Encountered more than one time attribute with the same name: '$relDataType'")
         }
-      case e => throw TableException(
+      case e => throw new TableException(
         "The time attribute of window in batch environment should be " +
           s"ResolvedFieldReference, but is $e")
     }

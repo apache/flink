@@ -50,10 +50,13 @@ public class SourceExternalCheckpointTriggerTest {
 	private static final MultiShotLatch sync = new MultiShotLatch();
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testCheckpointsTriggeredBySource() throws Exception {
 		// set up the basic test harness
-		final SourceStreamTask<Long, ?, ?> sourceTask = new SourceStreamTask<Long, ExternalCheckpointsSource, StreamSource<Long, ExternalCheckpointsSource>>();
-		final StreamTaskTestHarness<Long> testHarness = new StreamTaskTestHarness<>(sourceTask, BasicTypeInfo.LONG_TYPE_INFO);
+		final StreamTaskTestHarness<Long> testHarness = new StreamTaskTestHarness<>(
+				SourceStreamTask::new,
+				BasicTypeInfo.LONG_TYPE_INFO);
+
 		testHarness.setupOutputForSingletonOperatorChain();
 		testHarness.getExecutionConfig().setLatencyTrackingInterval(-1);
 
@@ -69,10 +72,13 @@ public class SourceExternalCheckpointTriggerTest {
 
 		// this starts the source thread
 		testHarness.invoke();
+
+		final StreamTask<Long, ?> sourceTask = testHarness.getTask();
+
 		ready.await();
 
 		// now send an external trigger that should be ignored
-		assertTrue(sourceTask.triggerCheckpoint(new CheckpointMetaData(32, 829), CheckpointOptions.forFullCheckpoint()));
+		assertTrue(sourceTask.triggerCheckpoint(new CheckpointMetaData(32, 829), CheckpointOptions.forCheckpointWithDefaultLocation()));
 
 		// step by step let the source thread emit elements
 		sync.trigger();
@@ -88,7 +94,7 @@ public class SourceExternalCheckpointTriggerTest {
 		verifyNextElement(testHarness.getOutput(), 4L);
 
 		// now send an regular trigger command that should be ignored
-		assertTrue(sourceTask.triggerCheckpoint(new CheckpointMetaData(34, 900), CheckpointOptions.forFullCheckpoint()));
+		assertTrue(sourceTask.triggerCheckpoint(new CheckpointMetaData(34, 900), CheckpointOptions.forCheckpointWithDefaultLocation()));
 
 		sync.trigger();
 		verifyNextElement(testHarness.getOutput(), 5L);

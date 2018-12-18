@@ -95,6 +95,39 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testReplace(): Unit = {
+    testAllApis(
+      'f0.replace(" ", "_"),
+      "f0.replace(' ', '_')",
+      "REPLACE(f0, ' ', '_')",
+      "This_is_a_test_String.")
+
+    testAllApis(
+      'f0.replace("i", ""),
+      "f0.replace('i', '')",
+      "REPLACE(f0, 'i', '')",
+      "Ths s a test Strng.")
+
+    testAllApis(
+      'f33.replace("i", ""),
+      "f33.replace('i', '')",
+      "REPLACE(f33, 'i', '')",
+      "null")
+
+    testAllApis(
+      'f0.replace(Null(Types.STRING), ""),
+      "f0.replace(Null(STRING), '')",
+      "REPLACE(f0, NULLIF('', ''), '')",
+      "null")
+
+    testAllApis(
+      'f0.replace(" ", Null(Types.STRING)),
+      "f0.replace(' ', Null(STRING))",
+      "REPLACE(f0, ' ', NULLIF('', ''))",
+      "null")
+  }
+
+  @Test
   def testTrim(): Unit = {
     testAllApis(
       'f8.trim(),
@@ -352,6 +385,517 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "Flink~~~~xx")
   }
 
+  @Test
+  def testLPad(): Unit = {
+    testSqlApi("LPAD('hi',4,'??')", "??hi")
+    testSqlApi("LPAD('hi',1,'??')", "h")
+    testSqlApi("LPAD('',1,'??')", "?")
+    testSqlApi("LPAD('',30,'??')", "??????????????????????????????")
+    testSqlApi("LPAD('111',-2,'??')", "null")
+    testSqlApi("LPAD(f33,1,'??')", "null")
+    testSqlApi("LPAD('\u0061\u0062',1,'??')", "a") // the unicode of ab is \u0061\u0062
+    testSqlApi("LPAD('⎨⎨',1,'??')", "⎨")
+    testSqlApi("LPAD('äääääääää',2,'??')", "ää")
+    testSqlApi("LPAD('äääääääää',10,'??')", "?äääääääää")
+    testSqlApi("LPAD('Hello', -1, 'x') IS NULL", "true")
+    testSqlApi("LPAD('Hello', -1, 'x') IS NOT NULL", "false")
+
+    testAllApis(
+      "äää".lpad(13, "12345"),
+      "'äää'.lpad(13, '12345')",
+      "LPAD('äää',13,'12345')",
+      "1234512345äää")
+  }
+
+  @Test
+  def testRPad(): Unit = {
+    testSqlApi("RPAD('hi',4,'??')", "hi??")
+    testSqlApi("RPAD('hi',1,'??')", "h")
+    testSqlApi("RPAD('',1,'??')", "?")
+    testSqlApi("RPAD('1',30,'??')", "1?????????????????????????????")
+    testSqlApi("RPAD('111',-2,'??')", "null")
+    testSqlApi("RPAD(f33,1,'??')", "null")
+    testSqlApi("RPAD('\u0061\u0062',1,'??')", "a") // the unicode of ab is \u0061\u0062
+    testSqlApi("RPAD('üö',1,'??')", "ü")
+
+    testAllApis(
+      "äää".rpad(13, "12345"),
+      "'äää'.rpad(13, '12345')",
+      "RPAD('äää',13,'12345')",
+      "äää1234512345")
+  }
+
+  @Test
+  def testHex(): Unit = {
+    testAllApis(
+      100.hex(),
+      "100.hex()",
+      "HEX(100)",
+      "64")
+
+    testAllApis(
+      'f2.hex(),
+      "f2.hex()",
+      "HEX(f2)",
+      "2A")
+
+    testAllApis(
+      Null(Types.BYTE).hex(),
+      "hex(Null(BYTE))",
+      "HEX(CAST(NULL AS TINYINT))",
+      "null")
+
+    testAllApis(
+      'f3.hex(),
+      "f3.hex()",
+      "HEX(f3)",
+      "2B")
+
+    testAllApis(
+      'f4.hex(),
+      "f4.hex()",
+      "HEX(f4)",
+      "2C")
+
+    testAllApis(
+      'f7.hex(),
+      "f7.hex()",
+      "HEX(f7)",
+      "3")
+
+    testAllApis(
+      12.hex(),
+      "12.hex()",
+      "HEX(12)",
+      "C")
+
+    testAllApis(
+      10.hex(),
+      "10.hex()",
+      "HEX(10)",
+      "A")
+
+    testAllApis(
+      0.hex(),
+      "0.hex()",
+      "HEX(0)",
+      "0")
+
+    testAllApis(
+      "ö".hex(),
+      "'ö'.hex()",
+      "HEX('ö')",
+      "C3B6")
+
+    testAllApis(
+      'f32.hex(),
+      "f32.hex()",
+      "HEX(f32)",
+      "FFFFFFFFFFFFFFFF")
+
+    testAllApis(
+      'f0.hex(),
+      "f0.hex()",
+      "HEX(f0)",
+      "546869732069732061207465737420537472696E672E")
+
+    testAllApis(
+      'f8.hex(),
+      "f8.hex()",
+      "HEX(f8)",
+      "20546869732069732061207465737420537472696E672E20")
+
+    testAllApis(
+      'f23.hex(),
+      "f23.hex()",
+      "HEX(f23)",
+      "25546869732069732061207465737420537472696E672E")
+
+    testAllApis(
+      'f24.hex(),
+      "f24.hex()",
+      "HEX(f24)",
+      "2A5F546869732069732061207465737420537472696E672E")
+
+    testAllApis(
+      "你好".hex(),
+      "'你好'.hex()",
+      "HEX('你好')",
+      "E4BDA0E5A5BD"
+    )
+  }
+
+  @Test
+  def testBin(): Unit = {
+
+    testAllApis(
+      Null(Types.BYTE).bin(),
+      "bin(Null(BYTE))",
+      "BIN((CAST(NULL AS TINYINT)))",
+      "null")
+
+    testAllApis(
+      'f2.bin(),
+      "f2.bin()",
+      "BIN(f2)",
+      "101010")
+
+    testAllApis(
+      'f3.bin(),
+      "f3.bin()",
+      "BIN(f3)",
+      "101011")
+
+    testAllApis(
+      'f4.bin(),
+      "f4.bin()",
+      "BIN(f4)",
+      "101100")
+
+    testAllApis(
+      'f7.bin(),
+      "f7.bin()",
+      "BIN(f7)",
+      "11")
+
+    testAllApis(
+      12.bin(),
+      "12.bin()",
+      "BIN(12)",
+      "1100")
+
+    testAllApis(
+      10.bin(),
+      "10.bin()",
+      "BIN(10)",
+      "1010")
+
+    testAllApis(
+      0.bin(),
+      "0.bin()",
+      "BIN(0)",
+      "0")
+
+    testAllApis(
+      'f32.bin(),
+      "f32.bin()",
+      "BIN(f32)",
+      "1111111111111111111111111111111111111111111111111111111111111111")
+  }
+
+  @Test
+  def testRegexpReplace(): Unit = {
+
+    testAllApis(
+      "foobar".regexpReplace("oo|ar", "abc"),
+      "'foobar'.regexpReplace('oo|ar', 'abc')",
+      "regexp_replace('foobar', 'oo|ar', 'abc')",
+      "fabcbabc")
+
+    testAllApis(
+      "foofar".regexpReplace("^f", ""),
+      "'foofar'.regexpReplace('^f', '')",
+      "regexp_replace('foofar', '^f', '')",
+      "oofar")
+
+    testAllApis(
+      "foobar".regexpReplace("^f*.*r$", ""),
+      "'foobar'.regexpReplace('^f*.*r$', '')",
+      "regexp_replace('foobar', '^f*.*r$', '')",
+      "")
+
+    testAllApis(
+      "foo1bar2".regexpReplace("\\d", ""),
+      "'foo1bar2'.regexpReplace('\\d', '')",
+      "regexp_replace('foobar', '\\d', '')",
+      "foobar")
+
+    testAllApis(
+      "foobar".regexpReplace("\\w", ""),
+      "'foobar'.regexpReplace('\\w', '')",
+      "regexp_replace('foobar', '\\w', '')",
+      "")
+
+    testAllApis(
+      "fooobar".regexpReplace("oo", "$"),
+      "'fooobar'.regexpReplace('oo', '$')",
+      "regexp_replace('fooobar', 'oo', '$')",
+      "f$obar")
+
+    testAllApis(
+      "foobar".regexpReplace("oo", "\\"),
+      "'foobar'.regexpReplace('oo', '\\')",
+      "regexp_replace('foobar', 'oo', '\\')",
+      "f\\bar")
+
+    testAllApis(
+      'f33.regexpReplace("oo|ar", ""),
+      "f33.regexpReplace('oo|ar', '')",
+      "REGEXP_REPLACE(f33, 'oo|ar', '')",
+      "null")
+
+    testAllApis(
+      "foobar".regexpReplace('f33, ""),
+      "'foobar'.regexpReplace(f33, '')",
+      "REGEXP_REPLACE('foobar', f33, '')",
+      "null")
+
+    testAllApis(
+      "foobar".regexpReplace("oo|ar", 'f33),
+      "'foobar'.regexpReplace('oo|ar', f33)",
+      "REGEXP_REPLACE('foobar', 'oo|ar', f33)",
+      "null")
+
+    // This test was added for the null literal problem in string expression parsing (FLINK-10463).
+    testAllApis(
+      Null(Types.STRING).regexpReplace("oo|ar", 'f33),
+      "Null(STRING).regexpReplace('oo|ar', f33)",
+      "REGEXP_REPLACE(CAST(NULL AS VARCHAR), 'oo|ar', f33)",
+      "null")
+  }
+
+  @Test
+  def testRegexpExtract(): Unit = {
+    testAllApis(
+      "foothebar".regexpExtract("foo(.*?)(bar)", 2),
+      "'foothebar'.regexpExtract('foo(.*?)(bar)', 2)",
+      "REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)",
+      "bar")
+
+    testAllApis(
+      "foothebar".regexpExtract("foo(.*?)(bar)", 0),
+      "'foothebar'.regexpExtract('foo(.*?)(bar)', 0)",
+      "REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 0)",
+      "foothebar")
+
+    testAllApis(
+      "foothebar".regexpExtract("foo(.*?)(bar)", 1),
+      "'foothebar'.regexpExtract('foo(.*?)(bar)', 1)",
+      "REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 1)",
+      "the")
+
+    testAllApis(
+      "foothebar".regexpExtract("foo([\\w]+)", 1),
+      "'foothebar'.regexpExtract('foo([\\w]+)', 1)",
+      "REGEXP_EXTRACT('foothebar', 'foo([\\w]+)', 1)",
+      "thebar")
+
+    testAllApis(
+      "foothebar".regexpExtract("foo([\\d]+)", 1),
+      "'foothebar'.regexpExtract('foo([\\d]+)', 1)",
+      "REGEXP_EXTRACT('foothebar', 'foo([\\d]+)', 1)",
+      "null")
+
+    testAllApis(
+      'f33.regexpExtract("foo(.*?)(bar)", 2),
+      "f33.regexpExtract('foo(.*?)(bar)', 2)",
+      "REGEXP_EXTRACT(f33, 'foo(.*?)(bar)', 2)",
+      "null")
+
+    testAllApis(
+      "foothebar".regexpExtract('f33, 2),
+      "'foothebar'.regexpExtract(f33, 2)",
+      "REGEXP_EXTRACT('foothebar', f33, 2)",
+      "null")
+
+    //test for optional group index
+    testAllApis(
+      "foothebar".regexpExtract("foo(.*?)(bar)"),
+      "'foothebar'.regexpExtract('foo(.*?)(bar)')",
+      "REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)')",
+      "foothebar")
+  }
+
+  @Test
+  def testFromBase64(): Unit = {
+    testAllApis(
+      'f35.fromBase64(),
+      "f35.fromBase64()",
+      "from_base64(f35)",
+      "hello world")
+
+    testAllApis(
+      'f35.fromBase64(),
+      "f35.fromBase64()",
+      "FROM_BASE64(f35)",
+      "hello world")
+
+    //null test
+    testAllApis(
+      'f33.fromBase64(),
+      "f33.fromBase64()",
+      "FROM_BASE64(f33)",
+      "null")
+
+    testAllApis(
+      "5L2g5aW9".fromBase64(),
+      "'5L2g5aW9'.fromBase64()",
+      "FROM_BASE64('5L2g5aW9')",
+      "你好"
+    )
+  }
+
+  @Test
+  def testToBase64(): Unit = {
+    testAllApis(
+      'f0.toBase64(),
+      "f0.toBase64()",
+      "TO_BASE64(f0)",
+      "VGhpcyBpcyBhIHRlc3QgU3RyaW5nLg==")
+
+    testAllApis(
+      'f8.toBase64(),
+      "f8.toBase64()",
+      "TO_BASE64(f8)",
+      "IFRoaXMgaXMgYSB0ZXN0IFN0cmluZy4g")
+
+    testAllApis(
+      "".toBase64(),
+      "''.toBase64()",
+      "TO_BASE64('')",
+      "")
+
+    //null test
+    testAllApis(
+      'f33.toBase64(),
+      "f33.toBase64()",
+      "TO_BASE64(f33)",
+      "null")
+
+    testAllApis(
+      "你好".toBase64(),
+      "'你好'.toBase64()",
+      "TO_BASE64('你好')",
+      "5L2g5aW9"
+    )
+  }
+
+  @Test
+  def testUUID(): Unit = {
+    testAllApis(
+      uuid().charLength(),
+      "uuid().charLength",
+      "CHARACTER_LENGTH(UUID())",
+      "36")
+
+    testAllApis(
+      uuid().substring(9, 1),
+      "uuid().substring(9, 1)",
+      "SUBSTRING(UUID(), 9, 1)",
+      "-")
+
+    testAllApis(
+      uuid().substring(14, 1),
+      "uuid().substring(14, 1)",
+      "SUBSTRING(UUID(), 14, 1)",
+      "-")
+
+    testAllApis(
+      uuid().substring(19, 1),
+      "uuid().substring(19, 1)",
+      "SUBSTRING(UUID(), 19, 1)",
+      "-")
+
+    testAllApis(
+      uuid().substring(24, 1),
+      "uuid().substring(24, 1)",
+      "SUBSTRING(UUID(), 24, 1)",
+      "-")
+  }
+
+  @Test
+  def testLTrim(): Unit = {
+    testAllApis(
+      'f8.ltrim(),
+      "f8.ltrim",
+      "LTRIM(f8)",
+      "This is a test String. ")
+
+    testAllApis(
+      'f0.ltrim(),
+      "f0.ltrim",
+      "LTRIM(f0)",
+      "This is a test String.")
+
+    testAllApis(
+      "".ltrim(),
+      "''.ltrim()",
+      "LTRIM('')",
+      "")
+
+    testAllApis(
+      'f33.ltrim(),
+      "f33.ltrim",
+      "LTRIM(f33)",
+      "null")
+  }
+
+  @Test
+  def testRTrim(): Unit = {
+    testAllApis(
+      'f8.rtrim(),
+      "f8.rtrim",
+      "RTRIM(f8)",
+      " This is a test String.")
+
+    testAllApis(
+      'f0.rtrim(),
+      "f0.rtrim",
+      "RTRIM(f0)",
+      "This is a test String.")
+
+    testAllApis(
+      "".rtrim(),
+      "''.rtrim()",
+      "RTRIM('')",
+      "")
+
+    testAllApis(
+      'f33.rtrim(),
+      "f33.rtrim",
+      "RTRIM(f33)",
+      "null")
+  }
+
+  @Test
+  def testRepeat(): Unit = {
+    testAllApis(
+      'f0.repeat(1),
+      "f0.repeat(1)",
+      "REPEAT(f0, 1)",
+      "This is a test String.")
+
+    testAllApis(
+      'f0.repeat(2),
+      "f0.repeat(2)",
+      "REPEAT(f0, 2)",
+      "This is a test String.This is a test String.")
+
+    testAllApis(
+      'f0.repeat(0),
+      "f0.repeat(0)",
+      "REPEAT(f0, 0)",
+      "")
+
+    testAllApis(
+      'f0.repeat(-1),
+      "f0.repeat(-1)",
+      "REPEAT(f0, -1)",
+      "")
+
+    testAllApis(
+      'f33.repeat(2),
+      "f33.repeat(2)",
+      "REPEAT(f33, 2)",
+      "null")
+
+    testAllApis(
+      "".repeat(1),
+      "''.repeat(1)",
+      "REPEAT('', 2)",
+      "")
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Math functions
   // ----------------------------------------------------------------------------------------------
@@ -453,6 +997,33 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f6.log10()",
       "LOG10(f6)",
       math.log10(4.6).toString)
+  }
+
+  @Test
+  def testLog2(): Unit = {
+    testAllApis(
+      'f6.log2(),
+      "f6.log2",
+      "LOG2(f6)",
+     "2.2016338611696504")
+
+    testAllApis(
+      ('f6 - 'f6 + 100).log2(),
+      "(f6 - f6 + 100).log2()",
+      "LOG2(f6 - f6 + 100)",
+      "6.643856189774725")
+
+    testAllApis(
+      ('f6 + 20).log2(),
+      "(f6+20).log2",
+      "LOG2(f6+20)",
+      "4.620586410451877")
+
+    testAllApis(
+      10.log2(),
+      "10.log2",
+      "LOG2(10)",
+      "3.3219280948873626")
   }
 
   @Test
@@ -579,6 +1150,47 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "2.2.sqrt()",
       "POWER(CAST(2.2 AS DOUBLE), CAST(0.5 AS DOUBLE))", // TODO fix FLINK-4621
       math.sqrt(2.2).toString)
+  }
+
+  @Test
+  def testCosh(): Unit = {
+    testAllApis(
+      0.cosh(),
+      "0.cosh()",
+      "COSH(0)",
+      math.cosh(0).toString
+    )
+
+    testAllApis(
+      -1.cosh(),
+      "-1.cosh()",
+      "COSH(-1)",
+      math.cosh(-1).toString
+    )
+
+    testAllApis(
+      'f4.cosh(),
+      "f4.cosh",
+      "COSH(f4)",
+      math.cosh(44L).toString)
+
+    testAllApis(
+      'f6.cosh(),
+      "f6.cosh",
+      "COSH(f6)",
+      math.cosh(4.6D).toString)
+
+    testAllApis(
+      'f7.cosh(),
+      "f7.cosh",
+      "COSH(f7)",
+      math.cosh(3).toString)
+
+    testAllApis(
+      'f22.cosh(),
+      "f22.cosh",
+      "COSH(f22)",
+      math.cosh(2.0).toString)
   }
 
   @Test
@@ -801,6 +1413,45 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testSinh(): Unit = {
+    testAllApis(
+      0.sinh(),
+      "0.sinh()",
+      "SINH(0)",
+      math.sinh(0).toString)
+
+    testAllApis(
+      -1.sinh(),
+      "-1.sinh()",
+      "SINH(-1)",
+      math.sinh(-1).toString)
+
+    testAllApis(
+      'f4.sinh(),
+      "f4.sinh",
+      "SINH(f4)",
+      math.sinh(44L).toString)
+
+    testAllApis(
+      'f6.sinh(),
+      "f6.sinh",
+      "SINH(f6)",
+      math.sinh(4.6D).toString)
+
+    testAllApis(
+      'f7.sinh(),
+      "f7.sinh",
+      "SINH(f7)",
+      math.sinh(3).toString)
+
+    testAllApis(
+      'f22.sinh(),
+      "f22.sinh",
+      "SINH(f22)",
+      math.sinh(2.0).toString)
+  }
+
+  @Test
   def testTan(): Unit = {
     testAllApis(
       'f2.tan(),
@@ -837,6 +1488,45 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "tan(f15)",
       "TAN(f15)",
       math.tan(-1231.1231231321321321111).toString)
+  }
+
+  @Test
+  def testTanh(): Unit = {
+    testAllApis(
+      0.tanh(),
+      "0.tanh()",
+      "TANH(0)",
+      math.tanh(0).toString)
+
+    testAllApis(
+      -1.tanh(),
+      "-1.tanh()",
+      "TANH(-1)",
+      math.tanh(-1).toString)
+
+    testAllApis(
+      'f4.tanh(),
+      "f4.tanh",
+      "TANH(f4)",
+      math.tanh(44L).toString)
+
+    testAllApis(
+      'f6.tanh(),
+      "f6.tanh",
+      "TANH(f6)",
+      math.tanh(4.6D).toString)
+
+    testAllApis(
+      'f7.tanh(),
+      "f7.tanh",
+      "TANH(f7)",
+      math.tanh(3).toString)
+
+    testAllApis(
+      'f22.tanh(),
+      "f22.tanh",
+      "TANH(f22)",
+      math.tanh(2.0).toString)
   }
 
   @Test
@@ -1011,6 +1701,51 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f31.atan()",
       "ATAN(f31)",
       math.atan(-0.1231231321321321111).toString)
+  }
+
+  @Test
+  def testAtan2(): Unit = {
+    testAllApis(
+      atan2('f25, 'f26),
+      "atan2(f25, f26)",
+      "ATAN2(f25, f26)",
+      math.atan2(0.42.toByte, 0.toByte).toString)
+
+    testAllApis(
+      Atan2('f26, 'f25),
+      "atan2(f26, f25)",
+      "ATAN2(f26, f25)",
+      math.atan2(0.toShort, 0.toShort).toString)
+
+    testAllApis(
+      Atan2('f27, 'f27),
+      "atan2(f27, f27)",
+      "ATAN2(f27, f27)",
+      math.atan2(0.toLong, 0.toLong).toString)
+
+    testAllApis(
+      Atan2('f28, 'f28),
+      "atan2(f28, f28)",
+      "ATAN2(f28, f28)",
+      math.atan2(0.45.toFloat, 0.45.toFloat).toString)
+
+    testAllApis(
+      Atan2('f29, 'f29),
+      "atan2(f29, f29)",
+      "ATAN2(f29, f29)",
+      math.atan2(0.46, 0.46).toString)
+
+    testAllApis(
+      Atan2('f30, 'f30),
+      "atan2(f30, f30)",
+      "ATAN2(f30, f30)",
+      math.atan2(1, 1).toString)
+
+    testAllApis(
+      Atan2('f31, 'f31),
+      "atan2(f31, f31)",
+      "ATAN2(f31, f31)",
+      math.atan2(-0.1231231321321321111, -0.1231231321321321111).toString)
   }
 
   @Test
@@ -1190,28 +1925,50 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testLog(): Unit = {
-    testSqlApi(
+    testAllApis(
+      'f6.log(),
+      "f6.log",
       "LOG(f6)",
       "1.5260563034950492"
     )
 
-    testSqlApi(
-      "LOG(f6-f6 + 10, f6-f6+100)",
+    testTableApi(
+      Log('f6),
+      "Log(f6)",
+      "1.5260563034950492"
+    )
+
+    testAllApis(
+      ('f6 - 'f6 + 100).log('f6 - 'f6 + 10),
+      "(f6 - f6 + 100).log(f6 - f6 + 10)",
+      "LOG(f6 - f6 + 10, f6 - f6 + 100)",
       "2.0"
     )
 
-    testSqlApi(
+    testAllApis(
+      ('f6 + 20).log(),
+      "(f6+20).log",
       "LOG(f6+20)",
       "3.202746442938317"
     )
 
-    testSqlApi(
+    testAllApis(
+      10.log(),
+      "10.log",
       "LOG(10)",
       "2.302585092994046"
     )
 
-    testSqlApi(
+    testAllApis(
+      100.log(10),
+      "100.log(10)",
       "LOG(10, 100)",
+      "2.0"
+    )
+
+    testTableApi(
+      Log(10, 100),
+      "Log(10, 100)",
       "2.0"
     )
   }
@@ -1229,10 +1986,22 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "1996")
 
     testAllApis(
+      'f16.extract(TimeIntervalUnit.QUARTER),
+      "f16.extract(QUARTER)",
+      "EXTRACT(QUARTER FROM f16)",
+      "4")
+
+    testAllApis(
       'f16.extract(TimeIntervalUnit.MONTH),
       "extract(f16, MONTH)",
       "EXTRACT(MONTH FROM f16)",
       "11")
+
+    testAllApis(
+      'f16.extract(TimeIntervalUnit.WEEK),
+      "extract(f16, WEEK)",
+      "EXTRACT(WEEK FROM f16)",
+      "45")
 
     testAllApis(
       'f16.extract(TimeIntervalUnit.DAY),
@@ -1247,10 +2016,28 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "1996")
 
     testAllApis(
+      'f18.extract(TimeIntervalUnit.QUARTER),
+      "f18.extract(QUARTER)",
+      "EXTRACT(QUARTER FROM f18)",
+      "4")
+
+    testAllApis(
+      'f16.extract(TimeIntervalUnit.QUARTER),
+      "f16.extract(QUARTER)",
+      "EXTRACT(QUARTER FROM f16)",
+      "4")
+
+    testAllApis(
       'f18.extract(TimeIntervalUnit.MONTH),
       "f18.extract(MONTH)",
       "EXTRACT(MONTH FROM f18)",
       "11")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.WEEK),
+      "f18.extract(WEEK)",
+      "EXTRACT(WEEK FROM f18)",
+      "45")
 
     testAllApis(
       'f18.extract(TimeIntervalUnit.DAY),
@@ -1325,10 +2112,137 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "1")
 
     testAllApis(
+      'f20.extract(TimeIntervalUnit.QUARTER),
+      "f20.extract(QUARTER)",
+      "EXTRACT(QUARTER FROM f20)",
+      "1")
+
+    testAllApis(
       'f20.extract(TimeIntervalUnit.YEAR),
       "f20.extract(YEAR)",
       "EXTRACT(YEAR FROM f20)",
       "2")
+
+    // test SQL only time units
+    testSqlApi(
+      "EXTRACT(MILLENNIUM FROM f18)",
+      "2")
+
+    testSqlApi(
+      "EXTRACT(MILLENNIUM FROM f16)",
+      "2")
+
+    testSqlApi(
+      "EXTRACT(CENTURY FROM f18)",
+      "20")
+
+    testSqlApi(
+      "EXTRACT(CENTURY FROM f16)",
+      "20")
+
+    testSqlApi(
+      "EXTRACT(DOY FROM f18)",
+      "315")
+
+    testSqlApi(
+      "EXTRACT(DOY FROM f16)",
+      "315")
+
+    testSqlApi(
+      "EXTRACT(DOW FROM f18)",
+      "1")
+
+    testSqlApi(
+      "EXTRACT(DOW FROM f16)",
+      "1")
+
+    testSqlApi(
+      "EXTRACT(WEEK FROM f18)",
+      "45")
+
+    testSqlApi(
+      "EXTRACT(WEEK FROM f16)",
+      "45")
+
+    testSqlApi(
+      "YEAR(f18)",
+      "1996")
+
+    testSqlApi(
+      "YEAR(f16)",
+      "1996")
+
+    testSqlApi(
+      "QUARTER(f18)",
+      "4")
+
+    testSqlApi(
+      "QUARTER(f16)",
+      "4")
+
+    testSqlApi(
+      "MONTH(f18)",
+      "11")
+
+    testSqlApi(
+      "MONTH(f16)",
+      "11")
+
+    testSqlApi(
+      "WEEK(f18)",
+      "45")
+
+    testSqlApi(
+      "WEEK(f16)",
+      "45")
+
+    testSqlApi(
+      "DAYOFYEAR(f18)",
+      "315")
+
+    testSqlApi(
+      "DAYOFYEAR(f16)",
+      "315")
+
+    testSqlApi(
+      "DAYOFMONTH(f18)",
+      "10")
+
+    testSqlApi(
+      "DAYOFMONTH(f16)",
+      "10")
+
+    testSqlApi(
+      "DAYOFWEEK(f18)",
+      "1")
+
+    testSqlApi(
+      "DAYOFWEEK(f16)",
+      "1")
+
+    testSqlApi(
+      "HOUR(f17)",
+      "6")
+
+    testSqlApi(
+      "HOUR(f19)",
+      "7")
+
+    testSqlApi(
+      "MINUTE(f17)",
+      "55")
+
+    testSqlApi(
+      "MINUTE(f19)",
+      "23")
+
+    testSqlApi(
+      "SECOND(f17)",
+      "44")
+
+    testSqlApi(
+      "SECOND(f19)",
+      "33")
   }
 
   @Test
@@ -1545,34 +2459,128 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
-  def testQuarter(): Unit = {
-    testAllApis(
-      "1997-01-27".toDate.quarter(),
-      "'1997-01-27'.toDate.quarter()",
-      "QUARTER(DATE '1997-01-27')",
-      "1")
+  def testTimestampDiff(): Unit = {
+    val dataMap = Map(
+      ("DAY", TimePointUnit.DAY, "SQL_TSI_DAY") -> Seq(
+        ("2018-07-03 11:11:11", "2018-07-05 11:11:11", "2"), // timestamp, timestamp
+        ("2016-06-15", "2016-06-16 11:11:11", "1"), // date, timestamp
+        ("2016-06-15 11:00:00", "2016-06-19", "3"), // timestamp, date
+        ("2016-06-15", "2016-06-18", "3") // date, date
+      ),
+      ("HOUR", TimePointUnit.HOUR, "SQL_TSI_HOUR") -> Seq(
+        ("2018-07-03 11:11:11", "2018-07-04 12:12:11", "25"),
+        ("2016-06-15", "2016-06-16 11:11:11", "35"),
+        ("2016-06-15 11:00:00", "2016-06-19", "85"),
+        ("2016-06-15", "2016-06-12", "-72")
+      ),
+      ("MINUTE", TimePointUnit.MINUTE, "SQL_TSI_MINUTE") -> Seq(
+        ("2018-07-03 11:11:11", "2018-07-03 12:10:11", "59"),
+        ("2016-06-15", "2016-06-16 11:11:11", "2111"),
+        ("2016-06-15 11:00:00", "2016-06-19", "5100"),
+        ("2016-06-15", "2016-06-18", "4320")
+      ),
+      ("SECOND", TimePointUnit.SECOND, "SQL_TSI_SECOND") -> Seq(
+        ("2018-07-03 11:11:11", "2018-07-03 11:12:12", "61"),
+        ("2016-06-15", "2016-06-16 11:11:11", "126671"),
+        ("2016-06-15 11:00:00", "2016-06-19", "306000"),
+        ("2016-06-15", "2016-06-18", "259200")
+      ),
+      ("WEEK", TimePointUnit.WEEK, "SQL_TSI_WEEK") -> Seq(
+        ("2018-05-03 11:11:11", "2018-07-03 11:12:12", "8"),
+        ("2016-04-15", "2016-07-16 11:11:11", "13"),
+        ("2016-04-15 11:00:00", "2016-09-19", "22"),
+        ("2016-08-15", "2016-06-18", "-8")
+      ),
+      ("MONTH", TimePointUnit.MONTH, "SQL_TSI_MONTH") -> Seq(
+        ("2018-07-03 11:11:11", "2018-09-05 11:11:11", "2"),
+        ("2016-06-15", "2018-06-16 11:11:11", "24"),
+        ("2016-06-15 11:00:00", "2018-05-19", "23"),
+        ("2016-06-15", "2018-03-18", "21")
+      ),
+      ("QUARTER", TimePointUnit.QUARTER, "SQL_TSI_QUARTER") -> Seq(
+        ("2018-01-03 11:11:11", "2018-09-05 11:11:11", "2"),
+        ("2016-06-15", "2018-06-16 11:11:11", "8"),
+        ("2016-06-15 11:00:00", "2018-05-19", "7"),
+        ("2016-06-15", "2018-03-18", "7")
+      )
+    )
+
+    for ((unitParts, dataParts) <- dataMap) {
+      for ((data,index) <- dataParts.zipWithIndex) {
+        index match {
+          case 0 => // timestamp, timestamp
+            testAllApis(
+              timestampDiff(unitParts._2, data._1.toTimestamp, data._2.toTimestamp),
+              s"timestampDiff(${unitParts._1}, '${data._1}'.toTimestamp, '${data._2}'.toTimestamp)",
+              s"TIMESTAMPDIFF(${unitParts._1}, TIMESTAMP '${data._1}', TIMESTAMP '${data._2}')",
+              data._3
+            )
+            testSqlApi(  // sql tsi
+              s"TIMESTAMPDIFF(${unitParts._3}, TIMESTAMP '${data._1}', TIMESTAMP '${data._2}')",
+              data._3
+            )
+          case 1 => // date, timestamp
+            testAllApis(
+              timestampDiff(unitParts._2, data._1.toDate, data._2.toTimestamp),
+              s"timestampDiff(${unitParts._1}, '${data._1}'.toDate, '${data._2}'.toTimestamp)",
+              s"TIMESTAMPDIFF(${unitParts._1}, DATE '${data._1}', TIMESTAMP '${data._2}')",
+              data._3
+            )
+            testSqlApi( // sql tsi
+              s"TIMESTAMPDIFF(${unitParts._3}, DATE '${data._1}', TIMESTAMP '${data._2}')",
+              data._3
+            )
+          case 2 => // timestamp, date
+            testAllApis(
+              timestampDiff(unitParts._2, data._1.toTimestamp, data._2.toDate),
+              s"timestampDiff(${unitParts._1}, '${data._1}'.toTimestamp, '${data._2}'.toDate)",
+              s"TIMESTAMPDIFF(${unitParts._1}, TIMESTAMP '${data._1}', DATE '${data._2}')",
+              data._3
+            )
+            testSqlApi( // sql tsi
+              s"TIMESTAMPDIFF(${unitParts._3}, TIMESTAMP '${data._1}', DATE '${data._2}')",
+              data._3
+            )
+          case 3 => // date, date
+            testAllApis(
+              timestampDiff(unitParts._2, data._1.toDate, data._2.toDate),
+              s"timestampDiff(${unitParts._1}, '${data._1}'.toDate, '${data._2}'.toDate)",
+              s"TIMESTAMPDIFF(${unitParts._1}, DATE '${data._1}', DATE '${data._2}')",
+              data._3
+            )
+            testSqlApi( // sql tsi
+              s"TIMESTAMPDIFF(${unitParts._3}, DATE '${data._1}', DATE '${data._2}')",
+              data._3
+            )
+        }
+      }
+    }
 
     testAllApis(
-      "1997-04-27".toDate.quarter(),
-      "'1997-04-27'.toDate.quarter()",
-      "QUARTER(DATE '1997-04-27')",
-      "2")
+      timestampDiff(TimePointUnit.DAY, Null(Types.SQL_TIMESTAMP),
+        "2016-02-24 12:42:25".toTimestamp),
+      "timestampDiff(DAY, Null(SQL_TIMESTAMP), '2016-02-24 12:42:25'.toTimestamp)",
+      "TIMESTAMPDIFF(DAY, CAST(NULL AS TIMESTAMP), TIMESTAMP '2016-02-24 12:42:25')",
+      "null"
+    )
 
     testAllApis(
-      "1997-12-31".toDate.quarter(),
-      "'1997-12-31'.toDate.quarter()",
-      "QUARTER(DATE '1997-12-31')",
-      "4")
+      timestampDiff(TimePointUnit.DAY, "2016-02-24 12:42:25".toTimestamp,
+        Null(Types.SQL_TIMESTAMP)),
+      "timestampDiff(DAY, '2016-02-24 12:42:25'.toTimestamp,  Null(SQL_TIMESTAMP))",
+      "TIMESTAMPDIFF(DAY, TIMESTAMP '2016-02-24 12:42:25',  CAST(NULL AS TIMESTAMP))",
+      "null"
+    )
   }
 
   @Test
   def testTimestampAdd(): Unit = {
     val data = Seq(
-      (1, "TIMESTAMP '2017-11-29 22:58:58.998'"),
-      (3, "TIMESTAMP '2017-11-29 22:58:58.998'"),
-      (-1, "TIMESTAMP '2017-11-29 22:58:58.998'"),
-      (-61, "TIMESTAMP '2017-11-29 22:58:58.998'"),
-      (-1000, "TIMESTAMP '2017-11-29 22:58:58.998'")
+      (1, "2017-11-29 22:58:58.998"),
+      (3, "2017-11-29 22:58:58.998"),
+      (-1, "2017-11-29 22:58:58.998"),
+      (-61, "2017-11-29 22:58:58.998"),
+      (-1000, "2017-11-29 22:58:58.998")
     )
 
     val YEAR = Seq(
@@ -1651,27 +2659,251 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "SQL_TSI_SECOND" -> SECOND
     )
 
-    for ((interval, result) <- intervalMapResults) {
-      testSqlApi(
-        s"TIMESTAMPADD($interval, ${data.head._1}, ${data.head._2})", result.head)
-      testSqlApi(
-        s"TIMESTAMPADD($interval, ${data(1)._1}, ${data(1)._2})", result(1))
-      testSqlApi(
-        s"TIMESTAMPADD($interval, ${data(2)._1}, ${data(2)._2})", result(2))
-      testSqlApi(
-        s"TIMESTAMPADD($interval, ${data(3)._1}, ${data(3)._2})", result(3))
-      testSqlApi(
-        s"TIMESTAMPADD($interval, ${data(4)._1}, ${data(4)._2})", result(4))
+    def intervalCount(interval: String, count: Int): (Expression, String) = interval match {
+      case "YEAR" => (count.years, s"$count.years")
+      case "SQL_TSI_YEAR" => (count.years, s"$count.years")
+      case "QUARTER" => (count.quarters, s"$count.quarters")
+      case "SQL_TSI_QUARTER" => (count.quarters, s"$count.quarters")
+      case "MONTH" => (count.months, s"$count.months")
+      case "SQL_TSI_MONTH" => (count.months, s"$count.months")
+      case "WEEK" => (count.weeks, s"$count.weeks")
+      case "SQL_TSI_WEEK" => (count.weeks, s"$count.weeks")
+      case "DAY" => (count.days, s"$count.days")
+      case "SQL_TSI_DAY" => (count.days, s"$count.days")
+      case "HOUR" => (count.hours, s"$count.hours")
+      case "SQL_TSI_HOUR" => (count.hours, s"$count.hours")
+      case "MINUTE" => (count.minutes, s"$count.minutes")
+      case "SQL_TSI_MINUTE" => (count.minutes, s"$count.minutes")
+      case "SECOND" => (count.seconds, s"$count.seconds")
+      case "SQL_TSI_SECOND" => (count.seconds, s"$count.seconds")
     }
 
-    testSqlApi("TIMESTAMPADD(HOUR, CAST(NULL AS INTEGER), TIMESTAMP '2016-02-24 12:42:25')", "null")
+    for ((interval, result) <- intervalMapResults) {
+        for (i <- 0 to 4) {
+          val (offset, ts) = data(i)
+          val timeInterval = intervalCount(interval, offset)
+          testAllApis(
+            timeInterval._1 + ts.toTimestamp,
+            s"${timeInterval._2} + '$ts'.toTimestamp",
+            s"TIMESTAMPADD($interval, $offset, TIMESTAMP '$ts')",
+            result(i))
+        }
+    }
 
-    testSqlApi("TIMESTAMPADD(HOUR, -200, CAST(NULL AS TIMESTAMP))", "null")
+    testAllApis(
+      "2016-02-24 12:42:25".toTimestamp + Null(Types.INTERVAL_MILLIS),
+      "'2016-02-24 12:42:25'.toTimestamp + Null(INTERVAL_MILLIS)",
+      "TIMESTAMPADD(HOUR, CAST(NULL AS INTEGER), TIMESTAMP '2016-02-24 12:42:25')",
+      "null")
 
-    testSqlApi("TIMESTAMPADD(DAY, 1, DATE '2016-06-15')", "2016-06-16")
+    testAllApis(
+      Null(Types.SQL_TIMESTAMP) + -200.hours,
+      "Null(SQL_TIMESTAMP) + -200.hours",
+      "TIMESTAMPADD(HOUR, -200, CAST(NULL AS TIMESTAMP))",
+      "null")
 
-    testSqlApi("TIMESTAMPADD(MONTH, 3, CAST(NULL AS TIMESTAMP))", "null")
+    testAllApis(
+      Null(Types.SQL_TIMESTAMP) + 3.months,
+      "Null(SQL_TIMESTAMP) + 3.months",
+      "TIMESTAMPADD(MONTH, 3, CAST(NULL AS TIMESTAMP))",
+      "null")
 
+    // TIMESTAMPADD with DATE returns a TIMESTAMP value for sub-day intervals.
+    testAllApis("2016-06-15".toDate + 1.month,
+      "'2016-06-15'.toDate + 1.month",
+      "timestampadd(MONTH, 1, date '2016-06-15')",
+      "2016-07-15")
+
+    testAllApis("2016-06-15".toDate + 1.day,
+      "'2016-06-15'.toDate + 1.day",
+      "timestampadd(DAY, 1, date '2016-06-15')",
+      "2016-06-16")
+
+    testAllApis("2016-06-15".toTimestamp - 1.hour,
+      "'2016-06-15'.toTimestamp - 1.hour",
+      "timestampadd(HOUR, -1, date '2016-06-15')",
+      "2016-06-14 23:00:00.0")
+
+    testAllApis("2016-06-15".toTimestamp + 1.minute,
+      "'2016-06-15'.toTimestamp + 1.minute",
+      "timestampadd(MINUTE, 1, date '2016-06-15')",
+      "2016-06-15 00:01:00.0")
+
+    testAllApis("2016-06-15".toTimestamp - 1.second,
+      "'2016-06-15'.toTimestamp - 1.second",
+      "timestampadd(SQL_TSI_SECOND, -1, date '2016-06-15')",
+      "2016-06-14 23:59:59.0")
+
+    testAllApis("2016-06-15".toTimestamp + 1.second,
+      "'2016-06-15'.toTimestamp + 1.second",
+      "timestampadd(SECOND, 1, date '2016-06-15')",
+      "2016-06-15 00:00:01.0")
+
+    testAllApis(Null(Types.SQL_TIMESTAMP) + 1.second,
+      "Null(SQL_TIMESTAMP) + 1.second",
+      "timestampadd(SECOND, 1, cast(null as date))",
+      "null")
+
+    testAllApis(Null(Types.SQL_TIMESTAMP) + 1.day,
+      "Null(SQL_TIMESTAMP) + 1.day",
+      "timestampadd(DAY, 1, cast(null as date))",
+      "null")
+
+    // Round to the last day of previous month
+    testAllApis("2016-05-31".toDate + 1.month,
+      "'2016-05-31'.toDate + 1.month",
+      "timestampadd(MONTH, 1, date '2016-05-31')",
+      "2016-06-30")
+
+    testAllApis("2016-01-31".toDate + 5.month,
+      "'2016-01-31'.toDate + 5.month",
+      "timestampadd(MONTH, 5, date '2016-01-31')",
+      "2016-06-30")
+
+    testAllApis("2016-03-31".toDate - 1.month,
+      "'2016-03-31'.toDate - 1.month",
+      "timestampadd(MONTH, -1, date '2016-03-31')",
+      "2016-02-29")
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Hash functions
+  // ----------------------------------------------------------------------------------------------
+
+  @Test
+  def testHashFunctions(): Unit = {
+    val expectedMd5 = "098f6bcd4621d373cade4e832627b4f6"
+    val expectedSha1 = "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3"
+    val expectedSha224 = "90a3ed9e32b2aaf4c61c410eb925426119e1a9dc53d4286ade99a809"
+    val expectedSha256 = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+    val expectedSha384 = "768412320f7b0aa5812fce428dc4706b3cae50e02a64caa16a7" +
+      "82249bfe8efc4b7ef1ccb126255d196047dfedf17a0a9"
+    val expectedSha512 = "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a" +
+      "5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff"
+
+    testAllApis(
+      "test".md5(),
+      "md5('test')",
+      "MD5('test')",
+      expectedMd5)
+
+    testAllApis(
+      "test".sha1(),
+      "sha1('test')",
+      "SHA1('test')",
+      expectedSha1)
+
+    // sha224
+    testAllApis(
+      "test".sha224(),
+      "sha224('test')",
+      "SHA224('test')",
+      expectedSha224)
+
+    // sha-2 224
+    testAllApis(
+      "test".sha2(224),
+      "sha2('test', 224)",
+      "SHA2('test', 224)",
+      expectedSha224)
+
+    // sha256
+    testAllApis(
+      "test".sha256(),
+      "sha256('test')",
+      "SHA256('test')",
+      expectedSha256)
+
+    // sha-2 256
+    testAllApis(
+      "test".sha2(256),
+      "sha2('test', 256)",
+      "SHA2('test', 256)",
+      expectedSha256)
+
+    // sha384
+    testAllApis(
+      "test".sha384(),
+      "sha384('test')",
+      "SHA384('test')",
+      expectedSha384)
+
+    // sha-2 384
+    testAllApis(
+      "test".sha2(384),
+      "sha2('test', 384)",
+      "SHA2('test', 384)",
+      expectedSha384)
+
+    // sha512
+    testAllApis(
+      "test".sha512(),
+      "sha512('test')",
+      "SHA512('test')",
+      expectedSha512)
+
+    // sha-2 512
+    testAllApis(
+      "test".sha2(512),
+      "sha2('test', 512)",
+      "SHA2('test', 512)",
+      expectedSha512)
+
+    // null tests
+    testAllApis(
+      'f33.md5(),
+      "md5(f33)",
+      "MD5(f33)",
+      "null")
+
+    testAllApis(
+      'f33.sha1(),
+      "sha1(f33)",
+      "SHA1(f33)",
+      "null")
+
+    testAllApis(
+      'f33.sha224(),
+      "sha224(f33)",
+      "SHA2(f33, 224)",
+      "null")
+
+    testAllApis(
+      'f33.sha2(224),
+      "sha2(f33, 224)",
+      "SHA2(f33, 224)",
+      "null")
+
+    testAllApis(
+      'f33.sha256(),
+      "sha256(f33)",
+      "SHA2(f33, 256)",
+      "null")
+
+    testAllApis(
+      'f33.sha384(),
+      "sha384(f33)",
+      "SHA2(f33, 384)",
+      "null")
+
+    testAllApis(
+      'f33.sha512(),
+      "sha512(f33)",
+      "SHA2(f33, 512)",
+      "null")
+
+    testAllApis(
+      "test".sha2(Null(Types.INT)),
+      "sha2('test', Null(INT))",
+      "SHA2('test', CAST(NULL AS INT))",
+      "null")
+
+    // non-constant bit length
+    testAllApis(
+      "test".sha2('f34),
+      "sha2('test', f34)",
+      "SHA2('test', f34)",
+      expectedSha256)
   }
 
   // ----------------------------------------------------------------------------------------------

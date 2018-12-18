@@ -30,7 +30,7 @@ import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
-import org.apache.flink.runtime.metrics.MetricRegistry
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup
 import org.apache.flink.runtime.testingUtils.TestingJobManagerLike
 
 import scala.concurrent.duration.FiniteDuration
@@ -68,7 +68,7 @@ class TestingYarnJobManager(
     submittedJobGraphs : SubmittedJobGraphStore,
     checkpointRecoveryFactory : CheckpointRecoveryFactory,
     jobRecoveryTimeout: FiniteDuration,
-    metricRegistry : Option[MetricRegistry],
+    jobManagerMetricGroup : JobManagerMetricGroup,
     optRestAddress: Option[String])
   extends YarnJobManager(
     flinkConfiguration,
@@ -85,6 +85,6 @@ class TestingYarnJobManager(
     submittedJobGraphs,
     checkpointRecoveryFactory,
     jobRecoveryTimeout,
-    metricRegistry,
+    jobManagerMetricGroup,
     optRestAddress)
   with TestingJobManagerLike {}

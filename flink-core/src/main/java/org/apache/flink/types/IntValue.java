@@ -123,7 +123,7 @@ public class IntValue implements NormalizableKey<IntValue>, ResettableValue<IntV
 
 	@Override
 	public void copyNormalizedKey(MemorySegment target, int offset, int len) {
-		// take out value and add the integer min value. This gets an offsetted
+		// take out value and add the integer min value. This gets an offset
 		// representation when interpreted as an unsigned integer (as is the case
 		// with normalized keys). write this value as big endian to ensure the
 		// most significant byte comes first.

@@ -19,6 +19,7 @@
 package org.apache.flink.hdfstests;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -30,6 +31,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
@@ -39,7 +41,6 @@ import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.OperatingSystem;
@@ -55,6 +56,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -438,7 +440,7 @@ public class ContinuousFileProcessingTest {
 		// to initialize another reader and compare the results of the
 		// two operators.
 
-		final OperatorStateHandles snapshot;
+		final OperatorSubtaskState snapshot;
 		synchronized (initTestInstance.getCheckpointLock()) {
 			snapshot = initTestInstance.snapshot(0L, 0L);
 		}
@@ -579,8 +581,7 @@ public class ContinuousFileProcessingTest {
 		});
 
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format,
-				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
+			createTestContinuousFileMonitoringFunction(format, FileProcessingMode.PROCESS_ONCE);
 
 		final FileVerifyingSourceContext context =
 			new FileVerifyingSourceContext(new OneShotLatch(), monitoringFunction);
@@ -632,8 +633,7 @@ public class ContinuousFileProcessingTest {
 		format.setNestedFileEnumeration(true);
 
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format,
-				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
+			createTestContinuousFileMonitoringFunction(format, FileProcessingMode.PROCESS_ONCE);
 
 		final FileVerifyingSourceContext context =
 			new FileVerifyingSourceContext(new OneShotLatch(), monitoringFunction);
@@ -674,8 +674,7 @@ public class ContinuousFileProcessingTest {
 		FileInputSplit[] splits = format.createInputSplits(1);
 
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format,
-				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
+			createTestContinuousFileMonitoringFunction(format, FileProcessingMode.PROCESS_ONCE);
 
 		ModTimeVerifyingSourceContext context = new ModTimeVerifyingSourceContext(modTimes);
 
@@ -708,8 +707,7 @@ public class ContinuousFileProcessingTest {
 		format.setFilesFilter(FilePathFilter.createDefaultFilter());
 
 		final ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format,
-				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
+			createTestContinuousFileMonitoringFunction(format, FileProcessingMode.PROCESS_ONCE);
 
 		final FileVerifyingSourceContext context = new FileVerifyingSourceContext(latch, monitoringFunction);
 
@@ -772,7 +770,7 @@ public class ContinuousFileProcessingTest {
 		TextInputFormat format = new TextInputFormat(new Path(testBasePath));
 
 		final ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
+			createTestContinuousFileMonitoringFunction(format, FileProcessingMode.PROCESS_CONTINUOUSLY);
 
 		StreamSource<TimestampedFileInputSplit, ContinuousFileMonitoringFunction<String>> src =
 			new StreamSource<>(monitoringFunction);
@@ -816,14 +814,14 @@ public class ContinuousFileProcessingTest {
 		// this means it has processed all the splits and updated its state.
 		synchronized (sourceContext.getCheckpointLock()) {}
 
-		OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+		OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 		monitoringFunction.cancel();
 		runner.join();
 
 		testHarness.close();
 
 		final ContinuousFileMonitoringFunction<String> monitoringFunctionCopy =
-			new ContinuousFileMonitoringFunction<>(format, FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
+			createTestContinuousFileMonitoringFunction(format, FileProcessingMode.PROCESS_CONTINUOUSLY);
 
 		StreamSource<TimestampedFileInputSplit, ContinuousFileMonitoringFunction<String>> srcCopy =
 			new StreamSource<>(monitoringFunctionCopy);
@@ -857,8 +855,7 @@ public class ContinuousFileProcessingTest {
 		format.setFilesFilter(FilePathFilter.createDefaultFilter());
 
 		final ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format,
-				FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
+			createTestContinuousFileMonitoringFunction(format, FileProcessingMode.PROCESS_CONTINUOUSLY);
 
 		final int totalNoOfFilesToBeRead = NO_OF_FILES + 1; // 1 for the bootstrap + NO_OF_FILES
 		final FileVerifyingSourceContext context = new FileVerifyingSourceContext(latch,
@@ -1054,5 +1051,15 @@ public class ContinuousFileProcessingTest {
 
 		Assert.assertTrue("No result file present", hdfs.exists(file));
 		return new Tuple2<>(file, str.toString());
+	}
+
+	/**
+	 * Create continuous monitoring function with 1 reader-parallelism and interval: {@link #INTERVAL}.
+	 */
+	private <OUT> ContinuousFileMonitoringFunction<OUT> createTestContinuousFileMonitoringFunction(FileInputFormat<OUT> format, FileProcessingMode fileProcessingMode) {
+		ContinuousFileMonitoringFunction<OUT> monitoringFunction =
+			new ContinuousFileMonitoringFunction<>(format, fileProcessingMode, 1, INTERVAL);
+		monitoringFunction.setRuntimeContext(Mockito.mock(RuntimeContext.class));
+		return monitoringFunction;
 	}
 }

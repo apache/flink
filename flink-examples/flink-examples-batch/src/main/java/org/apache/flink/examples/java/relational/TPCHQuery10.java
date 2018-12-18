@@ -18,8 +18,7 @@
 
 package org.apache.flink.examples.java.relational;
 
-import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.aggregation.Aggregations;
@@ -118,33 +117,18 @@ public class TPCHQuery10 {
 		// orders filtered by year: (orderkey, custkey)
 		DataSet<Tuple2<Integer, Integer>> ordersFilteredByYear =
 				// filter by year
-				orders.filter(
-								new FilterFunction<Tuple3<Integer, Integer, String>>() {
-									@Override
-									public boolean filter(Tuple3<Integer, Integer, String> o) {
-										return Integer.parseInt(o.f2.substring(0, 4)) > 1990;
-									}
-								})
+				orders.filter(order -> Integer.parseInt(order.f2.substring(0, 4)) > 1990)
 				// project fields out that are no longer required
 				.project(0, 1);
 
 		// lineitems filtered by flag: (orderkey, revenue)
 		DataSet<Tuple2<Integer, Double>> lineitemsFilteredByFlag =
 				// filter by flag
-				lineitems.filter(new FilterFunction<Tuple4<Integer, Double, Double, String>>() {
-										@Override
-										public boolean filter(Tuple4<Integer, Double, Double, String> l) {
-											return l.f3.equals("R");
-										}
-								})
+				lineitems.filter(lineitem -> lineitem.f3.equals("R"))
 				// compute revenue and project out return flag
-				.map(new MapFunction<Tuple4<Integer, Double, Double, String>, Tuple2<Integer, Double>>() {
-							@Override
-							public Tuple2<Integer, Double> map(Tuple4<Integer, Double, Double, String> l) {
-								// revenue per item = l_extendedprice * (1 - l_discount)
-								return new Tuple2<Integer, Double>(l.f0, l.f1 * (1 - l.f2));
-							}
-					});
+				// revenue per item = l_extendedprice * (1 - l_discount)
+				.map(lineitem -> new Tuple2<>(lineitem.f0, lineitem.f1 * (1 - lineitem.f2)))
+				.returns(Types.TUPLE(Types.INT, Types.DOUBLE)); // for lambda with generics
 
 		// join orders with lineitems: (custkey, revenue)
 		DataSet<Tuple2<Integer, Double>> revenueByCustomer =

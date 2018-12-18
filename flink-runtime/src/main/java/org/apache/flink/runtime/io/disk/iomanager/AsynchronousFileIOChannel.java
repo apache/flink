@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.disk.iomanager;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.util.event.NotificationListener;
+import org.apache.flink.util.FileUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -341,7 +342,7 @@ final class SegmentWriteRequest implements WriteRequest {
 	@Override
 	public void write() throws IOException {
 		try {
-			this.channel.fileChannel.write(this.segment.wrap(0, this.segment.size()));
+			FileUtils.writeCompletely(this.channel.fileChannel, this.segment.wrap(0, this.segment.size()));
 		}
 		catch (NullPointerException npex) {
 			throw new IOException("Memory segment has been released.");
@@ -367,14 +368,16 @@ final class BufferWriteRequest implements WriteRequest {
 
 	@Override
 	public void write() throws IOException {
+		ByteBuffer nioBufferReadable = buffer.getNioBufferReadable();
+
 		final ByteBuffer header = ByteBuffer.allocateDirect(8);
 
 		header.putInt(buffer.isBuffer() ? 1 : 0);
-		header.putInt(buffer.getSize());
+		header.putInt(nioBufferReadable.remaining());
 		header.flip();
 
-		channel.fileChannel.write(header);
-		channel.fileChannel.write(buffer.getNioBuffer());
+		FileUtils.writeCompletely(channel.fileChannel, header);
+		FileUtils.writeCompletely(channel.fileChannel, nioBufferReadable);
 	}
 
 	@Override
@@ -403,27 +406,8 @@ final class BufferReadRequest implements ReadRequest {
 		final FileChannel fileChannel = channel.fileChannel;
 
 		if (fileChannel.size() - fileChannel.position() > 0) {
-			final ByteBuffer header = ByteBuffer.allocateDirect(8);
-
-			fileChannel.read(header);
-			header.flip();
-
-			final boolean isBuffer = header.getInt() == 1;
-			final int size = header.getInt();
-
-			if (size > buffer.getMemorySegment().size()) {
-				throw new IllegalStateException("Buffer is too small for data: " + buffer.getMemorySegment().size() + " bytes available, but " + size + " needed. This is most likely due to an serialized event, which is larger than the buffer size.");
-			}
-
-			buffer.setSize(size);
-
-			fileChannel.read(buffer.getNioBuffer());
-
-			if (!isBuffer) {
-				buffer.tagAsEvent();
-			}
-
-			hasReachedEndOfFile.set(fileChannel.size() - fileChannel.position() == 0);
+			BufferFileChannelReader reader = new BufferFileChannelReader(fileChannel);
+			hasReachedEndOfFile.set(reader.readBufferFromFileChannel(buffer));
 		}
 		else {
 			hasReachedEndOfFile.set(true);

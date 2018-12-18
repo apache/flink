@@ -54,8 +54,6 @@ public class HashTablePerformanceComparison {
 	
 	private final TypePairComparator<IntPair, IntPair> pairComparator = new IntPairPairComparator();
 	
-	private IOManager ioManager = new IOManagerAsync();
-	
 	@Test
 	public void testCompactingHashMapPerformance() {
 		
@@ -132,6 +130,7 @@ public class HashTablePerformanceComparison {
 	
 	@Test
 	public void testMutableHashMapPerformance() {
+		final IOManager ioManager = new IOManagerAsync();
 		try {
 			final int NUM_MEM_PAGES = SIZE * NUM_PAIRS / PAGE_SIZE;
 			
@@ -207,6 +206,8 @@ public class HashTablePerformanceComparison {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail("Error: " + e.getMessage());
+		} finally {
+			ioManager.shutdown();
 		}
 	}
 

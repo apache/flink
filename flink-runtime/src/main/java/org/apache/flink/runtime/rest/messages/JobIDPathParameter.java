@@ -25,10 +25,10 @@ import org.apache.flink.api.common.JobID;
  */
 public class JobIDPathParameter extends MessagePathParameter<JobID> {
 
-	private static final String JOB_ID = "jobid";
+	public static final String KEY = "jobid";
 
 	public JobIDPathParameter() {
-		super(JOB_ID);
+		super(KEY);
 	}
 
 	@Override
@@ -39,5 +39,10 @@ public class JobIDPathParameter extends MessagePathParameter<JobID> {
 	@Override
 	protected String convertToString(JobID value) {
 		return value.toString();
+	}
+
+	@Override
+	public String getDescription() {
+		return "32-character hexadecimal string value that identifies a job.";
 	}
 }

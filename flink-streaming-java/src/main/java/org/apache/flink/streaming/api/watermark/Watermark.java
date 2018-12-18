@@ -22,7 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 
 /**
- * A Watermark tells operators that receive it that no elements with a timestamp older or equal
+ * A Watermark tells operators that no elements with a timestamp older or equal
  * to the watermark timestamp should arrive at the operator. Watermarks are emitted at the
  * sources and propagate through the operators of the topology. Operators must themselves emit
  * watermarks to downstream operators using

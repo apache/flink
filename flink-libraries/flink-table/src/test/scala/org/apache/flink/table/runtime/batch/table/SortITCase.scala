@@ -143,7 +143,7 @@ class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val t = ds.toTable(tEnv).orderBy('_1.asc).limit(3)
+    val t = ds.toTable(tEnv).orderBy('_1.asc).offset(3)
     implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) =>
       x.productElement(0).asInstanceOf[Int] )
 
@@ -171,7 +171,7 @@ class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val t = ds.toTable(tEnv).orderBy('_1.desc).limit(3, 5)
+    val t = ds.toTable(tEnv).orderBy('_1.desc).offset(3).fetch(5)
     implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) =>
       - x.productElement(0).asInstanceOf[Int] )
 
@@ -199,7 +199,7 @@ class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val t = ds.toTable(tEnv).orderBy('_1.asc).limit(0, 5)
+    val t = ds.toTable(tEnv).orderBy('_1.asc).fetch(5)
     implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) =>
       x.productElement(0).asInstanceOf[Int] )
 

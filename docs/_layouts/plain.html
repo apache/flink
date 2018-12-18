@@ -26,7 +26,7 @@ under the License.
 {% for i in (1..10) %}
   {% assign active_pages = active_pages | push: active %}
   {% if active.nav-parent_id %}
-    {% assign next = (site.pages | where: "nav-id" , active.nav-parent_id ) %}
+    {% assign next = site.pages | where: "nav-id" , active.nav-parent_id %}
     {% if next.size > 0 %}
       {% assign active = next[0] %}
     {% else %}
@@ -55,7 +55,7 @@ under the License.
 <h1>{{ page.title }}{% if page.is_beta %} <span class="beta">Beta</span>{% endif %}</h1>
 {% if site.show_outdated_warning %}
 <div class="alert alert-danger" role="alert">
-  <strong>This documentation is for an out-of-date version of Apache Flink. We recommend you use <a href="https://flink.apache.org/q/stable-docs.html">the latest stable version</a>.</strong>
+  <strong>This documentation is for an out-of-date version of Apache Flink. We recommend you use <a href="https://ci.apache.org/projects/flink/flink-docs-stable/">the latest stable version</a>.</strong>
 </div>
 {% endif %}
 

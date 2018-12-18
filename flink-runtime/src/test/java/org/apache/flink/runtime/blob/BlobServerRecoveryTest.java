@@ -39,12 +39,10 @@ import java.util.Random;
 
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEquals;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -105,8 +103,8 @@ public class BlobServerRecoveryTest extends TestLogger {
 			BlobServer server1 = new BlobServer(config, blobStore);
 			// use VoidBlobStore as the HA store to force download from server[1]'s HA store
 			BlobCacheService cache1 = new BlobCacheService(
-				new InetSocketAddress("localhost", server1.getPort()), config,
-				new VoidBlobStore())) {
+				config, new VoidBlobStore(), new InetSocketAddress("localhost", server1.getPort())
+			)) {
 
 			server0.start();
 			server1.start();
@@ -126,8 +124,7 @@ public class BlobServerRecoveryTest extends TestLogger {
 
 			// put non-HA data
 			nonHAKey = put(server0, jobId[0], expected2, TRANSIENT_BLOB);
-			assertNotEquals(keys[1], nonHAKey);
-			assertThat(keys[1].getHash(), equalTo(nonHAKey.getHash()));
+			verifyKeyDifferentHashEquals(keys[1], nonHAKey);
 
 			// check that the storage directory exists
 			final Path blobServerPath = new Path(storagePath, "blob");
@@ -142,8 +139,8 @@ public class BlobServerRecoveryTest extends TestLogger {
 			verifyDeleted(cache1, jobId[0], nonHAKey);
 
 			// Remove again
-			server1.cleanupJob(jobId[0]);
-			server1.cleanupJob(jobId[1]);
+			server1.cleanupJob(jobId[0], true);
+			server1.cleanupJob(jobId[1], true);
 
 			// Verify everything is clean
 			assertTrue("HA storage directory does not exist", fs.exists(new Path(storagePath)));

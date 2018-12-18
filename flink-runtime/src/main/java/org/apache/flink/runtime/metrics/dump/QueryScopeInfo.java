@@ -51,6 +51,14 @@ public abstract class QueryScopeInfo {
      */
 	public abstract byte getCategory();
 
+	@Override
+	public String toString() {
+		return "QueryScopeInfo{" +
+			"scope='" + scope + '\'' +
+			", category='" + getCategory() + '\'' +
+			'}';
+	}
+
 	protected String concatScopes(String additionalScope) {
 		return scope.isEmpty()
 			? additionalScope

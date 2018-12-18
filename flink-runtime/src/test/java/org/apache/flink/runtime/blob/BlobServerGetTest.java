@@ -42,7 +42,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.NoSuchFileException;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -58,6 +57,7 @@ import java.util.concurrent.Executors;
 import static org.apache.flink.runtime.blob.BlobClientTest.validateGetAndClose;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEquals;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobUtils.JOB_DIR_PREFIX;
 import static org.junit.Assert.assertArrayEquals;
@@ -141,18 +141,18 @@ public class BlobServerGetTest extends TestLogger {
 
 			// add the same data under a second jobId
 			BlobKey key2 = put(server, jobId2, data, blobType);
-			assertNotNull(key);
-			assertEquals(key, key2);
+			assertNotNull(key2);
+			verifyKeyDifferentHashEquals(key, key2);
 
 			// request for jobId2 should succeed
-			get(server, jobId2, key);
+			get(server, jobId2, key2);
 			// request for jobId1 should still fail
 			verifyDeleted(server, jobId1, key);
 
 			// same checks as for jobId1 but for jobId2 should also work:
-			blobFile = server.getStorageLocation(jobId2, key);
+			blobFile = server.getStorageLocation(jobId2, key2);
 			assertTrue(blobFile.delete());
-			verifyDeleted(server, jobId2, key);
+			verifyDeleted(server, jobId2, key2);
 		}
 	}
 
@@ -373,11 +373,6 @@ public class BlobServerGetTest extends TestLogger {
 
 		final byte[] data = {1, 2, 3, 4, 99, 42};
 
-		MessageDigest md = BlobUtils.createMessageDigest();
-
-		// create the correct blob key by hashing our input data
-		final BlobKey blobKey = BlobKey.createKey(blobType, md.digest(data));
-
 		doAnswer(
 			new Answer() {
 				@Override
@@ -398,7 +393,7 @@ public class BlobServerGetTest extends TestLogger {
 			server.start();
 
 			// upload data first
-			assertEquals(blobKey, put(server, jobId, data, blobType));
+			final BlobKey blobKey = put(server, jobId, data, blobType);
 
 			// now try accessing it concurrently (only HA mode will be able to retrieve it from HA store!)
 			if (blobType == PERMANENT_BLOB) {

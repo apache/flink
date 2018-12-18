@@ -427,7 +427,7 @@ public class DateTimeUtils {
 	}
 
 	public static int digitCount(int v) {
-		for (int n = 1;; n++) {
+		for (int n = 1; true; n++) {
 			v /= 10;
 			if (v == 0) {
 				return n;
@@ -960,7 +960,7 @@ public class DateTimeUtils {
 		// Start with an estimate.
 		// Since no month has more than 31 days, the estimate is <= the true value.
 		int m = (date0 - date1) / 31;
-		for (;;) {
+		while (true) {
 			int date2 = addMonths(date1, m);
 			if (date2 >= date0) {
 				return m;

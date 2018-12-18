@@ -18,11 +18,18 @@
 
 package org.apache.flink.runtime.io.disk.iomanager;
 
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.util.TestNotificationListener;
+
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
 import java.util.concurrent.Callable;
@@ -37,13 +44,23 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
+/**
+ * Tests for {@link AsynchronousBufferFileWriter}.
+ */
 public class AsynchronousBufferFileWriterTest {
+	@Rule
+	public ExpectedException exception = ExpectedException.none();
 
 	private static final IOManager ioManager = new IOManagerAsync();
 
 	private static final Buffer mockBuffer = mock(Buffer.class);
 
 	private AsynchronousBufferFileWriter writer;
+
+	@AfterClass
+	public static void shutdown() {
+		ioManager.shutdown();
+	}
 
 	@Before
 	public void setUp() throws IOException {
@@ -57,6 +74,27 @@ public class AsynchronousBufferFileWriterTest {
 
 		handleRequest();
 		assertEquals("Didn't decrement number of outstanding requests.", 0, writer.getNumberOfOutstandingRequests());
+	}
+
+	@Test
+	public void testAddWithFailingWriter() throws Exception {
+		AsynchronousBufferFileWriter writer =
+			new AsynchronousBufferFileWriter(ioManager.createChannel(), new RequestQueue<>());
+		writer.close();
+
+		exception.expect(IOException.class);
+
+		Buffer buffer = new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(4096),
+			FreeingBufferRecycler.INSTANCE);
+		try {
+			writer.writeBlock(buffer);
+		} finally {
+			if (!buffer.isRecycled()) {
+				buffer.recycleBuffer();
+				Assert.fail("buffer not recycled");
+			}
+			assertEquals("Shouln't increment number of outstanding requests.", 0, writer.getNumberOfOutstandingRequests());
+		}
 	}
 
 	@Test

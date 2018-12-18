@@ -120,7 +120,7 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	 */
 	public O setParallelism(int parallelism) {
 		Preconditions.checkArgument(parallelism > 0 || parallelism == ExecutionConfig.PARALLELISM_DEFAULT,
-			"The parallelism of an operator must be at least 1.");
+				"The parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT (use system default).");
 
 		this.parallelism = parallelism;
 

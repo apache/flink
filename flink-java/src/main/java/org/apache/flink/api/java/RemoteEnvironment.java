@@ -26,6 +26,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.ShutdownHookUtil;
 
 import java.io.File;
 import java.net.MalformedURLException;
@@ -224,19 +225,8 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	// ------------------------------------------------------------------------
 
 	protected void dispose() {
-		// Remove shutdown hook to prevent resource leaks, unless this is invoked by the
-		// shutdown hook itself
-		if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
-			try {
-				Runtime.getRuntime().removeShutdownHook(shutdownHook);
-			}
-			catch (IllegalStateException e) {
-				// race, JVM is in shutdown already, we can safely ignore this
-			}
-			catch (Throwable t) {
-				LOG.warn("Exception while unregistering the cleanup shutdown hook.");
-			}
-		}
+		// Remove shutdown hook to prevent resource leaks
+		ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
 
 		try {
 			PlanExecutor executor = this.executor;
@@ -262,29 +252,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 
 	private void installShutdownHook() {
 		if (shutdownHook == null) {
-			Thread shutdownHook = new Thread(new Runnable() {
-				@Override
-				public void run() {
-					try {
-						dispose();
-					}
-					catch (Throwable t) {
-						LOG.error("Error in cleanup of RemoteEnvironment during JVM shutdown: " + t.getMessage(), t);
-					}
-				}
-			});
-
-			try {
-				// Add JVM shutdown hook to call shutdown of service
-				Runtime.getRuntime().addShutdownHook(shutdownHook);
-				this.shutdownHook = shutdownHook;
-			}
-			catch (IllegalStateException e) {
-				// JVM is already shutting down. no need or a shutdown hook
-			}
-			catch (Throwable t) {
-				LOG.error("Cannot register shutdown hook that cleanly terminates the BLOB service.");
-			}
+			this.shutdownHook = ShutdownHookUtil.addShutdownHook(this::dispose, getClass().getSimpleName(), LOG);
 		}
 	}
 }

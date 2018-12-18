@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -42,6 +43,7 @@ import java.util.Properties;
  *
  * @param <T> The type of elements produced by the fetcher.
  */
+@Internal
 public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 
 	public Kafka010Fetcher(
@@ -53,10 +55,11 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 			long autoWatermarkInterval,
 			ClassLoader userCodeClassLoader,
 			String taskNameWithSubtasks,
-			MetricGroup metricGroup,
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long pollTimeout,
+			MetricGroup subtaskMetricGroup,
+			MetricGroup consumerMetricGroup,
 			boolean useMetrics) throws Exception {
 		super(
 				sourceContext,
@@ -67,10 +70,11 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 				autoWatermarkInterval,
 				userCodeClassLoader,
 				taskNameWithSubtasks,
-				metricGroup,
 				deserializer,
 				kafkaProperties,
 				pollTimeout,
+				subtaskMetricGroup,
+				consumerMetricGroup,
 				useMetrics);
 	}
 

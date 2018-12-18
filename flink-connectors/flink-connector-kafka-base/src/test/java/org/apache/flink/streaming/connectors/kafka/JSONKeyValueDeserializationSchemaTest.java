@@ -19,8 +19,9 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.streaming.util.serialization.JSONKeyValueDeserializationSchema;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -47,6 +48,40 @@ public class JSONKeyValueDeserializationSchemaTest {
 		Assert.assertTrue(deserializedValue.get("metadata") == null);
 		Assert.assertEquals(4, deserializedValue.get("key").get("index").asInt());
 		Assert.assertEquals("world", deserializedValue.get("value").get("word").asText());
+	}
+
+	@Test
+	public void testDeserializeWithoutKey() throws IOException {
+		ObjectMapper mapper = new ObjectMapper();
+		byte[] serializedKey = null;
+
+		ObjectNode initialValue = mapper.createObjectNode();
+		initialValue.put("word", "world");
+		byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
+
+		JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(false);
+		ObjectNode deserializedValue = schema.deserialize(serializedKey, serializedValue, "", 0, 0);
+
+		Assert.assertTrue(deserializedValue.get("metadata") == null);
+		Assert.assertTrue(deserializedValue.get("key") == null);
+		Assert.assertEquals("world", deserializedValue.get("value").get("word").asText());
+	}
+
+	@Test
+	public void testDeserializeWithoutValue() throws IOException {
+		ObjectMapper mapper = new ObjectMapper();
+		ObjectNode initialKey = mapper.createObjectNode();
+		initialKey.put("index", 4);
+		byte[] serializedKey = mapper.writeValueAsBytes(initialKey);
+
+		byte[] serializedValue = null;
+
+		JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(false);
+		ObjectNode deserializedValue = schema.deserialize(serializedKey, serializedValue, "", 0, 0);
+
+		Assert.assertTrue(deserializedValue.get("metadata") == null);
+		Assert.assertEquals(4, deserializedValue.get("key").get("index").asInt());
+		Assert.assertTrue(deserializedValue.get("value") == null);
 	}
 
 	@Test

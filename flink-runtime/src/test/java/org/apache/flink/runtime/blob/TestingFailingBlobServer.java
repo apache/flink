@@ -78,7 +78,7 @@ public class TestingFailingBlobServer extends BlobServer {
 				if (socket != null) {
 					try {
 						socket.close();
-					} catch(Throwable ignored) {}
+					} catch (Throwable ignored) {}
 				}
 			}
 		}

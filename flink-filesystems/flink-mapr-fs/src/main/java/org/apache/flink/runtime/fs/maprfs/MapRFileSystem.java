@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.fs.maprfs;
 
+import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 
 import org.slf4j.Logger;
@@ -171,5 +172,10 @@ public class MapRFileSystem extends HadoopFileSystem {
 
 		throw new IOException(String.format(
 				"Unable to find CLDB locations for cluster %s", authority));
+	}
+
+	@Override
+	public FileSystemKind getKind() {
+		return FileSystemKind.FILE_SYSTEM;
 	}
 }

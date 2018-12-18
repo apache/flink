@@ -115,11 +115,11 @@ public class TriggerTestHarness<T, W extends Window> {
 	}
 
 	public int numStateEntries() {
-		return stateBackend.numStateEntries();
+		return stateBackend.numKeyValueStateEntries();
 	}
 
 	public int numStateEntries(W window) {
-		return stateBackend.numStateEntries(window);
+		return stateBackend.numKeyValueStateEntries(window);
 	}
 
 	/**
@@ -379,7 +379,7 @@ public class TriggerTestHarness<T, W extends Window> {
 
 				if (rawState instanceof InternalMergingState) {
 					@SuppressWarnings("unchecked")
-					InternalMergingState<W, ?, ?> mergingState = (InternalMergingState<W, ?, ?>) rawState;
+					InternalMergingState<K, W, ?, ?, ?> mergingState = (InternalMergingState<K, W, ?, ?, ?>) rawState;
 					mergingState.mergeNamespaces(window, mergedWindows);
 				}
 				else {

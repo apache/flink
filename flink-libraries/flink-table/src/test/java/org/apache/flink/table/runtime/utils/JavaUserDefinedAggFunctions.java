@@ -25,6 +25,7 @@ import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.functions.AggregateFunction;
 
 import java.util.Iterator;
+import java.util.Map;
 
 /**
  * Test aggregator functions.
@@ -86,6 +87,13 @@ public class JavaUserDefinedAggFunctions {
 		}
 
 		// overloaded accumulate method
+		// dummy to test constants
+		public void accumulate(WeightedAvgAccum accumulator, long iValue, int iWeight, int x, String string) {
+			accumulator.sum += (iValue + Integer.parseInt(string)) * iWeight;
+			accumulator.count += iWeight;
+		}
+
+		// overloaded accumulate method
 		public void accumulate(WeightedAvgAccum accumulator, long iValue, int iWeight) {
 			accumulator.sum += iValue * iWeight;
 			accumulator.count += iWeight;
@@ -109,6 +117,11 @@ public class JavaUserDefinedAggFunctions {
 				acc.count += a.count;
 				acc.sum += a.sum;
 			}
+		}
+
+		@Override
+		public String toString() {
+			return "myWeightedAvg";
 		}
 	}
 
@@ -211,10 +224,12 @@ public class JavaUserDefinedAggFunctions {
 				acc.count += mergeAcc.count;
 
 				try {
-					Iterator<String> itrMap = mergeAcc.map.keys().iterator();
+					Iterator itrMap = mergeAcc.map.iterator();
 					while (itrMap.hasNext()) {
-						String key = itrMap.next();
-						Integer cnt = mergeAcc.map.get(key);
+						Map.Entry<String, Integer> entry =
+								(Map.Entry<String, Integer>) itrMap.next();
+						String key = entry.getKey();
+						Integer cnt = entry.getValue();
 						if (acc.map.contains(key)) {
 							acc.map.put(key, acc.map.get(key) + cnt);
 						} else {

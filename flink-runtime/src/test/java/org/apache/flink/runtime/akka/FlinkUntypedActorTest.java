@@ -21,11 +21,13 @@ package org.apache.flink.runtime.akka;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Kill;
 import akka.actor.Props;
+import akka.actor.RobustActorSystem;
 import akka.testkit.JavaTestKit;
 import akka.testkit.TestActorRef;
 import org.junit.AfterClass;
@@ -40,13 +42,13 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link FlinkUntypedActor}.
  */
-public class FlinkUntypedActorTest {
+public class FlinkUntypedActorTest extends TestLogger {
 
 	private static ActorSystem actorSystem;
 
 	@BeforeClass
 	public static void setup() {
-		actorSystem = ActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
+		actorSystem = RobustActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
 	}
 
 	@AfterClass

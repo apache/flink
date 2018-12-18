@@ -20,13 +20,13 @@ package org.apache.flink.streaming.api.scala.async
 
 import org.apache.flink.annotation.Internal
 import org.apache.flink.streaming.api.functions.async
-import org.apache.flink.streaming.api.functions.async.ResultFuture
 
 import scala.collection.JavaConverters._
 
 /**
-  * Internal wrapper class to map a Flink's Java API [[ResultFuture]] to a Scala
-  * [[ResultFuture]].
+  * Internal wrapper class to map a Flink's Java API
+  * [[org.apache.flink.streaming.api.functions.async.ResultFuture]] to a Scala
+  * [[org.apache.flink.streaming.api.scala.async.ResultFuture]].
   *
   * @param javaResultFuture to forward the calls to
   * @tparam OUT type of the output elements

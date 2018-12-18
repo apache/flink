@@ -21,8 +21,8 @@ package org.apache.flink.runtime.operators;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.distributions.DataDistribution;
-import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -79,7 +79,7 @@ import java.util.Map;
 public class BatchTask<S extends Function, OT> extends AbstractInvokable implements TaskContext<S, OT> {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(BatchTask.class);
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -131,7 +131,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	protected int[] iterativeInputs;
 	
 	/**
-	 * The indices of the iterative broadcast inputs. Empty, if non of the inputs is iteratve. 
+	 * The indices of the iterative broadcast inputs. Empty, if non of the inputs is iterative.
 	 */
 	protected int[] iterativeBroadcastInputs;
 	
@@ -184,13 +184,13 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 	/**
 	 * Certain inputs may be excluded from resetting. For example, the initial partial solution
-	 * in an iteration head must not be reseted (it is read through the back channel), when all
-	 * others are reseted.
+	 * in an iteration head must not be reset (it is read through the back channel), when all
+	 * others are reset.
 	 */
 	private boolean[] excludeFromReset;
 
 	/**
-	 * Flag indicating for each input whether it is cached and can be reseted.
+	 * Flag indicating for each input whether it is cached and can be reset.
 	 */
 	private boolean[] inputIsCached;
 
@@ -214,6 +214,19 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	 */
 	protected Map<String, Accumulator<?,?>> accumulatorMap;
 	private OperatorMetricGroup metrics;
+
+	// --------------------------------------------------------------------------------------------
+	//                                  Constructor
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Create an Invokable task and set its environment.
+	 *
+	 * @param environment The environment assigned to this invokable.
+	 */
+	public BatchTask(Environment environment) {
+		super(environment);
+	}
 
 	// --------------------------------------------------------------------------------------------
 	//                                  Task Interface
@@ -241,7 +254,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 		String headName =  getEnvironment().getTaskInfo().getTaskName().split("->")[0].trim();
 		this.metrics = getEnvironment().getMetricGroup()
-			.addOperator(headName.startsWith("CHAIN") ? headName.substring(6) : headName);
+			.getOrAddOperator(headName.startsWith("CHAIN") ? headName.substring(6) : headName);
 		this.metrics.getIOMetricGroup().reuseInputMetricsForTask();
 		if (config.getNumberOfChainedStubs() == 0) {
 			this.metrics.getIOMetricGroup().reuseOutputMetricsForTask();

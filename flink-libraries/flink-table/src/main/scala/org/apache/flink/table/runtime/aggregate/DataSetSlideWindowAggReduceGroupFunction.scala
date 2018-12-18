@@ -36,6 +36,8 @@ import org.apache.flink.util.Collector
   * @param keysAndAggregatesArity The total arity of keys and aggregates
   * @param finalRowWindowStartPos relative window-start position to last field of output row
   * @param finalRowWindowEndPos relative window-end position to last field of output row
+  * @param finalRowWindowRowtimePos relative window-rowtime position to the last field of the
+  *                                 output row
   * @param windowSize size of the window, used to determine window-end for output row
   */
 class DataSetSlideWindowAggReduceGroupFunction(
@@ -43,12 +45,13 @@ class DataSetSlideWindowAggReduceGroupFunction(
     keysAndAggregatesArity: Int,
     finalRowWindowStartPos: Option[Int],
     finalRowWindowEndPos: Option[Int],
+    finalRowWindowRowtimePos: Option[Int],
     windowSize: Long)
   extends RichGroupReduceFunction[Row, Row]
     with Compiler[GeneratedAggregations]
     with Logging {
 
-  private var collector: RowTimeWindowPropertyCollector = _
+  private var collector: DataSetTimeWindowPropertyCollector = _
   protected val windowStartPos: Int = keysAndAggregatesArity
 
   private var output: Row = _
@@ -60,7 +63,7 @@ class DataSetSlideWindowAggReduceGroupFunction(
     LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
                 s"Code:\n$genAggregations.code")
     val clazz = compile(
-      getClass.getClassLoader,
+      getRuntimeContext.getUserCodeClassLoader,
       genAggregations.name,
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
@@ -68,10 +71,10 @@ class DataSetSlideWindowAggReduceGroupFunction(
 
     output = function.createOutputRow()
     accumulators = function.createAccumulators()
-    collector = new RowTimeWindowPropertyCollector(
+    collector = new DataSetTimeWindowPropertyCollector(
       finalRowWindowStartPos,
       finalRowWindowEndPos,
-      None)
+      finalRowWindowRowtimePos)
   }
 
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
@@ -93,7 +96,10 @@ class DataSetSlideWindowAggReduceGroupFunction(
     function.setAggregationResults(accumulators, output)
 
     // adds TimeWindow properties to output then emit output
-    if (finalRowWindowStartPos.isDefined || finalRowWindowEndPos.isDefined) {
+    if (finalRowWindowStartPos.isDefined ||
+        finalRowWindowEndPos.isDefined ||
+        finalRowWindowRowtimePos.isDefined) {
+
       collector.wrappedCollector = out
       collector.windowStart = record.getField(windowStartPos).asInstanceOf[Long]
       collector.windowEnd = collector.windowStart + windowSize

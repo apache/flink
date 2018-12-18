@@ -20,11 +20,80 @@ package org.apache.flink.table.api.stream.table.stringexpr
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
+import org.apache.flink.table.api.java.{Tumble => JTumble}
+import org.apache.flink.table.functions.aggfunctions.CountAggFunction
+import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMergeAndReset}
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
 
 class AggregateStringExpressionTest extends TableTestBase {
+
+
+  @Test
+  def testDistinctNonGroupedAggregate(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3")
+
+    val t1 = t.select('_1.sum.distinct, '_1.count.distinct, '_1.avg.distinct)
+    val t2 = t.select("_1.sum.distinct, _1.count.distinct, _1.avg.distinct")
+    val t3 = t.select("sum.distinct(_1), count.distinct(_1), avg.distinct(_1)")
+
+    verifyTableEquals(t1, t2)
+    verifyTableEquals(t1, t3)
+  }
+
+  @Test
+  def testDistinctGroupedAggregate(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+
+    val t1 = t.groupBy('b).select('b, 'a.sum.distinct, 'a.sum)
+    val t2 = t.groupBy("b").select("b, a.sum.distinct, a.sum")
+    val t3 = t.groupBy("b").select("b, sum.distinct(a), sum(a)")
+
+    verifyTableEquals(t1, t2)
+    verifyTableEquals(t1, t3)
+  }
+
+  @Test
+  def testDistinctNonGroupAggregateWithUDAGG(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+
+    val myCnt = new CountAggFunction
+    util.tableEnv.registerFunction("myCnt", myCnt)
+    val myWeightedAvg = new WeightedAvgWithMergeAndReset
+    util.tableEnv.registerFunction("myWeightedAvg", myWeightedAvg)
+
+    val t1 = t.select(myCnt.distinct('a) as 'aCnt, myWeightedAvg.distinct('b, 'a) as 'wAvg)
+    val t2 = t.select("myCnt.distinct(a) as aCnt, myWeightedAvg.distinct(b, a) as wAvg")
+
+    verifyTableEquals(t1, t2)
+  }
+
+  @Test
+  def testDistinctGroupedAggregateWithUDAGG(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+
+
+    val myCnt = new CountAggFunction
+    util.tableEnv.registerFunction("myCnt", myCnt)
+    val myWeightedAvg = new WeightedAvgWithMergeAndReset
+    util.tableEnv.registerFunction("myWeightedAvg", myWeightedAvg)
+
+    val t1 = t.groupBy('b)
+      .select('b,
+        myCnt.distinct('a) + 9 as 'aCnt,
+        myWeightedAvg.distinct('b, 'a) * 2 as 'wAvg,
+        myWeightedAvg.distinct('a, 'a) as 'distAgg,
+        myWeightedAvg('a, 'a) as 'agg)
+    val t2 = t.groupBy("b")
+      .select("b, myCnt.distinct(a) + 9 as aCnt, myWeightedAvg.distinct(b, a) * 2 as wAvg, " +
+        "myWeightedAvg.distinct(a, a) as distAgg, myWeightedAvg(a, a) as agg")
+
+    verifyTableEquals(t1, t2)
+  }
 
   @Test
   def testGroupedAggregate(): Unit = {
@@ -60,4 +129,50 @@ class AggregateStringExpressionTest extends TableTestBase {
 
     verifyTableEquals(resJava, resScala)
   }
+
+  @Test
+  def testProctimeRename(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]('int, 'long, 'string, 'p.proctime as 'proctime)
+
+    // Expression / Scala API
+    val resScala = t
+      .window(Tumble over 50.milli on 'proctime as 'w1)
+      .groupBy('w1, 'string)
+      .select('w1.proctime as 'proctime, 'w1.start as 'start, 'w1.end as 'end, 'string, 'int.count)
+
+    // String / Java API
+    val resJava = t
+      .window(JTumble.over("50.milli").on("proctime").as("w1"))
+      .groupBy("w1, string")
+      .select("w1.proctime as proctime, w1.start as start, w1.end as end, string, int.count")
+
+    verifyTableEquals(resJava, resScala)
+  }
+
+  @Test
+  def testRowtimeRename(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[TestPojo]('int, 'long.rowtime as 'rowtime, 'string)
+
+    // Expression / Scala API
+    val resScala = t
+      .window(Tumble over 50.milli on 'rowtime as 'w1)
+      .groupBy('w1, 'string)
+      .select('w1.rowtime as 'rowtime, 'string, 'int.count)
+
+    // String / Java API
+    val resJava = t
+      .window(JTumble.over("50.milli").on("rowtime").as("w1"))
+      .groupBy("w1, string")
+      .select("w1.rowtime as rowtime, string, int.count")
+
+    verifyTableEquals(resJava, resScala)
+  }
+}
+
+class TestPojo() {
+  var int: Int = _
+  var long: Long = _
+  var string: String = _
 }

@@ -23,7 +23,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.util.ClassLoaderUtil;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -202,6 +202,10 @@ public class StreamConfig implements Serializable {
 		return config.getLong(BUFFER_TIMEOUT, DEFAULT_TIMEOUT);
 	}
 
+	public boolean isFlushAlwaysEnabled() {
+		return getBufferTimeout() == 0;
+	}
+
 	public void setStreamOperator(StreamOperator<?> operator) {
 		if (operator != null) {
 			config.setClass(USER_FUNCTION, operator.getClass());
@@ -229,7 +233,7 @@ public class StreamConfig implements Serializable {
 							"\nClass was actually found in classloader - deserialization issue." :
 							"\nClass not resolvable through given classloader.");
 
-			throw new StreamTaskException(exceptionMessage);
+			throw new StreamTaskException(exceptionMessage, e);
 		}
 		catch (Exception e) {
 			throw new StreamTaskException("Cannot instantiate user function.", e);
@@ -413,6 +417,13 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
+	public Map<Integer, StreamConfig> getTransitiveChainedTaskConfigsWithSelf(ClassLoader cl) {
+		//TODO: could this logic be moved to the user of #setTransitiveChainedTaskConfigs() ?
+		Map<Integer, StreamConfig> chainedTaskConfigs = getTransitiveChainedTaskConfigs(cl);
+		chainedTaskConfigs.put(getVertexID(), this);
+		return chainedTaskConfigs;
+	}
+
 	public void setOperatorID(OperatorID operatorID) {
 		this.config.setBytes(OPERATOR_ID, operatorID.getBytes());
 	}
@@ -442,7 +453,7 @@ public class StreamConfig implements Serializable {
 	//  State backend
 	// ------------------------------------------------------------------------
 
-	public void setStateBackend(AbstractStateBackend backend) {
+	public void setStateBackend(StateBackend backend) {
 		if (backend != null) {
 			try {
 				InstantiationUtil.writeObjectToConfig(backend, this.config, STATE_BACKEND);
@@ -452,7 +463,7 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public AbstractStateBackend getStateBackend(ClassLoader cl) {
+	public StateBackend getStateBackend(ClassLoader cl) {
 		try {
 			return InstantiationUtil.readObjectFromConfig(this.config, STATE_BACKEND, cl);
 		} catch (Exception e) {
@@ -499,7 +510,7 @@ public class StreamConfig implements Serializable {
 
 
 	// ------------------------------------------------------------------------
-	//  Miscellansous
+	//  Miscellaneous
 	// ------------------------------------------------------------------------
 
 	public void setChainStart() {

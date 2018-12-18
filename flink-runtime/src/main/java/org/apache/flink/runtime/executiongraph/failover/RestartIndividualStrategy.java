@@ -106,7 +106,7 @@ public class RestartIndividualStrategy extends FailoverStrategy {
 		// Note: currently all tasks passed here are already in their terminal state,
 		//       so we could actually avoid the future. We use it anyways because it is cheap and
 		//       it helps to support better testing
-		final CompletableFuture<ExecutionState> terminationFuture = taskExecution.getTerminationFuture();
+		final CompletableFuture<ExecutionState> terminationFuture = taskExecution.getTerminalStateFuture();
 
 		final ExecutionVertex vertexToRecover = taskExecution.getVertex(); 
 		final long globalModVersion = taskExecution.getGlobalModVersion();

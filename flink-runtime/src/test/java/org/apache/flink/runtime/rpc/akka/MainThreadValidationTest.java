@@ -28,6 +28,8 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
+import java.util.concurrent.CompletableFuture;
+
 import static org.junit.Assert.assertTrue;
 
 public class MainThreadValidationTest extends TestLogger {
@@ -67,7 +69,7 @@ public class MainThreadValidationTest extends TestLogger {
 			testEndpoint.shutDown();
 		}
 		finally {
-			akkaRpcService.stopService();
+			akkaRpcService.stopService().get();
 		}
 	}
 
@@ -85,6 +87,11 @@ public class MainThreadValidationTest extends TestLogger {
 
 		public TestEndpoint(RpcService rpcService) {
 			super(rpcService);
+		}
+
+		@Override
+		public CompletableFuture<Void> postStop() {
+			return CompletableFuture.completedFuture(null);
 		}
 
 		@Override

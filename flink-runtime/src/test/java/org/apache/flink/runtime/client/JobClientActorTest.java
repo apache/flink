@@ -31,7 +31,7 @@ import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobClientMessages.AttachToJobAndWait;
@@ -85,13 +85,13 @@ public class JobClientActorTest extends TestLogger {
 				PlainActor.class,
 				leaderSessionID));
 
-		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(
+		SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService(
 			jobManager.path().toString(),
 			leaderSessionID
 		);
 
 		Props jobClientActorProps = JobSubmissionClientActor.createActorProps(
-			testingLeaderRetrievalService,
+			settableLeaderRetrievalService,
 			jobClientActorTimeout,
 			false,
 			clientConfig);
@@ -124,13 +124,13 @@ public class JobClientActorTest extends TestLogger {
 				PlainActor.class,
 				leaderSessionID));
 
-		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(
+		SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService(
 			jobManager.path().toString(),
 			leaderSessionID
 		);
 
 		Props jobClientActorProps = JobAttachmentClientActor.createActorProps(
-			testingLeaderRetrievalService,
+			settableLeaderRetrievalService,
 			jobClientActorTimeout,
 			false);
 
@@ -154,12 +154,12 @@ public class JobClientActorTest extends TestLogger {
 		FiniteDuration jobClientActorTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
 		FiniteDuration timeout = jobClientActorTimeout.$times(2);
 
-		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(
+		SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService(
 			"localhost",
 			HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 		Props jobClientActorProps = JobSubmissionClientActor.createActorProps(
-			testingLeaderRetrievalService,
+			settableLeaderRetrievalService,
 			jobClientActorTimeout,
 			false,
 			clientConfig);
@@ -183,12 +183,12 @@ public class JobClientActorTest extends TestLogger {
 		FiniteDuration jobClientActorTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
 		FiniteDuration timeout = jobClientActorTimeout.$times(2);
 
-		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(
+		SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService(
 			"localhost",
 			HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 		Props jobClientActorProps = JobAttachmentClientActor.createActorProps(
-			testingLeaderRetrievalService,
+			settableLeaderRetrievalService,
 			jobClientActorTimeout,
 			false);
 
@@ -219,13 +219,13 @@ public class JobClientActorTest extends TestLogger {
 				JobAcceptingActor.class,
 				leaderSessionID));
 
-		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(
+		SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService(
 			jobManager.path().toString(),
 			leaderSessionID
 		);
 
 		Props jobClientActorProps = JobSubmissionClientActor.createActorProps(
-			testingLeaderRetrievalService,
+			settableLeaderRetrievalService,
 			jobClientActorTimeout,
 			false,
 			clientConfig);
@@ -261,13 +261,13 @@ public class JobClientActorTest extends TestLogger {
 				JobAcceptingActor.class,
 				leaderSessionID));
 
-		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(
+		SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService(
 			jobManager.path().toString(),
 			leaderSessionID
 		);
 
 		Props jobClientActorProps = JobAttachmentClientActor.createActorProps(
-			testingLeaderRetrievalService,
+			settableLeaderRetrievalService,
 			jobClientActorTimeout,
 			false);
 
@@ -302,13 +302,13 @@ public class JobClientActorTest extends TestLogger {
 				JobAcceptingActor.class,
 				leaderSessionID));
 
-		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(
+		SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService(
 			jobManager.path().toString(),
 			leaderSessionID
 		);
 
 		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
-		highAvailabilityServices.setJobMasterLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID, testingLeaderRetrievalService);
+		highAvailabilityServices.setJobMasterLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID, settableLeaderRetrievalService);
 
 		JobListeningContext jobListeningContext =
 			JobClient.submitJob(

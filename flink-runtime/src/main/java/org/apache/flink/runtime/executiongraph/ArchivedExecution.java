@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
@@ -40,6 +41,8 @@ public class ArchivedExecution implements AccessExecution, Serializable {
 
 	private final TaskManagerLocation assignedResourceLocation; // for the archived execution
 
+	private final AllocationID assignedAllocationID;
+
 	/* Continuously updated map of user-defined accumulators */
 	private final StringifiedAccumulatorResult[] userAccumulators;
 
@@ -48,21 +51,24 @@ public class ArchivedExecution implements AccessExecution, Serializable {
 	private final IOMetrics ioMetrics;
 
 	public ArchivedExecution(Execution execution) {
-		this.userAccumulators = execution.getUserAccumulatorsStringified();
-		this.attemptId = execution.getAttemptId();
-		this.attemptNumber = execution.getAttemptNumber();
-		this.stateTimestamps = execution.getStateTimestamps();
-		this.parallelSubtaskIndex = execution.getVertex().getParallelSubtaskIndex();
-		this.state = execution.getState();
-		this.failureCause = ExceptionUtils.stringifyException(execution.getFailureCause());
-		this.assignedResourceLocation = execution.getAssignedResourceLocation();
-		this.ioMetrics = execution.getIOMetrics();
+		this(
+			execution.getUserAccumulatorsStringified(),
+			execution.getIOMetrics(),
+			execution.getAttemptId(),
+			execution.getAttemptNumber(),
+			execution.getState(),
+			ExceptionUtils.stringifyException(execution.getFailureCause()),
+			execution.getAssignedResourceLocation(),
+			execution.getAssignedAllocationID(),
+			execution.getVertex().getParallelSubtaskIndex(),
+			execution.getStateTimestamps());
 	}
 
 	public ArchivedExecution(
 			StringifiedAccumulatorResult[] userAccumulators, IOMetrics ioMetrics,
 			ExecutionAttemptID attemptId, int attemptNumber, ExecutionState state, String failureCause,
-			TaskManagerLocation assignedResourceLocation, int parallelSubtaskIndex, long[] stateTimestamps) {
+			TaskManagerLocation assignedResourceLocation, AllocationID assignedAllocationID,  int parallelSubtaskIndex,
+			long[] stateTimestamps) {
 		this.userAccumulators = userAccumulators;
 		this.ioMetrics = ioMetrics;
 		this.failureCause = failureCause;
@@ -72,6 +78,7 @@ public class ArchivedExecution implements AccessExecution, Serializable {
 		this.state = state;
 		this.stateTimestamps = stateTimestamps;
 		this.parallelSubtaskIndex = parallelSubtaskIndex;
+		this.assignedAllocationID = assignedAllocationID;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -101,6 +108,10 @@ public class ArchivedExecution implements AccessExecution, Serializable {
 	@Override
 	public TaskManagerLocation getAssignedResourceLocation() {
 		return assignedResourceLocation;
+	}
+
+	public AllocationID getAssignedAllocationID() {
+		return assignedAllocationID;
 	}
 
 	@Override

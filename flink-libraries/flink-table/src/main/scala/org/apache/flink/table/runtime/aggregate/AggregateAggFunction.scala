@@ -42,11 +42,12 @@ class AggregateAggFunction(genAggregations: GeneratedAggregationsFunction)
     function.createAccumulators()
   }
 
-  override def add(value: CRow, accumulatorRow: Row): Unit = {
+  override def add(value: CRow, accumulatorRow: Row): Row = {
     if (function == null) {
       initFunction()
     }
     function.accumulate(accumulatorRow, value.row)
+    accumulatorRow
   }
 
   override def getResult(accumulatorRow: Row): Row = {
@@ -69,7 +70,7 @@ class AggregateAggFunction(genAggregations: GeneratedAggregationsFunction)
     LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
                 s"Code:\n$genAggregations.code")
     val clazz = compile(
-      getClass.getClassLoader,
+      Thread.currentThread().getContextClassLoader,
       genAggregations.name,
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")

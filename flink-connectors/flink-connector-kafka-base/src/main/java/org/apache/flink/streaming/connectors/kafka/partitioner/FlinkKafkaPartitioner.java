@@ -17,12 +17,15 @@
 
 package org.apache.flink.streaming.connectors.kafka.partitioner;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.Serializable;
 
 /**
  * A {@link FlinkKafkaPartitioner} wraps logic on how to partition records
  * across partitions of multiple Kafka topics.
  */
+@PublicEvolving
 public abstract class FlinkKafkaPartitioner<T> implements Serializable {
 
 	private static final long serialVersionUID = -9086719227828020494L;

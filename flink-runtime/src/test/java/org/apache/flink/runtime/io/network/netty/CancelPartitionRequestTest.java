@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.netty.NettyTestUtil.NettyServerAndCli
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
@@ -35,6 +36,8 @@ import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
@@ -84,20 +87,20 @@ public class CancelPartitionRequestTest {
 					@Override
 					public ResultSubpartitionView answer(InvocationOnMock invocationOnMock) throws Throwable {
 						BufferAvailabilityListener listener = (BufferAvailabilityListener) invocationOnMock.getArguments()[2];
-						listener.notifyBuffersAvailable(Long.MAX_VALUE);
+						listener.notifyDataAvailable();
 						return view;
 					}
 				});
 
-			PartitionRequestProtocol protocol = new PartitionRequestProtocol(
-					partitions, mock(TaskEventDispatcher.class));
+			NettyProtocol protocol = new NettyProtocol(
+					partitions, mock(TaskEventDispatcher.class), true);
 
 			serverAndClient = initServerAndClient(protocol);
 
 			Channel ch = connect(serverAndClient);
 
 			// Request for non-existing input channel => results in cancel request
-			ch.writeAndFlush(new PartitionRequest(pid, 0, new InputChannelID())).await();
+			ch.writeAndFlush(new PartitionRequest(pid, 0, new InputChannelID(), Integer.MAX_VALUE)).await();
 
 			// Wait for the notification
 			if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
@@ -135,13 +138,13 @@ public class CancelPartitionRequestTest {
 						@Override
 						public ResultSubpartitionView answer(InvocationOnMock invocationOnMock) throws Throwable {
 							BufferAvailabilityListener listener = (BufferAvailabilityListener) invocationOnMock.getArguments()[2];
-							listener.notifyBuffersAvailable(Long.MAX_VALUE);
+							listener.notifyDataAvailable();
 							return view;
 						}
 					});
 
-			PartitionRequestProtocol protocol = new PartitionRequestProtocol(
-					partitions, mock(TaskEventDispatcher.class));
+			NettyProtocol protocol = new NettyProtocol(
+					partitions, mock(TaskEventDispatcher.class), true);
 
 			serverAndClient = initServerAndClient(protocol);
 
@@ -150,7 +153,7 @@ public class CancelPartitionRequestTest {
 			// Request for non-existing input channel => results in cancel request
 			InputChannelID inputChannelId = new InputChannelID();
 
-			ch.writeAndFlush(new PartitionRequest(pid, 0, inputChannelId)).await();
+			ch.writeAndFlush(new PartitionRequest(pid, 0, inputChannelId, Integer.MAX_VALUE)).await();
 
 			// Wait for the notification
 			if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
@@ -185,13 +188,16 @@ public class CancelPartitionRequestTest {
 			this.sync = checkNotNull(sync);
 		}
 
+		@Nullable
 		@Override
-		public Buffer getNextBuffer() throws IOException, InterruptedException {
-			return bufferProvider.requestBufferBlocking();
+		public BufferAndBacklog getNextBuffer() throws IOException, InterruptedException {
+			Buffer buffer = bufferProvider.requestBufferBlocking();
+			buffer.setSize(buffer.getMaxCapacity()); // fake some data
+			return new BufferAndBacklog(buffer, true, 0, false);
 		}
 
 		@Override
-		public void notifyBuffersAvailable(long buffers) throws IOException {
+		public void notifyDataAvailable() {
 		}
 
 		@Override
@@ -206,6 +212,16 @@ public class CancelPartitionRequestTest {
 		@Override
 		public boolean isReleased() {
 			return false;
+		}
+
+		@Override
+		public boolean nextBufferIsEvent() {
+			return false;
+		}
+
+		@Override
+		public boolean isAvailable() {
+			return true;
 		}
 
 		@Override

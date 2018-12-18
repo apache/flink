@@ -53,7 +53,7 @@ public class CheckpointedStreamingProgram {
 		env.execute("Checkpointed Streaming Program");
 	}
 
-	// with Checkpoining
+	// with Checkpointing
 	private static class SimpleStringGenerator implements SourceFunction<String>, ListCheckpointed<Integer> {
 		public boolean running = true;
 

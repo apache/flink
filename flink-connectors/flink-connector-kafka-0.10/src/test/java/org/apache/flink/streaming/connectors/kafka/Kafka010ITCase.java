@@ -19,10 +19,11 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -37,8 +38,8 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartiti
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
-import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
@@ -81,12 +82,6 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 	public void testCancelingFullTopic() throws Exception {
 		runCancelingOnFullInputTest();
 	}
-
-	@Test(timeout = 60000)
-	public void testFailOnDeploy() throws Exception {
-		runFailOnDeployTest();
-	}
-
 	// --- source to partition mappings and exactly once ---
 
 	@Test(timeout = 60000)
@@ -155,6 +150,11 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		runStartFromSpecificOffsets();
 	}
 
+	@Test(timeout = 60000)
+	public void testStartFromTimestamp() throws Exception {
+		runStartFromTimestamp();
+	}
+
 	// --- offset committing ---
 
 	@Test(timeout = 60000)
@@ -170,6 +170,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 	/**
 	 * Kafka 0.10 specific test, ensuring Timestamps are properly written to and read from Kafka.
 	 */
+	@Ignore("This test is disabled because of: https://issues.apache.org/jira/browse/FLINK-9217")
 	@Test(timeout = 60000)
 	public void testTimestamps() throws Exception {
 
@@ -205,7 +206,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 			}
 		});
 
-		final TypeInformationSerializationSchema<Long> longSer = new TypeInformationSerializationSchema<>(TypeInfoParser.<Long>parse("Long"), env.getConfig());
+		final TypeInformationSerializationSchema<Long> longSer = new TypeInformationSerializationSchema<>(Types.LONG, env.getConfig());
 		FlinkKafkaProducer010.FlinkKafkaProducer010Configuration prod = FlinkKafkaProducer010.writeToKafkaWithTimestamps(streamWithTimestamps, topic, new KeyedSerializationSchemaWrapper<>(longSer), standardProps, new FlinkKafkaPartitioner<Long>() {
 			private static final long serialVersionUID = -6730989584364230617L;
 
@@ -317,7 +318,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		long cnt = 0;
 
 		public LimitedLongDeserializer() {
-			this.ti = TypeInfoParser.parse("Long");
+			this.ti = Types.LONG;
 			this.ser = ti.createSerializer(new ExecutionConfig());
 		}
 
@@ -339,5 +340,4 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 			return cnt > 1000L;
 		}
 	}
-
 }

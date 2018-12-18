@@ -21,7 +21,7 @@ package org.apache.flink.table.api.scala
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.table.api.{StreamQueryConfig, Table, TableException}
+import org.apache.flink.table.api.{BatchQueryConfig, StreamQueryConfig, Table, TableException}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
 
@@ -55,50 +55,27 @@ class TableConversions(table: Table) {
   }
 
   /**
-    * Converts the given [[Table]] into an append [[DataStream]] of a specified type.
+    * Converts the given [[Table]] into a [[DataSet]] of a specified type.
     *
-    * The [[Table]] must only have insert (append) changes. If the [[Table]] is also modified
-    * by update or delete changes, the conversion will fail.
-    *
-    * The fields of the [[Table]] are mapped to [[DataStream]] fields as follows:
-    * - [[org.apache.flink.types.Row]] and Scala Tuple types: Fields are mapped by position, field
-    * types must match.
-    * - POJO [[DataStream]] types: Fields are mapped by field name, field types must match.
-    *
-    * NOTE: This method only supports conversion of append-only tables. In order to make this
-    * more explicit in the future, please use [[toAppendStream()]] instead.
-    * If add and retract messages are required, use [[toRetractStream()]].
-    *
-    * @tparam T The type of the resulting [[DataStream]].
-    * @return The converted [[DataStream]].
-    */
-  @deprecated("This method only supports conversion of append-only tables. In order to make this" +
-    " more explicit in the future, please use toAppendStream() instead.")
-  def toDataStream[T: TypeInformation]: DataStream[T] = toAppendStream
-
-  /**
-    * Converts the given [[Table]] into an append [[DataStream]] of a specified type.
-    *
-    * The [[Table]] must only have insert (append) changes. If the [[Table]] is also modified
-    * by update or delete changes, the conversion will fail.
-    *
-    * The fields of the [[Table]] are mapped to [[DataStream]] fields as follows:
-    * - [[org.apache.flink.types.Row]] and Scala Tuple types: Fields are mapped by position, field
-    * types must match.
-    * - POJO [[DataStream]] types: Fields are mapped by field name, field types must match.
-    *
-    * NOTE: This method only supports conversion of append-only tables. In order to make this
-    * more explicit in the future, please use [[toAppendStream()]] instead.
-    * If add and retract messages are required, use [[toRetractStream()]].
+    * The fields of the [[Table]] are mapped to [[DataSet]] fields as follows:
+    * - [[org.apache.flink.types.Row]] and [[org.apache.flink.api.java.tuple.Tuple]]
+    * types: Fields are mapped by position, field types must match.
+    * - POJO [[DataSet]] types: Fields are mapped by field name, field types must match.
     *
     * @param queryConfig The configuration of the query to generate.
-    * @tparam T The type of the resulting [[DataStream]].
-    * @return The converted [[DataStream]].
+    * @tparam T The type of the resulting [[DataSet]].
+    * @return The converted [[DataSet]].
     */
-  @deprecated("This method only supports conversion of append-only tables. In order to make this" +
-    " more explicit in the future, please use toAppendStream() instead.")
-  def toDataStream[T: TypeInformation](queryConfig: StreamQueryConfig): DataStream[T] =
-    toAppendStream(queryConfig)
+  def toDataSet[T: TypeInformation](queryConfig: BatchQueryConfig): DataSet[T] = {
+
+    table.tableEnv match {
+      case tEnv: ScalaBatchTableEnv =>
+        tEnv.toDataSet(table, queryConfig)
+      case _ =>
+        throw new TableException(
+          "Only tables that originate from Scala DataSets can be converted to Scala DataSets.")
+    }
+  }
 
   /**
     * Converts the given [[Table]] into an append [[DataStream]] of a specified type.
@@ -192,8 +169,5 @@ class TableConversions(table: Table) {
             "can be converted to Scala DataStreams.")
     }
   }
-
-
-
 }
 

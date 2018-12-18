@@ -17,17 +17,20 @@
  */
 package org.apache.flink.table.codegen.calls
 
+import java.math.MathContext
+
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo._
-import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo}
+import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
 import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
-import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TimeIntervalTypeInfo, TypeCoercion}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
+import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TimeIntervalTypeInfo, TypeCoercion}
 
 object ScalarOperators {
 
@@ -46,16 +49,38 @@ object ScalarOperators {
       nullCheck: Boolean,
       resultType: TypeInformation[_],
       left: GeneratedExpression,
-      right: GeneratedExpression)
-    : GeneratedExpression = {
-    val leftCasting = numericCasting(left.resultType, resultType)
+      right: GeneratedExpression,
+      config: TableConfig): GeneratedExpression = {
+
+    val leftCasting = operator match {
+      case "%" =>
+        if (left.resultType == right.resultType) {
+          numericCasting(left.resultType, resultType)
+        } else {
+          val castedType = if (isDecimal(left.resultType)) {
+            Types.LONG
+          } else {
+            left.resultType
+          }
+          numericCasting(left.resultType, castedType)
+        }
+      case _ => numericCasting(left.resultType, resultType)
+    }
     val rightCasting = numericCasting(right.resultType, resultType)
     val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
 
     generateOperatorIfNotNull(nullCheck, resultType, left, right) {
       (leftTerm, rightTerm) =>
         if (isDecimal(resultType)) {
-          s"${leftCasting(leftTerm)}.${arithOpToDecMethod(operator)}(${rightCasting(rightTerm)})"
+          val decMethod = arithOpToDecMethod(operator)
+          operator match {
+            // include math context for decimal division
+            case "/" =>
+              val mathContext = mathContextToString(config.getDecimalContext)
+              s"${leftCasting(leftTerm)}.$decMethod(${rightCasting(rightTerm)}, $mathContext)"
+            case _ =>
+              s"${leftCasting(leftTerm)}.$decMethod(${rightCasting(rightTerm)})"
+          }
         } else {
           s"($resultTypeTerm) (${leftCasting(leftTerm)} $operator ${rightCasting(rightTerm)})"
         }
@@ -188,6 +213,13 @@ object ScalarOperators {
         (leftTerm, rightTerm) => s"java.util.Arrays.equals($leftTerm, $rightTerm)"
       }
     }
+    // map types
+    else if (isMap(left.resultType) &&
+      left.resultType.getTypeClass == right.resultType.getTypeClass) {
+      generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
+        (leftTerm, rightTerm) => s"$leftTerm.equals($rightTerm)"
+      }
+    }
     // comparable types of same type
     else if (isComparable(left.resultType) && left.resultType == right.resultType) {
       generateComparison("==", nullCheck, left, right)
@@ -227,6 +259,13 @@ object ScalarOperators {
         left.resultType.getTypeClass == right.resultType.getTypeClass) {
       generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
         (leftTerm, rightTerm) => s"!java.util.Arrays.equals($leftTerm, $rightTerm)"
+      }
+    }
+    // map types
+    else if (isMap(left.resultType) &&
+      left.resultType.getTypeClass == right.resultType.getTypeClass) {
+      generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
+        (leftTerm, rightTerm) => s"!($leftTerm.equals($rightTerm))"
       }
     }
     // comparable types
@@ -382,33 +421,23 @@ object ScalarOperators {
          |boolean $resultTerm = false;
          |boolean $nullTerm = false;
          |if (!${left.nullTerm} && !${left.resultTerm}) {
-         |  // left expr is false, skip right expr
+         |  // left expr is false, result is always false
+         |  // skip right expr
          |} else {
          |  ${right.code}
          |
-         |  if (!${left.nullTerm} && !${right.nullTerm}) {
-         |    $resultTerm = ${left.resultTerm} && ${right.resultTerm};
-         |    $nullTerm = false;
-         |  }
-         |  else if (!${left.nullTerm} && ${left.resultTerm} && ${right.nullTerm}) {
-         |    $resultTerm = false;
-         |    $nullTerm = true;
-         |  }
-         |  else if (!${left.nullTerm} && !${left.resultTerm} && ${right.nullTerm}) {
-         |    $resultTerm = false;
-         |    $nullTerm = false;
-         |  }
-         |  else if (${left.nullTerm} && !${right.nullTerm} && ${right.resultTerm}) {
-         |    $resultTerm = false;
-         |    $nullTerm = true;
-         |  }
-         |  else if (${left.nullTerm} && !${right.nullTerm} && !${right.resultTerm}) {
-         |    $resultTerm = false;
-         |    $nullTerm = false;
-         |  }
-         |  else {
-         |    $resultTerm = false;
-         |    $nullTerm = true;
+         |  if (${left.nullTerm}) {
+         |    // left is null (unknown)
+         |    if (${right.nullTerm} || ${right.resultTerm}) {
+         |      $nullTerm = true;
+         |    }
+         |  } else {
+         |    // left is true
+         |    if (${right.nullTerm}) {
+         |      $nullTerm = true;
+         |    } else if (${right.resultTerm}) {
+         |      $resultTerm = true;
+         |    }
          |  }
          |}
        """.stripMargin
@@ -796,19 +825,29 @@ object ScalarOperators {
   def generateTemporalPlusMinus(
       plus: Boolean,
       nullCheck: Boolean,
+      resultType: TypeInformation[_],
       left: GeneratedExpression,
-      right: GeneratedExpression)
+      right: GeneratedExpression,
+      config: TableConfig)
     : GeneratedExpression = {
 
     val op = if (plus) "+" else "-"
 
     (left.resultType, right.resultType) match {
+      // arithmetic of time point and time interval
       case (l: TimeIntervalTypeInfo[_], r: TimeIntervalTypeInfo[_]) if l == r =>
-        generateArithmeticOperator(op, nullCheck, l, left, right)
+        generateArithmeticOperator(op, nullCheck, l, left, right, config)
 
       case (SqlTimeTypeInfo.DATE, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
-        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, left, right) {
-            (l, r) => s"$l $op ((int) ($r / ${MILLIS_PER_DAY}L))"
+        resultType match {
+          case SqlTimeTypeInfo.DATE =>
+            generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, left, right) {
+              (l, r) => s"$l $op ((int) ($r / ${MILLIS_PER_DAY}L))"
+            }
+          case SqlTimeTypeInfo.TIMESTAMP =>
+            generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
+              (l, r) => s"$l * ${MILLIS_PER_DAY}L $op $r"
+            }
         }
 
       case (SqlTimeTypeInfo.DATE, TimeIntervalTypeInfo.INTERVAL_MONTHS) =>
@@ -831,6 +870,38 @@ object ScalarOperators {
           (l, r) => s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($l, $op($r))"
         }
 
+      // minus arithmetic of time points (i.e. for TIMESTAMPDIFF)
+      case (l: SqlTimeTypeInfo[_], r: SqlTimeTypeInfo[_]) if !plus =>
+        resultType match {
+          case TimeIntervalTypeInfo.INTERVAL_MONTHS =>
+            generateOperatorIfNotNull(nullCheck, resultType, left, right) {
+              (ll, rr) => (l, r) match {
+                case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.DATE) =>
+                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}" +
+                    s"($ll, $rr * ${MILLIS_PER_DAY}L)"
+                case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.TIMESTAMP) =>
+                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}" +
+                    s"($ll * ${MILLIS_PER_DAY}L, $rr)"
+                case _ =>
+                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}($ll, $rr)"
+               }
+            }
+
+          case TimeIntervalTypeInfo.INTERVAL_MILLIS =>
+            generateOperatorIfNotNull(nullCheck, resultType, left, right) {
+              (ll, rr) => (l, r) match {
+                case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.TIMESTAMP) =>
+                  s"$ll $op $rr"
+                case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.DATE) =>
+                  s"($ll * ${MILLIS_PER_DAY}L) $op ($rr * ${MILLIS_PER_DAY}L)"
+                case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.DATE) =>
+                  s"$ll $op ($rr * ${MILLIS_PER_DAY}L)"
+                case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.TIMESTAMP) =>
+                  s"($ll * ${MILLIS_PER_DAY}L) $op $rr"
+              }
+            }
+        }
+
       case _ =>
         throw new CodeGenException("Unsupported temporal arithmetic.")
     }
@@ -845,6 +916,41 @@ object ScalarOperators {
     generateUnaryArithmeticOperator(operator, nullCheck, operand.resultType, operand)
   }
 
+  def generateRow(
+      codeGenerator: CodeGenerator,
+      resultType: TypeInformation[_],
+      elements: Seq[GeneratedExpression])
+  : GeneratedExpression = {
+    val rowTerm = codeGenerator.addReusableRow(resultType.getArity)
+
+    val boxedElements: Seq[GeneratedExpression] = resultType match {
+      case ct: RowTypeInfo => // should always be RowTypeInfo
+        if (resultType.getArity == elements.size) {
+          elements.zipWithIndex.map {
+            case (e, idx) => codeGenerator.generateNullableOutputBoxing(e,
+              ct.getTypeAt(idx))
+          }
+        } else {
+          throw new CodeGenException(s"Illegal row generation operation. " +
+            s"Expected row arity ${resultType.getArity} but was ${elements.size}.")
+        }
+      case _ => throw new CodeGenException(s"Unsupported row generation operation. " +
+        s"Expected RowTypeInfo but was $resultType.")
+    }
+
+    val code = boxedElements
+      .zipWithIndex
+      .map { case (element, idx) =>
+        s"""
+           |${element.code}
+           |$rowTerm.setField($idx, ${element.resultTerm});
+           |""".stripMargin
+      }
+      .mkString("\n")
+
+    GeneratedExpression(rowTerm, GeneratedExpression.NEVER_NULL, code, resultType)
+  }
+
   def generateArray(
       codeGenerator: CodeGenerator,
       resultType: TypeInformation[_],
@@ -853,21 +959,11 @@ object ScalarOperators {
     val arrayTerm = codeGenerator.addReusableArray(resultType.getTypeClass, elements.size)
 
     val boxedElements: Seq[GeneratedExpression] = resultType match {
-
+      // we box the elements to also represent null values
       case oati: ObjectArrayTypeInfo[_, _] =>
-        // we box the elements to also represent null values
-        val boxedTypeTerm = boxedTypeTermForTypeInfo(oati.getComponentInfo)
-
         elements.map { e =>
-          val boxedExpr = codeGenerator.generateOutputFieldBoxing(e)
-          val exprOrNull: String = if (codeGenerator.nullCheck) {
-            s"${boxedExpr.nullTerm} ? null : ($boxedTypeTerm) ${boxedExpr.resultTerm}"
-          } else {
-            boxedExpr.resultTerm
-          }
-          boxedExpr.copy(resultTerm = exprOrNull)
+          codeGenerator.generateNullableOutputBoxing(e, oati.getComponentInfo)
         }
-
       // no boxing necessary
       case _: PrimitiveArrayTypeInfo[_] => elements
     }
@@ -1071,11 +1167,51 @@ object ScalarOperators {
     GeneratedExpression(resultTerm, nullTerm, operatorCode, Types.STRING)
   }
 
+  def generateMap(
+      codeGenerator: CodeGenerator,
+      resultType: TypeInformation[_],
+      elements: Seq[GeneratedExpression])
+    : GeneratedExpression = {
+
+    val mapTerm = codeGenerator.addReusableMap()
+
+    val boxedElements: Seq[GeneratedExpression] = resultType match {
+      case mti: MapTypeInfo[_, _] =>
+        elements.zipWithIndex.map { case (e, idx) =>
+          codeGenerator.generateNullableOutputBoxing(e,
+            if (idx % 2 == 0) mti.getKeyTypeInfo else mti.getValueTypeInfo)
+        }
+    }
+
+    // clear the map when it is not guaranteed that keys are constant
+    var clearMap: Boolean = false
+
+    val code = boxedElements.grouped(2)
+      .map { case Seq(key, value) =>
+        // check if all keys are constant
+        if (!key.literal) {
+          clearMap = true
+        }
+        s"""
+           |${key.code}
+           |${value.code}
+           |$mapTerm.put(${key.resultTerm}, ${value.resultTerm});
+           |""".stripMargin
+      }
+      .mkString("\n")
+
+    GeneratedExpression(
+      mapTerm,
+      GeneratedExpression.NEVER_NULL,
+      (if (clearMap) s"$mapTerm.clear();\n" else "") + code,
+      resultType)
+  }
+
   def generateMapGet(
       codeGenerator: CodeGenerator,
       map: GeneratedExpression,
       key: GeneratedExpression)
-  : GeneratedExpression = {
+    : GeneratedExpression = {
 
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
@@ -1083,22 +1219,38 @@ object ScalarOperators {
     val resultType = ty.getValueTypeInfo
     val resultTypeTerm = boxedTypeTermForTypeInfo(ty.getValueTypeInfo)
     val accessCode = if (codeGenerator.nullCheck) {
-          s"""
-             |${map.code}
-             |${key.code}
-             |boolean $nullTerm = (${map.nullTerm} || ${key.nullTerm});
-             |$resultTypeTerm $resultTerm = $nullTerm ?
-             |  null : ($resultTypeTerm) ${map.resultTerm}.get(${key.resultTerm});
-             |""".stripMargin
-        } else {
-          s"""
-             |${map.code}
-             |${key.code}
-             |$resultTypeTerm $resultTerm = ($resultTypeTerm)
-             | ${map.resultTerm}.get(${key.resultTerm});
-             |""".stripMargin
-        }
-    GeneratedExpression(resultTerm, nullTerm, accessCode, resultType)
+      s"""
+         |${map.code}
+         |${key.code}
+         |$resultTypeTerm $resultTerm = (${map.nullTerm} || ${key.nullTerm}) ?
+         |  null : ($resultTypeTerm) ${map.resultTerm}.get(${key.resultTerm});
+         |boolean $nullTerm = $resultTerm == null;
+         |""".stripMargin
+    } else {
+      s"""
+         |${map.code}
+         |${key.code}
+         |$resultTypeTerm $resultTerm = ($resultTypeTerm)
+         | ${map.resultTerm}.get(${key.resultTerm});
+         |""".stripMargin
+    }
+    val unboxing = codeGenerator.generateInputFieldUnboxing(resultType, resultTerm)
+
+    unboxing.copy(code =
+      s"""
+         |$accessCode
+         |${unboxing.code}
+         |""".stripMargin
+    )
+  }
+
+  def generateMapCardinality(
+      nullCheck: Boolean,
+      map: GeneratedExpression)
+    : GeneratedExpression = {
+    generateUnaryOperatorIfNotNull(nullCheck, INT_TYPE_INFO, map) {
+      (operandTerm) => s"$operandTerm.size()"
+    }
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -1190,6 +1342,14 @@ object ScalarOperators {
     case "/" => "divide"
     case "%" => "remainder"
     case _ => throw new CodeGenException(s"Unsupported decimal arithmetic operator: '$operator'")
+  }
+
+  private def mathContextToString(mathContext: MathContext): String = mathContext match {
+    case MathContext.DECIMAL32 => "java.math.MathContext.DECIMAL32"
+    case MathContext.DECIMAL64 => "java.math.MathContext.DECIMAL64"
+    case MathContext.DECIMAL128 => "java.math.MathContext.DECIMAL128"
+    case MathContext.UNLIMITED => "java.math.MathContext.UNLIMITED"
+    case _ => s"""new java.math.MathContext("$mathContext")"""
   }
 
   private def numericCasting(

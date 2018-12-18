@@ -21,8 +21,9 @@ package org.apache.flink.streaming.runtime.streamrecord;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.runtime.util.DataInputDeserializer;
-import org.apache.flink.runtime.util.DataOutputSerializer;
+import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
 import org.junit.Test;
@@ -89,6 +90,9 @@ public class StreamElementSerializerTest {
 
 		Watermark negativeWatermark = new Watermark(-4647654567676555876L);
 		assertEquals(negativeWatermark, serializeAndDeserialize(negativeWatermark, serializer));
+
+		LatencyMarker latencyMarker = new LatencyMarker(System.currentTimeMillis(), new OperatorID(-1, -1), 1);
+		assertEquals(latencyMarker, serializeAndDeserialize(latencyMarker, serializer));
 	}
 
 	@SuppressWarnings("unchecked")

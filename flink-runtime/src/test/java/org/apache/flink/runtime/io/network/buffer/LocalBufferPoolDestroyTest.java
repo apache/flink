@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
-import org.apache.flink.core.memory.MemoryType;
 import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -27,6 +26,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the destruction of a {@link LocalBufferPool}.
+ */
 public class LocalBufferPoolDestroyTest {
 
 	/**
@@ -46,7 +48,7 @@ public class LocalBufferPoolDestroyTest {
 		LocalBufferPool localBufferPool = null;
 
 		try {
-			networkBufferPool = new NetworkBufferPool(1, 4096, MemoryType.HEAP);
+			networkBufferPool = new NetworkBufferPool(1, 4096);
 			localBufferPool = new LocalBufferPool(networkBufferPool, 1);
 
 			// Drain buffer pool
@@ -105,11 +107,10 @@ public class LocalBufferPoolDestroyTest {
 	 * @return Flag indicating whether the Thread is in a blocking buffer
 	 * request or not
 	 */
-	private boolean isInBlockingBufferRequest(StackTraceElement[] stackTrace) {
+	public static boolean isInBlockingBufferRequest(StackTraceElement[] stackTrace) {
 		if (stackTrace.length >= 3) {
 			return stackTrace[0].getMethodName().equals("wait") &&
-					stackTrace[1].getMethodName().equals("requestBuffer") &&
-					stackTrace[2].getMethodName().equals("requestBufferBlocking");
+					stackTrace[1].getClassName().equals(LocalBufferPool.class.getName());
 		} else {
 			return false;
 		}

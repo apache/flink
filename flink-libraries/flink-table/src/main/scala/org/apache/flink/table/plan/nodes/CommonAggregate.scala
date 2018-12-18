@@ -49,11 +49,12 @@ trait CommonAggregate {
 
     val aggs = namedAggregates.map(_.getKey)
     val aggStrings = aggs.map( a => s"${a.getAggregation}(${
-      if (a.getArgList.size() > 0) {
+      val prefix = if (a.isDistinct) "DISTINCT " else ""
+      prefix + (if (a.getArgList.size() > 0) {
         a.getArgList.asScala.map(inFields(_)).mkString(", ")
       } else {
         "*"
-      }
+      })
     })")
 
     val propStrings = namedProperties.map(_.property.toString)

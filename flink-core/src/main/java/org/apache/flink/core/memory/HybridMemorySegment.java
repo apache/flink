@@ -27,33 +27,37 @@ import java.lang.reflect.Field;
 import java.nio.BufferOverflowException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
+import java.nio.ReadOnlyBufferException;
 
 /**
  * This class represents a piece of memory managed by Flink. The memory can be on-heap or off-heap,
  * this is transparently handled by this class.
- * <p>
- * This class specialized byte access and byte copy calls for heap memory, while reusing the
+ *
+ * <p>This class specializes byte access and byte copy calls for heap memory, while reusing the
  * multi-byte type accesses and cross-segment operations from the MemorySegment.
- * <p>
- * This class subsumes the functionality of the {@link org.apache.flink.core.memory.HeapMemorySegment}, 
+ *
+ * <p>This class subsumes the functionality of the {@link org.apache.flink.core.memory.HeapMemorySegment},
  * but is a bit less efficient for operations on individual bytes.
- * <p>
- * Note that memory segments should usually not be allocated manually, but rather through the
+ *
+ * <p>Note that memory segments should usually not be allocated manually, but rather through the
  * {@link MemorySegmentFactory}.
  */
 @Internal
 public final class HybridMemorySegment extends MemorySegment {
-	
-	/** The direct byte buffer that allocated the off-heap memory. This memory segment holds a reference
-	 * to that buffer, so as long as this memory segment lives, the memory will not be released. */
+
+	/**
+	 * The direct byte buffer that allocated the off-heap memory. This memory segment holds a
+	 * reference to that buffer, so as long as this memory segment lives, the memory will not be
+	 * released.
+	 */
 	private final ByteBuffer offHeapBuffer;
 
 	/**
 	 * Creates a new memory segment that represents the memory backing the given direct byte buffer.
 	 * Note that the given ByteBuffer must be direct {@link java.nio.ByteBuffer#allocateDirect(int)},
 	 * otherwise this method with throw an IllegalArgumentException.
-	 * <p>
-	 * The owner referenced by this memory segment is null.
+	 *
+	 * <p>The owner referenced by this memory segment is null.
 	 *
 	 * @param buffer The byte buffer whose memory is represented by this memory segment.
 	 * @throws IllegalArgumentException Thrown, if the given ByteBuffer is not direct.
@@ -61,13 +65,13 @@ public final class HybridMemorySegment extends MemorySegment {
 	HybridMemorySegment(ByteBuffer buffer) {
 		this(buffer, null);
 	}
-	
+
 	/**
 	 * Creates a new memory segment that represents the memory backing the given direct byte buffer.
 	 * Note that the given ByteBuffer must be direct {@link java.nio.ByteBuffer#allocateDirect(int)},
 	 * otherwise this method with throw an IllegalArgumentException.
-	 * <p>
-	 * The memory segment references the given owner.
+	 *
+	 * <p>The memory segment references the given owner.
 	 *
 	 * @param buffer The byte buffer whose memory is represented by this memory segment.
 	 * @param owner The owner references by this memory segment.
@@ -80,8 +84,8 @@ public final class HybridMemorySegment extends MemorySegment {
 
 	/**
 	 * Creates a new memory segment that represents the memory of the byte array.
-	 * <p>
-	 * The owner referenced by this memory segment is null.
+	 *
+	 * <p>The owner referenced by this memory segment is null.
 	 *
 	 * @param buffer The byte array whose memory is represented by this memory segment.
 	 */
@@ -91,8 +95,8 @@ public final class HybridMemorySegment extends MemorySegment {
 
 	/**
 	 * Creates a new memory segment that represents the memory of the byte array.
-	 * <p>
-	 * The memory segment references the given owner.
+	 *
+	 * <p>The memory segment references the given owner.
 	 *
 	 * @param buffer The byte array whose memory is represented by this memory segment.
 	 * @param owner The owner references by this memory segment.
@@ -105,14 +109,6 @@ public final class HybridMemorySegment extends MemorySegment {
 	// -------------------------------------------------------------------------
 	//  MemorySegment operations
 	// -------------------------------------------------------------------------
-	
-	public byte[] getArray() {
-		if (heapMemory != null) {
-			return heapMemory;
-		} else {
-			throw new IllegalStateException("Memory segment does not represent heap memory");
-		}
-	}
 
 	/**
 	 * Gets the buffer that owns the memory of this memory segment.
@@ -153,9 +149,9 @@ public final class HybridMemorySegment extends MemorySegment {
 	// ------------------------------------------------------------------------
 	//  Random Access get() and put() methods
 	// ------------------------------------------------------------------------
-	
+
 	@Override
-	public byte get(int index) {
+	public final byte get(int index) {
 		final long pos = address + index;
 		if (index >= 0 && pos < addressLimit) {
 			return UNSAFE.getByte(heapMemory, pos);
@@ -170,7 +166,7 @@ public final class HybridMemorySegment extends MemorySegment {
 	}
 
 	@Override
-	public void put(int index, byte b) {
+	public final void put(int index, byte b) {
 		final long pos = address + index;
 		if (index >= 0 && pos < addressLimit) {
 			UNSAFE.putByte(heapMemory, pos, b);
@@ -185,19 +181,19 @@ public final class HybridMemorySegment extends MemorySegment {
 	}
 
 	@Override
-	public void get(int index, byte[] dst) {
+	public final void get(int index, byte[] dst) {
 		get(index, dst, 0, dst.length);
 	}
 
 	@Override
-	public void put(int index, byte[] src) {
+	public final void put(int index, byte[] src) {
 		put(index, src, 0, src.length);
 	}
 
 	@Override
-	public void get(int index, byte[] dst, int offset, int length) {
+	public final void get(int index, byte[] dst, int offset, int length) {
 		// check the byte array offset and length and the status
-		if ( (offset | length | (offset + length) | (dst.length - (offset + length))) < 0) {
+		if ((offset | length | (offset + length) | (dst.length - (offset + length))) < 0) {
 			throw new IndexOutOfBoundsException();
 		}
 
@@ -216,12 +212,12 @@ public final class HybridMemorySegment extends MemorySegment {
 	}
 
 	@Override
-	public void put(int index, byte[] src, int offset, int length) {
+	public final void put(int index, byte[] src, int offset, int length) {
 		// check the byte array offset and length
 		if ((offset | length | (offset + length) | (src.length - (offset + length))) < 0) {
 			throw new IndexOutOfBoundsException();
 		}
-		
+
 		final long pos = address + index;
 
 		if (index >= 0 && pos <= addressLimit - length) {
@@ -238,12 +234,12 @@ public final class HybridMemorySegment extends MemorySegment {
 	}
 
 	@Override
-	public boolean getBoolean(int index) {
+	public final boolean getBoolean(int index) {
 		return get(index) != 0;
 	}
 
 	@Override
-	public void putBoolean(int index, boolean value) {
+	public final void putBoolean(int index, boolean value) {
 		put(index, (byte) (value ? 1 : 0));
 	}
 
@@ -263,7 +259,7 @@ public final class HybridMemorySegment extends MemorySegment {
 					offset += 8;
 					length -= 8;
 				}
-		
+
 				while (length > 0) {
 					out.writeByte(get(offset));
 					offset++;
@@ -315,6 +311,10 @@ public final class HybridMemorySegment extends MemorySegment {
 		}
 
 		if (target.isDirect()) {
+			if (target.isReadOnly()) {
+				throw new ReadOnlyBufferException();
+			}
+
 			// copy to the target memory directly
 			final long targetPointer = getAddress(target) + targetOffset;
 			final long sourcePointer = address + offset;
@@ -396,7 +396,9 @@ public final class HybridMemorySegment extends MemorySegment {
 	//  Utilities for native memory accesses and checks
 	// --------------------------------------------------------------------------------------------
 
-	/** The reflection fields with which we access the off-heap pointer from direct ByteBuffers */
+	/**
+	 * The reflection fields with which we access the off-heap pointer from direct ByteBuffers.
+	 */
 	private static final Field ADDRESS_FIELD;
 
 	static {
@@ -421,7 +423,7 @@ public final class HybridMemorySegment extends MemorySegment {
 			throw new RuntimeException("Could not access direct byte buffer address.", t);
 		}
 	}
-	
+
 	private static long checkBufferAndGetAddress(ByteBuffer buffer) {
 		if (buffer == null) {
 			throw new NullPointerException("buffer is null");
@@ -431,39 +433,4 @@ public final class HybridMemorySegment extends MemorySegment {
 		}
 		return getAddress(buffer);
 	}
-
-	// -------------------------------------------------------------------------
-	//  Factoring
-	// -------------------------------------------------------------------------
-
-	/**
-	 * Base factory for hybrid memory segments.
-	 */
-	public static final class HybridMemorySegmentFactory implements MemorySegmentFactory.Factory {
-		
-		@Override
-		public HybridMemorySegment wrap(byte[] memory) {
-			return new HybridMemorySegment(memory);
-		}
-
-		@Override
-		public HybridMemorySegment allocateUnpooledSegment(int size, Object owner) {
-			return new HybridMemorySegment(new byte[size], owner);
-		}
-
-		@Override
-		public HybridMemorySegment wrapPooledHeapMemory(byte[] memory, Object owner) {
-			return new HybridMemorySegment(memory, owner);
-		}
-
-		@Override
-		public HybridMemorySegment wrapPooledOffHeapMemory(ByteBuffer memory, Object owner) {
-			return new HybridMemorySegment(memory, owner);
-		}
-
-		/** prevent external instantiation */
-		HybridMemorySegmentFactory() {}
-	};
-
-	public static final HybridMemorySegmentFactory FACTORY = new HybridMemorySegmentFactory();
 }

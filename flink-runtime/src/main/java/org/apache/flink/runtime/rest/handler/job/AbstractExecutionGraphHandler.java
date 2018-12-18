@@ -21,6 +21,8 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
+import org.apache.flink.runtime.rest.NotFoundException;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -32,10 +34,12 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -45,7 +49,7 @@ import java.util.concurrent.Executor;
  *
  * @param <R> response type
  */
-public abstract class AbstractExecutionGraphHandler<R extends ResponseBody> extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, R, JobMessageParameters> {
+public abstract class AbstractExecutionGraphHandler<R extends ResponseBody, M extends JobMessageParameters> extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, R, M> {
 
 	private final ExecutionGraphCache executionGraphCache;
 
@@ -55,17 +59,18 @@ public abstract class AbstractExecutionGraphHandler<R extends ResponseBody> exte
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
-			MessageHeaders<EmptyRequestBody, R, JobMessageParameters> messageHeaders,
+			Map<String, String> responseHeaders,
+			MessageHeaders<EmptyRequestBody, R, M> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor) {
-		super(localRestAddress, leaderRetriever, timeout, messageHeaders);
+		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
 
 		this.executionGraphCache = Preconditions.checkNotNull(executionGraphCache);
 		this.executor = Preconditions.checkNotNull(executor);
 	}
 
 	@Override
-	protected CompletableFuture<R> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, JobMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
+	protected CompletableFuture<R> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, M> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
 		JobID jobId = request.getPathParameter(JobIDPathParameter.class);
 
 		CompletableFuture<AccessExecutionGraph> executionGraphFuture = executionGraphCache.getExecutionGraph(jobId, gateway);
@@ -73,13 +78,30 @@ public abstract class AbstractExecutionGraphHandler<R extends ResponseBody> exte
 		return executionGraphFuture.thenApplyAsync(
 			executionGraph -> {
 				try {
-					return handleRequest(executionGraph);
+					return handleRequest(request, executionGraph);
 				} catch (RestHandlerException rhe) {
 					throw new CompletionException(rhe);
 				}
-			},
-			executor);
+			}, executor)
+			.exceptionally(throwable -> {
+				throwable = ExceptionUtils.stripCompletionException(throwable);
+				if (throwable instanceof FlinkJobNotFoundException) {
+					throw new CompletionException(
+						new NotFoundException(String.format("Job %s not found", jobId), throwable));
+				} else {
+					throw new CompletionException(throwable);
+				}
+			});
 	}
 
-	protected abstract R handleRequest(AccessExecutionGraph executionGraph) throws RestHandlerException;
+	/**
+	 * Called for each request after the corresponding {@link AccessExecutionGraph} has been retrieved from the
+	 * {@link ExecutionGraphCache}.
+	 *
+	 * @param request for further information
+	 * @param executionGraph for which the handler was called
+	 * @return Response
+	 * @throws RestHandlerException if the handler could not process the request
+	 */
+	protected abstract R handleRequest(HandlerRequest<EmptyRequestBody, M> request, AccessExecutionGraph executionGraph) throws RestHandlerException;
 }

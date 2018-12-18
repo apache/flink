@@ -18,12 +18,10 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.util.OperatingSystem;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.configuration.BlobServerOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -31,60 +29,86 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeTrue;
+import static org.hamcrest.CoreMatchers.startsWith;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * Tests for {@link BlobUtils}.
  */
-public class BlobUtilsTest extends TestLogger {
-
-	private static final String CANNOT_CREATE_THIS = "cannot-create-this";
-
-	private File blobUtilsTestDirectory;
+public class BlobUtilsTest {
 
 	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@Before
-	public void before() throws IOException {
-		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
+	/**
+	 * Tests {@link BlobUtils#initLocalStorageDirectory} using
+	 * {@link BlobServerOptions#STORAGE_DIRECTORY} per default.
+	 */
+	@Test
+	public void testDefaultBlobStorageDirectory() throws IOException {
+		Configuration config = new Configuration();
+		String blobStorageDir = temporaryFolder.newFolder().getAbsolutePath();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY, blobStorageDir);
+		config.setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
 
-		// Prepare test directory
-		blobUtilsTestDirectory = temporaryFolder.newFolder();
-		assertTrue(blobUtilsTestDirectory.setExecutable(true, false));
-		assertTrue(blobUtilsTestDirectory.setReadable(true, false));
-		assertTrue(blobUtilsTestDirectory.setWritable(false, false));
+		File dir = BlobUtils.initLocalStorageDirectory(config);
+		assertThat(dir.getAbsolutePath(), startsWith(blobStorageDir));
 	}
 
-	@After
-	public void after() {
-		// Cleanup test directory, ensure it was empty
-		assertTrue(blobUtilsTestDirectory.delete());
+	/**
+	 * Tests {@link BlobUtils#initLocalStorageDirectory}'s fallback to
+	 * {@link CoreOptions#TMP_DIRS} with a single temp directory.
+	 */
+	@Test
+	public void testTaskManagerFallbackBlobStorageDirectory1() throws IOException {
+		Configuration config = new Configuration();
+		String blobStorageDir = temporaryFolder.getRoot().getAbsolutePath();
+		config.setString(CoreOptions.TMP_DIRS, blobStorageDir);
+
+		File dir = BlobUtils.initLocalStorageDirectory(config);
+		assertThat(dir.getAbsolutePath(), startsWith(blobStorageDir));
 	}
 
-	@Test(expected = IOException.class)
-	public void testExceptionOnCreateStorageDirectoryFailure() throws
-		IOException {
-		// Should throw an Exception
-		BlobUtils.initLocalStorageDirectory(new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS).getAbsolutePath());
+	/**
+	 * Tests {@link BlobUtils#initLocalStorageDirectory}'s fallback to
+	 * {@link CoreOptions#TMP_DIRS} having multiple temp directories.
+	 */
+	@Test
+	public void testTaskManagerFallbackBlobStorageDirectory2a() throws IOException {
+		Configuration config = new Configuration();
+		String blobStorageDirs = temporaryFolder.newFolder().getAbsolutePath() + "," +
+			temporaryFolder.newFolder().getAbsolutePath();
+		config.setString(CoreOptions.TMP_DIRS, blobStorageDirs);
+
+		File dir = BlobUtils.initLocalStorageDirectory(config);
+		assertThat(dir.getAbsolutePath(), startsWith(temporaryFolder.getRoot().getAbsolutePath()));
 	}
 
-	@Test(expected = IOException.class)
-	public void testExceptionOnCreateCacheDirectoryFailureNoJob() throws IOException {
-		// Should throw an Exception
-		BlobUtils.getStorageLocation(new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS), null, new TransientBlobKey());
+	/**
+	 * Tests {@link BlobUtils#initLocalStorageDirectory}'s fallback to
+	 * {@link CoreOptions#TMP_DIRS} having multiple temp directories.
+	 */
+	@Test
+	public void testTaskManagerFallbackBlobStorageDirectory2b() throws IOException {
+		Configuration config = new Configuration();
+		String blobStorageDirs = temporaryFolder.newFolder().getAbsolutePath() + File.pathSeparator +
+			temporaryFolder.newFolder().getAbsolutePath();
+		config.setString(CoreOptions.TMP_DIRS, blobStorageDirs);
+
+		File dir = BlobUtils.initLocalStorageDirectory(config);
+		assertThat(dir.getAbsolutePath(), startsWith(temporaryFolder.getRoot().getAbsolutePath()));
 	}
 
-	@Test(expected = IOException.class)
-	public void testExceptionOnCreateCacheDirectoryFailureForJobTransient() throws IOException {
-		// Should throw an Exception
-		BlobUtils.getStorageLocation(new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS), new JobID(), new TransientBlobKey());
-	}
+	/**
+	 * Tests {@link BlobUtils#initLocalStorageDirectory}'s fallback to the default value of
+	 * {@link CoreOptions#TMP_DIRS}.
+	 */
+	@Test
+	public void testTaskManagerFallbackFallbackBlobStorageDirectory1() throws IOException {
+		Configuration config = new Configuration();
 
-	@Test(expected = IOException.class)
-	public void testExceptionOnCreateCacheDirectoryFailureForJobPermanent() throws IOException {
-		// Should throw an Exception
-		BlobUtils.getStorageLocation(new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS), new JobID(), new PermanentBlobKey());
+		File dir = BlobUtils.initLocalStorageDirectory(config);
+		assertThat(dir.getAbsolutePath(),
+			startsWith(CoreOptions.TMP_DIRS.defaultValue()));
 	}
 }

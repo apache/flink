@@ -57,7 +57,8 @@ public interface HeartbeatListener<I, O> {
 	 * Retrieves the payload value for the next heartbeat message. Since the operation can happen
 	 * asynchronously, the result is returned wrapped in a future.
 	 *
+	 * @param resourceID Resource ID identifying the receiver of the payload
 	 * @return Future containing the next payload for heartbeats
 	 */
-	CompletableFuture<O> retrievePayload();
+	CompletableFuture<O> retrievePayload(ResourceID resourceID);
 }

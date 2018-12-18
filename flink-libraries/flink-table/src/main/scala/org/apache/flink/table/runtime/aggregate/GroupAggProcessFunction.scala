@@ -86,7 +86,7 @@ class GroupAggProcessFunction(
 
     val currentTime = ctx.timerService().currentProcessingTime()
     // register state-cleanup timer
-    registerProcessingCleanupTimer(ctx, currentTime)
+    processCleanupTimer(ctx, currentTime)
 
     val input = inputC.row
 
@@ -95,11 +95,21 @@ class GroupAggProcessFunction(
     var inputCnt = cntState.value()
 
     if (null == accumulators) {
+      // Don't create a new accumulator for a retraction message. This
+      // might happen if the retraction message is the first message for the
+      // key or after a state clean up.
+      if (!inputC.change) {
+        return
+      }
+      // first accumulate message
       firstRow = true
       accumulators = function.createAccumulators()
-      inputCnt = 0L
     } else {
       firstRow = false
+    }
+
+    if (null == inputCnt) {
+      inputCnt = 0L
     }
 
     // Set group keys value to the final output
@@ -129,17 +139,19 @@ class GroupAggProcessFunction(
       state.update(accumulators)
       cntState.update(inputCnt)
 
-      // if this was not the first row and we have to emit retractions
-      if (generateRetraction && !firstRow) {
+      // if this was not the first row
+      if (!firstRow) {
         if (prevRow.row.equals(newRow.row) && !stateCleaningEnabled) {
           // newRow is the same as before and state cleaning is not enabled.
-          // We do not emit retraction and acc message.
+          // We emit nothing
           // If state cleaning is enabled, we have to emit messages to prevent too early
           // state eviction of downstream operators.
           return
         } else {
           // retract previous result
-          out.collect(prevRow)
+          if (generateRetraction) {
+            out.collect(prevRow)
+          }
         }
       }
       // emit the new result
@@ -160,7 +172,7 @@ class GroupAggProcessFunction(
       ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
       out: Collector[CRow]): Unit = {
 
-    if (needToCleanupState(timestamp)) {
+    if (stateCleaningEnabled) {
       cleanupState(state, cntState)
       function.cleanup()
     }

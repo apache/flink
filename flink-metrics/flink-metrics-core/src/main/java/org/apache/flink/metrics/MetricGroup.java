@@ -150,6 +150,19 @@ public interface MetricGroup {
 	 */
 	MetricGroup addGroup(String name);
 
+	/**
+	 * Creates a new key-value MetricGroup pair. The key group is added to this groups sub-groups, while the value group
+	 * is added to the key group's sub-groups. This method returns the value group.
+	 *
+	 * <p>The only difference between calling this method and {@code group.addGroup(key).addGroup(value)} is that
+	 * {@link #getAllVariables()} of the value group return an additional {@code "<key>"="value"} pair.
+	 *
+	 * @param key name of the first group
+	 * @param value name of the second group
+	 * @return the second created group
+	 */
+	MetricGroup addGroup(String key, String value);
+
 	// ------------------------------------------------------------------------
 	// Scope
 	// ------------------------------------------------------------------------

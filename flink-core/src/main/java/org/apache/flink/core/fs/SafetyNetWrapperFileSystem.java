@@ -65,6 +65,11 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
 	}
 
 	@Override
+	public RecoverableWriter createRecoverableWriter() throws IOException {
+		return unsafeFileSystem.createRecoverableWriter();
+	}
+
+	@Override
 	public BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len) throws IOException {
 		return unsafeFileSystem.getFileBlockLocations(file, start, len);
 	}
@@ -82,6 +87,7 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
 	}
 
 	@Override
+	@SuppressWarnings("deprecation")
 	public long getDefaultBlockSize() {
 		return unsafeFileSystem.getDefaultBlockSize();
 	}
@@ -107,6 +113,7 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
 	}
 
 	@Override
+	@SuppressWarnings("deprecation")
 	public FSDataOutputStream create(Path f, boolean overwrite, int bufferSize, short replication, long blockSize)
 			throws IOException {
 
@@ -138,6 +145,11 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
 	@Override
 	public boolean isDistributedFS() {
 		return unsafeFileSystem.isDistributedFS();
+	}
+
+	@Override
+	public FileSystemKind getKind() {
+		return unsafeFileSystem.getKind();
 	}
 
 	@Override

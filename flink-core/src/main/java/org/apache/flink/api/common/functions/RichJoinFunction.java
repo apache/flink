@@ -31,7 +31,7 @@ import org.apache.flink.annotation.Public;
  * @param <OUT> The type of the result elements.
  */
 @Public
-public abstract class RichJoinFunction<IN1,IN2,OUT> extends AbstractRichFunction implements JoinFunction<IN1,IN2,OUT> {
+public abstract class RichJoinFunction<IN1, IN2, OUT> extends AbstractRichFunction implements JoinFunction<IN1, IN2, OUT> {
 
 	private static final long serialVersionUID = 1L;
 

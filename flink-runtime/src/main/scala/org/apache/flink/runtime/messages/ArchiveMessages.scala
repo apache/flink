@@ -39,7 +39,7 @@ object ArchiveMessages {
   case object RequestJobCounts
 
   /**
-   * Reqeuest a specific ExecutionGraph by JobID. The response is [[RequestArchivedJob]]
+   * Request a specific ExecutionGraph by JobID. The response is [[RequestArchivedJob]]
    * @param jobID
    */
   case class RequestArchivedJob(jobID: JobID)

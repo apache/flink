@@ -25,18 +25,18 @@ import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.Lex
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
-import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
-import org.apache.calcite.plan.{RelOptPlanner, RelOptUtil, RelTraitSet}
+import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgram, HepProgramBuilder}
+import org.apache.calcite.plan.{Convention, RelOptPlanner, RelOptUtil, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
+import org.apache.calcite.sql2rel.SqlToRelConverter
 import org.apache.calcite.tools._
 import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, _}
 import org.apache.flink.api.java.{ExecutionEnvironment => JavaBatchExecEnv}
@@ -49,15 +49,17 @@ import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTabl
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
 import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
+import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
+import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSinkTable}
+import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSourceSinkTable}
 import org.apache.flink.table.sinks.TableSink
-import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
+import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.types.Row
@@ -75,7 +77,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   // the catalog to hold all registered and translated tables
   // we disable caching here to prevent side effects
-  private val internalSchema: CalciteSchema = CalciteSchema.createRootSchema(true, false)
+  private val internalSchema: CalciteSchema = CalciteSchema.createRootSchema(false, false)
   private val rootSchema: SchemaPlus = internalSchema.plus()
 
   // Table API/SQL function catalog
@@ -89,6 +91,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     .costFactory(new DataSetCostFactory)
     .typeSystem(new FlinkTypeSystem)
     .operatorTable(getSqlOperatorTable)
+    .sqlToRelConverterConfig(getSqlToRelConverterConfig)
     // set the executor to evaluate constant expressions
     .executor(new ExpressionReducer(config))
     .build
@@ -115,6 +118,24 @@ abstract class TableEnvironment(val config: TableConfig) {
     case _: BatchTableEnvironment => new BatchQueryConfig
     case _: StreamTableEnvironment => new StreamQueryConfig
     case _ => null
+  }
+
+  /**
+    * Returns the SqlToRelConverter config.
+    */
+  protected def getSqlToRelConverterConfig: SqlToRelConverter.Config = {
+    val calciteConfig = config.getCalciteConfig
+    calciteConfig.getSqlToRelConverterConfig match {
+
+      case None =>
+        SqlToRelConverter.configBuilder()
+          .withTrimUnusedFields(false)
+          .withConvertTableAccess(false)
+          .withInSubQueryThreshold(Integer.MAX_VALUE)
+          .build()
+
+      case Some(c) => c
+    }
   }
 
   /**
@@ -233,14 +254,68 @@ abstract class TableEnvironment(val config: TableConfig) {
     */
   protected def getBuiltInPhysicalOptRuleSet: RuleSet
 
+  protected def optimizeConvertSubQueries(relNode: RelNode): RelNode = {
+    runHepPlannerSequentially(
+      HepMatchOrder.BOTTOM_UP,
+      FlinkRuleSets.TABLE_SUBQUERY_RULES,
+      relNode,
+      relNode.getTraitSet)
+  }
+
+  protected def optimizeExpandPlan(relNode: RelNode): RelNode = {
+    val result = runHepPlannerSimultaneously(
+      HepMatchOrder.TOP_DOWN,
+      FlinkRuleSets.EXPAND_PLAN_RULES,
+      relNode,
+      relNode.getTraitSet)
+
+    runHepPlannerSequentially(
+      HepMatchOrder.TOP_DOWN,
+      FlinkRuleSets.POST_EXPAND_CLEAN_UP_RULES,
+      result,
+      result.getTraitSet)
+  }
+
+  protected def optimizeNormalizeLogicalPlan(relNode: RelNode): RelNode = {
+    val normRuleSet = getNormRuleSet
+    if (normRuleSet.iterator().hasNext) {
+      runHepPlannerSequentially(HepMatchOrder.BOTTOM_UP, normRuleSet, relNode, relNode.getTraitSet)
+    } else {
+      relNode
+    }
+  }
+
+  protected def optimizeLogicalPlan(relNode: RelNode): RelNode = {
+    val logicalOptRuleSet = getLogicalOptRuleSet
+    val logicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
+    if (logicalOptRuleSet.iterator().hasNext) {
+      runVolcanoPlanner(logicalOptRuleSet, relNode, logicalOutputProps)
+    } else {
+      relNode
+    }
+  }
+
+  protected def optimizePhysicalPlan(relNode: RelNode, convention: Convention): RelNode = {
+    val physicalOptRuleSet = getPhysicalOptRuleSet
+    val physicalOutputProps = relNode.getTraitSet.replace(convention).simplify()
+    if (physicalOptRuleSet.iterator().hasNext) {
+      runVolcanoPlanner(physicalOptRuleSet, relNode, physicalOutputProps)
+    } else {
+      relNode
+    }
+  }
+
   /**
-    * run HEP planner
+    * run HEP planner with rules applied one by one. First apply one rule to all of the nodes
+    * and only then apply the next rule. If a rule creates a new node preceding rules will not
+    * be applied to the newly created node.
     */
-  protected def runHepPlanner(
+  protected def runHepPlannerSequentially(
     hepMatchOrder: HepMatchOrder,
     ruleSet: RuleSet,
     input: RelNode,
     targetTraits: RelTraitSet): RelNode = {
+
     val builder = new HepProgramBuilder
     builder.addMatchOrder(hepMatchOrder)
 
@@ -248,8 +323,36 @@ abstract class TableEnvironment(val config: TableConfig) {
     while (it.hasNext) {
       builder.addRuleInstance(it.next())
     }
+    runHepPlanner(builder.build(), input, targetTraits)
+  }
 
-    val planner = new HepPlanner(builder.build, frameworkConfig.getContext)
+  /**
+    * run HEP planner with rules applied simultaneously. Apply all of the rules to the given
+    * node before going to the next one. If a rule creates a new node all of the rules will
+    * be applied to this new node.
+    */
+  protected def runHepPlannerSimultaneously(
+    hepMatchOrder: HepMatchOrder,
+    ruleSet: RuleSet,
+    input: RelNode,
+    targetTraits: RelTraitSet): RelNode = {
+
+    val builder = new HepProgramBuilder
+    builder.addMatchOrder(hepMatchOrder)
+
+    builder.addRuleCollection(ruleSet.asScala.toList.asJava)
+    runHepPlanner(builder.build(), input, targetTraits)
+  }
+
+  /**
+    * run HEP planner
+    */
+  protected def runHepPlanner(
+    hepProgram: HepProgram,
+    input: RelNode,
+    targetTraits: RelTraitSet): RelNode = {
+
+    val planner = new HepPlanner(hepProgram, frameworkConfig.getContext)
     planner.setRoot(input)
     if (input.getTraitSet != targetTraits) {
       planner.changeTraits(input, targetTraits.simplify)
@@ -280,13 +383,24 @@ abstract class TableEnvironment(val config: TableConfig) {
         throw new TableException(
           s"Cannot generate a valid execution plan for the given query: \n\n" +
             s"${RelOptUtil.toString(input)}\n" +
-            s"${t.msg}\n" +
+            s"${t.getMessage}\n" +
             s"Please check the documentation for the set of currently supported SQL features.")
       case a: AssertionError =>
         // keep original exception stack for caller
         throw a
     }
     output
+  }
+
+  /**
+    * Creates a table from a table source.
+    *
+    * @param source table source used as table
+    */
+  def fromTableSource(source: TableSource[_]): Table = {
+    val name = createUniqueTableName()
+    registerTableSourceInternal(name, source)
+    scan(name)
   }
 
   /**
@@ -301,8 +415,8 @@ abstract class TableEnvironment(val config: TableConfig) {
       throw new ExternalCatalogAlreadyExistException(name)
     }
     this.externalCatalogs.put(name, externalCatalog)
-    // create an external catalog calicte schema, register it on the root schema
-    ExternalCatalogSchema.registerCatalog(rootSchema, name, externalCatalog)
+    // create an external catalog Calcite schema, register it on the root schema
+    ExternalCatalogSchema.registerCatalog(this, rootSchema, name, externalCatalog)
   }
 
   /**
@@ -331,7 +445,9 @@ abstract class TableEnvironment(val config: TableConfig) {
     functionCatalog.registerFunction(name, function.getClass)
 
     // register in SQL API
-    functionCatalog.registerSqlFunction(createScalarSqlFunction(name, function, typeFactory))
+    functionCatalog.registerSqlFunction(
+      createScalarSqlFunction(name, name, function, typeFactory)
+    )
   }
 
   /**
@@ -355,7 +471,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     functionCatalog.registerFunction(name, function.getClass)
 
     // register in SQL API
-    val sqlFunction = createTableSqlFunction(name, function, typeInfo, typeFactory)
+    val sqlFunction = createTableSqlFunction(name, name, function, typeInfo, typeFactory)
     functionCatalog.registerSqlFunction(sqlFunction)
   }
 
@@ -383,6 +499,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
     // register in SQL API
     val sqlFunctions = createAggregateSqlFunction(
+      name,
       name,
       function,
       resultTypeInfo,
@@ -419,7 +536,19 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param name        The name under which the [[TableSource]] is registered.
     * @param tableSource The [[TableSource]] to register.
     */
-  def registerTableSource(name: String, tableSource: TableSource[_]): Unit
+  def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
+    checkValidTableName(name)
+    registerTableSourceInternal(name, tableSource)
+  }
+
+  /**
+    * Registers an internal [[TableSource]] in this [[TableEnvironment]]'s catalog without
+    * name checking. Registered tables can be referenced in SQL queries.
+    *
+    * @param name        The name under which the [[TableSource]] is registered.
+    * @param tableSource The [[TableSource]] to register.
+    */
+  protected def registerTableSourceInternal(name: String, tableSource: TableSource[_]): Unit
 
   /**
     * Registers an external [[TableSink]] with given field names and types in this
@@ -436,6 +565,16 @@ abstract class TableEnvironment(val config: TableConfig) {
       fieldNames: Array[String],
       fieldTypes: Array[TypeInformation[_]],
       tableSink: TableSink[_]): Unit
+
+  /**
+    * Registers an external [[TableSink]] with already configured field names and field types in
+    * this [[TableEnvironment]]'s catalog.
+    * Registered sink tables can be referenced in SQL DML statements.
+    *
+    * @param name The name under which the [[TableSink]] is registered.
+    * @param configuredSink The configured [[TableSink]] to register.
+    */
+  def registerTableSink(name: String, configuredSink: TableSink[_]): Unit
 
   /**
     * Replaces a registered Table with another Table under the same name.
@@ -485,6 +624,37 @@ abstract class TableEnvironment(val config: TableConfig) {
     }
   }
 
+  /**
+    * Creates a table source and/or table sink from a descriptor.
+    *
+    * Descriptors allow for declaring the communication to external systems in an
+    * implementation-agnostic way. The classpath is scanned for suitable table factories that match
+    * the desired configuration.
+    *
+    * The following example shows how to read from a connector using a JSON format and
+    * registering a table source as "MyTable":
+    *
+    * {{{
+    *
+    * tableEnv
+    *   .connect(
+    *     new ExternalSystemXYZ()
+    *       .version("0.11"))
+    *   .withFormat(
+    *     new Json()
+    *       .jsonSchema("{...}")
+    *       .failOnMissingField(false))
+    *   .withSchema(
+    *     new Schema()
+    *       .field("user-name", "VARCHAR").from("u_name")
+    *       .field("count", "DECIMAL")
+    *   .registerSource("MyTable")
+    * }}}
+    *
+    * @param connectorDescriptor connector descriptor describing the external system
+    */
+  def connect(connectorDescriptor: ConnectorDescriptor): TableDescriptor
+
   private[flink] def scanInternal(tablePath: Array[String]): Option[Table] = {
     require(tablePath != null && !tablePath.isEmpty, "tablePath must not be null or empty.")
     val schemaPaths = tablePath.slice(0, tablePath.length - 1)
@@ -511,25 +681,43 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
-    * Evaluates a SQL query on registered tables and retrieves the result as a [[Table]].
+    * Gets the names of all tables registered in this environment.
     *
-    * All tables referenced by the query must be registered in the TableEnvironment.
-    * A [[Table]] is automatically registered when its [[toString]] method is called, for example
-    * when it is embedded into a String.
-    * Hence, SQL queries can directly reference a [[Table]] as follows:
-    *
-    * {{{
-    *   val table: Table = ...
-    *   // the table is not registered to the table environment
-    *   tEnv.sql(s"SELECT * FROM $table")
-    * }}}
-    *
-    * @param query The SQL query to evaluate.
-    * @return The result of the query as Table.
+    * @return A list of the names of all registered tables.
     */
-  @deprecated("Please use sqlQuery() instead.")
-  def sql(query: String): Table = {
-    sqlQuery(query)
+  def listTables(): Array[String] = {
+    rootSchema.getTableNames.asScala.toArray
+  }
+
+  /**
+    * Gets the names of all functions registered in this environment.
+    */
+  def listUserDefinedFunctions(): Array[String] = {
+    functionCatalog.getUserDefinedFunctions.toArray
+  }
+
+  /**
+    * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
+    * the result of the given [[Table]].
+    *
+    * @param table The table for which the AST and execution plan will be returned.
+    */
+  def explain(table: Table): String
+
+  /**
+    * Returns completion hints for the given statement at the given cursor position.
+    * The completion happens case insensitively.
+    *
+    * @param statement Partial or slightly incorrect SQL statement
+    * @param position cursor position
+    * @return completion hints that fit at the current cursor position
+    */
+  def getCompletionHints(statement: String, position: Int): Array[String] = {
+    val planner = new FlinkPlannerImpl(
+      getFrameworkConfig,
+      getPlanner,
+      getTypeFactory)
+    planner.getCompletionHints(statement, position)
   }
 
   /**
@@ -617,10 +805,10 @@ abstract class TableEnvironment(val config: TableConfig) {
       case insert: SqlInsert =>
         // validate the SQL query
         val query = insert.getSource
-        planner.validate(query)
+        val validatedQuery = planner.validate(query)
 
         // get query result as Table
-        val queryResult = new Table(this, LogicalRelNode(planner.rel(query).rel))
+        val queryResult = new Table(this, LogicalRelNode(planner.rel(validatedQuery).rel))
 
         // get name of sink table
         val targetTableName = insert.getTargetTable.asInstanceOf[SqlIdentifier].names.get(0)
@@ -653,42 +841,45 @@ abstract class TableEnvironment(val config: TableConfig) {
   private[flink] def insertInto(table: Table, sinkTableName: String, conf: QueryConfig): Unit = {
 
     // check that sink table exists
-    if (null == sinkTableName) throw TableException("Name of TableSink must not be null.")
-    if (sinkTableName.isEmpty) throw TableException("Name of TableSink must not be empty.")
-    if (!isRegistered(sinkTableName)) {
-      throw TableException(s"No table was registered under the name $sinkTableName.")
-    }
+    if (null == sinkTableName) throw new TableException("Name of TableSink must not be null.")
+    if (sinkTableName.isEmpty) throw new TableException("Name of TableSink must not be empty.")
 
     getTable(sinkTableName) match {
-      case s: TableSinkTable[_] =>
-        val tableSink = s.tableSink
+
+      case None =>
+        throw new TableException(s"No table was registered under the name $sinkTableName.")
+
+      case Some(s: TableSourceSinkTable[_, _]) if s.tableSinkTable.isDefined =>
+        val tableSink = s.tableSinkTable.get.tableSink
         // validate schema of source table and table sink
-        val srcFieldTypes = table.getSchema.getTypes
+        val srcFieldTypes = table.getSchema.getFieldTypes
         val sinkFieldTypes = tableSink.getFieldTypes
 
         if (srcFieldTypes.length != sinkFieldTypes.length ||
-          srcFieldTypes.zip(sinkFieldTypes).exists{case (srcF, snkF) => srcF != snkF}) {
+          srcFieldTypes.zip(sinkFieldTypes).exists { case (srcF, snkF) => srcF != snkF }) {
 
-          val srcFieldNames = table.getSchema.getColumnNames
+          val srcFieldNames = table.getSchema.getFieldNames
           val sinkFieldNames = tableSink.getFieldNames
 
           // format table and table sink schema strings
           val srcSchema = srcFieldNames.zip(srcFieldTypes)
-            .map{case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}"}
+            .map { case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}" }
             .mkString("[", ", ", "]")
           val sinkSchema = sinkFieldNames.zip(sinkFieldTypes)
-            .map{case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}"}
+            .map { case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}" }
             .mkString("[", ", ", "]")
 
-          throw ValidationException(
-            s"Field types of query result and registered TableSink $sinkTableName do not match.\n" +
+          throw new ValidationException(
+            s"Field types of query result and registered TableSink " +
+              s"$sinkTableName do not match.\n" +
               s"Query result schema: $srcSchema\n" +
               s"TableSink schema:    $sinkSchema")
         }
         // emit the table to the configured table sink
         writeToSink(table, tableSink, conf)
-      case _ =>
-        throw TableException(s"The table registered as $sinkTableName is not a TableSink. " +
+
+      case Some(_) =>
+        throw new TableException(s"The table registered as $sinkTableName is not a TableSink. " +
           s"You can only emit query results to a registered TableSink.")
     }
   }
@@ -711,6 +902,9 @@ abstract class TableEnvironment(val config: TableConfig) {
     }
   }
 
+  /** Returns a unique table name according to the internal naming pattern. */
+  protected def createUniqueTableName(): String
+
   /**
     * Checks if the chosen table name is valid.
     *
@@ -728,12 +922,39 @@ abstract class TableEnvironment(val config: TableConfig) {
     rootSchema.getTableNames.contains(name)
   }
 
-  private def getTable(name: String): org.apache.calcite.schema.Table = {
-    rootSchema.getTable(name)
-  }
+  /**
+    * Get a table from either internal or external catalogs.
+    *
+    * @param name The name of the table.
+    * @return The table registered either internally or externally, None otherwise.
+    */
+  protected def getTable(name: String): Option[org.apache.calcite.schema.Table] = {
 
-  protected def getRowType(name: String): RelDataType = {
-    rootSchema.getTable(name).getRowType(typeFactory)
+    // recursively fetches a table from a schema.
+    def getTableFromSchema(
+        schema: SchemaPlus,
+        path: List[String]): Option[org.apache.calcite.schema.Table] = {
+
+      path match {
+        case tableName :: Nil =>
+          // look up table
+          Option(schema.getTable(tableName))
+        case subschemaName :: remain =>
+          // look up subschema
+          val subschema = Option(schema.getSubSchema(subschemaName))
+          subschema match {
+            case Some(s) =>
+              // search for table in subschema
+              getTableFromSchema(s, remain)
+            case None =>
+              // subschema does not exist
+              None
+          }
+      }
+    }
+
+    val pathNames = name.split('.').toList
+    getTableFromSchema(rootSchema, pathNames)
   }
 
   /** Returns a unique temporary attribute name. */
@@ -766,6 +987,37 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
+    * Reference input fields by name:
+    * All fields in the schema definition are referenced by name
+    * (and possibly renamed using an alias (as). In this mode, fields can be reordered and
+    * projected out. Moreover, we can define proctime and rowtime attributes at arbitrary
+    * positions using arbitrary names (except those that exist in the result schema). This mode
+    * can be used for any input type, including POJOs.
+    *
+    * Reference input fields by position:
+    * In this mode, fields are simply renamed. Event-time attributes can
+    * replace the field on their position in the input data (if it is of correct type) or be
+    * appended at the end. Proctime attributes must be appended at the end. This mode can only be
+    * used if the input type has a defined field order (tuple, case class, Row) and no of fields
+    * references a field of the input type.
+    */
+  protected def isReferenceByPosition(ct: CompositeType[_], fields: Array[Expression]): Boolean = {
+    if (!ct.isInstanceOf[TupleTypeInfoBase[_]]) {
+      return false
+    }
+
+    val inputNames = ct.getFieldNames
+
+    // Use the by-position mode if no of the fields exists in the input.
+    // This prevents confusing cases like ('f2, 'f0, 'myName) for a Tuple3 where fields are renamed
+    // by position but the user might assume reordering instead of renaming.
+    fields.forall {
+      case UnresolvedFieldReference(name) => !inputNames.contains(name)
+      case _ => true
+    }
+  }
+
+  /**
     * Returns field names and field positions for a given [[TypeInformation]].
     *
     * @param inputType The TypeInformation extract the field names and positions from.
@@ -793,94 +1045,83 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @tparam A The type of the TypeInformation.
     * @return A tuple of two arrays holding the field names and corresponding field positions.
     */
-  protected[flink] def getFieldInfo[A](
+  protected def getFieldInfo[A](
       inputType: TypeInformation[A],
       exprs: Array[Expression])
     : (Array[String], Array[Int]) = {
 
     TableEnvironment.validateType(inputType)
 
+    def referenceByName(name: String, ct: CompositeType[_]): Option[Int] = {
+      val inputIdx = ct.getFieldIndex(name)
+      if (inputIdx < 0) {
+        throw new TableException(s"$name is not a field of type $ct. " +
+                s"Expected: ${ct.getFieldNames.mkString(", ")}")
+      } else {
+        Some(inputIdx)
+      }
+    }
+
     val indexedNames: Array[(Int, String)] = inputType match {
+
       case g: GenericTypeInfo[A] if g.getTypeClass == classOf[Row] =>
         throw new TableException(
           "An input of GenericTypeInfo<Row> cannot be converted to Table. " +
             "Please specify the type of the input with a RowTypeInfo.")
-      case a: AtomicType[_] =>
+
+      case t: TupleTypeInfoBase[A] if t.isInstanceOf[TupleTypeInfo[A]] ||
+        t.isInstanceOf[CaseClassTypeInfo[A]] || t.isInstanceOf[RowTypeInfo] =>
+
+        // determine schema definition mode (by position or by name)
+        val isRefByPos = isReferenceByPosition(t, exprs)
+
         exprs.zipWithIndex flatMap {
-          case (UnresolvedFieldReference(name), idx) =>
-            if (idx > 0) {
-              throw new TableException("Table of atomic type can only have a single field.")
+          case (UnresolvedFieldReference(name: String), idx) =>
+            if (isRefByPos) {
+              Some((idx, name))
+            } else {
+              referenceByName(name, t).map((_, name))
             }
-            Some((0, name))
-          case _ => throw new TableException("Field reference expression requested.")
-        }
-      case t: TupleTypeInfo[A] =>
-        exprs.zipWithIndex flatMap {
-          case (UnresolvedFieldReference(name), idx) =>
-            Some((idx, name))
-          case (Alias(UnresolvedFieldReference(origName), name, _), _) =>
-            val idx = t.getFieldIndex(origName)
-            if (idx < 0) {
-              throw new TableException(s"$origName is not a field of type $t")
+          case (Alias(UnresolvedFieldReference(origName), name: String, _), _) =>
+            if (isRefByPos) {
+              throw new TableException(
+                s"Alias '$name' is not allowed if other fields are referenced by position.")
+            } else {
+              referenceByName(origName, t).map((_, name))
             }
-            Some((idx, name))
-          case (_: TimeAttribute, _) =>
-            None
-          case _ => throw new TableException(
-            "Field reference expression or alias on field expression expected.")
-        }
-      case c: CaseClassTypeInfo[A] =>
-        exprs.zipWithIndex flatMap {
-          case (UnresolvedFieldReference(name), idx) =>
-            Some((idx, name))
-          case (Alias(UnresolvedFieldReference(origName), name, _), _) =>
-            val idx = c.getFieldIndex(origName)
-            if (idx < 0) {
-              throw new TableException(s"$origName is not a field of type $c")
-            }
-            Some((idx, name))
-          case (_: TimeAttribute, _) =>
-            None
-          case _ => throw new TableException(
-            "Field reference expression or alias on field expression expected.")
-        }
-      case p: PojoTypeInfo[A] =>
-        exprs flatMap {
-          case (UnresolvedFieldReference(name)) =>
-            val idx = p.getFieldIndex(name)
-            if (idx < 0) {
-              throw new TableException(s"$name is not a field of type $p")
-            }
-            Some((idx, name))
-          case Alias(UnresolvedFieldReference(origName), name, _) =>
-            val idx = p.getFieldIndex(origName)
-            if (idx < 0) {
-              throw new TableException(s"$origName is not a field of type $p")
-            }
-            Some((idx, name))
-          case _: TimeAttribute =>
-            None
-          case _ => throw new TableException(
-            "Field reference expression or alias on field expression expected.")
-        }
-      case r: RowTypeInfo =>
-        exprs.zipWithIndex flatMap {
-          case (UnresolvedFieldReference(name), idx) =>
-            Some((idx, name))
-          case (Alias(UnresolvedFieldReference(origName), name, _), _) =>
-            val idx = r.getFieldIndex(origName)
-            if (idx < 0) {
-              throw new TableException(s"$origName is not a field of type $r")
-            }
-            Some((idx, name))
-          case (_: TimeAttribute, _) =>
+          case (_: TimeAttribute, _) | (Alias(_: TimeAttribute, _, _), _) =>
             None
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
         }
 
-      case tpe => throw new TableException(
-        s"Source of type $tpe cannot be converted into Table.")
+      case p: PojoTypeInfo[A] =>
+        exprs flatMap {
+          case (UnresolvedFieldReference(name: String)) =>
+            referenceByName(name, p).map((_, name))
+          case Alias(UnresolvedFieldReference(origName), name: String, _) =>
+            referenceByName(origName, p).map((_, name))
+          case _: TimeAttribute | Alias(_: TimeAttribute, _, _) =>
+            None
+          case _ => throw new TableException(
+            "Field reference expression or alias on field expression expected.")
+        }
+
+      case _: TypeInformation[_] => // atomic or other custom type information
+        var referenced = false
+        exprs flatMap {
+          case _: TimeAttribute =>
+            None
+          case UnresolvedFieldReference(_) if referenced =>
+            // only accept the first field for an atomic type
+            throw new TableException("Only the first field can reference an atomic type.")
+          case UnresolvedFieldReference(name: String) =>
+            referenced = true
+            // first field reference is mapped to atomic type
+            Some((0, name))
+          case _ => throw new TableException(
+            "Field reference expression expected.")
+        }
     }
 
     val (fieldIndexes, fieldNames) = indexedNames.unzip
@@ -889,7 +1130,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       throw new TableException("Field name can not be '*'.")
     }
 
-    (fieldNames.toArray, fieldIndexes.toArray) // build fails in Scala 2.10 if not converted
+    (fieldNames, fieldIndexes)
   }
 
   protected def generateRowConverterFunction[OUT](
@@ -902,7 +1143,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     // validate that at least the field types of physical and logical type match
     // we do that here to make sure that plan translation was correct
     if (schema.typeInfo != inputTypeInfo) {
-      throw TableException(
+      throw new TableException(
         s"The field types of physical and logical row types do not match. " +
         s"Physical type is [${schema.typeInfo}], Logical type is [$inputTypeInfo]. " +
         s"This is a bug and should not happen. Please file an issue.")
@@ -961,17 +1202,17 @@ abstract class TableEnvironment(val config: TableConfig) {
             }
         }
 
-      // Atomic type requested
-      case at: AtomicType[_] =>
+      // atomic type requested
+      case t: TypeInformation[_] =>
         if (fieldTypes.size != 1) {
           throw new TableException(s"Requested result type is an atomic type but " +
             s"result[$fieldTypes] has more or less than a single field.")
         }
         val requestedTypeInfo = fieldTypes.head
         validateFieldType(requestedTypeInfo)
-        if (requestedTypeInfo != at) {
+        if (requestedTypeInfo != t) {
           throw new TableException(s"Result field does not match requested type. " +
-            s"Requested: $at; Actual: $requestedTypeInfo")
+            s"Requested: $t; Actual: $requestedTypeInfo")
         }
 
       case _ =>
@@ -1113,10 +1354,7 @@ object TableEnvironment {
 
     val fieldNames: Array[String] = inputType match {
       case t: CompositeType[_] => t.getFieldNames
-      case a: AtomicType[_] => Array("f0")
-      case tpe =>
-        throw new TableException(s"Currently only CompositeType and AtomicType are supported. " +
-          s"Type $tpe lacks explicit field naming")
+      case _: TypeInformation[_] => Array("f0")
     }
 
     if (fieldNames.contains("*")) {
@@ -1136,7 +1374,8 @@ object TableEnvironment {
     if ((clazz.isMemberClass && !Modifier.isStatic(clazz.getModifiers)) ||
       !Modifier.isPublic(clazz.getModifiers) ||
       clazz.getCanonicalName == null) {
-      throw TableException(s"Class '$clazz' described in type information '$typeInfo' must be " +
+      throw new TableException(
+        s"Class '$clazz' described in type information '$typeInfo' must be " +
         s"static and globally accessible.")
     }
   }
@@ -1161,34 +1400,8 @@ object TableEnvironment {
     validateType(inputType)
 
     inputType match {
-      case t: CompositeType[_] => 0.until(t.getArity).map(i => t.getTypeAt(i)).toArray
-      case a: AtomicType[_] => Array(a.asInstanceOf[TypeInformation[_]])
-      case tpe =>
-        throw new TableException(s"Currently only CompositeType and AtomicType are supported.")
+      case ct: CompositeType[_] => 0.until(ct.getArity).map(i => ct.getTypeAt(i)).toArray
+      case t: TypeInformation[_] => Array(t.asInstanceOf[TypeInformation[_]])
     }
-  }
-
-  /**
-    * Returns field names for a given [[TableSource]].
-    *
-    * @param tableSource The TableSource to extract field names from.
-    * @tparam A The type of the TableSource.
-    * @return An array holding the field names.
-    */
-  def getFieldNames[A](tableSource: TableSource[A]): Array[String] = tableSource match {
-      case d: DefinedFieldNames => d.getFieldNames
-      case _ => TableEnvironment.getFieldNames(tableSource.getReturnType)
-    }
-
-  /**
-    * Returns field indices for a given [[TableSource]].
-    *
-    * @param tableSource The TableSource to extract field indices from.
-    * @tparam A The type of the TableSource.
-    * @return An array holding the field indices.
-    */
-  def getFieldIndices[A](tableSource: TableSource[A]): Array[Int] = tableSource match {
-    case d: DefinedFieldNames => d.getFieldIndices
-    case _ => TableEnvironment.getFieldIndices(tableSource.getReturnType)
   }
 }

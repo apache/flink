@@ -33,8 +33,9 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -73,7 +74,7 @@ public class ScheduledDropwizardReporterTest {
 	 * Tests that the registered metrics' names don't contain invalid characters.
 	 */
 	@Test
-	public void testAddingMetrics() throws NoSuchFieldException, IllegalAccessException {
+	public void testAddingMetrics() throws Exception {
 		Configuration configuration = new Configuration();
 		String taskName = "test\"Ta\"..sk";
 		String jobName = "testJ\"ob:-!ax..?";
@@ -81,7 +82,6 @@ public class ScheduledDropwizardReporterTest {
 		String taskManagerId = "tas:kMana::ger";
 		String counterName = "testCounter";
 
-		configuration.setString(MetricOptions.REPORTERS_LIST, "test");
 		configuration.setString(
 				ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
 				"org.apache.flink.dropwizard.ScheduledDropwizardReporterTest$TestingScheduledDropwizardReporter");
@@ -91,13 +91,13 @@ public class ScheduledDropwizardReporterTest {
 
 		MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(configuration);
 
-		MetricRegistry metricRegistry = new MetricRegistry(metricRegistryConfiguration);
+		MetricRegistryImpl metricRegistry = new MetricRegistryImpl(metricRegistryConfiguration);
 
 		char delimiter = metricRegistry.getDelimiter();
 
 		TaskManagerMetricGroup tmMetricGroup = new TaskManagerMetricGroup(metricRegistry, hostname, taskManagerId);
 		TaskManagerJobMetricGroup tmJobMetricGroup = new TaskManagerJobMetricGroup(metricRegistry, tmMetricGroup, new JobID(), jobName);
-		TaskMetricGroup taskMetricGroup = new TaskMetricGroup(metricRegistry, tmJobMetricGroup, new AbstractID(), new AbstractID(), taskName, 0, 0);
+		TaskMetricGroup taskMetricGroup = new TaskMetricGroup(metricRegistry, tmJobMetricGroup, new JobVertexID(), new AbstractID(), taskName, 0, 0);
 
 		SimpleCounter myCounter = new SimpleCounter();
 		com.codahale.metrics.Meter dropwizardMeter = new com.codahale.metrics.Meter();
@@ -131,7 +131,7 @@ public class ScheduledDropwizardReporterTest {
 
 		assertEquals(expectedCounterName, counters.get(myCounter));
 
-		metricRegistry.shutdown();
+		metricRegistry.shutdown().get();
 	}
 
 	/**

@@ -34,7 +34,7 @@ import java.util.List;
  * {@link org.apache.flink.streaming.api.operators.OneInputStreamOperator} to one input
  * {@link org.apache.flink.streaming.api.transformations.StreamTransformation}.
  *
- * @param <IN> The type of the elements in the nput {@code StreamTransformation}
+ * @param <IN> The type of the elements in the input {@code StreamTransformation}
  * @param <OUT> The type of the elements that result from this {@code OneInputTransformation}
  */
 @Internal

@@ -32,7 +32,7 @@ important and need **careful considerations** if you plan to bring your Flink jo
 Flink provides out-of-the-box defaults to make usage and adoption of Flink easier. For many users and scenarios, those
 defaults are good starting points for development and completely sufficient for "one-shot" jobs. 
 
-However, once you are planning to bring a Flink appplication to production the requirements typically increase. For example,
+However, once you are planning to bring a Flink application to production the requirements typically increase. For example,
 you want your job to be (re-)scalable and to have a good upgrade story for your job and new Flink versions.
 
 In the following, we present a collection of configuration options that you should check before your job goes into production.
@@ -86,3 +86,15 @@ stream processing. However, RocksDB can have worse performance than, for example
 you are sure that your state will never exceed main memory and blocking the stream processing to write it is not an issue,
 you **could consider** to not use the RocksDB backends. However, at this point, we **strongly recommend** using RocksDB
 for production.
+
+### Config JobManager High Availability(HA)
+
+The JobManager coordinates every Flink deployment. It is responsible for both *scheduling* and *resource management*.
+
+By default, there is a single JobManager instance per Flink cluster. This creates a *single point of failure* (SPOF): 
+if the JobManager crashes, no new programs can be submitted and running programs fail.
+
+With JobManager High Availability, you can recover from JobManager failures and thereby eliminate the *SPOF*. 
+We **strongly recommend** you configure [high availability]({{ site.baseurl }}/ops/jobmanager_high_availability.html) for production.
+
+{% top %}

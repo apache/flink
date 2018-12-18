@@ -83,67 +83,34 @@ class JoinValidationTest extends TableTestBase {
   }
 
   @Test(expected = classOf[TableException])
-  def testRightOuterJoinWithNonEquiJoinPredicate(): Unit = {
+  def testRightOuterJoinNoEquiJoinPredicate(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    val sqlQuery = "SELECT c, g FROM Table3 RIGHT OUTER JOIN Table5 ON b = e and a > d"
+    val sqlQuery = "SELECT c, g FROM Table3 RIGHT OUTER JOIN Table5 ON b < e"
 
     util.tableEnv.sqlQuery(sqlQuery).toDataSet[Row]
   }
 
   @Test(expected = classOf[TableException])
-  def testLeftOuterJoinWithNonEquiJoinPredicate(): Unit = {
+  def testLeftOuterJoinNoEquiJoinPredicate(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    val sqlQuery = "SELECT c, g FROM Table3 LEFT OUTER JOIN Table5 ON b = e and a > d"
+    val sqlQuery = "SELECT c, g FROM Table3 LEFT OUTER JOIN Table5 ON b > e"
 
     util.tableEnv.sqlQuery(sqlQuery).toDataSet[Row]
   }
 
   @Test(expected = classOf[TableException])
-  def testFullOuterJoinWithNonEquiJoinPredicate(): Unit = {
+  def testFullOuterJoinNoEquiJoinPredicate(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    val sqlQuery = "SELECT c, g FROM Table3 FULL OUTER JOIN Table5 ON b = e and a > d"
-
-    util.tableEnv.sqlQuery(sqlQuery).toDataSet[Row]
-  }
-
-  @Test(expected = classOf[TableException])
-  def testRightOuterJoinWithLocalPredicate(): Unit = {
-    val util = batchTestUtil()
-    util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
-    util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
-
-    val sqlQuery = "SELECT c, g FROM Table3 RIGHT OUTER JOIN Table5 ON b = e and e > 3"
-
-    util.tableEnv.sqlQuery(sqlQuery).toDataSet[Row]
-  }
-
-  @Test(expected = classOf[TableException])
-  def testLeftOuterJoinWithLocalPredicate(): Unit = {
-    val util = batchTestUtil()
-    util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
-    util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
-
-    val sqlQuery = "SELECT c, g FROM Table3 LEFT OUTER JOIN Table5 ON b = e and b > 3"
-
-    util.tableEnv.sqlQuery(sqlQuery).toDataSet[Row]
-  }
-
-  @Test(expected = classOf[TableException])
-  def testFullOuterJoinWithLocalPredicate(): Unit = {
-    val util = batchTestUtil()
-    util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
-    util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
-
-    val sqlQuery = "SELECT c, g FROM Table3 FULL OUTER JOIN Table5 ON b = e and b > 3"
+    val sqlQuery = "SELECT c, g FROM Table3 FULL OUTER JOIN Table5 ON b <> e"
 
     util.tableEnv.sqlQuery(sqlQuery).toDataSet[Row]
   }

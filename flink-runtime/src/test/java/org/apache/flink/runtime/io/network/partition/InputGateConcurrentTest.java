@@ -24,13 +24,16 @@ import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -40,20 +43,24 @@ import java.util.Random;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createResultPartitionManager;
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
 
+/**
+ * Concurrency tests for input gates.
+ */
 public class InputGateConcurrentTest {
 
 	@Test
 	public void testConsumptionWithLocalChannels() throws Exception {
-		final int numChannels = 11;
+		final int numberOfChannels = 11;
 		final int buffersPerChannel = 1000;
 
 		final ResultPartition resultPartition = mock(ResultPartition.class);
 
-		final PipelinedSubpartition[] partitions = new PipelinedSubpartition[numChannels];
-		final Source[] sources = new Source[numChannels];
+		final PipelinedSubpartition[] partitions = new PipelinedSubpartition[numberOfChannels];
+		final Source[] sources = new Source[numberOfChannels];
 
 		final ResultPartitionManager resultPartitionManager = createResultPartitionManager(partitions);
 
@@ -61,21 +68,22 @@ public class InputGateConcurrentTest {
 				"Test Task Name",
 				new JobID(),
 				new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
-				0, numChannels,
+				0, numberOfChannels,
 				mock(TaskActions.class),
-				new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+				true);
 
-		for (int i = 0; i < numChannels; i++) {
+		for (int i = 0; i < numberOfChannels; i++) {
 			LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
-					resultPartitionManager, mock(TaskEventDispatcher.class), new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+					resultPartitionManager, mock(TaskEventDispatcher.class), UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
 			partitions[i] = new PipelinedSubpartition(0, resultPartition);
 			sources[i] = new PipelinedSubpartitionSource(partitions[i]);
 		}
 
-		ProducerThread producer = new ProducerThread(sources, numChannels * buffersPerChannel, 4, 10);
-		ConsumerThread consumer = new ConsumerThread(gate, numChannels * buffersPerChannel);
+		ProducerThread producer = new ProducerThread(sources, numberOfChannels * buffersPerChannel, 4, 10);
+		ConsumerThread consumer = new ConsumerThread(gate, numberOfChannels * buffersPerChannel);
 		producer.start();
 		consumer.start();
 
@@ -86,32 +94,33 @@ public class InputGateConcurrentTest {
 
 	@Test
 	public void testConsumptionWithRemoteChannels() throws Exception {
-		final int numChannels = 11;
+		final int numberOfChannels = 11;
 		final int buffersPerChannel = 1000;
 
 		final ConnectionManager connManager = createDummyConnectionManager();
-		final Source[] sources = new Source[numChannels];
+		final Source[] sources = new Source[numberOfChannels];
 
 		final SingleInputGate gate = new SingleInputGate(
 				"Test Task Name",
 				new JobID(),
 				new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
 				0,
-				numChannels,
+				numberOfChannels,
 				mock(TaskActions.class),
-				new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+				true);
 
-		for (int i = 0; i < numChannels; i++) {
+		for (int i = 0; i < numberOfChannels; i++) {
 			RemoteInputChannel channel = new RemoteInputChannel(
 					gate, i, new ResultPartitionID(), mock(ConnectionID.class),
-					connManager, 0, 0, new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+					connManager, 0, 0, UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
 			sources[i] = new RemoteChannelSource(channel);
 		}
 
-		ProducerThread producer = new ProducerThread(sources, numChannels * buffersPerChannel, 4, 10);
-		ConsumerThread consumer = new ConsumerThread(gate, numChannels * buffersPerChannel);
+		ProducerThread producer = new ProducerThread(sources, numberOfChannels * buffersPerChannel, 4, 10);
+		ConsumerThread consumer = new ConsumerThread(gate, numberOfChannels * buffersPerChannel);
 		producer.start();
 		consumer.start();
 
@@ -122,13 +131,13 @@ public class InputGateConcurrentTest {
 
 	@Test
 	public void testConsumptionWithMixedChannels() throws Exception {
-		final int numChannels = 61;
+		final int numberOfChannels = 61;
 		final int numLocalChannels = 20;
 		final int buffersPerChannel = 1000;
 
 		// fill the local/remote decision
-		List<Boolean> localOrRemote = new ArrayList<>(numChannels);
-		for (int i = 0; i < numChannels; i++) {
+		List<Boolean> localOrRemote = new ArrayList<>(numberOfChannels);
+		for (int i = 0; i < numberOfChannels; i++) {
 			localOrRemote.add(i < numLocalChannels);
 		}
 		Collections.shuffle(localOrRemote);
@@ -139,18 +148,19 @@ public class InputGateConcurrentTest {
 		final PipelinedSubpartition[] localPartitions = new PipelinedSubpartition[numLocalChannels];
 		final ResultPartitionManager resultPartitionManager = createResultPartitionManager(localPartitions);
 
-		final Source[] sources = new Source[numChannels];
+		final Source[] sources = new Source[numberOfChannels];
 
 		final SingleInputGate gate = new SingleInputGate(
 				"Test Task Name",
 				new JobID(),
 				new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
 				0,
-				numChannels,
+				numberOfChannels,
 				mock(TaskActions.class),
-				new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+				true);
 
-		for (int i = 0, local = 0; i < numChannels; i++) {
+		for (int i = 0, local = 0; i < numberOfChannels; i++) {
 			if (localOrRemote.get(i)) {
 				// local channel
 				PipelinedSubpartition psp = new PipelinedSubpartition(0, resultPartition);
@@ -158,22 +168,22 @@ public class InputGateConcurrentTest {
 				sources[i] = new PipelinedSubpartitionSource(psp);
 
 				LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
-						resultPartitionManager, mock(TaskEventDispatcher.class), new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+						resultPartitionManager, mock(TaskEventDispatcher.class), UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 				gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 			}
 			else {
 				//remote channel
 				RemoteInputChannel channel = new RemoteInputChannel(
 						gate, i, new ResultPartitionID(), mock(ConnectionID.class),
-						connManager, 0, 0, new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+						connManager, 0, 0, UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 				gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
 				sources[i] = new RemoteChannelSource(channel);
 			}
 		}
 
-		ProducerThread producer = new ProducerThread(sources, numChannels * buffersPerChannel, 4, 10);
-		ConsumerThread consumer = new ConsumerThread(gate, numChannels * buffersPerChannel);
+		ProducerThread producer = new ProducerThread(sources, numberOfChannels * buffersPerChannel, 4, 10);
+		ConsumerThread consumer = new ConsumerThread(gate, numberOfChannels * buffersPerChannel);
 		producer.start();
 		consumer.start();
 
@@ -186,9 +196,11 @@ public class InputGateConcurrentTest {
 	//  testing threads
 	// ------------------------------------------------------------------------
 
-	private static abstract class Source {
-	
-		abstract void addBuffer(Buffer buffer) throws Exception;
+	private abstract static class Source {
+
+		abstract void addBufferConsumer(BufferConsumer bufferConsumer) throws Exception;
+
+		abstract void flush();
 	}
 
 	private static class PipelinedSubpartitionSource extends Source {
@@ -200,8 +212,13 @@ public class InputGateConcurrentTest {
 		}
 
 		@Override
-		void addBuffer(Buffer buffer) throws Exception {
-			partition.add(buffer);
+		void addBufferConsumer(BufferConsumer bufferConsumer) throws Exception {
+			partition.add(bufferConsumer);
+		}
+
+		@Override
+		void flush() {
+			partition.flush();
 		}
 	}
 
@@ -215,8 +232,19 @@ public class InputGateConcurrentTest {
 		}
 
 		@Override
-		void addBuffer(Buffer buffer) throws Exception {
-			channel.onBuffer(buffer, seq++);
+		void addBufferConsumer(BufferConsumer bufferConsumer) throws Exception {
+			try {
+				Buffer buffer = bufferConsumer.build();
+				checkState(bufferConsumer.isFinished(), "Handling of non finished buffers is not yet implemented");
+				channel.onBuffer(buffer, seq++, -1);
+			}
+			finally {
+				bufferConsumer.close();
+			}
+		}
+
+		@Override
+		void flush() {
 		}
 	}
 
@@ -233,6 +261,7 @@ public class InputGateConcurrentTest {
 		private final int yieldAfter;
 
 		ProducerThread(Source[] sources, int numTotal, int maxChunk, int yieldAfter) {
+			super("producer");
 			this.sources = sources;
 			this.numTotal = numTotal;
 			this.maxChunk = maxChunk;
@@ -241,7 +270,7 @@ public class InputGateConcurrentTest {
 
 		@Override
 		public void go() throws Exception {
-			final Buffer buffer = InputChannelTestUtils.createMockBuffer(100);
+			final BufferConsumer bufferConsumer = BufferBuilderTestUtils.createFilledBufferConsumer(100);
 			int nextYield = numTotal - yieldAfter;
 
 			for (int i = numTotal; i > 0;) {
@@ -251,7 +280,7 @@ public class InputGateConcurrentTest {
 				final Source next = sources[nextChannel];
 
 				for (int k = chunk; k > 0; --k) {
-					next.addBuffer(buffer);
+					next.addBufferConsumer(bufferConsumer.copy());
 				}
 
 				i -= chunk;
@@ -261,7 +290,10 @@ public class InputGateConcurrentTest {
 					//noinspection CallToThreadYield
 					Thread.yield();
 				}
+			}
 
+			for (Source source : sources) {
+				source.flush();
 			}
 		}
 	}
@@ -272,6 +304,7 @@ public class InputGateConcurrentTest {
 		private final int numBuffers;
 
 		ConsumerThread(SingleInputGate gate, int numBuffers) {
+			super("consumer");
 			this.gate = gate;
 			this.numBuffers = numBuffers;
 		}

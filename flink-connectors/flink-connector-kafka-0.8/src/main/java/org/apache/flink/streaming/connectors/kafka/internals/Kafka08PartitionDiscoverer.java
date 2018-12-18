@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.NetUtils;
 
 import kafka.cluster.Broker;
@@ -25,7 +26,6 @@ import kafka.javaapi.PartitionMetadata;
 import kafka.javaapi.TopicMetadata;
 import kafka.javaapi.TopicMetadataRequest;
 import kafka.javaapi.consumer.SimpleConsumer;
-
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.Node;
 import org.slf4j.Logger;
@@ -50,6 +50,7 @@ import static org.apache.flink.util.PropertiesUtil.getInt;
  * A partition discoverer that can be used to discover topics and partitions metadata
  * from Kafka brokers via the Kafka 0.8 low-level consumer API.
  */
+@Internal
 public class Kafka08PartitionDiscoverer extends AbstractPartitionDiscoverer {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Kafka08PartitionDiscoverer.class);

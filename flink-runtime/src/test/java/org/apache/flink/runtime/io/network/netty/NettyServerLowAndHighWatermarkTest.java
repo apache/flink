@@ -39,37 +39,54 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Verifies that high and low watermarks for {@link NettyServer} may be set to any (valid) values
+ * given by the user.
+ */
 public class NettyServerLowAndHighWatermarkTest {
 
 	/**
-	 * Pick a larger memory segment size here in order to trigger
-	 * <a href="https://issues.apache.org/jira/browse/FLINK-7258">FLINK-7258</a>.
+	 * Verify low and high watermarks being set correctly for larger memory segment sizes which
+	 * trigger <a href="https://issues.apache.org/jira/browse/FLINK-7258">FLINK-7258</a>.
 	 */
-	private final static int PageSize = 65536;
+	@Test
+	public void testLargeLowAndHighWatermarks() throws Throwable {
+		testLowAndHighWatermarks(65536);
+	}
+
+	/**
+	 * Verify low and high watermarks being set correctly for smaller memory segment sizes than
+	 * Netty's defaults.
+	 */
+	@Test
+	public void testSmallLowAndHighWatermarks() throws Throwable {
+		testLowAndHighWatermarks(1024);
+	}
 
 	/**
 	 * Verifies that the high and low watermark are set in relation to the page size.
 	 *
-	 * <p> The high and low water marks control the data flow to the wire. If the Netty write buffer
+	 * <p>The high and low water marks control the data flow to the wire. If the Netty write buffer
 	 * has size greater or equal to the high water mark, the channel state becomes not-writable.
 	 * Only when the size falls below the low water mark again, the state changes to writable again.
 	 *
-	 * <p> The Channel writability state needs to be checked by the handler when writing to the
+	 * <p>The Channel writability state needs to be checked by the handler when writing to the
 	 * channel and is not enforced in the sense that you cannot write a channel, which is in
 	 * not-writable state.
+	 *
+	 * @param pageSize memory segment size to test with (influences high and low watermarks)
 	 */
-	@Test
-	public void testLowAndHighWatermarks() throws Throwable {
-		final int expectedLowWatermark = PageSize + 1;
-		final int expectedHighWatermark = 2 * PageSize;
+	private void testLowAndHighWatermarks(int pageSize) throws Throwable {
+		final int expectedLowWatermark = pageSize + 1;
+		final int expectedHighWatermark = 2 * pageSize;
 
 		final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
-		final NettyProtocol protocol = new NettyProtocol() {
+		final NettyProtocol protocol = new NettyProtocol(null, null, true) {
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
 				// The channel handler implements the test
 				return new ChannelHandler[] {new TestLowAndHighWatermarkHandler(
-					expectedLowWatermark, expectedHighWatermark, error)};
+					pageSize, expectedLowWatermark, expectedHighWatermark, error)};
 			}
 
 			@Override
@@ -78,7 +95,7 @@ public class NettyServerLowAndHighWatermarkTest {
 			}
 		};
 
-		final NettyConfig conf = createConfig(PageSize);
+		final NettyConfig conf = createConfig(pageSize);
 
 		final NettyServerAndClient serverAndClient = initServerAndClient(protocol, conf);
 
@@ -103,9 +120,11 @@ public class NettyServerLowAndHighWatermarkTest {
 	/**
 	 * This handler implements the test.
 	 *
-	 * <p> Verifies that the high and low watermark are set in relation to the page size.
+	 * <p>Verifies that the high and low watermark are set in relation to the page size.
 	 */
 	private static class TestLowAndHighWatermarkHandler extends ChannelInboundHandlerAdapter {
+
+		private final int pageSize;
 
 		private final int expectedLowWatermark;
 
@@ -115,7 +134,10 @@ public class NettyServerLowAndHighWatermarkTest {
 
 		private boolean hasFlushed;
 
-		public TestLowAndHighWatermarkHandler(int expectedLowWatermark, int expectedHighWatermark, AtomicReference<Throwable> error) {
+		public TestLowAndHighWatermarkHandler(
+				int pageSize, int expectedLowWatermark, int expectedHighWatermark,
+				AtomicReference<Throwable> error) {
+			this.pageSize = pageSize;
 			this.expectedLowWatermark = expectedLowWatermark;
 			this.expectedHighWatermark = expectedHighWatermark;
 			this.error = error;
@@ -167,13 +189,13 @@ public class NettyServerLowAndHighWatermarkTest {
 
 			super.exceptionCaught(ctx, cause);
 		}
+
+		private ByteBuf buffer() {
+			return NettyServerLowAndHighWatermarkTest.buffer(pageSize);
+		}
 	}
 
 	// ---------------------------------------------------------------------------------------------
-
-	private static ByteBuf buffer() {
-		return buffer(PageSize);
-	}
 
 	/**
 	 * Creates a new buffer of the given size.

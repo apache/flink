@@ -62,4 +62,11 @@ public class UnionOperator<T> extends TwoInputOperator<T, T, T, UnionOperator<T>
 	protected Union<T> translateToDataFlow(Operator<T> input1, Operator<T> input2) {
 		return new Union<T>(input1, input2, unionLocationName);
 	}
+
+	@Override
+	public UnionOperator<T> setParallelism(int parallelism) {
+		// Union is not translated to an independent operator but executed by multiplexing
+		// its input on the following operator. Hence, the parallelism of a Union cannot be set.
+		throw new UnsupportedOperationException("Cannot set the parallelism for Union.");
+	}
 }

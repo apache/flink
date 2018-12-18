@@ -53,7 +53,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * The {@link AsyncWaitOperator} allows to asynchronously process incoming stream records. For that
@@ -163,6 +162,14 @@ public class AsyncWaitOperator<IN, OUT>
 	public void open() throws Exception {
 		super.open();
 
+		// create the emitter
+		this.emitter = new Emitter<>(checkpointingLock, output, queue, this);
+
+		// start the emitter thread
+		this.emitterThread = new Thread(emitter, "AsyncIO-Emitter-Thread (" + getOperatorName() + ')');
+		emitterThread.setDaemon(true);
+		emitterThread.start();
+
 		// process stream elements from state, since the Emit thread will start as soon as all
 		// elements from previous state are in the StreamElementQueue, we have to make sure that the
 		// order to open all operators in the operator chain proceeds from the tail operator to the
@@ -186,14 +193,6 @@ public class AsyncWaitOperator<IN, OUT>
 			recoveredStreamElements = null;
 		}
 
-		// create the emitter
-		this.emitter = new Emitter<>(checkpointingLock, output, queue, this);
-
-		// start the emitter thread
-		this.emitterThread = new Thread(emitter, "AsyncIO-Emitter-Thread (" + getOperatorName() + ')');
-		emitterThread.setDaemon(true);
-		emitterThread.start();
-
 	}
 
 	@Override
@@ -209,8 +208,7 @@ public class AsyncWaitOperator<IN, OUT>
 				new ProcessingTimeCallback() {
 					@Override
 					public void onProcessingTime(long timestamp) throws Exception {
-						streamRecordBufferEntry.completeExceptionally(
-							new TimeoutException("Async function call has timed out."));
+						userFunction.timeout(element.getValue(), streamRecordBufferEntry);
 					}
 				});
 
@@ -264,6 +262,7 @@ public class AsyncWaitOperator<IN, OUT>
 
 	@Override
 	public void initializeState(StateInitializationContext context) throws Exception {
+		super.initializeState(context);
 		recoveredStreamElements = context
 			.getOperatorStateStore()
 			.getListState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));

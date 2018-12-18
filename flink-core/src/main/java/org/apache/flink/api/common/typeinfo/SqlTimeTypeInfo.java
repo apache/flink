@@ -18,11 +18,6 @@
 
 package org.apache.flink.api.common.typeinfo;
 
-import java.lang.reflect.Constructor;
-import java.sql.Date;
-import java.sql.Time;
-import java.sql.Timestamp;
-import java.util.Objects;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -32,6 +27,13 @@ import org.apache.flink.api.common.typeutils.base.SqlDateSerializer;
 import org.apache.flink.api.common.typeutils.base.SqlTimeSerializer;
 import org.apache.flink.api.common.typeutils.base.SqlTimestampComparator;
 import org.apache.flink.api.common.typeutils.base.SqlTimestampSerializer;
+
+import java.lang.reflect.Constructor;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.util.Objects;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**

@@ -20,8 +20,12 @@ package org.apache.flink.table.api.batch.table
 
 import java.sql.Timestamp
 
+import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.expressions.Null
+import org.apache.flink.table.runtime.utils.CommonTestData.NonPojo
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.Test
@@ -75,5 +79,202 @@ class SetOperatorsTest extends TableTestBase {
     )
 
     util.verifyTable(in, expected)
+  }
+
+  @Test
+  def testUnionNullableTypes(): Unit = {
+    val util = batchTestUtil()
+    val t = util.addTable[((Int, String), (Int, String), Int)]("A", 'a, 'b, 'c)
+
+    val in = t.select('a)
+      .unionAll(
+        t.select(('c > 0) ? ('b, Null(createTypeInformation[(Int, String)]))))
+
+    val expected = binaryNode(
+      "DataSetUnion",
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "a")
+      ),
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "CASE(>(c, 0), b, null) AS _c0")
+      ),
+      term("all", "true"),
+      term("union", "a")
+    )
+
+    util.verifyTable(in, expected)
+  }
+
+  @Test
+  def testUnionAnyType(): Unit = {
+    val util = batchTestUtil()
+    val typeInfo = Types.ROW(
+      new GenericTypeInfo(classOf[NonPojo]),
+      new GenericTypeInfo(classOf[NonPojo]))
+    val t = util.addJavaTable(typeInfo, "A", "a, b")
+
+    val in = t.select('a).unionAll(t.select('b))
+
+    val expected = binaryNode(
+      "DataSetUnion",
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "a")
+      ),
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "b")
+      ),
+      term("all", "true"),
+      term("union", "a")
+    )
+
+    util.verifyJavaTable(in, expected)
+  }
+
+  @Test
+  def testFilterUnionTranspose(): Unit = {
+    val util = batchTestUtil()
+    val left = util.addTable[(Int, Long, String)]("left", 'a, 'b, 'c)
+    val right = util.addTable[(Int, Long, String)]("right", 'a, 'b, 'c)
+
+    val result = left.unionAll(right)
+      .where('a > 0)
+      .groupBy('b)
+      .select('a.sum as 'a, 'b as 'b, 'c.count as 'c)
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      unaryNode(
+        "DataSetAggregate",
+        binaryNode(
+          "DataSetUnion",
+          unaryNode(
+            "DataSetCalc",
+            batchTableNode(0),
+            term("select", "a", "b", "c"),
+            term("where", ">(a, 0)")
+          ),
+          unaryNode(
+            "DataSetCalc",
+            batchTableNode(1),
+            term("select", "a", "b", "c"),
+            term("where", ">(a, 0)")
+          ),
+          term("all", "true"),
+          term("union", "a", "b", "c")
+        ),
+        term("groupBy", "b"),
+        term("select", "b", "SUM(a) AS TMP_0", "COUNT(c) AS TMP_1")
+      ),
+      term("select", "TMP_0 AS a", "b", "TMP_1 AS c")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testFilterMinusTranspose(): Unit = {
+    val util = batchTestUtil()
+    val left = util.addTable[(Int, Long, String)]("left", 'a, 'b, 'c)
+    val right = util.addTable[(Int, Long, String)]("right", 'a, 'b, 'c)
+
+    val result = left.minusAll(right)
+      .where('a > 0)
+      .groupBy('b)
+      .select('a.sum as 'a, 'b as 'b, 'c.count as 'c)
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      unaryNode(
+        "DataSetAggregate",
+        binaryNode(
+          "DataSetMinus",
+          unaryNode(
+            "DataSetCalc",
+            batchTableNode(0),
+            term("select", "a", "b", "c"),
+            term("where", ">(a, 0)")
+          ),
+          unaryNode(
+            "DataSetCalc",
+            batchTableNode(1),
+            term("select", "a", "b", "c"),
+            term("where", ">(a, 0)")
+          ),
+          term("minus", "a", "b", "c")
+        ),
+        term("groupBy", "b"),
+        term("select", "b", "SUM(a) AS TMP_0", "COUNT(c) AS TMP_1")
+      ),
+      term("select", "TMP_0 AS a", "b", "TMP_1 AS c")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testProjectUnionTranspose(): Unit = {
+    val util = batchTestUtil()
+    val left = util.addTable[(Int, Long, String)]("left", 'a, 'b, 'c)
+    val right = util.addTable[(Int, Long, String)]("right", 'a, 'b, 'c)
+
+    val result = left.select('a, 'b, 'c)
+                 .unionAll(right.select('a, 'b, 'c))
+                 .select('b, 'c)
+
+    val expected = binaryNode(
+      "DataSetUnion",
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "b", "c")
+      ),
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(1),
+        term("select", "b", "c")
+      ),
+      term("all", "true"),
+      term("union", "b", "c")
+    )
+
+    util.verifyTable(result, expected)
+
+  }
+
+  @Test
+  def testProjectMinusTranspose(): Unit = {
+    val util = batchTestUtil()
+    val left = util.addTable[(Int, Long, String)]("left", 'a, 'b, 'c)
+    val right = util.addTable[(Int, Long, String)]("right", 'a, 'b, 'c)
+
+    val result = left.select('a, 'b, 'c)
+                 .minusAll(right.select('a, 'b, 'c))
+                 .select('b, 'c)
+
+    val expected = binaryNode(
+      "DataSetMinus",
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "b", "c")
+      ),
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(1),
+        term("select", "b", "c")
+      ),
+      term("minus", "b", "c")
+    )
+
+    util.verifyTable(result, expected)
+
   }
 }

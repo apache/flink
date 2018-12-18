@@ -59,7 +59,7 @@ public class CheckpointStatsTracker {
 	 * from a single Thread at a time and there can be multiple concurrent read
 	 * accesses to the latest stats snapshot.
 	 *
-	 * Currently, writes are executed by whatever Thread executes the coordinator
+	 * <p>Currently, writes are executed by whatever Thread executes the coordinator
 	 * actions (which already happens in locked scope). Reads can come from
 	 * multiple concurrent Netty event loop Threads of the web runtime monitor.
 	 */
@@ -81,7 +81,7 @@ public class CheckpointStatsTracker {
 	private final CheckpointStatsHistory history;
 
 	/** The job vertices taking part in the checkpoints. */
-	private final transient List<ExecutionJobVertex> jobVertices;
+	private final List<ExecutionJobVertex> jobVertices;
 
 	/** The latest restored checkpoint. */
 	@Nullable
@@ -99,7 +99,7 @@ public class CheckpointStatsTracker {
 
 	/** The latest completed checkpoint. Used by the latest completed checkpoint metrics. */
 	@Nullable
-	private volatile transient CompletedCheckpointStats latestCompletedCheckpoint;
+	private volatile CompletedCheckpointStats latestCompletedCheckpoint;
 
 	/**
 	 * Creates a new checkpoint stats tracker.

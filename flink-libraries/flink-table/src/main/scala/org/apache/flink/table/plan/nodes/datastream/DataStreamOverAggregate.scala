@@ -25,18 +25,22 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rex.RexLiteral
 import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
+import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.AggregationCodeGenerator
 import org.apache.flink.table.plan.nodes.OverAggregate
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.runtime.CRowKeySelector
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.util.Logging
+
+import scala.collection.JavaConverters._
 
 class DataStreamOverAggregate(
     logicWindow: Window,
@@ -73,6 +77,7 @@ class DataStreamOverAggregate(
   override def explainTerms(pw: RelWriter): RelWriter = {
 
     val overWindow: Group = logicWindow.groups.get(0)
+    val constants: Seq[RexLiteral] = logicWindow.constants.asScala
     val partitionKeys: Array[Int] = overWindow.keys.toArray
     val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
 
@@ -86,6 +91,7 @@ class DataStreamOverAggregate(
       .item(
         "select", aggregationToString(
           inputSchema.relDataType,
+          constants,
           schema.relDataType,
           namedAggregates))
   }
@@ -131,10 +137,21 @@ class DataStreamOverAggregate(
         "excessive state size. You may specify a retention time of 0 to not clean up the state.")
     }
 
+    val constants: Seq[RexLiteral] = logicWindow.constants.asScala
+
     val generator = new AggregationCodeGenerator(
       tableEnv.getConfig,
       false,
-      inputSchema.typeInfo)
+      inputSchema.typeInfo,
+      Some(constants))
+
+    val constantTypes = constants.map(_.getType)
+    val fieldTypes = input.getRowType.getFieldList.asScala.map(_.getType)
+    val aggInTypes = fieldTypes ++ constantTypes
+    val aggInNames = aggInTypes.indices.map("f" + _)
+
+    val aggregateInputType =
+      getCluster.getTypeFactory.createStructType(aggInTypes.asJava, aggInNames.asJava)
 
     val timeType = schema.relDataType
       .getFieldList
@@ -155,9 +172,11 @@ class DataStreamOverAggregate(
       // unbounded OVER window
       createUnboundedAndCurrentRowOverWindow(
         queryConfig,
+        tableEnv.getConfig,
         generator,
         inputDS,
         rowTimeIdx,
+        aggregateInputType,
         isRowsClause = overWindow.isRows)
     } else if (
       overWindow.lowerBound.isPreceding && !overWindow.lowerBound.isUnbounded &&
@@ -169,7 +188,9 @@ class DataStreamOverAggregate(
         generator,
         inputDS,
         rowTimeIdx,
-        isRowsClause = overWindow.isRows)
+        aggregateInputType,
+        isRowsClause = overWindow.isRows,
+        tableEnv.getConfig)
     } else {
       throw new TableException("OVER RANGE FOLLOWING windows are not supported yet.")
     }
@@ -177,9 +198,11 @@ class DataStreamOverAggregate(
 
   def createUnboundedAndCurrentRowOverWindow(
     queryConfig: StreamQueryConfig,
+    tableConfig: TableConfig,
     generator: AggregationCodeGenerator,
     inputDS: DataStream[CRow],
     rowTimeIdx: Option[Int],
+    aggregateInputType: RelDataType,
     isRowsClause: Boolean): DataStream[CRow] = {
 
     val overWindow: Group = logicWindow.groups.get(0)
@@ -194,10 +217,12 @@ class DataStreamOverAggregate(
     val processFunction = AggregateUtil.createUnboundedOverProcessFunction(
       generator,
       namedAggregates,
+      aggregateInputType,
       inputSchema.relDataType,
       inputSchema.typeInfo,
       inputSchema.fieldTypeInfos,
       queryConfig,
+      tableConfig,
       rowTimeIdx,
       partitionKeys.nonEmpty,
       isRowsClause)
@@ -206,7 +231,7 @@ class DataStreamOverAggregate(
     // partitioned aggregation
       if (partitionKeys.nonEmpty) {
         inputDS
-          .keyBy(partitionKeys: _*)
+          .keyBy(new CRowKeySelector(partitionKeys, inputSchema.projectedTypeInfo(partitionKeys)))
           .process(processFunction)
           .returns(returnTypeInfo)
           .name(aggOpName)
@@ -227,10 +252,14 @@ class DataStreamOverAggregate(
     generator: AggregationCodeGenerator,
     inputDS: DataStream[CRow],
     rowTimeIdx: Option[Int],
-    isRowsClause: Boolean): DataStream[CRow] = {
+    aggregateInputType: RelDataType,
+    isRowsClause: Boolean,
+    tableConfig: TableConfig): DataStream[CRow] = {
 
     val overWindow: Group = logicWindow.groups.get(0)
+
     val partitionKeys: Array[Int] = overWindow.keys.toArray
+
     val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
 
     val precedingOffset =
@@ -242,11 +271,13 @@ class DataStreamOverAggregate(
     val processFunction = AggregateUtil.createBoundedOverProcessFunction(
       generator,
       namedAggregates,
+      aggregateInputType,
       inputSchema.relDataType,
       inputSchema.typeInfo,
       inputSchema.fieldTypeInfos,
       precedingOffset,
       queryConfig,
+      tableConfig,
       isRowsClause,
       rowTimeIdx
     )
@@ -254,7 +285,7 @@ class DataStreamOverAggregate(
     // partitioned aggregation
       if (partitionKeys.nonEmpty) {
         inputDS
-          .keyBy(partitionKeys: _*)
+          .keyBy(new CRowKeySelector(partitionKeys, inputSchema.projectedTypeInfo(partitionKeys)))
           .process(processFunction)
           .returns(returnTypeInfo)
           .name(aggOpName)
@@ -280,6 +311,7 @@ class DataStreamOverAggregate(
 
   private def aggOpName = {
     val overWindow: Group = logicWindow.groups.get(0)
+    val constants: Seq[RexLiteral] = logicWindow.constants.asScala
     val partitionKeys: Array[Int] = overWindow.keys.toArray
     val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
 
@@ -296,6 +328,7 @@ class DataStreamOverAggregate(
       s"select: (${
         aggregationToString(
           inputSchema.relDataType,
+          constants,
           schema.relDataType,
           namedAggregates)
       }))"

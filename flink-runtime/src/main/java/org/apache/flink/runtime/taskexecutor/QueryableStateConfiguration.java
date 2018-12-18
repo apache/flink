@@ -18,6 +18,11 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.configuration.QueryableStateOptions;
+import org.apache.flink.util.NetUtils;
+
+import java.util.Iterator;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -25,74 +30,111 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class QueryableStateConfiguration {
 
-	private final boolean enabled;
+	private final Iterator<Integer> proxyPortRange;
 
-	private final int port;
+	private final Iterator<Integer> qserverPortRange;
+
+	private final int numProxyThreads;
+
+	private final int numPQueryThreads;
 
 	private final int numServerThreads;
 
-	private final int numQueryThreads;
+	private final int numSQueryThreads;
 
-	public QueryableStateConfiguration(boolean enabled, int port, int numServerThreads, int numQueryThreads) {
-		checkArgument(port >= 0 && port < 65536, "queryable state server port out of range");
+	public QueryableStateConfiguration(
+			Iterator<Integer> proxyPortRange,
+			Iterator<Integer> qserverPortRange,
+			int numProxyThreads,
+			int numPQueryThreads,
+			int numServerThreads,
+			int numSQueryThreads) {
+
+		checkArgument(proxyPortRange != null && proxyPortRange.hasNext());
+		checkArgument(qserverPortRange != null && qserverPortRange.hasNext());
+		checkArgument(numProxyThreads >= 0, "queryable state number of server threads must be zero or larger");
+		checkArgument(numPQueryThreads >= 0, "queryable state number of query threads must be zero or larger");
 		checkArgument(numServerThreads >= 0, "queryable state number of server threads must be zero or larger");
-		checkArgument(numQueryThreads >= 0, "queryable state number of query threads must be zero or larger");
+		checkArgument(numSQueryThreads >= 0, "queryable state number of query threads must be zero or larger");
 
-		this.enabled = enabled;
-		this.port = port;
+		this.proxyPortRange = proxyPortRange;
+		this.qserverPortRange = qserverPortRange;
+		this.numProxyThreads = numProxyThreads;
+		this.numPQueryThreads = numPQueryThreads;
 		this.numServerThreads = numServerThreads;
-		this.numQueryThreads = numQueryThreads;
+		this.numSQueryThreads = numSQueryThreads;
 	}
 
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Returns whether queryable state is enabled. 
+	 * Returns the port range where the queryable state client proxy can listen.
+	 * See {@link org.apache.flink.configuration.QueryableStateOptions#PROXY_PORT_RANGE QueryableStateOptions.PROXY_PORT_RANGE}.
 	 */
-	public boolean enabled() {
-		return enabled;
+	public Iterator<Integer> getProxyPortRange() {
+		return proxyPortRange;
 	}
 
 	/**
-	 * Returns the port where the server should listen.
+	 * Returns the port range where the queryable state client proxy can listen.
+	 * See {@link org.apache.flink.configuration.QueryableStateOptions#SERVER_PORT_RANGE QueryableStateOptions.SERVER_PORT_RANGE}.
 	 */
-	public int port() {
-		return port;
+	public Iterator<Integer> getStateServerPortRange() {
+		return qserverPortRange;
 	}
 
 	/**
 	 * Returns the number of threads for the query server NIO event loop.
 	 * These threads only process network events and dispatch query requests to the query threads.
 	 */
-	public int numServerThreads() {
+	public int numProxyServerThreads() {
+		return numProxyThreads;
+	}
+
+	/**
+	 * Returns the number of threads for the thread pool that performs the actual state lookup.
+	 * These threads perform the actual state lookup.
+	 */
+	public int numProxyQueryThreads() {
+		return numPQueryThreads;
+	}
+
+	/**
+	 * Returns the number of threads for the query server NIO event loop.
+	 * These threads only process network events and dispatch query requests to the query threads.
+	 */
+	public int numStateServerThreads() {
 		return numServerThreads;
 	}
 
 	/**
 	 * Returns the number of threads for the thread pool that performs the actual state lookup.
-	 * These threads perform the actual state lookup. 
+	 * These threads perform the actual state lookup.
 	 */
-	public int numQueryThreads() {
-		return numQueryThreads;
+	public int numStateQueryThreads() {
+		return numSQueryThreads;
 	}
 
 	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {
-		return "QueryableStateConfiguration {" +
-				"enabled=" + enabled +
-				", numServerThreads=" + numServerThreads +
-				", numQueryThreads=" + numQueryThreads +
+		return "QueryableStateConfiguration{" +
+				"numProxyServerThreads=" + numProxyThreads +
+				", numProxyQueryThreads=" + numPQueryThreads +
+				", numStateServerThreads=" + numServerThreads +
+				", numStateQueryThreads=" + numSQueryThreads +
 				'}';
 	}
 
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Gets the configuration describing the queryable state as deactivated. 
+	 * Gets the configuration describing the queryable state as deactivated.
 	 */
 	public static QueryableStateConfiguration disabled() {
-		return new QueryableStateConfiguration(false, 0, 0, 0);
+		final Iterator<Integer> proxyPorts = NetUtils.getPortRangeFromString(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue());
+		final Iterator<Integer> serverPorts = NetUtils.getPortRangeFromString(QueryableStateOptions.SERVER_PORT_RANGE.defaultValue());
+		return new QueryableStateConfiguration(proxyPorts, serverPorts, 0, 0, 0, 0);
 	}
 }

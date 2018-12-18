@@ -27,10 +27,10 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraphException;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
-import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import org.junit.Test;
@@ -60,7 +60,7 @@ public class InputChannelDeploymentDescriptorTest {
 
 		ResourceID consumerResourceId = ResourceID.generate();
 		ExecutionVertex consumer = mock(ExecutionVertex.class);
-		SimpleSlot consumerSlot = mockSlot(consumerResourceId);
+		LogicalSlot consumerSlot = mockSlot(consumerResourceId);
 
 		// Local and remote channel are only allowed for certain execution
 		// states.
@@ -86,7 +86,7 @@ public class InputChannelDeploymentDescriptorTest {
 
 			InputChannelDeploymentDescriptor[] desc = InputChannelDeploymentDescriptor.fromEdges(
 				new ExecutionEdge[]{localEdge, remoteEdge, unknownEdge},
-				consumerSlot,
+				consumerSlot.getTaskManagerLocation().getResourceID(),
 				allowLazyDeployment);
 
 			assertEquals(3, desc.length);
@@ -124,7 +124,7 @@ public class InputChannelDeploymentDescriptorTest {
 	public void testUnknownChannelWithoutLazyDeploymentThrows() throws Exception {
 		ResourceID consumerResourceId = ResourceID.generate();
 		ExecutionVertex consumer = mock(ExecutionVertex.class);
-		SimpleSlot consumerSlot = mockSlot(consumerResourceId);
+		LogicalSlot consumerSlot = mockSlot(consumerResourceId);
 
 		// Unknown partition
 		ExecutionVertex unknownProducer = mockExecutionVertex(ExecutionState.CREATED, null); // no assigned resource
@@ -137,7 +137,7 @@ public class InputChannelDeploymentDescriptorTest {
 
 		InputChannelDeploymentDescriptor[] desc = InputChannelDeploymentDescriptor.fromEdges(
 			new ExecutionEdge[]{unknownEdge},
-			consumerSlot,
+			consumerSlot.getTaskManagerLocation().getResourceID(),
 			allowLazyDeployment);
 
 		assertEquals(1, desc.length);
@@ -152,7 +152,7 @@ public class InputChannelDeploymentDescriptorTest {
 
 			InputChannelDeploymentDescriptor.fromEdges(
 				new ExecutionEdge[]{unknownEdge},
-				consumerSlot,
+				consumerSlot.getTaskManagerLocation().getResourceID(),
 				allowLazyDeployment);
 
 			fail("Did not throw expected ExecutionGraphException");
@@ -162,10 +162,9 @@ public class InputChannelDeploymentDescriptorTest {
 
 	// ------------------------------------------------------------------------
 
-	private static SimpleSlot mockSlot(ResourceID resourceId) {
-		SimpleSlot slot = mock(SimpleSlot.class);
+	private static LogicalSlot mockSlot(ResourceID resourceId) {
+		LogicalSlot slot = mock(LogicalSlot.class);
 		when(slot.getTaskManagerLocation()).thenReturn(new TaskManagerLocation(resourceId, InetAddress.getLoopbackAddress(), 5000));
-		when(slot.getTaskManagerID()).thenReturn(resourceId);
 
 		return slot;
 	}
@@ -178,7 +177,7 @@ public class InputChannelDeploymentDescriptorTest {
 		when(exec.getAttemptId()).thenReturn(new ExecutionAttemptID());
 
 		if (resourceId != null) {
-			SimpleSlot slot = mockSlot(resourceId);
+			LogicalSlot slot = mockSlot(resourceId);
 			when(exec.getAssignedResource()).thenReturn(slot);
 			when(vertex.getCurrentAssignedResource()).thenReturn(slot);
 		} else {

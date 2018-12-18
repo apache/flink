@@ -331,7 +331,7 @@ public class UdfAnalyzer {
 			while (cause != null && !(cause instanceof CodeErrorException)) {
 				cause = cause.getCause();
 			}
-			if ((cause != null && cause instanceof CodeErrorException) || e instanceof CodeErrorException) {
+			if (cause instanceof CodeErrorException || e instanceof CodeErrorException) {
 				throw new CodeErrorException("Function code contains obvious errors. " +
 						"If you think the code analysis is wrong at this point you can " +
 						"disable the entire code analyzer in ExecutionConfig or add" +

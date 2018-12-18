@@ -20,7 +20,7 @@ package org.apache.flink.runtime.messages.accumulators
 
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult
-import org.apache.flink.util.SerializedValue
+import org.apache.flink.util.{OptionalFailure, SerializedValue}
 
 /**
  * Base trait of all accumulator messages
@@ -62,8 +62,9 @@ case class RequestAccumulatorResultsStringified(jobID: JobID)
  * @param jobID Job Id of the job that the accumulator belongs to
  * @param result The accumulator result values, in serialized form.
  */
-case class AccumulatorResultsFound(jobID: JobID,
-                                   result: java.util.Map[String, SerializedValue[Object]])
+case class AccumulatorResultsFound(
+    jobID: JobID,
+    result: java.util.Map[String, SerializedValue[OptionalFailure[Object]]])
   extends AccumulatorResultsResponse
 
 /**

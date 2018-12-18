@@ -18,30 +18,39 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+/**
+ * An iterator that concatenates a collection of iterators.
+ * The UnionIterator is a mutable, reusable type.
+ *
+ * @param <T> The type returned by the iterator.
+ */
+@Internal
 public class UnionIterator<T> implements Iterator<T>, Iterable<T> {
-	
+
 	private Iterator<T> currentIterator;
-	
+
 	private ArrayList<Iterator<T>> furtherIterators = new ArrayList<>();
-	
+
 	private int nextIterator;
-	
+
 	private boolean iteratorAvailable = true;
 
 	// ------------------------------------------------------------------------
-	
+
 	public void clear() {
 		currentIterator = null;
 		furtherIterators.clear();
 		nextIterator = 0;
 		iteratorAvailable = true;
 	}
-	
+
 	public void addList(List<T> list) {
 		add(list.iterator());
 	}
@@ -54,9 +63,9 @@ public class UnionIterator<T> implements Iterator<T>, Iterable<T> {
 			furtherIterators.add(iterator);
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public Iterator<T> iterator() {
 		if (iteratorAvailable) {
@@ -81,7 +90,7 @@ public class UnionIterator<T> implements Iterator<T>, Iterable<T> {
 				currentIterator = null;
 			}
 		}
-		
+
 		return false;
 	}
 

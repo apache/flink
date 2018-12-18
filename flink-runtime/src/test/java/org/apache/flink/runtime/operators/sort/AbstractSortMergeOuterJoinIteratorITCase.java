@@ -300,9 +300,6 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
 
 		TypePairComparator<Tuple2<Integer, String>, Tuple2<Integer, String>> pairComparator = new GenericPairComparator<>(comparator1, comparator2);
 
-		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1);
-		this.ioManager = new IOManagerAsync();
-
 		final int DUPLICATE_KEY = 13;
 
 		try {

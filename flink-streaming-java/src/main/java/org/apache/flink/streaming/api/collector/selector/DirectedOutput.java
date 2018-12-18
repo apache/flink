@@ -18,11 +18,14 @@
 package org.apache.flink.streaming.api.collector.selector;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.XORShiftRandom;
 
@@ -39,7 +42,7 @@ import java.util.Set;
  * Wrapping {@link Output} that forwards to other {@link Output Outputs } based on a list of
  * {@link OutputSelector OutputSelectors}.
  */
-public class DirectedOutput<OUT> implements Output<StreamRecord<OUT>> {
+public class DirectedOutput<OUT> implements OperatorChain.WatermarkGaugeExposingOutput<StreamRecord<OUT>> {
 
 	protected final OutputSelector<OUT>[] outputSelectors;
 
@@ -51,10 +54,12 @@ public class DirectedOutput<OUT> implements Output<StreamRecord<OUT>> {
 
 	private final Random random = new XORShiftRandom();
 
+	protected final WatermarkGauge watermarkGauge = new WatermarkGauge();
+
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public DirectedOutput(
 			List<OutputSelector<OUT>> outputSelectors,
-			List<Tuple2<Output<StreamRecord<OUT>>, StreamEdge>> outputs) {
+			List<? extends Tuple2<? extends Output<StreamRecord<OUT>>, StreamEdge>> outputs) {
 		this.outputSelectors = outputSelectors.toArray(new OutputSelector[outputSelectors.size()]);
 
 		this.allOutputs = new Output[outputs.size()];
@@ -65,7 +70,7 @@ public class DirectedOutput<OUT> implements Output<StreamRecord<OUT>> {
 		HashSet<Output<StreamRecord<OUT>>> selectAllOutputs = new HashSet<Output<StreamRecord<OUT>>>();
 		HashMap<String, ArrayList<Output<StreamRecord<OUT>>>> outputMap = new HashMap<String, ArrayList<Output<StreamRecord<OUT>>>>();
 
-		for (Tuple2<Output<StreamRecord<OUT>>, StreamEdge> outputPair : outputs) {
+		for (Tuple2<? extends Output<StreamRecord<OUT>>, StreamEdge> outputPair : outputs) {
 			final Output<StreamRecord<OUT>> output = outputPair.f0;
 			final StreamEdge edge = outputPair.f1;
 
@@ -100,6 +105,7 @@ public class DirectedOutput<OUT> implements Output<StreamRecord<OUT>> {
 
 	@Override
 	public void emitWatermark(Watermark mark) {
+		watermarkGauge.setCurrentWatermark(mark.getTimestamp());
 		for (Output<StreamRecord<OUT>> out : allOutputs) {
 			out.emitWatermark(mark);
 		}
@@ -148,5 +154,10 @@ public class DirectedOutput<OUT> implements Output<StreamRecord<OUT>> {
 		for (Output<StreamRecord<OUT>> out : allOutputs) {
 			out.close();
 		}
+	}
+
+	@Override
+	public Gauge<Long> getWatermarkGauge() {
+		return watermarkGauge;
 	}
 }

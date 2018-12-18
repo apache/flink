@@ -16,12 +16,10 @@
  * limitations under the License.
  */
 
-
 // --------------------------------------------------------------
 //  THIS IS A GENERATED SOURCE FILE. DO NOT EDIT!
 //  GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
 // --------------------------------------------------------------
-
 
 package org.apache.flink.api.java.tuple;
 
@@ -70,7 +68,9 @@ public class Tuple1<T0> extends Tuple {
 	}
 
 	@Override
-	public int getArity() { return 1; }
+	public int getArity() {
+		return 1;
+	}
 
 	@Override
 	@SuppressWarnings("unchecked")
@@ -119,17 +119,23 @@ public class Tuple1<T0> extends Tuple {
 	}
 
 	/**
-	 * Deep equality for tuples by calling equals() on the tuple members
+	 * Deep equality for tuples by calling equals() on the tuple members.
 	 * @param o the object checked for equality
 	 * @return true if this is equal to o.
 	 */
 	@Override
 	public boolean equals(Object o) {
-		if(this == o) { return true; }
-		if (!(o instanceof Tuple1)) { return false; }
+		if (this == o) {
+			return true;
+		}
+		if (!(o instanceof Tuple1)) {
+			return false;
+		}
 		@SuppressWarnings("rawtypes")
 		Tuple1 tuple = (Tuple1) o;
-		if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) { return false; }
+		if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) {
+			return false;
+		}
 		return true;
 	}
 
@@ -145,8 +151,8 @@ public class Tuple1<T0> extends Tuple {
 	*/
 	@Override
 	@SuppressWarnings("unchecked")
-	public Tuple1<T0> copy(){ 
-		return new Tuple1<T0>(this.f0);
+	public Tuple1<T0> copy() {
+		return new Tuple1<>(this.f0);
 	}
 
 	/**
@@ -158,6 +164,6 @@ public class Tuple1<T0> extends Tuple {
 	 * {@code new Tuple3<Integer, Double, String>(n, x, s)}
 	 */
 	public static <T0> Tuple1<T0> of(T0 value0) {
-		return new Tuple1<T0>(value0);
+		return new Tuple1<>(value0);
 	}
 }

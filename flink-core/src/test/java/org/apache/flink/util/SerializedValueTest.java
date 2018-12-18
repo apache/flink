@@ -19,6 +19,7 @@
 package org.apache.flink.util;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -26,6 +27,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the {@link SerializedValue}.
+ */
 public class SerializedValueTest {
 
 	@Test
@@ -33,7 +37,7 @@ public class SerializedValueTest {
 		try {
 			final String value = "teststring";
 
-			SerializedValue<String> v = new SerializedValue<String>(value);
+			SerializedValue<String> v = new SerializedValue<>(value);
 			SerializedValue<String> copy = CommonTestUtils.createCopySerializable(v);
 
 			assertEquals(value, v.deserializeValue(getClass().getClassLoader()));
@@ -55,7 +59,7 @@ public class SerializedValueTest {
 	@Test
 	public void testNullValue() {
 		try {
-			SerializedValue<Object> v = new SerializedValue<Object>(null);
+			SerializedValue<Object> v = new SerializedValue<>(null);
 			SerializedValue<Object> copy = CommonTestUtils.createCopySerializable(v);
 
 			assertNull(copy.deserializeValue(getClass().getClassLoader()));

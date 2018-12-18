@@ -26,6 +26,7 @@ import org.apache.flink.annotation.Public;
  * @param <K> The type of the key to be partitioned.
  */
 @Public
+@FunctionalInterface
 public interface Partitioner<K> extends java.io.Serializable, Function {
 
 	/**

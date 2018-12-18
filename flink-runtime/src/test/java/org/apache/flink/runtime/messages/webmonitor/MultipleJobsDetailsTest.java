@@ -24,12 +24,13 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.util.TestLogger;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.junit.Test;
 
-import java.util.Collections;
+import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 
@@ -72,8 +73,7 @@ public class MultipleJobsDetailsTest extends TestLogger {
 			4);
 
 		final MultipleJobsDetails expected = new MultipleJobsDetails(
-			Collections.singleton(running),
-			Collections.singleton(finished));
+			Arrays.asList(running, finished));
 
 		final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
 

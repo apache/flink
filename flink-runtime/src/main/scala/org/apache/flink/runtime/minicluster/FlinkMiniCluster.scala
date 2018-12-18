@@ -20,7 +20,7 @@ package org.apache.flink.runtime.minicluster
 
 import java.net.{URL, URLClassLoader}
 import java.util.UUID
-import java.util.concurrent.{Executors, TimeUnit}
+import java.util.concurrent.{CompletableFuture, Executors, TimeUnit}
 
 import akka.pattern.Patterns.gracefulStop
 import akka.pattern.ask
@@ -32,7 +32,7 @@ import org.apache.flink.configuration._
 import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.akka.{AkkaJobManagerGateway, AkkaUtils}
 import org.apache.flink.runtime.client.{JobClient, JobExecutionException}
-import org.apache.flink.runtime.concurrent.{FutureUtils, ScheduledExecutorServiceAdapter, Executors => FlinkExecutors}
+import org.apache.flink.runtime.concurrent.{FutureUtils, ScheduledExecutorServiceAdapter}
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders
 import org.apache.flink.runtime.highavailability.{HighAvailabilityServices, HighAvailabilityServicesUtils}
 import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
@@ -40,14 +40,16 @@ import org.apache.flink.runtime.jobgraph.JobGraph
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
+import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistryImpl}
 import org.apache.flink.runtime.util.{ExecutorThreadFactory, Hardware}
 import org.apache.flink.runtime.webmonitor.retriever.impl.{AkkaJobManagerRetriever, AkkaQueryServiceRetriever}
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
-import org.apache.flink.util.NetUtils
+import org.apache.flink.util.{ExecutorUtils, NetUtils}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent._
+import scala.util.{Failure, Success}
 
 /**
  * Abstract base class for Flink's mini cluster. The mini cluster starts a
@@ -63,7 +65,8 @@ abstract class FlinkMiniCluster(
     val userConfiguration: Configuration,
     val highAvailabilityServices: HighAvailabilityServices,
     val useSingleActorSystem: Boolean)
-  extends LeaderRetrievalListener {
+  extends LeaderRetrievalListener
+  with JobExecutorService {
 
   protected val LOG = LoggerFactory.getLogger(classOf[FlinkMiniCluster])
 
@@ -120,6 +123,8 @@ abstract class FlinkMiniCluster(
   val ioExecutor = Executors.newFixedThreadPool(
     Hardware.getNumberCPUCores(),
     new ExecutorThreadFactory("mini-cluster-io"))
+
+  protected var metricRegistryOpt: Option[MetricRegistryImpl] = None
 
   def this(configuration: Configuration, useSingleActorSystem: Boolean) {
     this(
@@ -325,6 +330,15 @@ abstract class FlinkMiniCluster(
 
     lazy val singleActorSystem = startJobManagerActorSystem(0)
 
+    val metricRegistry = new MetricRegistryImpl(
+      MetricRegistryConfiguration.fromConfiguration(originalConfiguration))
+
+    metricRegistryOpt = Some(metricRegistry)
+
+    if (originalConfiguration.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false)) {
+      metricRegistry.startQueryService(singleActorSystem, null)
+    }
+
     val (jmActorSystems, jmActors) =
       (for(i <- 0 until numJobManagers) yield {
         val actorSystem = if(useSingleActorSystem) {
@@ -419,7 +433,7 @@ abstract class FlinkMiniCluster(
 
   def stop(): Unit = {
     LOG.info("Stopping FlinkMiniCluster.")
-    shutdown()
+    startInternalShutdown()
     awaitTermination()
 
     jobManagerLeaderRetrievalService.foreach(_.stop())
@@ -428,14 +442,21 @@ abstract class FlinkMiniCluster(
 
     isRunning = false
 
-    FlinkExecutors.gracefulShutdown(
+    ExecutorUtils.gracefulShutdown(
       timeout.toMillis,
       TimeUnit.MILLISECONDS,
       futureExecutor,
       ioExecutor)
   }
 
-  protected def shutdown(): Unit = {
+  def firstActorSystem(): Option[ActorSystem] = {
+    jobManagerActorSystems match {
+      case Some(jmActorSystems) => Some(jmActorSystems.head)
+      case None => None
+    }
+  }
+
+  protected def startInternalShutdown(): Unit = {
     webMonitor foreach {
       _.stop()
     }
@@ -455,33 +476,34 @@ abstract class FlinkMiniCluster(
 
     Await.ready(Future.sequence(jmFutures ++ tmFutures ++ rmFutures), timeout)
 
+    metricRegistryOpt.foreach(_.shutdown().get())
+
     if (!useSingleActorSystem) {
       taskManagerActorSystems foreach {
-        _ foreach(_.shutdown())
+        _ foreach(_.terminate())
       }
 
       resourceManagerActorSystems foreach {
-        _ foreach(_.shutdown())
+        _ foreach(_.terminate())
       }
     }
 
     jobManagerActorSystems foreach {
-      _ foreach(_.shutdown())
+      _ foreach(_.terminate())
     }
-
   }
 
   def awaitTermination(): Unit = {
     jobManagerActorSystems foreach {
-      _ foreach(_.awaitTermination())
+      _ foreach(s => Await.ready(s.whenTerminated, Duration.Inf))
     }
 
     resourceManagerActorSystems foreach {
-      _ foreach(_.awaitTermination())
+      _ foreach(s => Await.ready(s.whenTerminated, Duration.Inf))
     }
 
     taskManagerActorSystems foreach {
-      _ foreach(_.awaitTermination())
+      _ foreach(s => Await.ready(s.whenTerminated, Duration.Inf))
     }
   }
 
@@ -604,7 +626,10 @@ abstract class FlinkMiniCluster(
 
   def shutdownJobClientActorSystem(actorSystem: ActorSystem): Unit = {
     if(!useSingleActorSystem) {
-      actorSystem.shutdown()
+      actorSystem.terminate().onComplete {
+        case Success(_) =>
+        case Failure(t) => LOG.warn("Could not cleanly shut down the job client actor system.", t)
+      }
     }
   }
 
@@ -687,5 +712,26 @@ abstract class FlinkMiniCluster(
     }
 
     FlinkUserCodeClassLoaders.parentFirst(urls, parentClassLoader)
+  }
+
+  /**
+    * Run the given job and block until its execution result can be returned.
+    *
+    * @param jobGraph to execute
+    * @return Execution result of the executed job
+    * @throws JobExecutionException if the job failed to execute
+    */
+  override def executeJobBlocking(jobGraph: JobGraph) = {
+    submitJobAndWait(jobGraph, false)
+  }
+
+  override def closeAsync() = {
+    try {
+      stop()
+      CompletableFuture.completedFuture(null)
+    } catch {
+      case e: Exception =>
+        FutureUtils.completedExceptionally(e)
+    }
   }
 }

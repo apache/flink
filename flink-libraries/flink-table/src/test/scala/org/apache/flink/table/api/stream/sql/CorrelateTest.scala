@@ -19,10 +19,12 @@
 package org.apache.flink.table.api.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaVarsArgTableFunc0
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{HierarchyTableFunction, PojoTableFunc, TableFunc2, _}
+import org.apache.flink.types.Row
 import org.junit.Test
 
 class CorrelateTest extends TableTestBase {
@@ -42,7 +44,8 @@ class CorrelateTest extends TableTestBase {
         "DataStreamCorrelate",
         streamTableNode(0),
         term("invocation", "func1($cor0.c)"),
-        term("function", func1.getClass.getCanonicalName),
+        term("correlate", s"table(func1($$cor0.c))"),
+        term("select", "a", "b", "c", "f0"),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
         term("joinType", "INNER")
@@ -62,7 +65,8 @@ class CorrelateTest extends TableTestBase {
         "DataStreamCorrelate",
         streamTableNode(0),
         term("invocation", "func1($cor0.c, '$')"),
-        term("function", func1.getClass.getCanonicalName),
+        term("correlate", s"table(func1($$cor0.c, '$$'))"),
+        term("select", "a", "b", "c", "f0"),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
         term("joinType", "INNER")
@@ -74,7 +78,7 @@ class CorrelateTest extends TableTestBase {
   }
 
   @Test
-  def testLeftOuterJoin(): Unit = {
+  def testLeftOuterJoinWithLiteralTrue(): Unit = {
     val util = streamTestUtil()
     val func1 = new TableFunc1
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
@@ -88,12 +92,53 @@ class CorrelateTest extends TableTestBase {
         "DataStreamCorrelate",
         streamTableNode(0),
         term("invocation", "func1($cor0.c)"),
-        term("function", func1.getClass.getCanonicalName),
+        term("correlate", s"table(func1($$cor0.c))"),
+        term("select", "a", "b", "c", "f0"),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
         term("joinType", "LEFT")
       ),
       term("select", "c", "f0 AS s")
+    )
+
+    util.verifySql(sqlQuery, expected)
+  }
+
+  @Test
+  def testLeftOuterJoinAsSubQuery(): Unit = {
+    val util = streamTestUtil()
+    val func1 = new TableFunc1
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    util.addTable[(Int, Long, String)]("MyTable2", 'a2, 'b2, 'c2)
+    util.addFunction("func1", func1)
+
+    val sqlQuery =
+      """
+        | SELECT *
+        | FROM MyTable2 LEFT OUTER JOIN
+        |  (SELECT c, s
+        |   FROM MyTable LEFT OUTER JOIN LATERAL TABLE(func1(c)) AS T(s) on true)
+        | ON c2 = s """.stripMargin
+
+    val expected = binaryNode(
+      "DataStreamJoin",
+      streamTableNode(1),
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamCorrelate",
+          streamTableNode(0),
+          term("invocation", "func1($cor0.c)"),
+          term("correlate", "table(func1($cor0.c))"),
+          term("select", "a", "b", "c", "f0"),
+          term("rowType", "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
+          term("joinType","LEFT")
+        ),
+        term("select", "c", "f0 AS s")
+      ),
+      term("where", "=(c2, s)"),
+      term("join", "a2", "b2", "c2", "c", "s"),
+      term("joinType", "LeftOuterJoin")
     )
 
     util.verifySql(sqlQuery, expected)
@@ -114,7 +159,8 @@ class CorrelateTest extends TableTestBase {
         "DataStreamCorrelate",
         streamTableNode(0),
         term("invocation", "func2($cor0.c)"),
-        term("function", func2.getClass.getCanonicalName),
+        term("correlate", s"table(func2($$cor0.c))"),
+        term("select", "a", "b", "c", "f0", "f1"),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, " +
                "VARCHAR(65536) f0, INTEGER f1)"),
@@ -141,7 +187,8 @@ class CorrelateTest extends TableTestBase {
         "DataStreamCorrelate",
         streamTableNode(0),
         term("invocation", "hierarchy($cor0.c)"),
-        term("function", function.getClass.getCanonicalName),
+        term("correlate", s"table(hierarchy($$cor0.c))"),
+        term("select", "a", "b", "c", "f0", "f1", "f2"),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c," +
                " VARCHAR(65536) f0, BOOLEAN f1, INTEGER f2)"),
@@ -168,13 +215,47 @@ class CorrelateTest extends TableTestBase {
         "DataStreamCorrelate",
         streamTableNode(0),
         term("invocation", "pojo($cor0.c)"),
-        term("function", function.getClass.getCanonicalName),
+        term("correlate", s"table(pojo($$cor0.c))"),
+        term("select", "a", "b", "c", "age", "name"),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c," +
                " INTEGER age, VARCHAR(65536) name)"),
         term("joinType", "INNER")
       ),
       term("select", "c", "name", "age")
+    )
+
+    util.verifySql(sqlQuery, expected)
+  }
+
+  @Test
+  def testRowType(): Unit = {
+    val util = streamTestUtil()
+    val rowType = Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
+    util.addTable[Row]("MyTable", 'a, 'b, 'c)(rowType)
+    val function = new TableFunc5
+    util.addFunction("tableFunc5", function)
+
+    val sqlQuery = "SELECT c, tf.f2 FROM MyTable, LATERAL TABLE(tableFunc5(c)) AS tf"
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamCorrelate",
+        streamTableNode(0),
+        term("invocation", "tableFunc5($cor0.c)"),
+        term("correlate", "table(tableFunc5($cor0.c))"),
+        term("select", "a", "b", "c", "f0", "f1", "f2"),
+        term("rowType", "RecordType(" +
+          "INTEGER a, " +
+          "BOOLEAN b, " +
+          "COMPOSITE(Row(f0: Integer, f1: Integer, f2: Integer)) c, " +
+          "INTEGER f0, " +
+          "INTEGER f1, " +
+          "INTEGER f2)"),
+        term("joinType", "INNER")
+      ),
+      term("select", "c", "f2")
     )
 
     util.verifySql(sqlQuery, expected)
@@ -196,7 +277,8 @@ class CorrelateTest extends TableTestBase {
         "DataStreamCorrelate",
         streamTableNode(0),
         term("invocation", "func2($cor0.c)"),
-        term("function", func2.getClass.getCanonicalName),
+        term("correlate", s"table(func2($$cor0.c))"),
+        term("select", "a", "b", "c", "f0", "f1"),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, " +
                "VARCHAR(65536) f0, INTEGER f1)"),
@@ -224,7 +306,8 @@ class CorrelateTest extends TableTestBase {
         "DataStreamCorrelate",
         streamTableNode(0),
         term("invocation", "func1(SUBSTRING($cor0.c, 2))"),
-        term("function", func1.getClass.getCanonicalName),
+        term("correlate", s"table(func1(SUBSTRING($$cor0.c, 2)))"),
+        term("select", "a", "b", "c", "f0"),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
         term("joinType", "INNER")
@@ -250,7 +333,8 @@ class CorrelateTest extends TableTestBase {
         "DataStreamCorrelate",
         streamTableNode(0),
         term("invocation", "func1('hello', 'world', $cor0.c)"),
-        term("function", func1.getClass.getCanonicalName),
+        term("correlate", s"table(func1('hello', 'world', $$cor0.c))"),
+        term("select", "a", "b", "c", "f0"),
         term("rowType",
           "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
         term("joinType", "INNER")
@@ -272,7 +356,8 @@ class CorrelateTest extends TableTestBase {
         "DataStreamCorrelate",
         streamTableNode(0),
         term("invocation", "func2('hello', 'world', $cor0.c)"),
-        term("function", func2.getClass.getCanonicalName),
+        term("correlate", s"table(func2('hello', 'world', $$cor0.c))"),
+        term("select", "a", "b", "c", "f0"),
         term("rowType",
           "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
         term("joinType", "INNER")

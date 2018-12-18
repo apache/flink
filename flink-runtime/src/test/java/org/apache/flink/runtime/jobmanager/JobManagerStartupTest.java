@@ -70,7 +70,9 @@ public class JobManagerStartupTest extends TestLogger {
 	@After
 	public void after() {
 		// Cleanup test directory
-		assertTrue(blobStorageDirectory.delete());
+		if (blobStorageDirectory != null) {
+			assertTrue(blobStorageDirectory.delete());
+		}
 	}
 
 	/**

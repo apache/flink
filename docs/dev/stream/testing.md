@@ -68,7 +68,7 @@ public class SumReduceTest {
 
     @Test
     public void testSum() throws Exception {
-        // intiantiate your function
+        // instantiate your function
         SumReduce sumReduce = new SumReduce();
 
         // call the methods that you have implemented
@@ -83,7 +83,7 @@ public class SumReduceTest {
 class SumReduceTest extends FlatSpec with Matchers {
 
     "SumReduce" should "add values" in {
-        // intiantiate your function
+        // instantiate your function
         val sumReduce: SumReduce = new SumReduce()
 
         // call the methods that you have implemented
@@ -140,7 +140,7 @@ You could write the following integration test:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-public class ExampleIntegrationTest extends StreamingMultipleProgramsTestBase {
+public class ExampleIntegrationTest extends AbstractTestBase {
 
     @Test
     public void testMultiply() throws Exception {
@@ -181,7 +181,7 @@ public class ExampleIntegrationTest extends StreamingMultipleProgramsTestBase {
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-class ExampleIntegrationTest extends StreamingMultipleProgramsTestBase {
+class ExampleIntegrationTest extends AbstractTestBase {
 
     @Test
     def testMultiply(): Unit = {
@@ -247,8 +247,8 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 100));
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-env.enableCheckpointing(500);
-env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 100));
+env.enableCheckpointing(500)
+env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 100))
 {% endhighlight %}
 </div>
 </div>
@@ -261,3 +261,5 @@ Another approach is to write a unit test using the Flink internal testing utilit
 For an example of how to do that please have a look at the `org.apache.flink.streaming.runtime.operators.windowing.WindowOperatorTest` also in the `flink-streaming-java` module.
 
 Be aware that `AbstractStreamOperatorTestHarness` is currently not a part of public API and can be subject to change.
+
+{% top %}

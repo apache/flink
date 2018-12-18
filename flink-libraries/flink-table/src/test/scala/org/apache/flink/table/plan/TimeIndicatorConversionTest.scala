@@ -85,7 +85,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
       "DataStreamCalc",
       streamTableNode(0),
       term("select", "rowtime"),
-      term("where", ">(rowtime, 1990-12-02 12:11:11)")
+      term("where", ">(CAST(rowtime), 1990-12-02 12:11:11)")
     )
 
     util.verifyTable(result, expected)
@@ -160,7 +160,8 @@ class TimeIndicatorConversionTest extends TableTestBase {
         streamTableNode(0),
         term("invocation",
           s"${func.functionIdentifier}(CAST($$0):TIMESTAMP(3) NOT NULL, PROCTIME($$3), '')"),
-        term("function", func),
+        term("correlate", s"table(TableFunc(CAST(rowtime), PROCTIME(proctime), ''))"),
+        term("select", "rowtime", "long", "int", "proctime", "s"),
         term("rowType", "RecordType(TIME ATTRIBUTE(ROWTIME) rowtime, BIGINT long, INTEGER int, " +
           "TIME ATTRIBUTE(PROCTIME) proctime, VARCHAR(65536) s)"),
         term("joinType", "INNER")
@@ -208,15 +209,20 @@ class TimeIndicatorConversionTest extends TableTestBase {
 
     val result = t.unionAll(t).select('rowtime)
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      binaryNode(
-        "DataStreamUnion",
+    val expected = binaryNode(
+      "DataStreamUnion",
+      unaryNode(
+        "DataStreamCalc",
         streamTableNode(0),
-        streamTableNode(0),
-        term("union all", "rowtime", "long", "int")
+        term("select", "rowtime")
       ),
-      term("select", "rowtime")
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "rowtime")
+      ),
+      term("all", "true"),
+      term("union all", "rowtime")
     )
 
     util.verifyTable(result, expected)
@@ -342,9 +348,15 @@ class TimeIndicatorConversionTest extends TableTestBase {
             WindowReference("w$"),
             'rowtime,
             100.millis)),
-        term("select", "long", "SUM(int) AS EXPR$2", "start('w$) AS w$start", "end('w$) AS w$end")
+        term("select",
+          "long",
+          "SUM(int) AS EXPR$2",
+          "start('w$) AS w$start",
+          "end('w$) AS w$end",
+          "rowtime('w$) AS w$rowtime",
+          "proctime('w$) AS w$proctime")
       ),
-      term("select", "w$end", "long", "EXPR$2")
+      term("select", "w$end AS rowtime", "long", "EXPR$2")
     )
 
     util.verifyTable(result, expected)
@@ -382,6 +394,116 @@ class TimeIndicatorConversionTest extends TableTestBase {
     util.verifyTable(result, expected)
   }
 
+  @Test
+  def testMaterializeRightSideOfTemporalTableJoin(): Unit = {
+    val util = streamTestUtil()
+
+    val proctimeOrders = util.addTable[(Long, String)](
+      "ProctimeOrders", 'o_amount, 'o_currency, 'o_proctime.proctime)
+
+    val proctimeRatesHistory = util.addTable[(String, Int)](
+      "ProctimeRatesHistory", 'currency, 'rate, 'proctime.proctime)
+
+    val proctimeRates = proctimeRatesHistory.createTemporalTableFunction('proctime, 'currency)
+
+    val result = proctimeOrders
+      .join(proctimeRates('o_proctime), "currency = o_currency")
+      .select("o_amount * rate, currency, proctime").as("converted_amount")
+      .window(Tumble over 1.second on 'proctime as 'w)
+      .groupBy('w, 'currency)
+      .select('converted_amount.sum)
+
+    val expected =
+      unaryAnyNode(
+        unaryAnyNode(
+          unaryNode(
+            "DataStreamCalc",
+            anySubtree(),
+            term(
+              "select",
+              "*(o_amount, rate) AS converted_amount",
+              "currency",
+              "PROCTIME(proctime) AS proctime")
+          )
+        )
+      )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testDoNotMaterializeLeftSideOfTemporalTableJoin(): Unit = {
+    val util = streamTestUtil()
+
+    val proctimeOrders = util.addTable[(Long, String)](
+      "ProctimeOrders", 'o_amount, 'o_currency, 'o_proctime.proctime)
+
+    val proctimeRatesHistory = util.addTable[(String, Int)](
+      "ProctimeRatesHistory", 'currency, 'rate, 'proctime.proctime)
+
+    val proctimeRates = proctimeRatesHistory.createTemporalTableFunction('proctime, 'currency)
+
+    val result = proctimeOrders
+      .join(proctimeRates('o_proctime), "currency = o_currency")
+      .select("o_amount * rate, currency, o_proctime").as("converted_amount")
+      .window(Tumble over 1.second on 'o_proctime as 'w)
+      .groupBy('w, 'currency)
+      .select('converted_amount.sum)
+
+    val expected =
+      unaryAnyNode(
+        unaryAnyNode(
+          unaryNode(
+            "DataStreamCalc",
+            anySubtree(),
+            term(
+              "select",
+              "*(o_amount, rate) AS converted_amount",
+              "currency",
+              "o_proctime")
+          )
+        )
+      )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testMaterializeLeftRowtimeWithProcessingTimeTemporalTableJoin(): Unit = {
+    val util = streamTestUtil()
+
+    val proctimeOrders = util.addTable[(Long, String)](
+      "ProctimeOrders", 'o_amount, 'o_currency, 'o_proctime.proctime, 'o_rowtime.rowtime)
+
+    val proctimeRatesHistory = util.addTable[(String, Int)](
+      "ProctimeRatesHistory", 'currency, 'rate, 'proctime.proctime)
+
+    val proctimeRates = proctimeRatesHistory.createTemporalTableFunction('proctime, 'currency)
+
+    val result = proctimeOrders
+      .join(proctimeRates('o_proctime), "currency = o_currency")
+      .select("o_amount * rate, currency, o_proctime, o_rowtime").as("converted_amount")
+      .window(Tumble over 1.second on 'o_rowtime as 'w)
+      .groupBy('w, 'currency)
+      .select('converted_amount.sum)
+
+    val expected =
+      unaryAnyNode(
+        unaryAnyNode(
+          unaryNode(
+            "DataStreamCalc",
+            anySubtree(),
+            term(
+              "select",
+              "*(o_amount, rate) AS converted_amount",
+              "currency",
+              "CAST(o_rowtime) AS o_rowtime")
+          )
+        )
+      )
+
+    util.verifyTable(result, expected)
+  }
 }
 
 object TimeIndicatorConversionTest {

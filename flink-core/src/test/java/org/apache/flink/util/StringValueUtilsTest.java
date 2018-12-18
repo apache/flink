@@ -18,14 +18,14 @@
 
 package org.apache.flink.util;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.StringValueUtils.WhitespaceTokenizer;
 
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the {@link StringValueUtils}.
@@ -38,14 +38,14 @@ public class StringValueUtilsTest extends TestLogger {
 		StringValueUtils.toLowerCase(testString);
 		assertEquals(new StringValue("test"), testString);
 	}
-	
+
 	@Test
 	public void testReplaceNonWordChars() {
 		StringValue testString = new StringValue("TEST123_@");
 		StringValueUtils.replaceNonWordChars(testString, '!');
 		assertEquals(new StringValue("TEST123_!"), testString);
 	}
-	
+
 	@Test
 	public void testTokenizerOnStringWithoutNexToken() {
 		StringValue testString = new StringValue("test");
@@ -56,7 +56,7 @@ public class StringValueUtilsTest extends TestLogger {
 		//next token is not exist
 		assertFalse(tokenizer.next(testString));
 	}
-	
+
 	@Test
 	public void testTokenizerOnStringWithNexToken() {
 		StringValue testString = new StringValue("test test");
@@ -64,7 +64,7 @@ public class StringValueUtilsTest extends TestLogger {
 		tokenizer.setStringToTokenize(testString);
 		assertTrue(tokenizer.next(testString));
 	}
-	
+
 	@Test
 	public void testTokenizerOnStringOnlyWithDelimiter() {
 		StringValue testString = new StringValue("    ");

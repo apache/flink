@@ -53,4 +53,14 @@ public class SimpleTimerService implements TimerService {
 	public void registerEventTimeTimer(long time) {
 		internalTimerService.registerEventTimeTimer(VoidNamespace.INSTANCE, time);
 	}
+
+	@Override
+	public void deleteProcessingTimeTimer(long time) {
+		internalTimerService.deleteProcessingTimeTimer(VoidNamespace.INSTANCE, time);
+	}
+
+	@Override
+	public void deleteEventTimeTimer(long time) {
+		internalTimerService.deleteEventTimeTimer(VoidNamespace.INSTANCE, time);
+	}
 }

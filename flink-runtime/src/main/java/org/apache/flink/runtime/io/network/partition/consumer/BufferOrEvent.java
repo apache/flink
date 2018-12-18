@@ -39,7 +39,7 @@ public class BufferOrEvent {
 	 * This is not needed outside of the input gate unioning logic and cannot
 	 * be set outside of the consumer package.
 	 */
-	private final boolean moreAvailable;
+	private boolean moreAvailable;
 
 	private int channelIndex;
 
@@ -98,5 +98,9 @@ public class BufferOrEvent {
 	public String toString() {
 		return String.format("BufferOrEvent [%s, channelIndex = %d]",
 				isBuffer() ? buffer : event, channelIndex);
+	}
+
+	public void setMoreAvailable(boolean moreAvailable) {
+		this.moreAvailable = moreAvailable;
 	}
 }

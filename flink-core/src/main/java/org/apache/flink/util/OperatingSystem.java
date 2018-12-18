@@ -25,29 +25,29 @@ import org.apache.flink.annotation.Internal;
  */
 @Internal
 public enum OperatingSystem {
-	
+
 	LINUX,
 	WINDOWS,
 	MAC_OS,
 	FREE_BSD,
 	SOLARIS,
 	UNKNOWN;
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Gets the operating system that the JVM runs on from the java system properties.
 	 * this method returns <tt>UNKNOWN</tt>, if the operating system was not successfully determined.
-	 * 
+	 *
 	 * @return The enum constant for the operating system, or <tt>UNKNOWN</tt>, if it was not possible to determine.
 	 */
 	public static OperatingSystem getCurrentOperatingSystem() {
 		return os;
 	}
-	
+
 	/**
 	 * Checks whether the operating system this JVM runs on is Windows.
-	 * 
+	 *
 	 * @return <code>true</code> if the operating system this JVM runs on is
 	 *         Windows, <code>false</code> otherwise
 	 */
@@ -57,7 +57,7 @@ public enum OperatingSystem {
 
 	/**
 	 * Checks whether the operating system this JVM runs on is Linux.
-	 * 
+	 *
 	 * @return <code>true</code> if the operating system this JVM runs on is
 	 *         Linux, <code>false</code> otherwise
 	 */
@@ -67,7 +67,7 @@ public enum OperatingSystem {
 
 	/**
 	 * Checks whether the operating system this JVM runs on is Windows.
-	 * 
+	 *
 	 * @return <code>true</code> if the operating system this JVM runs on is
 	 *         Windows, <code>false</code> otherwise
 	 */
@@ -77,7 +77,7 @@ public enum OperatingSystem {
 
 	/**
 	 * Checks whether the operating system this JVM runs on is FreeBSD.
-	 * 
+	 *
 	 * @return <code>true</code> if the operating system this JVM runs on is
 	 *         FreeBSD, <code>false</code> otherwise
 	 */
@@ -94,21 +94,21 @@ public enum OperatingSystem {
 	public static boolean isSolaris() {
 		return getCurrentOperatingSystem() == SOLARIS;
 	}
-	
+
 	/**
 	 * The enum constant for the operating system.
 	 */
 	private static final OperatingSystem os = readOSFromSystemProperties();
-	
+
 	/**
 	 * Parses the operating system that the JVM runs on from the java system properties.
 	 * If the operating system was not successfully determined, this method returns {@code UNKNOWN}.
-	 * 
+	 *
 	 * @return The enum constant for the operating system, or {@code UNKNOWN}, if it was not possible to determine.
 	 */
 	private static OperatingSystem readOSFromSystemProperties() {
 		String osName = System.getProperty(OS_KEY);
-		
+
 		if (osName.startsWith(LINUX_OS_PREFIX)) {
 			return LINUX;
 		}
@@ -125,14 +125,14 @@ public enum OperatingSystem {
 		if (osNameLowerCase.contains(SOLARIS_OS_INFIX_1) || osNameLowerCase.contains(SOLARIS_OS_INFIX_2)) {
 			return SOLARIS;
 		}
-		
+
 		return UNKNOWN;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	//  Constants to extract the OS type from the java environment 
+	//  Constants to extract the OS type from the java environment
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * The key to extract the operating system name from the system properties.
 	 */

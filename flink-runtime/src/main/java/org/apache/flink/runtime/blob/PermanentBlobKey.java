@@ -42,4 +42,16 @@ public final class PermanentBlobKey extends BlobKey {
 	PermanentBlobKey(byte[] key) {
 		super(BlobType.PERMANENT_BLOB, key);
 	}
+
+	/**
+	 * Constructs a new BLOB key from the given byte array.
+	 *
+	 * @param key
+	 *        the actual key data
+	 * @param random
+	 *        the random component of the key
+	 */
+	PermanentBlobKey(byte[] key, byte[] random) {
+		super(BlobType.PERMANENT_BLOB, key, random);
+	}
 }

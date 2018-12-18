@@ -22,8 +22,10 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -39,7 +41,9 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
@@ -56,7 +60,6 @@ import org.mockito.stubbing.Answer;
 
 import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertFalse;
@@ -118,6 +121,35 @@ public class StreamingRuntimeContextTest {
 		context.getReducingState(descr);
 
 		StateDescriptor<?, ?> descrIntercepted = (StateDescriptor<?, ?>) descriptorCapture.get();
+		TypeSerializer<?> serializer = descrIntercepted.getSerializer();
+
+		// check that the Path class is really registered, i.e., the execution config was applied
+		assertTrue(serializer instanceof KryoSerializer);
+		assertTrue(((KryoSerializer<?>) serializer).getKryo().getRegistration(Path.class).getId() > 0);
+	}
+
+	@Test
+	public void testAggregatingStateInstantiation() throws Exception {
+
+		final ExecutionConfig config = new ExecutionConfig();
+		config.registerKryoType(Path.class);
+
+		final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
+
+		StreamingRuntimeContext context = new StreamingRuntimeContext(
+				createDescriptorCapturingMockOp(descriptorCapture, config),
+				createMockEnvironment(),
+				Collections.<String, Accumulator<?, ?>>emptyMap());
+
+		@SuppressWarnings("unchecked")
+		AggregateFunction<String, TaskInfo, String> aggregate = (AggregateFunction<String, TaskInfo, String>) mock(AggregateFunction.class);
+
+		AggregatingStateDescriptor<String, TaskInfo, String> descr =
+				new AggregatingStateDescriptor<>("name", aggregate, TaskInfo.class);
+
+		context.getAggregatingState(descr);
+
+		AggregatingStateDescriptor<?, ?, ?> descrIntercepted = (AggregatingStateDescriptor<?, ?, ?>) descriptorCapture.get();
 		TypeSerializer<?> serializer = descrIntercepted.getSerializer();
 
 		// check that the Path class is really registered, i.e., the execution config was applied
@@ -265,6 +297,7 @@ public class StreamingRuntimeContextTest {
 		}).when(keyedStateBackend).getPartitionedState(Matchers.any(), any(TypeSerializer.class), any(StateDescriptor.class));
 
 		when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
+		when(operatorMock.getOperatorID()).thenReturn(new OperatorID());
 
 		return operatorMock;
 	}
@@ -302,6 +335,7 @@ public class StreamingRuntimeContextTest {
 		}).when(keyedStateBackend).getPartitionedState(Matchers.any(), any(TypeSerializer.class), any(ListStateDescriptor.class));
 
 		when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
+		when(operatorMock.getOperatorID()).thenReturn(new OperatorID());
 		return operatorMock;
 	}
 
@@ -338,14 +372,13 @@ public class StreamingRuntimeContextTest {
 		}).when(keyedStateBackend).getPartitionedState(Matchers.any(), any(TypeSerializer.class), any(MapStateDescriptor.class));
 
 		when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
+		when(operatorMock.getOperatorID()).thenReturn(new OperatorID());
 		return operatorMock;
 	}
 
 	private static Environment createMockEnvironment() {
-		Environment env = mock(Environment.class);
-		when(env.getUserClassLoader()).thenReturn(StreamingRuntimeContextTest.class.getClassLoader());
-		when(env.getDistributedCacheEntries()).thenReturn(Collections.<String, Future<Path>>emptyMap());
-		when(env.getTaskInfo()).thenReturn(new TaskInfo("test task", 1, 0, 1, 1));
-		return env;
+		return MockEnvironment.builder()
+			.setTaskName("test task")
+			.build();
 	}
 }

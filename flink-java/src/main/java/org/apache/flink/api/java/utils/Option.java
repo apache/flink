@@ -61,7 +61,7 @@ public class Option {
 	/**
 	 * Define the type of the Option.
 	 *
-	 * @param type - the type which the the value of the Option can be casted to.
+	 * @param type - the type which the value of the Option can be casted to.
 	 * @return the updated Option
 	 */
 	public Option type(OptionType type) {

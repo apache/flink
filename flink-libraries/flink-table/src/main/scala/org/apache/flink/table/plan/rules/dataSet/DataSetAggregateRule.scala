@@ -37,12 +37,6 @@ class DataSetAggregateRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg: FlinkLogicalAggregate = call.rel(0).asInstanceOf[FlinkLogicalAggregate]
 
-    // for non-grouped agg sets we attach null row to source data
-    // we need to apply DataSetAggregateWithNullValuesRule
-    if (agg.getGroupSet.isEmpty) {
-      return false
-    }
-
     // distinct is translated into dedicated operator
     if (agg.getAggCallList.isEmpty &&
       agg.getGroupCount == agg.getRowType.getFieldCount &&
@@ -62,41 +56,15 @@ class DataSetAggregateRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
     val convInput: RelNode = RelOptRule.convert(agg.getInput, FlinkConventions.DATASET)
 
-    if (agg.indicator) {
-        agg.groupSets.map(set =>
-          new DataSetAggregate(
-            rel.getCluster,
-            traitSet,
-            convInput,
-            agg.getNamedAggCalls,
-            rel.getRowType,
-            agg.getInput.getRowType,
-            set.toArray,
-            inGroupingSet = true
-          ).asInstanceOf[RelNode]
-        ).reduce(
-          (rel1, rel2) => {
-            new DataSetUnion(
-              rel.getCluster,
-              traitSet,
-              rel1,
-              rel2,
-              rel.getRowType
-            )
-          }
-        )
-    } else {
-      new DataSetAggregate(
-        rel.getCluster,
-        traitSet,
-        convInput,
-        agg.getNamedAggCalls,
-        rel.getRowType,
-        agg.getInput.getRowType,
-        agg.getGroupSet.toArray,
-        inGroupingSet = false
-      )
-    }
+    new DataSetAggregate(
+      rel.getCluster,
+      traitSet,
+      convInput,
+      agg.getNamedAggCalls,
+      rel.getRowType,
+      agg.getInput.getRowType,
+      agg.getGroupSet.toArray
+    )
   }
 }
 

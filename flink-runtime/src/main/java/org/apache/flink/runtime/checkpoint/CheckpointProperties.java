@@ -18,28 +18,31 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 
 import java.io.Serializable;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * The configuration of a checkpoint, such as whether
+ * The configuration of a checkpoint. This describes whether
  * <ul>
- *     <li>The checkpoint should be persisted</li>
- *     <li>The checkpoint must be full, or may be incremental (not yet implemented)</li>
- *     <li>The checkpoint format must be the common (cross backend) format,
- *     or may be state-backend specific (not yet implemented)</li>
- *     <li>when the checkpoint should be garbage collected</li>
+ *     <li>The checkpoint is s regular checkpoint or a savepoint.</li>
+ *     <li>When the checkpoint should be garbage collected.</li>
  * </ul>
  */
 public class CheckpointProperties implements Serializable {
 
-	private static final long serialVersionUID = -8835900655844879469L;
+	private static final long serialVersionUID = 2L;
 
+	/** Type - checkpoint / savepoint. */
+	private final CheckpointType checkpointType;
+
+	/** This has a misleading name and actually means whether the snapshot must be triggered,
+	 * or whether it may be rejected by the checkpoint coordinator if too many checkpoints are
+	 * currently in progress. */
 	private final boolean forced;
-
-	private final boolean externalize;
-	private final boolean savepoint;
 
 	private final boolean discardSubsumed;
 	private final boolean discardFinished;
@@ -47,10 +50,10 @@ public class CheckpointProperties implements Serializable {
 	private final boolean discardFailed;
 	private final boolean discardSuspended;
 
+	@VisibleForTesting
 	CheckpointProperties(
 			boolean forced,
-			boolean externalize,
-			boolean savepoint,
+			CheckpointType checkpointType,
 			boolean discardSubsumed,
 			boolean discardFinished,
 			boolean discardCancelled,
@@ -58,20 +61,12 @@ public class CheckpointProperties implements Serializable {
 			boolean discardSuspended) {
 
 		this.forced = forced;
-		this.externalize = externalize;
-		this.savepoint = savepoint;
+		this.checkpointType = checkNotNull(checkpointType);
 		this.discardSubsumed = discardSubsumed;
 		this.discardFinished = discardFinished;
 		this.discardCancelled = discardCancelled;
 		this.discardFailed = discardFailed;
 		this.discardSuspended = discardSuspended;
-
-		// Not persisted, but needs manual clean up
-		if (!externalize && !(discardSubsumed && discardFinished && discardCancelled
-				&& discardFailed && discardSuspended)) {
-			throw new IllegalStateException("CheckpointProperties say to *not* persist the " +
-					"checkpoint, but the checkpoint requires manual cleanup.");
-		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -91,18 +86,6 @@ public class CheckpointProperties implements Serializable {
 	 */
 	boolean forceCheckpoint() {
 		return forced;
-	}
-
-	/**
-	 * Returns whether the checkpoint should be persisted externally.
-	 *
-	 * @return <code>true</code> if the checkpoint should be persisted
-	 * externally; <code>false</code> otherwise.
-	 *
-	 * @see PendingCheckpoint
-	 */
-	boolean externalizeCheckpoint() {
-		return externalize;
 	}
 
 	// ------------------------------------------------------------------------
@@ -181,12 +164,19 @@ public class CheckpointProperties implements Serializable {
 	}
 
 	/**
+	 * Gets the type of the checkpoint (checkpoint / savepoint).
+	 */
+	public CheckpointType getCheckpointType() {
+		return checkpointType;
+	}
+
+	/**
 	 * Returns whether the checkpoint properties describe a standard savepoint.
 	 *
 	 * @return <code>true</code> if the properties describe a savepoint, <code>false</code> otherwise.
 	 */
 	public boolean isSavepoint() {
-		return savepoint;
+		return checkpointType == CheckpointType.SAVEPOINT;
 	}
 
 	// ------------------------------------------------------------------------
@@ -203,8 +193,7 @@ public class CheckpointProperties implements Serializable {
 
 		CheckpointProperties that = (CheckpointProperties) o;
 		return forced == that.forced &&
-				externalize == that.externalize &&
-				savepoint == that.savepoint &&
+				checkpointType == that.checkpointType &&
 				discardSubsumed == that.discardSubsumed &&
 				discardFinished == that.discardFinished &&
 				discardCancelled == that.discardCancelled &&
@@ -215,8 +204,7 @@ public class CheckpointProperties implements Serializable {
 	@Override
 	public int hashCode() {
 		int result = (forced ? 1 : 0);
-		result = 31 * result + (externalize ? 1 : 0);
-		result = 31 * result + (savepoint ? 1 : 0);
+		result = 31 * result + checkpointType.hashCode();
 		result = 31 * result + (discardSubsumed ? 1 : 0);
 		result = 31 * result + (discardFinished ? 1 : 0);
 		result = 31 * result + (discardCancelled ? 1 : 0);
@@ -229,8 +217,7 @@ public class CheckpointProperties implements Serializable {
 	public String toString() {
 		return "CheckpointProperties{" +
 				"forced=" + forced +
-				", externalized=" + externalizeCheckpoint() +
-				", savepoint=" + savepoint +
+				", checkpointType=" + checkpointType +
 				", discardSubsumed=" + discardSubsumed +
 				", discardFinished=" + discardFinished +
 				", discardCancelled=" + discardCancelled +
@@ -240,88 +227,78 @@ public class CheckpointProperties implements Serializable {
 	}
 
 	// ------------------------------------------------------------------------
+	//  Factories and pre-configured properties
+	// ------------------------------------------------------------------------
 
-	private static final CheckpointProperties STANDARD_SAVEPOINT = new CheckpointProperties(
+	private static final CheckpointProperties SAVEPOINT = new CheckpointProperties(
 			true,
-			true,
-			true,
+			CheckpointType.SAVEPOINT,
 			false,
 			false,
 			false,
 			false,
 			false);
 
-	private static final CheckpointProperties STANDARD_CHECKPOINT = new CheckpointProperties(
+	private static final CheckpointProperties CHECKPOINT_NEVER_RETAINED = new CheckpointProperties(
 			false,
-			false,
-			false,
+			CheckpointType.CHECKPOINT,
 			true,
-			true,
-			true,
-			true,
-			true);
+			true,  // Delete on success
+			true,  // Delete on cancellation
+			true,  // Delete on failure
+			true); // Delete on suspension
 
-	private static final CheckpointProperties EXTERNALIZED_CHECKPOINT_RETAINED = new CheckpointProperties(
+	private static final CheckpointProperties CHECKPOINT_RETAINED_ON_FAILURE = new CheckpointProperties(
 			false,
+			CheckpointType.CHECKPOINT,
 			true,
+			true,  // Delete on success
+			true,  // Delete on cancellation
+			false, // Retain on failure
+			true); // Delete on suspension
+
+	private static final CheckpointProperties CHECKPOINT_RETAINED_ON_CANCELLATION = new CheckpointProperties(
 			false,
+			CheckpointType.CHECKPOINT,
 			true,
-			true,
-			false, // Retain on cancellation
-			false,
+			true,   // Delete on success
+			false,  // Retain on cancellation
+			false,  // Retain on failure
 			false); // Retain on suspension
 
-	private static final CheckpointProperties EXTERNALIZED_CHECKPOINT_DELETED = new CheckpointProperties(
-			false,
-			true,
-			false,
-			true,
-			true,
-			true, // Delete on cancellation
-			false,
-			true); // Delete on suspension
 
 	/**
 	 * Creates the checkpoint properties for a (manually triggered) savepoint.
 	 *
-	 * <p>Savepoints are forced and persisted externally. They have to be
+	 * <p>Savepoints are not queued due to time trigger limits. They have to be
 	 * garbage collected manually.
 	 *
 	 * @return Checkpoint properties for a (manually triggered) savepoint.
 	 */
-	public static CheckpointProperties forStandardSavepoint() {
-		return STANDARD_SAVEPOINT;
+	public static CheckpointProperties forSavepoint() {
+		return SAVEPOINT;
 	}
 
 	/**
-	 * Creates the checkpoint properties for a regular checkpoint.
+	 * Creates the checkpoint properties for a checkpoint.
 	 *
-	 * <p>Regular checkpoints are not forced and not persisted externally. They
-	 * are garbage collected automatically.
-	 *
-	 * @return Checkpoint properties for a regular checkpoint.
-	 */
-	public static CheckpointProperties forStandardCheckpoint() {
-		return STANDARD_CHECKPOINT;
-	}
-
-	/**
-	 * Creates the checkpoint properties for an external checkpoint.
-	 *
-	 * <p>External checkpoints are not forced, but persisted externally. They
-	 * are garbage collected automatically, except when the owning job
+	 * <p>Checkpoints may be queued in case too many other checkpoints are currently happening.
+	 * They are garbage collected automatically, except when the owning job
 	 * terminates in state {@link JobStatus#FAILED}. The user is required to
 	 * configure the clean up behaviour on job cancellation.
 	 *
-	 * @param deleteOnCancellation Flag indicating whether to discard on cancellation.
-	 *
 	 * @return Checkpoint properties for an external checkpoint.
 	 */
-	public static CheckpointProperties forExternalizedCheckpoint(boolean deleteOnCancellation) {
-		if (deleteOnCancellation) {
-			return EXTERNALIZED_CHECKPOINT_DELETED;
-		} else {
-			return EXTERNALIZED_CHECKPOINT_RETAINED;
+	public static CheckpointProperties forCheckpoint(CheckpointRetentionPolicy policy) {
+		switch (policy) {
+			case NEVER_RETAIN_AFTER_TERMINATION:
+				return CHECKPOINT_NEVER_RETAINED;
+			case RETAIN_ON_FAILURE:
+				return CHECKPOINT_RETAINED_ON_FAILURE;
+			case RETAIN_ON_CANCELLATION:
+				return CHECKPOINT_RETAINED_ON_CANCELLATION;
+			default:
+				throw new IllegalArgumentException("unknown policy: " + policy);
 		}
 	}
 }

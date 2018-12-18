@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -29,7 +30,6 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -126,10 +126,11 @@ public class Kafka010FetcherTest {
 				10,
 				getClass().getClassLoader(),
 				"taskname-with-subtask",
-				new UnregisteredMetricsGroup(),
 				schema,
 				new Properties(),
 				0L,
+				new UnregisteredMetricsGroup(),
+				new UnregisteredMetricsGroup(),
 				false);
 
 		// ----- run the fetcher -----
@@ -262,10 +263,11 @@ public class Kafka010FetcherTest {
 				10,
 				getClass().getClassLoader(),
 				"taskname-with-subtask",
-				new UnregisteredMetricsGroup(),
 				schema,
 				new Properties(),
 				0L,
+				new UnregisteredMetricsGroup(),
+				new UnregisteredMetricsGroup(),
 				false);
 
 		// ----- run the fetcher -----
@@ -376,10 +378,11 @@ public class Kafka010FetcherTest {
 				10, /* watermark interval */
 				this.getClass().getClassLoader(),
 				"task_name",
-				new UnregisteredMetricsGroup(),
 				schema,
 				new Properties(),
 				0L,
+				new UnregisteredMetricsGroup(),
+				new UnregisteredMetricsGroup(),
 				false);
 
 		// ----- run the fetcher -----

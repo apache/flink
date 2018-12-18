@@ -30,19 +30,18 @@ import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 import org.apache.flink.test.util.InfiniteIntegerTupleInputFormat;
 import org.apache.flink.test.util.UniformIntTupleGeneratorInputFormat;
 
+import org.junit.Ignore;
+import org.junit.Test;
+
 /**
  * Test job cancellation from within a JoinFunction.
  */
+@Ignore("Takes too long.")
 public class JoinCancelingITCase extends CancelingTestBase {
-	private static final int parallelism = 4;
-
-	public JoinCancelingITCase() {
-		setTaskManagerNumSlots(parallelism);
-	}
 
 	// --------------- Test Sort Matches that are canceled while still reading / sorting -----------------
 	private void executeTask(JoinFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> joiner, boolean slow) throws Exception {
-		executeTask(joiner, slow, parallelism);
+		executeTask(joiner, slow, PARALLELISM);
 	}
 
 	private void executeTask(JoinFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> joiner, boolean slow, int parallelism) throws Exception {
@@ -61,17 +60,17 @@ public class JoinCancelingITCase extends CancelingTestBase {
 		runAndCancelJob(env.createProgramPlan(), 5 * 1000, 10 * 1000);
 	}
 
-//	@Test
+	@Test
 	public void testCancelSortMatchWhileReadingSlowInputs() throws Exception {
 		executeTask(new SimpleMatcher<Integer>(), true);
 	}
 
-//	@Test
+	@Test
 	public void testCancelSortMatchWhileReadingFastInputs() throws Exception {
 		executeTask(new SimpleMatcher<Integer>(), false);
 	}
 
-//	@Test
+	@Test
 	public void testCancelSortMatchPriorToFirstRecordReading() throws Exception {
 		executeTask(new StuckInOpenMatcher<Integer>(), false);
 	}
@@ -90,31 +89,31 @@ public class JoinCancelingITCase extends CancelingTestBase {
 				.with(joiner)
 				.output(new DiscardingOutputFormat<Tuple2<Integer, Integer>>());
 
-		env.setParallelism(parallelism);
+		env.setParallelism(PARALLELISM);
 
 		runAndCancelJob(env.createProgramPlan(), msecsTillCanceling, maxTimeTillCanceled);
 	}
 
-//	@Test
+	@Test
 	public void testCancelSortMatchWhileDoingHeavySorting() throws Exception {
 		executeTaskWithGenerator(new SimpleMatcher<Integer>(), 50000, 100, 30 * 1000, 30 * 1000);
 	}
 
 	// --------------- Test Sort Matches that are canceled while in the Matching Phase -----------------
 
-//	@Test
+	@Test
 	public void testCancelSortMatchWhileJoining() throws Exception {
 		executeTaskWithGenerator(new DelayingMatcher<Integer>(), 500, 3, 10 * 1000, 20 * 1000);
 	}
 
-//	@Test
+	@Test
 	public void testCancelSortMatchWithLongCancellingResponse() throws Exception {
 		executeTaskWithGenerator(new LongCancelTimeMatcher<Integer>(), 500, 3, 10 * 1000, 10 * 1000);
 	}
 
 	// -------------------------------------- Test System corner cases ---------------------------------
 
-//	@Test
+	@Test
 	public void testCancelSortMatchWithHighparallelism() throws Exception {
 		executeTask(new SimpleMatcher<Integer>(), false, 64);
 	}

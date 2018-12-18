@@ -60,9 +60,47 @@ class StreamTableEnvironmentTest extends TableTestBase {
       "DataStreamUnion",
       streamTableNode(1),
       streamTableNode(0),
+      term("all", "true"),
       term("union all", "d, e, f"))
 
     util.verifyTable(sqlTable2, expected2)
+  }
+
+  @Test
+  def testProctimeAttributeWithAtomicInput(): Unit = {
+    val util = streamTestUtil()
+    // cannot replace an attribute with proctime
+    util.addTable[String]('s, 'pt.proctime)
+  }
+
+  @Test
+  def testReplacingRowtimeAttributeWithAtomicInput(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[Long]('rt.rowtime)
+  }
+
+  @Test
+  def testAppendedRowtimeAttributeWithAtomicInput(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[String]('s, 'rt.rowtime)
+  }
+
+  @Test
+  def testRowtimeAndProctimeAttributeWithAtomicInput1(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[String]('s, 'rt.rowtime, 'pt.proctime)
+  }
+
+  @Test
+  def testRowtimeAndProctimeAttributeWithAtomicInput2(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[String]('s, 'pt.proctime, 'rt.rowtime)
+  }
+
+  @Test
+  def testRowtimeAndProctimeAttributeWithAtomicInput3(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[Long]('rt.rowtime, 'pt.proctime)
   }
 
   @Test

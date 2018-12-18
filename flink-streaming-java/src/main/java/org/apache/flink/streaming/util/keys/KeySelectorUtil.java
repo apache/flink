@@ -180,8 +180,8 @@ public final class KeySelectorUtil {
 		}
 
 		@Override
-		public Tuple getKey(IN value) throws Exception {
-			Tuple key = Tuple.getTupleClass(keyLength).newInstance();
+		public Tuple getKey(IN value) {
+			Tuple key = Tuple.newInstance(keyLength);
 			comparator.extractKeys(value, keyArray, 0);
 			for (int i = 0; i < keyLength; i++) {
 				key.setField(keyArray[i], i);
@@ -210,18 +210,16 @@ public final class KeySelectorUtil {
 		private static final long serialVersionUID = 1L;
 
 		private final int[] fields;
-		private final Class<? extends Tuple> tupleClass;
 		private transient TupleTypeInfo<Tuple> returnType;
 
 		ArrayKeySelector(int[] fields, TupleTypeInfo<Tuple> returnType) {
 			this.fields = requireNonNull(fields);
 			this.returnType = requireNonNull(returnType);
-			this.tupleClass = Tuple.getTupleClass(fields.length);
 		}
 
 		@Override
-		public Tuple getKey(IN value) throws Exception {
-			Tuple key = tupleClass.newInstance();
+		public Tuple getKey(IN value) {
+			Tuple key = Tuple.newInstance(fields.length);
 			for (int i = 0; i < fields.length; i++) {
 				key.setField(Array.get(value, fields[i]), i);
 			}

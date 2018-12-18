@@ -66,7 +66,7 @@ public class StackTraceSampleCoordinatorTest extends TestLogger {
 	@AfterClass
 	public static void tearDown() throws Exception {
 		if (system != null) {
-			system.shutdown();
+			system.terminate();
 		}
 	}
 

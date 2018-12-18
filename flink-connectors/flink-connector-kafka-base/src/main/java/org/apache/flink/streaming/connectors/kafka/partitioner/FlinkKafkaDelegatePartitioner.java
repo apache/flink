@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.connectors.kafka.partitioner;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * Delegate for the deprecated {@link KafkaPartitioner}.
  * This should only be used for bridging deprecated partitioning API methods.
@@ -25,6 +27,7 @@ package org.apache.flink.streaming.connectors.kafka.partitioner;
  * @deprecated Delegate for {@link KafkaPartitioner}, use {@link FlinkKafkaPartitioner} instead
  */
 @Deprecated
+@Internal
 public class FlinkKafkaDelegatePartitioner<T> extends FlinkKafkaPartitioner<T> {
 	private final KafkaPartitioner<T> kafkaPartitioner;
 	private int[] partitions;

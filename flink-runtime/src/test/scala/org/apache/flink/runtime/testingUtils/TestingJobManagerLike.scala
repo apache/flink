@@ -18,15 +18,15 @@
 
 package org.apache.flink.runtime.testingUtils
 
+import java.io.DataInputStream
 import java.util.function.BiFunction
 
 import akka.actor.{ActorRef, Cancellable, Terminated}
 import akka.pattern.{ask, pipe}
 import org.apache.flink.api.common.JobID
+import org.apache.flink.api.common.accumulators.Accumulator
 import org.apache.flink.runtime.FlinkActor
-import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType
-import org.apache.flink.runtime.checkpoint.CompletedCheckpoint
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore
+import org.apache.flink.runtime.checkpoint._
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.JobManager
@@ -37,9 +37,12 @@ import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.Messages.Disconnect
 import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager
 import org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat
+import org.apache.flink.runtime.state.memory.MemoryStateBackend
+import org.apache.flink.runtime.state.StateBackendLoader
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingMessages._
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.AccumulatorsChanged
+import org.apache.flink.util.OptionalFailure
 
 import scala.collection.mutable
 import scala.concurrent.Future
@@ -72,7 +75,7 @@ trait TestingJobManagerLike extends FlinkActor {
   val waitForNumRegisteredTaskManagers = mutable.PriorityQueue.newBuilder(
     new Ordering[(Int, ActorRef)] {
       override def compare(x: (Int, ActorRef), y: (Int, ActorRef)): Int = y._1 - x._1
-    })
+    }).result()
 
   val waitForClient = scala.collection.mutable.HashSet[ActorRef]()
 
@@ -238,7 +241,10 @@ trait TestingJobManagerLike extends FlinkActor {
         case (jobID, (updated, actors)) if updated =>
           currentJobs.get(jobID) match {
             case Some((graph, jobInfo)) =>
-              val userAccumulators = graph.aggregateUserAccumulators
+              val userAccumulators: java.util.Map[String, OptionalFailure[Accumulator[_, _]]] =
+                graph
+                  .aggregateUserAccumulators
+                  .asInstanceOf[java.util.Map[String, OptionalFailure[Accumulator[_, _]]]]
               actors foreach {
                  actor => actor ! UpdatedAccumulators(jobID, userAccumulators)
               }
@@ -314,11 +320,22 @@ trait TestingJobManagerLike extends FlinkActor {
 
     case RequestSavepoint(savepointPath) =>
       try {
-        //TODO user class loader ?
-        val savepoint = SavepointStore.loadSavepoint(
-          savepointPath,
-          Thread.currentThread().getContextClassLoader)
-        
+        val classloader = Thread.currentThread().getContextClassLoader
+
+        val loadedBackend = StateBackendLoader.loadStateBackendFromConfig(
+          flinkConfiguration, classloader, null)
+        val backend = if (loadedBackend != null) loadedBackend else new MemoryStateBackend()
+
+        val checkpointLocation = backend.resolveCheckpoint(savepointPath)
+
+        val stream = new DataInputStream(checkpointLocation.getMetadataHandle.openInputStream())
+        val savepoint = try {
+          Checkpoints.loadCheckpointMetadata(stream, classloader)
+        }
+        finally {
+          stream.close()
+        }
+
         sender ! ResponseSavepoint(savepoint)
       }
       catch {
@@ -340,7 +357,7 @@ trait TestingJobManagerLike extends FlinkActor {
         }
       }
 
-    case CheckpointRequest(jobId, checkpointOptions) =>
+    case CheckpointRequest(jobId, retentionPolicy) =>
       currentJobs.get(jobId) match {
         case Some((graph, _)) =>
           val checkpointCoordinator = graph.getCheckpointCoordinator()
@@ -351,34 +368,34 @@ trait TestingJobManagerLike extends FlinkActor {
             try {
               // Do this async, because checkpoint coordinator operations can
               // contain blocking calls to the state backend or ZooKeeper.
-              val cpFuture = checkpointCoordinator.triggerCheckpoint(
+              val triggerResult = checkpointCoordinator.triggerCheckpoint(
                 System.currentTimeMillis(),
-                checkpointOptions)
+                CheckpointProperties.forCheckpoint(retentionPolicy),
+                null,
+                false)
 
-              cpFuture.handleAsync[Void](
-                new BiFunction[CompletedCheckpoint, Throwable, Void] {
-                  override def apply(success: CompletedCheckpoint, cause: Throwable): Void = {
-                    if (success != null) {
-                      if (success.getExternalPointer == null &&
-                        CheckpointType.SAVEPOINT.equals(checkpointOptions.getCheckpointType)) {
-                        senderRef ! CheckpointRequestFailure(
-                          jobId, new Exception("Savepoint has not been persisted.")
-                        )
-                      } else {
+              if (triggerResult.isSuccess) {
+                triggerResult.getPendingCheckpoint.getCompletionFuture.handleAsync[Void](
+                  new BiFunction[CompletedCheckpoint, Throwable, Void] {
+                    override def apply(success: CompletedCheckpoint, cause: Throwable): Void = {
+                      if (success != null) {
                         senderRef ! CheckpointRequestSuccess(
                           jobId,
                           success.getCheckpointID,
                           success.getExternalPointer,
                           success.getTimestamp)
+                      } else {
+                        senderRef ! CheckpointRequestFailure(
+                          jobId, new Exception("Failed to complete checkpoint", cause))
                       }
-                    } else {
-                      senderRef ! CheckpointRequestFailure(
-                        jobId, new Exception("Failed to complete checkpoint", cause))
+                      null
                     }
-                    null
-                  }
-                },
-                context.dispatcher)
+                  },
+                  context.dispatcher)
+              } else {
+                senderRef ! CheckpointRequestFailure(jobId, new Exception(
+                  "Failed to trigger checkpoint: " +  triggerResult.getFailureReason.message()))
+              }
             } catch {
               case e: Exception =>
                 senderRef ! CheckpointRequestFailure(jobId, new Exception(
@@ -395,7 +412,7 @@ trait TestingJobManagerLike extends FlinkActor {
       }
 
     case NotifyWhenLeader =>
-      if (leaderElectionService.hasLeadership) {
+      if (leaderSessionID.isDefined && leaderElectionService.hasLeadership(leaderSessionID.get)) {
         sender() ! true
       } else {
         waitForLeader += sender()
@@ -440,6 +457,14 @@ trait TestingJobManagerLike extends FlinkActor {
         val receiver = waitForNumRegisteredTaskManagers.dequeue()._2
         receiver ! Acknowledge.get()
       }
+
+    case WaitForBackgroundTasksToFinish =>
+      val future = futuresToComplete match {
+        case Some(futures) => Future.sequence(futures)
+        case None => Future.successful(Seq())
+      }
+
+      future.pipeTo(sender())
   }
 
   def checkIfAllVerticesRunning(jobID: JobID): Boolean = {

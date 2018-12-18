@@ -198,8 +198,8 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 		ArrayList<OUT> result = new ArrayList<OUT>();
 
 		if (inputData.size() > 0) {
+			final TypeSerializer<IN> inputSerializer = inputType.createSerializer(executionConfig);
 			if (keyColumns.length == 0) {
-				final TypeSerializer<IN> inputSerializer = inputType.createSerializer(executionConfig);
 				TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
 				List<IN> inputDataCopy = new ArrayList<IN>(inputData.size());
 				for (IN in : inputData) {
@@ -209,7 +209,6 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 
 				function.reduce(inputDataCopy, collector);
 			} else {
-				final TypeSerializer<IN> inputSerializer = inputType.createSerializer(executionConfig);
 				boolean[] keyOrderings = new boolean[keyColumns.length];
 				final TypeComparator<IN> comparator = getTypeComparator(inputType, keyColumns, keyOrderings, executionConfig);
 

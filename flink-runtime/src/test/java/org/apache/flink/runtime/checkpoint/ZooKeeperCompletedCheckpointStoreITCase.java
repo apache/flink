@@ -270,7 +270,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 
 		TestCompletedCheckpoint completedCheckpoint3 = createCheckpoint(3, sharedStateRegistry);
 
-		// this should release the last lock on completedCheckoint and thus discard it
+		// this should release the last lock on completedCheckpoint and thus discard it
 		zkCheckpointStore2.addCheckpoint(completedCheckpoint3);
 
 		// the checkpoint should be discarded eventually because there is no lock on it anymore

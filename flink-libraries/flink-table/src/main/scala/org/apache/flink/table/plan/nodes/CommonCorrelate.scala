@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.nodes
 
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexShuttle}
+import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.functions.Function
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -99,7 +99,7 @@ trait CommonCorrelate {
            |}
            |""".stripMargin
     } else if (joinType != SemiJoinType.INNER) {
-      throw TableException(s"Unsupported SemiJoinType: $joinType for correlate join.")
+      throw new TableException(s"Unsupported SemiJoinType: $joinType for correlate join.")
     }
 
     functionGenerator.generateFunction(
@@ -136,31 +136,22 @@ trait CommonCorrelate {
       returnSchema.typeInfo,
       returnSchema.fieldNames)
 
+    val filterGenerator = new FunctionCodeGenerator(
+      config,
+      false,
+      udtfTypeInfo,
+      None,
+      pojoFieldMapping)
+
     val collectorCode = if (condition.isEmpty) {
       s"""
          |${crossResultExpr.code}
          |getCollector().collect(${crossResultExpr.resultTerm});
          |""".stripMargin
     } else {
-
-      // adjust indicies of InputRefs to adhere to schema expected by generator
-      val changeInputRefIndexShuttle = new RexShuttle {
-        override def visitInputRef(inputRef: RexInputRef): RexNode = {
-          new RexInputRef(inputSchema.arity + inputRef.getIndex, inputRef.getType)
-        }
-      }
-      // Run generateExpression to add init statements (ScalarFunctions) of condition to generator.
-      //   The generated expression is discarded.
-      generator.generateExpression(condition.get.accept(changeInputRefIndexShuttle))
-
-      val filterGenerator = new FunctionCodeGenerator(
-        config,
-        false,
-        udtfTypeInfo,
-        None,
-        pojoFieldMapping)
-
       filterGenerator.input1Term = filterGenerator.input2Term
+      // generating filter expressions might add init statements and member fields
+      // that need to be combined with the statements of the collector code generator
       val filterCondition = filterGenerator.generateExpression(condition.get)
       s"""
          |${filterGenerator.reuseInputUnboxingCode()}
@@ -175,25 +166,34 @@ trait CommonCorrelate {
     generator.generateTableFunctionCollector(
       "TableFunctionCollector",
       collectorCode,
-      udtfTypeInfo)
+      udtfTypeInfo,
+      filterGenerator)
   }
 
   private[flink] def selectToString(rowType: RelDataType): String = {
-    rowType.getFieldNames.asScala.mkString(",")
+    rowType.getFieldNames.asScala.mkString(", ")
   }
 
   private[flink] def correlateOpName(
+      inputType: RelDataType,
       rexCall: RexCall,
       sqlFunction: TableSqlFunction,
-      rowType: RelDataType)
+      rowType: RelDataType,
+      expression: (RexNode, List[String], Option[List[RexNode]]) => String)
     : String = {
 
-    s"correlate: ${correlateToString(rexCall, sqlFunction)}, select: ${selectToString(rowType)}"
+    s"correlate: ${correlateToString(inputType, rexCall, sqlFunction, expression)}," +
+      s" select: ${selectToString(rowType)}"
   }
 
-  private[flink] def correlateToString(rexCall: RexCall, sqlFunction: TableSqlFunction): String = {
-    val udtfName = sqlFunction.getName
-    val operands = rexCall.getOperands.asScala.map(_.toString).mkString(",")
+  private[flink] def correlateToString(
+      inputType: RelDataType,
+      rexCall: RexCall,
+      sqlFunction: TableSqlFunction,
+      expression: (RexNode, List[String], Option[List[RexNode]]) => String): String = {
+    val inFields = inputType.getFieldNames.asScala.toList
+    val udtfName = sqlFunction.toString
+    val operands = rexCall.getOperands.asScala.map(expression(_, inFields, None)).mkString(", ")
     s"table($udtfName($operands))"
   }
 

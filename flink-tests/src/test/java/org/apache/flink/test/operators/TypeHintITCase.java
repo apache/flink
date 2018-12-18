@@ -27,237 +27,202 @@ import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.operators.util.CollectionDataSets;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.Test;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 
 /**
  * Integration tests for {@link org.apache.flink.api.common.typeinfo.TypeHint}.
  */
-@RunWith(Parameterized.class)
-public class TypeHintITCase extends JavaProgramTestBase {
+public class TypeHintITCase extends AbstractTestBase {
 
-	private static final int NUM_PROGRAMS = 9;
+	@Test
+	public void testIdentityMapWithMissingTypesAndStringTypeHint() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
 
-	private int curProgId = config.getInteger("ProgramId", -1);
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> identityMapDs = ds
+			.map(new Mapper<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>())
+			.returns(new TypeHint<Tuple3<Integer, Long, String>>(){});
+		List<Tuple3<Integer, Long, String>> result = identityMapDs.collect();
 
-	public TypeHintITCase(Configuration config) {
-		super(config);
+		String expectedResult = "(2,2,Hello)\n" +
+			"(3,2,Hello world)\n" +
+			"(1,1,Hi)\n";
+
+		compareResultAsText(result, expectedResult);
 	}
 
-	@Override
-	protected void testProgram() throws Exception {
-		TypeHintProgs.runProgram(curProgId);
+	@Test
+	public void testIdentityMapWithMissingTypesAndTypeInformationTypeHint() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> identityMapDs = ds
+			// all following generics get erased during compilation
+			.map(new Mapper<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>())
+			.returns(new TupleTypeInfo<Tuple3<Integer, Long, String>>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
+		List<Tuple3<Integer, Long, String>> result = identityMapDs
+			.collect();
+
+		String expectedResult = "(2,2,Hello)\n" +
+			"(3,2,Hello world)\n" +
+			"(1,1,Hi)\n";
+
+		compareResultAsText(result, expectedResult);
 	}
 
-	@Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
+	@Test
+	public void testFlatMapWithClassTypeHint() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
 
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Integer> identityMapDs = ds
+			.flatMap(new FlatMapper<Tuple3<Integer, Long, String>, Integer>())
+			.returns(Integer.class);
+		List<Integer> result = identityMapDs.collect();
 
-		for (int i = 1; i <= NUM_PROGRAMS; i++) {
-			Configuration config = new Configuration();
-			config.setInteger("ProgramId", i);
-			tConfigs.add(config);
-		}
+		String expectedResult = "2\n" +
+			"3\n" +
+			"1\n";
 
-		return toParameterList(tConfigs);
+		compareResultAsText(result, expectedResult);
 	}
 
-	private static class TypeHintProgs {
+	@Test
+	public void testJoinWithTypeInformationTypeHint() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
 
-		public static void runProgram(int progId) throws Exception {
-			switch(progId) {
-			// Test identity map with missing types and string type hint
-			case 1: {
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Integer> resultDs = ds1
+			.join(ds2)
+			.where(0)
+			.equalTo(0)
+			.with(new Joiner<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>, Integer>())
+			.returns(BasicTypeInfo.INT_TYPE_INFO);
+		List<Integer> result = resultDs.collect();
 
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> identityMapDs = ds
-						.map(new Mapper<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>())
-						.returns("Tuple3<Integer, Long, String>");
-				List<Tuple3<Integer, Long, String>> result = identityMapDs.collect();
+		String expectedResult = "2\n" +
+			"3\n" +
+			"1\n";
 
-				String expectedResult = "(2,2,Hello)\n" +
-						"(3,2,Hello world)\n" +
-						"(1,1,Hi)\n";
+		compareResultAsText(result, expectedResult);
+	}
 
-				compareResultAsText(result, expectedResult);
-				break;
-			}
-			// Test identity map with missing types and type information type hint
-			case 2: {
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+	@Test
+	public void testFlatJoinWithTypeInformationTypeHint() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
 
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> identityMapDs = ds
-						// all following generics get erased during compilation
-						.map(new Mapper<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>())
-						.returns(new TupleTypeInfo<Tuple3<Integer, Long, String>>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
-				List<Tuple3<Integer, Long, String>> result = identityMapDs
-						.collect();
+		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Integer> resultDs = ds1
+			.join(ds2)
+			.where(0)
+			.equalTo(0)
+			.with(new FlatJoiner<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>, Integer>())
+			.returns(BasicTypeInfo.INT_TYPE_INFO);
+		List<Integer> result = resultDs.collect();
 
-				String expectedResult = "(2,2,Hello)\n" +
-						"(3,2,Hello world)\n" +
-						"(1,1,Hi)\n";
+		String expectedResult = "2\n" +
+			"3\n" +
+			"1\n";
 
-				compareResultAsText(result, expectedResult);
-				break;
-			}
-			// Test flat map with class type hint
-			case 3: {
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		compareResultAsText(result, expectedResult);
+	}
 
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
-				DataSet<Integer> identityMapDs = ds
-						.flatMap(new FlatMapper<Tuple3<Integer, Long, String>, Integer>())
-						.returns(Integer.class);
-				List<Integer> result = identityMapDs.collect();
+	@Test
+	public void testUnsortedGroupReduceWithTypeInformationTypeHint() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
 
-				String expectedResult = "2\n" +
-						"3\n" +
-						"1\n";
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Integer> resultDs = ds
+			.groupBy(0)
+			.reduceGroup(new GroupReducer<Tuple3<Integer, Long, String>, Integer>())
+			.returns(BasicTypeInfo.INT_TYPE_INFO);
+		List<Integer> result = resultDs.collect();
 
-				compareResultAsText(result, expectedResult);
-				break;
-			}
-			// Test join with type information type hint
-			case 4: {
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		String expectedResult = "2\n" +
+			"3\n" +
+			"1\n";
 
-				DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.getSmall3TupleDataSet(env);
-				DataSet<Integer> resultDs = ds1
-						.join(ds2)
-						.where(0)
-						.equalTo(0)
-						.with(new Joiner<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>, Integer>())
-						.returns(BasicTypeInfo.INT_TYPE_INFO);
-				List<Integer> result = resultDs.collect();
+		compareResultAsText(result, expectedResult);
+	}
 
-				String expectedResult = "2\n" +
-						"3\n" +
-						"1\n";
+	@Test
+	public void testSortedGroupReduceWithTypeInformationTypeHint() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
 
-				compareResultAsText(result, expectedResult);
-				break;
-			}
-			// Test flat join with type information type hint
-			case 5: {
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Integer> resultDs = ds
+			.groupBy(0)
+			.sortGroup(0, Order.ASCENDING)
+			.reduceGroup(new GroupReducer<Tuple3<Integer, Long, String>, Integer>())
+			.returns(BasicTypeInfo.INT_TYPE_INFO);
+		List<Integer> result = resultDs.collect();
 
-				DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.getSmall3TupleDataSet(env);
-				DataSet<Integer> resultDs = ds1
-						.join(ds2)
-						.where(0)
-						.equalTo(0)
-						.with(new FlatJoiner<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>, Integer>())
-						.returns(BasicTypeInfo.INT_TYPE_INFO);
-				List<Integer> result = resultDs.collect();
+		String expectedResult = "2\n" +
+			"3\n" +
+			"1\n";
 
-				String expectedResult = "2\n" +
-						"3\n" +
-						"1\n";
+		compareResultAsText(result, expectedResult);
+	}
 
-				compareResultAsText(result, expectedResult);
-				break;
-			}
-			// Test unsorted group reduce with type information type hint
-			case 6: {
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+	@Test
+	public void testCombineGroupWithTypeInformationTypeHint() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
 
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
-				DataSet<Integer> resultDs = ds
-						.groupBy(0)
-						.reduceGroup(new GroupReducer<Tuple3<Integer, Long, String>, Integer>())
-						.returns(BasicTypeInfo.INT_TYPE_INFO);
-				List<Integer> result = resultDs.collect();
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Integer> resultDs = ds
+			.groupBy(0)
+			.combineGroup(new GroupCombiner<Tuple3<Integer, Long, String>, Integer>())
+			.returns(BasicTypeInfo.INT_TYPE_INFO);
+		List<Integer> result = resultDs.collect();
 
-				String expectedResult = "2\n" +
-						"3\n" +
-						"1\n";
+		String expectedResult = "2\n" +
+			"3\n" +
+			"1\n";
 
-				compareResultAsText(result, expectedResult);
-				break;
-			}
-			// Test sorted group reduce with type information type hint
-			case 7: {
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		compareResultAsText(result, expectedResult);
+	}
 
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
-				DataSet<Integer> resultDs = ds
-						.groupBy(0)
-						.sortGroup(0, Order.ASCENDING)
-						.reduceGroup(new GroupReducer<Tuple3<Integer, Long, String>, Integer>())
-						.returns(BasicTypeInfo.INT_TYPE_INFO);
-				List<Integer> result = resultDs.collect();
+	@Test
+	public void testCoGroupWithTypeInformationTypeHint() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
 
-				String expectedResult = "2\n" +
-						"3\n" +
-						"1\n";
+		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Integer> resultDs = ds1
+			.coGroup(ds2)
+			.where(0)
+			.equalTo(0)
+			.with(new CoGrouper<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>, Integer>())
+			.returns(BasicTypeInfo.INT_TYPE_INFO);
+		List<Integer> result = resultDs.collect();
 
-				compareResultAsText(result, expectedResult);
-				break;
-			}
-			// Test combine group with type information type hint
-			case 8: {
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		String expectedResult = "2\n" +
+			"3\n" +
+			"1\n";
 
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
-				DataSet<Integer> resultDs = ds
-						.groupBy(0)
-						.combineGroup(new GroupCombiner<Tuple3<Integer, Long, String>, Integer>())
-						.returns(BasicTypeInfo.INT_TYPE_INFO);
-				List<Integer> result = resultDs.collect();
-
-				String expectedResult = "2\n" +
-						"3\n" +
-						"1\n";
-
-				compareResultAsText(result, expectedResult);
-				break;
-			}
-			// Test cogroup with type information type hint
-			case 9: {
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-				DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.getSmall3TupleDataSet(env);
-				DataSet<Integer> resultDs = ds1
-						.coGroup(ds2)
-						.where(0)
-						.equalTo(0)
-						.with(new CoGrouper<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>, Integer>())
-						.returns(BasicTypeInfo.INT_TYPE_INFO);
-				List<Integer> result = resultDs.collect();
-
-				String expectedResult = "2\n" +
-						"3\n" +
-						"1\n";
-
-				compareResultAsText(result, expectedResult);
-				break;
-			}
-			default:
-				throw new IllegalArgumentException("Invalid program id");
-			}
-		}
+		compareResultAsText(result, expectedResult);
 	}
 
 	// --------------------------------------------------------------------------------------------

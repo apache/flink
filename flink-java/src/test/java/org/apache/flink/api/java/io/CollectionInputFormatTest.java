@@ -70,7 +70,7 @@ public class CollectionInputFormatTest {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (obj != null && obj instanceof ElementType) {
+			if (obj instanceof ElementType) {
 				ElementType et = (ElementType) obj;
 				return et.getId() == this.getId();
 			} else {
@@ -395,12 +395,12 @@ public class CollectionInputFormatTest {
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		public TypeSerializerConfigSnapshot<ElementType> snapshotConfiguration() {
 			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		public CompatibilityResult<ElementType> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		public CompatibilityResult<ElementType> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 			throw new UnsupportedOperationException();
 		}
 	}

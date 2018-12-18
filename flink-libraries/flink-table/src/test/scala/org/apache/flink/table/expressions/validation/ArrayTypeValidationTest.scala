@@ -26,6 +26,16 @@ import org.junit.Test
 class ArrayTypeValidationTest extends ArrayTypeTestBase {
 
   @Test(expected = classOf[ValidationException])
+  def testImplicitTypeCastTableApi(): Unit = {
+    testTableApi(array(1.0, 2.0f), "FAIL", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testImplicitTypeCastArraySql(): Unit = {
+    testSqlApi("ARRAY['string', 12]", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
   def testObviousInvalidIndexTableApi(): Unit = {
     testTableApi('f2.at(0), "FAIL", "FAIL")
   }

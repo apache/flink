@@ -18,16 +18,16 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import java.sql.Timestamp
-
+import org.apache.calcite.runtime.SqlFunctions.{internalToTimestamp => toTimestamp}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
+import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.utils.NonMergableCount
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.junit._
@@ -263,6 +263,8 @@ class AggregateITCase(
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val myAgg = new NonMergableCount
+    tEnv.registerFunction("myAgg", myAgg)
 
     val sqlQuery = "SELECT avg(a), sum(a), count(b) " +
       "FROM MyTable where a = 4 group by a"
@@ -272,6 +274,9 @@ class AggregateITCase(
 
     val sqlQuery3 = "SELECT avg(a), sum(a), count(b) " +
       "FROM MyTable"
+
+    val sqlQuery4 = "SELECT avg(a), sum(a), count(b), myAgg(b)" +
+      "FROM MyTable where a = 4"
 
     val ds = env.fromElements(
       (1: Byte, 1: Short),
@@ -283,6 +288,7 @@ class AggregateITCase(
     val result = tEnv.sqlQuery(sqlQuery)
     val result2 = tEnv.sqlQuery(sqlQuery2)
     val result3 = tEnv.sqlQuery(sqlQuery3)
+    val result4 = tEnv.sqlQuery(sqlQuery4)
 
     val results = result.toDataSet[Row].collect()
     val expected = Seq.empty
@@ -290,11 +296,14 @@ class AggregateITCase(
     val expected2 = "null,null,0"
     val results3 = result3.toDataSet[Row].collect()
     val expected3 = "1,3,2"
+    val results4 =  result4.toDataSet[Row].collect()
+    val expected4 = "null,null,0,0"
 
     assert(results.equals(expected),
       "Empty result is expected for grouped set, but actual: " + results)
     TestBaseUtils.compareResultAsText(results2.asJava, expected2)
     TestBaseUtils.compareResultAsText(results3.asJava, expected3)
+    TestBaseUtils.compareResultAsText(results4.asJava, expected4)
   }
 
   @Test
@@ -312,7 +321,7 @@ class AggregateITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
       // create timestamps
-      .map(x => (x._1, x._2, x._3, new Timestamp(x._1 * 1000)))
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
     tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
 
     val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
@@ -329,14 +338,104 @@ class AggregateITCase(
   }
 
   @Test
+  def testTumbleWindowAggregateWithCollect(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery =
+      "SELECT b, COLLECT(b)" +
+        "FROM T " +
+        "GROUP BY b, TUMBLE(ts, INTERVAL '3' SECOND)"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      // create timestamps
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
+    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+
+    val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
+    val expected = Seq(
+      "1,{1=1}",
+      "2,{2=1}", "2,{2=1}",
+      "3,{3=1}", "3,{3=2}",
+      "4,{4=2}", "4,{4=2}",
+      "5,{5=1}", "5,{5=1}", "5,{5=3}",
+      "6,{6=1}", "6,{6=2}", "6,{6=3}"
+    ).mkString("\n")
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
+  def testTumbleWindowAggregateWithCollectUnnest(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      // create timestamps
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
+    tEnv.registerDataSet("t1", ds, 'a, 'b, 'c, 'ts)
+
+    val t2 = tEnv.sqlQuery("SELECT b, COLLECT(b) as `set`" +
+        "FROM t1 " +
+        "GROUP BY b, TUMBLE(ts, INTERVAL '3' SECOND)")
+    tEnv.registerTable("t2", t2)
+
+    val result = tEnv.sqlQuery("SELECT b, s FROM t2, UNNEST(t2.`set`) AS A(s) where b < 3")
+      .toDataSet[Row]
+      .collect()
+
+    val expected = Seq(
+      "1,1",
+      "2,2",
+      "2,2"
+    ).mkString("\n")
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
+  def testTumbleWindowWithProperties(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery =
+      "SELECT b, COUNT(a), " +
+        "TUMBLE_START(ts, INTERVAL '5' SECOND), " +
+        "TUMBLE_END(ts, INTERVAL '5' SECOND), " +
+        "TUMBLE_ROWTIME(ts, INTERVAL '5' SECOND)" +
+      "FROM T " +
+      "GROUP BY b, TUMBLE(ts, INTERVAL '5' SECOND)"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      // min time unit is seconds
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
+    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+
+    val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
+    val expected = Seq(
+      "1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:05.0,1970-01-01 00:00:04.999",
+      "2,2,1970-01-01 00:00:00.0,1970-01-01 00:00:05.0,1970-01-01 00:00:04.999",
+      "3,1,1970-01-01 00:00:00.0,1970-01-01 00:00:05.0,1970-01-01 00:00:04.999",
+      "3,2,1970-01-01 00:00:05.0,1970-01-01 00:00:10.0,1970-01-01 00:00:09.999",
+      "4,3,1970-01-01 00:00:05.0,1970-01-01 00:00:10.0,1970-01-01 00:00:09.999",
+      "4,1,1970-01-01 00:00:10.0,1970-01-01 00:00:15.0,1970-01-01 00:00:14.999",
+      "5,4,1970-01-01 00:00:10.0,1970-01-01 00:00:15.0,1970-01-01 00:00:14.999",
+      "5,1,1970-01-01 00:00:15.0,1970-01-01 00:00:20.0,1970-01-01 00:00:19.999",
+      "6,4,1970-01-01 00:00:15.0,1970-01-01 00:00:20.0,1970-01-01 00:00:19.999",
+      "6,2,1970-01-01 00:00:20.0,1970-01-01 00:00:25.0,1970-01-01 00:00:24.999"
+    ).mkString("\n")
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
   def testHopWindowAggregate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
     tEnv.registerFunction("countFun", new CountAggFunction)
     tEnv.registerFunction("wAvgWithMergeAndReset", new WeightedAvgWithMergeAndReset)
-
-    env.setParallelism(1)
 
     val sqlQuery =
       "SELECT b, SUM(a), countFun(c), wAvgWithMergeAndReset(b, a), wAvgWithMergeAndReset(a, a)" +
@@ -345,7 +444,7 @@ class AggregateITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
       // create timestamps
-      .map(x => (x._1, x._2, x._3, new Timestamp(x._1 * 1000)))
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
     tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
 
     val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
@@ -362,14 +461,54 @@ class AggregateITCase(
   }
 
   @Test
+  def testHopWindowWithProperties(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery =
+      "SELECT b, COUNT(a), " +
+        "HOP_START(ts, INTERVAL '5' SECOND, INTERVAL '10' SECOND), " +
+        "HOP_END(ts, INTERVAL '5' SECOND, INTERVAL '10' SECOND), " +
+        "HOP_ROWTIME(ts, INTERVAL '5' SECOND, INTERVAL '10' SECOND) " +
+      "FROM T " +
+      "GROUP BY b, HOP(ts, INTERVAL '5' SECOND, INTERVAL '10' SECOND)"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      // create timestamps
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
+    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+
+    val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
+    val expected = Seq(
+      "1,1,1969-12-31 23:59:55.0,1970-01-01 00:00:05.0,1970-01-01 00:00:04.999",
+      "2,2,1969-12-31 23:59:55.0,1970-01-01 00:00:05.0,1970-01-01 00:00:04.999",
+      "3,1,1969-12-31 23:59:55.0,1970-01-01 00:00:05.0,1970-01-01 00:00:04.999",
+      "1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:10.0,1970-01-01 00:00:09.999",
+      "2,2,1970-01-01 00:00:00.0,1970-01-01 00:00:10.0,1970-01-01 00:00:09.999",
+      "3,3,1970-01-01 00:00:00.0,1970-01-01 00:00:10.0,1970-01-01 00:00:09.999",
+      "4,3,1970-01-01 00:00:00.0,1970-01-01 00:00:10.0,1970-01-01 00:00:09.999",
+      "3,2,1970-01-01 00:00:05.0,1970-01-01 00:00:15.0,1970-01-01 00:00:14.999",
+      "4,4,1970-01-01 00:00:05.0,1970-01-01 00:00:15.0,1970-01-01 00:00:14.999",
+      "5,4,1970-01-01 00:00:05.0,1970-01-01 00:00:15.0,1970-01-01 00:00:14.999",
+      "4,1,1970-01-01 00:00:10.0,1970-01-01 00:00:20.0,1970-01-01 00:00:19.999",
+      "5,5,1970-01-01 00:00:10.0,1970-01-01 00:00:20.0,1970-01-01 00:00:19.999",
+      "6,4,1970-01-01 00:00:10.0,1970-01-01 00:00:20.0,1970-01-01 00:00:19.999",
+      "5,1,1970-01-01 00:00:15.0,1970-01-01 00:00:25.0,1970-01-01 00:00:24.999",
+      "6,6,1970-01-01 00:00:15.0,1970-01-01 00:00:25.0,1970-01-01 00:00:24.999",
+      "6,2,1970-01-01 00:00:20.0,1970-01-01 00:00:30.0,1970-01-01 00:00:29.999"
+    ).mkString("\n")
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
   def testSessionWindowAggregate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
     tEnv.registerFunction("countFun", new CountAggFunction)
     tEnv.registerFunction("wAvgWithMergeAndReset", new WeightedAvgWithMergeAndReset)
-
-    env.setParallelism(1)
 
     val sqlQuery =
       "SELECT MIN(a), MAX(a), SUM(a), countFun(c), wAvgWithMergeAndReset(b, a), " +
@@ -380,13 +519,42 @@ class AggregateITCase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
       // create timestamps
       .filter(x => (x._2 % 2) == 0)
-      .map(x => (x._1, x._2, x._3, new Timestamp(x._1 * 1000)))
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
     tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
 
     val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
     val expected = Seq(
       "2,10,39,6,3,7",
       "16,21,111,6,6,18"
+    ).mkString("\n")
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
+  def testSessionWindowWithProperties(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery =
+      "SELECT COUNT(a), " +
+        "SESSION_START(ts, INTERVAL '4' SECOND), " +
+        "SESSION_END(ts, INTERVAL '4' SECOND), " +
+        "SESSION_ROWTIME(ts, INTERVAL '4' SECOND) " +
+      "FROM T " +
+      "GROUP BY SESSION(ts, INTERVAL '4' SECOND)"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      // create timestamps
+      .filter(x => (x._2 % 2) == 0)
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
+    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+
+    val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
+    val expected = Seq(
+      "6,1970-01-01 00:00:02.0,1970-01-01 00:00:14.0,1970-01-01 00:00:13.999",
+      "6,1970-01-01 00:00:16.0,1970-01-01 00:00:25.0,1970-01-01 00:00:24.999"
     ).mkString("\n")
 
     TestBaseUtils.compareResultAsText(result.asJava, expected)

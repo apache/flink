@@ -36,7 +36,9 @@ export FLINK_CONF_DIR
 export FLINK_BIN_DIR
 export FLINK_LIB_DIR
 
-exec $JAVA_RUN $JVM_ARGS -classpath "$CC_CLASSPATH" $log_setting org.apache.flink.mesos.runtime.clusterframework.MesosApplicationMasterRunner "$@"
+ENTRY_POINT=org.apache.flink.mesos.entrypoint.MesosSessionClusterEntrypoint
+
+exec $JAVA_RUN $JVM_ARGS -classpath "$CC_CLASSPATH" $log_setting ${ENTRY_POINT} "$@"
 
 rc=$?
 

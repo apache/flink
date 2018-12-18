@@ -29,7 +29,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
-import java.util.UUID;
 
 /**
  * This class contains auxiliary methods for unit tests.
@@ -148,19 +147,6 @@ public class CommonTestUtils {
 			writer.println("log4j.logger.org.apache.zookeeper=OFF");
 			writer.flush();
 		}
-	}
-
-	public static File createTempDirectory() throws IOException {
-		File tempDir = new File(System.getProperty("java.io.tmpdir"));
-
-		for (int i = 0; i < 10; i++) {
-			File dir = new File(tempDir, UUID.randomUUID().toString());
-			if (!dir.exists() && dir.mkdirs()) {
-				return dir;
-			}
-		}
-
-		throw new IOException("Could not create temporary file directory");
 	}
 
 	/**

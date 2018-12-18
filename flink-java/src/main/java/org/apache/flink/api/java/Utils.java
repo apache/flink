@@ -53,7 +53,7 @@ public final class Utils {
 	public static String getCallLocationName(int depth) {
 		StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
 
-		if (stackTrace.length < depth) {
+		if (stackTrace.length <= depth) {
 			return "<unknown>";
 		}
 

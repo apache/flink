@@ -46,6 +46,8 @@ class FlinkRelBuilder(
     relOptCluster,
     relOptSchema) {
 
+  def getRelOptSchema: RelOptSchema = relOptSchema
+
   def getPlanner: RelOptPlanner = cluster.getPlanner
 
   def getCluster: RelOptCluster = relOptCluster
@@ -85,9 +87,9 @@ object FlinkRelBuilder {
     val calciteSchema = CalciteSchema.from(config.getDefaultSchema)
     val relOptSchema = new CalciteCatalogReader(
       calciteSchema,
-      config.getParserConfig.caseSensitive(),
       Collections.emptyList(),
-      typeFactory)
+      typeFactory,
+      CalciteConfig.connectionConfig(config.getParserConfig))
 
     new FlinkRelBuilder(config.getContext, cluster, relOptSchema)
   }

@@ -69,7 +69,7 @@
         .attr("clip-path", "url(#" + prefix + "-gclip" + ")")
 
       // check if the user wants relative time
-      // if so, substract the first timestamp from each subsequent timestamps
+      // if so, subtract the first timestamp from each subsequent timestamps
       if(timeIsRelative){
         g.each(function (d, i) {
           d.forEach(function (datum, index) {

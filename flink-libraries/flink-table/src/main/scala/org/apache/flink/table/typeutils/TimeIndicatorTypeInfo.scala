@@ -47,8 +47,11 @@ class TimeIndicatorTypeInfo(val isEventTime: Boolean)
 
 object TimeIndicatorTypeInfo {
 
-  val ROWTIME_MARKER: Int = -1
-  val PROCTIME_MARKER: Int = -2
+  val ROWTIME_STREAM_MARKER: Int = -1
+  val PROCTIME_STREAM_MARKER: Int = -2
+
+  val ROWTIME_BATCH_MARKER: Int = -3
+  val PROCTIME_BATCH_MARKER: Int = -4
 
   val ROWTIME_INDICATOR = new TimeIndicatorTypeInfo(true)
   val PROCTIME_INDICATOR = new TimeIndicatorTypeInfo(false)

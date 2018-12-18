@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
 
@@ -56,6 +57,7 @@ import java.io.Serializable;
  *
  * @param <T> The type of the element handled by this {@code ElasticsearchSinkFunction}
  */
+@PublicEvolving
 public interface ElasticsearchSinkFunction<T> extends Serializable, Function {
 
 	/**

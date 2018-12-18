@@ -21,8 +21,9 @@ package org.apache.flink.streaming.connectors.kafka.testutils;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -36,8 +37,6 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartiti
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
-import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 
 import java.util.Collection;
 import java.util.Properties;
@@ -204,7 +203,7 @@ public class DataGenerators {
 
 		private static class MockStreamTransformation extends StreamTransformation<String> {
 			public MockStreamTransformation() {
-				super("MockTransform", TypeInfoParser.<String>parse("String"), 1);
+				super("MockTransform", BasicTypeInfo.STRING_TYPE_INFO, 1);
 			}
 
 			@Override

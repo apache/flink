@@ -460,7 +460,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testDefaultJoinOnTwoCustomTypeInputsWithInnerClassKeyExtractorsDisabledClosureCleaner() throws Exception {
 		/*
-		 * (Default) Join on two custom type inputs with key extractors, check if disableing closure cleaning works
+		 * (Default) Join on two custom type inputs with key extractors, check if disabling closure cleaning works
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();

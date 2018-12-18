@@ -25,7 +25,7 @@ import org.apache.flink.annotation.PublicEvolving;
  * {@link RuntimeContext} and provides setup and teardown methods:
  * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
  * {@link RichFunction#close()}.
- * 
+ *
  * @see AggregateFunction
  *
  * @param <IN>  The type of the values that are aggregated (input values)
@@ -33,7 +33,7 @@ import org.apache.flink.annotation.PublicEvolving;
  * @param <OUT> The type of the aggregated result
  */
 @PublicEvolving
-public abstract class RichAggregateFunction<IN, ACC, OUT> 
+public abstract class RichAggregateFunction<IN, ACC, OUT>
 		extends AbstractRichFunction
 		implements AggregateFunction<IN, ACC, OUT> {
 
@@ -43,7 +43,7 @@ public abstract class RichAggregateFunction<IN, ACC, OUT>
 	public abstract ACC createAccumulator();
 
 	@Override
-	public abstract void add(IN value, ACC accumulator);
+	public abstract ACC add(IN value, ACC accumulator);
 
 	@Override
 	public abstract OUT getResult(ACC accumulator);

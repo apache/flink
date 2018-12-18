@@ -39,7 +39,7 @@ but also for batch programs, it happens frequently.
 
 The figure below illustrates that. Consider a program with a data source, a *MapFunction*, and a *ReduceFunction*.
 The source and MapFunction are executed with a parallelism of 4, while the ReduceFunction is executed with a
-parallism of 3. A pipeline consists of the sequence Source - Map - Reduce. On a cluster with 2 TaskManagers with
+parallelism of 3. A pipeline consists of the sequence Source - Map - Reduce. On a cluster with 2 TaskManagers with
 3 slots each, the program will be executed as described below.
 
 <div style="text-align: center;">
@@ -101,3 +101,5 @@ For that reason, the execution of an ExecutionVertex is tracked in an {% gh_link
 <div style="text-align: center;">
 <img src="{{ site.baseurl }}/fig/state_machine.svg" alt="States and Transitions of Task Executions" height="300px" style="text-align: center;"/>
 </div>
+
+{% top %}

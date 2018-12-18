@@ -25,9 +25,7 @@ package org.apache.flink.runtime.io.network.partition;
 public interface BufferAvailabilityListener {
 
 	/**
-	 * Called whenever a new number of buffers becomes available.
-	 *
-	 * @param numBuffers The number of buffers that became available.
+	 * Called whenever there might be new data available.
 	 */
-	void notifyBuffersAvailable(long numBuffers);
+	void notifyDataAvailable();
 }

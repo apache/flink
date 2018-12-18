@@ -20,13 +20,14 @@ package org.apache.flink.streaming.connectors.kinesis.manualtests;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.testutils.ExactlyOnceValidatingConsumerThread;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisEventsGeneratorProducerThread;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 
-import com.amazonaws.services.kinesis.AmazonKinesisClient;
+import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +37,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * This test first starts a data generator, producing data into kinesis.
+ * This test first starts a data generator, producing data into Kinesis.
  * Then, it starts a consuming topology, ensuring that all records up to a certain
  * point have been seen.
  *
@@ -44,7 +45,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * --region eu-central-1 --accessKey X --secretKey X
  */
 public class ManualExactlyOnceTest {
-
 	private static final Logger LOG = LoggerFactory.getLogger(ManualExactlyOnceTest.class);
 
 	static final int TOTAL_EVENT_COUNT = 1000; // the producer writes one per 10 ms, so it runs for 10k ms = 10 seconds
@@ -62,7 +62,7 @@ public class ManualExactlyOnceTest {
 		configProps.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, accessKey);
 		configProps.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, secretKey);
 		configProps.setProperty(AWSConfigConstants.AWS_REGION, region);
-		AmazonKinesisClient client = AWSUtil.createKinesisClient(configProps);
+		AmazonKinesis client = AWSUtil.createKinesisClient(configProps);
 
 		// create a stream for the test:
 		client.createStream(streamName, 1);
@@ -78,8 +78,8 @@ public class ManualExactlyOnceTest {
 
 		final Configuration flinkConfig = new Configuration();
 		flinkConfig.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
-		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
-		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 16);
+		flinkConfig.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 8);
+		flinkConfig.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "16m");
 		flinkConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
 
 		LocalFlinkMiniCluster flink = new LocalFlinkMiniCluster(flinkConfig, false);

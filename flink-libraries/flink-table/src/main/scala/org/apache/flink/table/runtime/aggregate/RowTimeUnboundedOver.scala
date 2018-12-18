@@ -108,7 +108,7 @@ abstract class RowTimeUnboundedOver(
     val input = inputC.row
 
     // register state-cleanup timer
-    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+    processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
 
     val timestamp = input.getField(rowTimeIdx).asInstanceOf[Long]
     val curWatermark = ctx.timerService().currentWatermark()
@@ -143,7 +143,7 @@ abstract class RowTimeUnboundedOver(
       out: Collector[CRow]): Unit = {
 
     if (isProcessingTimeTimer(ctx.asInstanceOf[OnTimerContext])) {
-      if (needToCleanupState(timestamp)) {
+      if (stateCleaningEnabled) {
 
         // we check whether there are still records which have not been processed yet
         val noRecordsToProcess = !rowMapState.keys.iterator().hasNext
@@ -155,7 +155,7 @@ abstract class RowTimeUnboundedOver(
           // There are records left to process because a watermark has not been received yet.
           // This would only happen if the input stream has stopped. So we don't need to clean up.
           // We leave the state as it is and schedule a new cleanup timer
-          registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+          processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
         }
       }
       return
@@ -192,7 +192,7 @@ abstract class RowTimeUnboundedOver(
         val curTimestamp = sortedTimestamps.removeFirst()
         val curRowList = rowMapState.get(curTimestamp)
 
-        // process the same timestamp datas, the mechanism is different according ROWS or RANGE
+        // process the same timestamp data, the mechanism is different according ROWS or RANGE
         processElementsWithSameTimestamp(curRowList, lastAccumulator, out)
 
         rowMapState.remove(curTimestamp)
@@ -207,7 +207,7 @@ abstract class RowTimeUnboundedOver(
     }
 
     // update cleanup timer
-    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+    processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
   }
 
   /**
@@ -234,7 +234,7 @@ abstract class RowTimeUnboundedOver(
   }
 
   /**
-   * Process the same timestamp datas, the mechanism is different between
+   * Process the same timestamp data, the mechanism is different between
    * rows and range window.
    */
   def processElementsWithSameTimestamp(

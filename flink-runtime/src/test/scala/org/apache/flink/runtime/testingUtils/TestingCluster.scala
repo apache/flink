@@ -30,7 +30,7 @@ import org.apache.flink.configuration.{Configuration, JobManagerOptions}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint
-import org.apache.flink.runtime.checkpoint.{CheckpointOptions, CheckpointRecoveryFactory}
+import org.apache.flink.runtime.checkpoint.{CheckpointOptions, CheckpointRecoveryFactory, CheckpointRetentionPolicy}
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
@@ -42,7 +42,7 @@ import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist, Submitt
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
 import org.apache.flink.runtime.messages.JobManagerMessages
 import org.apache.flink.runtime.messages.JobManagerMessages._
-import org.apache.flink.runtime.metrics.MetricRegistry
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
@@ -50,6 +50,7 @@ import org.apache.flink.runtime.testingUtils.TestingMessages.Alive
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.apache.flink.runtime.testutils.TestingResourceManager
 
+import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Await, ExecutionContext, Future}
 
@@ -120,7 +121,7 @@ class TestingCluster(
     submittedJobGraphStore: SubmittedJobGraphStore,
     checkpointRecoveryFactory: CheckpointRecoveryFactory,
     jobRecoveryTimeout: FiniteDuration,
-    metricsRegistry: Option[MetricRegistry],
+    jobManagerMetricGroup: JobManagerMetricGroup,
     optRestAddress: Option[String]): Props = {
 
     val props = super.getJobManagerProps(
@@ -139,7 +140,7 @@ class TestingCluster(
       submittedJobGraphStore,
       checkpointRecoveryFactory,
       jobRecoveryTimeout,
-      metricsRegistry,
+      jobManagerMetricGroup,
       optRestAddress)
 
     if (synchronousDispatcher) {
@@ -229,8 +230,8 @@ class TestingCluster(
           Await.result(stopped, TestingCluster.MAX_RESTART_DURATION)
 
           if(!singleActorSystem) {
-            jmActorSystems(index).shutdown()
-            jmActorSystems(index).awaitTermination()
+            jmActorSystems(index).terminate()
+            Await.ready(jmActorSystems(index).whenTerminated, Duration.Inf)
           }
 
           val newJobManagerActorSystem = if(!singleActorSystem) {
@@ -274,8 +275,8 @@ class TestingCluster(
         Await.result(stopped, TestingCluster.MAX_RESTART_DURATION)
 
         if(!singleActorSystem) {
-          tmActorSystems(index).shutdown()
-          tmActorSystems(index).awaitTermination()
+          tmActorSystems(index).terminate()
+          Await.ready(tmActorSystems(index).whenTerminated, Duration.Inf)
         }
 
         val taskManagerActorSystem  = if(!singleActorSystem) {
@@ -383,7 +384,10 @@ class TestingCluster(
   }
 
   @throws(classOf[IOException])
-  def requestCheckpoint(jobId: JobID, options : CheckpointOptions): String = {
+  def requestCheckpoint(
+      jobId: JobID,
+      checkpointRetentionPolicy: CheckpointRetentionPolicy): String = {
+
     val jobManagerGateway = getLeaderGateway(timeout)
 
     // wait until the cluster is ready to take a checkpoint.
@@ -394,7 +398,7 @@ class TestingCluster(
 
     // trigger checkpoint
     val result = Await.result(
-      jobManagerGateway.ask(CheckpointRequest(jobId, options), timeout), timeout)
+      jobManagerGateway.ask(CheckpointRequest(jobId, checkpointRetentionPolicy), timeout), timeout)
 
     result match {
       case success: CheckpointRequestSuccess => success.path

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -33,9 +34,13 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTrace;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 
+import javax.annotation.Nonnull;
+
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 /**
@@ -46,14 +51,34 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	private final String address = UUID.randomUUID().toString();
 
-	private Optional<Consumer<ExecutionAttemptID>> optSubmitCondition;
+	private Optional<Consumer<ExecutionAttemptID>> optSubmitConsumer;
+
+	private Optional<Consumer<ExecutionAttemptID>> optCancelConsumer;
+
+	private volatile BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction;
+
+	@Nonnull
+	private volatile BiConsumer<InstanceID, Exception> disconnectFromJobManagerConsumer = (ignoredA, ignoredB) -> {};
 
 	public SimpleAckingTaskManagerGateway() {
-		optSubmitCondition = Optional.empty();
+		optSubmitConsumer = Optional.empty();
+		optCancelConsumer = Optional.empty();
 	}
 
-	public void setCondition(Consumer<ExecutionAttemptID> predicate) {
-		optSubmitCondition = Optional.of(predicate);
+	public void setSubmitConsumer(Consumer<ExecutionAttemptID> predicate) {
+		optSubmitConsumer = Optional.of(predicate);
+	}
+
+	public void setCancelConsumer(Consumer<ExecutionAttemptID> predicate) {
+		optCancelConsumer = Optional.of(predicate);
+	}
+
+	public void setFreeSlotFunction(BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction) {
+		this.freeSlotFunction = freeSlotFunction;
+	}
+
+	public void setDisconnectFromJobManagerConsumer(@Nonnull BiConsumer<InstanceID, Exception> disconnectFromJobManagerConsumer) {
+		this.disconnectFromJobManagerConsumer = disconnectFromJobManagerConsumer;
 	}
 
 	@Override
@@ -62,7 +87,9 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 	}
 
 	@Override
-	public void disconnectFromJobManager(InstanceID instanceId, Exception cause) {}
+	public void disconnectFromJobManager(InstanceID instanceId, Exception cause) {
+		disconnectFromJobManagerConsumer.accept(instanceId, cause);
+	}
 
 	@Override
 	public void stopCluster(ApplicationStatus applicationStatus, String message) {}
@@ -85,7 +112,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	@Override
 	public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
-		optSubmitCondition.ifPresent(condition -> condition.accept(tdd.getExecutionAttemptId()));
+		optSubmitConsumer.ifPresent(condition -> condition.accept(tdd.getExecutionAttemptId()));
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
@@ -96,6 +123,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	@Override
 	public CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
+		optCancelConsumer.ifPresent(condition -> condition.accept(executionAttemptID));
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
@@ -130,5 +158,16 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 	@Override
 	public CompletableFuture<TransientBlobKey> requestTaskManagerStdout(Time timeout) {
 		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> freeSlot(AllocationID allocationId, Throwable cause, Time timeout) {
+		final BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> currentFreeSlotFunction = freeSlotFunction;
+
+		if (currentFreeSlotFunction != null) {
+			return currentFreeSlotFunction.apply(allocationId, cause);
+		} else {
+			return CompletableFuture.completedFuture(Acknowledge.get());
+		}
 	}
 }

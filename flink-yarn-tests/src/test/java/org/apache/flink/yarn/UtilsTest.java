@@ -21,6 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.Level;
@@ -39,7 +40,7 @@ import java.util.Map;
 /**
  * Tests for various utilities.
  */
-public class UtilsTest {
+public class UtilsTest extends TestLogger {
 	private static final Logger LOG = LoggerFactory.getLogger(UtilsTest.class);
 
 	@Test

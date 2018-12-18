@@ -32,22 +32,24 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.DynamicCodeLoadingException;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.TestLogger;
 
@@ -70,7 +72,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 
-import static org.apache.flink.runtime.state.filesystem.FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -85,9 +86,9 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	@Parameterized.Parameters(name = "StateBackend: {0}")
 	public static Collection<String> parameters () {
 		return Arrays.asList(
-			AbstractStateBackend.MEMORY_STATE_BACKEND_NAME,
-			AbstractStateBackend.FS_STATE_BACKEND_NAME,
-			AbstractStateBackend.ROCKSDB_STATE_BACKEND_NAME);
+				StateBackendLoader.MEMORY_STATE_BACKEND_NAME,
+				StateBackendLoader.FS_STATE_BACKEND_NAME,
+				StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME);
 	}
 
 	@ClassRule
@@ -97,9 +98,9 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 
 	public PojoSerializerUpgradeTest(String backendType) throws IOException, DynamicCodeLoadingException {
 		Configuration config = new Configuration();
-		config.setString(CoreOptions.STATE_BACKEND, backendType);
-		config.setString(CHECKPOINT_DIRECTORY_URI_CONF_KEY, temporaryFolder.newFolder().toURI().toString());
-		stateBackend = AbstractStateBackend.loadStateBackendFromConfig(config, Thread.currentThread().getContextClassLoader(), null);
+		config.setString(CheckpointingOptions.STATE_BACKEND, backendType);
+		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, temporaryFolder.newFolder().toURI().toString());
+		stateBackend = StateBackendLoader.loadStateBackendFromConfig(config, Thread.currentThread().getContextClassLoader(), null);
 	}
 
 	private static final String POJO_NAME = "Pojo";
@@ -306,7 +307,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			new URL[]{rootPath.toURI().toURL()},
 			Thread.currentThread().getContextClassLoader());
 
-		OperatorStateHandles stateHandles = runOperator(
+		OperatorSubtaskState stateHandles = runOperator(
 			taskConfiguration,
 			executionConfig,
 			new StreamMap<>(new StatefulMapper(isKeyedState, false, hasBField)),
@@ -339,7 +340,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			inputs);
 	}
 
-	private OperatorStateHandles runOperator(
+	private OperatorSubtaskState runOperator(
 			Configuration taskConfiguration,
 			ExecutionConfig executionConfig,
 			OneInputStreamOperator<Long, Long> operator,
@@ -347,53 +348,53 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			boolean isKeyedState,
 			StateBackend stateBackend,
 			ClassLoader classLoader,
-			OperatorStateHandles operatorStateHandles,
+			OperatorSubtaskState operatorSubtaskState,
 			Iterable<Long> input) throws Exception {
 
-		final MockEnvironment environment = new MockEnvironment(
-			"test task",
-			32 * 1024,
-			new MockInputSplitProvider(),
-			256,
-			taskConfiguration,
-			executionConfig,
-			16,
-			1,
-			0,
-			classLoader);
+		try (final MockEnvironment environment =
+				new MockEnvironmentBuilder()
+					.setTaskName("test task")
+					.setMemorySize(32 * 1024)
+					.setInputSplitProvider(new MockInputSplitProvider())
+					.setBufferSize(256)
+					.setTaskConfiguration(taskConfiguration)
+					.setExecutionConfig(executionConfig)
+					.setMaxParallelism(16)
+					.setUserCodeClassLoader(classLoader)
+					.build()) {
 
-		OneInputStreamOperatorTestHarness<Long, Long> harness;
+			OneInputStreamOperatorTestHarness<Long, Long> harness = null;
+			try {
+				if (isKeyedState) {
+					harness = new KeyedOneInputStreamOperatorTestHarness<>(
+						operator,
+						keySelector,
+						BasicTypeInfo.LONG_TYPE_INFO,
+						environment);
+				} else {
+					harness = new OneInputStreamOperatorTestHarness<>(operator, LongSerializer.INSTANCE, environment);
+				}
 
-		if (isKeyedState) {
-			harness = new KeyedOneInputStreamOperatorTestHarness<>(
-				operator,
-				keySelector,
-				BasicTypeInfo.LONG_TYPE_INFO,
-				environment);
-		} else {
-			harness = new OneInputStreamOperatorTestHarness<>(operator, LongSerializer.INSTANCE, environment);
+				harness.setStateBackend(stateBackend);
+
+				harness.setup();
+				harness.initializeState(operatorSubtaskState);
+				harness.open();
+
+				long timestamp = 0L;
+
+				for (Long value : input) {
+					harness.processElement(value, timestamp++);
+				}
+
+				long checkpointId = 1L;
+				long checkpointTimestamp = timestamp + 1L;
+
+				return harness.snapshot(checkpointId, checkpointTimestamp);
+			} finally {
+				IOUtils.closeQuietly(harness);
+			}
 		}
-
-		harness.setStateBackend(stateBackend);
-
-		harness.setup();
-		harness.initializeState(operatorStateHandles);
-		harness.open();
-
-		long timestamp = 0L;
-
-		for (Long value : input) {
-			harness.processElement(value, timestamp++);
-		}
-
-		long checkpointId = 1L;
-		long checkpointTimestamp = timestamp + 1L;
-
-		OperatorStateHandles stateHandles = harness.snapshot(checkpointId, checkpointTimestamp);
-
-		harness.close();
-
-		return stateHandles;
 	}
 
 	private static File writeSourceFile(File root, String name, String source) throws IOException {
@@ -410,7 +411,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 
 	private static int compileClass(File sourceFile) {
 		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-		return compiler.run(null, null, null, sourceFile.getPath());
+		return compiler.run(null, null, null, "-proc:none", sourceFile.getPath());
 	}
 
 	private static final class StatefulMapper extends RichMapFunction<Long, Long> implements CheckpointedFunction {

@@ -738,7 +738,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 	 * Starts the resource manager actors.
 	 * @param configuration The configuration for the resource manager
 	 * @param actorSystem The actor system to start the resource manager in
-	 * @param leaderRetriever The leader retriever service to intialize the resource manager
+	 * @param leaderRetriever The leader retriever service to initialize the resource manager
 	 * @param resourceManagerClass The class of the ResourceManager to be started
 	 * @return ActorRef of the resource manager
 	 */
@@ -757,7 +757,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 	 * Starts the resource manager actors.
 	 * @param configuration The configuration for the resource manager
 	 * @param actorSystem The actor system to start the resource manager in
-	 * @param leaderRetriever The leader retriever service to intialize the resource manager
+	 * @param leaderRetriever The leader retriever service to initialize the resource manager
 	 * @param resourceManagerClass The class of the ResourceManager to be started
 	 * @param resourceManagerActorName The name of the resource manager actor.
 	 * @return ActorRef of the resource manager

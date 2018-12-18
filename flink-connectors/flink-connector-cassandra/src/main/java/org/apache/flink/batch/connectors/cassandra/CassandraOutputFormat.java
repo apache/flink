@@ -17,111 +17,20 @@
 
 package org.apache.flink.batch.connectors.cassandra;
 
-import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
-import org.apache.flink.util.Preconditions;
-
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.ResultSetFuture;
-import com.datastax.driver.core.Session;
-import com.google.common.base.Strings;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 
 /**
- * OutputFormat to write {@link org.apache.flink.api.java.tuple.Tuple} into Apache Cassandra.
+ * OutputFormat to write Flink {@link Tuple}s into a Cassandra cluster.
  *
- * @param <OUT> type of Tuple
+ * @param <OUT> Type of {@link Tuple} to write to Cassandra.
+ *
+ * @deprecated Please use CassandraTupleOutputFormat instead.
  */
-public class CassandraOutputFormat<OUT extends Tuple> extends RichOutputFormat<OUT> {
-	private static final Logger LOG = LoggerFactory.getLogger(CassandraOutputFormat.class);
-
-	private final String insertQuery;
-	private final ClusterBuilder builder;
-
-	private transient Cluster cluster;
-	private transient Session session;
-	private transient PreparedStatement prepared;
-	private transient FutureCallback<ResultSet> callback;
-	private transient Throwable exception = null;
+@Deprecated
+public class CassandraOutputFormat<OUT extends Tuple> extends CassandraTupleOutputFormat<OUT> {
 
 	public CassandraOutputFormat(String insertQuery, ClusterBuilder builder) {
-		Preconditions.checkArgument(!Strings.isNullOrEmpty(insertQuery), "Query cannot be null or empty");
-		Preconditions.checkArgument(builder != null, "Builder cannot be null");
-
-		this.insertQuery = insertQuery;
-		this.builder = builder;
-	}
-
-	@Override
-	public void configure(Configuration parameters) {
-		this.cluster = builder.getCluster();
-	}
-
-	/**
-	 * Opens a Session to Cassandra and initializes the prepared statement.
-	 *
-	 * @param taskNumber The number of the parallel instance.
-	 * @throws IOException Thrown, if the output could not be opened due to an
-	 *                     I/O problem.
-	 */
-	@Override
-	public void open(int taskNumber, int numTasks) throws IOException {
-		this.session = cluster.connect();
-		this.prepared = session.prepare(insertQuery);
-		this.callback = new FutureCallback<ResultSet>() {
-			@Override
-			public void onSuccess(ResultSet ignored) {
-			}
-
-			@Override
-			public void onFailure(Throwable t) {
-				exception = t;
-			}
-		};
-	}
-
-	@Override
-	public void writeRecord(OUT record) throws IOException {
-		if (exception != null) {
-			throw new IOException("write record failed", exception);
-		}
-
-		Object[] fields = new Object[record.getArity()];
-		for (int i = 0; i < record.getArity(); i++) {
-			fields[i] = record.getField(i);
-		}
-		ResultSetFuture result = session.executeAsync(prepared.bind(fields));
-		Futures.addCallback(result, callback);
-	}
-
-	/**
-	 * Closes all resources used.
-	 */
-	@Override
-	public void close() throws IOException {
-		try {
-			if (session != null) {
-				session.close();
-			}
-		} catch (Exception e) {
-			LOG.error("Error while closing session.", e);
-		}
-
-		try {
-			if (cluster != null) {
-				cluster.close();
-			}
-		} catch (Exception e) {
-			LOG.error("Error while closing cluster.", e);
-		}
+		super(insertQuery, builder);
 	}
 }

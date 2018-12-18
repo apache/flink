@@ -47,7 +47,7 @@ class DataSetFinalAggFunction(
     LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
                 s"Code:\n$genAggregations.code")
     val clazz = compile(
-      getClass.getClassLoader,
+      getRuntimeContext.getUserCodeClassLoader,
       genAggregations.name,
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
@@ -76,9 +76,6 @@ class DataSetFinalAggFunction(
 
     // get final aggregate value and set to output.
     function.setAggregationResults(accumulators, output)
-
-    // set grouping set flags to output
-    function.setConstantFlags(output)
 
     out.collect(output)
   }

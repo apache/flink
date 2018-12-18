@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.functions.windowing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+import org.apache.flink.util.OutputTag;
 
 /**
  * Internal reusable context wrapper.
@@ -34,8 +35,7 @@ public class InternalProcessApplyAllWindowContext<IN, OUT, W extends Window>
 	extends ProcessAllWindowFunction<IN, OUT, W>.Context {
 
 	W window;
-	KeyedStateStore windowState;
-	KeyedStateStore globalState;
+	ProcessAllWindowFunction.Context context;
 
 	InternalProcessApplyAllWindowContext(ProcessAllWindowFunction<IN, OUT, W> function) {
 		function.super();
@@ -48,11 +48,16 @@ public class InternalProcessApplyAllWindowContext<IN, OUT, W extends Window>
 
 	@Override
 	public KeyedStateStore windowState() {
-		return windowState;
+		return context.windowState();
 	}
 
 	@Override
 	public KeyedStateStore globalState() {
-		return globalState;
+		return context.globalState();
+	}
+
+	@Override
+	public <X> void output(OutputTag<X> outputTag, X value) {
+		context.output(outputTag, value);
 	}
 }

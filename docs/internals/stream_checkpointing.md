@@ -169,3 +169,5 @@ Operators that checkpoint purely synchronously return an already completed `Futu
 If an asynchronous operation needs to be performed, it is executed in the `run()` method of that `FutureTask`.
 
 The tasks are cancelable, so that streams and other resource consuming handles can be released.
+
+{% top %}

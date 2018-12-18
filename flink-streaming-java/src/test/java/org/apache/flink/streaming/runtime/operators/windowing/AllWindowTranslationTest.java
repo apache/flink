@@ -1462,9 +1462,10 @@ public class AllWindowTranslationTest {
 		}
 
 		@Override
-		public void add(Tuple2<String, Integer> value, Tuple2<String, Integer> accumulator) {
+		public Tuple2<String, Integer> add(Tuple2<String, Integer> value, Tuple2<String, Integer> accumulator) {
 			accumulator.f0 = value.f0;
 			accumulator.f1 = value.f1;
+			return accumulator;
 		}
 
 		@Override
@@ -1486,7 +1487,9 @@ public class AllWindowTranslationTest {
 		}
 
 		@Override
-		public void add(T value, T accumulator) {}
+		public T add(T value, T accumulator) {
+			return accumulator;
+		}
 
 		@Override
 		public T getResult(T accumulator) {

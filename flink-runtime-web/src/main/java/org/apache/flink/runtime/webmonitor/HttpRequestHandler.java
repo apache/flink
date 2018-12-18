@@ -133,6 +133,10 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 								String name = file.getFilename();
 
 								File target = new File(tmpDir, UUID.randomUUID() + "_" + name);
+								if (!tmpDir.exists()) {
+									WebRuntimeMonitor.logExternalUploadDirDeletion(tmpDir);
+									WebRuntimeMonitor.checkAndCreateUploadDir(tmpDir);
+								}
 								file.renameTo(target);
 
 								QueryStringEncoder encoder = new QueryStringEncoder(currentRequestPath);
@@ -142,8 +146,6 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 								currentRequest.setUri(encoder.toString());
 							}
 						}
-
-						data.release();
 					}
 				}
 				catch (EndOfDataDecoderException ignored) {}

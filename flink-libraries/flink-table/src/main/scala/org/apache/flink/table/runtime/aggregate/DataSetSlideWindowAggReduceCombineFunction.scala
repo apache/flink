@@ -36,6 +36,8 @@ import org.apache.flink.types.Row
   * @param keysAndAggregatesArity The total arity of keys and aggregates
   * @param finalRowWindowStartPos relative window-start position to last field of output row
   * @param finalRowWindowEndPos relative window-end position to last field of output row
+  * @param finalRowWindowRowtimePos relative window-rowtime position to the last field of the
+  *                                 output row
   * @param windowSize size of the window, used to determine window-end for output row
   */
 class DataSetSlideWindowAggReduceCombineFunction(
@@ -44,12 +46,14 @@ class DataSetSlideWindowAggReduceCombineFunction(
     keysAndAggregatesArity: Int,
     finalRowWindowStartPos: Option[Int],
     finalRowWindowEndPos: Option[Int],
+    finalRowWindowRowtimePos: Option[Int],
     windowSize: Long)
   extends DataSetSlideWindowAggReduceGroupFunction(
     genFinalAggregations,
     keysAndAggregatesArity,
     finalRowWindowStartPos,
     finalRowWindowEndPos,
+    finalRowWindowRowtimePos,
     windowSize)
   with CombineFunction[Row, Row] {
 
@@ -63,7 +67,7 @@ class DataSetSlideWindowAggReduceCombineFunction(
     LOG.debug(s"Compiling AggregateHelper: $genPreAggregations.name \n\n " +
       s"Code:\n$genPreAggregations.code")
     val clazz = compile(
-      getClass.getClassLoader,
+      getRuntimeContext.getUserCodeClassLoader,
       genPreAggregations.name,
       genPreAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")

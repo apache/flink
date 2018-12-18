@@ -31,7 +31,7 @@ public class RestoredCheckpointStatsTest {
 	public void testSimpleAccess() throws Exception {
 		long checkpointId = Integer.MAX_VALUE + 1L;
 		long triggerTimestamp = Integer.MAX_VALUE + 1L;
-		CheckpointProperties props = new CheckpointProperties(true, true, false, false, false, true, false, true);
+		CheckpointProperties props = new CheckpointProperties(true, CheckpointType.SAVEPOINT, false, false, true, false, true);
 		long restoreTimestamp = Integer.MAX_VALUE + 1L;
 		String externalPath = "external-path";
 

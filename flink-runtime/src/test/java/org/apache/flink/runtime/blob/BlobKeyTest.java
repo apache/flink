@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -29,14 +30,17 @@ import java.io.IOException;
 
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -46,20 +50,34 @@ public final class BlobKeyTest extends TestLogger {
 	/**
 	 * The first key array to be used during the unit tests.
 	 */
-	private static final byte[] KEY_ARRAY_1 = new byte[20];
+	private static final byte[] KEY_ARRAY_1 = new byte[BlobKey.SIZE];
 
 	/**
 	 * The second key array to be used during the unit tests.
 	 */
-	private static final byte[] KEY_ARRAY_2 = new byte[20];
+	private static final byte[] KEY_ARRAY_2 = new byte[BlobKey.SIZE];
+
+	/**
+	 * First byte array to use for the random component of a {@link BlobKey}.
+	 */
+	private static final byte[] RANDOM_ARRAY_1 = new byte[AbstractID.SIZE];
+
+	/**
+	 * Second byte array to use for the random component of a {@link BlobKey}.
+	 */
+	private static final byte[] RANDOM_ARRAY_2 = new byte[AbstractID.SIZE];
 
 	/*
-	 * Initialize the key array.
+	 * Initialize the key and random arrays.
 	 */
 	static {
 		for (int i = 0; i < KEY_ARRAY_1.length; ++i) {
 			KEY_ARRAY_1[i] = (byte) i;
 			KEY_ARRAY_2[i] = (byte) (i + 1);
+		}
+		for (int i = 0; i < RANDOM_ARRAY_1.length; ++i) {
+			RANDOM_ARRAY_1[i] = (byte) i;
+			RANDOM_ARRAY_2[i] = (byte) (i + 1);
 		}
 	}
 
@@ -89,7 +107,7 @@ public final class BlobKeyTest extends TestLogger {
 	 * Tests the serialization/deserialization of BLOB keys.
 	 */
 	private void testSerialization(BlobKey.BlobType blobType) throws Exception {
-		final BlobKey k1 = BlobKey.createKey(blobType, KEY_ARRAY_1);
+		final BlobKey k1 = BlobKey.createKey(blobType, KEY_ARRAY_1, RANDOM_ARRAY_1);
 		final BlobKey k2 = CommonTestUtils.createCopySerializable(k1);
 		assertEquals(k1, k2);
 		assertEquals(k1.hashCode(), k2.hashCode());
@@ -107,16 +125,25 @@ public final class BlobKeyTest extends TestLogger {
 	}
 
 	/**
-	 * Tests the equals method.
+	 * Tests the {@link BlobKey#equals(Object)} and {@link BlobKey#hashCode()} methods.
 	 */
 	private void testEquals(BlobKey.BlobType blobType) {
-		final BlobKey k1 = BlobKey.createKey(blobType, KEY_ARRAY_1);
-		final BlobKey k2 = BlobKey.createKey(blobType, KEY_ARRAY_1);
-		final BlobKey k3 = BlobKey.createKey(blobType, KEY_ARRAY_2);
+		final BlobKey k1 = BlobKey.createKey(blobType, KEY_ARRAY_1, RANDOM_ARRAY_1);
+		final BlobKey k2 = BlobKey.createKey(blobType, KEY_ARRAY_1, RANDOM_ARRAY_1);
+		final BlobKey k3 = BlobKey.createKey(blobType, KEY_ARRAY_2, RANDOM_ARRAY_1);
+		final BlobKey k4 = BlobKey.createKey(blobType, KEY_ARRAY_1, RANDOM_ARRAY_2);
 		assertTrue(k1.equals(k2));
 		assertTrue(k2.equals(k1));
+		assertEquals(k1.hashCode(), k2.hashCode());
 		assertFalse(k1.equals(k3));
 		assertFalse(k3.equals(k1));
+		assertFalse(k1.equals(k4));
+		assertFalse(k4.equals(k1));
+
+		//noinspection ObjectEqualsNull
+		assertFalse(k1.equals(null));
+		//noinspection EqualsBetweenInconvertibleTypes
+		assertFalse(k1.equals(this));
 	}
 
 	/**
@@ -124,8 +151,8 @@ public final class BlobKeyTest extends TestLogger {
 	 */
 	@Test
 	public void testEqualsDifferentBlobType() {
-		final BlobKey k1 = BlobKey.createKey(TRANSIENT_BLOB, KEY_ARRAY_1);
-		final BlobKey k2 = BlobKey.createKey(PERMANENT_BLOB, KEY_ARRAY_1);
+		final BlobKey k1 = BlobKey.createKey(TRANSIENT_BLOB, KEY_ARRAY_1, RANDOM_ARRAY_1);
+		final BlobKey k2 = BlobKey.createKey(PERMANENT_BLOB, KEY_ARRAY_1, RANDOM_ARRAY_1);
 		assertFalse(k1.equals(k2));
 		assertFalse(k2.equals(k1));
 	}
@@ -144,19 +171,22 @@ public final class BlobKeyTest extends TestLogger {
 	 * Tests the compares method.
 	 */
 	private void testCompares(BlobKey.BlobType blobType) {
-		final BlobKey k1 = BlobKey.createKey(blobType, KEY_ARRAY_1);
-		final BlobKey k2 = BlobKey.createKey(blobType, KEY_ARRAY_1);
-		final BlobKey k3 = BlobKey.createKey(blobType, KEY_ARRAY_2);
+		final BlobKey k1 = BlobKey.createKey(blobType, KEY_ARRAY_1, RANDOM_ARRAY_1);
+		final BlobKey k2 = BlobKey.createKey(blobType, KEY_ARRAY_1, RANDOM_ARRAY_1);
+		final BlobKey k3 = BlobKey.createKey(blobType, KEY_ARRAY_2, RANDOM_ARRAY_1);
+		final BlobKey k4 = BlobKey.createKey(blobType, KEY_ARRAY_1, RANDOM_ARRAY_2);
 		assertThat(k1.compareTo(k2), is(0));
 		assertThat(k2.compareTo(k1), is(0));
 		assertThat(k1.compareTo(k3), lessThan(0));
+		assertThat(k1.compareTo(k4), lessThan(0));
 		assertThat(k3.compareTo(k1), greaterThan(0));
+		assertThat(k4.compareTo(k1), greaterThan(0));
 	}
 
 	@Test
 	public void testComparesDifferentBlobType() {
-		final BlobKey k1 = BlobKey.createKey(TRANSIENT_BLOB, KEY_ARRAY_1);
-		final BlobKey k2 = BlobKey.createKey(PERMANENT_BLOB, KEY_ARRAY_1);
+		final BlobKey k1 = BlobKey.createKey(TRANSIENT_BLOB, KEY_ARRAY_1, RANDOM_ARRAY_1);
+		final BlobKey k2 = BlobKey.createKey(PERMANENT_BLOB, KEY_ARRAY_1, RANDOM_ARRAY_1);
 		assertThat(k1.compareTo(k2), greaterThan(0));
 		assertThat(k2.compareTo(k1), lessThan(0));
 	}
@@ -175,7 +205,7 @@ public final class BlobKeyTest extends TestLogger {
 	 * Test the serialization/deserialization using input/output streams.
 	 */
 	private void testStreams(BlobKey.BlobType blobType) throws IOException {
-		final BlobKey k1 = BlobKey.createKey(blobType, KEY_ARRAY_1);
+		final BlobKey k1 = BlobKey.createKey(blobType, KEY_ARRAY_1, RANDOM_ARRAY_1);
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream(20);
 
 		k1.writeToOutputStream(baos);
@@ -185,6 +215,28 @@ public final class BlobKeyTest extends TestLogger {
 		final BlobKey k2 = BlobKey.readFromInputStream(bais);
 
 		assertEquals(k1, k2);
+	}
+
+	/**
+	 * Verifies that the two given key's are different in total but share the same hash.
+	 *
+	 * @param key1 first blob key
+	 * @param key2 second blob key
+	 */
+	static void verifyKeyDifferentHashEquals(BlobKey key1, BlobKey key2) {
+		assertNotEquals(key1, key2);
+		assertThat(key1.getHash(), equalTo(key2.getHash()));
+	}
+
+	/**
+	 * Verifies that the two given key's are different in total and also have different hashes.
+	 *
+	 * @param key1 first blob key
+	 * @param key2 second blob key
+	 */
+	static void verifyKeyDifferentHashDifferent(BlobKey key1, BlobKey key2) {
+		assertNotEquals(key1, key2);
+		assertThat(key1.getHash(), not(equalTo(key2.getHash())));
 	}
 
 	/**

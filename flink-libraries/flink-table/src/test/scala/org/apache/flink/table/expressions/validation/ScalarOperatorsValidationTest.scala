@@ -66,4 +66,22 @@ class ScalarOperatorsValidationTest extends ScalarOperatorsTestBase {
       "FAIL"
     )
   }
+
+  @Test(expected = classOf[ValidationException])
+  def testBetweenWithDifferentOperandTypeScala(): Unit = {
+    testTableApi(
+      2.between(1, "a"),
+      "FAIL",
+      "FAIL"
+    )
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testBetweenWithDifferentOperandTypeJava(): Unit = {
+    testTableApi(
+      "FAIL",
+      "2.between(1, 'a')",
+      "FAIL"
+    )
+  }
 }

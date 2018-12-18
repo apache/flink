@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.query;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -26,6 +27,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.junit.Test;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -42,7 +44,7 @@ import static org.mockito.Mockito.when;
 public class KvStateLocationRegistryTest {
 
 	/**
-	 * Simple test registering/unregistereing state and looking it up again.
+	 * Simple test registering/unregistering state and looking it up again.
 	 */
 	@Test
 	public void testRegisterAndLookup() throws Exception {
@@ -63,7 +65,7 @@ public class KvStateLocationRegistryTest {
 			}
 		}
 
-		KvStateServerAddress server = new KvStateServerAddress(InetAddress.getLocalHost(), 12032);
+		InetSocketAddress server = new InetSocketAddress(InetAddress.getLocalHost(), 12032);
 
 		// Create registry
 		Map<JobVertexID, ExecutionJobVertex> vertexMap = createVertexMap(vertices);
@@ -129,7 +131,7 @@ public class KvStateLocationRegistryTest {
 				new KeyGroupRange(0, 0),
 				registrationName,
 				new KvStateID(),
-				new KvStateServerAddress(InetAddress.getLocalHost(), 12328));
+				new InetSocketAddress(InetAddress.getLocalHost(), 12328));
 
 		try {
 			// Second operator registers same name
@@ -138,7 +140,7 @@ public class KvStateLocationRegistryTest {
 					new KeyGroupRange(0, 0),
 					registrationName,
 					new KvStateID(),
-					new KvStateServerAddress(InetAddress.getLocalHost(), 12032));
+					new InetSocketAddress(InetAddress.getLocalHost(), 12032));
 
 			fail("Did not throw expected Exception after duplicated name");
 		} catch (IllegalStateException ignored) {
@@ -187,7 +189,7 @@ public class KvStateLocationRegistryTest {
 				new KeyGroupRange(0, 0),
 				name,
 				new KvStateID(),
-				mock(KvStateServerAddress.class));
+				mock(InetSocketAddress.class));
 
 		try {
 			// Unregister not registered keyGroupIndex

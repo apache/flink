@@ -21,7 +21,6 @@ import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rel.RelFieldCollation
 import org.apache.calcite.rel.RelFieldCollation.Direction
-
 import org.apache.flink.types.Row
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -35,8 +34,10 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.table.plan.schema.RowSchema
-
+import org.apache.flink.util.Preconditions
 import java.util.Comparator
+
+import org.apache.flink.api.common.operators.Order
 
 import scala.collection.JavaConverters._
 
@@ -60,6 +61,7 @@ object SortUtil {
     inputTypeInfo: TypeInformation[Row],
     execCfg: ExecutionConfig): ProcessFunction[CRow, CRow] = {
 
+    Preconditions.checkArgument(collationSort.getFieldCollations.size() > 0)
     val rowtimeIdx = collationSort.getFieldCollations.get(0).getFieldIndex
 
     val collectionRowComparator = if (collationSort.getFieldCollations.size() > 1) {
@@ -121,7 +123,7 @@ object SortUtil {
     *
    * @return A RowComparator for the provided sort collations and input type.
    */
-  private def createRowComparator(
+  def createRowComparator(
       inputType: RelDataType,
       fieldCollations: Seq[RelFieldCollation],
       execConfig: ExecutionConfig): RowComparator = {
@@ -135,7 +137,8 @@ object SortUtil {
 
     val fieldComps = for ((k, o) <- sortFields.zip(sortDirections)) yield {
       FlinkTypeFactory.toTypeInfo(inputType.getFieldList.get(k).getType) match {
-        case a: AtomicType[AnyRef] => a.createComparator(o, execConfig)
+        case a: AtomicType[_] =>
+          a.createComparator(o, execConfig).asInstanceOf[TypeComparator[AnyRef]]
         case x: TypeInformation[_] =>  
           throw new TableException(s"Unsupported field type $x to sort on.")
       }
@@ -157,6 +160,7 @@ object SortUtil {
    * @return The direction of the first sort field.
    */
   def getFirstSortDirection(collationSort: RelCollation): Direction = {
+    Preconditions.checkArgument(collationSort.getFieldCollations.size() > 0)
     collationSort.getFieldCollations.get(0).direction
   }
   
@@ -168,10 +172,24 @@ object SortUtil {
    * @return The first sort field.
    */
   def getFirstSortField(collationSort: RelCollation, rowType: RelDataType): RelDataTypeField = {
+    Preconditions.checkArgument(collationSort.getFieldCollations.size() > 0)
     val idx = collationSort.getFieldCollations.get(0).getFieldIndex
     rowType.getFieldList.get(idx)
   }
-  
+
+  /**
+    * Translates direction into Order
+    *
+    * @param direction order direction
+    * @return corresponding order
+    */
+  def directionToOrder(direction: Direction): Order = {
+    direction match {
+      case Direction.ASCENDING | Direction.STRICTLY_ASCENDING => Order.ASCENDING
+      case Direction.DESCENDING | Direction.STRICTLY_DESCENDING => Order.DESCENDING
+      case _ => throw new IllegalArgumentException("Unsupported direction.")
+    }
+  }
 }
 
 /**

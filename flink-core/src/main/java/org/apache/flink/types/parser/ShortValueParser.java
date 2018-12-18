@@ -36,6 +36,12 @@ public class ShortValueParser extends FieldParser<ShortValue> {
 
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, ShortValue reusable) {
+
+		if (startPos == limit) {
+			setErrorState(ParseErrorState.EMPTY_COLUMN);
+			return -1;
+		}
+
 		int val = 0;
 		boolean neg = false;
 
@@ -75,7 +81,7 @@ public class ShortValueParser extends FieldParser<ShortValue> {
 				return -1;
 			}
 		}
-		
+
 		reusable.setValue((short) (neg ? -val : val));
 		return limit;
 	}

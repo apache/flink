@@ -98,13 +98,14 @@ object AccMode extends Enumeration {
     * Changes are encoded as follows:
     * - insert: (true, NewRow)
     * - update: (true, NewRow) // the Row includes the full unique key to identify the row to update
-    * - delete: (false, OldRow) // the Row includes the full unique key to idenify the row to delete
+    * - delete: (false, OldRow) // the Row includes the full unique key to identify the row to
+    * delete
     *
     */
   val Acc = Value
 
   /**
-    * * An operator in [[AccRetract]] mode emits change messages as
+    * An operator in [[AccRetract]] mode emits change messages as
     * [[org.apache.flink.table.runtime.types.CRow]] which encode a pair of (Boolean, Row).
     *
     * Changes are encoded as follows:

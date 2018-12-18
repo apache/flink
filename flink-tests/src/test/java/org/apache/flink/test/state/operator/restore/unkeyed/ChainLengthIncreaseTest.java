@@ -21,6 +21,7 @@ package org.apache.flink.test.state.operator.restore.unkeyed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.migration.MigrationVersion;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
 
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createFirstStatefulMap;
@@ -34,8 +35,8 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
  */
 public class ChainLengthIncreaseTest extends AbstractNonKeyedOperatorRestoreTestBase {
 
-	public ChainLengthIncreaseTest(String savepointPath) {
-		super(savepointPath);
+	public ChainLengthIncreaseTest(MigrationVersion migrationVersion) {
+		super(migrationVersion);
 	}
 
 	@Override

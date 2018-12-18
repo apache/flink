@@ -33,6 +33,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.util.UUID;
 
 /**
  * Test for {@link PageRank}.
@@ -54,7 +55,10 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 
 	@Before
 	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
+		final File folder = tempFolder.newFolder();
+		final File resultFile = new File(folder, UUID.randomUUID().toString());
+		resultPath = resultFile.toURI().toString();
+
 		File verticesFile = tempFolder.newFile();
 		FileUtils.writeFileUtf8(verticesFile, PageRankData.VERTICES);
 

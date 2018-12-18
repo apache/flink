@@ -23,13 +23,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphBuilder;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
-import org.apache.flink.runtime.instance.SlotProvider;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -626,19 +627,22 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 				JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
 				FailoverStrategyLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME);
 
+		final Time timeout = Time.seconds(10L);
 		return ExecutionGraphBuilder.buildGraph(
-				null,
-				jobGraph,
-				jobManagerConfig,
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
-				mock(SlotProvider.class),
-				PipelinedFailoverRegionBuildingTest.class.getClassLoader(),
-				new StandaloneCheckpointRecoveryFactory(),
-				Time.seconds(10),
-				new NoRestartStrategy(),
-				new UnregisteredMetricsGroup(),
-				1000,
-				log);
+			null,
+			jobGraph,
+			jobManagerConfig,
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
+			mock(SlotProvider.class),
+			PipelinedFailoverRegionBuildingTest.class.getClassLoader(),
+			new StandaloneCheckpointRecoveryFactory(),
+			timeout,
+			new NoRestartStrategy(),
+			new UnregisteredMetricsGroup(),
+			1000,
+			VoidBlobWriter.getInstance(),
+			timeout,
+			log);
 	}
 }

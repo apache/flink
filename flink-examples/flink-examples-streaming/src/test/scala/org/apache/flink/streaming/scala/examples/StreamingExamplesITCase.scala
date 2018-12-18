@@ -24,7 +24,6 @@ import org.apache.commons.io.FileUtils
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.examples.iteration.util.IterateExampleData
 import org.apache.flink.streaming.examples.ml.util.IncrementalLearningSkeletonData
 import org.apache.flink.streaming.examples.twitter.util.TwitterExampleData
@@ -37,16 +36,14 @@ import org.apache.flink.streaming.scala.examples.twitter.TwitterExample
 import org.apache.flink.streaming.scala.examples.windowing.{SessionWindowing, WindowWordCount}
 import org.apache.flink.streaming.scala.examples.wordcount.WordCount
 import org.apache.flink.streaming.test.examples.join.WindowJoinData
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.test.testdata.WordCountData
-import org.apache.flink.test.util.TestBaseUtils
-
+import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 import org.junit.Test
 
 /**
  * Integration test for streaming programs in Scala examples.
  */
-class StreamingExamplesITCase extends StreamingMultipleProgramsTestBase {
+class StreamingExamplesITCase extends AbstractTestBase {
 
   @Test
   def testIterateExample(): Unit = {

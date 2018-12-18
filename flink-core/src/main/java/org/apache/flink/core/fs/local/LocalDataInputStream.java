@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FSDataInputStream;
 
 import javax.annotation.Nonnull;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -40,9 +41,9 @@ public class LocalDataInputStream extends FSDataInputStream {
 
 	/**
 	 * Constructs a new <code>LocalDataInputStream</code> object from a given {@link File} object.
-	 * 
+	 *
 	 * @param file The File the data stream is read from
-	 * 
+	 *
 	 * @throws IOException Thrown if the data input stream cannot be created.
 	 */
 	public LocalDataInputStream(File file) throws IOException {
@@ -71,18 +72,18 @@ public class LocalDataInputStream extends FSDataInputStream {
 	public int read(@Nonnull byte[] buffer, int offset, int length) throws IOException {
 		return this.fis.read(buffer, offset, length);
 	}
-	
+
 	@Override
 	public void close() throws IOException {
-		// Accoring to javadoc, this also closes the channel
+		// According to javadoc, this also closes the channel
 		this.fis.close();
 	}
-	
+
 	@Override
 	public int available() throws IOException {
 		return this.fis.available();
 	}
-	
+
 	@Override
 	public long skip(final long n) throws IOException {
 		return this.fis.skip(n);

@@ -45,12 +45,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.apache.flink.runtime.blob.BlobCachePutTest.verifyDeletedEventually;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerDeleteTest.delete;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -86,6 +86,12 @@ public class BlobCacheDeleteTest extends TestLogger {
 		testDelete(new JobID(), new JobID());
 	}
 
+	@Test
+	public void testDeleteTransient5() throws IOException {
+		JobID jobId = new JobID();
+		testDelete(jobId, jobId);
+	}
+
 	/**
 	 * Uploads a (different) byte array for each of the given jobs and verifies that deleting one of
 	 * them (via the {@link BlobCacheService}) does not influence the other.
@@ -97,15 +103,14 @@ public class BlobCacheDeleteTest extends TestLogger {
 	 */
 	private void testDelete(@Nullable JobID jobId1, @Nullable JobID jobId2)
 			throws IOException {
-		final boolean sameJobId = (jobId1 == jobId2) || (jobId1 != null && jobId1.equals(jobId2));
 
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
+			BlobCacheService cache = new BlobCacheService(config, new VoidBlobStore(), new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 
@@ -121,9 +126,10 @@ public class BlobCacheDeleteTest extends TestLogger {
 			// put two more BLOBs (same key, other key) for another job ID
 			TransientBlobKey key2a = (TransientBlobKey) put(server, jobId2, data, TRANSIENT_BLOB);
 			assertNotNull(key2a);
-			assertEquals(key1, key2a);
+			BlobKeyTest.verifyKeyDifferentHashEquals(key1, key2a);
 			TransientBlobKey key2b = (TransientBlobKey) put(server, jobId2, data2, TRANSIENT_BLOB);
 			assertNotNull(key2b);
+			BlobKeyTest.verifyKeyDifferentHashDifferent(key1, key2b);
 
 			// issue a DELETE request
 			assertTrue(delete(cache, jobId1, key1));
@@ -133,16 +139,15 @@ public class BlobCacheDeleteTest extends TestLogger {
 			// delete on server so that the cache cannot re-download
 			assertTrue(server.deleteInternal(jobId1, key1));
 			verifyDeleted(cache, jobId1, key1);
-			// deleting a one BLOB should not affect another BLOB, even with the same key if job IDs are different
-			if (!sameJobId) {
-				verifyContents(server, jobId2, key2a, data);
-			}
+			// deleting one BLOB should not affect another BLOB with a different key
+			// (and keys are always different now)
+			verifyContents(server, jobId2, key2a, data);
 			verifyContents(server, jobId2, key2b, data2);
 
 			// delete first file of second job
 			assertTrue(delete(cache, jobId2, key2a));
-			// delete only works on local cache (unless already deleted - key1 == key2a)!
-			assertTrue(sameJobId || server.getStorageLocation(jobId2, key2a).exists());
+			// delete only works on local cache
+			assertTrue(server.getStorageLocation(jobId2, key2a).exists());
 			// delete on server so that the cache cannot re-download
 			assertTrue(server.deleteInternal(jobId2, key2a));
 			verifyDeleted(cache, jobId2, key2a);
@@ -150,7 +155,7 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 			// delete second file of second job
 			assertTrue(delete(cache, jobId2, key2b));
-			// delete only works on local cache (unless already deleted - key1 == key2a)!
+			// delete only works on local cache
 			assertTrue(server.getStorageLocation(jobId2, key2b).exists());
 			// delete on server so that the cache cannot re-download
 			assertTrue(server.deleteInternal(jobId2, key2b));
@@ -182,8 +187,8 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
+			BlobCacheService cache = new BlobCacheService(config, new VoidBlobStore(), new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 
@@ -208,12 +213,12 @@ public class BlobCacheDeleteTest extends TestLogger {
 	}
 
 	@Test
-	public void testDeleteTransientLocalFailsNoJob() throws IOException {
+	public void testDeleteTransientLocalFailsNoJob() throws IOException, InterruptedException {
 		testDeleteTransientLocalFails(null);
 	}
 
 	@Test
-	public void testDeleteTransientLocalFailsForJob() throws IOException {
+	public void testDeleteTransientLocalFailsForJob() throws IOException, InterruptedException {
 		testDeleteTransientLocalFails(new JobID());
 	}
 
@@ -225,7 +230,8 @@ public class BlobCacheDeleteTest extends TestLogger {
 	 * @param jobId
 	 * 		job id
 	 */
-	private void testDeleteTransientLocalFails(@Nullable final JobID jobId) throws IOException {
+	private void testDeleteTransientLocalFails(@Nullable final JobID jobId)
+		throws IOException, InterruptedException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
 		final Configuration config = new Configuration();
@@ -235,8 +241,8 @@ public class BlobCacheDeleteTest extends TestLogger {
 		File directory = null;
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
+			BlobCacheService cache = new BlobCacheService(config, new VoidBlobStore(), new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 
@@ -259,10 +265,11 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 				// issue a DELETE request
 				assertFalse(delete(cache, jobId, key));
-				verifyDeleted(server, jobId, key);
 
-				// the file should still be there on both cache and server
+				// the file should still be there on the cache
 				verifyContents(cache, jobId, key, data);
+				// the server should have started the delete call after the cache accessed the (transient!) BLOB
+				verifyDeletedEventually(server, jobId, key);
 			} finally {
 				if (blobFile != null && directory != null) {
 					//noinspection ResultOfMethodCallIgnored
@@ -312,8 +319,8 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
+			BlobCacheService cache = new BlobCacheService(config, new VoidBlobStore(), new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 

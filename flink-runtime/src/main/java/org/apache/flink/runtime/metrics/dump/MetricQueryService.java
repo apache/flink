@@ -55,6 +55,7 @@ public class MetricQueryService extends UntypedActor {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricQueryService.class);
 
 	public static final String METRIC_QUERY_SERVICE_NAME = "MetricQueryService";
+	private static final String SIZE_EXCEEDED_LOG_TEMPLATE =  "{} will not be reported as the metric dump would exceed the maximum size of {} bytes.";
 
 	private static final CharacterFilter FILTER = new CharacterFilter() {
 		@Override
@@ -69,6 +70,12 @@ public class MetricQueryService extends UntypedActor {
 	private final Map<Counter, Tuple2<QueryScopeInfo, String>> counters = new HashMap<>();
 	private final Map<Histogram, Tuple2<QueryScopeInfo, String>> histograms = new HashMap<>();
 	private final Map<Meter, Tuple2<QueryScopeInfo, String>> meters = new HashMap<>();
+
+	private final long messageSizeLimit;
+
+	public MetricQueryService(long messageSizeLimit) {
+		this.messageSizeLimit = messageSizeLimit;
+	}
 
 	@Override
 	public void postStop() {
@@ -109,6 +116,9 @@ public class MetricQueryService extends UntypedActor {
 				}
 			} else if (message instanceof CreateDump) {
 				MetricDumpSerialization.MetricSerializationResult dump = serializer.serialize(counters, gauges, histograms, meters);
+
+				dump = enforceSizeLimit(dump);
+
 				getSender().tell(dump, getSelf());
 			} else {
 				LOG.warn("MetricQueryServiceActor received an invalid message. " + message.toString());
@@ -116,6 +126,83 @@ public class MetricQueryService extends UntypedActor {
 			}
 		} catch (Exception e) {
 			LOG.warn("An exception occurred while processing a message.", e);
+		}
+	}
+
+	private MetricDumpSerialization.MetricSerializationResult enforceSizeLimit(
+		MetricDumpSerialization.MetricSerializationResult serializationResult) {
+
+		int currentLength = 0;
+		boolean hasExceededBefore = false;
+
+		byte[] serializedCounters = serializationResult.serializedCounters;
+		int numCounters = serializationResult.numCounters;
+		if (exceedsMessageSizeLimit(currentLength + serializationResult.serializedCounters.length)) {
+			logDumpSizeWouldExceedLimit("Counters", hasExceededBefore);
+			hasExceededBefore = true;
+
+			serializedCounters = new byte[0];
+			numCounters = 0;
+		} else {
+			currentLength += serializedCounters.length;
+		}
+
+		byte[] serializedMeters = serializationResult.serializedMeters;
+		int numMeters = serializationResult.numMeters;
+		if (exceedsMessageSizeLimit(currentLength + serializationResult.serializedMeters.length)) {
+			logDumpSizeWouldExceedLimit("Meters", hasExceededBefore);
+			hasExceededBefore = true;
+
+			serializedMeters = new byte[0];
+			numMeters = 0;
+		} else {
+			currentLength += serializedMeters.length;
+		}
+
+		byte[] serializedGauges = serializationResult.serializedGauges;
+		int numGauges = serializationResult.numGauges;
+		if (exceedsMessageSizeLimit(currentLength + serializationResult.serializedGauges.length)) {
+			logDumpSizeWouldExceedLimit("Gauges", hasExceededBefore);
+			hasExceededBefore = true;
+
+			serializedGauges = new byte[0];
+			numGauges = 0;
+		} else {
+			currentLength += serializedGauges.length;
+		}
+
+		byte[] serializedHistograms = serializationResult.serializedHistograms;
+		int numHistograms = serializationResult.numHistograms;
+		if (exceedsMessageSizeLimit(currentLength + serializationResult.serializedHistograms.length)) {
+			logDumpSizeWouldExceedLimit("Histograms", hasExceededBefore);
+			hasExceededBefore = true;
+
+			serializedHistograms = new byte[0];
+			numHistograms = 0;
+		}
+
+		return new MetricDumpSerialization.MetricSerializationResult(
+			serializedCounters,
+			serializedGauges,
+			serializedMeters,
+			serializedHistograms,
+			numCounters,
+			numGauges,
+			numMeters,
+			numHistograms);
+	}
+
+	private boolean exceedsMessageSizeLimit(final int currentSize) {
+		return currentSize > messageSizeLimit;
+	}
+
+	private void logDumpSizeWouldExceedLimit(final String metricType, boolean hasExceededBefore) {
+		if (LOG.isDebugEnabled()) {
+			LOG.debug(SIZE_EXCEEDED_LOG_TEMPLATE, metricType, messageSizeLimit);
+		} else {
+			if (!hasExceededBefore) {
+				LOG.info(SIZE_EXCEEDED_LOG_TEMPLATE, "Some metrics", messageSizeLimit);
+			}
 		}
 	}
 
@@ -165,11 +252,16 @@ public class MetricQueryService extends UntypedActor {
 	 * @param resourceID resource ID to disambiguate the actor name
 	 * @return actor reference to the MetricQueryService
 	 */
-	public static ActorRef startMetricQueryService(ActorSystem actorSystem, ResourceID resourceID) {
+	public static ActorRef startMetricQueryService(
+		ActorSystem actorSystem,
+		ResourceID resourceID,
+		long maximumFramesize) {
+
 		String actorName = resourceID == null
 			? METRIC_QUERY_SERVICE_NAME
 			: METRIC_QUERY_SERVICE_NAME + "_" + resourceID.getResourceIdString();
-		return actorSystem.actorOf(Props.create(MetricQueryService.class), actorName);
+
+		return actorSystem.actorOf(Props.create(MetricQueryService.class, maximumFramesize), actorName);
 	}
 
 	/**

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.testtasks;
 
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 /**
@@ -27,6 +28,15 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 public class FailingBlockingInvokable extends AbstractInvokable {
 	private static volatile boolean blocking = true;
 	private static final Object lock = new Object();
+
+	/**
+	 * Create an Invokable task and set its environment.
+	 *
+	 * @param environment The environment assigned to this invokable.
+	 */
+	public FailingBlockingInvokable(Environment environment) {
+		super(environment);
+	}
 
 	@Override
 	public void invoke() throws Exception {

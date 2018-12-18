@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
@@ -54,16 +55,18 @@ public class StreamTaskCancellationBarrierTest {
 	 */
 	@Test
 	public void testEmitCancellationBarrierWhenNotReady() throws Exception {
-		StreamTask<String, ?> task = new InitBlockingTask();
-		StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<>(task, BasicTypeInfo.STRING_TYPE_INFO);
+		StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<>(
+				InitBlockingTask::new, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		// start the test - this cannot succeed across the 'init()' method
 		testHarness.invoke();
 
+		StreamTask<String, ?> task = testHarness.getTask();
+
 		// tell the task to commence a checkpoint
 		boolean result = task.triggerCheckpoint(new CheckpointMetaData(41L, System.currentTimeMillis()),
-			CheckpointOptions.forFullCheckpoint());
+			CheckpointOptions.forCheckpointWithDefaultLocation());
 		assertFalse("task triggered checkpoint though not ready", result);
 
 		// a cancellation barrier should be downstream
@@ -82,9 +85,8 @@ public class StreamTaskCancellationBarrierTest {
 	@Test
 	public void testDeclineCallOnCancelBarrierOneInput() throws Exception {
 
-		OneInputStreamTask<String, String> task = new OneInputStreamTask<String, String>();
 		OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				task,
+				OneInputStreamTask::new,
 				1, 2,
 				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
@@ -120,7 +122,7 @@ public class StreamTaskCancellationBarrierTest {
 	}
 
 	/**
-	 * This test verifies (for one input tasks) that the Stream tasks react the following way to
+	 * This test verifies (for two input tasks) that the Stream tasks react the following way to
 	 * receiving a checkpoint cancellation barrier:
 	 *   - send a "decline checkpoint" notification out (to the JobManager)
 	 *   - emit a cancellation barrier downstream.
@@ -128,9 +130,8 @@ public class StreamTaskCancellationBarrierTest {
 	@Test
 	public void testDeclineCallOnCancelBarrierTwoInputs() throws Exception {
 
-		TwoInputStreamTask<String, String, String> task = new TwoInputStreamTask<String, String, String>();
 		TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(
-				task,
+				TwoInputStreamTask::new,
 				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
@@ -172,6 +173,10 @@ public class StreamTaskCancellationBarrierTest {
 
 		private final Object lock = new Object();
 		private volatile boolean running = true;
+
+		protected InitBlockingTask(Environment env) {
+			super(env);
+		}
 
 		@Override
 		protected void init() throws Exception {

@@ -21,15 +21,20 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
+/**
+ * Tests for {@link InputChannel}.
+ */
 public class InputChannelTest {
 
 	@Test
@@ -119,7 +124,7 @@ public class InputChannelTest {
 			int initialBackoff,
 			int maxBackoff) {
 
-			super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, new SimpleCounter());
+			super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, new SimpleCounter(), new SimpleCounter());
 		}
 
 		@Override
@@ -127,8 +132,8 @@ public class InputChannelTest {
 		}
 
 		@Override
-		BufferAndAvailability getNextBuffer() throws IOException, InterruptedException {
-			return null;
+		Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException {
+			return Optional.empty();
 		}
 
 		@Override

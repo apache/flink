@@ -35,7 +35,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for {@link CollectionExecutor} with broadcasted variables.
+ * Tests for {@link CollectionExecutor} with broadcast variables.
  */
 @SuppressWarnings("serial")
 public class CollectionExecutionWithBroadcastVariableTest {

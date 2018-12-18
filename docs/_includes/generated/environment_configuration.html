@@ -1,0 +1,56 @@
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 65%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>env.hadoop.conf.dir</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Path to hadoop configuration directory. It is required to read HDFS and/or YARN configuration. You can also set it via environment variable.</td>
+        </tr>
+        <tr>
+            <td><h5>env.java.opts</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Java options to start the JVM of all Flink processes with.</td>
+        </tr>
+        <tr>
+            <td><h5>env.java.opts.historyserver</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Java options to start the JVM of the HistoryServer with.</td>
+        </tr>
+        <tr>
+            <td><h5>env.java.opts.jobmanager</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Java options to start the JVM of the JobManager with.</td>
+        </tr>
+        <tr>
+            <td><h5>env.java.opts.taskmanager</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Java options to start the JVM of the TaskManager with.</td>
+        </tr>
+        <tr>
+            <td><h5>env.log.dir</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Defines the directory where the Flink logs are saved. It has to be an absolute path. (Defaults to the log directory under Flink’s home)</td>
+        </tr>
+        <tr>
+            <td><h5>env.log.max</h5></td>
+            <td style="word-wrap: break-word;">5</td>
+            <td>The maximum number of old log files to keep.</td>
+        </tr>
+        <tr>
+            <td><h5>env.ssh.opts</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Additional command line options passed to SSH clients when starting or stopping JobManager, TaskManager, and Zookeeper services (start-cluster.sh, stop-cluster.sh, start-zookeeper-quorum.sh, stop-zookeeper-quorum.sh).</td>
+        </tr>
+        <tr>
+            <td><h5>env.yarn.conf.dir</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Path to yarn configuration directory. It is required to run flink on YARN. You can also set it via environment variable.</td>
+        </tr>
+    </tbody>
+</table>

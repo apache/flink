@@ -25,7 +25,7 @@ import org.apache.flink.annotation.Public;
  * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
  * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
  * {@link RichFunction#close()}.
- * 
+ *
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the returned elements.
  */
@@ -33,7 +33,7 @@ import org.apache.flink.annotation.Public;
 public abstract class RichMapFunction<IN, OUT> extends AbstractRichFunction implements MapFunction<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	@Override
 	public abstract OUT map(IN value) throws Exception;
 }

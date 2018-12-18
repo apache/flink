@@ -288,12 +288,12 @@ result = input1.join(input2)
         describe whether the join happens through partitioning or broadcasting, and whether it uses
         a sort-based or a hash-based algorithm. Please refer to the
         <a href="dataset_transformations.html#join-algorithm-hints">Transformations Guide</a> for
-        a list of possible hints and an example.</br>
+        a list of possible hints and an example.<br>
         If no hint is specified, the system will try to make an estimate of the input sizes and
         pick the best strategy according to those estimates.
 {% highlight java %}
 // This executes a join by broadcasting the first data set
-// using a hash table for the broadcasted data
+// using a hash table for the broadcast data
 result = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
                .where(0).equalTo(1);
 {% endhighlight %}
@@ -401,12 +401,14 @@ DataSet<Integer> result = in.partitionByRange(0)
     <tr>
       <td><strong>Custom Partitioning</strong></td>
       <td>
-        <p>Manually specify a partitioning over the data.
+        <p>Assigns records based on a key to a specific partition using a custom Partitioner function. 
+          The key can be specified as position key, expression key, and key selector function.
           <br/>
-          <i>Note</i>: This method works only on single field keys.</p>
+          <i>Note</i>: This method only works with a single field key.</p>
 {% highlight java %}
 DataSet<Tuple2<String,Integer>> in = // [...]
-DataSet<Integer> result = in.partitionCustom(Partitioner<K> partitioner, key)
+DataSet<Integer> result = in.partitionCustom(partitioner, key)
+                            .mapPartition(new PartitionMapper());
 {% endhighlight %}
       </td>
     </tr>
@@ -571,7 +573,7 @@ data.reduceGroup { elements => elements.sum }
         data set.</p>
 {% highlight scala %}
 val input: DataSet[(Int, String, Double)] = // [...]
-val output: DataSet[(Int, String, Doublr)] = input.aggregate(SUM, 0).aggregate(MIN, 2);
+val output: DataSet[(Int, String, Double)] = input.aggregate(SUM, 0).aggregate(MIN, 2)
 {% endhighlight %}
   <p>You can also use short-hand syntax for minimum, maximum, and sum aggregations.</p>
 {% highlight scala %}
@@ -592,7 +594,7 @@ val output: DataSet[(Int, String, Double)] = input.sum(0).min(2)
       </td>
     </tr>
 
-    </tr>
+    <tr>
       <td><strong>Join</strong></td>
       <td>
         Joins two data sets by creating all pairs of elements that are equal on their keys.
@@ -608,12 +610,12 @@ val result = input1.join(input2).where(0).equalTo(1)
         describe whether the join happens through partitioning or broadcasting, and whether it uses
         a sort-based or a hash-based algorithm. Please refer to the
         <a href="dataset_transformations.html#join-algorithm-hints">Transformations Guide</a> for
-        a list of possible hints and an example.</br>
+        a list of possible hints and an example.<br />
         If no hint is specified, the system will try to make an estimate of the input sizes and
         pick the best strategy according to those estimates.
 {% highlight scala %}
 // This executes a join by broadcasting the first data set
-// using a hash table for the broadcasted data
+// using a hash table for the broadcast data
 val result = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
                    .where(0).equalTo(1)
 {% endhighlight %}
@@ -658,7 +660,7 @@ val data1: DataSet[Int] = // [...]
 val data2: DataSet[String] = // [...]
 val result: DataSet[(Int, String)] = data1.cross(data2)
 {% endhighlight %}
-        <p>Note: Cross is potentially a <b>very</b> compute-intensive operation which can challenge even large compute clusters! It is adviced to hint the system with the DataSet sizes by using <i>crossWithTiny()</i> and <i>crossWithHuge()</i>.</p>
+        <p>Note: Cross is potentially a <b>very</b> compute-intensive operation which can challenge even large compute clusters! It is advised to hint the system with the DataSet sizes by using <i>crossWithTiny()</i> and <i>crossWithHuge()</i>.</p>
       </td>
     </tr>
     <tr>
@@ -700,17 +702,17 @@ val result = in.partitionByRange(0).mapPartition { ... }
 {% endhighlight %}
       </td>
     </tr>
-    </tr>
     <tr>
       <td><strong>Custom Partitioning</strong></td>
       <td>
-        <p>Manually specify a partitioning over the data.
+        <p>Assigns records based on a key to a specific partition using a custom Partitioner function. 
+          The key can be specified as position key, expression key, and key selector function.
           <br/>
-          <i>Note</i>: This method works only on single field keys.</p>
+          <i>Note</i>: This method only works with a single field key.</p>
 {% highlight scala %}
 val in: DataSet[(Int, String)] = // [...]
 val result = in
-  .partitionCustom(partitioner: Partitioner[K], key)
+  .partitionCustom(partitioner, key).mapPartition { ... }
 {% endhighlight %}
       </td>
     </tr>
@@ -824,9 +826,6 @@ File-based:
 - `readFileOfPrimitives(path, delimiter, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
    delimited primitive data types such as `String` or `Integer` using the given delimiter.
 
-- `readHadoopFile(FileInputFormat, Key, Value, path)` / `FileInputFormat` - Creates a JobConf and reads file from the specified
-   path with the specified FileInputFormat, Key class and Value class and returns them as Tuple2<Key, Value>.
-
 - `readSequenceFile(Key, Value, path)` / `SequenceFileInputFormat` - Creates a JobConf and reads file from the specified path with
    type SequenceFileInputFormat, Key class and Value class and returns them as Tuple2<Key, Value>.
 
@@ -877,11 +876,6 @@ DataSet<Tuple2<String, Double>> csvInput = env.readCsvFile("hdfs:///the/CSV/file
 // read a CSV file with three fields into a POJO (Person.class) with corresponding fields
 DataSet<Person>> csvInput = env.readCsvFile("hdfs:///the/CSV/file")
                          .pojoType(Person.class, "name", "age", "zipcode");
-
-
-// read a file from the specified path of type TextInputFormat
-DataSet<Tuple2<LongWritable, Text>> tuples =
- env.readHadoopFile(new TextInputFormat(), LongWritable.class, Text.class, "hdfs://nnHost:nnPort/path/to/file");
 
 // read a file from the specified path of type SequenceFileInputFormat
 DataSet<Tuple2<IntWritable, Text>> tuples =
@@ -974,9 +968,6 @@ File-based:
 - `readFileOfPrimitives(path, delimiter)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
   delimited primitive data types such as `String` or `Integer` using the given delimiter.
 
-- `readHadoopFile(FileInputFormat, Key, Value, path)` / `FileInputFormat` - Creates a JobConf and reads file from the specified
-   path with the specified FileInputFormat, Key class and Value class and returns them as Tuple2<Key, Value>.
-
 - `readSequenceFile(Key, Value, path)` / `SequenceFileInputFormat` - Creates a JobConf and reads file from the specified path with
    type SequenceFileInputFormat, Key class and Value class and returns them as Tuple2<Key, Value>.
 
@@ -994,7 +985,7 @@ Collection-based:
 - `fromParallelCollection(SplittableIterator)` - Creates a data set from an iterator, in
   parallel. The class specifies the data type of the elements returned by the iterator.
 
-- `generateSequence(from, to)` - Generates the squence of numbers in the given interval, in
+- `generateSequence(from, to)` - Generates the sequence of numbers in the given interval, in
   parallel.
 
 Generic:
@@ -1037,11 +1028,7 @@ val csvInput = env.readCsvFile[Person](
 val values = env.fromElements("Foo", "bar", "foobar", "fubar")
 
 // generate a number sequence
-val numbers = env.generateSequence(1, 10000000);
-
-// read a file from the specified path of type TextInputFormat
-val tuples = env.readHadoopFile(new TextInputFormat, classOf[LongWritable],
- classOf[Text], "hdfs://nnHost:nnPort/path/to/file")
+val numbers = env.generateSequence(1, 10000000)
 
 // read a file from the specified path of type SequenceFileInputFormat
 val tuples = env.readSequenceFile(classOf[IntWritable], classOf[Text],
@@ -1146,7 +1133,7 @@ using an
 Flink comes with a variety of built-in output formats that are encapsulated behind operations on the
 DataSet:
 
-- `writeAsText()` / `TextOuputFormat` - Writes elements line-wise as Strings. The Strings are
+- `writeAsText()` / `TextOutputFormat` - Writes elements line-wise as Strings. The Strings are
   obtained by calling the *toString()* method of each element.
 - `writeAsFormattedText()` / `TextOutputFormat` - Write elements line-wise as Strings. The Strings
   are obtained by calling a user-defined *format()* method for each element.
@@ -1288,7 +1275,7 @@ val values: DataSet[(String, Int, Double)] = // [...]
 values.writeAsCsv("file:///path/to/the/result/file", "\n", "|")
 
 // this writes tuples in the text formatting "(a, b, c)", rather than as CSV lines
-values.writeAsText("file:///path/to/the/result/file");
+values.writeAsText("file:///path/to/the/result/file")
 
 // this writes values as strings using a user-defined formatting
 values map { tuple => tuple._1 + " - " + tuple._2 }
@@ -1309,19 +1296,19 @@ val pData: DataSet[(BookPojo, Double)] = // [...]
 val sData: DataSet[String] = // [...]
 
 // sort output on String field in ascending order
-tData.sortPartition(1, Order.ASCENDING).print;
+tData.sortPartition(1, Order.ASCENDING).print()
 
 // sort output on Double field in descending and Int field in ascending order
-tData.sortPartition(2, Order.DESCENDING).sortPartition(0, Order.ASCENDING).print;
+tData.sortPartition(2, Order.DESCENDING).sortPartition(0, Order.ASCENDING).print()
 
 // sort output on the "author" field of nested BookPojo in descending order
-pData.sortPartition("_1.author", Order.DESCENDING).writeAsText(...);
+pData.sortPartition("_1.author", Order.DESCENDING).writeAsText(...)
 
 // sort output on the full tuple in ascending order
-tData.sortPartition("_", Order.ASCENDING).writeAsCsv(...);
+tData.sortPartition("_", Order.ASCENDING).writeAsCsv(...)
 
 // sort atomic type (String) output in descending order
-sData.sortPartition("_", Order.DESCENDING).writeAsText(...);
+sData.sortPartition("_", Order.DESCENDING).writeAsText(...)
 
 {% endhighlight %}
 
@@ -1486,7 +1473,7 @@ val result = count map { c => c / 10000.0 * 4 }
 
 result.print()
 
-env.execute("Iterative Pi Example");
+env.execute("Iterative Pi Example")
 {% endhighlight %}
 
 You can also check out the
@@ -1630,7 +1617,7 @@ In object-reuse enabled mode, Flink's runtime minimizes the number of object ins
    <tr>
       <td><strong>Emitting Input Objects</strong></td>
       <td>
-        You <strong>must not</strong> emit input objects, except for input objects of MapFunction, FlatMapFunction, MapPartitionFunction, GroupReduceFunction, GroupCombineFunction, CoGroupFunction, and InputFormat.next(reuse).</td>
+        You <strong>must not</strong> emit input objects, except for input objects of MapFunction, FlatMapFunction, MapPartitionFunction, GroupReduceFunction, GroupCombineFunction, CoGroupFunction, and InputFormat.next(reuse).
       </td>
    </tr>
    <tr>
@@ -1693,7 +1680,7 @@ val env = ExecutionEnvironment.createLocalEnvironment()
 val lines = env.readTextFile(pathToTextFile)
 // build your program
 
-env.execute();
+env.execute()
 {% endhighlight %}
 </div>
 </div>
@@ -1972,7 +1959,7 @@ Collection.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// 1. The DataSet to be broadcasted
+// 1. The DataSet to be broadcast
 DataSet<Integer> toBroadcast = env.fromElements(1, 2, 3);
 
 DataSet<String> data = env.fromElements("a", "b");
@@ -1980,7 +1967,7 @@ DataSet<String> data = env.fromElements("a", "b");
 data.map(new RichMapFunction<String, String>() {
     @Override
     public void open(Configuration parameters) throws Exception {
-      // 3. Access the broadcasted DataSet as a Collection
+      // 3. Access the broadcast DataSet as a Collection
       Collection<Integer> broadcastSet = getRuntimeContext().getBroadcastVariable("broadcastSetName");
     }
 
@@ -1993,13 +1980,13 @@ data.map(new RichMapFunction<String, String>() {
 {% endhighlight %}
 
 Make sure that the names (`broadcastSetName` in the previous example) match when registering and
-accessing broadcasted data sets. For a complete example program, have a look at
+accessing broadcast data sets. For a complete example program, have a look at
 {% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/clustering/KMeans.java "K-Means Algorithm" %}.
 </div>
 <div data-lang="scala" markdown="1">
 
 {% highlight scala %}
-// 1. The DataSet to be broadcasted
+// 1. The DataSet to be broadcast
 val toBroadcast = env.fromElements(1, 2, 3)
 
 val data = env.fromElements("a", "b")
@@ -2008,7 +1995,7 @@ data.map(new RichMapFunction[String, String]() {
     var broadcastSet: Traversable[String] = null
 
     override def open(config: Configuration): Unit = {
-      // 3. Access the broadcasted DataSet as a Collection
+      // 3. Access the broadcast DataSet as a Collection
       broadcastSet = getRuntimeContext().getBroadcastVariable[String]("broadcastSetName").asScala
     }
 
@@ -2019,7 +2006,7 @@ data.map(new RichMapFunction[String, String]() {
 {% endhighlight %}
 
 Make sure that the names (`broadcastSetName` in the previous example) match when registering and
-accessing broadcasted data sets. For a complete example program, have a look at
+accessing broadcast data sets. For a complete example program, have a look at
 {% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/clustering/KMeans.scala "KMeans Algorithm" %}.
 </div>
 </div>

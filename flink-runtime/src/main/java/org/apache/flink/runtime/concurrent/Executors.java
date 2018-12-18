@@ -22,14 +22,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import scala.concurrent.ExecutionContext;
 
 /**
- * Collection of {@link Executor} implementations
+ * Collection of {@link Executor} implementations.
  */
 public class Executors {
 
@@ -92,50 +91,6 @@ public class Executors {
 		@Override
 		public ExecutionContext prepare() {
 			return this;
-		}
-	}
-
-	/**
-	 * Gracefully shutdown the given {@link ExecutorService}. The call waits the given timeout that
-	 * all ExecutorServices terminate. If the ExecutorServices do not terminate in this time,
-	 * they will be shut down hard.
-	 *
-	 * @param timeout to wait for the termination of all ExecutorServices
-	 * @param unit of the timeout
-	 * @param executorServices to shut down
-	 */
-	public static void gracefulShutdown(long timeout, TimeUnit unit, ExecutorService... executorServices) {
-		for (ExecutorService executorService: executorServices) {
-			executorService.shutdown();
-		}
-
-		boolean wasInterrupted = false;
-		final long endTime = unit.toMillis(timeout) + System.currentTimeMillis();
-		long timeLeft = unit.toMillis(timeout);
-		boolean hasTimeLeft = timeLeft > 0L;
-
-		for (ExecutorService executorService: executorServices) {
-			if (wasInterrupted || !hasTimeLeft) {
-				executorService.shutdownNow();
-			} else {
-				try {
-					if (!executorService.awaitTermination(timeLeft, TimeUnit.MILLISECONDS)) {
-						LOG.warn("ExecutorService did not terminate in time. Shutting it down now.");
-						executorService.shutdownNow();
-					}
-				} catch (InterruptedException e) {
-					LOG.warn("Interrupted while shutting down executor services. Shutting all " +
-						"remaining ExecutorServices down now.", e);
-					executorService.shutdownNow();
-
-					wasInterrupted = true;
-
-					Thread.currentThread().interrupt();
-				}
-
-				timeLeft = endTime - System.currentTimeMillis();
-				hasTimeLeft = timeLeft > 0L;
-			}
 		}
 	}
 }

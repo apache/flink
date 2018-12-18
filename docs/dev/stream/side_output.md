@@ -55,9 +55,16 @@ val outputTag = OutputTag[String]("side-output")
 Notice how the `OutputTag` is typed according to the type of elements that the side output stream
 contains.
 
-Emitting data to a side output is only possible from within a
-[ProcessFunction]({{ site.baseurl }}/dev/stream/operators/process_function.html). You can use the `Context` parameter
-to emit data to a side output identified by an `OutputTag`:
+Emitting data to a side output is possible from the following functions:
+
+- [ProcessFunction]({{ site.baseurl }}/dev/stream/operators/process_function.html)
+- CoProcessFunction
+- [ProcessWindowFunction]({{ site.baseurl }}/dev/stream/operators/windows.html#processwindowfunction)
+- ProcessAllWindowFunction
+
+You can use the `Context` parameter, which is exposed to users in the above functions, to emit
+data to a side output identified by an `OutputTag`. Here is an example of emitting side output
+data from a `ProcessFunction`:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -136,3 +143,5 @@ val sideOutputStream: DataStream[String] = mainDataStream.getSideOutput(outputTa
 {% endhighlight %}
 </div>
 </div>
+
+{% top %}

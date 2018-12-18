@@ -23,6 +23,7 @@ import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrat
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -30,7 +31,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 
-public class ExecutionGraphVariousFailuesTest {
+public class ExecutionGraphVariousFailuesTest extends TestLogger {
 
 	/**
 	 * Test that failing in state restarting will retrigger the restarting logic. This means that

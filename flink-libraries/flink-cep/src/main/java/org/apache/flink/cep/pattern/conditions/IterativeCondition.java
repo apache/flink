@@ -84,7 +84,7 @@ public abstract class IterativeCondition<T> implements Function, Serializable {
 	/**
 	 * The context used when evaluating the {@link IterativeCondition condition}.
 	 */
-	public interface Context<T> extends Serializable {
+	public interface Context<T> {
 
 		/**
 		 * @return An {@link Iterable} over the already accepted elements
@@ -93,6 +93,6 @@ public abstract class IterativeCondition<T> implements Function, Serializable {
 		 *
 		 * @param name The name of the pattern.
 		 */
-		Iterable<T> getEventsForPattern(String name);
+		Iterable<T> getEventsForPattern(String name) throws Exception;
 	}
 }

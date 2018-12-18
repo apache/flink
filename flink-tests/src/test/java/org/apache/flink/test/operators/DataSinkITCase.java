@@ -35,7 +35,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.util.Random;
+import java.util.UUID;
 
 import static org.junit.Assert.assertTrue;
 
@@ -57,7 +59,9 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 
 	@Before
 	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
+		final File folder = tempFolder.newFolder();
+		final File resultFile = new File(folder, UUID.randomUUID().toString());
+		resultPath = resultFile.toURI().toString();
 	}
 
 	@Test

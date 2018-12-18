@@ -30,18 +30,12 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Multimap;
  */
 public class TaskEventHandler {
 
-	/** Listeners for each event type */
+	/** Listeners for each event type. */
 	private final Multimap<Class<? extends TaskEvent>, EventListener<TaskEvent>> listeners = HashMultimap.create();
 
 	public void subscribe(EventListener<TaskEvent> listener, Class<? extends TaskEvent> eventType) {
 		synchronized (listeners) {
 			listeners.put(eventType, listener);
-		}
-	}
-
-	public void unsubscribe(EventListener<TaskEvent> listener, Class<? extends TaskEvent> eventType) {
-		synchronized (listeners) {
-			listeners.remove(eventType, listener);
 		}
 	}
 

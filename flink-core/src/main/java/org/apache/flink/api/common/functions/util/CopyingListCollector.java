@@ -18,12 +18,17 @@
 
 package org.apache.flink.api.common.functions.util;
 
-import java.util.List;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.Collector;
 
+import java.util.List;
+
+/**
+ * A {@link Collector} that collects deep copies of its elements in a list.
+ *
+ * @param <T> The type of the collected elements.
+ */
 @Internal
 public class CopyingListCollector<T> implements Collector<T> {
 

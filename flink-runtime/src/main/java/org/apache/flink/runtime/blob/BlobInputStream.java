@@ -50,7 +50,7 @@ final class BlobInputStream extends InputStream {
 	private final OutputStream wrappedOutputStream;
 
 	/**
-	 * The BLOB key if the GET operation has been performed on a content-addressable BLOB, otherwise <code>null<code>.
+	 * The BLOB key if the GET operation has been performed on a content-addressable BLOB, otherwise <code>null</code>.
 	 */
 	private final BlobKey blobKey;
 
@@ -72,7 +72,7 @@ final class BlobInputStream extends InputStream {
 
 	/**
 	 * Constructs a new BLOB input stream.
-	 * 
+	 *
 	 * @param wrappedInputStream
 	 *        the underlying input stream to read from
 	 * @param blobKey
@@ -98,7 +98,7 @@ final class BlobInputStream extends InputStream {
 
 	/**
 	 * Convenience method to throw an {@link EOFException}.
-	 * 
+	 *
 	 * @throws EOFException
 	 *         thrown to indicate the underlying input stream did not provide as much data as expected
 	 */

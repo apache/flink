@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 
 import java.util.HashMap;
@@ -28,6 +29,7 @@ import java.util.Set;
 /**
  * Basic model class to bundle the shards retrieved from Kinesis on a {@link KinesisProxyInterface#getShardList(Map)} call.
  */
+@Internal
 public class GetShardListResult {
 
 	private final Map<String, LinkedList<StreamShardHandle>> streamsToRetrievedShardList = new HashMap<>();

@@ -28,7 +28,7 @@ import java.util.Arrays;
  * in the system class loader. When those objects are deserialized without access to their
  * special class loader, the deserialization fails with a {@code ClassNotFoundException}.
  *
- * To work around that issue, the SerializedValue serialized data immediately into a byte array.
+ * <p>To work around that issue, the SerializedValue serialized data immediately into a byte array.
  * When send through RPC or another service that uses serialization, only the byte array is
  * transferred. The object is deserialized later (upon access) and requires the accessor to
  * provide the corresponding class loader.
@@ -40,7 +40,7 @@ public class SerializedValue<T> implements java.io.Serializable {
 
 	private static final long serialVersionUID = -3564011643393683761L;
 
-	/** The serialized data */
+	/** The serialized data. */
 	private final byte[] serializedData;
 
 	private SerializedValue(byte[] serializedData) {
@@ -68,7 +68,7 @@ public class SerializedValue<T> implements java.io.Serializable {
 	}
 
 	public static <T> SerializedValue<T> fromBytes(byte[] serializedData) {
-		return new SerializedValue<T>(serializedData);
+		return new SerializedValue<>(serializedData);
 	}
 
 	// --------------------------------------------------------------------------------------------

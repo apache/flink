@@ -24,13 +24,15 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.InputViewIterator;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
-import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import org.apache.flink.runtime.iterative.concurrent.Broker;
@@ -92,9 +94,22 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 
 	private TypeSerializerFactory<X> solutionTypeSerializer;
 
-	private ResultPartitionWriter toSync;
+	private RecordWriter<IOReadableWritable> toSync;
+
+	private ResultPartitionID toSyncPartitionId;
 
 	private int feedbackDataInput; // workset or bulk partial solution
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Create an Invokable task and set its environment.
+	 *
+	 * @param environment The environment assigned to this invokable.
+	 */
+	public IterationHeadTask(Environment environment) {
+		super(environment);
+	}
 
 	// --------------------------------------------------------------------------------------------
 
@@ -127,7 +142,8 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 			throw new Exception("Error: Inconsistent head task setup - wrong mapping of output gates.");
 		}
 		// now, we can instantiate the sync gate
-		this.toSync = getEnvironment().getWriter(syncGateIndex);
+		this.toSync = new RecordWriter<IOReadableWritable>(getEnvironment().getWriter(syncGateIndex));
+		this.toSyncPartitionId = getEnvironment().getWriter(syncGateIndex).getPartitionId();
 	}
 
 	/**
@@ -223,8 +239,10 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 
 	private SuperstepBarrier initSuperstepBarrier() {
 		SuperstepBarrier barrier = new SuperstepBarrier(getUserCodeClassLoader());
-		this.toSync.subscribeToEvent(barrier, AllWorkersDoneEvent.class);
-		this.toSync.subscribeToEvent(barrier, TerminationEvent.class);
+		TaskEventDispatcher taskEventDispatcher = getEnvironment().getTaskEventDispatcher();
+		ResultPartitionID partitionId = toSyncPartitionId;
+		taskEventDispatcher.subscribeToEvent(partitionId, barrier, AllWorkersDoneEvent.class);
+		taskEventDispatcher.subscribeToEvent(partitionId, barrier, TerminationEvent.class);
 		return barrier;
 	}
 
@@ -436,7 +454,6 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 		if (log.isInfoEnabled()) {
 			log.info(formatLogString("sending " + WorkerDoneEvent.class.getSimpleName() + " to sync"));
 		}
-
-		this.toSync.writeBufferToAllChannels(EventSerializer.toBuffer(event));
+		this.toSync.broadcastEvent(event);
 	}
 }

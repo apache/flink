@@ -49,7 +49,7 @@ public abstract class FlinkUntypedActor extends UntypedActor {
 	 * processing time of the incoming message if the logging level is set to debug. After logging
 	 * the handleLeaderSessionID method is called.
 	 *
-	 * <p>Important: This method cannot be overriden. The actor specific message handling logic is
+	 * <p>Important: This method cannot be overridden. The actor specific message handling logic is
 	 * implemented by the method handleMessage.
 	 *
 	 * @param message Incoming message
@@ -124,7 +124,7 @@ public abstract class FlinkUntypedActor extends UntypedActor {
 	protected abstract void handleMessage(Object message) throws Exception;
 
 	/**
-	 * Returns the current leader session ID associcated with this actor.
+	 * Returns the current leader session ID associated with this actor.
 	 * @return
 	 */
 	protected abstract UUID getLeaderSessionID();
@@ -134,10 +134,10 @@ public abstract class FlinkUntypedActor extends UntypedActor {
 	 * a leader session ID (indicated by {@link RequiresLeaderSessionID}) in a
 	 * {@link LeaderSessionMessage} with the actor's leader session ID.
 	 *
-	 * <p>This method can be overriden to implement a different decoration behavior.
+	 * <p>This method can be overridden to implement a different decoration behavior.
 	 *
 	 * @param message Message to be decorated
-	 * @return The deocrated message
+	 * @return The decorated message
 	 */
 	protected Object decorateMessage(Object message) {
 		if (message instanceof RequiresLeaderSessionID) {

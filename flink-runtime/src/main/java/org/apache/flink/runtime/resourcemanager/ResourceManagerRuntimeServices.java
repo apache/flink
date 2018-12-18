@@ -45,12 +45,6 @@ public class ResourceManagerRuntimeServices {
 		return jobLeaderIdService;
 	}
 
-	// -------------------- Lifecycle methods -----------------------------------
-
-	public void shutDown() throws Exception {
-		jobLeaderIdService.stop();
-	}
-
 	// -------------------- Static methods --------------------------------------
 
 	public static ResourceManagerRuntimeServices fromConfiguration(

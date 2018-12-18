@@ -22,15 +22,18 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -42,14 +45,27 @@ import static org.junit.Assert.assertTrue;
  */
 public class TaskMetricGroupTest extends TestLogger {
 
+	private MetricRegistryImpl registry;
+
+	@Before
+	public void setup() {
+		registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+	}
+
+	@After
+	public void teardown() throws Exception {
+		if (registry != null) {
+			registry.shutdown().get();
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  scope tests
 	// -----------------------------------------------------------------------
 
 	@Test
 	public void testGenerateScopeDefault() {
-		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
-		AbstractID vertexId = new AbstractID();
+		JobVertexID vertexId = new JobVertexID();
 		AbstractID executionId = new AbstractID();
 
 		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
@@ -63,19 +79,18 @@ public class TaskMetricGroupTest extends TestLogger {
 		assertEquals(
 				"theHostName.taskmanager.test-tm-id.myJobName.aTaskName.13.name",
 				taskGroup.getMetricIdentifier("name"));
-		registry.shutdown();
 	}
 
 	@Test
-	public void testGenerateScopeCustom() {
+	public void testGenerateScopeCustom() throws Exception {
 		Configuration cfg = new Configuration();
 		cfg.setString(MetricOptions.SCOPE_NAMING_TM, "abc");
 		cfg.setString(MetricOptions.SCOPE_NAMING_TM_JOB, "def");
 		cfg.setString(MetricOptions.SCOPE_NAMING_TASK, "<tm_id>.<job_id>.<task_id>.<task_attempt_id>");
-		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(cfg));
+		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(cfg));
 
 		JobID jid = new JobID();
-		AbstractID vertexId = new AbstractID();
+		JobVertexID vertexId = new JobVertexID();
 		AbstractID executionId = new AbstractID();
 
 		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
@@ -90,14 +105,14 @@ public class TaskMetricGroupTest extends TestLogger {
 		assertEquals(
 				String.format("test-tm-id.%s.%s.%s.name", jid, vertexId, executionId),
 				taskGroup.getMetricIdentifier("name"));
-		registry.shutdown();
+		registry.shutdown().get();
 	}
 
 	@Test
-	public void testGenerateScopeWilcard() {
+	public void testGenerateScopeWilcard() throws Exception {
 		Configuration cfg = new Configuration();
 		cfg.setString(MetricOptions.SCOPE_NAMING_TASK, "*.<task_attempt_id>.<subtask_index>");
-		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(cfg));
+		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(cfg));
 
 		AbstractID executionId = new AbstractID();
 
@@ -105,7 +120,7 @@ public class TaskMetricGroupTest extends TestLogger {
 		TaskManagerJobMetricGroup jmGroup = new TaskManagerJobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
 
 		TaskMetricGroup taskGroup = new TaskMetricGroup(
-				registry, jmGroup, new AbstractID(), executionId, "aTaskName", 13, 1);
+				registry, jmGroup, new JobVertexID(), executionId, "aTaskName", 13, 1);
 
 		assertArrayEquals(
 				new String[]{"theHostName", "taskmanager", "test-tm-id", "myJobName", executionId.toString(), "13"},
@@ -114,15 +129,14 @@ public class TaskMetricGroupTest extends TestLogger {
 		assertEquals(
 				"theHostName.taskmanager.test-tm-id.myJobName." + executionId + ".13.name",
 				taskGroup.getMetricIdentifier("name"));
-		registry.shutdown();
+		registry.shutdown().get();
 	}
 
 	@Test
 	public void testCreateQueryServiceMetricInfo() {
 		JobID jid = new JobID();
-		AbstractID vid = new AbstractID();
+		JobVertexID vid = new JobVertexID();
 		AbstractID eid = new AbstractID();
-		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 		TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
 		TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, jid, "jobname");
 		TaskMetricGroup task = new TaskMetricGroup(registry, job, vid, eid, "taskName", 4, 5);
@@ -135,41 +149,42 @@ public class TaskMetricGroupTest extends TestLogger {
 	}
 
 	@Test
-	public void testTaskMetricGroupCleanup() {
+	public void testTaskMetricGroupCleanup() throws Exception {
 		CountingMetricRegistry registry = new CountingMetricRegistry(new Configuration());
 		TaskManagerMetricGroup taskManagerMetricGroup = new TaskManagerMetricGroup(registry, "localhost", "0");
 		TaskManagerJobMetricGroup taskManagerJobMetricGroup = new TaskManagerJobMetricGroup(registry, taskManagerMetricGroup, new JobID(), "job");
-		TaskMetricGroup taskMetricGroup = new TaskMetricGroup(registry, taskManagerJobMetricGroup, new AbstractID(), new AbstractID(), "task", 0, 0);
+		TaskMetricGroup taskMetricGroup = new TaskMetricGroup(registry, taskManagerJobMetricGroup, new JobVertexID(), new AbstractID(), "task", 0, 0);
 
 		// the io metric should have registered predefined metrics
 		assertTrue(registry.getNumberRegisteredMetrics() > 0);
 
 		taskMetricGroup.close();
 
-		// now alle registered metrics should have been unregistered
+		// now all registered metrics should have been unregistered
 		assertEquals(0, registry.getNumberRegisteredMetrics());
 
-		registry.shutdown();
+		registry.shutdown().get();
 	}
 
 	@Test
-	public void testOperatorNameTruncation() {
+	public void testOperatorNameTruncation() throws Exception {
 		Configuration cfg = new Configuration();
 		cfg.setString(MetricOptions.SCOPE_NAMING_OPERATOR, ScopeFormat.SCOPE_OPERATOR_NAME);
-		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(cfg));
+		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(cfg));
 		TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
 		TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, new JobID(), "jobname");
-		TaskMetricGroup taskMetricGroup = new TaskMetricGroup(registry, job, new AbstractID(), new AbstractID(), "task", 0, 0);
+		TaskMetricGroup taskMetricGroup = new TaskMetricGroup(registry, job, new JobVertexID(), new AbstractID(), "task", 0, 0);
 
 		String originalName = new String(new char[100]).replace("\0", "-");
-		OperatorMetricGroup operatorMetricGroup = taskMetricGroup.addOperator(originalName);
+		OperatorMetricGroup operatorMetricGroup = taskMetricGroup.getOrAddOperator(originalName);
 
 		String storedName = operatorMetricGroup.getScopeComponents()[0];
 		Assert.assertEquals(TaskMetricGroup.METRICS_OPERATOR_NAME_MAX_LENGTH, storedName.length());
 		Assert.assertEquals(originalName.substring(0, TaskMetricGroup.METRICS_OPERATOR_NAME_MAX_LENGTH), storedName);
+		registry.shutdown().get();
 	}
 
-	private static class CountingMetricRegistry extends MetricRegistry {
+	private static class CountingMetricRegistry extends MetricRegistryImpl {
 
 		private int counter = 0;
 

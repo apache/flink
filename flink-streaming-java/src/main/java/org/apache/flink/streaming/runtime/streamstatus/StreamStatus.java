@@ -63,7 +63,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
  *         active. However, for watermarks, since there may be watermark generators that might produce watermarks
  *         anywhere in the middle of topologies regardless of whether there are input data at the operator, the current
  *         status of the task must be checked before forwarding watermarks emitted from
- *         an operator. It the status is actually idle, the watermark must be blocked.
+ *         an operator. If the status is actually idle, the watermark must be blocked.
  *
  *     <li>For downstream tasks with multiple input streams, the watermarks of input streams that are temporarily idle,
  *         or has resumed to be active but its watermark is behind the overall min watermark of the operator, should not

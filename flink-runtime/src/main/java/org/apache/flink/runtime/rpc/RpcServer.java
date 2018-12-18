@@ -21,7 +21,7 @@ package org.apache.flink.runtime.rpc;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Interface for self gateways
+ * Interface for self gateways.
  */
 public interface RpcServer extends StartStoppable, MainThreadExecutable, RpcGateway {
 
@@ -30,5 +30,5 @@ public interface RpcServer extends StartStoppable, MainThreadExecutable, RpcGate
 	 *
 	 * @return Future indicating when the rpc endpoint has been terminated
 	 */
-	CompletableFuture<Boolean> getTerminationFuture();
+	CompletableFuture<Void> getTerminationFuture();
 }

@@ -42,6 +42,7 @@ public class RichCombineToGroupCombineWrapper<IN, OUT, F extends RichGroupReduce
 
 	@Override
 	public void open(Configuration config) throws Exception {
+		wrappedFunction.setRuntimeContext(getRuntimeContext());
 		wrappedFunction.open(config);
 	}
 

@@ -60,10 +60,9 @@ public class FencedAkkaInvocationHandler<F extends Serializable> extends AkkaInv
 			ActorRef rpcEndpoint,
 			Time timeout,
 			long maximumFramesize,
-			@Nullable CompletableFuture<Boolean> terminationFuture,
-			@Nullable CompletableFuture<Void> internalTerminationFuture,
+			@Nullable CompletableFuture<Void> terminationFuture,
 			Supplier<F> fencingTokenSupplier) {
-		super(address, hostname, rpcEndpoint, timeout, maximumFramesize, terminationFuture, internalTerminationFuture);
+		super(address, hostname, rpcEndpoint, timeout, maximumFramesize, terminationFuture);
 
 		this.fencingTokenSupplier = Preconditions.checkNotNull(fencingTokenSupplier);
 	}

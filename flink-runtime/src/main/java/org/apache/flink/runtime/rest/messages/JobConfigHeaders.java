@@ -67,4 +67,9 @@ public class JobConfigHeaders implements MessageHeaders<EmptyRequestBody, JobCon
 	public static JobConfigHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns the configuration of a job.";
+	}
 }

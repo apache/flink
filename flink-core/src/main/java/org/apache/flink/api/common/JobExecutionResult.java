@@ -18,12 +18,14 @@
 
 package org.apache.flink.api.common;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.util.OptionalFailure;
 
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * The result of a job execution. Gives access to the execution time of the job,
@@ -34,7 +36,7 @@ public class JobExecutionResult extends JobSubmissionResult {
 
 	private final long netRuntime;
 
-	private final Map<String, Object> accumulatorResults;
+	private final Map<String, OptionalFailure<Object>> accumulatorResults;
 
 	/**
 	 * Creates a new JobExecutionResult.
@@ -43,7 +45,7 @@ public class JobExecutionResult extends JobSubmissionResult {
 	 * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer) in milliseconds
 	 * @param accumulators A map of all accumulators produced by the job.
 	 */
-	public JobExecutionResult(JobID jobID, long netRuntime, Map<String, Object> accumulators) {
+	public JobExecutionResult(JobID jobID, long netRuntime, Map<String, OptionalFailure<Object>> accumulators) {
 		super(jobID);
 		this.netRuntime = netRuntime;
 
@@ -85,7 +87,7 @@ public class JobExecutionResult extends JobSubmissionResult {
 	 */
 	@SuppressWarnings("unchecked")
 	public <T> T getAccumulatorResult(String accumulatorName) {
-		return (T) this.accumulatorResults.get(accumulatorName);
+		return (T) this.accumulatorResults.get(accumulatorName).getUnchecked();
 	}
 
 	/**
@@ -95,9 +97,11 @@ public class JobExecutionResult extends JobSubmissionResult {
 	 * @return A map containing all accumulators produced by the job.
 	 */
 	public Map<String, Object> getAllAccumulatorResults() {
-		return this.accumulatorResults;
+		return accumulatorResults.entrySet()
+			.stream()
+			.collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().getUnchecked()));
 	}
-	
+
 	/**
 	 * Gets the accumulator with the given name as an integer.
 	 *
@@ -109,7 +113,7 @@ public class JobExecutionResult extends JobSubmissionResult {
 	@Deprecated
 	@PublicEvolving
 	public Integer getIntCounterResult(String accumulatorName) {
-		Object result = this.accumulatorResults.get(accumulatorName);
+		Object result = this.accumulatorResults.get(accumulatorName).getUnchecked();
 		if (result == null) {
 			return null;
 		}
@@ -120,9 +124,8 @@ public class JobExecutionResult extends JobSubmissionResult {
 		return (Integer) result;
 	}
 
-
 	/**
-	 * Returns a dummy object for wrapping a JobSubmissionResult
+	 * Returns a dummy object for wrapping a JobSubmissionResult.
 	 * @param result The SubmissionResult
 	 * @return a JobExecutionResult
 	 * @deprecated Will be removed in future versions.

@@ -18,14 +18,15 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Public;
+
 import java.io.Serializable;
 import java.util.Iterator;
-import org.apache.flink.annotation.Public;
 
 /**
  * Abstract base class for iterators that can split themselves into multiple disjoint
  * iterators. The union of these iterators returns the original iterator values.
- * 
+ *
  * @param <T> The type of elements returned by the iterator.
  */
 @Public
@@ -36,7 +37,7 @@ public abstract class SplittableIterator<T> implements Iterator<T>, Serializable
 	/**
 	 * Splits this iterator into a number disjoint iterators.
 	 * The union of these iterators returns the original iterator values.
-	 * 
+	 *
 	 * @param numPartitions The number of iterators to split into.
 	 * @return An array with the split iterators.
 	 */
@@ -45,7 +46,7 @@ public abstract class SplittableIterator<T> implements Iterator<T>, Serializable
 	/**
 	 * Splits this iterator into <i>n</i> partitions and returns the <i>i-th</i> partition
 	 * out of those.
-	 * 
+	 *
 	 * @param num The partition to return (<i>i</i>).
 	 * @param numPartitions The number of partitions to split into (<i>n</i>).
 	 * @return The iterator for the partition.
@@ -60,7 +61,7 @@ public abstract class SplittableIterator<T> implements Iterator<T>, Serializable
 
 	/**
 	 * The maximum number of splits into which this iterator can be split up.
-	 * 
+	 *
 	 * @return The maximum number of splits into which this iterator can be split up.
 	 */
 	public abstract int getMaximumNumberOfSplits();

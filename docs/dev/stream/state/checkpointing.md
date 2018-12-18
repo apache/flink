@@ -1,7 +1,7 @@
 ---
 title: "Checkpointing"
 nav-parent_id: streaming_state
-nav-pos: 2
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -50,7 +50,7 @@ By default, checkpointing is disabled. To enable checkpointing, call `enableChec
 Other parameters for checkpointing include:
 
   - *exactly-once vs. at-least-once*: You can optionally pass a mode to the `enableCheckpointing(n)` method to choose between the two guarantee levels.
-    Exactly-once is preferrable for most applications. At-least-once may be relevant for certain super-low-latency (consistently few milliseconds) applications.
+    Exactly-once is preferable for most applications. At-least-once may be relevant for certain super-low-latency (consistently few milliseconds) applications.
 
   - *checkpoint timeout*: The time after which a checkpoint-in-progress is aborted, if it did not complete by then.
 
@@ -59,7 +59,7 @@ Other parameters for checkpointing include:
     started no sooner than 5 seconds after the previous checkpoint completed, regardless of the checkpoint duration and the checkpoint interval.
     Note that this implies that the checkpoint interval will never be smaller than this parameter.
     
-    It is often easier to configure applications by defining the "time between checkpoints" then the checkpoint interval, because the "time between checkpoints"
+    It is often easier to configure applications by defining the "time between checkpoints" than the checkpoint interval, because the "time between checkpoints"
     is not susceptible to the fact that checkpoints may sometimes take longer than on average (for example if the target storage system is temporarily slow).
 
     Note that this value also implies that the number of concurrent checkpoints is *one*.
@@ -73,6 +73,8 @@ Other parameters for checkpointing include:
     This option cannot be used when a minimum time between checkpoints is defined.
 
   - *externalized checkpoints*: You can configure periodic checkpoints to be persisted externally. Externalized checkpoints write their meta data out to persistent storage and are *not* automatically cleaned up when the job fails. This way, you will have a checkpoint around to resume from if your job fails. There are more details in the [deployment notes on externalized checkpoints]({{ site.baseurl }}/ops/state/checkpoints.html#externalized-checkpoints).
+
+  - *fail/continue task on checkpoint errors*: This determines if a task will be failed if an error occurs in the execution of the task's checkpoint procedure. This is the default behaviour. Alternatively, when this is disabled, the task will simply decline the checkpoint to the checkpoint coordinator and continue running.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -118,6 +120,9 @@ env.getCheckpointConfig.setMinPauseBetweenCheckpoints(500)
 // checkpoints have to complete within one minute, or are discarded
 env.getCheckpointConfig.setCheckpointTimeout(60000)
 
+// prevent the tasks from failing if an error happens in their checkpointing, the checkpoint will just be declined.
+env.getCheckpointConfig.setFailTasksOnCheckpointingErrors(false)
+
 // allow only one checkpoint to be in progress at the same time
 env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 {% endhighlight %}
@@ -128,17 +133,7 @@ env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 
 Some more parameters and/or defaults may be set via `conf/flink-conf.yaml` (see [configuration]({{ site.baseurl }}/ops/config.html) for a full guide):
 
-- `state.backend`: The backend that will be used to store operator state checkpoints if checkpointing is enabled. Supported backends:
-   -  `jobmanager`: In-memory state, backup to JobManager's/ZooKeeper's memory. Should be used only for minimal state (Kafka offsets) or testing and local debugging.
-   -  `filesystem`: State is in-memory on the TaskManagers, and state snapshots are stored in a file system. Supported are all filesystems supported by Flink, for example HDFS, S3, ...
-
-- `state.backend.fs.checkpointdir`: Directory for storing checkpoints in a Flink supported filesystem. Note: State backend must be accessible from the JobManager, use `file://` only for local setups.
-
-- `state.backend.rocksdb.checkpointdir`:  The local directory for storing RocksDB files, or a list of directories separated by the systems directory delimiter (for example ‘:’ (colon) on Linux/Unix). (DEFAULT value is `taskmanager.tmp.dirs`)
-
-- `state.checkpoints.dir`: The target directory for meta data of [externalized checkpoints]({{ site.baseurl }}/ops/state/checkpoints.html#externalized-checkpoints).
-
-- `state.checkpoints.num-retained`: The number of completed checkpoint instances to retain. Having more than one allows recovery fallback to an earlier checkpoints if the latest checkpoint is corrupt. (Default: 1)
+{% include generated/checkpointing_configuration.html %}
 
 {% top %}
 

@@ -20,8 +20,8 @@ package org.apache.flink.table.api.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.Test
 
 class GroupingSetsTest extends TableTestBase {
@@ -34,29 +34,30 @@ class GroupingSetsTest extends TableTestBase {
     val sqlQuery = "SELECT b, c, avg(a) as a, GROUP_ID() as g FROM MyTable " +
       "GROUP BY GROUPING SETS (b, c)"
 
-    val aggregate = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetUnion",
+    val aggregate = binaryNode(
+      "DataSetUnion",
+      unaryNode(
+        "DataSetCalc",
         unaryNode(
           "DataSetAggregate",
           batchTableNode(0),
           term("groupBy", "b"),
-          term("select", "b", "AVG(a) AS c")
+          term("select", "b", "AVG(a) AS a")
         ),
+        term("select", "b", "null AS c", "a", "1 AS g")
+      ),
+      unaryNode(
+        "DataSetCalc",
         unaryNode(
           "DataSetAggregate",
           batchTableNode(0),
           term("groupBy", "c"),
-          term("select", "c AS b", "AVG(a) AS c")
+          term("select", "c", "AVG(a) AS a")
         ),
-        term("union", "b", "c", "i$b", "i$c", "a")
+        term("select", "null AS b", "c", "a", "2 AS g")
       ),
-      term("select",
-        "CASE(i$b, null, b) AS b",
-        "CASE(i$c, null, c) AS c",
-        "a",
-        "+(*(CASE(i$b, 1, 0), 2), CASE(i$c, 1, 0)) AS g") // GROUP_ID()
+      term("all", "true"),
+      term("union", "b", "c", "a", "g")
     )
 
     util.verifySql(sqlQuery, aggregate)
@@ -75,70 +76,74 @@ class GroupingSetsTest extends TableTestBase {
       "GROUP BY CUBE (b, c)"
 
     val group1 = unaryNode(
-      "DataSetAggregate",
-      batchTableNode(0),
-      term("groupBy", "b, c"),
-      term("select", "b", "c",
-           "AVG(a) AS i$b")
+      "DataSetCalc",
+      unaryNode(
+        "DataSetAggregate",
+        batchTableNode(0),
+        term("groupBy", "b", "c"),
+        term("select", "b", "c", "AVG(a) AS a")
+      ),
+      term("select", "b", "c", "a", "3 AS g", "1 AS gb", "1 AS gc",
+        "1 AS gib", "1 AS gic", "3 AS gid")
     )
 
     val group2 = unaryNode(
-      "DataSetAggregate",
-      batchTableNode(0),
-      term("groupBy", "b"),
-      term("select", "b",
-           "AVG(a) AS c")
+      "DataSetCalc",
+      unaryNode(
+        "DataSetAggregate",
+        batchTableNode(0),
+        term("groupBy", "b"),
+        term("select", "b", "AVG(a) AS a")
+      ),
+      term("select", "b", "null AS c", "a", "1 AS g", "1 AS gb", "0 AS gc",
+        "1 AS gib", "0 AS gic", "2 AS gid")
     )
 
     val group3 = unaryNode(
-      "DataSetAggregate",
-      batchTableNode(0),
-      term("groupBy", "c"),
-      term("select", "c AS b",
-           "AVG(a) AS c")
+      "DataSetCalc",
+      unaryNode(
+        "DataSetAggregate",
+        batchTableNode(0),
+        term("groupBy", "c"),
+        term("select", "c", "AVG(a) AS a")
+      ),
+      term("select", "null AS b", "c", "a", "2 AS g", "0 AS gb", "1 AS gc",
+        "0 AS gib", "1 AS gic", "1 AS gid")
     )
 
     val group4 = unaryNode(
-      "DataSetAggregate",
-      batchTableNode(0),
-      term("select",
-           "AVG(a) AS b")
-    )
-
-    val union1 = binaryNode(
-      "DataSetUnion",
-      group1, group2,
-      term("union", "b", "c", "i$b", "i$c", "a")
-    )
-
-    val union2 = binaryNode(
-      "DataSetUnion",
-      union1, group3,
-      term("union", "b", "c", "i$b", "i$c", "a")
-    )
-
-    val union3 = binaryNode(
-      "DataSetUnion",
-      union2, group4,
-      term("union", "b", "c", "i$b", "i$c", "a")
-    )
-
-    val aggregate = unaryNode(
       "DataSetCalc",
-      union3,
-      term("select",
-           "CASE(i$b, null, b) AS b",
-           "CASE(i$c, null, c) AS c",
-           "a",
-           "+(*(CASE(i$b, 1, 0), 2), CASE(i$c, 1, 0)) AS g", // GROUP_ID()
-           "CASE(i$b, 1, 0) AS gb", // GROUPING(b)
-           "CASE(i$c, 1, 0) AS gc", // GROUPING(c)
-           "CASE(i$b, 1, 0) AS gib", // GROUPING_ID(b)
-           "CASE(i$c, 1, 0) AS gic", // GROUPING_ID(c)
-           "+(*(CASE(i$b, 1, 0), 2), CASE(i$c, 1, 0)) AS gid") // GROUPING_ID(b, c)
+      unaryNode(
+        "DataSetAggregate",
+        batchTableNode(0),
+        term("select", "AVG(a) AS a")
+      ),
+      term(
+        "select", "null AS b", "null AS c", "a", "0 AS g", "0 AS gb", "0 AS gc",
+        "0 AS gib", "0 AS gic", "0 AS gid")
     )
 
-    util.verifySql(sqlQuery, aggregate)
+    val union = binaryNode(
+      "DataSetUnion",
+      binaryNode(
+        "DataSetUnion",
+        binaryNode(
+          "DataSetUnion",
+          group1,
+          group2,
+          term("all", "true"),
+          term("union", "b", "c", "a", "g", "gb", "gc", "gib", "gic", "gid")
+        ),
+        group3,
+        term("all", "true"),
+        term("union", "b", "c", "a", "g", "gb", "gc", "gib", "gic", "gid")
+      ),
+      group4,
+      term("all", "true"),
+      term("union", "b", "c", "a", "g", "gb", "gc", "gib", "gic", "gid")
+    )
+
+    util.verifySql(sqlQuery, union)
   }
 
   @Test
@@ -153,55 +158,55 @@ class GroupingSetsTest extends TableTestBase {
                    "GROUP BY ROLLUP (b, c)"
 
     val group1 = unaryNode(
-      "DataSetAggregate",
-      batchTableNode(0),
-      term("groupBy", "b, c"),
-      term("select", "b", "c",
-           "AVG(a) AS i$b")
+      "DataSetCalc",
+      unaryNode(
+        "DataSetAggregate",
+        batchTableNode(0),
+        term("groupBy", "b", "c"),
+        term("select", "b", "c", "AVG(a) AS a")
+      ),
+      term("select", "b", "c", "a", "3 AS g", "1 AS gb", "1 AS gc",
+        "1 AS gib", "1 AS gic", "3 AS gid")
     )
 
     val group2 = unaryNode(
-      "DataSetAggregate",
-      batchTableNode(0),
-      term("groupBy", "b"),
-      term("select", "b",
-           "AVG(a) AS c")
+      "DataSetCalc",
+      unaryNode(
+        "DataSetAggregate",
+        batchTableNode(0),
+        term("groupBy", "b"),
+        term("select", "b", "AVG(a) AS a")
+      ),
+      term("select", "b", "null AS c", "a", "1 AS g", "1 AS gb", "0 AS gc",
+        "1 AS gib", "0 AS gic", "2 AS gid")
     )
 
     val group3 = unaryNode(
-      "DataSetAggregate",
-      batchTableNode(0),
-      term("select",
-           "AVG(a) AS b")
-    )
-
-    val union1 = binaryNode(
-      "DataSetUnion",
-      group1, group2,
-      term("union", "b", "c", "i$b", "i$c", "a")
-    )
-
-    val union2 = binaryNode(
-      "DataSetUnion",
-      union1, group3,
-      term("union", "b", "c", "i$b", "i$c", "a")
-    )
-
-    val aggregate = unaryNode(
       "DataSetCalc",
-      union2,
-      term("select",
-           "CASE(i$b, null, b) AS b",
-           "CASE(i$c, null, c) AS c",
-           "a",
-           "+(*(CASE(i$b, 1, 0), 2), CASE(i$c, 1, 0)) AS g", // GROUP_ID()
-           "CASE(i$b, 1, 0) AS gb", // GROUPING(b)
-           "CASE(i$c, 1, 0) AS gc", // GROUPING(c)
-           "CASE(i$b, 1, 0) AS gib", // GROUPING_ID(b)
-           "CASE(i$c, 1, 0) AS gic", // GROUPING_ID(c)
-           "+(*(CASE(i$b, 1, 0), 2), CASE(i$c, 1, 0)) AS gid") // GROUPING_ID(b, c)
+      unaryNode(
+        "DataSetAggregate",
+        batchTableNode(0),
+        term("select", "AVG(a) AS a")
+      ),
+      term(
+        "select", "null AS b", "null AS c", "a", "0 AS g", "0 AS gb", "0 AS gc",
+        "0 AS gib", "0 AS gic", "0 AS gid")
     )
 
-    util.verifySql(sqlQuery, aggregate)
+    val union = binaryNode(
+      "DataSetUnion",
+      binaryNode(
+        "DataSetUnion",
+        group1,
+        group2,
+        term("all", "true"),
+        term("union", "b", "c", "a", "g", "gb", "gc", "gib", "gic", "gid")
+      ),
+      group3,
+      term("all", "true"),
+      term("union", "b", "c", "a", "g", "gb", "gc", "gib", "gic", "gid")
+    )
+
+    util.verifySql(sqlQuery, union)
   }
 }

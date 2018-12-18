@@ -26,12 +26,15 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelShuttle}
+import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
 import org.apache.flink.table.plan.nodes.FlinkConventions
+
+import scala.collection.JavaConverters._
 
 class FlinkLogicalWindowAggregate(
     window: LogicalWindow,
@@ -102,6 +105,20 @@ class FlinkLogicalWindowAggregateConverter
     Convention.NONE,
     FlinkConventions.LOGICAL,
     "FlinkLogicalWindowAggregateConverter") {
+
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val agg = call.rel(0).asInstanceOf[LogicalWindowAggregate]
+
+    // we do not support these functions natively
+    // they have to be converted using the WindowAggregateReduceFunctionsRule
+    agg.getAggCallList.asScala.map(_.getAggregation.getKind).forall {
+      // we support AVG
+      case SqlKind.AVG => true
+      // but none of the other AVG agg functions
+      case k if SqlKind.AVG_AGG_FUNCTIONS.contains(k) => false
+      case _ => true
+    }
+  }
 
   override def convert(rel: RelNode): RelNode = {
     val agg = rel.asInstanceOf[LogicalWindowAggregate]

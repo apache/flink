@@ -4,7 +4,7 @@ LogicalUnion(all=[true])
   LogicalTableScan(table=[[_DataSetTable_1]])
 
 == Optimized Logical Plan ==
-DataSetUnion(union=[count, word])
+DataSetUnion(all=[true], union=[count, word])
   DataSetScan(table=[[_DataSetTable_0]])
   DataSetScan(table=[[_DataSetTable_1]])
 

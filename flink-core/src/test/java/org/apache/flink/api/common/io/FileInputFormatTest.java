@@ -24,6 +24,8 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.types.IntValue;
 
@@ -48,6 +50,209 @@ public class FileInputFormatTest {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	@Test
+	public void testGetPathWithoutSettingFirst() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		Assert.assertNull("Path should be null.", format.getFilePath());
+	}
+	
+	@Test
+	public void testGetPathsWithoutSettingFirst() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		
+		Path[] paths = format.getFilePaths();
+		Assert.assertNotNull("Paths should not be null.", paths);
+		Assert.assertEquals("Paths size should be 0.", 0, paths.length);
+	}
+	
+	@Test
+	public void testToStringWithoutPathSet() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		Assert.assertEquals("The toString() should be correct.", "File Input (unknown file)", format.toString());
+	}
+	
+	@Test(expected = IllegalArgumentException.class)
+	public void testSetPathsNull() {
+		final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
+		format.setFilePaths((String) null);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testSetPathNullString() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		format.setFilePath((String) null);
+	}
+	
+	@Test(expected = IllegalArgumentException.class)
+	public void testSetPathNullPath() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		format.setFilePath((Path) null);
+	}
+	
+	@Test(expected = IllegalArgumentException.class)
+	public void testSetPathsOnePathNull() {
+		final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
+		format.setFilePaths("/an/imaginary/path", null);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testSetPathsEmptyArray() {
+		final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
+		format.setFilePaths(new String[0]);
+	}
+
+	@Test
+	public void testSetPath() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		format.setFilePath("/some/imaginary/path");
+		Assert.assertEquals(format.getFilePath().toString(), "/some/imaginary/path");
+	}
+
+	@Test
+	public void testSetPathOnMulti() {
+		final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
+		final String myPath = "/an/imaginary/path";
+		format.setFilePath(myPath);
+		final Path[] filePaths = format.getFilePaths();
+
+		Assert.assertEquals(1, filePaths.length);
+		Assert.assertEquals(myPath, filePaths[0].toUri().toString());
+
+		// ensure backwards compatibility
+		Assert.assertEquals(myPath, format.filePath.toUri().toString());
+	}
+
+	@Test
+	public void testSetPathsSingleWithMulti() {
+		final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
+		final String myPath = "/an/imaginary/path";
+		format.setFilePaths(myPath);
+		final Path[] filePaths = format.getFilePaths();
+
+		Assert.assertEquals(1, filePaths.length);
+		Assert.assertEquals(myPath, filePaths[0].toUri().toString());
+
+		// ensure backwards compatibility
+		Assert.assertEquals(myPath, format.filePath.toUri().toString());
+	}
+	
+	@Test
+	public void testSetPathsMulti() {
+		final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
+		final String myPath = "/an/imaginary/path";
+		final String myPath2 = "/an/imaginary/path2";
+		
+		format.setFilePaths(myPath, myPath2);
+		final Path[] filePaths = format.getFilePaths();
+
+		Assert.assertEquals(2, filePaths.length);
+		Assert.assertEquals(myPath, filePaths[0].toUri().toString());
+		Assert.assertEquals(myPath2, filePaths[1].toUri().toString());
+	}
+
+	@Test(expected = UnsupportedOperationException.class)
+	public void testMultiPathSetOnSinglePathIF() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		final String myPath = "/an/imaginary/path";
+		final String myPath2 = "/an/imaginary/path2";
+
+		format.setFilePaths(myPath, myPath2);
+	}
+
+	@Test(expected = UnsupportedOperationException.class)
+	public void testMultiPathSetOnSinglePathIF2() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		final String myPath = "/an/imaginary/path";
+		final String myPath2 = "/an/imaginary/path2";
+
+		format.setFilePaths(new Path(myPath), new Path(myPath2));
+	}
+
+	@Test(expected = UnsupportedOperationException.class)
+	public void testSinglePathGetOnMultiPathIF() {
+		final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
+		final String myPath = "/an/imaginary/path";
+		final String myPath2 = "/an/imaginary/path2";
+
+		format.setFilePaths(myPath, myPath2);
+		format.getFilePath();
+	}
+
+	@Test
+	public void testSetFileViaConfiguration() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		final String filePath = "file:///some/none/existing/directory/";
+		Configuration conf = new Configuration();
+		conf.setString("input.file.path", filePath);
+		format.configure(conf);
+
+		Assert.assertEquals("Paths should be equal.", new Path(filePath), format.getFilePath());
+	}
+
+	@Test (expected = RuntimeException.class)
+	public void testSetFileViaConfigurationEmptyPath() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		final String filePath = null;
+		Configuration conf = new Configuration();
+		conf.setString("input.file.path", filePath);
+		format.configure(conf);
+	}
+	
+	// ------------------------------------------------------------------------
+	//  Input Splits
+	// ------------------------------------------------------------------------
+	
+	@Test
+	public void testCreateInputSplitSingleFile() throws IOException {
+		String tempFile = TestFileUtils.createTempFile("Hello World");
+		FileInputFormat fif = new DummyFileInputFormat();
+		fif.setFilePath(tempFile);
+		
+		fif.configure(new Configuration());
+		FileInputSplit[] splits = fif.createInputSplits(2);
+		
+		Assert.assertEquals(2, splits.length);
+		Assert.assertEquals(tempFile, splits[0].getPath().toString());
+		Assert.assertEquals(tempFile, splits[1].getPath().toString());
+	}
+
+	@Test
+	public void testCreateInputSplitMultiFiles() throws IOException {
+		String tempFile1 = TestFileUtils.createTempFile(21);
+		String tempFile2 = TestFileUtils.createTempFile(22);
+		String tempFile3 = TestFileUtils.createTempFile(23);
+		FileInputFormat fif = new MultiDummyFileInputFormat();
+		fif.setFilePaths(tempFile1, tempFile2, tempFile3);
+
+		fif.configure(new Configuration());
+		FileInputSplit[] splits = fif.createInputSplits(3);
+
+		int numSplitsFile1 = 0;
+		int numSplitsFile2 = 0;
+		int numSplitsFile3 = 0;
+
+		Assert.assertEquals(3, splits.length);
+		for (FileInputSplit fis : splits) {
+			Assert.assertEquals(0, fis.getStart());
+			if (fis.getPath().toString().equals(tempFile1)) {
+				numSplitsFile1++;
+				Assert.assertEquals(21, fis.getLength());
+			} else if (fis.getPath().toString().equals(tempFile2)) {
+				numSplitsFile2++;
+				Assert.assertEquals(22, fis.getLength());
+			} else if (fis.getPath().toString().equals(tempFile3)) {
+				numSplitsFile3++;
+				Assert.assertEquals(23, fis.getLength());
+			} else {
+				Assert.fail("Got split for unknown file.");
+			}
+		}
+		
+		Assert.assertEquals(1, numSplitsFile1);
+		Assert.assertEquals(1, numSplitsFile2);
+		Assert.assertEquals(1, numSplitsFile3);
+	}
 
 	// ------------------------------------------------------------------------
 	//  Statistics
@@ -94,7 +299,7 @@ public class FileInputFormatTest {
 			final long SIZE3 = 10;
 			final long TOTAL = SIZE1 + SIZE2 + SIZE3;
 			
-			String tempDir = TestFileUtils.createTempFileDir(SIZE1, SIZE2, SIZE3);
+			String tempDir = TestFileUtils.createTempFileDir(temporaryFolder.newFolder(), SIZE1, SIZE2, SIZE3);
 			
 			final DummyFileInputFormat format = new DummyFileInputFormat();
 			format.setFilePath(tempDir);
@@ -145,7 +350,7 @@ public class FileInputFormatTest {
 			format.setFilePath(tempFile);
 			format.configure(new Configuration());
 			
-			FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(stats.getLastModificationTime()-1, FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+			FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(stats.getLastModificationTime() - 1, FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 			BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
 			Assert.assertEquals("The file size from the statistics is wrong.", SIZE, reGathered.getTotalInputSize());
 			
@@ -158,13 +363,22 @@ public class FileInputFormatTest {
 	@Test
 	public void testGetStatisticsMultipleFilesWithCachedVersion() {
 		try {
+			FileSystem fs = FileSystem.getLocalFileSystem();
+
 			final long SIZE1 = 2077;
 			final long SIZE2 = 31909;
 			final long SIZE3 = 10;
 			final long TOTAL = SIZE1 + SIZE2 + SIZE3;
 			final long FAKE_SIZE = 10065;
 			
-			String tempDir = TestFileUtils.createTempFileDir(SIZE1, SIZE2, SIZE3);
+			File tempDirFile = temporaryFolder.newFolder();
+			String tempDir = tempDirFile.getAbsolutePath();
+			String f1 = TestFileUtils.createTempFileInDirectory(tempDir, SIZE1);
+			long modTime1 = fs.getFileStatus(new Path(f1)).getModificationTime();
+			String f2 = TestFileUtils.createTempFileInDirectory(tempDir, SIZE2);
+			long modTime2 = fs.getFileStatus(new Path(f2)).getModificationTime();
+			String f3 = TestFileUtils.createTempFileInDirectory(tempDir, SIZE3);
+			long modTime3 = fs.getFileStatus(new Path(f3)).getModificationTime();
 			
 			DummyFileInputFormat format = new DummyFileInputFormat();
 			format.setFilePath(tempDir);
@@ -194,7 +408,7 @@ public class FileInputFormatTest {
 			format.setFilePath(tempDir);
 			format.configure(new Configuration());
 			
-			FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(stats.getLastModificationTime()-1, FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+			FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(Math.min(Math.min(modTime1, modTime2), modTime3) - 1, FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 			BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
 			Assert.assertEquals("The file size from the statistics is wrong.", TOTAL, reGathered.getTotalInputSize());
 			
@@ -203,7 +417,108 @@ public class FileInputFormatTest {
 			Assert.fail(ex.getMessage());
 		}
 	}
+	
+	// -- Multiple Files -- //
+	
+	@Test
+	public void testGetStatisticsMultipleNonExistingFile() throws IOException {
+		final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
+		format.setFilePaths("file:///some/none/existing/directory/","file:///another/non/existing/directory/");
+		format.configure(new Configuration());
+		
+		BaseStatistics stats = format.getStatistics(null);
+		Assert.assertNull("The file statistics should be null.", stats);
+	}
+	
+	@Test
+	public void testGetStatisticsMultipleOneFileNoCachedVersion() throws IOException {
+		final long size1 = 1024 * 500;
+		String tempFile = TestFileUtils.createTempFile(size1);
 
+		final long size2 = 1024 * 505;
+		String tempFile2 = TestFileUtils.createTempFile(size2);
+
+		final long totalSize = size1 + size2;
+		
+		final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
+		format.setFilePaths(tempFile, tempFile2);
+		format.configure(new Configuration());
+		
+		BaseStatistics stats = format.getStatistics(null);
+		Assert.assertEquals("The file size from the statistics is wrong.", totalSize, stats.getTotalInputSize());
+	}
+	
+	@Test
+	public void testGetStatisticsMultipleFilesMultiplePathsNoCachedVersion() throws IOException {
+		final long size1 = 2077;
+		final long size2 = 31909;
+		final long size3 = 10;
+		final long totalSize123 = size1 + size2 + size3;
+		
+		String tempDir = TestFileUtils.createTempFileDir(temporaryFolder.newFolder(), size1, size2, size3);
+		
+		final long size4 = 2051;
+		final long size5 = 31902;
+		final long size6 = 15;
+		final long totalSize456 = size4 + size5 + size6;
+		String tempDir2 = TestFileUtils.createTempFileDir(temporaryFolder.newFolder(), size4, size5, size6);
+
+		final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
+		format.setFilePaths(tempDir, tempDir2);
+		format.configure(new Configuration());
+		
+		BaseStatistics stats = format.getStatistics(null);
+		Assert.assertEquals("The file size from the statistics is wrong.", totalSize123 + totalSize456, stats.getTotalInputSize());
+	}
+	
+	@Test
+	public void testGetStatisticsMultipleOneFileWithCachedVersion() throws IOException {
+		FileSystem fs = FileSystem.getLocalFileSystem();
+
+		final long size1 = 50873;
+		final long fakeSize = 10065;
+		String tempFile1 = TestFileUtils.createTempFile(size1);
+		final long lastModTime1 = fs.getFileStatus(new Path(tempFile1)).getModificationTime();
+
+		final long size2 = 52573;
+		String tempFile2 = TestFileUtils.createTempFile(size2);
+		final long lastModTime2 = fs.getFileStatus(new Path(tempFile2)).getModificationTime();
+
+		final long sizeTotal = size1 + size2;
+		
+		MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
+		format.setFilePaths(tempFile1, tempFile2);
+		format.configure(new Configuration());
+		
+		FileBaseStatistics stats = format.getStatistics(null);
+		Assert.assertEquals("The file size from the statistics is wrong.", sizeTotal, stats.getTotalInputSize());
+		
+		format = new MultiDummyFileInputFormat();
+		format.setFilePath(tempFile1);
+		format.configure(new Configuration());
+		
+		FileBaseStatistics newStats = format.getStatistics(stats);
+		Assert.assertTrue("Statistics object was changed", newStats == stats);
+
+		// insert fake stats with the correct modification time. the call should return the fake stats
+		format = new MultiDummyFileInputFormat();
+		format.setFilePath(tempFile1);
+		format.configure(new Configuration());
+		
+		FileBaseStatistics fakeStats = new FileBaseStatistics(stats.getLastModificationTime(), fakeSize, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+		BaseStatistics latest = format.getStatistics(fakeStats);
+		Assert.assertEquals("The file size from the statistics is wrong.", fakeSize, latest.getTotalInputSize());
+		
+		// insert fake stats with the expired modification time. the call should return new accurate stats
+		format = new MultiDummyFileInputFormat();
+		format.setFilePaths(tempFile1, tempFile2);
+		format.configure(new Configuration());
+		
+		FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(Math.min(lastModTime1, lastModTime2) - 1, fakeSize, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+		BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
+		Assert.assertEquals("The file size from the statistics is wrong.", sizeTotal, reGathered.getTotalInputSize());
+	}
+	
 	// ------------------------------------------------------------------------
 	//  Unsplittable input files
 	// ------------------------------------------------------------------------
@@ -217,7 +532,7 @@ public class FileInputFormatTest {
 	@Test
 	public void testFileInputSplit() {
 		try {
-			String tempFile = TestFileUtils.createTempFileDirExtension(".deflate", "some", "stupid", "meaningless", "files");
+			String tempFile = TestFileUtils.createTempFileDirExtension(temporaryFolder.newFolder(), ".deflate", "some", "stupid", "meaningless", "files");
 			final DummyFileInputFormat format = new DummyFileInputFormat();
 			format.setFilePath(tempFile);
 			format.configure(new Configuration());
@@ -460,6 +775,15 @@ public class FileInputFormatTest {
 		@Override
 		public IntValue nextRecord(IntValue record) throws IOException {
 			return null;
+		}
+	}
+
+	private class MultiDummyFileInputFormat extends DummyFileInputFormat {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public boolean supportsMultiPaths() {
+			return true;
 		}
 	}
 

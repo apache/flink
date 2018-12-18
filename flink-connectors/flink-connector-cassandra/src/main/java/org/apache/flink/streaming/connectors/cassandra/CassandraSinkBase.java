@@ -17,8 +17,12 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 
 import com.datastax.driver.core.Cluster;
@@ -29,15 +33,17 @@ import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * CassandraSinkBase is the common abstract class of {@link CassandraPojoSink} and {@link CassandraTupleSink}.
+ * CassandraSinkBase is the common abstract class of {@link CassandraPojoSink} and {@link
+ * CassandraTupleSink}.
  *
  * @param <IN> Type of the elements emitted by this sink
  */
-public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
+public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> implements CheckpointedFunction {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 	protected transient Cluster cluster;
 	protected transient Session session;
@@ -49,8 +55,11 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 
 	private final AtomicInteger updatesPending = new AtomicInteger();
 
-	CassandraSinkBase(ClusterBuilder builder) {
+	private final CassandraFailureHandler failureHandler;
+
+	CassandraSinkBase(ClusterBuilder builder, CassandraFailureHandler failureHandler) {
 		this.builder = builder;
+		this.failureHandler = checkNotNull(failureHandler);
 		ClosureCleaner.clean(builder, true);
 	}
 
@@ -81,14 +90,16 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 			}
 		};
 		this.cluster = builder.getCluster();
-		this.session = cluster.connect();
+		this.session = createSession();
+	}
+
+	protected Session createSession() {
+		return cluster.connect();
 	}
 
 	@Override
 	public void invoke(IN value) throws Exception {
-		if (exception != null) {
-			throw new IOException("Error while sending value.", exception);
-		}
+		checkAsyncErrors();
 		ListenableFuture<V> result = send(value);
 		updatesPending.incrementAndGet();
 		Futures.addCallback(result, callback);
@@ -99,19 +110,9 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 	@Override
 	public void close() throws Exception {
 		try {
-			if (exception != null) {
-				throw new IOException("Error while sending value.", exception);
-			}
-
-			while (updatesPending.get() > 0) {
-				synchronized (updatesPending) {
-					updatesPending.wait();
-				}
-			}
-
-			if (exception != null) {
-				throw new IOException("Error while sending value.", exception);
-			}
+			checkAsyncErrors();
+			waitForPendingUpdates();
+			checkAsyncErrors();
 		} finally {
 			try {
 				if (session != null) {
@@ -128,5 +129,38 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 				log.error("Error while closing cluster.", e);
 			}
 		}
+	}
+
+	@Override
+	public void initializeState(FunctionInitializationContext context) throws Exception {
+	}
+
+	@Override
+	public void snapshotState(FunctionSnapshotContext ctx) throws Exception {
+		checkAsyncErrors();
+		waitForPendingUpdates();
+		checkAsyncErrors();
+	}
+
+	private void waitForPendingUpdates() throws InterruptedException {
+		synchronized (updatesPending) {
+			while (updatesPending.get() > 0) {
+				updatesPending.wait();
+			}
+		}
+	}
+
+	private void checkAsyncErrors() throws Exception {
+		Throwable error = exception;
+		if (error != null) {
+			// prevent throwing duplicated error
+			exception = null;
+			failureHandler.onFailure(error);
+		}
+	}
+
+	@VisibleForTesting
+	int getNumOfPendingRecords() {
+		return updatesPending.get();
 	}
 }

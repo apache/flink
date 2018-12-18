@@ -19,19 +19,12 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
-import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Either;
 
 import java.io.IOException;
-import java.util.List;
 
 import static org.apache.flink.types.Either.Left;
 import static org.apache.flink.types.Either.Right;
@@ -55,6 +48,22 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 		this.leftSerializer = leftSerializer;
 		this.rightSerializer = rightSerializer;
 	}
+
+	// ------------------------------------------------------------------------
+	//  Accessors
+	// ------------------------------------------------------------------------
+
+	public TypeSerializer<R> getRightSerializer() {
+		return rightSerializer;
+	}
+
+	public TypeSerializer<L> getLeftSerializer() {
+		return leftSerializer;
+	}
+
+	// ------------------------------------------------------------------------
+	//  TypeSerializer methods
+	// ------------------------------------------------------------------------
 
 	@Override
 	public boolean isImmutableType() {
@@ -191,45 +200,12 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 		return 17 * leftSerializer.hashCode() + rightSerializer.hashCode();
 	}
 
-	// --------------------------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
 	// Serializer configuration snapshotting & compatibility
-	// --------------------------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
 
 	@Override
-	public EitherSerializerConfigSnapshot snapshotConfiguration() {
-		return new EitherSerializerConfigSnapshot<>(leftSerializer, rightSerializer);
-	}
-
-	@Override
-	public CompatibilityResult<Either<L, R>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof EitherSerializerConfigSnapshot) {
-			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousLeftRightSerializersAndConfigs =
-				((EitherSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
-
-			CompatibilityResult<L> leftCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-					previousLeftRightSerializersAndConfigs.get(0).f0,
-					UnloadableDummyTypeSerializer.class,
-					previousLeftRightSerializersAndConfigs.get(0).f1,
-					leftSerializer);
-
-			CompatibilityResult<R> rightCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-					previousLeftRightSerializersAndConfigs.get(1).f0,
-					UnloadableDummyTypeSerializer.class,
-					previousLeftRightSerializersAndConfigs.get(1).f1,
-					rightSerializer);
-
-			if (!leftCompatResult.isRequiresMigration() && !rightCompatResult.isRequiresMigration()) {
-				return CompatibilityResult.compatible();
-			} else {
-				if (leftCompatResult.getConvertDeserializer() != null && rightCompatResult.getConvertDeserializer() != null) {
-					return CompatibilityResult.requiresMigration(
-						new EitherSerializer<>(
-							new TypeDeserializerAdapter<>(leftCompatResult.getConvertDeserializer()),
-							new TypeDeserializerAdapter<>(rightCompatResult.getConvertDeserializer())));
-				}
-			}
-		}
-
-		return CompatibilityResult.requiresMigration();
+	public EitherSerializerSnapshot<L, R> snapshotConfiguration() {
+		return new EitherSerializerSnapshot<>(leftSerializer, rightSerializer);
 	}
 }

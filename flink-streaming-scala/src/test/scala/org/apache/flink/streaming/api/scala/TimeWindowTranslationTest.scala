@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
+import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.util.Collector
 import org.junit.Assert._
 import org.junit.Test
@@ -39,7 +39,7 @@ import org.junit.Test
   * These tests verify that the api calls on [[WindowedStream]] that use the "time" shortcut
   * instantiate the correct window operator.
   */
-class TimeWindowTranslationTest extends StreamingMultipleProgramsTestBase {
+class TimeWindowTranslationTest extends AbstractTestBase {
 
   /**
     * Verifies that calls to timeWindow() instantiate a regular

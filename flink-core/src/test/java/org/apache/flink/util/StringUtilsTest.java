@@ -18,12 +18,17 @@
 
 package org.apache.flink.util;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-
-import org.apache.flink.util.StringUtils;
 import org.junit.Test;
 
+import java.util.Random;
+
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
+/**
+ * Tests for the {@link StringUtils}.
+ */
 public class StringUtilsTest extends TestLogger {
 
 	@Test
@@ -32,11 +37,11 @@ public class StringUtilsTest extends TestLogger {
 		String controlString = StringUtils.showControlCharacters(testString);
 		assertEquals("\\b \\t \\n \\f \\r default", controlString);
 	}
-	
+
 	@Test
 	public void testArrayToString() {
 		double[] array = {1.0};
-		String controlString = StringUtils.arrayToString(array );
+		String controlString = StringUtils.arrayToString(array);
 		assertEquals("[1.0]", controlString);
 	}
 
@@ -47,11 +52,20 @@ public class StringUtilsTest extends TestLogger {
 		byte[] expectedArray = new byte[]{1, -97, 49, 74 };
 		assertArrayEquals(expectedArray, hexArray);
 	}
-	
+
 	@Test
 	public void testHexArrayToString() {
 		byte[] byteArray = new byte[]{1, -97, 49, 74 };
 		String hex = StringUtils.byteToHexString(byteArray);
 		assertEquals("019f314a", hex);
+	}
+
+	@Test
+	public void testGenerateAlphanumeric() {
+		String str = StringUtils.generateRandomAlphanumericString(new Random(), 256);
+
+		if (!str.matches("[a-zA-Z0-9]{256}")) {
+			fail("Not alphanumeric: " + str);
+		}
 	}
 }

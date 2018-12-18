@@ -22,6 +22,8 @@ import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapsh
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 
+import scala.collection.TraversableOnce;
+
 /**
  * A {@link TypeSerializerConfigSnapshot} for the Scala {@link TraversableSerializer}.
  *
@@ -29,7 +31,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
  * allow calling different base class constructors from subclasses, while we need that
  * for the default empty constructor.
  */
-public class TraversableSerializerConfigSnapshot<E> extends CompositeTypeSerializerConfigSnapshot {
+public class TraversableSerializerConfigSnapshot<T extends TraversableOnce<E>, E>
+		extends CompositeTypeSerializerConfigSnapshot<T> {
 
 	private static final int VERSION = 1;
 

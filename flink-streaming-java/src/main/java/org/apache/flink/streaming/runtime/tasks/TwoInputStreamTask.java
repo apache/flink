@@ -19,11 +19,15 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
+import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
+import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +41,22 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 	private StreamTwoInputProcessor<IN1, IN2> inputProcessor;
 
 	private volatile boolean running = true;
+
+	private final WatermarkGauge input1WatermarkGauge;
+	private final WatermarkGauge input2WatermarkGauge;
+	private final MinWatermarkGauge minInputWatermarkGauge;
+
+	/**
+	 * Constructor for initialization, possibly with initial state (recovery / savepoint / etc).
+	 *
+	 * @param env The task environment for this task.
+	 */
+	public TwoInputStreamTask(Environment env) {
+		super(env);
+		input1WatermarkGauge = new WatermarkGauge();
+		input2WatermarkGauge = new WatermarkGauge();
+		minInputWatermarkGauge = new MinWatermarkGauge(input1WatermarkGauge, input2WatermarkGauge);
+	}
 
 	@Override
 	public void init() throws Exception {
@@ -77,10 +97,16 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 				getEnvironment().getIOManager(),
 				getEnvironment().getTaskManagerInfo().getConfiguration(),
 				getStreamStatusMaintainer(),
-				this.headOperator);
+				this.headOperator,
+				getEnvironment().getMetricGroup().getIOMetricGroup(),
+				input1WatermarkGauge,
+				input2WatermarkGauge);
 
-		// make sure that stream tasks report their I/O statistics
-		inputProcessor.setMetricGroup(getEnvironment().getMetricGroup().getIOMetricGroup());
+		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
+		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_1_WATERMARK, input1WatermarkGauge);
+		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_2_WATERMARK, input2WatermarkGauge);
+		// wrap watermark gauge since registered metrics must be unique
+		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge::getValue);
 	}
 
 	@Override

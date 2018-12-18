@@ -23,15 +23,16 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo, TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
+import org.apache.flink.table.api.TableEnvironmentTest.{CClass, PojoClass}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{CClass, PojoClass, TableEnvironment, TableException}
-import org.apache.flink.table.expressions.{Alias, UnresolvedFieldReference}
+import org.apache.flink.table.api.{TableEnvironment, TableException}
 import org.apache.flink.table.runtime.types.CRowTypeInfo
+import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
 import org.junit.Assert.assertTrue
 import org.junit._
 
-class TableEnvironmentValidationTest {
+class TableEnvironmentValidationTest extends TableTestBase {
 
   private val env = ExecutionEnvironment.getExecutionEnvironment
   private val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -53,75 +54,60 @@ class TableEnvironmentValidationTest {
 
   val genericRowType = new GenericTypeInfo[Row](classOf[Row])
 
+  @Test(expected = classOf[TableException])
+  def testInvalidAliasInRefByPosMode(): Unit = {
+    val util = batchTestUtil()
+    // all references must happen position-based
+    util.addTable('a, 'b, 'f2 as 'c)(tupleType)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testInvalidAliasOnAtomicType(): Unit = {
+    val util = batchTestUtil()
+    // alias not allowed
+    util.addTable('g as 'c)(atomicType)
+  }
 
   @Test(expected = classOf[TableException])
   def testGetFieldInfoPojoNames1(): Unit = {
-    tEnv.getFieldInfo(
-      pojoType,
-      Array(
-        UnresolvedFieldReference("name1"),
-        UnresolvedFieldReference("name2"),
-        UnresolvedFieldReference("name3")
-      ))
+    val util = batchTestUtil()
+    // duplicate name
+    util.addTable('name1, 'name1, 'name3)(pojoType)
   }
 
   @Test(expected = classOf[TableException])
   def testGetFieldInfoAtomicName2(): Unit = {
-    tEnv.getFieldInfo(
-      atomicType,
-      Array(
-        UnresolvedFieldReference("name1"),
-        UnresolvedFieldReference("name2")
-      ))
+    val util = batchTestUtil()
+    // must be only one name
+    util.addTable('name1, 'name2)(atomicType)
   }
 
   @Test(expected = classOf[TableException])
   def testGetFieldInfoTupleAlias3(): Unit = {
-    tEnv.getFieldInfo(
-      tupleType,
-      Array(
-        Alias(UnresolvedFieldReference("xxx"), "name1"),
-        Alias(UnresolvedFieldReference("yyy"), "name2"),
-        Alias(UnresolvedFieldReference("zzz"), "name3")
-      ))
+    val util = batchTestUtil()
+    // fields do not exist
+    util.addTable('xxx as 'name1, 'yyy as 'name2, 'zzz as 'name3)(tupleType)
   }
 
   @Test(expected = classOf[TableException])
   def testGetFieldInfoCClassAlias3(): Unit = {
-    tEnv.getFieldInfo(
-      caseClassType,
-      Array(
-        Alias(UnresolvedFieldReference("xxx"), "name1"),
-        Alias(UnresolvedFieldReference("yyy"), "name2"),
-        Alias(UnresolvedFieldReference("zzz"), "name3")
-      ))
+    val util = batchTestUtil()
+    // fields do not exist
+    util.addTable('xxx as 'name1, 'yyy as 'name2, 'zzz as 'name3)(caseClassType)
   }
 
   @Test(expected = classOf[TableException])
   def testGetFieldInfoPojoAlias3(): Unit = {
-    tEnv.getFieldInfo(
-      pojoType,
-      Array(
-        Alias(UnresolvedFieldReference("xxx"), "name1"),
-        Alias(UnresolvedFieldReference("yyy"), "name2"),
-        Alias(UnresolvedFieldReference("zzz"), "name3")
-      ))
-  }
-
-  @Test(expected = classOf[TableException])
-  def testGetFieldInfoAtomicAlias(): Unit = {
-    tEnv.getFieldInfo(
-      atomicType,
-      Array(
-        Alias(UnresolvedFieldReference("name1"), "name2")
-      ))
+    val util = batchTestUtil()
+    // fields do not exist
+    util.addTable('xxx as 'name1, 'yyy as 'name2, 'zzz as 'name3)(pojoType)
   }
 
   @Test(expected = classOf[TableException])
   def testGetFieldInfoGenericRowAlias(): Unit = {
-    tEnv.getFieldInfo(
-      genericRowType,
-      Array(UnresolvedFieldReference("first")))
+    val util = batchTestUtil()
+    // unsupported generic row type
+    util.addTable('first)(genericRowType)
   }
 
   @Test(expected = classOf[TableException])

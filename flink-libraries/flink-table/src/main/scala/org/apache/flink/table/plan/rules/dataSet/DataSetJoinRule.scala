@@ -41,8 +41,7 @@ class DataSetJoinRule
     val joinInfo = join.analyzeCondition
 
     // joins require an equi-condition or a conjunctive predicate with at least one equi-condition
-    // and disable outer joins with non-equality predicates(see FLINK-5520)
-    !joinInfo.pairs().isEmpty && (joinInfo.isEqui || join.getJoinType == JoinRelType.INNER)
+    !joinInfo.pairs().isEmpty
   }
 
   override def convert(rel: RelNode): RelNode = {

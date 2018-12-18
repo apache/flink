@@ -97,7 +97,7 @@ public class GroupReduceNode extends SingleInputNode {
 		
 		// check if we can work with a grouping (simple reducer), or if we need ordering because of a group order
 		Ordering groupOrder = null;
-		if (getOperator() instanceof GroupReduceOperatorBase) {
+		if (getOperator() != null) {
 			groupOrder = getOperator().getGroupOrder();
 			if (groupOrder != null && groupOrder.getNumberOfFields() == 0) {
 				groupOrder = null;

@@ -22,8 +22,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
@@ -31,13 +29,9 @@ import org.apache.flink.graph.NeighborsFunctionWithVertexValue;
 import org.apache.flink.graph.ReduceNeighborsFunction;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.test.TestGraphUtils;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
-import org.apache.flink.test.util.TestEnvironment;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.fail;
@@ -45,28 +39,9 @@ import static org.junit.Assert.fail;
 /**
  * Test expected exceptions for {@link Graph#groupReduceOnNeighbors} and {@link Graph#reduceOnNeighbors}.
  */
-public class ReduceOnNeighborsWithExceptionITCase extends TestLogger {
+public class ReduceOnNeighborsWithExceptionITCase extends AbstractTestBase {
 
 	private static final int PARALLELISM = 4;
-
-	private static LocalFlinkMiniCluster cluster;
-
-	@BeforeClass
-	public static void setupCluster() {
-		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM);
-		cluster = new LocalFlinkMiniCluster(config, false);
-		cluster.start();
-
-		TestEnvironment.setAsContext(cluster, PARALLELISM);
-	}
-
-	@AfterClass
-	public static void tearDownCluster() {
-		cluster.stop();
-
-		TestEnvironment.unsetAsContext();
-	}
 
 	/**
 	 * Test groupReduceOnNeighbors() -NeighborsFunctionWithVertexValue-

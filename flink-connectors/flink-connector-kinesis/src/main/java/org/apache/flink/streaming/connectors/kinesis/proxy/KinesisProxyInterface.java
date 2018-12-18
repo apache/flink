@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
@@ -26,6 +27,7 @@ import java.util.Map;
 /**
  * Interface for a Kinesis proxy that operates on multiple Kinesis streams within the same AWS service region.
  */
+@Internal
 public interface KinesisProxyInterface {
 
 	/**

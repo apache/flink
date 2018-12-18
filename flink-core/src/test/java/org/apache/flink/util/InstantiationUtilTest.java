@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -40,6 +41,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the {@link InstantiationUtil}.
+ */
 public class InstantiationUtilTest extends TestLogger {
 
 	@Test
@@ -88,14 +92,14 @@ public class InstantiationUtilTest extends TestLogger {
 
 		assertEquals("Serialized record is not equal after serialization.", toSerialize, deserialized);
 	}
-	
+
 	@Test
 	public void testWriteToConfigFailingSerialization() {
 		try {
 			final String key1 = "testkey1";
 			final String key2 = "testkey2";
 			final Configuration config = new Configuration();
-			
+
 			try {
 				InstantiationUtil.writeObjectToConfig(new TestClassWriteFails(), config, "irgnored");
 				fail("should throw an exception");
@@ -106,10 +110,10 @@ public class InstantiationUtilTest extends TestLogger {
 			catch (Exception e) {
 				fail("Wrong exception type - exception not properly forwarded");
 			}
-			
+
 			InstantiationUtil.writeObjectToConfig(new TestClassReadFails(), config, key1);
 			InstantiationUtil.writeObjectToConfig(new TestClassReadFailsCNF(), config, key2);
-			
+
 			try {
 				InstantiationUtil.readObjectFromConfig(config, key1, getClass().getClassLoader());
 				fail("should throw an exception");
@@ -120,7 +124,7 @@ public class InstantiationUtilTest extends TestLogger {
 			catch (Exception e) {
 				fail("Wrong exception type - exception not properly forwarded");
 			}
-			
+
 			try {
 				InstantiationUtil.readObjectFromConfig(config, key2, getClass().getClassLoader());
 				fail("should throw an exception");
@@ -142,48 +146,49 @@ public class InstantiationUtilTest extends TestLogger {
 	public void testCopyWritable() throws Exception {
 		WritableType original = new WritableType();
 		WritableType copy = InstantiationUtil.createCopyWritable(original);
-		
+
 		assertTrue(original != copy);
 		assertTrue(original.equals(copy));
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	private class TestClass {}
-	
+
 	private static class TestException extends IOException {
 		private static final long serialVersionUID = 1L;
 	}
-	
+
 	private static class TestClassWriteFails implements java.io.Serializable {
-		
+
 		private static final long serialVersionUID = 1L;
 
 		private void writeObject(ObjectOutputStream out) throws IOException {
 			throw new TestException();
 		}
 	}
-	
+
 	private static class TestClassReadFails implements java.io.Serializable {
-		
+
 		private static final long serialVersionUID = 1L;
 
 		private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 			throw new TestException();
 		}
 	}
-	
+
 	private static class TestClassReadFailsCNF implements java.io.Serializable {
-		
+
 		private static final long serialVersionUID = 1L;
 
 		private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 			throw new ClassNotFoundException("test exception");
 		}
 	}
-	
+
+	/** A simple test type. */
 	public static final class WritableType implements IOReadableWritable {
-		
+
 		private int aInt;
 		private long aLong;
 

@@ -28,18 +28,20 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 @PublicEvolving
 public class HeartbeatManagerOptions {
 
-	/** Time interval for requesting heartbeat from sender side */
+	/** Time interval for requesting heartbeat from sender side. */
 	public static final ConfigOption<Long> HEARTBEAT_INTERVAL =
 			key("heartbeat.interval")
-			.defaultValue(10000L);
+			.defaultValue(10000L)
+			.withDescription("Time interval for requesting heartbeat from sender side.");
 
-	/** Timeout for requesting and receiving heartbeat for both sender and receiver sides */
+	/** Timeout for requesting and receiving heartbeat for both sender and receiver sides. */
 	public static final ConfigOption<Long> HEARTBEAT_TIMEOUT =
 			key("heartbeat.timeout")
-			.defaultValue(50000L);
+			.defaultValue(50000L)
+			.withDescription("Timeout for requesting and receiving heartbeat for both sender and receiver sides.");
 
 	// ------------------------------------------------------------------------
 
-	/** Not intended to be instantiated */
+	/** Not intended to be instantiated. */
 	private HeartbeatManagerOptions() {}
 }

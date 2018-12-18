@@ -23,7 +23,7 @@ import org.apache.flink.core.io.LocatableInputSplit;
 
 /**
  * A file input split provides information on a particular part of a file, possibly
- * hosted on a distributed file system and replicated among several hosts. 
+ * hosted on a distributed file system and replicated among several hosts.
  */
 @Public
 public class FileInputSplit extends LocatableInputSplit {
@@ -34,16 +34,16 @@ public class FileInputSplit extends LocatableInputSplit {
 	private final Path file;
 
 	/** The position of the first byte in the file to process. */
-	private long start;
+	private final long start;
 
 	/** The number of bytes in the file to process. */
-	private long length;
+	private final long length;
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Constructs a split with host information.
-	 * 
+	 *
 	 * @param num
 	 *        the number of this input split
 	 * @param file
@@ -57,17 +57,17 @@ public class FileInputSplit extends LocatableInputSplit {
 	 */
 	public FileInputSplit(int num, Path file, long start, long length, String[] hosts) {
 		super(num, hosts);
-		
+
 		this.file = file;
 		this.start = start;
 		this.length = length;
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Returns the path of the file containing this split's data.
-	 * 
+	 *
 	 * @return the path of the file containing this split's data.
 	 */
 	public Path getPath() {
@@ -76,7 +76,7 @@ public class FileInputSplit extends LocatableInputSplit {
 
 	/**
 	 * Returns the position of the first byte in the file to process.
-	 * 
+	 *
 	 * @return the position of the first byte in the file to process
 	 */
 	public long getStart() {
@@ -85,28 +85,28 @@ public class FileInputSplit extends LocatableInputSplit {
 
 	/**
 	 * Returns the number of bytes in the file to process.
-	 * 
+	 *
 	 * @return the number of bytes in the file to process
 	 */
 	public long getLength() {
 		return length;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public int hashCode() {
 		return getSplitNumber() ^ (file == null ? 0 : file.hashCode());
 	}
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj == this) {
 			return true;
 		}
-		else if (obj != null && obj instanceof FileInputSplit && super.equals(obj)) {
+		else if (obj instanceof FileInputSplit && super.equals(obj)) {
 			FileInputSplit other = (FileInputSplit) obj;
-			
+
 			return this.start == other.start &&
 					this.length == other.length &&
 					(this.file == null ? other.file == null : (other.file != null && this.file.equals(other.file)));
@@ -115,7 +115,7 @@ public class FileInputSplit extends LocatableInputSplit {
 			return false;
 		}
 	}
-	
+
 	@Override
 	public String toString() {
 		return "[" + getSplitNumber() + "] " + file + ":" + start + "+" + length;

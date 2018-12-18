@@ -19,6 +19,7 @@
 package org.apache.flink.core.memory;
 
 import org.apache.flink.configuration.ConfigConstants;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -28,6 +29,9 @@ import org.junit.rules.ExpectedException;
 import java.io.IOException;
 import java.util.Arrays;
 
+/**
+ * Tests for {@link ByteArrayOutputStreamWithPos}.
+ */
 public class ByteArrayOutputStreamWithPosTest {
 
 	private static final int BUFFER_SIZE = 32;
@@ -43,7 +47,7 @@ public class ByteArrayOutputStreamWithPosTest {
 	}
 
 	/**
-	 * Test setting position which is exactly the same with the buffer size
+	 * Test setting position which is exactly the same with the buffer size.
 	 */
 	@Test
 	public void testSetPositionWhenBufferIsFull() throws Exception {
@@ -62,7 +66,7 @@ public class ByteArrayOutputStreamWithPosTest {
 	}
 
 	/**
-	 * Test setting negative position
+	 * Test setting negative position.
 	 */
 	@Test
 	public void testSetNegativePosition() throws Exception {
@@ -74,7 +78,7 @@ public class ByteArrayOutputStreamWithPosTest {
 	}
 
 	/**
-	 * Test setting position larger than buffer size
+	 * Test setting position larger than buffer size.
 	 */
 	@Test
 	public void testSetPositionLargerThanBufferSize() throws Exception {
@@ -89,7 +93,7 @@ public class ByteArrayOutputStreamWithPosTest {
 	}
 
 	/**
-	 * Test that toString returns a substring of the buffer with range(0, position)
+	 * Test that toString returns a substring of the buffer with range(0, position).
 	 */
 	@Test
 	public void testToString() throws IOException {
@@ -100,7 +104,7 @@ public class ByteArrayOutputStreamWithPosTest {
 		stream.write(data);
 		Assert.assertArrayEquals(data, stream.toString().getBytes(ConfigConstants.DEFAULT_CHARSET));
 
-		for (int i = 0 ; i < data.length ; i++) {
+		for (int i = 0; i < data.length; i++) {
 			stream.setPosition(i);
 			Assert.assertArrayEquals(Arrays.copyOf(data, i), stream.toString().getBytes(ConfigConstants.DEFAULT_CHARSET));
 		}

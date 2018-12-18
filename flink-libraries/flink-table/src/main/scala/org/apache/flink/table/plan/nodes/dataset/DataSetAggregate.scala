@@ -23,16 +23,15 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.flink.api.common.functions.GroupReduceFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.BatchTableEnvironment
+import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvironment}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.AggregationCodeGenerator
 import org.apache.flink.table.plan.nodes.CommonAggregate
-import org.apache.flink.table.runtime.aggregate.{AggregateUtil, DataSetPreAggFunction}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
+import org.apache.flink.table.runtime.aggregate.{AggregateUtil, DataSetAggFunction, DataSetFinalAggFunction, DataSetPreAggFunction}
 import org.apache.flink.types.Row
 
 /**
@@ -45,8 +44,7 @@ class DataSetAggregate(
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     rowRelDataType: RelDataType,
     inputType: RelDataType,
-    grouping: Array[Int],
-    inGroupingSet: Boolean)
+    grouping: Array[Int])
   extends SingleRel(cluster, traitSet, inputNode) with CommonAggregate with DataSetRel {
 
   override def deriveRowType(): RelDataType = rowRelDataType
@@ -59,8 +57,7 @@ class DataSetAggregate(
       namedAggregates,
       getRowType,
       inputType,
-      grouping,
-      inGroupingSet)
+      grouping)
   }
 
   override def toString: String = {
@@ -88,22 +85,25 @@ class DataSetAggregate(
     planner.getCostFactory.makeCost(rowCnt, rowCnt * aggCnt, rowCnt * rowSize)
   }
 
-  override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
+  override def translateToPlan(
+      tableEnv: BatchTableEnvironment,
+      queryConfig: BatchQueryConfig): DataSet[Row] = {
 
     val input = inputNode.asInstanceOf[DataSetRel]
-    val inputDS = input.translateToPlan(tableEnv)
+    val inputDS = input.translateToPlan(tableEnv, queryConfig)
 
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
     val generator = new AggregationCodeGenerator(
       tableEnv.getConfig,
       false,
-      inputDS.getType)
+      inputDS.getType,
+      None)
 
     val (
       preAgg: Option[DataSetPreAggFunction],
       preAggType: Option[TypeInformation[Row]],
-      finalAgg: GroupReduceFunction[Row, Row]
+      finalAgg: Either[DataSetAggFunction, DataSetFinalAggFunction]
       ) = AggregateUtil.createDataSetAggregateFunctions(
         generator,
         namedAggregates,
@@ -111,7 +111,7 @@ class DataSetAggregate(
         inputDS.getType.asInstanceOf[RowTypeInfo].getFieldTypes,
         rowRelDataType,
         grouping,
-        inGroupingSet)
+        tableEnv.getConfig)
 
     val aggString = aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil)
 
@@ -129,13 +129,13 @@ class DataSetAggregate(
           .name(aggOpName)
           // final aggregation
           .groupBy(grouping.indices: _*)
-          .reduceGroup(finalAgg)
+          .reduceGroup(finalAgg.right.get)
           .returns(rowTypeInfo)
           .name(aggOpName)
       } else {
         inputDS
           .groupBy(grouping: _*)
-          .reduceGroup(finalAgg)
+          .reduceGroup(finalAgg.left.get)
           .returns(rowTypeInfo)
           .name(aggOpName)
       }
@@ -151,12 +151,12 @@ class DataSetAggregate(
           .returns(preAggType.get)
           .name(aggOpName)
           // final aggregation
-          .reduceGroup(finalAgg)
+          .reduceGroup(finalAgg.right.get)
           .returns(rowTypeInfo)
           .name(aggOpName)
       } else {
         inputDS
-          .reduceGroup(finalAgg)
+          .mapPartition(finalAgg.left.get).setParallelism(1)
           .returns(rowTypeInfo)
           .name(aggOpName)
       }

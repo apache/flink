@@ -36,10 +36,10 @@ limitations under the License.
         <td>{{ metrics.dataPort }}</td>
         <td>{{ metrics.slotsNumber }}</td>
         <td>{{ metrics.freeSlots }}</td>
-        <td>{{ metrics.cpuCores }}</td>
-        <td>{{ metrics.physicalMemory | humanizeBytes }}</td>
-        <td>{{ metrics.freeMemory | humanizeBytes }}</td>
-        <td>{{ metrics.managedMemory | humanizeBytes }}</td>
+        <td>{{ metrics.hardware.cpuCores }}</td>
+        <td>{{ metrics.hardware.physicalMemory | humanizeBytes }}</td>
+        <td>{{ metrics.hardware.freeMemory | humanizeBytes }}</td>
+        <td>{{ metrics.hardware.managedMemory | humanizeBytes }}</td>
       </tr>
     </tbody>
   </table>
@@ -69,9 +69,9 @@ limitations under the License.
       </tr>
       <tr>
         <td>Total</td>
-        <td>{{ metrics.metrics.totalCommitted | humanizeBytes }}</td>
-        <td>{{ metrics.metrics.totalUsed | humanizeBytes }}</td>
-        <td>{{ metrics.metrics.totalMax | humanizeBytes }}</td>
+        <td>{{ metrics.metrics.heapCommitted + metrics.metrics.nonHeapCommitted | humanizeBytes }}</td>
+        <td>{{ metrics.metrics.heapUsed + metrics.metrics.nonHeapUsed | humanizeBytes }}</td>
+        <td>{{ metrics.metrics.heapMax + metrics.metrics.nonHeapMax | humanizeBytes }}</td>
       </tr>
     </tbody>
   </table>

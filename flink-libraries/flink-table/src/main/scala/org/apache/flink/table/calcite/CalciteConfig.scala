@@ -18,10 +18,14 @@
 
 package org.apache.flink.table.calcite
 
+import java.util.Properties
+
+import org.apache.calcite.config.{CalciteConnectionConfig, CalciteConnectionConfigImpl, CalciteConnectionProperty}
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.sql.SqlOperatorTable
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
+import org.apache.calcite.sql2rel.SqlToRelConverter
 import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.util.Preconditions
 
@@ -68,6 +72,11 @@ class CalciteConfigBuilder {
     * Defines a SQL parser configuration.
     */
   private var replaceSqlParserConfig: Option[SqlParser.Config] = None
+
+  /**
+    * Defines a configuration for SqlToRelConverter.
+    */
+  private var replaceSqlToRelConverterConfig: Option[SqlToRelConverter.Config] = None
 
   /**
     * Replaces the built-in normalization rule set with the given rule set.
@@ -180,6 +189,15 @@ class CalciteConfigBuilder {
     this
   }
 
+  /**
+    * Replaces the built-in SqlToRelConverter configuration with the given configuration.
+    */
+  def replaceSqlToRelConverterConfig(config: SqlToRelConverter.Config): CalciteConfigBuilder = {
+    Preconditions.checkNotNull(config)
+    replaceSqlToRelConverterConfig = Some(config)
+    this
+  }
+
   private class CalciteConfigImpl(
       val getNormRuleSet: Option[RuleSet],
       val replacesNormRuleSet: Boolean,
@@ -191,7 +209,8 @@ class CalciteConfigBuilder {
       val replacesDecoRuleSet: Boolean,
       val getSqlOperatorTable: Option[SqlOperatorTable],
       val replacesSqlOperatorTable: Boolean,
-      val getSqlParserConfig: Option[SqlParser.Config])
+      val getSqlParserConfig: Option[SqlParser.Config],
+      val getSqlToRelConverterConfig: Option[SqlToRelConverter.Config])
     extends CalciteConfig
 
 
@@ -230,7 +249,8 @@ class CalciteConfigBuilder {
         Some(operatorTables.reduce((x, y) => ChainedSqlOperatorTable.of(x, y)))
     },
     this.replaceOperatorTable,
-    replaceSqlParserConfig)
+    replaceSqlParserConfig,
+    replaceSqlToRelConverterConfig)
 }
 
 /**
@@ -292,6 +312,11 @@ trait CalciteConfig {
     * Returns a custom SQL parser configuration.
     */
   def getSqlParserConfig: Option[SqlParser.Config]
+
+  /**
+    * Returns a custom configuration for SqlToRelConverter.
+    */
+  def getSqlToRelConverterConfig: Option[SqlToRelConverter.Config]
 }
 
 object CalciteConfig {
@@ -303,5 +328,12 @@ object CalciteConfig {
     */
   def createBuilder(): CalciteConfigBuilder = {
     new CalciteConfigBuilder
+  }
+
+  def connectionConfig(parserConfig : SqlParser.Config): CalciteConnectionConfig = {
+    val prop = new Properties()
+    prop.setProperty(CalciteConnectionProperty.CASE_SENSITIVE.camelName,
+      String.valueOf(parserConfig.caseSensitive))
+    new CalciteConnectionConfigImpl(prop)
   }
 }

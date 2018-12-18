@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.rest.util;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializationFeature;
 
 /**
  * This class contains utilities for mapping requests and responses to/from JSON.
@@ -33,8 +33,7 @@ public class RestMapperUtils {
 		objectMapper.enable(
 			DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES,
 			DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES,
-			DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY,
-			DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES);
+			DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY);
 		objectMapper.disable(
 			SerializationFeature.FAIL_ON_EMPTY_BEANS);
 	}

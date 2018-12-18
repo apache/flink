@@ -18,17 +18,19 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.Preconditions;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-
-import org.apache.flink.annotation.Internal;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 
 /**
  * Global configuration object for Flink. Similar to Java properties configuration
@@ -41,6 +43,11 @@ public final class GlobalConfiguration {
 
 	public static final String FLINK_CONF_FILENAME = "flink-conf.yaml";
 
+	// the keys whose values should be hidden
+	private static final String[] SENSITIVE_KEYS = new String[] {"password", "secret"};
+
+	// the hidden content to be displayed
+	public static final String HIDDEN_CONTENT = "******";
 
 	// --------------------------------------------------------------------------------------------
 
@@ -65,8 +72,8 @@ public final class GlobalConfiguration {
 
 	/**
 	 * Loads the configuration files from the specified directory.
-	 * <p>
-	 * YAML files are supported as configuration files.
+	 *
+	 * <p>YAML files are supported as configuration files.
 	 *
 	 * @param configDir
 	 *        the directory which contains the configuration files
@@ -132,21 +139,21 @@ public final class GlobalConfiguration {
 
 	/**
 	 * Loads a YAML-file of key-value pairs.
-	 * <p>
-	 * Colon and whitespace ": " separate key and value (one per line). The hash tag "#" starts a single-line comment.
-	 * <p>
-	 * Example:
-	 * 
+	 *
+	 * <p>Colon and whitespace ": " separate key and value (one per line). The hash tag "#" starts a single-line comment.
+	 *
+	 * <p>Example:
+	 *
 	 * <pre>
 	 * jobmanager.rpc.address: localhost # network address for communication with the job manager
 	 * jobmanager.rpc.port   : 6123      # network port to connect to for communication with the job manager
 	 * taskmanager.rpc.port  : 6122      # network port the task manager expects incoming IPC connections
 	 * </pre>
-	 * <p>
-	 * This does not span the whole YAML specification, but only the *syntax* of simple YAML key-value pairs (see issue
+	 *
+	 * <p>This does not span the whole YAML specification, but only the *syntax* of simple YAML key-value pairs (see issue
 	 * #113 on GitHub). If at any point in time, there is a need to go beyond simple key-value pairs syntax
 	 * compatibility will allow to introduce a YAML parser library.
-	 * 
+	 *
 	 * @param file the YAML file to read from
 	 * @see <a href="http://www.yaml.org/spec/1.2/spec.html">YAML 1.2 specification</a>
 	 */
@@ -182,7 +189,7 @@ public final class GlobalConfiguration {
 						continue;
 					}
 
-					LOG.info("Loading configuration property: {}, {}", key, value);
+					LOG.info("Loading configuration property: {}, {}", key, isSensitive(key) ? HIDDEN_CONTENT : value);
 					config.setString(key, value);
 				}
 			}
@@ -193,4 +200,20 @@ public final class GlobalConfiguration {
 		return config;
 	}
 
+	/**
+	 * Check whether the key is a hidden key.
+	 *
+	 * @param key the config key
+	 */
+	public static boolean isSensitive(String key) {
+		Preconditions.checkNotNull(key, "key is null");
+		final String keyInLower = key.toLowerCase();
+		for (String hideKey : SENSITIVE_KEYS) {
+			if (keyInLower.length() >= hideKey.length()
+				&& keyInLower.contains(hideKey)) {
+				return true;
+			}
+		}
+		return false;
+	}
 }

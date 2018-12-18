@@ -36,7 +36,7 @@ public class CopyingDirectedOutput<OUT> extends DirectedOutput<OUT> {
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public CopyingDirectedOutput(
 			List<OutputSelector<OUT>> outputSelectors,
-			List<Tuple2<Output<StreamRecord<OUT>>, StreamEdge>> outputs) {
+			List<? extends Tuple2<? extends Output<StreamRecord<OUT>>, StreamEdge>> outputs) {
 		super(outputSelectors, outputs);
 	}
 

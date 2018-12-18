@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan
 
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.table.api.{OverWindow, TableEnvironment}
+import org.apache.flink.table.api.{OverWindow, TableEnvironment, ValidationException}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical.{LogicalNode, Project}
 
@@ -92,6 +92,11 @@ object ProjectionTranslator {
             case _ => (x._1, x._2)
           }
         }
+
+      // Expression is null
+      case null =>
+        throw new ValidationException("Scala 'null' is not a valid expression. " +
+          "Use 'Null(TYPE)' to specify typed null expressions. For example: Null(Types.INT)")
     }
   }
 
@@ -169,6 +174,13 @@ object ProjectionTranslator {
 
       // array constructor
       case c @ ArrayConstructor(args) =>
+        val newArgs = c.elements
+          .map((exp: Expression) =>
+            replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
+        c.makeCopy(Array(newArgs))
+
+      // map constructor
+      case c @ MapConstructor(args) =>
         val newArgs = c.elements
           .map((exp: Expression) =>
             replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))

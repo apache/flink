@@ -86,14 +86,25 @@ angular.module('flinkApp')
   @listJobs = ->
     deferred = $q.defer()
 
-    $http.get flinkConfig.jobServer + "joboverview"
+    $http.get flinkConfig.jobServer + "jobs/overview"
     .success (data, status, headers, config) =>
-      angular.forEach data, (list, listKey) =>
-        switch listKey
-          when 'running' then jobs.running = @setEndTimes(list)
-          when 'finished' then jobs.finished = @setEndTimes(list)
-          when 'cancelled' then jobs.cancelled = @setEndTimes(list)
-          when 'failed' then jobs.failed = @setEndTimes(list)
+      # reset job fields
+      jobs.finished = []
+      jobs.running = []
+
+      # group the received list of jobs into running and finished jobs
+      _(data.jobs).groupBy(
+        (x) ->
+          switch x.state.toLowerCase()
+            when 'finished' then 'finished'
+            when 'failed' then 'finished'
+            when 'canceled' then 'finished'
+            else 'running')
+      .forEach((value, key) =>
+        switch key
+          when 'finished' then jobs.finished = @setEndTimes(value)
+          when 'running' then jobs.running = @setEndTimes(value))
+      .value(); # materialize the chain
 
       deferred.resolve(jobs)
       notifyObservers()
@@ -303,12 +314,12 @@ angular.module('flinkApp')
 
   @cancelJob = (jobid) ->
     # uses the non REST-compliant GET yarn-cancel handler which is available in addition to the
-    # proper "DELETE jobs/<jobid>/"
+    # proper $http.patch flinkConfig.jobServer + "jobs/" + jobid + "?mode=cancel"
     $http.get flinkConfig.jobServer + "jobs/" + jobid + "/yarn-cancel"
 
   @stopJob = (jobid) ->
     # uses the non REST-compliant GET yarn-cancel handler which is available in addition to the
-    # proper "DELETE jobs/<jobid>/"
+    # proper $http.patch flinkConfig.jobServer + "jobs/" + jobid + "?mode=stop"
     $http.get "jobs/" + jobid + "/yarn-stop"
 
   @

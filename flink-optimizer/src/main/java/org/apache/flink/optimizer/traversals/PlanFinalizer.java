@@ -147,7 +147,7 @@ public class PlanFinalizer implements Visitor<PlanNode> {
 			final IterationPlanNode iteration = this.stackOfIterationNodes.peekLast();
 
 			// sanity check!
-			if (iteration == null || !(iteration instanceof BulkIterationPlanNode)) {
+			if (!(iteration instanceof BulkIterationPlanNode)) {
 				throw new CompilerException("Bug: Error finalizing the plan. " +
 						"Cannot associate the node for a partial solutions with its containing iteration.");
 			}
@@ -159,7 +159,7 @@ public class PlanFinalizer implements Visitor<PlanNode> {
 			final IterationPlanNode iteration = this.stackOfIterationNodes.peekLast();
 
 			// sanity check!
-			if (iteration == null || !(iteration instanceof WorksetIterationPlanNode)) {
+			if (!(iteration instanceof WorksetIterationPlanNode)) {
 				throw new CompilerException("Bug: Error finalizing the plan. " +
 						"Cannot associate the node for a partial solutions with its containing iteration.");
 			}
@@ -171,7 +171,7 @@ public class PlanFinalizer implements Visitor<PlanNode> {
 			final IterationPlanNode iteration = this.stackOfIterationNodes.peekLast();
 
 			// sanity check!
-			if (iteration == null || !(iteration instanceof WorksetIterationPlanNode)) {
+			if (!(iteration instanceof WorksetIterationPlanNode)) {
 				throw new CompilerException("Bug: Error finalizing the plan. " +
 						"Cannot associate the node for a partial solutions with its containing iteration.");
 			}
@@ -209,7 +209,7 @@ public class PlanFinalizer implements Visitor<PlanNode> {
 			}
 		}
 
-		// pass the visitor to the iteraton's step function
+		// pass the visitor to the iteration's step function
 		if (visitable instanceof IterationPlanNode) {
 			// push the iteration node onto the stack
 			final IterationPlanNode iterNode = (IterationPlanNode) visitable;

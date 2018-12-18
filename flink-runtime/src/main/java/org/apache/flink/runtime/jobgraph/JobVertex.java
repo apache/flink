@@ -68,7 +68,7 @@ public class JobVertex implements java.io.Serializable {
 	/** Number of subtasks to split this task into at runtime.*/
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 
-	/** Maximum number of subtasks to split this taks into a runtime. */
+	/** Maximum number of subtasks to split this task into a runtime. */
 	private int maxParallelism = -1;
 
 	/** The minimum resource of the vertex */

@@ -24,8 +24,9 @@ import org.apache.flink.api.common.state.ValueState;
  * The peer to the {@link ValueState} in the internal state type hierarchy.
  * 
  * <p>See {@link InternalKvState} for a description of the internal state hierarchy.
- * 
+ *
+ * @param <K> The type of key the state is associated to
  * @param <N> The type of the namespace
  * @param <T> The type of elements in the list
  */
-public interface InternalValueState<N, T> extends InternalKvState<N>, ValueState<T> {}
+public interface InternalValueState<K, N, T> extends InternalKvState<K, N, T>, ValueState<T> {}

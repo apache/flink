@@ -23,6 +23,7 @@ import org.apache.curator.test.TestingServer;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -67,7 +68,7 @@ public class JobClientActorRecoveryITCase extends TestLogger {
 	}
 
 	/**
-	 * Tests wether the JobClientActor can connect to a newly elected leading job manager to obtain
+	 * Tests whether the JobClientActor can connect to a newly elected leading job manager to obtain
 	 * the JobExecutionResult. The submitted job blocks for the first execution attempt. The
 	 * leading job manager will be killed so that the second job manager will be elected as the
 	 * leader. The newly elected leader has to retrieve the checkpointed job from ZooKeeper
@@ -132,7 +133,7 @@ public class JobClientActorRecoveryITCase extends TestLogger {
 			// if the job fails then an exception is thrown here
 			Await.result(promise.future(), deadline.timeLeft());
 		} finally {
-			cluster.shutdown();
+			cluster.stop();
 		}
 	}
 
@@ -141,6 +142,10 @@ public class JobClientActorRecoveryITCase extends TestLogger {
 		private volatile static int BlockExecution = 1;
 		private volatile static int HasBlockedExecution = 0;
 		private static Object waitLock = new Object();
+
+		public BlockingTask(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {

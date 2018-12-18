@@ -24,9 +24,10 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.client.program.StandaloneClusterClient;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import org.slf4j.Logger;
@@ -199,14 +200,18 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		configuration.setString(JobManagerOptions.ADDRESS, host);
 		configuration.setInteger(JobManagerOptions.PORT, port);
 
-		ClusterClient client;
+		configuration.setInteger(RestOptions.PORT, port);
+
+		final ClusterClient<?> client;
 		try {
-			client = new StandaloneClusterClient(configuration);
-			client.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
+			client = new RestClusterClient<>(configuration, "RemoteStreamEnvironment");
 		}
 		catch (Exception e) {
-			throw new ProgramInvocationException("Cannot establish connection to JobManager: " + e.getMessage(), e);
+			throw new ProgramInvocationException("Cannot establish connection to JobManager: " + e.getMessage(),
+				streamGraph.getJobGraph().getJobID(), e);
 		}
+
+		client.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
 
 		try {
 			return client.run(streamGraph, jarFiles, globalClasspaths, usercodeClassLoader).getJobExecutionResult();
@@ -216,7 +221,8 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		}
 		catch (Exception e) {
 			String term = e.getMessage() == null ? "." : (": " + e.getMessage());
-			throw new ProgramInvocationException("The program execution failed" + term, e);
+			throw new ProgramInvocationException("The program execution failed" + term,
+				streamGraph.getJobGraph().getJobID(), e);
 		}
 		finally {
 			try {

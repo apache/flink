@@ -23,7 +23,9 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.memory.MemoryManager
-import org.apache.flink.runtime.metrics.MetricRegistry
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
+import org.apache.flink.runtime.security.SecurityUtils
+import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerLike
@@ -36,9 +38,10 @@ import org.apache.flink.runtime.testingUtils.TestingTaskManagerLike
   * @param config Configuration object for the actor
   * @param resourceID The Yarn container id
   * @param connectionInfo Connection information of this actor
-  * @param memoryManager MemoryManager which is responsibel for Flink's managed memory allocation
+  * @param memoryManager MemoryManager which is responsible for Flink's managed memory allocation
   * @param ioManager IOManager responsible for I/O
   * @param network NetworkEnvironment for this actor
+  * @param taskManagerLocalStateStoresManager Task manager state store manager for this actor
   * @param numberOfSlots Number of slots for this TaskManager
   * @param highAvailabilityServices [[HighAvailabilityServices]] to create a leader retrieval
   *                                service for retrieving the leading JobManager
@@ -50,9 +53,10 @@ class TestingYarnTaskManager(
     memoryManager: MemoryManager,
     ioManager: IOManager,
     network: NetworkEnvironment,
+    taskManagerLocalStateStoresManager: TaskExecutorLocalStateStoresManager,
     numberOfSlots: Int,
     highAvailabilityServices: HighAvailabilityServices,
-    metricRegistry : MetricRegistry)
+    taskManagerMetricGroup : TaskManagerMetricGroup)
   extends YarnTaskManager(
     config,
     resourceID,
@@ -60,19 +64,28 @@ class TestingYarnTaskManager(
     memoryManager,
     ioManager,
     network,
+    taskManagerLocalStateStoresManager,
     numberOfSlots,
     highAvailabilityServices,
-    metricRegistry)
+    taskManagerMetricGroup)
   with TestingTaskManagerLike {
 
   object YarnTaskManager {
 
     /** Entry point (main method) to run the TaskManager on YARN.
- *
+      *
       * @param args The command line arguments.
       */
     def main(args: Array[String]): Unit = {
-      YarnTaskManagerRunner.runYarnTaskManager(args, classOf[TestingYarnTaskManager])
+      val tmRunner = YarnTaskManagerRunnerFactory.create(
+        args, classOf[TestingYarnTaskManager], System.getenv())
+
+      try {
+        SecurityUtils.getInstalledContext.runSecured(tmRunner)
+      } catch {
+        case e: Exception =>
+          throw new RuntimeException(e)
+      }
     }
 
   }

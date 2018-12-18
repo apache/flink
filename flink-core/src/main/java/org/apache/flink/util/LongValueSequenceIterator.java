@@ -33,13 +33,13 @@ public class LongValueSequenceIterator extends SplittableIterator<LongValue> {
 
 	private static final long serialVersionUID = 1L;
 
-	/** The last number returned by the iterator */
+	/** The last number returned by the iterator. */
 	private final long to;
 
-	/** The next number to be returned */
+	/** The next number to be returned. */
 	private long current;
 
-	/** The next value to be returned */
+	/** The next value to be returned. */
 	private LongValue currentValue = new LongValue();
 
 	/**
@@ -125,7 +125,7 @@ public class LongValueSequenceIterator extends SplittableIterator<LongValue> {
 
 			if (current == Long.MIN_VALUE) {
 				// this means to >= 0
-				halfDiff = (Long.MAX_VALUE/2+1) + to/2;
+				halfDiff = (Long.MAX_VALUE / 2 + 1) + to / 2;
 			} else {
 				long posFrom = -current;
 				if (posFrom > to) {
@@ -156,12 +156,12 @@ public class LongValueSequenceIterator extends SplittableIterator<LongValue> {
 			int i = 0;
 			for (; i < numWithExtra; i++) {
 				long next = curr + elementsPerSplit + 1;
-				iters[i] = new LongValueSequenceIterator(curr, next-1);
+				iters[i] = new LongValueSequenceIterator(curr, next - 1);
 				curr = next;
 			}
 			for (; i < numPartitions; i++) {
 				long next = curr + elementsPerSplit;
-				iters[i] = new LongValueSequenceIterator(curr, next-1, true);
+				iters[i] = new LongValueSequenceIterator(curr, next - 1, true);
 				curr = next;
 			}
 
@@ -180,14 +180,13 @@ public class LongValueSequenceIterator extends SplittableIterator<LongValue> {
 		}
 	}
 
-
 	@Override
 	public int getMaximumNumberOfSplits() {
-		if (to >= Integer.MAX_VALUE || current <= Integer.MIN_VALUE || to-current+1 >= Integer.MAX_VALUE) {
+		if (to >= Integer.MAX_VALUE || current <= Integer.MIN_VALUE || to - current + 1 >= Integer.MAX_VALUE) {
 			return Integer.MAX_VALUE;
 		}
 		else {
-			return (int) (to-current+1);
+			return (int) (to - current + 1);
 		}
 	}
 }

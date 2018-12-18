@@ -18,11 +18,10 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.executiongraph.failover.FailoverRegion;
 import org.apache.flink.runtime.executiongraph.failover.RestartPipelinedRegionStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
@@ -32,12 +31,11 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.util.SerializedValue;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -64,8 +62,7 @@ public class RestartPipelinedRegionStrategyTest {
 		
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
-		final Configuration cfg = new Configuration();
-		
+
 		JobVertex v1 = new JobVertex("vertex1");
 		JobVertex v2 = new JobVertex("vertex2");
 		JobVertex v3 = new JobVertex("vertex3");
@@ -93,20 +90,21 @@ public class RestartPipelinedRegionStrategyTest {
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
         Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutor());
+        final JobInformation jobInformation = new DummyJobInformation(
+			jobId,
+			jobName);
+
 		ExecutionGraph eg = new ExecutionGraph(
+			jobInformation,
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
-			jobId, 
-			jobName, 
-			cfg,
-			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
             new RestartPipelinedRegionStrategy.Factory(),
-            Collections.emptyList(),
-            Collections.emptyList(),
             scheduler,
-            ExecutionGraph.class.getClassLoader());
+            ExecutionGraph.class.getClassLoader(),
+			VoidBlobWriter.getInstance(),
+			AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -150,7 +148,6 @@ public class RestartPipelinedRegionStrategyTest {
 	public void testMultipleFailoverRegions() throws Exception {
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
-		final Configuration cfg = new Configuration();
 
         JobVertex v1 = new JobVertex("vertex1");
         JobVertex v2 = new JobVertex("vertex2");
@@ -178,20 +175,21 @@ public class RestartPipelinedRegionStrategyTest {
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
         Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutor());
+        final JobInformation jobInformation = new DummyJobInformation(
+			jobId,
+			jobName);
+
 		ExecutionGraph eg = new ExecutionGraph(
+			jobInformation,
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
-			jobId, 
-			jobName, 
-			cfg,
-			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
             new RestartPipelinedRegionStrategy.Factory(),
-            Collections.emptyList(),
-            Collections.emptyList(),
             scheduler,
-            ExecutionGraph.class.getClassLoader());
+            ExecutionGraph.class.getClassLoader(),
+			VoidBlobWriter.getInstance(),
+			AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -239,7 +237,6 @@ public class RestartPipelinedRegionStrategyTest {
 	public void testSingleRegionWithMixedInput() throws Exception {
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
-		final Configuration cfg = new Configuration();
 
         JobVertex v1 = new JobVertex("vertex1");
         JobVertex v2 = new JobVertex("vertex2");
@@ -268,20 +265,21 @@ public class RestartPipelinedRegionStrategyTest {
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
         Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutor());
+		final JobInformation jobInformation = new DummyJobInformation(
+			jobId,
+			jobName);
+
 		ExecutionGraph eg = new ExecutionGraph(
+			jobInformation,
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
-			jobId, 
-			jobName, 
-			cfg,
-			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
             new RestartPipelinedRegionStrategy.Factory(),
-            Collections.emptyList(),
-            Collections.emptyList(),
             scheduler,
-            ExecutionGraph.class.getClassLoader());
+            ExecutionGraph.class.getClassLoader(),
+			VoidBlobWriter.getInstance(),
+			AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -324,7 +322,6 @@ public class RestartPipelinedRegionStrategyTest {
 	public void testMultiRegionNotAllToAll() throws Exception {
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
-		final Configuration cfg = new Configuration();
 
         JobVertex v1 = new JobVertex("vertex1");
         JobVertex v2 = new JobVertex("vertex2");
@@ -349,20 +346,21 @@ public class RestartPipelinedRegionStrategyTest {
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4));
 
         Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutor());
+		final JobInformation jobInformation = new DummyJobInformation(
+			jobId,
+			jobName);
+
         ExecutionGraph eg = new ExecutionGraph(
+        	jobInformation,
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
-			jobId, 
-			jobName, 
-			cfg,
-			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
             new RestartPipelinedRegionStrategy.Factory(),
-            Collections.emptyList(),
-            Collections.emptyList(),
             scheduler,
-            ExecutionGraph.class.getClassLoader());
+            ExecutionGraph.class.getClassLoader(),
+			VoidBlobWriter.getInstance(),
+			AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}

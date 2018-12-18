@@ -74,9 +74,15 @@ public class TestingRpcService extends AkkaRpcService {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void stopService() {
-		super.stopService();
-		registeredConnections.clear();
+	public CompletableFuture<Void> stopService() {
+		final CompletableFuture<Void> terminationFuture = super.stopService();
+
+		terminationFuture.whenComplete(
+			(Void ignored, Throwable throwable) -> {
+				registeredConnections.clear();
+			});
+
+		return terminationFuture;
 	}
 
 	// ------------------------------------------------------------------------

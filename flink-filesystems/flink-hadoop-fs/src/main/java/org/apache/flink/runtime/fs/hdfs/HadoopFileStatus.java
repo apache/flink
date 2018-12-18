@@ -75,7 +75,7 @@ public final class HadoopFileStatus implements FileStatus {
 
 	@Override
 	public Path getPath() {
-		return new Path(fileStatus.getPath().toString());
+		return new Path(fileStatus.getPath().toUri());
 	}
 
 	@SuppressWarnings("deprecation")

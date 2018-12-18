@@ -22,7 +22,6 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.util.FileUtils;
 
 import java.io.IOException;
 
@@ -32,7 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * {@link StreamStateHandle} for state that was written to a file stream. The written data is
- * identifier by the file path. The state can be read again by calling {@link #openInputStream()}.
+ * identified by the file path. The state can be read again by calling {@link #openInputStream()}.
  */
 public class FileStateHandle implements StreamStateHandle {
 
@@ -77,14 +76,8 @@ public class FileStateHandle implements StreamStateHandle {
 	 */
 	@Override
 	public void discardState() throws Exception {
-
 		FileSystem fs = getFileSystem();
-
 		fs.delete(filePath, false);
-
-		try {
-			FileUtils.deletePathIfEmpty(fs, filePath.getParent());
-		} catch (Exception ignored) {}
 	}
 
 	/**

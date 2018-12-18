@@ -235,7 +235,6 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		// s, adjusted pagerank(s)
 		DataSet<Tuple2<K, DoubleValue>> adjustedScores = vertexScores
 			.union(sourceVertices)
-				.setParallelism(parallelism)
 				.name("Union with source vertices")
 			.map(new AdjustScores<>(dampingFactor))
 				.withBroadcastSet(sumOfScores, SUM_OF_SCORES)

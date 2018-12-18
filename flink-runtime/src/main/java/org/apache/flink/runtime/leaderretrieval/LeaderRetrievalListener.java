@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.leaderretrieval;
 
+import javax.annotation.Nullable;
+
 import java.util.UUID;
 
 /**
@@ -32,7 +34,7 @@ public interface LeaderRetrievalListener {
 	 * @param leaderAddress The address of the new leader
 	 * @param leaderSessionID The new leader session ID
 	 */
-	void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID);
+	void notifyLeaderAddress(@Nullable String leaderAddress, @Nullable UUID leaderSessionID);
 
 	/**
 	 * This method is called by the {@link LeaderRetrievalService} in case of an exception. This

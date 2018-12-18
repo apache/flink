@@ -18,14 +18,15 @@
 
 package org.apache.flink.api.common.typeinfo;
 
+import org.apache.flink.annotation.Public;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Type;
-import org.apache.flink.annotation.Public;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 /**
  * Annotation for specifying a corresponding {@link TypeInfoFactory} that can produce

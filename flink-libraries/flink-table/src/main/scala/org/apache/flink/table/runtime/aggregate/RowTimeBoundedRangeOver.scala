@@ -114,7 +114,7 @@ class RowTimeBoundedRangeOver(
     val input = inputC.row
 
     // register state-cleanup timer
-    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+    processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
 
     // triggering timestamp for trigger calculation
     val triggeringTs = input.getField(rowTimeIdx).asInstanceOf[Long]
@@ -143,7 +143,7 @@ class RowTimeBoundedRangeOver(
     out: Collector[CRow]): Unit = {
 
     if (isProcessingTimeTimer(ctx.asInstanceOf[OnTimerContext])) {
-      if (needToCleanupState(timestamp)) {
+      if (stateCleaningEnabled) {
 
         val keysIt = dataState.keys.iterator()
         val lastProcessedTime = lastTriggeringTsState.value
@@ -164,7 +164,7 @@ class RowTimeBoundedRangeOver(
           // There are records left to process because a watermark has not been received yet.
           // This would only happen if the input stream has stopped. So we don't need to clean up.
           // We leave the state as it is and schedule a new cleanup timer
-          registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+          processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
         }
       }
       return
@@ -188,23 +188,21 @@ class RowTimeBoundedRangeOver(
         aggregatesIndex = 0
       }
 
-      // keep up timestamps of retract data
-      val retractTsList: JList[Long] = new JArrayList[Long]
-
       // do retraction
-      val dataTimestampIt = dataState.keys.iterator
-      while (dataTimestampIt.hasNext) {
-        val dataTs: Long = dataTimestampIt.next()
+      val iter = dataState.iterator()
+      while (iter.hasNext) {
+        val entry = iter.next()
+        val dataTs: Long = entry.getKey
         val offset = timestamp - dataTs
         if (offset > precedingOffset) {
-          val retractDataList = dataState.get(dataTs)
+          val retractDataList = entry.getValue
           dataListIndex = 0
           while (dataListIndex < retractDataList.size()) {
             val retractRow = retractDataList.get(dataListIndex)
             function.retract(accumulators, retractRow)
             dataListIndex += 1
           }
-          retractTsList.add(dataTs)
+          iter.remove()
         }
       }
 
@@ -229,20 +227,13 @@ class RowTimeBoundedRangeOver(
         dataListIndex += 1
       }
 
-      // remove the data that has been retracted
-      dataListIndex = 0
-      while (dataListIndex < retractTsList.size) {
-        dataState.remove(retractTsList.get(dataListIndex))
-        dataListIndex += 1
-      }
-
       // update state
       accumulatorState.update(accumulators)
     }
     lastTriggeringTsState.update(timestamp)
 
     // update cleanup timer
-    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+    processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
   }
 
   override def close(): Unit = {

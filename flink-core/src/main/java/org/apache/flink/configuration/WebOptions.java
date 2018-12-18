@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -27,6 +28,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  */
 @PublicEvolving
 public class WebOptions {
+
 	/**
 	 * Config parameter defining the runtime monitor web-frontend server address.
 	 */
@@ -37,7 +39,10 @@ public class WebOptions {
 
 	/**
 	 * The port for the runtime monitor web-frontend server.
+	 *
+	 * @deprecated Use {@link RestOptions#PORT} instead
 	 */
+	@Deprecated
 	public static final ConfigOption<Integer> PORT =
 		key("web.port")
 			.defaultValue(8081)
@@ -61,7 +66,7 @@ public class WebOptions {
 			.withDeprecatedKeys("jobmanager.web.refresh-interval");
 
 	/**
-	 * Config parameter to override SSL support for the JobManager Web UI
+	 * Config parameter to override SSL support for the JobManager Web UI.
 	 */
 	public static final ConfigOption<Boolean> SSL_ENABLED =
 		key("web.ssl.enabled")
@@ -71,6 +76,7 @@ public class WebOptions {
 	/**
 	 * The config parameter defining the flink web directory to be used by the webmonitor.
 	 */
+	@Documentation.OverrideDefault("System.getProperty(\"java.io.tmpdir\")")
 	public static final ConfigOption<String> TMP_DIR =
 		key("web.tmpdir")
 			.defaultValue(System.getProperty("java.io.tmpdir"))
@@ -152,12 +158,12 @@ public class WebOptions {
 	/**
 	 * Timeout for asynchronous operations by the WebRuntimeMonitor in milliseconds.
 	 */
-	public static final ConfigOption<Long> TIMEOUT = ConfigOptions
-		.key("web.timeout")
+	public static final ConfigOption<Long> TIMEOUT =
+		key("web.timeout")
 		.defaultValue(10L * 1000L);
 
+	// ------------------------------------------------------------------------
 
-	private WebOptions() {
-		throw new IllegalAccessError();
-	}
+	/** Not meant to be instantiated. */
+	private WebOptions() {}
 }

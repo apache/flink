@@ -18,31 +18,24 @@
 
 package org.apache.flink.storm.wordcount;
 
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.util.AbstractTestBase;
+
+import org.junit.Test;
 
 /**
  * Test for the WordCountLocal example.
  */
-public class WordCountLocalITCase extends StreamingProgramTestBase {
+public class WordCountLocalITCase extends AbstractTestBase {
 
-	protected String textPath;
-	protected String resultPath;
+	@Test
+	public void testProgram() throws Exception {
+		String textPath = createTempFile("text.txt", WordCountData.TEXT);
+		String resultPath = getTempDirPath("result");
 
-	@Override
-	protected void preSubmit() throws Exception {
-		this.textPath = this.createTempFile("text.txt", WordCountData.TEXT);
-		this.resultPath = this.getTempDirPath("result");
-	}
+		WordCountLocal.main(new String[]{textPath, resultPath});
 
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, this.resultPath);
-	}
-
-	@Override
-	protected void testProgram() throws Exception {
-		WordCountLocal.main(new String[] { this.textPath, this.resultPath });
+		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
 	}
 
 }

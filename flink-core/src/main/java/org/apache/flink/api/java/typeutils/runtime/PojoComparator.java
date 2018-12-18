@@ -86,7 +86,7 @@ public final class PojoComparator<T> extends CompositeTypeComparator<T> implemen
 					inverted = k.invertNormalizedKey();
 				}
 				else if (k.invertNormalizedKey() != inverted) {
-					// if a successor does not agree on the invertion direction, it cannot be part of the normalized key
+					// if a successor does not agree on the inversion direction, it cannot be part of the normalized key
 					break;
 				}
 
@@ -286,7 +286,7 @@ public final class PojoComparator<T> extends CompositeTypeComparator<T> implemen
 	@Override
 	public void putNormalizedKey(T value, MemorySegment target, int offset, int numBytes) {
 		int i = 0;
-		for (; i < this.numLeadingNormalizableKeys & numBytes > 0; i++)
+		for (; i < this.numLeadingNormalizableKeys && numBytes > 0; i++)
 		{
 			int len = this.normalizedKeyLengths[i];
 			len = numBytes >= len ? len : numBytes;

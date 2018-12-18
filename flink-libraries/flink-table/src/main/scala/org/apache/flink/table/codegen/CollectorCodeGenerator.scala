@@ -18,6 +18,7 @@
 package org.apache.flink.table.codegen
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForTypeInfo, newName}
 import org.apache.flink.table.codegen.Indenter.toISC
@@ -58,41 +59,69 @@ class CollectorCodeGenerator(
     *             valid Java class identifier.
     * @param bodyCode body code for the collector method
     * @param collectedType The type information of the element collected by the collector
+    * @param filterGenerator generator containing context information for the generated body code
     * @return instance of GeneratedCollector
     */
   def generateTableFunctionCollector(
-    name: String,
-    bodyCode: String,
-    collectedType: TypeInformation[Any])
-  : GeneratedCollector = {
+      name: String,
+      bodyCode: String,
+      collectedType: TypeInformation[Any],
+      filterGenerator: CodeGenerator)
+    : GeneratedCollector = {
 
     val className = newName(name)
     val input1TypeClass = boxedTypeTermForTypeInfo(input1)
     val input2TypeClass = boxedTypeTermForTypeInfo(collectedType)
 
+    // declaration in case of code splits
+    val recordMember = if (hasCodeSplits) {
+      s"private $input2TypeClass $input2Term;"
+    } else {
+      ""
+    }
+
+    // assignment in case of code splits
+    val recordAssignment = if (hasCodeSplits) {
+      s"$input2Term" // use member
+    } else {
+      s"$input2TypeClass $input2Term" // local variable
+    }
+
+    reusableMemberStatements ++= filterGenerator.reusableMemberStatements
+    reusableInitStatements ++= filterGenerator.reusableInitStatements
+    reusablePerRecordStatements ++= filterGenerator.reusablePerRecordStatements
+
     val funcCode = j"""
-      public class $className extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
-
-        ${reuseMemberCode()}
-
-        public $className() throws Exception {
-          ${reuseInitCode()}
-        }
-
-        @Override
-        public void collect(Object record) throws Exception {
-          super.collect(record);
-          $input1TypeClass $input1Term = ($input1TypeClass) getInput();
-          $input2TypeClass $input2Term = ($input2TypeClass) record;
-          ${reuseInputUnboxingCode()}
-          $bodyCode
-        }
-
-        @Override
-        public void close() {
-        }
-      }
-    """.stripMargin
+      |public class $className extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
+      |
+      |  $recordMember
+      |  ${reuseMemberCode()}
+      |
+      |  public $className() throws Exception {
+      |    ${reuseInitCode()}
+      |  }
+      |
+      |  @Override
+      |  public void open(${classOf[Configuration].getCanonicalName} parameters) throws Exception {
+      |    ${filterGenerator.reuseOpenCode()}
+      |  }
+      |
+      |  @Override
+      |  public void collect(Object record) throws Exception {
+      |    super.collect(record);
+      |    $input1TypeClass $input1Term = ($input1TypeClass) getInput();
+      |    $recordAssignment = ($input2TypeClass) record;
+      |    ${reuseInputUnboxingCode()}
+      |    ${reusePerRecordCode()}
+      |    $bodyCode
+      |  }
+      |
+      |  @Override
+      |  public void close() throws Exception {
+      |    ${filterGenerator.reuseCloseCode()}
+      |  }
+      |}
+      |""".stripMargin
 
     GeneratedCollector(className, funcCode)
   }

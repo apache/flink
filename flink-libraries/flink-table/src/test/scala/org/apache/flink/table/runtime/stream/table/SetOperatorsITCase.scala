@@ -20,17 +20,18 @@ package org.apache.flink.table.runtime.stream.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.runtime.utils.CommonTestData.NonPojo
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
+import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.Test
 
 import scala.collection.mutable
 
-class SetOperatorsITCase extends StreamingMultipleProgramsTestBase {
+class SetOperatorsITCase extends AbstractTestBase {
 
   @Test
   def testUnion(): Unit = {
@@ -88,9 +89,143 @@ class SetOperatorsITCase extends StreamingMultipleProgramsTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
-  class NonPojo {
-    val x = new java.util.HashMap[String, String]()
+  @Test
+  def testUnionWithCompositeType(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    override def toString: String = x.toString
+    StreamITCase.testResults = mutable.MutableList()
+    val s1 = env.fromElements((1, (1, "a")), (2, (2, "b")))
+      .toTable(tEnv, 'a, 'b)
+    val s2 = env.fromElements(((3, "c"), 3), ((4, "d"), 4))
+      .toTable(tEnv, 'a, 'b)
+
+    val result = s1.unionAll(s2.select('b, 'a)).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList("1,(1,a)", "2,(2,b)", "3,(3,c)", "4,(4,d)")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testInUncorrelated(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val dataA = Seq(
+      (1, 1L, "Hello"),
+      (2, 2L, "Hello"),
+      (3, 3L, "Hello World"),
+      (4, 4L, "Hello")
+    )
+
+    val dataB = Seq(
+      (1, "hello"),
+      (2, "co-hello"),
+      (4, "hello")
+    )
+
+    val tableA = env.fromCollection(dataA).toTable(tEnv, 'a, 'b, 'c)
+
+    val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
+
+    val result = tableA.where('a.in(tableB.select('x)))
+
+    val results = result.toRetractStream[Row]
+    results.addSink(new StreamITCase.RetractingSink)
+    env.execute()
+
+    val expected = Seq(
+      "1,1,Hello", "2,2,Hello", "4,4,Hello"
+    )
+
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testInUncorrelatedWithConditionAndAgg(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val dataA = Seq(
+      (1, 1L, "Hello"),
+      (2, 2L, "Hello"),
+      (3, 3L, "Hello World"),
+      (4, 4L, "Hello")
+    )
+
+    val dataB = Seq(
+      (1, "hello"),
+      (1, "Hanoi"),
+      (1, "Hanoi"),
+      (2, "Hanoi-1"),
+      (2, "Hanoi-1"),
+      (-1, "Hanoi-1")
+    )
+
+    val tableA = env.fromCollection(dataA).toTable(tEnv,'a, 'b, 'c)
+
+    val tableB = env.fromCollection(dataB).toTable(tEnv,'x, 'y)
+
+    val result = tableA
+      .where('a.in(tableB.where('y.like("%Hanoi%")).groupBy('y).select('x.sum)))
+
+    val results = result.toRetractStream[Row]
+    results.addSink(new StreamITCase.RetractingSink)
+    env.execute()
+
+    val expected = Seq(
+      "2,2,Hello", "3,3,Hello World"
+    )
+
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testInWithMultiUncorrelatedCondition(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val dataA = Seq(
+      (1, 1L, "Hello"),
+      (2, 2L, "Hello"),
+      (3, 3L, "Hello World"),
+      (4, 4L, "Hello")
+    )
+
+    val dataB = Seq(
+      (1, "hello"),
+      (2, "co-hello"),
+      (4, "hello")
+    )
+
+    val dataC = Seq(
+      (1L, "Joker"),
+      (1L, "Sanity"),
+      (2L, "Cool")
+    )
+
+    val tableA = env.fromCollection(dataA).toTable(tEnv,'a, 'b, 'c)
+
+    val tableB = env.fromCollection(dataB).toTable(tEnv,'x, 'y)
+
+    val tableC = env.fromCollection(dataC).toTable(tEnv,'w, 'z)
+
+    val result = tableA
+      .where('a.in(tableB.select('x)) && 'b.in(tableC.select('w)))
+
+    val results = result.toRetractStream[Row]
+    results.addSink(new StreamITCase.RetractingSink)
+    env.execute()
+
+    val expected = Seq(
+      "1,1,Hello", "2,2,Hello"
+    )
+
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 }

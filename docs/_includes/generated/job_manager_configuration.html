@@ -1,0 +1,61 @@
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 65%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>jobmanager.archive.fs.dir</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.execution.attempts-history-size</h5></td>
+            <td style="word-wrap: break-word;">16</td>
+            <td>The maximum number of prior execution attempts kept in history.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.heap.size</h5></td>
+            <td style="word-wrap: break-word;">"1024m"</td>
+            <td>JVM heap size for the JobManager.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.resourcemanager.reconnect-interval</h5></td>
+            <td style="word-wrap: break-word;">2000</td>
+            <td>This option specifies the interval in order to trigger a resource manager reconnection if the connection to the resource manager has been lost. This option is only intended for internal use.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.rpc.address</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>The config parameter defining the network address to connect to for communication with the job manager. This value is only interpreted in setups where a single JobManager with static name or address exists (simple standalone setups, or container setups with dynamic service name resolution). It is not used in many high-availability setups, when a leader-election service (like ZooKeeper) is used to elect and discover the JobManager leader from potentially multiple standby JobManagers.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.rpc.port</h5></td>
+            <td style="word-wrap: break-word;">6123</td>
+            <td>The config parameter defining the network port to connect to for communication with the job manager. Like jobmanager.rpc.address, this value is only interpreted in setups where a single JobManager with static name/address and port exists (simple standalone setups, or container setups with dynamic service name resolution). This config option is not used in many high-availability setups, when a leader-election service (like ZooKeeper) is used to elect and discover the JobManager leader from potentially multiple standby JobManagers.</td>
+        </tr>
+        <tr>
+            <td><h5>jobstore.cache-size</h5></td>
+            <td style="word-wrap: break-word;">52428800</td>
+            <td>The job store cache size in bytes which is used to keep completed jobs in memory.</td>
+        </tr>
+        <tr>
+            <td><h5>jobstore.expiration-time</h5></td>
+            <td style="word-wrap: break-word;">3600</td>
+            <td>The time in seconds after which a completed job expires and is purged from the job store.</td>
+        </tr>
+        <tr>
+            <td><h5>slot.idle.timeout</h5></td>
+            <td style="word-wrap: break-word;">50000</td>
+            <td>The timeout in milliseconds for a idle slot in Slot Pool.</td>
+        </tr>
+        <tr>
+            <td><h5>slot.request.timeout</h5></td>
+            <td style="word-wrap: break-word;">300000</td>
+            <td>The timeout in milliseconds for requesting a slot from Slot Pool.</td>
+        </tr>
+    </tbody>
+</table>

@@ -24,11 +24,8 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.logical.LogicalJoin
-import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.table.plan.nodes.FlinkConventions
-
-import scala.collection.JavaConverters._
 
 class FlinkLogicalJoin(
     cluster: RelOptCluster,
@@ -37,8 +34,13 @@ class FlinkLogicalJoin(
     right: RelNode,
     condition: RexNode,
     joinType: JoinRelType)
-  extends Join(cluster, traitSet, left, right, condition, Set.empty[CorrelationId].asJava, joinType)
-  with FlinkLogicalRel {
+  extends FlinkLogicalJoinBase(
+    cluster,
+    traitSet,
+    left,
+    right,
+    condition,
+    joinType) {
 
   override def copy(
       traitSet: RelTraitSet,
@@ -49,20 +51,6 @@ class FlinkLogicalJoin(
       semiJoinDone: Boolean): Join = {
 
     new FlinkLogicalJoin(cluster, traitSet, left, right, conditionExpr, joinType)
-  }
-
-  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
-    val leftRowCnt = metadata.getRowCount(getLeft)
-    val leftRowSize = estimateRowSize(getLeft.getRowType)
-
-    val rightRowCnt = metadata.getRowCount(getRight)
-    val rightRowSize = estimateRowSize(getRight.getRowType)
-
-    val ioCost = (leftRowCnt * leftRowSize) + (rightRowCnt * rightRowSize)
-    val cpuCost = leftRowCnt + rightRowCnt
-    val rowCnt = leftRowCnt + rightRowCnt
-
-    planner.getCostFactory.makeCost(rowCnt, cpuCost, ioCost)
   }
 }
 
@@ -77,7 +65,7 @@ private class FlinkLogicalJoinConverter
     val join: LogicalJoin = call.rel(0).asInstanceOf[LogicalJoin]
     val joinInfo = join.analyzeCondition
 
-    hasEqualityPredicates(join, joinInfo) || isSingleRowJoin(join)
+    hasEqualityPredicates(joinInfo) || isSingleRowJoin(join)
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -95,10 +83,9 @@ private class FlinkLogicalJoinConverter
       join.getJoinType)
   }
 
-  private def hasEqualityPredicates(join: LogicalJoin, joinInfo: JoinInfo): Boolean = {
+  private def hasEqualityPredicates(joinInfo: JoinInfo): Boolean = {
     // joins require an equi-condition or a conjunctive predicate with at least one equi-condition
-    // and disable outer joins with non-equality predicates(see FLINK-5520)
-    !joinInfo.pairs().isEmpty && (joinInfo.isEqui || join.getJoinType == JoinRelType.INNER)
+    !joinInfo.pairs().isEmpty
   }
 
   private def isSingleRowJoin(join: LogicalJoin): Boolean = {

@@ -25,16 +25,18 @@ import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.instance.Slot;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
-import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
+import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.util.Collection;
@@ -52,7 +54,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class ExecutionVertexDeploymentTest {
+public class ExecutionVertexDeploymentTest extends TestLogger {
 
 	@Test
 	public void testDeployCall() {
@@ -65,7 +67,7 @@ public class ExecutionVertexDeploymentTest {
 			Instance instance = getInstance(
 				new ActorTaskManagerGateway(
 					new SimpleActorGateway(TestingUtils.directExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+			final SimpleSlot slot = instance.allocateSimpleSlot();
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
@@ -102,7 +104,7 @@ public class ExecutionVertexDeploymentTest {
 			final Instance instance = getInstance(
 				new ActorTaskManagerGateway(
 					new SimpleActorGateway(TestingUtils.directExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+			final SimpleSlot slot = instance.allocateSimpleSlot();
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
@@ -144,7 +146,7 @@ public class ExecutionVertexDeploymentTest {
 			final Instance instance = getInstance(
 				new ActorTaskManagerGateway(
 					new SimpleActorGateway(TestingUtils.defaultExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+			final SimpleSlot slot = instance.allocateSimpleSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -189,7 +191,7 @@ public class ExecutionVertexDeploymentTest {
 			final Instance instance = getInstance(
 				new ActorTaskManagerGateway(
 					new SimpleFailingActorGateway(TestingUtils.directExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+			final SimpleSlot slot = instance.allocateSimpleSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -219,7 +221,7 @@ public class ExecutionVertexDeploymentTest {
 			final Instance instance = getInstance(
 				new ActorTaskManagerGateway(
 					new SimpleFailingActorGateway(TestingUtils.directExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+			final SimpleSlot slot = instance.allocateSimpleSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -263,7 +265,7 @@ public class ExecutionVertexDeploymentTest {
 			final Instance instance = getInstance(
 				new ActorTaskManagerGateway(
 					new SimpleActorGateway(TestingUtils.directExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+			final SimpleSlot slot = instance.allocateSimpleSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			vertex.deployToSlot(slot);
@@ -308,7 +310,7 @@ public class ExecutionVertexDeploymentTest {
 						context,
 						2)));
 
-			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+			final SimpleSlot slot = instance.allocateSimpleSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -369,15 +371,11 @@ public class ExecutionVertexDeploymentTest {
 		result.getPartitions()[0].addConsumerGroup();
 		result.getPartitions()[0].addConsumer(mockEdge, 0);
 
-		AllocatedSlot allocatedSlot = mock(AllocatedSlot.class);
-		when(allocatedSlot.getSlotAllocationId()).thenReturn(new AllocationID());
+		SlotContext slotContext = mock(SlotContext.class);
+		when(slotContext.getAllocationId()).thenReturn(new AllocationID());
 
-		Slot root = mock(Slot.class);
-		when(root.getSlotNumber()).thenReturn(1);
-		SimpleSlot slot = mock(SimpleSlot.class);
-		when(slot.getRoot()).thenReturn(root);
-		when(slot.getAllocatedSlot()).thenReturn(allocatedSlot);
-		when(root.getAllocatedSlot()).thenReturn(allocatedSlot);
+		LogicalSlot slot = mock(LogicalSlot.class);
+		when(slot.getAllocationId()).thenReturn(new AllocationID());
 
 		for (ScheduleMode mode : ScheduleMode.values()) {
 			vertex.getExecutionGraph().setScheduleMode(mode);

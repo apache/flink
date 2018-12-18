@@ -20,6 +20,8 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 final class TestMemoryCheckpointOutputStream extends MemCheckpointStreamFactory.MemoryCheckpointOutputStream {
@@ -41,6 +43,7 @@ final class TestMemoryCheckpointOutputStream extends MemCheckpointStreamFactory.
 		return this.closed;
 	}
 
+	@Nullable
 	@Override
 	public StreamStateHandle closeAndGetHandle() throws IOException {
 		this.closed = true;

@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 import java.io.IOException;
 
@@ -53,7 +53,7 @@ public interface CheckpointBarrierHandler {
 	 *
 	 * @param task The task to notify
 	 */
-	void registerCheckpointEventHandler(StatefulTask task);
+	void registerCheckpointEventHandler(AbstractInvokable task);
 
 	/**
 	 * Cleans up all internally held resources.

@@ -19,12 +19,15 @@
 package org.apache.flink.table.plan
 
 import java.math.BigDecimal
+import java.sql.{Date, Time, Timestamp}
 
-import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlPostfixOperator
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, INTEGER, VARCHAR}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.util.{RexNodeToExpressionConverter, RexProgramExtractor}
 import org.apache.flink.table.utils.InputTypeBuilder.inputOf
@@ -199,6 +202,54 @@ class RexProgramExtractorTest extends RexProgramTestBase {
   }
 
   @Test
+  def testLiteralConversions(): Unit = {
+    val fieldNames = List("timestamp_col", "date_col", "time_col").asJava
+    val fieldTypes = makeTypes(SqlTypeName.TIMESTAMP, SqlTypeName.DATE, SqlTypeName.TIME)
+
+    val inputRowType = typeFactory.createStructType(fieldTypes, fieldNames)
+    val builder = new RexProgramBuilder(inputRowType, rexBuilder)
+
+    val timestampString = new TimestampString("2017-09-10 14:23:01.245")
+    val rexTimestamp = rexBuilder.makeTimestampLiteral(timestampString, 3)
+    val rexDate = rexBuilder.makeDateLiteral(new DateString("2017-09-12"))
+    val rexTime = rexBuilder.makeTimeLiteral(new TimeString("14:23:01"), 0)
+
+    val allRexNodes = List(rexTimestamp, rexDate, rexTime)
+
+    val condition = fieldTypes.asScala.zipWithIndex
+      .map((t: (RelDataType, Int)) => rexBuilder.makeInputRef(t._1, t._2))
+      .zip(allRexNodes)
+      .map(t => rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, t._1, t._2))
+      .map(builder.addExpr)
+      .asJava
+
+    builder.addCondition(builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.AND, condition)))
+
+    val (converted, _) = RexProgramExtractor.extractConjunctiveConditions(
+      builder.getProgram,
+      new RexBuilder(typeFactory),
+      functionCatalog)
+
+
+    val expected = Array[Expression](
+      EqualTo(
+        UnresolvedFieldReference("timestamp_col"),
+        Literal(Timestamp.valueOf("2017-09-10 14:23:01.245"))
+      ),
+      EqualTo(
+        UnresolvedFieldReference("date_col"),
+        Literal(Date.valueOf("2017-09-12"))
+      ),
+      EqualTo(
+        UnresolvedFieldReference("time_col"),
+        Literal(Time.valueOf("14:23:01"))
+      )
+    )
+
+    assertExpressionArrayEquals(expected, converted)
+  }
+
+    @Test
   def testExtractArithmeticConditions(): Unit = {
     val inputRowType = typeFactory.createStructType(allFieldTypes, allFieldNames)
     val builder = new RexProgramBuilder(inputRowType, rexBuilder)

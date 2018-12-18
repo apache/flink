@@ -26,11 +26,11 @@ import org.apache.calcite.sql.`type`.SqlTypeName
   */
 class FlinkTypeSystem extends RelDataTypeSystemImpl {
 
-  // we cannot use Int.MaxValue because of an overflow in Calcites type inference logic
+  // we cannot use Int.MaxValue because of an overflow in Calcite's type inference logic
   // half should be enough for all use cases
   override def getMaxNumericScale: Int = Int.MaxValue / 2
 
-  // we cannot use Int.MaxValue because of an overflow in Calcites type inference logic
+  // we cannot use Int.MaxValue because of an overflow in Calcite's type inference logic
   // half should be enough for all use cases
   override def getMaxNumericPrecision: Int = Int.MaxValue / 2
 
@@ -40,7 +40,7 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
     case SqlTypeName.VARCHAR =>
       Int.MaxValue
 
-    // we currenty support only timestamps with milliseconds precision
+    // we currently support only timestamps with milliseconds precision
     case SqlTypeName.TIMESTAMP =>
       3
 

@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.common.typeinfo;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.Nothing;
@@ -29,9 +29,9 @@ import org.apache.flink.types.Nothing;
  */
 @Public
 public class NothingTypeInfo extends TypeInformation<Nothing> {
-	
+
 	private static final long serialVersionUID = 1L;
-	
+
 	@Override
 	@PublicEvolving
 	public boolean isBasicType() {
@@ -53,9 +53,9 @@ public class NothingTypeInfo extends TypeInformation<Nothing> {
 	@Override
 	@PublicEvolving
 	public int getTotalFields() {
-		return 0;
+		return 1;
 	}
-	
+
 	@Override
 	@PublicEvolving
 	public Class<Nothing> getTypeClass() {

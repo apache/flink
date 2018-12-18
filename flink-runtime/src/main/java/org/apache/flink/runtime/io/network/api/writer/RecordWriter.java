@@ -21,26 +21,29 @@ package org.apache.flink.runtime.io.network.api.writer;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
-import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.XORShiftRandom;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.Random;
 
 import static org.apache.flink.runtime.io.network.api.serialization.RecordSerializer.SerializationResult;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A record-oriented runtime result writer.
- * <p>
- * The RecordWriter wraps the runtime's {@link ResultPartitionWriter} and takes care of
+ *
+ * <p>The RecordWriter wraps the runtime's {@link ResultPartitionWriter} and takes care of
  * serializing records into buffers.
- * <p>
- * <strong>Important</strong>: it is necessary to call {@link #flush()} after
+ *
+ * <p><strong>Important</strong>: it is necessary to call {@link #flushAll()} after
  * all records have been written with {@link #emit(IOReadableWritable)}. This
  * ensures that all produced records are written to the output stream (incl.
  * partially filled ones).
@@ -53,14 +56,21 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	private final ChannelSelector<T> channelSelector;
 
-	private final int numChannels;
+	private final int numberOfChannels;
 
-	/** {@link RecordSerializer} per outgoing channel */
-	private final RecordSerializer<T>[] serializers;
+	private final int[] broadcastChannels;
 
-	private final Random RNG = new XORShiftRandom();
+	private final RecordSerializer<T> serializer;
+
+	private final Optional<BufferBuilder>[] bufferBuilders;
+
+	private final Random rng = new XORShiftRandom();
+
+	private final boolean flushAlways;
 
 	private Counter numBytesOut = new SimpleCounter();
+
+	private Counter numBuffersOut = new SimpleCounter();
 
 	public RecordWriter(ResultPartitionWriter writer) {
 		this(writer, new RoundRobinChannelSelector<T>());
@@ -68,26 +78,27 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	@SuppressWarnings("unchecked")
 	public RecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector) {
+		this(writer, channelSelector, false);
+	}
+
+	public RecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector, boolean flushAlways) {
+		this.flushAlways = flushAlways;
 		this.targetPartition = writer;
 		this.channelSelector = channelSelector;
+		this.numberOfChannels = writer.getNumberOfSubpartitions();
+		this.channelSelector.setup(numberOfChannels);
 
-		this.numChannels = writer.getNumberOfOutputChannels();
-
-		/**
-		 * The runtime exposes a channel abstraction for the produced results
-		 * (see {@link ChannelSelector}). Every channel has an independent
-		 * serializer.
-		 */
-		this.serializers = new SpanningRecordSerializer[numChannels];
-		for (int i = 0; i < numChannels; i++) {
-			serializers[i] = new SpanningRecordSerializer<T>();
+		this.serializer = new SpanningRecordSerializer<T>();
+		this.bufferBuilders = new Optional[numberOfChannels];
+		this.broadcastChannels = new int[numberOfChannels];
+		for (int i = 0; i < numberOfChannels; i++) {
+			broadcastChannels[i] = i;
+			bufferBuilders[i] = Optional.empty();
 		}
 	}
 
 	public void emit(T record) throws IOException, InterruptedException {
-		for (int targetChannel : channelSelector.selectChannels(record, numChannels)) {
-			sendToTarget(record, targetChannel);
-		}
+		emit(record, channelSelector.selectChannels(record));
 	}
 
 	/**
@@ -95,136 +106,143 @@ public class RecordWriter<T extends IOReadableWritable> {
 	 * the {@link ChannelSelector}.
 	 */
 	public void broadcastEmit(T record) throws IOException, InterruptedException {
-		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
-			sendToTarget(record, targetChannel);
+		emit(record, broadcastChannels);
+	}
+
+	/**
+	 * This is used to send LatencyMarks to a random target channel.
+	 */
+	public void randomEmit(T record) throws IOException, InterruptedException {
+		serializer.serializeRecord(record);
+
+		if (copyFromSerializerToTargetChannel(rng.nextInt(numberOfChannels))) {
+			serializer.prune();
+		}
+	}
+
+	private void emit(T record, int[] targetChannels) throws IOException, InterruptedException {
+		serializer.serializeRecord(record);
+
+		boolean pruneAfterCopying = false;
+		for (int channel : targetChannels) {
+			if (copyFromSerializerToTargetChannel(channel)) {
+				pruneAfterCopying = true;
+			}
+		}
+
+		// Make sure we don't hold onto the large intermediate serialization buffer for too long
+		if (pruneAfterCopying) {
+			serializer.prune();
 		}
 	}
 
 	/**
-	 * This is used to send LatencyMarks to a random target channel
+	 * @param targetChannel
+	 * @return <tt>true</tt> if the intermediate serialization buffer should be pruned
 	 */
-	public void randomEmit(T record) throws IOException, InterruptedException {
-		sendToTarget(record, RNG.nextInt(numChannels));
+	private boolean copyFromSerializerToTargetChannel(int targetChannel) throws IOException, InterruptedException {
+		// We should reset the initial position of the intermediate serialization buffer before
+		// copying, so the serialization results can be copied to multiple target buffers.
+		serializer.reset();
+
+		boolean pruneTriggered = false;
+		BufferBuilder bufferBuilder = getBufferBuilder(targetChannel);
+		SerializationResult result = serializer.copyToBufferBuilder(bufferBuilder);
+		while (result.isFullBuffer()) {
+			numBytesOut.inc(bufferBuilder.finish());
+			numBuffersOut.inc();
+
+			// If this was a full record, we are done. Not breaking out of the loop at this point
+			// will lead to another buffer request before breaking out (that would not be a
+			// problem per se, but it can lead to stalls in the pipeline).
+			if (result.isFullRecord()) {
+				pruneTriggered = true;
+				bufferBuilders[targetChannel] = Optional.empty();
+				break;
+			}
+
+			bufferBuilder = requestNewBufferBuilder(targetChannel);
+			result = serializer.copyToBufferBuilder(bufferBuilder);
+		}
+		checkState(!serializer.hasSerializedData(), "All data should be written at once");
+
+		if (flushAlways) {
+			targetPartition.flush(targetChannel);
+		}
+		return pruneTriggered;
 	}
 
-	private void sendToTarget(T record, int targetChannel) throws IOException, InterruptedException {
-		RecordSerializer<T> serializer = serializers[targetChannel];
+	public void broadcastEvent(AbstractEvent event) throws IOException {
+		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event)) {
+			for (int targetChannel = 0; targetChannel < numberOfChannels; targetChannel++) {
+				tryFinishCurrentBufferBuilder(targetChannel);
 
-		synchronized (serializer) {
-			SerializationResult result = serializer.addRecord(record);
+				// Retain the buffer so that it can be recycled by each channel of targetPartition
+				targetPartition.addBufferConsumer(eventBufferConsumer.copy(), targetChannel);
+			}
 
-			while (result.isFullBuffer()) {
-				Buffer buffer = serializer.getCurrentBuffer();
-
-				if (buffer != null) {
-					numBytesOut.inc(buffer.getSize());
-					writeAndClearBuffer(buffer, targetChannel, serializer);
-
-					// If this was a full record, we are done. Not breaking
-					// out of the loop at this point will lead to another
-					// buffer request before breaking out (that would not be
-					// a problem per se, but it can lead to stalls in the
-					// pipeline).
-					if (result.isFullRecord()) {
-						break;
-					}
-				} else {
-					buffer = targetPartition.getBufferProvider().requestBufferBlocking();
-					result = serializer.setNextBuffer(buffer);
-				}
+			if (flushAlways) {
+				flushAll();
 			}
 		}
 	}
 
-	public void broadcastEvent(AbstractEvent event) throws IOException, InterruptedException {
-		final Buffer eventBuffer = EventSerializer.toBuffer(event);
-		try {
-			for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
-				RecordSerializer<T> serializer = serializers[targetChannel];
-
-				synchronized (serializer) {
-					Buffer buffer = serializer.getCurrentBuffer();
-					if (buffer != null) {
-						numBytesOut.inc(buffer.getSize());
-						writeAndClearBuffer(buffer, targetChannel, serializer);
-					} else if (serializer.hasData()) {
-						// sanity check
-						throw new IllegalStateException("No buffer, but serializer has buffered data.");
-					}
-
-					// retain the buffer so that it can be recycled by each channel of targetPartition
-					eventBuffer.retain();
-					targetPartition.writeBuffer(eventBuffer, targetChannel);
-				}
-			}
-		} finally {
-			// we do not need to further retain the eventBuffer
-			// (it will be recycled after the last channel stops using it)
-			eventBuffer.recycle();
-		}
-	}
-
-	public void flush() throws IOException {
-		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
-			RecordSerializer<T> serializer = serializers[targetChannel];
-
-			synchronized (serializer) {
-				try {
-					Buffer buffer = serializer.getCurrentBuffer();
-
-					if (buffer != null) {
-						numBytesOut.inc(buffer.getSize());
-						targetPartition.writeBuffer(buffer, targetChannel);
-					}
-				} finally {
-					serializer.clear();
-				}
-			}
-		}
+	public void flushAll() {
+		targetPartition.flushAll();
 	}
 
 	public void clearBuffers() {
-		for (RecordSerializer<?> serializer : serializers) {
-			synchronized (serializer) {
-				try {
-					Buffer buffer = serializer.getCurrentBuffer();
-
-					if (buffer != null) {
-						buffer.recycle();
-					}
-				}
-				finally {
-					serializer.clear();
-				}
-			}
+		for (int targetChannel = 0; targetChannel < numberOfChannels; targetChannel++) {
+			closeBufferBuilder(targetChannel);
 		}
 	}
 
 	/**
 	 * Sets the metric group for this RecordWriter.
-	 * @param metrics
      */
 	public void setMetricGroup(TaskIOMetricGroup metrics) {
 		numBytesOut = metrics.getNumBytesOutCounter();
+		numBuffersOut = metrics.getNumBuffersOutCounter();
 	}
 
 	/**
-	 * Writes the buffer to the {@link ResultPartitionWriter} and removes the
-	 * buffer from the serializer state.
-	 *
-	 * Needs to be synchronized on the serializer!
+	 * Marks the current {@link BufferBuilder} as finished and clears the state for next one.
 	 */
-	private void writeAndClearBuffer(
-			Buffer buffer,
-			int targetChannel,
-			RecordSerializer<T> serializer) throws IOException {
-
-		try {
-			targetPartition.writeBuffer(buffer, targetChannel);
+	private void tryFinishCurrentBufferBuilder(int targetChannel) {
+		if (!bufferBuilders[targetChannel].isPresent()) {
+			return;
 		}
-		finally {
-			serializer.clearCurrentBuffer();
+		BufferBuilder bufferBuilder = bufferBuilders[targetChannel].get();
+		bufferBuilders[targetChannel] = Optional.empty();
+		numBytesOut.inc(bufferBuilder.finish());
+		numBuffersOut.inc();
+	}
+
+	/**
+	 * The {@link BufferBuilder} may already exist if not filled up last time, otherwise we need
+	 * request a new one for this target channel.
+	 */
+	private BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+		if (bufferBuilders[targetChannel].isPresent()) {
+			return bufferBuilders[targetChannel].get();
+		} else {
+			return requestNewBufferBuilder(targetChannel);
 		}
 	}
 
+	private BufferBuilder requestNewBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+		checkState(!bufferBuilders[targetChannel].isPresent() || bufferBuilders[targetChannel].get().isFinished());
+
+		BufferBuilder bufferBuilder = targetPartition.getBufferProvider().requestBufferBuilderBlocking();
+		bufferBuilders[targetChannel] = Optional.of(bufferBuilder);
+		targetPartition.addBufferConsumer(bufferBuilder.createBufferConsumer(), targetChannel);
+		return bufferBuilder;
+	}
+
+	private void closeBufferBuilder(int targetChannel) {
+		if (bufferBuilders[targetChannel].isPresent()) {
+			bufferBuilders[targetChannel].get().finish();
+			bufferBuilders[targetChannel] = Optional.empty();
+		}
+	}
 }

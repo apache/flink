@@ -669,6 +669,39 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 		compareResultAsTuples(result, expected);
 	}
 
+	@Test
+	public void testCoGroupLambda() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple2<Integer, String>> left = env.fromElements(
+			new Tuple2<>(1, "hello"),
+			new Tuple2<>(2, "what's"),
+			new Tuple2<>(2, "up")
+		);
+		DataSet<Tuple2<Integer, String>> right = env.fromElements(
+			new Tuple2<>(1, "not"),
+			new Tuple2<>(1, "much"),
+			new Tuple2<>(2, "really")
+		);
+		DataSet<Integer> joined = left.coGroup(right).where(0).equalTo(0)
+			.with((Iterable<Tuple2<Integer, String>> values1, Iterable<Tuple2<Integer, String>> values2,
+					Collector<Integer> out) -> {
+				int sum = 0;
+				for (Tuple2<Integer, String> next : values1) {
+					sum += next.f0;
+				}
+				for (Tuple2<Integer, String> next : values2) {
+					sum += next.f0;
+				}
+				out.collect(sum);
+			}).returns(Integer.class);
+		List<Integer> result = joined.collect();
+
+		String expected = "6\n3\n";
+
+		compareResultAsText(result, expected);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  UDF classes
 	// --------------------------------------------------------------------------------------------

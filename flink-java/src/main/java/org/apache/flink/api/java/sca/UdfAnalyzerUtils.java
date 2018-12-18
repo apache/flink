@@ -155,7 +155,7 @@ public final class UdfAnalyzerUtils {
 	}
 
 	public static boolean isTagged(Value value) {
-		return value != null && value instanceof TaggedValue;
+		return value instanceof TaggedValue;
 	}
 
 	public static TaggedValue tagged(Value value) {

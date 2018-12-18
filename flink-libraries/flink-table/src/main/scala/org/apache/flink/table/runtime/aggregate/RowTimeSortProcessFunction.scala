@@ -30,7 +30,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
 
 /**
- * ProcessFunction to sort on event-time and possibly addtional secondary sort attributes.
+ * ProcessFunction to sort on event-time and possibly additional secondary sort attributes.
  *
   * @param inputRowType The data type of the input data.
   * @param rowtimeIdx The index of the rowtime field.

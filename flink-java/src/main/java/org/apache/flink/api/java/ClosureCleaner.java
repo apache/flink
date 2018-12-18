@@ -22,10 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.apache.flink.shaded.asm5.org.objectweb.asm.ClassReader;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.ClassVisitor;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.MethodVisitor;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.Opcodes;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.ClassReader;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.ClassVisitor;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.MethodVisitor;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.Opcodes;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,7 +90,7 @@ public class ClosureCleaner {
 				if (closureAccessed) {
 					msg += " The implementation accesses fields of its enclosing class, which is " +
 							"a common reason for non-serializability. " +
-							"A common solution is to make the function a proper (non-inner) class, or" +
+							"A common solution is to make the function a proper (non-inner) class, or " +
 							"a static inner class.";
 				} else {
 					msg += " The object probably contains or references non serializable fields.";

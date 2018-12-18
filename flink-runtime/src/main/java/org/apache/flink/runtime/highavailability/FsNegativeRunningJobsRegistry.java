@@ -31,7 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This {@link RunningJobsRegistry} tracks the status jobs via marker files,
- * marking running jobs viarunning marker files, marking finished jobs via finished marker files.
+ * marking running jobs via running marker files, marking finished jobs via finished marker files.
  * 
  * <p>The general contract is the following:
  * <ul>

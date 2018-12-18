@@ -20,7 +20,8 @@ package org.apache.flink.api.common;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.util.AbstractID;
-import javax.xml.bind.DatatypeConverter;
+import org.apache.flink.util.StringUtils;
+
 import java.nio.ByteBuffer;
 
 /**
@@ -96,7 +97,18 @@ public final class JobID extends AbstractID {
 		return new JobID(lower, upper);
 	}
 
+	/**
+	 * Parses a JobID from the given string.
+	 *
+	 * @param hexString string representation of a JobID
+	 * @return Parsed JobID
+	 * @throws IllegalArgumentException if the JobID could not be parsed from the given string
+	 */
 	public static JobID fromHexString(String hexString) {
-		return new JobID(DatatypeConverter.parseHexBinary(hexString));
+		try {
+			return new JobID(StringUtils.hexStringToByte(hexString));
+		} catch (Exception e) {
+			throw new IllegalArgumentException("Cannot parse JobID from \"" + hexString + "\".", e);
+		}
 	}
 }

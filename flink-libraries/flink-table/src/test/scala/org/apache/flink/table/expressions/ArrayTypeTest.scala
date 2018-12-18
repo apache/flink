@@ -99,6 +99,9 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       "Array(Array(1, 2, 3), Array(3, 2, 1))",
       "ARRAY[ARRAY[1, 2, 3], ARRAY[3, 2, 1]]",
       "[[1, 2, 3], [3, 2, 1]]")
+
+    // implicit type cast only works on SQL APIs.
+    testSqlApi("ARRAY[CAST(1 AS DOUBLE), CAST(2 AS FLOAT)]", "[1.0, 2.0]")
   }
 
   @Test
@@ -294,5 +297,14 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       "f11 !== f9",
       "f11 <> f9",
       "false")
+  }
+
+  @Test
+  def testArrayTypeCasting(): Unit = {
+    testTableApi(
+      'f3.cast(Types.OBJECT_ARRAY(Types.SQL_DATE)),
+      "f3.cast(OBJECT_ARRAY(SQL_DATE))",
+      "[1984-03-12, 1984-02-10]"
+    )
   }
 }

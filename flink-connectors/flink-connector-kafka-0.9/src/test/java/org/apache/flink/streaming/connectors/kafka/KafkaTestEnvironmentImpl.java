@@ -265,7 +265,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public void shutdown() {
+	public void shutdown() throws Exception {
 		for (KafkaServer broker : brokers) {
 			if (broker != null) {
 				broker.shutdown();
@@ -302,6 +302,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 				// ignore
 			}
 		}
+		super.shutdown();
 	}
 
 	public ZkUtils getZkUtils() {

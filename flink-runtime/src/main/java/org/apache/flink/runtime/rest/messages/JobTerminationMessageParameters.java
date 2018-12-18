@@ -28,8 +28,8 @@ import java.util.Collections;
  */
 public class JobTerminationMessageParameters extends MessageParameters {
 
-	private final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
-	private final TerminationModeQueryParameter terminationModeQueryParameter = new TerminationModeQueryParameter();
+	public final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
+	public final TerminationModeQueryParameter terminationModeQueryParameter = new TerminationModeQueryParameter();
 
 	@Override
 	public Collection<MessagePathParameter<?>> getPathParameters() {

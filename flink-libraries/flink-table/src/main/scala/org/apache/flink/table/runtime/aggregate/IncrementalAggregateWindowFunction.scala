@@ -19,16 +19,15 @@ package org.apache.flink.table.runtime.aggregate
 
 import java.lang.Iterable
 
-import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
 /**
-  * Computes the final aggregate value from incrementally computed aggreagtes.
+  * Computes the final aggregate value from incrementally computed aggregates.
   *
   * @param numGroupingKey The number of grouping keys.
   * @param numAggregates The number of aggregates.
@@ -38,7 +37,7 @@ class IncrementalAggregateWindowFunction[W <: Window](
     private val numGroupingKey: Int,
     private val numAggregates: Int,
     private val finalRowArity: Int)
-  extends RichWindowFunction[Row, CRow, Tuple, W] {
+  extends RichWindowFunction[Row, CRow, Row, W] {
 
   private var output: CRow = _
 
@@ -51,7 +50,7 @@ class IncrementalAggregateWindowFunction[W <: Window](
     * Row based on the mapping relation between intermediate aggregate data and output data.
     */
   override def apply(
-      key: Tuple,
+      key: Row,
       window: W,
       records: Iterable[Row],
       out: Collector[CRow]): Unit = {

@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.PreviewPlanEnvironment;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
@@ -44,9 +44,7 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 			setParallelism(parallelism);
 		} else {
 			// determine parallelism
-			setParallelism(GlobalConfiguration.loadConfiguration().getInteger(
-					ConfigConstants.DEFAULT_PARALLELISM_KEY,
-					ConfigConstants.DEFAULT_PARALLELISM));
+			setParallelism(GlobalConfiguration.loadConfiguration().getInteger(CoreOptions.DEFAULT_PARALLELISM));
 		}
 	}
 

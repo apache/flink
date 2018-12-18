@@ -32,7 +32,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.TimerException;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -50,7 +50,7 @@ import java.util.concurrent.Semaphore;
  * the task thread and that operator methods are not invoked concurrently.
  */
 @RunWith(Parameterized.class)
-public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
+public class StreamTaskTimerITCase extends AbstractTestBase {
 
 	private final TimeCharacteristic timeCharacteristic;
 

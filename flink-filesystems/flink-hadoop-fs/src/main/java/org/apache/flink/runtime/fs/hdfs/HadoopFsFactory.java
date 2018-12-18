@@ -19,7 +19,10 @@
 package org.apache.flink.runtime.fs.hdfs;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
+import org.apache.flink.core.fs.LimitedConnectionsFileSystem;
+import org.apache.flink.core.fs.LimitedConnectionsFileSystem.ConnectionLimitingSettings;
 import org.apache.flink.core.fs.UnsupportedFileSystemSchemeException;
 import org.apache.flink.runtime.util.HadoopUtils;
 
@@ -63,7 +66,7 @@ public class HadoopFsFactory implements FileSystemFactory {
 	}
 
 	@Override
-	public HadoopFileSystem create(URI fsUri) throws IOException {
+	public FileSystem create(URI fsUri) throws IOException {
 		checkNotNull(fsUri, "fsUri");
 
 		final String scheme = fsUri.getScheme();
@@ -162,8 +165,15 @@ public class HadoopFsFactory implements FileSystemFactory {
 				throw new IOException(message, e);
 			}
 
-			// all good, return the file system
-			return new HadoopFileSystem(hadoopFs);
+			HadoopFileSystem fs = new HadoopFileSystem(hadoopFs);
+
+			// create the Flink file system, optionally limiting the open connections
+			if (flinkConfig != null) {
+				return limitIfConfigured(fs, scheme, flinkConfig);
+			}
+			else {
+				return fs;
+			}
 		}
 		catch (ReflectiveOperationException | LinkageError e) {
 			throw new UnsupportedFileSystemSchemeException("Cannot support file system for '" + fsUri.getScheme() +
@@ -182,5 +192,24 @@ public class HadoopFsFactory implements FileSystemFactory {
 		return "The given file system URI (" + fsURI.toString() + ") did not describe the authority " +
 				"(like for example HDFS NameNode address/port or S3 host). " +
 				"The attempt to use a configured default authority failed: ";
+	}
+
+	private static FileSystem limitIfConfigured(HadoopFileSystem fs, String scheme, Configuration config) {
+		final ConnectionLimitingSettings limitSettings = ConnectionLimitingSettings.fromConfig(config, scheme);
+
+		// decorate only if any limit is configured
+		if (limitSettings == null) {
+			// no limit configured
+			return fs;
+		}
+		else {
+			return new LimitedConnectionsFileSystem(
+					fs,
+					limitSettings.limitTotal,
+					limitSettings.limitOutput,
+					limitSettings.limitInput,
+					limitSettings.streamOpenTimeout,
+					limitSettings.streamInactivityTimeout);
+		}
 	}
 }

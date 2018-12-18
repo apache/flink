@@ -18,17 +18,15 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.avatica.util.{TimeUnit, TimeUnitRange}
+import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.calcite.FlinkRelBuilder
-import org.apache.flink.table.expressions.ExpressionUtils.{divide, getFactor, mod}
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
-import org.apache.flink.table.functions.sql.DateTimeSqlFunction
+import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.table.typeutils.{TimeIntervalTypeInfo, TypeCheckUtils}
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
@@ -49,7 +47,9 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends E
 
     timeIntervalUnit match {
       case SymbolExpression(TimeIntervalUnit.YEAR)
+           | SymbolExpression(TimeIntervalUnit.QUARTER)
            | SymbolExpression(TimeIntervalUnit.MONTH)
+           | SymbolExpression(TimeIntervalUnit.WEEK)
            | SymbolExpression(TimeIntervalUnit.DAY)
         if temporal.resultType == SqlTimeTypeInfo.DATE
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
@@ -74,69 +74,11 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends E
   override def toString: String = s"($temporal).extract($timeIntervalUnit)"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    // get wrapped Calcite unit
-    val timeUnitRange = timeIntervalUnit
-      .asInstanceOf[SymbolExpression]
-      .symbol
-      .enum
-      .asInstanceOf[TimeUnitRange]
-
-    // convert RexNodes
-    convertExtract(
-      timeIntervalUnit.toRexNode,
-      timeUnitRange,
-      temporal.toRexNode,
-      relBuilder.asInstanceOf[FlinkRelBuilder])
-  }
-
-  /**
-    * Standard conversion of the EXTRACT operator.
-    * Source: [[org.apache.calcite.sql2rel.StandardConvertletTable#convertExtract()]]
-    */
-  private def convertExtract(
-      timeUnitRangeRexNode: RexNode,
-      timeUnitRange: TimeUnitRange,
-      temporal: RexNode,
-      relBuilder: FlinkRelBuilder)
-    : RexNode = {
-
-    // TODO convert this into Table API expressions to make the code more readable
-    val rexBuilder = relBuilder.getRexBuilder
-    val resultType = relBuilder
-      .getTypeFactory()
-      .createTypeFromTypeInfo(LONG_TYPE_INFO, isNullable = true)
-    var result = rexBuilder.makeReinterpretCast(
-      resultType,
-      temporal,
-      rexBuilder.makeLiteral(false))
-
-    val unit = timeUnitRange.startUnit
-    val sqlTypeName = temporal.getType.getSqlTypeName
-    unit match {
-      case TimeUnit.YEAR | TimeUnit.MONTH | TimeUnit.DAY =>
-        sqlTypeName match {
-          case SqlTypeName.TIMESTAMP =>
-            result = divide(rexBuilder, result, TimeUnit.DAY.multiplier)
-            return rexBuilder.makeCall(
-              resultType,
-              SqlStdOperatorTable.EXTRACT_DATE,
-              Seq(timeUnitRangeRexNode, result))
-
-          case SqlTypeName.DATE =>
-            return rexBuilder.makeCall(
-              resultType,
-              SqlStdOperatorTable.EXTRACT_DATE,
-              Seq(timeUnitRangeRexNode, result))
-
-          case _ => // do nothing
-        }
-
-      case _ => // do nothing
-    }
-
-    result = mod(rexBuilder, resultType, result, getFactor(unit))
-    result = divide(rexBuilder, result, unit.multiplier)
-    result
+    relBuilder
+      .getRexBuilder
+      .makeCall(
+        SqlStdOperatorTable.EXTRACT,
+        Seq(timeIntervalUnit.toRexNode, temporal.toRexNode))
   }
 }
 
@@ -392,9 +334,63 @@ case class DateFormat(timestamp: Expression, format: Expression) extends Express
   override private[flink] def children = timestamp :: format :: Nil
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder) =
-    relBuilder.call(DateTimeSqlFunction.DATE_FORMAT, timestamp.toRexNode, format.toRexNode)
+    relBuilder.call(ScalarSqlFunctions.DATE_FORMAT, timestamp.toRexNode, format.toRexNode)
 
   override def toString: String = s"$timestamp.dateFormat($format)"
 
   override private[flink] def resultType = STRING_TYPE_INFO
+}
+
+case class TimestampDiff(
+    timePointUnit: Expression,
+    timePoint1: Expression,
+    timePoint2: Expression)
+  extends Expression {
+
+  override private[flink] def children: Seq[Expression] =
+    timePointUnit :: timePoint1 :: timePoint2 :: Nil
+
+  override private[flink] def validateInput(): ValidationResult = {
+    if (!TypeCheckUtils.isTimePoint(timePoint1.resultType)) {
+      return ValidationFailure(
+        s"$this requires an input time point type, " +
+        s"but timePoint1 is of type '${timePoint1.resultType}'.")
+    }
+
+    if (!TypeCheckUtils.isTimePoint(timePoint2.resultType)) {
+      return ValidationFailure(
+        s"$this requires an input time point type, " +
+        s"but timePoint2 is of type '${timePoint2.resultType}'.")
+    }
+
+    timePointUnit match {
+      case SymbolExpression(TimePointUnit.YEAR)
+           | SymbolExpression(TimePointUnit.QUARTER)
+           | SymbolExpression(TimePointUnit.MONTH)
+           | SymbolExpression(TimePointUnit.WEEK)
+           | SymbolExpression(TimePointUnit.DAY)
+           | SymbolExpression(TimePointUnit.HOUR)
+           | SymbolExpression(TimePointUnit.MINUTE)
+           | SymbolExpression(TimePointUnit.SECOND)
+        if timePoint1.resultType == SqlTimeTypeInfo.DATE
+          || timePoint1.resultType == SqlTimeTypeInfo.TIMESTAMP
+          || timePoint2.resultType == SqlTimeTypeInfo.DATE
+          || timePoint2.resultType == SqlTimeTypeInfo.TIMESTAMP =>
+        ValidationSuccess
+
+      case _ =>
+        ValidationFailure(s"$this operator does not support unit '$timePointUnit'" +
+            s" for input of type ('${timePoint1.resultType}', '${timePoint2.resultType}').")
+    }
+  }
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder
+    .getRexBuilder
+    .makeCall(SqlStdOperatorTable.TIMESTAMP_DIFF,
+       Seq(timePointUnit.toRexNode, timePoint2.toRexNode, timePoint1.toRexNode))
+  }
+
+  override def toString: String = s"timestampDiff(${children.mkString(", ")})"
+
+  override private[flink] def resultType = INT_TYPE_INFO
 }

@@ -35,7 +35,7 @@ class CountAggFunctionTest extends AggFunctionTestBase[JLong, CountAccumulator] 
 
   override def expectedResults: Seq[JLong] = Seq(6L, 0L)
 
-  override def aggregator: AggregateFunction[JLong, CountAccumulator] = new CountAggFunction()
+  override def aggregator: AggregateFunction[JLong, CountAccumulator] = new CountAggFunction
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }

@@ -33,7 +33,7 @@ For example:
   - When an application searches for certain event patterns, the state will store the sequence of events encountered so far.
   - When aggregating events per minute/hour/day, the state holds the pending aggregates.
   - When training a machine learning model over a stream of data points, the state holds the current version of the model parameters.
-  - When historic data needs to be managed, the state allows efficient access to events occured in the past. 
+  - When historic data needs to be managed, the state allows efficient access to events that occurred in the past.
 
 Flink needs to be aware of the state in order to make state fault tolerant using [checkpoints](checkpointing.html) and to allow [savepoints]({{ site.baseurl }}/ops/state/savepoints.html) of streaming applications.
 
@@ -49,8 +49,10 @@ Where to go next?
 -----------------
 
 * [Working with State](state.html): Shows how to use state in a Flink application and explains the different kinds of state.
+* [The Broadcast State Pattern](broadcast_state.html): Explains how to connect a broadcast stream with a non-broadcast stream and use state to exchange information between them. 
 * [Checkpointing](checkpointing.html): Describes how to enable and configure checkpointing for fault tolerance.
 * [Queryable State](queryable_state.html): Explains how to access state from outside of Flink during runtime.
-* [Custom Serialization for Managed State](custom_serialization.html): Discusses custom serialization logic for state and its upgrades.
+* [State Schema Evolution](schema_evolution.html): Shows how schema of state types can be evolved.
+* [Custom Serialization for Managed State](custom_serialization.html): Discusses how to implement custom serializers, especially for schema evolution.
 
 {% top %}

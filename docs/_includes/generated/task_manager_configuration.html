@@ -1,0 +1,166 @@
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 65%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>task.cancellation.interval</h5></td>
+            <td style="word-wrap: break-word;">30000</td>
+            <td>Time interval between two successive task cancellation attempts in milliseconds.</td>
+        </tr>
+        <tr>
+            <td><h5>task.cancellation.timeout</h5></td>
+            <td style="word-wrap: break-word;">180000</td>
+            <td>Timeout in milliseconds after which a task cancellation times out and leads to a fatal TaskManager error. A value of 0 deactivates the watch dog.</td>
+        </tr>
+        <tr>
+            <td><h5>task.cancellation.timers.timeout</h5></td>
+            <td style="word-wrap: break-word;">7500</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><h5>task.checkpoint.alignment.max-size</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>The maximum number of bytes that a checkpoint alignment may buffer. If the checkpoint alignment buffers more than the configured amount of data, the checkpoint is aborted (skipped). A value of -1 indicates that there is no limit.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.data.port</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>The task manager’s port used for data exchange operations.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.data.ssl.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Enable SSL support for the taskmanager data transport. This is applicable only when the global flag for internal SSL (security.ssl.internal.enabled) is set to true</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.debug.memory.log</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.debug.memory.log-interval</h5></td>
+            <td style="word-wrap: break-word;">5000</td>
+            <td>The interval (in ms) for the log thread to log the current memory usage.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.exit-on-fatal-akka-error</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Whether the quarantine monitor for task managers shall be started. The quarantine monitor shuts down the actor system if it detects that it has quarantined another actor system or if it has been quarantined by another actor system.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.heap.size</h5></td>
+            <td style="word-wrap: break-word;">"1024m"</td>
+            <td>JVM heap size for the TaskManagers, which are the parallel workers of the system. On YARN setups, this value is automatically configured to the size of the TaskManager's YARN container, minus a certain tolerance value.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.host</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>The hostname of the network interface that the TaskManager binds to. By default, the TaskManager searches for network interfaces that can connect to the JobManager and other TaskManagers. This option can be used to define a hostname if that strategy fails for some reason. Because different TaskManagers need different values for this option, it usually is specified in an additional non-shared TaskManager-specific config file.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.jvm-exit-on-oom</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.memory.fraction</h5></td>
+            <td style="word-wrap: break-word;">0.7</td>
+            <td>The relative amount of memory (after subtracting the amount of memory used by network buffers) that the task manager reserves for sorting, hash tables, and caching of intermediate results. For example, a value of `0.8` means that a task manager reserves 80% of its memory for internal data buffers, leaving 20% of free memory for the task manager's heap for objects created by user-defined functions. This parameter is only evaluated, if taskmanager.memory.size is not set.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.memory.off-heap</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Memory allocation method (JVM heap or off-heap), used for managed memory of the TaskManager as well as the network buffers.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.memory.preallocate</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Whether TaskManager managed memory should be pre-allocated when the TaskManager is starting.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.memory.segment-size</h5></td>
+            <td style="word-wrap: break-word;">"32kb"</td>
+            <td>Size of memory buffers used by the network stack and the memory manager.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.memory.size</h5></td>
+            <td style="word-wrap: break-word;">"0"</td>
+            <td>Amount of memory to be allocated by the task manager's memory manager. If not set, a relative fraction will be allocated.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.detailed-metrics</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.buffers-per-channel</h5></td>
+            <td style="word-wrap: break-word;">2</td>
+            <td>Maximum number of network buffers to use for each outgoing/incoming channel (subpartition/input channel).In credit-based flow control mode, this indicates how many credits are exclusive in each input channel. It should be configured at least 2 for good performance. 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is for parallel serialization.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.floating-buffers-per-gate</h5></td>
+            <td style="word-wrap: break-word;">8</td>
+            <td>Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate). In credit-based flow control mode, this indicates how many floating credits are shared among all the input channels. The floating buffers are distributed based on backlog (real-time output buffers in the subpartition) feedback, and can help relieve back-pressure caused by unbalanced data distribution among the subpartitions. This value should be increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.fraction</h5></td>
+            <td style="word-wrap: break-word;">0.1</td>
+            <td>Fraction of JVM memory to use for network buffers. This determines how many streaming data exchange channels a TaskManager can have at the same time and how well buffered the channels are. If a job is rejected or you get a warning that the system has not enough buffers available, increase this value or the min/max values below. Also note, that "taskmanager.network.memory.min"` and "taskmanager.network.memory.max" may override this fraction.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.max</h5></td>
+            <td style="word-wrap: break-word;">"1gb"</td>
+            <td>Maximum memory size for network buffers.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.min</h5></td>
+            <td style="word-wrap: break-word;">"64mb"</td>
+            <td>Minimum memory size for network buffers.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.request-backoff.initial</h5></td>
+            <td style="word-wrap: break-word;">100</td>
+            <td>Minimum backoff in milliseconds for partition requests of input channels.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.request-backoff.max</h5></td>
+            <td style="word-wrap: break-word;">10000</td>
+            <td>Maximum backoff in milliseconds for partition requests of input channels.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.numberOfTaskSlots</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>The number of parallel operator or user function instances that a single TaskManager can run. If this value is larger than 1, a single TaskManager takes multiple instances of a function or operator. That way, the TaskManager can utilize multiple CPU cores, but at the same time, the available memory is divided between the different operator or function instances. This value is typically proportional to the number of physical CPU cores that the TaskManager's machine has (e.g., equal to the number of cores, or half the number of cores).</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.registration.initial-backoff</h5></td>
+            <td style="word-wrap: break-word;">"500 ms"</td>
+            <td>The initial registration backoff between two consecutive registration attempts. The backoff is doubled for each new registration attempt until it reaches the maximum registration backoff.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.registration.max-backoff</h5></td>
+            <td style="word-wrap: break-word;">"30 s"</td>
+            <td>The maximum registration backoff between two consecutive registration attempts. The max registration backoff requires a time unit specifier (ms/s/min/h/d).</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.registration.refused-backoff</h5></td>
+            <td style="word-wrap: break-word;">"10 s"</td>
+            <td>The backoff after a registration has been refused by the job manager before retrying to connect.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.registration.timeout</h5></td>
+            <td style="word-wrap: break-word;">"5 min"</td>
+            <td>Defines the timeout for the TaskManager registration. If the duration is exceeded without a successful registration, then the TaskManager terminates.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.rpc.port</h5></td>
+            <td style="word-wrap: break-word;">"0"</td>
+            <td>The task manager’s IPC port. Accepts a list of ports (“50100,50101”), ranges (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid collisions when multiple TaskManagers are running on the same machine.</td>
+        </tr>
+    </tbody>
+</table>

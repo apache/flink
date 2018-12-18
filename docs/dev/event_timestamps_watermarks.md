@@ -58,14 +58,14 @@ progress in event time.
 There are two ways to assign timestamps and generate watermarks:
 
   1. Directly in the data stream source
-  2. Via a timestamp assigner / watermark generator: in Flink timestamp assigners also define the watermarks to be emitted
+  2. Via a timestamp assigner / watermark generator: in Flink, timestamp assigners also define the watermarks to be emitted
 
 <span class="label label-danger">Attention</span> Both timestamps and watermarks are specified as
-millliseconds since the Java epoch of 1970-01-01T00:00:00Z.
+milliseconds since the Java epoch of 1970-01-01T00:00:00Z.
 
 ### Source Functions with Timestamps and Watermarks
 
-Stream sources can also directly assign timestamps to the elements they produce, and they can also emit watermarks.
+Stream sources can directly assign timestamps to the elements they produce, and they can also emit watermarks.
 When this is done, no timestamp assigner is needed.
 Note that if a timestamp assigner is used, any timestamps and watermarks provided by the source will be overwritten.
 
@@ -154,7 +154,7 @@ env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
 val stream: DataStream[MyEvent] = env.readFile(
          myFormat, myFilePath, FileProcessingMode.PROCESS_CONTINUOUSLY, 100,
-         FilePathFilter.createDefaultFilter());
+         FilePathFilter.createDefaultFilter())
 
 val withTimestampsAndWatermarks: DataStream[MyEvent] = stream
         .filter( _.severity == WARNING )
@@ -180,7 +180,7 @@ The interval (every *n* milliseconds) in which the watermark will be generated i
 called each time, and a new watermark will be emitted if the returned watermark is non-null and larger than the previous
 watermark.
 
-Two simple examples of timestamp assigners with periodic watermark generation are below.
+Here we show two simple examples of timestamp assigners that use periodic watermark generation. Note that Flink ships with a `BoundedOutOfOrdernessTimestampExtractor` similar to the `BoundedOutOfOrdernessGenerator` shown below, which you can read about [here]({{ site.baseurl }}/dev/event_timestamp_extractors.html#assigners-allowing-a-fixed-amount-of-lateness).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -190,7 +190,7 @@ Two simple examples of timestamp assigners with periodic watermark generation ar
  * but only to a certain degree. The latest elements for a certain timestamp t will arrive
  * at most n milliseconds after the earliest elements for timestamp t.
  */
-public class BoundedOutOfOrdernessGenerator extends AssignerWithPeriodicWatermarks<MyEvent> {
+public class BoundedOutOfOrdernessGenerator implements AssignerWithPeriodicWatermarks<MyEvent> {
 
     private final long maxOutOfOrderness = 3500; // 3.5 seconds
 
@@ -214,7 +214,7 @@ public class BoundedOutOfOrdernessGenerator extends AssignerWithPeriodicWatermar
  * This generator generates watermarks that are lagging behind processing time by a fixed amount.
  * It assumes that elements arrive in Flink after a bounded delay.
  */
-public class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks<MyEvent> {
+public class TimeLagWatermarkGenerator implements AssignerWithPeriodicWatermarks<MyEvent> {
 
 	private final long maxTimeLag = 5000; // 5 seconds
 
@@ -240,19 +240,19 @@ public class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks<My
  */
 class BoundedOutOfOrdernessGenerator extends AssignerWithPeriodicWatermarks[MyEvent] {
 
-    val maxOutOfOrderness = 3500L; // 3.5 seconds
+    val maxOutOfOrderness = 3500L // 3.5 seconds
 
-    var currentMaxTimestamp: Long;
+    var currentMaxTimestamp: Long = _
 
     override def extractTimestamp(element: MyEvent, previousElementTimestamp: Long): Long = {
         val timestamp = element.getCreationTime()
         currentMaxTimestamp = max(timestamp, currentMaxTimestamp)
-        timestamp;
+        timestamp
     }
 
     override def getCurrentWatermark(): Watermark = {
         // return the watermark as current highest timestamp minus the out-of-orderness bound
-        new Watermark(currentMaxTimestamp - maxOutOfOrderness);
+        new Watermark(currentMaxTimestamp - maxOutOfOrderness)
     }
 }
 
@@ -262,7 +262,7 @@ class BoundedOutOfOrdernessGenerator extends AssignerWithPeriodicWatermarks[MyEv
  */
 class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks[MyEvent] {
 
-    val maxTimeLag = 5000L; // 5 seconds
+    val maxTimeLag = 5000L // 5 seconds
 
     override def extractTimestamp(element: MyEvent, previousElementTimestamp: Long): Long = {
         element.getCreationTime
@@ -292,7 +292,7 @@ new watermark will be emitted.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-public class PunctuatedAssigner extends AssignerWithPunctuatedWatermarks<MyEvent> {
+public class PunctuatedAssigner implements AssignerWithPunctuatedWatermarks<MyEvent> {
 
 	@Override
 	public long extractTimestamp(MyEvent element, long previousElementTimestamp) {
@@ -338,7 +338,7 @@ Kafka consumer, per Kafka partition, and the per-partition watermarks are merged
 For example, if event timestamps are strictly ascending per Kafka partition, generating per-partition watermarks with the
 [ascending timestamps watermark generator](event_timestamp_extractors.html#assigners-with-ascending-timestamps) will result in perfect overall watermarks.
 
-The illustrations below show how to use ther per-Kafka-partition watermark generation, and how watermarks propagate through the
+The illustrations below show how to use the per-Kafka-partition watermark generation, and how watermarks propagate through the
 streaming dataflow in that case.
 
 
@@ -371,4 +371,4 @@ val stream: DataStream[MyType] = env.addSource(kafkaSource)
 
 <img src="{{ site.baseurl }}/fig/parallel_kafka_watermarks.svg" alt="Generating Watermarks with awareness for Kafka-partitions" class="center" width="80%" />
 
-
+{% top %}

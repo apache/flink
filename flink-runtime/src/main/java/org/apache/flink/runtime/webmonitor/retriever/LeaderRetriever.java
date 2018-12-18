@@ -52,10 +52,8 @@ public class LeaderRetriever implements LeaderRetrievalListener {
 	public Optional<Tuple2<String, UUID>> getLeaderNow() throws Exception {
 		CompletableFuture<Tuple2<String, UUID>> leaderFuture = this.atomicLeaderFuture.get();
 		if (leaderFuture != null) {
-			CompletableFuture<Tuple2<String, UUID>> currentLeaderFuture = leaderFuture;
-
-			if (currentLeaderFuture.isDone()) {
-				return Optional.of(currentLeaderFuture.get());
+			if (leaderFuture.isDone()) {
+				return Optional.of(leaderFuture.get());
 			} else {
 				return Optional.empty();
 			}

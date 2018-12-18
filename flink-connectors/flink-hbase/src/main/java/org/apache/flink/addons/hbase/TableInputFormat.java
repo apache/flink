@@ -51,7 +51,7 @@ public abstract class TableInputFormat<T extends Tuple> extends AbstractTableInp
 	 * The output from HBase is always an instance of {@link Result}.
 	 * This method is to copy the data in the Result instance into the required {@link Tuple}
 	 * @param r The Result instance from HBase that needs to be converted
-	 * @return The approriate instance of {@link Tuple} that contains the needed information.
+	 * @return The appropriate instance of {@link Tuple} that contains the needed information.
 	 */
 	protected abstract T mapResultToTuple(Result r);
 

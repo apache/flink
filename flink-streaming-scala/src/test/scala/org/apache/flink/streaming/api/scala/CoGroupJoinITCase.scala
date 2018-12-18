@@ -27,14 +27,13 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
-
-import org.junit.Test
+import org.apache.flink.test.util.AbstractTestBase
 import org.junit.Assert._
+import org.junit.Test
 
 import scala.collection.mutable
 
-class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
+class CoGroupJoinITCase extends AbstractTestBase {
 
   @Test
   def testCoGroup(): Unit = {
@@ -87,7 +86,7 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
           "F:" + first.mkString("") + " S:" + second.mkString("")
       }
       .addSink(new SinkFunction[String]() {
-        def invoke(value: String) {
+        override def invoke(value: String) {
           CoGroupJoinITCase.testResults += value
         }
       })
@@ -155,7 +154,7 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
       .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
       .apply( (l, r) => l.toString + ":" + r.toString)
       .addSink(new SinkFunction[String]() {
-        def invoke(value: String) {
+        override def invoke(value: String) {
           CoGroupJoinITCase.testResults += value
         }
       })
@@ -217,10 +216,10 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
       .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
       .apply( (l, r) => l.toString + ":" + r.toString)
       .addSink(new SinkFunction[String]() {
-      def invoke(value: String) {
-        CoGroupJoinITCase.testResults += value
-      }
-    })
+        override def invoke(value: String) {
+          CoGroupJoinITCase.testResults += value
+        }
+      })
 
     env.execute("Self-Join Test")
 

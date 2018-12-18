@@ -4,7 +4,7 @@ LogicalUnion(all=[true])
   LogicalTableScan(table=[[_DataStreamTable_1]])
 
 == Optimized Logical Plan ==
-DataStreamUnion(union all=[count, word])
+DataStreamUnion(all=[true], union all=[count, word])
   DataStreamScan(table=[[_DataStreamTable_0]])
   DataStreamScan(table=[[_DataStreamTable_1]])
 

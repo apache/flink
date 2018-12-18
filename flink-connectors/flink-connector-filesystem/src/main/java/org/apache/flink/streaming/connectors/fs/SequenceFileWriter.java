@@ -77,6 +77,15 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> extends 
 		this.compressionType = compressionType;
 	}
 
+	protected SequenceFileWriter(SequenceFileWriter<K, V> other) {
+		super(other);
+
+		this.compressionCodecName = other.compressionCodecName;
+		this.compressionType = other.compressionType;
+		this.keyClass = other.keyClass;
+		this.valueClass = other.valueClass;
+	}
+
 	@Override
 	public void open(FileSystem fs, Path path) throws IOException {
 		super.open(fs, path);
@@ -142,10 +151,23 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> extends 
 	}
 
 	@Override
-	public Writer<Tuple2<K, V>> duplicate() {
-		SequenceFileWriter<K, V> result = new SequenceFileWriter<>(compressionCodecName, compressionType);
-		result.keyClass = keyClass;
-		result.valueClass = valueClass;
-		return result;
+	public SequenceFileWriter<K, V> duplicate() {
+		return new SequenceFileWriter<>(this);
+	}
+
+	String getCompressionCodecName() {
+		return compressionCodecName;
+	}
+
+	SequenceFile.CompressionType getCompressionType() {
+		return compressionType;
+	}
+
+	Class<K> getKeyClass() {
+		return keyClass;
+	}
+
+	Class<V> getValueClass() {
+		return valueClass;
 	}
 }
