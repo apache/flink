@@ -29,7 +29,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Asserter for output from {@link OneInputStreamOperatorTestHarness}
+ * Asserter for output from {@link OneInputStreamOperatorTestHarness}.
  */
 public class OutputAsserter {
 

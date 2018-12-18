@@ -18,8 +18,8 @@
 
 package org.apache.flink.cep.operator;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -30,6 +30,8 @@ import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.EventComparator;
+import org.apache.flink.cep.functions.PatternProcessFunction;
+import org.apache.flink.cep.functions.TimedOutPartialMatchHandler;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.NFA.MigratedNFA;
 import org.apache.flink.cep.nfa.NFAState;
@@ -50,10 +52,13 @@ import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -64,18 +69,17 @@ import java.util.PriorityQueue;
 import java.util.stream.Stream;
 
 /**
- * Abstract CEP pattern operator for a keyed input stream. For each key, the operator creates
+ * CEP pattern operator for a keyed input stream. For each key, the operator creates
  * a {@link NFA} and a priority queue to buffer out of order elements. Both data structures are
- * stored using the managed keyed state. Additionally, the set of all seen keys is kept as part of the
- * operator state. This is necessary to trigger the execution for all keys upon receiving a new
- * watermark.
+ * stored using the managed keyed state.
  *
  * @param <IN> Type of the input elements
  * @param <KEY> Type of the key on which the input stream is keyed
  * @param <OUT> Type of the output elements
  */
-public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Function>
-		extends AbstractUdfStreamOperator<OUT, F>
+@Internal
+public class CepOperator<IN, KEY, OUT>
+		extends AbstractUdfStreamOperator<OUT, PatternProcessFunction<IN, OUT>>
 		implements OneInputStreamOperator<IN, OUT>, Triggerable<KEY, VoidNamespace> {
 
 	private static final long serialVersionUID = -4166778210774160757L;
@@ -105,29 +109,38 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 	 */
 	private long lastWatermark;
 
+	/** Comparator for secondary sorting. Primary sorting is always done on time. */
 	private final EventComparator<IN> comparator;
 
 	/**
 	 * {@link OutputTag} to use for late arriving events. Elements with timestamp smaller than
 	 * the current watermark will be emitted to this.
 	 */
-	protected final OutputTag<IN> lateDataOutputTag;
+	private final OutputTag<IN> lateDataOutputTag;
 
-	protected final AfterMatchSkipStrategy afterMatchSkipStrategy;
+	/** Strategy which element to skip after a match was found. */
+	private final AfterMatchSkipStrategy afterMatchSkipStrategy;
 
-	public AbstractKeyedCEPPatternOperator(
+	/** Context passed to user function. */
+	private transient ContextFunctionImpl context;
+
+	/** Main output collector, that sets a proper timestamp to the StreamRecord. */
+	private transient TimestampedCollector<OUT> collector;
+
+	public CepOperator(
 			final TypeSerializer<IN> inputSerializer,
 			final boolean isProcessingTime,
 			final NFACompiler.NFAFactory<IN> nfaFactory,
-			final EventComparator<IN> comparator,
-			final AfterMatchSkipStrategy afterMatchSkipStrategy,
-			final F function,
-			final OutputTag<IN> lateDataOutputTag) {
+			@Nullable final EventComparator<IN> comparator,
+			@Nullable final AfterMatchSkipStrategy afterMatchSkipStrategy,
+			final PatternProcessFunction<IN, OUT> function,
+			@Nullable final OutputTag<IN> lateDataOutputTag) {
 		super(function);
 
 		this.inputSerializer = Preconditions.checkNotNull(inputSerializer);
-		this.isProcessingTime = Preconditions.checkNotNull(isProcessingTime);
 		this.nfaFactory = Preconditions.checkNotNull(nfaFactory);
+
+		this.isProcessingTime = isProcessingTime;
 		this.comparator = comparator;
 		this.lateDataOutputTag = lateDataOutputTag;
 
@@ -183,15 +196,16 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 	@Override
 	public void open() throws Exception {
 		super.open();
-
 		timerService = getInternalTimerService(
 				"watermark-callbacks",
 				VoidNamespaceSerializer.INSTANCE,
 				this);
 
 		this.nfa = nfaFactory.createNFA();
-
 		openNFA(nfa);
+
+		context = new ContextFunctionImpl();
+		collector = new TimestampedCollector<>(output);
 	}
 
 	@Override
@@ -404,8 +418,83 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 	private void advanceTime(NFAState nfaState, long timestamp) throws Exception {
 		try (SharedBufferAccessor<IN> sharedBufferAccessor = partialMatches.getAccessor()) {
 			Collection<Tuple2<Map<String, List<IN>>, Long>> timedOut =
-				nfa.advanceTime(sharedBufferAccessor, nfaState, timestamp);
-			processTimedOutSequences(timedOut, timestamp);
+					nfa.advanceTime(sharedBufferAccessor, nfaState, timestamp);
+			if (!timedOut.isEmpty()) {
+				processTimedOutSequences(timedOut);
+			}
+		}
+	}
+
+	private void processMatchedSequences(Iterable<Map<String, List<IN>>> matchingSequences, long timestamp) throws Exception {
+		PatternProcessFunction<IN, OUT> function = getUserFunction();
+		setTimestamp(timestamp);
+		for (Map<String, List<IN>> matchingSequence : matchingSequences) {
+			function.processMatch(matchingSequence, context, collector);
+		}
+	}
+
+	private void processTimedOutSequences(Collection<Tuple2<Map<String, List<IN>>, Long>> timedOutSequences) throws Exception {
+		PatternProcessFunction<IN, OUT> function = getUserFunction();
+		if (function instanceof TimedOutPartialMatchHandler) {
+
+			@SuppressWarnings("unchecked")
+			TimedOutPartialMatchHandler<IN> timeoutHandler = (TimedOutPartialMatchHandler<IN>) function;
+
+			for (Tuple2<Map<String, List<IN>>, Long> matchingSequence : timedOutSequences) {
+				setTimestamp(matchingSequence.f1);
+				timeoutHandler.processTimedOutMatch(matchingSequence.f0, context);
+			}
+		}
+	}
+
+	private void setTimestamp(long timestamp) {
+		if (!isProcessingTime) {
+			collector.setAbsoluteTimestamp(timestamp);
+			context.setTimestamp(timestamp);
+		}
+	}
+
+	/**
+	 * Implementation of {@link PatternProcessFunction.Context}. Design to be instantiated once per operator.
+	 * It serves three methods:
+	 *  <ul>
+	 *      <li>gives access to currentProcessingTime through {@link InternalTimerService}</li>
+	 *      <li>gives access to timestamp of current record (or null if Processing time)</li>
+	 *      <li>enables side outputs with proper timestamp of StreamRecord handling based on either Processing or
+	 *          Event time</li>
+	 *  </ul>
+	 */
+	private class ContextFunctionImpl implements PatternProcessFunction.Context {
+
+		private Long timestamp;
+
+		@Override
+		public <X> void output(final OutputTag<X> outputTag, final X value) {
+			final StreamRecord<X> record;
+			if (isProcessingTime) {
+				record = new StreamRecord<>(value);
+			} else {
+				record = new StreamRecord<>(value, timestamp());
+			}
+			output.collect(outputTag, record);
+		}
+
+		void setTimestamp(long timestamp) {
+			this.timestamp = timestamp;
+		}
+
+		@Override
+		public Long timestamp() {
+			if (isProcessingTime) {
+				return null;
+			} else {
+				return timestamp;
+			}
+		}
+
+		@Override
+		public long currentProcessingTime() {
+			return timerService.currentProcessingTime();
 		}
 	}
 
@@ -429,29 +518,22 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		}
 	}
 
-	protected abstract void processMatchedSequences(Iterable<Map<String, List<IN>>> matchingSequences, long timestamp) throws Exception;
-
-	protected void processTimedOutSequences(
-			Iterable<Tuple2<Map<String, List<IN>>, Long>> timedOutSequences,
-			long timestamp) throws Exception {
-	}
-
 	//////////////////////			Testing Methods			//////////////////////
 
 	@VisibleForTesting
-	public boolean hasNonEmptySharedBuffer(KEY key) throws Exception {
+	boolean hasNonEmptySharedBuffer(KEY key) throws Exception {
 		setCurrentKey(key);
 		return !partialMatches.isEmpty();
 	}
 
 	@VisibleForTesting
-	public boolean hasNonEmptyPQ(KEY key) throws Exception {
+	boolean hasNonEmptyPQ(KEY key) throws Exception {
 		setCurrentKey(key);
 		return elementQueueState.keys().iterator().hasNext();
 	}
 
 	@VisibleForTesting
-	public int getPQSize(KEY key) throws Exception {
+	int getPQSize(KEY key) throws Exception {
 		setCurrentKey(key);
 		int counter = 0;
 		for (List<IN> elements: elementQueueState.values()) {
