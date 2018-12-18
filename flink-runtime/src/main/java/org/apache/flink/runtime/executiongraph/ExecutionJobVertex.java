@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorDescriptor;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
@@ -609,6 +610,11 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		}
 
 		return StringifiedAccumulatorResult.stringifyAccumulatorResults(userAccumulators);
+	}
+
+	@Override
+	public List<OperatorDescriptor> getOperatorDescriptors() {
+		return jobVertex.getOperatorDescriptors();
 	}
 
 	// --------------------------------------------------------------------------------------------

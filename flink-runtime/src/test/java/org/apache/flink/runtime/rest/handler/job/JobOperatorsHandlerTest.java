@@ -24,24 +24,24 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecution;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorDescriptor;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
-import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
+import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
-import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
-import org.apache.flink.runtime.rest.messages.SubtaskIndexPathParameter;
-import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptMessageParameters;
-import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptPathParameter;
-import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsHeaders;
-import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
-import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
+import org.apache.flink.runtime.rest.messages.JobMessageParameters;
+import org.apache.flink.runtime.rest.messages.JobOperators;
+import org.apache.flink.runtime.rest.messages.JobOperatorsHeaders;
+import org.apache.flink.runtime.rest.messages.job.SubtaskMessageParameters;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.EvictingBoundedList;
 import org.apache.flink.util.TestLogger;
@@ -51,28 +51,47 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 
+
 /**
- * Tests of {@link SubtaskExecutionAttemptDetailsHandler}.
+ * Tests of {@link JobOperatorsHandler}.
  */
-public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
+public class JobOperatorsHandlerTest extends TestLogger {
 
 	@Test
 	public void testHandleRequest() throws Exception {
 
+		// Prepare the execution graph.
 		final JobID jobID = new JobID();
 		final JobVertexID jobVertexId = new JobVertexID();
+		// Instance the handler.
+		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(new Configuration());
 
-		// The testing subtask.
-		final int subtaskIndex = 1;
-		final ExecutionState expectedState = ExecutionState.FINISHED;
-		final int attempt = 0;
+		final JobOperatorsHandler handler = new JobOperatorsHandler(
+			CompletableFuture.completedFuture("127.0.0.1:9527"),
+			() -> null,
+			Time.milliseconds(100),
+			Collections.emptyMap(),
+			JobOperatorsHeaders.getInstance(),
+			new ExecutionGraphCache(
+				restHandlerConfiguration.getTimeout(),
+				Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),
+			TestingUtils.defaultExecutor());
+
+		final HashMap<String, String> receivedPathParameters = new HashMap<>(1);
+		receivedPathParameters.put(JobIDPathParameter.KEY, jobID.toString());
+
+		final HandlerRequest<EmptyRequestBody, JobMessageParameters> request = new HandlerRequest<>(
+			EmptyRequestBody.getInstance(),
+			new SubtaskMessageParameters(),
+			receivedPathParameters,
+			Collections.emptyMap());
 
 		final StringifiedAccumulatorResult[] emptyAccumulators = new StringifiedAccumulatorResult[0];
-
 		final long bytesInLocal = 1L;
 		final long bytesInRemote = 2L;
 		final long bytesOut = 10L;
@@ -90,23 +109,31 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			0.0,
 			0.0,
 			0.0);
-
+		final ExecutionState expectedState = ExecutionState.FINISHED;
+		List<OperatorDescriptor> operatorDescriptors = new ArrayList<>();
+		OperatorDescriptor  operatorDescriptor = new OperatorDescriptor("o1", new OperatorID());
+		operatorDescriptors.add(operatorDescriptor);
+		JobOperators.JobOperator testJobOperator = new JobOperators.JobOperator(jobVertexId,
+			operatorDescriptor.getOperatorID(), operatorDescriptor.getOperatorName(), new ArrayList<>());
+		List<JobOperators.JobOperator> testJobOperators = new ArrayList<>();
+		testJobOperators.add(testJobOperator);
+		JobOperators testJobOperatorsInfo = new JobOperators(testJobOperators);
 		final ArchivedExecutionJobVertex archivedExecutionJobVertex = new ArchivedExecutionJobVertex(
 			new ArchivedExecutionVertex[]{
 				null, // the first subtask won't be queried
 				new ArchivedExecutionVertex(
-					subtaskIndex,
+					1,
 					"test task",
 					new ArchivedExecution(
 						emptyAccumulators,
 						ioMetrics,
 						new ExecutionAttemptID(),
-						attempt,
+						0,
 						expectedState,
 						null,
 						null,
 						null,
-						subtaskIndex,
+						1,
 						new long[ExecutionState.values().length]),
 					new EvictingBoundedList<>(0)
 				)
@@ -116,71 +143,12 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			1,
 			1,
 			emptyAccumulators,
-			new ArrayList<>());
-
-		// Change some fields so we can make it different from other sub tasks.
-		final MetricFetcher<?> metricFetcher = new MetricFetcher<>(
-			() -> null,
-			path -> null,
-			TestingUtils.defaultExecutor(),
-			Time.milliseconds(1000L));
-
-		// Instance the handler.
-		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(new Configuration());
-
-		final SubtaskExecutionAttemptDetailsHandler handler = new SubtaskExecutionAttemptDetailsHandler(
-			CompletableFuture.completedFuture("127.0.0.1:9527"),
-			() -> null,
-			Time.milliseconds(100L),
-			Collections.emptyMap(),
-			SubtaskExecutionAttemptDetailsHeaders.getInstance(),
-			new ExecutionGraphCache(
-				restHandlerConfiguration.getTimeout(),
-				Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),
-			TestingUtils.defaultExecutor(),
-			metricFetcher);
-
-		final HashMap<String, String> receivedPathParameters = new HashMap<>(4);
-		receivedPathParameters.put(JobIDPathParameter.KEY, jobID.toString());
-		receivedPathParameters.put(JobVertexIdPathParameter.KEY, jobVertexId.toString());
-		receivedPathParameters.put(SubtaskIndexPathParameter.KEY, Integer.toString(subtaskIndex));
-		receivedPathParameters.put(SubtaskAttemptPathParameter.KEY, Integer.toString(attempt));
-
-		final HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request = new HandlerRequest<>(
-			EmptyRequestBody.getInstance(),
-			new SubtaskAttemptMessageParameters(),
-			receivedPathParameters,
-			Collections.emptyMap()
-		);
-
+			operatorDescriptors);
+		final List<ArchivedExecutionJobVertex> verticesInCreationOrder = new ArrayList<>();
+		verticesInCreationOrder.add(archivedExecutionJobVertex);
+		final ArchivedExecutionGraph executionGraph = new ArchivedExecutionGraphBuilder().setJobID(jobID).setVerticesInCreationOrder(verticesInCreationOrder).build();
 		// Handle request.
-		final SubtaskExecutionAttemptDetailsInfo detailsInfo = handler.handleRequest(
-			request,
-			archivedExecutionJobVertex);
-
-		// Verify
-		final IOMetricsInfo ioMetricsInfo = new IOMetricsInfo(
-			bytesInLocal + bytesInRemote,
-			true,
-			bytesOut,
-			true,
-			recordsIn,
-			true,
-			recordsOut,
-			true
-		);
-
-		final SubtaskExecutionAttemptDetailsInfo expectedDetailsInfo = new SubtaskExecutionAttemptDetailsInfo(
-			subtaskIndex,
-			expectedState,
-			attempt,
-			"(unassigned)",
-			-1L,
-			0L,
-			-1L,
-			ioMetricsInfo
-		);
-
-		assertEquals(expectedDetailsInfo, detailsInfo);
+		final JobOperators operators = handler.handleRequest(request, executionGraph);
+		assertEquals(testJobOperatorsInfo, operators);
 	}
 }

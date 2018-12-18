@@ -59,6 +59,9 @@ public class JobVertex implements java.io.Serializable {
 	/** The alternative IDs of all operators contained in this vertex. */
 	private final ArrayList<OperatorID> operatorIdsAlternatives = new ArrayList<>();
 
+	/** The descriptor of operators in this vertex. */
+	private final ArrayList<OperatorDescriptor> operatorDescriptors = new ArrayList<>();
+
 	/** List of produced data sets, one per writer */
 	private final ArrayList<IntermediateDataSet> results = new ArrayList<IntermediateDataSet>();
 
@@ -173,6 +176,19 @@ public class JobVertex implements java.io.Serializable {
 	 */
 	public List<JobVertexID> getIdAlternatives() {
 		return idAlternatives;
+	}
+
+	/**
+	 * Returns a list of all operator descriptors of this job vertex.
+	 *
+	 * @return List of all operator descriptors of this job vertex
+	 */
+	public List<OperatorDescriptor> getOperatorDescriptors() {
+		return operatorDescriptors;
+	}
+
+	public void addOperatorDescriptor(OperatorDescriptor operatorDescriptor) {
+		operatorDescriptors.add(operatorDescriptor);
 	}
 
 	/**

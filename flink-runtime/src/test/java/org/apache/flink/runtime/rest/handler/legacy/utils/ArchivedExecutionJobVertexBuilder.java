@@ -22,8 +22,11 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorDescriptor;
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -39,6 +42,7 @@ public class ArchivedExecutionJobVertexBuilder {
 	private int parallelism;
 	private int maxParallelism;
 	private StringifiedAccumulatorResult[] archivedUserAccumulators;
+	private List<OperatorDescriptor> operatorDescriptors;
 
 	public ArchivedExecutionJobVertexBuilder setTaskVertices(ArchivedExecutionVertex[] taskVertices) {
 		this.taskVertices = taskVertices;
@@ -70,6 +74,11 @@ public class ArchivedExecutionJobVertexBuilder {
 		return this;
 	}
 
+	public ArchivedExecutionJobVertexBuilder setOperatorDescriptors(List<OperatorDescriptor> operatorDescriptors) {
+		this.operatorDescriptors = operatorDescriptors;
+		return this;
+	}
+
 	public ArchivedExecutionJobVertex build() {
 		Preconditions.checkNotNull(taskVertices);
 		return new ArchivedExecutionJobVertex(
@@ -78,7 +87,8 @@ public class ArchivedExecutionJobVertexBuilder {
 			name != null ? name : "task_" + RANDOM.nextInt(),
 			parallelism,
 			maxParallelism,
-			archivedUserAccumulators != null ? archivedUserAccumulators : new StringifiedAccumulatorResult[0]
+			archivedUserAccumulators != null ? archivedUserAccumulators : new StringifiedAccumulatorResult[0],
+			operatorDescriptors != null ? operatorDescriptors : new ArrayList<>()
 		);
 	}
 }

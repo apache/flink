@@ -16,36 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobgraph;
+package org.apache.flink.runtime.rest.messages.json;
 
-import org.apache.flink.util.AbstractID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 
-import javax.xml.bind.DatatypeConverter;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.StdSerializer;
+
+import java.io.IOException;
 
 /**
- * A class for statistically unique operator IDs.
+ * Jackson serializer for {@link OperatorID}.
  */
-public class OperatorID extends AbstractID {
+public class JobVertexOperatorIDSerializer extends StdSerializer<OperatorID> {
 
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 3337595128571667113L;
 
-	public OperatorID() {
-		super();
+	public JobVertexOperatorIDSerializer() {
+		super(OperatorID.class);
 	}
 
-	public OperatorID(byte[] bytes) {
-		super(bytes);
-	}
-
-	public OperatorID(long lowerPart, long upperPart) {
-		super(lowerPart, upperPart);
-	}
-
-	public static OperatorID fromJobVertexID(JobVertexID id) {
-		return new OperatorID(id.getLowerPart(), id.getUpperPart());
-	}
-
-	public static OperatorID fromHexString(String hexString) {
-		return new OperatorID(DatatypeConverter.parseHexBinary(hexString));
+	@Override
+	public void serialize(OperatorID value, JsonGenerator gen, SerializerProvider provider) throws IOException {
+		gen.writeString(value.toString());
 	}
 }
