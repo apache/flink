@@ -35,11 +35,6 @@ under the License.
 
 	<packaging>jar</packaging>
 
-	<!-- Allow users to pass custom connector versions -->
-	<properties>
-		<elasticsearch.version>6.3.1</elasticsearch.version>
-	</properties>
-
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
