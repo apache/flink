@@ -45,6 +45,9 @@ import static org.apache.flink.cep.utils.OutputAsserter.assertOutput;
  */
 public class CepProcessFunctionContextTest extends TestLogger {
 
+	private static final boolean PROCESSING_TIME = false;
+	private static final boolean EVENT_TIME = true;
+
 	@Test
 	public void testTimestampPassingInEventTime() throws Exception {
 
@@ -53,7 +56,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 				createCepOperator(
 					extractTimestampAndNames(1),
 					new NFAForwardingFactory(),
-					false))) {
+					PROCESSING_TIME))) {
 			harness.open();
 
 			// events out of order to test if internal sorting does not mess up the timestamps
@@ -78,7 +81,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 				createCepOperator(
 					extractTimestampAndNames(1),
 					new NFAForwardingFactory(),
-					true))) {
+					EVENT_TIME))) {
 			harness.open();
 
 			harness.processElement(event().withName("A").withTimestamp(5).asStreamRecord());
@@ -99,7 +102,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 				createCepOperator(
 					extractCurrentProcessingTimeAndNames(1),
 					new NFAForwardingFactory(),
-					true))) {
+					EVENT_TIME))) {
 			harness.open();
 
 			harness.setProcessingTime(15);
@@ -122,7 +125,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 				createCepOperator(
 					extractCurrentProcessingTimeAndNames(1),
 					new NFAForwardingFactory(),
-					false))) {
+					PROCESSING_TIME))) {
 			harness.open();
 
 			harness.setProcessingTime(10);
@@ -147,7 +150,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 				createCepOperator(
 					extractTimestampAndNames(2, timedOut),
 					new NFATimingOutFactory(),
-					false))) {
+					PROCESSING_TIME))) {
 			harness.open();
 
 			// events out of order to test if internal sorting does not mess up the timestamps
@@ -178,7 +181,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 				createCepOperator(
 					extractTimestampAndNames(2, timedOut),
 					new NFATimingOutFactory(),
-					true))) {
+					EVENT_TIME))) {
 			harness.open();
 
 			harness.setProcessingTime(3);
@@ -208,7 +211,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 				createCepOperator(
 					extractCurrentProcessingTimeAndNames(2, sideOutputTag),
 					new NFATimingOutFactory(),
-					false))) {
+					PROCESSING_TIME))) {
 			harness.open();
 
 			// events out of order to test if internal sorting does not mess up the timestamps
@@ -240,7 +243,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 				createCepOperator(
 					extractCurrentProcessingTimeAndNames(2, sideOutputTag),
 					new NFATimingOutFactory(),
-					true))) {
+					EVENT_TIME))) {
 			harness.open();
 
 			harness.setProcessingTime(3);

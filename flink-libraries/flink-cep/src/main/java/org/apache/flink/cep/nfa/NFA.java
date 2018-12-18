@@ -19,6 +19,8 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
@@ -36,6 +38,7 @@ import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -169,6 +172,34 @@ public class NFA<T> {
 	}
 
 	/**
+	 * Initialization method for the NFA. It is called before any element is passed and thus suitable for one time setup
+	 * work.
+	 * @param cepRuntimeContext runtime context of the enclosing operator
+	 * @param conf The configuration containing the parameters attached to the contract.
+	 */
+	public void open(RuntimeContext cepRuntimeContext, Configuration conf) throws Exception {
+		for (State<T> state : getStates()) {
+			for (StateTransition<T> transition : state.getStateTransitions()) {
+				IterativeCondition condition = transition.getCondition();
+				FunctionUtils.setFunctionRuntimeContext(condition, cepRuntimeContext);
+				FunctionUtils.openFunction(condition, conf);
+			}
+		}
+	}
+
+	/**
+	 * Tear-down method for the NFA.
+	 */
+	public void close() throws Exception {
+		for (State<T> state : getStates()) {
+			for (StateTransition<T> transition : state.getStateTransitions()) {
+				IterativeCondition condition = transition.getCondition();
+				FunctionUtils.closeFunction(condition);
+			}
+		}
+	}
+
+	/**
 	 * Processes the next input event. If some of the computations reach a final state then the
 	 * resulting event sequences are returned. If computations time out and timeout handling is
 	 * activated, then the timed out event patterns are returned.
@@ -224,7 +255,7 @@ public class NFA<T> {
 
 	/**
 	 * Prunes states assuming there will be no events with timestamp <b>lower</b> than the given one.
-	 * It cleares the sharedBuffer and also emits all timed out partial matches.
+	 * It clears the sharedBuffer and also emits all timed out partial matches.
 	 *
 	 * @param sharedBufferAccessor the accessor to SharedBuffer object that we need to work upon while processing
 	 * @param nfaState     The NFAState object that we need to affect while processing
@@ -264,7 +295,6 @@ public class NFA<T> {
 		sharedBufferAccessor.advanceTime(timestamp);
 
 		return timeoutResult;
-
 	}
 
 	private boolean isStateTimedOut(final ComputationState state, final long timestamp) {
