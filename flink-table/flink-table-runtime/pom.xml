@@ -22,37 +22,32 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-libraries</artifactId>
+		<artifactId>flink-table</artifactId>
 		<version>1.8-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-table-common</artifactId>
-	<name>flink-table-common</name>
+	<!-- Module for executing table programs. -->
+	<!-- It contains classes that are required by a task manager. -->
+	<artifactId>flink-table-runtime_${scala.binary.version}</artifactId>
+	<name>flink-table-runtime</name>
 
 	<packaging>jar</packaging>
 
 	<dependencies>
+		<!-- DataSet and DataStream API classes (e.g. ProcessFunction). -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>1.8-SNAPSHOT</version>
+			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Code compilation -->
+		<dependency>
+			<groupId>org.codehaus.janino</groupId>
+			<artifactId>janino</artifactId>
+			<version>3.0.7</version>
 		</dependency>
 	</dependencies>
-
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
 </project>

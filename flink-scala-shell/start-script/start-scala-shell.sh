@@ -52,11 +52,12 @@ bin=`cd "$bin"; pwd`
 
 FLINK_CLASSPATH=`constructFlinkClassPath`
 
-# Append flink-table jar into class path
+# Append flink-table-* jars into class path
 opt=`dirname "$0"`
 opt=`cd ../"$opt"/opt; pwd`
-FLINK_TABLE_LIB_PATH=$opt/`ls $opt|grep flink-table_*`
-FLINK_CLASSPATH=$FLINK_CLASSPATH:$FLINK_TABLE_LIB_PATH
+FLINK_TABLE_API_PATH=$opt/`ls $opt|grep flink-table-api-scala_*`
+FLINK_TABLE_PLANNER_PATH=$opt/`ls $opt|grep flink-table-planner_*`
+FLINK_CLASSPATH=$FLINK_CLASSPATH:$FLINK_TABLE_API_PATH:$FLINK_TABLE_PLANNER_PATH
 
 
 # https://issues.scala-lang.org/browse/SI-6502, cant load external jars interactively
@@ -69,7 +70,7 @@ do
     if [[  ${!i} = "-a" || ${!i} = "--addclasspath" ]]
     then
 	EXTERNAL_LIB_FOUND=true
-	
+
         #adding to classpath
         k=$((i+1))
         j=$((k+1))

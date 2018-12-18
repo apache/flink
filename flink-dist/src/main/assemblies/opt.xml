@@ -59,17 +59,33 @@
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- Table API-->
+		<!-- Table Planner -->
 		<file>
-			<source>../flink-libraries/flink-table/target/flink-table_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-table/flink-table-planner/target/flink-table-planner_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-table_${scala.binary.version}-${project.version}.jar</destName>
+			<destName>flink-table-planner_${scala.binary.version}-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- Table API Java -->
+		<file>
+			<source>../flink-table/flink-table-api-java/target/flink-table-api-java_${scala.binary.version}-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-table-api-java_${scala.binary.version}-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- Table API Scala -->
+		<file>
+			<source>../flink-table/flink-table-api-scala/target/flink-table-api-scala_${scala.binary.version}-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-table-api-scala_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
 		<!-- SQL Client -->
 		<file>
-			<source>../flink-libraries/flink-sql-client/target/flink-sql-client_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-table/flink-sql-client/target/flink-sql-client_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
 			<destName>flink-sql-client_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>

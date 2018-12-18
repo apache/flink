@@ -49,7 +49,13 @@ flink-libraries/flink-gelly-examples,\
 flink-libraries/flink-ml,\
 flink-libraries/flink-python,\
 flink-libraries/flink-streaming-python,\
-flink-libraries/flink-table,\
+flink-table/flink-table-common,\
+flink-table/flink-table-api-base,\
+flink-table/flink-table-api-java,\
+flink-table/flink-table-api-scala,\
+flink-table/flink-table-planner,\
+flink-table/flink-table-runtime,\
+flink-table/flink-sql-client,\
 flink-queryable-state/flink-queryable-state-runtime,\
 flink-queryable-state/flink-queryable-state-client-java"
 
