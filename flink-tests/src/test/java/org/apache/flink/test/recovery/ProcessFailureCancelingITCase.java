@@ -32,6 +32,7 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -66,7 +67,9 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.StringWriter;
+import java.net.ServerSocket;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -116,6 +119,9 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
 		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
 		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 100);
+
+		int defaultPort = config.getInteger(RestOptions.PORT);
+		config.setString("rest.port", String.valueOf(findFreePort(defaultPort, 100)));
 
 		final RpcService rpcService = AkkaRpcServiceUtils.createRpcService("localhost", 0, config);
 		final int jobManagerPort = rpcService.getPort();
@@ -330,5 +336,18 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 		System.out.println("-----------------------------------------");
 		System.out.println("		END SPAWNED PROCESS LOG");
 		System.out.println("-----------------------------------------");
+	}
+
+	private int findFreePort(int startPort, int range) {
+		for (int p = startPort; p < startPort + range; ++p) {
+			try {
+				new ServerSocket(p).close();
+				System.out.println("Find free port: " + p);
+				return p;
+			} catch (IOException e) {
+				continue;
+			}
+		}
+		throw new RuntimeException("No free port found!");
 	}
 }
