@@ -409,7 +409,10 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 
 	// ------------------------- Time ----------------------------------
 
-	public static abstract class Ticker {
+	/**
+	 * Class for generating ticks.
+	 */
+	public abstract static class Ticker {
 
 		protected Ticker() {}
 
