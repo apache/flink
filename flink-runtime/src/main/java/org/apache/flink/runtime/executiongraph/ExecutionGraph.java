@@ -811,16 +811,16 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	//  Actions
 	// --------------------------------------------------------------------------------------------
 
-	public void attachJobGraph(List<JobVertex> topologiallySorted) throws JobException {
+	public void attachJobGraph(List<JobVertex> topologicallySorted) throws JobException {
 
 		LOG.debug("Attaching {} topologically sorted vertices to existing job graph with {} " +
 				"vertices and {} intermediate results.",
-				topologiallySorted.size(), tasks.size(), intermediateResults.size());
+				topologicallySorted.size(), tasks.size(), intermediateResults.size());
 
-		final ArrayList<ExecutionJobVertex> newExecJobVertices = new ArrayList<>(topologiallySorted.size());
+		final ArrayList<ExecutionJobVertex> newExecJobVertices = new ArrayList<>(topologicallySorted.size());
 		final long createTimestamp = System.currentTimeMillis();
 
-		for (JobVertex jobVertex : topologiallySorted) {
+		for (JobVertex jobVertex : topologicallySorted) {
 
 			if (jobVertex.isInputVertex() && !jobVertex.isStoppable()) {
 				this.isStoppable = false;
