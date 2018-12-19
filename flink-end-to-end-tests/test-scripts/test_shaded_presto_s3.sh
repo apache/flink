@@ -22,6 +22,7 @@
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/common_s3.sh
 
+s3_setup presto
 start_cluster
 
 $FLINK_DIR/bin/flink run -p 1 $FLINK_DIR/examples/batch/WordCount.jar --input $S3_TEST_DATA_WORDS_URI --output $TEST_DATA_DIR/out/wc_out

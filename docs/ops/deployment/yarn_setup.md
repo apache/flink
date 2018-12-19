@@ -324,9 +324,9 @@ This section briefly describes how Flink and YARN interact.
 
 <img src="{{ site.baseurl }}/fig/FlinkOnYarn.svg" class="img-responsive">
 
-The YARN client needs to access the Hadoop configuration to connect to the YARN resource manager and to HDFS. It determines the Hadoop configuration using the following strategy:
+The YARN client needs to access the Hadoop configuration to connect to the YARN resource manager and HDFS. It determines the Hadoop configuration using the following strategy:
 
-* Test if `YARN_CONF_DIR`, `HADOOP_CONF_DIR` or `HADOOP_CONF_PATH` are set (in that order). If one of these variables are set, they are used to read the configuration.
+* Test if `YARN_CONF_DIR`, `HADOOP_CONF_DIR` or `HADOOP_CONF_PATH` are set (in that order). If one of these variables is set, it is used to read the configuration.
 * If the above strategy fails (this should not be the case in a correct YARN setup), the client is using the `HADOOP_HOME` environment variable. If it is set, the client tries to access `$HADOOP_HOME/etc/hadoop` (Hadoop 2) and `$HADOOP_HOME/conf` (Hadoop 1).
 
 When starting a new Flink YARN session, the client first checks if the requested resources (containers and memory) are available. After that, it uploads a jar that contains Flink and the configuration to HDFS (step 1).
