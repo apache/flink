@@ -52,6 +52,7 @@ public class CEP {
 			DataStream<T> input,
 			Pattern<T, ?> pattern,
 			EventComparator<T> comparator) {
-		return new PatternStream<>(input, pattern, comparator);
+		final PatternStream<T> stream = new PatternStream<>(input, pattern);
+		return stream.withComparator(comparator);
 	}
 }
