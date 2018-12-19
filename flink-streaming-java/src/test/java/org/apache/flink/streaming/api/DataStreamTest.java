@@ -79,6 +79,7 @@ import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.core.StringStartsWith;
@@ -952,12 +953,7 @@ public class DataStreamTest extends TestLogger {
 			fail(e.getMessage());
 		}
 
-		OutputSelector<Integer> outputSelector = new OutputSelector<Integer>() {
-			@Override
-			public Iterable<String> select(Integer value) {
-				return null;
-			}
-		};
+		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
 
 		SplitStream<Integer> split = unionFilter.split(outputSelector);
 		split.select("dummy").addSink(new DiscardingSink<Integer>());
@@ -1101,17 +1097,29 @@ public class DataStreamTest extends TestLogger {
 
 		DataStreamSource<Integer> src = env.fromElements(0, 0);
 
-		OutputSelector<Integer> outputSelector = new OutputSelector<Integer>() {
-			@Override
-			public Iterable<String> select(Integer value) {
-				return null;
-			}
-		};
+		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
 
 		src.split(outputSelector).split(outputSelector).addSink(new DiscardingSink<>());
 
 		expectedException.expect(IllegalStateException.class);
-		expectedException.expectMessage("Error while tranforming SplitTransformation, please use side output instead.");
+		expectedException.expectMessage("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
+
+		env.getStreamGraph();
+	}
+
+	@Test
+	public void testSplitAfterSideOutputRejection() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Integer> src = env.fromElements(0, 0);
+
+		OutputTag<Integer> outputTag = new OutputTag<Integer>("dummy"){};
+		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
+
+		src.getSideOutput(outputTag).split(outputSelector).addSink(new DiscardingSink<>());
+
+		expectedException.expect(IllegalStateException.class);
+		expectedException.expectMessage("Split after side-outputs are not supported. Splits are deprecated. Please use side-outputs.");
 
 		env.getStreamGraph();
 	}
@@ -1122,17 +1130,12 @@ public class DataStreamTest extends TestLogger {
 
 		DataStreamSource<Integer> src = env.fromElements(0, 0);
 
-		OutputSelector<Integer> outputSelector = new OutputSelector<Integer>() {
-			@Override
-			public Iterable<String> select(Integer value) {
-				return null;
-			}
-		};
+		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
 
 		src.split(outputSelector).select("dummy").split(outputSelector).addSink(new DiscardingSink<>());
 
 		expectedException.expect(IllegalStateException.class);
-		expectedException.expectMessage("Error while tranforming SplitTransformation, please use side output instead.");
+		expectedException.expectMessage("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
 
 		env.getStreamGraph();
 	}
@@ -1143,17 +1146,12 @@ public class DataStreamTest extends TestLogger {
 
 		DataStreamSource<Integer> src = env.fromElements(0, 0);
 
-		OutputSelector<Integer> outputSelector = new OutputSelector<Integer>() {
-			@Override
-			public Iterable<String> select(Integer value) {
-				return null;
-			}
-		};
+		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
 
 		src.split(outputSelector).select("dummy").union(src.map(x -> x)).split(outputSelector).addSink(new DiscardingSink<>());
 
 		expectedException.expect(IllegalStateException.class);
-		expectedException.expectMessage("Error while tranforming SplitTransformation, please use side output instead.");
+		expectedException.expectMessage("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
 
 		env.getStreamGraph();
 	}
@@ -1164,17 +1162,12 @@ public class DataStreamTest extends TestLogger {
 
 		DataStreamSource<Integer> src = env.fromElements(0, 0);
 
-		OutputSelector<Integer> outputSelector = new OutputSelector<Integer>() {
-			@Override
-			public Iterable<String> select(Integer value) {
-				return null;
-			}
-		};
+		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
 
 		src.split(outputSelector).select("dummy").keyBy(x -> x).split(outputSelector).addSink(new DiscardingSink<>());
 
 		expectedException.expect(IllegalStateException.class);
-		expectedException.expectMessage("Error while tranforming SplitTransformation, please use side output instead.");
+		expectedException.expectMessage("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
 
 		env.getStreamGraph();
 	}
@@ -1513,6 +1506,13 @@ public class DataStreamTest extends TestLogger {
 
 		public int getI() {
 			return i;
+		}
+	}
+
+	private class DummyOutputSelector<Integer> implements OutputSelector<Integer> {
+		@Override
+		public Iterable<String> select(Integer value) {
+			return null;
 		}
 	}
 }

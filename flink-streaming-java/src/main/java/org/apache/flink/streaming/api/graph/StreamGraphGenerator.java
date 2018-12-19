@@ -648,7 +648,9 @@ public class StreamGraphGenerator {
 
 	private <T> void validateSplitTransformation(StreamTransformation<T> input) {
 		if (input instanceof SelectTransformation || input instanceof SplitTransformation) {
-			throw new IllegalStateException("Error while tranforming SplitTransformation, please use side output instead.");
+			throw new IllegalStateException("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
+		} else if (input instanceof SideOutputTransformation) {
+			throw new IllegalStateException("Split after side-outputs are not supported. Splits are deprecated. Please use side-outputs.");
 		} else if (input instanceof UnionTransformation) {
 			for (StreamTransformation<T> transformation : ((UnionTransformation<T>) input).getInputs()) {
 				validateSplitTransformation(transformation);
