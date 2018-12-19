@@ -56,6 +56,7 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
 	private static final int NUM_SOURCE_ELEMENTS = 4;
 
 	// TODO change this to PERFORM_SAVEPOINT to regenerate binary savepoints
+	// TODO Note: You should generate the savepoint based on the release branch instead of the master.
 	private final StatefulJobSavepointMigrationITCase.ExecutionMode executionMode =
 			StatefulJobSavepointMigrationITCase.ExecutionMode.VERIFY_SAVEPOINT;
 
