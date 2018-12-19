@@ -35,6 +35,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 
 import static org.mockito.Mockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
@@ -43,6 +44,8 @@ import static org.powermock.api.mockito.PowerMockito.when;
  * Tests for the {@link CassandraSinkBase}.
  */
 public class CassandraSinkBaseTest {
+
+	private static final long DEFAULT_TEST_TIMEOUT = 5000;
 
 	@Test(expected = NoHostAvailableException.class)
 	public void testHostNotFoundErrorHandling() throws Exception {
@@ -64,20 +67,17 @@ public class CassandraSinkBaseTest {
 		base.open(new Configuration());
 	}
 
-	@Test(timeout = 5000)
+	@Test(timeout = DEFAULT_TEST_TIMEOUT)
 	public void testSuccessfulPath() throws Exception {
-		TestCassandraSink casSinkFunc = new TestCassandraSink();
-		casSinkFunc.open(new Configuration());
+		try (TestCassandraSink casSinkFunc = createOpenedTestCassandraSink()) {
+			casSinkFunc.setResultFuture(ResultSetFutures.fromCompletableFuture(CompletableFuture.completedFuture(null)));
+			casSinkFunc.invoke("hello");
 
-		casSinkFunc.setResultFuture(ResultSetFutures.fromCompletableFuture(CompletableFuture.completedFuture(null)));
-		casSinkFunc.invoke("hello");
-
-		Assert.assertEquals(0, casSinkFunc.getNumOfPendingRecords());
-
-		casSinkFunc.close();
+			Assert.assertEquals(0, casSinkFunc.getNumOfPendingRecords());
+		}
 	}
 
-	@Test(timeout = 5000)
+	@Test(timeout = DEFAULT_TEST_TIMEOUT)
 	public void testThrowErrorOnClose() throws Exception {
 		TestCassandraSink casSinkFunc = new TestCassandraSink();
 
@@ -96,134 +96,147 @@ public class CassandraSinkBaseTest {
 		}
 	}
 
-	@Test(timeout = 5000)
+	@Test(timeout = DEFAULT_TEST_TIMEOUT)
 	public void testThrowErrorOnInvoke() throws Exception {
-		TestCassandraSink casSinkFunc = new TestCassandraSink();
+		try (TestCassandraSink casSinkFunc = createOpenedTestCassandraSink()) {
+			Exception cause = new RuntimeException();
+			casSinkFunc.setResultFuture(ResultSetFutures.fromCompletableFuture(FutureUtils.getFailedFuture(cause)));
 
-		casSinkFunc.open(new Configuration());
+			casSinkFunc.invoke("hello");
 
-		Exception cause = new RuntimeException();
-		casSinkFunc.setResultFuture(ResultSetFutures.fromCompletableFuture(FutureUtils.getFailedFuture(cause)));
-
-		casSinkFunc.invoke("hello");
-
-		try {
-			casSinkFunc.invoke("world");
-			Assert.fail("Sending of second value should have failed.");
-		} catch (IOException e) {
-			Assert.assertEquals(cause, e.getCause());
-			Assert.assertEquals(0, casSinkFunc.getNumOfPendingRecords());
+			try {
+				casSinkFunc.invoke("world");
+				Assert.fail("Sending of second value should have failed.");
+			} catch (IOException e) {
+				Assert.assertEquals(cause, e.getCause());
+				Assert.assertEquals(0, casSinkFunc.getNumOfPendingRecords());
+			}
 		}
 	}
 
-	@Test(timeout = 5000)
+	@Test(timeout = DEFAULT_TEST_TIMEOUT)
 	public void testIgnoreError() throws Exception {
 		Exception cause = new RuntimeException();
 		CassandraFailureHandler failureHandler = failure -> Assert.assertEquals(cause, failure);
-		TestCassandraSink casSinkFunc = new TestCassandraSink(failureHandler);
 
-		casSinkFunc.open(new Configuration());
+		try (TestCassandraSink casSinkFunc = createOpenedTestCassandraSink(failureHandler)) {
 
-		casSinkFunc.setResultFuture(ResultSetFutures.fromCompletableFuture(FutureUtils.getFailedFuture(cause)));
+			casSinkFunc.setResultFuture(ResultSetFutures.fromCompletableFuture(FutureUtils.getFailedFuture(cause)));
 
-		casSinkFunc.invoke("hello");
-		casSinkFunc.invoke("world");
+			casSinkFunc.invoke("hello");
+			casSinkFunc.invoke("world");
+		}
 	}
 
-	@Test(timeout = 5000)
+	@Test(timeout = DEFAULT_TEST_TIMEOUT)
 	public void testThrowErrorOnSnapshot() throws Exception {
 		TestCassandraSink casSinkFunc = new TestCassandraSink();
 
-		OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(casSinkFunc));
+		try (OneInputStreamOperatorTestHarness<String, Object> testHarness = createOpenedTestHarness(casSinkFunc)) {
+			Exception cause = new RuntimeException();
+			casSinkFunc.setResultFuture(ResultSetFutures.fromCompletableFuture(FutureUtils.getFailedFuture(cause)));
 
-		testHarness.open();
+			casSinkFunc.invoke("hello");
 
-		Exception cause = new RuntimeException();
-		casSinkFunc.setResultFuture(ResultSetFutures.fromCompletableFuture(FutureUtils.getFailedFuture(cause)));
+			try {
+				testHarness.snapshot(123L, 123L);
 
-		casSinkFunc.invoke("hello");
-
-		try {
-			testHarness.snapshot(123L, 123L);
-
-			Assert.fail();
-		} catch (Exception e) {
-			Assert.assertTrue(e.getCause() instanceof IOException);
-			Assert.assertEquals(cause, e.getCause().getCause());
-			Assert.assertEquals(0, casSinkFunc.getNumOfPendingRecords());
+				Assert.fail();
+			} catch (Exception e) {
+				Assert.assertTrue(e.getCause() instanceof IOException);
+				Assert.assertEquals(cause, e.getCause().getCause());
+				Assert.assertEquals(0, casSinkFunc.getNumOfPendingRecords());
+			}
 		}
-
-		testHarness.close();
 	}
 
-	@Test(timeout = 5000)
+	@Test(timeout = DEFAULT_TEST_TIMEOUT)
 	public void testWaitForPendingUpdatesOnSnapshot() throws Exception {
 		TestCassandraSink casSinkFunc = new TestCassandraSink();
 
-		OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(casSinkFunc));
+		try (OneInputStreamOperatorTestHarness<String, Object> testHarness = createOpenedTestHarness(casSinkFunc)) {
+			CompletableFuture<ResultSet> completableFuture = new CompletableFuture<>();
+			ResultSetFuture resultSetFuture = ResultSetFutures.fromCompletableFuture(completableFuture);
+			casSinkFunc.setResultFuture(resultSetFuture);
 
-		testHarness.open();
+			casSinkFunc.invoke("hello");
+			Assert.assertEquals(1, casSinkFunc.getNumOfPendingRecords());
 
-		CompletableFuture<ResultSet> completableFuture = new CompletableFuture<>();
-		ResultSetFuture resultSetFuture = ResultSetFutures.fromCompletableFuture(completableFuture);
-		casSinkFunc.setResultFuture(resultSetFuture);
-
-		casSinkFunc.invoke("hello");
-		Assert.assertEquals(1, casSinkFunc.getNumOfPendingRecords());
-
-		Thread t = new CheckedThread("Flink-CassandraSinkBaseTest") {
-			@Override
-			public void go() throws Exception {
-				testHarness.snapshot(123L, 123L);
+			final CountDownLatch latch = new CountDownLatch(1);
+			Thread t = new CheckedThread("Flink-CassandraSinkBaseTest") {
+				@Override
+				public void go() throws Exception {
+					testHarness.snapshot(123L, 123L);
+					latch.countDown();
+				}
+			};
+			t.start();
+			while (t.getState() != Thread.State.WAITING) {
+				Thread.sleep(5);
 			}
-		};
-		t.start();
-		while (t.getState() != Thread.State.WAITING) {
-			Thread.sleep(5);
+
+			Assert.assertEquals(1, casSinkFunc.getNumOfPendingRecords());
+			completableFuture.complete(null);
+			latch.await();
+			Assert.assertEquals(0, casSinkFunc.getNumOfPendingRecords());
 		}
-
-		Assert.assertEquals(1, casSinkFunc.getNumOfPendingRecords());
-		completableFuture.complete(null);
-		Assert.assertEquals(0, casSinkFunc.getNumOfPendingRecords());
-
-		testHarness.close();
 	}
 
-	@Test(timeout = 5000)
+	@Test(timeout = DEFAULT_TEST_TIMEOUT)
 	public void testWaitForPendingUpdatesOnClose() throws Exception {
 		TestCassandraSink casSinkFunc = new TestCassandraSink();
 
-		OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(casSinkFunc));
+		try (OneInputStreamOperatorTestHarness<String, Object> testHarness = createOpenedTestHarness(casSinkFunc)) {
 
-		testHarness.open();
+			CompletableFuture<ResultSet> completableFuture = new CompletableFuture<>();
+			ResultSetFuture resultSetFuture = ResultSetFutures.fromCompletableFuture(completableFuture);
+			casSinkFunc.setResultFuture(resultSetFuture);
 
-		CompletableFuture<ResultSet> completableFuture = new CompletableFuture<>();
-		ResultSetFuture resultSetFuture = ResultSetFutures.fromCompletableFuture(completableFuture);
-		casSinkFunc.setResultFuture(resultSetFuture);
+			casSinkFunc.invoke("hello");
+			Assert.assertEquals(1, casSinkFunc.getNumOfPendingRecords());
 
-		casSinkFunc.invoke("hello");
-		Assert.assertEquals(1, casSinkFunc.getNumOfPendingRecords());
-
-		Thread t = new CheckedThread("Flink-CassandraSinkBaseTest") {
-			@Override
-			public void go() throws Exception {
-				testHarness.close();
+			final CountDownLatch latch = new CountDownLatch(1);
+			Thread t = new CheckedThread("Flink-CassandraSinkBaseTest") {
+				@Override
+				public void go() throws Exception {
+					testHarness.close();
+					latch.countDown();
+				}
+			};
+			t.start();
+			while (t.getState() != Thread.State.WAITING) {
+				Thread.sleep(5);
 			}
-		};
-		t.start();
-		while (t.getState() != Thread.State.WAITING) {
-			Thread.sleep(5);
-		}
 
-		Assert.assertEquals(1, casSinkFunc.getNumOfPendingRecords());
-		completableFuture.complete(null);
-		Assert.assertEquals(0, casSinkFunc.getNumOfPendingRecords());
+			Assert.assertEquals(1, casSinkFunc.getNumOfPendingRecords());
+			completableFuture.complete(null);
+			latch.await();
+			Assert.assertEquals(0, casSinkFunc.getNumOfPendingRecords());
+		}
 	}
 
-	private static class TestCassandraSink extends CassandraSinkBase<String, ResultSet> {
+	private TestCassandraSink createOpenedTestCassandraSink() {
+		final TestCassandraSink testCassandraSink = new TestCassandraSink();
+		testCassandraSink.open(new Configuration());
+		return testCassandraSink;
+	}
+
+	private TestCassandraSink createOpenedTestCassandraSink(CassandraFailureHandler failureHandler) {
+		final TestCassandraSink testCassandraSink = new TestCassandraSink(failureHandler);
+		testCassandraSink.open(new Configuration());
+		return testCassandraSink;
+	}
+
+	private OneInputStreamOperatorTestHarness<String, Object> createOpenedTestHarness(
+		TestCassandraSink testCassandraSink) throws Exception {
+		final StreamSink<String> testStreamSink = new StreamSink<>(testCassandraSink);
+		final OneInputStreamOperatorTestHarness<String, Object> testHarness =
+			new OneInputStreamOperatorTestHarness<>(testStreamSink);
+		testHarness.open();
+		return testHarness;
+	}
+
+	private static class TestCassandraSink extends CassandraSinkBase<String, ResultSet> implements AutoCloseable {
 
 		private static final ClusterBuilder builder;
 		private static final Cluster cluster;
