@@ -31,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -412,7 +413,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	/**
 	 * Class for generating ticks.
 	 */
-	public abstract static class Ticker {
+	public abstract static class Ticker implements Serializable {
 
 		protected Ticker() {}
 
