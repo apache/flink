@@ -45,16 +45,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> implements CheckpointedFunction {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
+
 	protected transient Cluster cluster;
 	protected transient Session session;
 
 	protected transient volatile Throwable exception;
 	protected transient FutureCallback<V> callback;
-
-	private final ClusterBuilder builder;
-
 	private final AtomicInteger updatesPending = new AtomicInteger();
 
+	private final ClusterBuilder builder;
 	private final CassandraFailureHandler failureHandler;
 
 	CassandraSinkBase(ClusterBuilder builder, CassandraFailureHandler failureHandler) {
@@ -93,20 +92,6 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 		this.session = createSession();
 	}
 
-	protected Session createSession() {
-		return cluster.connect();
-	}
-
-	@Override
-	public void invoke(IN value) throws Exception {
-		checkAsyncErrors();
-		ListenableFuture<V> result = send(value);
-		updatesPending.incrementAndGet();
-		Futures.addCallback(result, callback);
-	}
-
-	public abstract ListenableFuture<V> send(IN value);
-
 	@Override
 	public void close() throws Exception {
 		try {
@@ -141,6 +126,20 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 		waitForPendingUpdates();
 		checkAsyncErrors();
 	}
+
+	@Override
+	public void invoke(IN value) throws Exception {
+		checkAsyncErrors();
+		ListenableFuture<V> result = send(value);
+		updatesPending.incrementAndGet();
+		Futures.addCallback(result, callback);
+	}
+
+	protected Session createSession() {
+		return cluster.connect();
+	}
+
+	public abstract ListenableFuture<V> send(IN value);
 
 	private void waitForPendingUpdates() throws InterruptedException {
 		synchronized (updatesPending) {
