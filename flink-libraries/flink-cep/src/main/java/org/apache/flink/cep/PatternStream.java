@@ -19,7 +19,6 @@
 package org.apache.flink.cep;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.EitherTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -36,6 +35,7 @@ import java.util.UUID;
 
 import static org.apache.flink.cep.PatternProcessFunctionBuilder.fromFlatSelect;
 import static org.apache.flink.cep.PatternProcessFunctionBuilder.fromSelect;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Stream abstraction for CEP pattern detection. A pattern stream is a stream which emits detected
@@ -50,42 +50,22 @@ import static org.apache.flink.cep.PatternProcessFunctionBuilder.fromSelect;
  */
 public class PatternStream<T> {
 
-	// underlying data stream
-	private final DataStream<T> inputStream;
+	private final PatternStreamBuilder<T> builder;
 
-	private final Pattern<T, ?> pattern;
-
-	// comparator to sort events
-	private final EventComparator<T> comparator;
-
-	/**
-	 * Side output {@code OutputTag} for late data. If no tag is set late data will be simply
-	 * dropped.
-	 */
-	private OutputTag<T> lateDataOutputTag;
+	private PatternStream(final PatternStreamBuilder<T> builder) {
+		this.builder = checkNotNull(builder);
+	}
 
 	PatternStream(final DataStream<T> inputStream, final Pattern<T, ?> pattern) {
-		this.inputStream = inputStream;
-		this.pattern = pattern;
-		this.comparator = null;
+		this(PatternStreamBuilder.forStreamAndPattern(inputStream, pattern));
 	}
 
-	PatternStream(final DataStream<T> inputStream, final Pattern<T, ?> pattern, final EventComparator<T> comparator) {
-		this.inputStream = inputStream;
-		this.pattern = pattern;
-		this.comparator = comparator;
+	PatternStream<T> withComparator(final EventComparator<T> comparator) {
+		return new PatternStream<>(builder.withComparator(comparator));
 	}
 
-	public Pattern<T, ?> getPattern() {
-		return pattern;
-	}
-
-	public DataStream<T> getInputStream() {
-		return inputStream;
-	}
-
-	public EventComparator<T> getComparator() {
-		return comparator;
+	public PatternStream<T> sideOutputLateData(OutputTag<T> lateDataOutputTag) {
+		return new PatternStream<>(builder.withLateDataOutputTag(lateDataOutputTag));
 	}
 
 	/**
@@ -100,16 +80,13 @@ public class PatternStream<T> {
 	 *         function.
 	 */
 	public <R> SingleOutputStreamOperator<R> process(final PatternProcessFunction<T, R> patternProcessFunction) {
-		// we have to extract the output type from the provided pattern selection function manually
-		// because the TypeExtractor cannot do that if the method is wrapped in a MapFunction
-
 		final TypeInformation<R> returnType = TypeExtractor.getUnaryOperatorReturnType(
 			patternProcessFunction,
-			PatternSelectFunction.class,
+			PatternProcessFunction.class,
 			0,
 			1,
 			TypeExtractor.NO_INDEX,
-			inputStream.getType(),
+			builder.getInputType(),
 			null,
 			false);
 
@@ -132,13 +109,9 @@ public class PatternStream<T> {
 			final PatternProcessFunction<T, R> patternProcessFunction,
 			final TypeInformation<R> outTypeInfo) {
 
-		return PatternStreamBuilder.createPatternStream(
-			inputStream,
-			pattern,
+		return builder.build(
 			outTypeInfo,
-			comparator,
-			lateDataOutputTag,
-			clean(patternProcessFunction));
+			builder.clean(patternProcessFunction));
 	}
 
 	/**
@@ -162,22 +135,13 @@ public class PatternStream<T> {
 			0,
 			1,
 			TypeExtractor.NO_INDEX,
-			inputStream.getType(),
+			builder.getInputType(),
 			null,
 			false);
 
 		return select(patternSelectFunction, returnType);
 	}
 
-	/**
-	 * Invokes the {@link org.apache.flink.api.java.ClosureCleaner}
-	 * on the given function if closure cleaning is enabled in the {@link ExecutionConfig}.
-	 *
-	 * @return The cleaned Function
-	 */
-	private  <F> F clean(F f) {
-		return inputStream.getExecutionEnvironment().clean(f);
-	}
 
 	/**
 	 * Applies a select function to the detected pattern sequence. For each pattern sequence the
@@ -196,7 +160,7 @@ public class PatternStream<T> {
 			final TypeInformation<R> outTypeInfo) {
 
 		final PatternProcessFunction<T, R> processFunction =
-			fromSelect(clean(patternSelectFunction)).build();
+			fromSelect(builder.clean(patternSelectFunction)).build();
 
 		return process(processFunction, outTypeInfo);
 	}
@@ -236,7 +200,7 @@ public class PatternStream<T> {
 			0,
 			1,
 			TypeExtractor.NO_INDEX,
-			inputStream.getType(),
+			builder.getInputType(),
 			null,
 			false);
 
@@ -279,8 +243,8 @@ public class PatternStream<T> {
 			final PatternSelectFunction<T, R> patternSelectFunction) {
 
 		final PatternProcessFunction<T, R> processFunction =
-			fromSelect(clean(patternSelectFunction))
-				.withTimeoutHandler(timedOutPartialMatchesTag, clean(patternTimeoutFunction))
+			fromSelect(builder.clean(patternSelectFunction))
+				.withTimeoutHandler(timedOutPartialMatchesTag, builder.clean(patternTimeoutFunction))
 				.build();
 
 		return process(processFunction, outTypeInfo);
@@ -319,7 +283,7 @@ public class PatternStream<T> {
 			0,
 			1,
 			TypeExtractor.NO_INDEX,
-			inputStream.getType(),
+			builder.getInputType(),
 			null,
 			false);
 
@@ -329,7 +293,7 @@ public class PatternStream<T> {
 			0,
 			1,
 			TypeExtractor.NO_INDEX,
-			inputStream.getType(),
+			builder.getInputType(),
 			null,
 			false);
 
@@ -338,17 +302,17 @@ public class PatternStream<T> {
 		final OutputTag<L> outputTag = new OutputTag<>(UUID.randomUUID().toString(), timeoutTypeInfo);
 
 		final PatternProcessFunction<T, R> processFunction =
-				fromSelect(clean(patternSelectFunction))
-						.withTimeoutHandler(outputTag, clean(patternTimeoutFunction))
-						.build();
+			fromSelect(builder.clean(patternSelectFunction))
+				.withTimeoutHandler(outputTag, builder.clean(patternTimeoutFunction))
+				.build();
 
 		final SingleOutputStreamOperator<R> mainStream = process(processFunction, mainTypeInfo);
 		final DataStream<L> timedOutStream = mainStream.getSideOutput(outputTag);
 
 		return mainStream
-				.connect(timedOutStream)
-				.map(new CoMapTimeout<>())
-				.returns(outTypeInfo);
+			.connect(timedOutStream)
+			.map(new CoMapTimeout<>())
+			.returns(outTypeInfo);
 	}
 
 	/**
@@ -362,17 +326,17 @@ public class PatternStream<T> {
 	 * @return {@link DataStream} which contains the resulting elements from the pattern flat select
 	 *         function.
 	 */
-	public <R> SingleOutputStreamOperator<R> flatSelect(
-			final PatternFlatSelectFunction<T, R> patternFlatSelectFunction) {
+	public <R> SingleOutputStreamOperator<R> flatSelect(final PatternFlatSelectFunction<T, R> patternFlatSelectFunction) {
 		// we have to extract the output type from the provided pattern selection function manually
 		// because the TypeExtractor cannot do that if the method is wrapped in a MapFunction
+
 		final TypeInformation<R> outTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternFlatSelectFunction,
 			PatternFlatSelectFunction.class,
 			0,
 			1,
-			new int[] {1, 0},
-			inputStream.getType(),
+			new int[]{1, 0},
+			builder.getInputType(),
 			null,
 			false);
 
@@ -396,7 +360,8 @@ public class PatternStream<T> {
 			final TypeInformation<R> outTypeInfo) {
 
 		final PatternProcessFunction<T, R> processFunction =
-			fromFlatSelect(clean(patternFlatSelectFunction)).build();
+			fromFlatSelect(builder.clean(patternFlatSelectFunction))
+				.build();
 
 		return process(processFunction, outTypeInfo);
 	}
@@ -436,11 +401,12 @@ public class PatternStream<T> {
 			0,
 			1,
 			new int[]{1, 0},
-			inputStream.getType(),
+			builder.getInputType(),
 			null,
 			false);
 
-		return flatSelect(timedOutPartialMatchesTag,
+		return flatSelect(
+			timedOutPartialMatchesTag,
 			patternFlatTimeoutFunction,
 			rightTypeInfo,
 			patternFlatSelectFunction);
@@ -478,8 +444,8 @@ public class PatternStream<T> {
 			final PatternFlatSelectFunction<T, R> patternFlatSelectFunction) {
 
 		final PatternProcessFunction<T, R> processFunction =
-			fromFlatSelect(clean(patternFlatSelectFunction))
-				.withTimeoutHandler(timedOutPartialMatchesTag, clean(patternFlatTimeoutFunction))
+			fromFlatSelect(builder.clean(patternFlatSelectFunction))
+				.withTimeoutHandler(timedOutPartialMatchesTag, builder.clean(patternFlatTimeoutFunction))
 				.build();
 
 		return process(processFunction, outTypeInfo);
@@ -519,7 +485,7 @@ public class PatternStream<T> {
 			0,
 			1,
 			new int[]{2, 0},
-			inputStream.getType(),
+			builder.getInputType(),
 			null,
 			false);
 
@@ -529,15 +495,15 @@ public class PatternStream<T> {
 			0,
 			1,
 			new int[]{1, 0},
-			inputStream.getType(),
+			builder.getInputType(),
 			null,
 			false);
 
 		final OutputTag<L> outputTag = new OutputTag<>(UUID.randomUUID().toString(), timedOutTypeInfo);
 
 		final PatternProcessFunction<T, R> processFunction =
-			fromFlatSelect(clean(patternFlatSelectFunction))
-				.withTimeoutHandler(outputTag, clean(patternFlatTimeoutFunction))
+			fromFlatSelect(builder.clean(patternFlatSelectFunction))
+				.withTimeoutHandler(outputTag, builder.clean(patternFlatTimeoutFunction))
 				.build();
 
 		final SingleOutputStreamOperator<R> mainStream = process(processFunction, mainTypeInfo);
@@ -545,14 +511,9 @@ public class PatternStream<T> {
 		final TypeInformation<Either<L, R>> outTypeInfo = new EitherTypeInfo<>(timedOutTypeInfo, mainTypeInfo);
 
 		return mainStream
-			.connect(timedOutStream)
-			.map(new CoMapTimeout<>())
-			.returns(outTypeInfo);
-	}
-
-	public PatternStream<T> sideOutputLateData(OutputTag<T> lateDataOutputTag) {
-		this.lateDataOutputTag = clean(lateDataOutputTag);
-		return this;
+				.connect(timedOutStream)
+				.map(new CoMapTimeout<>())
+				.returns(outTypeInfo);
 	}
 
 	/**
@@ -564,12 +525,12 @@ public class PatternStream<T> {
 		private static final long serialVersionUID = 2059391566945212552L;
 
 		@Override
-		public Either<L, R> map1(R value) throws Exception {
+		public Either<L, R> map1(R value) {
 			return Either.Right(value);
 		}
 
 		@Override
-		public Either<L, R> map2(L value) throws Exception {
+		public Either<L, R> map2(L value) {
 			return Either.Left(value);
 		}
 	}

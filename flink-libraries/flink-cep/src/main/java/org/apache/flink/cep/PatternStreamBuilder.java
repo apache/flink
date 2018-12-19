@@ -19,6 +19,7 @@
 package org.apache.flink.cep;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -45,46 +46,77 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Utility method for creating {@link PatternStream}.
  */
 @Internal
-final class PatternStreamBuilder {
+final class PatternStreamBuilder<IN> {
+
+	private final DataStream<IN> inputStream;
+
+	private final Pattern<IN, ?> pattern;
+
+	private final EventComparator<IN> comparator;
+
+	/**
+	 * Side output {@code OutputTag} for late data.
+	 * If no tag is set late data will be simply dropped.
+	 */
+	private final OutputTag<IN> lateDataOutputTag;
+
+	private PatternStreamBuilder(
+			final DataStream<IN> inputStream,
+			final Pattern<IN, ?> pattern,
+			@Nullable final EventComparator<IN> comparator,
+			@Nullable final OutputTag<IN> lateDataOutputTag) {
+
+		this.inputStream = checkNotNull(inputStream);
+		this.pattern = checkNotNull(pattern);
+		this.comparator = comparator;
+		this.lateDataOutputTag = lateDataOutputTag;
+	}
+
+	TypeInformation<IN> getInputType() {
+		return inputStream.getType();
+	}
+
+	/**
+	 * Invokes the {@link org.apache.flink.api.java.ClosureCleaner}
+	 * on the given function if closure cleaning is enabled in the {@link ExecutionConfig}.
+	 *
+	 * @return The cleaned Function
+	 */
+	<F> F clean(F f) {
+		return inputStream.getExecutionEnvironment().clean(f);
+	}
+
+	PatternStreamBuilder<IN> withComparator(final EventComparator<IN> comparator) {
+		return new PatternStreamBuilder<>(inputStream, pattern, checkNotNull(comparator), lateDataOutputTag);
+	}
+
+	PatternStreamBuilder<IN> withLateDataOutputTag(final OutputTag<IN> lateDataOutputTag) {
+		return new PatternStreamBuilder<>(inputStream, pattern, comparator, checkNotNull(lateDataOutputTag));
+	}
 
 	/**
 	 * Creates a data stream containing results of {@link PatternProcessFunction} to fully matching event patterns.
 	 *
-	 * @param inputStream stream of input events
-	 * @param pattern pattern to be search for in the stream
 	 * @param processFunction function to be applied to matching event sequences
 	 * @param outTypeInfo output TypeInformation of
 	 *        {@link PatternProcessFunction#processMatch(Map, PatternProcessFunction.Context, Collector)}
-	 * @param <IN> type of input events
 	 * @param <OUT> type of output events
 	 * @return Data stream containing fully matched event sequence with applied {@link PatternProcessFunction}
 	 */
-	static <IN, OUT, K> SingleOutputStreamOperator<OUT> createPatternStream(
-			final DataStream<IN> inputStream,
-			final Pattern<IN, ?> pattern,
+	<OUT, K> SingleOutputStreamOperator<OUT> build(
 			final TypeInformation<OUT> outTypeInfo,
-			@Nullable final EventComparator<IN> comparator,
-			@Nullable final OutputTag<IN> lateDataOutputTag,
 			final PatternProcessFunction<IN, OUT> processFunction) {
 
-		checkNotNull(inputStream);
-		checkNotNull(pattern);
 		checkNotNull(outTypeInfo);
 		checkNotNull(processFunction);
 
-		final TypeSerializer<IN> inputSerializer =
-				inputStream.getType().createSerializer(inputStream.getExecutionConfig());
-
-		// check whether we use processing time
-		final boolean isProcessingTime =
-			inputStream.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
+		final TypeSerializer<IN> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
+		final boolean isProcessingTime = inputStream.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
 
 		final boolean timeoutHandling = processFunction instanceof TimedOutPartialMatchHandler;
-
-		// compile our pattern into a NFAFactory to instantiate NFAs later on
 		final NFACompiler.NFAFactory<IN> nfaFactory = NFACompiler.compileFactory(pattern, timeoutHandling);
 
-		CepOperator<IN, K, OUT> operator = new CepOperator<>(
+		final CepOperator<IN, K, OUT> operator = new CepOperator<>(
 			inputSerializer,
 			isProcessingTime,
 			nfaFactory,
@@ -108,12 +140,15 @@ final class PatternStreamBuilder {
 				"GlobalCepOperator",
 				outTypeInfo,
 				operator
-				).forceNonParallel();
+			).forceNonParallel();
 		}
 
 		return patternStream;
 	}
 
-	private PatternStreamBuilder() {
+	// ---------------------------------------- factory-like methods ---------------------------------------- //
+
+	static <IN> PatternStreamBuilder<IN> forStreamAndPattern(final DataStream<IN> inputStream, final Pattern<IN, ?> pattern) {
+		return new PatternStreamBuilder<>(inputStream, pattern, null, null);
 	}
 }
