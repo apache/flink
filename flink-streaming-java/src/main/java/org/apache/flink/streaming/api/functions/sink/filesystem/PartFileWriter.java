@@ -111,7 +111,7 @@ abstract class PartFileWriter<IN, BucketID> implements PartFileInfo<BucketID> {
 		/**
 		 * Used upon recovery from a failure to recover a {@link PartFileWriter writer}.
 		 * @param bucketId the id of the bucket this writer is writing to.
-		 * @param fileSystemWriter the filesystem-specific writer to use when writing to the filesystem.
+		 * @param stream the filesystem-specific output stream to use when writing to the filesystem.
 		 * @param resumable the state of the stream we are resurrecting.
 		 * @param creationTime the creation time of the stream.
 		 * @return the recovered {@link PartFileWriter writer}.
@@ -119,14 +119,14 @@ abstract class PartFileWriter<IN, BucketID> implements PartFileInfo<BucketID> {
 		 */
 		PartFileWriter<IN, BucketID> resumeFrom(
 			final BucketID bucketId,
-			final RecoverableWriter fileSystemWriter,
+			final RecoverableFsDataOutputStream stream,
 			final RecoverableWriter.ResumeRecoverable resumable,
 			final long creationTime) throws IOException;
 
 		/**
 		 * Used to create a new {@link PartFileWriter writer}.
 		 * @param bucketId the id of the bucket this writer is writing to.
-		 * @param fileSystemWriter the filesystem-specific writer to use when writing to the filesystem.
+		 * @param stream the filesystem-specific output stream to use when writing to the filesystem.
 		 * @param path the part this writer will write to.
 		 * @param creationTime the creation time of the stream.
 		 * @return the new {@link PartFileWriter writer}.
@@ -134,7 +134,7 @@ abstract class PartFileWriter<IN, BucketID> implements PartFileInfo<BucketID> {
 		 */
 		PartFileWriter<IN, BucketID> openNew(
 			final BucketID bucketId,
-			final RecoverableWriter fileSystemWriter,
+			final RecoverableFsDataOutputStream stream,
 			final Path path,
 			final long creationTime) throws IOException;
 	}

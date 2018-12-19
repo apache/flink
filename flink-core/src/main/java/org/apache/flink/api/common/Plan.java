@@ -23,6 +23,7 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -361,10 +362,14 @@ public class Plan implements Visitable<Operator<?>> {
 	
 	private static final class MaxDopVisitor implements Visitor<Operator<?>> {
 
+		private final Set<Operator> visitedOperators = new HashSet<>();
 		private int maxDop = -1;
-		
+
 		@Override
 		public boolean preVisit(Operator<?> visitable) {
+			if (!visitedOperators.add(visitable)) {
+				return false;
+			}
 			this.maxDop = Math.max(this.maxDop, visitable.getParallelism());
 			return true;
 		}

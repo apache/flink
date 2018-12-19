@@ -35,7 +35,7 @@
           :or   {on-retry (fn [exception attempt] (warn "Retryable operation failed:"
                                                         (.getMessage exception)))
                  success  identity
-                 fallback :default
+                 fallback #(throw %)
                  retries  10
                  delay    2000}
           :as   keys}]
@@ -50,6 +50,10 @@
          (Thread/sleep delay)
          (recur op (assoc keys :retries (dec retries))))
        (success r)))))
+
+(defn join-space
+  [& tokens]
+  (clojure.string/join " " tokens))
 
 (defn find-files!
   "Lists files recursively given a directory. If the directory does not exist, an empty collection

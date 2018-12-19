@@ -72,7 +72,7 @@ tableEnv.registerFunction("hashCode", new HashCode(10));
 myTable.select("string, string.hashCode(), hashCode(string)");
 
 // use the function in SQL API
-tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable");
+tableEnv.sqlQuery("SELECT string, hashCode(string) FROM MyTable");
 {% endhighlight %}
 </div>
 
@@ -93,7 +93,7 @@ myTable.select('string, hashCode('string))
 
 // register and use the function in SQL
 tableEnv.registerFunction("hashCode", new HashCode(10))
-tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable")
+tableEnv.sqlQuery("SELECT string, hashCode(string) FROM MyTable")
 {% endhighlight %}
 </div>
 </div>
@@ -110,8 +110,8 @@ public static class TimestampModifier extends ScalarFunction {
     return t % 1000;
   }
 
-  public TypeInformation<?> getResultType(signature: Class<?>[]) {
-    return Types.TIMESTAMP;
+  public TypeInformation<?> getResultType(Class<?>[] signature) {
+    return Types.SQL_TIMESTAMP;
   }
 }
 {% endhighlight %}
@@ -230,7 +230,7 @@ public class CustomTypeSplit extends TableFunction<Row> {
         for (String s : str.split(" ")) {
             Row row = new Row(2);
             row.setField(0, s);
-            row.setField(1, s.length);
+            row.setField(1, s.length());
             collect(row);
         }
     }

@@ -21,7 +21,6 @@ import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
@@ -83,7 +82,7 @@ import org.apache.flink.types.Row
     * unmatched or vice versa. The RowWrapper has been reset before we call retractJoin and we
     * also assume that the current change of cRowWrapper is equal to value.change.
     */
-  def retractJoinWithNonEquiPreds(
+  protected def retractJoinWithNonEquiPreds(
       value: CRow,
       inputRowFromLeft: Boolean,
       otherSideState: MapState[Row, JTuple2[Long, Long]],
@@ -132,48 +131,6 @@ import org.apache.flink.types.Row
   }
 
   /**
-    * Removes records which are expired from state. Registers a new timer if the state still
-    * holds records after the clean-up. Also, clear joinCnt map state when clear rowMapState.
-    */
-  def expireOutTimeRow(
-      curTime: Long,
-      rowMapState: MapState[Row, JTuple2[Long, Long]],
-      timerState: ValueState[Long],
-      isLeft: Boolean,
-      joinCntState: Array[MapState[Row, Long]],
-      ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext): Unit = {
-
-    val currentJoinCntState = getJoinCntState(joinCntState, isLeft)
-    val rowMapIter = rowMapState.iterator()
-    var validTimestamp: Boolean = false
-
-    while (rowMapIter.hasNext) {
-      val mapEntry = rowMapIter.next()
-      val recordExpiredTime = mapEntry.getValue.f1
-      if (recordExpiredTime <= curTime) {
-        rowMapIter.remove()
-        currentJoinCntState.remove(mapEntry.getKey)
-      } else {
-        // we found a timestamp that is still valid
-        validTimestamp = true
-      }
-    }
-    // If the state has non-expired timestamps, register a new timer.
-    // Otherwise clean the complete state for this input.
-    if (validTimestamp) {
-      val cleanupTime = curTime + maxRetentionTime
-      ctx.timerService.registerProcessingTimeTimer(cleanupTime)
-      timerState.update(cleanupTime)
-    } else {
-      timerState.clear()
-      rowMapState.clear()
-      if (isLeft == isLeftJoin) {
-        currentJoinCntState.clear()
-      }
-    }
-  }
-
-  /**
     * Get left or right join cnt state.
     *
     * @param joinCntState    the join cnt state array, index 0 is left join cnt state, index 1
@@ -181,7 +138,7 @@ import org.apache.flink.types.Row
     * @param isLeftCntState the flag whether get the left join cnt state
     * @return the corresponding join cnt state
     */
-  def getJoinCntState(
+  protected def getJoinCntState(
       joinCntState: Array[MapState[Row, Long]],
       isLeftCntState: Boolean)
     : MapState[Row, Long] = {

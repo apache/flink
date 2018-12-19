@@ -22,10 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.apache.flink.shaded.asm5.org.objectweb.asm.ClassReader;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.ClassVisitor;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.MethodVisitor;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.Opcodes;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.ClassReader;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.ClassVisitor;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.MethodVisitor;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.Opcodes;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

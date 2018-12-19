@@ -60,17 +60,14 @@ Basic usage thus looks like this:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-import org.apache.flink.api.common.serialization.Encoder;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 
 DataStream<String> input = ...;
 
 final StreamingFileSink<String> sink = StreamingFileSink
-	.forRowFormat(new Path(outputPath), (Encoder<String>) (element, stream) -> {
-		PrintStream out = new PrintStream(stream);
-		out.println(element.f1);
-	})
+	.forRowFormat(new Path(outputPath), new SimpleStringEncoder<>("UTF-8"))
 	.build();
 
 input.addSink(sink);
@@ -79,19 +76,16 @@ input.addSink(sink);
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-import org.apache.flink.api.common.serialization.Encoder
+import org.apache.flink.api.common.serialization.SimpleStringEncoder
 import org.apache.flink.core.fs.Path
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
 
 val input: DataStream[String] = ...
 
-final StreamingFileSink[String] sink = StreamingFileSink
-	.forRowFormat(new Path(outputPath), (element, stream) => {
-		val out = new PrintStream(stream)
-		out.println(element.f1)
-	})
-	.build()
-
+val sink: StreamingFileSink[String] = StreamingFileSink
+    .forRowFormat(new Path(outputPath), new SimpleStringEncoder[String]("UTF-8"))
+    .build()
+    
 input.addSink(sink)
 
 {% endhighlight %}

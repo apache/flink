@@ -783,7 +783,7 @@ When the window is closed, the `ProcessWindowFunction` will be provided with the
 This allows it to incrementally compute windows while having access to the
 additional window meta information of the `ProcessWindowFunction`.
 
-<span class="label label-info">Note</span> You can also the legacy `WindowFunction` instead of
+<span class="label label-info">Note</span> You can also use the legacy `WindowFunction` instead of
 `ProcessWindowFunction` for incremental window aggregation.
 
 #### Incremental Window Aggregation with ReduceFunction
@@ -1034,7 +1034,7 @@ different keys and events for all of them currently fall into the *[12:00, 13:00
 then there will be 1000 window instances that each have their own keyed per-window state.
 
 There are two methods on the `Context` object that a `process()` invocation receives that allow
-access two the two types of state:
+access to the two types of state:
 
  - `globalState()`, which allows access to keyed state that is not scoped to a window
  - `windowState()`, which allows access to keyed state that is also scoped to the window

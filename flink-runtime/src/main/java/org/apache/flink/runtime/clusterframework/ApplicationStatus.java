@@ -32,7 +32,7 @@ public enum ApplicationStatus {
 	FAILED(1443),
 	
 	/** Application was canceled or killed on request */
-	CANCELED(1444),
+	CANCELED(0),
 
 	/** Application status is not known */
 	UNKNOWN(1445);

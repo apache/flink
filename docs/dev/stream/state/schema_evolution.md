@@ -74,7 +74,7 @@ serialization schema than the previous serializer; if so, the previous serialize
 and written back to bytes again with the new serializer.
 
 Further details about the migration process is out of the scope of this documentation; please refer to
-[here]({{ site.baseurl }}/dev/stream/state/custom_serialization).
+[here]({{ site.baseurl }}/dev/stream/state/custom_serialization.html).
 
 ## Supported data types for schema evolution
 

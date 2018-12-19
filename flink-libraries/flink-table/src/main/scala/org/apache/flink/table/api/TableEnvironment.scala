@@ -1089,7 +1089,7 @@ abstract class TableEnvironment(val config: TableConfig) {
             } else {
               referenceByName(origName, t).map((_, name))
             }
-          case (_: TimeAttribute, _) =>
+          case (_: TimeAttribute, _) | (Alias(_: TimeAttribute, _, _), _) =>
             None
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
@@ -1101,7 +1101,7 @@ abstract class TableEnvironment(val config: TableConfig) {
             referenceByName(name, p).map((_, name))
           case Alias(UnresolvedFieldReference(origName), name: String, _) =>
             referenceByName(origName, p).map((_, name))
-          case _: TimeAttribute =>
+          case _: TimeAttribute | Alias(_: TimeAttribute, _, _) =>
             None
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")

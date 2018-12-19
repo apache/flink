@@ -46,7 +46,8 @@ public abstract class AbstractKeyedOperatorRestoreTestBase extends AbstractOpera
 			MigrationVersion.v1_3,
 			MigrationVersion.v1_4,
 			MigrationVersion.v1_5,
-			MigrationVersion.v1_6);
+			MigrationVersion.v1_6,
+			MigrationVersion.v1_7);
 	}
 
 	public AbstractKeyedOperatorRestoreTestBase(MigrationVersion migrationVersion) {

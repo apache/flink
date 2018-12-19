@@ -21,7 +21,7 @@ package org.apache.flink.fs.s3hadoop;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory;
 import org.apache.flink.fs.s3.common.HadoopConfigLoader;
-import org.apache.flink.fs.s3.common.writer.S3MultiPartUploader;
+import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.s3a.S3AFileSystem;
@@ -96,8 +96,8 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
 
 	@Nullable
 	@Override
-	protected S3MultiPartUploader getS3AccessHelper(FileSystem fs) {
+	protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
 		final S3AFileSystem s3Afs = (S3AFileSystem) fs;
-		return new HadoopS3MultiPartUploader(s3Afs, s3Afs.getConf());
+		return new HadoopS3AccessHelper(s3Afs, s3Afs.getConf());
 	}
 }

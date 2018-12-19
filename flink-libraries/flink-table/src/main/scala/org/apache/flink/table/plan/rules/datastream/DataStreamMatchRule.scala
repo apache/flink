@@ -18,15 +18,21 @@
 
 package org.apache.flink.table.plan.rules.datastream
 
-import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rex.{RexCall, RexNode}
+import org.apache.calcite.sql.SqlAggFunction
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.logical.MatchRecognize
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamMatch
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalMatch
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.plan.util.RexDefaultVisitor
+import org.apache.flink.table.util.MatchUtil
+
+import scala.collection.JavaConverters._
 
 class DataStreamMatchRule
   extends ConverterRule(
@@ -34,6 +40,14 @@ class DataStreamMatchRule
     FlinkConventions.LOGICAL,
     FlinkConventions.DATASTREAM,
     "DataStreamMatchRule") {
+
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val logicalMatch: FlinkLogicalMatch = call.rel(0).asInstanceOf[FlinkLogicalMatch]
+
+    validateAggregations(logicalMatch.getMeasures.values().asScala)
+    validateAggregations(logicalMatch.getPatternDefinitions.values().asScala)
+    true
+  }
 
   override def convert(rel: RelNode): RelNode = {
     val logicalMatch: FlinkLogicalMatch = rel.asInstanceOf[FlinkLogicalMatch]
@@ -71,6 +85,30 @@ class DataStreamMatchRule
       new RowSchema(logicalMatch.getRowType),
       new RowSchema(logicalMatch.getInput.getRowType))
   }
+
+  private def validateAggregations(expr: Iterable[RexNode]): Unit = {
+    val validator = new AggregationsValidator
+    expr.foreach(_.accept(validator))
+  }
+
+  class AggregationsValidator extends RexDefaultVisitor[Object] {
+
+    override def visitCall(call: RexCall): AnyRef = {
+      call.getOperator match {
+        case _: SqlAggFunction =>
+          call.accept(new MatchUtil.AggregationPatternVariableFinder)
+        case _ =>
+          call.getOperands.asScala.foreach(_.accept(this))
+      }
+
+      null
+    }
+
+    override def visitNode(rexNode: RexNode): AnyRef = {
+      null
+    }
+  }
+
 }
 
 object DataStreamMatchRule {

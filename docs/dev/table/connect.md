@@ -34,7 +34,7 @@ This page describes how to declare built-in table sources and/or table sinks and
 Dependencies
 ------------
 
-The following table list all available connectors and formats. Their mutual compatibility is tagged in the corresponding sections for [table connectors](connect.html#table-connectors) and [table formats](connect.html#table-formats). The following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
+The following tables list all available connectors and formats. Their mutual compatibility is tagged in the corresponding sections for [table connectors](connect.html#table-connectors) and [table formats](connect.html#table-formats). The following tables provide dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
 
 {% if site.is_stable %}
 
@@ -43,7 +43,7 @@ The following table list all available connectors and formats. Their mutual comp
 | Name              | Version             | Maven dependency             | SQL Client JAR         |
 | :---------------- | :------------------ | :--------------------------- | :----------------------|
 | Filesystem        |                     | Built-in                     | Built-in               |
-| Elasticsearch     | 6                   | `flink-connector-elasticsearch6` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-elasticsearch6{{site.scala_version_suffix}}/{{site.version}}/flink-connector-elasticsearch6{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
+| Elasticsearch     | 6                   | `flink-connector-elasticsearch6` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch6{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-elasticsearch6{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | Apache Kafka      | 0.8                 | `flink-connector-kafka-0.8`  | Not available          |
 | Apache Kafka      | 0.9                 | `flink-connector-kafka-0.9`  | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-kafka-0.9{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka-0.9{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
 | Apache Kafka      | 0.10                | `flink-connector-kafka-0.10` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka-0.10{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
@@ -60,7 +60,7 @@ The following table list all available connectors and formats. Their mutual comp
 
 {% else %}
 
-This table is only available for stable releases.
+These tables are only available for stable releases.
 
 {% endif %}
 
@@ -145,7 +145,7 @@ tableEnvironment
         "      {\"name\": \"user\", \"type\": \"long\"}," +
         "      {\"name\": \"message\", \"type\": [\"string\", \"null\"]}" +
         "    ]" +
-        "}" +
+        "}"
       )
   )
 
@@ -154,7 +154,7 @@ tableEnvironment
     new Schema()
       .field("rowtime", Types.SQL_TIMESTAMP)
         .rowtime(new Rowtime()
-          .timestampsFromField("ts")
+          .timestampsFromField("timestamp")
           .watermarksPeriodicBounded(60000)
         )
       .field("user", Types.LONG)
@@ -312,7 +312,7 @@ The following timestamp extractors are supported:
     .timestampsFromField("ts_field")    // required: original field name in the input
 )
 
-// Converts the assigned timestamps from a DataStream API record into the rowtime attribute 
+// Converts the assigned timestamps from a DataStream API record into the rowtime attribute
 // and thus preserves the assigned timestamps from the source.
 // This requires a source that assigns timestamps (e.g., Kafka 0.10+).
 .rowtime(
@@ -337,7 +337,7 @@ rowtime:
     type: from-field
     from: "ts_field"                 # required: original field name in the input
 
-# Converts the assigned timestamps from a DataStream API record into the rowtime attribute 
+# Converts the assigned timestamps from a DataStream API record into the rowtime attribute
 # and thus preserves the assigned timestamps from the source.
 rowtime:
   timestamps:
@@ -351,7 +351,7 @@ The following watermark strategies are supported:
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
 {% highlight java %}
-// Sets a watermark strategy for ascending rowtime attributes. Emits a watermark of the maximum 
+// Sets a watermark strategy for ascending rowtime attributes. Emits a watermark of the maximum
 // observed timestamp so far minus 1. Rows that have a timestamp equal to the max timestamp
 // are not late.
 .rowtime(
@@ -377,7 +377,7 @@ The following watermark strategies are supported:
 
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
-# Sets a watermark strategy for ascending rowtime attributes. Emits a watermark of the maximum 
+# Sets a watermark strategy for ascending rowtime attributes. Emits a watermark of the maximum
 # observed timestamp so far minus 1. Rows that have a timestamp equal to the max timestamp
 # are not late.
 rowtime:
@@ -695,7 +695,7 @@ connector:
 
 **Key extraction:** Flink automatically extracts valid keys from a query. For example, a query `SELECT a, b, c FROM t GROUP BY a, b` defines a composite key of the fields `a` and `b`. The Elasticsearch connector generates a document ID string for every row by concatenating all key fields in the order defined in the query using a key delimiter. A custom representation of null literals for key fields can be defined.
 
-<span class="label label-danger">Attention</span> A JSON format defines how to encode documents for the external system, therefore, it must be added as a [dependency](connect.html#formats). 
+<span class="label label-danger">Attention</span> A JSON format defines how to encode documents for the external system, therefore, it must be added as a [dependency](connect.html#formats).
 
 {% top %}
 
@@ -717,8 +717,8 @@ The CSV format allows to read and write comma-separated rows.
   new Csv()
     .field("field1", Types.STRING)    // required: ordered format fields
     .field("field2", Types.TIMESTAMP)
-    .fieldDelimiter(",")              // optional: string delimiter "," by default 
-    .lineDelimiter("\n")              // optional: string delimiter "\n" by default 
+    .fieldDelimiter(",")              // optional: string delimiter "," by default
+    .lineDelimiter("\n")              // optional: string delimiter "\n" by default
     .quoteCharacter('"')              // optional: single character for string values, empty by default
     .commentPrefix('#')               // optional: string to indicate comments, empty by default
     .ignoreFirstLine()                // optional: ignore the first line, by default it is not skipped
@@ -736,8 +736,8 @@ format:
       type: VARCHAR
     - name: field2
       type: TIMESTAMP
-  field-delimiter: ","       # optional: string delimiter "," by default 
-  line-delimiter: "\n"       # optional: string delimiter "\n" by default 
+  field-delimiter: ","       # optional: string delimiter "," by default
+  line-delimiter: "\n"       # optional: string delimiter "\n" by default
   quote-character: '"'       # optional: single character for string values, empty by default
   comment-prefix: '#'        # optional: string to indicate comments, empty by default
   ignore-first-line: false   # optional: boolean flag to ignore the first line, by default it is not skipped
@@ -992,7 +992,7 @@ These are the additional `TableSink`s which are provided with Flink:
 | **Class name** | **Maven dependency** | **Batch?** | **Streaming?** | **Description**
 | `CsvTableSink` | `flink-table` | Y | Append | A simple sink for CSV files.
 | `JDBCAppendTableSink` | `flink-jdbc` | Y | Append | Writes a Table to a JDBC table.
-| `CassandraAppendTableSink` | `flink-connector-cassandra` | N | Append | Writes a Table to a Cassandra table. 
+| `CassandraAppendTableSink` | `flink-connector-cassandra` | N | Append | Writes a Table to a Cassandra table.
 
 ### OrcTableSource
 
@@ -1044,7 +1044,7 @@ val orcTableSource = OrcTableSource.builder()
 
 ### CsvTableSink
 
-The `CsvTableSink` emits a `Table` to one or more CSV files. 
+The `CsvTableSink` emits a `Table` to one or more CSV files.
 
 The sink only supports append-only streaming tables. It cannot be used to emit a `Table` that is continuously updated. See the [documentation on Table to Stream conversions](./streaming/dynamic_tables.html#table-to-stream-conversion) for details. When emitting a streaming table, rows are written at least once (if checkpointing is enabled) and the `CsvTableSink` does not split output files into bucket files but continuously writes to the same files.
 
@@ -1053,17 +1053,17 @@ The sink only supports append-only streaming tables. It cannot be used to emit a
 {% highlight java %}
 
 CsvTableSink sink = new CsvTableSink(
-    path,                  // output path 
+    path,                  // output path
     "|",                   // optional: delimit files by '|'
     1,                     // optional: write to a single file
     WriteMode.OVERWRITE);  // optional: override existing files
 
 tableEnv.registerTableSink(
   "csvOutputTable",
-  sink,
   // specify table schema
   new String[]{"f0", "f1"},
-  new TypeInformation[]{Types.STRING, Types.INT});
+  new TypeInformation[]{Types.STRING, Types.INT},
+  sink);
 
 Table table = ...
 table.insertInto("csvOutputTable");
@@ -1074,17 +1074,17 @@ table.insertInto("csvOutputTable");
 {% highlight scala %}
 
 val sink: CsvTableSink = new CsvTableSink(
-    path,                             // output path 
+    path,                             // output path
     fieldDelim = "|",                 // optional: delimit files by '|'
     numFiles = 1,                     // optional: write to a single file
     writeMode = WriteMode.OVERWRITE)  // optional: override existing files
 
 tableEnv.registerTableSink(
   "csvOutputTable",
-  sink,
   // specify table schema
   Array[String]("f0", "f1"),
-  Array[TypeInformation[_]](Types.STRING, Types.INT))
+  Array[TypeInformation[_]](Types.STRING, Types.INT),
+  sink)
 
 val table: Table = ???
 table.insertInto("csvOutputTable")
@@ -1113,10 +1113,10 @@ JDBCAppendTableSink sink = JDBCAppendTableSink.builder()
 
 tableEnv.registerTableSink(
   "jdbcOutputTable",
-  sink,
   // specify table schema
   new String[]{"id"},
-  new TypeInformation[]{Types.INT});
+  new TypeInformation[]{Types.INT},
+  sink);
 
 Table table = ...
 table.insertInto("jdbcOutputTable");
@@ -1134,10 +1134,10 @@ val sink: JDBCAppendTableSink = JDBCAppendTableSink.builder()
 
 tableEnv.registerTableSink(
   "jdbcOutputTable",
-  sink,
   // specify table schema
   Array[String]("id"),
-  Array[TypeInformation[_]](Types.INT))
+  Array[TypeInformation[_]](Types.INT),
+  sink)
 
 val table: Table = ???
 table.insertInto("jdbcOutputTable")
@@ -1145,7 +1145,7 @@ table.insertInto("jdbcOutputTable")
 </div>
 </div>
 
-Similar to using <code>JDBCOutputFormat</code>, you have to explicitly specify the name of the JDBC driver, the JDBC URL, the query to be executed, and the field types of the JDBC table. 
+Similar to using <code>JDBCOutputFormat</code>, you have to explicitly specify the name of the JDBC driver, the JDBC URL, the query to be executed, and the field types of the JDBC table.
 
 {% top %}
 
@@ -1164,16 +1164,16 @@ To use the `CassandraAppendTableSink`, you have to add the Cassandra connector d
 ClusterBuilder builder = ... // configure Cassandra cluster connection
 
 CassandraAppendTableSink sink = new CassandraAppendTableSink(
-  builder, 
+  builder,
   // the query must match the schema of the table
-  INSERT INTO flink.myTable (id, name, value) VALUES (?, ?, ?));
+  "INSERT INTO flink.myTable (id, name, value) VALUES (?, ?, ?)");
 
 tableEnv.registerTableSink(
   "cassandraOutputTable",
-  sink,
   // specify table schema
   new String[]{"id", "name", "value"},
-  new TypeInformation[]{Types.INT, Types.STRING, Types.DOUBLE});
+  new TypeInformation[]{Types.INT, Types.STRING, Types.DOUBLE},
+  sink);
 
 Table table = ...
 table.insertInto(cassandraOutputTable);
@@ -1185,16 +1185,16 @@ table.insertInto(cassandraOutputTable);
 val builder: ClusterBuilder = ... // configure Cassandra cluster connection
 
 val sink: CassandraAppendTableSink = new CassandraAppendTableSink(
-  builder, 
+  builder,
   // the query must match the schema of the table
-  INSERT INTO flink.myTable (id, name, value) VALUES (?, ?, ?))
+  "INSERT INTO flink.myTable (id, name, value) VALUES (?, ?, ?)")
 
 tableEnv.registerTableSink(
   "cassandraOutputTable",
-  sink,
   // specify table schema
   Array[String]("id", "name", "value"),
-  Array[TypeInformation[_]](Types.INT, Types.STRING, Types.DOUBLE))
+  Array[TypeInformation[_]](Types.INT, Types.STRING, Types.DOUBLE),
+  sink)
 
 val table: Table = ???
 table.insertInto(cassandraOutputTable)

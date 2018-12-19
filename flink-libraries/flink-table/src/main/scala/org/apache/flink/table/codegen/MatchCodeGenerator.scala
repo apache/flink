@@ -21,27 +21,176 @@ package org.apache.flink.table.codegen
 import java.lang.{Long => JLong}
 import java.util
 
+import org.apache.calcite.rel.RelFieldCollation
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.SqlAggFunction
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.cep.pattern.conditions.{IterativeCondition, RichIterativeCondition}
-import org.apache.flink.cep.{PatternFlatSelectFunction, PatternSelectFunction, RichPatternFlatSelectFunction, RichPatternSelectFunction}
+import org.apache.flink.cep.{RichPatternFlatSelectFunction, RichPatternSelectFunction}
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.api.dataview.DataViewSpec
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForTypeInfo, newName}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForTypeInfo, newName, primitiveDefaultValue, primitiveTypeTermForTypeInfo}
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.Indenter.toISC
+import org.apache.flink.table.functions.{AggregateFunction => TableAggregateFunction}
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.runtime.`match`.{IterativeConditionRunner, PatternSelectFunctionRunner}
+import org.apache.flink.table.runtime.aggregate.AggregateUtil
+import org.apache.flink.table.util.MatchUtil.{ALL_PATTERN_VARIABLE, AggregationPatternVariableFinder}
 import org.apache.flink.table.utils.EncodingUtils
+import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 import org.apache.flink.util.MathUtils.checkedDownCast
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
+object MatchCodeGenerator {
+
+  def generateIterativeCondition(
+    config: TableConfig,
+    patternDefinition: RexNode,
+    inputTypeInfo: TypeInformation[_],
+    patternName: String,
+    names: Seq[String])
+  : IterativeConditionRunner = {
+    val generator = new MatchCodeGenerator(config, inputTypeInfo, names, Some(patternName))
+    val condition = generator.generateCondition(patternDefinition)
+    val body =
+      s"""
+         |${condition.code}
+         |return ${condition.resultTerm};
+         |""".stripMargin
+
+    val genCondition = generator
+      .generateMatchFunction("MatchRecognizeCondition",
+        classOf[RichIterativeCondition[Row]],
+        body,
+        condition.resultType)
+    new IterativeConditionRunner(genCondition.name, genCondition.code)
+  }
+
+  def generateOneRowPerMatchExpression(
+    config: TableConfig,
+    returnType: RowSchema,
+    partitionKeys: util.List[RexNode],
+    orderKeys: util.List[RelFieldCollation],
+    measures: util.Map[String, RexNode],
+    inputTypeInfo: TypeInformation[_],
+    patternNames: Seq[String])
+  : PatternSelectFunctionRunner = {
+    val generator = new MatchCodeGenerator(config, inputTypeInfo, patternNames)
+
+    val resultExpression = generator.generateOneRowPerMatchExpression(
+      partitionKeys,
+      measures,
+      returnType)
+    val body =
+      s"""
+         |${resultExpression.code}
+         |return ${resultExpression.resultTerm};
+         |""".stripMargin
+
+    val genFunction = generator.generateMatchFunction(
+      "MatchRecognizePatternSelectFunction",
+      classOf[RichPatternSelectFunction[Row, Row]],
+      body,
+      resultExpression.resultType)
+    new PatternSelectFunctionRunner(genFunction.name, genFunction.code)
+  }
+}
+
 /**
   * A code generator for generating CEP related functions.
+  *
+  * Aggregates are generated as follows:
+  * 1. all aggregate [[RexCall]]s are grouped by corresponding pattern variable
+  * 2. even if the same aggregation is used multiple times in an expression
+  *    (e.g. SUM(A.price) > SUM(A.price) + 1) it will be calculated once. To do so [[AggBuilder]]
+  *    keeps set of already seen different aggregation calls, and reuses the code to access
+  *    appropriate field of aggregation result
+  * 3. after translating every expression (either in [[generateCondition]] or in
+  *    [[generateOneRowPerMatchExpression]]) there will be generated code for
+  *       - [[GeneratedFunction]], which will be an inner class
+  *       - said [[GeneratedFunction]] will be instantiated in the ctor and opened/closed
+  *         in corresponding methods of top level generated classes
+  *       - function that transforms input rows (row by row) into aggregate input rows
+  *       - function that calculates aggregates for variable, that uses the previous method
+  *    The generated code will look similar to this:
+  *
+  *
+  * {{{
+  *
+  * public class MatchRecognizePatternSelectFunction$175 extends RichPatternSelectFunction {
+  *
+  *     // Class used to calculate aggregates for a single pattern variable
+  *     public final class AggFunction_variable$115$151 extends GeneratedAggregations {
+  *       ...
+  *     }
+  *
+  *     private final AggFunction_variable$115$151 aggregator_variable$115;
+  *
+  *     public MatchRecognizePatternSelectFunction$175() {
+  *       aggregator_variable$115 = new AggFunction_variable$115$151();
+  *     }
+  *
+  *     public void open() {
+  *       aggregator_variable$115.open();
+  *       ...
+  *     }
+  *
+  *     // Function to transform incoming row into aggregate specific row. It can e.g calculate
+  *     // inner expression of said aggregate
+  *     private Row transformRowForAgg_variable$115(Row inAgg) {
+  *         ...
+  *     }
+  *
+  *     // Function to calculate all aggregates for a single pattern variable
+  *     private Row calculateAgg_variable$115(List<Row> input) {
+  *       Acc accumulator = aggregator_variable$115.createAccumulator();
+  *       for (Row row : input) {
+  *         aggregator_variable$115.accumulate(accumulator, transformRowForAgg_variable$115(row));
+  *       }
+  *
+  *       return aggregator_variable$115.getResult(accumulator);
+  *     }
+  *
+  *     @Override
+  *     public Object select(Map<String, List<Row>> in1) throws Exception {
+  *
+  *       // Extract list of rows assigned to a single pattern variable
+  *       java.util.List patternEvents$130 = (java.util.List) in1.get("A");
+  *       ...
+  *
+  *       // Calculate aggregates
+  *       Row aggRow_variable$110$111 = calculateAgg_variable$110(patternEvents$114);
+  *
+  *       // Every aggregation (e.g SUM(A.price) and AVG(A.price)) will be extracted to a variable
+  *       double result$135 = aggRow_variable$126$127.getField(0);
+  *       long result$137 = aggRow_variable$126$127.getField(1);
+  *
+  *       // Result of aggregation will be used in expression evaluation
+  *       out.setField(0, result$135)
+  *
+  *       long result$140 = result$137 * 2;
+  *       out.setField(1, result$140);
+  *
+  *       double result$144 = $result135 + result$137;
+  *       out.setField(2, result$144);
+  *     }
+  *
+  *     public void close() {
+  *       aggregator_variable$115.close();
+  *       ...
+  *     }
+  *
+  * }
+  * }}}
   *
   * @param config configuration that determines runtime behavior
   * @param patternNames sorted sequence of pattern variables
@@ -66,17 +215,39 @@ class MatchCodeGenerator(
     .HashMap[String, GeneratedPatternList]()
 
   /**
+    * Used to deduplicate aggregations calculation. The deduplication is performed by
+    * [[RexNode.toString]]. Those expressions needs to be accessible from splits, if such exists.
+    */
+  private val reusableAggregationExpr = new mutable.HashMap[String, GeneratedExpression]()
+
+  /**
     * Context information used by Pattern reference variable to index rows mapped to it.
     * Indexes element at offset either from beginning or the end based on the value of first.
     */
   private var offset: Int = 0
   private var first : Boolean = false
 
+  /**
+    * Flags that tells if we generate expressions inside an aggregate. It tells how to access input
+    * row.
+    */
+  private var isWithinAggExprState: Boolean = false
+
+  /**
+    * Name of term in function used to transform input row into aggregate input row.
+    */
+  private val inputAggRowTerm = "inAgg"
+
   /** Term for row for key extraction */
-  private val keyRowTerm = newName("keyRow")
+  private val keyRowTerm = "keyRow"
 
   /** Term for list of all pattern names */
-  private val patternNamesTerm = newName("patternNames")
+  private val patternNamesTerm = "patternNames"
+
+  /**
+    * Used to collect all aggregates per pattern variable.
+    */
+  private val aggregatesPerVariable = new mutable.HashMap[String, AggBuilder]
 
   /**
     * Sets the new reference variable indexing context. This should be used when resolving logical
@@ -194,7 +365,6 @@ class MatchCodeGenerator(
   private def generateKeyRow() : GeneratedExpression = {
     val exp = reusableInputUnboxingExprs
       .get((keyRowTerm, 0)) match {
-      // input access and unboxing has already been generated
       case Some(expr) =>
         expr
 
@@ -252,10 +422,26 @@ class MatchCodeGenerator(
         generateExpression(measures.get(fieldName))
       }
 
-    generateResultExpression(
+    val exp = generateResultExpression(
       resultExprs,
       returnType.typeInfo,
       returnType.fieldNames)
+    aggregatesPerVariable.values.foreach(_.generateAggFunction())
+    if (hasCodeSplits) {
+      makeReusableInSplits(reusableAggregationExpr.values)
+    }
+
+    exp
+  }
+
+  def generateCondition(call: RexNode): GeneratedExpression = {
+    val exp = call.accept(this)
+    aggregatesPerVariable.values.foreach(_.generateAggFunction())
+    if (hasCodeSplits) {
+      makeReusableInSplits(reusableAggregationExpr.values)
+    }
+
+    exp
   }
 
   override def visitCall(call: RexCall): GeneratedExpression = {
@@ -283,6 +469,21 @@ class MatchCodeGenerator(
       case FINAL =>
         call.getOperands.get(0).accept(this)
 
+      case _ : SqlAggFunction =>
+
+        val variable = call.accept(new AggregationPatternVariableFinder)
+          .getOrElse(throw new TableException("No pattern variable specified in aggregate"))
+
+        val matchAgg = aggregatesPerVariable.get(variable) match {
+          case Some(agg) => agg
+          case None =>
+            val agg = new AggBuilder(variable)
+            aggregatesPerVariable(variable) = agg
+            agg
+        }
+
+        matchAgg.generateDeduplicatedAggAccess(call)
+
       case _ => super.visitCall(call)
     }
   }
@@ -299,10 +500,15 @@ class MatchCodeGenerator(
   }
 
   override def visitPatternFieldRef(fieldRef: RexPatternFieldRef): GeneratedExpression = {
-    if (fieldRef.getAlpha.equals("*") && currentPattern.isDefined && offset == 0 && !first) {
-      generateInputAccess(input, input1Term, fieldRef.getIndex)
+    if (isWithinAggExprState) {
+      generateFieldAccess(input, inputAggRowTerm, fieldRef.getIndex)
     } else {
-      generatePatternFieldRef(fieldRef)
+      if (fieldRef.getAlpha.equals(ALL_PATTERN_VARIABLE) &&
+          currentPattern.isDefined && offset == 0 && !first) {
+        generateInputAccess(input, input1Term, fieldRef.getIndex)
+      } else {
+        generatePatternFieldRef(fieldRef)
+      }
     }
   }
 
@@ -314,14 +520,14 @@ class MatchCodeGenerator(
     val eventTypeTerm = boxedTypeTermForTypeInfo(input)
     val eventNameTerm = newName("event")
 
-    val addCurrent = if (currentPattern == patternName || patternName == "*") {
+    val addCurrent = if (currentPattern == patternName || patternName == ALL_PATTERN_VARIABLE) {
       j"""
          |$listName.add($input1Term);
          """.stripMargin
     } else {
       ""
     }
-    val listCode = if (patternName == "*") {
+    val listCode = if (patternName == ALL_PATTERN_VARIABLE) {
       addReusablePatternNames()
       val patternTerm = newName("pattern")
       j"""
@@ -356,7 +562,7 @@ class MatchCodeGenerator(
   private def generateMeasurePatternVariableExp(patternName: String): GeneratedPatternList = {
     val listName = newName("patternEvents")
 
-    val code = if (patternName == "*") {
+    val code = if (patternName == ALL_PATTERN_VARIABLE) {
       addReusablePatternNames()
 
       val patternTerm = newName("pattern")
@@ -390,21 +596,7 @@ class MatchCodeGenerator(
     val eventTypeTerm = boxedTypeTermForTypeInfo(input)
     val isRowNull = newName("isRowNull")
 
-    val findEventsByPatternName = reusablePatternLists.get(patternFieldAlpha) match {
-      // input access and unboxing has already been generated
-      case Some(expr) =>
-        expr
-
-      case None =>
-        val exp = currentPattern match {
-          case Some(p) => generateDefinePatternVariableExp(patternFieldAlpha, p)
-          case None => generateMeasurePatternVariableExp(patternFieldAlpha)
-        }
-        reusablePatternLists(patternFieldAlpha) = exp
-        exp
-    }
-
-    val listName = findEventsByPatternName.resultTerm
+    val listName = findEventsByPatternName(patternFieldAlpha).resultTerm
     val resultIndex = if (first) {
       j"""$offset"""
     } else {
@@ -424,11 +616,27 @@ class MatchCodeGenerator(
     GeneratedExpression(rowNameTerm, isRowNull, funcCode, input)
   }
 
+  private def findEventsByPatternName(
+      patternFieldAlpha: String)
+    : GeneratedPatternList = {
+    reusablePatternLists.get(patternFieldAlpha) match {
+      case Some(expr) =>
+        expr
+
+      case None =>
+        val exp = currentPattern match {
+          case Some(p) => generateDefinePatternVariableExp(patternFieldAlpha, p)
+          case None => generateMeasurePatternVariableExp(patternFieldAlpha)
+        }
+        reusablePatternLists(patternFieldAlpha) = exp
+        exp
+    }
+  }
+
   private def generatePatternFieldRef(fieldRef: RexPatternFieldRef): GeneratedExpression = {
     val escapedAlpha = EncodingUtils.escapeJava(fieldRef.getAlpha)
     val patternVariableRef = reusableInputUnboxingExprs
       .get((s"$escapedAlpha#$first", offset)) match {
-      // input access and unboxing has already been generated
       case Some(expr) =>
         expr
 
@@ -440,4 +648,223 @@ class MatchCodeGenerator(
 
     generateFieldAccess(patternVariableRef.copy(code = NO_CODE), fieldRef.getIndex)
   }
+
+  class AggBuilder(variable: String) {
+
+    private val aggregates = new mutable.ListBuffer[RexCall]()
+
+    private val variableUID = newName("variable")
+
+    private val rowTypeTerm = "org.apache.flink.types.Row"
+
+    private val calculateAggFuncName = s"calculateAgg_$variableUID"
+
+    def generateDeduplicatedAggAccess(aggCall: RexCall): GeneratedExpression = {
+      reusableAggregationExpr.get(aggCall.toString) match  {
+        case Some(expr) =>
+          expr
+
+        case None =>
+          val exp: GeneratedExpression = generateAggAccess(aggCall)
+          aggregates += aggCall
+          reusableAggregationExpr(aggCall.toString) = exp
+          reusablePerRecordStatements += exp.code
+          exp.copy(code = NO_CODE)
+      }
+    }
+
+    private def generateAggAccess(aggCall: RexCall): GeneratedExpression = {
+      val singleAggResultTerm = newName("result")
+      val singleAggNullTerm = newName("nullTerm")
+      val singleAggResultType = FlinkTypeFactory.toTypeInfo(aggCall.`type`)
+      val primitiveSingleAggResultTypeTerm = primitiveTypeTermForTypeInfo(singleAggResultType)
+      val boxedSingleAggResultTypeTerm = boxedTypeTermForTypeInfo(singleAggResultType)
+
+      val allAggRowTerm = s"aggRow_$variableUID"
+
+      val rowsForVariableCode = findEventsByPatternName(variable)
+      val codeForAgg =
+        j"""
+           |$rowTypeTerm $allAggRowTerm = $calculateAggFuncName(${rowsForVariableCode.resultTerm});
+           |""".stripMargin
+
+      reusablePerRecordStatements += codeForAgg
+
+      val defaultValue = primitiveDefaultValue(singleAggResultType)
+      val codeForSingleAgg = if (nullCheck) {
+        j"""
+           |boolean $singleAggNullTerm;
+           |$primitiveSingleAggResultTypeTerm $singleAggResultTerm;
+           |if ($allAggRowTerm.getField(${aggregates.size}) != null) {
+           |  $singleAggResultTerm = ($boxedSingleAggResultTypeTerm) $allAggRowTerm
+           |    .getField(${aggregates.size});
+           |  $singleAggNullTerm = false;
+           |} else {
+           |  $singleAggNullTerm = true;
+           |  $singleAggResultTerm = $defaultValue;
+           |}
+           |""".stripMargin
+      } else {
+        j"""
+           |$primitiveSingleAggResultTypeTerm $singleAggResultTerm =
+           |    ($boxedSingleAggResultTypeTerm) $allAggRowTerm.getField(${aggregates.size});
+           |""".stripMargin
+      }
+
+      reusablePerRecordStatements += codeForSingleAgg
+
+      GeneratedExpression(singleAggResultTerm, singleAggNullTerm, NO_CODE, singleAggResultType)
+    }
+
+    def generateAggFunction(): Unit = {
+      val matchAgg = extractAggregatesAndExpressions
+
+      val aggGenerator = new AggregationCodeGenerator(config, false, input, None)
+
+      val aggFunc = aggGenerator.generateAggregations(
+        s"AggFunction_$variableUID",
+        matchAgg.inputExprs.map(r => FlinkTypeFactory.toTypeInfo(r.getType)),
+        matchAgg.aggregations.map(_.aggFunction).toArray,
+        matchAgg.aggregations.map(_.inputIndices).toArray,
+        matchAgg.aggregations.indices.toArray,
+        Array.fill(matchAgg.aggregations.size)(false),
+        isStateBackedDataViews = false,
+        partialResults = false,
+        Array.emptyIntArray,
+        None,
+        matchAgg.aggregations.size,
+        needRetract = false,
+        needMerge = false,
+        needReset = false,
+        None
+      )
+
+      reusableMemberStatements.add(aggFunc.code)
+
+      val transformFuncName = s"transformRowForAgg_$variableUID"
+      val inputTransform: String = generateAggInputExprEvaluation(
+        matchAgg.inputExprs,
+        transformFuncName)
+
+      generateAggCalculation(aggFunc, transformFuncName, inputTransform)
+    }
+
+    private def extractAggregatesAndExpressions: MatchAgg = {
+      val inputRows = new mutable.LinkedHashMap[String, (RexNode, Int)]
+
+      val logicalAggregates = aggregates.map(aggCall => {
+        val callsWithIndices = aggCall.operands.asScala.map(innerCall => {
+          inputRows.get(innerCall.toString) match {
+            case Some(x) =>
+              x
+
+            case None =>
+              val callWithIndex = (innerCall, inputRows.size)
+              inputRows(innerCall.toString) = callWithIndex
+              callWithIndex
+          }
+        })
+
+        val agg = aggCall.getOperator.asInstanceOf[SqlAggFunction]
+        LogicalSingleAggCall(agg,
+          callsWithIndices.map(_._1.getType),
+          callsWithIndices.map(_._2).toArray)
+      })
+
+      val aggs = logicalAggregates.zipWithIndex.map {
+        case (agg, index) =>
+          val result = AggregateUtil.extractAggregateCallMetadata(
+            agg.function,
+            isDistinct = false, // TODO properly set once supported in Calcite
+            agg.inputTypes,
+            needRetraction = false,
+            config,
+            isStateBackedDataViews = false,
+            index)
+
+          SingleAggCall(result.aggregateFunction, agg.exprIndices.toArray, result.accumulatorSpecs)
+      }
+
+      MatchAgg(aggs, inputRows.values.map(_._1).toSeq)
+    }
+
+    private def generateAggCalculation(
+        aggFunc: GeneratedAggregationsFunction,
+        transformFuncName: String,
+        inputTransformFunc: String)
+      : Unit = {
+      val aggregatorTerm = s"aggregator_$variableUID"
+      val code =
+        j"""
+           |private final ${aggFunc.name} $aggregatorTerm;
+           |
+           |$inputTransformFunc
+           |
+           |private $rowTypeTerm $calculateAggFuncName(java.util.List input)
+           |    throws Exception {
+           |  $rowTypeTerm accumulator = $aggregatorTerm.createAccumulators();
+           |  for ($rowTypeTerm row : input) {
+           |    $aggregatorTerm.accumulate(accumulator, $transformFuncName(row));
+           |  }
+           |  $rowTypeTerm result = $aggregatorTerm.createOutputRow();
+           |  $aggregatorTerm.setAggregationResults(accumulator, result);
+           |  return result;
+           |}
+         """.stripMargin
+
+      reusableInitStatements.add(s"$aggregatorTerm = new ${aggFunc.name}();")
+      reusableOpenStatements.add(s"$aggregatorTerm.open(getRuntimeContext());")
+      reusableCloseStatements.add(s"$aggregatorTerm.close();")
+      reusableMemberStatements.add(code)
+    }
+
+    private def generateAggInputExprEvaluation(
+        inputExprs: Seq[RexNode],
+        funcName: String)
+      : String = {
+      isWithinAggExprState = true
+      val resultTerm = newName("result")
+      val exprs = inputExprs.zipWithIndex.map {
+        case (inputExpr, outputIndex) => {
+          val expr = generateExpression(inputExpr)
+          s"""
+             |${expr.code}
+             |if (${expr.nullTerm}) {
+             |  $resultTerm.setField($outputIndex, null);
+             |} else {
+             |  $resultTerm.setField($outputIndex, ${expr.resultTerm});
+             |}
+         """.stripMargin
+        }
+      }.mkString("\n")
+      isWithinAggExprState = false
+
+      j"""
+         |private $rowTypeTerm $funcName($rowTypeTerm $inputAggRowTerm) {
+         |  $rowTypeTerm $resultTerm = new $rowTypeTerm(${inputExprs.size});
+         |  $exprs
+         |  return $resultTerm;
+         |}
+       """.stripMargin
+    }
+
+    private case class LogicalSingleAggCall(
+      function: SqlAggFunction,
+      inputTypes: Seq[RelDataType],
+      exprIndices: Seq[Int]
+    )
+
+    private case class SingleAggCall(
+      aggFunction: TableAggregateFunction[_, _],
+      inputIndices: Array[Int],
+      dataViews: Seq[DataViewSpec[_]]
+    )
+
+    private case class MatchAgg(
+      aggregations: Seq[SingleAggCall],
+      inputExprs: Seq[RexNode]
+    )
+
+  }
+
 }

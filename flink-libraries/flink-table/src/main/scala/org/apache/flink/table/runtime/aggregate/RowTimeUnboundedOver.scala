@@ -108,7 +108,7 @@ abstract class RowTimeUnboundedOver(
     val input = inputC.row
 
     // register state-cleanup timer
-    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+    processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
 
     val timestamp = input.getField(rowTimeIdx).asInstanceOf[Long]
     val curWatermark = ctx.timerService().currentWatermark()
@@ -143,7 +143,7 @@ abstract class RowTimeUnboundedOver(
       out: Collector[CRow]): Unit = {
 
     if (isProcessingTimeTimer(ctx.asInstanceOf[OnTimerContext])) {
-      if (needToCleanupState(timestamp)) {
+      if (stateCleaningEnabled) {
 
         // we check whether there are still records which have not been processed yet
         val noRecordsToProcess = !rowMapState.keys.iterator().hasNext
@@ -155,7 +155,7 @@ abstract class RowTimeUnboundedOver(
           // There are records left to process because a watermark has not been received yet.
           // This would only happen if the input stream has stopped. So we don't need to clean up.
           // We leave the state as it is and schedule a new cleanup timer
-          registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+          processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
         }
       }
       return
@@ -207,7 +207,7 @@ abstract class RowTimeUnboundedOver(
     }
 
     // update cleanup timer
-    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+    processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
   }
 
   /**

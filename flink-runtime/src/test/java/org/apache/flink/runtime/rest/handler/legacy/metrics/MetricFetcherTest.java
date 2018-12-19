@@ -99,7 +99,7 @@ public class MetricFetcherTest extends TestLogger {
 		MetricDumpSerialization.MetricSerializationResult requestMetricsAnswer = createRequestDumpAnswer(tmRID, jobID);
 
 		when(jmQueryService.queryMetrics(any(Time.class)))
-			.thenReturn(CompletableFuture.completedFuture(new MetricDumpSerialization.MetricSerializationResult(new byte[0], 0, 0, 0, 0)));
+			.thenReturn(CompletableFuture.completedFuture(new MetricDumpSerialization.MetricSerializationResult(new byte[0], new byte[0], new byte[0], new byte[0], 0, 0, 0, 0)));
 		when(tmQueryService.queryMetrics(any(Time.class)))
 			.thenReturn(CompletableFuture.completedFuture(requestMetricsAnswer));
 
