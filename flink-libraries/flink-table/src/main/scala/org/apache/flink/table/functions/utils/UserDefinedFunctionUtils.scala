@@ -33,6 +33,7 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.{CompositeType, TypeSerializer}
+import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
 import org.apache.flink.table.api.dataview._
@@ -549,28 +550,32 @@ object UserDefinedFunctionUtils {
       case _ => (fieldTypeInfo, None)
     }
 
-    def replaceFieldTypes[T <: Product](
-        oldCaseClassType: CaseClassTypeInfo[T],
-        newFieldTypes: Seq[TypeInformation[_]]): CaseClassTypeInfo[T] = {
-      new CaseClassTypeInfo[T](
-        oldCaseClassType.getTypeClass,
-        oldCaseClassType.typeParamTypeInfos,
-        newFieldTypes,
-        oldCaseClassType.getFieldNames) {
+    def replaceFieldTypes(
+        typeInfo: TypeInformation[_],
+        newFieldTypes: Seq[TypeInformation[_]]): TypeInformation[_] = typeInfo match {
+      case tupleType: TupleTypeInfo[_] =>
+        new TupleTypeInfo(tupleType.getTypeClass, newFieldTypes: _*)
 
-        override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
-          val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
-          for (i <- 0 until getArity) {
-            fieldSerializers(i) = types(i).createSerializer(executionConfig)
-          }
+      case caseClassType: CaseClassTypeInfo[Product] =>
+        new CaseClassTypeInfo(
+          caseClassType.getTypeClass,
+          caseClassType.typeParamTypeInfos,
+          newFieldTypes,
+          caseClassType.getFieldNames) {
 
-          new CaseClassSerializer[T](getTypeClass, fieldSerializers) {
-            override def createInstance(fields: Array[AnyRef]): T =
-              oldCaseClassType.createSerializer(executionConfig)
-                .asInstanceOf[CaseClassSerializer[T]].createInstance(fields)
+          override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[Product] = {
+            val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
+            for (i <- 0 until getArity) {
+              fieldSerializers(i) = types(i).createSerializer(executionConfig)
+            }
+
+            new CaseClassSerializer[Product](getTypeClass, fieldSerializers) {
+              override def createInstance(fields: Array[AnyRef]): Product =
+                caseClassType.createSerializer(executionConfig)
+                  .asInstanceOf[CaseClassSerializer[Product]].createInstance(fields)
+            }
           }
         }
-      }
     }
 
     val acc = aggFun.createAccumulator()
@@ -605,7 +610,7 @@ object UserDefinedFunctionUtils {
         val newFieldTypes = new mutable.ArrayBuffer[TypeInformation[_]]()
         for (i <- 0 until arity) {
           val fieldName = fieldNames(i)
-          val field = tupleType.getTypeClass.getDeclaredField(fieldName)
+          val field = TypeExtractor.getDeclaredField(tupleType.getTypeClass, fieldName)
           field.setAccessible(true)
 
           val (newTypeInfo, spec) = decorateDataViewTypeInfo(
@@ -618,14 +623,7 @@ object UserDefinedFunctionUtils {
           }
           newFieldTypes += newTypeInfo
         }
-
-        accType match {
-          case _: TupleTypeInfo[_] =>
-            (new TupleTypeInfo(newFieldTypes: _*), Some(accumulatorSpecs))
-          case caseClassType: CaseClassTypeInfo[_] =>
-            val newTypeInfo = replaceFieldTypes(caseClassType, newFieldTypes)
-            (newTypeInfo, Some(accumulatorSpecs))
-        }
+        (replaceFieldTypes(accType, newFieldTypes), Some(accumulatorSpecs))
 
       case ct: CompositeType[_] if includesDataView(ct) =>
         throw new TableException(
