@@ -66,6 +66,7 @@ object StatefulJobSavepointMigrationITCase {
   // TODO to generate savepoints for a specific Flink version / backend type,
   // TODO change these values accordingly, e.g. to generate for 1.3 with RocksDB,
   // TODO set as (MigrationVersion.v1_3, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME)
+  // TODO Note: You should generate the savepoint based on the release branch instead of the master.
   val GENERATE_SAVEPOINT_VER: MigrationVersion = MigrationVersion.v1_4
   val GENERATE_SAVEPOINT_BACKEND_TYPE: String = StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME
 
