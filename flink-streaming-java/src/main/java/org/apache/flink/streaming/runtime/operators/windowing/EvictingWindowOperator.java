@@ -179,7 +179,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 						// if we have no state, there is nothing to do
 						continue;
 					}
-					emitWindowContents(actualWindow, contents, evictingWindowState);
+					emitWindowContents(actualWindow, contents, evictingWindowState, triggerResult.isPurge());
 				}
 
 				if (triggerResult.isPurge()) {
@@ -215,7 +215,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 						// if we have no state, there is nothing to do
 						continue;
 					}
-					emitWindowContents(window, contents, evictingWindowState);
+					emitWindowContents(window, contents, evictingWindowState, triggerResult.isPurge());
 				}
 
 				if (triggerResult.isPurge()) {
@@ -268,7 +268,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 		if (triggerResult.isFire()) {
 			Iterable<StreamRecord<IN>> contents = evictingWindowState.get();
 			if (contents != null) {
-				emitWindowContents(triggerContext.window, contents, evictingWindowState);
+				emitWindowContents(triggerContext.window, contents, evictingWindowState, triggerResult.isPurge());
 			}
 		}
 
@@ -315,7 +315,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 		if (triggerResult.isFire()) {
 			Iterable<StreamRecord<IN>> contents = evictingWindowState.get();
 			if (contents != null) {
-				emitWindowContents(triggerContext.window, contents, evictingWindowState);
+				emitWindowContents(triggerContext.window, contents, evictingWindowState, triggerResult.isPurge());
 			}
 		}
 
@@ -333,7 +333,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 		}
 	}
 
-	private void emitWindowContents(W window, Iterable<StreamRecord<IN>> contents, ListState<StreamRecord<IN>> windowState) throws Exception {
+	private void emitWindowContents(W window, Iterable<StreamRecord<IN>> contents, ListState<StreamRecord<IN>> windowState, boolean purge) throws Exception {
 		timestampedCollector.setAbsoluteTimestamp(window.maxTimestamp());
 
 		// Work around type system restrictions...
@@ -362,8 +362,10 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 		//work around to fix FLINK-4369, remove the evicted elements from the windowState.
 		//this is inefficient, but there is no other way to remove elements from ListState, which is an AppendingState.
 		windowState.clear();
-		for (TimestampedValue<IN> record : recordsWithTimestamp) {
-			windowState.add(record.getStreamRecord());
+		if (!purge) {
+			for (TimestampedValue<IN> record : recordsWithTimestamp) {
+				windowState.add(record.getStreamRecord());
+			}
 		}
 	}
 
