@@ -52,7 +52,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -63,7 +62,6 @@ public class JobDetailsHandler extends AbstractExecutionGraphHandler<JobDetailsI
 	private final MetricFetcher<?> metricFetcher;
 
 	public JobDetailsHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
@@ -72,7 +70,6 @@ public class JobDetailsHandler extends AbstractExecutionGraphHandler<JobDetailsI
 			Executor executor,
 			MetricFetcher<?> metricFetcher) {
 		super(
-			localRestAddress,
 			leaderRetriever,
 			timeout,
 			responseHeaders,

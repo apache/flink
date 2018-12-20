@@ -21,7 +21,7 @@ package org.apache.flink.runtime.webmonitor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.rest.handler.RedirectHandler;
+import org.apache.flink.runtime.rest.handler.LeaderRetrievalHandler;
 import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.rest.handler.util.HandlerRedirectUtils;
@@ -41,52 +41,34 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.util.Collections;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 /**
- * Tests for the {@link RedirectHandler}.
+ * Tests for the {@link LeaderRetrievalHandler}.
  */
-public class RedirectHandlerTest extends TestLogger {
+public class LeaderRetrievalHandlerTest extends TestLogger {
 
 	private static final String RESPONSE_MESSAGE = "foobar";
 
 	/**
-	 * Tests the behaviour of the RedirectHandler under the following conditions.
+	 * Tests the behaviour of the LeaderRetrievalHandler under the following conditions.
 	 *
-	 * <p>1. No local address known --> service unavailable
-	 * 2. Local address known but no gateway resolved --> service unavailable
-	 * 3. Remote leader gateway --> redirection
-	 * 4. Local leader gateway
+	 * <p>1. No gateway resolved --> service unavailable
+	 * 2. leader gateway
 	 * @throws Exception
 	 */
 	@Test
-	public void testRedirectHandler() throws Exception {
+	public void testLeaderRetrievalGateway() throws Exception {
 		final String restPath = "/testing";
-		final String correctAddress = "foobar:21345";
-		final String redirectionAddress = "http://foobar:12345";
-		final String expectedRedirection = redirectionAddress + restPath;
 
 		final Configuration configuration = new Configuration();
 		final Router router = new Router();
 		final Time timeout = Time.seconds(10L);
-		final CompletableFuture<String> localAddressFuture = new CompletableFuture<>();
-		final GatewayRetriever<RestfulGateway> gatewayRetriever = mock(GatewayRetriever.class);
-
-		final RestfulGateway redirectionGateway = mock(RestfulGateway.class);
-		when(redirectionGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(redirectionAddress));
-
-		final RestfulGateway localGateway = mock(RestfulGateway.class);
-		when(localGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(correctAddress));
-
-		when(gatewayRetriever.getNow()).thenReturn(Optional.empty(), Optional.of(redirectionGateway), Optional.of(localGateway));
+		final CompletableFuture<RestfulGateway> gatewayFuture = new CompletableFuture<>();
+		final GatewayRetriever<RestfulGateway> gatewayRetriever = () -> gatewayFuture;
+		final RestfulGateway gateway = TestingRestfulGateway.newBuilder().build();
 
 		final TestingHandler testingHandler = new TestingHandler(
-			localAddressFuture,
 			gatewayRetriever,
 			timeout);
 
@@ -101,31 +83,16 @@ public class RedirectHandlerTest extends TestLogger {
 			configuration);
 
 		try (HttpTestClient httpClient = new HttpTestClient("localhost", bootstrap.getServerPort())) {
-			// 1. without completed local address future --> Internal server error
+			// 1. no leader gateway available --> Service unavailable
 			httpClient.sendGetRequest(restPath, FutureUtils.toFiniteDuration(timeout));
 
 			HttpTestClient.SimpleHttpResponse response = httpClient.getNextResponse(FutureUtils.toFiniteDuration(timeout));
 
-			Assert.assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, response.getStatus());
-
-			// 2. with completed local address future but no leader gateway available --> Service unavailable
-			localAddressFuture.complete(correctAddress);
-
-			httpClient.sendGetRequest(restPath, FutureUtils.toFiniteDuration(timeout));
-
-			response = httpClient.getNextResponse(FutureUtils.toFiniteDuration(timeout));
-
 			Assert.assertEquals(HttpResponseStatus.SERVICE_UNAVAILABLE, response.getStatus());
 
-			// 3. with leader gateway which is not the one of this REST endpoints --> Redirection required
-			httpClient.sendGetRequest(restPath, FutureUtils.toFiniteDuration(timeout));
+			// 2. with leader
+			gatewayFuture.complete(gateway);
 
-			response = httpClient.getNextResponse(FutureUtils.toFiniteDuration(timeout));
-
-			Assert.assertEquals(HttpResponseStatus.TEMPORARY_REDIRECT, response.getStatus());
-			Assert.assertEquals(expectedRedirection, response.getLocation());
-
-			// 4. with local REST endpoint
 			httpClient.sendGetRequest(restPath, FutureUtils.toFiniteDuration(timeout));
 
 			response = httpClient.getNextResponse(FutureUtils.toFiniteDuration(timeout));
@@ -138,13 +105,12 @@ public class RedirectHandlerTest extends TestLogger {
 		}
 	}
 
-	private static class TestingHandler extends RedirectHandler<RestfulGateway> {
+	private static class TestingHandler extends LeaderRetrievalHandler<RestfulGateway> {
 
 		protected TestingHandler(
-				@Nonnull CompletableFuture<String> localAddressFuture,
 				@Nonnull GatewayRetriever<RestfulGateway> leaderRetriever,
 				@Nonnull Time timeout) {
-			super(localAddressFuture, leaderRetriever, timeout, Collections.emptyMap());
+			super(leaderRetriever, timeout, Collections.emptyMap());
 		}
 
 		@Override

@@ -62,7 +62,7 @@ import java.util.concurrent.CompletableFuture;
  * @param <R> type of the incoming request
  * @param <M> type of the message parameters
  */
-public abstract class AbstractHandler<T extends RestfulGateway, R extends RequestBody, M extends MessageParameters> extends RedirectHandler<T> implements AutoCloseableAsync {
+public abstract class AbstractHandler<T extends RestfulGateway, R extends RequestBody, M extends MessageParameters> extends LeaderRetrievalHandler<T> implements AutoCloseableAsync {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -76,12 +76,11 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 	private final InFlightRequestTracker inFlightRequestTracker;
 
 	protected AbstractHandler(
-			@Nonnull CompletableFuture<String> localAddressFuture,
 			@Nonnull GatewayRetriever<? extends T> leaderRetriever,
 			@Nonnull Time timeout,
 			@Nonnull Map<String, String> responseHeaders,
 			@Nonnull UntypedResponseMessageHeaders<R, M> untypedResponseMessageHeaders) {
-		super(localAddressFuture, leaderRetriever, timeout, responseHeaders);
+		super(leaderRetriever, timeout, responseHeaders);
 
 		this.untypedResponseMessageHeaders = Preconditions.checkNotNull(untypedResponseMessageHeaders);
 		this.inFlightRequestTracker = new InFlightRequestTracker();
