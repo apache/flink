@@ -1326,6 +1326,47 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
 
 ### Connectors
 
+### JDBC Connector
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 15%">Scope</th>
+      <th class="text-left" style="width: 22%">Infix</th>
+      <th class="text-left" style="width: 18%">Metrics</th>
+      <th class="text-left" style="width: 18%">User Variables</th>
+      <th class="text-left" style="width: 39%">Description</th>
+      <th class="text-left" style="width: 10%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="1">Task/Operator</th>
+      <td>jdbc</td>
+      <td>flushRate</td>
+      <td>n/a</td>
+      <td>JDBC batch writes per second.</td>
+      <td>Meter</td>
+    </tr>
+    <tr>
+      <th rowspan="1">Task/Operator</th>
+      <td>jdbc</td>
+      <td>flushDurationMs</td>
+      <td>n/a</td>
+      <td>Duration of time it took to perform the JDBC batch write (milliseconds).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <th rowspan="1">Task/Operator</th>
+      <td>jdbc</td>
+      <td>flushBatchSize</td>
+      <td>n/a</td>
+      <td>The number of records in the JDBC batch.</td>
+      <td>Gauge</td>
+    </tr>
+  </tbody>
+ </thread>
+</table>
+
 #### Kafka Connectors
 <table class="table table-bordered">
   <thead>
