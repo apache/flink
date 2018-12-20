@@ -88,7 +88,11 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 		Throwable error = ExceptionUtils.stripCompletionException(throwable);
 		if (error instanceof RestHandlerException) {
 			final RestHandlerException rhe = (RestHandlerException) error;
-			log.error("Exception occurred in REST handler.", rhe);
+			if (log.isDebugEnabled()) {
+				log.error("Exception occurred in REST handler.", rhe);
+			} else {
+				log.error("Exception occurred in REST handler: {}", rhe.getMessage());
+			}
 			return Tuple2.of(new ErrorResponseBody(rhe.getMessage()), rhe.getHttpResponseStatus());
 		} else {
 			log.error("Implementation error: Unhandled exception.", error);
