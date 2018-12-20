@@ -139,4 +139,15 @@ It defaults to `UNBOUNDED` if not specified.
 
 Snapshots created with `OperatorSnapshotUtil` are now written in the savepoint format `v2`.
 
+### SBT projects and the MiniClusterResource
+
+If you have a `sbt` project which uses the `MiniClusterResource`, you now have to add the `flink-runtime` test-jar dependency explicitly via:
+
+`libraryDependencies += "org.apache.flink" %% "flink-runtime" % flinkVersion % Test classifier "tests"`
+
+The reason for this is that the `MiniClusterResource` has been moved from `flink-test-utils` to `flink-runtime`.
+The module `flink-test-utils` has correctly a `test-jar` dependency on `flink-runtime`.
+However, `sbt` does not properly pull in transitive `test-jar` dependencies as described in this [sbt issue](https://github.com/sbt/sbt/issues/2964).
+Consequently, it is necessary to specify the `test-jar` dependency explicitly.
+
 {% top %}
