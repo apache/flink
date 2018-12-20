@@ -111,6 +111,14 @@ under the License.
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-deploy-plugin</artifactId>
+				<configuration>
+					<skip>true</skip>
+				</configuration>
+			</plugin>
+
 			<!-- get default data from flink-example-batch package -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
