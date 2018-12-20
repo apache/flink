@@ -242,14 +242,14 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 * @throws ProgramInvocationException
 	 */
 	private static JobExecutionResult executeRemotely(StreamGraph streamGraph,
-													ClassLoader envClassLoader,
-													ExecutionConfig executionConfig,
-													List<URL> jarFiles,
-													String host,
-													int port,
-													Configuration clientConfiguration,
-													List<URL> globalClasspaths,
-													SavepointRestoreSettings savepointRestoreSettings
+		ClassLoader envClassLoader,
+		ExecutionConfig executionConfig,
+		List<URL> jarFiles,
+		String host,
+		int port,
+		Configuration clientConfiguration,
+		List<URL> globalClasspaths,
+		SavepointRestoreSettings savepointRestoreSettings
 	) throws ProgramInvocationException {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running remotely at {}:{}", host, port);
@@ -319,6 +319,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 * 			  List of jar file URLs to ship to the cluster
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
+	@Deprecated
 	protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles) throws ProgramInvocationException {
 		return executeRemotely(streamGraph,
 			this.getClass().getClassLoader(),
