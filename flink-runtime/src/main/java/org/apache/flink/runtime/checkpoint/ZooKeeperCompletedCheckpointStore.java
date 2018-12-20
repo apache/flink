@@ -140,7 +140,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 		// Ensure that the checkpoints path exists
 		client.newNamespaceAwareEnsurePath(checkpointsPath)
-			.ensure(client.getZookeeperClient());
+				.ensure(client.getZookeeperClient());
 
 		// All operations will have the path as root
 		this.client = client.usingNamespace(client.getNamespace() + checkpointsPath);
