@@ -117,15 +117,13 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 				try {
 					request = MAPPER.readValue("{}", untypedResponseMessageHeaders.getRequestClass());
 				} catch (JsonParseException | JsonMappingException je) {
-					log.error("Request did not conform to expected format.", je);
-					throw new RestHandlerException("Bad request received.", HttpResponseStatus.BAD_REQUEST, je);
+					throw new RestHandlerException("Bad request received. Request did not conform to expected format.", HttpResponseStatus.BAD_REQUEST, je);
 				}
 			} else {
 				try {
 					ByteBufInputStream in = new ByteBufInputStream(msgContent);
 					request = MAPPER.readValue(in, untypedResponseMessageHeaders.getRequestClass());
 				} catch (JsonParseException | JsonMappingException je) {
-					log.error("Failed to read request.", je);
 					throw new RestHandlerException(
 						String.format("Request did not match expected format %s.", untypedResponseMessageHeaders.getRequestClass().getSimpleName()),
 						HttpResponseStatus.BAD_REQUEST,
@@ -165,6 +163,11 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 				});
 		} catch (RestHandlerException rhe) {
 			inFlightRequestTracker.deregisterRequest();
+			if (log.isDebugEnabled()) {
+				log.error("Exception occurred in REST handler.", rhe);
+			} else {
+				log.error("Exception occurred in REST handler: {}", rhe.getMessage());
+			}
 			HandlerUtils.sendErrorResponse(
 				ctx,
 				httpRequest,
