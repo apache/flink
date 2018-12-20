@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.calcite
 
+import java.io.{ByteArrayInputStream, InputStream}
 import java.util
 
 import com.google.common.collect.ImmutableList
@@ -30,6 +31,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexBuilder
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
+import org.apache.calcite.sql.parser.ddl.SqlDdlParserImpl
 import org.apache.calcite.sql.parser.{SqlParser, SqlParseException => CSqlParseException}
 import org.apache.calcite.sql.validate.SqlValidator
 import org.apache.calcite.sql.{SqlNode, SqlOperatorTable}
@@ -83,11 +85,22 @@ class FlinkPlannerImpl(
     hints.toArray
   }
 
+  def getParser(sql: String): SqlDdlParserImpl = {
+    val inputStream: InputStream = new ByteArrayInputStream(sql.getBytes)
+    val parser: SqlDdlParserImpl = new SqlDdlParserImpl(inputStream)
+    parser.setConformance(parserConfig.conformance)
+    parser.setIdentifierMaxLength(parserConfig.identifierMaxLength)
+    parser.setQuotedCasing(parserConfig.quotedCasing)
+    parser.setUnquotedCasing(parserConfig.unquotedCasing)
+    parser.switchTo("BTID")
+    parser
+  }
+
   def parse(sql: String): SqlNode = {
     try {
       ready()
-      val parser: SqlParser = SqlParser.create(sql, parserConfig)
-      val sqlNode: SqlNode = parser.parseStmt
+      val parser: SqlDdlParserImpl = getParser(sql)
+      val sqlNode: SqlNode = parser.parseSqlStmtEof
       sqlNode
     } catch {
       case e: CSqlParseException =>
@@ -147,10 +160,10 @@ class FlinkPlannerImpl(
         schemaPath: util.List[String],
         viewPath: util.List[String]): RelRoot = {
 
-      val parser: SqlParser = SqlParser.create(queryString, parserConfig)
+      val parser: SqlDdlParserImpl = getParser(queryString)
       var sqlNode: SqlNode = null
       try {
-        sqlNode = parser.parseQuery
+        sqlNode = parser.parseSqlStmtEof
       }
       catch {
         case e: CSqlParseException =>

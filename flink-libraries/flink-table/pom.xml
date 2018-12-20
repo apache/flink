@@ -94,7 +94,7 @@ under the License.
 		<!-- Used for translation of table programs -->
 		<dependency>
 			<groupId>org.apache.calcite</groupId>
-			<artifactId>calcite-core</artifactId>
+			<artifactId>calcite-server</artifactId>
 			<!-- When updating the Calcite version, make sure to update the dependency exclusions -->
 			<version>1.17.0</version>
 			<exclusions>
