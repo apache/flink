@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -211,6 +212,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 * <p>This method can be used independent of the {@link StreamExecutionEnvironment} type.
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
+	@PublicEvolving
 	public static JobExecutionResult executeRemotely(StreamExecutionEnvironment streamExecutionEnvironment,
 		List<URL> jarFiles,
 		String host,
@@ -310,6 +312,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	/**
 	 * Executes the remote job.
 	 *
+	 * <p>Note: This method exposes stream graph internal in the public API, but cannot be removed for backward compatibility.
 	 * @param streamGraph
 	 *            Stream Graph to execute
 	 * @param jarFiles
