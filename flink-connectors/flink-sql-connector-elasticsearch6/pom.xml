@@ -115,6 +115,7 @@ under the License.
 										<exclude>META-INF/services/com.fasterxml.**</exclude>
 										<exclude>META-INF/services/org.apache.lucene.**</exclude>
 										<exclude>META-INF/services/org.elasticsearch.**</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
 									</excludes>
 								</filter>
 							</filters>
