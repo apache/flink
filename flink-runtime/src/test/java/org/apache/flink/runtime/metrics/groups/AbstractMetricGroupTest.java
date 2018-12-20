@@ -21,16 +21,23 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 
 import org.junit.Test;
+
+import javax.annotation.Nullable;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -250,6 +257,76 @@ public class AbstractMetricGroupTest {
 			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, 2));
 		} finally {
 			testRegistry.shutdown().get();
+		}
+	}
+
+	@Test(timeout = 10_000)
+	public void testGetAllVariablesDoesNotDeadlock() throws InterruptedException {
+		final BlockerSync sync = new BlockerSync();
+		final MetricRegistry registry = new BlockingMetricRegistry(sync);
+
+		final MetricGroup parent = new GenericMetricGroup(registry, UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(), "parent");
+		final MetricGroup child = parent.addGroup("child");
+
+		final Thread registeringThread = new Thread(() -> parent.counter("parent_counter"));
+		registeringThread.start();
+		try {
+			sync.awaitBlocker();
+
+			// this call could deadlock in the past since the registeringThread still holds the lock for parent
+			// and getAllVariables acquired the locks of all parent groups
+			child.getAllVariables();
+		} finally {
+			sync.releaseBlocker();
+			registeringThread.join();
+		}
+	}
+
+	private static final class BlockingMetricRegistry implements MetricRegistry {
+
+		private final BlockerSync sync;
+
+		BlockingMetricRegistry(BlockerSync sync) {
+			this.sync = sync;
+		}
+
+		@Override
+		public char getDelimiter() {
+			return 0;
+		}
+
+		@Override
+		public char getDelimiter(int index) {
+			return 0;
+		}
+
+		@Override
+		public int getNumberReporters() {
+			return 0;
+		}
+
+		@Override
+		public void register(Metric metric, String metricName, AbstractMetricGroup group) {
+			try {
+				sync.block();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+		}
+
+		@Override
+		public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
+		}
+
+		@Override
+		public ScopeFormats getScopeFormats() {
+			return null;
+		}
+
+		@Nullable
+		@Override
+		public String getMetricQueryServicePath() {
+			return null;
 		}
 	}
 }
