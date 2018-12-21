@@ -33,6 +33,7 @@ import org.apache.curator.utils.ZKPaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -112,13 +113,14 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		CuratorFramework client,
 		String checkpointsPath,
 		RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage,
-		Executor executor) throws Exception {
+		Executor executor
+	) throws Exception {
 		this(maxNumberOfCheckpointsToRetain,
-			client,
-			checkpointsPath,
+			adaptNameSpace(client, checkpointsPath),
 			stateStorage,
-			executor,
-			null);
+			executor);
+
+		LOG.info("Initialized in '{}'.", checkpointsPath);
 	}
 
 	@VisibleForTesting
@@ -126,34 +128,51 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		int maxNumberOfCheckpointsToRetain,
 		CuratorFramework client,
 		String checkpointsPath,
-		RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage,
 		Executor executor,
-		ZooKeeperStateHandleStore<CompletedCheckpoint> checkpointsInZooKeeper) throws Exception {
-
-		checkArgument(maxNumberOfCheckpointsToRetain >= 1, "Must retain at least one checkpoint.");
-		checkNotNull(stateStorage, "State storage");
-
-		this.maxNumberOfCheckpointsToRetain = maxNumberOfCheckpointsToRetain;
-
-		checkNotNull(client, "Curator client");
-		checkNotNull(checkpointsPath, "Checkpoints path");
-
-		// Ensure that the checkpoints path exists
-		client.newNamespaceAwareEnsurePath(checkpointsPath)
-				.ensure(client.getZookeeperClient());
-
-		// All operations will have the path as root
-		this.client = client.usingNamespace(client.getNamespace() + checkpointsPath);
-
-		this.checkpointsInZooKeeper = (checkpointsInZooKeeper != null) ?
-			checkpointsInZooKeeper :
-			new ZooKeeperStateHandleStore<>(this.client, stateStorage);
-
-		this.completedCheckpoints = new ArrayDeque<>(maxNumberOfCheckpointsToRetain + 1);
-
-		this.executor = checkNotNull(executor);
+		ZooKeeperStateHandleStore<CompletedCheckpoint> checkpointsInZooKeeper
+	) throws Exception {
+		this(maxNumberOfCheckpointsToRetain,
+			adaptNameSpace(client, checkpointsPath),
+			executor,
+			checkpointsInZooKeeper);
 
 		LOG.info("Initialized in '{}'.", checkpointsPath);
+	}
+
+	private ZooKeeperCompletedCheckpointStore(
+		int maxNumberOfCheckpointsToRetain,
+		CuratorFramework client,
+		RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage,
+		Executor executor
+	) {
+		this(maxNumberOfCheckpointsToRetain,
+			client,
+			executor,
+			new ZooKeeperStateHandleStore<>(client, stateStorage));
+	}
+
+	private ZooKeeperCompletedCheckpointStore(
+		int maxNumberOfCheckpointsToRetain,
+		@Nonnull CuratorFramework client,
+		@Nonnull Executor executor,
+		@Nonnull ZooKeeperStateHandleStore<CompletedCheckpoint> checkpointsInZooKeeper
+	) {
+		checkArgument(maxNumberOfCheckpointsToRetain >= 1, "Must retain at least one checkpoint.");
+
+		this.maxNumberOfCheckpointsToRetain = maxNumberOfCheckpointsToRetain;
+		this.client = client;
+		this.executor = executor;
+		this.checkpointsInZooKeeper = checkpointsInZooKeeper;
+		this.completedCheckpoints = new ArrayDeque<>(maxNumberOfCheckpointsToRetain + 1);
+	}
+
+	private static CuratorFramework adaptNameSpace(CuratorFramework client, String checkpointsPath) throws Exception {
+		// Ensure that the checkpoints path exists
+		client.newNamespaceAwareEnsurePath(checkpointsPath)
+			.ensure(client.getZookeeperClient());
+
+		// All operations will have the path as root
+		return client.usingNamespace(client.getNamespace() + checkpointsPath);
 	}
 
 	@Override

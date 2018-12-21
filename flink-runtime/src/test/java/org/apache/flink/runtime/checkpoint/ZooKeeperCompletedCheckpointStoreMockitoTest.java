@@ -158,13 +158,11 @@ public class ZooKeeperCompletedCheckpointStoreMockitoTest extends TestLogger {
 		});
 
 		final String checkpointsPath = "foobar";
-		final RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage = mock(RetrievableStateStorageHelper.class);
 
 		ZooKeeperCompletedCheckpointStore zooKeeperCompletedCheckpointStore = new ZooKeeperCompletedCheckpointStore(
 			numCheckpointsToRetain,
 			client,
 			checkpointsPath,
-			stateStorage,
 			Executors.directExecutor(),
 			zooKeeperStateHandleStoreMock);
 
@@ -224,13 +222,11 @@ public class ZooKeeperCompletedCheckpointStoreMockitoTest extends TestLogger {
 
 		final int numCheckpointsToRetain = 1;
 		final String checkpointsPath = "foobar";
-		final RetrievableStateStorageHelper<CompletedCheckpoint> stateSotrage = mock(RetrievableStateStorageHelper.class);
 
 		ZooKeeperCompletedCheckpointStore zooKeeperCompletedCheckpointStore = new ZooKeeperCompletedCheckpointStore(
 			numCheckpointsToRetain,
 			client,
 			checkpointsPath,
-			stateSotrage,
 			Executors.directExecutor(),
 			zookeeperStateHandleStoreMock);
 
