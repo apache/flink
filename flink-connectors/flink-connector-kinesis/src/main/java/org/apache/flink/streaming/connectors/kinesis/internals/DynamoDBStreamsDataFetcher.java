@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kinesis.internals;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.KinesisShardAssigner;
-import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.metrics.ShardMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.DynamoDBStreamsShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
@@ -70,16 +69,11 @@ public class DynamoDBStreamsDataFetcher<T> extends KinesisDataFetcher<T> {
 			createInitialSubscribedStreamsToLastDiscoveredShardsState(streams),
 			// use DynamoDBStreamsProxy
 			DynamoDBStreamsProxy::create);
-
-		shardIdFormatCheck = Boolean.valueOf(configProps.getProperty(
-				ConsumerConfigConstants.DYNAMODB_STREAMS_SHARDID_FORMAT_CHECK,
-				ConsumerConfigConstants.DEFAULT_DYNAMODB_STREAMS_SHARDID_FORMAT_CHECK));
 	}
 
 	@Override
 	protected boolean shouldAdvanceLastDiscoveredShardId(String shardId, String lastSeenShardIdOfStream) {
-		if (shardIdFormatCheck &&
-				DynamoDBStreamsShardHandle.compareShardIds(shardId, lastSeenShardIdOfStream) <= 0) {
+		if (DynamoDBStreamsShardHandle.compareShardIds(shardId, lastSeenShardIdOfStream) <= 0) {
 			// shardID update is valid only if the given shard id is greater
 			// than the previous last seen shard id of the stream.
 			return false;

@@ -128,13 +128,6 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The interval after which to consider a shard idle for purposes of watermark generation. */
 	public static final String SHARD_IDLE_INTERVAL_MILLIS = "flink.shard.idle.interval";
 
-	/**
-	 * Boolean to indicate whether to compare/enforce shardId format based on the one defined in
-	 * DynamoDBStreamsShardHandle.
-	 */
-	public static final String DYNAMODB_STREAMS_SHARDID_FORMAT_CHECK =
-			"flink.dynamodbstreams.shardid.format.check";
-
 	// ------------------------------------------------------------------------
 	//  Default values for consumer configuration
 	// ------------------------------------------------------------------------
@@ -182,9 +175,6 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	public static final boolean DEFAULT_SHARD_USE_ADAPTIVE_READS = false;
 
 	public static final long DEFAULT_SHARD_IDLE_INTERVAL_MILLIS = -1;
-
-	// By default disable shardId format check.
-	public static final String DEFAULT_DYNAMODB_STREAMS_SHARDID_FORMAT_CHECK = "false";
 
 	/**
 	 * To avoid shard iterator expires in {@link ShardConsumer}s, the value for the configured

@@ -134,6 +134,10 @@ under the License.
 					<groupId>com.amazonaws</groupId>
 					<artifactId>aws-java-sdk-cloudwatch</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-databind</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 	</dependencies>
