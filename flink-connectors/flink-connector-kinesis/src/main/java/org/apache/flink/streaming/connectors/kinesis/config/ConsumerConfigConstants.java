@@ -65,31 +65,16 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The date format of initial timestamp to start reading Kinesis stream from (when AT_TIMESTAMP is set for STREAM_INITIAL_POSITION). */
 	public static final String STREAM_TIMESTAMP_DATE_FORMAT = "flink.stream.initpos.timestamp.format";
 
-	/**
-	 * Deprecated key.
-	 *
-	 * @deprecated Use {@link ConsumerConfigConstants#LIST_SHARDS_BACKOFF_BASE} instead
-	 **/
-	@Deprecated
-	/** The base backoff time between each describeStream attempt. */
+	/** The base backoff time between each describeStream attempt (Used for consuming data from DynamoDB streams). */
 	public static final String STREAM_DESCRIBE_BACKOFF_BASE = "flink.stream.describe.backoff.base";
 
-	/**
-	 * Deprecated key.
-	 *
-	 * @deprecated Use {@link ConsumerConfigConstants#LIST_SHARDS_BACKOFF_MAX} instead
-	 **/
-	@Deprecated
-	/** The maximum backoff time between each describeStream attempt. */
+	/** The maximum backoff time between each describeStream attempt (Used for consuming data from DynamoDB streams). */
 	public static final String STREAM_DESCRIBE_BACKOFF_MAX = "flink.stream.describe.backoff.max";
 
 	/**
-	 * Deprecated key.
-	 *
-	 * @deprecated Use {@link ConsumerConfigConstants#LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT} instead
-	 **/
-	@Deprecated
-	/** The power constant for exponential backoff between each describeStream attempt. */
+	 * The power constant for exponential backoff between each describeStream attempt (Used for consuming data from
+	 * DynamoDB streams).
+	 */
 	public static final String STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT = "flink.stream.describe.backoff.expconst";
 
 	/** The maximum number of listShards attempts if we get a recoverable exception. */
@@ -144,27 +129,6 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	public static final String SHARD_IDLE_INTERVAL_MILLIS = "flink.shard.idle.interval";
 
 	/**
-	 * The base backoff time between each describeStream attempt.
-	 * Different tag name to distinguish from "flink.stream.describe.backoff.base"
-	 * since the latter is deprecated.
-	 */
-	public static final String DYNAMODB_STREAMS_DESCRIBE_BACKOFF_BASE =
-			"flink.dynamodbstreams.describe.backoff.base";
-	/**
-	 * The maximum backoff time between each describeStream attempt.
-	 * Different tag name to distinguish from "flink.stream.describe.backoff.max"
-	 * since the latter is deprecated.
-	 */
-	public static final String DYNAMODB_STREAMS_DESCRIBE_BACKOFF_MAX =
-			"flink.dynamodbstreams.describe.backoff.max";
-	/**
-	 * The power constant for exponential backoff between each describeStream attempt.
-	 * Different tag name to distinguish from "flink.stream.describe.backoff.expcost"
-	 * since the latter is deprecated.
-	 */
-	public static final String DYNAMODB_STREAMS_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT =
-			"flink.dynamodbstreams.describe.backoff.expconst";
-	/**
 	 * Boolean to indicate whether to compare/enforce shardId format based on the one defined in
 	 * DynamodbStreamsShardHandle.
 	 */
@@ -179,13 +143,10 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	public static final String DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
 
-	@Deprecated
 	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE = 1000L;
 
-	@Deprecated
 	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX = 5000L;
 
-	@Deprecated
 	public static final double DEFAULT_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
 	public static final long DEFAULT_LIST_SHARDS_BACKOFF_BASE = 1000L;
@@ -221,12 +182,6 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	public static final boolean DEFAULT_SHARD_USE_ADAPTIVE_READS = false;
 
 	public static final long DEFAULT_SHARD_IDLE_INTERVAL_MILLIS = -1;
-
-	public static final long DEFAULT_DYNAMODB_STREAMS_DESCRIBE_BACKOFF_BASE = 1000L;
-
-	public static final long DEFAULT_DYNAMODB_STREAMS_DESCRIBE_BACKOFF_MAX = 5000L;
-
-	public static final double DEFAULT_DYNAMODB_STREAMS_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
 	// By default disable shardId format check.
 	public static final String DEFAULT_DYNAMODB_STREAMS_SHARDID_FORMAT_CHECK = "false";

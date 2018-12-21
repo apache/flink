@@ -27,12 +27,8 @@ import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.dynamodbv2.streamsadapter.AmazonDynamoDBStreamsAdapterClient;
 import com.amazonaws.services.kinesis.AmazonKinesis;
-import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
-import com.amazonaws.services.kinesis.model.LimitExceededException;
-import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.model.Shard;
-import com.amazonaws.services.kinesis.model.StreamStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,12 +41,6 @@ import java.util.Properties;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.AWS_ENDPOINT;
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.AWS_REGION;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_DYNAMODB_STREAMS_DESCRIBE_BACKOFF_BASE;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_DYNAMODB_STREAMS_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_DYNAMODB_STREAMS_DESCRIBE_BACKOFF_MAX;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DYNAMODB_STREAMS_DESCRIBE_BACKOFF_BASE;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DYNAMODB_STREAMS_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DYNAMODB_STREAMS_DESCRIBE_BACKOFF_MAX;
 import static org.apache.flink.streaming.connectors.kinesis.util.AWSUtil.getCredentialsProvider;
 import static org.apache.flink.streaming.connectors.kinesis.util.AWSUtil.setAwsClientConfigProperties;
 
@@ -63,26 +53,8 @@ public class DynamodbStreamsProxy extends KinesisProxy {
 	/** Used for formatting Flink-specific user agent string when creating Kinesis client. */
 	private static final String USER_AGENT_FORMAT = "Apache Flink %s (%s) DynamoDB Streams Connector";
 
-	// Backoff millis for the describe stream operation.
-	private final long describeStreamBaseBackoffMillis;
-	// Maximum backoff millis for the describe stream operation.
-	private final long describeStreamMaxBackoffMillis;
-	// Exponential backoff power constant for the describe stream operation.
-	private final double describeStreamExpConstant;
-
 	protected DynamodbStreamsProxy(Properties configProps) {
 		super(configProps);
-
-		// parse properties
-		describeStreamBaseBackoffMillis = Long.valueOf(
-				configProps.getProperty(DYNAMODB_STREAMS_DESCRIBE_BACKOFF_BASE,
-						Long.toString(DEFAULT_DYNAMODB_STREAMS_DESCRIBE_BACKOFF_BASE)));
-		describeStreamMaxBackoffMillis = Long.valueOf(
-				configProps.getProperty(DYNAMODB_STREAMS_DESCRIBE_BACKOFF_MAX,
-						Long.toString(DEFAULT_DYNAMODB_STREAMS_DESCRIBE_BACKOFF_MAX)));
-		describeStreamExpConstant = Double.valueOf(
-				configProps.getProperty(DYNAMODB_STREAMS_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT,
-						Double.toString(DEFAULT_DYNAMODB_STREAMS_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT)));
 	}
 
 
@@ -163,60 +135,4 @@ public class DynamodbStreamsProxy extends KinesisProxy {
 
 		return shardsOfStream;
 	}
-
-	/**
-	 * Get metainfo for a Dynamodb stream, which contains information about which shards this
-	 * Dynamodb stream possess.
-	 *
-	 * <p>This method is using a "full jitter" approach described in AWS's article,
-	 * <a href="https://www.awsarchitectureblog.com/2015/03/backoff.html">
-	 *   "Exponential Backoff and Jitter"</a>.
-	 * This is necessary because concurrent calls will be made by all parallel subtask's fetcher.
-	 * This jitter backoff approach will help distribute calls across the fetchers over time.
-	 *
-	 * @param streamName the stream to describe
-	 * @param startShardId which shard to start with for this describe operation
-	 *
-	 * @return the result of the describe stream operation
-	 */
-	private DescribeStreamResult describeStream(String streamName, @Nullable String startShardId)
-			throws InterruptedException {
-		final DescribeStreamRequest describeStreamRequest = new DescribeStreamRequest();
-		describeStreamRequest.setStreamName(streamName);
-		describeStreamRequest.setExclusiveStartShardId(startShardId);
-
-		DescribeStreamResult describeStreamResult = null;
-
-		// Call DescribeStream, with full-jitter backoff (if we get LimitExceededException).
-		int attemptCount = 0;
-		while (describeStreamResult == null) { // retry until we get a result
-			try {
-				describeStreamResult = kinesisClient.describeStream(describeStreamRequest);
-			} catch (LimitExceededException le) {
-				long backoffMillis = fullJitterBackoff(
-						describeStreamBaseBackoffMillis,
-						describeStreamMaxBackoffMillis,
-						describeStreamExpConstant,
-						attemptCount++);
-				LOG.warn(String.format("Got LimitExceededException when describing stream %s. "
-						+ "Backing off for %d millis.", streamName, backoffMillis));
-				Thread.sleep(backoffMillis);
-			} catch (ResourceNotFoundException re) {
-				throw new RuntimeException("Error while getting stream details", re);
-			}
-		}
-
-		String streamStatus = describeStreamResult.getStreamDescription().getStreamStatus();
-		if (!(streamStatus.equals(StreamStatus.ACTIVE.toString())
-				|| streamStatus.equals(StreamStatus.UPDATING.toString()))) {
-			if (LOG.isWarnEnabled()) {
-				LOG.warn(String.format("The status of stream %s is %s ; result of the current "
-								+ "describeStream operation will not contain any shard information.",
-						streamName, streamStatus));
-			}
-		}
-
-		return describeStreamResult;
-	}
-
 }

@@ -144,7 +144,7 @@ public class KinesisDataFetcher<T> {
 	/** The last discovered shard ids of each subscribed stream, updated as the fetcher discovers new shards in.
 	 * Note: this state will be updated if new shards are found when {@link KinesisDataFetcher#discoverNewShardsToSubscribe()} is called.
 	 */
-	protected final Map<String, String> subscribedStreamsToLastDiscoveredShardIds;
+	private final Map<String, String> subscribedStreamsToLastDiscoveredShardIds;
 
 	/**
 	 * The shards, along with their last processed sequence numbers, that this fetcher is subscribed to. The fetcher
@@ -518,9 +518,14 @@ public class KinesisDataFetcher<T> {
 		if (lastSeenShardIdOfStream == null) {
 			// if not previously set, simply put as the last seen shard id
 			this.subscribedStreamsToLastDiscoveredShardIds.put(stream, shardId);
-		} else if (StreamShardHandle.compareShardIds(shardId, lastSeenShardIdOfStream) > 0) {
+		} else if (shouldAdvanceLastDiscoveredShardId(shardId, lastSeenShardIdOfStream)) {
 			this.subscribedStreamsToLastDiscoveredShardIds.put(stream, shardId);
 		}
+	}
+
+	/** Given lastSeenShardId, check if last discovered shardId should be advanced. */
+	protected boolean shouldAdvanceLastDiscoveredShardId(String shardId, String lastSeenShardIdOfStream) {
+		return (StreamShardHandle.compareShardIds(shardId, lastSeenShardIdOfStream) > 0);
 	}
 
 	/**

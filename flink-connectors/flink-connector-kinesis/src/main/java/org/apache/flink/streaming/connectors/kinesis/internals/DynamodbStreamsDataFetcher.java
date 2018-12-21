@@ -78,25 +78,16 @@ public class DynamodbStreamsDataFetcher <T> extends KinesisDataFetcher<T> {
 				DEFAULT_DYNAMODB_STREAMS_SHARDID_FORMAT_CHECK));
 	}
 
-	/**
-	 * Updates the last discovered shard of a subscribed stream; only updates if the update is valid.
-	 */
 	@Override
-	public void advanceLastDiscoveredShardOfStream(String stream, String shardId) {
-		String lastSeenShardIdOfStream = subscribedStreamsToLastDiscoveredShardIds.get(stream);
-
-		if (lastSeenShardIdOfStream == null) {
-			// if not previously set, simply put as the last seen shard id
-			subscribedStreamsToLastDiscoveredShardIds.put(stream, shardId);
-		} else {
-			if (shardIdFormatCheck &&
+	protected boolean shouldAdvanceLastDiscoveredShardId(String shardId, String lastSeenShardIdOfStream) {
+		if (shardIdFormatCheck &&
 				DynamodbStreamsShardHandle.compareShardIds(shardId, lastSeenShardIdOfStream) <= 0) {
-				// Update is valid only if the given shard id is greater
-				// than the previous last seen shard id of the stream.
-				return;
-			}
-			subscribedStreamsToLastDiscoveredShardIds.put(stream, shardId);
+			// shardID update is valid only if the given shard id is greater
+			// than the previous last seen shard id of the stream.
+			return false;
 		}
+
+		return true;
 	}
 
 	/**
