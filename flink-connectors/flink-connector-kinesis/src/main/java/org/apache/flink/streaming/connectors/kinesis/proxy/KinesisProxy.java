@@ -58,12 +58,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -173,14 +167,14 @@ public class KinesisProxy implements KinesisProxyInterface {
 				ConsumerConfigConstants.LIST_SHARDS_RETRIES,
 				Long.toString(ConsumerConfigConstants.DEFAULT_LIST_SHARDS_RETRIES)));
 		this.describeStreamBaseBackoffMillis = Long.valueOf(
-				configProps.getProperty(STREAM_DESCRIBE_BACKOFF_BASE,
-						Long.toString(DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE)));
+				configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE,
+						Long.toString(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE)));
 		this.describeStreamMaxBackoffMillis = Long.valueOf(
-				configProps.getProperty(STREAM_DESCRIBE_BACKOFF_MAX,
-						Long.toString(DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX)));
+				configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX,
+						Long.toString(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX)));
 		this.describeStreamExpConstant = Double.valueOf(
-				configProps.getProperty(STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT,
-						Double.toString(DEFAULT_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT)));
+				configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT,
+						Double.toString(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT)));
 		this.getRecordsBaseBackoffMillis = Long.valueOf(
 			configProps.getProperty(
 				ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_BASE,
@@ -497,8 +491,8 @@ public class KinesisProxy implements KinesisProxyInterface {
 	}
 
 	/**
-	 * Get metainfo for a Dynamodb stream, which contains information about which shards this
-	 * Dynamodb stream possess.
+	 * Get metainfo for a Kinesis stream, which contains information about which shards this
+	 * Kinesis stream possess.
 	 *
 	 * <p>This method is using a "full jitter" approach described in AWS's article,
 	 * <a href="https://www.awsarchitectureblog.com/2015/03/backoff.html">

@@ -130,7 +130,7 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	/**
 	 * Boolean to indicate whether to compare/enforce shardId format based on the one defined in
-	 * DynamodbStreamsShardHandle.
+	 * DynamoDBStreamsShardHandle.
 	 */
 	public static final String DYNAMODB_STREAMS_SHARDID_FORMAT_CHECK =
 			"flink.dynamodbstreams.shardid.format.check";

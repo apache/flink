@@ -19,7 +19,7 @@ package org.apache.flink.streaming.connectors.kinesis.model;
 
 import org.junit.Test;
 
-import static org.apache.flink.streaming.connectors.kinesis.model.DynamodbStreamsShardHandle.SHARDID_PREFIX;
+import static org.apache.flink.streaming.connectors.kinesis.model.DynamoDBStreamsShardHandle.SHARDID_PREFIX;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -27,32 +27,32 @@ import static org.junit.Assert.fail;
 /**
  * Shard handle unit tests.
  */
-public class DynamodbStreamsShardHandleTest {
+public class DynamoDBStreamsShardHandleTest {
 	@Test
 	public void testIsValidShardId() {
 		// normal form
 		String shardId = "shardId-00000001536805703746-69688cb1";
-		assertEquals(true, DynamodbStreamsShardHandle.isValidShardId(shardId));
+		assertEquals(true, DynamoDBStreamsShardHandle.isValidShardId(shardId));
 
 		// short form
 		shardId = "shardId-00000001536805703746";
-		assertEquals(true, DynamodbStreamsShardHandle.isValidShardId(shardId));
+		assertEquals(true, DynamoDBStreamsShardHandle.isValidShardId(shardId));
 
 		// long form
 		shardId = "shardId-00000001536805703746-69688cb1aljkwerijfl8228sl12a123akfla";
-		assertEquals(true, DynamodbStreamsShardHandle.isValidShardId(shardId));
+		assertEquals(true, DynamoDBStreamsShardHandle.isValidShardId(shardId));
 
 		// invalid with wrong prefix
 		shardId = "sId-00000001536805703746-69688cb1";
-		assertEquals(false, DynamodbStreamsShardHandle.isValidShardId(shardId));
+		assertEquals(false, DynamoDBStreamsShardHandle.isValidShardId(shardId));
 
 		// invalid with non-digits
 		shardId = "shardId-0000000153680570aabb-69688cb1";
-		assertEquals(false, DynamodbStreamsShardHandle.isValidShardId(shardId));
+		assertEquals(false, DynamoDBStreamsShardHandle.isValidShardId(shardId));
 
 		// invalid with shardId too long
 		shardId = "shardId-00000001536805703746-69688cb1aljkwerijfl8228sl12a123akfla0000";
-		assertEquals(false, DynamodbStreamsShardHandle.isValidShardId(shardId));
+		assertEquals(false, DynamoDBStreamsShardHandle.isValidShardId(shardId));
 	}
 
 	@Test
@@ -63,17 +63,17 @@ public class DynamodbStreamsShardHandleTest {
 		String shardIdValid = "shardId-00000001536805703746-69688cb1";
 		String shardIdInvalid = "shardId-0000000153680570aabb-69688cb1";
 
-		assertEquals(0, DynamodbStreamsShardHandle.compareShardIds(shardIdValid, shardIdValid));
+		assertEquals(0, DynamoDBStreamsShardHandle.compareShardIds(shardIdValid, shardIdValid));
 
 		// comparison of invalid shardIds should yield exception
 		try {
-			DynamodbStreamsShardHandle.compareShardIds(shardIdValid, shardIdInvalid);
+			DynamoDBStreamsShardHandle.compareShardIds(shardIdValid, shardIdInvalid);
 			fail("invalid shard Id" + shardIdInvalid + " should trigger exception");
 		} catch (IllegalArgumentException e) {
 			// expected
 		}
 		try {
-			DynamodbStreamsShardHandle.compareShardIds(shardIdInvalid, shardIdValid);
+			DynamoDBStreamsShardHandle.compareShardIds(shardIdInvalid, shardIdValid);
 			fail("invalid shard Id" + shardIdInvalid + " should trigger exception");
 		} catch (IllegalArgumentException e) {
 			// expected
@@ -96,9 +96,9 @@ public class DynamodbStreamsShardHandleTest {
 			}
 		}
 		for (int i = 1; i < numShardIds - 1; i++) {
-			assertTrue(DynamodbStreamsShardHandle.compareShardIds(shardIds[i - 1], shardIds[i]) < 0);
-			assertTrue(DynamodbStreamsShardHandle.compareShardIds(shardIds[i], shardIds[i]) == 0);
-			assertTrue(DynamodbStreamsShardHandle.compareShardIds(shardIds[i], shardIds[i + 1]) < 0);
+			assertTrue(DynamoDBStreamsShardHandle.compareShardIds(shardIds[i - 1], shardIds[i]) < 0);
+			assertTrue(DynamoDBStreamsShardHandle.compareShardIds(shardIds[i], shardIds[i]) == 0);
+			assertTrue(DynamoDBStreamsShardHandle.compareShardIds(shardIds[i], shardIds[i + 1]) < 0);
 		}
 	}
 

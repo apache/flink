@@ -47,16 +47,15 @@ import static org.apache.flink.streaming.connectors.kinesis.util.AWSUtil.setAwsC
 /**
  * DynamoDB streams proxy: interface interacting with the DynamoDB streams.
  */
-public class DynamodbStreamsProxy extends KinesisProxy {
-	private static final Logger LOG = LoggerFactory.getLogger(DynamodbStreamsProxy.class);
+public class DynamoDBStreamsProxy extends KinesisProxy {
+	private static final Logger LOG = LoggerFactory.getLogger(DynamoDBStreamsProxy.class);
 
 	/** Used for formatting Flink-specific user agent string when creating Kinesis client. */
 	private static final String USER_AGENT_FORMAT = "Apache Flink %s (%s) DynamoDB Streams Connector";
 
-	protected DynamodbStreamsProxy(Properties configProps) {
+	protected DynamoDBStreamsProxy(Properties configProps) {
 		super(configProps);
 	}
-
 
 	/**
 	 * Creates a DynamoDB streams proxy.
@@ -65,7 +64,7 @@ public class DynamodbStreamsProxy extends KinesisProxy {
 	 * @return the created DynamoDB streams proxy
 	 */
 	public static KinesisProxyInterface create(Properties configProps) {
-		return new DynamodbStreamsProxy(configProps);
+		return new DynamoDBStreamsProxy(configProps);
 	}
 
 	/**

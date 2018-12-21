@@ -22,11 +22,11 @@ import com.amazonaws.services.kinesis.model.Shard;
 /**
  * DynamoDB streams shard handle format and utilities.
  */
-public class DynamodbStreamsShardHandle extends StreamShardHandle{
+public class DynamoDBStreamsShardHandle extends StreamShardHandle{
 	public static final String SHARDID_PREFIX = "shardId-";
 	public static final int SHARDID_PREFIX_LEN = SHARDID_PREFIX.length();
 
-	public DynamodbStreamsShardHandle(String streamName, Shard shard) {
+	public DynamoDBStreamsShardHandle(String streamName, Shard shard) {
 		super(streamName, shard);
 	}
 

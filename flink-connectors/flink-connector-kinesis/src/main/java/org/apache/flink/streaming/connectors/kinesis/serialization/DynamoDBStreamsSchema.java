@@ -27,7 +27,7 @@ import java.io.IOException;
 /**
  * Schema used for deserializing DynamoDB streams records.
  */
-public class DynamodbStreamsSchema implements KinesisDeserializationSchema<Record> {
+public class DynamoDBStreamsSchema implements KinesisDeserializationSchema<Record> {
 	private static final ObjectMapper MAPPER = new ObjectMapper();
 
 	@Override

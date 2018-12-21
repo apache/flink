@@ -21,7 +21,7 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.kinesis.FlinkDynamodbStreamsConsumer;
+import org.apache.flink.streaming.connectors.kinesis.FlinkDynamoDBStreamsConsumer;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 
 import java.util.Properties;
@@ -29,7 +29,7 @@ import java.util.Properties;
 /**
  * Sample command-line program of consuming data from a single DynamoDB stream.
  */
-public class ConsumeFromDynamodbStreams {
+public class ConsumeFromDynamoDBStreams {
 	private static final String DYNAMODB_STREAM_NAME = "stream";
 
 	public static void main(String[] args) throws Exception {
@@ -47,7 +47,7 @@ public class ConsumeFromDynamodbStreams {
 		dynamodbStreamsConsumerConfig.setProperty(
 				ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, pt.getRequired("secretkey"));
 
-		DataStream<String> dynamodbStreams = see.addSource(new FlinkDynamodbStreamsConsumer<>(
+		DataStream<String> dynamodbStreams = see.addSource(new FlinkDynamoDBStreamsConsumer<>(
 				streamName,
 				new SimpleStringSchema(),
 				dynamodbStreamsConsumerConfig));

@@ -201,7 +201,7 @@ public class KinesisConfigUtil {
 	 *
 	 * In the context of 1), the set of configurations needs to be translated to the corresponding
 	 * configurations in the Kinesis listShards API. In the mean time, keep these configs since
-	 * they may be useful in the context of 2), i.e., polling data from a DynamoDB stream.
+	 * they are applicable in the context of 2), i.e., polling data from a DynamoDB stream.
 	 * </p>
 	 *
 	 * @param configProps original config properties.
@@ -216,7 +216,6 @@ public class KinesisConfigUtil {
 			String oldKey = entry.getKey();
 			String newKey = entry.getValue();
 			if (configProps.containsKey(oldKey)) {
-				LOG.warn("Backfill the property key {} based on the original key {}", newKey, oldKey);
 				configProps.setProperty(newKey, configProps.getProperty(oldKey));
 				// Do not remove the oldKey since they may be used in the context of talking to DynamoDB streams
 			}

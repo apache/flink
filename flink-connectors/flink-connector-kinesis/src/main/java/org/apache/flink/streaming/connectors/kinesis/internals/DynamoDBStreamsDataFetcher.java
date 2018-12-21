@@ -20,11 +20,12 @@ package org.apache.flink.streaming.connectors.kinesis.internals;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.KinesisShardAssigner;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.metrics.ShardMetricsReporter;
-import org.apache.flink.streaming.connectors.kinesis.model.DynamodbStreamsShardHandle;
+import org.apache.flink.streaming.connectors.kinesis.model.DynamoDBStreamsShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
-import org.apache.flink.streaming.connectors.kinesis.proxy.DynamodbStreamsProxy;
+import org.apache.flink.streaming.connectors.kinesis.proxy.DynamoDBStreamsProxy;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 
 import java.util.ArrayList;
@@ -32,14 +33,11 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_DYNAMODB_STREAMS_SHARDID_FORMAT_CHECK;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DYNAMODB_STREAMS_SHARDID_FORMAT_CHECK;
-
 /**
  * Dynamodb streams data fetcher.
  * @param <T> type of fetched data.
  */
-public class DynamodbStreamsDataFetcher <T> extends KinesisDataFetcher<T> {
+public class DynamoDBStreamsDataFetcher<T> extends KinesisDataFetcher<T> {
 	private boolean shardIdFormatCheck = false;
 
 	/**
@@ -52,7 +50,7 @@ public class DynamodbStreamsDataFetcher <T> extends KinesisDataFetcher<T> {
 	 * @param deserializationSchema deserialization schema
 	 * @param shardAssigner shard assigner
 	 */
-	public DynamodbStreamsDataFetcher(List<String> streams,
+	public DynamoDBStreamsDataFetcher(List<String> streams,
 		SourceFunction.SourceContext<T> sourceContext,
 		RuntimeContext runtimeContext,
 		Properties configProps,
@@ -70,18 +68,18 @@ public class DynamodbStreamsDataFetcher <T> extends KinesisDataFetcher<T> {
 			new AtomicReference<>(),
 			new ArrayList<>(),
 			createInitialSubscribedStreamsToLastDiscoveredShardsState(streams),
-			// use DynamodbStreamsProxy
-			DynamodbStreamsProxy::create);
+			// use DynamoDBStreamsProxy
+			DynamoDBStreamsProxy::create);
 
 		shardIdFormatCheck = Boolean.valueOf(configProps.getProperty(
-				DYNAMODB_STREAMS_SHARDID_FORMAT_CHECK,
-				DEFAULT_DYNAMODB_STREAMS_SHARDID_FORMAT_CHECK));
+				ConsumerConfigConstants.DYNAMODB_STREAMS_SHARDID_FORMAT_CHECK,
+				ConsumerConfigConstants.DEFAULT_DYNAMODB_STREAMS_SHARDID_FORMAT_CHECK));
 	}
 
 	@Override
 	protected boolean shouldAdvanceLastDiscoveredShardId(String shardId, String lastSeenShardIdOfStream) {
 		if (shardIdFormatCheck &&
-				DynamodbStreamsShardHandle.compareShardIds(shardId, lastSeenShardIdOfStream) <= 0) {
+				DynamoDBStreamsShardHandle.compareShardIds(shardId, lastSeenShardIdOfStream) <= 0) {
 			// shardID update is valid only if the given shard id is greater
 			// than the previous last seen shard id of the stream.
 			return false;
@@ -111,7 +109,7 @@ public class DynamodbStreamsDataFetcher <T> extends KinesisDataFetcher<T> {
 			subscribedShardStateIndex,
 			handle,
 			lastSeqNum,
-			DynamodbStreamsProxy.create(getConsumerConfiguration()),
+			DynamoDBStreamsProxy.create(getConsumerConfiguration()),
 			shardMetricsReporter);
 	}
 }
