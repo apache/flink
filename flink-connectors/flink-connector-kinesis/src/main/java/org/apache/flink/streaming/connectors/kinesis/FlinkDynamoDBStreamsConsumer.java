@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.Properties;
 
 /**
- * Consume events from the dyanmodbdb streams.
+ * Consume events from DynamoDB streams.
  *
  * @param <T> the type of data emitted
  */
