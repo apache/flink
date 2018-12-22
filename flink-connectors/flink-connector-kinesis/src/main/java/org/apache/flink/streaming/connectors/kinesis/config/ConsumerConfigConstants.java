@@ -65,16 +65,13 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The date format of initial timestamp to start reading Kinesis stream from (when AT_TIMESTAMP is set for STREAM_INITIAL_POSITION). */
 	public static final String STREAM_TIMESTAMP_DATE_FORMAT = "flink.stream.initpos.timestamp.format";
 
-	/** The base backoff time between each describeStream attempt (Used for consuming data from DynamoDB streams). */
+	/** The base backoff time between each describeStream attempt (for consuming from DynamoDB streams). */
 	public static final String STREAM_DESCRIBE_BACKOFF_BASE = "flink.stream.describe.backoff.base";
 
-	/** The maximum backoff time between each describeStream attempt (Used for consuming data from DynamoDB streams). */
+	/** The maximum backoff time between each describeStream attempt (for consuming from DynamoDB streams). */
 	public static final String STREAM_DESCRIBE_BACKOFF_MAX = "flink.stream.describe.backoff.max";
 
-	/**
-	 * The power constant for exponential backoff between each describeStream attempt (Used for consuming data from
-	 * DynamoDB streams).
-	 */
+	/** The power constant for exponential backoff between each describeStream attempt (for consuming from DynamoDB streams). */
 	public static final String STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT = "flink.stream.describe.backoff.expconst";
 
 	/** The maximum number of listShards attempts if we get a recoverable exception. */
