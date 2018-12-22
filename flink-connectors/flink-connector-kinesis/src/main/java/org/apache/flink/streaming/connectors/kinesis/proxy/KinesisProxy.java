@@ -129,7 +129,6 @@ public class KinesisProxy implements KinesisProxyInterface {
 	/** Maximum retry attempts for the get shard iterator operation. */
 	private final int getShardIteratorMaxRetries;
 
-
 	/* Backoff millis for the describe stream operation. */
 	private final long describeStreamBaseBackoffMillis;
 
