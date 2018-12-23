@@ -53,4 +53,12 @@ public class RocksDBOptions {
 		.key("state.backend.rocksdb.checkpoint.restore.thread.num")
 		.defaultValue(1)
 		.withDescription("The number of threads used to download files from DFS in RocksDBStateBackend.");
+
+	/**
+	 * The number of threads used to upload files to DFS in RocksDBStateBackend.
+	 */
+	public static final ConfigOption<Integer> CHECKPOINT_SNAPSHOT_THREAD_NUM = ConfigOptions
+		.key("state.backend.rocksdb.checkpoint.snapshot.thread.num")
+		.defaultValue(1)
+		.withDescription("The number of threads used to upload files to DFS in RocksDBStateBackend.");
 }

@@ -21,9 +21,7 @@ package org.apache.flink.contrib.streaming.state.snapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileStatus;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -77,6 +75,7 @@ import java.util.SortedMap;
 import java.util.UUID;
 import java.util.concurrent.RunnableFuture;
 
+import static org.apache.flink.contrib.streaming.state.RocksDbStateDataTransfer.uploadFilesToCheckpointFs;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.SST_FILE_SUFFIX;
 
 /**
@@ -106,6 +105,9 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 	/** The identifier of the last completed checkpoint. */
 	private long lastCompletedCheckpointId;
 
+	/** The number of threads used to upload files to DFS.*/
+	private final int numberOfRestoringThreads;
+
 	public RocksIncrementalSnapshotStrategy(
 		@Nonnull RocksDB db,
 		@Nonnull ResourceGuard rocksDBResourceGuard,
@@ -118,7 +120,8 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		@Nonnull File instanceBasePath,
 		@Nonnull UUID backendUID,
 		@Nonnull SortedMap<Long, Set<StateHandleID>> materializedSstFiles,
-		long lastCompletedCheckpointId) {
+		long lastCompletedCheckpointId,
+		int numberOfRestoringThreads) {
 
 		super(
 			DESCRIPTION,
@@ -135,6 +138,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		this.backendUID = backendUID;
 		this.materializedSstFiles = materializedSstFiles;
 		this.lastCompletedCheckpointId = lastCompletedCheckpointId;
+		this.numberOfRestoringThreads = numberOfRestoringThreads;
 	}
 
 	@Nonnull
@@ -256,8 +260,6 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 	 */
 	private final class RocksDBIncrementalSnapshotOperation
 		extends AsyncSnapshotCallable<SnapshotResult<KeyedStateHandle>> {
-
-		private static final int READ_BUFFER_SIZE = 16 * 1024;
 
 		/** Id for the current checkpoint. */
 		private final long checkpointId;
@@ -410,74 +412,51 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 			// write state data
 			Preconditions.checkState(localBackupDirectory.exists());
 
+			Map<StateHandleID, Path> sstFilePaths = new HashMap<>();
+			Map<StateHandleID, Path> miscFilePaths = new HashMap<>();
+
 			FileStatus[] fileStatuses = localBackupDirectory.listStatus();
 			if (fileStatuses != null) {
-				for (FileStatus fileStatus : fileStatuses) {
-					final Path filePath = fileStatus.getPath();
-					final String fileName = filePath.getName();
-					final StateHandleID stateHandleID = new StateHandleID(fileName);
+				createUploadFilePaths(fileStatuses, sstFiles, sstFilePaths, miscFilePaths);
 
-					if (fileName.endsWith(SST_FILE_SUFFIX)) {
-						final boolean existsAlready =
-							baseSstFiles != null && baseSstFiles.contains(stateHandleID);
-
-						if (existsAlready) {
-							// we introduce a placeholder state handle, that is replaced with the
-							// original from the shared state registry (created from a previous checkpoint)
-							sstFiles.put(
-								stateHandleID,
-								new PlaceholderStreamStateHandle());
-						} else {
-							sstFiles.put(stateHandleID, uploadLocalFileToCheckpointFs(filePath));
-						}
-					} else {
-						StreamStateHandle fileHandle = uploadLocalFileToCheckpointFs(filePath);
-						miscFiles.put(stateHandleID, fileHandle);
-					}
-				}
+				sstFiles.putAll(uploadFilesToCheckpointFs(
+					sstFilePaths,
+					numberOfRestoringThreads,
+					checkpointStreamFactory,
+					getSnapshotCloseableRegistry()));
+				miscFiles.putAll(uploadFilesToCheckpointFs(
+					miscFilePaths,
+					numberOfRestoringThreads,
+					checkpointStreamFactory,
+					getSnapshotCloseableRegistry()));
 			}
 		}
 
-		private StreamStateHandle uploadLocalFileToCheckpointFs(Path filePath) throws Exception {
-			FSDataInputStream inputStream = null;
-			CheckpointStreamFactory.CheckpointStateOutputStream outputStream = null;
+		private void createUploadFilePaths(
+			FileStatus[] fileStatuses,
+			Map<StateHandleID, StreamStateHandle> sstFiles,
+			Map<StateHandleID, Path> sstFilePaths,
+			Map<StateHandleID, Path> miscFilePaths) {
+			for (FileStatus fileStatus : fileStatuses) {
+				final Path filePath = fileStatus.getPath();
+				final String fileName = filePath.getName();
+				final StateHandleID stateHandleID = new StateHandleID(fileName);
 
-			try {
-				final byte[] buffer = new byte[READ_BUFFER_SIZE];
+				if (fileName.endsWith(SST_FILE_SUFFIX)) {
+					final boolean existsAlready =
+						baseSstFiles != null && baseSstFiles.contains(stateHandleID);
 
-				FileSystem backupFileSystem = localBackupDirectory.getFileSystem();
-				inputStream = backupFileSystem.open(filePath);
-				registerCloseableForCancellation(inputStream);
-
-				outputStream = checkpointStreamFactory
-					.createCheckpointStateOutputStream(CheckpointedStateScope.SHARED);
-				registerCloseableForCancellation(outputStream);
-
-				while (true) {
-					int numBytes = inputStream.read(buffer);
-
-					if (numBytes == -1) {
-						break;
+					if (existsAlready) {
+						// we introduce a placeholder state handle, that is replaced with the
+						// original from the shared state registry (created from a previous checkpoint)
+						sstFiles.put(
+							stateHandleID,
+							new PlaceholderStreamStateHandle());
+					} else {
+						sstFilePaths.put(stateHandleID, filePath);
 					}
-
-					outputStream.write(buffer, 0, numBytes);
-				}
-
-				StreamStateHandle result = null;
-				if (unregisterCloseableFromCancellation(outputStream)) {
-					result = outputStream.closeAndGetHandle();
-					outputStream = null;
-				}
-				return result;
-
-			} finally {
-
-				if (unregisterCloseableFromCancellation(inputStream)) {
-					IOUtils.closeQuietly(inputStream);
-				}
-
-				if (unregisterCloseableFromCancellation(outputStream)) {
-					IOUtils.closeQuietly(outputStream);
+				} else {
+					miscFilePaths.put(stateHandleID, filePath);
 				}
 			}
 		}

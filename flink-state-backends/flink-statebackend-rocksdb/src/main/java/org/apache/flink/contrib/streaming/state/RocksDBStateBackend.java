@@ -62,6 +62,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
+import static org.apache.flink.contrib.streaming.state.RocksDBOptions.CHECKPOINT_RESTORE_THREAD_NUM;
+import static org.apache.flink.contrib.streaming.state.RocksDBOptions.CHECKPOINT_SNAPSHOT_THREAD_NUM;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TIMER_SERVICE_FACTORY;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -100,6 +102,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 	private static final int UNDEFINED_NUMBER_OF_RESTORING_THREADS = -1;
 
+	private static final int UNDEFINED_NUMBER_OF_SNAPSHOTTING_THREADS = -1;
+
 	// ------------------------------------------------------------------------
 
 	// -- configuration values, set in the application / configuration
@@ -125,6 +129,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 	/** Thread number used to download from DFS when restore, default value: 1. */
 	private int numberOfRestoringThreads;
+
+	/** Thread number used to upload to DFS when snapshot, default value: 1. */
+	private int numberOfSnapshottingThreads;
 
 	/** This determines the type of priority queue state. */
 	private final PriorityQueueStateType priorityQueueStateType;
@@ -245,6 +252,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
 		this.numberOfRestoringThreads = UNDEFINED_NUMBER_OF_RESTORING_THREADS;
+		this.numberOfSnapshottingThreads = UNDEFINED_NUMBER_OF_SNAPSHOTTING_THREADS;
 		// for now, we use still the heap-based implementation as default
 		this.priorityQueueStateType = PriorityQueueStateType.HEAP;
 		this.defaultMetricOptions = new RocksDBNativeMetricOptions();
@@ -284,9 +292,15 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			config.getBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS));
 
 		if (original.numberOfRestoringThreads == UNDEFINED_NUMBER_OF_RESTORING_THREADS) {
-			this.numberOfRestoringThreads = config.getInteger(RocksDBOptions.CHECKPOINT_RESTORE_THREAD_NUM);
+			this.numberOfRestoringThreads = config.getInteger(CHECKPOINT_RESTORE_THREAD_NUM);
 		} else {
 			this.numberOfRestoringThreads = original.numberOfRestoringThreads;
+		}
+
+		if (original.numberOfSnapshottingThreads == UNDEFINED_NUMBER_OF_SNAPSHOTTING_THREADS) {
+			this.numberOfSnapshottingThreads = config.getInteger(CHECKPOINT_SNAPSHOT_THREAD_NUM);
+		} else {
+			this.numberOfSnapshottingThreads = original.numberOfSnapshottingThreads;
 		}
 
 		final String priorityQueueTypeString = config.getString(TIMER_SERVICE_FACTORY);
@@ -466,6 +480,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				env.getExecutionConfig(),
 				isIncrementalCheckpointsEnabled(),
 				getNumberOfRestoringThreads(),
+				getNumberOfSnapshottingThreads(),
 				localRecoveryConfig,
 				priorityQueueStateType,
 				ttlTimeProvider,
@@ -701,17 +716,41 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	}
 
 	/**
-	 * Gets the thread number will used for downloading files from DFS when restore.
+	 * Gets the number of threads used to download files from DFS while restoring.
 	 */
 	public int getNumberOfRestoringThreads() {
 		return numberOfRestoringThreads == UNDEFINED_NUMBER_OF_RESTORING_THREADS ?
-			RocksDBOptions.CHECKPOINT_RESTORE_THREAD_NUM.defaultValue() : numberOfRestoringThreads;
+			CHECKPOINT_RESTORE_THREAD_NUM.defaultValue() : numberOfRestoringThreads;
 	}
 
+	/**
+	 * Sets the number of threads used to download files from DFS while restoring.
+	 *
+	 * @param numberOfRestoringThreads The number of threads used to download files from DFS while restoring.
+	 */
 	public void setNumberOfRestoringThreads(int numberOfRestoringThreads) {
 		Preconditions.checkArgument(numberOfRestoringThreads > 0,
-			"The number of threads used to download files from DFS in RocksDBStateBackend should > 0.");
+			"The number of threads used to download files from DFS in RocksDBStateBackend should be greater than zero.");
 		this.numberOfRestoringThreads = numberOfRestoringThreads;
+	}
+
+	/**
+	 * Gets the number of threads used to upload files to DFS while snapshotting.
+	 */
+	public int getNumberOfSnapshottingThreads() {
+		return numberOfSnapshottingThreads == UNDEFINED_NUMBER_OF_SNAPSHOTTING_THREADS ?
+			CHECKPOINT_SNAPSHOT_THREAD_NUM.defaultValue() : numberOfSnapshottingThreads;
+	}
+
+	/**
+	 * Sets the number of threads used to upload files to DFS while snapshotting.
+	 *
+	 * @param numberOfSnapshottingThreads The number of threads used to upload files to DFS while snapshotting.
+	 */
+	public void setNumberOfSnapshottingThreads(int numberOfSnapshottingThreads) {
+		Preconditions.checkArgument(numberOfSnapshottingThreads > 0,
+			"The number of threads used to upload files to DFS in RocksDBStateBackend should be greater than zero.");
+		this.numberOfSnapshottingThreads = numberOfSnapshottingThreads;
 	}
 
 	// ------------------------------------------------------------------------

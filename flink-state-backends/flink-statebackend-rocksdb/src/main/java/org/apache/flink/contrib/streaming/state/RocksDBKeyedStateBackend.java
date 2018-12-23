@@ -218,7 +218,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private final boolean enableIncrementalCheckpointing;
 
 	/** Thread number used to download from DFS when restore. */
-	private final int restoringThreadNum;
+	private final int numberOfRestoringThreads;
+
+	/** Thread number used to upload to DFS when snapshot. */
+	private final int numberOfSnapshottingThreads;
 
 	/** The configuration of local recovery. */
 	private final LocalRecoveryConfig localRecoveryConfig;
@@ -263,7 +266,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		KeyGroupRange keyGroupRange,
 		ExecutionConfig executionConfig,
 		boolean enableIncrementalCheckpointing,
-		int restoringThreadNum,
+		int numberOfRestoringThreads,
+		int numberOfSnapshottingThreads,
 		LocalRecoveryConfig localRecoveryConfig,
 		RocksDBStateBackend.PriorityQueueStateType priorityQueueStateType,
 		TtlTimeProvider ttlTimeProvider,
@@ -277,7 +281,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.operatorIdentifier = Preconditions.checkNotNull(operatorIdentifier);
 
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
-		this.restoringThreadNum = restoringThreadNum;
+		this.numberOfRestoringThreads = numberOfRestoringThreads;
+		this.numberOfSnapshottingThreads = numberOfSnapshottingThreads;
 		this.rocksDBResourceGuard = new ResourceGuard();
 
 		// ensure that we use the right merge operator, because other code relies on this
@@ -517,6 +522,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		LOG.info("Initializing RocksDB keyed state backend.");
 
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Restoring snapshot from state handles: {}, will use {} thread(s) to download files from DFS.", restoreState, numberOfRestoringThreads);
+		}
+
 		// clear all meta data
 		kvStateInformation.clear();
 
@@ -526,7 +535,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				createDB();
 			} else {
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Restoring snapshot from state handles: {}, will use {} thread(s) to download files from DFS.", restoreState, restoringThreadNum);
+					LOG.debug("Restoring snapshot from state handles: {}, will use {} thread(s) to download files from DFS.", restoreState, numberOfRestoringThreads);
 				}
 
 				KeyedStateHandle firstStateHandle = restoreState.iterator().next();
@@ -599,7 +608,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				instanceBasePath,
 				backendUID,
 				materializedSstFiles,
-				lastCompletedCheckpointId);
+				lastCompletedCheckpointId,
+				numberOfSnapshottingThreads);
 		} else {
 			this.checkpointSnapshotStrategy = savepointSnapshotStrategy;
 		}
@@ -916,7 +926,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					IncrementalKeyedStateHandle restoreStateHandle = (IncrementalKeyedStateHandle) rawStateHandle;
 
 					// read state data.
-					transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath, stateBackend.restoringThreadNum, stateBackend.cancelStreamRegistry);
+					transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath, stateBackend.numberOfRestoringThreads, stateBackend.cancelStreamRegistry);
 
 					stateMetaInfoSnapshots = readMetaData(restoreStateHandle.getMetaStateHandle());
 					columnFamilyDescriptors = createAndRegisterColumnFamilyDescriptors(stateMetaInfoSnapshots);
@@ -1069,7 +1079,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			IncrementalKeyedStateHandle restoreStateHandle,
 			Path temporaryRestoreInstancePath) throws Exception {
 
-			transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath, stateBackend.restoringThreadNum, stateBackend.cancelStreamRegistry);
+			transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath, stateBackend.numberOfRestoringThreads, stateBackend.cancelStreamRegistry);
 
 			// read meta data
 			List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =

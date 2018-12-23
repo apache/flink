@@ -250,6 +250,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				new ExecutionConfig(),
 				enableIncrementalCheckpointing,
 				1,
+				1,
 				TestLocalRecoveryConfig.disabled(),
 				RocksDBStateBackend.PriorityQueueStateType.HEAP,
 				TtlTimeProvider.DEFAULT,

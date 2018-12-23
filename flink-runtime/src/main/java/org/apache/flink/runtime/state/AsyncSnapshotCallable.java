@@ -97,6 +97,10 @@ public abstract class AsyncSnapshotCallable<T> implements Callable<T> {
 		}
 	}
 
+	protected CloseableRegistry getSnapshotCloseableRegistry() {
+		return snapshotCloseableRegistry;
+	}
+
 	/**
 	 * Creates a future task from this and registers it with the given {@link CloseableRegistry}. The task is
 	 * unregistered again in {@link FutureTask#done()}.
