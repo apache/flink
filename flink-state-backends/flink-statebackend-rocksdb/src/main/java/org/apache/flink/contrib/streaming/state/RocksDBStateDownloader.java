@@ -36,20 +36,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import static org.apache.flink.runtime.concurrent.Executors.newDirectExecutorService;
 
 /**
- * Data transfer utils for {@link RocksDBKeyedStateBackend}.
+ * Help class for downloading RocksDB state files.
  */
-class RocksDbStateDataTransfer {
+public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
+	public RocksDBStateDownloader(int restoringThreadNum) {
+		super(restoringThreadNum);
+	}
 
-	static void transferAllStateDataToDirectory(
+	/**
+	 * Transfer all state data to the target directory using specified number of threads.
+	 *
+	 * @param restoreStateHandle Handles used to retrieve the state data.
+	 * @param dest The target directory which the state data will be stored.
+	 *
+	 * @throws Exception Thrown if can not transfer all the state data.
+	 */
+	public void transferAllStateDataToDirectory(
 		IncrementalKeyedStateHandle restoreStateHandle,
 		Path dest,
-		int restoringThreadNum,
 		CloseableRegistry closeableRegistry) throws Exception {
 
 		final Map<StateHandleID, StreamStateHandle> sstFiles =
@@ -57,21 +63,18 @@ class RocksDbStateDataTransfer {
 		final Map<StateHandleID, StreamStateHandle> miscFiles =
 			restoreStateHandle.getPrivateState();
 
-		downloadDataForAllStateHandles(sstFiles, dest, restoringThreadNum, closeableRegistry);
-		downloadDataForAllStateHandles(miscFiles, dest, restoringThreadNum, closeableRegistry);
+		downloadDataForAllStateHandles(sstFiles, dest, closeableRegistry);
+		downloadDataForAllStateHandles(miscFiles, dest, closeableRegistry);
 	}
 
 	/**
 	 * Copies all the files from the given stream state handles to the given path, renaming the files w.r.t. their
 	 * {@link StateHandleID}.
 	 */
-	private static void downloadDataForAllStateHandles(
+	private void downloadDataForAllStateHandles(
 		Map<StateHandleID, StreamStateHandle> stateHandleMap,
 		Path restoreInstancePath,
-		int restoringThreadNum,
 		CloseableRegistry closeableRegistry) throws Exception {
-
-		final ExecutorService executorService = createExecutorService(restoringThreadNum);
 
 		try {
 			List<Runnable> runnables = createDownloadRunnables(stateHandleMap, restoreInstancePath, closeableRegistry);
@@ -88,20 +91,10 @@ class RocksDbStateDataTransfer {
 			} else {
 				throw new FlinkRuntimeException("Failed to download data for state handles.", e);
 			}
-		} finally {
-			executorService.shutdownNow();
 		}
 	}
 
-	private static ExecutorService createExecutorService(int threadNum) {
-		if (threadNum > 1) {
-			return Executors.newFixedThreadPool(threadNum);
-		} else {
-			return newDirectExecutorService();
-		}
-	}
-
-	private static List<Runnable> createDownloadRunnables(
+	private List<Runnable> createDownloadRunnables(
 		Map<StateHandleID, StreamStateHandle> stateHandleMap,
 		Path restoreInstancePath,
 		CloseableRegistry closeableRegistry) {
@@ -121,7 +114,7 @@ class RocksDbStateDataTransfer {
 	/**
 	 * Copies the file from a single state handle to the given path.
 	 */
-	private static void downloadDataForStateHandle(
+	private void downloadDataForStateHandle(
 		Path restoreFilePath,
 		StreamStateHandle remoteFileHandle,
 		CloseableRegistry closeableRegistry) throws IOException {

@@ -47,9 +47,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for {@link RocksDbStateDataTransfer}.
+ * Test class for {@link RocksDBStateDownloader}.
  */
-public class RocksDBStateDataTransferTest extends TestLogger {
+public class RocksDBStateDownloaderTest extends TestLogger {
 	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -57,7 +57,7 @@ public class RocksDBStateDataTransferTest extends TestLogger {
 	 * Test that the exception arose in the thread pool will rethrow to the main thread.
 	 */
 	@Test
-	public void testThreadPoolExceptionRethrow() {
+	public void testMultiThreadRestoreThreadPoolExceptionRethrow() {
 		SpecifiedException expectedException = new SpecifiedException("throw exception while multi thread restore.");
 		StreamStateHandle stateHandle = new StreamStateHandle() {
 			@Override
@@ -88,8 +88,11 @@ public class RocksDBStateDataTransferTest extends TestLogger {
 				stateHandles,
 				stateHandle);
 
-		try {
-			RocksDbStateDataTransfer.transferAllStateDataToDirectory(incrementalKeyedStateHandle, new Path(temporaryFolder.newFolder().toURI()), 5, new CloseableRegistry());
+		try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(5)) {
+			rocksDBStateDownloader.transferAllStateDataToDirectory(
+				incrementalKeyedStateHandle,
+				new Path(temporaryFolder.newFolder().toURI()),
+				new CloseableRegistry());
 			fail();
 		} catch (Exception e) {
 			assertEquals(expectedException, e);
@@ -131,7 +134,9 @@ public class RocksDBStateDataTransferTest extends TestLogger {
 				handles.get(0));
 
 		Path dstPath = new Path(temporaryFolder.newFolder().toURI());
-		RocksDbStateDataTransfer.transferAllStateDataToDirectory(incrementalKeyedStateHandle, dstPath, contentNum - 1, new CloseableRegistry());
+		try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(5)) {
+			rocksDBStateDownloader.transferAllStateDataToDirectory(incrementalKeyedStateHandle, dstPath, new CloseableRegistry());
+		}
 
 		for (int i = 0; i < contentNum; ++i) {
 			assertStateContentEqual(contents[i], new Path(dstPath, String.format("sharedState%d", i)));
@@ -149,3 +154,4 @@ public class RocksDBStateDataTransferTest extends TestLogger {
 		}
 	}
 }
+

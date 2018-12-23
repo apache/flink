@@ -729,7 +729,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						final CheckpointStreamWithResultProvider streamWithResultProvider =
 							checkpointStreamSupplier.get();
 
-						registerCloseableForCancellation(streamWithResultProvider);
+						snapshotCloseableRegistry.registerCloseable(streamWithResultProvider);
 
 						final CheckpointStreamFactory.CheckpointStateOutputStream localStream =
 							streamWithResultProvider.getCheckpointOutputStream();
@@ -760,7 +760,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							}
 						}
 
-						if (unregisterCloseableFromCancellation(streamWithResultProvider)) {
+						if (snapshotCloseableRegistry.unregisterCloseable(streamWithResultProvider)) {
 							KeyGroupRangeOffsets kgOffs = new KeyGroupRangeOffsets(keyGroupRange, keyGroupRangeOffsets);
 							SnapshotResult<StreamStateHandle> result =
 								streamWithResultProvider.closeAndFinalizeCheckpointStreamResult();

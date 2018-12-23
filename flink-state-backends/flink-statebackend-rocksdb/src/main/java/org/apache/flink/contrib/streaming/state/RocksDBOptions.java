@@ -47,10 +47,10 @@ public class RocksDBOptions {
 			HEAP.name(), ROCKSDB.name()));
 
 	/**
-	 * The number of threads used to download files from DFS in RocksDBStateBackend.
+	 * The number of threads used to transfer (download and upload) files in RocksDBStateBackend.
 	 */
-	public static final ConfigOption<Integer> CHECKPOINT_RESTORE_THREAD_NUM = ConfigOptions
-		.key("state.backend.rocksdb.checkpoint.restore.thread.num")
+	public static final ConfigOption<Integer> CHECKPOINT_TRANSFER_THREAD_NUM = ConfigOptions
+		.key("state.backend.rocksdb.checkpoint.transfer.thread.num")
 		.defaultValue(1)
-		.withDescription("The number of threads used to download files from DFS in RocksDBStateBackend.");
+		.withDescription("The number of threads used to transfer (download and upload) files in RocksDBStateBackend.");
 }
