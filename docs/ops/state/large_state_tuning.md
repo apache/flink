@@ -183,7 +183,7 @@ public class MyOptions implements OptionsFactory {
 **Predefined Options**
 
 Flink provides some predefined collections of option for RocksDB for different settings, which can be set for example via
-`RocksDBStateBacked.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)`.
+`RocksDBStateBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)`.
 
 We expect to accumulate more such profiles over time. Feel free to contribute such predefined option profiles when you
 found a set of options that work well and seem representative for certain workloads.
