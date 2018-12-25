@@ -38,6 +38,7 @@ import org.apache.flink.util.Collector
   * @param windowRowtimePos The relative window-rowtime field position to the last field of
   *                         output row
   * @param keysAndAggregatesArity    The total arity of keys and aggregates
+  * @param isInputCombined  Is the input element combined
   */
 class DataSetTumbleTimeWindowAggReduceGroupFunction(
     genAggregations: GeneratedAggregationsFunction,
@@ -45,13 +46,13 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
     windowStartPos: Option[Int],
     windowEndPos: Option[Int],
     windowRowtimePos: Option[Int],
-    keysAndAggregatesArity: Int)
+    keysAndAggregatesArity: Int,
+    isInputCombined: Boolean)
   extends RichGroupReduceFunction[Row, Row]
     with Compiler[GeneratedAggregations]
     with Logging {
 
   private var collector: DataSetTimeWindowPropertyCollector = _
-  protected var aggregateBuffer: Row = new Row(keysAndAggregatesArity + 1)
 
   private var output: Row = _
   protected var accumulators: Row = _
@@ -86,7 +87,11 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
 
     while (iterator.hasNext) {
       val record = iterator.next()
-      function.mergeAccumulatorsPair(accumulators, record)
+      if (isInputCombined) {
+        function.mergeAccumulatorsPair(accumulators, record)
+      } else {
+        function.accumulate(accumulators, record)
+      }
       last = record
     }
 

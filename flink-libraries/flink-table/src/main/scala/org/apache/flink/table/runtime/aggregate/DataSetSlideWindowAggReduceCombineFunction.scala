@@ -54,7 +54,8 @@ class DataSetSlideWindowAggReduceCombineFunction(
     finalRowWindowStartPos,
     finalRowWindowEndPos,
     finalRowWindowRowtimePos,
-    windowSize)
+    windowSize,
+    true)
   with CombineFunction[Row, Row] {
 
   private val intermediateRow: Row = new Row(keysAndAggregatesArity + 1)

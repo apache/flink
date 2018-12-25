@@ -160,6 +160,11 @@ class DataSetWindowAggregate(
 
     val input = inputNode.asInstanceOf[DataSetRel]
 
+    val supportPartial = doAllSupportPartialMerge(
+      namedAggregates.map(_.getKey),
+      inputType,
+      tableConfig)
+
     val mapFunction = createDataSetWindowPrepareMapFunction(
       generator,
       window,
@@ -168,6 +173,7 @@ class DataSetWindowAggregate(
       input.getRowType,
       inputDS.getType.asInstanceOf[RowTypeInfo].getFieldTypes,
       isParserCaseSensitive,
+      supportPartial,
       tableConfig)
     val groupReduceFunction = createDataSetWindowAggregationGroupReduceFunction(
       generator,
@@ -178,7 +184,8 @@ class DataSetWindowAggregate(
       getRowType,
       grouping,
       namedProperties,
-      tableConfig)
+      tableConfig,
+      supportPartial)
 
     val mappedInput = inputDS
       .map(mapFunction)
@@ -190,7 +197,11 @@ class DataSetWindowAggregate(
     if (isTimeWindow) {
       // grouped time window aggregation
       // group by grouping keys and rowtime field (the last field in the row)
-      val groupingKeys = grouping.indices ++ Seq(mapReturnType.getArity - 1)
+      val groupingKeys = if (supportPartial) {
+        grouping.indices ++ Seq(mapReturnType.getArity - 1)
+      } else {
+        (grouping ++ Seq(mapReturnType.getArity - 1)).toSeq
+      }
       mappedInput.asInstanceOf[DataSet[Row]]
         .groupBy(groupingKeys: _*)
         .reduceGroup(groupReduceFunction)
@@ -198,7 +209,11 @@ class DataSetWindowAggregate(
         .name(aggregateOperatorName)
     } else {
       // count window
-      val groupingKeys = grouping.indices.toArray
+      val groupingKeys = if (supportPartial) {
+        grouping.indices.toArray
+      } else {
+        grouping
+      }
       if (groupingKeys.length > 0) {
         // grouped aggregation
         mappedInput.asInstanceOf[DataSet[Row]]
@@ -225,7 +240,12 @@ class DataSetWindowAggregate(
 
     val input = inputNode.asInstanceOf[DataSetRel]
 
-    val groupingKeys = grouping.indices.toArray
+    val supportPartial = doAllSupportPartialMerge(
+      namedAggregates.map(_.getKey),
+      inputType,
+      tableConfig)
+
+    val groupingKeys = if (supportPartial) grouping.indices.toArray else grouping
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
     // create mapFunction for initializing the aggregations
@@ -237,6 +257,7 @@ class DataSetWindowAggregate(
       input.getRowType,
       inputDS.getType.asInstanceOf[RowTypeInfo].getFieldTypes,
       isParserCaseSensitive,
+      supportPartial,
       tableConfig)
 
     val mappedInput = inputDS.map(mapFunction).name(prepareOperatorName)
@@ -247,11 +268,7 @@ class DataSetWindowAggregate(
     val rowTimeFieldPos = mapReturnType.getArity - 1
 
     // do incremental aggregation
-    if (doAllSupportPartialMerge(
-      namedAggregates.map(_.getKey),
-      inputType,
-      grouping.length,
-      tableConfig)) {
+    if (supportPartial) {
 
       // gets the window-start and window-end position  in the intermediate result.
       val windowStartPos = rowTimeFieldPos
@@ -279,7 +296,7 @@ class DataSetWindowAggregate(
           grouping,
           namedProperties,
           tableConfig,
-          isInputCombined = true)
+          supportPartial)
 
         mappedInput
           .groupBy(groupingKeys: _*)
@@ -313,7 +330,7 @@ class DataSetWindowAggregate(
           grouping,
           namedProperties,
           tableConfig,
-          isInputCombined = true)
+          supportPartial)
 
         mappedInput.sortPartition(rowTimeFieldPos, Order.ASCENDING)
           .mapPartition(mapPartitionFunction)
@@ -339,7 +356,8 @@ class DataSetWindowAggregate(
           rowRelDataType,
           grouping,
           namedProperties,
-          tableConfig)
+          tableConfig,
+          supportPartial)
 
         mappedInput.groupBy(groupingKeys: _*)
           .sortGroup(rowTimeFieldPos, Order.ASCENDING)
@@ -357,7 +375,8 @@ class DataSetWindowAggregate(
           rowRelDataType,
           grouping,
           namedProperties,
-          tableConfig)
+          tableConfig,
+          supportPartial)
 
         mappedInput.sortPartition(rowTimeFieldPos, Order.ASCENDING).setParallelism(1)
           .reduceGroup(groupReduceFunction)
@@ -380,6 +399,11 @@ class DataSetWindowAggregate(
 
     val input = inputNode.asInstanceOf[DataSetRel]
 
+    val supportPartial = doAllSupportPartialMerge(
+      namedAggregates.map(_.getKey),
+      inputType,
+      tableConfig)
+
     // create MapFunction for initializing the aggregations
     // it aligns the rowtime for pre-tumbling in case of a time-window for partial aggregates
     val mapFunction = createDataSetWindowPrepareMapFunction(
@@ -390,6 +414,7 @@ class DataSetWindowAggregate(
       input.getRowType,
       inputDS.getType.asInstanceOf[RowTypeInfo].getFieldTypes,
       isParserCaseSensitive,
+      supportPartial,
       tableConfig)
 
     val mappedDataSet = inputDS
@@ -399,14 +424,7 @@ class DataSetWindowAggregate(
     val mapReturnType = mappedDataSet.getType
 
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
-    val groupingKeys = grouping.indices.toArray
-
-    // do partial aggregation if possible
-    val isPartial = doAllSupportPartialMerge(
-      namedAggregates.map(_.getKey),
-      inputType,
-      grouping.length,
-      tableConfig)
+    val groupingKeys = if (supportPartial) grouping.indices.toArray else grouping
 
     // only pre-tumble if it is worth it
     val isLittleTumblingSize = determineLargestTumblingSize(size, slide) <= 1
@@ -414,7 +432,7 @@ class DataSetWindowAggregate(
     val preparedDataSet = if (isTimeWindow) {
       // time window
 
-      if (isPartial && !isLittleTumblingSize) {
+      if (supportPartial && !isLittleTumblingSize) {
         // partial aggregates
 
         val groupingKeysAndAlignedRowtime = groupingKeys :+ mapReturnType.getArity - 1
@@ -443,7 +461,6 @@ class DataSetWindowAggregate(
         val prepareFlatMapFunction = createDataSetSlideWindowPrepareFlatMapFunction(
           window,
           namedAggregates,
-          grouping,
           mapReturnType,
           isParserCaseSensitive)
 
@@ -470,7 +487,7 @@ class DataSetWindowAggregate(
       grouping,
       namedProperties,
       tableConfig,
-      isInputCombined = false)
+      supportPartial)
 
     // gets the window-start position in the intermediate result.
     val windowStartPos = prepareReduceReturnType.getArity - 1

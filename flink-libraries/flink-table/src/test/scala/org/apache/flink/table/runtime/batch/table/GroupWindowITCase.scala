@@ -25,6 +25,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.runtime.utils.TableProgramsClusterTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.utils.NonMergableCount
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
@@ -367,6 +368,288 @@ class GroupWindowITCase(
     val expected =
       "Hallo,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.003\n" +
       "Hi,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.003"
+
+    val results = windowedTable.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testNonMergableEventTimeTumblingGroupWindowOverCount(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val nonMergableCount = new NonMergableCount
+
+    val windowedTable = table
+      .window(Tumble over 2.rows on 'long as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.sum, 'int.count, 'int.max, 'int.min, 'int.avg, nonMergableCount('int),
+              'double.sum, 'double.count, 'double.max, 'double.min, 'double.avg,
+              'float.sum, 'float.count, 'float.max, 'float.min, 'float.avg,
+              'bigdec.sum, 'bigdec.count, 'bigdec.max, 'bigdec.min, 'bigdec.avg)
+
+    val expected = "Hello,7,2,5,2,3,2,7.0,2,5.0,2.0,3.5,7.0,2,5.0,2.0,3.5,7,2,5,2,3.5\n" +
+      "Hello world,7,2,4,3,3,2,7.0,2,4.0,3.0,3.5,7.0,2,4.0,3.0,3.5,7,2,4,3,3.5\n"
+    val results = windowedTable.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testNonMergableEventTimeTumblingGroupWindowOverTime(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+      .select('int, 'long, 'string) // keep this select to enforce that the 'string key comes last
+
+    val nonMergableCount = new NonMergableCount
+
+    val windowedTable = table
+      .window(Tumble over 5.milli on 'long as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.sum, nonMergableCount('int), 'w.start, 'w.end, 'w.rowtime)
+
+    val expected =
+      "Hello world,3,1,1970-01-01 00:00:00.005,1970-01-01 00:00:00.01,1970-01-01 00:00:00.009\n" +
+        "Hello world,4,1,1970-01-01 00:00:00.015,1970-01-01 00:00:00.02,1970-01-01 00:00:00.019\n" +
+        "Hello,7,2,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005,1970-01-01 00:00:00.004\n" +
+        "Hello,3,1,1970-01-01 00:00:00.005,1970-01-01 00:00:00.01,1970-01-01 00:00:00.009\n" +
+        "Hallo,2,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005,1970-01-01 00:00:00.004\n" +
+        "Hi,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005,1970-01-01 00:00:00.004\n"
+
+    val results = windowedTable.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testNonMergableAllEventTimeTumblingWindowOverTime(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val nonMergableCount = new NonMergableCount
+
+    val windowedTable = table
+      .window(Tumble over 5.milli on 'long as 'w)
+      .groupBy('w)
+      .select('int.sum, nonMergableCount('int), 'w.start, 'w.end, 'w.rowtime)
+
+    val expected =
+      "10,4,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005,1970-01-01 00:00:00.004\n" +
+        "6,2,1970-01-01 00:00:00.005,1970-01-01 00:00:00.01,1970-01-01 00:00:00.009\n" +
+        "4,1,1970-01-01 00:00:00.015,1970-01-01 00:00:00.02,1970-01-01 00:00:00.019\n"
+
+    val results = windowedTable.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testNonMergableEventTimeSessionGroupWindow(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val nonMergableCount = new NonMergableCount
+
+    val windowedTable = table
+      .window(Session withGap 7.milli on 'long as 'w)
+      .groupBy('string, 'w)
+      .select('string, 'string.count, nonMergableCount('string), 'w.start, 'w.end, 'w.rowtime)
+
+    val results = windowedTable.toDataSet[Row].collect()
+
+    val expected =
+      "Hallo,1,1,1970-01-01 00:00:00.002,1970-01-01 00:00:00.009,1970-01-01 00:00:00.008\n" +
+        "Hello world,1,1,1970-01-01 00:00:00.008,1970-01-01 00:00:00.015,1970-01-01 00:00:00.014\n" +
+        "Hello world,1,1,1970-01-01 00:00:00.016,1970-01-01 00:00:00.023,1970-01-01 00:00:00.022\n" +
+        "Hello,3,3,1970-01-01 00:00:00.003,1970-01-01 00:00:00.014,1970-01-01 00:00:00.013\n" +
+        "Hi,1,1,1970-01-01 00:00:00.001,1970-01-01 00:00:00.008,1970-01-01 00:00:00.007"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testNonMergableAllEventTimeSessionGroupWindow(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val nonMergableCount = new NonMergableCount
+
+    val results = table
+      .window(Session withGap 2.milli on 'long as 'w)
+      .groupBy('w)
+      .select('string.count, nonMergableCount('string), 'w.start, 'w.end, 'w.rowtime)
+      .toDataSet[Row].collect()
+
+    val expected =
+      "4,4,1970-01-01 00:00:00.001,1970-01-01 00:00:00.006,1970-01-01 00:00:00.005\n" +
+        "2,2,1970-01-01 00:00:00.007,1970-01-01 00:00:00.01,1970-01-01 00:00:00.009\n" +
+        "1,1,1970-01-01 00:00:00.016,1970-01-01 00:00:00.018,1970-01-01 00:00:00.017"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Sliding windows
+  // ----------------------------------------------------------------------------------------------
+
+  @Test
+  def testNonMergableAllEventTimeSlidingGroupWindowOverTime(): Unit = {
+    // please keep this test in sync with the DataStream variant
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val nonMergableCount = new NonMergableCount
+
+    val windowedTable = table
+      .window(Slide over 5.milli every 2.milli on 'long as 'w)
+      .groupBy('w)
+      .select('int.count, nonMergableCount('int), 'w.start, 'w.end, 'w.rowtime)
+
+    val expected =
+      "1,1,1970-01-01 00:00:00.008,1970-01-01 00:00:00.013,1970-01-01 00:00:00.012\n" +
+        "1,1,1970-01-01 00:00:00.012,1970-01-01 00:00:00.017,1970-01-01 00:00:00.016\n" +
+        "1,1,1970-01-01 00:00:00.014,1970-01-01 00:00:00.019,1970-01-01 00:00:00.018\n" +
+        "1,1,1970-01-01 00:00:00.016,1970-01-01 00:00:00.021,1970-01-01 00:00:00.02\n" +
+        "2,2,1969-12-31 23:59:59.998,1970-01-01 00:00:00.003,1970-01-01 00:00:00.002\n" +
+        "2,2,1970-01-01 00:00:00.006,1970-01-01 00:00:00.011,1970-01-01 00:00:00.01\n" +
+        "3,3,1970-01-01 00:00:00.002,1970-01-01 00:00:00.007,1970-01-01 00:00:00.006\n" +
+        "3,3,1970-01-01 00:00:00.004,1970-01-01 00:00:00.009,1970-01-01 00:00:00.008\n" +
+        "4,4,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005,1970-01-01 00:00:00.004"
+
+    val results = windowedTable.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testNonMergableEventTimeSlidingGroupWindowOverTimeOverlappingFullPane(): Unit = {
+    // please keep this test in sync with the DataStream variant
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+      .select('int, 'long, 'string) // keep this select to enforce that the 'string key comes last
+
+    val nonMergableCount = new NonMergableCount
+
+    val windowedTable = table
+      .window(Slide over 10.milli every 5.milli on 'long as 'w)
+      .groupBy('string, 'w)
+      .select('string, 'int.count, nonMergableCount('int), 'w.start, 'w.end)
+
+    val expected =
+      "Hallo,1,1,1969-12-31 23:59:59.995,1970-01-01 00:00:00.005\n" +
+        "Hallo,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.01\n" +
+        "Hello world,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.01\n" +
+        "Hello world,1,1,1970-01-01 00:00:00.005,1970-01-01 00:00:00.015\n" +
+        "Hello world,1,1,1970-01-01 00:00:00.01,1970-01-01 00:00:00.02\n" +
+        "Hello world,1,1,1970-01-01 00:00:00.015,1970-01-01 00:00:00.025\n" +
+        "Hello,1,1,1970-01-01 00:00:00.005,1970-01-01 00:00:00.015\n" +
+        "Hello,2,2,1969-12-31 23:59:59.995,1970-01-01 00:00:00.005\n" +
+        "Hello,3,3,1970-01-01 00:00:00.0,1970-01-01 00:00:00.01\n" +
+        "Hi,1,1,1969-12-31 23:59:59.995,1970-01-01 00:00:00.005\n" +
+        "Hi,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.01"
+
+    val results = windowedTable.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testNonMergableEventTimeSlidingGroupWindowOverTimeOverlappingSplitPane(): Unit = {
+    // please keep this test in sync with the DataStream variant
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val nonMergableCount = new NonMergableCount
+
+    val windowedTable = table
+      .window(Slide over 5.milli every 4.milli on 'long as 'w)
+      .groupBy('string, 'w)
+      .select('string, 'int.count, nonMergableCount('int), 'w.start, 'w.end)
+
+    val expected =
+      "Hallo,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005\n" +
+        "Hello world,1,1,1970-01-01 00:00:00.004,1970-01-01 00:00:00.009\n" +
+        "Hello world,1,1,1970-01-01 00:00:00.008,1970-01-01 00:00:00.013\n" +
+        "Hello world,1,1,1970-01-01 00:00:00.012,1970-01-01 00:00:00.017\n" +
+        "Hello world,1,1,1970-01-01 00:00:00.016,1970-01-01 00:00:00.021\n" +
+        "Hello,2,2,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005\n" +
+        "Hello,2,2,1970-01-01 00:00:00.004,1970-01-01 00:00:00.009\n" +
+        "Hi,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005"
+
+    val results = windowedTable.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testNonMergableEventTimeSlidingGroupWindowOverTimeNonOverlappingFullPane(): Unit = {
+    // please keep this test in sync with the DataStream variant
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val nonMergableCount = new NonMergableCount
+
+    val windowedTable = table
+      .window(Slide over 5.milli every 10.milli on 'long as 'w)
+      .groupBy('string, 'w)
+      .select('string, 'int.count, nonMergableCount('int), 'w.start, 'w.end)
+
+    val expected =
+      "Hallo,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005\n" +
+        "Hello,2,2,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005\n" +
+        "Hi,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005"
+
+    val results = windowedTable.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testNonMergableEventTimeSlidingGroupWindowOverTimeNonOverlappingSplitPane(): Unit = {
+    // please keep this test in sync with the DataStream variant
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val nonMergableCount = new NonMergableCount
+
+    val windowedTable = table
+      .window(Slide over 3.milli every 10.milli on 'long as 'w)
+      .groupBy('string, 'w)
+      .select('string, 'int.count, nonMergableCount('int), 'w.start, 'w.end)
+
+    val expected =
+      "Hallo,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.003\n" +
+        "Hi,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.003"
 
     val results = windowedTable.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)

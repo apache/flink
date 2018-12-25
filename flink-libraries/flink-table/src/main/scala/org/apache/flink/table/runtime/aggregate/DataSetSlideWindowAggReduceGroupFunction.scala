@@ -46,7 +46,8 @@ class DataSetSlideWindowAggReduceGroupFunction(
     finalRowWindowStartPos: Option[Int],
     finalRowWindowEndPos: Option[Int],
     finalRowWindowRowtimePos: Option[Int],
-    windowSize: Long)
+    windowSize: Long,
+    isInputCombined: Boolean)
   extends RichGroupReduceFunction[Row, Row]
     with Compiler[GeneratedAggregations]
     with Logging {
@@ -86,7 +87,11 @@ class DataSetSlideWindowAggReduceGroupFunction(
     var record: Row = null
     while (iterator.hasNext) {
       record = iterator.next()
-      function.mergeAccumulatorsPair(accumulators, record)
+      if (isInputCombined) {
+        function.mergeAccumulatorsPair(accumulators, record)
+      } else {
+        function.accumulate(accumulators, record)
+      }
     }
 
     // set group keys value to final output

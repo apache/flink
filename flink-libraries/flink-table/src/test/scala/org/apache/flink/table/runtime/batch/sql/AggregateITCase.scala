@@ -559,4 +559,205 @@ class AggregateITCase(
 
     TestBaseUtils.compareResultAsText(result.asJava, expected)
   }
+
+
+
+  @Test
+  def testNonMergableTumbleWindowAggregate(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    tEnv.registerFunction("countFun", new CountAggFunction)
+    tEnv.registerFunction("nonMergableCount", new NonMergableCount)
+
+    val sqlQuery =
+      "SELECT b, SUM(a), countFun(c), nonMergableCount(b)" +
+        "FROM T " +
+        "GROUP BY b, TUMBLE(ts, INTERVAL '3' SECOND)"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      // create timestamps
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
+    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+
+    val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
+    val expected = Seq(
+      "1,1,1,1",
+      "2,2,1,1", "2,3,1,1",
+      "3,9,2,2", "3,6,1,1",
+      "4,15,2,2", "4,19,2,2",
+      "5,11,1,1", "5,39,3,3", "5,15,1,1",
+      "6,33,2,2", "6,57,3,3", "6,21,1,1"
+    ).mkString("\n")
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
+  def testNonMergableTumbleWindowWithProperties(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    tEnv.registerFunction("nonMergableCount", new NonMergableCount)
+
+    val sqlQuery =
+      "SELECT b, COUNT(a), nonMergableCount(a), " +
+        "TUMBLE_START(ts, INTERVAL '5' SECOND), " +
+        "TUMBLE_END(ts, INTERVAL '5' SECOND), " +
+        "TUMBLE_ROWTIME(ts, INTERVAL '5' SECOND)" +
+        "FROM T " +
+        "GROUP BY b, TUMBLE(ts, INTERVAL '5' SECOND)"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      // min time unit is seconds
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
+    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+
+    val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
+    val expected = Seq(
+      "1,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:05.0,1970-01-01 00:00:04.999",
+      "2,2,2,1970-01-01 00:00:00.0,1970-01-01 00:00:05.0,1970-01-01 00:00:04.999",
+      "3,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:05.0,1970-01-01 00:00:04.999",
+      "3,2,2,1970-01-01 00:00:05.0,1970-01-01 00:00:10.0,1970-01-01 00:00:09.999",
+      "4,3,3,1970-01-01 00:00:05.0,1970-01-01 00:00:10.0,1970-01-01 00:00:09.999",
+      "4,1,1,1970-01-01 00:00:10.0,1970-01-01 00:00:15.0,1970-01-01 00:00:14.999",
+      "5,4,4,1970-01-01 00:00:10.0,1970-01-01 00:00:15.0,1970-01-01 00:00:14.999",
+      "5,1,1,1970-01-01 00:00:15.0,1970-01-01 00:00:20.0,1970-01-01 00:00:19.999",
+      "6,4,4,1970-01-01 00:00:15.0,1970-01-01 00:00:20.0,1970-01-01 00:00:19.999",
+      "6,2,2,1970-01-01 00:00:20.0,1970-01-01 00:00:25.0,1970-01-01 00:00:24.999"
+    ).mkString("\n")
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
+  def testNonMergableHopWindowAggregate(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    tEnv.registerFunction("countFun", new CountAggFunction)
+    tEnv.registerFunction("nonMergableCount", new NonMergableCount)
+
+    val sqlQuery =
+      "SELECT b, SUM(a), countFun(c), nonMergableCount(c)" +
+        "FROM T " +
+        "GROUP BY b, HOP(ts, INTERVAL '2' SECOND, INTERVAL '4' SECOND)"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      // create timestamps
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
+    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+
+    val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
+    val expected = Seq(
+      "1,1,1,1","1,1,1,1",
+      "2,5,2,2","2,5,2,2",
+      "3,9,2,2", "3,15,3,3", "3,6,1,1",
+      "4,7,1,1", "4,24,3,3", "4,27,3,3", "4,10,1,1",
+      "5,11,1,1", "5,36,3,3", "5,54,4,4", "5,29,2,2",
+      "6,33,2,2", "6,70,4,4", "6,78,4,4", "6,41,2,2"
+    ).mkString("\n")
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
+  def testNonMergableHopWindowWithProperties(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    tEnv.registerFunction("nonMergableCount", new NonMergableCount)
+
+    val sqlQuery =
+      "SELECT b, COUNT(a), nonMergableCount(a), " +
+        "HOP_START(ts, INTERVAL '5' SECOND, INTERVAL '10' SECOND), " +
+        "HOP_END(ts, INTERVAL '5' SECOND, INTERVAL '10' SECOND), " +
+        "HOP_ROWTIME(ts, INTERVAL '5' SECOND, INTERVAL '10' SECOND) " +
+        "FROM T " +
+        "GROUP BY b, HOP(ts, INTERVAL '5' SECOND, INTERVAL '10' SECOND)"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      // create timestamps
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
+    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+
+    val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
+    val expected = Seq(
+      "1,1,1,1969-12-31 23:59:55.0,1970-01-01 00:00:05.0,1970-01-01 00:00:04.999",
+      "2,2,2,1969-12-31 23:59:55.0,1970-01-01 00:00:05.0,1970-01-01 00:00:04.999",
+      "3,1,1,1969-12-31 23:59:55.0,1970-01-01 00:00:05.0,1970-01-01 00:00:04.999",
+      "1,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:10.0,1970-01-01 00:00:09.999",
+      "2,2,2,1970-01-01 00:00:00.0,1970-01-01 00:00:10.0,1970-01-01 00:00:09.999",
+      "3,3,3,1970-01-01 00:00:00.0,1970-01-01 00:00:10.0,1970-01-01 00:00:09.999",
+      "4,3,3,1970-01-01 00:00:00.0,1970-01-01 00:00:10.0,1970-01-01 00:00:09.999",
+      "3,2,2,1970-01-01 00:00:05.0,1970-01-01 00:00:15.0,1970-01-01 00:00:14.999",
+      "4,4,4,1970-01-01 00:00:05.0,1970-01-01 00:00:15.0,1970-01-01 00:00:14.999",
+      "5,4,4,1970-01-01 00:00:05.0,1970-01-01 00:00:15.0,1970-01-01 00:00:14.999",
+      "4,1,1,1970-01-01 00:00:10.0,1970-01-01 00:00:20.0,1970-01-01 00:00:19.999",
+      "5,5,5,1970-01-01 00:00:10.0,1970-01-01 00:00:20.0,1970-01-01 00:00:19.999",
+      "6,4,4,1970-01-01 00:00:10.0,1970-01-01 00:00:20.0,1970-01-01 00:00:19.999",
+      "5,1,1,1970-01-01 00:00:15.0,1970-01-01 00:00:25.0,1970-01-01 00:00:24.999",
+      "6,6,6,1970-01-01 00:00:15.0,1970-01-01 00:00:25.0,1970-01-01 00:00:24.999",
+      "6,2,2,1970-01-01 00:00:20.0,1970-01-01 00:00:30.0,1970-01-01 00:00:29.999"
+    ).mkString("\n")
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
+  def testNonMergableSessionWindowAggregate(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    tEnv.registerFunction("countFun", new CountAggFunction)
+    tEnv.registerFunction("nonMergableCount", new NonMergableCount)
+
+    val sqlQuery =
+      "SELECT MIN(a), MAX(a), SUM(a), countFun(c), nonMergableCount(c)" +
+        "FROM T " +
+        "GROUP BY SESSION(ts, INTERVAL '4' SECOND)"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      // create timestamps
+      .filter(x => (x._2 % 2) == 0)
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
+    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+
+    val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
+    val expected = Seq(
+      "2,10,39,6,6",
+      "16,21,111,6,6"
+    ).mkString("\n")
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
+  def testNonMergableSessionWindowWithProperties(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    tEnv.registerFunction("nonMergableCount", new NonMergableCount)
+
+    val sqlQuery =
+      "SELECT COUNT(a), nonMergableCount(a), " +
+        "SESSION_START(ts, INTERVAL '4' SECOND), " +
+        "SESSION_END(ts, INTERVAL '4' SECOND), " +
+        "SESSION_ROWTIME(ts, INTERVAL '4' SECOND) " +
+        "FROM T " +
+        "GROUP BY SESSION(ts, INTERVAL '4' SECOND)"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      // create timestamps
+      .filter(x => (x._2 % 2) == 0)
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
+    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+
+    val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
+    val expected = Seq(
+      "6,6,1970-01-01 00:00:02.0,1970-01-01 00:00:14.0,1970-01-01 00:00:13.999",
+      "6,6,1970-01-01 00:00:16.0,1970-01-01 00:00:25.0,1970-01-01 00:00:24.999"
+    ).mkString("\n")
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
 }

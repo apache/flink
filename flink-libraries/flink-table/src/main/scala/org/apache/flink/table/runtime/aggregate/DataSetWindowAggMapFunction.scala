@@ -34,11 +34,15 @@ import org.apache.flink.types.Row
   * It appends an (aligned) rowtime field to the end of the output row.
   *
   * @param genAggregations      Code-generated [[GeneratedAggregations]]
+  * @param supportPartial       Support partial merge
+  * @param inputFieldsLength    The length of the input fields
   * @param timeFieldPos         Time field position in input row
   * @param tumbleTimeWindowSize The size of tumble time window
   */
 class DataSetWindowAggMapFunction(
     private val genAggregations: GeneratedAggregationsFunction,
+    private val supportPartial: Boolean,
+    private val inputFieldsLength: Int,
     private val timeFieldPos: Int,
     private val tumbleTimeWindowSize: Option[Long],
     @transient private val returnType: TypeInformation[Row])
@@ -62,19 +66,27 @@ class DataSetWindowAggMapFunction(
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
 
-    accs = function.createAccumulators()
-    output = function.createOutputRow()
+    if (supportPartial) {
+      accs = function.createAccumulators()
+      output = function.createOutputRow()
+    } else {
+      output = new Row(inputFieldsLength + 1)
+    }
   }
 
   override def map(input: Row): Row = {
 
-    function.resetAccumulator(accs)
+    if (supportPartial) {
+      function.resetAccumulator(accs)
 
-    function.accumulate(accs, input)
+      function.accumulate(accs, input)
 
-    function.setAggregationResults(accs, output)
+      function.setAggregationResults(accs, output)
 
-    function.setForwardedFields(input, output)
+      function.setForwardedFields(input, output)
+    } else {
+      Row.copy(input, output)
+    }
 
     val timeField = input.getField(timeFieldPos)
     val rowtime = getTimestamp(timeField)

@@ -128,7 +128,11 @@ class DataSetSessionWindowAggReduceGroupFunction(
         windowStart = record.getField(intermediateRowWindowStartPos).asInstanceOf[Long]
       }
 
-      function.mergeAccumulatorsPair(accumulators, record)
+      if (isInputCombined) {
+        function.mergeAccumulatorsPair(accumulators, record)
+      } else {
+        function.accumulate(accumulators, record)
+      }
 
       windowEnd = if (isInputCombined) {
         // partial aggregate is supported

@@ -141,6 +141,18 @@ public class Row implements Serializable{
 	}
 
 	/**
+	 * Copies the elements from another row to the reuse row.
+	 * This method does not perform a deep copy.
+	 *
+	 * @param row The row being copied.
+	 * @return The reuse row
+	 */
+	public static Row copy(Row row, Row reuse) {
+		System.arraycopy(row.fields, 0, reuse.fields, 0, row.fields.length);
+		return reuse;
+	}
+
+	/**
 	 * Creates a new Row which copied from another row.
 	 * This method does not perform a deep copy.
 	 *
@@ -149,8 +161,7 @@ public class Row implements Serializable{
 	 */
 	public static Row copy(Row row) {
 		final Row newRow = new Row(row.fields.length);
-		System.arraycopy(row.fields, 0, newRow.fields, 0, row.fields.length);
-		return newRow;
+		return copy(row, newRow);
 	}
 
 	/**

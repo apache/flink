@@ -63,6 +63,22 @@ public class RowTest {
 	}
 
 	@Test
+	public void testRowCopyWithReuse() {
+		Row row = new Row(5);
+		row.setField(0, 1);
+		row.setField(1, "hello");
+		row.setField(2, null);
+		row.setField(3, new Tuple2<>(2, "hi"));
+		row.setField(4, "hello world");
+
+		Row reuse = new Row(6);
+
+		Row copy = Row.copy(row, reuse);
+		assertEquals(row, Row.project(copy, new int[]{0, 1, 2, 3, 4}));
+		assertTrue(reuse == copy);
+	}
+
+	@Test
 	public void testRowProject() {
 		Row row = new Row(5);
 		row.setField(0, 1);

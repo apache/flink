@@ -30,8 +30,8 @@ import org.apache.flink.types.Row
   * [[org.apache.flink.api.java.operators.GroupCombineOperator]].
   * It is used for tumbling time-window on batch.
   *
-  * @param genPreAggregations        Code-generated [[GeneratedAggregations]] for partial aggs.
-  * @param genFinalAggregations        Code-generated [[GeneratedAggregations]] for final aggs.
+  * @param genPreAggregations     Code-generated [[GeneratedAggregations]] for partial aggs.
+  * @param genFinalAggregations   Code-generated [[GeneratedAggregations]] for final aggs.
   * @param windowSize             Tumbling time window size
   * @param windowStartPos         The relative window-start field position to the last field of
   *                               output row
@@ -55,10 +55,12 @@ class DataSetTumbleTimeWindowAggReduceCombineFunction(
     windowStartPos,
     windowEndPos,
     windowRowtimePos,
-    keysAndAggregatesArity)
+    keysAndAggregatesArity,
+    true)
     with CombineFunction[Row, Row] {
 
-  protected var preAggfunction: GeneratedAggregations = _
+  private val aggregateBuffer: Row = new Row(keysAndAggregatesArity + 1)
+  private var preAggfunction: GeneratedAggregations = _
 
   override def open(config: Configuration): Unit = {
     super.open(config)

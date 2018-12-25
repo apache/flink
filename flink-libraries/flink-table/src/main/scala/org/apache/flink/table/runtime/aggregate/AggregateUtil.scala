@@ -339,6 +339,7 @@ object AggregateUtil {
     inputType: RelDataType,
     inputFieldTypeInfo: Seq[TypeInformation[_]],
     isParserCaseSensitive: Boolean,
+    supportPartial: Boolean,
     tableConfig: TableConfig)
   : MapFunction[Row, Row] = {
 
@@ -349,13 +350,16 @@ object AggregateUtil {
       needRetract,
       tableConfig)
 
-    val mapReturnType: RowTypeInfo =
+    val mapReturnType: RowTypeInfo = if (supportPartial) {
       createRowTypeForKeysAndAggregates(
         groupings,
         aggregateMetadata.getAggregateFunctions,
         aggregateMetadata.getAggregatesAccumulatorTypes,
         inputType,
         Some(Array(BasicTypeInfo.LONG_TYPE_INFO)))
+    } else {
+      new RowTypeInfo(inputFieldTypeInfo :+ BasicTypeInfo.LONG_TYPE_INFO: _*)
+    }
 
     val (timeFieldPos, tumbleTimeWindowSize) = window match {
 
@@ -408,6 +412,8 @@ object AggregateUtil {
 
     new DataSetWindowAggMapFunction(
       genFunction,
+      supportPartial,
+      inputFieldTypeInfo.size,
       timeFieldPos,
       tumbleTimeWindowSize,
       mapReturnType)
@@ -529,7 +535,6 @@ object AggregateUtil {
   def createDataSetSlideWindowPrepareFlatMapFunction(
       window: LogicalWindow,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-      groupings: Array[Int],
       inputType: TypeInformation[Row],
       isParserCaseSensitive: Boolean)
     : FlatMapFunction[Row, Row] = {
@@ -566,7 +571,7 @@ object AggregateUtil {
       groupings: Array[Int],
       properties: Seq[NamedWindowProperty],
       tableConfig: TableConfig,
-      isInputCombined: Boolean = false)
+      supportPartial: Boolean)
     : RichGroupReduceFunction[Row, Row] = {
 
     val needRetract = false
@@ -577,8 +582,9 @@ object AggregateUtil {
       tableConfig)
 
     val aggMapping = aggregateMetadata.getAdjustedMapping(groupings.length)
+    val fwdMapping = if (supportPartial) groupings.indices.toArray else groupings
 
-    val genPreAggFunction = generator.generateAggregations(
+    lazy val genPreAggFunction = generator.generateAggregations(
       "GroupingWindowAggregateHelper",
       physicalInputTypes,
       aggregateMetadata.getAggregateFunctions,
@@ -587,7 +593,7 @@ object AggregateUtil {
       aggregateMetadata.getAggregatesDistinctFlags,
       isStateBackedDataViews = false,
       partialResults = true,
-      groupings.indices.toArray,
+      fwdMapping,
       Some(aggMapping),
       outputType.getFieldCount,
       needRetract,
@@ -605,22 +611,26 @@ object AggregateUtil {
       aggregateMetadata.getAggregatesDistinctFlags,
       isStateBackedDataViews = false,
       partialResults = false,
-      groupings.indices.toArray,
+      fwdMapping,
       Some(aggMapping),
       outputType.getFieldCount,
       needRetract,
-      needMerge = true,
+      needMerge = supportPartial,
       needReset = true,
       None
     )
 
-    val keysAndAggregatesArity = groupings.length + namedAggregates.length
+    val keysAndAggregatesArity = if (supportPartial) {
+      groupings.length + namedAggregates.length
+    } else {
+      physicalInputTypes.length
+    }
 
     window match {
       case TumblingGroupWindow(_, _, size) if isTimeInterval(size.resultType) =>
         // tumbling time window
         val (startPos, endPos, timePos) = computeWindowPropertyPos(properties)
-        if (doAllSupportPartialMerge(aggregateMetadata.getAggregateFunctions)) {
+        if (supportPartial) {
           // for incremental aggregations
           new DataSetTumbleTimeWindowAggReduceCombineFunction(
             genPreAggFunction,
@@ -639,12 +649,14 @@ object AggregateUtil {
             startPos,
             endPos,
             timePos,
-            outputType.getFieldCount)
+            keysAndAggregatesArity,
+            supportPartial)
         }
       case TumblingGroupWindow(_, _, size) =>
         // tumbling count window
         new DataSetTumbleCountWindowAggReduceGroupFunction(
           genFinalAggFunction,
+          supportPartial,
           asLong(size))
 
       case SessionGroupWindow(_, _, gap) =>
@@ -656,11 +668,11 @@ object AggregateUtil {
           endPos,
           timePos,
           asLong(gap),
-          isInputCombined)
+          isInputCombined = supportPartial)
 
       case SlidingGroupWindow(_, _, size, _) if isTimeInterval(size.resultType) =>
         val (startPos, endPos, timePos) = computeWindowPropertyPos(properties)
-        if (doAllSupportPartialMerge(aggregateMetadata.getAggregateFunctions)) {
+        if (supportPartial) {
           // for partial aggregations
           new DataSetSlideWindowAggReduceCombineFunction(
             genPreAggFunction,
@@ -679,7 +691,8 @@ object AggregateUtil {
             startPos,
             endPos,
             timePos,
-            asLong(size))
+            asLong(size),
+            isInputCombined = supportPartial)
         }
 
       case SlidingGroupWindow(_, _, size, _) =>
@@ -689,7 +702,8 @@ object AggregateUtil {
             None,
             None,
             None,
-            asLong(size))
+            asLong(size),
+            isInputCombined = supportPartial)
 
       case _ =>
         throw new UnsupportedOperationException(s"$window is currently not supported on batch")
@@ -1082,7 +1096,6 @@ object AggregateUtil {
   private[flink] def doAllSupportPartialMerge(
     aggregateCalls: Seq[AggregateCall],
     inputType: RelDataType,
-    groupKeysCount: Int,
     tableConfig: TableConfig): Boolean = {
 
     val aggregateList = extractAggregateMetadata(

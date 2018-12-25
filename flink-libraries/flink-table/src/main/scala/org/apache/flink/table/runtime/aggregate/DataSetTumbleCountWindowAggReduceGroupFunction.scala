@@ -32,10 +32,12 @@ import org.apache.flink.util.Collector
   * It is only used for tumbling count-window on batch.
   *
   * @param genAggregations  Code-generated [[GeneratedAggregations]]
+  * @param supportPartial   Support partial aggregates
   * @param windowSize       Tumble count window size
   */
 class DataSetTumbleCountWindowAggReduceGroupFunction(
     private val genAggregations: GeneratedAggregationsFunction,
+    private val supportPartial: Boolean,
     private val windowSize: Long)
   extends RichGroupReduceFunction[Row, Row]
     with Compiler[GeneratedAggregations]
@@ -74,7 +76,11 @@ class DataSetTumbleCountWindowAggReduceGroupFunction(
       val record = iterator.next()
       count += 1
 
-      accumulators = function.mergeAccumulatorsPair(accumulators, record)
+      if (supportPartial) {
+        accumulators = function.mergeAccumulatorsPair(accumulators, record)
+      } else {
+        function.accumulate(accumulators, record)
+      }
 
       if (windowSize == count) {
         // set group keys value to final output.
