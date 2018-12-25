@@ -97,8 +97,8 @@ class DescriptorPropertiesTest {
   def testArrayInvalidValues(): Unit = {
     val properties = new DescriptorProperties()
     properties.putString(s"$ARRAY_KEY.0", "12")
-    properties.putString(s"$ARRAY_KEY.1", "INVALID")
-    properties.putString(s"$ARRAY_KEY.2", "66")
+    properties.putString(s"$ARRAY_KEY.1", "66")
+    properties.putString(s"$ARRAY_KEY.2", "INVALID")
 
     testArrayValidation(properties, 1, Integer.MAX_VALUE)
   }
