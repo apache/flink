@@ -75,6 +75,238 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
   }
 
   @Test
+  def testShiftLeft(): Unit = {
+    testAllApis(
+      3.shiftLeft(3),
+      "3.shiftLeft(3)",
+      "SHIFTLEFT(3,3)",
+      "24"
+    )
+
+    testAllApis(
+      2147483647.shiftLeft(-2147483648),
+      "2147483647.shiftLeft(-2147483648)",
+      "SHIFTLEFT(2147483647,-2147483648)",
+      "2147483647"
+    )
+
+    testAllApis(
+      -2147483648.shiftLeft(2147483647),
+      "-2147483648.shiftLeft(2147483647)",
+      "SHIFTLEFT(-2147483648,2147483647)",
+      "0"
+    )
+
+    testAllApis(
+      9223372036854775807L.shiftLeft(-2147483648),
+      "9223372036854775807L.shiftLeft(-2147483648)",
+      "SHIFTLEFT(9223372036854775807,-2147483648)",
+      "9223372036854775807"
+    )
+
+    testAllApis(
+      'f3.shiftLeft(5),
+      "f3.shiftLeft(5)",
+      "SHIFTLEFT(f3,5)",
+      "32"
+    )
+
+    testAllApis(
+      1.shiftLeft(Null(Types.INT)),
+      "1.shiftLeft(Null(INT))",
+      "SHIFTLEFT(1, CAST(NULL AS INT))",
+      "null"
+    )
+
+    testAllApis(       // test tinyint
+      'f0.shiftLeft(20),
+      "f0.shiftLeft(20)",
+      "SHIFTLEFT(CAST(1 AS TINYINT), 20)",
+      "1048576"
+    )
+
+    testAllApis(      // test smallint
+      'f1.shiftLeft(20),
+      "f1.shiftLeft(20)",
+      "SHIFTLEFT(CAST(1 AS SMALLINT), 20)",
+      "1048576"
+    )
+
+    testAllApis(      // test long
+      'f3.shiftLeft(40),
+      "f3.shiftLeft(40)",
+      "SHIFTLEFT(CAST(1 AS BIGINT), 40)",
+      "1099511627776"
+    )
+
+    //special params
+    testAllApis(
+      3.shiftLeft(-1),
+      "3.shiftLeft(-1)",
+      "SHIFTLEFT(3,-1)",
+      "-2147483648"
+    )
+
+    testAllApis(
+      4.shiftLeft(-1),
+      "4.shiftLeft(-1)",
+      "SHIFTLEFT(4,-1)",
+      "0"
+    )
+
+    testAllApis(
+      5.shiftLeft(-2),
+      "5.shiftLeft(-2)",
+      "SHIFTLEFT(5,-2)",
+      "1073741824"
+    )
+
+    testAllApis(
+      -5.shiftLeft(2),
+      "-5.shiftLeft(2)",
+      "SHIFTLEFT(-5,2)",
+      "-20"
+    )
+
+    testAllApis(
+      -7.shiftLeft(-1),
+      "-7.shiftLeft(-1)",
+      "SHIFTLEFT(-7,-1)",
+      "-2147483648"
+    )
+  }
+
+  @Test
+  def testShiftRight(): Unit = {
+    testAllApis(
+      1.shiftRight(1),
+      "1.shiftRight(1)",
+      "SHIFTRIGHT(1,1)",
+      "0"
+    )
+
+    testAllApis(
+      21.shiftRight(1),
+      "21.shiftRight(1)",
+      "SHIFTRIGHT(21,1)",
+      "10"
+    )
+
+    testAllApis(
+      2147483647.shiftRight(-2147483648),
+      "2147483647.shiftRight(-2147483648)",
+      "SHIFTRIGHT(2147483647,-2147483648)",
+      "2147483647"
+    )
+
+    testAllApis(
+      -2147483648.shiftRight(2147483647),
+      "-2147483648.shiftRight(2147483647)",
+      "SHIFTRIGHT(-2147483648,2147483647)",
+      "-1"
+    )
+
+    testAllApis(
+      123456789.shiftRight(-2147483648),
+      "123456789.shiftRight(-2147483648)",
+      "SHIFTRIGHT(123456789,-2147483648)",
+      "123456789"
+    )
+
+    testAllApis(
+      'f3.shiftRight(1),
+      "f3.shiftRight(1)",
+      "SHIFTRIGHT(f3,1)",
+      "0"
+    )
+
+    testAllApis(
+      1.shiftRight(Null(Types.INT)),
+      "1.shiftRight(Null(INT))",
+      "SHIFTRIGHT(1, CAST(NULL AS INT))",
+      "null"
+    )
+
+    val a: Byte = 7
+    testAllApis(            // test tinyint
+      a.shiftRight(1),
+      s"$a.shiftRight(1)",
+      s"SHIFTRIGHT(CAST($a AS TINYINT),1)",
+      "3"
+    )
+
+    val b: Short = 100
+    testAllApis(            // test smallint
+      b.shiftRight(1),
+      s"$b.shiftRight(1)",
+      s"SHIFTRIGHT(CAST($b AS SMALLINT),1)",
+      "50"
+    )
+
+    val c: Long = 1099511627776L
+    testAllApis(            // test long
+      c.shiftRight(30),
+      s"${c}L.shiftRight(30)",
+      s"SHIFTRIGHT(CAST($c AS BIGINT),30)",
+      "1024"
+    )
+
+    // special params
+    testAllApis(
+      32.shiftRight(-1),
+      "32.shiftRight(-1)",
+      "SHIFTRIGHT(32,-1)",
+      "0"
+    )
+
+    testAllApis(
+      -32.shiftRight(1),
+      "-32.shiftRight(1)",
+      "SHIFTRIGHT(-32,1)",
+      "-16"
+    )
+
+    testAllApis(
+      -64.shiftRight(-1),
+      "-64.shiftRight(-1)",
+      "SHIFTRIGHT(-64,-1)",
+      "-1"
+    )
+
+  }
+
+  @Test
+  def testShiftRightUnsigned(): Unit = {
+    testAllApis(
+      64.shiftRightUnsigned(3),
+      "64.shiftRightUnsigned(3)",
+      "SHIFTRIGHTUNSIGNED(64,3)",
+      "8"
+    )
+
+    testAllApis(
+      -2.shiftRightUnsigned(1),
+      "-2.shiftRightUnsigned(1)",
+      "SHIFTRIGHTUNSIGNED(-2,1)",
+      "2147483647"
+    )
+
+    testAllApis(
+      -5.shiftRightUnsigned(2),
+      "-5.shiftRightUnsigned(2)",
+      "SHIFTRIGHTUNSIGNED(-5,2)",
+      "1073741822"
+    )
+
+    testAllApis(
+      -64.shiftRightUnsigned(-1),
+      "-64.shiftRightUnsigned(-1)",
+      "SHIFTRIGHTUNSIGNED(-64,-1)",
+      "1"
+    )
+  }
+
+  @Test
   def testArithmetic(): Unit = {
 
     // math arithmetic
