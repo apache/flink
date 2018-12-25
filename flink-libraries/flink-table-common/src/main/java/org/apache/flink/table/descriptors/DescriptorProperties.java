@@ -1134,7 +1134,7 @@ public class DescriptorProperties {
 		}
 
 		// validate array elements
-		for (int i = 0; i < maxIndex + 1; i++) {
+		for (int i = 0; i <= maxIndex; i++) {
 			final String fullKey = key + '.' + i;
 			if (properties.containsKey(fullKey)) {
 				// run validation logic
