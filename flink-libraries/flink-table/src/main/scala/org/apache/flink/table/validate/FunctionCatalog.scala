@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.validate
 
-import org.apache.calcite.sql.`type`.{InferTypes, OperandTypes, ReturnTypes, SqlTypeTransforms}
+import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes, SqlTypeTransforms}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable, ReflectiveSqlOperatorTable}
 import org.apache.calcite.sql._
