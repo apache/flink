@@ -713,14 +713,14 @@ the consumers until `transaction1` is committed or aborted. This has two implica
 **Note**:  `Semantic.EXACTLY_ONCE` mode uses a fixed size pool of KafkaProducers
 per each `FlinkKafkaProducer011` instance. One of each of those producers is used per one
 checkpoint. If the number of concurrent checkpoints exceeds the pool size, `FlinkKafkaProducer011`
-will throw an exception and will fail the whole application. Please configure max pool size(`FlinkKafkaProducer011.kafkaProducersPoolSize`) 
-and max number of concurrent checkpoints(`CheckpointConfig.maxConcurrentCheckpoints`) accordingly.
+will throw an exception and will fail the whole application. Please configure max pool size via the producer constructor
+and max number of concurrent checkpoints accordingly.
 
 **Note**: `Semantic.EXACTLY_ONCE` takes all possible measures to not leave any lingering transactions
 that would block the consumers from reading from Kafka topic more than it is necessary. However in the
 event of failure of Flink application before first checkpoint, after restarting such application there
 is no information in the system about previous pool sizes. Thus it is unsafe to scale down Flink
-application(`getNumberOfParallelSubtasks()`) before first checkpoint completes, by factor larger than `FlinkKafkaProducer011.SAFE_SCALE_DOWN_FACTOR`.
+application before first checkpoint completes, by factor larger than `FlinkKafkaProducer011.SAFE_SCALE_DOWN_FACTOR`.
 
 ## Using Kafka timestamps and Flink event time in Kafka 0.10
 
