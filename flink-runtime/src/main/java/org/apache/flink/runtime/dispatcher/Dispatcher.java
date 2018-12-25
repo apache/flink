@@ -251,7 +251,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			return FutureUtils.completedExceptionally(
 				new JobSubmissionException(jobId, String.format("Job has already been submitted and is in state %s.", jobSchedulingStatus)));
 		} else {
-			final CompletableFuture<Acknowledge> persistAndRunFuture = waitForTerminatingJobManager(jobId, jobGraph, this::persistAndRunJob)
+			final CompletableFuture<Acknowledge> persistAndRunFuture = waitForTerminatingJobManager(jobGraph, this::persistAndRunJob)
 				.thenApply(ignored -> Acknowledge.get());
 
 			return persistAndRunFuture.exceptionally(
@@ -845,7 +845,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			Collection<CompletableFuture<?>> runFutures = new ArrayList<>(recoveredJobs.size());
 
 			for (JobGraph recoveredJob : recoveredJobs) {
-				final CompletableFuture<?> runFuture = waitForTerminatingJobManager(recoveredJob.getJobID(), recoveredJob, this::runJob);
+				final CompletableFuture<?> runFuture = waitForTerminatingJobManager(recoveredJob, this::runJob);
 				runFutures.add(runFuture);
 			}
 
@@ -856,7 +856,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		}
 	}
 
-	private CompletableFuture<Void> waitForTerminatingJobManager(JobID jobId, JobGraph jobGraph, FunctionWithException<JobGraph, CompletableFuture<Void>, ?> action) {
+	private CompletableFuture<Void> waitForTerminatingJobManager(JobGraph jobGraph, FunctionWithException<JobGraph, CompletableFuture<Void>, ?> action) {
+		final JobID jobId = jobGraph.getJobID();
+
 		final CompletableFuture<Void> jobManagerTerminationFuture = getJobTerminationFuture(jobId)
 			.exceptionally((Throwable throwable) -> {
 				throw new CompletionException(
@@ -980,7 +982,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				log.debug("Ignore added JobGraph because the job {} is already running.", jobId);
 				return CompletableFuture.completedFuture(true);
 			} else if (runningJobsRegistry.getJobSchedulingStatus(jobId) != RunningJobsRegistry.JobSchedulingStatus.DONE) {
-				return waitForTerminatingJobManager(jobId, jobGraph, this::runJob).thenApply(ignored -> true);
+				return waitForTerminatingJobManager(jobGraph, this::runJob).thenApply(ignored -> true);
 			} else {
 				log.debug("Ignore added JobGraph because the job {} has already been completed.", jobId);
 			}
