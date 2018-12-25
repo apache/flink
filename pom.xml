@@ -686,7 +686,7 @@ under the License.
 					<plugin>
 						<groupId>org.codehaus.mojo</groupId>
 						<artifactId>build-helper-maven-plugin</artifactId>
-						<version>1.12</version>
+						<version>3.0.0</version>
 						<executions>
 							<execution>
 								<id>regex-property</id>
@@ -884,10 +884,9 @@ under the License.
 			<build>
 				<plugins>
 					<plugin>
-						<groupId>com.github.hazendaz.spotbugs</groupId>
+						<groupId>com.github.spotbugs</groupId>
 						<artifactId>spotbugs-maven-plugin</artifactId>
-						<version>3.0.6</version>
-
+						<version>3.1.8</version>
 						<executions>
 							<execution>
 								<id>findbugs-run</id>
