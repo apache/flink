@@ -41,6 +41,7 @@ public class StandaloneSessionClusterEntrypoint extends SessionClusterEntrypoint
 		return new SessionDispatcherResourceManagerComponentFactory(StandaloneResourceManagerFactory.INSTANCE);
 	}
 
+	//todo jobmanager启动位置
 	public static void main(String[] args) {
 		// startup checks and logging
 		EnvironmentInformation.logEnvironmentInfo(LOG, StandaloneSessionClusterEntrypoint.class.getSimpleName(), args);

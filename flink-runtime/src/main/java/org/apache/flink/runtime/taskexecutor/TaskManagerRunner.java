@@ -268,7 +268,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 	// --------------------------------------------------------------------------------------------
 	//  Static entry point
 	// --------------------------------------------------------------------------------------------
-
+	//todo taskmanager启动位置
 	public static void main(String[] args) throws Exception {
 		// startup checks and logging
 		EnvironmentInformation.logEnvironmentInfo(LOG, "TaskManager", args);

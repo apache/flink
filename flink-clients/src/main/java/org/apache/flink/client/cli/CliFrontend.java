@@ -1102,6 +1102,7 @@ public class CliFrontend {
 	/**
 	 * Submits the job based on the arguments.
 	 */
+	//todo client启动位置
 	public static void main(final String[] args) {
 		EnvironmentInformation.logEnvironmentInfo(LOG, "Command Line Client", args);
 
