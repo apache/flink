@@ -235,7 +235,6 @@ class CountWithTimeoutFunction extends ProcessFunction[(String, String), (String
 </div>
 </div>
 
-{% top %}
 
 
 **NOTE:** Before Flink 1.4.0, when called from a processing-time timer, the `ProcessFunction.onTimer()` method sets
@@ -372,3 +371,6 @@ ctx.timerService.deleteEventTimeTimer(timestampOfTimerToStop)
 </div>
 
 <span class="label label-info">Note</span> Stopping a timer has no effect if no such timer with the given timestamp is registered.
+
+
+{% top %}
