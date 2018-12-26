@@ -33,7 +33,7 @@ trait TableSink[T] {
   /**
     * Returns the type expected by this [[TableSink]].
     *
-    * This type should depend on the types returned by [[getFieldNames]].
+    * This type should depend on the types returned by [[getFieldTypes]].
     *
     * @return The type expected by this [[TableSink]].
     */
