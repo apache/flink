@@ -466,7 +466,7 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedFunction {
     */
   def getValue(accumulator: ACC): T // MANDATORY
 
-  h/**
+  /**
     * Resets the accumulator for this [[AggregateFunction]]. This function must be implemented for
     * dataset grouping aggregate.
     *
