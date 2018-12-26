@@ -100,7 +100,7 @@ tableEnv.sqlQuery("SELECT string, hashCode(string) FROM MyTable")
 
 By default the result type of an evaluation method is determined by Flink's type extraction facilities. This is sufficient for basic types or simple POJOs but might be wrong for more complex, custom, or composite types. In these cases `TypeInformation` of the result type can be manually defined by overriding `ScalarFunction#getResultType()`.
 
-The following example shows an advanced example which takes the internal timestamp representation and also returns the internal timestamp representation as a long value. By overriding `ScalarFunction#getResultType()` we define that the returned long value should be interpreted as a `Types.TIMESTAMP` by the code generation.
+The following example shows an advanced example which takes the internal timestamp representation and also returns the internal timestamp representation as a long value. By overriding `ScalarFunction#getResultType()` we define that the returned long value should be interpreted as a `Types.SQL_TIMESTAMP` by the code generation.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -125,7 +125,7 @@ object TimestampModifier extends ScalarFunction {
   }
 
   override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = {
-    Types.TIMESTAMP
+    Types.SQL_TIMESTAMP
   }
 }
 {% endhighlight %}
@@ -237,7 +237,7 @@ public class CustomTypeSplit extends TableFunction<Row> {
 
     @Override
     public TypeInformation<Row> getResultType() {
-        return Types.ROW(Types.STRING(), Types.INT());
+        return Types.ROW(Types.STRING, Types.INT);
     }
 }
 {% endhighlight %}
@@ -658,7 +658,7 @@ tEnv.sqlQuery("SELECT user, wAvg(points, level) AS avgPoints FROM userScores GRO
 Best Practices for Implementing UDFs
 ------------------------------------
 
-The Table API and SQL code generation internally tries to work with primitive values as much as possible. A user-defined function can introduce much overhead through object creation, casting, and (un)boxing. Therefore, it is highly recommended to declare parameters and result types as primitive types instead of their boxed classes. `Types.DATE` and `Types.TIME` can also be represented as `int`. `Types.TIMESTAMP` can be represented as `long`. 
+The Table API and SQL code generation internally tries to work with primitive values as much as possible. A user-defined function can introduce much overhead through object creation, casting, and (un)boxing. Therefore, it is highly recommended to declare parameters and result types as primitive types instead of their boxed classes. `Types.DATE` and `Types.TIME` can also be represented as `int`. `Types.SQL_TIMESTAMP` can be represented as `long`. 
 
 We recommended that user-defined functions should be written by Java instead of Scala as Scala types pose a challenge for Flink's type extractor.
 
@@ -717,7 +717,7 @@ tableEnv.registerFunction("hashCode", new HashCode());
 myTable.select("string, string.hashCode(), hashCode(string)");
 
 // use the function in SQL
-tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable");
+tableEnv.sqlQuery("SELECT string, hashCode(string) FROM MyTable");
 {% endhighlight %}
 </div>
 
@@ -745,7 +745,7 @@ myTable.select('string, hashCode('string))
 
 // register and use the function in SQL
 tableEnv.registerFunction("hashCode", hashCode)
-tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable")
+tableEnv.sqlQuery("SELECT string, hashCode(string) FROM MyTable")
 {% endhighlight %}
 
 </div>
