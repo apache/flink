@@ -52,7 +52,7 @@ import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator,
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.functions._
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.nodes.FlinkConventions
@@ -480,7 +480,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * user-defined functions under this name.
     */
   private[flink] def registerAggregateFunctionInternal[T: TypeInformation, ACC: TypeInformation](
-      name: String, function: AggregateFunction[T, ACC]): Unit = {
+      name: String, function: UserDefinedAggregateFunction[T, ACC]): Unit = {
     // check if class not Scala object
     checkNotSingleton(function.getClass)
     // check if class could be instantiated

@@ -63,7 +63,7 @@ class AggFunctionHarnessTest extends HarnessTestBase {
          |""".stripMargin)
 
     val testHarness = createHarnessTester[String, CRow, CRow](
-      sqlQuery.toRetractStream[Row](queryConfig), "groupBy")
+      sqlQuery.toRetractStream[Row](queryConfig).javaStream, "groupBy")
 
     testHarness.setStateBackend(getStateBackend)
     testHarness.open()
@@ -128,7 +128,7 @@ class AggFunctionHarnessTest extends HarnessTestBase {
          |""".stripMargin)
 
     val testHarness = createHarnessTester[String, CRow, CRow](
-      sqlQuery.toRetractStream[Row](queryConfig), "groupBy")
+      sqlQuery.toRetractStream[Row](queryConfig).javaStream, "groupBy")
 
     testHarness.setStateBackend(getStateBackend)
     testHarness.open()

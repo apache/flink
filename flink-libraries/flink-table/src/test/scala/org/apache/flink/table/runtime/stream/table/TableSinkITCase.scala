@@ -713,6 +713,25 @@ private[flink] class TestUpsertSink(
   }
 }
 
+private[flink] class TestUpsertSinkWithEnforceKeys(
+    enforceKeys: Array[String],
+    expectedIsAppendOnly: Boolean)
+  extends TestUpsertSink(
+    enforceKeys,
+    expectedIsAppendOnly) {
+
+  override def enforceKeyFields(): Array[String] = enforceKeys
+
+  override def configure(
+      fieldNames: Array[String],
+      fieldTypes: Array[TypeInformation[_]]): TableSink[JTuple2[JBool, Row]] = {
+    val copy = new TestUpsertSinkWithEnforceKeys(enforceKeys, expectedIsAppendOnly)
+    copy.fNames = fieldNames
+    copy.fTypes = fieldTypes
+    copy
+  }
+}
+
 class RowSink extends SinkFunction[JTuple2[JBool, Row]] {
   override def invoke(value: JTuple2[JBool, Row]): Unit = RowCollector.addValue(value)
 }

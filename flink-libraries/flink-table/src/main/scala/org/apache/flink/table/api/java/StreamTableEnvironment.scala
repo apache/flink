@@ -21,7 +21,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.table.api._
-import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
+import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserDefinedAggregateFunction}
 import org.apache.flink.table.expressions.ExpressionParser
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
@@ -369,12 +369,44 @@ class StreamTableEnvironment(
       name: String,
       f: AggregateFunction[T, ACC])
   : Unit = {
+    registerUserDefinedAggregateFunction(name, f)
+  }
+
+  /**
+    * Registers a [[TableAggregateFunction]] under a unique name in the TableEnvironment's catalog.
+    * Registered functions can be referenced in Table API and SQL queries.
+    *
+    * @param name The name under which the function is registered.
+    * @param f The TableAggregateFunction to register.
+    * @tparam T The type of the output value.
+    * @tparam ACC The type of aggregate accumulator.
+    */
+  def registerFunction[T, ACC](
+      name: String,
+      f: TableAggregateFunction[T, ACC])
+  : Unit = {
+    registerUserDefinedAggregateFunction(name, f)
+  }
+
+  /**
+    * Registers a [[UserDefinedAggregateFunction]] under a unique name in the TableEnvironment's
+    * catalog. Registered functions can be referenced in Table API and SQL queries.
+    *
+    * @param name The name under which the function is registered.
+    * @param f The UserDefinedAggregateFunction to register.
+    * @tparam T The type of the output value.
+    * @tparam ACC The type of aggregate accumulator.
+    */
+  private[flink] def registerUserDefinedAggregateFunction[T, ACC](
+      name: String,
+      f: UserDefinedAggregateFunction[T, ACC])
+  : Unit = {
     implicit val typeInfo: TypeInformation[T] = TypeExtractor
-      .createTypeInfo(f, classOf[AggregateFunction[T, ACC]], f.getClass, 0)
+      .createTypeInfo(f, classOf[UserDefinedAggregateFunction[T, ACC]], f.getClass, 0)
       .asInstanceOf[TypeInformation[T]]
 
     implicit val accTypeInfo: TypeInformation[ACC] = TypeExtractor
-      .createTypeInfo(f, classOf[AggregateFunction[T, ACC]], f.getClass, 1)
+      .createTypeInfo(f, classOf[UserDefinedAggregateFunction[T, ACC]], f.getClass, 1)
       .asInstanceOf[TypeInformation[ACC]]
 
     registerAggregateFunctionInternal[T, ACC](name, f)

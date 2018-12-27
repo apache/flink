@@ -21,6 +21,7 @@ import org.apache.calcite.rel.{RelNode, RelVisitor}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.calcite.sql.SqlKind
 import org.apache.flink.table.expressions.ProctimeAttribute
+import org.apache.flink.table.functions.utils.TableAggSqlFunction
 import org.apache.flink.table.plan.nodes.datastream._
 
 import _root_.scala.collection.JavaConversions._

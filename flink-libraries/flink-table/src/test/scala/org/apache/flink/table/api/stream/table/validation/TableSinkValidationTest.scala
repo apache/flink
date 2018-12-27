@@ -20,7 +20,7 @@ package org.apache.flink.table.api.stream.table.validation
 
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.{TableEnvironment, TableException}
+import org.apache.flink.table.api.{TableEnvironment, TableException, Types}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.stream.table.{TestAppendSink, TestUpsertSink}
 import org.apache.flink.table.runtime.utils.StreamTestData
@@ -54,7 +54,8 @@ class TableSinkValidationTest extends TableTestBase {
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text)
-    tEnv.registerTableSink("testSink", new TestUpsertSink(Array("len", "cTrue"), false))
+    tEnv.registerTableSink("testSink", new TestUpsertSink(Array("len", "cTrue"), false)
+      .configure(Array("text", "id", "num"), Array(Types.INT, Types.LONG, Types.LONG)))
 
     t.select('id, 'num, 'text.charLength() as 'len, ('id > 0) as 'cTrue)
     .groupBy('len, 'cTrue)

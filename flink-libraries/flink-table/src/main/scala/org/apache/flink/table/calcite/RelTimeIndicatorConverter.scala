@@ -29,7 +29,7 @@ import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory.{isRowtimeIndicatorType, _}
 import org.apache.flink.table.functions.sql.ProctimeSqlFunction
-import org.apache.flink.table.plan.logical.rel.{LogicalTemporalTableJoin, LogicalWindowAggregate}
+import org.apache.flink.table.plan.logical.rel.{LogicalTableAggregate, LogicalTemporalTableJoin, LogicalWindowAggregate}
 import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
 import org.apache.flink.table.validate.BasicOperatorTable
 
@@ -154,6 +154,10 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         aggregate.getWindow,
         aggregate.getNamedProperties,
         convAggregate)
+
+    case tableAgg: LogicalTableAggregate =>
+      val convAggregate = convertAggregate(tableAgg)
+      LogicalTableAggregate.create(convAggregate)
 
     case temporalTableJoin: LogicalTemporalTableJoin =>
       visit(temporalTableJoin)

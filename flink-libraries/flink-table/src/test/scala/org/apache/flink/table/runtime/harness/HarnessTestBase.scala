@@ -25,8 +25,8 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{LONG_TYPE_INFO, STRIN
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, OneInputStreamOperator}
-import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.transformations._
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
@@ -497,7 +497,7 @@ class HarnessTestBase extends StreamingWithStateTestBase {
   : KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT] = {
 
     val transformation = extractExpectedTransformation(
-      dataStream.javaStream.getTransformation,
+      dataStream.getTransformation,
       prefixOperatorName).asInstanceOf[OneInputTransformation[_, _]]
     if (transformation == null) {
       throw new Exception("Can not find the expected transformation")

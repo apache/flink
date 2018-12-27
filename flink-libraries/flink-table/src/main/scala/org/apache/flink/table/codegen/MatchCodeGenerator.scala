@@ -719,9 +719,11 @@ class MatchCodeGenerator(
     def generateAggFunction(): Unit = {
       val matchAgg = extractAggregatesAndExpressions
 
-      val aggGenerator = new AggregationCodeGenerator(config, false, input, None)
-
-      val aggFunc = aggGenerator.generateAggregations(
+      val aggGenerator = new AggregationCodeGenerator(
+        config,
+        false,
+        input,
+        None,
         s"AggFunction_$variableUID",
         matchAgg.inputExprs.map(r => FlinkTypeFactory.toTypeInfo(r.getType)),
         matchAgg.aggregations.map(_.aggFunction).toArray,
@@ -739,6 +741,7 @@ class MatchCodeGenerator(
         None
       )
 
+      val aggFunc = aggGenerator.generateAggregations
       reusableMemberStatements.add(aggFunc.code)
 
       val transformFuncName = s"transformRowForAgg_$variableUID"
@@ -782,7 +785,10 @@ class MatchCodeGenerator(
             isStateBackedDataViews = false,
             index)
 
-          SingleAggCall(result.aggregateFunction, agg.exprIndices.toArray, result.accumulatorSpecs)
+          SingleAggCall(
+            result.aggregateFunction.asInstanceOf[TableAggregateFunction[_, _]],
+            agg.exprIndices.toArray,
+            result.accumulatorSpecs)
       }
 
       MatchAgg(aggs, inputRows.values.map(_._1).toSeq)

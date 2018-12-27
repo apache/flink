@@ -22,6 +22,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.flink.table.calcite.FlinkRelBuilder
 import FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.functions.utils.TableAggSqlFunction
 import org.apache.flink.table.runtime.aggregate.AggregateUtil._
 
 import scala.collection.JavaConverters._
@@ -59,12 +60,17 @@ trait CommonAggregate {
 
     val propStrings = namedProperties.map(_.property.toString)
 
-    (groupStrings ++ aggStrings ++ propStrings).zip(outFields).map {
-      case (f, o) => if (f == o) {
-        f
-      } else {
-        s"$f AS $o"
-      }
-    }.mkString(", ")
+    if (aggs.nonEmpty && aggs.head.getAggregation.isInstanceOf[TableAggSqlFunction]) {
+      // table aggregate
+      aggStrings.head + " AS (" + outFields.mkString(", ") + ")"
+    } else {
+      (groupStrings ++ aggStrings ++ propStrings).zip(outFields).map {
+        case (f, o) => if (f == o) {
+          f
+        } else {
+          s"$f AS $o"
+        }
+      }.mkString(", ")
+    }
   }
 }

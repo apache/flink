@@ -28,7 +28,7 @@ import org.apache.flink.table.api.Table
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.expressions.TimePointUnit.TimePointUnit
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{AggregateFunction, DistinctAggregateFunction, ScalarFunction}
+import org.apache.flink.table.functions.{AggregateFunction, DistinctAggregateFunction, ScalarFunction, TableAggregateFunction}
 
 import scala.language.implicitConversions
 
@@ -1046,6 +1046,8 @@ trait ImplicitExpressionConversions {
   implicit def array2ArrayConstructor(array: Array[_]): Expression = convertArray(array)
   implicit def userDefinedAggFunctionConstructor[T: TypeInformation, ACC: TypeInformation]
       (udagg: AggregateFunction[T, ACC]): UDAGGExpression[T, ACC] = UDAGGExpression(udagg)
+  implicit def userDefinedTableAggFunctionConstructor[T: TypeInformation, ACC: TypeInformation]
+  (udtagg: TableAggregateFunction[T, ACC]): UDTAGGExpression[T, ACC] = UDTAGGExpression(udtagg)
   implicit def toDistinct(agg: Aggregation): DistinctAgg = DistinctAgg(agg)
   implicit def toDistinct[T: TypeInformation, ACC: TypeInformation]
       (agg: AggregateFunction[T, ACC]): DistinctAggregateFunction[T, ACC] =

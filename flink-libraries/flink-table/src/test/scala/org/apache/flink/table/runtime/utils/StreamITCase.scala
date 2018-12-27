@@ -19,9 +19,11 @@
 package org.apache.flink.table.runtime.utils
 
 import java.util.Collections
+import java.lang.{Boolean => JBoolean}
 
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.types.Row
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.junit.Assert._
 
 import scala.collection.JavaConverters._
@@ -41,6 +43,11 @@ object StreamITCase {
   def compareWithList(expected: java.util.List[String]): Unit = {
     Collections.sort(expected)
     assertEquals(expected.asScala, StreamITCase.testResults.sorted)
+  }
+
+  def compareRetractWithList(expected: java.util.List[String]): Unit = {
+    Collections.sort(expected)
+    assertEquals(expected.asScala, StreamITCase.retractedResults.sorted)
   }
 
   final class StringSink[T] extends RichSinkFunction[T]() {
@@ -64,6 +71,26 @@ object StreamITCase {
       retractedResults.synchronized {
         val value = v._2.toString
         if (v._1) {
+          retractedResults += value
+        } else {
+          val idx = retractedResults.indexOf(value)
+          if (idx >= 0) {
+            retractedResults.remove(idx)
+          } else {
+            throw new RuntimeException("Tried to retract a value that wasn't added first. " +
+              "This is probably an incorrectly implemented test. " +
+              "Try to set the parallelism of the sink to 1.")
+          }
+        }
+      }
+    }
+  }
+
+  final class JRetractingSink() extends RichSinkFunction[JTuple2[JBoolean, Row]] {
+    override def invoke(v: JTuple2[JBoolean, Row]) {
+      retractedResults.synchronized {
+        val value = v.f1.toString
+        if (v.f0) {
           retractedResults += value
         } else {
           val idx = retractedResults.indexOf(value)

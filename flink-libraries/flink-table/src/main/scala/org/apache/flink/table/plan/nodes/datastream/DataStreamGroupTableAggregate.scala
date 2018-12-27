@@ -34,25 +34,25 @@ import org.apache.flink.table.util.Logging
 
 /**
   *
-  * Flink RelNode for data stream unbounded group aggregate
+  * Flink RelNode for data stream unbounded table aggregate
   *
   * @param cluster         Cluster of the RelNode, represent for an environment of related
   *                        relational expressions during the optimization of a query.
   * @param traitSet        Trait set of the RelNode
   * @param inputNode       The input RelNode of aggregation
-  * @param namedAggregates List of calls to aggregate functions and their output field names
-  * @param inputSchema     The type of the rows consumed by this RelNode
   * @param schema          The type of the rows emitted by this RelNode
+  * @param inputSchema     The type of the rows consumed by this RelNode
+  * @param namedAggregates List of calls to aggregate functions and their output field names
   * @param groupings       The position (in the input Row) of the grouping keys
   */
-class DataStreamGroupAggregate(
+class DataStreamGroupTableAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputNode: RelNode,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     schema: RowSchema,
     inputSchema: RowSchema,
-    groupings: Array[Int])
+    val namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    val groupings: Array[Int])
   extends SingleRel(cluster, traitSet, inputNode)
     with CommonAggregate
     with DataStreamRel
@@ -66,27 +66,25 @@ class DataStreamGroupAggregate(
 
   override def consumesRetractions = true
 
-  def getGroupings: Array[Int] = groupings
-
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new DataStreamGroupAggregate(
+    new DataStreamGroupTableAggregate(
       cluster,
       traitSet,
       inputs.get(0),
-      namedAggregates,
       schema,
       inputSchema,
+      namedAggregates,
       groupings)
   }
 
   override def toString: String = {
-    s"Aggregate(${
+    s"TableAggregate(${
       if (!groupings.isEmpty) {
         s"groupBy: (${groupingToString(inputSchema.relDataType, groupings)}), "
       } else {
         ""
       }
-    }select:(${aggregationToString(
+    } flatAggregate:(${aggregationToString(
       inputSchema.relDataType, groupings, getRowType, namedAggregates, Nil)}))"
   }
 
@@ -94,7 +92,7 @@ class DataStreamGroupAggregate(
     super.explainTerms(pw)
       .itemIf("groupBy", groupingToString(
         inputSchema.relDataType, groupings), !groupings.isEmpty)
-      .item("select", aggregationToString(
+      .item("flatAggregate", aggregationToString(
         inputSchema.relDataType, groupings, getRowType, namedAggregates, Nil))
   }
 
@@ -109,22 +107,10 @@ class DataStreamGroupAggregate(
         "state size. You may specify a retention time of 0 to not clean up the state.")
     }
 
-    val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
-
+    val inputDS = getInput.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
     val outRowType = CRowTypeInfo(schema.typeInfo)
 
-    val aggString = aggregationToString(
-      inputSchema.relDataType,
-      groupings,
-      getRowType,
-      namedAggregates,
-      Nil)
-
-    val keyedAggOpName = s"groupBy: (${groupingToString(inputSchema.relDataType, groupings)}), " +
-      s"select: ($aggString)"
-    val nonKeyedAggOpName = s"select: ($aggString)"
-
-    val processFunction = AggregateUtil.createGroupAggregateFunction(
+    val processFunction = AggregateUtil.createTableAggregateFunction(
       tableEnv.getConfig,
       false,
       inputSchema.typeInfo,
@@ -132,6 +118,7 @@ class DataStreamGroupAggregate(
       namedAggregates,
       inputSchema.relDataType,
       inputSchema.fieldTypeInfos,
+      schema,
       groupings,
       queryConfig,
       tableEnv.getConfig,
@@ -139,25 +126,25 @@ class DataStreamGroupAggregate(
       DataStreamRetractionRules.isAccRetract(getInput))
 
     val result: DataStream[CRow] =
-    // grouped / keyed aggregation
+      // grouped / keyed table aggregation
       if (groupings.nonEmpty) {
         inputDS
-        .keyBy(new CRowKeySelector(groupings, inputSchema.projectedTypeInfo(groupings)))
-        .process(processFunction)
-        .returns(outRowType)
-        .name(keyedAggOpName)
-        .asInstanceOf[DataStream[CRow]]
+          .keyBy(new CRowKeySelector(groupings, inputSchema.projectedTypeInfo(groupings)))
+          .process(processFunction)
+          .returns(outRowType)
+          .name(this.toString)
+          .asInstanceOf[DataStream[CRow]]
       }
-      // global / non-keyed aggregation
+      // global / non-keyed table aggregation
       else {
         inputDS
-        .keyBy(new NullByteKeySelector[CRow])
-        .process(processFunction)
-        .setParallelism(1)
-        .setMaxParallelism(1)
-        .returns(outRowType)
-        .name(nonKeyedAggOpName)
-        .asInstanceOf[DataStream[CRow]]
+          .keyBy(new NullByteKeySelector[CRow])
+          .process(processFunction)
+          .setParallelism(1)
+          .setMaxParallelism(1)
+          .returns(outRowType)
+          .name(this.toString)
+          .asInstanceOf[DataStream[CRow]]
       }
     result
   }

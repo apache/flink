@@ -23,10 +23,10 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable, ReflectiveSqlOperatorTable}
 import org.apache.calcite.sql._
 import org.apache.flink.table.api._
-import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.{TableAggFunctionCallAliasable, _}
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
-import org.apache.flink.table.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableAggSqlFunction, TableSqlFunction}
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableAggregateFunction, TableFunction}
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.mutable
@@ -91,12 +91,23 @@ class FunctionCatalog {
       case af if classOf[AggregateFunction[_, _]].isAssignableFrom(af) =>
         val aggregateFunction = sqlFunctions
           .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[AggSqlFunction])
-          .getOrElse(throw new ValidationException(s"Undefined table function: $name"))
+          .getOrElse(throw new ValidationException(s"Undefined aggregate function: $name"))
           .asInstanceOf[AggSqlFunction]
         val function = aggregateFunction.getFunction
         val returnType = aggregateFunction.returnType
         val accType = aggregateFunction.accType
         AggFunctionCall(function, returnType, accType, children)
+
+      // user-defined table aggregate function call
+      case taf if classOf[TableAggregateFunction[_, _]].isAssignableFrom(taf) =>
+        val tableAggregateFunction = sqlFunctions
+          .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[TableAggSqlFunction])
+          .getOrElse(throw new ValidationException(s"Undefined table aggregate function: $name"))
+          .asInstanceOf[TableAggSqlFunction]
+        val function = tableAggregateFunction.getFunction
+        val returnType = tableAggregateFunction.returnType
+        val accType = tableAggregateFunction.accType
+        new TableAggFunctionCallAliasable(function, returnType, accType, children)
 
       // general expression call
       case expression if classOf[Expression].isAssignableFrom(expression) =>

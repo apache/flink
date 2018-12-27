@@ -26,67 +26,89 @@ import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.TableAggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 
+import scala.collection.JavaConversions._
+
 /**
-  * Calcite wrapper for user-defined aggregate functions.
+  * Calcite wrapper for user-defined table aggregate functions.
   *
-  * @param name function name (used by SQL parser)
-  * @param displayName name to be displayed in operator name
-  * @param aggregateFunction aggregate function to be called
-  * @param returnType the type information of returned value
-  * @param accType the type information of the accumulator
-  * @param typeFactory type factory for converting Flink's between Calcite's types
+  * @param name                   function name (used by SQL parser)
+  * @param displayName            name to be displayed in operator name
+  * @param tableAggregateFunction table aggregate function to be called
+  * @param alias                  the alias names for the output fields
+  * @param returnType             the type information of returned value
+  * @param accType                the type information of the accumulator
+  * @param typeFactory            type factory for converting Flink's between Calcite's types
   */
-class AggSqlFunction(
+class TableAggSqlFunction(
     name: String,
     displayName: String,
-    aggregateFunction: AggregateFunction[_, _],
+    tableAggregateFunction: TableAggregateFunction[_, _],
+    alias: Option[Seq[String]],
     val returnType: TypeInformation[_],
     val accType: TypeInformation[_],
-    typeFactory: FlinkTypeFactory,
-    requiresOver: Boolean)
+    typeFactory: FlinkTypeFactory)
   extends SqlUserDefinedAggFunction(
     new SqlIdentifier(name, SqlParserPos.ZERO),
     createReturnTypeInference(returnType, typeFactory),
-    createOperandTypeInference(aggregateFunction, typeFactory),
-    createOperandTypeChecker(aggregateFunction),
+    createOperandTypeInference(tableAggregateFunction, typeFactory),
+    createOperandTypeChecker(tableAggregateFunction),
     // Do not need to provide a calcite aggregateFunction here. Flink aggregation function
     // will be generated when translating the calcite relnode to flink runtime execution plan
     null,
     false,
-    requiresOver,
+    false,
     typeFactory
   ) {
 
-  def getFunction: AggregateFunction[_, _] = aggregateFunction
+  def getRelTypeAfterAlias(flinkTypeFactory: FlinkTypeFactory): RelDataType = {
+    val builder = flinkTypeFactory.builder
+    val relDataType = flinkTypeFactory.createTypeFromTypeInfo(returnType, true)
+    val fieldNames: Seq[String] = if (alias.isDefined) {
+      alias.get
+    } else {
+      relDataType.getFieldNames
+    }
 
-  override def isDeterministic: Boolean = aggregateFunction.isDeterministic
+    fieldNames
+      .zip(relDataType.getFieldList)
+      .foreach { f =>
+        builder.add(f._1, f._2.getType)
+      }
+    builder.build()
+  }
+
+  def getFunction: TableAggregateFunction[_, _] = tableAggregateFunction
+
+  override def isDeterministic: Boolean = tableAggregateFunction.isDeterministic
 
   override def toString: String = displayName
 
   override def getParamTypes: util.List[RelDataType] = null
 }
 
-object AggSqlFunction {
+object TableAggSqlFunction {
 
   def apply(
       name: String,
       displayName: String,
-      aggregateFunction: AggregateFunction[_, _],
+      aggregateFunction: TableAggregateFunction[_, _],
+      alias: Option[Seq[String]],
       returnType: TypeInformation[_],
       accType: TypeInformation[_],
-      typeFactory: FlinkTypeFactory,
-      requiresOver: Boolean): AggSqlFunction = {
+      typeFactory: FlinkTypeFactory): TableAggSqlFunction = {
 
-    new AggSqlFunction(
+    new TableAggSqlFunction(
       name,
       displayName,
       aggregateFunction,
+      alias,
       returnType,
       accType,
-      typeFactory,
-      requiresOver)
+      typeFactory)
   }
 }
+
+

@@ -21,7 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{StreamQueryConfig, Table, TableConfig, TableEnvironment}
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
+import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserDefinedAggregateFunction}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.asScalaStream
 
@@ -228,6 +228,22 @@ class StreamTableEnvironment(
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       f: AggregateFunction[T, ACC])
+  : Unit = {
+    registerAggregateFunctionInternal[T, ACC](name, f)
+  }
+
+  /**
+    * Registers a [[TableAggregateFunction]] under a unique name in the TableEnvironment's catalog.
+    * Registered [[TableAggregateFunction]] functions can only be referenced in Table API.
+    *
+    * @param name The name under which the function is registered.
+    * @param f The TableAggregateFunction to register.
+    * @tparam T The type of the output value.
+    * @tparam ACC The type of aggregate accumulator.
+    */
+  def registerFunction[T: TypeInformation, ACC: TypeInformation](
+      name: String,
+      f: TableAggregateFunction[T, ACC])
   : Unit = {
     registerAggregateFunctionInternal[T, ACC](name, f)
   }

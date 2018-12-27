@@ -21,13 +21,13 @@ package org.apache.flink.table.functions;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Base class for user-defined aggregates.
+ * Base class for user-defined table aggregates.
  *
- * <p>The behavior of an {@link AggregateFunction} can be defined by implementing a series of custom
- * methods. An {@link AggregateFunction} needs at least three methods:
+ * <p>The behavior of a {@link TableAggregateFunction} can be defined by implementing a series of custom
+ * methods. A {@link TableAggregateFunction} needs at least three methods:
  *  - <code>createAccumulator</code>,
  *  - <code>accumulate</code>, and
- *  - <code>getValue</code>.
+ *  - <code>emitValue</code> or <code>emitValueWithRetract</code>.
  *
  * <p>There are a few other methods that can be optional to have:
  *  - <code>retract</code>,
@@ -35,13 +35,13 @@ import org.apache.flink.annotation.PublicEvolving;
  *  - <code>resetAccumulator</code>.
  *
  * <p>All these methods must be declared publicly, not static, and named exactly as the names
- * mentioned above. The methods {@link #createAccumulator()} and {@link #getValue} are defined in
- * the {@link AggregateFunction} functions, while other methods are explained below.
+ * mentioned above. The method {@link #createAccumulator()} is defined in
+ * the {@link UserDefinedAggregateFunction} functions, while other methods are explained below.
  *
  * <pre>
  * {@code
  * Processes the input values and update the provided accumulator instance. The method
- * accumulate can be overloaded with different custom types and arguments. An AggregateFunction
+ * accumulate can be overloaded with different custom types and arguments. A TableAggregateFunction
  * requires at least one accumulate() method.
  *
  * param: accumulator           the accumulator which contains the current aggregated results
@@ -55,8 +55,7 @@ import org.apache.flink.annotation.PublicEvolving;
  * {@code
  * Retracts the input values from the accumulator instance. The current design assumes the
  * inputs are the values that have been previously accumulated. The method retract can be
- * overloaded with different custom types and arguments. This function must be implemented for
- * data stream bounded OVER aggregates.
+ * overloaded with different custom types and arguments.
  *
  * param: accumulator           the accumulator which contains the current aggregated results
  * param: [user defined inputs] the input value (usually obtained from a new arrived data).
@@ -83,7 +82,7 @@ import org.apache.flink.annotation.PublicEvolving;
  *
  * <pre>
  * {@code
- * Resets the accumulator for this AggregateFunction. This function must be implemented for
+ * Resets the accumulator for this TableAggregateFunction. This function must be implemented for
  * data set grouping aggregates.
  *
  * param: accumulator the accumulator which needs to be reset
@@ -92,35 +91,39 @@ import org.apache.flink.annotation.PublicEvolving;
  * }
  * </pre>
  *
- * @param <T>   the type of the aggregation result
- * @param <ACC> the type of the aggregation accumulator. The accumulator is used to keep the
+ * <pre>
+ * {@code
+ * Output data incrementally in upsert or append mode. For example, if we emit data for a TopN
+ * TableAggregateFunction, we don't need to output all top N elements each time a record comes.
+ * It is more efficient to output data incrementally in upsert mode, i.e, only output data whose
+ * rank has been changed.
+ *
+ * param: accumulator           the accumulator which contains the current aggregated results
+ * param: out                   the collector used to output data.
+ *
+ * public void emitValue(ACC accumulator, RetractableCollector out)
+ * }
+ * </pre>
+ *
+ * <pre>
+ * {@code
+ * Output data incrementally in retract mode. Once there is an update, we have to retract old
+ * records before sending new updated ones.
+ *
+ * param: accumulator           the accumulator which contains the current aggregated results
+ * param: out                   the collector used to output data.
+ *
+ * public void emitValueWithRetract(ACC accumulator, RetractableCollector out)
+ * }
+ * </pre>
+ *
+ * @param <T>   the type of the table aggregation result
+ * @param <ACC> the type of the table aggregation accumulator. The accumulator is used to keep the
  *              aggregated values which are needed to compute an aggregation result.
- *              AggregateFunction represents its state using accumulator, thereby the state of the
- *              AggregateFunction must be put into the accumulator.
+ *              TableAggregateFunction represents its state using accumulator, thereby the state of
+ *              the TableAggregateFunction must be put into the accumulator.
  */
 @PublicEvolving
-public abstract class AggregateFunction<T, ACC> extends UserDefinedAggregateFunction<T, ACC> {
+public abstract class TableAggregateFunction<T, ACC> extends UserDefinedAggregateFunction<T, ACC> {
 
-	/**
-	 * Called every time when an aggregation result should be materialized.
-	 * The returned value could be either an early and incomplete result
-	 * (periodically emitted as data arrive) or the final result of the
-	 * aggregation.
-	 *
-	 * @param accumulator the accumulator which contains the current
-	 *                    aggregated results
-	 * @return the aggregation result
-	 */
-	public abstract T getValue(ACC accumulator);
-
-	/**
-	 * Returns <code>true</code> if this {@link AggregateFunction} can only be applied in an
-	 * OVER window.
-	 *
-	 * @return <code>true</code> if the {@link AggregateFunction} requires an OVER window,
-	 *         <code>false</code> otherwise.
-	 */
-	public boolean requiresOver() {
-		return false;
-	}
 }

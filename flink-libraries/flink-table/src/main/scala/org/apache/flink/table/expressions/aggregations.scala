@@ -23,8 +23,8 @@ import org.apache.calcite.sql.fun._
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.AggCall
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.functions.AggregateFunction
-import org.apache.flink.table.functions.utils.AggSqlFunction
+import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction}
+import org.apache.flink.table.functions.utils.{AggSqlFunction, TableAggSqlFunction}
 import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.typeutils.MultisetTypeInfo
@@ -412,5 +412,100 @@ case class AggFunctionCall(
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(this.getSqlAggFunction(), args.map(_.toRexNode): _*)
+  }
+}
+
+case class TableAggFunctionCall(
+    aggregateFunction: TableAggregateFunction[_, _],
+    resultTypeInfo: TypeInformation[_],
+    accTypeInfo: TypeInformation[_],
+    args: Seq[Expression],
+    alias: Option[Seq[Expression]],
+    isDistinct: Boolean)
+  extends Aggregation {
+
+  override private[flink] def children: Seq[Expression] = args
+
+  override def resultType: TypeInformation[_] = resultTypeInfo
+
+  override def validateInput(): ValidationResult = {
+    val signature = children.map(_.resultType)
+    // look for a signature that matches the input types
+    val foundSignature = getAccumulateMethodSignature(aggregateFunction, signature)
+    if (foundSignature.isEmpty) {
+      ValidationFailure(s"Given parameters do not match any signature. \n" +
+        s"Actual: ${signatureToString(signature)} \n" +
+        s"Expected: ${
+          getMethodSignatures(aggregateFunction, "accumulate")
+            .map(_.drop(1))
+            .map(signatureToString)
+            .mkString(", ")}")
+    } else {
+      ValidationSuccess
+    }
+  }
+
+  override def toString: String = s"${aggregateFunction.getClass.getSimpleName}($args)"
+
+  override def toAggCall(
+      name: String, isDistinct: Boolean = false)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(
+      this.getSqlAggFunction(),
+      isDistinct,
+      false,
+      null,
+      name,
+      args.map(_.toRexNode): _*)
+  }
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
+    val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+
+    TableAggSqlFunction(
+      aggregateFunction.functionIdentifier,
+      aggregateFunction.toString,
+      aggregateFunction,
+      alias.map(_.map(_.asInstanceOf[UnresolvedFieldReference].name)),
+      resultType,
+      accTypeInfo,
+      typeFactory)
+  }
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(this.getSqlAggFunction(), args.map(_.toRexNode): _*)
+  }
+}
+
+class TableAggFunctionCallAliasable(
+      aggregateFunction: TableAggregateFunction[_, _],
+      resultTypeInfo: TypeInformation[_],
+      accTypeInfo: TypeInformation[_],
+      args: Seq[Expression],
+      alias: Option[Seq[Expression]] = None,
+      isDistinct: Boolean = false)
+  extends TableAggFunctionCall(
+    aggregateFunction,
+    resultTypeInfo,
+    accTypeInfo,
+    args,
+    alias,
+    isDistinct) {
+
+  def as(fields: Expression*): TableAggFunctionCall = {
+    val newAlias = if (fields.isEmpty) {
+      None
+    } else {
+      Some(fields)
+    }
+    TableAggFunctionCall(aggregateFunction, resultTypeInfo, accTypeInfo, args, newAlias, isDistinct)
+  }
+
+  private[flink] def distinct(): TableAggFunctionCallAliasable = {
+    new TableAggFunctionCallAliasable(
+      aggregateFunction, resultTypeInfo, accTypeInfo, args, alias, true)
+  }
+
+  private[flink] def toTableAggFunctionCall(): TableAggFunctionCall = {
+    TableAggFunctionCall(aggregateFunction, resultTypeInfo, accTypeInfo, args, alias, isDistinct)
   }
 }
