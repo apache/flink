@@ -92,6 +92,10 @@ import java.nio.ReadOnlyBufferException;
  * actual implementation. This is easy for the JIT to recognize through class hierarchy analysis,
  * or by identifying that the invocations are monomorphic (all go to the same concrete
  * method implementation). Under these conditions, the JIT can perfectly inline methods.
+ *
+ *
+ *堆内存源码地方，看import的类都是nio和io相关，其实就是二进制数据的输入输出，通过前面对象序列化
+ *写到堆内存中，这里flink序列化对与不同类型的提供不同序列化工具
  */
 @Internal
 public abstract class MemorySegment {
