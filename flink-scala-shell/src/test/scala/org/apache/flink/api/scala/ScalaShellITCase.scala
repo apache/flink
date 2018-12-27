@@ -362,6 +362,83 @@ class ScalaShellITCase extends TestLogger {
     Assert.assertFalse(output.contains("ERROR"))
     Assert.assertFalse(output.contains("Exception"))
   }
+
+  @Test
+  def testImportJavaCollection(): Unit = {
+    val input = """
+      import java.util.List
+      val jul: List[Int] = new java.util.ArrayList[Int]()
+      jul.add(2)
+      jul.add(4)
+      jul.add(6)
+      jul.add(8)
+      jul.add(10)
+      val str = "the java list size is: " + jul.size
+    """.stripMargin
+
+    val output = processInShell(input)
+
+    Assert.assertTrue(output.contains("the java list size is: 5"))
+    Assert.assertFalse(output.contains("failed"))
+    Assert.assertFalse(output.contains("Error"))
+    Assert.assertFalse(output.contains("ERROR"))
+    Assert.assertFalse(output.contains("Exception"))
+
+  }
+
+  @Test
+  def testImplicitConversionBetweenJavaAndScala(): Unit = {
+    val input =
+      """
+        import collection.JavaConversions._
+        import scala.collection.mutable.ArrayBuffer
+        val jul:java.util.List[Int] = ArrayBuffer(1,2,3,4,5)
+        val buf: Seq[Int] = jul
+        var sum = 0
+        buf.foreach(num => sum += num)
+        val str = "sum is: " + sum
+        val scala2jul = List(1,2,3)
+        scala2jul.add(7)
+      """.stripMargin
+
+    val output = processInShell(input)
+
+    Assert.assertTrue(output.contains("sum is: 15"))
+    Assert.assertFalse(output.contains("failed"))
+    Assert.assertFalse(output.contains("Error"))
+    Assert.assertFalse(output.contains("ERROR"))
+    Assert.assertTrue(output.contains("Exception"))
+  }
+
+  @Test
+  def testImportPackageConflict(): Unit = {
+    val input =
+      """
+        import org.apache.flink.table.api._
+        import java.util.List
+        val jul: List[Int] = new java.util.ArrayList[Int]()
+        jul.add(2)
+        jul.add(4)
+        jul.add(6)
+        jul.add(8)
+        jul.add(10)
+        val str = "the java list size is: " + jul.size
+      """.stripMargin
+
+    val output = processInShell(input)
+    Assert.assertTrue(output.contains("error"))
+  }
+
+  @Test
+  def testGetMultiExecutionEnvironment(): Unit = {
+    val input =
+      """
+        |val newEnv = ExecutionEnvironment.getExecutionEnvironment
+      """.stripMargin
+    val output = processInShell(input)
+    Assert.assertTrue(output.contains("Exception"))
+  }
+
 }
 
 object ScalaShellITCase {
