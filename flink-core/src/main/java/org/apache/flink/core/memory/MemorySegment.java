@@ -94,8 +94,8 @@ import java.nio.ReadOnlyBufferException;
  * method implementation). Under these conditions, the JIT can perfectly inline methods.
  *
  *
- *堆内存源码地方，看import的类都是nio和io相关，其实就是二进制数据的输入输出，通过前面对象序列化
- *写到堆内存中，这里flink序列化对与不同类型的提供不同序列化工具
+ *内存块源码地方，看import的类都是nio和io相关，其实就是二进制数据的输入输出，通过前面对象序列化
+ *写到内存块中，不放在堆内存中，从而实现自己内存管理，内存这里flink序列化对与不同类型的提供不同序列化工具
  */
 @Internal
 public abstract class MemorySegment {
