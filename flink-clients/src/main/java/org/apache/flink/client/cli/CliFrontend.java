@@ -1102,17 +1102,21 @@ public class CliFrontend {
 	/**
 	 * Submits the job based on the arguments.
 	 */
-	//todo client启动位置
+	//todo client启动位置（通过bin/flink脚本可以获取此位置）
 	public static void main(final String[] args) {
+		//todo 写入java环境有关参数配置和命令参数（run xxxxxxxxx）到日志里 ，日志文件log文件夹（flink-"user"-client-"ip".log）
 		EnvironmentInformation.logEnvironmentInfo(LOG, "Command Line Client", args);
 
 		// 1. find the configuration directory
+		//todo 获取bin/conf的路径
 		final String configurationDirectory = getConfigurationDirectoryFromEnv();
 
 		// 2. load the global configuration
+		//todo 获取flink-conf.yaml配置文件的参数,并且日志文件打印出来
 		final Configuration configuration = GlobalConfiguration.loadConfiguration(configurationDirectory);
 
 		// 3. load the custom command lines
+		//todo 通过java反射出org.apache.flink.yarn.cli.FlinkYarnSessionCli类
 		final List<CustomCommandLine<?>> customCommandLines = loadCustomCommandLines(
 			configuration,
 			configurationDirectory);
