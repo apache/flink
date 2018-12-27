@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.parquet.testutils;
+package org.apache.flink.streaming.util;
 
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -24,8 +24,15 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import java.util.Arrays;
 
 /**
- * A stream source that emits elements without allowing checkpoints and waits
- * for two more checkpoints to complete before exiting.
+ * A stream source that:
+ * 1) emits a list of elements without allowing checkpoints,
+ * 2) then waits for two more checkpoints to complete,
+ * 3) then re-emits the same elements before
+ * 4) waiting for another two checkpoints and
+ * 5) exiting.
+ *
+ * <p>This class was written to test the Bulk Writers used by
+ * the StreamingFileSink.
  */
 @SuppressWarnings("SynchronizationOnLocalVariableOrMethodParameter")
 public class FiniteTestSource<T> implements SourceFunction<T>, CheckpointListener {
@@ -50,11 +57,19 @@ public class FiniteTestSource<T> implements SourceFunction<T>, CheckpointListene
 
 	@Override
 	public void run(SourceContext<T> ctx) throws Exception {
-		final Object lock = ctx.getCheckpointLock();
-		final int checkpointToAwait;
+		// first round of sending the elements and waiting for the checkpoints
+		emitElementsAndWaitForCheckpoints(ctx, 2);
 
+		// second round of the same
+		emitElementsAndWaitForCheckpoints(ctx, 2);
+	}
+
+	private void emitElementsAndWaitForCheckpoints(SourceContext<T> ctx, int checkpointsToWaitFor) throws InterruptedException {
+		final Object lock = ctx.getCheckpointLock();
+
+		final int checkpointToAwait;
 		synchronized (lock) {
-			checkpointToAwait = numCheckpointsComplete + 2;
+			checkpointToAwait = numCheckpointsComplete + checkpointsToWaitFor;
 			for (T t : elements) {
 				ctx.collect(t);
 			}

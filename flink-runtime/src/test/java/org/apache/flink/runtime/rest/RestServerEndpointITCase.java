@@ -107,9 +107,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * IT cases for {@link RestClient} and {@link RestServerEndpoint}.
@@ -195,7 +193,6 @@ public class RestServerEndpointITCase extends TestLogger {
 
 		final String restAddress = "http://localhost:1234";
 		RestfulGateway mockRestfulGateway = mock(RestfulGateway.class);
-		when(mockRestfulGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(restAddress));
 
 		final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->
 			CompletableFuture.completedFuture(mockRestfulGateway);
@@ -206,28 +203,23 @@ public class RestServerEndpointITCase extends TestLogger {
 			RpcUtils.INF_TIMEOUT);
 
 		TestVersionHandler testVersionHandler = new TestVersionHandler(
-			CompletableFuture.completedFuture(restAddress),
 			mockGatewayRetriever,
 			RpcUtils.INF_TIMEOUT);
 
 		TestVersionSelectionHandler1 testVersionSelectionHandler1 = new TestVersionSelectionHandler1(
-			CompletableFuture.completedFuture(restAddress),
 			mockGatewayRetriever,
 			RpcUtils.INF_TIMEOUT);
 
 		TestVersionSelectionHandler2 testVersionSelectionHandler2 = new TestVersionSelectionHandler2(
-			CompletableFuture.completedFuture(restAddress),
 			mockGatewayRetriever,
 			RpcUtils.INF_TIMEOUT);
 
 		testUploadHandler = new TestUploadHandler(
-			CompletableFuture.completedFuture(restAddress),
 			mockGatewayRetriever,
 			RpcUtils.INF_TIMEOUT);
 
 		final StaticFileServerHandler<RestfulGateway> staticFileServerHandler = new StaticFileServerHandler<>(
 			mockGatewayRetriever,
-			CompletableFuture.completedFuture(restAddress),
 			RpcUtils.INF_TIMEOUT,
 			temporaryFolder.getRoot());
 
@@ -601,7 +593,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		}
 
 		@Override
-		protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
+		protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture) {
 			return handlers;
 		}
 
@@ -620,7 +612,6 @@ public class RestServerEndpointITCase extends TestLogger {
 				GatewayRetriever<RestfulGateway> leaderRetriever,
 				Time timeout) {
 			super(
-				localAddressFuture,
 				leaderRetriever,
 				timeout,
 				Collections.emptyMap(),
@@ -889,10 +880,9 @@ public class RestServerEndpointITCase extends TestLogger {
 		private volatile byte[] lastUploadedFileContents;
 
 		private TestUploadHandler(
-			final CompletableFuture<String> localRestAddress,
 			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout) {
-			super(localRestAddress, leaderRetriever, timeout, Collections.emptyMap(), TestUploadHeaders.INSTANCE);
+			super(leaderRetriever, timeout, Collections.emptyMap(), TestUploadHeaders.INSTANCE);
 		}
 
 		@Override
@@ -918,10 +908,9 @@ public class RestServerEndpointITCase extends TestLogger {
 	static class TestVersionHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 
 		TestVersionHandler(
-			final CompletableFuture<String> localRestAddress,
 			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout) {
-			super(localRestAddress, leaderRetriever, timeout, Collections.emptyMap(), TestVersionHeaders.INSTANCE);
+			super(leaderRetriever, timeout, Collections.emptyMap(), TestVersionHeaders.INSTANCE);
 		}
 
 		@Override
@@ -1033,10 +1022,9 @@ public class RestServerEndpointITCase extends TestLogger {
 	private static class TestVersionSelectionHandler1 extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 
 		private TestVersionSelectionHandler1(
-			final CompletableFuture<String> localRestAddress,
 			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout) {
-			super(localRestAddress, leaderRetriever, timeout, Collections.emptyMap(), TestVersionSelectionHeaders1.INSTANCE);
+			super(leaderRetriever, timeout, Collections.emptyMap(), TestVersionSelectionHeaders1.INSTANCE);
 		}
 
 		@Override
@@ -1048,10 +1036,9 @@ public class RestServerEndpointITCase extends TestLogger {
 	private static class TestVersionSelectionHandler2 extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 
 		private TestVersionSelectionHandler2(
-			final CompletableFuture<String> localRestAddress,
 			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout) {
-			super(localRestAddress, leaderRetriever, timeout, Collections.emptyMap(), TestVersionSelectionHeaders2.INSTANCE);
+			super(leaderRetriever, timeout, Collections.emptyMap(), TestVersionSelectionHeaders2.INSTANCE);
 		}
 
 		@Override

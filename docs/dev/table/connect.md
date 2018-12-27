@@ -34,7 +34,7 @@ This page describes how to declare built-in table sources and/or table sinks and
 Dependencies
 ------------
 
-The following table list all available connectors and formats. Their mutual compatibility is tagged in the corresponding sections for [table connectors](connect.html#table-connectors) and [table formats](connect.html#table-formats). The following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
+The following tables list all available connectors and formats. Their mutual compatibility is tagged in the corresponding sections for [table connectors](connect.html#table-connectors) and [table formats](connect.html#table-formats). The following tables provide dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
 
 {% if site.is_stable %}
 
@@ -43,7 +43,7 @@ The following table list all available connectors and formats. Their mutual comp
 | Name              | Version             | Maven dependency             | SQL Client JAR         |
 | :---------------- | :------------------ | :--------------------------- | :----------------------|
 | Filesystem        |                     | Built-in                     | Built-in               |
-| Elasticsearch     | 6                   | `flink-connector-elasticsearch6` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-elasticsearch6{{site.scala_version_suffix}}/{{site.version}}/flink-connector-elasticsearch6{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
+| Elasticsearch     | 6                   | `flink-connector-elasticsearch6` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch6{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-elasticsearch6{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | Apache Kafka      | 0.8                 | `flink-connector-kafka-0.8`  | Not available          |
 | Apache Kafka      | 0.9                 | `flink-connector-kafka-0.9`  | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-kafka-0.9{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka-0.9{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
 | Apache Kafka      | 0.10                | `flink-connector-kafka-0.10` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka-0.10{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
@@ -60,7 +60,7 @@ The following table list all available connectors and formats. Their mutual comp
 
 {% else %}
 
-This table is only available for stable releases.
+These tables are only available for stable releases.
 
 {% endif %}
 
@@ -154,7 +154,7 @@ tableEnvironment
     new Schema()
       .field("rowtime", Types.SQL_TIMESTAMP)
         .rowtime(new Rowtime()
-          .timestampsFromField("ts")
+          .timestampsFromField("timestamp")
           .watermarksPeriodicBounded(60000)
         )
       .field("user", Types.LONG)
@@ -1166,7 +1166,7 @@ ClusterBuilder builder = ... // configure Cassandra cluster connection
 CassandraAppendTableSink sink = new CassandraAppendTableSink(
   builder,
   // the query must match the schema of the table
-  INSERT INTO flink.myTable (id, name, value) VALUES (?, ?, ?));
+  "INSERT INTO flink.myTable (id, name, value) VALUES (?, ?, ?)");
 
 tableEnv.registerTableSink(
   "cassandraOutputTable",
@@ -1187,7 +1187,7 @@ val builder: ClusterBuilder = ... // configure Cassandra cluster connection
 val sink: CassandraAppendTableSink = new CassandraAppendTableSink(
   builder,
   // the query must match the schema of the table
-  INSERT INTO flink.myTable (id, name, value) VALUES (?, ?, ?))
+  "INSERT INTO flink.myTable (id, name, value) VALUES (?, ?, ?)")
 
 tableEnv.registerTableSink(
   "cassandraOutputTable",

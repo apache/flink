@@ -36,7 +36,6 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import javax.annotation.Nullable;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Handler that returns subtask metrics.
@@ -46,13 +45,12 @@ import java.util.concurrent.CompletableFuture;
 public class SubtaskMetricsHandler extends AbstractMetricsHandler<SubtaskMetricsMessageParameters> {
 
 	public SubtaskMetricsHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> headers,
 			MetricFetcher metricFetcher) {
 
-		super(localRestAddress, leaderRetriever, timeout, headers, SubtaskMetricsHeaders.getInstance(),
+		super(leaderRetriever, timeout, headers, SubtaskMetricsHeaders.getInstance(),
 			metricFetcher);
 	}
 

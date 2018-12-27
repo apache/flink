@@ -203,13 +203,13 @@ class AggregateITCase extends StreamingWithStateTestBase {
       .groupBy('b)
       .select('a.count as 'cnt, 'b)
       .groupBy('cnt)
-      .select('cnt, 'b.count as 'freq)
+      .select('cnt, 'b.count as 'freq, 'b.min as 'min, 'b.max as 'max)
 
     val results = t.toRetractStream[Row](queryConfig)
 
     results.addSink(new RetractingSink)
     env.execute()
-    val expected = List("1,1", "2,1", "3,1", "4,1", "5,1", "6,1")
+    val expected = List("1,1,1,1", "2,1,2,2", "3,1,3,3", "4,1,4,4", "5,1,5,5", "6,1,6,6")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 

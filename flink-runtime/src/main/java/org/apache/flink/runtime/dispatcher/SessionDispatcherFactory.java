@@ -47,7 +47,6 @@ public enum SessionDispatcherFactory implements DispatcherFactory<Dispatcher> {
 				@Nullable String metricQueryServicePath,
 				ArchivedExecutionGraphStore archivedExecutionGraphStore,
 				FatalErrorHandler fatalErrorHandler,
-				@Nullable String restAddress,
 				HistoryServerArchivist historyServerArchivist) throws Exception {
 		// create the default dispatcher
 		return new StandaloneDispatcher(
@@ -63,7 +62,6 @@ public enum SessionDispatcherFactory implements DispatcherFactory<Dispatcher> {
 			archivedExecutionGraphStore,
 			Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
 			fatalErrorHandler,
-			restAddress,
 			historyServerArchivist);
 	}
 }

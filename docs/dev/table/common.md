@@ -800,7 +800,7 @@ The mapping of a data type to a table schema can happen in two ways: **based on 
 
 **Position-based Mapping**
 
-Position-based mapping can be used to give fields a more meaningful name while keeping the field order. This mapping is available for composite data types *with a defined field order* as well as atomic types. Composite data types such as tuples, rows, and case classes have such a field order. However, fields of a POJO must be mapped based on the field names (see next section).
+Position-based mapping can be used to give fields a more meaningful name while keeping the field order. This mapping is available for composite data types *with a defined field order* as well as atomic types. Composite data types such as tuples, rows, and case classes have such a field order. However, fields of a POJO must be mapped based on the field names (see next section). Fields can be projected out but can't be renamed using an alias `as`.
 
 When defining a position-based mapping, the specified names must not exist in the input data type, otherwise the API will assume that the mapping should happen based on the field names. If no field names are specified, the default field names and field order of the composite type are used or `f0` for atomic types. 
 
@@ -814,6 +814,9 @@ DataStream<Tuple2<Long, Integer>> stream = ...
 
 // convert DataStream into Table with default field names "f0" and "f1"
 Table table = tableEnv.fromDataStream(stream);
+
+// convert DataStream into Table with field "myLong" only
+Table table = tableEnv.fromDataStream(stream, "myLong");
 
 // convert DataStream into Table with field names "myLong" and "myInt"
 Table table = tableEnv.fromDataStream(stream, "myLong, myInt");
@@ -830,8 +833,11 @@ val stream: DataStream[(Long, Int)] = ...
 // convert DataStream into Table with default field names "_1" and "_2"
 val table: Table = tableEnv.fromDataStream(stream)
 
+// convert DataStream into Table with field "myLong" only
+val table: Table = tableEnv.fromDataStream(stream, 'myLong)
+
 // convert DataStream into Table with field names "myLong" and "myInt"
-val table: Table = tableEnv.fromDataStream(stream, 'myLong 'myInt)
+val table: Table = tableEnv.fromDataStream(stream, 'myLong, 'myInt)
 {% endhighlight %}
 </div>
 </div>

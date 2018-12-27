@@ -21,7 +21,6 @@ package org.apache.flink.client.program.rest;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
@@ -142,8 +141,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link RestClusterClient}.
@@ -152,8 +149,6 @@ import static org.mockito.Mockito.when;
  * request, properly constructs the request bodies/parameters and processes the responses correctly.
  */
 public class RestClusterClientTest extends TestLogger {
-
-	private static final String REST_ADDRESS = "http://localhost:1234";
 
 	@Mock
 	private Dispatcher mockRestfulGateway;
@@ -175,7 +170,6 @@ public class RestClusterClientTest extends TestLogger {
 	@Before
 	public void setUp() throws Exception {
 		MockitoAnnotations.initMocks(this);
-		when(mockRestfulGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(REST_ADDRESS));
 
 		final Configuration config = new Configuration();
 		config.setString(JobManagerOptions.ADDRESS, "localhost");
@@ -852,7 +846,6 @@ public class RestClusterClientTest extends TestLogger {
 
 		private TestHandler(MessageHeaders<R, P, M> headers) {
 			super(
-				CompletableFuture.completedFuture(REST_ADDRESS),
 				mockGatewayRetriever,
 				RpcUtils.INF_TIMEOUT,
 				Collections.emptyMap(),
@@ -877,8 +870,7 @@ public class RestClusterClientTest extends TestLogger {
 		}
 
 		@Override
-		protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>>
-				initializeHandlers(CompletableFuture<String> restAddressFuture) {
+		protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture) {
 			final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>();
 			for (final AbstractRestHandler abstractRestHandler : abstractRestHandlers) {
 				handlers.add(Tuple2.of(

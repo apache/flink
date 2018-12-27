@@ -90,7 +90,6 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 	private final LoadingCache<ResourceID, CompletableFuture<TransientBlobKey>> fileBlobKeys;
 
 	protected AbstractTaskManagerFileHandler(
-			@Nonnull CompletableFuture<String> localAddressFuture,
 			@Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			@Nonnull Time timeout,
 			@Nonnull Map<String, String> responseHeaders,
@@ -98,7 +97,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 			@Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 			@Nonnull TransientBlobService transientBlobService,
 			@Nonnull Time cacheEntryDuration) {
-		super(localAddressFuture, leaderRetriever, timeout, responseHeaders, untypedResponseMessageHeaders);
+		super(leaderRetriever, timeout, responseHeaders, untypedResponseMessageHeaders);
 
 		this.resourceManagerGatewayRetriever = Preconditions.checkNotNull(resourceManagerGatewayRetriever);
 

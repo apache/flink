@@ -72,7 +72,6 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 	public TestingDispatcherGateway(
 			String address,
 			String hostname,
-			String restAddress,
 			Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction,
 			Function<JobID, CompletableFuture<Acknowledge>> stopJobFunction,
 			Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction,
@@ -92,7 +91,6 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 		super(
 			address,
 			hostname,
-			restAddress,
 			cancelJobFunction,
 			stopJobFunction,
 			requestJobFunction,
@@ -181,7 +179,6 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 			return new TestingDispatcherGateway(
 				address,
 				hostname,
-				restAddress,
 				cancelJobFunction,
 				stopJobFunction,
 				requestJobFunction,

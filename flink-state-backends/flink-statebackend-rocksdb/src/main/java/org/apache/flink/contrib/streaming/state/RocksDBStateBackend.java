@@ -40,6 +40,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TernaryBoolean;
 
 import org.rocksdb.ColumnFamilyOptions;
@@ -97,6 +98,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	/** Flag whether the native library has been loaded. */
 	private static boolean rocksDbInitialized = false;
 
+	private static final int UNDEFINED_NUMBER_OF_RESTORING_THREADS = -1;
+
 	// ------------------------------------------------------------------------
 
 	// -- configuration values, set in the application / configuration
@@ -119,6 +122,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 	/** This determines if incremental checkpointing is enabled. */
 	private final TernaryBoolean enableIncrementalCheckpointing;
+
+	/** Thread number used to download from DFS when restore, default value: 1. */
+	private int numberOfRestoringThreads;
 
 	/** This determines the type of priority queue state. */
 	private final PriorityQueueStateType priorityQueueStateType;
@@ -238,6 +244,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	public RocksDBStateBackend(StateBackend checkpointStreamBackend, TernaryBoolean enableIncrementalCheckpointing) {
 		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
+		this.numberOfRestoringThreads = UNDEFINED_NUMBER_OF_RESTORING_THREADS;
 		// for now, we use still the heap-based implementation as default
 		this.priorityQueueStateType = PriorityQueueStateType.HEAP;
 		this.defaultMetricOptions = new RocksDBNativeMetricOptions();
@@ -275,6 +282,12 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		// configure incremental checkpoints
 		this.enableIncrementalCheckpointing = original.enableIncrementalCheckpointing.resolveUndefined(
 			config.getBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS));
+
+		if (original.numberOfRestoringThreads == UNDEFINED_NUMBER_OF_RESTORING_THREADS) {
+			this.numberOfRestoringThreads = config.getInteger(RocksDBOptions.CHECKPOINT_RESTORE_THREAD_NUM);
+		} else {
+			this.numberOfRestoringThreads = original.numberOfRestoringThreads;
+		}
 
 		final String priorityQueueTypeString = config.getString(TIMER_SERVICE_FACTORY);
 
@@ -452,6 +465,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				keyGroupRange,
 				env.getExecutionConfig(),
 				isIncrementalCheckpointsEnabled(),
+				getNumberOfRestoringThreads(),
 				localRecoveryConfig,
 				priorityQueueStateType,
 				ttlTimeProvider,
@@ -686,6 +700,20 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		return options;
 	}
 
+	/**
+	 * Gets the thread number will used for downloading files from DFS when restore.
+	 */
+	public int getNumberOfRestoringThreads() {
+		return numberOfRestoringThreads == UNDEFINED_NUMBER_OF_RESTORING_THREADS ?
+			RocksDBOptions.CHECKPOINT_RESTORE_THREAD_NUM.defaultValue() : numberOfRestoringThreads;
+	}
+
+	public void setNumberOfRestoringThreads(int numberOfRestoringThreads) {
+		Preconditions.checkArgument(numberOfRestoringThreads > 0,
+			"The number of threads used to download files from DFS in RocksDBStateBackend should > 0.");
+		this.numberOfRestoringThreads = numberOfRestoringThreads;
+	}
+
 	// ------------------------------------------------------------------------
 	//  utilities
 	// ------------------------------------------------------------------------
@@ -696,6 +724,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				"checkpointStreamBackend=" + checkpointStreamBackend +
 				", localRocksDbDirectories=" + Arrays.toString(localRocksDbDirectories) +
 				", enableIncrementalCheckpointing=" + enableIncrementalCheckpointing +
+				", numberOfRestoringThreads=" + numberOfRestoringThreads +
 				'}';
 	}
 

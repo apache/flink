@@ -48,6 +48,5 @@ public interface DispatcherFactory<T extends Dispatcher> {
 		@Nullable String metricQueryServicePath,
 		ArchivedExecutionGraphStore archivedExecutionGraphStore,
 		FatalErrorHandler fatalErrorHandler,
-		@Nullable String restAddress,
 		HistoryServerArchivist historyServerArchivist) throws Exception;
 }

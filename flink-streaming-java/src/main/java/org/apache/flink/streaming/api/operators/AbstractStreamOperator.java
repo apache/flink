@@ -639,7 +639,7 @@ public abstract class AbstractStreamOperator<OUT>
 		if (keyedStateBackend != null) {
 			return keyedStateBackend.getCurrentKey();
 		} else {
-			throw new UnsupportedOperationException("Key can only be retrieven on KeyedStream.");
+			throw new UnsupportedOperationException("Key can only be retrieved on KeyedStream.");
 		}
 	}
 
