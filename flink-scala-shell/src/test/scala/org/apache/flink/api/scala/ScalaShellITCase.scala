@@ -404,10 +404,9 @@ class ScalaShellITCase extends TestLogger {
     val output = processInShell(input)
 
     Assert.assertTrue(output.contains("sum is: 15"))
-    Assert.assertFalse(output.contains("failed"))
-    Assert.assertFalse(output.contains("Error"))
-    Assert.assertFalse(output.contains("ERROR"))
-    Assert.assertTrue(output.contains("Exception"))
+    Assert.assertFalse(output.toLowerCase.contains("failed"))
+    Assert.assertFalse(output.toLowerCase.contains("error"))
+    Assert.assertTrue(output.contains("java.lang.UnsupportedOperationException"))
   }
 
   @Test
@@ -426,7 +425,8 @@ class ScalaShellITCase extends TestLogger {
       """.stripMargin
 
     val output = processInShell(input)
-    Assert.assertTrue(output.contains("error"))
+    Assert.assertTrue(output.contains("error: object util is not a member of package org.apache." +
+      "flink.table.api.java"))
   }
 
   @Test
@@ -436,7 +436,8 @@ class ScalaShellITCase extends TestLogger {
         |val newEnv = ExecutionEnvironment.getExecutionEnvironment
       """.stripMargin
     val output = processInShell(input)
-    Assert.assertTrue(output.contains("Exception"))
+    Assert.assertTrue(output.contains("java.lang.UnsupportedOperationException: Execution " +
+      "Environment is already defined for this shell."))
   }
 
 }
