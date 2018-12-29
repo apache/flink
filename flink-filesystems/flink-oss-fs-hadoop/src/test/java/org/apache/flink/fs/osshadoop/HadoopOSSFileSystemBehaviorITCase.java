@@ -20,24 +20,21 @@ package org.apache.flink.fs.osshadoop;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystemBehaviorTestSuite;
+import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.fs.hdfs.AbstractHadoopFileSystemITTest;
 import org.apache.flink.testutils.oss.OSSTestCredentials;
 
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
 
 import java.io.IOException;
 import java.util.UUID;
 
-import static junit.framework.TestCase.assertEquals;
-
 /**
- * Unit tests for the OSS file system support via AliyunOSSFileSystem.
- * These tests do actually read from or write to OSS.
+ * An implementation of the {@link FileSystemBehaviorTestSuite} for the OSS file system.
  */
-public class HadoopOSSFileSystemITCase extends AbstractHadoopFileSystemITTest {
-
+public class HadoopOSSFileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
 	private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
 	@BeforeClass
@@ -49,28 +46,25 @@ public class HadoopOSSFileSystemITCase extends AbstractHadoopFileSystemITTest {
 		conf.setString("fs.oss.accessKeyId", OSSTestCredentials.getOSSAccessKey());
 		conf.setString("fs.oss.accessKeySecret", OSSTestCredentials.getOSSSecretKey());
 		FileSystem.initialize(conf);
-		basePath = new Path(OSSTestCredentials.getTestBucketUri() + TEST_DATA_DIR);
-		fs = basePath.getFileSystem();
-		deadline = 0;
 	}
 
-	@Test
-	public void testShadedConfigurations() {
-		final Configuration conf = new Configuration();
-		conf.setString("fs.oss.endpoint", OSSTestCredentials.getOSSEndpoint());
-		conf.setString("fs.oss.accessKeyId", OSSTestCredentials.getOSSAccessKey());
-		conf.setString("fs.oss.accessKeySecret", OSSTestCredentials.getOSSSecretKey());
-		conf.setString("fs.oss.credentials.provider", "org.apache.hadoop.fs.aliyun.oss.AliyunCredentialsProvider");
+	@Override
+	public FileSystem getFileSystem() throws Exception {
+		return getBasePath().getFileSystem();
+	}
 
-		OSSFileSystemFactory ossfsFactory = new OSSFileSystemFactory();
-		ossfsFactory.configure(conf);
-		org.apache.hadoop.conf.Configuration configuration = ossfsFactory.getHadoopConfiguration();
-		// shaded
-		assertEquals("org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop.fs.aliyun.oss.AliyunCredentialsProvider",
-			configuration.get("fs.oss.credentials.provider"));
-		// should not shaded
-		assertEquals(OSSTestCredentials.getOSSEndpoint(), configuration.get("fs.oss.endpoint"));
-		assertEquals(OSSTestCredentials.getOSSAccessKey(), configuration.get("fs.oss.accessKeyId"));
-		assertEquals(OSSTestCredentials.getOSSSecretKey(), configuration.get("fs.oss.accessKeySecret"));
+	@Override
+	public Path getBasePath() throws Exception {
+		return new Path(OSSTestCredentials.getTestBucketUri() + TEST_DATA_DIR);
+	}
+
+	@Override
+	public FileSystemKind getFileSystemKind() {
+		return FileSystemKind.OBJECT_STORE;
+	}
+
+	@AfterClass
+	public static void clearFsConfig() throws IOException {
+		FileSystem.initialize(new Configuration());
 	}
 }
