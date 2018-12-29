@@ -190,7 +190,7 @@ tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(s
 class Split(separator: String) extends TableFunction[(String, Int)] {
   def eval(str: String): Unit = {
     // use collect(...) to emit a row.
-    str.split(separator).foreach(x -> collect((x, x.length))
+    str.split(separator).foreach(x => collect((x, x.length)))
   }
 }
 
@@ -210,7 +210,7 @@ tableEnv.registerFunction("split", new Split("#"))
 // CROSS JOIN a table function (equivalent to "join" in Table API)
 tableEnv.sqlQuery("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
 // LEFT JOIN a table function (equivalent to "leftOuterJoin" in Table API)
-tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN TABLE(split(a)) as T(word, length) ON TRUE")
+tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 {% endhighlight %}
 **IMPORTANT:** Do not implement TableFunction as a Scala object. Scala object is a singleton and will cause concurrency issues.
 </div>
