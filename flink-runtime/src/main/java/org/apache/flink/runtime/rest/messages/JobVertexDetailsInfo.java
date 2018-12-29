@@ -110,7 +110,7 @@ public class JobVertexDetailsInfo implements ResponseBody {
 		public static final String FIELD_NAME_STATUS = "status";
 		public static final String FIELD_NAME_ATTEMPT = "attempt";
 		public static final String FIELD_NAME_HOST = "host";
-		public static final String FIELD_NAME_START_TIME = "start_time";
+		public static final String FIELD_NAME_START_TIME = "start-time";
 		public static final String FIELD_NAME_END_TIME = "end-time";
 		public static final String FIELD_NAME_DURATION = "duration";
 		public static final String FIELD_NAME_METRICS = "metrics";
