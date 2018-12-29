@@ -1,5 +1,5 @@
 ---
-title: "Aliyun Open Storage Service (OSS)"
+title: "Aliyun Object Storage Service (OSS)"
 nav-title: Aliyun OSS
 nav-parent_id: deployment
 nav-pos: 9
@@ -27,9 +27,9 @@ under the License.
 {:toc}
 
 
-## OSS: Open Storage Service
+## OSS: Object Storage Service
 
-[Aliyun Open Storage Service](https://www.aliyun.com/product/oss) (Aliyun OSS) is widely used especially among China’s cloud users, and it provides cloud object storage for a variety of use cases.
+[Aliyun Object Storage Service](https://www.aliyun.com/product/oss) (Aliyun OSS) is widely used especially among China’s cloud users, and it provides cloud object storage for a variety of use cases.
 
 [Hadoop file system](http://hadoop.apache.org/docs/current/hadoop-aliyun/tools/hadoop-aliyun/index.html) supports OSS since version 2.9.1. Now, you can also use OSS with Fink for **reading** and **writing data**.
 
