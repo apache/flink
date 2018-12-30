@@ -339,10 +339,10 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
          |MATCH_RECOGNIZE (
          |  ORDER BY proctime
          |  MEASURES
-         |    FIRST(DOWN.tstamp) AS start_tstamp,
-         |    LAST(DOWN.tstamp) AS bottom_tstamp,
+         |    RUNNING FIRST(DOWN.tstamp) AS start_tstamp,
+         |    RUNNING LAST(DOWN.tstamp) AS bottom_tstamp,
          |    UP.tstamp AS end_tstamp,
-         |    FIRST(DOWN.price + DOWN.tax + 1) AS bottom_total,
+         |    RUNNING FIRST(DOWN.price + DOWN.tax + 1) AS bottom_total,
          |    UP.price + UP.tax AS end_total
          |  ONE ROW PER MATCH
          |  AFTER MATCH SKIP PAST LAST ROW
@@ -508,14 +508,14 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
          |MATCH_RECOGNIZE (
          |  ORDER BY proctime
          |  MEASURES
-         |    FIRST(id) as startId,
-         |    SUM(A.price) AS sumA,
-         |    COUNT(D.price) AS countD,
-         |    SUM(D.price) as sumD,
-         |    weightedAvg(price, weight) as wAvg,
-         |    AVG(B.price) AS avgB,
-         |    SUM(B.price * B.rate) as sumExprB,
-         |    LAST(id) as endId
+         |    RUNNING FIRST(id) as startId,
+         |    RUNNING SUM(A.price) AS sumA,
+         |    RUNNING COUNT(D.price) AS countD,
+         |    RUNNING SUM(D.price) as sumD,
+         |    RUNNING weightedAvg(price, weight) as wAvg,
+         |    RUNNING AVG(B.price) AS avgB,
+         |    RUNNING SUM(B.price * B.rate) as sumExprB,
+         |    RUNNING LAST(id) as endId
          |  AFTER MATCH SKIP PAST LAST ROW
          |  PATTERN (A+ B+ C D? E )
          |  DEFINE
@@ -724,6 +724,64 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = mutable.MutableList("1,PREF:a,8,5", "7,PREF:a,6,9")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testAllRowsPerMatch(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    tEnv.getConfig.setMaxGeneratedCodeLength(1)
+    StreamITCase.clear
+
+    val data = new mutable.MutableList[(String, Long, Int, Int)]
+    data.+=(("ACME", 1L, 19, 1))
+    data.+=(("ACME", 2L, 17, 2))
+    data.+=(("ACME", 3L, 13, 3))
+    data.+=(("ACME", 4L, 11, 4))
+    data.+=(("ACME", 5L, 30, 5))
+    data.+=(("ACME", 6L, 26, 6))
+    data.+=(("ACME", 7L, 20, 7))
+    data.+=(("ACME", 8L, 25, 8))
+
+    val t = env.fromCollection(data)
+      .toTable(tEnv, 'symbol, 'tstamp, 'price, 'tax, 'proctime.proctime)
+    tEnv.registerTable("Ticker", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT *
+         |FROM Ticker
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    FIRST(DOWN.tstamp) AS start_tstamp,
+         |    LAST(DOWN.tstamp) AS running_bottom_tstamp,
+         |    FINAL LAST(DOWN.tstamp) AS final_bottom_tstamp,
+         |    SUM(DOWN.price) AS running_sum_down_price,
+         |    FINAL SUM(DOWN.price) AS final_sum_down_price,
+         |    UP.tstamp AS end_tstamp,
+         |    FIRST(DOWN.price + DOWN.tax + 1) AS bottom_total,
+         |    UP.price + UP.tax AS end_total
+         |  ALL ROWS PER MATCH
+         |  AFTER MATCH SKIP PAST LAST ROW
+         |  PATTERN (DOWN{3,} UP)
+         |  DEFINE
+         |    DOWN AS price < LAST(DOWN.price, 1) OR LAST(DOWN.price, 1) IS NULL,
+         |    UP AS price < FIRST(DOWN.price)
+         |) AS T
+         |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List(
+      "null,ACME,5,30,5,5,5,7,30,76,null,36,null",
+      "null,ACME,6,26,6,5,6,7,56,76,null,36,null",
+      "null,ACME,7,20,7,5,7,7,76,76,null,36,null",
+      "null,ACME,8,25,8,5,7,7,76,76,8,36,33")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }

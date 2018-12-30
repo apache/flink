@@ -29,17 +29,17 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.cep.pattern.conditions.{IterativeCondition, RichIterativeCondition}
-import org.apache.flink.cep.{RichPatternFlatSelectFunction, RichPatternSelectFunction}
+import org.apache.flink.cep.RichPatternFlatSelectFunction
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.dataview.DataViewSpec
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForTypeInfo, newName, primitiveDefaultValue, primitiveTypeTermForTypeInfo}
-import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
+import org.apache.flink.table.codegen.CodeGenUtils._
+import org.apache.flink.table.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.functions.{AggregateFunction => TableAggregateFunction}
 import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.runtime.`match`.{IterativeConditionRunner, PatternSelectFunctionRunner}
+import org.apache.flink.table.runtime.`match`.{IterativeConditionRunner, PatternFlatSelectFunctionRunner}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.table.util.MatchUtil.{ALL_PATTERN_VARIABLE, AggregationPatternVariableFinder}
 import org.apache.flink.table.utils.EncodingUtils
@@ -75,33 +75,41 @@ object MatchCodeGenerator {
     new IterativeConditionRunner(genCondition.name, genCondition.code)
   }
 
-  def generateOneRowPerMatchExpression(
+  def generatePatternFlatSelectFunction(
     config: TableConfig,
     returnType: RowSchema,
     partitionKeys: util.List[RexNode],
     orderKeys: util.List[RelFieldCollation],
     measures: util.Map[String, RexNode],
     inputTypeInfo: TypeInformation[_],
-    patternNames: Seq[String])
-  : PatternSelectFunctionRunner = {
+    patternNames: Seq[String],
+    allRows: Boolean)
+  : PatternFlatSelectFunctionRunner = {
     val generator = new MatchCodeGenerator(config, inputTypeInfo, patternNames)
 
-    val resultExpression = generator.generateOneRowPerMatchExpression(
-      partitionKeys,
-      measures,
-      returnType)
+    val resultExpression = if (allRows) {
+      generator.generateAllRowsPerMatchExpression(
+        partitionKeys,
+        orderKeys,
+        measures,
+        returnType)
+    } else {
+      generator.generateOneRowPerMatchExpression(
+        partitionKeys,
+        measures,
+        returnType)
+    }
     val body =
       s"""
          |${resultExpression.code}
-         |return ${resultExpression.resultTerm};
          |""".stripMargin
 
     val genFunction = generator.generateMatchFunction(
-      "MatchRecognizePatternSelectFunction",
-      classOf[RichPatternSelectFunction[Row, Row]],
+      "MatchRecognizePatternFlatSelectFunction",
+      classOf[RichPatternFlatSelectFunction[Row, Row]],
       body,
       resultExpression.resultType)
-    new PatternSelectFunctionRunner(genFunction.name, genFunction.code)
+    new PatternFlatSelectFunctionRunner(genFunction.name, genFunction.code)
   }
 }
 
@@ -205,20 +213,28 @@ class MatchCodeGenerator(
     currentPattern: Option[String] = None)
   extends CodeGenerator(config, false, input){
 
-  private case class GeneratedPatternList(resultTerm: String, code: String)
+  private case class GeneratedPatternList(
+      resultTerm: String, code: String, running: Boolean = false)
 
   /**
     * Used to assign unique names for list of events per pattern variable name. Those lists
     * are treated as inputs and are needed by input access code.
     */
-  private val reusablePatternLists: mutable.HashMap[String, GeneratedPatternList] = mutable
-    .HashMap[String, GeneratedPatternList]()
+  private val reusablePatternLists: mutable.HashMap[(Boolean, String), GeneratedPatternList] =
+    mutable.HashMap[(Boolean, String), GeneratedPatternList]()
 
   /**
     * Used to deduplicate aggregations calculation. The deduplication is performed by
     * [[RexNode.toString]]. Those expressions needs to be accessible from splits, if such exists.
     */
-  private val reusableAggregationExpr = new mutable.HashMap[String, GeneratedExpression]()
+  private val reusableAggregationExpr =
+    new mutable.HashMap[(Boolean, String), GeneratedExpression]()
+
+  private val reusableRunningInputUnboxingExprs: mutable.Map[(String, Int), GeneratedExpression] =
+    mutable.Map[(String, Int), GeneratedExpression]()
+
+  private val reusableRunningPerRecordStatements: mutable.LinkedHashSet[String] =
+    mutable.LinkedHashSet[String]()
 
   /**
     * Context information used by Pattern reference variable to index rows mapped to it.
@@ -226,6 +242,8 @@ class MatchCodeGenerator(
     */
   private var offset: Int = 0
   private var first : Boolean = false
+  private var allRows: Boolean = false
+  private var running: Boolean = false
 
   /**
     * Flags that tells if we generate expressions inside an aggregate. It tells how to access input
@@ -247,7 +265,7 @@ class MatchCodeGenerator(
   /**
     * Used to collect all aggregates per pattern variable.
     */
-  private val aggregatesPerVariable = new mutable.HashMap[String, AggBuilder]
+  private val aggregatesPerVariable = new mutable.HashMap[(Boolean, String), AggBuilder]
 
   /**
     * Sets the new reference variable indexing context. This should be used when resolving logical
@@ -267,6 +285,26 @@ class MatchCodeGenerator(
     offset = 0
   }
 
+  /**
+    * Sets the RUNNING/FINAL semantics.
+    *
+    * @param running true if RUNNING semantics is used
+    */
+  private def setRunning(running: Boolean): Unit = {
+    this.running = running
+  }
+
+  /**
+    * Resets the RUNNING/FINAL semantics.
+    */
+  private def resetRunning(): Unit = {
+    this.running = false
+  }
+
+  private def setAllRows(allRows: Boolean): Unit = {
+    this.allRows = allRows
+  }
+
   private def reusePatternLists(): String = {
     reusablePatternLists.values.map(_.code).mkString("\n")
   }
@@ -276,6 +314,58 @@ class MatchCodeGenerator(
       .add(s"private String[] $patternNamesTerm = new String[] { ${
         patternNames.map(p => s""""${EncodingUtils.escapeJava(p)}"""").mkString(", ")
       } };")
+  }
+
+  private def reuseRunningInputUnboxingCode(): String = {
+    reusableRunningInputUnboxingExprs.values.map(_.code).mkString("\n")
+  }
+
+  private def reuseRunningPerRecordCode(): String = {
+    reusableRunningPerRecordStatements.mkString("\n")
+  }
+
+  private def addReusablePerRecordStatement(s: String): Unit = {
+    if (running) {
+      reusableRunningPerRecordStatements.add(s)
+    } else {
+      reusablePerRecordStatements.add(s)
+    }
+  }
+
+  private def addReusableInputUnboxingExprs(
+      inputTerm: String, index: Int, expr: GeneratedExpression): Unit =
+    if (running) {
+      reusableRunningInputUnboxingExprs((inputTerm, index)) = expr
+    } else {
+      reusableInputUnboxingExprs((inputTerm, index)) = expr
+    }
+
+  private def getReusableInputUnboxingExprs(inputTerm: String, index: Int)
+      : Option[GeneratedExpression] =
+    if (running) {
+      reusableRunningInputUnboxingExprs.get((inputTerm, index))
+    } else {
+      reusableInputUnboxingExprs.get((inputTerm, index))
+    }
+
+  private def makeReusableInSplitsForRunningInputs(
+      exprsWithRunningFlag: Iterable[GeneratedExpression]): Unit = {
+    // add results of expressions to member area such that all split functions can access it
+    exprsWithRunningFlag.foreach { expr =>
+
+      // declaration
+      val resultTypeTerm = primitiveTypeTermForTypeInfo(expr.resultType)
+      if (nullCheck && !expr.nullTerm.equals(NEVER_NULL) && !expr.nullTerm.equals(ALWAYS_NULL)) {
+        reusableMemberStatements.add(s"private boolean ${expr.nullTerm};")
+      }
+      reusableMemberStatements.add(s"private $resultTypeTerm ${expr.resultTerm};")
+
+      // assignment
+      if (nullCheck && !expr.nullTerm.equals(NEVER_NULL) && !expr.nullTerm.equals(ALWAYS_NULL)) {
+        reusableRunningPerRecordStatements.add(s"this.${expr.nullTerm} = ${expr.nullTerm};")
+      }
+      reusableRunningPerRecordStatements.add(s"this.${expr.resultTerm} = ${expr.resultTerm};")
+    }
   }
 
   /**
@@ -309,14 +399,6 @@ class MatchCodeGenerator(
         (baseClass,
           s"boolean filter(Object _in1, $contextType $contextTerm)",
           List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
-      } else if (clazz == classOf[RichPatternSelectFunction[_, _]]) {
-        val baseClass = classOf[RichPatternSelectFunction[_, _]]
-        val inputTypeTerm =
-          s"java.util.Map<String, java.util.List<${boxedTypeTermForTypeInfo(input)}>>"
-
-        (baseClass,
-          s"Object select($inputTypeTerm $input1Term)",
-          List())
       } else if (clazz == classOf[RichPatternFlatSelectFunction[_, _]]) {
         val baseClass = classOf[RichPatternFlatSelectFunction[_, _]]
         val inputTypeTerm =
@@ -431,7 +513,103 @@ class MatchCodeGenerator(
       makeReusableInSplits(reusableAggregationExpr.values)
     }
 
-    exp
+    val resultCode =
+      j"""
+         |${exp.code}
+         |$collectorTerm.collect(${exp.resultTerm});
+         |""".stripMargin
+    exp.copy(code = resultCode)
+  }
+
+  def generateAllRowsPerMatchExpression(
+      partitionKeys: java.util.List[RexNode],
+      orderKeys: util.List[RelFieldCollation],
+      measures: java.util.Map[String, RexNode],
+      returnSchema: RowSchema): GeneratedExpression = {
+
+    val patternNameTerm = newName("patternName")
+    val eventNameTerm = newName("event")
+    val eventNameListTerm = newName("eventList")
+    val listTypeTerm = classOf[java.util.List[_]].getCanonicalName
+    val eventTypeTerm = boxedTypeTermForTypeInfo(input)
+
+    setAllRows(allRows = true)
+    reusableMemberStatements.add(s"$eventTypeTerm $eventNameTerm;")
+
+    // For "ALL ROWS PER MATCH", the output columns include:
+    // 1) the partition columns;
+    // 2) the ordering columns;
+    // 3) the columns defined in the measures clause;
+    // 4) any remaining columns defined of the input.
+    val fieldsAccessed = mutable.Set[Int]()
+    val resultExprs =
+      partitionKeys.asScala.map { case inputRef: RexInputRef =>
+        fieldsAccessed += inputRef.getIndex
+        generateFieldAccess(input, eventNameTerm, inputRef.getIndex)
+      } ++ orderKeys.asScala.map { fieldCollation =>
+        fieldsAccessed += fieldCollation.getFieldIndex
+        generateFieldAccess(input, eventNameTerm, fieldCollation.getFieldIndex)
+      } ++ (0 until input.getArity).filterNot(fieldsAccessed.contains).map { idx =>
+        generateFieldAccess(input, eventNameTerm, idx)
+      } ++ returnSchema.fieldNames.filter(measures.containsKey(_)).map { fieldName =>
+        generateExpression(measures.get(fieldName))
+      }
+
+    val expr = generateResultExpression(
+      resultExprs,
+      returnSchema.typeInfo,
+      returnSchema.fieldNames)
+
+    aggregatesPerVariable.values.foreach(_.generateAggFunction())
+    if (hasCodeSplits) {
+      makeReusableInSplits(reusableAggregationExpr.filterNot(_._1._1).values)
+      makeReusableInSplitsForRunningInputs(reusableAggregationExpr.filter(_._1._1).values)
+      makeReusableInSplitsForRunningInputs(reusableRunningInputUnboxingExprs.values)
+    }
+
+    val resultCode = {
+      addReusablePatternNames()
+
+      def fillRunningPatternLists(): String = {
+        // For RUNNING semantics, the events mapped to a pattern reference variable are
+        // different depending on the current processed row of the matching rows
+        reusablePatternLists.filter(_._2.running).map { patternList =>
+          val patternName = patternList._1._2
+          val listName = patternList._2.resultTerm
+          if (patternName == ALL_PATTERN_VARIABLE) {
+            j"""
+               |$listName.add($eventNameTerm);
+               |""".stripMargin
+          } else {
+            val escapedPatternName = EncodingUtils.escapeJava(patternName)
+
+            j"""
+               |if ($patternNameTerm.equals("$escapedPatternName")) {
+               |  $listName.add($eventNameTerm);
+               |}
+               |""".stripMargin
+          }
+        }.mkString("\n")
+      }
+
+      j"""
+         |for (String $patternNameTerm : $patternNamesTerm) {
+         |  $listTypeTerm $eventNameListTerm = ($listTypeTerm) $input1Term.get($patternNameTerm);
+         |  if ($eventNameListTerm != null) {
+         |    for ($eventTypeTerm event : $eventNameListTerm) {
+         |      $eventNameTerm = event;
+         |      ${fillRunningPatternLists()}
+         |      ${reuseRunningInputUnboxingCode()}
+         |      ${reuseRunningPerRecordCode()}
+         |      ${expr.code}
+         |      $collectorTerm.collect(${expr.resultTerm});
+         |    }
+         |  }
+         |}
+         |""".stripMargin
+    }
+
+    expr.copy(code = resultCode)
   }
 
   def generateCondition(call: RexNode): GeneratedExpression = {
@@ -466,6 +644,17 @@ class MatchCodeGenerator(
         resetOffsets()
         patternExp
 
+      case RUNNING =>
+        if (allRows) {
+          setRunning(true)
+          val expr = call.operands.get(0).accept(this)
+          resetRunning()
+          expr
+        } else {
+          // in ONE ROW PER MATCH, RUNNING has the same semantics as FINAL
+          call.getOperands.get(0).accept(this)
+        }
+
       case FINAL =>
         call.getOperands.get(0).accept(this)
 
@@ -474,11 +663,11 @@ class MatchCodeGenerator(
         val variable = call.accept(new AggregationPatternVariableFinder)
           .getOrElse(throw new TableException("No pattern variable specified in aggregate"))
 
-        val matchAgg = aggregatesPerVariable.get(variable) match {
+        val matchAgg = aggregatesPerVariable.get((running, variable)) match {
           case Some(agg) => agg
           case None =>
             val agg = new AggBuilder(variable)
-            aggregatesPerVariable(variable) = agg
+            aggregatesPerVariable((running, variable)) = agg
             agg
         }
 
@@ -562,7 +751,13 @@ class MatchCodeGenerator(
   private def generateMeasurePatternVariableExp(patternName: String): GeneratedPatternList = {
     val listName = newName("patternEvents")
 
-    val code = if (patternName == ALL_PATTERN_VARIABLE) {
+    val code = if (running) {
+      // For RUNNING semantics, the pattern lists will be calculated
+      // for each of the matching events.
+      j"""
+         |java.util.List $listName = new java.util.ArrayList();
+         |""".stripMargin
+    } else if (patternName == ALL_PATTERN_VARIABLE) {
       addReusablePatternNames()
 
       val patternTerm = newName("pattern")
@@ -586,7 +781,7 @@ class MatchCodeGenerator(
          |""".stripMargin
     }
 
-    GeneratedPatternList(listName, code)
+    GeneratedPatternList(listName, code, running)
   }
 
   private def findEventByLogicalPosition(
@@ -619,7 +814,7 @@ class MatchCodeGenerator(
   private def findEventsByPatternName(
       patternFieldAlpha: String)
     : GeneratedPatternList = {
-    reusablePatternLists.get(patternFieldAlpha) match {
+    reusablePatternLists.get((running, patternFieldAlpha)) match {
       case Some(expr) =>
         expr
 
@@ -628,21 +823,20 @@ class MatchCodeGenerator(
           case Some(p) => generateDefinePatternVariableExp(patternFieldAlpha, p)
           case None => generateMeasurePatternVariableExp(patternFieldAlpha)
         }
-        reusablePatternLists(patternFieldAlpha) = exp
+        reusablePatternLists((running, patternFieldAlpha)) = exp
         exp
     }
   }
 
   private def generatePatternFieldRef(fieldRef: RexPatternFieldRef): GeneratedExpression = {
     val escapedAlpha = EncodingUtils.escapeJava(fieldRef.getAlpha)
-    val patternVariableRef = reusableInputUnboxingExprs
-      .get((s"$escapedAlpha#$first", offset)) match {
+    val patternVariableRef = getReusableInputUnboxingExprs(s"$escapedAlpha#$first", offset) match {
       case Some(expr) =>
         expr
 
       case None =>
         val exp = findEventByLogicalPosition(fieldRef.getAlpha)
-        reusableInputUnboxingExprs((s"$escapedAlpha#$first", offset)) = exp
+        addReusableInputUnboxingExprs(s"$escapedAlpha#$first", offset, exp)
         exp
     }
 
@@ -660,15 +854,15 @@ class MatchCodeGenerator(
     private val calculateAggFuncName = s"calculateAgg_$variableUID"
 
     def generateDeduplicatedAggAccess(aggCall: RexCall): GeneratedExpression = {
-      reusableAggregationExpr.get(aggCall.toString) match  {
+      reusableAggregationExpr.get((running, aggCall.toString)) match  {
         case Some(expr) =>
           expr
 
         case None =>
           val exp: GeneratedExpression = generateAggAccess(aggCall)
           aggregates += aggCall
-          reusableAggregationExpr(aggCall.toString) = exp
-          reusablePerRecordStatements += exp.code
+          reusableAggregationExpr((running, aggCall.toString)) = exp
+          addReusablePerRecordStatement(exp.code)
           exp.copy(code = NO_CODE)
       }
     }
@@ -688,7 +882,7 @@ class MatchCodeGenerator(
            |$rowTypeTerm $allAggRowTerm = $calculateAggFuncName(${rowsForVariableCode.resultTerm});
            |""".stripMargin
 
-      reusablePerRecordStatements += codeForAgg
+      addReusablePerRecordStatement(codeForAgg)
 
       val defaultValue = primitiveDefaultValue(singleAggResultType)
       val codeForSingleAgg = if (nullCheck) {
@@ -711,7 +905,7 @@ class MatchCodeGenerator(
            |""".stripMargin
       }
 
-      reusablePerRecordStatements += codeForSingleAgg
+      addReusablePerRecordStatement(codeForSingleAgg)
 
       GeneratedExpression(singleAggResultTerm, singleAggNullTerm, NO_CODE, singleAggResultType)
     }

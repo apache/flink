@@ -21,49 +21,51 @@ package org.apache.flink.table.runtime.`match`
 import java.util
 
 import org.apache.flink.api.common.functions.util.FunctionUtils
-import org.apache.flink.cep.{RichPatternFlatSelectFunction, RichPatternSelectFunction}
+import org.apache.flink.cep.RichPatternFlatSelectFunction
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.codegen.Compiler
+import org.apache.flink.table.runtime.CRowWrappingCollector
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
 /**
-  * PatternSelectFunctionRunner with [[Row]] input and [[CRow]] output.
+  * PatternFlatSelectFunctionRunner with [[Row]] input and [[CRow]] output.
   */
-class PatternSelectFunctionRunner(
+class PatternFlatSelectFunctionRunner(
     name: String,
     code: String)
   extends RichPatternFlatSelectFunction[Row, CRow]
-  with Compiler[RichPatternSelectFunction[Row, Row]]
+  with Compiler[RichPatternFlatSelectFunction[Row, Row]]
   with Logging {
 
-  @transient private var outCRow: CRow = _
-
-  @transient private var function: RichPatternSelectFunction[Row, Row] = _
+  @transient private var function: RichPatternFlatSelectFunction[Row, Row] = _
+  @transient private var cRowWrapper: CRowWrappingCollector = _
 
   override def open(parameters: Configuration): Unit = {
-    if (outCRow == null) {
-      outCRow = new CRow(null, true)
-    }
-
-    LOG.debug(s"Compiling PatternSelectFunction: $name \n\n Code:\n$code")
+    LOG.debug(s"Compiling PatternFlatSelectFunction: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
-    LOG.debug("Instantiating PatternSelectFunction.")
+    LOG.debug("Instantiating PatternFlatSelectFunction.")
     function = clazz.newInstance()
     FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
     FunctionUtils.openFunction(function, parameters)
+
+    cRowWrapper = new CRowWrappingCollector()
+    cRowWrapper.setChange(true)
   }
 
   override def flatSelect(
       pattern: util.Map[String, util.List[Row]],
       out: Collector[CRow])
     : Unit = {
-    outCRow.row = function.select(pattern)
-    out.asInstanceOf[TimestampedCollector[_]].eraseTimestamp()
-    out.collect(outCRow)
+    // remove timestamp from stream record
+    val tc = out.asInstanceOf[TimestampedCollector[_]]
+    tc.eraseTimestamp()
+
+    cRowWrapper.out = out
+    function.flatSelect(pattern, cRowWrapper)
   }
 
   override def close(): Unit = {

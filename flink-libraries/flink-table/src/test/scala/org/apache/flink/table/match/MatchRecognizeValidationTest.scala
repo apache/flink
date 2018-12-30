@@ -180,29 +180,6 @@ class MatchRecognizeValidationTest extends TableTestBase {
   // ***************************************************************************************
 
   @Test
-  def testAllRowsPerMatch(): Unit = {
-    thrown.expectMessage("All rows per match mode is not supported yet.")
-    thrown.expect(classOf[TableException])
-
-    val sqlQuery =
-      s"""
-         |SELECT *
-         |FROM Ticker
-         |MATCH_RECOGNIZE (
-         |  ORDER BY proctime
-         |  MEASURES
-         |    A.symbol AS aSymbol
-         |  ALL ROWS PER MATCH
-         |  PATTERN (A B)
-         |  DEFINE
-         |    A AS symbol = 'a'
-         |) AS T
-         |""".stripMargin
-
-    streamUtils.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-  }
-
-  @Test
   def testGreedyQuantifierAtTheEndIsNotSupported(): Unit = {
     thrown.expectMessage("Greedy quantifiers are not allowed as the last element of a " +
       "Pattern yet. Finish your pattern with either a simple variable or reluctant quantifier.")

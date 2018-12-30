@@ -91,7 +91,7 @@ Every `MATCH_RECOGNIZE` query consists of the following clauses:
 * [PARTITION BY](#partitioning) - defines the logical partitioning of the table; similar to a `GROUP BY` operation.
 * [ORDER BY](#order-of-events) - specifies how the incoming rows should be ordered; this is essential as patterns depend on an order.
 * [MEASURES](#define--measures) - defines output of the clause; similar to a `SELECT` clause.
-* [ONE ROW PER MATCH](#output-mode) - output mode which defines how many rows per match should be produced.
+* [ONE ROW PER MATCH|ALL ROWS PER MATCH](#output-mode) - output mode which defines how many rows per match should be produced.
 * [AFTER MATCH SKIP](#after-match-strategy) - specifies where the next match should start; this is also a way to control how many distinct matches a single event can belong to.
 * [PATTERN](#defining-a-pattern) - allows constructing patterns that will be searched for using a _regular expression_-like syntax.
 * [DEFINE](#define--measures) - this section defines the conditions that the pattern variables must satisfy.
@@ -440,14 +440,26 @@ Output Mode
 -----------
 
 The _output mode_ describes how many rows should be emitted for every found match. The SQL standard describes two modes:
-- `ALL ROWS PER MATCH`
-- `ONE ROW PER MATCH`.
+- `ALL ROWS PER MATCH` - produces an output row for every row that participated in the creation of a found match.
+- `ONE ROW PER MATCH` - produces one output summary row for each found match.
 
-Currently, the only supported output mode is `ONE ROW PER MATCH` that will always produce one output summary row for each found match.
+For `ALL ROWS PER MATCH`, the schema of the output row will be a concatenation of `[partitioning columns] + [ordering columns] + [remaining columns of the input row] + [measures columns]` in that particular order.
+For `ONE ROW PER MATCH`, the schema of the output row will be a concatenation of `[partitioning columns] + [measures columns]` in that particular order.
 
-The schema of the output row will be a concatenation of `[partitioning columns] + [measures columns]` in that particular order.
+### RUNNING VS FINAL semantics
 
-The following example shows the output of a query defined as:
+Pattern matching in a sequence of rows is usually envisioned as an incremental process, with one row after another examined to see if it fits the pattern.
+With this incremental processing model, at any step until the complete pattern has been recognized, there is only a partial match and it is not known what rows might be added in the future, nor what variables those future rows might be mapped to.
+Therefore, a row pattern column reference in the DEFINE clause always has the RUNNING semantics. This means that a row pattern variable represents the set of rows that have already been mapped to the row pattern variable, up to and including the current row, but not any future rows.
+
+After the complete match has been established, it is possible to talk about the FINAL semantics. FINAL semantics is the same as RUNNING semantics on the last row of a successful match. FINAL semantics is only available in MEASURES.
+For `ONE ROW PER MATCH`, the RUNNING keyword has the same meaming as the FINAL keyword. For `ALL ROWS PER MATCH`, the default semantics is RUNNING.
+
+#### Examples
+
+In order to better understand the differences between these two different output modes, one can take a look at the following example.
+
+For the following query:
 
 {% highlight sql %}
 SELECT *
@@ -457,9 +469,10 @@ FROM Ticker
         ORDER BY rowtime
         MEASURES
             FIRST(A.price) AS startPrice,
-            LAST(A.price) AS topPrice,
+            RUNNING LAST(A.price) AS runningTopPrice,
+            FINAL LAST(A.price) AS finalTopPrice,
             B.price AS lastPrice
-        ONE ROW PER MATCH
+        [ONE ROW PER MATCH|ALL ROWS PER MATCH]
         PATTERN (A+ B)
         DEFINE
             A AS LAST(A.price, 1) IS NULL OR A.price > LAST(A.price, 1),
@@ -478,14 +491,31 @@ For the following input rows:
  XYZ      2     11       2018-09-17 10:00:05
 {% endhighlight %}
 
-The query will produce the following output:
+The query will produce the different results based on which output mode is used:
+
+##### `ALL ROWS PER MATCH`
 
 {% highlight text %}
- symbol   startPrice   topPrice   lastPrice
-======== ============ ========== ===========
- XYZ      10           13         11
+ symbol          rowtime        tax   price   startPrice   runningTopPrice   finalTopPrice   lastPrice
+======== ===================== ===== ======= ============ ================= =============== ===========
+ XYZ      2018-09-17 10:00:02    1     10        10           10                 13            null
+ XYZ      2018-09-17 10:00:03    2     12        10           12                 13            null
+ XYZ      2018-09-17 10:00:04    1     13        10           13                 13            null
+ XYZ      2018-09-17 10:00:05    2     11        10           13                 13             11
 {% endhighlight %}
 
+The rows mapped to A.price is differnet based on the RUNNING semantics or FINAL semantics is used.
+Even though not explicitly mentioned in the `MEASURES` clause, all the columns of the input are added at the beginning of the result.
+
+##### `ONE ROW PER MATCH`
+
+{% highlight text %}
+ symbol   startPrice   runningTopPrice   finalTopPrice   lastPrice
+======== ============ ================= =============== ===========
+ XYZ      10                  13               13           11
+{% endhighlight %}
+
+The rows mapped to A.price is the same no matter RUNNING semantics or FINAL semantics is used.
 The pattern recognition is partitioned by the `symbol` column. Even though not explicitly mentioned in the `MEASURES` clause, the partitioned column is added at the beginning of the result.
 
 Pattern Navigation
@@ -951,9 +981,7 @@ Unsupported features include:
   * Anchors - `^, $`, which denote beginning/end of a partition, those do not make sense in the streaming context and will not be supported.
   * Exclusion - `PATTERN ({- A -} B)` meaning that `A` will be looked for but will not participate in the output. This works only for the `ALL ROWS PER MATCH` mode.
   * Reluctant optional quantifier - `PATTERN A??` only the greedy optional quantifier is supported.
-* `ALL ROWS PER MATCH` output mode - which produces an output row for every row that participated in the creation of a found match. This also means:
-  * that the only supported semantic for the `MEASURES` clause is `FINAL`
-  * `CLASSIFIER` function, which returns the pattern variable that a row was mapped to, is not yet supported.
+* `CLASSIFIER` function, which returns the pattern variable that a row was mapped to, is not yet supported.
 * `SUBSET` - which allows creating logical groups of pattern variables and using those groups in the `DEFINE` and `MEASURES` clauses.
 * Physical offsets - `PREV/NEXT`, which indexes all events seen rather than only those that were mapped to a pattern variable(as in [logical offsets](#logical-offsets) case).
 * Extracting time attributes - there is currently no possibility to get a time attribute for subsequent time-based operations.

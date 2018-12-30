@@ -181,20 +181,17 @@ class DataStreamMatch(
 
     val measures = logicalMatch.measures
     val outTypeInfo = CRowTypeInfo(schema.typeInfo)
-    if (logicalMatch.allRows) {
-      throw new TableException("All rows per match mode is not supported yet.")
-    } else {
-      val patternSelectFunction =
-        MatchCodeGenerator.generateOneRowPerMatchExpression(
-          config,
-          schema,
-          partitionKeys,
-          orderKeys,
-          measures,
-          inputTypeInfo,
-          patternNames.toSeq)
-      patternStream.flatSelect[CRow](patternSelectFunction, outTypeInfo)
-    }
+    val patternFlatSelectFunction =
+      MatchCodeGenerator.generatePatternFlatSelectFunction(
+        config,
+        schema,
+        partitionKeys,
+        orderKeys,
+        measures,
+        inputTypeInfo,
+        patternNames.toSeq,
+        logicalMatch.allRows)
+    patternStream.flatSelect[CRow](patternFlatSelectFunction, outTypeInfo)
   }
 
   private def translateOrder(
