@@ -110,12 +110,6 @@ For example with a `FsStateBackend` or `RocksDBStateBackend`:
 /savepoints/savepoint-:shortjobid-:savepointid/...
 {% endhighlight %}
 
-<div class="alert alert-info">
-  <strong>Note:</strong>
-Although it looks as if the savepoints may be moved, it is currently not possible due to absolute paths in the <code>_metadata</code> file.
-Please follow <a href="https://issues.apache.org/jira/browse/FLINK-5778">FLINK-5778</a> for progress on lifting this restriction.
-</div>
-
 Note that if you use the `MemoryStateBackend`, metadata *and* savepoint state will be stored in the `_metadata` file. Since it is self-contained, you may move the file and restore from any location.
 
 <div class="alert alert-warning">
