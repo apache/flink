@@ -92,7 +92,6 @@ public abstract class AbstractHadoopFileSystemITTest extends TestLogger {
 			fs.delete(path, false);
 		}
 
-		// now file must be gone (this is eventually-consistent!)
 		checkPathExistence(path, false, deadline);
 	}
 
