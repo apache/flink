@@ -759,7 +759,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 				return CompletableFuture.completedFuture(Acknowledge.get());
 			} catch (Exception e) {
-				log.error("Failed to notify KvStateRegistry about registration {}.", registrationName);
+				log.error("Failed to notify KvStateRegistry about registration {}.", registrationName, e);
 				return FutureUtils.completedExceptionally(e);
 			}
 		} else {
@@ -788,7 +788,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 				return CompletableFuture.completedFuture(Acknowledge.get());
 			} catch (Exception e) {
-				log.error("Failed to notify KvStateRegistry about registration {}.", registrationName, e);
+				log.error("Failed to notify KvStateRegistry about unregistration {}.", registrationName, e);
 				return FutureUtils.completedExceptionally(e);
 			}
 		} else {
