@@ -117,11 +117,11 @@ input.addSink(sink);
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val input: DataStream[Tuple2[IntWritable, Text]] = ...
+val input: DataStream[(IntWritable, Text)] = ???
 
-val sink = new BucketingSink[String]("/base/path")
-sink.setBucketer(new DateTimeBucketer[String]("yyyy-MM-dd--HHmm", ZoneId.of("America/Los_Angeles")))
-sink.setWriter(new SequenceFileWriter[IntWritable, Text]())
+val sink = new BucketingSink[(IntWritable, Text)]("/base/path")
+sink.setBucketer(new DateTimeBucketer("yyyy-MM-dd--HHmm"))
+sink.setWriter(new StringWriter[(IntWritable, Text)]())
 sink.setBatchSize(1024 * 1024 * 400) // this is 400 MB,
 sink.setBatchRolloverInterval(20 * 60 * 1000); // this is 20 mins
 
