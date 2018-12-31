@@ -123,7 +123,7 @@ class DescriptorPropertiesTest {
   }
 
   @Test(expected = classOf[ValidationException])
-  def testInvalidFixedIndexedProperty(): Unit = {
+  def testInvalidFixedIndexedProperties(): Unit = {
     val property = new DescriptorProperties()
     val list = new util.ArrayList[util.List[String]]()
     list.add(util.Arrays.asList("1", "string"))
@@ -132,7 +132,7 @@ class DescriptorPropertiesTest {
       FIXED_INDEXED_PROPERTY_KEY,
       util.Arrays.asList(PROPERTY_1_KEY, PROPERTY_2_KEY),
       list)
-    testFixedFieldsValidation(property)
+    testFixedIndexedPropertiesValidation(property)
   }
 
   @Test
@@ -183,7 +183,7 @@ class DescriptorPropertiesTest {
       maxLength)
   }
 
-  private def testFixedFieldsValidation(properties: DescriptorProperties): Unit = {
+  private def testFixedIndexedPropertiesValidation(properties: DescriptorProperties): Unit = {
 
     val validatorMap = new util.HashMap[String, Consumer[String]]()
 
