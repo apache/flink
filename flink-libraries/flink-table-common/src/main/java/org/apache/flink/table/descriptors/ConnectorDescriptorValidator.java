@@ -27,6 +27,11 @@ import org.apache.flink.annotation.Internal;
 public abstract class ConnectorDescriptorValidator implements DescriptorValidator {
 
 	/**
+	 * Prefix for connector-related properties.
+	 */
+	public static final String CONNECTOR = "connector";
+
+	/**
 	 * Key for describing the type of the connector. Usually used for factory discovery.
 	 */
 	public static final String CONNECTOR_TYPE = "connector.type";
