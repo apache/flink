@@ -270,8 +270,8 @@ class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDesc
     * Explicitly declares this external table for supporting only batch environments.
     */
   def supportsBatch(): ExternalCatalogTableBuilder = {
-    isBatch = false
-    isStreaming = true
+    isBatch = true
+    isStreaming = false
     this
   }
 
