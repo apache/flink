@@ -68,7 +68,7 @@ public abstract class ConnectorDescriptor extends DescriptorBase implements Desc
 
 	/**
 	 * Converts this descriptor into a set of connector properties. Usually prefixed with
-	 * {@link FormatDescriptorValidator#FORMAT}.
+	 * {@link ConnectorDescriptorValidator#CONNECTOR}.
 	 */
 	protected abstract Map<String, String> toConnectorProperties();
 }
