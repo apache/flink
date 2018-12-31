@@ -193,27 +193,31 @@ public class LocalExecutor implements Executor {
 
 	@Override
 	public List<String> listTables(SessionContext session) throws SqlExecutionException {
-		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+		final TableEnvironment tableEnv = context
 			.createEnvironmentInstance()
 			.getTableEnvironment();
-		return Arrays.asList(tableEnv.listTables());
+		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listTables()));
 	}
 
 	@Override
 	public List<String> listUserDefinedFunctions(SessionContext session) throws SqlExecutionException {
-		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+		final TableEnvironment tableEnv = context
 			.createEnvironmentInstance()
 			.getTableEnvironment();
-		return Arrays.asList(tableEnv.listUserDefinedFunctions());
+		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listUserDefinedFunctions()));
 	}
 
 	@Override
 	public TableSchema getTableSchema(SessionContext session, String name) throws SqlExecutionException {
-		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+		final TableEnvironment tableEnv = context
 			.createEnvironmentInstance()
 			.getTableEnvironment();
 		try {
-			return tableEnv.scan(name).getSchema();
+			// scanning requires table resolution step that might reference external tables
+			return context.wrapClassLoader(() -> tableEnv.scan(name).getSchema());
 		} catch (Throwable t) {
 			// catch everything such that the query does not crash the executor
 			throw new SqlExecutionException("No table with this name could be found.", t);
@@ -229,7 +233,7 @@ public class LocalExecutor implements Executor {
 
 		// translate
 		try {
-			final Table table = createTable(tableEnv, statement);
+			final Table table = createTable(context, tableEnv, statement);
 			// explanation requires an optimization step that might reference UDFs during code compilation
 			return context.wrapClassLoader(() -> tableEnv.explain(table));
 		} catch (Throwable t) {
@@ -240,12 +244,14 @@ public class LocalExecutor implements Executor {
 
 	@Override
 	public List<String> completeStatement(SessionContext session, String statement, int position) {
-		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+		final TableEnvironment tableEnv = context
 				.createEnvironmentInstance()
 				.getTableEnvironment();
 
 		try {
-			return Arrays.asList(tableEnv.getCompletionHints(statement, position));
+			// planning requires table resolution step that might reference external tables
+			return context.wrapClassLoader(() -> Arrays.asList(tableEnv.getCompletionHints(statement, position)));
 		} catch (Throwable t) {
 			// catch everything such that the query does not crash the executor
 			if (LOG.isDebugEnabled()) {
@@ -402,7 +408,7 @@ public class LocalExecutor implements Executor {
 		final ExecutionContext.EnvironmentInstance envInst = context.createEnvironmentInstance();
 
 		// create table
-		final Table table = createTable(envInst.getTableEnvironment(), query);
+		final Table table = createTable(context, envInst.getTableEnvironment(), query);
 
 		// initialize result
 		final DynamicResult<C> result = resultStore.createResult(
@@ -448,10 +454,11 @@ public class LocalExecutor implements Executor {
 	/**
 	 * Creates a table using the given query in the given table environment.
 	 */
-	private Table createTable(TableEnvironment tableEnv, String selectQuery) {
+	private <C> Table createTable(ExecutionContext<C> context, TableEnvironment tableEnv, String selectQuery) {
 		// parse and validate query
 		try {
-			return tableEnv.sqlQuery(selectQuery);
+			// query statement requires table resolution step that might reference external tables
+			return context.wrapClassLoader(() -> tableEnv.sqlQuery(selectQuery));
 		} catch (Throwable t) {
 			// catch everything such that the query does not crash the executor
 			throw new SqlExecutionException("Invalid SQL statement.", t);

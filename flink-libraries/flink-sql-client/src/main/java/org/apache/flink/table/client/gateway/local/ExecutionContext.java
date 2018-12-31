@@ -166,7 +166,7 @@ public class ExecutionContext<T> {
 
 	public EnvironmentInstance createEnvironmentInstance() {
 		try {
-			return new EnvironmentInstance();
+			return wrapClassLoader(EnvironmentInstance::new);
 		} catch (Throwable t) {
 			// catch everything such that a wrong environment does not affect invocations
 			throw new SqlExecutionException("Could not create environment instance.", t);
