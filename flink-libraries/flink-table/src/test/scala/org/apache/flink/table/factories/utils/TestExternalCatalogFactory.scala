@@ -22,6 +22,7 @@ import java.util
 import java.util.Collections
 
 import org.apache.flink.table.catalog.ExternalCatalog
+import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.descriptors.ExternalCatalogDescriptorValidator.{CATALOG_PROPERTY_VERSION, CATALOG_TYPE}
 import org.apache.flink.table.factories.utils.TestExternalCatalogFactory._
 import org.apache.flink.table.factories.ExternalCatalogFactory
@@ -30,8 +31,11 @@ import org.apache.flink.table.runtime.utils.CommonTestData
 /**
   * External catalog factory for testing.
   *
-  * This factory provides the in-memory catalog from [[CommonTestData.getInMemoryTestCatalog()]] as catalog type "test".
-  * Note that the provided catalog tables support only streaming environments.
+  * This factory provides the in-memory catalog from [[CommonTestData]] as a
+  * catalog of type "test".
+  *
+  * The catalog produces tables intended for either a streaming or batch environment,
+  * based on the descriptor property {{{ is-streaming }}}.
   */
 class TestExternalCatalogFactory extends ExternalCatalogFactory {
 
@@ -42,13 +46,19 @@ class TestExternalCatalogFactory extends ExternalCatalogFactory {
     context
   }
 
-  override def supportedProperties: util.List[String] = Collections.emptyList()
+  override def supportedProperties: util.List[String] =
+    Collections.singletonList(CATALOG_IS_STREAMING)
 
   override def createExternalCatalog(properties: util.Map[String, String]): ExternalCatalog = {
-    CommonTestData.getInMemoryTestCatalog(isStreaming = true)
+    val props = new DescriptorProperties()
+    props.putProperties(properties)
+
+    CommonTestData.getInMemoryTestCatalog(
+      isStreaming = props.getOptionalBoolean(CATALOG_IS_STREAMING).orElse(false))
   }
 }
 
 object TestExternalCatalogFactory {
   val CATALOG_TYPE_VALUE_TEST = "test"
+  val CATALOG_IS_STREAMING = "is-streaming"
 }
