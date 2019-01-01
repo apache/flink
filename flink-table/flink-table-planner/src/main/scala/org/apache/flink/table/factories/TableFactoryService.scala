@@ -22,6 +22,7 @@ import java.util.{ServiceConfigurationError, ServiceLoader, Map => JMap}
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator._
+import org.apache.flink.table.descriptors.ExternalCatalogDescriptorValidator._
 import org.apache.flink.table.descriptors.FormatDescriptorValidator._
 import org.apache.flink.table.descriptors.MetadataValidator._
 import org.apache.flink.table.descriptors.StatisticsValidator._
@@ -205,6 +206,7 @@ object TableFactoryService extends Logging {
       plainContext.remove(FORMAT_PROPERTY_VERSION)
       plainContext.remove(METADATA_PROPERTY_VERSION)
       plainContext.remove(STATISTICS_PROPERTY_VERSION)
+      plainContext.remove(CATALOG_PROPERTY_VERSION)
 
       // check if required context is met
       plainContext.forall(e => properties.contains(e._1) && properties(e._1) == e._2)

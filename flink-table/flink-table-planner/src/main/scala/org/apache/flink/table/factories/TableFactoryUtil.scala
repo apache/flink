@@ -19,6 +19,7 @@
 package org.apache.flink.table.factories
 
 import org.apache.flink.table.api.{BatchTableEnvironment, StreamTableEnvironment, TableEnvironment, TableException}
+import org.apache.flink.table.catalog.ExternalCatalog
 import org.apache.flink.table.descriptors.Descriptor
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
@@ -27,6 +28,17 @@ import org.apache.flink.table.sources.TableSource
   * Utility for dealing with [[TableFactory]] using the [[TableFactoryService]].
   */
 object TableFactoryUtil {
+
+  /**
+    * Returns an external catalog.
+    */
+  def findAndCreateExternalCatalog(descriptor: Descriptor): ExternalCatalog = {
+    val javaMap = descriptor.toProperties
+
+    TableFactoryService
+      .find(classOf[ExternalCatalogFactory], javaMap)
+      .createExternalCatalog(javaMap)
+  }
 
   /**
     * Returns a table source for a table environment.
