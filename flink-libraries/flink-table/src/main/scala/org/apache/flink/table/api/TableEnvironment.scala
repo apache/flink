@@ -49,7 +49,7 @@ import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTabl
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
 import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
-import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
+import org.apache.flink.table.descriptors.{ConnectExternalCatalogDescriptor, ConnectorDescriptor, ExternalCatalogDescriptor, TableDescriptor}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
@@ -654,6 +654,31 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param connectorDescriptor connector descriptor describing the external system
     */
   def connect(connectorDescriptor: ConnectorDescriptor): TableDescriptor
+
+  /**
+    * Connects to an external catalog from a descriptor.
+    *
+    * Descriptors allow for declaring the communication to external systems in an
+    * implementation-agnostic way. The classpath is scanned for suitable table factories that match
+    * the desired configuration.
+    *
+    * The following example shows how to read from an external catalog and
+    * registering it as "MyCatalog":
+    *
+    * {{{
+    *
+    * tableEnv
+    *   .connect(
+    *     new ExternalCatalogXYZ()
+    *       .version("2.3.0"))
+    *   .registerExternalCatalog("MyCatalog")
+    * }}}
+    *
+    * @param catalogDescriptor connector descriptor describing the external system
+    */
+  def connect(catalogDescriptor: ExternalCatalogDescriptor): ConnectExternalCatalogDescriptor = {
+    new ConnectExternalCatalogDescriptor(this, catalogDescriptor)
+  }
 
   private[flink] def scanInternal(tablePath: Array[String]): Option[Table] = {
     require(tablePath != null && !tablePath.isEmpty, "tablePath must not be null or empty.")
