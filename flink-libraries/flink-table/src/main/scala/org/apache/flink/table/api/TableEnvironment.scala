@@ -404,6 +404,15 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
+    * Gets the names of all external catalogs registered in this environment.
+    *
+    * @return A list of the names of all registered external catalogs.
+    */
+  def listExternalCatalogs(): Array[String] = {
+    this.externalCatalogs.keySet.toArray
+  }
+
+  /**
     * Registers an [[ExternalCatalog]] under a unique name in the TableEnvironment's schema.
     * All tables registered in the [[ExternalCatalog]] can be accessed.
     *
