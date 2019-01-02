@@ -176,7 +176,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 		}
 	}
 
-	private String createLogicalScope(CharacterFilter filter, char delimiter) {
+	protected String createLogicalScope(CharacterFilter filter, char delimiter) {
 		final String groupName = getGroupName(filter);
 		return parent == null
 			? groupName
