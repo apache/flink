@@ -258,34 +258,52 @@ public class AbstractMetricGroupTest {
 		}
 	}
 
-	@Test(timeout = 10_000)
+	@Test
 	public void testGetAllVariablesDoesNotDeadlock() throws InterruptedException {
-		final BlockerSync sync = new BlockerSync();
-		final MetricRegistry registry = new BlockingMetricRegistry(sync);
+		final TestMetricRegistry registry = new TestMetricRegistry();
 
 		final MetricGroup parent = new GenericMetricGroup(registry, UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(), "parent");
 		final MetricGroup child = parent.addGroup("child");
 
-		final Thread registeringThread = new Thread(() -> parent.counter("parent_counter"));
-		registeringThread.start();
-		try {
-			sync.awaitBlocker();
+		final Thread parentRegisteringThread = new Thread(() -> parent.counter("parent_counter"));
+		final Thread childRegisteringThread = new Thread(() -> child.counter("child_counter"));
 
-			// this call could deadlock in the past since the registeringThread still holds the lock for parent
-			// and getAllVariables acquired the locks of all parent groups
-			child.getAllVariables();
+		final BlockerSync parentSync = new BlockerSync();
+		final BlockerSync childSync = new BlockerSync();
+
+		try {
+			// start both threads and have them block in the registry, so they acquire the lock of their respective group
+			registry.setOnRegistrationAction(childSync::blockNonInterruptible);
+			childRegisteringThread.start();
+			childSync.awaitBlocker();
+
+			registry.setOnRegistrationAction(parentSync::blockNonInterruptible);
+			parentRegisteringThread.start();
+			parentSync.awaitBlocker();
+
+			// the parent thread remains blocked to simulate the child thread holding some lock in the registry/reporter
+			// the child thread continues execution and calls getAllVariables()
+			// in the past this would block indefinitely since the method acquires the locks of all parent groups
+			childSync.releaseBlocker();
+			// wait with a timeout to ensure the finally block is executed _at some point_, un-blocking the parent
+			childRegisteringThread.join(1000 * 10);
+
+			parentSync.releaseBlocker();
+			parentRegisteringThread.join();
 		} finally {
-			sync.releaseBlocker();
-			registeringThread.join();
+			parentSync.releaseBlocker();
+			childSync.releaseBlocker();
+			parentRegisteringThread.join();
+			childRegisteringThread.join();
 		}
 	}
 
-	private static final class BlockingMetricRegistry implements MetricRegistry {
+	private static final class TestMetricRegistry implements MetricRegistry {
 
-		private final BlockerSync sync;
+		private Runnable onRegistrationAction;
 
-		BlockingMetricRegistry(BlockerSync sync) {
-			this.sync = sync;
+		void setOnRegistrationAction(Runnable onRegistrationAction) {
+			this.onRegistrationAction = onRegistrationAction;
 		}
 
 		@Override
@@ -305,11 +323,8 @@ public class AbstractMetricGroupTest {
 
 		@Override
 		public void register(Metric metric, String metricName, AbstractMetricGroup group) {
-			try {
-				sync.block();
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
+			onRegistrationAction.run();
+			group.getAllVariables();
 		}
 
 		@Override
