@@ -32,7 +32,6 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -88,6 +87,7 @@ import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerReq
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
@@ -106,8 +106,6 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 
 import javax.annotation.Nonnull;
 
@@ -151,10 +149,8 @@ import static org.junit.Assert.fail;
  */
 public class RestClusterClientTest extends TestLogger {
 
-	@Mock
-	private Dispatcher mockRestfulGateway;
+	private final DispatcherGateway mockRestfulGateway = new TestingDispatcherGateway.Builder().build();
 
-	@Mock
 	private GatewayRetriever<DispatcherGateway> mockGatewayRetriever;
 
 	private RestServerEndpointConfiguration restServerEndpointConfiguration;
@@ -180,8 +176,6 @@ public class RestClusterClientTest extends TestLogger {
 
 	@Before
 	public void setUp() throws Exception {
-		MockitoAnnotations.initMocks(this);
-
 		restServerEndpointConfiguration = RestServerEndpointConfiguration.fromConfiguration(restConfig);
 		mockGatewayRetriever = () -> CompletableFuture.completedFuture(mockRestfulGateway);
 
