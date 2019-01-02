@@ -110,12 +110,11 @@ To get state to be snapshotted asynchronously, applications have to do two thing
 
   1. Use state that is [managed by Flink](../../dev/stream/state/state.html): Managed state means that Flink provides the data
      structure in which the state is stored. Currently, this is true for *keyed state*, which is abstracted behind the
-     interfaces like `ValueState`, `ListState`, `ReducingState`, ...
+     interfaces like `ValueState`, `ListState`, `ReducingState`, ... For operator state, we can make it managed by 
+     [implementing CheckpointedFunction](../../dev/stream/state/state.html#using-managed-operator-state).
 
   2. Use a state backend that supports asynchronous snapshots. In Flink 1.2, only the RocksDB state backend uses
      fully asynchronous snapshots. Starting from Flink 1.3, heap-based state backends also support asynchronous snapshots.
-
-The above two points imply that large state should generally be kept as keyed state, not as operator state.
 
 ## Tuning RocksDB
 
