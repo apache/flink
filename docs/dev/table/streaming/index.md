@@ -40,3 +40,5 @@ Where to go next?
 * [Joins in Continuous Queries]({{ site.baseurl }}/dev/table/streaming/joins.html): Different supported types of Joins in Continuous Queries.
 * [Temporal Tables]({{ site.baseurl }}/dev/table/streaming/temporal_tables.html): Describes the Temporal Table concept.
 * [Query configuration]({{ site.baseurl }}/dev/table/streaming/query_configuration.html): Lists Table API & SQL specific configuration options.
+
+{% top %}
