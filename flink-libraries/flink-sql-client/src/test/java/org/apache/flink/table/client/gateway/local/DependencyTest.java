@@ -22,20 +22,30 @@ import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
+import org.apache.flink.table.catalog.ExternalCatalog;
+import org.apache.flink.table.catalog.ExternalCatalogTable;
+import org.apache.flink.table.catalog.InMemoryExternalCatalog;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.TestTableSinkFactoryBase;
 import org.apache.flink.table.client.gateway.utils.TestTableSourceFactoryBase;
+import org.apache.flink.table.descriptors.ConnectorDescriptor;
+import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.descriptors.Schema;
+import org.apache.flink.table.factories.ExternalCatalogFactory;
 
 import org.junit.Test;
 
 import java.net.URL;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.table.descriptors.ExternalCatalogDescriptorValidator.CATALOG_TYPE;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -43,7 +53,8 @@ import static org.junit.Assert.assertEquals;
  */
 public class DependencyTest {
 
-	public static final String CONNECTOR_TYPE_VALUE = "test-connector";
+	public static final String CATALOG_TYPE_VALUE = "DependencyTest";
+	public static final String CONNECTOR_TYPE_VALUE = "DependencyTest";
 	public static final String TEST_PROPERTY = "test-property";
 
 	private static final String FACTORY_ENVIRONMENT_FILE = "test-sql-client-factory.yaml";
@@ -67,6 +78,11 @@ public class DependencyTest {
 			new DefaultCLI(new Configuration()));
 
 		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		final List<String> actualTables = executor.listTables(session);
+		final List<String> expectedTables = new ArrayList<>();
+		expectedTables.add("TableNumber1");
+		assertEquals(expectedTables, actualTables);
 
 		final TableSchema result = executor.getTableSchema(session, "TableNumber1");
 		final TableSchema expected = TableSchema.builder()
@@ -97,6 +113,69 @@ public class DependencyTest {
 
 		public TestTableSinkFactory() {
 			super(CONNECTOR_TYPE_VALUE, TEST_PROPERTY);
+		}
+	}
+
+	/**
+	 * External catalog that can be discovered if classloading is correct.
+	 */
+	public static class TestExternalCatalogFactory implements ExternalCatalogFactory {
+
+		@Override
+		public Map<String, String> requiredContext() {
+			final Map<String, String> context = new HashMap<>();
+			context.put(CATALOG_TYPE, CATALOG_TYPE_VALUE);
+			return context;
+		}
+
+		@Override
+		public List<String> supportedProperties() {
+			final List<String> properties = new ArrayList<>();
+			properties.add(TEST_PROPERTY);
+			return properties;
+		}
+
+		@Override
+		public ExternalCatalog createExternalCatalog(Map<String, String> properties) {
+			final DescriptorProperties params = new DescriptorProperties(true);
+			params.putProperties(properties);
+			return new TestExternalCatalog(params);
+		}
+
+		// --------------------------------------------------------------------------------------------
+
+		/**
+		 * Test catalog.
+		 */
+		public static class TestExternalCatalog extends InMemoryExternalCatalog {
+			private final DescriptorProperties params;
+			public TestExternalCatalog(DescriptorProperties params) {
+				super("test");
+				this.params = params;
+
+				ExternalCatalogTable table1 = ExternalCatalogTable.builder(new TestConnectorDescriptor())
+					.withSchema(Schema.apply())
+					.inAppendMode()
+					.asTableSourceAndSink();
+
+				createTable("TableNumber1", table1, false);
+			}
+		}
+
+		/**
+		 * Test connector descriptor for {@link TestTableSourceFactory}.
+		 */
+		public static class TestConnectorDescriptor extends ConnectorDescriptor {
+			public TestConnectorDescriptor() {
+				super(CONNECTOR_TYPE_VALUE, 1, false);
+			}
+
+			@Override
+			protected Map<String, String> toConnectorProperties() {
+				final DescriptorProperties properties = new DescriptorProperties();
+				properties.putString(TEST_PROPERTY, "test-value");
+				return properties.asMap();
+			}
 		}
 	}
 }

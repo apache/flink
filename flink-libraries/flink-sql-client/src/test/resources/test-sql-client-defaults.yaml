@@ -23,6 +23,11 @@
 
 # this file has variables that can be filled with content by replacing $VAR_XXX
 
+catalogs:
+  - name: Catalog1
+    type: test
+    is-streaming: "$VAR_CATALOG_IS_STREAMING"
+
 tables:
   - name: TableNumber1
     type: source-table

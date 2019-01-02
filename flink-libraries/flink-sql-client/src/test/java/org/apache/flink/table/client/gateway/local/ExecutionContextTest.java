@@ -71,6 +71,17 @@ public class ExecutionContextTest {
 	}
 
 	@Test
+	public void testExternalCatalogs() throws Exception {
+		final ExecutionContext<?> context = createDefaultExecutionContext();
+		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
+		final String[] expected = new String[]{"Catalog1"};
+		final String[] actual = tableEnv.listExternalCatalogs();
+		Arrays.sort(expected);
+		Arrays.sort(actual);
+		assertArrayEquals(expected, actual);
+	}
+
+	@Test
 	public void testFunctions() throws Exception {
 		final ExecutionContext<?> context = createDefaultExecutionContext();
 		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
@@ -170,6 +181,7 @@ public class ExecutionContextTest {
 		replaceVars.put("$VAR_RESULT_MODE", "changelog");
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
 		replaceVars.put("$VAR_MAX_ROWS", "100");
+		replaceVars.put("$VAR_CATALOG_IS_STREAMING", "true");
 		return createExecutionContext(DEFAULTS_ENVIRONMENT_FILE, replaceVars);
 	}
 

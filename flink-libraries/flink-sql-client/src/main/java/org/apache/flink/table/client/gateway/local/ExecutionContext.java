@@ -45,6 +45,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.catalog.ExternalCatalog;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
@@ -57,6 +58,7 @@ import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.factories.BatchTableSinkFactory;
 import org.apache.flink.table.factories.BatchTableSourceFactory;
+import org.apache.flink.table.factories.ExternalCatalogFactory;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.factories.TableFactoryService;
@@ -91,6 +93,7 @@ public class ExecutionContext<T> {
 	private final Environment mergedEnv;
 	private final List<URL> dependencies;
 	private final ClassLoader classLoader;
+	private final Map<String, ExternalCatalog> externalCatalogs;
 	private final Map<String, TableSource<?>> tableSources;
 	private final Map<String, TableSink<?>> tableSinks;
 	private final Map<String, UserDefinedFunction> functions;
@@ -112,6 +115,13 @@ public class ExecutionContext<T> {
 		classLoader = FlinkUserCodeClassLoaders.parentFirst(
 			dependencies.toArray(new URL[dependencies.size()]),
 			this.getClass().getClassLoader());
+
+		// create external catalogs
+		externalCatalogs = new HashMap<>();
+		mergedEnv.getCatalogs().forEach((name, entry) -> {
+			final ExternalCatalog catalog = createExternalCatalog(entry.asMap(), classLoader);
+			externalCatalogs.put(name, catalog);
+		});
 
 		// create table sources & sinks.
 		tableSources = new HashMap<>();
@@ -173,6 +183,10 @@ public class ExecutionContext<T> {
 		}
 	}
 
+	public Map<String, ExternalCatalog> getExternalCatalogs() {
+		return externalCatalogs;
+	}
+
 	public Map<String, TableSource<?>> getTableSources() {
 		return tableSources;
 	}
@@ -228,6 +242,12 @@ public class ExecutionContext<T> {
 		} catch (FlinkException e) {
 			throw new SqlExecutionException("Could not create cluster specification for the given deployment.", e);
 		}
+	}
+
+	private static ExternalCatalog createExternalCatalog(Map<String, String> catalogProperties, ClassLoader classLoader) {
+		final ExternalCatalogFactory factory =
+			TableFactoryService.find(ExternalCatalogFactory.class, catalogProperties, classLoader);
+		return factory.createExternalCatalog(catalogProperties);
 	}
 
 	private static TableSource<?> createTableSource(ExecutionEntry execution, Map<String, String> sourceProperties, ClassLoader classLoader) {
@@ -286,6 +306,9 @@ public class ExecutionContext<T> {
 
 			// create query config
 			queryConfig = createQueryConfig();
+
+			// register external catalogs
+			externalCatalogs.forEach(tableEnv::registerExternalCatalog);
 
 			// register table sources
 			tableSources.forEach(tableEnv::registerTableSource);
