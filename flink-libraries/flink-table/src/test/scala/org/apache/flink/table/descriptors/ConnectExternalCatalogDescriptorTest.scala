@@ -21,6 +21,7 @@ package org.apache.flink.table.descriptors
 import java.util
 
 import org.apache.flink.table.factories.utils.TestExternalCatalogFactory
+import org.apache.flink.table.factories.utils.TestExternalCatalogFactory.CATALOG_IS_STREAMING
 import org.apache.flink.table.factories.utils.TestExternalCatalogFactory.CATALOG_TYPE_VALUE_TEST
 import org.apache.flink.table.utils.TableTestBase
 import org.hamcrest.CoreMatchers.{is, notNullValue}
@@ -69,8 +70,10 @@ object ConnectExternalCatalogDescriptorTest {
   /**
     * Gets a descriptor for the external catalog produced by [[TestExternalCatalogFactory]].
     */
-  private def testExternalCatalog(isStreaming: Boolean) = new ExternalCatalogDescriptor(CATALOG_TYPE_VALUE_TEST, 1) {
-    override protected def toCatalogProperties: util.Map[String, String] =
-      java.util.Collections.singletonMap(TestExternalCatalogFactory.CATALOG_IS_STREAMING, isStreaming.toString)
+  private def testExternalCatalog(isStreaming: Boolean) = {
+    new ExternalCatalogDescriptor(CATALOG_TYPE_VALUE_TEST, 1) {
+      override protected def toCatalogProperties: util.Map[String, String] =
+        java.util.Collections.singletonMap(CATALOG_IS_STREAMING, isStreaming.toString)
+    }
   }
 }
