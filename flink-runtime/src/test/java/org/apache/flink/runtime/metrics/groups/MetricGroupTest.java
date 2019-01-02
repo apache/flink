@@ -41,11 +41,14 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
@@ -224,21 +227,26 @@ public class MetricGroupTest extends TestLogger {
 	 * should ignore value as well.
 	 */
 	@Test
-	public void testLogicalScopeShouldIgnoreValueGroupName() {
+	public void testLogicalScopeShouldIgnoreValueGroupName() throws Exception {
 		Configuration config = new Configuration();
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter.class.getName());
+
 		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
-		GenericMetricGroup root = new GenericMetricGroup(registry, new DummyAbstractMetricGroup(registry), "root");
+		try {
+			GenericMetricGroup root = new GenericMetricGroup(registry, new DummyAbstractMetricGroup(registry), "root");
 
-		String key = "key";
-		String value = "value";
+			String key = "key";
+			String value = "value";
 
-		MetricGroup group = root.addGroup(key, value);
+			MetricGroup group = root.addGroup(key, value);
 
-		String logicalScope = ((AbstractMetricGroup) group)
-			.getLogicalScope(new DummyCharacterFilter(), registry.getDelimiter(), 0);
-		assertTrue("Key is missing from logical scope.", logicalScope.contains(key));
-		assertFalse("Value is present in logical scope.", logicalScope.contains(value));
+			String logicalScope = ((AbstractMetricGroup) group)
+				.getLogicalScope(new DummyCharacterFilter(), registry.getDelimiter(), 0);
+			assertThat("Key is missing from logical scope.", logicalScope, containsString(key));
+			assertThat("Value is present in logical scope.", logicalScope, not(containsString(value)));
+		} finally {
+			registry.shutdown().get();
+		}
 	}
 
 	@Test
