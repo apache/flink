@@ -124,11 +124,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 			blobKeyFuture = fileBlobKeys.get(taskManagerId);
 		} catch (ExecutionException e) {
 			final Throwable cause = ExceptionUtils.stripExecutionException(e);
-			if (cause instanceof RestHandlerException) {
-				throw (RestHandlerException) cause;
-			} else {
-				throw new RestHandlerException("Could not retrieve file blob key future.", HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
-			}
+			throw new RestHandlerException("Could not retrieve file blob key future.", HttpResponseStatus.INTERNAL_SERVER_ERROR, cause);
 		}
 
 		final CompletableFuture<Void> resultFuture = blobKeyFuture.thenAcceptAsync(
