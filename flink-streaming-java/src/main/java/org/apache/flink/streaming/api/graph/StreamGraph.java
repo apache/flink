@@ -635,9 +635,17 @@ public class StreamGraph extends StreamingPlan {
 		return iterationSourceSinkPairs;
 	}
 
+	public StreamNode getSourceVertex(StreamEdge edge) {
+		return streamNodes.get(edge.getSourceId());
+	}
+
+	public StreamNode getTargetVertex(StreamEdge edge) {
+		return streamNodes.get(edge.getTargetId());
+	}
+
 	private void removeEdge(StreamEdge edge) {
-		edge.getSourceVertex().getOutEdges().remove(edge);
-		edge.getTargetVertex().getInEdges().remove(edge);
+		getSourceVertex(edge).getOutEdges().remove(edge);
+		getTargetVertex(edge).getInEdges().remove(edge);
 	}
 
 	private void removeVertex(StreamNode toRemove) {

@@ -520,8 +520,8 @@ public class StreamingJobGraphGenerator {
 	}
 
 	public static boolean isChainable(StreamEdge edge, StreamGraph streamGraph) {
-		StreamNode upStreamVertex = edge.getSourceVertex();
-		StreamNode downStreamVertex = edge.getTargetVertex();
+		StreamNode upStreamVertex = streamGraph.getSourceVertex(edge);
+		StreamNode downStreamVertex = streamGraph.getTargetVertex(edge);
 
 		StreamOperator<?> headOperator = upStreamVertex.getOperator();
 		StreamOperator<?> outOperator = downStreamVertex.getOperator();
