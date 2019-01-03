@@ -122,14 +122,14 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       'f0.shiftLeft(20),
       "f0.shiftLeft(20)",
       "SHIFTLEFT(CAST(1 AS TINYINT), 20)",
-      "1048576"
+      "0"
     )
 
     testAllApis(      // test smallint
       'f1.shiftLeft(20),
       "f1.shiftLeft(20)",
       "SHIFTLEFT(CAST(1 AS SMALLINT), 20)",
-      "1048576"
+      "0"
     )
 
     testAllApis(      // test long

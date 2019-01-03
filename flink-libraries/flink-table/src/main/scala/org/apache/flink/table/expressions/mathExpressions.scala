@@ -499,15 +499,7 @@ case class ShiftLeft(left: Expression, right: Expression) extends BinaryArithmet
 
   private[flink] val sqlOperator = ScalarSqlFunctions.SHIFT_LEFT
 
-  override private[flink] def resultType: TypeInformation[_] = {
-    if (left.resultType == BYTE_TYPE_INFO ||
-        left.resultType == SHORT_TYPE_INFO ||
-        left.resultType == INT_TYPE_INFO) {
-      INT_TYPE_INFO
-    } else {
-      LONG_TYPE_INFO
-    }
-  }
+  override private[flink] def resultType: TypeInformation[_] = left.resultType
 
   override private[flink] def validateInput() = {
     TypeCheckUtils.assertIntegerFamilyExpr(left.resultType, "shiftleft")
@@ -520,15 +512,7 @@ case class ShiftRight(left: Expression, right: Expression) extends BinaryArithme
 
   private[flink] val sqlOperator = ScalarSqlFunctions.SHIFT_RIGHT
 
-  override private[flink] def resultType: TypeInformation[_] = {
-    if (left.resultType == BYTE_TYPE_INFO ||
-        left.resultType == SHORT_TYPE_INFO ||
-        left.resultType == INT_TYPE_INFO) {
-      INT_TYPE_INFO
-    } else {
-      LONG_TYPE_INFO
-    }
-  }
+  override private[flink] def resultType: TypeInformation[_] = left.resultType
 
   override private[flink] def validateInput() = {
     TypeCheckUtils.assertIntegerFamilyExpr(left.resultType, "shiftright")
@@ -541,15 +525,7 @@ case class ShiftRightUnsigned(left: Expression, right: Expression) extends Binar
 
   private[flink] val sqlOperator = ScalarSqlFunctions.SHIFT_RIGHT_UNSIGNED
 
-  override private[flink] def resultType: TypeInformation[_] = {
-    if (left.resultType == BYTE_TYPE_INFO ||
-        left.resultType == SHORT_TYPE_INFO ||
-        left.resultType == INT_TYPE_INFO) {
-      INT_TYPE_INFO
-    } else {
-      LONG_TYPE_INFO
-    }
-  }
+  override private[flink] def resultType: TypeInformation[_] = left.resultType
 
   override private[flink] def validateInput() = {
     TypeCheckUtils.assertIntegerFamilyExpr(left.resultType, "shiftrightunsigned")
