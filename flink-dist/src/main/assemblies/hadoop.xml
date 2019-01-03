@@ -31,9 +31,9 @@ under the License.
 	<files>
 		<!-- copy the Hadoop uber jar -->
 		<file>
-			<source>../flink-shaded-hadoop/flink-shaded-hadoop2-uber/target/flink-shaded-hadoop2-uber-${project.version}.jar</source>
+			<source>../flink-shaded-hadoop/flink-shaded-hadoop2-uber/target/flink-shaded-hadoop2-uber-${project.version}-${hadoop.version}.jar</source>
 			<outputDirectory>lib/</outputDirectory>
-			<destName>flink-shaded-hadoop2-uber-${project.version}.jar</destName>
+			<destName>flink-shaded-hadoop2-uber-${project.version}-${hadoop.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 	</files>
