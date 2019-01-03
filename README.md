@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/apache/flink.svg?branch=master)](https://travis-ci.org/apache/flink)
+
 # Apache Flink
 
 Apache Flink is an open source stream processing framework with powerful stream- and batch-processing capabilities.
