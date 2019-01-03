@@ -179,7 +179,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-hadoop2-uber</artifactId>
-			<version>${project.version}</version>
+			<version>${project.version}-${hadoop.version}</version>
 			<!--
 				Exclusion of flink-shaded-hadoop2 not necessary, dependencies
 				are shaded away properly by flink-shaded-hadoop2-uber.

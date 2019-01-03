@@ -70,7 +70,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-hadoop2</artifactId>
-			<version>${project.version}</version>
+			<version>${project.version}-${hadoop.version}</version>
 			<optional>true</optional>
 		</dependency>
 
