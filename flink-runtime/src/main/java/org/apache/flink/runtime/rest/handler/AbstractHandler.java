@@ -31,6 +31,7 @@ import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
@@ -50,6 +51,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -158,33 +160,49 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 			final FileUploads finalUploadedFiles = uploadedFiles;
 			requestProcessingFuture
 				.whenComplete((Void ignored, Throwable throwable) -> {
-					inFlightRequestTracker.deregisterRequest();
-					cleanupFileUploads(finalUploadedFiles);
+					if (throwable != null) {
+						handleException(ExceptionUtils.stripCompletionException(throwable), ctx, httpRequest)
+							.whenComplete((Void ignored2, Throwable throwable2) -> finalizeRequestProcessing(finalUploadedFiles));
+					} else {
+						finalizeRequestProcessing(finalUploadedFiles);
+					}
 				});
-		} catch (RestHandlerException rhe) {
-			inFlightRequestTracker.deregisterRequest();
+		} catch (Throwable e) {
+			final FileUploads finalUploadedFiles = uploadedFiles;
+			handleException(e, ctx, httpRequest)
+				.whenComplete((Void ignored, Throwable throwable) -> finalizeRequestProcessing(finalUploadedFiles));
+		}
+	}
+
+	private void finalizeRequestProcessing(FileUploads uploadedFiles) {
+		inFlightRequestTracker.deregisterRequest();
+		cleanupFileUploads(uploadedFiles);
+	}
+
+	private CompletableFuture<Void> handleException(Throwable throwable, ChannelHandlerContext ctx, HttpRequest httpRequest) {
+		if (throwable instanceof RestHandlerException) {
+			RestHandlerException rhe = (RestHandlerException) throwable;
 			if (log.isDebugEnabled()) {
 				log.error("Exception occurred in REST handler.", rhe);
 			} else {
 				log.error("Exception occurred in REST handler: {}", rhe.getMessage());
 			}
-			HandlerUtils.sendErrorResponse(
+			return HandlerUtils.sendErrorResponse(
 				ctx,
 				httpRequest,
 				new ErrorResponseBody(rhe.getMessage()),
 				rhe.getHttpResponseStatus(),
 				responseHeaders);
-			cleanupFileUploads(uploadedFiles);
-		} catch (Throwable e) {
-			inFlightRequestTracker.deregisterRequest();
-			log.error("Request processing failed.", e);
-			HandlerUtils.sendErrorResponse(
+		} else {
+			log.error("Implementation error: Unhandled exception.", throwable);
+			String stackTrace = String.format("<Exception on server side:%n%s%nEnd of exception on server side>",
+				ExceptionUtils.stringifyException(throwable));
+			return HandlerUtils.sendErrorResponse(
 				ctx,
 				httpRequest,
-				new ErrorResponseBody("Internal server error."),
+				new ErrorResponseBody(Arrays.asList("Internal server error.", stackTrace)),
 				HttpResponseStatus.INTERNAL_SERVER_ERROR,
 				responseHeaders);
-			cleanupFileUploads(uploadedFiles);
 		}
 	}
 
