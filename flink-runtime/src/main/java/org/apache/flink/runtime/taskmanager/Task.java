@@ -777,6 +777,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 					}
 					else if (current == ExecutionState.CANCELING) {
 						if (transitionState(current, ExecutionState.CANCELED)) {
+							cancelInvokable(invokable);
 							break;
 						}
 					}
