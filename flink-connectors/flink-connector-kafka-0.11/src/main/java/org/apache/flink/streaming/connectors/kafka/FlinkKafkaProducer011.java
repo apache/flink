@@ -25,7 +25,6 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
@@ -174,7 +173,7 @@ public class FlinkKafkaProducer011<IN>
 	 * Descriptor of the transactional IDs list.
 	 */
 	private static final ListStateDescriptor<NextTransactionalIdHint> NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR =
-		new ListStateDescriptor<>("next-transactional-id-hint", TypeInformation.of(NextTransactionalIdHint.class));
+		new ListStateDescriptor<>("next-transactional-id-hint", new NextTransactionalIdHintSerializer());
 
 	/**
 	 * State for nextTransactionalIdHint.
@@ -1329,5 +1328,103 @@ public class FlinkKafkaProducer011<IN>
 			this.lastParallelism = parallelism;
 			this.nextFreeTransactionalId = nextFreeTransactionalId;
 		}
+
+		@Override
+		public String toString() {
+			return "NextTransactionalIdHint[" +
+				"lastParallelism=" + lastParallelism +
+				", nextFreeTransactionalId=" + nextFreeTransactionalId +
+				']';
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+
+			NextTransactionalIdHint that = (NextTransactionalIdHint) o;
+
+			if (lastParallelism != that.lastParallelism) {
+				return false;
+			}
+			return nextFreeTransactionalId == that.nextFreeTransactionalId;
+		}
+
+		@Override
+		public int hashCode() {
+			int result = lastParallelism;
+			result = 31 * result + (int) (nextFreeTransactionalId ^ (nextFreeTransactionalId >>> 32));
+			return result;
+		}
 	}
+
+	/**
+	 * {@link org.apache.flink.api.common.typeutils.TypeSerializer} for
+	 * {@link NextTransactionalIdHint}.
+	 */
+	@VisibleForTesting
+	@Internal
+	public static class NextTransactionalIdHintSerializer extends TypeSerializerSingleton<NextTransactionalIdHint> {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public boolean isImmutableType() {
+			return true;
+		}
+
+		@Override
+		public NextTransactionalIdHint createInstance() {
+			return new NextTransactionalIdHint();
+		}
+
+		@Override
+		public NextTransactionalIdHint copy(NextTransactionalIdHint from) {
+			return from;
+		}
+
+		@Override
+		public NextTransactionalIdHint copy(NextTransactionalIdHint from, NextTransactionalIdHint reuse) {
+			return from;
+		}
+
+		@Override
+		public int getLength() {
+			return Long.BYTES + Integer.BYTES;
+		}
+
+		@Override
+		public void serialize(NextTransactionalIdHint record, DataOutputView target) throws IOException {
+			target.writeLong(record.nextFreeTransactionalId);
+			target.writeInt(record.lastParallelism);
+		}
+
+		@Override
+		public NextTransactionalIdHint deserialize(DataInputView source) throws IOException {
+			long nextFreeTransactionalId = source.readLong();
+			int lastParallelism = source.readInt();
+			return new NextTransactionalIdHint(lastParallelism, nextFreeTransactionalId);
+		}
+
+		@Override
+		public NextTransactionalIdHint deserialize(NextTransactionalIdHint reuse, DataInputView source) throws IOException {
+			return deserialize(source);
+		}
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			target.writeLong(source.readLong());
+			target.writeInt(source.readInt());
+		}
+
+		@Override
+		public boolean canEqual(Object obj) {
+			return obj instanceof FlinkKafkaProducer011.NextTransactionalIdHintSerializer;
+		}
+	}
+
 }
