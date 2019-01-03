@@ -1372,7 +1372,7 @@ Pattern: `a b+` and sequence: `a b1 b2 b3` Then the results will be:
         <td>After found matching <code>a b1</code>, the match process will not discard any result.</td>
     </tr>
     <tr>
-        <td><strong>SKIP_TO_NEXT</strong>[<code>b</code>]</td>
+        <td><strong>SKIP_TO_NEXT</strong></td>
         <td>
             <code>a b1</code><br>
         </td>
