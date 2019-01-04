@@ -419,32 +419,38 @@ public class TaskManagerServices {
 
 		QueryableStateConfiguration qsConfig = taskManagerServicesConfiguration.getQueryableStateConfig();
 
-		int numProxyServerNetworkThreads = qsConfig.numProxyServerThreads() == 0 ?
+		KvStateClientProxy kvClientProxy = null;
+		KvStateServer kvStateServer = null;
+
+		if (qsConfig != null) {
+			int numProxyServerNetworkThreads = qsConfig.numProxyServerThreads() == 0 ?
 				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numProxyServerThreads();
 
-		int numProxyServerQueryThreads = qsConfig.numProxyQueryThreads() == 0 ?
+			int numProxyServerQueryThreads = qsConfig.numProxyQueryThreads() == 0 ?
 				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numProxyQueryThreads();
 
-		final KvStateClientProxy kvClientProxy = QueryableStateUtils.createKvStateClientProxy(
+
+			kvClientProxy = QueryableStateUtils.createKvStateClientProxy(
 				taskManagerServicesConfiguration.getTaskManagerAddress(),
 				qsConfig.getProxyPortRange(),
 				numProxyServerNetworkThreads,
 				numProxyServerQueryThreads,
 				new DisabledKvStateRequestStats());
 
-		int numStateServerNetworkThreads = qsConfig.numStateServerThreads() == 0 ?
+			int numStateServerNetworkThreads = qsConfig.numStateServerThreads() == 0 ?
 				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numStateServerThreads();
 
-		int numStateServerQueryThreads = qsConfig.numStateQueryThreads() == 0 ?
+			int numStateServerQueryThreads = qsConfig.numStateQueryThreads() == 0 ?
 				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numStateQueryThreads();
 
-		final KvStateServer kvStateServer = QueryableStateUtils.createKvStateServer(
+			kvStateServer = QueryableStateUtils.createKvStateServer(
 				taskManagerServicesConfiguration.getTaskManagerAddress(),
 				qsConfig.getStateServerPortRange(),
 				numStateServerNetworkThreads,
 				numStateServerQueryThreads,
 				kvStateRegistry,
 				new DisabledKvStateRequestStats());
+		}
 
 		// we start the network first, to make sure it can allocate its buffers first
 		return new NetworkEnvironment(

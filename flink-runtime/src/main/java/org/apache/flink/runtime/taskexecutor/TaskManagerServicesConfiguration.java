@@ -107,7 +107,7 @@ public class TaskManagerServicesConfiguration {
 		this.localRecoveryStateRootDirectories = checkNotNull(localRecoveryStateRootDirectories);
 		this.localRecoveryEnabled = checkNotNull(localRecoveryEnabled);
 		this.networkConfig = checkNotNull(networkConfig);
-		this.queryableStateConfig = checkNotNull(queryableStateConfig);
+		this.queryableStateConfig = queryableStateConfig;
 		this.numberOfSlots = checkNotNull(numberOfSlots);
 
 		this.configuredMemory = configuredMemory;
@@ -466,6 +466,9 @@ public class TaskManagerServicesConfiguration {
 	 * Creates the {@link QueryableStateConfiguration} from the given Configuration.
 	 */
 	private static QueryableStateConfiguration parseQueryableStateConfiguration(Configuration config) {
+		if (!config.getBoolean(QueryableStateOptions.ENABLE_QUERYABLE_STATE_PROXY_SERVER)) {
+			return null;
+		}
 
 		final Iterator<Integer> proxyPorts = NetUtils.getPortRangeFromString(
 				config.getString(QueryableStateOptions.PROXY_PORT_RANGE));
