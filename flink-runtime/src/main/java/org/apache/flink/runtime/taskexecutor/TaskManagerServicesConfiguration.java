@@ -39,6 +39,7 @@ import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
@@ -66,6 +67,7 @@ public class TaskManagerServicesConfiguration {
 
 	private final NetworkEnvironmentConfiguration networkConfig;
 
+	@Nullable
 	private final QueryableStateConfiguration queryableStateConfig;
 
 	/**
@@ -93,7 +95,7 @@ public class TaskManagerServicesConfiguration {
 			String[] localRecoveryStateRootDirectories,
 			boolean localRecoveryEnabled,
 			NetworkEnvironmentConfiguration networkConfig,
-			QueryableStateConfiguration queryableStateConfig,
+			@Nullable QueryableStateConfiguration queryableStateConfig,
 			int numberOfSlots,
 			long configuredMemory,
 			MemoryType memoryType,
@@ -107,7 +109,7 @@ public class TaskManagerServicesConfiguration {
 		this.localRecoveryStateRootDirectories = checkNotNull(localRecoveryStateRootDirectories);
 		this.localRecoveryEnabled = checkNotNull(localRecoveryEnabled);
 		this.networkConfig = checkNotNull(networkConfig);
-		this.queryableStateConfig = checkNotNull(queryableStateConfig);
+		this.queryableStateConfig = queryableStateConfig;
 		this.numberOfSlots = checkNotNull(numberOfSlots);
 
 		this.configuredMemory = configuredMemory;
@@ -466,6 +468,9 @@ public class TaskManagerServicesConfiguration {
 	 * Creates the {@link QueryableStateConfiguration} from the given Configuration.
 	 */
 	private static QueryableStateConfiguration parseQueryableStateConfiguration(Configuration config) {
+		if (!config.getBoolean(QueryableStateOptions.ENABLE_QUERYABLE_STATE_PROXY_SERVER)) {
+			return null;
+		}
 
 		final Iterator<Integer> proxyPorts = NetUtils.getPortRangeFromString(
 				config.getString(QueryableStateOptions.PROXY_PORT_RANGE));
