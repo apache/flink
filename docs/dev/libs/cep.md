@@ -1334,7 +1334,7 @@ For example, for a given pattern `b+ c` and a data stream `b1 b2 b3 c`, the diff
 </table>
 
 Have a look also at another example to better see the difference between NO_SKIP and SKIP_TO_FIRST:
-Pattern: `(a | c) (b | c) c+.greedy d` and sequence: `a b c1 c2 c3 d` Then the results will be:
+Pattern: `(a | b | c) (b | c) c+.greedy d` and sequence: `a b c1 c2 c3 d` Then the results will be:
 
 
 <table class="table table-bordered">
@@ -1349,12 +1349,11 @@ Pattern: `(a | c) (b | c) c+.greedy d` and sequence: `a b c1 c2 c3 d` Then the r
             <code>a b c1 c2 c3 d</code><br>
             <code>b c1 c2 c3 d</code><br>
             <code>c1 c2 c3 d</code><br>
-            <code>c2 c3 d</code><br>
         </td>
         <td>After found matching <code>a b c1 c2 c3 d</code>, the match process will not discard any result.</td>
     </tr>
     <tr>
-        <td><strong>SKIP_TO_FIRST</strong>[<code>b*</code>]</td>
+        <td><strong>SKIP_TO_FIRST</strong>[<code>c*</code>]</td>
         <td>
             <code>a b c1 c2 c3 d</code><br>
             <code>c1 c2 c3 d</code><br>
@@ -1383,7 +1382,7 @@ Pattern: `a b+` and sequence: `a b1 b2 b3` Then the results will be:
         <td>After found matching <code>a b1</code>, the match process will not discard any result.</td>
     </tr>
     <tr>
-        <td><strong>SKIP_TO_NEXT</strong>[<code>b*</code>]</td>
+        <td><strong>SKIP_TO_NEXT</strong></td>
         <td>
             <code>a b1</code><br>
         </td>
