@@ -50,6 +50,7 @@ import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.runtime.resourcemanager.exceptions.MaximumFailedContainersException;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
 import org.apache.flink.runtime.resourcemanager.registration.JobManagerRegistration;
@@ -148,6 +149,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	/** The number of failed containers since the master became active. */
 	protected AtomicInteger failedContainerSoFar = new AtomicInteger(0);
+
+	/** Number of failed TaskManager containers before stopping the application. Default is  Integer.MAX_VALUE */
+	protected int maxFailedContainers = Integer.MAX_VALUE;
 
 	/**
 	 * Represents asynchronous state clearing work.
@@ -834,6 +838,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 			workerRegistration.getTaskExecutorGateway().disconnectResourceManager(cause);
 			failedContainerSoFar.getAndAdd(1);
+			if (failedContainerSoFar.intValue() >= maxFailedContainers) {
+				rejectAllPendingSlotRequests(new MaximumFailedContainersException(
+					String.format("Maximum number of failed container %d "
+						+ "is detected in Resource Manager", failedContainerSoFar.intValue())));
+			}
 		} else {
 			log.debug(
 				"No open TaskExecutor connection {}. Ignoring close TaskExecutor connection. Closing reason was: {}",
