@@ -53,8 +53,7 @@ bin=`cd "$bin"; pwd`
 FLINK_CLASSPATH=`constructFlinkClassPath`
 
 # Append flink-table jar into class path
-opt=`dirname "$0"`
-opt=`cd ../"$opt"/opt; pwd`
+opt=`cd "$bin";cd ../opt;pwd`
 FLINK_TABLE_LIB_PATH=$opt/`ls $opt|grep flink-table_*`
 FLINK_CLASSPATH=$FLINK_CLASSPATH:$FLINK_TABLE_LIB_PATH
 
