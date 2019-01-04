@@ -683,9 +683,8 @@ abstract class StreamTableEnvironment(
       case (Alias(UnresolvedFieldReference(_), name, _), _) => fieldNames = name :: fieldNames
 
       case (e, _) =>
-        throw new TableException(s"Time attributes can only be defined on field references or " +
-          s"aliases of valid field references. Rowtime attributes can replace existing fields, " +
-          s"proctime attributes can not. " +
+        throw new TableException(s"Time attributes can only be defined on field references. " +
+          s"Rowtime attributes can replace existing fields, proctime attributes can not. " +
           s"But was: $e")
     }
 
