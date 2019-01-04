@@ -50,7 +50,7 @@ public class ShutdownHookUtil {
 	}
 
 	/**
-	 * Adds a shutdown hook to the JVM and returns whether the hook is successfully registered
+	 * Adds a shutdown hook to the JVM and returns whether the hook has been successfully registered.
 	 */
 	public static boolean addShutdownHookThread(
 		final Thread shutdownHook,
