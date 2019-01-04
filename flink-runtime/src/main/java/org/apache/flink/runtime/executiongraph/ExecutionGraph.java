@@ -911,7 +911,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				final CompletableFuture<Void> schedulingJobVertexFuture = ejv.scheduleAll(
 					slotProvider,
 					allowQueuedScheduling,
-					LocationPreferenceConstraint.ALL,// since it is an input vertex, the input based location preferences should be empty
+					LocationPreferenceConstraint.ALL, // since it is an input vertex, the input based location preferences should be empty
 					Collections.emptySet());
 
 				schedulingFutures.add(schedulingJobVertexFuture);

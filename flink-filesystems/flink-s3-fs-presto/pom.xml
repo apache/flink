@@ -196,6 +196,29 @@ under the License.
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>ban-openjdk.jol</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<bannedDependencies>
+									<excludes>
+										<!-- Incompatible license -->
+										<exclude>org.openjdk.jol:*</exclude>
+									</excludes>
+								</bannedDependencies>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
@@ -210,9 +233,6 @@ under the License.
 								<includes>
 									<include>*:*</include>
 								</includes>
-								<excludes>
-									<exclude>org.openjdk.jol</exclude>
-								</excludes>
 							</artifactSet>
 							<relocations>
 								<!-- relocate the references to Hadoop to match the pre-shaded hadoop artifact -->
@@ -269,6 +289,7 @@ under the License.
 										<exclude>META-INF/maven/io.airlift/**</exclude>
 										<exclude>META-INF/maven/com*/**</exclude>
 										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
 									</excludes>
 								</filter>
 								<filter>

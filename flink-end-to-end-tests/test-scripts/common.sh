@@ -41,12 +41,19 @@ echo "Flink dist directory: $FLINK_DIR"
 
 FLINK_VERSION=$(cat ${END_TO_END_DIR}/pom.xml | sed -n 's/.*<version>\(.*\)<\/version>/\1/p')
 
-USE_SSL=OFF # set via set_conf_ssl(), reset via revert_default_config()
 TEST_ROOT=`pwd -P`
 TEST_INFRA_DIR="$END_TO_END_DIR/test-scripts/"
 cd $TEST_INFRA_DIR
 TEST_INFRA_DIR=`pwd -P`
 cd $TEST_ROOT
+
+NODENAME=`hostname -f`
+
+# REST_PROTOCOL and CURL_SSL_ARGS can be modified in common_ssl.sh if SSL is activated
+# they should be used in curl command to query Flink REST API
+REST_PROTOCOL="http"
+CURL_SSL_ARGS=""
+source "${TEST_INFRA_DIR}/common_ssl.sh"
 
 function print_mem_use_osx {
     declare -a mem_types=("active" "inactive" "wired down")
@@ -87,7 +94,8 @@ function revert_default_config() {
         mv -f $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
     fi
 
-    USE_SSL=OFF
+    REST_PROTOCOL="http"
+    CURL_SSL_ARGS=""
 }
 
 function set_conf() {
@@ -170,46 +178,6 @@ function get_node_ip {
     echo ${ip_addr}
 }
 
-function set_conf_ssl {
-
-    # clean up the dir that will be used for SSL certificates and trust stores
-    if [ -e "${TEST_DATA_DIR}/ssl" ]; then
-       echo "File ${TEST_DATA_DIR}/ssl exists. Deleting it..."
-       rm -rf "${TEST_DATA_DIR}/ssl"
-    fi
-    mkdir -p "${TEST_DATA_DIR}/ssl"
-
-    NODENAME=`hostname -f`
-    SANSTRING="dns:${NODENAME}"
-    for NODEIP in $(get_node_ip) ; do
-        SANSTRING="${SANSTRING},ip:${NODEIP}"
-    done
-
-    echo "Using SAN ${SANSTRING}"
-
-    # create certificates
-    keytool -genkeypair -alias ca -keystore "${TEST_DATA_DIR}/ssl/ca.keystore" -dname "CN=Sample CA" -storepass password -keypass password -keyalg RSA -ext bc=ca:true
-    keytool -keystore "${TEST_DATA_DIR}/ssl/ca.keystore" -storepass password -alias ca -exportcert > "${TEST_DATA_DIR}/ssl/ca.cer"
-    keytool -importcert -keystore "${TEST_DATA_DIR}/ssl/ca.truststore" -alias ca -storepass password -noprompt -file "${TEST_DATA_DIR}/ssl/ca.cer"
-
-    keytool -genkeypair -alias node -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -dname "CN=${NODENAME}" -ext SAN=${SANSTRING} -storepass password -keypass password -keyalg RSA
-    keytool -certreq -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -storepass password -alias node -file "${TEST_DATA_DIR}/ssl/node.csr"
-    keytool -gencert -keystore "${TEST_DATA_DIR}/ssl/ca.keystore" -storepass password -alias ca -ext SAN=${SANSTRING} -infile "${TEST_DATA_DIR}/ssl/node.csr" -outfile "${TEST_DATA_DIR}/ssl/node.cer"
-    keytool -importcert -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -storepass password -file "${TEST_DATA_DIR}/ssl/ca.cer" -alias ca -noprompt
-    keytool -importcert -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -storepass password -file "${TEST_DATA_DIR}/ssl/node.cer" -alias node -noprompt
-
-    # adapt config
-    # (here we rely on security.ssl.enabled enabling SSL for all components and internal as well as
-    # external communication channels)
-    set_conf security.ssl.enabled true
-    set_conf security.ssl.keystore ${TEST_DATA_DIR}/ssl/node.keystore
-    set_conf security.ssl.keystore-password password
-    set_conf security.ssl.key-password password
-    set_conf security.ssl.truststore ${TEST_DATA_DIR}/ssl/ca.truststore
-    set_conf security.ssl.truststore-password password
-    USE_SSL=ON
-}
-
 function start_ha_cluster {
     create_ha_config
     start_local_zk
@@ -243,26 +211,23 @@ function start_local_zk {
 
 function wait_dispatcher_running {
   # wait at most 10 seconds until the dispatcher is up
-  local QUERY_URL
-  if [ "x$USE_SSL" = "xON" ]; then
-    QUERY_URL="http://localhost:8081/taskmanagers"
-  else
-    QUERY_URL="https://localhost:8081/taskmanagers"
-  fi
-  for i in {1..10}; do
+  local QUERY_URL="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
+  local TIMEOUT=10
+  for i in $(seq 1 ${TIMEOUT}); do
     # without the || true this would exit our script if the JobManager is not yet up
-    QUERY_RESULT=$(curl "$QUERY_URL" 2> /dev/null || true)
+    QUERY_RESULT=$(curl ${CURL_SSL_ARGS} "$QUERY_URL" 2> /dev/null || true)
 
     # ensure the taskmanagers field is there at all and is not empty
     if [[ ${QUERY_RESULT} =~ \{\"taskmanagers\":\[.+\]\} ]]; then
-
       echo "Dispatcher REST endpoint is up."
-      break
+      return
     fi
 
     echo "Waiting for dispatcher REST endpoint to come up..."
     sleep 1
   done
+  echo "Dispatcher REST endpoint has not started within a timeout of ${TIMEOUT} sec"
+  exit 1
 }
 
 function start_cluster {
@@ -280,29 +245,45 @@ function start_taskmanagers {
 }
 
 function start_and_wait_for_tm {
-
-  tm_query_result=$(curl -s "http://localhost:8081/taskmanagers")
-
+  tm_query_result=`query_running_tms`
   # we assume that the cluster is running
   if ! [[ ${tm_query_result} =~ \{\"taskmanagers\":\[.*\]\} ]]; then
     echo "Your cluster seems to be unresponsive at the moment: ${tm_query_result}" 1>&2
     exit 1
   fi
 
-  running_tms=`curl -s "http://localhost:8081/taskmanagers" | grep -o "id" | wc -l`
-
+  running_tms=`query_number_of_running_tms`
   ${FLINK_DIR}/bin/taskmanager.sh start
+  wait_for_number_of_running_tms $((running_tms+1))
+}
 
-  for i in {1..10}; do
-    local new_running_tms=`curl -s "http://localhost:8081/taskmanagers" | grep -o "id" | wc -l`
-    if [ $((new_running_tms-running_tms)) -eq 0 ]; then
-      echo "TaskManager is not yet up."
+function query_running_tms {
+  local url="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
+  curl ${CURL_SSL_ARGS} -s "${url}"
+}
+
+function query_number_of_running_tms {
+  query_running_tms | grep -o "id" | wc -l
+}
+
+function wait_for_number_of_running_tms {
+  local TM_NUM_TO_WAIT=${1}
+  local TIMEOUT_COUNTER=10
+  local TIMEOUT_INC=4
+  local TIMEOUT=$(( $TIMEOUT_COUNTER * $TIMEOUT_INC ))
+  local TM_NUM_TEXT="Number of running task managers"
+  for i in $(seq 1 ${TIMEOUT_COUNTER}); do
+    local TM_NUM=`query_number_of_running_tms`
+    if [ $((TM_NUM - TM_NUM_TO_WAIT)) -eq 0 ]; then
+      echo "${TM_NUM_TEXT} has reached ${TM_NUM_TO_WAIT}."
+      return
     else
-      echo "TaskManager is up."
-      break
+      echo "${TM_NUM_TEXT} ${TM_NUM} is not yet ${TM_NUM_TO_WAIT}."
     fi
-    sleep 4
+    sleep ${TIMEOUT_INC}
   done
+  echo "${TM_NUM_TEXT} has not reached ${TM_NUM_TO_WAIT} within a timeout of ${TIMEOUT} sec"
+  exit 1
 }
 
 function check_logs_for_errors {
@@ -413,17 +394,20 @@ function wait_for_job_state_transition {
 }
 
 function wait_job_running {
-  for i in {1..10}; do
+  local TIMEOUT=10
+  for i in $(seq 1 ${TIMEOUT}); do
     JOB_LIST_RESULT=$("$FLINK_DIR"/bin/flink list -r | grep "$1")
 
     if [[ "$JOB_LIST_RESULT" == "" ]]; then
       echo "Job ($1) is not yet running."
     else
       echo "Job ($1) is running."
-      break
+      return
     fi
     sleep 1
   done
+  echo "Job ($1) has not started within a timeout of ${TIMEOUT} sec"
+  exit 1
 }
 
 function wait_job_terminal_state {
@@ -541,7 +525,7 @@ function get_job_metric {
   local job_id=$1
   local metric_name=$2
 
-  local json=$(curl -s http://localhost:8081/jobs/${job_id}/metrics?get=${metric_name})
+  local json=$(curl ${CURL_SSL_ARGS} -s ${REST_PROTOCOL}://${NODENAME}:8081/jobs/${job_id}/metrics?get=${metric_name})
   local metric_value=$(echo ${json} | sed -n 's/.*"value":"\(.*\)".*/\1/p')
 
   echo ${metric_value}
@@ -692,4 +676,30 @@ function wait_for_restart_to_complete {
             current_num_restarts=${base_num_restarts}
         fi
     done
+}
+
+function find_latest_completed_checkpoint {
+    local checkpoint_root_directory=$1
+    # a completed checkpoint must contain the _metadata file
+    local checkpoint_meta_file=$(ls -d ${checkpoint_root_directory}/chk-[1-9]*/_metadata | sort -Vr | head -n1)
+    echo "$(dirname "${checkpoint_meta_file}")"
+}
+
+function retry_times() {
+    local retriesNumber=$1
+    local backoff=$2
+    local command=${@:3}
+
+    for (( i = 0; i < ${retriesNumber}; i++ ))
+    do
+        if ${command}; then
+            return 0
+        fi
+
+        echo "Command: ${command} failed. Retrying..."
+        sleep ${backoff}
+    done
+
+    echo "Command: ${command} failed ${retriesNumber} times."
+    return 1
 }

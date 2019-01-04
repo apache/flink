@@ -109,7 +109,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 		// Submit job and wait until running
 		flink.runDetached(jobGraph);
 
-		FutureUtils.retrySuccesfulWithDelay(
+		FutureUtils.retrySuccessfulWithDelay(
 			() -> flink.getJobStatus(jobGraph.getJobID()),
 			Time.milliseconds(10),
 			deadline,
@@ -160,7 +160,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 			.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
 		// wait until the job is canceled
-		FutureUtils.retrySuccesfulWithDelay(
+		FutureUtils.retrySuccessfulWithDelay(
 			() -> flink.getJobStatus(jobGraph.getJobID()),
 			Time.milliseconds(10),
 			deadline,

@@ -59,7 +59,7 @@ Table counts = orders
         .select("a, b.count as cnt");
 
 // conversion to DataSet
-DataSet<Row> result = tableEnv.toDataSet(counts, Row.class);
+DataSet<Row> result = tEnv.toDataSet(counts, Row.class);
 result.print();
 {% endhighlight %}
 
@@ -1728,7 +1728,7 @@ This is the EBNF grammar for expressions:
 
 expressionList = expression , { "," , expression } ;
 
-expression = timeIndicator | overConstant | alias ;
+expression = overConstant | alias ;
 
 alias = logic | ( logic , "as" , fieldReference ) | ( logic , "as" , "(" , fieldReference , { "," , fieldReference } , ")" ) ;
 
@@ -1744,7 +1744,7 @@ unary = [ "!" | "-" | "+" ] , composite ;
 
 composite = over | suffixed | nullLiteral | prefixed | atom ;
 
-suffixed = interval | suffixAs | suffixCast | suffixIf | suffixDistinct | suffixFunctionCall ;
+suffixed = interval | suffixAs | suffixCast | suffixIf | suffixDistinct | suffixFunctionCall | timeIndicator ;
 
 prefixed = prefixAs | prefixCast | prefixIf | prefixDistinct | prefixFunctionCall ;
 

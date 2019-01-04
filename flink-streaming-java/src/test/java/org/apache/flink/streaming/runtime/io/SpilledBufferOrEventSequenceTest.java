@@ -135,12 +135,12 @@ public class SpilledBufferOrEventSequenceTest {
 			final long seed = rnd.nextLong();
 
 			final int numBuffers = 325;
-			final int numChannels = 671;
+			final int numberOfChannels = 671;
 
 			rnd.setSeed(seed);
 
 			for (int i = 0; i < numBuffers; i++) {
-				writeBuffer(fileChannel, rnd.nextInt(pageSize) + 1, rnd.nextInt(numChannels));
+				writeBuffer(fileChannel, rnd.nextInt(pageSize) + 1, rnd.nextInt(numberOfChannels));
 			}
 
 			fileChannel.position(0L);
@@ -150,7 +150,7 @@ public class SpilledBufferOrEventSequenceTest {
 			seq.open();
 
 			for (int i = 0; i < numBuffers; i++) {
-				validateBuffer(seq.getNext(), rnd.nextInt(pageSize) + 1, rnd.nextInt(numChannels));
+				validateBuffer(seq.getNext(), rnd.nextInt(pageSize) + 1, rnd.nextInt(numberOfChannels));
 			}
 
 			// should have no more data
@@ -205,12 +205,12 @@ public class SpilledBufferOrEventSequenceTest {
 		try {
 			final Random rnd = new Random();
 			final int numEvents = 3000;
-			final int numChannels = 1656;
+			final int numberOfChannels = 1656;
 
 			final ArrayList<BufferOrEvent> events = new ArrayList<BufferOrEvent>(numEvents);
 
 			for (int i = 0; i < numEvents; i++) {
-				events.add(generateAndWriteEvent(fileChannel, rnd, numChannels));
+				events.add(generateAndWriteEvent(fileChannel, rnd, numberOfChannels));
 			}
 
 			fileChannel.position(0L);
@@ -245,7 +245,7 @@ public class SpilledBufferOrEventSequenceTest {
 			bufferRnd.setSeed(bufferSeed);
 
 			final int numEventsAndBuffers = 3000;
-			final int numChannels = 1656;
+			final int numberOfChannels = 1656;
 
 			final ArrayList<BufferOrEvent> events = new ArrayList<BufferOrEvent>(128);
 
@@ -254,10 +254,10 @@ public class SpilledBufferOrEventSequenceTest {
 			for (int i = 0; i < numEventsAndBuffers; i++) {
 				boolean isEvent = rnd.nextDouble() < 0.05d;
 				if (isEvent) {
-					events.add(generateAndWriteEvent(fileChannel, rnd, numChannels));
+					events.add(generateAndWriteEvent(fileChannel, rnd, numberOfChannels));
 				}
 				else {
-					writeBuffer(fileChannel, bufferRnd.nextInt(pageSize) + 1, bufferRnd.nextInt(numChannels));
+					writeBuffer(fileChannel, bufferRnd.nextInt(pageSize) + 1, bufferRnd.nextInt(numberOfChannels));
 				}
 			}
 
@@ -279,7 +279,7 @@ public class SpilledBufferOrEventSequenceTest {
 					assertEquals(expected.getChannelIndex(), next.getChannelIndex());
 				}
 				else {
-					validateBuffer(next, bufferRnd.nextInt(pageSize) + 1, bufferRnd.nextInt(numChannels));
+					validateBuffer(next, bufferRnd.nextInt(pageSize) + 1, bufferRnd.nextInt(numberOfChannels));
 				}
 			}
 
@@ -314,7 +314,7 @@ public class SpilledBufferOrEventSequenceTest {
 			final int numEventsAndBuffers1 = 272;
 			final int numEventsAndBuffers2 = 151;
 
-			final int numChannels = 1656;
+			final int numberOfChannels = 1656;
 
 			final ArrayList<BufferOrEvent> events1 = new ArrayList<BufferOrEvent>(128);
 			final ArrayList<BufferOrEvent> events2 = new ArrayList<BufferOrEvent>(128);
@@ -324,10 +324,10 @@ public class SpilledBufferOrEventSequenceTest {
 			for (int i = 0; i < numEventsAndBuffers1; i++) {
 				boolean isEvent = rnd.nextDouble() < 0.05d;
 				if (isEvent) {
-					events1.add(generateAndWriteEvent(fileChannel, rnd, numChannels));
+					events1.add(generateAndWriteEvent(fileChannel, rnd, numberOfChannels));
 				}
 				else {
-					writeBuffer(fileChannel, bufferRnd.nextInt(pageSize) + 1, bufferRnd.nextInt(numChannels));
+					writeBuffer(fileChannel, bufferRnd.nextInt(pageSize) + 1, bufferRnd.nextInt(numberOfChannels));
 				}
 			}
 
@@ -336,10 +336,10 @@ public class SpilledBufferOrEventSequenceTest {
 			for (int i = 0; i < numEventsAndBuffers2; i++) {
 				boolean isEvent = rnd.nextDouble() < 0.05d;
 				if (isEvent) {
-					events2.add(generateAndWriteEvent(secondChannel, rnd, numChannels));
+					events2.add(generateAndWriteEvent(secondChannel, rnd, numberOfChannels));
 				}
 				else {
-					writeBuffer(secondChannel, bufferRnd.nextInt(pageSize) + 1, bufferRnd.nextInt(numChannels));
+					writeBuffer(secondChannel, bufferRnd.nextInt(pageSize) + 1, bufferRnd.nextInt(numberOfChannels));
 				}
 			}
 
@@ -365,7 +365,7 @@ public class SpilledBufferOrEventSequenceTest {
 					assertEquals(expected.getChannelIndex(), next.getChannelIndex());
 				}
 				else {
-					validateBuffer(next, bufferRnd.nextInt(pageSize) + 1, bufferRnd.nextInt(numChannels));
+					validateBuffer(next, bufferRnd.nextInt(pageSize) + 1, bufferRnd.nextInt(numberOfChannels));
 				}
 			}
 			assertNull(seq1.getNext());
@@ -383,7 +383,7 @@ public class SpilledBufferOrEventSequenceTest {
 					assertEquals(expected.getChannelIndex(), next.getChannelIndex());
 				}
 				else {
-					validateBuffer(next, bufferRnd.nextInt(pageSize) + 1, bufferRnd.nextInt(numChannels));
+					validateBuffer(next, bufferRnd.nextInt(pageSize) + 1, bufferRnd.nextInt(numberOfChannels));
 				}
 			}
 			assertNull(seq2.getNext());
@@ -435,13 +435,13 @@ public class SpilledBufferOrEventSequenceTest {
 	//  Utils
 	// ------------------------------------------------------------------------
 
-	private static BufferOrEvent generateAndWriteEvent(FileChannel fileChannel, Random rnd, int numChannels) throws IOException {
+	private static BufferOrEvent generateAndWriteEvent(FileChannel fileChannel, Random rnd, int numberOfChannels) throws IOException {
 		long magicNumber = rnd.nextLong();
 		byte[] data = new byte[rnd.nextInt(1000)];
 		rnd.nextBytes(data);
 		TestEvent evt = new TestEvent(magicNumber, data);
 
-		int channelIndex = rnd.nextInt(numChannels);
+		int channelIndex = rnd.nextInt(numberOfChannels);
 
 		ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(evt);
 		ByteBuffer header = ByteBuffer.allocate(9);

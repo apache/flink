@@ -177,7 +177,8 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 
 			for (byte[] previousHash : hashes.values()) {
 				if (Arrays.equals(previousHash, hash)) {
-					throw new IllegalArgumentException("Hash collision on user-specified ID. " +
+					throw new IllegalArgumentException("Hash collision on user-specified ID " +
+							"\"" + userSpecifiedHash + "\". " +
 							"Most likely cause is a non-unique ID. Please check that all IDs " +
 							"specified via `uid(String)` are unique.");
 				}

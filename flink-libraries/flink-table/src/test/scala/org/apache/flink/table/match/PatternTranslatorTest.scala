@@ -20,10 +20,12 @@ package org.apache.flink.table.`match`
 
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy._
 import org.apache.flink.cep.pattern.Pattern
+import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.table.api.TableException
 import org.junit.Test
 
 class PatternTranslatorTest extends PatternTranslatorTestBase {
+
   @Test
   def simplePattern(): Unit = {
     verifyPattern(
@@ -210,6 +212,63 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |) AS T
         |""".stripMargin,
       Pattern.begin("A\"", skipToNext()).optional().next("\u006C").next("C"))
+  }
+
+  @Test
+  def testWithinClause(): Unit = {
+    verifyPattern(
+      """MATCH_RECOGNIZE (
+        |  ORDER BY proctime
+        |  MEASURES
+        |    A.f0 AS aid
+        |  PATTERN (A B) WITHIN INTERVAL '10 00:00:00.004' DAY TO SECOND
+        |  DEFINE
+        |    A as A.f0 = 1
+        |) AS T
+        |""".stripMargin,
+      Pattern.begin("A", skipToNext()).next("B")
+        .within(Time.milliseconds(10 * 24 * 60 * 60 * 1000 + 4)))
+
+    verifyPattern(
+      """MATCH_RECOGNIZE (
+        |  ORDER BY proctime
+        |  MEASURES
+        |    A.f0 AS aid
+        |  PATTERN (A B) WITHIN INTERVAL '10 00' DAY TO HOUR
+        |  DEFINE
+        |    A as A.f0 = 1
+        |) AS T
+        |""".stripMargin,
+      Pattern.begin("A", skipToNext()).next("B")
+        .within(Time.milliseconds(10 * 24 * 60 * 60 * 1000)))
+
+    verifyPattern(
+      """MATCH_RECOGNIZE (
+        |  ORDER BY proctime
+        |  MEASURES
+        |    A.f0 AS aid
+        |  PATTERN (A B) WITHIN INTERVAL '10' MINUTE
+        |  DEFINE
+        |    A as A.f0 = 1
+        |) AS T
+        |""".stripMargin,
+      Pattern.begin("A", skipToNext()).next("B")
+        .within(Time.milliseconds(10 * 60 * 1000)))
+  }
+
+  @Test(expected = classOf[TableException])
+  def testWithinClauseWithYearMonthResolution(): Unit = {
+    verifyPattern(
+      """MATCH_RECOGNIZE (
+        |  ORDER BY proctime
+        |  MEASURES
+        |    A.f0 AS aid
+        |  PATTERN (A B) WITHIN INTERVAL '2-10' YEAR TO MONTH
+        |  DEFINE
+        |    A as A.f0 = 1
+        |) AS T
+        |""".stripMargin,
+      null /* don't care */)
   }
 
   @Test(expected = classOf[TableException])

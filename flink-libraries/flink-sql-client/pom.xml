@@ -144,30 +144,19 @@ under the License.
 				<executions>
 					<!-- Exclude all flink-dist files and only include flink-table and flink-sql-client -->
 					<execution>
+						<id>shade-flink</id>
 						<phase>package</phase>
 						<goals>
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<filters>
-								<filter>
-									<artifact>*:*</artifact>
-									<includes>
-										<!-- flink-table + flink-sql-client -->
-										<include>org/apache/calcite/**</include>
-										<include>org/apache/flink/calcite/shaded/**</include>
-										<include>org/apache/flink/table/**</include>
-										<include>org/apache/flink/cep/**</include>
-										<include>org.codehaus.commons.compiler.properties</include>
-										<include>org/codehaus/janino/**</include>
-										<include>org/codehaus/commons/**</include>
-										<include>META-INF/services/org.apache.flink.table.factories.TableFactory</include>
-										<!-- flink-sql-client -->
-										<include>org/jline/**</include>
-										<include>com/fasterxml/jackson/**</include>
-									</includes>
-								</filter>
-							</filters>
+							<artifactSet>
+								<includes combine.children="append">
+									<include>org.apache.flink:flink-table_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-cep_${scala.binary.version}</include>
+									<include>org.jline:*</include>
+								</includes>
+							</artifactSet>
 						</configuration>
 					</execution>
 				</executions>

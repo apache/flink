@@ -86,6 +86,7 @@ function run_test() {
     fi
 
     kill_random_taskmanager
+    wait_for_number_of_running_tms 0
 
     latest_snapshot_count=$(cat $FLINK_DIR/log/*out* | grep "on snapshot" | tail -n 1 | awk '{print $4}')
     echo "Latest snapshot count was ${latest_snapshot_count}"

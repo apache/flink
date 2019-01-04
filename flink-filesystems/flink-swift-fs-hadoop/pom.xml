@@ -247,6 +247,9 @@ under the License.
 										<exclude>META-INF/maven/org.apache.commons/**</exclude>
 										<exclude>META-INF/maven/org.apache.flink/flink-hadoop-fs/**</exclude>
 										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
+										<exclude>META-INF/ASL2.0</exclude>
+										<exclude>META-INF/README.txt</exclude>
 										<!-- we use our own "shaded" core-default.xml: core-default-shaded.xml -->
 										<exclude>core-default.xml</exclude>
 										<!-- we only add a core-site.xml with unshaded classnames for the unit tests -->

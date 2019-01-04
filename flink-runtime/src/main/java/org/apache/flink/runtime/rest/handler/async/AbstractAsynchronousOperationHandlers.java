@@ -97,12 +97,11 @@ public abstract class AbstractAsynchronousOperationHandlers<K extends OperationK
 	protected abstract class TriggerHandler<T extends RestfulGateway, B extends RequestBody, M extends MessageParameters> extends AbstractRestHandler<T, B, TriggerResponse, M> {
 
 		protected TriggerHandler(
-				CompletableFuture<String> localRestAddress,
 				GatewayRetriever<? extends T> leaderRetriever,
 				Time timeout,
 				Map<String, String> responseHeaders,
 				MessageHeaders<B, TriggerResponse, M> messageHeaders) {
-			super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
+			super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 		}
 
 		@Override
@@ -149,12 +148,11 @@ public abstract class AbstractAsynchronousOperationHandlers<K extends OperationK
 	protected abstract class StatusHandler<T extends RestfulGateway, V, M extends MessageParameters> extends AbstractRestHandler<T, EmptyRequestBody, AsynchronousOperationResult<V>, M> {
 
 		protected StatusHandler(
-				CompletableFuture<String> localRestAddress,
 				GatewayRetriever<? extends T> leaderRetriever,
 				Time timeout,
 				Map<String, String> responseHeaders,
 				MessageHeaders<EmptyRequestBody, AsynchronousOperationResult<V>, M> messageHeaders) {
-			super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
+			super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 		}
 
 		@Override

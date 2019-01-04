@@ -63,7 +63,6 @@ public class JarRunHandler extends
 	private final Executor executor;
 
 	public JarRunHandler(
-			final CompletableFuture<String> localRestAddress,
 			final GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
 			final Time timeout,
 			final Map<String, String> responseHeaders,
@@ -71,7 +70,7 @@ public class JarRunHandler extends
 			final Path jarDir,
 			final Configuration configuration,
 			final Executor executor) {
-		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
 		this.jarDir = requireNonNull(jarDir);
 		this.configuration = requireNonNull(configuration);

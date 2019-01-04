@@ -33,8 +33,8 @@ public class GlobalPartitionerTest extends StreamPartitionerTest {
 
 	@Test
 	public void testSelectChannels() {
-		assertSelectedChannel(0, 1);
-		assertSelectedChannel(0, 2);
-		assertSelectedChannel(0, 1024);
+		assertSelectedChannelWithSetup(0, 1);
+		assertSelectedChannelWithSetup(0, 2);
+		assertSelectedChannelWithSetup(0, 1024);
 	}
 }

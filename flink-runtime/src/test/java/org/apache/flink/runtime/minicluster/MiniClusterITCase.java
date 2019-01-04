@@ -101,7 +101,42 @@ public class MiniClusterITCase extends TestLogger {
 	}
 
 	@Test
-	public void testHandleJobsWhenNotEnoughSlot() throws Exception {
+	public void testHandleStreamingJobsWhenNotEnoughSlot() throws Exception {
+		try {
+			setupAndRunHandleJobsWhenNotEnoughSlots(ScheduleMode.EAGER);
+			fail("Job should fail.");
+		} catch (JobExecutionException e) {
+			assertTrue(findThrowableWithMessage(e, "Job execution failed.").isPresent());
+			assertTrue(findThrowable(e, NoResourceAvailableException.class).isPresent());
+			assertTrue(findThrowableWithMessage(e, "Slots required: 2, slots allocated: 1").isPresent());
+		}
+	}
+
+	@Test
+	public void testHandleBatchJobsWhenNotEnoughSlot() throws Exception {
+		try {
+			setupAndRunHandleJobsWhenNotEnoughSlots(ScheduleMode.LAZY_FROM_SOURCES);
+			fail("Job should fail.");
+		} catch (JobExecutionException e) {
+			assertTrue(findThrowableWithMessage(e, "Job execution failed.").isPresent());
+			assertTrue(findThrowable(e, NoResourceAvailableException.class).isPresent());
+			assertTrue(findThrowableWithMessage(e, "Could not allocate enough slots").isPresent());
+		}
+	}
+
+	private void setupAndRunHandleJobsWhenNotEnoughSlots(ScheduleMode scheduleMode) throws Exception {
+		final JobVertex vertex = new JobVertex("Test Vertex");
+		vertex.setParallelism(2);
+		vertex.setMaxParallelism(2);
+		vertex.setInvokableClass(BlockingNoOpInvokable.class);
+
+		final JobGraph jobGraph = new JobGraph("Test Job", vertex);
+		jobGraph.setScheduleMode(scheduleMode);
+
+		runHandleJobsWhenNotEnoughSlots(jobGraph);
+	}
+
+	private void runHandleJobsWhenNotEnoughSlots(final JobGraph jobGraph) throws Exception {
 		final Configuration configuration = getDefaultConfiguration();
 		configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 100L);
 
@@ -114,24 +149,7 @@ public class MiniClusterITCase extends TestLogger {
 		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
 			miniCluster.start();
 
-			final JobVertex vertex = new JobVertex("Test Vertex");
-			vertex.setParallelism(2);
-			vertex.setMaxParallelism(2);
-			vertex.setInvokableClass(BlockingNoOpInvokable.class);
-
-			final JobGraph jobGraph = new JobGraph("Test Job", vertex);
-			jobGraph.setScheduleMode(ScheduleMode.EAGER);
-
-			try {
-				miniCluster.executeJobBlocking(jobGraph);
-
-				fail("Job should fail.");
-			} catch (JobExecutionException e) {
-				assertTrue(findThrowableWithMessage(e, "Job execution failed.").isPresent());
-
-				assertTrue(findThrowable(e, NoResourceAvailableException.class).isPresent());
-				assertTrue(findThrowableWithMessage(e, "Slots required: 2, slots allocated: 1").isPresent());
-			}
+			miniCluster.executeJobBlocking(jobGraph);
 		}
 	}
 

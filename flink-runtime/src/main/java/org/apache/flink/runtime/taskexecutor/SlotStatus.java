@@ -34,16 +34,16 @@ public class SlotStatus implements Serializable {
 
 	private static final long serialVersionUID = 5099191707339664493L;
 
-	/** slotID to identify a slot */
+	/** SlotID to identify a slot. */
 	private final SlotID slotID;
 
-	/** the resource profile of the slot */
+	/** The resource profile of the slot. */
 	private final ResourceProfile resourceProfile;
 
-	/** if the slot is allocated, allocationId identify its allocation; else, allocationId is null */
+	/** If the slot is allocated, allocationId identify its allocation; else, allocationId is null. */
 	private final AllocationID allocationID;
 
-	/** if the slot is allocated, jobId identify which job this slot is allocated to; else, jobId is null */
+	/** If the slot is allocated, jobId identify which job this slot is allocated to; else, jobId is null. */
 	private final JobID jobID;
 
 	public SlotStatus(SlotID slotID, ResourceProfile resourceProfile) {
@@ -51,10 +51,10 @@ public class SlotStatus implements Serializable {
 	}
 
 	public SlotStatus(
-			SlotID slotID,
-			ResourceProfile resourceProfile,
-			JobID jobID,
-			AllocationID allocationID) {
+		SlotID slotID,
+		ResourceProfile resourceProfile,
+		JobID jobID,
+		AllocationID allocationID) {
 		this.slotID = checkNotNull(slotID, "slotID cannot be null");
 		this.resourceProfile = checkNotNull(resourceProfile, "profile cannot be null");
 		this.allocationID = allocationID;
@@ -62,7 +62,7 @@ public class SlotStatus implements Serializable {
 	}
 
 	/**
-	 * Get the unique identification of this slot
+	 * Get the unique identification of this slot.
 	 *
 	 * @return The slot id
 	 */
@@ -71,7 +71,7 @@ public class SlotStatus implements Serializable {
 	}
 
 	/**
-	 * Get the resource profile of this slot
+	 * Get the resource profile of this slot.
 	 *
 	 * @return The resource profile
 	 */
@@ -80,7 +80,7 @@ public class SlotStatus implements Serializable {
 	}
 
 	/**
-	 * Get the allocation id of this slot
+	 * Get the allocation id of this slot.
 	 *
 	 * @return The allocation id if this slot is allocated, otherwise null
 	 */
@@ -89,7 +89,7 @@ public class SlotStatus implements Serializable {
 	}
 
 	/**
-	 * Get the job id of the slot allocated for
+	 * Get the job id of the slot allocated for.
 	 *
 	 * @return The job id if this slot is allocated, otherwise null
 	 */
@@ -130,4 +130,13 @@ public class SlotStatus implements Serializable {
 		return result;
 	}
 
+	@Override
+	public String toString() {
+		return "SlotStatus{" +
+			"slotID=" + slotID +
+			", resourceProfile=" + resourceProfile +
+			", allocationID=" + allocationID +
+			", jobID=" + jobID +
+			'}';
+	}
 }

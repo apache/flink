@@ -28,7 +28,7 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccum
 private[flink] case class DistinctAggregateFunction[T: TypeInformation, ACC: TypeInformation]
     (aggFunction: AggregateFunction[T, ACC]) {
 
-  private[flink] def distinct(params: Expression*): Expression = {
+  def distinct(params: Expression*): Expression = {
     val resultTypeInfo: TypeInformation[_] = getResultTypeOfAggregateFunction(
       aggFunction,
       implicitly[TypeInformation[T]])

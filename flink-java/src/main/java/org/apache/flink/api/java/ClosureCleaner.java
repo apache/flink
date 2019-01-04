@@ -22,10 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.apache.flink.shaded.asm5.org.objectweb.asm.ClassReader;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.ClassVisitor;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.MethodVisitor;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.Opcodes;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.ClassReader;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.ClassVisitor;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.MethodVisitor;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.Opcodes;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +56,7 @@ public class ClosureCleaner {
 	 *                                 not serializable after the closure cleaning.
 	 *
 	 * @throws RuntimeException A RuntimeException may be thrown, if the code of the class could not
-	 *                          be loaded, in order to process during teh closure cleaning.
+	 *                          be loaded, in order to process during the closure cleaning.
 	 */
 	public static void clean(Object func, boolean checkSerializable) {
 		if (func == null) {

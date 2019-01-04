@@ -170,13 +170,11 @@ public class JarSubmissionITCase extends TestLogger {
 
 		JarHandlers(final Path jarDir, final TestingDispatcherGateway restfulGateway) {
 			final GatewayRetriever<TestingDispatcherGateway> gatewayRetriever = () -> CompletableFuture.completedFuture(restfulGateway);
-			final CompletableFuture<String> localAddressFuture = CompletableFuture.completedFuture("shazam://localhost:12345");
 			final Time timeout = Time.seconds(10);
 			final Map<String, String> responseHeaders = Collections.emptyMap();
 			final Executor executor = TestingUtils.defaultExecutor();
 
 			uploadHandler = new JarUploadHandler(
-				localAddressFuture,
 				gatewayRetriever,
 				timeout,
 				responseHeaders,
@@ -185,16 +183,15 @@ public class JarSubmissionITCase extends TestLogger {
 				executor);
 
 			listHandler = new JarListHandler(
-				localAddressFuture,
 				gatewayRetriever,
 				timeout,
 				responseHeaders,
 				JarListHeaders.getInstance(),
+				CompletableFuture.completedFuture("shazam://localhost:12345"),
 				jarDir.toFile(),
 				executor);
 
 			planHandler = new JarPlanHandler(
-				localAddressFuture,
 				gatewayRetriever,
 				timeout,
 				responseHeaders,
@@ -204,7 +201,6 @@ public class JarSubmissionITCase extends TestLogger {
 				executor);
 
 			runHandler = new JarRunHandler(
-				localAddressFuture,
 				gatewayRetriever,
 				timeout,
 				responseHeaders,
@@ -214,7 +210,6 @@ public class JarSubmissionITCase extends TestLogger {
 				executor);
 
 			deleteHandler = new JarDeleteHandler(
-				localAddressFuture,
 				gatewayRetriever,
 				timeout,
 				responseHeaders,

@@ -25,22 +25,18 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.testutils.s3.S3TestCredentials;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
-import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.List;
 import java.util.UUID;
 
 import static org.apache.flink.core.fs.FileSystemTestUtils.checkPathEventualExistence;
@@ -56,70 +52,45 @@ import static org.junit.Assert.assertTrue;
  * <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel">consistency guarantees</a>
  * and what the {@link org.apache.hadoop.fs.s3a.S3AFileSystem} offers.
  */
-@RunWith(Parameterized.class)
 public class HadoopS3FileSystemITCase extends TestLogger {
-
-	@Parameterized.Parameter
-	public String scheme;
-
-	@Parameterized.Parameters(name = "Scheme = {0}")
-	public static List<String> parameters() {
-		return Arrays.asList("s3", "s3a");
-	}
-
-	private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
-
-	private static final String BUCKET = System.getenv("ARTIFACTS_AWS_BUCKET");
-	private static final String ACCESS_KEY = System.getenv("ARTIFACTS_AWS_ACCESS_KEY");
-	private static final String SECRET_KEY = System.getenv("ARTIFACTS_AWS_SECRET_KEY");
 
 	/**
 	 * Will be updated by {@link #checkCredentialsAndSetup()} if the test is not skipped.
 	 */
-	private static boolean skipTest = true;
+	private static FileSystem fileSystem;
+
+	private static Path basePath;
 
 	@BeforeClass
 	public static void checkCredentialsAndSetup() throws IOException {
 		// check whether credentials exist
-		Assume.assumeTrue("AWS S3 bucket not configured, skipping test...", BUCKET != null);
-		Assume.assumeTrue("AWS S3 access key not configured, skipping test...", ACCESS_KEY != null);
-		Assume.assumeTrue("AWS S3 secret key not configured, skipping test...", SECRET_KEY != null);
+		S3TestCredentials.assumeCredentialsAvailable();
 
 		// initialize configuration with valid credentials
 		final Configuration conf = new Configuration();
-		conf.setString("s3.access.key", ACCESS_KEY);
-		conf.setString("s3.secret.key", SECRET_KEY);
+		conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+		conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
 		FileSystem.initialize(conf);
 
+		basePath = new Path(S3TestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
+		fileSystem = basePath.getFileSystem();
+
 		// check for uniqueness of the test directory
-		final Path directory = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR);
-		final FileSystem fs = directory.getFileSystem();
-
 		// directory must not yet exist
-		assertFalse(fs.exists(directory));
-
-		skipTest = false;
+		assertFalse(fileSystem.exists(basePath));
 	}
 
 	@AfterClass
 	public static void cleanUp() throws IOException, InterruptedException {
 		try {
-			if (!skipTest) {
+			if (fileSystem != null) {
 				final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
-				// initialize configuration with valid credentials
-				final Configuration conf = new Configuration();
-				conf.setString("s3.access.key", ACCESS_KEY);
-				conf.setString("s3.secret.key", SECRET_KEY);
-				FileSystem.initialize(conf);
-
-				final Path directory = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR);
-				final FileSystem fs = directory.getFileSystem();
 
 				// clean up
-				fs.delete(directory, true);
+				fileSystem.delete(basePath, true);
 
 				// now directory must be gone
-				checkPathEventualExistence(fs, directory, false, deadline);
+				checkPathEventualExistence(fileSystem, basePath, false, deadline);
 			}
 		}
 		finally {
@@ -127,57 +98,12 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 		}
 	}
 
-	private String getBasePath() {
-		return scheme + "://" + BUCKET + '/' + TEST_DATA_DIR + "/" + scheme;
-	}
-
-	@Test
-	public void testConfigKeysForwarding() throws Exception {
-		final Path path = new Path(getBasePath());
-
-		// standard Hadoop-style credential keys
-		{
-			Configuration conf = new Configuration();
-			conf.setString("fs.s3a.access.key", ACCESS_KEY);
-			conf.setString("fs.s3a.secret.key", SECRET_KEY);
-
-			FileSystem.initialize(conf);
-			path.getFileSystem();
-		}
-
-		// shortened Hadoop-style credential keys
-		{
-			Configuration conf = new Configuration();
-			conf.setString("s3.access.key", ACCESS_KEY);
-			conf.setString("s3.secret.key", SECRET_KEY);
-
-			FileSystem.initialize(conf);
-			path.getFileSystem();
-		}
-
-		// shortened Presto-style credential keys
-		{
-			Configuration conf = new Configuration();
-			conf.setString("s3.access-key", ACCESS_KEY);
-			conf.setString("s3.secret-key", SECRET_KEY);
-
-			FileSystem.initialize(conf);
-			path.getFileSystem();
-		}
-	}
-
 	@Test
 	public void testSimpleFileWriteAndRead() throws Exception {
 		final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
-		final Configuration conf = new Configuration();
-		conf.setString("s3.access.key", ACCESS_KEY);
-		conf.setString("s3.secret.key", SECRET_KEY);
-
 		final String testLine = "Hello Upload!";
 
-		FileSystem.initialize(conf);
-
-		final Path path = new Path(getBasePath() + "/test.txt");
+		final Path path = new Path(basePath, "test.txt");
 		final FileSystem fs = path.getFileSystem();
 
 		try {
@@ -207,13 +133,8 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 	@Test
 	public void testDirectoryListing() throws Exception {
 		final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
-		final Configuration conf = new Configuration();
-		conf.setString("s3.access.key", ACCESS_KEY);
-		conf.setString("s3.secret.key", SECRET_KEY);
 
-		FileSystem.initialize(conf);
-
-		final Path directory = new Path(getBasePath() + "/testdir/");
+		final Path directory = new Path(basePath, "testdir/");
 		final FileSystem fs = directory.getFileSystem();
 
 		// directory must not yet exist

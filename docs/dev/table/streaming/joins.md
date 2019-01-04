@@ -143,7 +143,7 @@ WHERE r.currency = o.currency
 Each record from the probe side will be joined with the version of the build side table at the time of the correlated time attribute of the probe side record.
 In order to support updates (overwrites) of previous values on the build side table, the table must define a primary key.
 
-In our example, each record from `Orders` will be joined with the version of `Rates` at time `o.rowtime`. The `currency` field has been defined as the primary key of `Rates` before and is used to connect both tables in our example. If the query were using a processing-time notion, a newly appended order would always be joined with the most recent version of `Rates` when executing the operation. 
+In our example, each record from `Orders` will be joined with the version of `Rates` at time `o.rowtime`. The `currency` field has been defined as the primary key of `Rates` before and is used to connect both tables in our example. If the query were using a processing-time notion, a newly appended order would always be joined with the most recent version of `Rates` when executing the operation.
 
 In contrast to [regular joins](#regular-joins), this means that if there is a new record on the build side, it will not affect the previous results of the join.
 This again allows Flink to limit the number of elements that must be kept in the state.
@@ -199,7 +199,7 @@ By definition, it is always the current timestamp. Thus, invocations of a proces
 and any updates in the underlying history table will also immediately overwrite the current values.
 
 Only the latest versions (with respect to the defined primary key) of the build side records are kept in the state.
-New updates will have no effect on the previously results emitted/processed records from the probe side.
+Updates of the build side will have no effect on previously emitted join results.
 
 One can think about a processing-time temporal join as a simple `HashMap<K, V>` that stores all of the records from the build side.
 When a new record from the build side has the same key as some previous record, the old value is just simply overwritten.
@@ -221,3 +221,5 @@ applied updates according to the primary key until this point in time.
 By definition of event time, [watermarks]({{ site.baseurl }}/dev/event_time.html) allow the join operation to move
 forward in time and discard versions of the build table that are no longer necessary because no incoming row with
 lower or equal timestamp is expected.
+
+{% top %}

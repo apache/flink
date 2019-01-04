@@ -923,7 +923,7 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Reads the given file line-by-line and creates a data stream that contains a string with the
-	 * contents of each such line. The file will be read with the system's default character set.
+	 * contents of each such line. The file will be read with the UTF-8 character set.
 	 *
 	 * <p><b>NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the
 	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed, forwards

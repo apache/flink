@@ -1652,7 +1652,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	/**
-	 * Creates a YarnClusterClient; may be overriden in tests.
+	 * Creates a YarnClusterClient; may be overridden in tests.
 	 */
 	protected abstract ClusterClient<ApplicationId> createYarnClusterClient(
 			AbstractYarnClusterDescriptor descriptor,

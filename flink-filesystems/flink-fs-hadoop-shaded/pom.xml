@@ -250,6 +250,7 @@ under the License.
 										<exclude>PropertyList-1.0.dtd</exclude>
 										<exclude>META-INF/maven/**</exclude>
 										<exclude>META-INF/services/javax.xml.stream.*</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
 									</excludes>
 								</filter>
 							</filters>

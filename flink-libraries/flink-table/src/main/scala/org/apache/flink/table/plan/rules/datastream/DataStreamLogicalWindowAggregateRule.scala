@@ -22,7 +22,7 @@ import java.math.{BigDecimal => JBigDecimal}
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.`type`.{SqlTypeFamily, SqlTypeName}
 import org.apache.flink.table.api.scala.{Session, Slide, Tumble}
 import org.apache.flink.table.api.{TableException, ValidationException, Window}
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -68,8 +68,10 @@ class DataStreamLogicalWindowAggregateRule
 
     def getOperandAsLong(call: RexCall, idx: Int): Long =
       call.getOperands.get(idx) match {
-        case v: RexLiteral => v.getValue.asInstanceOf[JBigDecimal].longValue()
-        case _ => throw new TableException("Only constant window descriptors are supported.")
+        case v: RexLiteral if v.getTypeName.getFamily == SqlTypeFamily.INTERVAL_DAY_TIME =>
+          v.getValue.asInstanceOf[JBigDecimal].longValue()
+        case _ => throw new TableException(
+          "Only constant window intervals with millisecond resolution are supported.")
       }
 
     def getOperandAsTimeIndicator(call: RexCall, idx: Int): ResolvedFieldReference =

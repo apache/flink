@@ -21,9 +21,7 @@ package org.apache.flink.table.descriptors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -40,7 +38,7 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 	public static final String CONNECTOR_VERSION_VALUE_09 = "0.9";
 	public static final String CONNECTOR_VERSION_VALUE_010 = "0.10";
 	public static final String CONNECTOR_VERSION_VALUE_011 = "0.11";
-	public static final String CONNECTOR_VERSION_VALUE_20 = "2.0";
+	public static final String CONNECTOR_VERSION_VALUE_UNIVERSAL = "universal";
 	public static final String CONNECTOR_TOPIC = "connector.topic";
 	public static final String CONNECTOR_STARTUP_MODE = "connector.startup-mode";
 	public static final String CONNECTOR_STARTUP_MODE_VALUE_EARLIEST = "earliest-offset";
@@ -64,24 +62,13 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 		super.validate(properties);
 		properties.validateValue(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_KAFKA, false);
 
-		validateVersion(properties);
+		properties.validateString(CONNECTOR_TOPIC, false, 1, Integer.MAX_VALUE);
 
 		validateStartupMode(properties);
 
 		validateKafkaProperties(properties);
 
 		validateSinkPartitioner(properties);
-	}
-
-	private void validateVersion(DescriptorProperties properties) {
-		final List<String> versions = Arrays.asList(
-			CONNECTOR_VERSION_VALUE_08,
-			CONNECTOR_VERSION_VALUE_09,
-			CONNECTOR_VERSION_VALUE_010,
-			CONNECTOR_VERSION_VALUE_011,
-			CONNECTOR_VERSION_VALUE_20);
-		properties.validateEnumValues(CONNECTOR_VERSION, false, versions);
-		properties.validateString(CONNECTOR_TOPIC, false, 1, Integer.MAX_VALUE);
 	}
 
 	private void validateStartupMode(DescriptorProperties properties) {

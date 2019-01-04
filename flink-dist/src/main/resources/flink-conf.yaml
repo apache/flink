@@ -181,7 +181,7 @@ rest.port: 8081
 
 # The amount of memory going to the network stack. These numbers usually need 
 # no tuning. Adjusting them may be necessary in case of an "Insufficient number
-# of network buffers" error. The default min is 64MB, teh default max is 1GB.
+# of network buffers" error. The default min is 64MB, the default max is 1GB.
 # 
 # taskmanager.network.memory.fraction: 0.1
 # taskmanager.network.memory.min: 64mb

@@ -201,7 +201,12 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
       * @return Returns a DataStream
       */
     @PublicEvolving
-    def process[OUT](processJoinFunction: ProcessJoinFunction[IN1, IN2, OUT]): DataStream[OUT] = {
+    def process[OUT: TypeInformation](
+        processJoinFunction: ProcessJoinFunction[IN1, IN2, OUT])
+      : DataStream[OUT] = {
+
+      val outType: TypeInformation[OUT] = implicitly[TypeInformation[OUT]]
+
       val javaJoined = new KeyedJavaStream.IntervalJoined[IN1, IN2, KEY](
         firstStream.javaStream.asInstanceOf[KeyedJavaStream[IN1, KEY]],
         secondStream.javaStream.asInstanceOf[KeyedJavaStream[IN2, KEY]],
@@ -209,7 +214,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
         upperBound,
         lowerBoundInclusive,
         upperBoundInclusive)
-      asScalaStream(javaJoined.process(processJoinFunction))
+      asScalaStream(javaJoined.process(processJoinFunction, outType))
     }
   }
 

@@ -973,7 +973,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		// Wait for deploying after async restart
 		Deadline deadline = timeout.fromNow();
-		waitForAllResourcesToBeAssignedAfterAsyncRestart(eg, deadline);
+		waitUntilAllExecutionsReachDeploying(eg, deadline);
 
 		if (haltAfterRestart) {
 			if (deadline.hasTimeLeft()) {
@@ -982,6 +982,13 @@ public class ExecutionGraphRestartTest extends TestLogger {
 				fail("Failed to wait until all execution attempts left the state DEPLOYING.");
 			}
 		}
+	}
+
+	private static void waitUntilAllExecutionsReachDeploying(ExecutionGraph eg, Deadline deadline) throws TimeoutException {
+		ExecutionGraphTestUtils.waitForAllExecutionsPredicate(
+			eg,
+			ExecutionGraphTestUtils.isInExecutionState(ExecutionState.DEPLOYING),
+			deadline.timeLeft().toMillis());
 	}
 
 	private static void waitForAllResourcesToBeAssignedAfterAsyncRestart(ExecutionGraph eg, Deadline deadline) throws TimeoutException {

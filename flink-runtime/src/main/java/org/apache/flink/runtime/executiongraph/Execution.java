@@ -41,6 +41,7 @@ import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
+import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
@@ -427,7 +428,18 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			deploymentFuture.whenComplete(
 				(Void ignored, Throwable failure) -> {
 					if (failure != null) {
-						markFailed(ExceptionUtils.stripCompletionException(failure));
+						final Throwable stripCompletionException = ExceptionUtils.stripCompletionException(failure);
+						final Throwable schedulingFailureCause;
+
+						if (stripCompletionException instanceof TimeoutException) {
+							schedulingFailureCause = new NoResourceAvailableException(
+								"Could not allocate enough slots within timeout of " + allocationTimeout + " to run the job. " +
+									"Please make sure that the cluster has enough resources.");
+						} else {
+							schedulingFailureCause = stripCompletionException;
+						}
+
+						markFailed(schedulingFailureCause);
 					}
 				});
 

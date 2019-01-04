@@ -199,7 +199,7 @@ class DataStreamGroupWindowAggregate(
         createKeyedWindowedStream(queryConfig, window, keyedStream)
           .asInstanceOf[WindowedStream[CRow, Row, DataStreamWindow]]
 
-      val (aggFunction, accumulatorRowType, aggResultRowType) =
+      val (aggFunction, accumulatorRowType) =
         AggregateUtil.createDataStreamAggregateFunction(
           generator,
           namedAggregates,
@@ -211,7 +211,7 @@ class DataStreamGroupWindowAggregate(
           tableEnv.getConfig)
 
       windowedStream
-        .aggregate(aggFunction, windowFunction, accumulatorRowType, aggResultRowType, outRowType)
+        .aggregate(aggFunction, windowFunction, accumulatorRowType, outRowType)
         .name(keyedAggOpName)
     }
     // global / non-keyed aggregation
@@ -225,7 +225,7 @@ class DataStreamGroupWindowAggregate(
         createNonKeyedWindowedStream(queryConfig, window, timestampedInput)
           .asInstanceOf[AllWindowedStream[CRow, DataStreamWindow]]
 
-      val (aggFunction, accumulatorRowType, aggResultRowType) =
+      val (aggFunction, accumulatorRowType) =
         AggregateUtil.createDataStreamAggregateFunction(
           generator,
           namedAggregates,
@@ -237,7 +237,7 @@ class DataStreamGroupWindowAggregate(
           tableEnv.getConfig)
 
       windowedStream
-        .aggregate(aggFunction, windowFunction, accumulatorRowType, aggResultRowType, outRowType)
+        .aggregate(aggFunction, windowFunction, accumulatorRowType, outRowType)
         .name(nonKeyedAggOpName)
     }
   }

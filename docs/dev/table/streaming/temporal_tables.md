@@ -114,7 +114,7 @@ Each query to `Rates(timeAttribute)` would return the state of the `Rates` for t
 **Note**: Currently, Flink doesn't support directly querying the temporal table functions with a constant time attribute parameter. At the moment, temporal table functions can only be used in joins.
 The example above was used to provide an intuition about what the function `Rates(timeAttribute)` returns.
 
-See also the [joining page for continuous queries](joins.html) for more information about how to join with a temporal table.
+See also the page about [joins for continuous queries](joins.html) for more information about how to join with a temporal table.
 
 ### Defining Temporal Table Function
 
@@ -171,7 +171,6 @@ val ratesHistory = env
   .fromCollection(ratesHistoryData)
   .toTable(tEnv, 'r_currency, 'r_rate, 'r_proctime.proctime)
 
-tEnv.registerTable("Orders", orders)
 tEnv.registerTable("RatesHistory", ratesHistory)
 
 // Create and register TemporalTableFunction.
@@ -187,3 +186,5 @@ which allows us to use the function `rates` in the [Table API](../tableApi.html#
 
 Line `(2)` registers this function under the name `Rates` in our table environment,
 which allows us to use the `Rates` function in [SQL](../sql.html#joins).
+
+{% top %}

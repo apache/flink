@@ -198,7 +198,7 @@ This example shows how to create a simple keystore / truststore pair. The trusts
 be shared with other applications. In this example, *myhost.company.org / ip:10.0.2.15* is the node (or service) for the Flink master.
 
 {% highlight bash %}
-keytool -genkeypair -alias flink.rest -keystore rest.keystore -dname "CN=myhost.company.org" -ext "SAN=dns:myhost.company.org,ip:10.0.2.15" -storepass rest_keystore_password -keypass rest_key_password -keyalg RSA -keysize 4096
+keytool -genkeypair -alias flink.rest -keystore rest.keystore -dname "CN=myhost.company.org" -ext "SAN=dns:myhost.company.org,ip:10.0.2.15" -storepass rest_keystore_password -keypass rest_key_password -keyalg RSA -keysize 4096 -storetype PKCS12
 
 keytool -exportcert -keystore rest.keystore -alias flink.rest -storepass rest_keystore_password -file flink.cer
 
@@ -219,7 +219,7 @@ security.ssl.rest.key-password: rest_key_password
 Execute the following keytool commands to create a truststore with a self signed CA.
 
 {% highlight bash %}
-keytool -genkeypair -alias ca -keystore ca.keystore -dname "CN=Sample CA" -storepass ca_keystore_password -keypass ca_key_password -keyalg RSA -keysize 4096 -ext "bc=ca:true"
+keytool -genkeypair -alias ca -keystore ca.keystore -dname "CN=Sample CA" -storepass ca_keystore_password -keypass ca_key_password -keyalg RSA -keysize 4096 -ext "bc=ca:true" -storetype PKCS12
 
 keytool -exportcert -keystore ca.keystore -alias ca -storepass ca_keystore_password -file ca.cer
 
@@ -230,7 +230,7 @@ Now create a keystore for the REST endpoint with a certificate signed by the abo
 Let *flink.company.org / ip:10.0.2.15* be the hostname of the Flink master (JobManager).
 
 {% highlight bash %}
-keytool -genkeypair -alias flink.rest -keystore rest.signed.keystore -dname "CN=flink.company.org" -ext "SAN=dns:flink.company.org" -storepass rest_keystore_password -keypass rest_key_password -keyalg RSA -keysize 4096
+keytool -genkeypair -alias flink.rest -keystore rest.signed.keystore -dname "CN=flink.company.org" -ext "SAN=dns:flink.company.org" -storepass rest_keystore_password -keypass rest_key_password -keyalg RSA -keysize 4096 -storetype PKCS12
 
 keytool -certreq -alias flink.rest -keystore rest.signed.keystore -storepass rest_keystore_password -keypass rest_key_password -file rest.csr
 
@@ -252,6 +252,25 @@ security.ssl.rest.key-password: rest_key_password
 security.ssl.rest.truststore-password: ca_truststore_password
 {% endhighlight %}
 
+**Tips to query REST Endpoint with curl utility**
+
+You can convert the keystore into the `PEM` format using `openssl`:
+
+{% highlight bash %}
+openssl pkcs12 -passin pass:rest_keystore_password -in rest.keystore -out rest.pem -nodes
+{% endhighlight %}
+
+Then you can query REST Endpoint with `curl`:
+
+{% highlight bash %}
+curl --cacert rest.pem flink_url
+{% endhighlight %}
+
+If mutual SSL is enabled:
+
+{% highlight bash %}
+curl --cacert rest.pem --cert rest.pem flink_url
+{% endhighlight %}
 
 ## Tips for YARN / Mesos Deployment
 

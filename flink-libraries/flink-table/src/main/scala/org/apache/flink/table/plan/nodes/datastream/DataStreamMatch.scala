@@ -28,6 +28,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.SqlMatchRecognize.AfterOption
+import org.apache.calcite.sql.`type`.SqlTypeFamily
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -39,10 +40,12 @@ import org.apache.flink.cep.pattern.Quantifier.QuantifierProperty
 import org.apache.flink.cep.pattern.conditions.BooleanConditions
 import org.apache.flink.cep.{CEP, PatternStream}
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.windowing.time.Time
 
 import scala.collection.JavaConverters._
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.MatchCodeGenerator
 import org.apache.flink.table.plan.logical.MatchRecognize
 import org.apache.flink.table.plan.nodes.CommonMatchRecognize
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
@@ -95,6 +98,31 @@ class DataStreamMatch(
     explainMatch(super.explainTerms(pw), logicalMatch, inputSchema.fieldNames, getExpressionString)
   }
 
+  private def translateTimeBound(interval: RexNode): Time = {
+    interval match {
+      case x: RexLiteral if x.getTypeName.getFamily == SqlTypeFamily.INTERVAL_DAY_TIME =>
+        Time.milliseconds(x.getValueAs(classOf[JLong]))
+      case _ =>
+        throw new TableException("Only constant intervals with millisecond resolution " +
+          "are supported as time constraints of patterns.")
+    }
+  }
+
+  @VisibleForTesting
+  private[flink] def translatePattern(
+    config: TableConfig,
+    inputTypeInfo: TypeInformation[Row]
+  ): (Pattern[Row, Row], Iterable[String]) = {
+    val patternVisitor = new PatternVisitor(config, inputTypeInfo, logicalMatch)
+    val cepPattern = if (logicalMatch.interval != null) {
+      val interval = translateTimeBound(logicalMatch.interval)
+      logicalMatch.pattern.accept(patternVisitor).within(interval)
+    } else {
+      logicalMatch.pattern.accept(patternVisitor)
+    }
+    (cepPattern, patternVisitor.names)
+  }
+
   override def translateToPlan(
       tableEnv: StreamTableEnvironment,
       queryConfig: StreamQueryConfig)
@@ -120,9 +148,7 @@ class DataStreamMatch(
       crowInput,
       logicalMatch.orderKeys)
 
-    val patternVisitor = new PatternVisitor(config, inputTypeInfo, logicalMatch)
-    val cepPattern = logicalMatch.pattern.accept(patternVisitor)
-    val patternNames = patternVisitor.names
+    val (cepPattern, patternNames) = translatePattern(config, inputTypeInfo)
 
     //TODO remove this once it is supported in CEP library
     if (NFACompiler.canProduceEmptyMatches(cepPattern)) {
@@ -136,11 +162,6 @@ class DataStreamMatch(
       throw new TableException(
         "Greedy quantifiers are not allowed as the last element of a Pattern yet. Finish your " +
           "pattern with either a simple variable or reluctant quantifier.")
-    }
-
-    if (logicalMatch.interval != null) {
-      throw new TableException(
-        "WITHIN clause is not part of the SQL Standard, thus it is not supported.")
     }
 
     val inputDS: DataStream[Row] = timestampedInput
@@ -164,7 +185,7 @@ class DataStreamMatch(
       throw new TableException("All rows per match mode is not supported yet.")
     } else {
       val patternSelectFunction =
-        MatchUtil.generateOneRowPerMatchExpression(
+        MatchCodeGenerator.generateOneRowPerMatchExpression(
           config,
           schema,
           partitionKeys,
@@ -232,12 +253,9 @@ class DataStreamMatch(
       inputDs
     }
   }
-
-  @VisibleForTesting private[flink] def getLogicalMatch = logicalMatch
 }
 
-@VisibleForTesting
-private[flink] class PatternVisitor(
+private class PatternVisitor(
     config: TableConfig,
     inputTypeInfo: TypeInformation[Row],
     logicalMatch: MatchRecognize)
@@ -252,7 +270,7 @@ private[flink] class PatternVisitor(
 
     val patternDefinition = logicalMatch.patternDefinitions.get(patternName)
     if (patternDefinition != null) {
-      val condition = MatchUtil.generateIterativeCondition(
+      val condition = MatchCodeGenerator.generateIterativeCondition(
         config,
         patternDefinition,
         inputTypeInfo,

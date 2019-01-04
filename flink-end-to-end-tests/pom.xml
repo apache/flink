@@ -58,8 +58,13 @@ under the License.
 		<module>flink-state-evolution-test</module>
 		<module>flink-e2e-test-utils</module>
 		<module>flink-end-to-end-tests-common</module>
+		<module>flink-metrics-availability-test</module>
 		<module>flink-metrics-reporter-prometheus-test</module>
 		<module>flink-heavy-deployment-stress-test</module>
+		<module>flink-streaming-kafka-test-base</module>
+		<module>flink-streaming-kafka-test</module>
+		<module>flink-streaming-kafka011-test</module>
+		<module>flink-streaming-kafka010-test</module>
 	</modules>
 
 	<build>

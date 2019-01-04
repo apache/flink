@@ -103,6 +103,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
+import org.apache.flink.runtime.taskexecutor.rpc.RpcCheckpointResponder;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -303,18 +304,16 @@ public class JobMasterTest extends TestLogger {
 
 			Throwable userException = (Throwable) Class.forName(className, false, userClassLoader).newInstance();
 
-			CompletableFuture<JobMasterGateway> jobMasterGateway =
-				rpcService2.connect(jobMaster.getAddress(), jobMaster.getFencingToken(), JobMasterGateway.class);
+			JobMasterGateway jobMasterGateway =
+				rpcService2.connect(jobMaster.getAddress(), jobMaster.getFencingToken(), JobMasterGateway.class).get();
 
-			jobMasterGateway.thenAccept(gateway -> {
-				gateway.declineCheckpoint(new DeclineCheckpoint(
-						jobGraph.getJobID(),
-						new ExecutionAttemptID(1, 1),
-						1,
-						userException
-					)
-				);
-			});
+			RpcCheckpointResponder rpcCheckpointResponder = new RpcCheckpointResponder(jobMasterGateway);
+			rpcCheckpointResponder.declineCheckpoint(
+				jobGraph.getJobID(),
+				new ExecutionAttemptID(1, 1),
+				1,
+				userException
+			);
 
 			Throwable throwable = declineCheckpointMessageFuture.get(testingTimeout.toMilliseconds(),
 				TimeUnit.MILLISECONDS);

@@ -416,7 +416,9 @@ public abstract class AbstractStreamOperator<OUT>
 			String snapshotFailMessage = "Could not complete snapshot " + checkpointId + " for operator " +
 				getOperatorName() + ".";
 
-			LOG.info(snapshotFailMessage, snapshotException);
+			if (!getContainingTask().isCanceled()) {
+				LOG.info(snapshotFailMessage, snapshotException);
+			}
 			throw new Exception(snapshotFailMessage, snapshotException);
 		}
 
@@ -637,7 +639,7 @@ public abstract class AbstractStreamOperator<OUT>
 		if (keyedStateBackend != null) {
 			return keyedStateBackend.getCurrentKey();
 		} else {
-			throw new UnsupportedOperationException("Key can only be retrieven on KeyedStream.");
+			throw new UnsupportedOperationException("Key can only be retrieved on KeyedStream.");
 		}
 	}
 
