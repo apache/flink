@@ -79,35 +79,35 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     testAllApis(
       3.shiftLeft(3),
       "3.shiftLeft(3)",
-      "SHIFTLEFT(3,3)",
+      "SHIFTLEFT(3, 3)",
       "24"
     )
 
     testAllApis(
       2147483647.shiftLeft(-2147483648),
       "2147483647.shiftLeft(-2147483648)",
-      "SHIFTLEFT(2147483647,-2147483648)",
+      "SHIFTLEFT(2147483647, -2147483648)",
       "2147483647"
     )
 
     testAllApis(
       -2147483648.shiftLeft(2147483647),
       "-2147483648.shiftLeft(2147483647)",
-      "SHIFTLEFT(-2147483648,2147483647)",
+      "SHIFTLEFT(-2147483648, 2147483647)",
       "0"
     )
 
     testAllApis(
       9223372036854775807L.shiftLeft(-2147483648),
       "9223372036854775807L.shiftLeft(-2147483648)",
-      "SHIFTLEFT(9223372036854775807,-2147483648)",
+      "SHIFTLEFT(9223372036854775807, -2147483648)",
       "9223372036854775807"
     )
 
     testAllApis(
       'f3.shiftLeft(5),
       "f3.shiftLeft(5)",
-      "SHIFTLEFT(f3,5)",
+      "SHIFTLEFT(f3, 5)",
       "32"
     )
 
@@ -143,36 +143,93 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     testAllApis(
       3.shiftLeft(-1),
       "3.shiftLeft(-1)",
-      "SHIFTLEFT(3,-1)",
+      "SHIFTLEFT(3, -1)",
       "-2147483648"
     )
 
     testAllApis(
       4.shiftLeft(-1),
       "4.shiftLeft(-1)",
-      "SHIFTLEFT(4,-1)",
+      "SHIFTLEFT(4, -1)",
       "0"
     )
 
     testAllApis(
       5.shiftLeft(-2),
       "5.shiftLeft(-2)",
-      "SHIFTLEFT(5,-2)",
+      "SHIFTLEFT(5, -2)",
       "1073741824"
     )
 
     testAllApis(
       -5.shiftLeft(2),
       "-5.shiftLeft(2)",
-      "SHIFTLEFT(-5,2)",
+      "SHIFTLEFT(-5, 2)",
       "-20"
     )
 
     testAllApis(
       -7.shiftLeft(-1),
       "-7.shiftLeft(-1)",
-      "SHIFTLEFT(-7,-1)",
+      "SHIFTLEFT(-7, -1)",
       "-2147483648"
+    )
+
+    //special shift test
+    testAllApis(
+      'f0.shiftLeft(9),
+      "f0.shiftLeft(9)",
+      "SHIFTLEFT(f0, 9)",
+      "0"
+    )
+
+    testAllApis(
+      'f0.shiftLeft(17),
+      "f0.shiftLeft(17)",
+      "SHIFTLEFT(f0, 17)",
+      "0"
+    )
+
+    testAllApis(
+      'f1.shiftLeft(17),
+      "f1.shiftLeft(17)",
+      "SHIFTLEFT(f1, 17)",
+      "0"
+    )
+
+    testAllApis(
+      'f1.shiftLeft(33),
+      "f1.shiftLeft(33)",
+      "SHIFTLEFT(f1, 33)",
+      "2"
+    )
+
+    testAllApis(
+      'f2.shiftLeft(17),
+      "f2.shiftLeft(17)",
+      "SHIFTLEFT(f2, 17)",
+      "131072"
+    )
+
+    testAllApis(
+      'f2.shiftLeft(33),
+      "f2.shiftLeft(33)",
+      "SHIFTLEFT(f2, 33)",
+      "2"
+    )
+
+    testAllApis(
+      'f3.shiftLeft(33),
+      "f3.shiftLeft(33)",
+      "SHIFTLEFT(f3, 33)",
+      "8589934592"
+    )
+
+    testAllApis(
+      'f3.shiftLeft(65),
+      "f3.shiftLeft(65)",
+      "SHIFTLEFT(f3, 65)",
+      "2"
     )
   }
 
@@ -229,29 +286,29 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
 
     val a: Byte = 7
     testAllApis(            // test tinyint
-      a.shiftRight(1),
-      s"$a.shiftRight(1)",
+      a.cast(Types.BYTE).shiftRight(1),
+      s"$a.cast(BYTE).shiftRight(1)",
       s"SHIFTRIGHT(CAST($a AS TINYINT),1)",
       "3"
     )
 
     val b: Short = 100
     testAllApis(            // test smallint
-      b.shiftRight(1),
-      s"$b.shiftRight(1)",
+      b.cast(Types.SHORT).shiftRight(1),
+      s"$b.cast(SHORT).shiftRight(1)",
       s"SHIFTRIGHT(CAST($b AS SMALLINT),1)",
       "50"
     )
 
     val c: Long = 1099511627776L
     testAllApis(            // test long
-      c.shiftRight(30),
-      s"${c}L.shiftRight(30)",
+      c.cast(Types.LONG).shiftRight(30),
+      s"${c}L.cast(LONG).shiftRight(30)",
       s"SHIFTRIGHT(CAST($c AS BIGINT),30)",
       "1024"
     )
 
-    // special params
+    //special params
     testAllApis(
       32.shiftRight(-1),
       "32.shiftRight(-1)",
@@ -271,6 +328,67 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "-64.shiftRight(-1)",
       "SHIFTRIGHT(-64,-1)",
       "-1"
+    )
+
+    //special shift test
+    val b1 = Byte.MinValue
+    testAllApis(
+      b1.cast(Types.BYTE).shiftRight(9),
+      s"$b1.cast(BYTE).shiftRight(9)",
+      s"SHIFTRIGHT(CAST($b1 AS TINYINT), 9)",
+      "-1"
+    )
+
+    testAllApis(
+      b1.cast(Types.BYTE).shiftRight(17),
+      s"$b1.cast(BYTE).shiftRight(17)",
+      s"SHIFTRIGHT(CAST($b1 AS TINYINT), 17)",
+      "-1"
+    )
+
+    val s1 = Short.MinValue
+    testAllApis(
+      s1.cast(Types.SHORT).shiftRight(17),
+      s"$s1.cast(SHORT).shiftRight(17)",
+      s"SHIFTRIGHT(CAST($s1 AS SMALLINT), 17)",
+      "-1"
+    )
+
+    testAllApis(
+      s1.cast(Types.SHORT).shiftRight(33),
+      s"$s1.cast(SHORT).shiftRight(33)",
+      s"SHIFTRIGHT(CAST($s1 AS SMALLINT), 33)",
+      "-16384"
+    )
+
+    val i1 = Int.MinValue
+    testAllApis(
+      i1.shiftRight(17),
+      s"$i1.shiftRight(17)",
+      s"SHIFTRIGHT($i1, 17)",
+      "-16384"
+    )
+
+    testAllApis(
+      i1.shiftRight(33),
+      s"$i1.shiftRight(33)",
+      s"SHIFTRIGHT($i1, 33)",
+      "-1073741824"
+    )
+
+    val l1 = Long.MinValue
+    testAllApis(
+      l1.cast(Types.LONG).shiftRight(33),
+      s"${l1}L.cast(LONG).shiftRight(33)",
+      s"SHIFTRIGHT(CAST($l1 AS BIGINT), 33)",
+      "-1073741824"
+    )
+
+    testAllApis(
+      l1.cast(Types.LONG).shiftRight(65),
+      s"${l1}L.cast(LONG).shiftRight(65)",
+      s"SHIFTRIGHT(CAST($l1 AS BIGINT), 65)",
+      "-4611686018427387904"
     )
 
   }
@@ -303,6 +421,67 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "-64.shiftRightUnsigned(-1)",
       "SHIFTRIGHTUNSIGNED(-64,-1)",
       "1"
+    )
+
+    //special shift test
+    val b1 = Byte.MinValue
+    testAllApis(
+      b1.cast(Types.BYTE).shiftRightUnsigned(9),
+      s"$b1.cast(BYTE).shiftRightUnsigned(9)",
+      s"SHIFTRIGHTUNSIGNED(CAST($b1 AS TINYINT), 9)",
+      "-1"
+    )
+
+    testAllApis(
+      b1.cast(Types.BYTE).shiftRightUnsigned(17),
+      s"$b1.cast(BYTE).shiftRightUnsigned(17)",
+      s"SHIFTRIGHTUNSIGNED(CAST($b1 AS TINYINT), 17)",
+      "-1"
+    )
+
+    val s1 = Short.MinValue
+    testAllApis(
+      s1.cast(Types.SHORT).shiftRightUnsigned(17),
+      s"$s1.cast(SHORT).shiftRightUnsigned(17)",
+      s"SHIFTRIGHTUNSIGNED(CAST($s1 AS SMALLINT), 17)",
+      "32767"
+    )
+
+    testAllApis(
+      s1.cast(Types.SHORT).shiftRightUnsigned(33),
+      s"$s1.cast(SHORT).shiftRightUnsigned(33)",
+      s"SHIFTRIGHTUNSIGNED(CAST($s1 AS SMALLINT), 33)",
+      "-16384"
+    )
+
+    val i1 = Int.MinValue
+    testAllApis(
+      i1.shiftRightUnsigned(17),
+      s"$i1.shiftRightUnsigned(17)",
+      s"SHIFTRIGHTUNSIGNED($i1, 17)",
+      "16384"
+    )
+
+    testAllApis(
+      i1.shiftRightUnsigned(33),
+      s"$i1.shiftRightUnsigned(33)",
+      s"SHIFTRIGHTUNSIGNED($i1, 33)",
+      "1073741824"
+    )
+
+    val l1 = Long.MinValue
+    testAllApis(
+      l1.cast(Types.LONG).shiftRightUnsigned(33),
+      s"${l1}L.cast(LONG).shiftRightUnsigned(33)",
+      s"SHIFTRIGHTUNSIGNED(CAST($l1 AS BIGINT), 33)",
+      "1073741824"
+    )
+
+    testAllApis(
+      l1.cast(Types.LONG).shiftRightUnsigned(65),
+      s"${l1}L.cast(LONG).shiftRightUnsigned(65)",
+      s"SHIFTRIGHTUNSIGNED(CAST($l1 AS BIGINT), 65)",
+      "4611686018427387904"
     )
   }
 

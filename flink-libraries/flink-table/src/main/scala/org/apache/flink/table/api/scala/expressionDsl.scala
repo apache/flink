@@ -945,17 +945,17 @@ trait ImplicitExpressionOperations {
   def notBetween(lowerBound: Expression, upperBound: Expression) =
     NotBetween(expr, lowerBound, upperBound)
 
-  /*
+  /**
    * Returns the left shift value of expr. The result is expr << right.
    */
   def shiftLeft(right: Expression) = ShiftLeft(expr, right)
 
-  /*
+  /**
    * Returns the right shift value of expr. The result is expr >> right.
    */
   def shiftRight(right: Expression) = ShiftRight(expr, right)
 
-  /*
+  /**
    * Returns the unsigned right shift value of expr. The result is expr >>> right.
    */
   def shiftRightUnsigned(right: Expression) = ShiftRightUnsigned(expr, right)

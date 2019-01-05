@@ -1103,6 +1103,7 @@ SHIFTLEFT(numeric1, numeric2)
       </td>
       <td>
         <p>Returns <i>numeric1</i> shifted left of <i>numeric2</i>. The result is <i>numeric1</i> << <i>numeric2</i> </p>
+        <p>The return type is the same as <i>numeric1</i>. The semantic of the operation is the same as equivalent java operation and casts the result to the return type.</p>
       </td>
     </tr>
 
@@ -1114,6 +1115,7 @@ SHIFTRIGHT(numeric1, numeric2)
       </td>
       <td>
         <p>Returns <i>numeric1</i> shifted right of <i>numeric2</i>. The result is <i>numeric1</i> >> <i>numeric2</i> </p>
+        <p>The return type is the same as <i>numeric1</i>. The semantic of the operation is the same as equivalent java operation and casts the result to the return type.</p>
       </td>
     </tr>
 
@@ -1125,6 +1127,7 @@ SHIFTRIGHTUNSIGNED(numeric1, numeric2)
       </td>
       <td>
         <p>Returns unsigned <i>numeric1</i> shifted right of <i>numeric2</i>. The result is <i>numeric1</i> >>> <i>numeric2</i> </p>
+        <p>The return type is the same as <i>numeric1</i>. The semantic of the operation is the same as equivalent java operation and casts the result to the return type.</p>
       </td>
     </tr>
 
@@ -1609,6 +1612,7 @@ numeric1.shiftLeft(numeric2)
       </td>
       <td>
         <p>Returns <i>numeric1</i> shifted left of <i>numeric2</i>. The result is <i>numeric1</i> << <i>numeric2</i> </p>
+        <p>The return type is the same as <i>numeric1</i>. The semantic of the operation is the same as equivalent java operation and casts the result to the return type.</p>
       </td>
     </tr>
 
@@ -1620,6 +1624,7 @@ numeric1.shiftRight(numeric2)
       </td>
       <td>
         <p>Returns <i>numeric1</i> shifted right of <i>numeric2</i>. The result is <i>numeric1</i> >> <i>numeric2</i> </p>
+        <p>The return type is the same as <i>numeric1</i>. The semantic of the operation is the same as equivalent java operation and casts the result to the return type.</p>
       </td>
     </tr>
 
@@ -1631,6 +1636,7 @@ numeric1.shiftRightUnsigned(numeric2)
       </td>
       <td>
         <p>Returns unsigned <i>numeric1</i> shifted right of <i>numeric2</i>. The result is <i>numeric1</i> >>> <i>numeric2</i> </p>
+        <p>The return type is the same as <i>numeric1</i>. The semantic of the operation is the same as equivalent java operation and casts the result to the return type.</p>
       </td>
     </tr>
 
@@ -2115,6 +2121,7 @@ numeric1.shiftLeft(numeric2)
       </td>
       <td>
         <p>Returns <i>numeric1</i> shifted left of <i>numeric2</i>. The result is <i>numeric1</i> << <i>numeric2</i> </p>
+        <p>The return type is the same as <i>numeric1</i>. The semantic of the operation is the same as equivalent java operation and casts the result to the return type.</p>
       </td>
     </tr>
 
@@ -2126,6 +2133,7 @@ numeric1.shiftRight(numeric2)
       </td>
       <td>
         <p>Returns <i>numeric1</i> shifted right of <i>numeric2</i>. The result is <i>numeric1</i> >> <i>numeric2</i> </p>
+        <p>The return type is the same as <i>numeric1</i>. The semantic of the operation is the same as equivalent java operation and casts the result to the return type.</p>
       </td>
     </tr>
 
@@ -2137,6 +2145,7 @@ numeric1.shiftRightUnsigned(numeric2)
       </td>
       <td>
         <p>Returns unsigned <i>numeric1</i> shifted right of <i>numeric2</i>. The result is <i>numeric1</i> >>> <i>numeric2</i> </p>
+        <p>The return type is the same as <i>numeric1</i>. The semantic of the operation is the same as equivalent java operation and casts the result to the return type.</p>
       </td>
     </tr>
 
