@@ -19,16 +19,11 @@
 package org.apache.flink.formats.parquet;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.typeutils.PojoField;
-import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.generated.SimpleRecord;
-import org.apache.flink.formats.parquet.pojo.PojoSimpleRecord;
 import org.apache.flink.formats.parquet.utils.TestUtil;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.types.Row;
@@ -48,16 +43,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 /**
- * Simple test case for reading {@link org.apache.flink.types.Row}, Map and Pojo from Parquet files.
+ * Simple test case for reading {@link org.apache.flink.types.Row} from Parquet files.
  */
-public class ParquetInputFormatTest {
+public class ParquetRowInputFormatTest {
 	private static final AvroSchemaConverter SCHEMA_CONVERTER = new AvroSchemaConverter();
 
 	@ClassRule
@@ -157,71 +151,6 @@ public class ParquetInputFormatTest {
 		assertArrayEquals((String[]) nested.f2.getField(4), (String[]) row.getField(4));
 		assertEquals(nested.f2.getField(5), row.getField(5));
 		assertArrayEquals((Row[]) nested.f2.getField(6), (Row[]) row.getField(6));
-	}
-
-	@Test
-	public void testReadPojoFromSimpleRecord() throws IOException, NoSuchFieldException {
-		temp.create();
-		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> simple = TestUtil.getSimpleRecordTestData();
-		MessageType messageType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
-		Path path = TestUtil.createTempParquetFile(temp, TestUtil.SIMPLE_SCHEMA, Collections.singletonList(simple.f1));
-
-		List<PojoField> fieldList = new ArrayList<>();
-		fieldList.add(new PojoField(PojoSimpleRecord.class.getField("foo"), BasicTypeInfo.LONG_TYPE_INFO));
-		fieldList.add(new PojoField(PojoSimpleRecord.class.getField("bar"), BasicTypeInfo.STRING_TYPE_INFO));
-		fieldList.add(new PojoField(PojoSimpleRecord.class.getField("arr"),
-			BasicArrayTypeInfo.LONG_ARRAY_TYPE_INFO));
-
-		ParquetPojoInputFormat<PojoSimpleRecord> pojoInputFormat =
-			new ParquetPojoInputFormat<PojoSimpleRecord>(path, messageType, new PojoTypeInfo<PojoSimpleRecord>(
-				PojoSimpleRecord.class, fieldList));
-
-		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
-		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())
-			.when(mockContext).getMetricGroup();
-		pojoInputFormat.setRuntimeContext(mockContext);
-
-		FileInputSplit[] splits = pojoInputFormat.createInputSplits(1);
-		assertEquals(1, splits.length);
-		pojoInputFormat.open(splits[0]);
-
-		PojoSimpleRecord simpleRecord = pojoInputFormat.nextRecord(null);
-		assertEquals(simple.f2.getField(0), simpleRecord.getFoo());
-		assertEquals(simple.f2.getField(1), simpleRecord.getBar());
-		assertArrayEquals((Long[]) simple.f2.getField(2), simpleRecord.getArr());
-	}
-
-	@Test
-	@SuppressWarnings("unchecked")
-	public void testReadMapFromNestedRecord() throws IOException {
-		temp.create();
-		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();
-		Path path = TestUtil.createTempParquetFile(temp, TestUtil.NESTED_SCHEMA, Collections.singletonList(nested.f1));
-		MessageType nestedType = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
-		ParquetMapInputFormat mapInputFormat = new ParquetMapInputFormat(path, nestedType);
-
-		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
-		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())
-			.when(mockContext).getMetricGroup();
-		mapInputFormat.setRuntimeContext(mockContext);
-		FileInputSplit[] splits = mapInputFormat.createInputSplits(1);
-		assertEquals(1, splits.length);
-		mapInputFormat.open(splits[0]);
-
-		Map map = mapInputFormat.nextRecord(null);
-		assertNotNull(map);
-		assertArrayEquals((Long[]) map.get("arr"), (Long[]) nested.f2.getField(3));
-		assertArrayEquals((String[]) map.get("strArray"), (String[]) nested.f2.getField(4));
-
-		Map<String, String> mapItem = (Map<String, String>) ((Map) map.get("nestedMap")).get("mapItem");
-		assertEquals("map", mapItem.get("type"));
-		assertEquals("hashMap", mapItem.get("value"));
-
-		List<Map<String, String>> nestedArray = (List<Map<String, String>>) map.get("nestedArray");
-
-		assertEquals(1, nestedArray.size());
-		assertEquals("color", nestedArray.get(0).get("type"));
-		assertEquals("yellow", nestedArray.get(0).get("value"));
 	}
 
 	@Test

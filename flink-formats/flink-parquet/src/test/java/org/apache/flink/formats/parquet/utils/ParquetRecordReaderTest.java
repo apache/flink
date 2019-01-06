@@ -29,7 +29,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
-import org.apache.hadoop.conf.Configuration;
+import org.apache.avro.generic.IndexedRecord;
 import org.apache.parquet.ParquetReadOptions;
 import org.apache.parquet.avro.AvroSchemaConverter;
 import org.apache.parquet.hadoop.ParquetFileReader;
@@ -55,7 +55,6 @@ public class ParquetRecordReaderTest extends TestUtil {
 	@Test
 	public void testReadSimpleGroup() throws IOException {
 		temp.create();
-		Configuration configuration = new Configuration();
 
 		Long[] array = {1L};
 		GenericData.Record record = new GenericRecordBuilder(SIMPLE_SCHEMA)
@@ -84,9 +83,48 @@ public class ParquetRecordReaderTest extends TestUtil {
 	}
 
 	@Test
+	public void testReadMultipleSimpleGroup() throws IOException {
+		temp.create();
+
+		Long[] array = {1L};
+
+		List<IndexedRecord> records = new ArrayList<>();
+		for (int i = 0; i < 100; i++) {
+			GenericData.Record record = new GenericRecordBuilder(SIMPLE_SCHEMA)
+				.set("bar", "test")
+				.set("foo", i)
+				.set("arr", array).build();
+			records.add(record);
+		}
+
+		Path path = createTempParquetFile(temp, SIMPLE_SCHEMA, records);
+		MessageType readSchema = (new AvroSchemaConverter()).convert(SIMPLE_SCHEMA);
+		ParquetRecordReader<Row> rowReader = new ParquetRecordReader<Row>(new RowReadSupport(), readSchema);
+
+		InputFile inputFile =
+			HadoopInputFile.fromPath(new org.apache.hadoop.fs.Path(path.toUri()), TEST_CONFIGURATION);
+		ParquetReadOptions options = ParquetReadOptions.builder().build();
+		ParquetFileReader fileReader = new ParquetFileReader(inputFile, options);
+
+		rowReader.initialize(fileReader, TEST_CONFIGURATION);
+		assertEquals(true, rowReader.hasNextRecord());
+
+		for (long i = 0; i < 100; i++) {
+			assertEquals(false, rowReader.reachEnd());
+			assertEquals(true, rowReader.hasNextRecord());
+			Row row = rowReader.nextRecord();
+			assertEquals(3, row.getArity());
+			assertEquals(i, row.getField(0));
+			assertEquals("test", row.getField(1));
+			assertArrayEquals(array, (Long[]) row.getField(2));
+		}
+
+		assertEquals(true, rowReader.reachEnd());
+	}
+
+	@Test
 	public void testReadNestedGroup() throws IOException {
 		temp.create();
-		Configuration configuration = new Configuration();
 		Schema schema = unWrapSchema(NESTED_SCHEMA.getField("bar").schema());
 		GenericData.Record barRecord = new GenericRecordBuilder(schema)
 			.set("spam", 31L).build();
@@ -118,7 +156,6 @@ public class ParquetRecordReaderTest extends TestUtil {
 	@Test
 	public void testMapGroup() throws IOException {
 		temp.create();
-		Configuration configuration = new Configuration();
 		Preconditions.checkState(unWrapSchema(NESTED_SCHEMA.getField("spamMap").schema())
 			.getType().equals(Schema.Type.MAP));
 		ImmutableMap.Builder<String, String> map = ImmutableMap.<String, String>builder();

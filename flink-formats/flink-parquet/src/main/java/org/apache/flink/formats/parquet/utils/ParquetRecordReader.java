@@ -164,6 +164,7 @@ public class ParquetRecordReader<T> {
 				numReturnedRows++;
 				try {
 					currentValue = recordReader.read();
+					fetched = false;
 				} catch (RecordMaterializationException e) {
 					String errorMessage = String.format("skipping a corrupt record in block number [%d] record"
 						+ "number [%s] of file %s", currentBlock,
