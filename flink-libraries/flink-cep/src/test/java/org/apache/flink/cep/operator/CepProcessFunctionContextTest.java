@@ -45,8 +45,8 @@ import static org.apache.flink.cep.utils.OutputAsserter.assertOutput;
  */
 public class CepProcessFunctionContextTest extends TestLogger {
 
-	private static final boolean PROCESSING_TIME = false;
-	private static final boolean EVENT_TIME = true;
+	private static final boolean PROCESSING_TIME = true;
+	private static final boolean EVENT_TIME = false;
 
 	@Test
 	public void testTimestampPassingInEventTime() throws Exception {
@@ -56,7 +56,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 				createCepOperator(
 					extractTimestampAndNames(1),
 					new NFAForwardingFactory(),
-					PROCESSING_TIME))) {
+					EVENT_TIME))) {
 			harness.open();
 
 			// events out of order to test if internal sorting does not mess up the timestamps
@@ -81,15 +81,18 @@ public class CepProcessFunctionContextTest extends TestLogger {
 				createCepOperator(
 					extractTimestampAndNames(1),
 					new NFAForwardingFactory(),
-					EVENT_TIME))) {
+					PROCESSING_TIME))) {
 			harness.open();
 
+			harness.setProcessingTime(1);
 			harness.processElement(event().withName("A").withTimestamp(5).asStreamRecord());
+			harness.setProcessingTime(2);
 			harness.processElement(event().withName("B").withTimestamp(3).asStreamRecord());
+			harness.setProcessingTime(3);
 
 			assertOutput(harness.getOutput())
-				.nextElementEquals("(NO_TIMESTAMP):A")
-				.nextElementEquals("(NO_TIMESTAMP):B")
+				.nextElementEquals("1:A")
+				.nextElementEquals("2:B")
 				.hasNoMoreElements();
 		}
 	}
@@ -102,7 +105,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 				createCepOperator(
 					extractCurrentProcessingTimeAndNames(1),
 					new NFAForwardingFactory(),
-					EVENT_TIME))) {
+					PROCESSING_TIME))) {
 			harness.open();
 
 			harness.setProcessingTime(15);
@@ -125,7 +128,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 				createCepOperator(
 					extractCurrentProcessingTimeAndNames(1),
 					new NFAForwardingFactory(),
-					PROCESSING_TIME))) {
+					EVENT_TIME))) {
 			harness.open();
 
 			harness.setProcessingTime(10);
@@ -150,7 +153,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 				createCepOperator(
 					extractTimestampAndNames(2, timedOut),
 					new NFATimingOutFactory(),
-					PROCESSING_TIME))) {
+					EVENT_TIME))) {
 			harness.open();
 
 			// events out of order to test if internal sorting does not mess up the timestamps
@@ -181,7 +184,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 				createCepOperator(
 					extractTimestampAndNames(2, timedOut),
 					new NFATimingOutFactory(),
-					EVENT_TIME))) {
+					PROCESSING_TIME))) {
 			harness.open();
 
 			harness.setProcessingTime(3);
@@ -192,11 +195,11 @@ public class CepProcessFunctionContextTest extends TestLogger {
 			harness.processElement(event().withName("B").withTimestamp(20).asStreamRecord());
 
 			assertOutput(harness.getOutput())
-				.nextElementEquals("(NO_TIMESTAMP):A:C")
+				.nextElementEquals("5:A:C")
 				.hasNoMoreElements();
 
 			assertOutput(harness.getSideOutput(timedOut))
-				.nextElementEquals("(NO_TIMESTAMP):C")
+				.nextElementEquals("15:C")
 				.hasNoMoreElements();
 		}
 	}
@@ -211,7 +214,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 				createCepOperator(
 					extractCurrentProcessingTimeAndNames(2, sideOutputTag),
 					new NFATimingOutFactory(),
-					PROCESSING_TIME))) {
+					EVENT_TIME))) {
 			harness.open();
 
 			// events out of order to test if internal sorting does not mess up the timestamps
@@ -243,7 +246,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 				createCepOperator(
 					extractCurrentProcessingTimeAndNames(2, sideOutputTag),
 					new NFATimingOutFactory(),
-					EVENT_TIME))) {
+					PROCESSING_TIME))) {
 			harness.open();
 
 			harness.setProcessingTime(3);
@@ -290,7 +293,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 	 */
 	private static PatternProcessFunction<Event, String> extractTimestampAndNames(int stateNumber) {
 		return new AccessContextWithNames(stateNumber,
-			context -> context.timestamp() != null ? String.valueOf(context.timestamp()) : NO_TIMESTAMP);
+			context -> String.valueOf(context.timestamp()));
 	}
 
 	/**
@@ -310,7 +313,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
 			OutputTag<String> timedOutTag) {
 		return new AccessContextWithNamesWithTimedOut(stateNumber,
 			timedOutTag,
-			context -> context.timestamp() != null ? String.valueOf(context.timestamp()) : NO_TIMESTAMP);
+			context -> String.valueOf(context.timestamp()));
 	}
 
 	/**
