@@ -35,8 +35,12 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Configuration snapshot for the {@link EitherSerializer}.
+ *
+ * @deprecated this snapshot class is no longer used by any serializers.
+ *             Instead, {@link JavaEitherSerializerSnapshot} is used.
  */
 @Internal
+@Deprecated
 public final class EitherSerializerSnapshot<L, R> implements TypeSerializerSnapshot<Either<L, R>> {
 
 	private static final int CURRENT_VERSION = 2;
@@ -110,12 +114,10 @@ public final class EitherSerializerSnapshot<L, R> implements TypeSerializerSnaps
 		checkState(nestedSnapshot != null);
 
 		if (newSerializer instanceof EitherSerializer) {
+			// delegate compatibility check to the new snapshot class
 			EitherSerializer<L, R> serializer = (EitherSerializer<L, R>) newSerializer;
-
-			return nestedSnapshot.resolveCompatibilityWithNested(
-					TypeSerializerSchemaCompatibility.compatibleAsIs(),
-					serializer.getLeftSerializer(),
-					serializer.getRightSerializer());
+			JavaEitherSerializerSnapshot<L, R> newSnapshot = new JavaEitherSerializerSnapshot<>(serializer);
+			return newSnapshot.resolveSchemaCompatibility(serializer);
 		}
 		else {
 			return TypeSerializerSchemaCompatibility.incompatible();
