@@ -174,7 +174,7 @@ public class FlinkKafkaProducer<IN>
 
 	/**
 	 * Descriptor of the transactional IDs list.
-	 * Note: This state is based on the Java serializer and it has compatibility problem that will be removed later.
+	 * Note: This state is serialized by Kryo Serializer and it has compatibility problem that will be removed later.
 	 * Please use NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR_V2.
 	 */
 	@Deprecated
@@ -827,13 +827,7 @@ public class FlinkKafkaProducer<IN>
 		nextTransactionalIdHintState = context.getOperatorStateStore().getUnionListState(
 			NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR_V2);
 
-		//migrate and let the new state can be compatible with old state
-		if (oldNextTransactionalIdHintState != null && oldNextTransactionalIdHintState.get() != null) {
-			ArrayList<FlinkKafkaProducer.NextTransactionalIdHint> transactionalIdHints = Lists.newArrayList(oldNextTransactionalIdHintState.get());
-			nextTransactionalIdHintState.addAll(transactionalIdHints);
-			//clear old state
-			oldNextTransactionalIdHintState.clear();
-		}
+		migrateNextTransactionalIdHindState(context);
 
 		transactionalIdsGenerator = new TransactionalIdsGenerator(
 			getRuntimeContext().getTaskName() + "-" + ((StreamingRuntimeContext) getRuntimeContext()).getOperatorUniqueID(),
@@ -1021,6 +1015,19 @@ public class FlinkKafkaProducer<IN>
 
 	private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
 		in.defaultReadObject();
+	}
+
+	private void migrateNextTransactionalIdHindState(FunctionInitializationContext context) throws Exception {
+		ListState<NextTransactionalIdHint> oldNextTransactionalIdHintState = context.getOperatorStateStore().getUnionListState(
+			NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR);
+		nextTransactionalIdHintState = context.getOperatorStateStore().getUnionListState(NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR_V2);
+
+		ArrayList<NextTransactionalIdHint> oldTransactionalIdHints = Lists.newArrayList(oldNextTransactionalIdHintState.get());
+		if (!oldTransactionalIdHints.isEmpty()) {
+			nextTransactionalIdHintState.addAll(oldTransactionalIdHints);
+			//clear old state
+			oldNextTransactionalIdHintState.clear();
+		}
 	}
 
 	private static Properties getPropertiesFromBrokerList(String brokerList) {
