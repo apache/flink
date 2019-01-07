@@ -32,10 +32,10 @@ public interface TimerContext {
 	/**
 	 * Timestamp of the element currently being processed.
 	 *
-	 * <p>This might be {@code null}, for example if the time characteristic of your program
-	 * is set to {@link org.apache.flink.streaming.api.TimeCharacteristic#ProcessingTime}.
+	 * <p>In case of {@link org.apache.flink.streaming.api.TimeCharacteristic#ProcessingTime} this will be set to the
+	 * time when event entered the cep operator.
 	 */
-	Long timestamp();
+	long timestamp();
 
 	/** Returns the current processing time. */
 	long currentProcessingTime();

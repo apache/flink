@@ -459,8 +459,9 @@ public class CepOperator<IN, KEY, OUT>
 	private void setTimestamp(long timestamp) {
 		if (!isProcessingTime) {
 			collector.setAbsoluteTimestamp(timestamp);
-			context.setTimestamp(timestamp);
 		}
+
+		context.setTimestamp(timestamp);
 	}
 
 	/**
@@ -493,12 +494,8 @@ public class CepOperator<IN, KEY, OUT>
 		}
 
 		@Override
-		public Long timestamp() {
-			if (isProcessingTime) {
-				return null;
-			} else {
-				return timestamp;
-			}
+		public long timestamp() {
+			return timestamp;
 		}
 
 		@Override
