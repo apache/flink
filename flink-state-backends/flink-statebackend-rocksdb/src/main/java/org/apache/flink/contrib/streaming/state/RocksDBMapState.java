@@ -242,7 +242,6 @@ class RocksDBMapState<K, N, UK, UV>
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public byte[] getSerializedValue(
 			final byte[] serializedKeyAndNamespace,
 			final TypeSerializer<K> safeKeySerializer,
@@ -274,13 +273,14 @@ class RocksDBMapState<K, N, UK, UV>
 
 		final TypeSerializer<UK> dupUserKeySerializer = serializer.getKeySerializer();
 		final TypeSerializer<UV> dupUserValueSerializer = serializer.getValueSerializer();
+		final DataInputDeserializer inputView = new DataInputDeserializer();
 
 		final Iterator<Map.Entry<UK, UV>> iterator = new RocksDBMapIterator<Map.Entry<UK, UV>>(
 				backend.db,
 				keyPrefixBytes,
 				dupUserKeySerializer,
 				dupUserValueSerializer,
-				dataInputView
+				inputView
 			) {
 
 			@Override
@@ -368,7 +368,6 @@ class RocksDBMapState<K, N, UK, UV>
 		private final TypeSerializer<UV> valueSerializer;
 
 		private final DataInputDeserializer dataInputView;
-		private final DataOutputSerializer dataOutputView;
 
 		RocksDBMapEntry(
 				@Nonnull final RocksDB db,
@@ -377,8 +376,7 @@ class RocksDBMapState<K, N, UK, UV>
 				@Nonnull final byte[] rawValueBytes,
 				@Nonnull final TypeSerializer<UK> keySerializer,
 				@Nonnull final TypeSerializer<UV> valueSerializer,
-				@Nonnull DataInputDeserializer dataInputView,
-				@Nonnull DataOutputSerializer dataOutputView) {
+				@Nonnull DataInputDeserializer dataInputView) {
 			this.db = db;
 
 			this.userKeyOffset = userKeyOffset;
@@ -389,7 +387,6 @@ class RocksDBMapState<K, N, UK, UV>
 			this.rawValueBytes = rawValueBytes;
 			this.deleted = false;
 			this.dataInputView = dataInputView;
-			this.dataOutputView = dataOutputView;
 		}
 
 		public void remove() {
@@ -585,8 +582,7 @@ class RocksDBMapState<K, N, UK, UV>
 						iterator.value(),
 						keySerializer,
 						valueSerializer,
-						dataInputView,
-						dataOutputView);
+						dataInputView);
 
 					cacheEntries.add(entry);
 
