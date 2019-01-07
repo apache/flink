@@ -19,7 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompositeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.NestedSerializersSnapshotDelegate;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -47,7 +47,7 @@ public final class EitherSerializerSnapshot<L, R> implements TypeSerializerSnaps
 
 	/** Snapshot handling for the component serializer snapshot. */
 	@Nullable
-	private CompositeSerializerSnapshot nestedSnapshot;
+	private NestedSerializersSnapshotDelegate nestedSnapshot;
 
 	/**
 	 * Constructor for read instantiation.
@@ -62,7 +62,7 @@ public final class EitherSerializerSnapshot<L, R> implements TypeSerializerSnaps
 			TypeSerializer<L> leftSerializer,
 			TypeSerializer<R> rightSerializer) {
 
-		this.nestedSnapshot = new CompositeSerializerSnapshot(leftSerializer, rightSerializer);
+		this.nestedSnapshot = new NestedSerializersSnapshotDelegate(leftSerializer, rightSerializer);
 	}
 
 	// ------------------------------------------------------------------------
@@ -75,7 +75,7 @@ public final class EitherSerializerSnapshot<L, R> implements TypeSerializerSnaps
 	@Override
 	public void writeSnapshot(DataOutputView out) throws IOException {
 		checkState(nestedSnapshot != null);
-		nestedSnapshot.writeCompositeSnapshot(out);
+		nestedSnapshot.writeNestedSerializerSnapshots(out);
 	}
 
 	@Override
@@ -93,19 +93,19 @@ public final class EitherSerializerSnapshot<L, R> implements TypeSerializerSnaps
 	}
 
 	private void readV1(DataInputView in, ClassLoader classLoader) throws IOException {
-		nestedSnapshot = CompositeSerializerSnapshot.legacyReadProductSnapshots(in, classLoader);
+		nestedSnapshot = NestedSerializersSnapshotDelegate.legacyReadNestedSerializerSnapshots(in, classLoader);
 	}
 
 	private void readV2(DataInputView in, ClassLoader classLoader) throws IOException {
-		nestedSnapshot = CompositeSerializerSnapshot.readCompositeSnapshot(in, classLoader);
+		nestedSnapshot = NestedSerializersSnapshotDelegate.readNestedSerializerSnapshots(in, classLoader);
 	}
 
 	@Override
 	public TypeSerializer<Either<L, R>> restoreSerializer() {
 		checkState(nestedSnapshot != null);
 		return new EitherSerializer<>(
-				nestedSnapshot.getRestoreSerializer(0),
-				nestedSnapshot.getRestoreSerializer(1));
+				nestedSnapshot.getRestoredNestedSerializer(0),
+				nestedSnapshot.getRestoredNestedSerializer(1));
 	}
 
 	@Override

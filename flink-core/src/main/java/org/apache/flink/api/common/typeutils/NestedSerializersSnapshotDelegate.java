@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -30,21 +30,21 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * A CompositeSerializerSnapshot represents the snapshots of multiple serializers that are used
+ * A NestedSerializersSnapshotDelegate represents the snapshots of multiple serializers that are used
  * by an outer serializer. Examples would be tuples, where the outer serializer is the tuple
- * format serializer, an the CompositeSerializerSnapshot holds the serializers for the
+ * format serializer, and the NestedSerializersSnapshotDelegate holds the serializers for the
  * different tuple fields.
  *
- * <p>The CompositeSerializerSnapshot does not implement the {@link TypeSerializerSnapshot} interface.
+ * <p>The NestedSerializersSnapshotDelegate does not implement the {@link TypeSerializerSnapshot} interface.
  * It is not meant to be inherited from, but to be composed with a serializer snapshot implementation.
  *
- * <p>The CompositeSerializerSnapshot has its own versioning internally, it does not couple its
+ * <p>The NestedSerializersSnapshotDelegate has its own versioning internally, it does not couple its
  * versioning to the versioning of the TypeSerializerSnapshot that builds on top of this class.
- * That way, the CompositeSerializerSnapshot and enclosing TypeSerializerSnapshot the can evolve
+ * That way, the NestedSerializersSnapshotDelegate and enclosing TypeSerializerSnapshot the can evolve
  * their formats independently.
  */
-@PublicEvolving
-public class CompositeSerializerSnapshot {
+@Internal
+public class NestedSerializersSnapshotDelegate {
 
 	/** Magic number for integrity checks during deserialization. */
 	private static final int MAGIC_NUMBER = 1333245;
@@ -58,14 +58,14 @@ public class CompositeSerializerSnapshot {
 	/**
 	 * Constructor to create a snapshot for writing.
 	 */
-	public CompositeSerializerSnapshot(TypeSerializer<?>... serializers) {
+	public NestedSerializersSnapshotDelegate(TypeSerializer<?>... serializers) {
 		this.nestedSnapshots = TypeSerializerUtils.snapshotBackwardsCompatible(serializers);
 	}
 
 	/**
 	 * Constructor to create a snapshot during deserialization.
 	 */
-	private CompositeSerializerSnapshot(TypeSerializerSnapshot<?>[] snapshots) {
+	private NestedSerializersSnapshotDelegate(TypeSerializerSnapshot<?>[] snapshots) {
 		this.nestedSnapshots = snapshots;
 	}
 
@@ -77,14 +77,14 @@ public class CompositeSerializerSnapshot {
 	 * Produces a restore serializer from each contained serializer configuration snapshot.
 	 * The serializers are returned in the same order as the snapshots are stored.
 	 */
-	public TypeSerializer<?>[] getRestoreSerializers() {
+	public TypeSerializer<?>[] getRestoredNestedSerializers() {
 		return snapshotsToRestoreSerializers(nestedSnapshots);
 	}
 
 	/**
 	 * Creates the restore serializer from the pos-th config snapshot.
 	 */
-	public <T> TypeSerializer<T> getRestoreSerializer(int pos) {
+	public <T> TypeSerializer<T> getRestoredNestedSerializer(int pos) {
 		checkArgument(pos < nestedSnapshots.length);
 
 		@SuppressWarnings("unchecked")
@@ -105,6 +105,9 @@ public class CompositeSerializerSnapshot {
 	/**
 	 * Resolves the compatibility of the nested serializer snapshots with the nested
 	 * serializers of the new outer serializer.
+	 *
+	 * @deprecated this no method will be removed in the future. Resolving compatibility for nested
+	 *             serializers is now handled by {@link CompositeTypeSerializerSnapshot}.
 	 */
 	@Deprecated
 	public <T> TypeSerializerSchemaCompatibility<T> resolveCompatibilityWithNested(
@@ -145,7 +148,7 @@ public class CompositeSerializerSnapshot {
 	/**
 	 * Writes the composite snapshot of all the contained serializers.
 	 */
-	public final void writeCompositeSnapshot(DataOutputView out) throws IOException {
+	public final void writeNestedSerializerSnapshots(DataOutputView out) throws IOException {
 		out.writeInt(MAGIC_NUMBER);
 		out.writeInt(VERSION);
 
@@ -158,7 +161,7 @@ public class CompositeSerializerSnapshot {
 	/**
 	 * Reads the composite snapshot of all the contained serializers.
 	 */
-	public static CompositeSerializerSnapshot readCompositeSnapshot(DataInputView in, ClassLoader cl) throws IOException {
+	public static NestedSerializersSnapshotDelegate readNestedSerializerSnapshots(DataInputView in, ClassLoader cl) throws IOException {
 		final int magicNumber = in.readInt();
 		if (magicNumber != MAGIC_NUMBER) {
 			throw new IOException(String.format("Corrupt data, magic number mismatch. Expected %8x, found %8x",
@@ -177,14 +180,14 @@ public class CompositeSerializerSnapshot {
 			nestedSnapshots[i] = TypeSerializerSnapshot.readVersionedSnapshot(in, cl);
 		}
 
-		return new CompositeSerializerSnapshot(nestedSnapshots);
+		return new NestedSerializersSnapshotDelegate(nestedSnapshots);
 	}
 
 	/**
 	 * Reads the composite snapshot of all the contained serializers in a way that is compatible
 	 * with Version 1 of the deprecated {@link CompositeTypeSerializerConfigSnapshot}.
 	 */
-	public static CompositeSerializerSnapshot legacyReadProductSnapshots(DataInputView in, ClassLoader cl) throws IOException {
+	public static NestedSerializersSnapshotDelegate legacyReadNestedSerializerSnapshots(DataInputView in, ClassLoader cl) throws IOException {
 		@SuppressWarnings("deprecation")
 		final List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> serializersAndSnapshots =
 				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, cl);
@@ -193,7 +196,7 @@ public class CompositeSerializerSnapshot {
 				.map(t -> t.f1)
 				.toArray(TypeSerializerSnapshot<?>[]::new);
 
-		return new CompositeSerializerSnapshot(nestedSnapshots);
+		return new NestedSerializersSnapshotDelegate(nestedSnapshots);
 	}
 
 	// ------------------------------------------------------------------------
