@@ -38,6 +38,8 @@ import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.configuration.QueryableStateOptions.ENABLE_QUERYABLE_STATE_PROXY_SERVER;
+
 /**
  * Resource which starts a {@link MiniCluster} for testing purposes.
  */
@@ -113,6 +115,7 @@ public class MiniClusterResource extends ExternalResource {
 
 	private void startMiniCluster() throws Exception {
 		final Configuration configuration = new Configuration(miniClusterResourceConfiguration.getConfiguration());
+		configuration.setBoolean(ENABLE_QUERYABLE_STATE_PROXY_SERVER, true);
 		configuration.setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
 
 		// we need to set this since a lot of test expect this because TestBaseUtils.startCluster()

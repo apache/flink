@@ -39,6 +39,7 @@ import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
@@ -66,6 +67,7 @@ public class TaskManagerServicesConfiguration {
 
 	private final NetworkEnvironmentConfiguration networkConfig;
 
+	@Nullable
 	private final QueryableStateConfiguration queryableStateConfig;
 
 	/**
@@ -93,7 +95,7 @@ public class TaskManagerServicesConfiguration {
 			String[] localRecoveryStateRootDirectories,
 			boolean localRecoveryEnabled,
 			NetworkEnvironmentConfiguration networkConfig,
-			QueryableStateConfiguration queryableStateConfig,
+			@Nullable QueryableStateConfiguration queryableStateConfig,
 			int numberOfSlots,
 			long configuredMemory,
 			MemoryType memoryType,
