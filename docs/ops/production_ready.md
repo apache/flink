@@ -80,9 +80,9 @@ future, they are not yet. This means you should carefully consider which backend
 production.
 
 In general, we recommend using RocksDB because this is currently the only state backend that supports large states (i.e.
-state that exceeds the available main memory) and asynchronous snapshots. From our experience, asynchronous snapshots are
-very important for large states because they do not block the operators and Flink can write the snapshots without stopping 
-stream processing. However, RocksDB can have worse performance than, for example, the memory-based state backends. If
+state that exceeds the available main memory) and incremental checkpoints. From our experience, Incremental checkpoints
+can dramatically reduce the checkpointing time in comparison to full checkpoints, at the cost of a (potentially) longer
+recovery time. However, RocksDB can have worse performance than, for example, the memory-based state backends. If
 you are sure that your state will never exceed main memory and blocking the stream processing to write it is not an issue,
 you **could consider** to not use the RocksDB backends. However, at this point, we **strongly recommend** using RocksDB
 for production.
