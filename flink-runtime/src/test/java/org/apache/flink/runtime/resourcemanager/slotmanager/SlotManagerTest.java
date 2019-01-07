@@ -338,6 +338,56 @@ public class SlotManagerTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testCancelResourceRequest() throws Exception {
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
+		final AllocationID allocationId = new AllocationID();
+
+		final ResourceProfile[] cancelled = new ResourceProfile[1];
+		final AtomicInteger numberResourceCalls = new AtomicInteger(0);
+		ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
+			.setAllocateResourceConsumer(ignored -> numberResourceCalls.incrementAndGet())
+			.setCancelResourceRequestConsumer(value -> {
+					numberResourceCalls.decrementAndGet();
+					cancelled[0] = value;
+				})
+			.build();
+
+		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
+		final SlotRequest slotRequest = new SlotRequest(
+			new JobID(), allocationId, resourceProfile, "localhost");
+
+		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
+			slotManager.registerSlotRequest(slotRequest);
+			assertThat(numberResourceCalls.get(), is(1));
+
+			slotManager.unregisterSlotRequest(allocationId);
+			assertThat(numberResourceCalls.get(), is(0));
+			// TestingResourceActions#allocateResource returns ResourceProfile.UNKNOWN
+			assertTrue(ResourceProfile.UNKNOWN.equals(cancelled[0]));
+
+			final ResourceID resourceID = ResourceID.generate();
+			final TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
+				.setRequestSlotFunction(ignored -> new CompletableFuture<>())
+				.createTestingTaskExecutorGateway();
+			final TaskExecutorConnection taskExecutorConnection = new TaskExecutorConnection(
+				resourceID, taskExecutorGateway);
+			final SlotID slotId = new SlotID(resourceID, 0);
+			final SlotStatus slotStatus = new SlotStatus(slotId, resourceProfile);
+			final SlotReport slotReport = new SlotReport(slotStatus);
+
+			slotManager.registerSlotRequest(slotRequest);
+			assertThat(numberResourceCalls.get(), is(1));
+
+			slotManager.registerTaskManager(taskExecutorConnection, slotReport);
+			assertTrue(slotManager.getSlotRequest(allocationId).isAssigned());
+
+			// this should not cancel the assigned request
+			slotManager.unregisterSlotRequest(allocationId);
+			assertThat(numberResourceCalls.get(), is(1));
+		}
+	}
+
 	/**
 	 * Tests that pending slot requests are tried to be fulfilled upon new slot registrations.
 	 */

@@ -986,12 +986,24 @@ public class SlotManager implements AutoCloseable {
 	 * @param pendingSlotRequest to cancel
 	 */
 	private void cancelPendingSlotRequest(PendingSlotRequest pendingSlotRequest) {
+		cancelResourceRequest(pendingSlotRequest);
+
 		CompletableFuture<Acknowledge> request = pendingSlotRequest.getRequestFuture();
 
 		returnPendingTaskManagerSlotIfAssigned(pendingSlotRequest);
 
 		if (null != request) {
 			request.cancel(false);
+		}
+	}
+
+	private void cancelResourceRequest(PendingSlotRequest pendingSlotRequest) {
+		if (!pendingSlotRequest.isAssigned()) {
+			final PendingTaskManagerSlot pendingTaskManagerSlot =
+				pendingSlotRequest.getAssignedPendingTaskManagerSlot();
+			if (pendingTaskManagerSlot != null) {
+				resourceActions.cancelResourceRequest(pendingTaskManagerSlot.getResourceProfile());
+			}
 		}
 	}
 

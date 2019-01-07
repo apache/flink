@@ -49,6 +49,13 @@ public interface ResourceActions {
 	Collection<ResourceProfile> allocateResource(ResourceProfile resourceProfile) throws ResourceManagerException;
 
 	/**
+	 * Cancel a resource request previously submitted via {@link #allocateResource(ResourceProfile)}.
+	 *
+	 * @param resourceProfile for the to be cancelled resource
+	 */
+	void cancelResourceRequest(ResourceProfile resourceProfile);
+
+	/**
 	 * Notifies that an allocation failure has occurred.
 	 *
 	 * @param jobId to which the allocation belonged

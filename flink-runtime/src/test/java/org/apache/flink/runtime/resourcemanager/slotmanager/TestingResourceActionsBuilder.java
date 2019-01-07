@@ -38,6 +38,7 @@ public class TestingResourceActionsBuilder {
 	private BiConsumer<InstanceID, Exception> releaseResourceConsumer = (ignoredA, ignoredB) -> {};
 	private FunctionWithException<ResourceProfile, Collection<ResourceProfile>, ResourceManagerException> allocateResourceFunction = (ignored) -> Collections.singleton(ResourceProfile.UNKNOWN);
 	private Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer = (ignored) -> {};
+	private Consumer<ResourceProfile> cancelResourceRequestConsumer = (ignored) -> {};
 
 	public TestingResourceActionsBuilder setReleaseResourceConsumer(BiConsumer<InstanceID, Exception> releaseResourceConsumer) {
 		this.releaseResourceConsumer = releaseResourceConsumer;
@@ -62,7 +63,13 @@ public class TestingResourceActionsBuilder {
 		return this;
 	}
 
+	public TestingResourceActionsBuilder setCancelResourceRequestConsumer(Consumer<ResourceProfile> cancelResourceRequestConsumer) {
+		this.cancelResourceRequestConsumer = cancelResourceRequestConsumer;
+		return this;
+	}
+
 	public TestingResourceActions build() {
-		return new TestingResourceActions(releaseResourceConsumer, allocateResourceFunction, notifyAllocationFailureConsumer);
+		return new TestingResourceActions(releaseResourceConsumer, allocateResourceFunction,
+			notifyAllocationFailureConsumer, cancelResourceRequestConsumer);
 	}
 }

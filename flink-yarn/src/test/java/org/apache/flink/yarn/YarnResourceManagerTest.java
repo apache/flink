@@ -85,6 +85,8 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -460,6 +462,62 @@ public class YarnResourceManagerTest extends TestLogger {
 			// It's now safe to access the SlotManager state since the ResourceManager has been stopped.
 			assertThat(rmServices.slotManager.getNumberRegisteredSlots(), Matchers.equalTo(0));
 			assertThat(resourceManager.getNumberOfRegisteredTaskManagers().get(), Matchers.equalTo(0));
+		}};
+	}
+
+	@Test
+	public void testCancelWorkerRequest() throws Exception {
+		new Context() {{
+			runTest(() -> {
+				AllocationID allocationID = new AllocationID();
+				JobID jobID = new JobID();
+				SlotRequest slotRequestToBeCancelled = new SlotRequest(
+					jobID, allocationID, resourceProfile1, taskHost);
+				SlotRequest slotRequest = new SlotRequest(
+					jobID, new AllocationID(), resourceProfile1, taskHost);
+
+				// Request slot from SlotManager.
+				CompletableFuture<?> registerSlotRequestFuture = resourceManager.runInMainThread(() -> {
+					rmServices.slotManager.registerSlotRequest(slotRequestToBeCancelled);
+					rmServices.slotManager.registerSlotRequest(slotRequest);
+					return null;
+				});
+
+				// wait for the registerSlotRequest completion
+				registerSlotRequestFuture.get();
+				assertTrue(resourceManager.getNumPendingContainerRequests() == 2);
+
+				ArrayList<AMRMClient.ContainerRequest> pendingRequests = new ArrayList<>();
+				pendingRequests.add(resourceManager.getContainerRequest());
+				pendingRequests.add(resourceManager.getContainerRequest());
+				Collection<ArrayList<AMRMClient.ContainerRequest>> matchingRequests =
+					Collections.singletonList(pendingRequests);
+				doReturn(matchingRequests)
+					.when(mockResourceManagerClient)
+					.getMatchingRequests(any(Priority.class), anyString(), any(Resource.class));
+
+				// Cancel a resource request
+				CompletableFuture<?> unregisterSlotRequestFuture = resourceManager.runInMainThread(() -> {
+					rmServices.slotManager.unregisterSlotRequest(allocationID);
+					return null;
+				});
+
+				// wait for the unregisterSlotRequest completion
+				unregisterSlotRequestFuture.get();
+
+				// The cancelled container request should be removed
+				verify(mockResourceManagerClient).removeContainerRequest(any(AMRMClient.ContainerRequest.class));
+				assertTrue(resourceManager.getNumPendingContainerRequests() == 1);
+
+				pendingRequests.remove(0);
+
+				Container testingContainer = mockContainer("container1", 1234, 1,
+					resourceManager.getContainerResource());
+				resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
+
+				verify(mockNMClient).startContainer(eq(testingContainer), any(ContainerLaunchContext.class));
+				assertTrue(resourceManager.getNumPendingContainerRequests() == 0);
+			});
 		}};
 	}
 

@@ -46,13 +46,18 @@ public class TestingResourceActions implements ResourceActions {
 	@Nonnull
 	private final Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer;
 
+	@Nonnull
+	private final Consumer<ResourceProfile> cancelResourceRequestConsumer;
+
 	public TestingResourceActions(
 			@Nonnull BiConsumer<InstanceID, Exception> releaseResourceConsumer,
 			@Nonnull FunctionWithException<ResourceProfile, Collection<ResourceProfile>, ResourceManagerException> allocateResourceFunction,
-			@Nonnull Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer) {
+			@Nonnull Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer,
+			@Nonnull Consumer<ResourceProfile> cancelResourceRequestConsumer) {
 		this.releaseResourceConsumer = releaseResourceConsumer;
 		this.allocateResourceFunction = allocateResourceFunction;
 		this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
+		this.cancelResourceRequestConsumer = cancelResourceRequestConsumer;
 	}
 
 	@Override
@@ -69,4 +74,10 @@ public class TestingResourceActions implements ResourceActions {
 	public void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause) {
 		notifyAllocationFailureConsumer.accept(Tuple3.of(jobId, allocationId, cause));
 	}
+
+	@Override
+	public void cancelResourceRequest(ResourceProfile resourceProfile) {
+		cancelResourceRequestConsumer.accept(resourceProfile);
+	}
+
 }

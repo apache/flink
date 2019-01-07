@@ -66,7 +66,6 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -123,11 +122,11 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	/** The number of containers requested, but not yet granted. */
 	private int numPendingContainerRequests;
 
-	private final Map<ResourceProfile, Integer> resourcePriorities = new HashMap<>();
-
 	private final Collection<ResourceProfile> slotsPerWorker;
 
 	private final Resource resource;
+
+	private final Object pendingRequestLock = new Object();
 
 	public YarnResourceManager(
 			RpcService rpcService,
@@ -317,6 +316,21 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	}
 
 	@Override
+	public void cancelWorkerRequest(ResourceProfile resourceProfile) {
+		synchronized (pendingRequestLock) {
+			if (numPendingContainerRequests > 0) {
+				final Iterator<AMRMClient.ContainerRequest> pendingRequestsIterator =
+					getPendingRequests().iterator();
+				removeContainerRequest(pendingRequestsIterator.next());
+			}
+		}
+
+		if (numPendingContainerRequests <= 0) {
+			resourceManagerClient.setHeartbeatInterval(yarnHeartbeatIntervalMillis);
+		}
+	}
+
+	@Override
 	public boolean stopWorker(final YarnWorkerNode workerNode) {
 		final Container container = workerNode.getContainer();
 		log.info("Stopping container {}.", container.getId());
@@ -368,44 +382,46 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	@Override
 	public void onContainersAllocated(List<Container> containers) {
 		runAsync(() -> {
-			final Collection<AMRMClient.ContainerRequest> pendingRequests = getPendingRequests();
-			final Iterator<AMRMClient.ContainerRequest> pendingRequestsIterator = pendingRequests.iterator();
+			synchronized (pendingRequestLock) {
+				final Collection<AMRMClient.ContainerRequest> pendingRequests = getPendingRequests();
+				final Iterator<AMRMClient.ContainerRequest> pendingRequestsIterator = pendingRequests.iterator();
 
-			for (Container container : containers) {
-				log.info(
-					"Received new container: {} - Remaining pending container requests: {}",
-					container.getId(),
-					numPendingContainerRequests);
+				for (Container container : containers) {
+					log.info(
+						"Received new container: {} - Remaining pending container requests: {}",
+						container.getId(),
+						numPendingContainerRequests);
 
-				if (numPendingContainerRequests > 0) {
-					removeContainerRequest(pendingRequestsIterator.next());
+					if (numPendingContainerRequests > 0) {
+						removeContainerRequest(pendingRequestsIterator.next());
 
-					final String containerIdStr = container.getId().toString();
-					final ResourceID resourceId = new ResourceID(containerIdStr);
+						final String containerIdStr = container.getId().toString();
+						final ResourceID resourceId = new ResourceID(containerIdStr);
 
-					workerNodeMap.put(resourceId, new YarnWorkerNode(container));
+						workerNodeMap.put(resourceId, new YarnWorkerNode(container));
 
-					try {
-						// Context information used to start a TaskExecutor Java process
-						ContainerLaunchContext taskExecutorLaunchContext = createTaskExecutorLaunchContext(
-							container.getResource(),
-							containerIdStr,
-							container.getNodeId().getHost());
+						try {
+							// Context information used to start a TaskExecutor Java process
+							ContainerLaunchContext taskExecutorLaunchContext = createTaskExecutorLaunchContext(
+								container.getResource(),
+								containerIdStr,
+								container.getNodeId().getHost());
 
-						nodeManagerClient.startContainer(container, taskExecutorLaunchContext);
-					} catch (Throwable t) {
-						log.error("Could not start TaskManager in container {}.", container.getId(), t);
+							nodeManagerClient.startContainer(container, taskExecutorLaunchContext);
+						} catch (Throwable t) {
+							log.error("Could not start TaskManager in container {}.", container.getId(), t);
 
-						// release the failed container
-						workerNodeMap.remove(resourceId);
+							// release the failed container
+							workerNodeMap.remove(resourceId);
+							resourceManagerClient.releaseAssignedContainer(container.getId());
+							// and ask for a new one
+							requestYarnContainerIfRequired();
+						}
+					} else {
+						// return the excessive containers
+						log.info("Returning excess container {}.", container.getId());
 						resourceManagerClient.releaseAssignedContainer(container.getId());
-						// and ask for a new one
-						requestYarnContainerIfRequired();
 					}
-				} else {
-					// return the excessive containers
-					log.info("Returning excess container {}.", container.getId());
-					resourceManagerClient.releaseAssignedContainer(container.getId());
 				}
 			}
 
@@ -418,11 +434,11 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	}
 
 	private void removeContainerRequest(AMRMClient.ContainerRequest pendingContainerRequest) {
-		numPendingContainerRequests--;
-
 		log.info("Removing container request {}. Pending container requests {}.", pendingContainerRequest, numPendingContainerRequests);
 
 		resourceManagerClient.removeContainerRequest(pendingContainerRequest);
+
+		numPendingContainerRequests--;
 	}
 
 	private Collection<AMRMClient.ContainerRequest> getPendingRequests() {
@@ -569,4 +585,10 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 				.put(ENV_FLINK_NODE_ID, host);
 		return taskExecutorLaunchContext;
 	}
+
+	@VisibleForTesting
+	int getNumPendingContainerRequests() {
+		return numPendingContainerRequests;
+	}
+
 }

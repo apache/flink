@@ -1054,6 +1054,13 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	public abstract Collection<ResourceProfile> startNewWorker(ResourceProfile resourceProfile);
 
 	/**
+	 * Cancel a resource request previously submitted via {@link #startNewWorker(ResourceProfile)}.
+	 *
+	 * @param resourceProfile The resource description
+	 */
+	protected void cancelWorkerRequest(ResourceProfile resourceProfile) {}
+
+	/**
 	 * Callback when a worker was started.
 	 * @param resourceID The worker resource id
 	 */
@@ -1084,6 +1091,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		public Collection<ResourceProfile> allocateResource(ResourceProfile resourceProfile) {
 			validateRunsInMainThread();
 			return startNewWorker(resourceProfile);
+		}
+
+		@Override
+		public void cancelResourceRequest(ResourceProfile resourceProfile) {
+			validateRunsInMainThread();
+			cancelWorkerRequest(resourceProfile);
 		}
 
 		@Override
