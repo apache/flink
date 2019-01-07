@@ -176,7 +176,7 @@ class MatchRecognizeValidationTest extends TableTestBase {
 
   @Test
   def testValidatingAmbiguousColumns(): Unit = {
-    thrown.expectMessage("Columns ambiguously defined: { symbol, price }")
+    thrown.expectMessage("Columns ambiguously defined: {symbol, price}")
     thrown.expect(classOf[ValidationException])
 
     val sqlQuery =

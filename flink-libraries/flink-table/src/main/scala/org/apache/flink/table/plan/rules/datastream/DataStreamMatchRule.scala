@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.plan.rules.datastream
 
+import java.util.{List => JList}
+
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
@@ -35,7 +37,6 @@ import org.apache.flink.table.util.MatchUtil
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.tools.nsc.interpreter.JList
 
 class DataStreamMatchRule
   extends ConverterRule(
@@ -49,6 +50,7 @@ class DataStreamMatchRule
 
     validateAggregations(logicalMatch.getMeasures.values().asScala)
     validateAggregations(logicalMatch.getPatternDefinitions.values().asScala)
+    // This check might be obsolete once CALCITE-2747 is resolved
     validateAmbiguousColumns(logicalMatch)
     true
   }
@@ -119,14 +121,14 @@ class DataStreamMatchRule
     if (actualSize != expectedSize) {
       //try to find ambiguous column
 
-      val ambigousColumns = partitionKeys.asScala.map(_.accept(refNameFinder))
-        .filter(measuresNames.contains).mkString("{ ", ", ", " }")
+      val ambiguousColumns = partitionKeys.asScala.map(_.accept(refNameFinder))
+        .filter(measuresNames.contains).mkString("{", ", ", "}")
 
-      throw new ValidationException(s"Columns ambiguously defined: $ambigousColumns")
+      throw new ValidationException(s"Columns ambiguously defined: $ambiguousColumns")
     }
   }
 
-  class RefNameFinder(inputSchema: RelDataType) extends RexDefaultVisitor[String] {
+  private class RefNameFinder(inputSchema: RelDataType) extends RexDefaultVisitor[String] {
 
     override def visitInputRef(inputRef: RexInputRef): String = {
       inputSchema.getFieldList.get(inputRef.getIndex).getName
@@ -136,7 +138,7 @@ class DataStreamMatchRule
       throw new TableException(s"PARTITION BY clause accepts only input reference. Found $rexNode")
   }
 
-  class AggregationsValidator extends RexDefaultVisitor[Object] {
+  private class AggregationsValidator extends RexDefaultVisitor[Object] {
 
     override def visitCall(call: RexCall): AnyRef = {
       call.getOperator match {
