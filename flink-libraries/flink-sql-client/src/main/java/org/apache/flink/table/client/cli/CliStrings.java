@@ -237,7 +237,6 @@ public final class CliStrings {
 			t = t.getCause();
 		}
 		return messageError(message, t.getClass().getName() + ": " + t.getMessage());
-		// return messageError(message, ExceptionUtils.stringifyException(t));
 	}
 
 	public static AttributedString messageError(String message) {
