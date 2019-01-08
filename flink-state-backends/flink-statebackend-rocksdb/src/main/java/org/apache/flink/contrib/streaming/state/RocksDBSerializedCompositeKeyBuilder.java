@@ -191,9 +191,4 @@ class RocksDBSerializedCompositeKeyBuilder<K> {
 		return keySerializerTypeVariableSized &
 			RocksDBKeySerializationUtils.isSerializerTypeVariableSized(namespaceSerializer);
 	}
-
-	@VisibleForTesting
-	boolean isKeySerializerTypeVariableSized() {
-		return keySerializerTypeVariableSized;
-	}
 }
