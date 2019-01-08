@@ -27,7 +27,7 @@ import org.apache.flink.cep.functions.PatternProcessFunction;
  * {@link org.apache.flink.cep.pattern.conditions.IterativeCondition}
  */
 @PublicEvolving
-public interface TimerContext {
+public interface TimeContext {
 
 	/**
 	 * Timestamp of the element currently being processed.
