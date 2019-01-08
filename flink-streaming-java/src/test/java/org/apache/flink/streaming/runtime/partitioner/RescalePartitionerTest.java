@@ -62,7 +62,9 @@ public class RescalePartitionerTest extends StreamPartitionerTest {
 
 	@Override
 	public StreamPartitioner<Tuple> createPartitioner() {
-		return new RescalePartitioner<>();
+		StreamPartitioner<Tuple> partitioner = new RescalePartitioner<>();
+		assertFalse(partitioner.isBroadcast());
+		return partitioner;
 	}
 
 	@Test

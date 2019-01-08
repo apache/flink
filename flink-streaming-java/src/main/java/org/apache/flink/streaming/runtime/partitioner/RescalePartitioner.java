@@ -51,7 +51,7 @@ public class RescalePartitioner<T> extends StreamPartitioner<T> {
 	private int nextChannelToSendTo = -1;
 
 	@Override
-	public int selectChannels(SerializationDelegate<StreamRecord<T>> record) {
+	public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
 		if (++nextChannelToSendTo >= numberOfChannels) {
 			nextChannelToSendTo = 0;
 		}

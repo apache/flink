@@ -43,7 +43,7 @@ public class RebalancePartitioner<T> extends StreamPartitioner<T> {
 	}
 
 	@Override
-	public int selectChannels(SerializationDelegate<StreamRecord<T>> record) {
+	public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
 		nextChannelToSendTo = (nextChannelToSendTo + 1) % numberOfChannels;
 		return nextChannelToSendTo;
 	}

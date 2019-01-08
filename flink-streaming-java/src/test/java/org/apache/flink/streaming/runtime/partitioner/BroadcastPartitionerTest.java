@@ -21,6 +21,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 
 import org.junit.Test;
 
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -30,13 +31,15 @@ public class BroadcastPartitionerTest extends StreamPartitionerTest {
 
 	@Override
 	public StreamPartitioner<Tuple> createPartitioner() {
-		return new BroadcastPartitioner<>();
+		StreamPartitioner<Tuple> partitioner = new BroadcastPartitioner<>();
+		assertTrue(partitioner.isBroadcast());
+		return partitioner;
 	}
 
 	@Test
 	public void testSelectChannels() {
 		try {
-			streamPartitioner.selectChannels(serializationDelegate);
+			streamPartitioner.selectChannel(serializationDelegate);
 		} catch (UnsupportedOperationException ex) {
 			return;
 		}

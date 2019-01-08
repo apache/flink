@@ -136,7 +136,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	}
 
 	@Override
-	public final int selectChannels(SerializationDelegate<T> record) {
+	public final int selectChannel(SerializationDelegate<T> record) {
 		switch (strategy) {
 		case FORWARD:
 			return forward();
@@ -151,6 +151,15 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 			return rangePartition(record.getInstance(), numberOfChannels);
 		default:
 			throw new UnsupportedOperationException("Unsupported distribution strategy: " + strategy.name());
+		}
+	}
+
+	@Override
+	public boolean isBroadcast() {
+		if (strategy == ShipStrategyType.BROADCAST) {
+			return true;
+		} else {
+			return false;
 		}
 	}
 	

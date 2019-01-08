@@ -37,7 +37,7 @@ public class ShufflePartitioner<T> extends StreamPartitioner<T> {
 	private Random random = new Random();
 
 	@Override
-	public int selectChannels(SerializationDelegate<StreamRecord<T>> record) {
+	public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
 		return random.nextInt(numberOfChannels);
 	}
 

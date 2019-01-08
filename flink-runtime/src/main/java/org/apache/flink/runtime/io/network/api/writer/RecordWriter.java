@@ -88,12 +88,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 	private Throwable flusherException;
 
 	public RecordWriter(ResultPartitionWriter writer) {
-		this(writer, new RoundRobinChannelSelector<T>());
-	}
-
-	@SuppressWarnings("unchecked")
-	public RecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector) {
-		this(writer, channelSelector, -1, null);
+		this(writer, new RoundRobinChannelSelector<T>(), -1, null);
 	}
 
 	public RecordWriter(
@@ -130,7 +125,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	public void emit(T record) throws IOException, InterruptedException {
 		checkErroneous();
-		emit(record, channelSelector.selectChannels(record));
+		emit(record, channelSelector.selectChannel(record));
 	}
 
 	/**
@@ -316,6 +311,18 @@ public class RecordWriter<T extends IOReadableWritable> {
 	private void checkErroneous() throws IOException {
 		if (flusherException != null) {
 			throw new IOException("An exception happened while flushing the outputs", flusherException);
+		}
+	}
+
+	public static RecordWriter createRecordWriter(
+			ResultPartitionWriter writer,
+			ChannelSelector channelSelector,
+			long timeout,
+			String taskName) {
+		if (channelSelector.isBroadcast()) {
+			return new BroadcastRecordWriter<>(writer, channelSelector, timeout, taskName);
+		} else {
+			return new RecordWriter<>(writer, channelSelector, timeout, taskName);
 		}
 	}
 

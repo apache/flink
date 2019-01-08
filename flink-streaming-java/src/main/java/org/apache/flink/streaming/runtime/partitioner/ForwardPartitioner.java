@@ -31,7 +31,7 @@ public class ForwardPartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public int selectChannels(SerializationDelegate<StreamRecord<T>> record) {
+	public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
 		return 0;
 	}
 

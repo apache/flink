@@ -47,6 +47,7 @@ import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -161,7 +162,7 @@ public class OutputEmitterTest {
 			record.setField(3, new DoubleValue(i * 3.141d));
 			delegate.setInstance(record);
 
-			int channel = selector.selectChannels(delegate);
+			int channel = selector.selectChannel(delegate);
 			hits[channel]++;
 		}
 
@@ -208,7 +209,7 @@ public class OutputEmitterTest {
 
 		try {
 			delegate.setInstance(record);
-			selector.selectChannels(delegate);
+			selector.selectChannel(delegate);
 		} catch (DeserializationException re) {
 			return;
 		}
@@ -257,7 +258,7 @@ public class OutputEmitterTest {
 		delegate.setInstance(record);
 
 		try {
-			selector.selectChannels(delegate);
+			selector.selectChannel(delegate);
 		} catch (NullKeyFieldException re) {
 			Assert.assertEquals(position, re.getFieldNumber());
 			return true;
@@ -284,6 +285,7 @@ public class OutputEmitterTest {
 			int numberOfChannels) {
 		final ChannelSelector selector = new OutputEmitter<>(shipStrategyType, comparator);
 		selector.setup(numberOfChannels);
+		assertEquals(shipStrategyType == ShipStrategyType.BROADCAST, selector.isBroadcast());
 		return selector;
 	}
 
@@ -304,7 +306,7 @@ public class OutputEmitterTest {
 			Record record = new Record(value);
 			delegate.setInstance(record);
 
-			int channel = selector.selectChannels(delegate);
+			int channel = selector.selectChannel(delegate);
 			hits[channel]++;
 		}
 		return hits;
@@ -316,7 +318,7 @@ public class OutputEmitterTest {
 			int record,
 			int numberOfChannels) {
 		serializationDelegate.setInstance(record);
-		int selectedChannel = selector.selectChannels(serializationDelegate);
+		int selectedChannel = selector.selectChannel(serializationDelegate);
 
 		assertTrue(selectedChannel >= 0 && selectedChannel <= numberOfChannels - 1);
 	}

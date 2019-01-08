@@ -44,5 +44,12 @@ public interface ChannelSelector<T extends IOReadableWritable> {
 	 * @return an integer number which indicates the index of the output
 	 * 		channel through which the record shall be forwarded.
 	 */
-	int selectChannels(T record);
+	int selectChannel(T record);
+
+	/**
+	 * Returns whether the channel selector always selects all the output channels.
+	 *
+	 * @return true if the selector is for broadcast mode.
+	 */
+	boolean isBroadcast();
 }

@@ -35,8 +35,13 @@ public class BroadcastPartitioner<T> extends StreamPartitioner<T> {
 	 * in record writer, so it is no need to select channels via this method.
 	 */
 	@Override
-	public int selectChannels(SerializationDelegate<StreamRecord<T>> record) {
+	public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
 		throw new UnsupportedOperationException("Broadcast partitioner does not support select channels.");
+	}
+
+	@Override
+	public boolean isBroadcast() {
+		return true;
 	}
 
 	@Override
