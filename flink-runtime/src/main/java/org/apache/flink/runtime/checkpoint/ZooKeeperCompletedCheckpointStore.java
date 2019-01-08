@@ -18,22 +18,17 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
-import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.utils.ZKPaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -75,9 +70,6 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 	private static final Comparator<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>> STRING_COMPARATOR = Comparator.comparing(o -> o.f1);
 
-	/** Curator ZooKeeper client. */
-	private final CuratorFramework client;
-
 	/** Completed checkpoints in ZooKeeper. */
 	private final ZooKeeperStateHandleStore<CompletedCheckpoint> checkpointsInZooKeeper;
 
@@ -100,79 +92,23 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	 *                                       least 1). Adding more checkpoints than this results
 	 *                                       in older checkpoints being discarded. On recovery,
 	 *                                       we will only start with a single checkpoint.
-	 * @param client                         The Curator ZooKeeper client
-	 * @param checkpointsPath                The ZooKeeper path for the checkpoints (needs to
-	 *                                       start with a '/')
-	 * @param stateStorage                   State storage to be used to persist the completed
-	 *                                       checkpoint
-	 * @param executor to execute blocking calls
-	 * @throws Exception
+	 * @param checkpointsInZooKeeper         Completed checkpoints in ZooKeeper
+	 * @param executor                       to execute blocking calls
 	 */
 	public ZooKeeperCompletedCheckpointStore(
-		int maxNumberOfCheckpointsToRetain,
-		CuratorFramework client,
-		String checkpointsPath,
-		RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage,
-		Executor executor
-	) throws Exception {
-		this(maxNumberOfCheckpointsToRetain,
-			adaptNameSpace(client, checkpointsPath),
-			stateStorage,
-			executor);
+			int maxNumberOfCheckpointsToRetain,
+			ZooKeeperStateHandleStore<CompletedCheckpoint> checkpointsInZooKeeper,
+			Executor executor) {
 
-		LOG.info("Initialized in '{}'.", checkpointsPath);
-	}
-
-	@VisibleForTesting
-	ZooKeeperCompletedCheckpointStore(
-		int maxNumberOfCheckpointsToRetain,
-		CuratorFramework client,
-		String checkpointsPath,
-		Executor executor,
-		ZooKeeperStateHandleStore<CompletedCheckpoint> checkpointsInZooKeeper
-	) throws Exception {
-		this(maxNumberOfCheckpointsToRetain,
-			adaptNameSpace(client, checkpointsPath),
-			executor,
-			checkpointsInZooKeeper);
-
-		LOG.info("Initialized in '{}'.", checkpointsPath);
-	}
-
-	private ZooKeeperCompletedCheckpointStore(
-		int maxNumberOfCheckpointsToRetain,
-		CuratorFramework client,
-		RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage,
-		Executor executor
-	) {
-		this(maxNumberOfCheckpointsToRetain,
-			client,
-			executor,
-			new ZooKeeperStateHandleStore<>(client, stateStorage));
-	}
-
-	private ZooKeeperCompletedCheckpointStore(
-		int maxNumberOfCheckpointsToRetain,
-		@Nonnull CuratorFramework client,
-		@Nonnull Executor executor,
-		@Nonnull ZooKeeperStateHandleStore<CompletedCheckpoint> checkpointsInZooKeeper
-	) {
 		checkArgument(maxNumberOfCheckpointsToRetain >= 1, "Must retain at least one checkpoint.");
 
 		this.maxNumberOfCheckpointsToRetain = maxNumberOfCheckpointsToRetain;
-		this.client = client;
-		this.executor = executor;
-		this.checkpointsInZooKeeper = checkpointsInZooKeeper;
+
+		this.checkpointsInZooKeeper = checkNotNull(checkpointsInZooKeeper);
+
 		this.completedCheckpoints = new ArrayDeque<>(maxNumberOfCheckpointsToRetain + 1);
-	}
 
-	private static CuratorFramework adaptNameSpace(CuratorFramework client, String checkpointsPath) throws Exception {
-		// Ensure that the checkpoints path exists
-		client.newNamespaceAwareEnsurePath(checkpointsPath)
-			.ensure(client.getZookeeperClient());
-
-		// All operations will have the path as root
-		return client.usingNamespace(client.getNamespace() + checkpointsPath);
+		this.executor = checkNotNull(executor);
 	}
 
 	@Override
@@ -345,11 +281,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 			}
 
 			completedCheckpoints.clear();
-
-			String path = "/" + client.getNamespace();
-
-			LOG.info("Removing {} from ZooKeeper", path);
-			ZKPaths.deleteChildren(client.getZookeeperClient().getZooKeeper(), path, true);
+			checkpointsInZooKeeper.deleteChildren();
 		} else {
 			LOG.info("Suspending");
 
