@@ -27,7 +27,6 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.StringUtils;
 
 import java.io.File;
@@ -36,7 +35,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -76,6 +75,9 @@ public class BufferSpiller implements BufferBlocker {
 	/** The buffer that encodes the spilled header. */
 	private final ByteBuffer headBuffer;
 
+	/** The reusable array that holds header and contents buffers. */
+	private final ByteBuffer[] sources;
+
 	/** The file that we currently spill to. */
 	private File currentSpillFile;
 
@@ -94,7 +96,7 @@ public class BufferSpiller implements BufferBlocker {
 	/**
 	 * Creates a new buffer spiller, spilling to one of the I/O manager's temp directories.
 	 *
-	 * @param ioManager The I/O manager for access to the temp directories.
+	 * @param ioManager The I/O manager for access to teh temp directories.
 	 * @param pageSize The page size used to re-create spilled buffers.
 	 * @throws IOException Thrown if the temp files for spilling cannot be initialized.
 	 */
@@ -107,11 +109,13 @@ public class BufferSpiller implements BufferBlocker {
 		this.headBuffer = ByteBuffer.allocateDirect(16);
 		this.headBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
+		this.sources = new ByteBuffer[] { this.headBuffer, null };
+
 		File[] tempDirs = ioManager.getSpillingDirectories();
 		this.tempDir = tempDirs[DIRECTORY_INDEX.getAndIncrement() % tempDirs.length];
 
 		byte[] rndBytes = new byte[32];
-		ThreadLocalRandom.current().nextBytes(rndBytes);
+		new Random().nextBytes(rndBytes);
 		this.spillFilePrefix = StringUtils.byteToHexString(rndBytes) + '.';
 
 		// prepare for first contents
@@ -144,8 +148,8 @@ public class BufferSpiller implements BufferBlocker {
 
 			bytesWritten += (headBuffer.remaining() + contents.remaining());
 
-			FileUtils.writeCompletely(currentChannel, headBuffer);
-			FileUtils.writeCompletely(currentChannel, contents);
+			sources[1] = contents;
+			currentChannel.write(sources);
 		}
 		finally {
 			if (boe.isBuffer()) {

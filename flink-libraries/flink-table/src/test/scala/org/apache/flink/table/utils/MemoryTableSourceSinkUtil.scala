@@ -119,10 +119,8 @@ object MemoryTableSourceSinkUtil {
     }
 
     override def emitDataStream(dataStream: DataStream[Row]): Unit = {
-      val inputParallelism = dataStream.getParallelism
       dataStream
         .addSink(new MemoryAppendSink)
-        .setParallelism(inputParallelism)
         .name(TableConnectorUtil.generateRuntimeName(this.getClass, getFieldNames))
     }
   }

@@ -23,14 +23,12 @@ import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.calcite.sql.{SqlKind, SqlOperatorTable}
+import org.apache.calcite.sql.SqlKind
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
-import org.apache.flink.table.functions.sql.ProctimeSqlFunction
 import org.apache.flink.table.plan.schema.{RowSchema, TimeIndicatorRelDataType}
 import org.apache.flink.types.Row
 
@@ -382,13 +380,13 @@ object WindowJoinUtil {
       */
     def replaceTimeFieldWithLiteral(expr: RexNode): RexNode = {
       expr match {
-        case c: RexCall if RelTimeIndicatorConverter.isMaterializationCall(c) =>
-          // replace with timestamp
-          rexBuilder.makeZeroLiteral(expr.getType)
         case c: RexCall =>
           // replace in call operands
           val newOps = c.operands.asScala.map(replaceTimeFieldWithLiteral).asJava
           rexBuilder.makeCall(c.getType, c.getOperator, newOps)
+        case i: RexInputRef if FlinkTypeFactory.isTimeIndicatorType(i.getType) =>
+          // replace with timestamp
+          rexBuilder.makeZeroLiteral(expr.getType)
         case _ => expr
       }
     }

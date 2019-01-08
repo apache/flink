@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network;
 
-import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.io.network.api.writer.RoundRobinChannelSelector;
 import org.apache.flink.types.StringValue;
 
@@ -36,21 +35,17 @@ public class DefaultChannelSelectorTest {
 	 */
 	@Test
 	public void channelSelect() {
+
 		final StringValue dummyRecord = new StringValue("abc");
-		final RoundRobinChannelSelector<StringValue> selector = new RoundRobinChannelSelector<>();
-		selector.setup(2);
-
-		assertSelectedChannel(selector, dummyRecord, 0);
-		assertSelectedChannel(selector, dummyRecord, 1);
+		final RoundRobinChannelSelector<StringValue> selector = new RoundRobinChannelSelector<StringValue>();
+		// Test with two channels
+		final int numberOfOutputChannels = 2;
+		int[] selectedChannels = selector.selectChannels(dummyRecord, numberOfOutputChannels);
+		assertEquals(1, selectedChannels.length);
+		assertEquals(1, selectedChannels[0]);
+		selectedChannels = selector.selectChannels(dummyRecord, numberOfOutputChannels);
+		assertEquals(1, selectedChannels.length);
+		assertEquals(0, selectedChannels[0]);
 	}
 
-	private void assertSelectedChannel(
-		ChannelSelector<StringValue> selector,
-		StringValue record,
-		int expectedChannel) {
-
-		int[] actualResult = selector.selectChannels(record);
-		assertEquals(1, actualResult.length);
-		assertEquals(expectedChannel, actualResult[0]);
-	}
 }

@@ -30,8 +30,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 
-import static org.hamcrest.CoreMatchers.containsString;
-
 /**
  * Tests for the HistoryServerStaticFileServerHandler.
  */
@@ -58,7 +56,7 @@ public class HistoryServerStaticFileServerHandlerTest {
 		try {
 			// verify that 404 message is returned when requesting a non-existent file
 			String notFound404 = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/hello");
-			Assert.assertThat(notFound404, containsString("not found"));
+			Assert.assertTrue(notFound404.contains("404 Not Found"));
 
 			// verify that a) a file can be loaded using the ClassLoader and b) that the HistoryServer
 			// index_hs.html is injected
@@ -73,12 +71,12 @@ public class HistoryServerStaticFileServerHandlerTest {
 			File dir = new File(webDir, "dir.json");
 			dir.mkdirs();
 			String dirNotFound404 = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/dir");
-			Assert.assertTrue(dirNotFound404.contains("not found"));
+			Assert.assertTrue(dirNotFound404.contains("404 Not Found"));
 
 			// verify that a 404 message is returned when requesting a file outside the webDir
 			tmp.newFile("secret");
 			String x = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/../secret");
-			Assert.assertTrue(x.contains("not found"));
+			Assert.assertTrue(x.contains("404 Not Found"));
 		} finally {
 			webUI.shutdown();
 		}

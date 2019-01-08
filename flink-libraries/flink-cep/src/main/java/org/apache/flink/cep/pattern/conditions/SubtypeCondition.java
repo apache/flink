@@ -18,7 +18,6 @@
 
 package org.apache.flink.cep.pattern.conditions;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -27,7 +26,6 @@ import org.apache.flink.util.Preconditions;
  *
  * @param <T> Type of the elements to be filtered
  */
-@Internal
 public class SubtypeCondition<T> extends SimpleCondition<T> {
 	private static final long serialVersionUID = -2990017519957561355L;
 

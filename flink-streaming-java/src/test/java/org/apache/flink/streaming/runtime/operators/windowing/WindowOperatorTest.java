@@ -1232,16 +1232,16 @@ public class WindowOperatorTest extends TestLogger {
 			Tuple2<String, Integer> element = (Tuple2<String, Integer>) invocation.getArguments()[0];
 			switch (element.f0) {
 				case "key1":
-					return 3000L;
+					return 3000;
 				case "key2":
 					switch (element.f1) {
 						case 10:
-							return 1000L;
+							return 1000;
 						default:
-							return 2000L;
+							return 2000;
 					}
 				default:
-					return 0L;
+					return 0;
 			}
 		});
 
@@ -1314,16 +1314,16 @@ public class WindowOperatorTest extends TestLogger {
 			Tuple2<String, Integer> element = (Tuple2<String, Integer>) invocation.getArguments()[0];
 			switch (element.f0) {
 				case "key1":
-					return 3000L;
+					return 3000;
 				case "key2":
 					switch (element.f1) {
 						case 10:
-							return 1000L;
+							return 1000;
 						default:
-							return 2000L;
+							return 2000;
 					}
 				default:
-					return 0L;
+					return 0;
 			}
 		});
 
@@ -1944,7 +1944,7 @@ public class WindowOperatorTest extends TestLogger {
 				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
 				EventTimeTrigger.create(),
 				lateness,
-				lateOutputTag /* late data output tag */);
+				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
 			createTestHarness(operator);
@@ -2043,7 +2043,7 @@ public class WindowOperatorTest extends TestLogger {
 				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
 				PurgingTrigger.of(EventTimeTrigger.create()),
 				lateness,
-				lateOutputTag /* late data output tag */);
+				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
 			createTestHarness(operator);
@@ -2132,7 +2132,7 @@ public class WindowOperatorTest extends TestLogger {
 				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
 				EventTimeTrigger.create(),
 				lateness,
-				lateOutputTag /* late data output tag */);
+				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
 			createTestHarness(operator);

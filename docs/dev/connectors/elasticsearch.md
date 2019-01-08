@@ -180,7 +180,6 @@ input.addSink(new ElasticsearchSink<>(config, transportAddresses, new Elasticsea
 {% highlight java %}
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
 import org.apache.flink.streaming.connectors.elasticsearch6.ElasticsearchSink;
 
@@ -195,7 +194,7 @@ import java.util.Map;
 
 DataStream<String> input = ...;
 
-List<HttpHost> httpHosts = new ArrayList<>();
+List<HttpHost> httpHost = new ArrayList<>();
 httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
 httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"));
 
@@ -221,10 +220,10 @@ ElasticsearchSink.Builder<String> esSinkBuilder = new ElasticsearchSink.Builder<
 );
 
 // configuration for the bulk requests; this instructs the sink to emit after every element, otherwise they would be buffered
-esSinkBuilder.setBulkFlushMaxActions(1);
+builder.setBulkFlushMaxActions(1);
 
 // provide a RestClientFactory for custom configuration on the internally created REST client
-esSinkBuilder.setRestClientFactory(
+builder.setRestClientFactory(
   restClientBuilder -> {
     restClientBuilder.setDefaultHeaders(...)
     restClientBuilder.setMaxRetryTimeoutMillis(...)
@@ -326,7 +325,6 @@ input.addSink(new ElasticsearchSink(config, transportAddresses, new Elasticsearc
 {% highlight scala %}
 import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer
 import org.apache.flink.streaming.connectors.elasticsearch6.ElasticsearchSink
 
@@ -340,8 +338,8 @@ import java.util.List
 val input: DataStream[String] = ...
 
 val httpHosts = new java.util.ArrayList[HttpHost]
-httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"))
-httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"))
+httpHosts.add(new HttpHost("127.0.0.1", 9300, "http"))
+httpHosts.add(new HttpHost("10.2.3.1", 9300, "http"))
 
 val esSinkBuilder = new ElasticsearchSink.Builer[String](
   httpHosts,
@@ -359,10 +357,10 @@ val esSinkBuilder = new ElasticsearchSink.Builer[String](
 )
 
 // configuration for the bulk requests; this instructs the sink to emit after every element, otherwise they would be buffered
-esSinkBuilder.setBulkFlushMaxActions(1)
+builder.setBulkFlushMaxActions(1)
 
 // provide a RestClientFactory for custom configuration on the internally created REST client
-esSinkBuilder.setRestClientFactory(
+builder.setRestClientFactory(
   restClientBuilder -> {
     restClientBuilder.setDefaultHeaders(...)
     restClientBuilder.setMaxRetryTimeoutMillis(...)

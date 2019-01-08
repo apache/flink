@@ -112,12 +112,10 @@ class CollectAggFunction[E](valueTypeInfo: TypeInformation[_])
   def retract(acc: CollectAccumulator[E], value: E): Unit = {
     if (value != null) {
       val count = acc.map.get(value)
-      if (count != null) {
-        if (count == 1) {
-          acc.map.remove(value)
-        } else {
-          acc.map.put(value, count - 1)
-        }
+      if (count == 1) {
+        acc.map.remove(value)
+      } else {
+        acc.map.put(value, count - 1)
       }
     }
   }

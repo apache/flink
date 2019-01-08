@@ -19,27 +19,28 @@
 
 package org.apache.flink.table.functions.utils
 
-import java.lang.reflect.{Method, Modifier}
-import java.lang.{Integer => JInt, Long => JLong}
-import java.sql.{Date, Time, Timestamp}
 import java.util
+import java.lang.{Integer => JInt, Long => JLong}
+import java.lang.reflect.{Method, Modifier}
+import java.sql.{Date, Time, Timestamp}
 
+import org.apache.commons.codec.binary.Base64
 import com.google.common.primitives.Primitives
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
-import org.apache.calcite.sql.{SqlCallBinding, SqlFunction, SqlOperandCountRange, SqlOperator}
+import org.apache.calcite.sql.{SqlCallBinding, SqlFunction, SqlOperandCountRange, SqlOperator, SqlOperatorBinding}
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtractor}
 import org.apache.flink.table.api.dataview._
-import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
-import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataview._
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.logical._
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.util.InstantiationUtil
 
@@ -52,16 +53,15 @@ object UserDefinedFunctionUtils {
     */
   def checkForInstantiation(clazz: Class[_]): Unit = {
     if (!InstantiationUtil.isPublic(clazz)) {
-      throw new ValidationException(s"Function class ${clazz.getCanonicalName} is not public.")
+      throw ValidationException(s"Function class ${clazz.getCanonicalName} is not public.")
     }
     else if (!InstantiationUtil.isProperClass(clazz)) {
-      throw new ValidationException(
-        s"Function class ${clazz.getCanonicalName} is no proper class," +
+      throw ValidationException(s"Function class ${clazz.getCanonicalName} is no proper class," +
         " it is either abstract, an interface, or a primitive type.")
     }
     else if (InstantiationUtil.isNonStaticInnerClass(clazz)) {
-      throw new ValidationException(
-        s"The class ${clazz.getCanonicalName} is an inner class, but not statically accessible.")
+      throw ValidationException(s"The class ${clazz.getCanonicalName} is an inner class, but" +
+        " not statically accessible.")
     }
   }
 
@@ -151,17 +151,17 @@ object UserDefinedFunctionUtils {
           // match parameters of signature to actual parameters
           methodSignature.length == signatures.length &&
             signatures.zipWithIndex.forall { case (clazz, i) =>
-              parameterTypeApplicable(methodSignature(i), clazz)
+              parameterTypeEquals(methodSignature(i), clazz)
           }
         case cur if cur.isVarArgs =>
           val signatures = cur.getParameterTypes
           methodSignature.zipWithIndex.forall {
             // non-varargs
             case (clazz, i) if i < signatures.length - 1  =>
-              parameterTypeApplicable(clazz, signatures(i))
+              parameterTypeEquals(clazz, signatures(i))
             // varargs
             case (clazz, i) if i >= signatures.length - 1 =>
-              parameterTypeApplicable(clazz, signatures.last.getComponentType)
+              parameterTypeEquals(clazz, signatures.last.getComponentType)
           } || (methodSignature.isEmpty && signatures.length == 1) // empty varargs
     }
 
@@ -171,45 +171,14 @@ object UserDefinedFunctionUtils {
       fixedMethodsCount > 0 && !cur.isVarArgs ||
       fixedMethodsCount == 0 && cur.isVarArgs
     }
-    val maximallySpecific = if (found.length > 1) {
-      implicit val methodOrdering = new scala.Ordering[Method] {
-        override def compare(x: Method, y: Method): Int = {
-          def specificThan(left: Method, right: Method) = {
-            // left parameter type is more specific than right parameter type
-            left.getParameterTypes.zip(right.getParameterTypes).forall {
-              case (leftParameterType, rightParameterType) =>
-                parameterTypeApplicable(leftParameterType, rightParameterType)
-            } &&
-            // non-equal
-            left.getParameterTypes.zip(right.getParameterTypes).exists {
-              case (leftParameterType, rightParameterType) =>
-                !parameterTypeEquals(leftParameterType, rightParameterType)
-            }
-          }
-
-          if (specificThan(x, y)) {
-            1
-          } else if (specificThan(y, x)) {
-            -1
-          } else {
-            0
-          }
-        }
-      }
-
-      val max = found.max
-      found.filter(methodOrdering.compare(max, _) == 0)
-    } else {
-      found
-    }
 
     // check if there is a Scala varargs annotation
-    if (maximallySpecific.isEmpty &&
+    if (found.isEmpty &&
       methods.exists { method =>
         val signatures = method.getParameterTypes
         signatures.zipWithIndex.forall {
           case (clazz, i) if i < signatures.length - 1 =>
-            parameterTypeApplicable(methodSignature(i), clazz)
+            parameterTypeEquals(methodSignature(i), clazz)
           case (clazz, i) if i == signatures.length - 1 =>
             clazz.getName.equals("scala.collection.Seq")
         }
@@ -217,11 +186,11 @@ object UserDefinedFunctionUtils {
       throw new ValidationException(
         s"Scala-style variable arguments in '$methodName' methods are not supported. Please " +
           s"add a @scala.annotation.varargs annotation.")
-    } else if (maximallySpecific.length > 1) {
+    } else if (found.length > 1) {
       throw new ValidationException(
         s"Found multiple '$methodName' methods which match the signature.")
     }
-    maximallySpecific.headOption
+    found.headOption
   }
 
   /**
@@ -750,14 +719,10 @@ object UserDefinedFunctionUtils {
     * Compares parameter candidate classes with expected classes. If true, the parameters match.
     * Candidate can be null (acts as a wildcard).
     */
-  private def parameterTypeApplicable(candidate: Class[_], expected: Class[_]): Boolean =
-    parameterTypeEquals(candidate, expected) ||
-      ((expected != null && expected.isAssignableFrom(candidate)) ||
-        expected.isPrimitive && Primitives.wrap(expected).isAssignableFrom(candidate))
-
   private def parameterTypeEquals(candidate: Class[_], expected: Class[_]): Boolean =
   candidate == null ||
     candidate == expected ||
+    expected == classOf[Object] ||
     expected.isPrimitive && Primitives.wrap(expected) == candidate ||
     // time types
     candidate == classOf[Date] && (expected == classOf[Int] || expected == classOf[JInt])  ||
@@ -765,7 +730,21 @@ object UserDefinedFunctionUtils {
     candidate == classOf[Timestamp] && (expected == classOf[Long] || expected == classOf[JLong]) ||
     // arrays
     (candidate.isArray && expected.isArray &&
-      (candidate.getComponentType == expected.getComponentType))
+      (candidate.getComponentType == expected.getComponentType ||
+        expected.getComponentType == classOf[Object]))
+
+  @throws[Exception]
+  def serialize(function: UserDefinedFunction): String = {
+    val byteArray = InstantiationUtil.serializeObject(function)
+    Base64.encodeBase64URLSafeString(byteArray)
+  }
+
+  @throws[Exception]
+  def deserialize(data: String): UserDefinedFunction = {
+    val byteData = Base64.decodeBase64(data)
+    InstantiationUtil
+      .deserializeObject[UserDefinedFunction](byteData, Thread.currentThread.getContextClassLoader)
+  }
 
   /**
     * Creates a [[LogicalTableFunctionCall]] by parsing a String expression.

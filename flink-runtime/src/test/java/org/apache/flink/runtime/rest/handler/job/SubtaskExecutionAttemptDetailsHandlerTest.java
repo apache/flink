@@ -50,6 +50,7 @@ import org.junit.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 
@@ -126,6 +127,7 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(new Configuration());
 
 		final SubtaskExecutionAttemptDetailsHandler handler = new SubtaskExecutionAttemptDetailsHandler(
+			CompletableFuture.completedFuture("127.0.0.1:9527"),
 			() -> null,
 			Time.milliseconds(100L),
 			Collections.emptyMap(),

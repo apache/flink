@@ -63,7 +63,7 @@ public class MigrationTestUtils {
 
 		private transient ListState<String> unionListState;
 
-		public CheckpointingNonParallelSourceWithListState(int numElements) {
+		CheckpointingNonParallelSourceWithListState(int numElements) {
 			this.numElements = numElements;
 		}
 
@@ -121,7 +121,7 @@ public class MigrationTestUtils {
 
 		private final int numElements;
 
-		public CheckingNonParallelSourceWithListState(int numElements) {
+		CheckingNonParallelSourceWithListState(int numElements) {
 			this.numElements = numElements;
 		}
 
@@ -197,7 +197,7 @@ public class MigrationTestUtils {
 
 		private transient ListState<String> unionListState;
 
-		public CheckpointingParallelSourceWithUnionListState(int numElements) {
+		CheckpointingParallelSourceWithUnionListState(int numElements) {
 			this.numElements = numElements;
 		}
 
@@ -259,7 +259,7 @@ public class MigrationTestUtils {
 
 		private final int numElements;
 
-		public CheckingParallelSourceWithUnionListState(int numElements) {
+		CheckingParallelSourceWithUnionListState(int numElements) {
 			this.numElements = numElements;
 		}
 
@@ -316,7 +316,7 @@ public class MigrationTestUtils {
 	public static class AccumulatorCountingSink<T> extends RichSinkFunction<T> {
 		private static final long serialVersionUID = 1L;
 
-		public static final String NUM_ELEMENTS_ACCUMULATOR = AccumulatorCountingSink.class + "_NUM_ELEMENTS";
+		static final String NUM_ELEMENTS_ACCUMULATOR = AccumulatorCountingSink.class + "_NUM_ELEMENTS";
 
 		int count = 0;
 

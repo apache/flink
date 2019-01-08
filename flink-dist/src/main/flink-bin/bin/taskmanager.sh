@@ -34,7 +34,11 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-ENTRYPOINT=taskexecutor
+TYPE=taskmanager
+
+if [[ "${FLINK_MODE}" == "new" ]]; then
+    TYPE=taskexecutor
+fi
 
 if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 
@@ -45,7 +49,7 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
     fi
 
     if [ ! -z "${FLINK_TM_HEAP_MB}" ] && [ "${FLINK_TM_HEAP}" == 0 ]; then
-	    echo "used deprecated key \`${KEY_TASKM_MEM_MB}\`, please replace with key \`${KEY_TASKM_MEM_SIZE}\`"
+	    echo "used deprecated key \`${KEY_TASKM_MEM_MB}\`, pelase replace with key \`${KEY_TASKM_MEM_SIZE}\`"
     else
 	    flink_tm_heap_bytes=$(parseBytes ${FLINK_TM_HEAP})
 	    FLINK_TM_HEAP_MB=$(getMebiBytes ${flink_tm_heap_bytes})
@@ -74,11 +78,11 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 fi
 
 if [[ $STARTSTOP == "start-foreground" ]]; then
-    exec "${FLINK_BIN_DIR}"/flink-console.sh $ENTRYPOINT "${ARGS[@]}"
+    exec "${FLINK_BIN_DIR}"/flink-console.sh $TYPE "${ARGS[@]}"
 else
     if [[ $FLINK_TM_COMPUTE_NUMA == "false" ]]; then
         # Start a single TaskManager
-        "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP $ENTRYPOINT "${ARGS[@]}"
+        "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP $TYPE "${ARGS[@]}"
     else
         # Example output from `numactl --show` on an AWS c4.8xlarge:
         # policy: default
@@ -90,7 +94,7 @@ else
         read -ra NODE_LIST <<< $(numactl --show | grep "^nodebind: ")
         for NODE_ID in "${NODE_LIST[@]:1}"; do
             # Start a TaskManager for each NUMA node
-            numactl --membind=$NODE_ID --cpunodebind=$NODE_ID -- "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP $ENTRYPOINT "${ARGS[@]}"
+            numactl --membind=$NODE_ID --cpunodebind=$NODE_ID -- "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP $TYPE "${ARGS[@]}"
         done
     fi
 fi

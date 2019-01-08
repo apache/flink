@@ -30,11 +30,8 @@ class WindowAggregateValidationTest extends TableTestBase {
   streamUtil.addTable[(Int, String, Long)](
     "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
 
-  @Test
+  @Test(expected = classOf[TableException])
   def testTumbleWindowNoOffset(): Unit = {
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage("TUMBLE window with alignment is not supported yet")
-
     val sqlQuery =
       "SELECT SUM(a) AS sumA, COUNT(b) AS cntB " +
         "FROM MyTable " +
@@ -43,11 +40,8 @@ class WindowAggregateValidationTest extends TableTestBase {
     streamUtil.verifySql(sqlQuery, "n/a")
   }
 
-  @Test
+  @Test(expected = classOf[TableException])
   def testHopWindowNoOffset(): Unit = {
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage("HOP window with alignment is not supported yet")
-
     val sqlQuery =
       "SELECT SUM(a) AS sumA, COUNT(b) AS cntB " +
         "FROM MyTable " +
@@ -56,11 +50,8 @@ class WindowAggregateValidationTest extends TableTestBase {
     streamUtil.verifySql(sqlQuery, "n/a")
   }
 
-  @Test
+  @Test(expected = classOf[TableException])
   def testSessionWindowNoOffset(): Unit = {
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage("SESSION window with alignment is not supported yet")
-
     val sqlQuery =
       "SELECT SUM(a) AS sumA, COUNT(b) AS cntB " +
         "FROM MyTable " +
@@ -69,40 +60,20 @@ class WindowAggregateValidationTest extends TableTestBase {
     streamUtil.verifySql(sqlQuery, "n/a")
   }
 
-  @Test
-  def testVariableWindowSize(): Unit = {
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(
-      "Only constant window intervals with millisecond resolution are supported")
-
+  @Test(expected = classOf[TableException])
+  def testVariableWindowSize() = {
     val sql = "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, c * INTERVAL '1' MINUTE)"
     streamUtil.verifySql(sql, "n/a")
   }
 
-  @Test
+  @Test(expected = classOf[ValidationException])
   def testWindowUdAggInvalidArgs(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Given parameters of function do not match any signature")
-
     streamUtil.tableEnv.registerFunction("weightedAvg", new WeightedAvgWithMerge)
 
     val sqlQuery =
       "SELECT SUM(a) AS sumA, weightedAvg(a, b) AS wAvg " +
         "FROM MyTable " +
-        "GROUP BY TUMBLE(proctime, INTERVAL '2' HOUR, TIME '10:00:00')"
-
-    streamUtil.verifySql(sqlQuery, "n/a")
-  }
-
-  @Test
-  def testWindowWrongWindowParameter(): Unit = {
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(
-      "Only constant window intervals with millisecond resolution are supported")
-
-    val sqlQuery =
-      "SELECT COUNT(*) FROM MyTable " +
-        "GROUP BY TUMBLE(proctime, INTERVAL '2-10' YEAR TO MONTH)"
+        "GROUP BY TUMBLE(proctime(), INTERVAL '2' HOUR, TIME '10:00:00')"
 
     streamUtil.verifySql(sqlQuery, "n/a")
   }

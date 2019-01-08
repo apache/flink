@@ -18,20 +18,19 @@
 package org.apache.flink.table.functions.aggfunctions
 
 import java.math.BigDecimal
-import java.lang.{Iterable => JIterable, Long => JLong}
+import java.util.{HashMap => JHashMap}
+import java.lang.{Iterable => JIterable}
 import java.sql.{Date, Time, Timestamp}
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation, Types}
-import org.apache.flink.table.api.dataview.MapView
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.api.java.typeutils.{MapTypeInfo, TupleTypeInfo}
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.aggfunctions.Ordering._
 import org.apache.flink.table.functions.AggregateFunction
 
 /** The initial accumulator for Min with retraction aggregate function */
-class MinWithRetractAccumulator[T] {
-  var min: T = _
-  var distinctCount: JLong = _
-  var map: MapView[T, JLong] = _
-}
+class MinWithRetractAccumulator[T] extends JTuple2[T, JHashMap[T, Long]]
 
 /**
   * Base class for built-in Min with retraction aggregate function
@@ -43,10 +42,8 @@ abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T])
 
   override def createAccumulator(): MinWithRetractAccumulator[T] = {
     val acc = new MinWithRetractAccumulator[T]
-    acc.min = getInitValue //min
-    acc.distinctCount = 0L
-    acc.map = new MapView(getValueTypeInfo, Types.LONG)
-      .asInstanceOf[MapView[T, JLong]] //store the count for each value
+    acc.f0 = getInitValue //min
+    acc.f1 = new JHashMap[T, Long]() //store the count for each value
     acc
   }
 
@@ -54,17 +51,16 @@ abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T])
     if (value != null) {
       val v = value.asInstanceOf[T]
 
-      if (acc.distinctCount == 0 || (ord.compare(acc.min, v) > 0)) {
-        acc.min = v
+      if (acc.f1.size() == 0 || (ord.compare(acc.f0, v) > 0)) {
+        acc.f0 = v
       }
 
-      var count = acc.map.get(v)
-      if (count == null) {
-        acc.map.put(v, 1L)
-        acc.distinctCount += 1
+      if (!acc.f1.containsKey(v)) {
+        acc.f1.put(v, 1L)
       } else {
+        var count = acc.f1.get(v)
         count += 1L
-        acc.map.put(v, count)
+        acc.f1.put(v, count)
       }
     }
   }
@@ -73,45 +69,39 @@ abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T])
     if (value != null) {
       val v = value.asInstanceOf[T]
 
-      val count = acc.map.get(v)
-      if (count == null || count == 1) {
+      var count = acc.f1.get(v)
+      count -= 1L
+      if (count == 0) {
         //remove the key v from the map if the number of appearance of the value v is 0
-        if (count != null) {
-          acc.map.remove(v)
-        }
+        acc.f1.remove(v)
         //if the total count is 0, we could just simply set the f0(min) to the initial value
-        acc.distinctCount -= 1
-        if (acc.distinctCount == 0) {
-          acc.min = getInitValue
+        if (acc.f1.size() == 0) {
+          acc.f0 = getInitValue
           return
         }
         //if v is the current min value, we have to iterate the map to find the 2nd smallest
         // value to replace v as the min value
-        if (v == acc.min) {
-          val iterator = acc.map.keys.iterator()
-          var hasMin = false
+        if (v == acc.f0) {
+          val iterator = acc.f1.keySet().iterator()
+          var key = iterator.next()
+          acc.f0 = key
           while (iterator.hasNext) {
-            val key = iterator.next()
-            if (!hasMin || ord.compare(acc.min, key) > 0) {
-              acc.min = key
-              hasMin = true
+            key = iterator.next()
+            if (ord.compare(acc.f0, key) > 0) {
+              acc.f0 = key
             }
-          }
-
-          if (!hasMin) {
-            acc.distinctCount = 0L
           }
         }
       } else {
-        acc.map.put(v, count - 1)
+        acc.f1.put(v, count)
       }
     }
 
   }
 
   override def getValue(acc: MinWithRetractAccumulator[T]): T = {
-    if (acc.distinctCount != 0) {
-      acc.min
+    if (acc.f1.size() != 0) {
+      acc.f0
     } else {
       null.asInstanceOf[T]
     }
@@ -122,23 +112,19 @@ abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T])
     val iter = its.iterator()
     while (iter.hasNext) {
       val a = iter.next()
-      if (a.distinctCount != 0) {
+      if (a.f1.size() != 0) {
         // set min element
-        if (ord.compare(acc.min, a.min) > 0) {
-          acc.min = a.min
+        if (ord.compare(acc.f0, a.f0) > 0) {
+          acc.f0 = a.f0
         }
         // merge the count for each key
-        val iterator = a.map.entries.iterator()
+        val iterator = a.f1.keySet().iterator()
         while (iterator.hasNext) {
-          val entry = iterator.next()
-          val key = entry.getKey
-          val value = entry.getValue
-          val count = acc.map.get(key)
-          if (count != null) {
-            acc.map.put(key, count + value)
+          val key = iterator.next()
+          if (acc.f1.containsKey(key)) {
+            acc.f1.put(key, acc.f1.get(key) + a.f1.get(key))
           } else {
-            acc.map.put(key, value)
-            acc.distinctCount += 1
+            acc.f1.put(key, a.f1.get(key))
           }
         }
       }
@@ -146,9 +132,15 @@ abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T])
   }
 
   def resetAccumulator(acc: MinWithRetractAccumulator[T]): Unit = {
-    acc.min = getInitValue
-    acc.distinctCount = 0L
-    acc.map.clear()
+    acc.f0 = getInitValue
+    acc.f1.clear()
+  }
+
+  override def getAccumulatorType: TypeInformation[MinWithRetractAccumulator[T]] = {
+    new TupleTypeInfo(
+      classOf[MinWithRetractAccumulator[T]],
+      getValueTypeInfo,
+      new MapTypeInfo(getValueTypeInfo, BasicTypeInfo.LONG_TYPE_INFO))
   }
 
   def getInitValue: T

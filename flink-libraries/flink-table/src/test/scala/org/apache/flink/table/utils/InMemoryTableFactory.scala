@@ -59,7 +59,7 @@ class InMemoryTableFactory(terminationCount: Int)
     val tableSchema = SchemaValidator.deriveTableSinkSchema(params)
 
     new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink()
-      .configure(tableSchema.getFieldNames, tableSchema.getFieldTypes)
+      .configure(tableSchema.getColumnNames, tableSchema.getTypes)
       .asInstanceOf[StreamTableSink[Row]]
   }
 
@@ -81,7 +81,7 @@ class InMemoryTableFactory(terminationCount: Int)
     // proctime
     val proctimeAttributeOpt = SchemaValidator.deriveProctimeAttribute(params)
 
-    val (names, types) = tableSchema.getFieldNames.zip(tableSchema.getFieldTypes)
+    val (names, types) = tableSchema.getColumnNames.zip(tableSchema.getTypes)
       .filter(_._1 != proctimeAttributeOpt.get()).unzip
     // rowtime
     val rowtimeDescriptors = SchemaValidator.deriveRowtimeAttributes(params)

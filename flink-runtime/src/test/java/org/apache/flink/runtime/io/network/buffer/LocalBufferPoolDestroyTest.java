@@ -26,9 +26,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the destruction of a {@link LocalBufferPool}.
- */
 public class LocalBufferPoolDestroyTest {
 
 	/**

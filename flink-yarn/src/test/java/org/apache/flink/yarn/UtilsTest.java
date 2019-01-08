@@ -25,7 +25,6 @@ import org.junit.rules.TemporaryFolder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
-import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -42,18 +41,12 @@ public class UtilsTest {
 	public void testDeleteApplicationFiles() throws Exception {
 		final Path applicationFilesDir = temporaryFolder.newFolder(".flink").toPath();
 		Files.createFile(applicationFilesDir.resolve("flink.jar"));
-		try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
-			assertThat(files.count(), equalTo(1L));
-		}
-		try (Stream<Path> files = Files.list(applicationFilesDir)) {
-			assertThat(files.count(), equalTo(1L));
-		}
+		assertThat(Files.list(temporaryFolder.getRoot().toPath()).count(), equalTo(1L));
+		assertThat(Files.list(applicationFilesDir).count(), equalTo(1L));
 
 		Utils.deleteApplicationFiles(Collections.singletonMap(
 			YarnConfigKeys.FLINK_YARN_FILES,
 			applicationFilesDir.toString()));
-		try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
-			assertThat(files.count(), equalTo(0L));
-		}
+		assertThat(Files.list(temporaryFolder.getRoot().toPath()).count(), equalTo(0L));
 	}
 }

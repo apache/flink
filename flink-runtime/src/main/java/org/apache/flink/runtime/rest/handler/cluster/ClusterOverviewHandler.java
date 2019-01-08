@@ -45,11 +45,12 @@ public class ClusterOverviewHandler extends AbstractRestHandler<RestfulGateway, 
 	private static final String commitID = EnvironmentInformation.getRevisionInformation().commitId;
 
 	public ClusterOverviewHandler(
+			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, ClusterOverviewWithVersion, EmptyMessageParameters> messageHeaders) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
 	}
 
 	@Override

@@ -50,11 +50,7 @@ public class MeterView implements Meter, View {
 
 	public MeterView(Counter counter, int timeSpanInSeconds) {
 		this.counter = counter;
-		// the time-span must be larger than the update-interval as otherwise the array has a size of 1,
-		// for which no rate can be computed as no distinct before/after measurement exists.
-		this.timeSpanInSeconds = Math.max(
-			timeSpanInSeconds - (timeSpanInSeconds % UPDATE_INTERVAL_SECONDS),
-			UPDATE_INTERVAL_SECONDS);
+		this.timeSpanInSeconds = timeSpanInSeconds - (timeSpanInSeconds % UPDATE_INTERVAL_SECONDS);
 		this.values = new long[this.timeSpanInSeconds / UPDATE_INTERVAL_SECONDS + 1];
 	}
 

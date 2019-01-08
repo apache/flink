@@ -114,13 +114,11 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogFileHead
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerStdoutFileHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -136,9 +134,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executor;
 
 /**
  * Rest endpoint which serves the web frontend REST calls.
@@ -152,7 +148,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	protected final RestHandlerConfiguration restConfiguration;
 	private final GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever;
 	private final TransientBlobService transientBlobService;
-	protected final ExecutorService executor;
+	protected final Executor executor;
 
 	private final ExecutionGraphCache executionGraphCache;
 	private final CheckpointStatsCache checkpointStatsCache;
@@ -174,7 +170,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			RestHandlerConfiguration restConfiguration,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
 			TransientBlobService transientBlobService,
-			ExecutorService executor,
+			Executor executor,
 			MetricQueryServiceRetriever metricQueryServiceRetriever,
 			LeaderElectionService leaderElectionService,
 			FatalErrorHandler fatalErrorHandler) throws IOException {
@@ -204,18 +200,20 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	}
 
 	@Override
-	protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture) {
+	protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
 		ArrayList<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>(30);
 
 		final Time timeout = restConfiguration.getTimeout();
 
 		ClusterOverviewHandler clusterOverviewHandler = new ClusterOverviewHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
 			ClusterOverviewHeaders.getInstance());
 
 		DashboardConfigHandler dashboardConfigHandler = new DashboardConfigHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -223,18 +221,21 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			restConfiguration.getRefreshInterval());
 
 		JobIdsHandler jobIdsHandler = new JobIdsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
 			JobIdsWithStatusesOverviewHeaders.getInstance());
 
 		JobsOverviewHandler jobsOverviewHandler = new JobsOverviewHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
 			JobsOverviewHeaders.getInstance());
 
 		ClusterConfigHandler clusterConfigurationHandler = new ClusterConfigHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -242,6 +243,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			clusterConfiguration);
 
 		JobConfigHandler jobConfigHandler = new JobConfigHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -250,6 +252,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			executor);
 
 		CheckpointConfigHandler checkpointConfigHandler = new CheckpointConfigHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -258,6 +261,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			executor);
 
 		CheckpointingStatisticsHandler checkpointStatisticsHandler = new CheckpointingStatisticsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -266,6 +270,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			executor);
 
 		CheckpointStatisticDetailsHandler checkpointStatisticDetailsHandler = new CheckpointStatisticDetailsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -275,6 +280,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			checkpointStatsCache);
 
 		JobPlanHandler jobPlanHandler = new JobPlanHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -283,6 +289,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			executor);
 
 		TaskCheckpointStatisticDetailsHandler taskCheckpointStatisticDetailsHandler = new TaskCheckpointStatisticDetailsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -292,6 +299,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			checkpointStatsCache);
 
 		JobExceptionsHandler jobExceptionsHandler = new JobExceptionsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -300,6 +308,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			executor);
 
 		JobVertexAccumulatorsHandler jobVertexAccumulatorsHandler = new JobVertexAccumulatorsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -308,6 +317,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			executor);
 
 		SubtasksAllAccumulatorsHandler subtasksAllAccumulatorsHandler = new SubtasksAllAccumulatorsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -316,6 +326,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			executor);
 
 		TaskManagersHandler taskManagersHandler = new TaskManagersHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -323,6 +334,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			resourceManagerRetriever);
 
 		TaskManagerDetailsHandler taskManagerDetailsHandler = new TaskManagerDetailsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -331,6 +343,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			metricFetcher);
 
 		final JobDetailsHandler jobDetailsHandler = new JobDetailsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -340,6 +353,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			metricFetcher);
 
 		JobAccumulatorsHandler jobAccumulatorsHandler = new JobAccumulatorsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -348,6 +362,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			executor);
 
 		SubtasksTimesHandler subtasksTimesHandler = new SubtasksTimesHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -356,36 +371,42 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			executor);
 
 		final JobVertexMetricsHandler jobVertexMetricsHandler = new JobVertexMetricsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
 			metricFetcher);
 
 		final JobMetricsHandler jobMetricsHandler = new JobMetricsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
 			metricFetcher);
 
 		final SubtaskMetricsHandler subtaskMetricsHandler = new SubtaskMetricsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
 			metricFetcher);
 
 		final TaskManagerMetricsHandler taskManagerMetricsHandler = new TaskManagerMetricsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
 			metricFetcher);
 
 		final JobManagerMetricsHandler jobManagerMetricsHandler = new JobManagerMetricsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
 			metricFetcher);
 
 		final AggregatingTaskManagersMetricsHandler aggregatingTaskManagersMetricsHandler = new AggregatingTaskManagersMetricsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -394,6 +415,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		);
 
 		final AggregatingJobsMetricsHandler aggregatingJobsMetricsHandler = new AggregatingJobsMetricsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -402,6 +424,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		);
 
 		final AggregatingSubtasksMetricsHandler aggregatingSubtasksMetricsHandler = new AggregatingSubtasksMetricsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -410,6 +433,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		);
 
 		final JobVertexTaskManagersHandler jobVertexTaskManagersHandler = new JobVertexTaskManagersHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -419,6 +443,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			metricFetcher);
 
 		final JobExecutionResultHandler jobExecutionResultHandler = new JobExecutionResultHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders);
@@ -427,16 +452,19 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
 		final SavepointHandlers savepointHandlers = new SavepointHandlers(defaultSavepointDir);
 		final SavepointHandlers.SavepointTriggerHandler savepointTriggerHandler = savepointHandlers.new SavepointTriggerHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders);
 
 		final SavepointHandlers.SavepointStatusHandler savepointStatusHandler = savepointHandlers.new SavepointStatusHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders);
 
 		final SubtaskExecutionAttemptDetailsHandler subtaskExecutionAttemptDetailsHandler = new SubtaskExecutionAttemptDetailsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -446,6 +474,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			metricFetcher);
 
 		final SubtaskExecutionAttemptAccumulatorsHandler subtaskExecutionAttemptAccumulatorsHandler = new SubtaskExecutionAttemptAccumulatorsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -455,6 +484,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		);
 
 		final SubtaskCurrentAttemptDetailsHandler subtaskCurrentAttemptDetailsHandler = new SubtaskCurrentAttemptDetailsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -466,22 +496,26 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		final RescalingHandlers rescalingHandlers = new RescalingHandlers();
 
 		final RescalingHandlers.RescalingTriggerHandler rescalingTriggerHandler = rescalingHandlers.new RescalingTriggerHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders);
 
 		final RescalingHandlers.RescalingStatusHandler rescalingStatusHandler = rescalingHandlers.new RescalingStatusHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders);
 
 		JobVertexBackPressureHandler jobVertexBackPressureHandler = new JobVertexBackPressureHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
 			JobVertexBackPressureHeaders.getInstance());
 
 		final JobTerminationHandler jobCancelTerminationHandler = new JobTerminationHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -489,6 +523,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			TerminationModeQueryParameter.TerminationMode.CANCEL);
 
 		final JobTerminationHandler jobStopTerminationHandler = new JobTerminationHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -496,6 +531,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			TerminationModeQueryParameter.TerminationMode.STOP);
 
 		final JobVertexDetailsHandler jobVertexDetailsHandler = new JobVertexDetailsHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -507,16 +543,19 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		final SavepointDisposalHandlers savepointDisposalHandlers = new SavepointDisposalHandlers();
 
 		final SavepointDisposalHandlers.SavepointDisposalTriggerHandler savepointDisposalTriggerHandler = savepointDisposalHandlers.new SavepointDisposalTriggerHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders);
 
 		final SavepointDisposalHandlers.SavepointDisposalStatusHandler savepointDisposalStatusHandler = savepointDisposalHandlers.new SavepointDisposalStatusHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders);
 
 		final ShutdownHandler shutdownHandler = new ShutdownHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -529,6 +568,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		try {
 			optWebContent = WebMonitorUtils.tryLoadWebContent(
 				leaderRetriever,
+				restAddressFuture,
 				timeout,
 				webUiDir);
 		} catch (IOException e) {
@@ -594,10 +634,12 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		final WebMonitorUtils.LogFileLocation logFileLocation = WebMonitorUtils.LogFileLocation.find(clusterConfiguration);
 
 		final ChannelInboundHandler logFileHandler = createStaticFileHandler(
+			restAddressFuture,
 			timeout,
 			logFileLocation.logFile);
 
 		final ChannelInboundHandler stdoutFileHandler = createStaticFileHandler(
+			restAddressFuture,
 			timeout,
 			logFileLocation.stdOutFile);
 
@@ -609,6 +651,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		final Time cacheEntryDuration = Time.milliseconds(restConfiguration.getRefreshInterval());
 
 		final TaskManagerLogFileHandler taskManagerLogFileHandler = new TaskManagerLogFileHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -618,6 +661,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			cacheEntryDuration);
 
 		final TaskManagerStdoutFileHandler taskManagerStdoutFileHandler = new TaskManagerStdoutFileHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -639,6 +683,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
 	@Nonnull
 	private ChannelInboundHandler createStaticFileHandler(
+			CompletableFuture<String> restAddressFuture,
 			Time timeout,
 			File fileToServe) {
 
@@ -648,6 +693,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			try {
 				return new StaticFileServerHandler<>(
 					leaderRetriever,
+					restAddressFuture,
 					timeout,
 					fileToServe);
 			} catch (IOException e) {
@@ -669,9 +715,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	protected CompletableFuture<Void> shutDownInternal() {
 		executionGraphCache.close();
 
-		final CompletableFuture<Void> shutdownFuture = FutureUtils.runAfterwards(
-			super.shutDownInternal(),
-			() -> ExecutorUtils.gracefulShutdown(10, TimeUnit.SECONDS, executor));
+		final CompletableFuture<Void> shutdownFuture = super.shutDownInternal();
 
 		final File webUiDir = restConfiguration.getWebUiDir();
 
@@ -731,23 +775,5 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			archivedJson.addAll(subArchive);
 		}
 		return archivedJson;
-	}
-
-	public static ExecutorService createExecutorService(int numThreads, int threadPriority, String componentName) {
-		if (threadPriority < Thread.MIN_PRIORITY || threadPriority > Thread.MAX_PRIORITY) {
-			throw new IllegalArgumentException(
-				String.format(
-					"The thread priority must be within (%s, %s) but it was %s.",
-					Thread.MIN_PRIORITY,
-					Thread.MAX_PRIORITY,
-					threadPriority));
-		}
-
-		return Executors.newFixedThreadPool(
-			numThreads,
-			new ExecutorThreadFactory.Builder()
-				.setThreadPriority(threadPriority)
-				.setPoolName("Flink-" + componentName)
-				.build());
 	}
 }

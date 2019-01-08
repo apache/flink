@@ -85,7 +85,9 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 	public void addInputChannel(RemoteInputChannel listener) throws IOException {
 		checkError();
 
-		inputChannels.putIfAbsent(listener.getInputChannelId(), listener);
+		if (!inputChannels.containsKey(listener.getInputChannelId())) {
+			inputChannels.put(listener.getInputChannelId(), listener);
+		}
 	}
 
 	@Override
@@ -335,7 +337,8 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 				nettyBuffer.readBytes(byteArray);
 
 				MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
-				Buffer buffer = new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, false, receivedSize);
+				Buffer buffer = new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, false);
+				buffer.setSize(receivedSize);
 
 				inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, -1);
 
@@ -417,18 +420,32 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 
 		// Called by the recycling thread (not network I/O thread)
 		@Override
-		public NotificationResult notifyBufferAvailable(Buffer buffer) {
-			if (availableBuffer.compareAndSet(null, buffer)) {
-				ctx.channel().eventLoop().execute(this);
+		public boolean notifyBufferAvailable(Buffer buffer) {
+			boolean success = false;
 
-				return NotificationResult.BUFFER_USED_NO_NEED_MORE;
+			try {
+				if (availableBuffer.compareAndSet(null, buffer)) {
+					ctx.channel().eventLoop().execute(this);
+
+					success = true;
+				}
+				else {
+					throw new IllegalStateException("Received a buffer notification, " +
+							" but the previous one has not been handled yet.");
+				}
 			}
-			else {
-				ctx.channel().eventLoop().execute(new AsyncErrorNotificationTask(
-					new IllegalStateException("Received a buffer notification, " +
-						" but the previous one has not been handled yet.")));
-				return NotificationResult.BUFFER_NOT_USED;
+			catch (Throwable t) {
+				ctx.channel().eventLoop().execute(new AsyncErrorNotificationTask(t));
 			}
+			finally {
+				if (!success) {
+					if (buffer != null) {
+						buffer.recycleBuffer();
+					}
+				}
+			}
+
+			return false;
 		}
 
 		/**

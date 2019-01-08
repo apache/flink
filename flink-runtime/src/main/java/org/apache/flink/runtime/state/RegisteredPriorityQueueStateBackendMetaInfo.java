@@ -19,13 +19,11 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.Map;
@@ -36,32 +34,22 @@ import java.util.Map;
 public class RegisteredPriorityQueueStateBackendMetaInfo<T> extends RegisteredStateMetaInfoBase {
 
 	@Nonnull
-	private final StateSerializerProvider<T> elementSerializerProvider;
+	private final TypeSerializer<T> elementSerializer;
 
 	public RegisteredPriorityQueueStateBackendMetaInfo(
 		@Nonnull String name,
 		@Nonnull TypeSerializer<T> elementSerializer) {
 
-		this(name, StateSerializerProvider.fromNewRegisteredSerializer(elementSerializer));
+		super(name);
+		this.elementSerializer = elementSerializer;
 	}
 
 	@SuppressWarnings("unchecked")
 	public RegisteredPriorityQueueStateBackendMetaInfo(StateMetaInfoSnapshot snapshot) {
-		this(
-			snapshot.getName(),
-			StateSerializerProvider.fromPreviousSerializerSnapshot(
-				(TypeSerializerSnapshot<T>) Preconditions.checkNotNull(
-					snapshot.getTypeSerializerSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER))));
-
+		this(snapshot.getName(),
+			(TypeSerializer<T>) Preconditions.checkNotNull(
+				snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER)));
 		Preconditions.checkState(StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE == snapshot.getBackendStateType());
-	}
-
-	private RegisteredPriorityQueueStateBackendMetaInfo(
-		@Nonnull String name,
-		@Nonnull StateSerializerProvider<T> elementSerializerProvider) {
-
-		super(name);
-		this.elementSerializerProvider = elementSerializerProvider;
 	}
 
 	@Nonnull
@@ -72,26 +60,15 @@ public class RegisteredPriorityQueueStateBackendMetaInfo<T> extends RegisteredSt
 
 	@Nonnull
 	public TypeSerializer<T> getElementSerializer() {
-		return elementSerializerProvider.currentSchemaSerializer();
-	}
-
-	@Nonnull
-	public TypeSerializerSchemaCompatibility<T> updateElementSerializer(TypeSerializer<T> newElementSerializer) {
-		return elementSerializerProvider.registerNewSerializerForRestoredState(newElementSerializer);
-	}
-
-	@Nullable
-	public TypeSerializer<T> getPreviousElementSerializer() {
-		return elementSerializerProvider.previousSchemaSerializer();
+		return elementSerializer;
 	}
 
 	private StateMetaInfoSnapshot computeSnapshot() {
-		TypeSerializer<T> elementSerializer = getElementSerializer();
 		Map<String, TypeSerializer<?>> serializerMap =
 			Collections.singletonMap(
 				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
 				elementSerializer.duplicate());
-		Map<String, TypeSerializerSnapshot<?>> serializerSnapshotMap =
+		Map<String, TypeSerializerConfigSnapshot> serializerSnapshotMap =
 			Collections.singletonMap(
 				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
 				elementSerializer.snapshotConfiguration());
@@ -105,6 +82,6 @@ public class RegisteredPriorityQueueStateBackendMetaInfo<T> extends RegisteredSt
 	}
 
 	public RegisteredPriorityQueueStateBackendMetaInfo deepCopy() {
-		return new RegisteredPriorityQueueStateBackendMetaInfo<>(name, getElementSerializer().duplicate());
+		return new RegisteredPriorityQueueStateBackendMetaInfo<>(name, elementSerializer.duplicate());
 	}
 }

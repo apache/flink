@@ -21,7 +21,6 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -95,8 +94,8 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 
 			try {
 				return jobResult.toJobExecutionResult(classLoader);
-			} catch (JobExecutionException e) {
-				throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
+			} catch (JobResult.WrappedJobException e) {
+				throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e.getCause());
 			} catch (IOException | ClassNotFoundException e) {
 				throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
 			}

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.codegen.calls
 
+import org.apache.commons.lang3.ClassUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
@@ -67,7 +68,7 @@ class ScalarFunctionCallGen(
     val parameters = paramClasses.zip(operands).map { case (paramClass, operandExpr) =>
           if (paramClass.isPrimitive) {
             operandExpr
-          } else if (TypeCheckUtils.isPrimitiveWrapper(paramClass)
+          } else if (ClassUtils.isPrimitiveWrapper(paramClass)
               && TypeCheckUtils.isTemporal(operandExpr.resultType)) {
             // we use primitives to represent temporal types internally, so no casting needed here
             val exprOrNull: String = if (codeGenerator.nullCheck) {

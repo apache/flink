@@ -20,12 +20,9 @@ package org.apache.flink.util;
 
 import org.junit.Test;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -72,19 +69,4 @@ public class ExceptionUtilsTest extends TestLogger {
 			IllegalStateException.class).isPresent());
 	}
 
-	@Test
-	public void testExceptionStripping() {
-		final FlinkException expectedException = new FlinkException("test exception");
-		final Throwable strippedException = ExceptionUtils.stripException(new RuntimeException(new RuntimeException(expectedException)), RuntimeException.class);
-
-		assertThat(strippedException, is(equalTo(expectedException)));
-	}
-
-	@Test
-	public void testInvalidExceptionStripping() {
-		final FlinkException expectedException = new FlinkException(new RuntimeException(new FlinkException("inner exception")));
-		final Throwable strippedException = ExceptionUtils.stripException(expectedException, RuntimeException.class);
-
-		assertThat(strippedException, is(equalTo(expectedException)));
-	}
 }

@@ -38,12 +38,8 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
@@ -52,17 +48,13 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.EntropyInjectingTestFileSystem;
+import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
-import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -71,12 +63,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.FileVisitOption;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -84,14 +71,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -105,22 +88,6 @@ public class SavepointITCase extends TestLogger {
 
 	@Rule
 	public final TemporaryFolder folder = new TemporaryFolder();
-
-	private File checkpointDir;
-
-	private File savepointDir;
-
-	@Before
-	public void setUp() throws Exception {
-		final File testRoot = folder.newFolder();
-
-		checkpointDir = new File(testRoot, "checkpoints");
-		savepointDir = new File(testRoot, "savepoints");
-
-		if (!checkpointDir.mkdir() || !savepointDir.mkdirs()) {
-			fail("Test setup failed: failed to create temporary directories.");
-		}
-	}
 
 	/**
 	 * Triggers a savepoint for a job that uses the FsStateBackend. We expect
@@ -138,51 +105,40 @@ public class SavepointITCase extends TestLogger {
 	 */
 	@Test
 	public void testTriggerSavepointAndResumeWithFileBasedCheckpoints() throws Exception {
+		// Config
 		final int numTaskManagers = 2;
 		final int numSlotsPerTaskManager = 2;
 		final int parallelism = numTaskManagers * numSlotsPerTaskManager;
+		final File testRoot = folder.newFolder();
 
-		final MiniClusterResourceFactory clusterFactory = new MiniClusterResourceFactory(
-			numTaskManagers,
-			numSlotsPerTaskManager,
-			getFileBasedCheckpointsConfig());
+		Configuration config = new Configuration();
 
-		final String savepointPath = submitJobAndTakeSavepoint(clusterFactory, parallelism);
-		verifySavepoint(parallelism, savepointPath);
+		final File checkpointDir = new File(testRoot, "checkpoints");
+		final File savepointRootDir = new File(testRoot, "savepoints");
+
+		if (!checkpointDir.mkdir() || !savepointRootDir.mkdirs()) {
+			fail("Test setup failed: failed to create temporary directories.");
+		}
+
+		// Use file based checkpoints
+		config.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
+		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
+		config.setInteger(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, 0);
+		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointRootDir.toURI().toString());
+
+		MiniClusterResourceFactory clusterFactory = new MiniClusterResourceFactory(numTaskManagers, numSlotsPerTaskManager, config);
+
+		String savepointPath = submitJobAndGetVerifiedSavepoint(clusterFactory, parallelism);
 
 		restoreJobAndVerifyState(savepointPath, clusterFactory, parallelism);
 	}
 
-	@Test
-	public void testShouldAddEntropyToSavepointPath() throws Exception {
-		final int numTaskManagers = 2;
-		final int numSlotsPerTaskManager = 2;
-		final int parallelism = numTaskManagers * numSlotsPerTaskManager;
-
-		final MiniClusterResourceFactory clusterFactory = new MiniClusterResourceFactory(
-			numTaskManagers,
-			numSlotsPerTaskManager,
-			getCheckpointingWithEntropyConfig());
-
-		final String savepointPath = submitJobAndTakeSavepoint(clusterFactory, parallelism);
-		assertThat(savepointDir, hasEntropyInFileStateHandlePaths());
-
-		restoreJobAndVerifyState(savepointPath, clusterFactory, parallelism);
-	}
-
-	private Configuration getCheckpointingWithEntropyConfig() {
-		final String savepointPathWithEntropyPlaceholder = new File(savepointDir, EntropyInjectingTestFileSystem.ENTROPY_INJECTION_KEY).getPath();
-		final Configuration config = getFileBasedCheckpointsConfig("test-entropy://" + savepointPathWithEntropyPlaceholder);
-		config.setString("s3.entropy.key", EntropyInjectingTestFileSystem.ENTROPY_INJECTION_KEY);
-		return config;
-	}
-
-	private String submitJobAndTakeSavepoint(MiniClusterResourceFactory clusterFactory, int parallelism) throws Exception {
+	private String submitJobAndGetVerifiedSavepoint(MiniClusterResourceFactory clusterFactory, int parallelism) throws Exception {
 		final JobGraph jobGraph = createJobGraph(parallelism, 0, 1000);
 		final JobID jobId = jobGraph.getJobID();
 		StatefulCounter.resetForTest(parallelism);
 
-		MiniClusterWithClientResource cluster = clusterFactory.get();
+		MiniClusterResource cluster = clusterFactory.get();
 		cluster.before();
 		ClusterClient<?> client = cluster.getClusterClient();
 
@@ -192,29 +148,29 @@ public class SavepointITCase extends TestLogger {
 
 			StatefulCounter.getProgressLatch().await();
 
-			return client.triggerSavepoint(jobId, null).get();
+			String savepointPath = client.triggerSavepoint(jobId, null).get();
+
+			// Only one savepoint should exist
+			File savepointDir = new File(new URI(savepointPath));
+			assertTrue("Savepoint directory does not exist.", savepointDir.exists());
+			assertTrue("Savepoint did not create self-contained directory.", savepointDir.isDirectory());
+
+			File[] savepointFiles = savepointDir.listFiles();
+
+			if (savepointFiles != null) {
+				// Expect one metadata file and one checkpoint file per stateful
+				// parallel subtask
+				String errMsg = "Did not write expected number of savepoint/checkpoint files to directory: "
+					+ Arrays.toString(savepointFiles);
+				assertEquals(errMsg, 1 + parallelism, savepointFiles.length);
+			} else {
+				fail(String.format("Returned savepoint path (%s) is not valid.", savepointPath));
+			}
+
+			return savepointPath;
 		} finally {
 			cluster.after();
 			StatefulCounter.resetForTest(parallelism);
-		}
-	}
-
-	private void verifySavepoint(final int parallelism, final String savepointPath) throws URISyntaxException {
-		// Only one savepoint should exist
-		File savepointDir = new File(new URI(savepointPath));
-		assertTrue("Savepoint directory does not exist.", savepointDir.exists());
-		assertTrue("Savepoint did not create self-contained directory.", savepointDir.isDirectory());
-
-		File[] savepointFiles = savepointDir.listFiles();
-
-		if (savepointFiles != null) {
-			// Expect one metadata file and one checkpoint file per stateful
-			// parallel subtask
-			String errMsg = "Did not write expected number of savepoint/checkpoint files to directory: "
-				+ Arrays.toString(savepointFiles);
-			assertEquals(errMsg, 1 + parallelism, savepointFiles.length);
-		} else {
-			fail(String.format("Returned savepoint path (%s) is not valid.", savepointPath));
 		}
 	}
 
@@ -224,7 +180,7 @@ public class SavepointITCase extends TestLogger {
 		final JobID jobId = jobGraph.getJobID();
 		StatefulCounter.resetForTest(parallelism);
 
-		MiniClusterWithClientResource cluster = clusterFactory.get();
+		MiniClusterResource cluster = clusterFactory.get();
 		cluster.before();
 		ClusterClient<?> client = cluster.getClusterClient();
 
@@ -240,7 +196,7 @@ public class SavepointITCase extends TestLogger {
 
 			client.cancel(jobId);
 
-			FutureUtils.retrySuccessfulWithDelay(
+			FutureUtils.retrySuccesfulWithDelay(
 				() -> client.getJobStatus(jobId),
 				Time.milliseconds(50),
 				Deadline.now().plus(Duration.ofSeconds(30)),
@@ -259,87 +215,19 @@ public class SavepointITCase extends TestLogger {
 	}
 
 	@Test
-	public void testTriggerSavepointForNonExistingJob() throws Exception {
-		// Config
-		final int numTaskManagers = 1;
-		final int numSlotsPerTaskManager = 1;
-
-		final Configuration config = new Configuration();
-		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
-
-		final MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
-			new MiniClusterResourceConfiguration.Builder()
-				.setConfiguration(config)
-				.setNumberTaskManagers(numTaskManagers)
-				.setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
-				.build());
-		cluster.before();
-		final ClusterClient<?> client = cluster.getClusterClient();
-
-		final JobID jobID = new JobID();
-
-		try {
-			client.triggerSavepoint(jobID, null).get();
-
-			fail();
-		} catch (ExecutionException e) {
-			assertTrue(ExceptionUtils.findThrowable(e, FlinkJobNotFoundException.class).isPresent());
-			assertTrue(ExceptionUtils.findThrowableWithMessage(e, jobID.toString()).isPresent());
-		} finally {
-			cluster.after();
-		}
-	}
-
-	@Test
-	public void testTriggerSavepointWithCheckpointingDisabled() throws Exception {
-		// Config
-		final int numTaskManagers = 1;
-		final int numSlotsPerTaskManager = 1;
-
-		final Configuration config = new Configuration();
-
-		final MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
-			new MiniClusterResourceConfiguration.Builder()
-				.setConfiguration(config)
-				.setNumberTaskManagers(numTaskManagers)
-				.setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
-				.build());
-		cluster.before();
-		final ClusterClient<?> client = cluster.getClusterClient();
-
-		final JobVertex vertex = new JobVertex("Blocking vertex");
-		vertex.setInvokableClass(BlockingNoOpInvokable.class);
-		vertex.setParallelism(1);
-
-		final JobGraph graph = new JobGraph(vertex);
-
-		try {
-			client.setDetached(true);
-			client.submitJob(graph, SavepointITCase.class.getClassLoader());
-
-			client.triggerSavepoint(graph.getJobID(), null).get();
-
-			fail();
-		} catch (ExecutionException e) {
-			assertTrue(ExceptionUtils.findThrowable(e, IllegalStateException.class).isPresent());
-			assertTrue(ExceptionUtils.findThrowableWithMessage(e, graph.getJobID().toString()).isPresent());
-			assertTrue(ExceptionUtils.findThrowableWithMessage(e, "is not a streaming job").isPresent());
-		} finally {
-			cluster.after();
-		}
-	}
-
-	@Test
 	public void testSubmitWithUnknownSavepointPath() throws Exception {
 		// Config
 		int numTaskManagers = 1;
 		int numSlotsPerTaskManager = 1;
 		int parallelism = numTaskManagers * numSlotsPerTaskManager;
 
+		final File tmpDir = folder.newFolder();
+		final File savepointDir = new File(tmpDir, "savepoints");
+
 		final Configuration config = new Configuration();
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 
-		MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
+		MiniClusterResource cluster = new MiniClusterResource(
 			new MiniClusterResourceConfiguration.Builder()
 				.setConfiguration(config)
 				.setNumberTaskManagers(numTaskManagers)
@@ -395,6 +283,9 @@ public class SavepointITCase extends TestLogger {
 		// Test deadline
 		final Deadline deadline = Deadline.now().plus(Duration.ofMinutes(5));
 
+		final File tmpDir = folder.newFolder();
+		final File savepointDir = new File(tmpDir, "savepoints");
+
 		// Flink configuration
 		final Configuration config = new Configuration();
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
@@ -404,7 +295,7 @@ public class SavepointITCase extends TestLogger {
 		LOG.info("Flink configuration: " + config + ".");
 
 		// Start Flink
-		MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
+		MiniClusterResource cluster = new MiniClusterResource(
 			new MiniClusterResourceConfiguration.Builder()
 				.setConfiguration(config)
 				.setNumberTaskManagers(numTaskManagers)
@@ -448,7 +339,7 @@ public class SavepointITCase extends TestLogger {
 
 		// create a new TestingCluster to make sure we start with completely
 		// new resources
-		cluster = new MiniClusterWithClientResource(
+		cluster = new MiniClusterResource(
 			new MiniClusterResourceConfiguration.Builder()
 				.setConfiguration(config)
 				.setNumberTaskManagers(numTaskManagers)
@@ -621,6 +512,11 @@ public class SavepointITCase extends TestLogger {
 			iterTestCheckpointVerify[i] = 0;
 		}
 
+		TemporaryFolder folder = new TemporaryFolder();
+		folder.create();
+		// Temporary directory for file state backend
+		final File tmpDir = folder.newFolder();
+
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		final IntegerStreamSource source = new IntegerStreamSource();
 		IterativeStream<Integer> iteration = env.addSource(source)
@@ -664,11 +560,22 @@ public class SavepointITCase extends TestLogger {
 
 		JobGraph jobGraph = streamGraph.getJobGraph();
 
-		Configuration config = getFileBasedCheckpointsConfig();
+		Configuration config = new Configuration();
 		config.addAll(jobGraph.getJobConfiguration());
 		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "0");
+		final File checkpointDir = new File(tmpDir, "checkpoints");
+		final File savepointDir = new File(tmpDir, "savepoints");
 
-		MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
+		if (!checkpointDir.mkdir() || !savepointDir.mkdirs()) {
+			fail("Test setup failed: failed to create temporary directories.");
+		}
+
+		config.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
+		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
+		config.setInteger(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, 0);
+		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+
+		MiniClusterResource cluster = new MiniClusterResource(
 			new MiniClusterResourceConfiguration.Builder()
 				.setConfiguration(config)
 				.setNumberTaskManagers(1)
@@ -804,74 +711,13 @@ public class SavepointITCase extends TestLogger {
 			this.config = config;
 		}
 
-		MiniClusterWithClientResource get() {
-			return new MiniClusterWithClientResource(
+		MiniClusterResource get() {
+			return new MiniClusterResource(
 				new MiniClusterResourceConfiguration.Builder()
 					.setConfiguration(config)
 					.setNumberTaskManagers(numTaskManagers)
 					.setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
 					.build());
-		}
-	}
-
-	private Configuration getFileBasedCheckpointsConfig(final String savepointDir) {
-		final Configuration config = new Configuration();
-		config.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
-		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
-		config.setInteger(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, 0);
-		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
-		return config;
-	}
-
-	private Configuration getFileBasedCheckpointsConfig() {
-		return getFileBasedCheckpointsConfig(savepointDir.toURI().toString());
-	}
-
-	private static Matcher<File> hasEntropyInFileStateHandlePaths() {
-		return new TypeSafeDiagnosingMatcher<File>() {
-
-			@Override
-			protected boolean matchesSafely(final File savepointDir, final Description mismatchDescription) {
-				if (savepointDir == null) {
-					mismatchDescription.appendText("savepoint dir must not be null");
-					return false;
-				}
-
-				final List<Path> filesWithoutEntropy = listRecursively(savepointDir.toPath().resolve(EntropyInjectingTestFileSystem.ENTROPY_INJECTION_KEY));
-				final Path savepointDirWithEntropy = savepointDir.toPath().resolve(EntropyInjectingTestFileSystem.ENTROPY);
-				final List<Path> filesWithEntropy = listRecursively(savepointDirWithEntropy);
-
-				if (!filesWithoutEntropy.isEmpty()) {
-					mismatchDescription.appendText("there are savepoint files with unresolved entropy placeholders");
-					return false;
-				}
-
-				if (!Files.exists(savepointDirWithEntropy) || filesWithEntropy.isEmpty()) {
-					mismatchDescription.appendText("there are no savepoint files with added entropy");
-					return false;
-				}
-
-				return true;
-			}
-
-			@Override
-			public void describeTo(final Description description) {
-				description.appendText("all savepoint files should have added entropy");
-			}
-		};
-	}
-
-	private static List<Path> listRecursively(final Path dir) {
-		try {
-			if (!Files.exists(dir)) {
-				return Collections.emptyList();
-			} else {
-				try (Stream<Path> files = Files.walk(dir, FileVisitOption.FOLLOW_LINKS)) {
-					return files.filter(Files::isRegularFile).collect(Collectors.toList());
-				}
-			}
-		} catch (IOException e) {
-			throw new RuntimeException(e);
 		}
 	}
 }

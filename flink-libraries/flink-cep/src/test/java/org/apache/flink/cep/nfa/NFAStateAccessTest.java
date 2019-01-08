@@ -20,7 +20,6 @@ package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.SubEvent;
-import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
@@ -103,18 +102,16 @@ public class NFAStateAccessTest {
 
 		TestSharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
 		for (StreamRecord<Event> inputEvent : inputEvents) {
-			try (SharedBufferAccessor<Event> accessor = sharedBuffer.getAccessor()) {
-					nfa.process(
-					accessor,
-					nfa.createInitialNFAState(),
-					inputEvent.getValue(),
-					inputEvent.getTimestamp());
-			}
+			nfa.process(
+				sharedBuffer,
+				nfa.createInitialNFAState(),
+				inputEvent.getValue(),
+				inputEvent.getTimestamp());
 		}
 
-		assertEquals(2, sharedBuffer.getStateReads());
-		assertEquals(3, sharedBuffer.getStateWrites());
-		assertEquals(5, sharedBuffer.getStateAccesses());
+		assertEquals(5, sharedBuffer.getStateReads());
+		assertEquals(6, sharedBuffer.getStateWrites());
+		assertEquals(11, sharedBuffer.getStateAccesses());
 	}
 
 	@Test
@@ -186,17 +183,15 @@ public class NFAStateAccessTest {
 
 		TestSharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
 		for (StreamRecord<Event> inputEvent : inputEvents) {
-			try (SharedBufferAccessor<Event> accessor = sharedBuffer.getAccessor()) {
-					nfa.process(
-					accessor,
-					nfa.createInitialNFAState(),
-					inputEvent.getValue(),
-					inputEvent.getTimestamp());
-			}
+			nfa.process(
+				sharedBuffer,
+				nfa.createInitialNFAState(),
+				inputEvent.getValue(),
+				inputEvent.getTimestamp());
 		}
 
-		assertEquals(8, sharedBuffer.getStateReads());
-		assertEquals(12, sharedBuffer.getStateWrites());
-		assertEquals(20, sharedBuffer.getStateAccesses());
+		assertEquals(20, sharedBuffer.getStateReads());
+		assertEquals(24, sharedBuffer.getStateWrites());
+		assertEquals(44, sharedBuffer.getStateAccesses());
 	}
 }

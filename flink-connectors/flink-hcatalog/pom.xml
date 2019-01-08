@@ -25,11 +25,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-hcatalog_${scala.binary.version}</artifactId>
+	<artifactId>flink-hcatalog</artifactId>
 	<name>flink-hcatalog</name>
 
 	<packaging>jar</packaging>

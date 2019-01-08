@@ -18,26 +18,20 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import java.io.IOException;
+
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-import java.io.IOException;
-
-/**
- * Type serializer for {@code Byte}.
- */
 @Internal
 public final class ByteSerializer extends TypeSerializerSingleton<Byte> {
 
 	private static final long serialVersionUID = 1L;
-
-	/** Sharable instance of the ByteSerializer. */
+	
 	public static final ByteSerializer INSTANCE = new ByteSerializer();
-
-	private static final Byte ZERO = (byte) 0;
+	
+	private static final Byte ZERO = Byte.valueOf((byte) 0);
 
 	@Override
 	public boolean isImmutableType() {
@@ -53,7 +47,7 @@ public final class ByteSerializer extends TypeSerializerSingleton<Byte> {
 	public Byte copy(Byte from) {
 		return from;
 	}
-
+	
 	@Override
 	public Byte copy(Byte from, Byte reuse) {
 		return from;
@@ -66,14 +60,14 @@ public final class ByteSerializer extends TypeSerializerSingleton<Byte> {
 
 	@Override
 	public void serialize(Byte record, DataOutputView target) throws IOException {
-		target.writeByte(record);
+		target.writeByte(record.byteValue());
 	}
 
 	@Override
 	public Byte deserialize(DataInputView source) throws IOException {
-		return source.readByte();
+		return Byte.valueOf(source.readByte());
 	}
-
+	
 	@Override
 	public Byte deserialize(Byte reuse, DataInputView source) throws IOException {
 		return deserialize(source);
@@ -90,19 +84,8 @@ public final class ByteSerializer extends TypeSerializerSingleton<Byte> {
 	}
 
 	@Override
-	public TypeSerializerSnapshot<Byte> snapshotConfiguration() {
-		return new ByteSerializerSnapshot();
-	}
-
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	public static final class ByteSerializerSnapshot extends SimpleTypeSerializerSnapshot<Byte> {
-
-		public ByteSerializerSnapshot() {
-			super(ByteSerializer.class);
-		}
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(ByteValueSerializer.class.getCanonicalName());
 	}
 }

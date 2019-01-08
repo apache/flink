@@ -42,12 +42,13 @@ public class DashboardConfigHandler extends AbstractRestHandler<RestfulGateway, 
 	private final DashboardConfiguration dashboardConfiguration;
 
 	public DashboardConfigHandler(
+			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, DashboardConfiguration, EmptyMessageParameters> messageHeaders,
 			long refreshInterval) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
 
 		dashboardConfiguration = DashboardConfiguration.from(refreshInterval, ZonedDateTime.now());
 	}

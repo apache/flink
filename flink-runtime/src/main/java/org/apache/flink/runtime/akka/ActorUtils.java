@@ -19,11 +19,9 @@
 package org.apache.flink.runtime.akka;
 
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.instance.AkkaActorGateway;
 
 import akka.actor.ActorRef;
 import akka.actor.Kill;
-import akka.actor.PoisonPill;
 import akka.pattern.Patterns;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,14 +83,6 @@ public class ActorUtils {
 		}
 
 		return FutureUtils.completeAll(terminationFutures);
-	}
-
-	public static void stopActor(AkkaActorGateway akkaActorGateway) {
-		stopActor(akkaActorGateway.actor());
-	}
-
-	public static void stopActor(ActorRef actorRef) {
-		actorRef.tell(PoisonPill.getInstance(), ActorRef.noSender());
 	}
 
 	private ActorUtils() {}

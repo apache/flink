@@ -28,7 +28,6 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
@@ -197,8 +196,7 @@ public class StateInitializationContextImplTest {
 			// notice that this essentially disables the previous test of the keyed stream because it was and is always
 			// consumed by the timer service.
 			IntSerializer.INSTANCE,
-			closableRegistry,
-			new UnregisteredMetricsGroup());
+			closableRegistry);
 
 		this.initializationContext =
 				new StateInitializationContextImpl(

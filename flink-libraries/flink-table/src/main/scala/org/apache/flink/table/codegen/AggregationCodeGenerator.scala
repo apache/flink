@@ -21,6 +21,7 @@ import java.lang.reflect.Modifier
 import java.lang.{Iterable => JIterable}
 
 import org.apache.calcite.rex.RexLiteral
+import org.apache.commons.codec.binary.Base64
 import org.apache.flink.api.common.state.{ListStateDescriptor, MapStateDescriptor, State, StateDescriptor}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -35,8 +36,8 @@ import org.apache.flink.table.functions.aggfunctions.DistinctAccumulator
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
 import org.apache.flink.table.runtime.aggregate.{GeneratedAggregations, SingleElementIterable}
-import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.Row
+import org.apache.flink.util.InstantiationUtil
 
 import scala.collection.mutable
 
@@ -136,21 +137,6 @@ class AggregationCodeGenerator(
         // index to input field
         else {
           s"(${CodeGenUtils.boxedTypeTermForTypeInfo(physicalInputTypes(f))}) input.getField($f)"
-        }
-      }
-
-      fields.mkString(", ")
-    }
-
-    val parametersCodeForDistinctMerge = aggFields.map { inFields =>
-      val fields = inFields.filter(_ > -1).zipWithIndex.map { case (f, i) =>
-        // index to constant
-        if (f >= physicalInputTypes.length) {
-          constantFields(f - physicalInputTypes.length)
-        }
-        // index to input field
-        else {
-          s"(${CodeGenUtils.boxedTypeTermForTypeInfo(physicalInputTypes(f))}) k.getField($i)"
         }
       }
 
@@ -329,7 +315,7 @@ class AggregationCodeGenerator(
       val dataViewTypeTerm = dataViewField.getType.getCanonicalName
 
       // define the DataView variables
-      val serializedData = EncodingUtils.encodeObjectToString(desc)
+      val serializedData = serializeStateDescriptor(desc)
       val dataViewFieldTerm = createDataViewTerm(aggIndex, dataViewField.getName)
       val field =
         s"""
@@ -343,10 +329,9 @@ class AggregationCodeGenerator(
       val descDeserializeCode =
         s"""
            |    $descClassQualifier $descFieldTerm = ($descClassQualifier)
-           |      ${classOf[EncodingUtils].getCanonicalName}.decodeStringToObject(
-           |        "$serializedData",
-           |        $descClassQualifier.class,
-           |        $contextTerm.getUserCodeClassLoader());
+           |      org.apache.flink.util.InstantiationUtil.deserializeObject(
+           |      org.apache.commons.codec.binary.Base64.decodeBase64("$serializedData"),
+           |      $contextTerm.getUserCodeClassLoader());
            |""".stripMargin
       val createDataView = if (dataViewField.getType == classOf[MapView[_, _]]) {
         s"""
@@ -658,7 +643,7 @@ class AggregationCodeGenerator(
                |          (${classOf[Row].getCanonicalName}) entry.getKey();
                |      Long v = (Long) entry.getValue();
                |      if (aDistinctAcc$i.add(k, v)) {
-               |        ${aggs(i)}.accumulate(aAcc$i, ${parametersCodeForDistinctMerge(i)});
+               |        ${aggs(i)}.accumulate(aAcc$i, k);
                |      }
                |    }
                |    a.setField($i, aDistinctAcc$i);
@@ -784,5 +769,11 @@ class AggregationCodeGenerator(
          """.stripMargin
 
     GeneratedAggregationsFunction(funcName, funcCode)
+  }
+
+  @throws[Exception]
+  def serializeStateDescriptor(stateDescriptor: StateDescriptor[_, _]): String = {
+    val byteArray = InstantiationUtil.serializeObject(stateDescriptor)
+    Base64.encodeBase64URLSafeString(byteArray)
   }
 }

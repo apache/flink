@@ -53,12 +53,13 @@ abstract class AbstractTaskManagerHandler<T extends RestfulGateway, R extends Re
 	private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
 
 	protected AbstractTaskManagerHandler(
+			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends T> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<R, P, M> messageHeaders,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
 
 		this.resourceManagerGatewayRetriever = Preconditions.checkNotNull(resourceManagerGatewayRetriever);
 	}

@@ -19,6 +19,7 @@ package org.apache.flink.table.runtime.aggregate
 
 import java.lang.Iterable
 
+import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow

@@ -29,7 +29,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
-import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 
@@ -90,6 +89,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 		this(
 			LOCALHOST,
 			LOCALHOST,
+			LOCALHOST,
 			DEFAULT_CANCEL_JOB_FUNCTION,
 			DEFAULT_STOP_JOB_FUNCTION,
 			DEFAULT_REQUEST_JOB_FUNCTION,
@@ -106,6 +106,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 	public TestingRestfulGateway(
 			String address,
 			String hostname,
+			String restAddress,
 			Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction,
 			Function<JobID, CompletableFuture<Acknowledge>> stopJobFunction,
 			Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction,
@@ -119,6 +120,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 			BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction) {
 		this.address = address;
 		this.hostname = hostname;
+		this.restAddress = restAddress;
 		this.cancelJobFunction = cancelJobFunction;
 		this.stopJobFunction = stopJobFunction;
 		this.requestJobFunction = requestJobFunction;
@@ -140,6 +142,11 @@ public class TestingRestfulGateway implements RestfulGateway {
 	@Override
 	public CompletableFuture<Acknowledge> stopJob(JobID jobId, Time timeout) {
 		return stopJobFunction.apply(jobId);
+	}
+
+	@Override
+	public CompletableFuture<String> requestRestAddress(Time timeout) {
+		return CompletableFuture.completedFuture(restAddress);
 	}
 
 	@Override
@@ -207,6 +214,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 	public static class Builder {
 		protected String address = LOCALHOST;
 		protected String hostname = LOCALHOST;
+		protected String restAddress = LOCALHOST;
 		protected Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction;
 		protected Function<JobID, CompletableFuture<Acknowledge>> stopJobFunction;
 		protected Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction;
@@ -214,7 +222,6 @@ public class TestingRestfulGateway implements RestfulGateway {
 		protected Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction;
 		protected Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier;
 		protected Supplier<CompletableFuture<ClusterOverview>> requestClusterOverviewSupplier;
-		protected Supplier<CompletableFuture<JobsOverview>> requestOverviewForAllJobsSupplier;
 		protected Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServicePathsSupplier;
 		protected Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServicePathsSupplier;
 		protected BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction;
@@ -241,6 +248,11 @@ public class TestingRestfulGateway implements RestfulGateway {
 
 		public Builder setHostname(String hostname) {
 			this.hostname = hostname;
+			return this;
+		}
+
+		public Builder setRestAddress(String restAddress) {
+			this.restAddress = restAddress;
 			return this;
 		}
 
@@ -303,6 +315,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 			return new TestingRestfulGateway(
 				address,
 				hostname,
+				restAddress,
 				cancelJobFunction,
 				stopJobFunction,
 				requestJobFunction,

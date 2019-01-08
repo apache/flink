@@ -22,9 +22,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.AbstractReporter;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -44,7 +43,7 @@ import static org.junit.Assert.fail;
 /**
  * Integration tests for proper initialization of the system resource metrics.
  */
-public class SystemResourcesMetricsITCase extends TestLogger {
+public class SystemResourcesMetricsITCase {
 
 	@ClassRule
 	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(

@@ -40,7 +40,7 @@ import java.io.IOException;
  * @param <V> The type of value that the state state stores.
  */
 class RocksDBValueState<K, N, V>
-	extends AbstractRocksDBState<K, N, V>
+	extends AbstractRocksDBState<K, N, V, ValueState<V>>
 	implements InternalValueState<K, N, V> {
 
 	/**
@@ -80,9 +80,9 @@ class RocksDBValueState<K, N, V>
 	@Override
 	public V value() {
 		try {
-			byte[] valueBytes = backend.db.get(columnFamily,
-				serializeCurrentKeyWithGroupAndNamespace());
-
+			writeCurrentKeyWithGroupAndNamespace();
+			byte[] key = dataOutputView.getCopyOfBuffer();
+			byte[] valueBytes = backend.db.get(columnFamily, key);
 			if (valueBytes == null) {
 				return getDefaultValue();
 			}
@@ -101,9 +101,11 @@ class RocksDBValueState<K, N, V>
 		}
 
 		try {
-			backend.db.put(columnFamily, writeOptions,
-				serializeCurrentKeyWithGroupAndNamespace(),
-				serializeValue(value));
+			writeCurrentKeyWithGroupAndNamespace();
+			byte[] key = dataOutputView.getCopyOfBuffer();
+			dataOutputView.clear();
+			valueSerializer.serialize(value, dataOutputView);
+			backend.db.put(columnFamily, writeOptions, key, dataOutputView.getCopyOfBuffer());
 		} catch (Exception e) {
 			throw new FlinkRuntimeException("Error while adding data to RocksDB", e);
 		}

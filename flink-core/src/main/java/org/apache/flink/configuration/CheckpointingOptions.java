@@ -71,31 +71,17 @@ public class CheckpointingOptions {
 
 	/**
 	 * This option configures local recovery for this state backend. By default, local recovery is deactivated.
-	 *
-	 * <p>Local recovery currently only covers keyed state backends.
-	 * Currently, MemoryStateBackend does not support local recovery and ignore
-	 * this option.
 	 */
 	public static final ConfigOption<Boolean> LOCAL_RECOVERY = ConfigOptions
-			.key("state.backend.local-recovery")
-			.defaultValue(false)
-			.withDescription("This option configures local recovery for this state backend. By default, local recovery is " +
-				"deactivated. Local recovery currently only covers keyed state backends. Currently, MemoryStateBackend does " +
-				"not support local recovery and ignore this option.");
+		.key("state.backend.local-recovery")
+		.defaultValue(false);
 
 	/**
 	 * The config parameter defining the root directories for storing file-based state for local recovery.
-	 *
-	 * <p>Local recovery currently only covers keyed state backends.
-	 * Currently, MemoryStateBackend does not support local recovery and ignore
-	 * this option.
 	 */
 	public static final ConfigOption<String> LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS = ConfigOptions
-			.key("taskmanager.state.local.root-dirs")
-			.noDefaultValue()
-			.withDescription("The config parameter defining the root directories for storing file-based state for local " +
-				"recovery. Local recovery currently only covers keyed state backends. Currently, MemoryStateBackend does " +
-				"not support local recovery and ignore this option");
+		.key("taskmanager.state.local.root-dirs")
+		.noDefaultValue();
 
 	// ------------------------------------------------------------------------
 	//  Options specific to the file-system-based state backends

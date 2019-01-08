@@ -125,7 +125,7 @@ public class MiniDispatcherTest extends TestLogger {
 		jobGraphFuture = new CompletableFuture<>();
 		resultFuture = new CompletableFuture<>();
 
-		testingJobManagerRunnerFactory = new TestingJobManagerRunnerFactory(jobGraphFuture, resultFuture, CompletableFuture.completedFuture(null));
+		testingJobManagerRunnerFactory = new TestingJobManagerRunnerFactory(jobGraphFuture, resultFuture);
 	}
 
 	@After
@@ -245,6 +245,7 @@ public class MiniDispatcherTest extends TestLogger {
 			archivedExecutionGraphStore,
 			testingJobManagerRunnerFactory,
 			testingFatalErrorHandler,
+			null,
 			VoidHistoryServerArchivist.INSTANCE,
 			jobGraph,
 			executionMode);

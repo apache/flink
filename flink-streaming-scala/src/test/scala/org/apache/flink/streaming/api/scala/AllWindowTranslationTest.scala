@@ -322,10 +322,9 @@ class AllWindowTranslationTest {
     val window1 = source
       .windowAll(TumblingEventTimeWindows.of(Time.seconds(1)))
       .reduce(
-        new DummyReducer,
-        new ProcessAllWindowFunction[(String, Int), (String, Int), TimeWindow] {
-          override def process(
-              context: Context,
+        new DummyReducer, new AllWindowFunction[(String, Int), (String, Int), TimeWindow] {
+          override def apply(
+              window: TimeWindow,
               input: Iterable[(String, Int)],
               out: Collector[(String, Int)]): Unit = input foreach ( x => out.collect(x))
         })
@@ -362,9 +361,9 @@ class AllWindowTranslationTest {
     val window1 = source
       .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(1)))
       .reduce(
-        new DummyReducer, new ProcessAllWindowFunction[(String, Int), (String, Int), TimeWindow] {
-          override def process(
-              context: Context,
+        new DummyReducer, new AllWindowFunction[(String, Int), (String, Int), TimeWindow] {
+          override def apply(
+              window: TimeWindow,
               input: Iterable[(String, Int)],
               out: Collector[(String, Int)]): Unit = input foreach ( x => out.collect(x))
         })
@@ -520,10 +519,7 @@ class AllWindowTranslationTest {
       .windowAll(TumblingEventTimeWindows.of(Time.seconds(1)))
       .reduce(
         { (x, _) => x },
-        {
-          (_: TimeWindow, in: Iterable[(String, Int)], out: Collector[(String, Int)]) =>
-            in foreach { x => out.collect(x)}
-        })
+        { (_, in, out: Collector[(String, Int)]) => in foreach { x => out.collect(x)} })
 
     val transform = window1
       .javaStream
@@ -760,7 +756,7 @@ class AllWindowTranslationTest {
       .windowAll(TumblingEventTimeWindows.of(Time.seconds(1)))
       .aggregate(
         new DummyAggregator(),
-        { (_: TimeWindow, in: Iterable[(String, Int)], out: Collector[(String, Int)]) => {
+        { (_, in: Iterable[(String, Int)], out: Collector[(String, Int)]) => {
           in foreach { x => out.collect(x)}
         } })
 
@@ -902,9 +898,9 @@ class AllWindowTranslationTest {
       .fold(
         ("", "", 1),
         new DummyFolder,
-        new ProcessAllWindowFunction[(String, String, Int), (String, Int), TimeWindow] {
-          override def process(
-              context: Context,
+        new AllWindowFunction[(String, String, Int), (String, Int), TimeWindow] {
+          override def apply(
+              window: TimeWindow,
               input: Iterable[(String, String, Int)],
               out: Collector[(String, Int)]): Unit = input foreach {x => out.collect((x._1, x._3))}
         })
@@ -1108,7 +1104,7 @@ class AllWindowTranslationTest {
       .fold(
         ("", "", 1),
         { (acc: (String, String, Int), _) => acc },
-        { (_: TimeWindow, in: Iterable[(String, String, Int)], out: Collector[(String, Int)]) =>
+        { (_, in: Iterable[(String, String, Int)], out: Collector[(String, Int)]) =>
           in foreach { x => out.collect((x._1, x._3)) }
         })
 

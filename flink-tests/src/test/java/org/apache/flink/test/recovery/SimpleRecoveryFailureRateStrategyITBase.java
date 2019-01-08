@@ -20,8 +20,8 @@ package org.apache.flink.test.recovery;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 
 import org.junit.ClassRule;
 
@@ -31,9 +31,8 @@ import org.junit.ClassRule;
 public class SimpleRecoveryFailureRateStrategyITBase extends SimpleRecoveryITCaseBase {
 
 	@ClassRule
-	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
 		new MiniClusterResourceConfiguration.Builder()
-			.setConfiguration(getConfiguration())
 			.setNumberTaskManagers(2)
 			.setNumberSlotsPerTaskManager(2)
 			.build());

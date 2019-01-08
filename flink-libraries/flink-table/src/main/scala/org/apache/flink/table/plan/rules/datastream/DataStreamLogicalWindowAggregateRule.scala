@@ -22,7 +22,7 @@ import java.math.{BigDecimal => JBigDecimal}
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.`type`.{SqlTypeFamily, SqlTypeName}
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.table.api.scala.{Session, Slide, Tumble}
 import org.apache.flink.table.api.{TableException, ValidationException, Window}
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -46,7 +46,7 @@ class DataStreamLogicalWindowAggregateRule
         timeAttribute
 
       case _ =>
-        throw new TableException(
+        throw TableException(
           s"Time attribute expected but ${timeAttribute.getType} encountered.")
     }
   }
@@ -68,10 +68,8 @@ class DataStreamLogicalWindowAggregateRule
 
     def getOperandAsLong(call: RexCall, idx: Int): Long =
       call.getOperands.get(idx) match {
-        case v: RexLiteral if v.getTypeName.getFamily == SqlTypeFamily.INTERVAL_DAY_TIME =>
-          v.getValue.asInstanceOf[JBigDecimal].longValue()
-        case _ => throw new TableException(
-          "Only constant window intervals with millisecond resolution are supported.")
+        case v: RexLiteral => v.getValue.asInstanceOf[JBigDecimal].longValue()
+        case _ => throw TableException("Only constant window descriptors are supported.")
       }
 
     def getOperandAsTimeIndicator(call: RexCall, idx: Int): ResolvedFieldReference =
@@ -81,7 +79,7 @@ class DataStreamLogicalWindowAggregateRule
             rowType.getFieldList.get(v.getIndex).getName,
             FlinkTypeFactory.toTypeInfo(v.getType))
         case _ =>
-          throw new ValidationException("Window can only be defined over a time attribute column.")
+          throw ValidationException("Window can only be defined over a time attribute column.")
       }
 
     windowExpr.getOperator match {

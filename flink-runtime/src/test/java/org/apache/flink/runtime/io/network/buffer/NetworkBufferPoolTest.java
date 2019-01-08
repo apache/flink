@@ -31,7 +31,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -324,11 +323,11 @@ public class NetworkBufferPoolTest extends TestLogger {
 
 		final List<Buffer> buffers = new ArrayList<>(numBuffers);
 		List<MemorySegment> memorySegments = Collections.emptyList();
-		BufferPool bufferPool = networkBufferPool.createBufferPool(1, numBuffers,
-			// make releaseMemory calls always fail:
-			Optional.of(numBuffersToRecycle -> {
-				throw new TestIOException();
-		}));
+		BufferPool bufferPool = networkBufferPool.createBufferPool(1, numBuffers);
+		// make releaseMemory calls always fail:
+		bufferPool.setBufferPoolOwner(numBuffersToRecycle -> {
+			throw new TestIOException();
+		});
 
 		try {
 			// take all but one buffer
@@ -364,10 +363,11 @@ public class NetworkBufferPoolTest extends TestLogger {
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(numBuffers, 128);
 
 		final List<Buffer> buffers = new ArrayList<>(numBuffers);
-		BufferPool bufferPool = networkBufferPool.createBufferPool(1, numBuffers,
-			Optional.of(numBuffersToRecycle -> {
+		BufferPool bufferPool = networkBufferPool.createBufferPool(1, numBuffers);
+		bufferPool.setBufferPoolOwner(
+			numBuffersToRecycle -> {
 				throw new TestIOException();
-		}));
+			});
 
 		try {
 

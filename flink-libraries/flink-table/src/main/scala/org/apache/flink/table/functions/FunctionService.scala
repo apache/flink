@@ -47,27 +47,23 @@ object FunctionService extends Logging {
     *
     * @param descriptor the descriptor that describes a function
     * @param classLoader the class loader to load the function and its parameter's classes
-    * @param performValidation whether or not the descriptor should be validated
     * @return the generated user-defined function
     */
   def createFunction(
       descriptor: FunctionDescriptor,
-      classLoader: ClassLoader,
-      performValidation: Boolean = true)
+      classLoader: ClassLoader)
     : UserDefinedFunction = {
 
-    val properties = new DescriptorProperties(true)
-    properties.putProperties(descriptor.toProperties)
+    val descriptorProperties = new DescriptorProperties(true)
+    descriptor.addProperties(descriptorProperties)
 
     // validate
-    if (performValidation) {
-      new FunctionDescriptorValidator().validate(properties)
-    }
+    new FunctionDescriptorValidator().validate(descriptorProperties)
 
     // instantiate
     val (instanceClass, instance) = generateInstance[AnyRef](
       HierarchyDescriptorValidator.EMPTY_PREFIX,
-      properties,
+      descriptorProperties,
       classLoader)
 
     if (!classOf[UserDefinedFunction].isAssignableFrom(instanceClass)) {

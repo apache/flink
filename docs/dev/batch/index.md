@@ -401,14 +401,12 @@ DataSet<Integer> result = in.partitionByRange(0)
     <tr>
       <td><strong>Custom Partitioning</strong></td>
       <td>
-        <p>Assigns records based on a key to a specific partition using a custom Partitioner function. 
-          The key can be specified as position key, expression key, and key selector function.
+        <p>Manually specify a partitioning over the data.
           <br/>
-          <i>Note</i>: This method only works with a single field key.</p>
+          <i>Note</i>: This method works only on single field keys.</p>
 {% highlight java %}
 DataSet<Tuple2<String,Integer>> in = // [...]
-DataSet<Integer> result = in.partitionCustom(partitioner, key)
-                            .mapPartition(new PartitionMapper());
+DataSet<Integer> result = in.partitionCustom(Partitioner<K> partitioner, key)
 {% endhighlight %}
       </td>
     </tr>
@@ -594,7 +592,7 @@ val output: DataSet[(Int, String, Double)] = input.sum(0).min(2)
       </td>
     </tr>
 
-    <tr>
+    </tr>
       <td><strong>Join</strong></td>
       <td>
         Joins two data sets by creating all pairs of elements that are equal on their keys.
@@ -610,7 +608,7 @@ val result = input1.join(input2).where(0).equalTo(1)
         describe whether the join happens through partitioning or broadcasting, and whether it uses
         a sort-based or a hash-based algorithm. Please refer to the
         <a href="dataset_transformations.html#join-algorithm-hints">Transformations Guide</a> for
-        a list of possible hints and an example.<br />
+        a list of possible hints and an example.</br>
         If no hint is specified, the system will try to make an estimate of the input sizes and
         pick the best strategy according to those estimates.
 {% highlight scala %}
@@ -702,17 +700,17 @@ val result = in.partitionByRange(0).mapPartition { ... }
 {% endhighlight %}
       </td>
     </tr>
+    </tr>
     <tr>
       <td><strong>Custom Partitioning</strong></td>
       <td>
-        <p>Assigns records based on a key to a specific partition using a custom Partitioner function. 
-          The key can be specified as position key, expression key, and key selector function.
+        <p>Manually specify a partitioning over the data.
           <br/>
-          <i>Note</i>: This method only works with a single field key.</p>
+          <i>Note</i>: This method works only on single field keys.</p>
 {% highlight scala %}
 val in: DataSet[(Int, String)] = // [...]
 val result = in
-  .partitionCustom(partitioner, key).mapPartition { ... }
+  .partitionCustom(partitioner: Partitioner[K], key)
 {% endhighlight %}
       </td>
     </tr>
@@ -826,6 +824,9 @@ File-based:
 - `readFileOfPrimitives(path, delimiter, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
    delimited primitive data types such as `String` or `Integer` using the given delimiter.
 
+- `readSequenceFile(Key, Value, path)` / `SequenceFileInputFormat` - Creates a JobConf and reads file from the specified path with
+   type SequenceFileInputFormat, Key class and Value class and returns them as Tuple2<Key, Value>.
+
 
 Collection-based:
 
@@ -876,7 +877,7 @@ DataSet<Person>> csvInput = env.readCsvFile("hdfs:///the/CSV/file")
 
 // read a file from the specified path of type SequenceFileInputFormat
 DataSet<Tuple2<IntWritable, Text>> tuples =
- env.createInput(HadoopInputs.readSequenceFile(IntWritable.class, Text.class, "hdfs://nnHost:nnPort/path/to/file"));
+ env.readSequenceFile(IntWritable.class, Text.class, "hdfs://nnHost:nnPort/path/to/file");
 
 // creates a set from some given elements
 DataSet<String> value = env.fromElements("Foo", "bar", "foobar", "fubar");
@@ -1614,7 +1615,7 @@ In object-reuse enabled mode, Flink's runtime minimizes the number of object ins
    <tr>
       <td><strong>Emitting Input Objects</strong></td>
       <td>
-        You <strong>must not</strong> emit input objects, except for input objects of MapFunction, FlatMapFunction, MapPartitionFunction, GroupReduceFunction, GroupCombineFunction, CoGroupFunction, and InputFormat.next(reuse).
+        You <strong>must not</strong> emit input objects, except for input objects of MapFunction, FlatMapFunction, MapPartitionFunction, GroupReduceFunction, GroupCombineFunction, CoGroupFunction, and InputFormat.next(reuse).</td>
       </td>
    </tr>
    <tr>

@@ -21,19 +21,13 @@ package org.apache.flink.api.common.typeutils.base;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
-
-import java.util.Map;
 
 /**
  * Configuration snapshot for serializers of maps, containing the
  * configuration snapshot of its key serializer and value serializer.
- *
- * @deprecated this snapshot class should not be used by any serializer anymore.
  */
 @Internal
-@Deprecated
-public final class MapSerializerConfigSnapshot<K, V> extends CompositeTypeSerializerConfigSnapshot<Map<K, V>> {
+public final class MapSerializerConfigSnapshot<K, V> extends CompositeTypeSerializerConfigSnapshot {
 
 	private static final int VERSION = 1;
 
@@ -42,20 +36,6 @@ public final class MapSerializerConfigSnapshot<K, V> extends CompositeTypeSerial
 
 	public MapSerializerConfigSnapshot(TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer) {
 		super(keySerializer, valueSerializer);
-	}
-
-	@Override
-	public TypeSerializerSchemaCompatibility<Map<K, V>> resolveSchemaCompatibility(TypeSerializer<Map<K, V>> newSerializer) {
-		if (newSerializer instanceof MapSerializer) {
-			// redirect the compatibility check to the new MapSerializerConfigSnapshot
-			MapSerializer<K, V> mapSerializer = (MapSerializer<K, V>) newSerializer;
-
-			MapSerializerSnapshot<K, V> mapSerializerSnapshot = new MapSerializerSnapshot<>(mapSerializer);
-			return mapSerializerSnapshot.resolveSchemaCompatibility(newSerializer);
-		}
-		else {
-			return super.resolveSchemaCompatibility(newSerializer);
-		}
 	}
 
 	@Override

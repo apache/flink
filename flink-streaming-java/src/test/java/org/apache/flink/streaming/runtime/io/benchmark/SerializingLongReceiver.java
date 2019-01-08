@@ -40,7 +40,6 @@ public class SerializingLongReceiver extends ReceiverThread {
 			});
 	}
 
-	@Override
 	protected void readRecords(long lastExpectedRecord) throws Exception {
 		LOG.debug("readRecords(lastExpectedRecord = {})", lastExpectedRecord);
 		final LongValue value = new LongValue();

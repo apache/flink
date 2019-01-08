@@ -24,7 +24,6 @@ import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.AutoCloseableAsync;
@@ -57,8 +56,7 @@ public class ResourceManagerRunner implements FatalErrorHandler, AutoCloseableAs
 			final HighAvailabilityServices highAvailabilityServices,
 			final HeartbeatServices heartbeatServices,
 			final MetricRegistry metricRegistry,
-			final ClusterInformation clusterInformation,
-			final JobManagerMetricGroup jobManagerMetricGroup) throws Exception {
+			final ClusterInformation clusterInformation) throws Exception {
 
 		Preconditions.checkNotNull(resourceId);
 		Preconditions.checkNotNull(configuration);
@@ -84,8 +82,7 @@ public class ResourceManagerRunner implements FatalErrorHandler, AutoCloseableAs
 			metricRegistry,
 			resourceManagerRuntimeServices.getJobLeaderIdService(),
 			clusterInformation,
-			this,
-			jobManagerMetricGroup);
+			this);
 	}
 
 	public ResourceManagerGateway getResourceManageGateway() {

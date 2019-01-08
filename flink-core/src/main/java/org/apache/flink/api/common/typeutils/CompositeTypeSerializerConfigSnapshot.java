@@ -38,9 +38,9 @@ import java.util.List;
  * is required.
  */
 @Internal
-public abstract class CompositeTypeSerializerConfigSnapshot<T> extends TypeSerializerConfigSnapshot<T> {
+public abstract class CompositeTypeSerializerConfigSnapshot extends TypeSerializerConfigSnapshot {
 
-	private List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> nestedSerializersAndConfigs;
+	private List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> nestedSerializersAndConfigs;
 
 	/** This empty nullary constructor is required for deserializing the configuration. */
 	public CompositeTypeSerializerConfigSnapshot() {}
@@ -50,9 +50,11 @@ public abstract class CompositeTypeSerializerConfigSnapshot<T> extends TypeSeria
 
 		this.nestedSerializersAndConfigs = new ArrayList<>(nestedSerializers.length);
 		for (TypeSerializer<?> nestedSerializer : nestedSerializers) {
-			TypeSerializerSnapshot<?> configSnapshot = nestedSerializer.snapshotConfiguration();
+			TypeSerializerConfigSnapshot configSnapshot = nestedSerializer.snapshotConfiguration();
 			this.nestedSerializersAndConfigs.add(
-				new Tuple2<>(nestedSerializer.duplicate(), Preconditions.checkNotNull(configSnapshot)));
+				new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
+					nestedSerializer.duplicate(),
+					Preconditions.checkNotNull(configSnapshot)));
 		}
 	}
 
@@ -69,11 +71,11 @@ public abstract class CompositeTypeSerializerConfigSnapshot<T> extends TypeSeria
 			TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, getUserCodeClassLoader());
 	}
 
-	public List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> getNestedSerializersAndConfigs() {
+	public List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> getNestedSerializersAndConfigs() {
 		return nestedSerializersAndConfigs;
 	}
 
-	public Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> getSingleNestedSerializerAndConfig() {
+	public Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> getSingleNestedSerializerAndConfig() {
 		return nestedSerializersAndConfigs.get(0);
 	}
 

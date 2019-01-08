@@ -31,15 +31,10 @@ trait FlinkRelNode extends RelNode {
 
   private[flink] def getExpressionString(
       expr: RexNode,
-      inFields: Seq[String],
-      localExprsTable: Option[Seq[RexNode]]): String = {
+      inFields: List[String],
+      localExprsTable: Option[List[RexNode]]): String = {
 
     expr match {
-      case pr: RexPatternFieldRef =>
-        val alpha = pr.getAlpha
-        val field = inFields.get(pr.getIndex)
-        s"$alpha.$field"
-
       case i: RexInputRef =>
         inFields.get(i.getIndex)
 
@@ -103,6 +98,6 @@ trait FlinkRelNode extends RelNode {
       // 16 is an arbitrary estimate
       (estimateDataTypeSize(t.getKeyType) + estimateDataTypeSize(t.getValueType)) * 16
     case SqlTypeName.ANY => 128 // 128 is an arbitrary estimate
-    case _ => throw new TableException(s"Unsupported data type encountered: $t")
+    case _ => throw TableException(s"Unsupported data type encountered: $t")
   }
 }

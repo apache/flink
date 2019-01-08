@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
@@ -209,7 +208,7 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 	}
 
 	@Override
-	public TypeSerializerConfigSnapshot<TimerHeapInternalTimer<K, N>> snapshotConfiguration() {
+	public TypeSerializerConfigSnapshot snapshotConfiguration() {
 		return new TimerSerializerConfigSnapshot<>(keySerializer, namespaceSerializer);
 	}
 
@@ -218,13 +217,13 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 		TypeSerializerConfigSnapshot configSnapshot) {
 
 		if (configSnapshot instanceof TimerSerializerConfigSnapshot) {
-			List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> previousSerializersAndConfigs =
-				((TimerSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
+			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs =
+				((TimerSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
 
 			if (previousSerializersAndConfigs.size() == 2) {
-				Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> keySerializerAndSnapshot =
+				Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> keySerializerAndSnapshot =
 					previousSerializersAndConfigs.get(KEY_SERIALIZER_SNAPSHOT_INDEX);
-				Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> namespaceSerializerAndSnapshot =
+				Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> namespaceSerializerAndSnapshot =
 					previousSerializersAndConfigs.get(NAMESPACE_SERIALIZER_SNAPSHOT_INDEX);
 				CompatibilityResult<K> keyCompatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
 					keySerializerAndSnapshot.f0,
@@ -263,7 +262,7 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 	 * @param <K> type of key.
 	 * @param <N> type of namespace.
 	 */
-	public static class TimerSerializerConfigSnapshot<K, N> extends CompositeTypeSerializerConfigSnapshot<TimerHeapInternalTimer<K, N>> {
+	public static class TimerSerializerConfigSnapshot<K, N> extends CompositeTypeSerializerConfigSnapshot {
 
 		private static final int VERSION = 1;
 

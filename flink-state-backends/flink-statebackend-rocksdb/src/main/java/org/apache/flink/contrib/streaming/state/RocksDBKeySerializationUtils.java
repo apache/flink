@@ -23,8 +23,6 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 
-import javax.annotation.Nonnull;
-
 import java.io.IOException;
 
 /**
@@ -82,12 +80,8 @@ public class RocksDBKeySerializationUtils {
 		}
 	}
 
-	public static boolean isSerializerTypeVariableSized(@Nonnull TypeSerializer<?> serializer) {
-		return serializer.getLength() < 0;
-	}
-
 	public static boolean isAmbiguousKeyPossible(TypeSerializer keySerializer, TypeSerializer namespaceSerializer) {
-		return (isSerializerTypeVariableSized(keySerializer) && isSerializerTypeVariableSized(namespaceSerializer));
+		return (keySerializer.getLength() < 0) && (namespaceSerializer.getLength() < 0);
 	}
 
 	public static void writeKeyGroup(
@@ -114,7 +108,7 @@ public class RocksDBKeySerializationUtils {
 		}
 	}
 
-	public static void readVariableIntBytes(DataInputView inputView, int value) throws IOException {
+	private static void readVariableIntBytes(DataInputView inputView, int value) throws IOException {
 		do {
 			inputView.readByte();
 			value >>>= 8;
@@ -128,7 +122,7 @@ public class RocksDBKeySerializationUtils {
 		writeVariableIntBytes(length, keySerializationDateDataOutputView);
 	}
 
-	public static void writeVariableIntBytes(
+	private static void writeVariableIntBytes(
 		int value,
 		DataOutputView keySerializationDateDataOutputView)
 		throws IOException {

@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -33,9 +33,9 @@ import java.util.Set;
 public class InternalTimersSnapshot<K, N> {
 
 	private TypeSerializer<K> keySerializer;
-	private TypeSerializerSnapshot<K> keySerializerConfigSnapshot;
+	private TypeSerializerConfigSnapshot keySerializerConfigSnapshot;
 	private TypeSerializer<N> namespaceSerializer;
-	private TypeSerializerSnapshot<N> namespaceSerializerConfigSnapshot;
+	private TypeSerializerConfigSnapshot namespaceSerializerConfigSnapshot;
 
 	private Set<TimerHeapInternalTimer<K, N>> eventTimeTimers;
 	private Set<TimerHeapInternalTimer<K, N>> processingTimeTimers;
@@ -46,9 +46,9 @@ public class InternalTimersSnapshot<K, N> {
 	/** Constructor to use when snapshotting the timers. */
 	public InternalTimersSnapshot(
 			TypeSerializer<K> keySerializer,
-			TypeSerializerSnapshot<K> keySerializerConfigSnapshot,
+			TypeSerializerConfigSnapshot keySerializerConfigSnapshot,
 			TypeSerializer<N> namespaceSerializer,
-			TypeSerializerSnapshot<N> namespaceSerializerConfigSnapshot,
+			TypeSerializerConfigSnapshot namespaceSerializerConfigSnapshot,
 			@Nullable Set<TimerHeapInternalTimer<K, N>> eventTimeTimers,
 			@Nullable Set<TimerHeapInternalTimer<K, N>> processingTimeTimers) {
 
@@ -68,11 +68,11 @@ public class InternalTimersSnapshot<K, N> {
 		this.keySerializer = keySerializer;
 	}
 
-	public TypeSerializerSnapshot<K> getKeySerializerConfigSnapshot() {
+	public TypeSerializerConfigSnapshot getKeySerializerConfigSnapshot() {
 		return keySerializerConfigSnapshot;
 	}
 
-	public void setKeySerializerConfigSnapshot(TypeSerializerSnapshot<K> keySerializerConfigSnapshot) {
+	public void setKeySerializerConfigSnapshot(TypeSerializerConfigSnapshot keySerializerConfigSnapshot) {
 		this.keySerializerConfigSnapshot = keySerializerConfigSnapshot;
 	}
 
@@ -84,11 +84,11 @@ public class InternalTimersSnapshot<K, N> {
 		this.namespaceSerializer = namespaceSerializer;
 	}
 
-	public TypeSerializerSnapshot<N> getNamespaceSerializerConfigSnapshot() {
+	public TypeSerializerConfigSnapshot getNamespaceSerializerConfigSnapshot() {
 		return namespaceSerializerConfigSnapshot;
 	}
 
-	public void setNamespaceSerializerConfigSnapshot(TypeSerializerSnapshot<N> namespaceSerializerConfigSnapshot) {
+	public void setNamespaceSerializerConfigSnapshot(TypeSerializerConfigSnapshot namespaceSerializerConfigSnapshot) {
 		this.namespaceSerializerConfigSnapshot = namespaceSerializerConfigSnapshot;
 	}
 

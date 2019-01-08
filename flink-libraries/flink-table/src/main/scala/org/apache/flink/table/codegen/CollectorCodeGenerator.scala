@@ -18,7 +18,6 @@
 package org.apache.flink.table.codegen
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForTypeInfo, newName}
 import org.apache.flink.table.codegen.Indenter.toISC
@@ -59,14 +58,12 @@ class CollectorCodeGenerator(
     *             valid Java class identifier.
     * @param bodyCode body code for the collector method
     * @param collectedType The type information of the element collected by the collector
-    * @param filterGenerator generator containing context information for the generated body code
     * @return instance of GeneratedCollector
     */
   def generateTableFunctionCollector(
       name: String,
       bodyCode: String,
-      collectedType: TypeInformation[Any],
-      filterGenerator: CodeGenerator)
+      collectedType: TypeInformation[Any])
     : GeneratedCollector = {
 
     val className = newName(name)
@@ -87,10 +84,6 @@ class CollectorCodeGenerator(
       s"$input2TypeClass $input2Term" // local variable
     }
 
-    reusableMemberStatements ++= filterGenerator.reusableMemberStatements
-    reusableInitStatements ++= filterGenerator.reusableInitStatements
-    reusablePerRecordStatements ++= filterGenerator.reusablePerRecordStatements
-
     val funcCode = j"""
       |public class $className extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
       |
@@ -99,11 +92,6 @@ class CollectorCodeGenerator(
       |
       |  public $className() throws Exception {
       |    ${reuseInitCode()}
-      |  }
-      |
-      |  @Override
-      |  public void open(${classOf[Configuration].getCanonicalName} parameters) throws Exception {
-      |    ${filterGenerator.reuseOpenCode()}
       |  }
       |
       |  @Override
@@ -117,8 +105,7 @@ class CollectorCodeGenerator(
       |  }
       |
       |  @Override
-      |  public void close() throws Exception {
-      |    ${filterGenerator.reuseCloseCode()}
+      |  public void close() {
       |  }
       |}
       |""".stripMargin

@@ -18,6 +18,7 @@
 
 package org.apache.flink.core.fs;
 
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.util.AbstractCloseableRegistry;
 
 import org.junit.Assert;
@@ -25,27 +26,22 @@ import org.junit.Test;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.verify;
+import static org.powermock.api.mockito.PowerMockito.spy;
 
 /**
  * Tests for the {@link AbstractCloseableRegistry}.
  */
 public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 
-	private static final int TEST_TIMEOUT_SECONDS = 10;
-
 	protected ProducerThread[] streamOpenThreads;
 	protected AbstractCloseableRegistry<C, T> closeableRegistry;
 	protected AtomicInteger unclosedCounter;
 
-	protected abstract void registerCloseable(Closeable closeable) throws IOException;
+	protected abstract C createCloseable();
 
 	protected abstract AbstractCloseableRegistry<C, T> createRegistry();
 
@@ -78,6 +74,7 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 
 	@Test
 	public void testClose() throws Exception {
+
 		setup(Integer.MAX_VALUE);
 		startThreads();
 
@@ -90,29 +87,45 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 
 		joinThreads();
 
-		assertEquals(0, unclosedCounter.get());
-		assertEquals(0, closeableRegistry.getNumberOfRegisteredCloseables());
+		Assert.assertEquals(0, unclosedCounter.get());
+		Assert.assertEquals(0, closeableRegistry.getNumberOfRegisteredCloseables());
 
-		final TestCloseable testCloseable = new TestCloseable();
+		final C testCloseable = spy(createCloseable());
 
 		try {
-			registerCloseable(testCloseable);
-			fail("Closed registry should not accept closeables!");
-		} catch (IOException expected) {}
 
-		assertTrue(testCloseable.isClosed());
-		assertEquals(0, unclosedCounter.get());
-		assertEquals(0, closeableRegistry.getNumberOfRegisteredCloseables());
+			closeableRegistry.registerCloseable(testCloseable);
+
+			Assert.fail("Closed registry should not accept closeables!");
+
+		} catch (IOException expected) {
+			//expected
+		}
+
+		Assert.assertEquals(0, unclosedCounter.get());
+		Assert.assertEquals(0, closeableRegistry.getNumberOfRegisteredCloseables());
+		verify(testCloseable).close();
 	}
 
 	@Test
 	public void testNonBlockingClose() throws Exception {
 		setup(Integer.MAX_VALUE);
 
-		final BlockingTestCloseable blockingCloseable = new BlockingTestCloseable();
-		registerCloseable(blockingCloseable);
+		final OneShotLatch waitRegistryClosedLatch = new OneShotLatch();
+		final OneShotLatch blockCloseLatch = new OneShotLatch();
 
-		assertEquals(1, closeableRegistry.getNumberOfRegisteredCloseables());
+		final C spyCloseable = spy(createCloseable());
+
+		doAnswer(invocationOnMock -> {
+			invocationOnMock.callRealMethod();
+			waitRegistryClosedLatch.trigger();
+			blockCloseLatch.await();
+			return null;
+		}).when(spyCloseable).close();
+
+		closeableRegistry.registerCloseable(spyCloseable);
+
+		Assert.assertEquals(1, closeableRegistry.getNumberOfRegisteredCloseables());
 
 		Thread closer = new Thread(() -> {
 			try {
@@ -121,20 +134,23 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 
 			}
 		});
-		closer.start();
-		blockingCloseable.awaitClose(TEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-		final TestCloseable testCloseable = new TestCloseable();
+		closer.start();
+		waitRegistryClosedLatch.await();
+
+		final C testCloseable = spy(createCloseable());
+
 		try {
-			registerCloseable(testCloseable);
-			fail("Closed registry should not accept closeables!");
+			closeableRegistry.registerCloseable(testCloseable);
+			Assert.fail("Closed registry should not accept closeables!");
 		} catch (IOException ignored) {}
 
-		blockingCloseable.unblockClose();
+		blockCloseLatch.trigger();
 		closer.join();
 
-		assertTrue(testCloseable.isClosed());
-		assertEquals(0, closeableRegistry.getNumberOfRegisteredCloseables());
+		verify(spyCloseable).close();
+		verify(testCloseable).close();
+		Assert.assertEquals(0, closeableRegistry.getNumberOfRegisteredCloseables());
 	}
 
 	/**
@@ -207,57 +223,6 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 		@Override
 		public synchronized void close() throws IOException {
 			refCount.decrementAndGet();
-		}
-	}
-
-	/**
-	 * A noop {@link Closeable} implementation that blocks inside {@link #close()}.
-	 */
-	private static class BlockingTestCloseable implements Closeable {
-
-		private final CountDownLatch closeCalledLatch = new CountDownLatch(1);
-
-		private final CountDownLatch blockCloseLatch = new CountDownLatch(1);
-
-		@Override
-		public void close() throws IOException {
-			closeCalledLatch.countDown();
-			try {
-				blockCloseLatch.await();
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
-		}
-
-		/**
-		 * Unblocks {@link #close()}.
-		 */
-		public void unblockClose() {
-			blockCloseLatch.countDown();
-		}
-
-		/**
-		 * Causes the current thread to wait until {@link #close()} is called.
-		 */
-		public void awaitClose(final long timeout, final TimeUnit timeUnit) throws InterruptedException {
-			closeCalledLatch.await(timeout, timeUnit);
-		}
-	}
-
-	/**
-	 * A noop {@link Closeable} implementation that tracks whether it was closed.
-	 */
-	private static class TestCloseable implements Closeable {
-
-		private final AtomicBoolean closed = new AtomicBoolean();
-
-		@Override
-		public void close() throws IOException {
-			assertTrue("TestCloseable was already closed", closed.compareAndSet(false, true));
-		}
-
-		public boolean isClosed() {
-			return closed.get();
 		}
 	}
 }

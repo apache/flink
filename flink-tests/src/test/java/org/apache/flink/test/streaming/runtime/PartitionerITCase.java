@@ -33,16 +33,11 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.junit.Test;
 
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
-import static java.util.Collections.sort;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -51,10 +46,6 @@ import static org.junit.Assert.fail;
  */
 @SuppressWarnings("serial")
 public class PartitionerITCase extends AbstractTestBase {
-
-	private static final int PARALLELISM = 3;
-
-	private static final List<String> INPUT = Arrays.asList("a", "b", "c", "d", "e", "f", "g");
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testForwardFailsLowToHighParallelism() throws Exception {
@@ -98,10 +89,17 @@ public class PartitionerITCase extends AbstractTestBase {
 				new TestListResultSink<Tuple2<Integer, String>>();
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(PARALLELISM);
+		env.setParallelism(3);
 
-		DataStream<Tuple1<String>> src = env.fromCollection(
-			INPUT.stream().map(Tuple1::of).collect(Collectors.toList()));
+		DataStream<Tuple1<String>> src = env.fromElements(
+				new Tuple1<String>("a"),
+				new Tuple1<String>("b"),
+				new Tuple1<String>("b"),
+				new Tuple1<String>("a"),
+				new Tuple1<String>("a"),
+				new Tuple1<String>("c"),
+				new Tuple1<String>("a")
+		);
 
 		// partition by hash
 		src
@@ -192,33 +190,62 @@ public class PartitionerITCase extends AbstractTestBase {
 	}
 
 	private static void verifyBroadcastPartitioning(List<Tuple2<Integer, String>> broadcastPartitionResult) {
-		final Set<Tuple2<Integer, String>> expectedResult = INPUT.stream().flatMap(
-			input -> IntStream.range(0, PARALLELISM).mapToObj(
-				i -> Tuple2.of(i, input)))
-			.collect(Collectors.toSet());
+		List<Tuple2<Integer, String>> expected = Arrays.asList(
+				new Tuple2<Integer, String>(0, "a"),
+				new Tuple2<Integer, String>(0, "b"),
+				new Tuple2<Integer, String>(0, "b"),
+				new Tuple2<Integer, String>(0, "a"),
+				new Tuple2<Integer, String>(0, "a"),
+				new Tuple2<Integer, String>(0, "c"),
+				new Tuple2<Integer, String>(0, "a"),
+				new Tuple2<Integer, String>(1, "a"),
+				new Tuple2<Integer, String>(1, "b"),
+				new Tuple2<Integer, String>(1, "b"),
+				new Tuple2<Integer, String>(1, "a"),
+				new Tuple2<Integer, String>(1, "a"),
+				new Tuple2<Integer, String>(1, "c"),
+				new Tuple2<Integer, String>(1, "a"),
+				new Tuple2<Integer, String>(2, "a"),
+				new Tuple2<Integer, String>(2, "b"),
+				new Tuple2<Integer, String>(2, "b"),
+				new Tuple2<Integer, String>(2, "a"),
+				new Tuple2<Integer, String>(2, "a"),
+				new Tuple2<Integer, String>(2, "c"),
+				new Tuple2<Integer, String>(2, "a"));
 
 		assertEquals(
-			expectedResult,
-			new HashSet<>(broadcastPartitionResult));
+				new HashSet<Tuple2<Integer, String>>(expected),
+				new HashSet<Tuple2<Integer, String>>(broadcastPartitionResult));
 	}
 
 	private static void verifyRebalancePartitioning(List<Tuple2<Integer, String>> rebalancePartitionResult) {
-		sort(rebalancePartitionResult, Comparator.comparing(o -> o.f1));
+		List<Tuple2<Integer, String>> expected = Arrays.asList(
+				new Tuple2<Integer, String>(0, "a"),
+				new Tuple2<Integer, String>(1, "b"),
+				new Tuple2<Integer, String>(2, "b"),
+				new Tuple2<Integer, String>(0, "a"),
+				new Tuple2<Integer, String>(1, "a"),
+				new Tuple2<Integer, String>(2, "c"),
+				new Tuple2<Integer, String>(0, "a"));
 
-		final Tuple2<Integer, String> firstEntry = rebalancePartitionResult.get(0);
-		int offset = firstEntry.f0;
-
-		final List<Tuple2<Integer, String>> expected = IntStream.range(0, rebalancePartitionResult.size())
-			.mapToObj(index -> Tuple2.of((offset + index) % PARALLELISM, INPUT.get(index)))
-			.collect(Collectors.toList());
-
-		assertEquals(expected, rebalancePartitionResult);
+		assertEquals(
+				new HashSet<Tuple2<Integer, String>>(expected),
+				new HashSet<Tuple2<Integer, String>>(rebalancePartitionResult));
 	}
 
 	private static void verifyGlobalPartitioning(List<Tuple2<Integer, String>> globalPartitionResult) {
-		final List<Tuple2<Integer, String>> expected = INPUT.stream().map(i -> Tuple2.of(0, i)).collect(Collectors.toList());
+		List<Tuple2<Integer, String>> expected = Arrays.asList(
+				new Tuple2<Integer, String>(0, "a"),
+				new Tuple2<Integer, String>(0, "b"),
+				new Tuple2<Integer, String>(0, "b"),
+				new Tuple2<Integer, String>(0, "a"),
+				new Tuple2<Integer, String>(0, "a"),
+				new Tuple2<Integer, String>(0, "c"),
+				new Tuple2<Integer, String>(0, "a"));
 
-		assertEquals(expected, globalPartitionResult);
+		assertEquals(
+				new HashSet<Tuple2<Integer, String>>(expected),
+				new HashSet<Tuple2<Integer, String>>(globalPartitionResult));
 	}
 
 	private static class SubtaskIndexAssigner extends RichMapFunction<Tuple1<String>, Tuple2<Integer, String>> {

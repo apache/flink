@@ -298,7 +298,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	@Override
 	public CompletableFuture<ResourceOverview> requestResourceOverview(Time timeout) {
-		return CompletableFuture.completedFuture(new ResourceOverview(1, 1, 1));
+		return FutureUtils.completedExceptionally(new UnsupportedOperationException("Not yet implemented"));
 	}
 
 	@Override

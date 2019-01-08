@@ -34,6 +34,7 @@ import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
+import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 
@@ -65,6 +66,14 @@ public interface RestfulGateway extends RpcGateway {
 	 * @return A future acknowledge if the stopping succeeded
 	 */
 	CompletableFuture<Acknowledge> stopJob(JobID jobId, @RpcTimeout Time timeout);
+
+	/**
+	 * Requests the REST address of this {@link RpcEndpoint}.
+	 *
+	 * @param timeout for this operation
+	 * @return Future REST endpoint address
+	 */
+	CompletableFuture<String> requestRestAddress(@RpcTimeout  Time timeout);
 
 	/**
 	 * Requests the {@link AccessExecutionGraph} for the given jobId. If there is no such graph, then

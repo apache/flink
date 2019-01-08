@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.runtime.net.SSLEngineFactory;
+
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.Bootstrap;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
@@ -35,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.net.ssl.SSLEngine;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -52,7 +55,7 @@ class NettyClient {
 	private Bootstrap bootstrap;
 
 	@Nullable
-	private SSLHandlerFactory clientSSLFactory;
+	private SSLEngineFactory clientSSLFactory;
 
 	NettyClient(NettyConfig config) {
 		this.config = config;
@@ -178,10 +181,11 @@ class NettyClient {
 
 				// SSL handler should be added first in the pipeline
 				if (clientSSLFactory != null) {
-					SslHandler sslHandler = clientSSLFactory.createNettySSLHandler(
-							serverSocketAddress.getAddress().getCanonicalHostName(),
-							serverSocketAddress.getPort());
-					channel.pipeline().addLast("ssl", sslHandler);
+					SSLEngine sslEngine = clientSSLFactory.createSSLEngine(
+						serverSocketAddress.getAddress().getCanonicalHostName(),
+						serverSocketAddress.getPort());
+
+					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
 				}
 				channel.pipeline().addLast(protocol.getClientChannelHandlers());
 			}

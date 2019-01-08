@@ -21,14 +21,9 @@ import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
 import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.test.util.AbstractTestBase
 import org.junit.Rule
-import org.junit.rules.{ExpectedException, TemporaryFolder}
+import org.junit.rules.TemporaryFolder
 
 class StreamingWithStateTestBase extends AbstractTestBase {
-
-  val expectedException = ExpectedException.none()
-
-  @Rule
-  def thrown = expectedException
 
   val _tempFolder = new TemporaryFolder
 

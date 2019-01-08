@@ -46,8 +46,6 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 tableEnv.registerTable("table1", ...)            // or
 tableEnv.registerTableSource("table2", ...);     // or
 tableEnv.registerExternalCatalog("extCat", ...);
-// register an output Table
-tableEnv.registerTableSink("outputTable", ...);
 
 // create a Table from a Table API query
 Table tapiResult = tableEnv.scan("table1").select(...);
@@ -55,7 +53,7 @@ Table tapiResult = tableEnv.scan("table1").select(...);
 Table sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table2 ... ");
 
 // emit a Table API result Table to a TableSink, same for SQL result
-tapiResult.insertInto("outputTable");
+tapiResult.writeToSink(...);
 
 // execute
 env.execute();
@@ -74,9 +72,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // register a Table
 tableEnv.registerTable("table1", ...)           // or
 tableEnv.registerTableSource("table2", ...)     // or
-tableEnv.registerExternalCatalog("extCat", ...)
-// register an output Table
-tableEnv.registerTableSink("outputTable", ...);
+tableEnv.registerExternalCatalog("extCat", ...) 
 
 // create a Table from a Table API query
 val tapiResult = tableEnv.scan("table1").select(...)
@@ -84,7 +80,7 @@ val tapiResult = tableEnv.scan("table1").select(...)
 val sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table2 ...")
 
 // emit a Table API result Table to a TableSink, same for SQL result
-tapiResult.insertInto("outputTable")
+tapiResult.writeToSink(...)
 
 // execute
 env.execute()
@@ -504,7 +500,10 @@ A batch `Table` can only be written to a `BatchTableSink`, while a streaming `Ta
 
 Please see the documentation about [Table Sources & Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html) for details about available sinks and instructions for how to implement a custom `TableSink`.
 
-The `Table.insertInto(String tableName)` method emits the `Table` to a registered `TableSink`. The method looks up the `TableSink` from the catalog by the name and validates that the schema of the `Table` is identical to the schema of the `TableSink`. 
+There are two ways to emit a table:
+
+1. The `Table.writeToSink(TableSink sink)` method emits the table using the provided `TableSink` and automatically configures the sink with the schema of the table to emit.
+2. The `Table.insertInto(String sinkTable)` method looks up a `TableSink` that was registered with a specific schema under the provided name in the `TableEnvironment`'s catalog. The schema of the table to emit is validated against the schema of the registered `TableSink`.
 
 The following examples shows how to emit a `Table`:
 
@@ -514,17 +513,22 @@ The following examples shows how to emit a `Table`:
 // get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
 StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
+// compute a result Table using Table API operators and/or SQL queries
+Table result = ...
+
 // create a TableSink
 TableSink sink = new CsvTableSink("/path/to/file", fieldDelim = "|");
 
-// register the TableSink with a specific schema
+// METHOD 1:
+//   Emit the result Table to the TableSink via the writeToSink() method
+result.writeToSink(sink);
+
+// METHOD 2:
+//   Register the TableSink with a specific schema
 String[] fieldNames = {"a", "b", "c"};
 TypeInformation[] fieldTypes = {Types.INT, Types.STRING, Types.LONG};
 tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, sink);
-
-// compute a result Table using Table API operators and/or SQL queries
-Table result = ...
-// emit the result Table to the registered TableSink
+//   Emit the result Table to the registered TableSink via the insertInto() method
 result.insertInto("CsvSinkTable");
 
 // execute the program
@@ -536,18 +540,22 @@ result.insertInto("CsvSinkTable");
 // get a TableEnvironment
 val tableEnv = TableEnvironment.getTableEnvironment(env)
 
-// create a TableSink
-val sink: TableSink = new CsvTableSink("/path/to/file", fieldDelim = "|")
-
-// register the TableSink with a specific schema
-val fieldNames: Array[String] = Array("a", "b", "c")
-val fieldTypes: Array[TypeInformation] = Array(Types.INT, Types.STRING, Types.LONG)
-tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, sink)
-
 // compute a result Table using Table API operators and/or SQL queries
 val result: Table = ...
 
-// emit the result Table to the registered TableSink
+// create a TableSink
+val sink: TableSink = new CsvTableSink("/path/to/file", fieldDelim = "|")
+
+// METHOD 1:
+//   Emit the result Table to the TableSink via the writeToSink() method
+result.writeToSink(sink)
+
+// METHOD 2:
+//   Register the TableSink with a specific schema
+val fieldNames: Array[String] = Array("a", "b", "c")
+val fieldTypes: Array[TypeInformation] = Array(Types.INT, Types.STRING, Types.LONG)
+tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, sink)
+//   Emit the result Table to the registered TableSink via the insertInto() method
 result.insertInto("CsvSinkTable")
 
 // execute the program
@@ -568,7 +576,7 @@ Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/de
 
 A Table API or SQL query is translated when:
 
-* a `Table` is emitted to a `TableSink`, i.e., when `Table.insertInto()` is called.
+* a `Table` is emitted to a `TableSink`, i.e., when `Table.writeToSink()` or `Table.insertInto()` is called.
 * a SQL update query is specified, i.e., when `TableEnvironment.sqlUpdate()` is called.
 * a `Table` is converted into a `DataStream` or `DataSet` (see [Integration with DataStream and DataSet API](#integration-with-dataStream-and-dataSet-api)).
 
@@ -745,7 +753,7 @@ val retractStream: DataStream[(Boolean, Row)] = tableEnv.toRetractStream[Row](ta
 </div>
 </div>
 
-**Note:** A detailed discussion about dynamic tables and their properties is given in the [Dynamic Tables](streaming/dynamic_tables.html) document.
+**Note:** A detailed discussion about dynamic tables and their properties is given in the [Streaming Queries]({{ site.baseurl }}/dev/table/streaming.html) document.
 
 #### Convert a Table into a DataSet
 
@@ -800,7 +808,7 @@ The mapping of a data type to a table schema can happen in two ways: **based on 
 
 **Position-based Mapping**
 
-Position-based mapping can be used to give fields a more meaningful name while keeping the field order. This mapping is available for composite data types *with a defined field order* as well as atomic types. Composite data types such as tuples, rows, and case classes have such a field order. However, fields of a POJO must be mapped based on the field names (see next section). Fields can be projected out but can't be renamed using an alias `as`.
+Position-based mapping can be used to give fields a more meaningful name while keeping the field order. This mapping is available for composite data types *with a defined field order* as well as atomic types. Composite data types such as tuples, rows, and case classes have such a field order. However, fields of a POJO must be mapped based on the field names (see next section).
 
 When defining a position-based mapping, the specified names must not exist in the input data type, otherwise the API will assume that the mapping should happen based on the field names. If no field names are specified, the default field names and field order of the composite type are used or `f0` for atomic types. 
 
@@ -814,9 +822,6 @@ DataStream<Tuple2<Long, Integer>> stream = ...
 
 // convert DataStream into Table with default field names "f0" and "f1"
 Table table = tableEnv.fromDataStream(stream);
-
-// convert DataStream into Table with field "myLong" only
-Table table = tableEnv.fromDataStream(stream, "myLong");
 
 // convert DataStream into Table with field names "myLong" and "myInt"
 Table table = tableEnv.fromDataStream(stream, "myLong, myInt");
@@ -833,11 +838,8 @@ val stream: DataStream[(Long, Int)] = ...
 // convert DataStream into Table with default field names "_1" and "_2"
 val table: Table = tableEnv.fromDataStream(stream)
 
-// convert DataStream into Table with field "myLong" only
-val table: Table = tableEnv.fromDataStream(stream, 'myLong)
-
 // convert DataStream into Table with field names "myLong" and "myInt"
-val table: Table = tableEnv.fromDataStream(stream, 'myLong, 'myInt)
+val table: Table = tableEnv.fromDataStream(stream, 'myLong 'myInt)
 {% endhighlight %}
 </div>
 </div>

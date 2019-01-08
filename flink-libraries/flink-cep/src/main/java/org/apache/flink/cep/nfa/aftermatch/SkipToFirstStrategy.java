@@ -18,30 +18,59 @@
 
 package org.apache.flink.cep.nfa.aftermatch;
 
+import org.apache.flink.cep.nfa.sharedbuffer.EventId;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * Discards every partial match that started before the first event of emitted match mapped to *PatternName*.
+ * Discards every partial match that contains event of the match preceding the first of *PatternName*.
  */
-public final class SkipToFirstStrategy extends SkipToElementStrategy {
+public class SkipToFirstStrategy extends AfterMatchSkipStrategy {
+
 	private static final long serialVersionUID = 7127107527654629026L;
+	private final String patternName;
 
-	SkipToFirstStrategy(String patternName, boolean shouldThrowException) {
-		super(patternName, shouldThrowException);
+	SkipToFirstStrategy(String patternName) {
+		this.patternName = checkNotNull(patternName);
 	}
 
 	@Override
-	public SkipToElementStrategy throwExceptionOnMiss() {
-		return new SkipToFirstStrategy(getPatternName().get(), true);
+	public boolean isSkipStrategy() {
+		return true;
 	}
 
 	@Override
-	int getIndex(int size) {
-		return 0;
+	protected boolean shouldPrune(EventId startEventID, EventId pruningId) {
+		return startEventID != null && startEventID.compareTo(pruningId) < 0;
+	}
+
+	@Override
+	protected EventId getPruningId(Collection<Map<String, List<EventId>>> match) {
+		EventId pruniningId = null;
+		for (Map<String, List<EventId>> resultMap : match) {
+			List<EventId> pruningPattern = resultMap.get(patternName);
+			if (pruningPattern != null && !pruningPattern.isEmpty()) {
+				pruniningId = max(pruniningId, pruningPattern.get(0));
+			}
+		}
+
+		return pruniningId;
+	}
+
+	@Override
+	public Optional<String> getPatternName() {
+		return Optional.of(patternName);
 	}
 
 	@Override
 	public String toString() {
 		return "SkipToFirstStrategy{" +
-			"patternName='" + getPatternName().get() + '\'' +
+			"patternName='" + patternName + '\'' +
 			'}';
 	}
 }

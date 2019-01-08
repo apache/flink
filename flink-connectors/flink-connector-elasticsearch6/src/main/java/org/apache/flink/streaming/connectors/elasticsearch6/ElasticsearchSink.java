@@ -32,7 +32,6 @@ import org.elasticsearch.client.RestHighLevelClient;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Elasticsearch 6.x sink that requests multiple {@link ActionRequest ActionRequests}
@@ -207,32 +206,6 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		 */
 		public ElasticsearchSink<T> build() {
 			return new ElasticsearchSink<>(bulkRequestsConfig, httpHosts, elasticsearchSinkFunction, failureHandler, restClientFactory);
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			Builder<?> builder = (Builder<?>) o;
-			return Objects.equals(httpHosts, builder.httpHosts) &&
-				Objects.equals(elasticsearchSinkFunction, builder.elasticsearchSinkFunction) &&
-				Objects.equals(bulkRequestsConfig, builder.bulkRequestsConfig) &&
-				Objects.equals(failureHandler, builder.failureHandler) &&
-				Objects.equals(restClientFactory, builder.restClientFactory);
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(
-				httpHosts,
-				elasticsearchSinkFunction,
-				bulkRequestsConfig,
-				failureHandler,
-				restClientFactory);
 		}
 	}
 }

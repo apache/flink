@@ -182,6 +182,7 @@ public final class WebMonitorUtils {
 	 * StaticFileServerHandler which can serve the static file contents.
 	 *
 	 * @param leaderRetriever to be used by the StaticFileServerHandler
+	 * @param restAddressFuture of the underlying REST server endpoint
 	 * @param timeout for lookup requests
 	 * @param tmpDir to be used by the StaticFileServerHandler to store temporary files
 	 * @param <T> type of the gateway to retrieve
@@ -190,12 +191,14 @@ public final class WebMonitorUtils {
 	 */
 	public static <T extends RestfulGateway> Optional<StaticFileServerHandler<T>> tryLoadWebContent(
 			GatewayRetriever<? extends T> leaderRetriever,
+			CompletableFuture<String> restAddressFuture,
 			Time timeout,
 			File tmpDir) throws IOException {
 
 		if (isFlinkRuntimeWebInClassPath()) {
 			return Optional.of(new StaticFileServerHandler<>(
 				leaderRetriever,
+				restAddressFuture,
 				timeout,
 				tmpDir));
 		} else {
@@ -207,9 +210,9 @@ public final class WebMonitorUtils {
 	 * Loads the {@link WebMonitorExtension} which enables web submission.
 	 *
 	 * @param leaderRetriever to retrieve the leader
+	 * @param restAddressFuture of the underlying REST server endpoint
 	 * @param timeout for asynchronous requests
 	 * @param responseHeaders for the web submission handlers
-	 * @param localAddressFuture of the underlying REST server endpoint
 	 * @param uploadDir where the web submission handler store uploaded jars
 	 * @param executor to run asynchronous operations
 	 * @param configuration used to instantiate the web submission extension
@@ -218,9 +221,9 @@ public final class WebMonitorUtils {
 	 */
 	public static WebMonitorExtension loadWebSubmissionExtension(
 			GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
+			CompletableFuture<String> restAddressFuture,
 			Time timeout,
 			Map<String, String> responseHeaders,
-			CompletableFuture<String> localAddressFuture,
 			java.nio.file.Path uploadDir,
 			Executor executor,
 			Configuration configuration) throws FlinkException {
@@ -231,18 +234,18 @@ public final class WebMonitorUtils {
 					.forName("org.apache.flink.runtime.webmonitor.WebSubmissionExtension")
 					.getConstructor(
 						Configuration.class,
+						CompletableFuture.class,
 						GatewayRetriever.class,
 						Map.class,
-						CompletableFuture.class,
 						java.nio.file.Path.class,
 						Executor.class,
 						Time.class);
 
 				return (WebMonitorExtension) webSubmissionExtensionConstructor.newInstance(
 					configuration,
+					restAddressFuture,
 					leaderRetriever,
 					responseHeaders,
-					localAddressFuture,
 					uploadDir,
 					executor,
 					timeout);

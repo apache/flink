@@ -39,8 +39,6 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -179,8 +177,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				FatalErrorHandler fatalErrorHandler,
 				@Nullable String webInterfaceUrl,
 				AMRMClientAsync<AMRMClient.ContainerRequest> mockResourceManagerClient,
-				NMClient mockNMClient,
-				JobManagerMetricGroup jobManagerMetricGroup) {
+				NMClient mockNMClient) {
 			super(
 				rpcService,
 				resourceManagerEndpointId,
@@ -194,8 +191,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				jobLeaderIdService,
 				clusterInformation,
 				fatalErrorHandler,
-				webInterfaceUrl,
-				jobManagerMetricGroup);
+				webInterfaceUrl);
 			this.mockNMClient = mockNMClient;
 			this.mockResourceManagerClient = mockResourceManagerClient;
 		}
@@ -252,8 +248,6 @@ public class YarnResourceManagerTest extends TestLogger {
 		public NMClient mockNMClient = mock(NMClient.class);
 		public AMRMClientAsync<AMRMClient.ContainerRequest> mockResourceManagerClient =
 				mock(AMRMClientAsync.class);
-		public JobManagerMetricGroup mockJMMetricGroup =
-				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup();
 
 		/**
 		 * Create mock RM dependencies.
@@ -280,8 +274,7 @@ public class YarnResourceManagerTest extends TestLogger {
 							testingFatalErrorHandler,
 							null,
 							mockResourceManagerClient,
-							mockNMClient,
-							mockJMMetricGroup);
+							mockNMClient);
 		}
 
 		/**

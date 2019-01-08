@@ -29,7 +29,7 @@
 
   (testing "Exhaust all attempts."
     (let [failing-always (fn [] (throw (Exception. "Expected")))]
-      (is (nil? (retry failing-always :retries 1 :delay 0 :fallback :nil)))))
+      (is (nil? (retry failing-always :retries 1 :delay 0)))))
 
   (testing "Propagate exception."
     (let [failing-always (fn [] (throw (Exception. "Expected")))]

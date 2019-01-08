@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.util;
 
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.FileUtils;
 
 import org.junit.ClassRule;
@@ -59,7 +58,7 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 	private static final int DEFAULT_PARALLELISM = 4;
 
 	@ClassRule
-	public static MiniClusterWithClientResource miniClusterResource = new MiniClusterWithClientResource(
+	public static MiniClusterResource miniClusterResource = new MiniClusterResource(
 		new MiniClusterResourceConfiguration.Builder()
 			.setNumberTaskManagers(1)
 			.setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)

@@ -101,7 +101,6 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
-import static org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever.JOB_GRAPH_FILE_PATH;
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME;
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.getDynamicProperties;
@@ -111,6 +110,12 @@ import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.getDynamicProperties
  */
 public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractYarnClusterDescriptor.class);
+
+	/**
+	 * Minimum memory requirements, checked by the Client.
+	 */
+	private static final int MIN_JM_MEMORY = 768; // the minimum memory should be higher than the min heap cutoff
+	private static final int MIN_TM_MEMORY = 768;
 
 	private final YarnConfiguration yarnConfiguration;
 
@@ -277,27 +282,18 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 
 		// Check if we don't exceed YARN's maximum virtual cores.
-		// Fetch numYarnMaxVcores from all the RUNNING nodes via yarnClient
-		final int numYarnMaxVcores;
-		try {
-			numYarnMaxVcores = yarnClient.getNodeReports(NodeState.RUNNING)
-				.stream()
-				.mapToInt(report -> report.getCapability().getVirtualCores())
-				.max()
-				.orElse(0);
-		} catch (Exception e) {
-			throw new YarnDeploymentException("Couldn't get cluster description, please check on the YarnConfiguration", e);
-		}
-
+		// The number of cores can be configured in the config.
+		// If not configured, it is set to the number of task slots
+		int numYarnVcores = yarnConfiguration.getInt(YarnConfiguration.NM_VCORES, YarnConfiguration.DEFAULT_NM_VCORES);
 		int configuredVcores = flinkConfiguration.getInteger(YarnConfigOptions.VCORES, clusterSpecification.getSlotsPerTaskManager());
 		// don't configure more than the maximum configured number of vcores
-		if (configuredVcores > numYarnMaxVcores) {
+		if (configuredVcores > numYarnVcores) {
 			throw new IllegalConfigurationException(
-				String.format("The number of requested virtual cores per node %d" +
-						" exceeds the maximum number of virtual cores %d available in the Yarn Cluster." +
-						" Please note that the number of virtual cores is set to the number of task slots by default" +
-						" unless configured in the Flink config with '%s.'",
-					configuredVcores, numYarnMaxVcores, YarnConfigOptions.VCORES.key()));
+				String.format("The number of virtual cores per node were configured with %d" +
+						" but Yarn only has %d virtual cores available. Please note that the number" +
+						" of virtual cores is set to the number of task slots by default unless configured" +
+						" in the Flink config with '%s.'",
+					configuredVcores, numYarnVcores, YarnConfigOptions.VCORES.key()));
 		}
 
 		// check if required Hadoop environment variables are set. If not, warn user
@@ -550,7 +546,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			jobGraph,
 			yarnClient,
 			yarnApplication,
-			validClusterSpecification);
+			clusterSpecification);
 
 		String host = report.getHost();
 		int port = report.getRpcPort();
@@ -565,8 +561,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// the Flink cluster is deployed in YARN. Represent cluster
 		return createYarnClusterClient(
 			this,
-			validClusterSpecification.getNumberTaskManagers(),
-			validClusterSpecification.getSlotsPerTaskManager(),
+			clusterSpecification.getNumberTaskManagers(),
+			clusterSpecification.getSlotsPerTaskManager(),
 			report,
 			flinkConfiguration,
 			true);
@@ -581,6 +577,16 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		int taskManagerCount = clusterSpecification.getNumberTaskManagers();
 		int jobManagerMemoryMb = clusterSpecification.getMasterMemoryMB();
 		int taskManagerMemoryMb = clusterSpecification.getTaskManagerMemoryMB();
+
+		if (jobManagerMemoryMb < MIN_JM_MEMORY) {
+			LOG.warn("The minimum JobManager memory is {}. Will set the JobManager memory to this value.", MIN_JM_MEMORY);
+			jobManagerMemoryMb = MIN_JM_MEMORY;
+		}
+
+		if (taskManagerMemoryMb < MIN_TM_MEMORY) {
+			LOG.warn("The minimum TaskManager memory is {}. Will set the Taskmanager memory to this value.", MIN_TM_MEMORY);
+			taskManagerMemoryMb = MIN_TM_MEMORY;
+		}
 
 		if (jobManagerMemoryMb < yarnMinAllocationMB || taskManagerMemoryMb < yarnMinAllocationMB) {
 			LOG.warn("The JobManager or TaskManager memory is below the smallest possible YARN Container size. "
@@ -888,11 +894,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					obOutput.writeObject(jobGraph);
 				}
 
-				final String jobGraphFilename = "job.graph";
-				flinkConfiguration.setString(JOB_GRAPH_FILE_PATH, jobGraphFilename);
-
 				Path pathFromYarnURL = setupSingleLocalResource(
-					jobGraphFilename,
+					"job.graph",
 					fs,
 					appId,
 					new Path(fp.toURI()),
@@ -900,7 +903,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					homeDir,
 					"");
 				paths.add(pathFromYarnURL);
-				classPathBuilder.append(jobGraphFilename).append(File.pathSeparator);
+				classPathBuilder.append("job.graph").append(File.pathSeparator);
 			} catch (Exception e) {
 				LOG.warn("Add job graph to local resource fail");
 				throw e;
@@ -1598,11 +1601,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		final  Map<String, String> startCommandValues = new HashMap<>();
 		startCommandValues.put("java", "$JAVA_HOME/bin/java");
-
-		int heapSize = Utils.calculateHeapSize(jobManagerMemoryMb, flinkConfiguration);
-		String jvmHeapMem = String.format("-Xms%sm -Xmx%sm", heapSize, heapSize);
-		startCommandValues.put("jvmmem", jvmHeapMem);
-
+		startCommandValues.put("jvmmem", "-Xmx" +
+			Utils.calculateHeapSize(jobManagerMemoryMb, flinkConfiguration) +
+			"m");
 		startCommandValues.put("jvmopts", javaOpts);
 		String logging = "";
 
@@ -1652,7 +1653,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	/**
-	 * Creates a YarnClusterClient; may be overridden in tests.
+	 * Creates a YarnClusterClient; may be overriden in tests.
 	 */
 	protected abstract ClusterClient<ApplicationId> createYarnClusterClient(
 			AbstractYarnClusterDescriptor descriptor,

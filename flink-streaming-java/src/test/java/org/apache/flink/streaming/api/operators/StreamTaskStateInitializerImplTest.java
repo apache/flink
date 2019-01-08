@@ -22,8 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -93,8 +91,7 @@ public class StreamTaskStateInitializerImplTest {
 			streamOperator.getClass().getSimpleName(),
 			streamOperator,
 			typeSerializer,
-			closeableRegistry,
-			new UnregisteredMetricsGroup());
+			closeableRegistry);
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
@@ -143,8 +140,7 @@ public class StreamTaskStateInitializerImplTest {
 				TypeSerializer<K> keySerializer,
 				int numberOfKeyGroups, KeyGroupRange keyGroupRange,
 				TaskKvStateRegistry kvStateRegistry,
-				TtlTimeProvider ttlTimeProvider,
-				MetricGroup metricGroup) throws Exception {
+				TtlTimeProvider ttlTimeProvider) throws Exception {
 				return mock(AbstractKeyedStateBackend.class);
 			}
 
@@ -196,8 +192,7 @@ public class StreamTaskStateInitializerImplTest {
 			streamOperator.getClass().getSimpleName(),
 			streamOperator,
 			typeSerializer,
-			closeableRegistry,
-			new UnregisteredMetricsGroup());
+			closeableRegistry);
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();

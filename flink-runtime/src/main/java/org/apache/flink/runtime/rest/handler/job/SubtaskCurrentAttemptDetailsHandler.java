@@ -39,6 +39,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -49,6 +50,7 @@ public class SubtaskCurrentAttemptDetailsHandler extends AbstractSubtaskHandler<
 	private final MetricFetcher<?> metricFetcher;
 
 	public SubtaskCurrentAttemptDetailsHandler(
+		CompletableFuture<String> localRestAddress,
 		GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 		Time timeout,
 		Map<String, String> responseHeaders,
@@ -57,7 +59,7 @@ public class SubtaskCurrentAttemptDetailsHandler extends AbstractSubtaskHandler<
 		Executor executor,
 		MetricFetcher<?> metricFetcher) {
 
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
+		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
 
 		this.metricFetcher = Preconditions.checkNotNull(metricFetcher);
 	}

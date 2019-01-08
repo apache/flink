@@ -18,9 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -29,7 +26,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * Counts of checkpoints.
  */
 public class CheckpointStatsCounts implements Serializable {
-	private static final Logger LOG = LoggerFactory.getLogger(CheckpointStatsCounts.class);
 
 	private static final long serialVersionUID = -5229425063269482528L;
 
@@ -151,8 +147,9 @@ public class CheckpointStatsCounts implements Serializable {
 	 * {@link #incrementInProgressCheckpoints()}.
 	 */
 	void incrementCompletedCheckpoints() {
-		if (canDecrementOfInProgressCheckpointsNumber()) {
-			numInProgressCheckpoints--;
+		if (--numInProgressCheckpoints < 0) {
+			throw new IllegalStateException("Incremented the completed number of checkpoints " +
+				"without incrementing the in progress checkpoints before.");
 		}
 		numCompletedCheckpoints++;
 	}
@@ -164,8 +161,9 @@ public class CheckpointStatsCounts implements Serializable {
 	 * {@link #incrementInProgressCheckpoints()}.
 	 */
 	void incrementFailedCheckpoints() {
-		if (canDecrementOfInProgressCheckpointsNumber()) {
-			numInProgressCheckpoints--;
+		if (--numInProgressCheckpoints < 0) {
+			throw new IllegalStateException("Incremented the completed number of checkpoints " +
+				"without incrementing the in progress checkpoints before.");
 		}
 		numFailedCheckpoints++;
 	}
@@ -182,15 +180,5 @@ public class CheckpointStatsCounts implements Serializable {
 			numInProgressCheckpoints,
 			numCompletedCheckpoints,
 			numFailedCheckpoints);
-	}
-
-	private boolean canDecrementOfInProgressCheckpointsNumber() {
-		boolean decrementLeadsToNegativeNumber = numInProgressCheckpoints - 1 < 0;
-		if (decrementLeadsToNegativeNumber) {
-			String errorMessage = "Incremented the completed number of checkpoints " +
-				"without incrementing the in progress checkpoints before.";
-			LOG.warn(errorMessage);
-		}
-		return !decrementLeadsToNegativeNumber;
 	}
 }

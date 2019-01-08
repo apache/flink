@@ -74,13 +74,13 @@ class TtlFoldingStateVerifier extends AbstractTtlStateVerifier<
 			return null;
 		}
 		long acc = INIT_VAL;
-		long lastTs = updates.get(0).getTimestamp();
+		long lastTs = updates.get(0).getTimestampAfterUpdate();
 		for (ValueWithTs<Integer> update : updates) {
-			if (expired(lastTs, update.getTimestamp())) {
+			if (expired(lastTs, update.getTimestampAfterUpdate())) {
 				acc = INIT_VAL;
 			}
 			acc += update.getValue();
-			lastTs = update.getTimestamp();
+			lastTs = update.getTimestampAfterUpdate();
 		}
 		return expired(lastTs, currentTimestamp) ? null : acc;
 	}

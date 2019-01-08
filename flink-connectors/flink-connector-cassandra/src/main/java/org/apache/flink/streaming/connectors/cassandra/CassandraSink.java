@@ -37,8 +37,6 @@ import org.apache.flink.types.Row;
 
 import com.datastax.driver.core.Cluster;
 
-import java.time.Duration;
-
 import scala.Product;
 
 /**
@@ -237,20 +235,17 @@ public class CassandraSink<IN> {
 		protected final DataStream<IN> input;
 		protected final TypeSerializer<IN> serializer;
 		protected final TypeInformation<IN> typeInfo;
-		protected final CassandraSinkBaseConfig.Builder configBuilder;
 		protected ClusterBuilder builder;
 		protected String keyspace;
 		protected MapperOptions mapperOptions;
 		protected String query;
 		protected CheckpointCommitter committer;
 		protected boolean isWriteAheadLogEnabled;
-		protected CassandraFailureHandler failureHandler;
 
 		public CassandraSinkBuilder(DataStream<IN> input, TypeInformation<IN> typeInfo, TypeSerializer<IN> serializer) {
 			this.input = input;
 			this.typeInfo = typeInfo;
 			this.serializer = serializer;
-			this.configBuilder = CassandraSinkBaseConfig.newBuilder();
 		}
 
 		/**
@@ -360,46 +355,6 @@ public class CassandraSink<IN> {
 		}
 
 		/**
-		 * Sets the failure handler for this sink. The failure handler is used to provide custom error handling.
-		 *
-		 * @param failureHandler CassandraFailureHandler, that handles any Throwable error.
-		 *
-		 * @return this builder
-		 */
-		public CassandraSinkBuilder<IN> setFailureHandler(CassandraFailureHandler failureHandler) {
-			this.failureHandler = failureHandler;
-			return this;
-		}
-
-		/**
-		 * Sets the maximum allowed number of concurrent requests for this sink.
-		 *
-		 * <p>This call has no effect if {@link CassandraSinkBuilder#enableWriteAheadLog()} is called.
-		 *
-		 * @param maxConcurrentRequests maximum number of concurrent requests allowed
-		 * @param timeout timeout duration when acquiring a permit to execute
-		 * @return this builder
-		 */
-		public CassandraSinkBuilder<IN> setMaxConcurrentRequests(int maxConcurrentRequests, Duration timeout) {
-			this.configBuilder.setMaxConcurrentRequests(maxConcurrentRequests);
-			this.configBuilder.setMaxConcurrentRequestsTimeout(timeout);
-			return this;
-		}
-
-		/**
-		 * Sets the maximum allowed number of concurrent requests for this sink.
-		 *
-		 * <p>This call has no effect if {@link CassandraSinkBuilder#enableWriteAheadLog()} is called.
-		 *
-		 * @param maxConcurrentRequests maximum number of concurrent requests allowed
-		 * @return this builder
-		 */
-		public CassandraSinkBuilder<IN> setMaxConcurrentRequests(int maxConcurrentRequests) {
-			this.configBuilder.setMaxConcurrentRequests(maxConcurrentRequests);
-			return this;
-		}
-
-		/**
 		 * Finalizes the configuration of this sink.
 		 *
 		 * @return finalized sink
@@ -407,9 +362,6 @@ public class CassandraSink<IN> {
 		 */
 		public CassandraSink<IN> build() throws Exception {
 			sanityCheck();
-			if (failureHandler == null) {
-				failureHandler = new NoOpCassandraFailureHandler();
-			}
 			return isWriteAheadLogEnabled
 				? createWriteAheadSink()
 				: createSink();
@@ -448,12 +400,7 @@ public class CassandraSink<IN> {
 
 		@Override
 		public CassandraSink<IN> createSink() throws Exception {
-			final CassandraTupleSink<IN> sink = new CassandraTupleSink<>(
-				query,
-				builder,
-				configBuilder.build(),
-				failureHandler);
-			return new CassandraSink<>(input.addSink(sink).name("Cassandra Sink"));
+			return new CassandraSink<>(input.addSink(new CassandraTupleSink<IN>(query, builder)).name("Cassandra Sink"));
 		}
 
 		@Override
@@ -485,13 +432,8 @@ public class CassandraSink<IN> {
 
 		@Override
 		protected CassandraSink<Row> createSink() throws Exception {
-			final CassandraRowSink sink = new CassandraRowSink(
-				typeInfo.getArity(),
-				query,
-				builder,
-				configBuilder.build(),
-				failureHandler);
-			return new CassandraSink<>(input.addSink(sink).name("Cassandra Sink"));
+			return new CassandraSink<>(input.addSink(new CassandraRowSink(typeInfo.getArity(), query, builder)).name("Cassandra Sink"));
+
 		}
 
 		@Override
@@ -521,14 +463,7 @@ public class CassandraSink<IN> {
 
 		@Override
 		public CassandraSink<IN> createSink() throws Exception {
-			final CassandraPojoSink<IN> sink = new CassandraPojoSink<>(
-				typeInfo.getTypeClass(),
-				builder,
-				mapperOptions,
-				keyspace,
-				configBuilder.build(),
-				failureHandler);
-			return new CassandraSink<>(input.addSink(sink).name("Cassandra Sink"));
+			return new CassandraSink<>(input.addSink(new CassandraPojoSink<>(typeInfo.getTypeClass(), builder, mapperOptions, keyspace)).name("Cassandra Sink"));
 		}
 
 		@Override
@@ -542,6 +477,7 @@ public class CassandraSink<IN> {
 	 * @param <IN>
 	 */
 	public static class CassandraScalaProductSinkBuilder<IN extends Product> extends CassandraSinkBuilder<IN> {
+
 		public CassandraScalaProductSinkBuilder(DataStream<IN> input, TypeInformation<IN> typeInfo, TypeSerializer<IN> serializer) {
 			super(input, typeInfo, serializer);
 		}
@@ -559,12 +495,7 @@ public class CassandraSink<IN> {
 
 		@Override
 		public CassandraSink<IN> createSink() throws Exception {
-			final CassandraScalaProductSink<IN> sink = new CassandraScalaProductSink<>(
-				query,
-				builder,
-				configBuilder.build(),
-				failureHandler);
-			return new CassandraSink<>(input.addSink(sink).name("Cassandra Sink"));
+			return new CassandraSink<>(input.addSink(new CassandraScalaProductSink<IN>(query, builder)).name("Cassandra Sink"));
 		}
 
 		@Override

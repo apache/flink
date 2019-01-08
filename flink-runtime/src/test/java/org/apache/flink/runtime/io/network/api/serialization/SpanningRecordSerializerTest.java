@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.api.serialization;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
 import org.apache.flink.testutils.serialization.types.SerializationTestTypeFactory;
 import org.apache.flink.testutils.serialization.types.Util;
@@ -41,25 +40,25 @@ public class SpanningRecordSerializerTest {
 
 	@Test
 	public void testHasSerializedData() throws IOException {
+		final int segmentSize = 16;
+
 		final SpanningRecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<>();
 		final SerializationTestType randomIntRecord = Util.randomRecord(SerializationTestTypeFactory.INT);
 
 		Assert.assertFalse(serializer.hasSerializedData());
 
-		serializer.serializeRecord(randomIntRecord);
+		serializer.addRecord(randomIntRecord);
 		Assert.assertTrue(serializer.hasSerializedData());
 
-		final BufferBuilder bufferBuilder1 = createBufferBuilder(16);
-		serializer.copyToBufferBuilder(bufferBuilder1);
+		serializer.continueWritingWithNextBufferBuilder(createBufferBuilder(segmentSize));
 		Assert.assertFalse(serializer.hasSerializedData());
 
-		final BufferBuilder bufferBuilder2 = createBufferBuilder(8);
-		serializer.reset();
-		serializer.copyToBufferBuilder(bufferBuilder2);
+		serializer.continueWritingWithNextBufferBuilder(createBufferBuilder(8));
+
+		serializer.addRecord(randomIntRecord);
 		Assert.assertFalse(serializer.hasSerializedData());
 
-		serializer.reset();
-		serializer.copyToBufferBuilder(bufferBuilder2);
+		serializer.addRecord(randomIntRecord);
 		// Buffer builder full!
 		Assert.assertTrue(serializer.hasSerializedData());
 	}
@@ -69,10 +68,15 @@ public class SpanningRecordSerializerTest {
 		final int segmentSize = 11;
 
 		final SpanningRecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<>();
-		final BufferBuilder bufferBuilder1 = createBufferBuilder(segmentSize);
 
-		Assert.assertEquals(RecordSerializer.SerializationResult.FULL_RECORD,
-			serializer.copyToBufferBuilder(bufferBuilder1));
+		try {
+			Assert.assertEquals(
+				RecordSerializer.SerializationResult.FULL_RECORD,
+				serializer.continueWritingWithNextBufferBuilder(createBufferBuilder(segmentSize)));
+		} catch (IOException e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
 
 		SerializationTestType emptyRecord = new SerializationTestType() {
 			@Override
@@ -102,19 +106,17 @@ public class SpanningRecordSerializerTest {
 			}
 		};
 
-		serializer.serializeRecord(emptyRecord);
-		Assert.assertEquals(RecordSerializer.SerializationResult.FULL_RECORD, serializer.copyToBufferBuilder(bufferBuilder1));
+		RecordSerializer.SerializationResult result = serializer.addRecord(emptyRecord);
+		Assert.assertEquals(RecordSerializer.SerializationResult.FULL_RECORD, result);
 
-		serializer.reset();
-		Assert.assertEquals(RecordSerializer.SerializationResult.FULL_RECORD, serializer.copyToBufferBuilder(bufferBuilder1));
+		result = serializer.addRecord(emptyRecord);
+		Assert.assertEquals(RecordSerializer.SerializationResult.FULL_RECORD, result);
 
-		serializer.reset();
-		Assert.assertEquals(RecordSerializer.SerializationResult.PARTIAL_RECORD_MEMORY_SEGMENT_FULL,
-			serializer.copyToBufferBuilder(bufferBuilder1));
+		result = serializer.addRecord(emptyRecord);
+		Assert.assertEquals(RecordSerializer.SerializationResult.PARTIAL_RECORD_MEMORY_SEGMENT_FULL, result);
 
-		final BufferBuilder bufferBuilder2 = createBufferBuilder(segmentSize);
-		Assert.assertEquals(RecordSerializer.SerializationResult.FULL_RECORD,
-			serializer.copyToBufferBuilder(bufferBuilder2));
+		result = serializer.continueWritingWithNextBufferBuilder(createBufferBuilder(segmentSize));
+		Assert.assertEquals(RecordSerializer.SerializationResult.FULL_RECORD, result);
 	}
 
 	@Test
@@ -167,29 +169,26 @@ public class SpanningRecordSerializerTest {
 
 		// -------------------------------------------------------------------------------------------------------------
 
-		BufferBuilder bufferBuilder = createBufferBuilder(segmentSize);
+		serializer.continueWritingWithNextBufferBuilder(createBufferBuilder(segmentSize));
+
 		int numBytes = 0;
 		for (SerializationTestType record : records) {
-			serializer.serializeRecord(record);
-			RecordSerializer.SerializationResult result = serializer.copyToBufferBuilder(bufferBuilder);
+			RecordSerializer.SerializationResult result = serializer.addRecord(record);
 			numBytes += record.length() + serializationOverhead;
 
 			if (numBytes < segmentSize) {
 				Assert.assertEquals(RecordSerializer.SerializationResult.FULL_RECORD, result);
 			} else if (numBytes == segmentSize) {
 				Assert.assertEquals(RecordSerializer.SerializationResult.FULL_RECORD_MEMORY_SEGMENT_FULL, result);
-				bufferBuilder = createBufferBuilder(segmentSize);
+				serializer.continueWritingWithNextBufferBuilder(createBufferBuilder(segmentSize));
 				numBytes = 0;
 			} else {
 				Assert.assertEquals(RecordSerializer.SerializationResult.PARTIAL_RECORD_MEMORY_SEGMENT_FULL, result);
 
 				while (result.isFullBuffer()) {
 					numBytes -= segmentSize;
-					bufferBuilder = createBufferBuilder(segmentSize);
-					result = serializer.copyToBufferBuilder(bufferBuilder);
+					result = serializer.continueWritingWithNextBufferBuilder(createBufferBuilder(segmentSize));
 				}
-
-				Assert.assertTrue(result.isFullRecord());
 			}
 		}
 	}

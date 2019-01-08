@@ -67,14 +67,11 @@ object TransitiveClosureNaive {
       val terminate = prevPaths
         .coGroup(nextPaths)
         .where(0).equalTo(0) {
-          (
-            prev: Iterator[(Long, Long)],
-            next: Iterator[(Long, Long)],
-            out: Collector[(Long, Long)]) => {
-              val prevPaths = prev.toSet
-              for (n <- next)
-                if (!prevPaths.contains(n)) out.collect(n)
-            }
+          (prev, next, out: Collector[(Long, Long)]) => {
+            val prevPaths = prev.toSet
+            for (n <- next)
+              if (!prevPaths.contains(n)) out.collect(n)
+          }
       }.withForwardedFieldsSecond("*")
       (nextPaths, terminate)
     }

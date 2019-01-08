@@ -26,28 +26,8 @@ public class CassandraRowSink extends AbstractCassandraTupleSink<Row> {
 
 	private final int rowArity;
 
-	public CassandraRowSink(
-			int rowArity,
-			String insertQuery,
-			ClusterBuilder builder) {
-		this(rowArity, insertQuery, builder, CassandraSinkBaseConfig.newBuilder().build());
-	}
-
-	CassandraRowSink(
-			int rowArity,
-			String insertQuery,
-			ClusterBuilder builder,
-			CassandraSinkBaseConfig config) {
-		this(rowArity, insertQuery, builder, config, new NoOpCassandraFailureHandler());
-	}
-
-	CassandraRowSink(
-			int rowArity,
-			String insertQuery,
-			ClusterBuilder builder,
-			CassandraSinkBaseConfig config,
-			CassandraFailureHandler failureHandler) {
-		super(insertQuery, builder, config, failureHandler);
+	public CassandraRowSink(int rowArity, String insertQuery, ClusterBuilder builder) {
+		super(insertQuery, builder);
 		this.rowArity = rowArity;
 	}
 

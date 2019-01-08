@@ -36,7 +36,11 @@ export FLINK_CONF_DIR
 export FLINK_BIN_DIR
 export FLINK_LIB_DIR
 
-ENTRY_POINT=org.apache.flink.mesos.entrypoint.MesosSessionClusterEntrypoint
+ENTRY_POINT=org.apache.flink.mesos.runtime.clusterframework.MesosApplicationMasterRunner
+
+if [[ "${FLINK_MODE}" == "new" ]]; then
+    ENTRY_POINT=org.apache.flink.mesos.entrypoint.MesosSessionClusterEntrypoint
+fi
 
 exec $JAVA_RUN $JVM_ARGS -classpath "$CC_CLASSPATH" $log_setting ${ENTRY_POINT} "$@"
 

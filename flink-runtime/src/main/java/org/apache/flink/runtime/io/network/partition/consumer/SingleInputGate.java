@@ -545,7 +545,7 @@ public class SingleInputGate implements InputGate {
 
 				currentChannel = inputChannelsWithData.remove();
 				enqueuedInputChannelsWithData.clear(currentChannel.getChannelIndex());
-				moreAvailable = !inputChannelsWithData.isEmpty();
+				moreAvailable = inputChannelsWithData.size() > 0;
 			}
 
 			result = currentChannel.getNextBuffer();

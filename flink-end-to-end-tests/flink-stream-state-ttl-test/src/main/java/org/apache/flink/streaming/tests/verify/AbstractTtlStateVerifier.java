@@ -86,18 +86,15 @@ abstract class AbstractTtlStateVerifier<D extends StateDescriptor<S, SV>, S exte
 	@Override
 	public boolean verify(@Nonnull TtlVerificationContext<?, ?> verificationContextRaw) {
 		TtlVerificationContext<UV, GV> verificationContext = (TtlVerificationContext<UV, GV>) verificationContextRaw;
-		long currentTimestamp = verificationContext.getUpdateContext().getTimestamp();
-
-		GV valueBeforeUpdate = verificationContext.getUpdateContext().getValueBeforeUpdate();
 		List<ValueWithTs<UV>> updates = new ArrayList<>(verificationContext.getPrevUpdates());
-		GV expectedValueBeforeUpdate = expected(updates, currentTimestamp);
-
-		GV valueAfterUpdate = verificationContext.getUpdateContext().getValueAfterUpdate();
+		long currentTimestamp = verificationContext.getUpdateContext().getTimestampBeforeUpdate();
+		GV prevValue = expected(updates, currentTimestamp);
+		GV valueBeforeUpdate = verificationContext.getUpdateContext().getValueBeforeUpdate();
 		ValueWithTs<UV> update = verificationContext.getUpdateContext().getUpdateWithTs();
+		GV updatedValue = verificationContext.getUpdateContext().getUpdatedValue();
 		updates.add(update);
-		GV expectedValueAfterUpdate = expected(updates, currentTimestamp);
-
-		return Objects.equals(valueBeforeUpdate, expectedValueBeforeUpdate) && Objects.equals(valueAfterUpdate, expectedValueAfterUpdate);
+		GV expectedValue = expected(updates, currentTimestamp);
+		return Objects.equals(valueBeforeUpdate, prevValue) && Objects.equals(updatedValue, expectedValue);
 	}
 
 	abstract GV expected(@Nonnull List<ValueWithTs<UV>> updates, long currentTimestamp);

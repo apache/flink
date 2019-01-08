@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.client.gateway;
 
-import java.util.Objects;
-
 /**
  * Result with an attached type (actual payload, EOS, etc.).
  *
@@ -55,23 +53,6 @@ public class TypedResult<P> {
 	@Override
 	public String toString() {
 		return "TypedResult<" + type + ">";
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		TypedResult<?> that = (TypedResult<?>) o;
-		return type == that.type && Objects.equals(payload, that.payload);
-	}
-
-	@Override
-	public int hashCode() {
-		return Objects.hash(type, payload);
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -72,7 +72,7 @@ public abstract class BufferBlockerTestBase {
 			bufferRnd.setSeed(bufferSeed);
 
 			final int numEventsAndBuffers = rnd.nextInt(maxNumEventsAndBuffers) + 1;
-			final int numberOfChannels = rnd.nextInt(maxNumChannels) + 1;
+			final int numChannels = rnd.nextInt(maxNumChannels) + 1;
 
 			final ArrayList<BufferOrEvent> events = new ArrayList<BufferOrEvent>(128);
 
@@ -81,10 +81,10 @@ public abstract class BufferBlockerTestBase {
 				boolean isEvent = rnd.nextDouble() < 0.05d;
 				BufferOrEvent evt;
 				if (isEvent) {
-					evt = generateRandomEvent(rnd, numberOfChannels);
+					evt = generateRandomEvent(rnd, numChannels);
 					events.add(evt);
 				} else {
-					evt = generateRandomBuffer(bufferRnd.nextInt(PAGE_SIZE) + 1, bufferRnd.nextInt(numberOfChannels));
+					evt = generateRandomBuffer(bufferRnd.nextInt(PAGE_SIZE) + 1, bufferRnd.nextInt(numChannels));
 				}
 				bufferBlocker.add(evt);
 			}
@@ -106,7 +106,7 @@ public abstract class BufferBlockerTestBase {
 					assertEquals(expected.getEvent(), next.getEvent());
 					assertEquals(expected.getChannelIndex(), next.getChannelIndex());
 				} else {
-					validateBuffer(next, bufferRnd.nextInt(PAGE_SIZE) + 1, bufferRnd.nextInt(numberOfChannels));
+					validateBuffer(next, bufferRnd.nextInt(PAGE_SIZE) + 1, bufferRnd.nextInt(numChannels));
 				}
 			}
 
@@ -150,7 +150,7 @@ public abstract class BufferBlockerTestBase {
 				final Random bufferRnd = new Random(bufferSeed);
 
 				final int numEventsAndBuffers = rnd.nextInt(maxNumEventsAndBuffers) + 1;
-				final int numberOfChannels = rnd.nextInt(maxNumChannels) + 1;
+				final int numChannels = rnd.nextInt(maxNumChannels) + 1;
 
 				final ArrayList<BufferOrEvent> events = new ArrayList<BufferOrEvent>(128);
 
@@ -162,10 +162,10 @@ public abstract class BufferBlockerTestBase {
 						boolean isEvent = rnd.nextDouble() < 0.05;
 						BufferOrEvent evt;
 						if (isEvent) {
-							evt = generateRandomEvent(rnd, numberOfChannels);
+							evt = generateRandomEvent(rnd, numChannels);
 							events.add(evt);
 						} else {
-							evt = generateRandomBuffer(bufferRnd.nextInt(PAGE_SIZE) + 1, bufferRnd.nextInt(numberOfChannels));
+							evt = generateRandomBuffer(bufferRnd.nextInt(PAGE_SIZE) + 1, bufferRnd.nextInt(numChannels));
 						}
 						bufferBlocker.add(evt);
 						generated++;
@@ -179,7 +179,7 @@ public abstract class BufferBlockerTestBase {
 							assertEquals(expected.getChannelIndex(), next.getChannelIndex());
 						} else {
 							Random validationRnd = currentSequence.bufferRnd;
-							validateBuffer(next, validationRnd.nextInt(PAGE_SIZE) + 1, validationRnd.nextInt(currentSequence.numberOfChannels));
+							validateBuffer(next, validationRnd.nextInt(PAGE_SIZE) + 1, validationRnd.nextInt(currentSequence.numChannels));
 						}
 
 						currentNumRecordAndEvents++;
@@ -207,7 +207,7 @@ public abstract class BufferBlockerTestBase {
 				bufferRnd.setSeed(bufferSeed);
 				BufferOrEventSequence seq = bufferBlocker.rollOverReusingResources();
 
-				SequenceToConsume stc = new SequenceToConsume(bufferRnd, events, seq, numEventsAndBuffers, numberOfChannels);
+				SequenceToConsume stc = new SequenceToConsume(bufferRnd, events, seq, numEventsAndBuffers, numChannels);
 
 				if (currentSequence == null) {
 					currentSequence = stc;
@@ -229,7 +229,7 @@ public abstract class BufferBlockerTestBase {
 				assertEquals(expected.getChannelIndex(), next.getChannelIndex());
 			} else {
 				Random validationRnd = currentSequence.bufferRnd;
-				validateBuffer(next, validationRnd.nextInt(PAGE_SIZE) + 1, validationRnd.nextInt(currentSequence.numberOfChannels));
+				validateBuffer(next, validationRnd.nextInt(PAGE_SIZE) + 1, validationRnd.nextInt(currentSequence.numChannels));
 			}
 
 			currentNumRecordAndEvents++;
@@ -259,13 +259,13 @@ public abstract class BufferBlockerTestBase {
 	//  Utils
 	// ------------------------------------------------------------------------
 
-	private static BufferOrEvent generateRandomEvent(Random rnd, int numberOfChannels) {
+	private static BufferOrEvent generateRandomEvent(Random rnd, int numChannels) {
 		long magicNumber = rnd.nextLong();
 		byte[] data = new byte[rnd.nextInt(1000)];
 		rnd.nextBytes(data);
 		TestEvent evt = new TestEvent(magicNumber, data);
 
-		int channelIndex = rnd.nextInt(numberOfChannels);
+		int channelIndex = rnd.nextInt(numChannels);
 
 		return new BufferOrEvent(evt, channelIndex);
 	}
@@ -307,19 +307,19 @@ public abstract class BufferBlockerTestBase {
 		final ArrayList<BufferOrEvent> events;
 		final Random bufferRnd;
 		final int numBuffersAndEvents;
-		final int numberOfChannels;
+		final int numChannels;
 
 		private SequenceToConsume(
 				Random bufferRnd,
 				ArrayList<BufferOrEvent> events,
 				BufferOrEventSequence sequence,
 				int numBuffersAndEvents,
-				int numberOfChannels) {
+				int numChannels) {
 			this.bufferRnd = bufferRnd;
 			this.events = events;
 			this.sequence = sequence;
 			this.numBuffersAndEvents = numBuffersAndEvents;
-			this.numberOfChannels = numberOfChannels;
+			this.numChannels = numChannels;
 		}
 	}
 }

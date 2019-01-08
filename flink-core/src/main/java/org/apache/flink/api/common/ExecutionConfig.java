@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.Preconditions;
 
@@ -45,7 +44,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *     <li>The default parallelism of the program, i.e., how many parallel tasks to use for
  *         all functions that do not define a specific value directly.</li>
  *     <li>The number of retries in the case of failed executions.</li>
- *     <li>The delay between execution retries.</li>
+ *     <li>The delay between delay between execution retries.</li>
  *     <li>The {@link ExecutionMode} of the program: Batch or Pipelined.
  *         The default execution mode is {@link ExecutionMode#PIPELINED}</li>
  *     <li>Enabling or disabling the "closure cleaner". The closure cleaner pre-processes
@@ -132,9 +131,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/**
 	 * Interval in milliseconds for sending latency tracking marks from the sources to the sinks.
 	 */
-	private long latencyTrackingInterval = MetricOptions.LATENCY_INTERVAL.defaultValue();
-
-	private boolean isLatencyTrackingConfigured = false;
+	private long latencyTrackingInterval = 2000L;
 
 	/**
 	 * @deprecated Should no longer be used because it is subsumed by RestartStrategyConfiguration
@@ -237,6 +234,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * Interval for sending latency tracking marks from the sources to the sinks.
 	 * Flink will send latency tracking marks from the sources at the specified interval.
 	 *
+	 * Recommended value: 2000 (2 seconds).
+	 *
 	 * Setting a tracking interval <= 0 disables the latency tracking.
 	 *
 	 * @param interval Interval in milliseconds.
@@ -244,7 +243,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	@PublicEvolving
 	public ExecutionConfig setLatencyTrackingInterval(long interval) {
 		this.latencyTrackingInterval = interval;
-		this.isLatencyTrackingConfigured = true;
 		return this;
 	}
 
@@ -258,17 +256,12 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 
 	/**
-	 * @deprecated will be removed in a future version
+	 * Returns if latency tracking is enabled
+	 * @return True, if the tracking is enabled, false otherwise.
 	 */
 	@PublicEvolving
-	@Deprecated
 	public boolean isLatencyTrackingEnabled() {
-		return isLatencyTrackingConfigured && latencyTrackingInterval > 0;
-	}
-
-	@Internal
-	public boolean isLatencyTrackingConfigured() {
-		return isLatencyTrackingConfigured;
+		return latencyTrackingInterval > 0;
 	}
 
 	/**
@@ -554,7 +547,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * is used, Flink will throw an {@code UnsupportedOperationException} whenever it encounters
 	 * a data type that would go through Kryo for serialization.
 	 *
-	 * <p>Disabling generic types can be helpful to eagerly find and eliminate the use of types
+	 * <p>Disabling generic types can be helpful to eagerly find and eliminate teh use of types
 	 * that would go through Kryo serialization during runtime. Rather than checking types
 	 * individually, using this option will throw exceptions eagerly in the places where generic
 	 * types are used.

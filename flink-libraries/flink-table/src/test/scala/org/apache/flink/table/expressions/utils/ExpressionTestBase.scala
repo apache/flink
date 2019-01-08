@@ -23,7 +23,6 @@ import java.util.concurrent.Future
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql2rel.RelDecorrelator
@@ -59,7 +58,7 @@ import scala.collection.mutable
   */
 abstract class ExpressionTestBase {
 
-  private val testExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
+  private val testExprs = mutable.ArrayBuffer[(RexNode, String)]()
 
   // setup test utils
   private val tableName = "testTable"
@@ -119,7 +118,7 @@ abstract class ExpressionTestBase {
     val generator = new FunctionCodeGenerator(config, false, typeInfo)
 
     // cast expressions to String
-    val stringTestExprs = testExprs.map(expr => relBuilder.cast(expr._2, VARCHAR))
+    val stringTestExprs = testExprs.map(expr => relBuilder.cast(expr._1, VARCHAR))
 
     // generate code
     val resultType = new RowTypeInfo(Seq.fill(testExprs.size)(STRING_TYPE_INFO): _*)
@@ -171,10 +170,10 @@ abstract class ExpressionTestBase {
     testExprs
       .zipWithIndex
       .foreach {
-        case ((originalExpr, optimizedExpr, expected), index) =>
+        case ((expr, expected), index) =>
           val actual = result.getField(index)
           assertEquals(
-            s"Wrong result for: [$originalExpr] optimized to: [$optimizedExpr]",
+            s"Wrong result for: $expr",
             expected,
             if (actual == null) "null" else actual)
       }
@@ -186,35 +185,70 @@ abstract class ExpressionTestBase {
     val validated = planner.validate(parsed)
     val converted = planner.rel(validated).rel
 
-    val env = context._2.asInstanceOf[BatchTableEnvironment]
-    val optimized = env.optimize(converted)
+    val decorPlan = RelDecorrelator.decorrelateQuery(converted)
+
+    // normalize
+    val normalizedPlan = if (FlinkRuleSets.DATASET_NORM_RULES.iterator().hasNext) {
+      val planner = hepPlanner
+      planner.setRoot(decorPlan)
+      planner.findBestExp
+    } else {
+      decorPlan
+    }
+
+    // convert to logical plan
+    val logicalProps = converted.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
+    val logicalCalc = logicalOptProgram.run(context._2.getPlanner, normalizedPlan, logicalProps,
+      ImmutableList.of(), ImmutableList.of())
+
+    // convert to dataset plan
+    val physicalProps = converted.getTraitSet.replace(FlinkConventions.DATASET).simplify()
+    val dataSetCalc = dataSetOptProgram.run(context._2.getPlanner, logicalCalc, physicalProps,
+      ImmutableList.of(), ImmutableList.of())
 
     // throw exception if plan contains more than a calc
-    if (!optimized.getInput(0).isInstanceOf[DataSetScan]) {
+    if (!dataSetCalc.getInput(0).isInstanceOf[DataSetScan]) {
       fail("Expression is converted into more than a Calc operation. Use a different test method.")
     }
 
-    testExprs += ((sqlExpr, extractRexNode(optimized), expected))
+    // extract RexNode
+    val calcProgram = dataSetCalc
+     .asInstanceOf[DataSetCalc]
+     .getProgram
+    val expanded = calcProgram.expandLocalRef(calcProgram.getProjectList.get(0))
+
+    testExprs += ((expanded, expected))
   }
 
   private def addTableApiTestExpr(tableApiExpr: Expression, expected: String): Unit = {
     // create RelNode from Table API expression
-    val env = context._2.asInstanceOf[BatchTableEnvironment]
+    val env = context._2
     val converted = env
+      .asInstanceOf[BatchTableEnvironment]
       .scan(tableName)
       .select(tableApiExpr)
       .getRelNode
 
-    val optimized = env.optimize(converted)
+    // create DataSetCalc
+    val decorPlan = RelDecorrelator.decorrelateQuery(converted)
 
-    testExprs += ((tableApiExpr.toString, extractRexNode(optimized), expected))
-  }
+    // convert to logical plan
+    val flinkLogicalProps = converted.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
+    val logicalCalc = logicalOptProgram.run(context._2.getPlanner, decorPlan, flinkLogicalProps,
+      ImmutableList.of(), ImmutableList.of())
 
-  private def extractRexNode(node: RelNode): RexNode = {
-    val calcProgram = node
-      .asInstanceOf[DataSetCalc]
-      .getProgram
-    calcProgram.expandLocalRef(calcProgram.getProjectList.get(0))
+    // convert to dataset plan
+    val flinkPhysicalProps = converted.getTraitSet.replace(FlinkConventions.DATASET).simplify()
+    val dataSetCalc = dataSetOptProgram.run(context._2.getPlanner, logicalCalc, flinkPhysicalProps,
+      ImmutableList.of(), ImmutableList.of())
+
+    // extract RexNode
+    val calcProgram = dataSetCalc
+     .asInstanceOf[DataSetCalc]
+     .getProgram
+    val expanded = calcProgram.expandLocalRef(calcProgram.getProjectList.get(0))
+
+    testExprs += ((expanded, expected))
   }
 
   private def addTableApiTestExpr(tableApiString: String, expected: String): Unit = {

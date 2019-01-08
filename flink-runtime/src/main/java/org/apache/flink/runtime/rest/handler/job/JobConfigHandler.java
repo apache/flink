@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -46,6 +47,7 @@ import java.util.concurrent.Executor;
 public class JobConfigHandler extends AbstractExecutionGraphHandler<JobConfigInfo, JobMessageParameters> implements JsonArchivist {
 
 	public JobConfigHandler(
+			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
@@ -54,6 +56,7 @@ public class JobConfigHandler extends AbstractExecutionGraphHandler<JobConfigInf
 			Executor executor) {
 
 		super(
+			localRestAddress,
 			leaderRetriever,
 			timeout,
 			responseHeaders,

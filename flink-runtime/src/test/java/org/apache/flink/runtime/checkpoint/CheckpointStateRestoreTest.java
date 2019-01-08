@@ -39,7 +39,6 @@ import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.junit.Test;
 import org.mockito.Mockito;
-import org.mockito.hamcrest.MockitoHamcrest;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -158,9 +157,9 @@ public class CheckpointStateRestoreTest {
 				}
 			};
 
-			verify(statefulExec1, times(1)).setInitialState(MockitoHamcrest.argThat(matcher));
-			verify(statefulExec2, times(1)).setInitialState(MockitoHamcrest.argThat(matcher));
-			verify(statefulExec3, times(1)).setInitialState(MockitoHamcrest.argThat(matcher));
+			verify(statefulExec1, times(1)).setInitialState(Mockito.argThat(matcher));
+			verify(statefulExec2, times(1)).setInitialState(Mockito.argThat(matcher));
+			verify(statefulExec3, times(1)).setInitialState(Mockito.argThat(matcher));
 			verify(statelessExec1, times(0)).setInitialState(Mockito.<JobManagerTaskRestore>any());
 			verify(statelessExec2, times(0)).setInitialState(Mockito.<JobManagerTaskRestore>any());
 		}
