@@ -105,10 +105,10 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 				} else if (input != null && input.isStreamRecord()) {
 					Object inputElement = input.getStreamRecord();
 
-					delegate.setInstance(inputElement);
-					recordSerializer.serializeRecord(delegate);
 					BufferBuilder bufferBuilder = createBufferBuilder(bufferSize);
-					recordSerializer.copyToBufferBuilder(bufferBuilder);
+					recordSerializer.continueWritingWithNextBufferBuilder(bufferBuilder);
+					delegate.setInstance(inputElement);
+					recordSerializer.addRecord(delegate);
 					bufferBuilder.finish();
 
 					// Call getCurrentBuffer to ensure size is set

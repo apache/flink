@@ -246,12 +246,13 @@ public class Kafka extends ConnectorDescriptor {
 		return this;
 	}
 
+	/**
+	 * Internal method for connector properties conversion.
+	 */
 	@Override
-	protected Map<String, String> toConnectorProperties() {
-		final DescriptorProperties properties = new DescriptorProperties();
-
+	public void addConnectorProperties(DescriptorProperties properties) {
 		if (version != null) {
-			properties.putString(CONNECTOR_VERSION, version);
+			properties.putString(CONNECTOR_VERSION(), version);
 		}
 
 		if (topic != null) {
@@ -289,7 +290,5 @@ public class Kafka extends ConnectorDescriptor {
 				properties.putClass(CONNECTOR_SINK_PARTITIONER_CLASS, sinkPartitionerClass);
 			}
 		}
-
-		return properties.asMap();
 	}
 }

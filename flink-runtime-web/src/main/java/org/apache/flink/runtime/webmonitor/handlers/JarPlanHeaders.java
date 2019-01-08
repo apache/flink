@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
@@ -27,7 +28,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 /**
  * Message headers for {@link JarPlanHandler}.
  */
-public class JarPlanHeaders implements MessageHeaders<JarPlanRequestBody, JobPlanInfo, JarPlanMessageParameters> {
+public class JarPlanHeaders implements MessageHeaders<EmptyRequestBody, JobPlanInfo, JarPlanMessageParameters> {
 
 	private static final JarPlanHeaders INSTANCE = new JarPlanHeaders();
 
@@ -42,8 +43,8 @@ public class JarPlanHeaders implements MessageHeaders<JarPlanRequestBody, JobPla
 	}
 
 	@Override
-	public Class<JarPlanRequestBody> getRequestClass() {
-		return JarPlanRequestBody.class;
+	public Class<EmptyRequestBody> getRequestClass() {
+		return EmptyRequestBody.class;
 	}
 
 	@Override
@@ -67,7 +68,6 @@ public class JarPlanHeaders implements MessageHeaders<JarPlanRequestBody, JobPla
 
 	@Override
 	public String getDescription() {
-		return "Returns the dataflow plan of a job contained in a jar previously uploaded via '" + JarUploadHeaders.URL + "'. " +
-			"Program arguments can be passed both via the JSON request (recommended) or query parameters.";
+		return "Returns the dataflow plan of a job contained in a jar previously uploaded via '" + JarUploadHeaders.URL + "'.";
 	}
 }

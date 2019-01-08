@@ -67,26 +67,28 @@ final class RowWisePartWriter<IN, BucketID> extends PartFileWriter<IN, BucketID>
 		@Override
 		public PartFileWriter<IN, BucketID> resumeFrom(
 				final BucketID bucketId,
-				final RecoverableFsDataOutputStream stream,
+				final RecoverableWriter fileSystemWriter,
 				final RecoverableWriter.ResumeRecoverable resumable,
 				final long creationTime) throws IOException {
 
-			Preconditions.checkNotNull(stream);
+			Preconditions.checkNotNull(fileSystemWriter);
 			Preconditions.checkNotNull(resumable);
 
+			final RecoverableFsDataOutputStream stream = fileSystemWriter.recover(resumable);
 			return new RowWisePartWriter<>(bucketId, stream, encoder, creationTime);
 		}
 
 		@Override
 		public PartFileWriter<IN, BucketID> openNew(
 				final BucketID bucketId,
-				final RecoverableFsDataOutputStream stream,
+				final RecoverableWriter fileSystemWriter,
 				final Path path,
 				final long creationTime) throws IOException {
 
-			Preconditions.checkNotNull(stream);
+			Preconditions.checkNotNull(fileSystemWriter);
 			Preconditions.checkNotNull(path);
 
+			final RecoverableFsDataOutputStream stream = fileSystemWriter.open(path);
 			return new RowWisePartWriter<>(bucketId, stream, encoder, creationTime);
 		}
 	}

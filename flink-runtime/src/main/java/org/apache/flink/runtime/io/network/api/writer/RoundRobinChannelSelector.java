@@ -29,19 +29,26 @@ import org.apache.flink.core.io.IOReadableWritable;
  */
 public class RoundRobinChannelSelector<T extends IOReadableWritable> implements ChannelSelector<T> {
 
-	/** Stores the index of the channel to send the next record to. */
-	private final int[] nextChannelToSendTo = new int[] { -1 };
+	/**
+	 * Stores the index of the channel to send the next record to.
+	 */
+	private final int[] nextChannelToSendTo = new int[1];
 
-	private int numberOfChannels;
-
-	@Override
-	public void setup(int numberOfChannels) {
-		this.numberOfChannels = numberOfChannels;
+	/**
+	 * Constructs a new default channel selector.
+	 */
+	public RoundRobinChannelSelector() {
+		this.nextChannelToSendTo[0] = 0;
 	}
 
 	@Override
-	public int[] selectChannels(final T record) {
-		nextChannelToSendTo[0] = (nextChannelToSendTo[0] + 1) % numberOfChannels;
-		return nextChannelToSendTo;
+	public int[] selectChannels(final T record, final int numberOfOutputChannels) {
+
+		int newChannel = ++this.nextChannelToSendTo[0];
+		if (newChannel >= numberOfOutputChannels) {
+			this.nextChannelToSendTo[0] = 0;
+		}
+
+		return this.nextChannelToSendTo;
 	}
 }

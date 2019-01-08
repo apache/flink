@@ -344,6 +344,9 @@ public class StreamingFileSink<IN>
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
 		Preconditions.checkState(bucketStates != null && maxPartCountersState != null, "sink has not been initialized");
 
+		bucketStates.clear();
+		maxPartCountersState.clear();
+
 		buckets.snapshotState(
 				context.getCheckpointId(),
 				bucketStates,
@@ -372,8 +375,6 @@ public class StreamingFileSink<IN>
 
 	@Override
 	public void close() throws Exception {
-		if (buckets != null) {
-			buckets.close();
-		}
+		buckets.close();
 	}
 }

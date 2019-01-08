@@ -20,9 +20,8 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerializationUtil;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.InstantiationUtil;
@@ -96,19 +95,19 @@ public class EnumSerializerTest extends TestLogger {
 
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-				new DataOutputViewStreamWrapper(out), serializer.snapshotConfiguration(), serializer);
+			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
+				new DataOutputViewStreamWrapper(out), serializer.snapshotConfiguration());
 			serializedConfig = out.toByteArray();
 		}
 
-		TypeSerializerSnapshot<PublicEnum> restoredConfig;
+		TypeSerializerConfigSnapshot restoredConfig;
 		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-			restoredConfig = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
-				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader(), serializer);
+			restoredConfig = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
+				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		TypeSerializerSchemaCompatibility<PublicEnum> compatResult = restoredConfig.resolveSchemaCompatibility(serializer);
-		assertTrue(compatResult.isCompatibleAsIs());
+		CompatibilityResult<PublicEnum> compatResult = serializer.ensureCompatibility(restoredConfig);
+		assertFalse(compatResult.isRequiresMigration());
 
 		assertEquals(PublicEnum.FOO.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.FOO).intValue());
 		assertEquals(PublicEnum.BAR.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.BAR).intValue());

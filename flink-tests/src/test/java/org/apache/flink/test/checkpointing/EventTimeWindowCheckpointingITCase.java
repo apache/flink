@@ -35,7 +35,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -46,7 +45,8 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.test.checkpointing.utils.FailingSource;
 import org.apache.flink.test.checkpointing.utils.IntType;
 import org.apache.flink.test.checkpointing.utils.ValidatingSink;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -91,7 +91,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
 	private TestingServer zkServer;
 
-	public MiniClusterWithClientResource miniClusterResource;
+	public MiniClusterResource miniClusterResource;
 
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
@@ -117,8 +117,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		return this.stateBackendEnum;
 	}
 
-	protected final MiniClusterWithClientResource getMiniClusterResource() {
-		return new MiniClusterWithClientResource(
+	protected final MiniClusterResource getMiniClusterResource() {
+		return new MiniClusterResource(
 			new MiniClusterResourceConfiguration.Builder()
 				.setConfiguration(getConfigurationSafe())
 				.setNumberTaskManagers(2)

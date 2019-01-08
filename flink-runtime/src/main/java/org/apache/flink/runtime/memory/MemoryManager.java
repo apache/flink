@@ -36,7 +36,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Set;
 
 /**
@@ -455,7 +454,7 @@ public class MemoryManager {
 					// the only way to exit the loop
 					successfullyReleased = true;
 				}
-				catch (ConcurrentModificationException | NoSuchElementException e) {
+				catch (ConcurrentModificationException e) {
 					// this may happen in the case where an asynchronous
 					// call releases the memory. fall through the loop and try again
 				}
@@ -676,7 +675,8 @@ public class MemoryManager {
 
 		@Override
 		MemorySegment allocateNewSegment(Object owner) {
-			return MemorySegmentFactory.allocateUnpooledOffHeapMemory(segmentSize, owner);
+			ByteBuffer memory = ByteBuffer.allocateDirect(segmentSize);
+			return MemorySegmentFactory.wrapPooledOffHeapMemory(memory, owner);
 		}
 
 		@Override

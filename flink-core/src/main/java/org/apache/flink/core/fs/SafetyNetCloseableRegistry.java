@@ -87,7 +87,7 @@ public class SafetyNetCloseableRegistry extends
 
 		assert Thread.holdsLock(getSynchronizationLock());
 
-		Closeable innerCloseable = WrappingProxyUtil.stripProxy(wrappingProxyCloseable);
+		Closeable innerCloseable = WrappingProxyUtil.stripProxy(wrappingProxyCloseable.getWrappedDelegate());
 
 		if (null == innerCloseable) {
 			return;
@@ -108,7 +108,7 @@ public class SafetyNetCloseableRegistry extends
 
 		assert Thread.holdsLock(getSynchronizationLock());
 
-		Closeable innerCloseable = WrappingProxyUtil.stripProxy(closeable);
+		Closeable innerCloseable = WrappingProxyUtil.stripProxy(closeable.getWrappedDelegate());
 
 		return null != innerCloseable && closeableMap.remove(innerCloseable) != null;
 	}

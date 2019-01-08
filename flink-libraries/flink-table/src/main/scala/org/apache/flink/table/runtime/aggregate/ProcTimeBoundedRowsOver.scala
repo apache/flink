@@ -110,7 +110,7 @@ class ProcTimeBoundedRowsOver(
     val currentTime = ctx.timerService.currentProcessingTime
 
     // register state-cleanup timer
-    processCleanupTimer(ctx, currentTime)
+    registerProcessingCleanupTimer(ctx, currentTime)
 
     // initialize state for the processed element
     var accumulators = accumulatorState.value
@@ -187,7 +187,7 @@ class ProcTimeBoundedRowsOver(
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
 
-    if (stateCleaningEnabled) {
+    if (needToCleanupState(timestamp)) {
       cleanupState(rowMapState, accumulatorState, counterState, smallestTsState)
       function.cleanup()
     }

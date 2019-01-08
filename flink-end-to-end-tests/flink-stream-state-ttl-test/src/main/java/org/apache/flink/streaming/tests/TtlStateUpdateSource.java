@@ -33,9 +33,6 @@ import java.util.stream.Collectors;
  * and waits for {@code sleepTime} to continue generation.
  */
 class TtlStateUpdateSource extends RichParallelSourceFunction<TtlStateUpdate> {
-
-	private static final long serialVersionUID = 1L;
-
 	private final int maxKey;
 	private final long sleepAfterElements;
 	private final long sleepTime;

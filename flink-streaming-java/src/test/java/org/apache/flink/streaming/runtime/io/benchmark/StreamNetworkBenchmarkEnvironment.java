@@ -39,8 +39,8 @@ import org.apache.flink.runtime.io.network.api.writer.RoundRobinChannelSelector;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -68,6 +68,11 @@ import static org.apache.flink.util.MathUtils.checkedDownCast;
  */
 public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 
+	private static final int BUFFER_SIZE =
+		checkedDownCast(MemorySize.parse(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue()).getBytes());
+
+	private static final int NUM_SLOTS_AND_THREADS = 1;
+
 	private static final InetAddress LOCAL_ADDRESS;
 
 	static {
@@ -87,26 +92,9 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	protected IOManager ioManager;
 
 	protected int channels;
-	protected boolean broadcastMode = false;
 	protected boolean localMode = false;
 
 	protected ResultPartitionID[] partitionIds;
-
-	public void setUp(
-			int writers,
-			int channels,
-			boolean localMode,
-			int senderBufferPoolSize,
-			int receiverBufferPoolSize) throws Exception {
-		setUp(
-			writers,
-			channels,
-			false,
-			localMode,
-			senderBufferPoolSize,
-			receiverBufferPoolSize,
-			new Configuration());
-	}
 
 	/**
 	 * Sets up the environment including buffer pools and netty threads.
@@ -125,12 +113,9 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	public void setUp(
 			int writers,
 			int channels,
-			boolean broadcastMode,
 			boolean localMode,
 			int senderBufferPoolSize,
-			int receiverBufferPoolSize,
-			Configuration config) throws Exception {
-		this.broadcastMode = broadcastMode;
+			int receiverBufferPoolSize) throws Exception {
 		this.localMode = localMode;
 		this.channels = channels;
 		this.partitionIds = new ResultPartitionID[writers];
@@ -143,13 +128,13 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 
 		ioManager = new IOManagerAsync();
 
-		senderEnv = createNettyNetworkEnvironment(senderBufferPoolSize, config);
+		senderEnv = createNettyNetworkEnvironment(senderBufferPoolSize);
 		senderEnv.start();
 		if (localMode && senderBufferPoolSize == receiverBufferPoolSize) {
 			receiverEnv = senderEnv;
 		}
 		else {
-			receiverEnv = createNettyNetworkEnvironment(receiverBufferPoolSize, config);
+			receiverEnv = createNettyNetworkEnvironment(receiverBufferPoolSize);
 			receiverEnv.start();
 		}
 
@@ -194,25 +179,12 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	}
 
 	private NetworkEnvironment createNettyNetworkEnvironment(
-			@SuppressWarnings("SameParameterValue") int bufferPoolSize, Configuration config) throws Exception {
+			@SuppressWarnings("SameParameterValue") int bufferPoolSize) throws Exception {
 
-		int segmentSize =
-			checkedDownCast(
-				MemorySize.parse(config.getString(TaskManagerOptions.MEMORY_SEGMENT_SIZE))
-					.getBytes());
-
-		// we need this because many configs have been written with a "-1" entry
-		// similar to TaskManagerServicesConfiguration#fromConfiguration()
-		// -> please note that this directly influences the number of netty threads!
-		int slots = config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
-		if (slots == -1) {
-			slots = 1;
-		}
-
-		final NetworkBufferPool bufferPool = new NetworkBufferPool(bufferPoolSize, segmentSize);
+		final NetworkBufferPool bufferPool = new NetworkBufferPool(bufferPoolSize, BUFFER_SIZE);
 
 		final NettyConnectionManager nettyConnectionManager = new NettyConnectionManager(
-			new NettyConfig(LOCAL_ADDRESS, 0, segmentSize, slots, config));
+			new NettyConfig(LOCAL_ADDRESS, 0, BUFFER_SIZE, NUM_SLOTS_AND_THREADS, new Configuration()));
 
 		return new NetworkEnvironment(
 			bufferPool,
@@ -315,5 +287,11 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 
 		@Override
 		public void failExternally(Throwable cause) {}
+	}
+
+	private static final class NoOpResultPartitionConsumableNotifier implements ResultPartitionConsumableNotifier {
+
+		@Override
+		public void notifyPartitionConsumable(JobID j, ResultPartitionID p, TaskActions t) {}
 	}
 }

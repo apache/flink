@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 
 /**
- * Test job which is used for {@link ClassPathJobGraphRetrieverTest}.
+ * Test job which is used for {@link StandaloneJobClusterEntryPointTest}.
  */
 public class TestJob {
 

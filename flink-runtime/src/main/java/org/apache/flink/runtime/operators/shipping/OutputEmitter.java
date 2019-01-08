@@ -43,9 +43,6 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 
 	/** counter to go over channels round robin */
 	private int nextChannelToSendTo = 0;
-
-	/** the total number of output channels */
-	private int numberOfChannels;
 	
 	/** the comparator for hashing / sorting */
 	private final TypeComparator<T> comparator;
@@ -134,12 +131,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(int numberOfChannels) {
-		this.numberOfChannels = numberOfChannels;
-	}
-
-	@Override
-	public final int[] selectChannels(SerializationDelegate<T> record) {
+	public final int[] selectChannels(SerializationDelegate<T> record, int numberOfChannels) {
 		switch (strategy) {
 		case FORWARD:
 			return forward();

@@ -39,8 +39,9 @@ public class ShufflePartitioner<T> extends StreamPartitioner<T> {
 	private final int[] returnArray = new int[1];
 
 	@Override
-	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record) {
-		returnArray[0] = random.nextInt(numberOfChannels);
+	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
+			int numberOfOutputChannels) {
+		returnArray[0] = random.nextInt(numberOfOutputChannels);
 		return returnArray;
 	}
 

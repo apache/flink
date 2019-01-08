@@ -24,7 +24,7 @@ import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
-import org.apache.flink.runtime.rest.handler.AbstractHandler;
+import org.apache.flink.runtime.rest.AbstractHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
@@ -90,6 +90,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 	private final LoadingCache<ResourceID, CompletableFuture<TransientBlobKey>> fileBlobKeys;
 
 	protected AbstractTaskManagerFileHandler(
+			@Nonnull CompletableFuture<String> localAddressFuture,
 			@Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			@Nonnull Time timeout,
 			@Nonnull Map<String, String> responseHeaders,
@@ -97,7 +98,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 			@Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 			@Nonnull TransientBlobService transientBlobService,
 			@Nonnull Time cacheEntryDuration) {
-		super(leaderRetriever, timeout, responseHeaders, untypedResponseMessageHeaders);
+		super(localAddressFuture, leaderRetriever, timeout, responseHeaders, untypedResponseMessageHeaders);
 
 		this.resourceManagerGatewayRetriever = Preconditions.checkNotNull(resourceManagerGatewayRetriever);
 

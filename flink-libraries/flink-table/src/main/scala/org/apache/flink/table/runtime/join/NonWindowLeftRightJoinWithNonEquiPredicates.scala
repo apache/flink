@@ -44,6 +44,7 @@ import org.apache.flink.util.Collector
 class NonWindowLeftRightJoinWithNonEquiPredicates(
     leftType: TypeInformation[Row],
     rightType: TypeInformation[Row],
+    resultType: TypeInformation[CRow],
     genJoinFuncName: String,
     genJoinFuncCode: String,
     isLeftJoin: Boolean,
@@ -51,6 +52,7 @@ class NonWindowLeftRightJoinWithNonEquiPredicates(
   extends NonWindowOuterJoinWithNonEquiPredicates(
     leftType,
     rightType,
+    resultType,
     genJoinFuncName,
     genJoinFuncCode,
     isLeftJoin,
@@ -71,13 +73,14 @@ class NonWindowLeftRightJoinWithNonEquiPredicates(
       value: CRow,
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       out: Collector[CRow],
+      timerState: ValueState[Long],
       currentSideState: MapState[Row, JTuple2[Long, Long]],
       otherSideState: MapState[Row, JTuple2[Long, Long]],
       recordFromLeft: Boolean): Unit = {
 
     val currentJoinCntState = getJoinCntState(joinCntState, recordFromLeft)
     val inputRow = value.row
-    val cntAndExpiredTime = updateCurrentSide(value, ctx, currentSideState)
+    val cntAndExpiredTime = updateCurrentSide(value, ctx, timerState, currentSideState)
     if (!value.change && cntAndExpiredTime.f0 <= 0 && recordFromLeft == isLeftJoin) {
       currentJoinCntState.remove(inputRow)
     }
@@ -100,21 +103,17 @@ class NonWindowLeftRightJoinWithNonEquiPredicates(
   }
 
   /**
-    * Called when a processing timer trigger.
-    * Expire left/right expired records and expired joinCnt state.
+    * Removes records which are expired from state. Register a new timer if the state still
+    * holds records after the clean-up. Also, clear joinCnt map state when clear rowMapState.
     */
-  override def onTimer(
-      timestamp: Long,
-      ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext,
-      out: Collector[CRow]): Unit = {
+  override def expireOutTimeRow(
+      curTime: Long,
+      rowMapState: MapState[Row, JTuple2[Long, Long]],
+      timerState: ValueState[Long],
+      isLeft: Boolean,
+      ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext): Unit = {
 
-    // expired timer has already been removed, delete state directly.
-    if (stateCleaningEnabled) {
-      cleanupState(
-        leftState,
-        rightState,
-        getJoinCntState(joinCntState, isLeftJoin))
-    }
+    expireOutTimeRow(curTime, rowMapState, timerState, isLeft, joinCntState, ctx)
   }
 }
 

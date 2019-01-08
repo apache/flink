@@ -120,13 +120,13 @@ abstract class StreamTableEnvironment(
         // check that event-time is enabled if table source includes rowtime attributes
         if (TableSourceUtil.hasRowtimeAttribute(streamTableSource) &&
           execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {
-            throw new TableException(
+            throw TableException(
               s"A rowtime attribute requires an EventTime time characteristic in stream " +
                 s"environment. But is: ${execEnv.getStreamTimeCharacteristic}")
         }
 
         // register
-        getTable(name) match {
+        Option(getTable(name)) match {
 
           // check if a table (source or sink) is registered
           case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
@@ -230,8 +230,8 @@ abstract class StreamTableEnvironment(
       tableSink: TableSink[_]): Unit = {
 
     checkValidTableName(name)
-    if (fieldNames == null) throw new TableException("fieldNames must not be null.")
-    if (fieldTypes == null) throw new TableException("fieldTypes must not be null.")
+    if (fieldNames == null) throw TableException("fieldNames must not be null.")
+    if (fieldTypes == null) throw TableException("fieldTypes must not be null.")
     if (fieldNames.length == 0) throw new TableException("fieldNames must not be empty.")
     if (fieldNames.length != fieldTypes.length) {
       throw new TableException("Same number of field names and types required.")
@@ -273,7 +273,7 @@ abstract class StreamTableEnvironment(
       case _: StreamTableSink[_] =>
 
         // check if a table (source or sink) is registered
-        getTable(name) match {
+        Option(getTable(name)) match {
 
           // table source and/or sink is registered
           case Some(table: TableSourceSinkTable[_, _]) => table.tableSinkTable match {
@@ -359,7 +359,7 @@ abstract class StreamTableEnvironment(
           case Some(keys) => upsertSink.setKeyFields(keys)
           case None if isAppendOnlyTable => upsertSink.setKeyFields(null)
           case None if !isAppendOnlyTable => throw new TableException(
-            "UpsertStreamTableSink requires that Table has full primary keys if it is updated.")
+            "UpsertStreamTableSink requires that Table has a full primary keys if it is updated.")
         }
         val outputType = sink.getOutputType
         val resultType = getResultType(table.getRelNode, optimizedPlan)
@@ -550,7 +550,7 @@ abstract class StreamTableEnvironment(
 
     // check if event-time is enabled
     if (rowtime.isDefined && execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {
-      throw new TableException(
+      throw TableException(
         s"A rowtime attribute requires an EventTime time characteristic in stream environment. " +
           s"But is: ${execEnv.getStreamTimeCharacteristic}")
     }
@@ -669,13 +669,10 @@ abstract class StreamTableEnvironment(
       case (RowtimeAttribute(UnresolvedFieldReference(name)), idx) =>
         extractRowtime(idx, name, None)
 
-      case (Alias(RowtimeAttribute(UnresolvedFieldReference(origName)), name, _), idx) =>
+      case (RowtimeAttribute(Alias(UnresolvedFieldReference(origName), name, _)), idx) =>
         extractRowtime(idx, name, Some(origName))
 
       case (ProctimeAttribute(UnresolvedFieldReference(name)), idx) =>
-        extractProctime(idx, name)
-
-      case (Alias(ProctimeAttribute(UnresolvedFieldReference(_)), name, _), idx) =>
         extractProctime(idx, name)
 
       case (UnresolvedFieldReference(name), _) => fieldNames = name :: fieldNames
@@ -683,8 +680,9 @@ abstract class StreamTableEnvironment(
       case (Alias(UnresolvedFieldReference(_), name, _), _) => fieldNames = name :: fieldNames
 
       case (e, _) =>
-        throw new TableException(s"Time attributes can only be defined on field references. " +
-          s"Rowtime attributes can replace existing fields, proctime attributes can not. " +
+        throw new TableException(s"Time attributes can only be defined on field references or " +
+          s"aliases of valid field references. Rowtime attributes can replace existing fields, " +
+          s"proctime attributes can not. " +
           s"But was: $e")
     }
 
@@ -805,38 +803,70 @@ abstract class StreamTableEnvironment(
     * @return The optimized [[RelNode]] tree
     */
   private[flink] def optimize(relNode: RelNode, updatesAsRetraction: Boolean): RelNode = {
-    val convSubQueryPlan = optimizeConvertSubQueries(relNode)
-    val expandedPlan = optimizeExpandPlan(convSubQueryPlan)
-    val decorPlan = RelDecorrelator.decorrelateQuery(expandedPlan)
-    val planWithMaterializedTimeAttributes =
-      RelTimeIndicatorConverter.convert(decorPlan, getRelBuilder.getRexBuilder)
-    val normalizedPlan = optimizeNormalizeLogicalPlan(planWithMaterializedTimeAttributes)
-    val logicalPlan = optimizeLogicalPlan(normalizedPlan)
 
-    val physicalPlan = optimizePhysicalPlan(logicalPlan, FlinkConventions.DATASTREAM)
-    optimizeDecoratePlan(physicalPlan, updatesAsRetraction)
-  }
+    // 0. convert sub-queries before query decorrelation
+    val convSubQueryPlan = runHepPlanner(
+      HepMatchOrder.BOTTOM_UP, FlinkRuleSets.TABLE_SUBQUERY_RULES, relNode, relNode.getTraitSet)
 
-  private[flink] def optimizeDecoratePlan(
-      relNode: RelNode,
-      updatesAsRetraction: Boolean): RelNode = {
+    // 0. convert table references
+    val fullRelNode = runHepPlanner(
+      HepMatchOrder.BOTTOM_UP,
+      FlinkRuleSets.TABLE_REF_RULES,
+      convSubQueryPlan,
+      relNode.getTraitSet)
+
+    // 1. decorrelate
+    val decorPlan = RelDecorrelator.decorrelateQuery(fullRelNode)
+
+    // 2. convert time indicators
+    val convPlan = RelTimeIndicatorConverter.convert(decorPlan, getRelBuilder.getRexBuilder)
+
+    // 3. normalize the logical plan
+    val normRuleSet = getNormRuleSet
+    val normalizedPlan = if (normRuleSet.iterator().hasNext) {
+      runHepPlanner(HepMatchOrder.BOTTOM_UP, normRuleSet, convPlan, convPlan.getTraitSet)
+    } else {
+      convPlan
+    }
+
+    // 4. optimize the logical Flink plan
+    val logicalOptRuleSet = getLogicalOptRuleSet
+    val logicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
+    val logicalPlan = if (logicalOptRuleSet.iterator().hasNext) {
+      runVolcanoPlanner(logicalOptRuleSet, normalizedPlan, logicalOutputProps)
+    } else {
+      normalizedPlan
+    }
+
+    // 5. optimize the physical Flink plan
+    val physicalOptRuleSet = getPhysicalOptRuleSet
+    val physicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.DATASTREAM).simplify()
+    val physicalPlan = if (physicalOptRuleSet.iterator().hasNext) {
+      runVolcanoPlanner(physicalOptRuleSet, logicalPlan, physicalOutputProps)
+    } else {
+      logicalPlan
+    }
+
+    // 6. decorate the optimized plan
     val decoRuleSet = getDecoRuleSet
-    if (decoRuleSet.iterator().hasNext) {
+    val decoratedPlan = if (decoRuleSet.iterator().hasNext) {
       val planToDecorate = if (updatesAsRetraction) {
-        relNode.copy(
-          relNode.getTraitSet.plus(new UpdateAsRetractionTrait(true)),
-          relNode.getInputs)
+        physicalPlan.copy(
+          physicalPlan.getTraitSet.plus(new UpdateAsRetractionTrait(true)),
+          physicalPlan.getInputs)
       } else {
-        relNode
+        physicalPlan
       }
-      runHepPlannerSequentially(
+      runHepPlanner(
         HepMatchOrder.BOTTOM_UP,
         decoRuleSet,
         planToDecorate,
         planToDecorate.getTraitSet)
     } else {
-      relNode
+      physicalPlan
     }
+
+    decoratedPlan
   }
 
   /**
@@ -968,7 +998,7 @@ abstract class StreamTableEnvironment(
       case node: DataStreamRel =>
         node.translateToPlan(this, queryConfig)
       case _ =>
-        throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
+        throw TableException("Cannot generate DataStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
     }
   }

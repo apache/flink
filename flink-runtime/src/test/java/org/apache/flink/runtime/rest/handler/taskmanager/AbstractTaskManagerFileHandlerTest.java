@@ -238,6 +238,7 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
 		final ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 
 		return new TestTaskManagerFileHandler(
+			CompletableFuture.completedFuture("localhost"),
 			() -> CompletableFuture.completedFuture(null),
 			TestingUtils.infiniteTime(),
 			Collections.emptyMap(),
@@ -276,8 +277,8 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
 
 		private final ResourceID expectedTaskManagerId;
 
-		protected TestTaskManagerFileHandler(@Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever, @Nonnull Time timeout, @Nonnull Map<String, String> responseHeaders, @Nonnull UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerMessageParameters> untypedResponseMessageHeaders, @Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever, @Nonnull TransientBlobService transientBlobService, @Nonnull Time cacheEntryDuration, Queue<CompletableFuture<TransientBlobKey>> requestFileUploads, ResourceID expectedTaskManagerId) {
-			super(leaderRetriever, timeout, responseHeaders, untypedResponseMessageHeaders, resourceManagerGatewayRetriever, transientBlobService, cacheEntryDuration);
+		protected TestTaskManagerFileHandler(@Nonnull CompletableFuture<String> localAddressFuture, @Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever, @Nonnull Time timeout, @Nonnull Map<String, String> responseHeaders, @Nonnull UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerMessageParameters> untypedResponseMessageHeaders, @Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever, @Nonnull TransientBlobService transientBlobService, @Nonnull Time cacheEntryDuration, Queue<CompletableFuture<TransientBlobKey>> requestFileUploads, ResourceID expectedTaskManagerId) {
+			super(localAddressFuture, leaderRetriever, timeout, responseHeaders, untypedResponseMessageHeaders, resourceManagerGatewayRetriever, transientBlobService, cacheEntryDuration);
 			this.requestFileUploads = Preconditions.checkNotNull(requestFileUploads);
 			this.expectedTaskManagerId = Preconditions.checkNotNull(expectedTaskManagerId);
 		}

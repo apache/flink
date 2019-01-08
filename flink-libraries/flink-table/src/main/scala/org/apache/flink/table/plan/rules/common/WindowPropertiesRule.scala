@@ -145,7 +145,7 @@ abstract class WindowPropertiesBaseRule(rulePredicate: RelOptRuleOperand, ruleNa
             // replace expression by access to window rowtime
             builder.field(propertyName(window, "rowtime"))
           case 'streamProctime =>
-            throw new ValidationException("A proctime window cannot provide a rowtime attribute.")
+            throw ValidationException("A proctime window cannot provide a rowtime attribute.")
           case _ =>
             throw new TableException("Unknown window type encountered. Please report this bug.")
         }
@@ -156,8 +156,7 @@ abstract class WindowPropertiesBaseRule(rulePredicate: RelOptRuleOperand, ruleNa
             // replace expression by access to window proctime
             builder.field(propertyName(window, "proctime"))
           case 'batchRowtime =>
-            throw new ValidationException(
-              "PROCTIME window property is not supported in batch queries.")
+            throw ValidationException("PROCTIME window property is not supported in batch queries.")
           case _ =>
             throw new TableException("Unknown window type encountered. Please report this bug.")
         }

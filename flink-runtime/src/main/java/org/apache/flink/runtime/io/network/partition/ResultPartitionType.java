@@ -18,9 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-/**
- * Type of a result partition.
- */
 public enum ResultPartitionType {
 
 	BLOCKING(false, false, false),
@@ -30,12 +27,12 @@ public enum ResultPartitionType {
 	/**
 	 * Pipelined partitions with a bounded (local) buffer pool.
 	 *
-	 * <p>For streaming jobs, a fixed limit on the buffer pool size should help avoid that too much
+	 * For streaming jobs, a fixed limit on the buffer pool size should help avoid that too much
 	 * data is being buffered and checkpoint barriers are delayed. In contrast to limiting the
 	 * overall network buffer pool size, this, however, still allows to be flexible with regards
 	 * to the total number of partitions by selecting an appropriately big network buffer pool size.
 	 *
-	 * <p>For batch jobs, it will be best to keep this unlimited ({@link #PIPELINED}) since there are
+	 * For batch jobs, it will be best to keep this unlimited ({@link #PIPELINED}) since there are
 	 * no checkpoint barriers.
 	 */
 	PIPELINED_BOUNDED(true, true, true);

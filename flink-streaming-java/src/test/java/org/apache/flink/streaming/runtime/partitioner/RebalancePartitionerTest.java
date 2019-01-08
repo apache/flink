@@ -18,32 +18,43 @@
 package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import org.junit.Before;
 import org.junit.Test;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for {@link RebalancePartitioner}.
  */
-public class RebalancePartitionerTest extends StreamPartitionerTest {
+public class RebalancePartitionerTest {
 
-	@Override
-	public StreamPartitioner<Tuple> createPartitioner() {
-		return new RebalancePartitioner<>();
+	private RebalancePartitioner<Tuple> distributePartitioner;
+	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>(null);
+	private SerializationDelegate<StreamRecord<Tuple>> sd = new SerializationDelegate<StreamRecord<Tuple>>(
+			null);
+
+	@Before
+	public void setPartitioner() {
+		distributePartitioner = new RebalancePartitioner<Tuple>();
+	}
+
+	@Test
+	public void testSelectChannelsLength() {
+		sd.setInstance(streamRecord);
+		assertEquals(1, distributePartitioner.selectChannels(sd, 1).length);
+		assertEquals(1, distributePartitioner.selectChannels(sd, 2).length);
+		assertEquals(1, distributePartitioner.selectChannels(sd, 1024).length);
 	}
 
 	@Test
 	public void testSelectChannelsInterval() {
-		final int numberOfChannels = 3;
-		streamPartitioner.setup(numberOfChannels);
-
-		int initialChannel = selectChannelAndAssertLength();
-		assertTrue(0 <= initialChannel);
-		assertTrue(numberOfChannels > initialChannel);
-
-		for (int i = 1; i <= 3; i++) {
-			assertSelectedChannel((initialChannel + i) % numberOfChannels);
-		}
+		sd.setInstance(streamRecord);
+		assertEquals(0, distributePartitioner.selectChannels(sd, 3)[0]);
+		assertEquals(1, distributePartitioner.selectChannels(sd, 3)[0]);
+		assertEquals(2, distributePartitioner.selectChannels(sd, 3)[0]);
+		assertEquals(0, distributePartitioner.selectChannels(sd, 3)[0]);
 	}
 }

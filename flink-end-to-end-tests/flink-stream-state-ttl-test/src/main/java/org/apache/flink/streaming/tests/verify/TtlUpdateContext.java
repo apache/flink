@@ -24,25 +24,25 @@ import java.io.Serializable;
 
 /** Contains context relevant for state update with TTL. */
 public class TtlUpdateContext<UV, GV> implements Serializable {
-
+	private final long timestampBeforeUpdate;
 	private final GV valueBeforeUpdate;
 	private final UV update;
-	private final GV valueAfterUpdate;
-	private final long timestamp;
+	private final GV updatedValue;
+	private final long timestampAfterUpdate;
 
 	public TtlUpdateContext(
-			GV valueBeforeUpdate,
-			UV update,
-			GV updatedValue,
-			long timestamp) {
+		long timestampBeforeUpdate,
+		GV valueBeforeUpdate, UV update, GV updatedValue,
+		long timestampAfterUpdate) {
 		this.valueBeforeUpdate = valueBeforeUpdate;
 		this.update = update;
-		this.valueAfterUpdate = updatedValue;
-		this.timestamp = timestamp;
+		this.updatedValue = updatedValue;
+		this.timestampBeforeUpdate = timestampBeforeUpdate;
+		this.timestampAfterUpdate = timestampAfterUpdate;
 	}
 
-	long getTimestamp() {
-		return timestamp;
+	long getTimestampBeforeUpdate() {
+		return timestampBeforeUpdate;
 	}
 
 	GV getValueBeforeUpdate() {
@@ -51,20 +51,21 @@ public class TtlUpdateContext<UV, GV> implements Serializable {
 
 	@Nonnull
 	public ValueWithTs<UV> getUpdateWithTs() {
-		return new ValueWithTs<>(update, timestamp);
+		return new ValueWithTs<>(update, timestampBeforeUpdate, timestampAfterUpdate);
 	}
 
-	GV getValueAfterUpdate() {
-		return valueAfterUpdate;
+	GV getUpdatedValue() {
+		return updatedValue;
 	}
 
 	@Override
 	public String toString() {
 		return "TtlUpdateContext{" +
-			"valueBeforeUpdate=" + valueBeforeUpdate +
+			"timestampBeforeUpdate=" + timestampBeforeUpdate +
+			", valueBeforeUpdate=" + valueBeforeUpdate +
 			", update=" + update +
-			", valueAfterUpdate=" + valueAfterUpdate +
-			", timestamp=" + timestamp +
+			", updatedValue=" + updatedValue +
+			", timestampAfterUpdate=" + timestampAfterUpdate +
 			'}';
 	}
 }

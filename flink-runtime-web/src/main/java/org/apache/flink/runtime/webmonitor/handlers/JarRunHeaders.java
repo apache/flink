@@ -68,7 +68,6 @@ public class JarRunHeaders implements MessageHeaders<JarRunRequestBody, JarRunRe
 
 	@Override
 	public String getDescription() {
-		return "Submits a job by running a jar previously uploaded via '" + JarUploadHeaders.URL + "'. " +
-			"Program arguments can be passed both via the JSON request (recommended) or query parameters.";
+		return "Submits a job by running a jar previously uploaded via '" + JarUploadHeaders.URL + "'.";
 	}
 }

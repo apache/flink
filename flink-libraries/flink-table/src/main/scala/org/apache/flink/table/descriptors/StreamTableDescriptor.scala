@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.descriptors
 
-import java.util
-
 import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.descriptors.StreamTableDescriptorValidator._
 
@@ -89,12 +87,15 @@ class StreamTableDescriptor(
 
   // ----------------------------------------------------------------------------------------------
 
-  override def toProperties: util.Map[String, String] = {
-    val properties = new DescriptorProperties()
-
-    properties.putProperties(super.toProperties)
+  /**
+    * Internal method for properties conversion.
+    */
+  override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
+    super.addProperties(properties)
     updateMode.foreach(mode => properties.putString(UPDATE_MODE, mode))
 
-    properties.asMap()
+    // this performs only basic validation
+    // more validation can only happen within a factory
+    new StreamTableDescriptorValidator().validate(properties)
   }
 }

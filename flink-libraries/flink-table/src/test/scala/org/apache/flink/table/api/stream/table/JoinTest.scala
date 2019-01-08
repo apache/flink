@@ -27,7 +27,7 @@ import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.Test
 
 /**
-  * Tests for both windowed and non-windowed joins.
+  * Currently only time-windowed joins can be processed in a streaming fashion.
   */
 class JoinTest extends TableTestBase {
 
@@ -57,8 +57,8 @@ class JoinTest extends TableTestBase {
             streamTableNode(1),
             term("select", "d", "e", "rrtime")
           ),
-          term("where", "AND(=(a, d), >=(CAST(lrtime), -(CAST(rrtime), 300000))," +
-            " <(CAST(lrtime), +(CAST(rrtime), 3000)))"),
+          term("where", "AND(=(a, d), >=(lrtime, -(rrtime, 300000))," +
+            " <(lrtime, +(rrtime, 3000)))"),
           term("join", "a", "lrtime", "d", "e", "rrtime"),
           term("joinType", "InnerJoin")
         ),
@@ -92,8 +92,7 @@ class JoinTest extends TableTestBase {
             streamTableNode(1),
             term("select", "d", "e", "rptime")
           ),
-          term("where", "AND(=(a, d), >=(PROCTIME(lptime), -(PROCTIME(rptime), 1000)), " +
-            "<(PROCTIME(lptime), PROCTIME(rptime)))"),
+          term("where", "AND(=(a, d), >=(lptime, -(rptime, 1000)), <(lptime, rptime))"),
           term("join", "a", "lptime", "d", "e", "rptime"),
           term("joinType", "InnerJoin")
         ),
@@ -127,7 +126,7 @@ class JoinTest extends TableTestBase {
             streamTableNode(1),
             term("select", "d", "e", "rptime")
           ),
-          term("where", "AND(=(a, d), =(PROCTIME(lptime), PROCTIME(rptime)))"),
+          term("where", "AND(=(a, d), =(lptime, rptime))"),
           term("join", "a", "lptime", "d", "e", "rptime"),
           term("joinType", "InnerJoin")
         ),
@@ -154,8 +153,7 @@ class JoinTest extends TableTestBase {
         streamTableNode(0),
         streamTableNode(1),
         term("where",
-          "AND(=(a, d), >=(CAST(lrtime), -(CAST(rrtime), 300000)), " +
-            "<(CAST(lrtime), CAST(rrtime)), >(CAST(lrtime), f))"),
+          "AND(=(a, d), >=(lrtime, -(rrtime, 300000)), <(lrtime, rrtime), >(lrtime, " + "f))"),
         term("join", "a", "b", "c", "lrtime", "d", "e", "f", "rrtime"),
         term("joinType", "InnerJoin")
       )
@@ -190,8 +188,8 @@ class JoinTest extends TableTestBase {
             streamTableNode(1),
             term("select", "d", "e", "rrtime")
           ),
-          term("where", "AND(=(a, d), >=(CAST(lrtime), -(CAST(rrtime), 300000))," +
-            " <(CAST(lrtime), +(CAST(rrtime), 3000)))"),
+          term("where", "AND(=(a, d), >=(lrtime, -(rrtime, 300000))," +
+            " <(lrtime, +(rrtime, 3000)))"),
           term("join", "a", "lrtime", "d", "e", "rrtime"),
           term("joinType", "LeftOuterJoin")
         ),
@@ -225,8 +223,7 @@ class JoinTest extends TableTestBase {
             streamTableNode(1),
             term("select", "d", "e", "rptime")
           ),
-          term("where", "AND(=(a, d), >=(PROCTIME(lptime), -(PROCTIME(rptime), 1000)), " +
-            "<(PROCTIME(lptime), PROCTIME(rptime)))"),
+          term("where", "AND(=(a, d), >=(lptime, -(rptime, 1000)), <(lptime, rptime))"),
           term("join", "a", "lptime", "d", "e", "rptime"),
           term("joinType", "LeftOuterJoin")
         ),
@@ -263,8 +260,8 @@ class JoinTest extends TableTestBase {
             streamTableNode(1),
             term("select", "d", "e", "rrtime")
           ),
-          term("where", "AND(=(a, d), >=(CAST(lrtime), -(CAST(rrtime), 300000))," +
-            " <(CAST(lrtime), +(CAST(rrtime), 3000)))"),
+          term("where", "AND(=(a, d), >=(lrtime, -(rrtime, 300000))," +
+            " <(lrtime, +(rrtime, 3000)))"),
           term("join", "a", "lrtime", "d", "e", "rrtime"),
           term("joinType", "RightOuterJoin")
         ),
@@ -298,8 +295,7 @@ class JoinTest extends TableTestBase {
             streamTableNode(1),
             term("select", "d", "e", "rptime")
           ),
-          term("where", "AND(=(a, d), >=(PROCTIME(lptime), -(PROCTIME(rptime), 1000)), " +
-            "<(PROCTIME(lptime), PROCTIME(rptime)))"),
+          term("where", "AND(=(a, d), >=(lptime, -(rptime, 1000)), <(lptime, rptime))"),
           term("join", "a", "lptime", "d", "e", "rptime"),
           term("joinType", "RightOuterJoin")
         ),
@@ -336,8 +332,8 @@ class JoinTest extends TableTestBase {
             streamTableNode(1),
             term("select", "d", "e", "rrtime")
           ),
-          term("where", "AND(=(a, d), >=(CAST(lrtime), -(CAST(rrtime), 300000))," +
-            " <(CAST(lrtime), +(CAST(rrtime), 3000)))"),
+          term("where", "AND(=(a, d), >=(lrtime, -(rrtime, 300000))," +
+            " <(lrtime, +(rrtime, 3000)))"),
           term("join", "a", "lrtime", "d", "e", "rrtime"),
           term("joinType", "FullOuterJoin")
         ),
@@ -371,8 +367,7 @@ class JoinTest extends TableTestBase {
             streamTableNode(1),
             term("select", "d", "e", "rptime")
           ),
-          term("where", "AND(=(a, d), >=(PROCTIME(lptime), -(PROCTIME(rptime), 1000)), " +
-            "<(PROCTIME(lptime), PROCTIME(rptime)))"),
+          term("where", "AND(=(a, d), >=(lptime, -(rptime, 1000)), <(lptime, rptime))"),
           term("join", "a", "lptime", "d", "e", "rptime"),
           term("joinType", "FullOuterJoin")
         ),
@@ -407,8 +402,8 @@ class JoinTest extends TableTestBase {
             streamTableNode(1),
             term("select", "d", "e", "rrtime")
           ),
-          term("where", "AND(=(a, d), >=(CAST(lrtime), -(CAST(rrtime), 300000))," +
-            " <(CAST(lrtime), +(CAST(rrtime), 3000)))"),
+          term("where", "AND(=(a, d), >=(lrtime, -(rrtime, 300000))," +
+            " <(lrtime, +(rrtime, 3000)))"),
           term("join", "a", "lrtime", "d", "e", "rrtime"),
           // Since we filter on attributes of the left table after the join, the left outer join
           // will be automatically optimized to inner join.

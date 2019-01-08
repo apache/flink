@@ -36,7 +36,7 @@ import java.util.Properties;
  * Kafka {@link StreamTableSource} for Kafka 0.8.
  */
 @Internal
-public class Kafka08TableSource extends KafkaTableSourceBase {
+public class Kafka08TableSource extends KafkaTableSource {
 
 	/**
 	 * Creates a Kafka 0.8 {@link StreamTableSource}.

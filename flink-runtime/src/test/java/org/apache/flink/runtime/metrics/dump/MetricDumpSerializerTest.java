@@ -70,10 +70,7 @@ public class MetricDumpSerializerTest {
 			Collections.<Meter, Tuple2<QueryScopeInfo, String>>emptyMap());
 
 		// no metrics should be serialized
-		Assert.assertEquals(0, output.serializedCounters.length);
-		Assert.assertEquals(0, output.serializedGauges.length);
-		Assert.assertEquals(0, output.serializedHistograms.length);
-		Assert.assertEquals(0, output.serializedMeters.length);
+		Assert.assertEquals(0, output.serializedMetrics.length);
 
 		List<MetricDump> deserialized = deserializer.deserialize(output);
 		Assert.assertEquals(0, deserialized.size());
@@ -144,8 +141,7 @@ public class MetricDumpSerializerTest {
 		gauges.put(g1, new Tuple2<QueryScopeInfo, String>(new QueryScopeInfo.TaskQueryScopeInfo("jid", "vid", 2, "D"), "g1"));
 		histograms.put(h1, new Tuple2<QueryScopeInfo, String>(new QueryScopeInfo.OperatorQueryScopeInfo("jid", "vid", 2, "opname", "E"), "h1"));
 
-		MetricDumpSerialization.MetricSerializationResult serialized = serializer.serialize(
-			counters, gauges, histograms, meters);
+		MetricDumpSerialization.MetricSerializationResult serialized = serializer.serialize(counters, gauges, histograms, meters);
 		List<MetricDump> deserialized = deserializer.deserialize(serialized);
 
 		// ===== Counters ==============================================================================================

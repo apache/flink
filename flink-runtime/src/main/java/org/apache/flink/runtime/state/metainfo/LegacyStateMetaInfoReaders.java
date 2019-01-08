@@ -19,10 +19,9 @@
 package org.apache.flink.runtime.state.metainfo;
 
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.typeutils.BackwardsCompatibleSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.core.memory.DataInputView;
@@ -61,14 +60,21 @@ public class LegacyStateMetaInfoReaders {
 
 			final StateDescriptor.Type stateDescType = StateDescriptor.Type.values()[in.readInt()];
 			final String stateName = in.readUTF();
-			List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> serializersAndConfigs =
+			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs =
 				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader);
 
 			Map<String, String> optionsMap = Collections.singletonMap(
 				StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE.toString(),
 				stateDescType.toString());
 
-			Map<String, TypeSerializerSnapshot<?>> serializerConfigSnapshotMap = new HashMap<>(2);
+
+			Map<String, TypeSerializer<?>> serializerMap = new HashMap<>(2);
+			serializerMap.put(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString(),
+				serializersAndConfigs.get(0).f0);
+			serializerMap.put(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
+				serializersAndConfigs.get(1).f0);
+
+			Map<String, TypeSerializerConfigSnapshot> serializerConfigSnapshotMap = new HashMap<>(2);
 			serializerConfigSnapshotMap.put(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString(),
 				serializersAndConfigs.get(0).f1);
 			serializerConfigSnapshotMap.put(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
@@ -78,7 +84,8 @@ public class LegacyStateMetaInfoReaders {
 				stateName,
 				StateMetaInfoSnapshot.BackendStateType.KEY_VALUE,
 				optionsMap,
-				serializerConfigSnapshotMap);
+				serializerConfigSnapshotMap,
+				serializerMap);
 		}
 	}
 
@@ -104,21 +111,20 @@ public class LegacyStateMetaInfoReaders {
 				StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE.toString(),
 				stateDescType.toString());
 
-			Map<String, TypeSerializerSnapshot<?>> serializerConfigSnapshotMap = new HashMap<>(2);
-			serializerConfigSnapshotMap.put(
-				StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString(),
-				new BackwardsCompatibleSerializerSnapshot<>(
-					TypeSerializerSerializationUtil.tryReadSerializer(in, userCodeClassLoader, true)));
-			serializerConfigSnapshotMap.put(
-				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
-				new BackwardsCompatibleSerializerSnapshot<>(
-					TypeSerializerSerializationUtil.tryReadSerializer(in, userCodeClassLoader, true)));
 
+			Map<String, TypeSerializer<?>> serializerMap = new HashMap<>(2);
+			serializerMap.put(
+				StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString(),
+				TypeSerializerSerializationUtil.tryReadSerializer(in, userCodeClassLoader, true));
+			serializerMap.put(
+				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
+				TypeSerializerSerializationUtil.tryReadSerializer(in, userCodeClassLoader, true));
 			return new StateMetaInfoSnapshot(
 				stateName,
 				StateMetaInfoSnapshot.BackendStateType.KEY_VALUE,
 				optionsMap,
-				serializerConfigSnapshotMap);
+				Collections.emptyMap(),
+				serializerMap);
 		}
 	}
 
@@ -131,6 +137,11 @@ public class LegacyStateMetaInfoReaders {
 	static class OperatorBackendStateMetaInfoReaderV2V3 implements StateMetaInfoReader {
 
 		static final OperatorBackendStateMetaInfoReaderV2V3 INSTANCE = new OperatorBackendStateMetaInfoReaderV2V3();
+
+		private static final String[] ORDERED_KEY_STRINGS =
+			new String[]{
+				StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.toString(),
+				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString()};
 
 		@Nonnull
 		@Override
@@ -145,38 +156,35 @@ public class LegacyStateMetaInfoReaders {
 				StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE.toString(),
 				mode.toString());
 
-			List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> stateSerializerAndConfigList =
+			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> stateSerializerAndConfigList =
 				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader);
 
 			final int listSize = stateSerializerAndConfigList.size();
 			StateMetaInfoSnapshot.BackendStateType stateType = listSize == 1 ?
 				StateMetaInfoSnapshot.BackendStateType.OPERATOR : StateMetaInfoSnapshot.BackendStateType.BROADCAST;
+			Map<String, TypeSerializer<?>> serializerMap = new HashMap<>(listSize);
+			Map<String, TypeSerializerConfigSnapshot> serializerConfigsMap = new HashMap<>(listSize);
+			for (int i = 0; i < listSize; ++i) {
+				Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> serializerAndConf =
+					stateSerializerAndConfigList.get(i);
 
-			Map<String, TypeSerializerSnapshot<?>> serializerConfigsMap = new HashMap<>(listSize);
-			switch (stateType) {
-				case OPERATOR:
-					serializerConfigsMap.put(
-						StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
-						stateSerializerAndConfigList.get(0).f1);
-					break;
-				case BROADCAST:
-					serializerConfigsMap.put(
-						StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.toString(),
-						stateSerializerAndConfigList.get(0).f1);
+				// this particular mapping happens to support both, V2 and V3
+				String serializerKey = ORDERED_KEY_STRINGS[ORDERED_KEY_STRINGS.length - 1 - i];
 
-					serializerConfigsMap.put(
-						StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
-						stateSerializerAndConfigList.get(1).f1);
-					break;
-				default:
-					throw new IllegalStateException("Unknown operator state type " + stateType);
+				serializerMap.put(
+					serializerKey,
+					serializerAndConf.f0);
+				serializerConfigsMap.put(
+					serializerKey,
+					serializerAndConf.f1);
 			}
 
 			return new StateMetaInfoSnapshot(
 				name,
 				stateType,
 				optionsMap,
-				serializerConfigsMap);
+				serializerConfigsMap,
+				serializerMap);
 		}
 	}
 
@@ -212,9 +220,10 @@ public class LegacyStateMetaInfoReaders {
 					name,
 					StateMetaInfoSnapshot.BackendStateType.OPERATOR,
 					optionsMap,
+					Collections.emptyMap(),
 					Collections.singletonMap(
 						StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
-						new BackwardsCompatibleSerializerSnapshot<>(stateSerializer)));
+						stateSerializer));
 			} catch (ClassNotFoundException exception) {
 				throw new IOException(exception);
 			} finally {

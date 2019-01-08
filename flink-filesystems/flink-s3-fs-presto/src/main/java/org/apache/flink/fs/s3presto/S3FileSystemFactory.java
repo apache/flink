@@ -19,29 +19,27 @@
 package org.apache.flink.fs.s3presto;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory;
-import org.apache.flink.fs.s3.common.HadoopConfigLoader;
-import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
+import org.apache.flink.runtime.fs.hdfs.AbstractFileSystemFactory;
+import org.apache.flink.runtime.fs.hdfs.HadoopConfigLoader;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import com.facebook.presto.hive.PrestoS3FileSystem;
-import org.apache.hadoop.fs.FileSystem;
-
-import javax.annotation.Nullable;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
  * Simple factory for the S3 file system.
  */
-public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
+public class S3FileSystemFactory extends AbstractFileSystemFactory {
+	private static final Set<String> PACKAGE_PREFIXES_TO_SHADE =
+		new HashSet<>(Collections.singletonList("com.amazonaws."));
 
-	private static final Set<String> PACKAGE_PREFIXES_TO_SHADE = Collections.singleton("com.amazonaws.");
-
-	private static final Set<String> CONFIG_KEYS_TO_SHADE = Collections.singleton("presto.s3.credentials-provider");
+	private static final Set<String> CONFIG_KEYS_TO_SHADE =
+		Collections.unmodifiableSet(new HashSet<>(Collections.singleton("presto.s3.credentials-provider")));
 
 	private static final String FLINK_SHADING_PREFIX = "org.apache.flink.fs.s3presto.shaded.";
 
@@ -88,12 +86,6 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
 			initUri = fsUri;
 		}
 		return initUri;
-	}
-
-	@Nullable
-	@Override
-	protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
-		return null;
 	}
 
 	private URI createURI(String str) {

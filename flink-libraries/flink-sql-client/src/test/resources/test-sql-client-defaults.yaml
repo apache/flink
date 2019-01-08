@@ -18,14 +18,14 @@
 
 #==============================================================================
 # TEST ENVIRONMENT FILE
-# General purpose default environment file.
+# Intended for org.apache.flink.table.client.gateway.local.LocalExecutorITCase.
 #==============================================================================
 
 # this file has variables that can be filled with content by replacing $VAR_XXX
 
 tables:
   - name: TableNumber1
-    type: source-table
+    type: source
     $VAR_UPDATE_MODE
     schema:
       - name: IntegerField1
@@ -34,7 +34,7 @@ tables:
         type: VARCHAR
     connector:
       type: filesystem
-      path: "$VAR_SOURCE_PATH1"
+      path: "$VAR_0"
     format:
       type: csv
       fields:
@@ -44,11 +44,7 @@ tables:
           type: VARCHAR
       line-delimiter: "\n"
       comment-prefix: "#"
-  - name: TestView1
-    type: view
-    query: SELECT scalarUDF(IntegerField1) FROM TableNumber1
   - name: TableNumber2
-    # Test backwards compatibility ("source" -> "source-table")
     type: source
     $VAR_UPDATE_MODE
     schema:
@@ -58,7 +54,7 @@ tables:
         type: VARCHAR
     connector:
       type: filesystem
-      path: "$VAR_SOURCE_PATH2"
+      path: "$VAR_1"
     format:
       type: csv
       fields:
@@ -69,7 +65,7 @@ tables:
       line-delimiter: "\n"
       comment-prefix: "#"
   - name: TableSourceSink
-    type: source-sink-table
+    type: both
     $VAR_UPDATE_MODE
     schema:
       - name: BooleanField
@@ -78,7 +74,7 @@ tables:
         type: VARCHAR
     connector:
       type: filesystem
-      path: "$VAR_SOURCE_SINK_PATH"
+      path: "$VAR_4"
     format:
       type: csv
       fields:
@@ -86,9 +82,6 @@ tables:
           type: BOOLEAN
         - name: StringField
           type: VARCHAR
-  - name: TestView2
-    type: view
-    query: SELECT * FROM TestView1
 
 functions:
   - name: scalarUDF
@@ -116,15 +109,14 @@ functions:
         value: 5
 
 execution:
-  type: "$VAR_EXECUTION_TYPE"
+  type: "$VAR_2"
   time-characteristic: event-time
   periodic-watermarks-interval: 99
   parallelism: 1
   max-parallelism: 16
   min-idle-state-retention: 0
   max-idle-state-retention: 0
-  result-mode: "$VAR_RESULT_MODE"
-  max-table-result-rows: "$VAR_MAX_ROWS"
+  result-mode: "$VAR_3"
   restart-strategy:
     type: failure-rate
     max-failures-per-interval: 10

@@ -24,8 +24,11 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.logical.LogicalJoin
+import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.table.plan.nodes.FlinkConventions
+
+import scala.collection.JavaConverters._
 
 class FlinkLogicalJoin(
     cluster: RelOptCluster,
@@ -34,13 +37,8 @@ class FlinkLogicalJoin(
     right: RelNode,
     condition: RexNode,
     joinType: JoinRelType)
-  extends FlinkLogicalJoinBase(
-    cluster,
-    traitSet,
-    left,
-    right,
-    condition,
-    joinType) {
+  extends Join(cluster, traitSet, left, right, condition, Set.empty[CorrelationId].asJava, joinType)
+  with FlinkLogicalRel {
 
   override def copy(
       traitSet: RelTraitSet,
@@ -51,6 +49,20 @@ class FlinkLogicalJoin(
       semiJoinDone: Boolean): Join = {
 
     new FlinkLogicalJoin(cluster, traitSet, left, right, conditionExpr, joinType)
+  }
+
+  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
+    val leftRowCnt = metadata.getRowCount(getLeft)
+    val leftRowSize = estimateRowSize(getLeft.getRowType)
+
+    val rightRowCnt = metadata.getRowCount(getRight)
+    val rightRowSize = estimateRowSize(getRight.getRowType)
+
+    val ioCost = (leftRowCnt * leftRowSize) + (rightRowCnt * rightRowSize)
+    val cpuCost = leftRowCnt + rightRowCnt
+    val rowCnt = leftRowCnt + rightRowCnt
+
+    planner.getCostFactory.makeCost(rowCnt, cpuCost, ioCost)
   }
 }
 

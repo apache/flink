@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.descriptors
 
-import java.util
-
 import org.apache.flink.table.descriptors.MetadataValidator.{METADATA_COMMENT, METADATA_CREATION_TIME, METADATA_LAST_ACCESS_TIME}
 
 /**
@@ -62,14 +60,12 @@ class Metadata extends Descriptor {
   }
 
   /**
-    * Converts this descriptor into a set of properties.
+    * Internal method for properties conversion.
     */
-  final override def toProperties: util.Map[String, String] = {
-    val properties = new DescriptorProperties()
+  final override def addProperties(properties: DescriptorProperties): Unit = {
     comment.foreach(c => properties.putString(METADATA_COMMENT, c))
     creationTime.foreach(t => properties.putLong(METADATA_CREATION_TIME, t))
     lastAccessTime.foreach(t => properties.putLong(METADATA_LAST_ACCESS_TIME, t))
-    properties.asMap()
   }
 }
 
@@ -80,9 +76,6 @@ object Metadata {
 
   /**
     * Metadata descriptor for adding additional, useful information.
-    *
-    * @deprecated Use `new Metadata()`.
     */
-  @deprecated
   def apply(): Metadata = new Metadata()
 }

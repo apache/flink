@@ -33,14 +33,13 @@ import org.apache.flink.table.api.dataview.ListView
   * @param listSerializer List serializer.
   * @tparam T The type of element in the list.
   */
-@SerialVersionUID(-2030398712359267867L)
-class ListViewSerializer[T](val listSerializer: TypeSerializer[java.util.List[T]])
+class ListViewSerializer[T](val listSerializer: ListSerializer[T])
   extends TypeSerializer[ListView[T]] {
 
   override def isImmutableType: Boolean = false
 
   override def duplicate(): TypeSerializer[ListView[T]] = {
-    new ListViewSerializer[T](listSerializer.duplicate())
+    new ListViewSerializer[T](listSerializer.duplicate().asInstanceOf[ListSerializer[T]])
   }
 
   override def createInstance(): ListView[T] = {
@@ -76,31 +75,32 @@ class ListViewSerializer[T](val listSerializer: TypeSerializer[java.util.List[T]
   override def equals(obj: Any): Boolean = canEqual(this) &&
     listSerializer.equals(obj.asInstanceOf[ListViewSerializer[_]].listSerializer)
 
-  override def snapshotConfiguration(): ListViewSerializerSnapshot[T] =
-    new ListViewSerializerSnapshot[T](this)
+  override def snapshotConfiguration(): TypeSerializerConfigSnapshot =
+    listSerializer.snapshotConfiguration()
 
+  // copy and modified from ListSerializer.ensureCompatibility
   override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[ListView[T]] = {
+      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[ListView[T]] = {
 
     configSnapshot match {
-      // backwards compatibility path;
-      // Flink versions older or equal to 1.6.x returns a
-      // CollectionSerializerConfigSnapshot as the snapshot
-      case legacySnapshot: CollectionSerializerConfigSnapshot[java.util.List[T], T] =>
-        val previousListSerializerAndConfig =
-          legacySnapshot.getSingleNestedSerializerAndConfig
+      case snapshot: CollectionSerializerConfigSnapshot[_] =>
+        val previousListSerializerAndConfig = snapshot.getSingleNestedSerializerAndConfig
 
-        // in older versions, the nested list serializer was always
-        // specifically a ListSerializer, so this cast is safe
-        val castedSer = listSerializer.asInstanceOf[ListSerializer[T]]
         val compatResult = CompatibilityUtil.resolveCompatibilityResult(
           previousListSerializerAndConfig.f0,
           classOf[UnloadableDummyTypeSerializer[_]],
           previousListSerializerAndConfig.f1,
-          castedSer.getElementSerializer)
+          listSerializer.getElementSerializer)
 
         if (!compatResult.isRequiresMigration) {
           CompatibilityResult.compatible[ListView[T]]
+        } else if (compatResult.getConvertDeserializer != null) {
+          CompatibilityResult.requiresMigration(
+            new ListViewSerializer[T](
+              new ListSerializer[T](
+                new TypeDeserializerAdapter[T](compatResult.getConvertDeserializer))
+            )
+          )
         } else {
           CompatibilityResult.requiresMigration[ListView[T]]
         }
@@ -108,6 +108,4 @@ class ListViewSerializer[T](val listSerializer: TypeSerializer[java.util.List[T]
       case _ => CompatibilityResult.requiresMigration[ListView[T]]
     }
   }
-
-  def getListSerializer: TypeSerializer[java.util.List[T]] = listSerializer
 }

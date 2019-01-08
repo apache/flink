@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.client.config;
 
-import org.apache.flink.table.descriptors.DescriptorProperties;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonToken;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.IOContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,12 +43,10 @@ public class ConfigUtil {
 	/**
 	 * Normalizes key-value properties from Yaml in the normalized format of the Table API.
 	 */
-	public static DescriptorProperties normalizeYaml(Map<String, Object> yamlMap) {
+	public static Map<String, String> normalizeYaml(Map<String, Object> yamlMap) {
 		final Map<String, String> normalized = new HashMap<>();
 		yamlMap.forEach((k, v) -> normalizeYamlObject(normalized, k, v));
-		final DescriptorProperties properties = new DescriptorProperties(true);
-		properties.putProperties(normalized);
-		return properties;
+		return normalized;
 	}
 
 	private static void normalizeYamlObject(Map<String, String> normalized, String key, Object value) {

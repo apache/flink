@@ -30,26 +30,33 @@ import java.io.Serializable;
 /** User state value with timestamps before and after update. */
 public class ValueWithTs<V> implements Serializable {
 	private final V value;
-	private final long timestamp;
+	private final long timestampBeforeUpdate;
+	private final long timestampAfterUpdate;
 
-	public ValueWithTs(V value, long timestamp) {
+	public ValueWithTs(V value, long timestampBeforeUpdate, long timestampAfterUpdate) {
 		this.value = value;
-		this.timestamp = timestamp;
+		this.timestampBeforeUpdate = timestampBeforeUpdate;
+		this.timestampAfterUpdate = timestampAfterUpdate;
 	}
 
 	V getValue() {
 		return value;
 	}
 
-	long getTimestamp() {
-		return timestamp;
+	public long getTimestampBeforeUpdate() {
+		return timestampBeforeUpdate;
+	}
+
+	public long getTimestampAfterUpdate() {
+		return timestampAfterUpdate;
 	}
 
 	@Override
 	public String toString() {
 		return "ValueWithTs{" +
 			"value=" + value +
-			", timestamp=" + timestamp +
+			", timestampBeforeUpdate=" + timestampBeforeUpdate +
+			", timestampAfterUpdate=" + timestampAfterUpdate +
 			'}';
 	}
 
@@ -57,7 +64,7 @@ public class ValueWithTs<V> implements Serializable {
 	public static class Serializer extends CompositeSerializer<ValueWithTs<?>> {
 
 		public Serializer(TypeSerializer<?> userValueSerializer) {
-			super(true, userValueSerializer, LongSerializer.INSTANCE);
+			super(true, userValueSerializer, LongSerializer.INSTANCE, LongSerializer.INSTANCE);
 		}
 
 		@SuppressWarnings("unchecked")
@@ -67,7 +74,7 @@ public class ValueWithTs<V> implements Serializable {
 
 		@Override
 		public ValueWithTs<?> createInstance(@Nonnull Object ... values) {
-			return new ValueWithTs<>(values[0], (Long) values[1]);
+			return new ValueWithTs<>(values[0], (Long) values[1], (Long) values[2]);
 		}
 
 		@Override
@@ -81,7 +88,9 @@ public class ValueWithTs<V> implements Serializable {
 				case 0:
 					return value.getValue();
 				case 1:
-					return value.getTimestamp();
+					return value.getTimestampBeforeUpdate();
+				case 2:
+					return value.getTimestampAfterUpdate();
 				default:
 					throw new FlinkRuntimeException("Unexpected field index for ValueWithTs");
 			}
@@ -90,8 +99,8 @@ public class ValueWithTs<V> implements Serializable {
 		@SuppressWarnings("unchecked")
 		@Override
 		protected CompositeSerializer<ValueWithTs<?>> createSerializerInstance(
-				PrecomputedParameters precomputed,
-				TypeSerializer<?>... originalSerializers) {
+			PrecomputedParameters precomputed,
+			TypeSerializer<?>... originalSerializers) {
 			return new Serializer(precomputed, (TypeSerializer<Object>) originalSerializers[0]);
 		}
 	}

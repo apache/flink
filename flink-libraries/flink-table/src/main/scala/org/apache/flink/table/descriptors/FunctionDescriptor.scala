@@ -17,7 +17,6 @@
  */
 
 package org.apache.flink.table.descriptors
-import java.util
 
 /**
   * Descriptor for describing a function.
@@ -37,13 +36,11 @@ class FunctionDescriptor extends Descriptor {
   }
 
   /**
-    * Converts this descriptor into a set of properties.
+    * Internal method for format properties conversion.
     */
-  override def toProperties: util.Map[String, String] = {
-    val properties = new DescriptorProperties()
+  override def addProperties(properties: DescriptorProperties): Unit = {
     from.foreach(properties.putString(FunctionDescriptorValidator.FROM, _))
-    classInstance.foreach(d => properties.putProperties(d.toProperties))
-    properties.asMap()
+    classInstance.foreach(_.addProperties(properties))
   }
 }
 
@@ -54,9 +51,6 @@ object FunctionDescriptor {
 
   /**
     * Descriptor for describing a function.
-    *
-    * @deprecated Use `new FunctionDescriptor()`.
     */
-  @deprecated
   def apply(): FunctionDescriptor = new FunctionDescriptor()
 }

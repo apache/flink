@@ -33,6 +33,7 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Handler that returns metrics given a {@link JobID} and {@link JobVertexID}.
@@ -44,12 +45,15 @@ import java.util.Map;
 public class JobVertexMetricsHandler extends AbstractMetricsHandler<JobVertexMetricsMessageParameters> {
 
 	public JobVertexMetricsHandler(
+			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> headers,
 			MetricFetcher metricFetcher) {
 
-		super(leaderRetriever, timeout, headers, JobVertexMetricsHeaders.getInstance(), metricFetcher);
+		super(localRestAddress, leaderRetriever, timeout, headers,
+			JobVertexMetricsHeaders.getInstance(),
+			metricFetcher);
 	}
 
 	@Override

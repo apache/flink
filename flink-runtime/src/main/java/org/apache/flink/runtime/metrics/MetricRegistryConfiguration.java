@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
@@ -27,8 +26,6 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.util.Preconditions;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,18 +66,14 @@ public class MetricRegistryConfiguration {
 	// contains for every configured reporter its name and the configuration object
 	private final List<Tuple2<String, Configuration>> reporterConfigurations;
 
-	private final long queryServiceMessageSizeLimit;
-
 	public MetricRegistryConfiguration(
 		ScopeFormats scopeFormats,
 		char delimiter,
-		List<Tuple2<String, Configuration>> reporterConfigurations,
-		long queryServiceMessageSizeLimit) {
+		List<Tuple2<String, Configuration>> reporterConfigurations) {
 
 		this.scopeFormats = Preconditions.checkNotNull(scopeFormats);
 		this.delimiter = delimiter;
 		this.reporterConfigurations = Preconditions.checkNotNull(reporterConfigurations);
-		this.queryServiceMessageSizeLimit = queryServiceMessageSizeLimit;
 	}
 
 	// ------------------------------------------------------------------------
@@ -97,10 +90,6 @@ public class MetricRegistryConfiguration {
 
 	public List<Tuple2<String, Configuration>> getReporterConfigurations() {
 		return reporterConfigurations;
-	}
-
-	public long getQueryServiceMessageSizeLimit() {
-		return queryServiceMessageSizeLimit;
 	}
 
 	// ------------------------------------------------------------------------
@@ -171,15 +160,7 @@ public class MetricRegistryConfiguration {
 			}
 		}
 
-		final String maxFrameSizeStr = configuration.getString(AkkaOptions.FRAMESIZE);
-		final String akkaConfigStr = String.format("akka {remote {netty.tcp {maximum-frame-size = %s}}}", maxFrameSizeStr);
-		final Config akkaConfig = ConfigFactory.parseString(akkaConfigStr);
-		final long maximumFrameSize = akkaConfig.getBytes("akka.remote.netty.tcp.maximum-frame-size");
-
-		// padding to account for serialization overhead
-		final long messageSizeLimitPadding = 256;
-
-		return new MetricRegistryConfiguration(scopeFormats, delim, reporterConfigurations, maximumFrameSize - messageSizeLimitPadding);
+		return new MetricRegistryConfiguration(scopeFormats, delim, reporterConfigurations);
 	}
 
 	public static MetricRegistryConfiguration defaultMetricRegistryConfiguration() {

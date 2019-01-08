@@ -98,8 +98,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 			MigrationVersion.v1_3,
 			MigrationVersion.v1_4,
 			MigrationVersion.v1_5,
-			MigrationVersion.v1_6,
-			MigrationVersion.v1_7);
+			MigrationVersion.v1_6);
 	}
 
 	public FlinkKafkaConsumerBaseMigrationTest(MigrationVersion testMigrateVersion) {

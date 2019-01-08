@@ -31,7 +31,7 @@ import java.util.function.BiFunction;
  * @param <E> type of the exception which can be thrown
  */
 @FunctionalInterface
-public interface BiFunctionWithException<T, U, R, E extends Throwable> {
+public interface BiFunctionWithException<T, U, R, E extends Throwable> extends BiFunction<T, U, R> {
 
 	/**
 	 * Apply the given values t and u to obtain the resulting value. The operation can
@@ -42,25 +42,16 @@ public interface BiFunctionWithException<T, U, R, E extends Throwable> {
 	 * @return result value
 	 * @throws E if the operation fails
 	 */
-	R apply(T t, U u) throws E;
+	R applyWithException(T t, U u) throws E;
 
-	/**
-	 * Convert at {@link BiFunctionWithException} into a {@link BiFunction}.
-	 *
-	 * @param biFunctionWithException function with exception to convert into a function
-	 * @param <A> input type
-	 * @param <B> output type
-	 * @return {@link BiFunction} which throws all checked exception as an unchecked exception.
-	 */
-	static <A, B, C> BiFunction<A, B, C> unchecked(BiFunctionWithException<A, B, C, ?> biFunctionWithException) {
-		return (A a, B b) -> {
-			try {
-				return biFunctionWithException.apply(a, b);
-			} catch (Throwable t) {
-				ExceptionUtils.rethrow(t);
-				// we need this to appease the compiler :-(
-				return null;
-			}
-		};
+	default R apply(T t, U u) {
+		try {
+			return applyWithException(t, u);
+		} catch (Throwable e) {
+			ExceptionUtils.rethrow(e);
+			// we have to return a value to please the compiler
+			// but we will never reach the code here
+			return null;
+		}
 	}
 }

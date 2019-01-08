@@ -21,8 +21,6 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 import java.util.Date;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -105,19 +103,9 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 	}
 
 	@Override
-	public TypeSerializerSnapshot<Date> snapshotConfiguration() {
-		return new DateSerializerSnapshot();
-	}
-
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	public static final class DateSerializerSnapshot extends SimpleTypeSerializerSnapshot<Date> {
-
-		public DateSerializerSnapshot() {
-			super(DateSerializer.class);
-		}
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(SqlDateSerializer.class.getCanonicalName())
+			|| identifier.equals(SqlTimeSerializer.class.getCanonicalName());
 	}
 }

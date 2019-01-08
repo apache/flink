@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -62,15 +63,17 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Test base for verifying support of multipart uploads via REST.
@@ -99,14 +102,14 @@ public class MultipartUploadResource extends ExternalResource {
 		Configuration config = new Configuration();
 		config.setInteger(RestOptions.PORT, 0);
 		config.setString(RestOptions.ADDRESS, "localhost");
-		// set this to a lower value on purpose to test that files larger than the content limit are still accepted
-		config.setInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH, 1024 * 1024);
 		configuredUploadDir = temporaryFolder.newFolder().toPath();
 		config.setString(WebOptions.UPLOAD_DIR, configuredUploadDir.toString());
 
 		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 
+		final String restAddress = "http://localhost:1234";
 		RestfulGateway mockRestfulGateway = mock(RestfulGateway.class);
+		when(mockRestfulGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(restAddress));
 
 		final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->
 			CompletableFuture.completedFuture(mockRestfulGateway);
@@ -118,9 +121,9 @@ public class MultipartUploadResource extends ExternalResource {
 		file2 = temporaryFolder.newFile();
 		Files.write(file2.toPath(), "world".getBytes(ConfigConstants.DEFAULT_CHARSET));
 
-		mixedHandler = new MultipartMixedHandler(mockGatewayRetriever, Arrays.asList(file1.toPath(), file2.toPath()));
-		jsonHandler = new MultipartJsonHandler(mockGatewayRetriever);
-		fileHandler = new MultipartFileHandler(mockGatewayRetriever, Arrays.asList(file1.toPath(), file2.toPath()));
+		mixedHandler = new MultipartMixedHandler(CompletableFuture.completedFuture(restAddress), mockGatewayRetriever, Arrays.asList(file1.toPath(), file2.toPath()));
+		jsonHandler = new MultipartJsonHandler(CompletableFuture.completedFuture(restAddress), mockGatewayRetriever);
+		fileHandler = new MultipartFileHandler(CompletableFuture.completedFuture(restAddress), mockGatewayRetriever, Arrays.asList(file1.toPath(), file2.toPath()));
 
 		final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = Arrays.asList(
 			Tuple2.of(mixedHandler.getMessageHeaders(), mixedHandler),
@@ -158,10 +161,6 @@ public class MultipartUploadResource extends ExternalResource {
 		return jsonHandler;
 	}
 
-	public Path getUploadDirectory() {
-		return configuredUploadDir;
-	}
-
 	public void resetState() {
 		mixedHandler.lastReceivedRequest = null;
 		jsonHandler.lastReceivedRequest = null;
@@ -181,17 +180,14 @@ public class MultipartUploadResource extends ExternalResource {
 	}
 
 	public void assertUploadDirectoryIsEmpty() throws IOException {
-		Path actualUploadDir;
-		try (Stream<Path> containedFiles = Files.list(configuredUploadDir)) {
-			List<Path> files = containedFiles.collect(Collectors.toList());
-			Preconditions.checkArgument(
-				1 == files.size(),
-				"Directory structure in rest upload directory has changed. Test must be adjusted");
-			actualUploadDir = files.get(0);
-		}
-		try (Stream<Path> containedFiles = Files.list(actualUploadDir)) {
-			assertEquals("Not all files were cleaned up.", 0, containedFiles.count());
-		}
+		Preconditions.checkArgument(
+			1 == Files.list(configuredUploadDir).count(),
+			"Directory structure in rest upload directory has changed. Test must be adjusted");
+		Optional<Path> actualUploadDir = Files.list(configuredUploadDir).findAny();
+		Preconditions.checkArgument(
+			actualUploadDir.isPresent(),
+			"Expected upload directory does not exist.");
+		assertEquals("Not all files were cleaned up.", 0, Files.list(actualUploadDir.get()).count());
 	}
 
 	/**
@@ -201,8 +197,8 @@ public class MultipartUploadResource extends ExternalResource {
 		private final Collection<Path> expectedFiles;
 		volatile TestRequestBody lastReceivedRequest = null;
 
-		MultipartMixedHandler(GatewayRetriever<RestfulGateway> leaderRetriever, Collection<Path> expectedFiles) {
-			super(leaderRetriever, RpcUtils.INF_TIMEOUT, Collections.emptyMap(), MultipartMixedHeaders.INSTANCE);
+		MultipartMixedHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<RestfulGateway> leaderRetriever, Collection<Path> expectedFiles) {
+			super(localRestAddress, leaderRetriever, RpcUtils.INF_TIMEOUT, Collections.emptyMap(), MultipartMixedHeaders.INSTANCE);
 			this.expectedFiles = expectedFiles;
 		}
 
@@ -267,8 +263,8 @@ public class MultipartUploadResource extends ExternalResource {
 	public static class MultipartJsonHandler extends AbstractRestHandler<RestfulGateway, TestRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 		volatile TestRequestBody lastReceivedRequest = null;
 
-		MultipartJsonHandler(GatewayRetriever<RestfulGateway> leaderRetriever) {
-			super(leaderRetriever, RpcUtils.INF_TIMEOUT, Collections.emptyMap(), MultipartJsonHeaders.INSTANCE);
+		MultipartJsonHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<RestfulGateway> leaderRetriever) {
+			super(localRestAddress, leaderRetriever, RpcUtils.INF_TIMEOUT, Collections.emptyMap(), MultipartJsonHeaders.INSTANCE);
 		}
 
 		@Override
@@ -311,8 +307,8 @@ public class MultipartUploadResource extends ExternalResource {
 
 		private final Collection<Path> expectedFiles;
 
-		MultipartFileHandler(GatewayRetriever<RestfulGateway> leaderRetriever, Collection<Path> expectedFiles) {
-			super(leaderRetriever, RpcUtils.INF_TIMEOUT, Collections.emptyMap(), MultipartFileHeaders.INSTANCE);
+		MultipartFileHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<RestfulGateway> leaderRetriever, Collection<Path> expectedFiles) {
+			super(localRestAddress, leaderRetriever, RpcUtils.INF_TIMEOUT, Collections.emptyMap(), MultipartFileHeaders.INSTANCE);
 			this.expectedFiles = expectedFiles;
 		}
 
@@ -454,7 +450,7 @@ public class MultipartUploadResource extends ExternalResource {
 		}
 
 		@Override
-		protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture) {
+		protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
 			return handlers;
 		}
 

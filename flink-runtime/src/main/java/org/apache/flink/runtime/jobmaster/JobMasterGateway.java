@@ -268,7 +268,7 @@ public interface JobMasterGateway extends
 	CompletableFuture<String> triggerSavepoint(
 		@Nullable final String targetDirectory,
 		final boolean cancelJob,
-		@RpcTimeout final Time timeout);
+		final Time timeout);
 
 	/**
 	 * Requests the statistics on operator back pressure.

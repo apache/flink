@@ -39,6 +39,7 @@ public class JobVertexMetricsHandlerTest extends MetricsHandlerTestBase<JobVerte
 	@Override
 	JobVertexMetricsHandler getMetricsHandler() {
 		return new JobVertexMetricsHandler(
+			TEST_REST_ADDRESS,
 			leaderRetriever,
 			TIMEOUT,
 			TEST_HEADERS,

@@ -23,6 +23,7 @@
              [util :as ju]]
             [jepsen.control.util :as cu]
             [jepsen.flink.client :refer :all]
+            [jepsen.flink.checker :as flink-checker]
             [jepsen.flink.generator :as fgen]
             [jepsen.flink.hadoop :as fh]
             [jepsen.flink.zookeeper :refer :all]))
@@ -69,6 +70,51 @@
 
 ;;; Generators
 
+(defn stoppable-generator
+  [stop source]
+  (reify gen/Generator
+    (op [gen test process]
+      (if @stop
+        nil
+        (gen/op source test process)))))
+
+(defn take-last-with-default
+  [n default coll]
+  (->>
+    (cycle [default])
+    (concat (reverse coll))
+    (take n)
+    (reverse)))
+
+(defn stop-generator
+  [stop source job-running-healthy-threshold job-recovery-grace-period]
+  (gen/concat source
+              (let [t (atom nil)]
+                (reify gen/Generator
+                  (op [_ test process]
+                    (when (nil? @t)
+                      (compare-and-set! t nil (ju/relative-time-nanos)))
+                    (let [history (->>
+                                    (:active-histories test)
+                                    deref
+                                    first
+                                    deref)
+                          job-running-history (->>
+                                                history
+                                                (filter (fn [op] (>= (- (:time op) @t) 0)))
+                                                (flink-checker/get-job-running-history)
+                                                (take-last-with-default job-running-healthy-threshold false))]
+                      (if (or
+                            (and
+                              (every? true? job-running-history))
+                            (> (ju/relative-time-nanos) (+ @t (ju/secs->nanos job-recovery-grace-period))))
+                        (do
+                          (reset! stop true)
+                          nil)
+                        (do
+                          (Thread/sleep 1000)
+                          (recur test process)))))))))
+
 (defn kill-taskmanagers-gen
   [time-limit dt op]
   (fgen/time-limit time-limit (gen/stagger dt (gen/seq (cycle [{:type :info, :f op}])))))
@@ -76,14 +122,14 @@
 (defn kill-taskmanagers-bursts-gen
   [time-limit]
   (fgen/time-limit time-limit
-                   (gen/seq (cycle (concat (repeat 20 {:type :info, :f :kill-task-managers})
-                                           [(gen/sleep 300)])))))
+                  (gen/seq (cycle (concat (repeat 20 {:type :info, :f :kill-task-managers})
+                                          [(gen/sleep 300)])))))
 
 (defn kill-jobmanagers-gen
   [time-limit]
   (fgen/time-limit (+ time-limit job-submit-grace-period)
-                   (gen/seq (cons (gen/sleep job-submit-grace-period)
-                                  (cycle [{:type :info, :f :kill-job-manager}])))))
+                  (gen/seq (cons (gen/sleep job-submit-grace-period)
+                                 (cycle [{:type :info, :f :kill-job-manager}])))))
 
 (defn fail-name-node-during-recovery
   []

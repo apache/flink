@@ -59,19 +59,6 @@ public final class Documentation {
 		int position() default Integer.MAX_VALUE;
 	}
 
-	/**
-	 * Annotation used on config option fields to exclude the config option from documentation.
-	 */
-	@Target(ElementType.FIELD)
-	@Retention(RetentionPolicy.RUNTIME)
-	@Internal
-	public @interface ExcludeFromDocumentation {
-		/**
-		 * The optional reason why the config option is excluded from documentation.
-		 */
-		String value() default "";
-	}
-
 	private Documentation(){
 	}
 }

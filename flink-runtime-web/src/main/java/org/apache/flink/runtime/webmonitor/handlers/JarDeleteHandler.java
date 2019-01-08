@@ -53,13 +53,14 @@ public class JarDeleteHandler
 	private final Executor executor;
 
 	public JarDeleteHandler(
+			final CompletableFuture<String> localRestAddress,
 			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout,
 			final Map<String, String> responseHeaders,
 			final MessageHeaders<EmptyRequestBody, EmptyResponseBody, JarDeleteMessageParameters> messageHeaders,
 			final Path jarDir,
 			final Executor executor) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
 		this.jarDir = requireNonNull(jarDir);
 		this.executor = requireNonNull(executor);
 	}

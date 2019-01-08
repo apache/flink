@@ -36,6 +36,7 @@ import org.apache.flink.runtime.operators.testutils.types.IntPairPairComparator;
 import org.apache.flink.runtime.operators.testutils.types.IntPairSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 
+import org.junit.AfterClass;
 import org.junit.Test;
 
 import static org.junit.Assert.*;

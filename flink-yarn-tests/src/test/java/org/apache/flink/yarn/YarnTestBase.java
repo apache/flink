@@ -21,6 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.test.util.TestBaseUtils;
@@ -74,6 +75,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.UUID;
@@ -151,7 +153,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 	protected org.apache.flink.configuration.Configuration flinkConfiguration;
 
-	protected final boolean isNewMode = true;
+	protected boolean isNewMode;
 
 	static {
 		YARN_CONFIGURATION = new YarnConfiguration();
@@ -196,6 +198,8 @@ public abstract class YarnTestBase extends TestLogger {
 		}
 
 		flinkConfiguration = new org.apache.flink.configuration.Configuration(globalConfiguration);
+
+		isNewMode = Objects.equals(TestBaseUtils.CodebaseType.NEW, TestBaseUtils.getCodebaseType());
 	}
 
 	/**
@@ -547,6 +551,9 @@ public abstract class YarnTestBase extends TestLogger {
 			tempConfPathForSecureRun = tmp.newFolder("conf");
 
 			FileUtils.copyDirectory(new File(confDirPath), tempConfPathForSecureRun);
+
+			globalConfiguration.setString(CoreOptions.MODE,
+				Objects.equals(TestBaseUtils.CodebaseType.NEW, TestBaseUtils.getCodebaseType()) ? CoreOptions.NEW_MODE : CoreOptions.LEGACY_MODE);
 
 			BootstrapTools.writeConfiguration(
 				globalConfiguration,

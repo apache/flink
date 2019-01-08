@@ -179,12 +179,7 @@ public class YarnConfigurationITCase extends YarnTestBase {
 
 				final long expectedHeadSize = containeredTaskManagerParameters.taskManagerHeapSizeMB() << 20L;
 
-				// We compare here physical memory assigned to a container with the heap memory that we should pass to
-				// jvm as Xmx parameter. Those value might differ significantly due to sytem page size or jvm
-				// implementation therefore we use 15% threshold here.
-				assertThat(
-					(double) taskManagerInfo.getHardwareDescription().getSizeOfJvmHeap() / (double) expectedHeadSize,
-					is(closeTo(1.0, 0.15)));
+				assertThat((double) taskManagerInfo.getHardwareDescription().getSizeOfJvmHeap() / (double) expectedHeadSize, is(closeTo(1.0, 0.1)));
 			} finally {
 				restClient.shutdown(TIMEOUT);
 				clusterClient.shutdown();

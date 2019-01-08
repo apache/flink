@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.descriptors
 
-import java.util
-
 import org.apache.flink.table.descriptors.StatisticsValidator._
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 
@@ -134,11 +132,9 @@ class Statistics extends Descriptor {
   }
 
   /**
-    * Converts this descriptor into a set of properties.
+    * Internal method for properties conversion.
     */
-  final override def toProperties: util.Map[String, String] = {
-    val properties = new DescriptorProperties()
-
+  final override def addProperties(properties: DescriptorProperties): Unit = {
     properties.putInt(STATISTICS_PROPERTY_VERSION, 1)
     rowCount.foreach(rc => properties.putLong(STATISTICS_ROW_COUNT, rc))
     val namedStats = columnStats.map { case (name, stats) =>
@@ -146,8 +142,6 @@ class Statistics extends Descriptor {
       (stats + (NAME -> name)).toMap.asJava
     }.toList.asJava
     properties.putIndexedVariableProperties(STATISTICS_COLUMNS, namedStats)
-
-    properties.asMap()
   }
 }
 
@@ -158,9 +152,6 @@ object Statistics {
 
   /**
     * Statistics descriptor for describing table stats.
-    *
-    * @deprecated Use `new Statistics()`.
     */
-  @deprecated
   def apply(): Statistics = new Statistics()
 }

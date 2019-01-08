@@ -19,15 +19,13 @@
 package org.apache.flink.streaming.connectors.fs.bucketing;
 
 import org.apache.flink.streaming.connectors.fs.Clock;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
  * A {@link Bucketer} that assigns to buckets based on current system time.
@@ -40,8 +38,8 @@ import java.time.format.DateTimeFormatter;
  * is determined based on the current system time and the user provided format string.
  *
  *
- * <p>{@link DateTimeFormatter} is used to derive a date string from the current system time and
- * the date format string with a timezone. The default format string is {@code "yyyy-MM-dd--HH"} so the rolling
+ * <p>{@link SimpleDateFormat} is used to derive a date string from the current system time and
+ * the date format string. The default format string is {@code "yyyy-MM-dd--HH"} so the rolling
  * files will have a granularity of hours.
  *
  *
@@ -64,67 +62,43 @@ public class DateTimeBucketer<T> implements Bucketer<T> {
 
 	private final String formatString;
 
-	private final ZoneId zoneId;
-
-	private transient DateTimeFormatter dateTimeFormatter;
+	private transient SimpleDateFormat dateFormatter;
 
 	/**
-	 * Creates a new {@code DateTimeBucketer} with format string {@code "yyyy-MM-dd--HH"} using JVM's default timezone.
+	 * Creates a new {@code DateTimeBucketer} with format string {@code "yyyy-MM-dd--HH"}.
 	 */
 	public DateTimeBucketer() {
 		this(DEFAULT_FORMAT_STRING);
 	}
 
 	/**
-	 * Creates a new {@code DateTimeBucketer} with the given date/time format string using JVM's default timezone.
+	 * Creates a new {@code DateTimeBucketer} with the given date/time format string.
 	 *
-	 * @param formatString The format string that will be given to {@code DateTimeFormatter} to determine
+	 * @param formatString The format string that will be given to {@code SimpleDateFormat} to determine
 	 *                     the bucket path.
 	 */
 	public DateTimeBucketer(String formatString) {
-		this(formatString, ZoneId.systemDefault());
-	}
+		this.formatString = formatString;
 
-	/**
-	 * Creates a new {@code DateTimeBucketer} with format string {@code "yyyy-MM-dd--HH"} using the given timezone.
-	 *
-	 * @param zoneId The timezone used to format {@code DateTimeFormatter} for bucket path.
-	 */
-	public DateTimeBucketer(ZoneId zoneId) {
-		this(DEFAULT_FORMAT_STRING, zoneId);
-	}
-
-	/**
-	 * Creates a new {@code DateTimeBucketer} with the given date/time format string using the given timezone.
-	 *
-	 * @param formatString The format string that will be given to {@code DateTimeFormatter} to determine
-	 *                     the bucket path.
-	 * @param zoneId The timezone used to format {@code DateTimeFormatter} for bucket path.
-	 */
-	public DateTimeBucketer(String formatString, ZoneId zoneId) {
-		this.formatString = Preconditions.checkNotNull(formatString);
-		this.zoneId = Preconditions.checkNotNull(zoneId);
-
-		this.dateTimeFormatter = DateTimeFormatter.ofPattern(this.formatString).withZone(zoneId);
+		this.dateFormatter = new SimpleDateFormat(formatString);
 	}
 
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		in.defaultReadObject();
 
-		this.dateTimeFormatter = DateTimeFormatter.ofPattern(formatString).withZone(zoneId);
+		this.dateFormatter = new SimpleDateFormat(formatString);
 	}
 
 	@Override
 	public Path getBucketPath(Clock clock, Path basePath, T element) {
-		String newDateTimeString = dateTimeFormatter.format(Instant.ofEpochMilli(clock.currentTimeMillis()));
+		String newDateTimeString = dateFormatter.format(new Date(clock.currentTimeMillis()));
 		return new Path(basePath + "/" + newDateTimeString);
 	}
 
 	@Override
 	public String toString() {
 		return "DateTimeBucketer{" +
-			"formatString='" + formatString + '\'' +
-			", zoneId=" + zoneId +
-			'}';
+				"formatString='" + formatString + '\'' +
+				'}';
 	}
 }

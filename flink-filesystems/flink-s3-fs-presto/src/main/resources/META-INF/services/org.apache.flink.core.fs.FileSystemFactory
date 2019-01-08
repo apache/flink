@@ -14,4 +14,3 @@
 # limitations under the License.
 
 org.apache.flink.fs.s3presto.S3FileSystemFactory
-org.apache.flink.fs.s3presto.S3PFileSystemFactory

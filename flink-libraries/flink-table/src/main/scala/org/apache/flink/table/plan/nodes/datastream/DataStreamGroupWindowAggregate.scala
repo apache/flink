@@ -147,7 +147,7 @@ class DataStreamGroupWindowAggregate(
       val timeAttribute = window.timeAttribute.asInstanceOf[ResolvedFieldReference].name
       val timeIdx = inputSchema.fieldNames.indexOf(timeAttribute)
       if (timeIdx < 0) {
-        throw new TableException("Time attribute could not be found. This is a bug.")
+        throw TableException("Time attribute could not be found. This is a bug.")
       }
 
       inputDS
@@ -199,7 +199,7 @@ class DataStreamGroupWindowAggregate(
         createKeyedWindowedStream(queryConfig, window, keyedStream)
           .asInstanceOf[WindowedStream[CRow, Row, DataStreamWindow]]
 
-      val (aggFunction, accumulatorRowType) =
+      val (aggFunction, accumulatorRowType, aggResultRowType) =
         AggregateUtil.createDataStreamAggregateFunction(
           generator,
           namedAggregates,
@@ -211,7 +211,7 @@ class DataStreamGroupWindowAggregate(
           tableEnv.getConfig)
 
       windowedStream
-        .aggregate(aggFunction, windowFunction, accumulatorRowType, outRowType)
+        .aggregate(aggFunction, windowFunction, accumulatorRowType, aggResultRowType, outRowType)
         .name(keyedAggOpName)
     }
     // global / non-keyed aggregation
@@ -225,7 +225,7 @@ class DataStreamGroupWindowAggregate(
         createNonKeyedWindowedStream(queryConfig, window, timestampedInput)
           .asInstanceOf[AllWindowedStream[CRow, DataStreamWindow]]
 
-      val (aggFunction, accumulatorRowType) =
+      val (aggFunction, accumulatorRowType, aggResultRowType) =
         AggregateUtil.createDataStreamAggregateFunction(
           generator,
           namedAggregates,
@@ -237,7 +237,7 @@ class DataStreamGroupWindowAggregate(
           tableEnv.getConfig)
 
       windowedStream
-        .aggregate(aggFunction, windowFunction, accumulatorRowType, outRowType)
+        .aggregate(aggFunction, windowFunction, accumulatorRowType, aggResultRowType, outRowType)
         .name(nonKeyedAggOpName)
     }
   }

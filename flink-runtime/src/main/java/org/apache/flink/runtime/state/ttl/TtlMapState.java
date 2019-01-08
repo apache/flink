@@ -54,13 +54,7 @@ class TtlMapState<K, N, UK, UV>
 
 	@Override
 	public UV get(UK key) throws Exception {
-		TtlValue<UV> ttlValue = getWrapped(key);
-		return ttlValue == null ? null : ttlValue.getUserValue();
-	}
-
-	private TtlValue<UV> getWrapped(UK key) throws Exception {
-		return getWrappedWithTtlCheckAndUpdate(
-			() -> original.get(key), v -> original.put(key, v), () -> original.remove(key));
+		return getWithTtlCheckAndUpdate(() -> original.get(key), v -> original.put(key, v), () -> original.remove(key));
 	}
 
 	@Override
@@ -74,10 +68,8 @@ class TtlMapState<K, N, UK, UV>
 			return;
 		}
 		Map<UK, TtlValue<UV>> ttlMap = new HashMap<>(map.size());
-		long currentTimestamp = timeProvider.currentTimestamp();
-		for (Map.Entry<UK, UV> entry : map.entrySet()) {
-			UK key = entry.getKey();
-			ttlMap.put(key, TtlUtils.wrapWithTs(entry.getValue(), currentTimestamp));
+		for (UK key : map.keySet()) {
+			ttlMap.put(key, wrapWithTs(map.get(key)));
 		}
 		original.putAll(ttlMap);
 	}
@@ -89,8 +81,7 @@ class TtlMapState<K, N, UK, UV>
 
 	@Override
 	public boolean contains(UK key) throws Exception {
-		TtlValue<UV> ttlValue = getWrapped(key);
-		return ttlValue != null;
+		return get(key) != null;
 	}
 
 	@Override
@@ -168,16 +159,16 @@ class TtlMapState<K, N, UK, UV>
 		}
 
 		private Map.Entry<UK, UV> getUnexpiredAndUpdateOrCleanup(Map.Entry<UK, TtlValue<UV>> e) {
-			TtlValue<UV> unexpiredValue;
+			UV unexpiredValue;
 			try {
-				unexpiredValue = getWrappedWithTtlCheckAndUpdate(
+				unexpiredValue = getWithTtlCheckAndUpdate(
 					e::getValue,
 					v -> original.put(e.getKey(), v),
 					originalIterator::remove);
 			} catch (Exception ex) {
 				throw new FlinkRuntimeException(ex);
 			}
-			return unexpiredValue == null ? null : new AbstractMap.SimpleEntry<>(e.getKey(), unexpiredValue.getUserValue());
+			return unexpiredValue == null ? null : new AbstractMap.SimpleEntry<>(e.getKey(), unexpiredValue);
 		}
 	}
 }

@@ -106,6 +106,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 			.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
+			CompletableFuture.completedFuture("http://localhost:1234"),
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
@@ -137,6 +138,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 		DispatcherGateway mockGateway = builder.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
+			CompletableFuture.completedFuture("http://localhost:1234"),
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
@@ -165,6 +167,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 		DispatcherGateway mockGateway = builder.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
+			CompletableFuture.completedFuture("http://localhost:1234"),
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
@@ -195,6 +198,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 			.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
+			CompletableFuture.completedFuture("http://localhost:1234"),
 			() -> CompletableFuture.completedFuture(dispatcherGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
@@ -240,6 +244,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 			.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
+			CompletableFuture.completedFuture("http://localhost:1234"),
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
@@ -264,7 +269,11 @@ public class JobSubmitHandlerTest extends TestLogger {
 				.get();
 		} catch (Exception e) {
 			Throwable t = ExceptionUtils.stripExecutionException(e);
-			Assert.assertEquals(errorMessage, t.getMessage());
+			if (t instanceof RestHandlerException){
+				Assert.assertTrue(t.getMessage().equals("Job submission failed."));
+			} else {
+				throw e;
+			}
 		}
 	}
 }

@@ -66,12 +66,13 @@ public abstract class AbstractMetricsHandler<M extends MessageParameters> extend
 	private final MetricFetcher metricFetcher;
 
 	public AbstractMetricsHandler(
+			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> headers,
 			MessageHeaders<EmptyRequestBody, MetricCollectionResponseBody, M> messageHeaders,
 			MetricFetcher metricFetcher) {
-		super(leaderRetriever, timeout, headers, messageHeaders);
+		super(localRestAddress, leaderRetriever, timeout, headers, messageHeaders);
 		this.metricFetcher = requireNonNull(metricFetcher, "metricFetcher must not be null");
 	}
 

@@ -21,7 +21,6 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
@@ -601,7 +600,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param windowResultType The process window function result type.
 	 * @return The data stream that is the result of applying the fold function to the window.
 	 *
-	 * @deprecated use {@link #aggregate(AggregateFunction, WindowFunction, TypeInformation, TypeInformation)} instead
+	 * @deprecated use {@link #aggregate(AggregateFunction, WindowFunction, TypeInformation, TypeInformation, TypeInformation)} instead
 	 */
 	@Deprecated
 	@Internal
@@ -728,7 +727,7 @@ public class WindowedStream<T, K, W extends Window> {
 		}
 
 		return aggregate(function, new PassThroughWindowFunction<K, W, R>(),
-			accumulatorType, resultType);
+				accumulatorType, resultType, resultType);
 	}
 
 	/**
@@ -765,7 +764,7 @@ public class WindowedStream<T, K, W extends Window> {
 
 		TypeInformation<R> resultType = getWindowFunctionReturnType(windowFunction, aggResultType);
 
-		return aggregate(aggFunction, windowFunction, accumulatorType, resultType);
+		return aggregate(aggFunction, windowFunction, accumulatorType, aggResultType, resultType);
 	}
 
 	/**
@@ -793,11 +792,13 @@ public class WindowedStream<T, K, W extends Window> {
 			AggregateFunction<T, ACC, V> aggregateFunction,
 			WindowFunction<V, R, K, W> windowFunction,
 			TypeInformation<ACC> accumulatorType,
+			TypeInformation<V> aggregateResultType,
 			TypeInformation<R> resultType) {
 
 		checkNotNull(aggregateFunction, "aggregateFunction");
 		checkNotNull(windowFunction, "windowFunction");
 		checkNotNull(accumulatorType, "accumulatorType");
+		checkNotNull(aggregateResultType, "aggregateResultType");
 		checkNotNull(resultType, "resultType");
 
 		if (aggregateFunction instanceof RichFunction) {
@@ -1009,7 +1010,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>Note that this function requires that all data in the windows is buffered until the window
+	 * <p>Not that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The window function.
@@ -1043,7 +1044,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>Note that this function requires that all data in the windows is buffered until the window
+	 * <p>Not that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The window function.
@@ -1061,7 +1062,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>Note that this function requires that all data in the windows is buffered until the window
+	 * <p>Not that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The window function.
@@ -1537,12 +1538,5 @@ public class WindowedStream<T, K, W extends Window> {
 
 	public TypeInformation<T> getInputType() {
 		return input.getType();
-	}
-
-	// -------------------- Testing Methods --------------------
-
-	@VisibleForTesting
-	long getAllowedLateness() {
-		return allowedLateness;
 	}
 }

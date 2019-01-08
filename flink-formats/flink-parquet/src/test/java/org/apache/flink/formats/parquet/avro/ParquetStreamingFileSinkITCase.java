@@ -19,14 +19,13 @@
 package org.apache.flink.formats.parquet.avro;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
 import org.apache.flink.formats.parquet.generated.Address;
+import org.apache.flink.formats.parquet.testutils.FiniteTestSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
-import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.apache.avro.Schema;
@@ -157,14 +156,11 @@ public class ParquetStreamingFileSinkITCase extends AbstractTestBase {
 
 		File[] partFiles = buckets[0].listFiles();
 		assertNotNull(partFiles);
-		assertEquals(2, partFiles.length);
+		assertEquals(1, partFiles.length);
+		assertTrue(partFiles[0].length() > 0);
 
-		for (File partFile : partFiles) {
-			assertTrue(partFile.length() > 0);
-
-			final List<Tuple2<Long, String>> fileContent = readParquetFile(partFile, dataModel);
-			assertEquals(expected, fileContent);
-		}
+		List<Address> results = readParquetFile(partFiles[0], dataModel);
+		assertEquals(expected, results);
 	}
 
 	private static <T> List<T> readParquetFile(File file, GenericData dataModel) throws IOException {

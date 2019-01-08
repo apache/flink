@@ -269,19 +269,17 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
       .map( t => MutableTuple3(t._1, t._2, t._3) )
     
     val reduceDs =  ds.groupBy(1).reduceGroup {
-      (
-        in: Iterator[MutableTuple3[Int, Long, String]],
-        out: Collector[MutableTuple3[Int, Long, String]]) =>
-          for (t <- in) {
-            if (t._1 < 4) {
-              t._3 = "Hi!"
-              t._1 += 10
-              out.collect(t)
-              t._1 += 10
-              t._3 = "Hi again!"
-              out.collect(t)
-            }
+      (in, out: Collector[MutableTuple3[Int, Long, String]]) =>
+        for (t <- in) {
+          if (t._1 < 4) {
+            t._3 = "Hi!"
+            t._1 += 10
+            out.collect(t)
+            t._1 += 10
+            t._3 = "Hi again!"
+            out.collect(t)
           }
+        }
     }
     val result: Seq[String] = reduceDs.collect().map(x => s"${x._1},${x._2},${x._3}").sorted
     
@@ -490,15 +488,13 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
     val ds =  CollectionDataSets.getPojoContainingTupleAndWritable(env)
     
     val reduceDs = ds.groupBy("hadoopFan", "theTuple.*").reduceGroup {
-      (
-        values: Iterator[CollectionDataSets.PojoContainingTupleAndWritable],
-        out: Collector[Int]) => {
-          var c: Int = 0
-          for (v <- values) {
-            c += 1
-          }
-          out.collect(c)
+      (values, out: Collector[Int]) => {
+        var c: Int = 0
+        for (v <- values) {
+          c += 1
         }
+        out.collect(c)
+      }
     }
     
     val result: Seq[Int] = reduceDs.collect().sorted
@@ -515,11 +511,9 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
     val ds = CollectionDataSets.getTupleContainingPojos(env)
     
     val reduceDs =  ds.groupBy("_1", "_2.*").reduceGroup {
-      (
-        values: Iterator[(Int, CollectionDataSets.CrazyNested, CollectionDataSets.POJO)],
-        out: Collector[Int]) => {
-          out.collect(values.size)
-        }
+      (values, out: Collector[Int]) => {
+        out.collect(values.size)
+      }
     }
     
     val result: Seq[Int] = reduceDs.collect().sorted
@@ -649,22 +643,20 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
       .sortGroup("theTuple._1", Order.DESCENDING)
       .sortGroup("theTuple._2", Order.DESCENDING)
       .reduceGroup {
-        (
-          values: Iterator[CollectionDataSets.PojoContainingTupleAndWritable],
-          out: Collector[String]) => {
-            var once: Boolean = false
-            val concat: StringBuilder = new StringBuilder
-            for (value <- values) {
-              if (!once) {
-                concat.append(value.hadoopFan.get)
-                concat.append("---")
-                once = true
-              }
-              concat.append(value.theTuple)
-              concat.append("-")
+        (values, out: Collector[String]) => {
+          var once: Boolean = false
+          val concat: StringBuilder = new StringBuilder
+          for (value <- values) {
+            if (!once) {
+              concat.append(value.hadoopFan.get)
+              concat.append("---")
+              once = true
             }
-            out.collect(concat.toString())
+            concat.append(value.theTuple)
+            concat.append("-")
           }
+          out.collect(concat.toString())
+        }
       }
     
     val result: Seq[String] = reduceDs.map(_.toString()).collect().sorted
@@ -811,15 +803,13 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
     val ds =  CollectionDataSets.getPojoWithMultiplePojos(env)
     
     val reduceDs =  ds.groupBy("p2.a2").reduceGroup {
-      (
-        values: Iterator[CollectionDataSets.PojoWithMultiplePojos],
-        out: Collector[String]) => {
-          val concat: StringBuilder = new StringBuilder()
-          for (value <- values) {
-            concat.append(value.p2.a2)
-          }
-          out.collect(concat.toString())
+      (values, out: Collector[String]) => {
+        val concat: StringBuilder = new StringBuilder()
+        for (value <- values) {
+          concat.append(value.p2.a2)
         }
+        out.collect(concat.toString())
+      }
     }
     
     val result : Seq[String] = reduceDs.map(_.toString()).collect().sorted

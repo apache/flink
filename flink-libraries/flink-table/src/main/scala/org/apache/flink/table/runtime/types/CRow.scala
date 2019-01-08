@@ -49,11 +49,7 @@ object CRow {
     new CRow()
   }
 
-  def apply(values: Any*): CRow = {
-    new CRow(Row.of(values.map(_.asInstanceOf[Object]): _*), true)
-  }
-
-  def apply(change: Boolean, values: Any*): CRow = {
-    new CRow(Row.of(values.map(_.asInstanceOf[Object]): _*), change)
+  def apply(row: Row, change: Boolean): CRow = {
+    new CRow(row, change)
   }
 }

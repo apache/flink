@@ -36,6 +36,7 @@ public class TaskManagerMetricsHandlerTest extends
 	@Override
 	TaskManagerMetricsHandler getMetricsHandler() {
 		return new TaskManagerMetricsHandler(
+			TEST_REST_ADDRESS,
 			leaderRetriever,
 			TIMEOUT,
 			TEST_HEADERS,

@@ -25,10 +25,8 @@ import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.Types;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.SessionContext;
-import org.apache.flink.table.client.gateway.utils.DummyTableSourceFactory;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
@@ -52,11 +50,10 @@ import static org.junit.Assert.assertTrue;
 public class ExecutionContextTest {
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
-	private static final String STREAMING_ENVIRONMENT_FILE = "test-sql-client-streaming.yaml";
 
 	@Test
 	public void testExecutionConfig() throws Exception {
-		final ExecutionContext<?> context = createDefaultExecutionContext();
+		final ExecutionContext<?> context = createExecutionContext();
 		final ExecutionConfig config = context.createEnvironmentInstance().getExecutionConfig();
 
 		assertEquals(99, config.getAutoWatermarkInterval());
@@ -72,7 +69,7 @@ public class ExecutionContextTest {
 
 	@Test
 	public void testFunctions() throws Exception {
-		final ExecutionContext<?> context = createDefaultExecutionContext();
+		final ExecutionContext<?> context = createExecutionContext();
 		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
 		final String[] expected = new String[]{"scalarUDF", "tableUDF", "aggregateUDF"};
 		final String[] actual = tableEnv.listUserDefinedFunctions();
@@ -82,8 +79,8 @@ public class ExecutionContextTest {
 	}
 
 	@Test
-	public void testTables() throws Exception {
-		final ExecutionContext<?> context = createDefaultExecutionContext();
+	public void testSourceSinks() throws Exception {
+		final ExecutionContext<?> context = createExecutionContext();
 		final Map<String, TableSource<?>> sources = context.getTableSources();
 		final Map<String, TableSink<?>> sinks = context.getTableSinks();
 
@@ -97,19 +94,19 @@ public class ExecutionContextTest {
 
 		assertArrayEquals(
 			new String[]{"IntegerField1", "StringField1"},
-			sources.get("TableNumber1").getTableSchema().getFieldNames());
+			sources.get("TableNumber1").getTableSchema().getColumnNames());
 
 		assertArrayEquals(
 			new TypeInformation[]{Types.INT(), Types.STRING()},
-			sources.get("TableNumber1").getTableSchema().getFieldTypes());
+			sources.get("TableNumber1").getTableSchema().getTypes());
 
 		assertArrayEquals(
 			new String[]{"IntegerField2", "StringField2"},
-			sources.get("TableNumber2").getTableSchema().getFieldNames());
+			sources.get("TableNumber2").getTableSchema().getColumnNames());
 
 		assertArrayEquals(
 			new TypeInformation[]{Types.INT(), Types.STRING()},
-			sources.get("TableNumber2").getTableSchema().getFieldTypes());
+			sources.get("TableNumber2").getTableSchema().getTypes());
 
 		assertArrayEquals(
 			new String[]{"BooleanField", "StringField"},
@@ -122,36 +119,16 @@ public class ExecutionContextTest {
 		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
 
 		assertArrayEquals(
-			new String[]{"TableNumber1", "TableNumber2", "TableSourceSink", "TestView1", "TestView2"},
+			new String[]{"TableNumber1", "TableNumber2", "TableSourceSink"},
 			tableEnv.listTables());
 	}
 
-	@Test
-	public void testTemporalTables() throws Exception {
-		final ExecutionContext<?> context = createStreamingExecutionContext();
-
-		assertEquals(
-			new HashSet<>(Arrays.asList("EnrichmentSource", "HistorySource")),
-			context.getTableSources().keySet());
-
-		final StreamTableEnvironment tableEnv = (StreamTableEnvironment) context.createEnvironmentInstance().getTableEnvironment();
-
-		assertArrayEquals(
-			new String[]{"EnrichmentSource", "HistorySource", "HistoryView", "TemporalTableUsage"},
-			tableEnv.listTables());
-
-		assertArrayEquals(
-			new String[]{"SourceTemporalTable", "ViewTemporalTable"},
-			tableEnv.listUserDefinedFunctions());
-
-		assertArrayEquals(
-			new String[]{"integerField", "stringField", "rowtimeField", "integerField0", "stringField0", "rowtimeField0"},
-			tableEnv.scan("TemporalTableUsage").getSchema().getFieldNames());
-	}
-
-	private <T> ExecutionContext<T> createExecutionContext(String file, Map<String, String> replaceVars) throws Exception {
+	private <T> ExecutionContext<T> createExecutionContext() throws Exception {
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_2", "streaming");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
 		final Environment env = EnvironmentFileUtil.parseModified(
-			file,
+			DEFAULTS_ENVIRONMENT_FILE,
 			replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
 		final Configuration flinkConfig = new Configuration();
@@ -162,22 +139,5 @@ public class ExecutionContextTest {
 			flinkConfig,
 			new Options(),
 			Collections.singletonList(new DefaultCLI(flinkConfig)));
-	}
-
-	private <T> ExecutionContext<T> createDefaultExecutionContext() throws Exception {
-		final Map<String, String> replaceVars = new HashMap<>();
-		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
-		replaceVars.put("$VAR_RESULT_MODE", "changelog");
-		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
-		replaceVars.put("$VAR_MAX_ROWS", "100");
-		return createExecutionContext(DEFAULTS_ENVIRONMENT_FILE, replaceVars);
-	}
-
-	private <T> ExecutionContext<T> createStreamingExecutionContext() throws Exception {
-		final Map<String, String> replaceVars = new HashMap<>();
-		replaceVars.put("$VAR_CONNECTOR_TYPE", DummyTableSourceFactory.CONNECTOR_TYPE_VALUE);
-		replaceVars.put("$VAR_CONNECTOR_PROPERTY", DummyTableSourceFactory.TEST_PROPERTY);
-		replaceVars.put("$VAR_CONNECTOR_PROPERTY_VALUE", "");
-		return createExecutionContext(STREAMING_ENVIRONMENT_FILE, replaceVars);
 	}
 }

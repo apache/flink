@@ -18,26 +18,20 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import java.io.IOException;
+
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-import java.io.IOException;
-
-/**
- * Type serializer for {@code Integer} (and {@code int}, via auto-boxing).
- */
 @Internal
 public final class IntSerializer extends TypeSerializerSingleton<Integer> {
 
 	private static final long serialVersionUID = 1L;
-
-	/** Sharable instance of the IntSerializer. */
+	
 	public static final IntSerializer INSTANCE = new IntSerializer();
-
-	private static final Integer ZERO = 0;
+	
+	private static final Integer ZERO = Integer.valueOf(0);
 
 	@Override
 	public boolean isImmutableType() {
@@ -53,7 +47,7 @@ public final class IntSerializer extends TypeSerializerSingleton<Integer> {
 	public Integer copy(Integer from) {
 		return from;
 	}
-
+	
 	@Override
 	public Integer copy(Integer from, Integer reuse) {
 		return from;
@@ -66,14 +60,14 @@ public final class IntSerializer extends TypeSerializerSingleton<Integer> {
 
 	@Override
 	public void serialize(Integer record, DataOutputView target) throws IOException {
-		target.writeInt(record);
+		target.writeInt(record.intValue());
 	}
 
 	@Override
 	public Integer deserialize(DataInputView source) throws IOException {
-		return source.readInt();
+		return Integer.valueOf(source.readInt());
 	}
-
+	
 	@Override
 	public Integer deserialize(Integer reuse, DataInputView source) throws IOException {
 		return deserialize(source);
@@ -90,19 +84,8 @@ public final class IntSerializer extends TypeSerializerSingleton<Integer> {
 	}
 
 	@Override
-	public TypeSerializerSnapshot<Integer> snapshotConfiguration() {
-		return new IntSerializerSnapshot();
-	}
-
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	public static final class IntSerializerSnapshot extends SimpleTypeSerializerSnapshot<Integer> {
-
-		public IntSerializerSnapshot() {
-			super(IntSerializer.class);
-		}
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(IntValueSerializer.class.getCanonicalName());
 	}
 }

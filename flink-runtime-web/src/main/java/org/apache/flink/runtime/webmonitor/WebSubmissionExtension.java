@@ -53,9 +53,9 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 
 	public WebSubmissionExtension(
 			Configuration configuration,
+			CompletableFuture<String> restAddressFuture,
 			GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
 			Map<String, String> responseHeaders,
-			CompletableFuture<String> localAddressFuture,
 			Path jarDir,
 			Executor executor,
 			Time timeout) throws Exception {
@@ -63,6 +63,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 		webSubmissionHandlers = new ArrayList<>(5);
 
 		final JarUploadHandler jarUploadHandler = new JarUploadHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -71,15 +72,16 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			executor);
 
 		final JarListHandler jarListHandler = new JarListHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
 			JarListHeaders.getInstance(),
-			localAddressFuture,
 			jarDir.toFile(),
 			executor);
 
 		final JarRunHandler jarRunHandler = new JarRunHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -89,6 +91,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			executor);
 
 		final JarDeleteHandler jarDeleteHandler = new JarDeleteHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -97,6 +100,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			executor);
 
 		final JarPlanHandler jarPlanHandler = new JarPlanHandler(
+			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,

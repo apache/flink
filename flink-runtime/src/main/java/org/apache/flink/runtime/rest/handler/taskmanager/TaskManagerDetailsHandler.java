@@ -57,13 +57,14 @@ public class TaskManagerDetailsHandler extends AbstractTaskManagerHandler<Restfu
 	private final MetricStore metricStore;
 
 	public TaskManagerDetailsHandler(
+			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, TaskManagerDetailsInfo, TaskManagerMessageParameters> messageHeaders,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 			MetricFetcher metricFetcher) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders, resourceManagerGatewayRetriever);
+		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders, resourceManagerGatewayRetriever);
 
 		this.metricFetcher = Preconditions.checkNotNull(metricFetcher);
 		this.metricStore = metricFetcher.getMetricStore();

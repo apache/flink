@@ -57,7 +57,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link YarnClusterDescriptor}.
+ * Tests for the {@link LegacyYarnClusterDescriptor}.
  */
 public class YarnClusterDescriptorTest extends TestLogger {
 
@@ -91,10 +91,11 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 	@Test
 	public void testFailIfTaskSlotsHigherThanMaxVcores() throws ClusterDeploymentException {
+
 		final Configuration flinkConfiguration = new Configuration();
 		flinkConfiguration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 0);
 
-		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
+		LegacyYarnClusterDescriptor clusterDescriptor = new LegacyYarnClusterDescriptor(
 			flinkConfiguration,
 			yarnConfiguration,
 			temporaryFolder.getRoot().getAbsolutePath(),
@@ -131,7 +132,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		configuration.setInteger(YarnConfigOptions.VCORES, Integer.MAX_VALUE);
 		configuration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 0);
 
-		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
+		LegacyYarnClusterDescriptor clusterDescriptor = new LegacyYarnClusterDescriptor(
 			configuration,
 			yarnConfiguration,
 			temporaryFolder.getRoot().getAbsolutePath(),
@@ -165,7 +166,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	@Test
 	public void testSetupApplicationMasterContainer() {
 		Configuration cfg = new Configuration();
-		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
+		LegacyYarnClusterDescriptor clusterDescriptor = new LegacyYarnClusterDescriptor(
 			cfg,
 			yarnConfiguration,
 			temporaryFolder.getRoot().getAbsolutePath(),
@@ -173,7 +174,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			true);
 
 		final String java = "$JAVA_HOME/bin/java";
-		final String jvmmem = "-Xms424m -Xmx424m";
+		final String jvmmem = "-Xmx424m";
 		final String jvmOpts = "-Djvm"; // if set
 		final String jmJvmOpts = "-DjmJvm"; // if set
 		final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
@@ -416,12 +417,14 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	 */
 	@Test
 	public void testExplicitLibShipping() throws Exception {
-		try (YarnClusterDescriptor descriptor = new YarnClusterDescriptor(
+		AbstractYarnClusterDescriptor descriptor = new LegacyYarnClusterDescriptor(
 			new Configuration(),
 			yarnConfiguration,
 			temporaryFolder.getRoot().getAbsolutePath(),
 			yarnClient,
-			true)) {
+			true);
+
+		try {
 			descriptor.setLocalJarPath(new Path("/path/to/flink.jar"));
 
 			File libFile = temporaryFolder.newFile("libFile.jar");
@@ -447,6 +450,8 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			Assert.assertEquals(2, descriptor.shipFiles.size());
 			Assert.assertTrue(descriptor.shipFiles.contains(libFile));
 			Assert.assertTrue(descriptor.shipFiles.contains(libFolder));
+		} finally {
+			descriptor.close();
 		}
 	}
 
@@ -455,12 +460,14 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	 */
 	@Test
 	public void testEnvironmentLibShipping() throws Exception {
-		try (YarnClusterDescriptor descriptor = new YarnClusterDescriptor(
+		AbstractYarnClusterDescriptor descriptor = new LegacyYarnClusterDescriptor(
 			new Configuration(),
 			yarnConfiguration,
 			temporaryFolder.getRoot().getAbsolutePath(),
 			yarnClient,
-			true)) {
+			true);
+
+		try {
 			File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
 			File libFile = new File(libFolder, "libFile.jar");
 			libFile.createNewFile();
@@ -483,6 +490,8 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			Assert.assertTrue(effectiveShipFiles.contains(libFolder));
 			Assert.assertFalse(descriptor.shipFiles.contains(libFile));
 			Assert.assertFalse(descriptor.shipFiles.contains(libFolder));
+		} finally {
+			descriptor.close();
 		}
 	}
 
@@ -491,7 +500,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	 */
 	@Test
 	public void testYarnClientShutDown() {
-		YarnClusterDescriptor yarnClusterDescriptor = new YarnClusterDescriptor(
+		LegacyYarnClusterDescriptor yarnClusterDescriptor = new LegacyYarnClusterDescriptor(
 			new Configuration(),
 			yarnConfiguration,
 			temporaryFolder.getRoot().getAbsolutePath(),
@@ -506,7 +515,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		closableYarnClient.init(yarnConfiguration);
 		closableYarnClient.start();
 
-		yarnClusterDescriptor = new YarnClusterDescriptor(
+		yarnClusterDescriptor = new LegacyYarnClusterDescriptor(
 			new Configuration(),
 			yarnConfiguration,
 			temporaryFolder.getRoot().getAbsolutePath(),

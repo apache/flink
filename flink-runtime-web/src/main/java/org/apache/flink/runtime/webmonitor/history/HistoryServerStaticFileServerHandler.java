@@ -28,8 +28,6 @@ package org.apache.flink.runtime.webmonitor.history;
 
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
 import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
-import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
-import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
@@ -59,7 +57,6 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Collections;
 import java.util.Date;
 import java.util.Locale;
 
@@ -161,12 +158,7 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 				} finally {
 					if (!success) {
 						LOG.debug("Unable to load requested file {} from classloader", pathToLoad);
-						HandlerUtils.sendErrorResponse(
-							ctx,
-							request,
-							new ErrorResponseBody("File not found."),
-							NOT_FOUND,
-							Collections.emptyMap());
+						StaticFileServerHandler.sendError(ctx, NOT_FOUND);
 						return;
 					}
 				}
@@ -174,22 +166,12 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 		}
 
 		if (!file.exists() || file.isHidden() || file.isDirectory() || !file.isFile()) {
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				request,
-				new ErrorResponseBody("File not found."),
-				NOT_FOUND,
-				Collections.emptyMap());
+			StaticFileServerHandler.sendError(ctx, NOT_FOUND);
 			return;
 		}
 
 		if (!file.getCanonicalFile().toPath().startsWith(rootPath.toPath())) {
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				request,
-				new ErrorResponseBody("File not found."),
-				NOT_FOUND,
-				Collections.emptyMap());
+			StaticFileServerHandler.sendError(ctx, NOT_FOUND);
 			return;
 		}
 
@@ -222,12 +204,7 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 		try {
 			raf = new RandomAccessFile(file, "r");
 		} catch (FileNotFoundException e) {
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				request,
-				new ErrorResponseBody("File not found."),
-				NOT_FOUND,
-				Collections.emptyMap());
+			StaticFileServerHandler.sendError(ctx, NOT_FOUND);
 			return;
 		}
 
@@ -267,12 +244,7 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 		} catch (Exception e) {
 			raf.close();
 			LOG.error("Failed to serve file.", e);
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				request,
-				new ErrorResponseBody("Internal server error."),
-				INTERNAL_SERVER_ERROR,
-				Collections.emptyMap());
+			StaticFileServerHandler.sendError(ctx, INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -280,12 +252,7 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
 		if (ctx.channel().isActive()) {
 			LOG.error("Caught exception", cause);
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				false,
-				new ErrorResponseBody("Internal server error."),
-				INTERNAL_SERVER_ERROR,
-				Collections.emptyMap());
+			StaticFileServerHandler.sendError(ctx, INTERNAL_SERVER_ERROR);
 		}
 	}
 }

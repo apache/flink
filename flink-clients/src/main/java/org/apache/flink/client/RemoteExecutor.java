@@ -24,8 +24,10 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.JobWithJars;
+import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.optimizer.DataStatistics;
@@ -149,7 +151,11 @@ public class RemoteExecutor extends PlanExecutor {
 	public void start() throws Exception {
 		synchronized (lock) {
 			if (client == null) {
-				client = new RestClusterClient<>(clientConfiguration, "RemoteExecutor");
+				if (CoreOptions.LEGACY_MODE.equals(clientConfiguration.getString(CoreOptions.MODE))) {
+					client = new StandaloneClusterClient(clientConfiguration);
+				} else {
+					client = new RestClusterClient<>(clientConfiguration, "RemoteExecutor");
+				}
 				client.setPrintStatusDuringExecution(isPrintingStatusDuringExecution());
 			}
 			else {

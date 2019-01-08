@@ -32,7 +32,6 @@ import java.util.Properties;
 
 import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.CONFIG_DIR_OPTION;
 import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.DYNAMIC_PROPERTY_OPTION;
-import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.HOST_OPTION;
 import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.REST_PORT_OPTION;
 
 /**
@@ -68,7 +67,6 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 		final Properties dynamicProperties = commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
 		final String restPortString = commandLine.getOptionValue(REST_PORT_OPTION.getOpt(), "-1");
 		final int restPort = Integer.parseInt(restPortString);
-		final String hostname = commandLine.getOptionValue(HOST_OPTION.getOpt());
 		final String jobClassName = commandLine.getOptionValue(JOB_CLASS_NAME_OPTION.getOpt());
 		final SavepointRestoreSettings savepointRestoreSettings = CliFrontendParser.createSavepointRestoreSettings(commandLine);
 
@@ -76,7 +74,6 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 			configDir,
 			dynamicProperties,
 			commandLine.getArgs(),
-			hostname,
 			restPort,
 			jobClassName,
 			savepointRestoreSettings);

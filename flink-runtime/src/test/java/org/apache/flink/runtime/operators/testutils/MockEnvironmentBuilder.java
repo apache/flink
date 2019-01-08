@@ -23,12 +23,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TestTaskStateManager;
-import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
-import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 
 public class MockEnvironmentBuilder {
 	private String taskName = "mock-task";
@@ -44,8 +40,6 @@ public class MockEnvironmentBuilder {
 	private ClassLoader userCodeClassLoader = Thread.currentThread().getContextClassLoader();
 	private JobID jobID = new JobID();
 	private JobVertexID jobVertexID = new JobVertexID();
-	private TaskMetricGroup taskMetricGroup = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
-	private TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
 
 	public MockEnvironmentBuilder setTaskName(String taskName) {
 		this.taskName = taskName;
@@ -82,11 +76,6 @@ public class MockEnvironmentBuilder {
 		return this;
 	}
 
-	public MockEnvironmentBuilder setTaskManagerRuntimeInfo(TaskManagerRuntimeInfo taskManagerRuntimeInfo){
-		this.taskManagerRuntimeInfo = taskManagerRuntimeInfo;
-		return this;
-	}
-
 	public MockEnvironmentBuilder setMaxParallelism(int maxParallelism) {
 		this.maxParallelism = maxParallelism;
 		return this;
@@ -117,11 +106,6 @@ public class MockEnvironmentBuilder {
 		return this;
 	}
 
-	public MockEnvironmentBuilder setMetricGroup(TaskMetricGroup taskMetricGroup) {
-		this.taskMetricGroup = taskMetricGroup;
-		return this;
-	}
-
 	public MockEnvironment build() {
 		return new MockEnvironment(
 			jobID,
@@ -136,8 +120,6 @@ public class MockEnvironmentBuilder {
 			maxParallelism,
 			parallelism,
 			subtaskIndex,
-			userCodeClassLoader,
-			taskMetricGroup,
-			taskManagerRuntimeInfo);
+			userCodeClassLoader);
 	}
 }

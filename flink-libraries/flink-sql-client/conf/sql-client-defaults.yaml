@@ -25,30 +25,18 @@
 
 
 #==============================================================================
-# Tables
+# Table Sources
 #==============================================================================
 
-# Define tables here such as sources, sinks, views, or temporal tables.
+# Define table sources and sinks here.
 
 tables: [] # empty list
 # A typical table source definition looks like:
 # - name: ...
-#   type: source-table
+#   type: source
 #   connector: ...
 #   format: ...
 #   schema: ...
-
-# A typical view definition looks like:
-# - name: ...
-#   type: view
-#   query: "SELECT ..."
-
-# A typical temporal table definition looks like:
-# - name: ...
-#   type: temporal-table
-#   history-table: ...
-#   time-attribute: ...
-#   primary-key: ...
 
 #==============================================================================
 # User-defined functions
@@ -77,9 +65,7 @@ execution:
   # interval in ms for emitting periodic watermarks
   periodic-watermarks-interval: 200
   # 'changelog' or 'table' presentation of results
-  result-mode: table
-  # maximum number of maintained rows in 'table' presentation of results
-  max-table-result-rows: 1000000
+  result-mode: changelog
   # parallelism of the program
   parallelism: 1
   # maximum parallelism

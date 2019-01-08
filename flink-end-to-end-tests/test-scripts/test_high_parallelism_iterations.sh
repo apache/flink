@@ -34,7 +34,6 @@ set_conf "taskmanager.memory.segment-size" "8kb"
 
 set_conf "taskmanager.network.netty.server.numThreads" "1"
 set_conf "taskmanager.network.netty.client.numThreads" "1"
-set_conf "taskmanager.network.request-backoff.max" "60000"
 
 set_conf "taskmanager.numberOfTaskSlots" "1"
 

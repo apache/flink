@@ -18,7 +18,6 @@
 
 package org.apache.flink.cep.pattern.conditions;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.FilterFunction;
 
 /**
@@ -29,7 +28,6 @@ import org.apache.flink.api.common.functions.FilterFunction;
  * previously accepted elements in the pattern. Conditions that extend this class are simple {@code filter(...)}
  * functions that decide based on the properties of the element at hand.
  */
-@Internal
 public abstract class SimpleCondition<T> extends IterativeCondition<T> implements FilterFunction<T> {
 
 	private static final long serialVersionUID = 4942618239408140245L;

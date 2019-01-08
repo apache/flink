@@ -21,11 +21,9 @@ package org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
-import org.apache.flink.util.Preconditions;
 
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
  * A {@link BucketAssigner} that assigns to buckets based on current system time.
@@ -39,14 +37,14 @@ import java.time.format.DateTimeFormatter;
  * user provided format string.
  *
  *
- * <p>{@link DateTimeFormatter} is used to derive a date string from the current system time and
+ * <p>{@link SimpleDateFormat} is used to derive a date string from the current system time and
  * the date format string. The default format string is {@code "yyyy-MM-dd--HH"} so the rolling
  * files will have a granularity of hours.
  *
  * <p>Example:
  *
  * <pre>{@code
- *     BucketAssigner bucketAssigner = new DateTimeBucketAssigner("yyyy-MM-dd--HH");
+ *     Bucketer buck = new DateTimeBucketer("yyyy-MM-dd--HH");
  * }</pre>
  *
  * <p>This will create for example the following bucket path:
@@ -62,54 +60,31 @@ public class DateTimeBucketAssigner<IN> implements BucketAssigner<IN, String> {
 
 	private final String formatString;
 
-	private final ZoneId zoneId;
-
-	private transient DateTimeFormatter dateTimeFormatter;
+	private transient SimpleDateFormat dateFormatter;
 
 	/**
-	 * Creates a new {@code DateTimeBucketAssigner} with format string {@code "yyyy-MM-dd--HH"}.
+	 * Creates a new {@code DateTimeBucketer} with format string {@code "yyyy-MM-dd--HH"}.
 	 */
 	public DateTimeBucketAssigner() {
 		this(DEFAULT_FORMAT_STRING);
 	}
 
 	/**
-	 * Creates a new {@code DateTimeBucketAssigner} with the given date/time format string.
+	 * Creates a new {@code DateTimeBucketer} with the given date/time format string.
 	 *
 	 * @param formatString The format string that will be given to {@code SimpleDateFormat} to determine
-	 *                     the bucket id.
+	 *                     the bucket path.
 	 */
 	public DateTimeBucketAssigner(String formatString) {
-		this(formatString, ZoneId.systemDefault());
-	}
-
-	/**
-	 * Creates a new {@code DateTimeBucketAssigner} with format string {@code "yyyy-MM-dd--HH"} using the given timezone.
-	 *
-	 * @param zoneId The timezone used to format {@code DateTimeFormatter} for bucket id.
-	 */
-	public DateTimeBucketAssigner(ZoneId zoneId) {
-		this(DEFAULT_FORMAT_STRING, zoneId);
-	}
-
-	/**
-	 * Creates a new {@code DateTimeBucketAssigner} with the given date/time format string using the given timezone.
-	 *
-	 * @param formatString The format string that will be given to {@code DateTimeFormatter} to determine
-	 *                     the bucket path.
-	 * @param zoneId The timezone used to format {@code DateTimeFormatter} for bucket id.
-	 */
-	public DateTimeBucketAssigner(String formatString, ZoneId zoneId) {
-		this.formatString = Preconditions.checkNotNull(formatString);
-		this.zoneId = Preconditions.checkNotNull(zoneId);
+		this.formatString = formatString;
 	}
 
 	@Override
 	public String getBucketId(IN element, BucketAssigner.Context context) {
-		if (dateTimeFormatter == null) {
-			dateTimeFormatter = DateTimeFormatter.ofPattern(formatString).withZone(zoneId);
+		if (dateFormatter == null) {
+			dateFormatter = new SimpleDateFormat(formatString);
 		}
-		return dateTimeFormatter.format(Instant.ofEpochMilli(context.currentProcessingTime()));
+		return dateFormatter.format(new Date(context.currentProcessingTime()));
 	}
 
 	@Override
@@ -119,9 +94,6 @@ public class DateTimeBucketAssigner<IN> implements BucketAssigner<IN, String> {
 
 	@Override
 	public String toString() {
-		return "DateTimeBucketAssigner{" +
-			"formatString='" + formatString + '\'' +
-			", zoneId=" + zoneId +
-			'}';
+		return "DateTimeBucketAssigner{formatString='" + formatString + '\'' + '}';
 	}
 }

@@ -55,6 +55,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -65,6 +66,7 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 	private MetricFetcher<?> metricFetcher;
 
 	public JobVertexTaskManagersHandler(
+			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
@@ -72,7 +74,7 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 			ExecutionGraphCache executionGraphCache,
 			Executor executor,
 			MetricFetcher<?> metricFetcher) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
+		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
 		this.metricFetcher = Preconditions.checkNotNull(metricFetcher);
 	}
 

@@ -19,7 +19,8 @@
 package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.StringUtils;
+
+import javax.xml.bind.DatatypeConverter;
 
 /**
  * A class for statistically unique job vertex IDs.
@@ -40,6 +41,6 @@ public class JobVertexID extends AbstractID {
 	}
 
 	public static JobVertexID fromHexString(String hexString) {
-		return new JobVertexID(StringUtils.hexStringToByte(hexString));
+		return new JobVertexID(DatatypeConverter.parseHexBinary(hexString));
 	}
 }

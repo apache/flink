@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskmanager;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -246,7 +247,7 @@ public class TaskManagerStartupTest extends TestLogger {
 			blocker = new ServerSocket(0, 50, InetAddress.getByName("localhost"));
 
 			final Configuration cfg = new Configuration();
-			cfg.setString(TaskManagerOptions.HOST, "localhost");
+			cfg.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "localhost");
 			cfg.setInteger(TaskManagerOptions.DATA_PORT, blocker.getLocalPort());
 			cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "1m");
 			ActorSystem actorSystem = AkkaUtils.createLocalActorSystem(cfg);

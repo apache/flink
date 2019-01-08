@@ -21,12 +21,13 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.mock.Whitebox;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
@@ -52,7 +53,6 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -86,11 +86,12 @@ import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
-import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.taskmanager.TaskExecutionStateListener;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.util.DirectExecutorService;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -107,6 +108,7 @@ import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.util.CloseableIterable;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
@@ -114,6 +116,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.internal.util.reflection.Whitebox;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -123,20 +126,23 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.runtime.concurrent.Executors.newDirectExecutorService;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -146,7 +152,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
@@ -155,7 +160,6 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
@@ -177,26 +181,43 @@ public class StreamTaskTest extends TestLogger {
 	 */
 	@Test
 	public void testEarlyCanceling() throws Exception {
-		final StreamConfig cfg = new StreamConfig(new Configuration());
+		Deadline deadline = Deadline.fromNow(Duration.ofMinutes(2));
+		StreamConfig cfg = new StreamConfig(new Configuration());
 		cfg.setOperatorID(new OperatorID(4711L, 42L));
 		cfg.setStreamOperator(new SlowlyDeserializingOperator());
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
-		final TaskManagerActions taskManagerActions = spy(new NoOpTaskManagerActions());
-		final Task task = createTask(SourceStreamTask.class, cfg, new Configuration(), taskManagerActions);
+		Task task = createTask(SourceStreamTask.class, cfg, new Configuration());
 
-		final TaskExecutionState state = new TaskExecutionState(
-			task.getJobID(), task.getExecutionId(), ExecutionState.RUNNING);
+		TestingExecutionStateListener testingExecutionStateListener = new TestingExecutionStateListener();
 
+		task.registerExecutionListener(testingExecutionStateListener);
 		task.startTaskThread();
 
-		verify(taskManagerActions, timeout(2000L)).updateTaskExecutionState(eq(state));
+		Future<ExecutionState> running = testingExecutionStateListener.notifyWhenExecutionState(ExecutionState.RUNNING);
+
+		// wait until the task thread reached state RUNNING
+		ExecutionState executionState = running.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+
+		// make sure the task is really running
+		if (executionState != ExecutionState.RUNNING) {
+			fail("Task entered state " + task.getExecutionState() + " with error "
+					+ ExceptionUtils.stringifyException(task.getFailureCause()));
+		}
 
 		// send a cancel. because the operator takes a long time to deserialize, this should
 		// hit the task before the operator is deserialized
 		task.cancelExecution();
 
-		task.getExecutingThread().join();
+		Future<ExecutionState> canceling = testingExecutionStateListener.notifyWhenExecutionState(ExecutionState.CANCELING);
+
+		executionState = canceling.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+
+		// the task should reach state canceled eventually
+		assertTrue(executionState == ExecutionState.CANCELING ||
+				executionState == ExecutionState.CANCELED);
+
+		task.getExecutingThread().join(deadline.timeLeft().toMillis());
 
 		assertFalse("Task did not cancel", task.getExecutingThread().isAlive());
 		assertEquals(ExecutionState.CANCELED, task.getExecutionState());
@@ -423,7 +444,7 @@ public class StreamTaskTest extends TestLogger {
 		Whitebox.setInternalState(streamTask, "lock", new Object());
 		Whitebox.setInternalState(streamTask, "operatorChain", operatorChain);
 		Whitebox.setInternalState(streamTask, "cancelables", new CloseableRegistry());
-		Whitebox.setInternalState(streamTask, "asyncOperationsThreadPool", newDirectExecutorService());
+		Whitebox.setInternalState(streamTask, "asyncOperationsThreadPool", new DirectExecutorService());
 		Whitebox.setInternalState(streamTask, "configuration", new StreamConfig(new Configuration()));
 		Whitebox.setInternalState(streamTask, "checkpointStorage", new MemoryBackendCheckpointStorage(new JobID(), null, null, Integer.MAX_VALUE));
 
@@ -679,7 +700,7 @@ public class StreamTaskTest extends TestLogger {
 		doAnswer(new Answer() {
 			@Override
 			public Object answer(InvocationOnMock invocation) throws Throwable {
-				SubtaskState subtaskState = invocation.getArgument(4);
+				SubtaskState subtaskState = invocation.getArgumentAt(4, SubtaskState.class);
 				checkpointResult.add(subtaskState);
 				checkpointCompletedLatch.trigger();
 				return null;
@@ -689,7 +710,7 @@ public class StreamTaskTest extends TestLogger {
 			any(ExecutionAttemptID.class),
 			anyLong(),
 			any(CheckpointMetrics.class),
-			nullable(TaskStateSnapshot.class));
+			any(TaskStateSnapshot.class));
 
 		TaskStateManager taskStateManager = new TaskStateManagerImpl(
 			new JobID(1L, 2L),
@@ -864,27 +885,50 @@ public class StreamTaskTest extends TestLogger {
 		}
 	}
 
-	public static Task createTask(
-		Class<? extends AbstractInvokable> invokable,
-		StreamConfig taskConfig,
-		Configuration taskManagerConfig) throws Exception {
-		return createTask(invokable, taskConfig, taskManagerConfig, new TestTaskStateManager(), mock(TaskManagerActions.class));
+	private static class TestingExecutionStateListener implements TaskExecutionStateListener {
+
+		private ExecutionState executionState = null;
+
+		private final PriorityQueue<Tuple2<ExecutionState, CompletableFuture<ExecutionState>>> priorityQueue =
+			new PriorityQueue<>(1, Comparator.comparingInt(o -> o.f0.ordinal()));
+
+		Future<ExecutionState> notifyWhenExecutionState(ExecutionState executionState) {
+			synchronized (priorityQueue) {
+				if (this.executionState != null && this.executionState.ordinal() >= executionState.ordinal()) {
+					return CompletableFuture.completedFuture(executionState);
+				} else {
+					CompletableFuture<ExecutionState> promise = new CompletableFuture<>();
+					priorityQueue.offer(Tuple2.of(executionState, promise));
+					return promise;
+				}
+			}
+		}
+
+		@Override
+		public void notifyTaskExecutionStateChanged(TaskExecutionState taskExecutionState) {
+			synchronized (priorityQueue) {
+				this.executionState = taskExecutionState.getExecutionState();
+
+				while (!priorityQueue.isEmpty() && priorityQueue.peek().f0.ordinal() <= executionState.ordinal()) {
+					CompletableFuture<ExecutionState> promise = priorityQueue.poll().f1;
+					promise.complete(executionState);
+				}
+			}
+		}
 	}
 
 	public static Task createTask(
 		Class<? extends AbstractInvokable> invokable,
 		StreamConfig taskConfig,
-		Configuration taskManagerConfig,
-		TaskManagerActions taskManagerActions) throws Exception {
-		return createTask(invokable, taskConfig, taskManagerConfig, new TestTaskStateManager(), taskManagerActions);
+		Configuration taskManagerConfig) throws Exception {
+		return createTask(invokable, taskConfig, taskManagerConfig, new TestTaskStateManager());
 	}
 
 	public static Task createTask(
 			Class<? extends AbstractInvokable> invokable,
 			StreamConfig taskConfig,
 			Configuration taskManagerConfig,
-			TestTaskStateManager taskStateManager,
-			TaskManagerActions taskManagerActions) throws Exception {
+			TestTaskStateManager taskStateManager) throws Exception {
 
 		BlobCacheService blobService =
 			new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
@@ -893,7 +937,7 @@ public class StreamTaskTest extends TestLogger {
 		when(libCache.getClassLoader(any(JobID.class))).thenReturn(StreamTaskTest.class.getClassLoader());
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
-		ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
+		ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
 		PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
 		Executor executor = mock(Executor.class);
 		TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
@@ -936,7 +980,7 @@ public class StreamTaskTest extends TestLogger {
 			network,
 			mock(BroadcastVariableManager.class),
 			taskStateManager,
-			taskManagerActions,
+			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
 			blobService,
@@ -1074,15 +1118,14 @@ public class StreamTaskTest extends TestLogger {
 		@Override
 		public StreamTaskStateInitializer createStreamTaskStateInitializer() {
 			final StreamTaskStateInitializer streamTaskStateManager = super.createStreamTaskStateInitializer();
-			return (operatorID, operatorClassName, keyContext, keySerializer, closeableRegistry, metricGroup) -> {
+			return (operatorID, operatorClassName, keyContext, keySerializer, closeableRegistry) -> {
 
 				final StreamOperatorStateContext context = streamTaskStateManager.streamOperatorStateContext(
 					operatorID,
 					operatorClassName,
 					keyContext,
 					keySerializer,
-					closeableRegistry,
-					metricGroup);
+					closeableRegistry);
 
 				return new StreamOperatorStateContext() {
 					@Override

@@ -43,7 +43,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -91,43 +90,19 @@ public class NetworkEnvironment {
 	private boolean isShutdown;
 
 	public NetworkEnvironment(
-		int numBuffers,
-		int memorySegmentSize,
-		int partitionRequestInitialBackoff,
-		int partitionRequestMaxBackoff,
-		int networkBuffersPerChannel,
-		int extraNetworkBuffersPerGate,
-		boolean enableCreditBased) {
-		this(
-			new NetworkBufferPool(numBuffers, memorySegmentSize),
-			new LocalConnectionManager(),
-			new ResultPartitionManager(),
-			new TaskEventDispatcher(),
-			new KvStateRegistry(),
-			null,
-			null,
-			IOManager.IOMode.SYNC,
-			partitionRequestInitialBackoff,
-			partitionRequestMaxBackoff,
-			networkBuffersPerChannel,
-			extraNetworkBuffersPerGate,
-			enableCreditBased);
-	}
-
-	public NetworkEnvironment(
-		NetworkBufferPool networkBufferPool,
-		ConnectionManager connectionManager,
-		ResultPartitionManager resultPartitionManager,
-		TaskEventDispatcher taskEventDispatcher,
-		KvStateRegistry kvStateRegistry,
-		KvStateServer kvStateServer,
-		KvStateClientProxy kvStateClientProxy,
-		IOMode defaultIOMode,
-		int partitionRequestInitialBackoff,
-		int partitionRequestMaxBackoff,
-		int networkBuffersPerChannel,
-		int extraNetworkBuffersPerGate,
-		boolean enableCreditBased) {
+			NetworkBufferPool networkBufferPool,
+			ConnectionManager connectionManager,
+			ResultPartitionManager resultPartitionManager,
+			TaskEventDispatcher taskEventDispatcher,
+			KvStateRegistry kvStateRegistry,
+			KvStateServer kvStateServer,
+			KvStateClientProxy kvStateClientProxy,
+			IOMode defaultIOMode,
+			int partitionRequestInitialBackoff,
+			int partitionRequestMaxBackoff,
+			int networkBuffersPerChannel,
+			int extraNetworkBuffersPerGate,
+			boolean enableCreditBased) {
 
 		this.networkBufferPool = checkNotNull(networkBufferPool);
 		this.connectionManager = checkNotNull(connectionManager);
@@ -234,12 +209,8 @@ public class NetworkEnvironment {
 			int maxNumberOfMemorySegments = partition.getPartitionType().isBounded() ?
 				partition.getNumberOfSubpartitions() * networkBuffersPerChannel +
 					extraNetworkBuffersPerGate : Integer.MAX_VALUE;
-			// If the partition type is back pressure-free, we register with the buffer pool for
-			// callbacks to release memory.
 			bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(),
-				maxNumberOfMemorySegments,
-				partition.getPartitionType().hasBackPressure() ? Optional.empty() : Optional.of(partition));
-
+				maxNumberOfMemorySegments);
 			partition.registerBufferPool(bufferPool);
 
 			resultPartitionManager.registerResultPartition(partition);

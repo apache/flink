@@ -24,7 +24,6 @@ import org.apache.flink.cep.Event
 import org.apache.flink.cep.SubEvent
 import org.apache.flink.cep.pattern.Quantifier.ConsumingStrategy
 import org.apache.flink.cep.pattern.conditions._
-import org.apache.flink.cep.scala.conditions.Context
 
 class PatternTest {
 
@@ -82,9 +81,9 @@ class PatternTest {
   def testStrictContiguityWithCondition(): Unit = {
     val pattern = Pattern.begin[Event]("start")
       .next("next")
-      .where((value: Event, _: Context[Event]) => value.getName == "foobar")
+      .where((value: Event, _) => value.getName == "foobar")
       .next("end")
-      .where((value: Event, _: Context[Event]) => value.getId == 42)
+      .where((value: Event, _) => value.getId == 42)
 
     val jPattern = JPattern.begin[Event]("start")
       .next("next")
@@ -113,7 +112,7 @@ class PatternTest {
 
     assertTrue(pattern.getCondition.isDefined)
     assertTrue(previous.getCondition.isDefined)
-    assertTrue(preprevious.getCondition.isDefined)
+    assertFalse(preprevious.getCondition.isDefined)
 
     assertEquals(pattern.getName, "end")
     assertEquals(previous.getName, "next")

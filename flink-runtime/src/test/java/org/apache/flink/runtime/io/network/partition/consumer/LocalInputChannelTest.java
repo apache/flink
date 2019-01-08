@@ -27,7 +27,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
@@ -76,15 +75,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Tests for the {@link LocalInputChannel}.
- */
 public class LocalInputChannelTest {
 
 	/**
 	 * Tests the consumption of multiple subpartitions via local input channels.
 	 *
-	 * <p>Multiple producer tasks produce pipelined partitions, which are consumed by multiple
+	 * <p> Multiple producer tasks produce pipelined partitions, which are consumed by multiple
 	 * tasks via local input channels.
 	 */
 	@Test
@@ -106,7 +102,8 @@ public class LocalInputChannelTest {
 			(parallelism * producerBufferPoolSize) + (parallelism * parallelism),
 			TestBufferFactory.BUFFER_SIZE);
 
-		final ResultPartitionConsumableNotifier partitionConsumableNotifier = new NoOpResultPartitionConsumableNotifier();
+		final ResultPartitionConsumableNotifier partitionConsumableNotifier =
+			mock(ResultPartitionConsumableNotifier.class);
 
 		final TaskActions taskActions = mock(TaskActions.class);
 
@@ -269,22 +266,20 @@ public class LocalInputChannelTest {
 	 * Verifies that concurrent release via the SingleInputGate and re-triggering
 	 * of a partition request works smoothly.
 	 *
-	 * <ul>
-	 * <li>SingleInputGate acquires its request lock and tries to release all
+	 * - SingleInputGate acquires its request lock and tries to release all
 	 * registered channels. When releasing a channel, it needs to acquire
-	 * the channel's shared request-release lock.</li>
-	 * <li>If a LocalInputChannel concurrently retriggers a partition request via
+	 * the channel's shared request-release lock.
+	 * - If a LocalInputChannel concurrently retriggers a partition request via
 	 * a Timer Thread it acquires the channel's request-release lock and calls
 	 * the retrigger callback on the SingleInputGate, which again tries to
-	 * acquire the gate's request lock.</li>
-	 * </ul>
+	 * acquire the gate's request lock.
 	 *
-	 * <p>For certain timings this obviously leads to a deadlock. This test reliably
+	 * For certain timings this obviously leads to a deadlock. This test reliably
 	 * reproduced such a timing (reported in FLINK-5228). This test is pretty much
 	 * testing the buggy implementation and has not much more general value. If it
 	 * becomes obsolete at some point (future greatness ;)), feel free to remove it.
 	 *
-	 * <p>The fix in the end was to to not acquire the channels lock when releasing it
+	 * The fix in the end was to to not acquire the channels lock when releasing it
 	 * and/or not doing any input gate callbacks while holding the channel's lock.
 	 * I decided to do both.
 	 */

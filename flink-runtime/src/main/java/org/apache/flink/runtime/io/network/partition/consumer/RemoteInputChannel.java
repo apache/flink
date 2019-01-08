@@ -191,16 +191,16 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		checkError();
 
 		final Buffer next;
-		final boolean moreAvailable;
+		final int remaining;
 
 		synchronized (receivedBuffers) {
 			next = receivedBuffers.poll();
-			moreAvailable = !receivedBuffers.isEmpty();
+			remaining = receivedBuffers.size();
 		}
 
 		numBytesIn.inc(next.getSizeUnsafe());
 		numBuffersIn.inc();
-		return Optional.of(new BufferAndAvailability(next, moreAvailable, getSenderBacklog()));
+		return Optional.of(new BufferAndAvailability(next, remaining > 0, getSenderBacklog()));
 	}
 
 	// ------------------------------------------------------------------------
@@ -289,7 +289,10 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	private void notifyCreditAvailable() {
 		checkState(partitionRequestClient != null, "Tried to send task event to producer before requesting a queue.");
 
-		partitionRequestClient.notifyCreditAvailable(this);
+		// We should skip the notification if this channel is already released.
+		if (!isReleased.get()) {
+			partitionRequestClient.notifyCreditAvailable(this);
+		}
 	}
 
 	/**
@@ -303,8 +306,8 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		int numAddedBuffers;
 
 		synchronized (bufferQueue) {
-			// Similar to notifyBufferAvailable(), make sure that we never add a buffer
-			// after releaseAllResources() released all buffers (see below for details).
+			// Important: check the isReleased state inside synchronized block, so there is no
+			// race condition when recycle and releaseAllResources running in parallel.
 			if (isReleased.get()) {
 				try {
 					inputGate.returnExclusiveSegments(Collections.singletonList(segment));
@@ -342,51 +345,60 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 
 	/**
 	 * The Buffer pool notifies this channel of an available floating buffer. If the channel is released or
-	 * currently does not need extra buffers, the buffer should be returned to the buffer pool. Otherwise,
+	 * currently does not need extra buffers, the buffer should be recycled to the buffer pool. Otherwise,
 	 * the buffer will be added into the <tt>bufferQueue</tt> and the unannounced credit is increased
 	 * by one.
 	 *
 	 * @param buffer Buffer that becomes available in buffer pool.
-	 * @return NotificationResult indicates whether this channel accepts the buffer and is waiting for
-	 *  	more floating buffers.
+	 * @return True when this channel is waiting for more floating buffers, otherwise false.
 	 */
 	@Override
-	public NotificationResult notifyBufferAvailable(Buffer buffer) {
-		NotificationResult notificationResult = NotificationResult.BUFFER_NOT_USED;
+	public boolean notifyBufferAvailable(Buffer buffer) {
+		// Check the isReleased state outside synchronized block first to avoid
+		// deadlock with releaseAllResources running in parallel.
+		if (isReleased.get()) {
+			buffer.recycleBuffer();
+			return false;
+		}
+
+		boolean recycleBuffer = true;
 		try {
+			boolean needMoreBuffers = false;
 			synchronized (bufferQueue) {
 				checkState(isWaitingForFloatingBuffers,
 					"This channel should be waiting for floating buffers.");
 
-				// Important: make sure that we never add a buffer after releaseAllResources()
-				// released all buffers. Following scenarios exist:
-				// 1) releaseAllResources() already released buffers inside bufferQueue
-				// -> then isReleased is set correctly
-				// 2) releaseAllResources() did not yet release buffers from bufferQueue
-				// -> we may or may not have set isReleased yet but will always wait for the
-				// lock on bufferQueue to release buffers
+				// Important: double check the isReleased state inside synchronized block, so there is no
+				// race condition when notifyBufferAvailable and releaseAllResources running in parallel.
 				if (isReleased.get() || bufferQueue.getAvailableBufferSize() >= numRequiredBuffers) {
 					isWaitingForFloatingBuffers = false;
-					return notificationResult;
+					recycleBuffer = false; // just in case
+					buffer.recycleBuffer();
+					return false;
 				}
 
+				recycleBuffer = false;
 				bufferQueue.addFloatingBuffer(buffer);
 
 				if (bufferQueue.getAvailableBufferSize() == numRequiredBuffers) {
 					isWaitingForFloatingBuffers = false;
-					notificationResult = NotificationResult.BUFFER_USED_NO_NEED_MORE;
 				} else {
-					notificationResult = NotificationResult.BUFFER_USED_NEED_MORE;
+					needMoreBuffers = true;
+				}
+
+				if (unannouncedCredit.getAndAdd(1) == 0) {
+					notifyCreditAvailable();
 				}
 			}
 
-			if (unannouncedCredit.getAndAdd(1) == 0) {
-				notifyCreditAvailable();
-			}
+			return needMoreBuffers;
 		} catch (Throwable t) {
+			if (recycleBuffer) {
+				buffer.recycleBuffer();
+			}
 			setError(t);
+			return false;
 		}
-		return notificationResult;
 	}
 
 	@Override
@@ -472,8 +484,8 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		int numRequestedBuffers = 0;
 
 		synchronized (bufferQueue) {
-			// Similar to notifyBufferAvailable(), make sure that we never add a buffer
-			// after releaseAllResources() released all buffers (see above for details).
+			// Important: check the isReleased state inside synchronized block, so there is no
+			// race condition when onSenderBacklog and releaseAllResources running in parallel.
 			if (isReleased.get()) {
 				return;
 			}
@@ -498,40 +510,33 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	}
 
 	public void onBuffer(Buffer buffer, int sequenceNumber, int backlog) throws IOException {
-		boolean recycleBuffer = true;
+		boolean success = false;
 
 		try {
-
-			final boolean wasEmpty;
 			synchronized (receivedBuffers) {
-				// Similar to notifyBufferAvailable(), make sure that we never add a buffer
-				// after releaseAllResources() released all buffers from receivedBuffers
-				// (see above for details).
-				if (isReleased.get()) {
-					return;
-				}
+				if (!isReleased.get()) {
+					if (expectedSequenceNumber == sequenceNumber) {
+						int available = receivedBuffers.size();
 
-				if (expectedSequenceNumber != sequenceNumber) {
-					onError(new BufferReorderingException(expectedSequenceNumber, sequenceNumber));
-					return;
-				}
+						receivedBuffers.add(buffer);
+						expectedSequenceNumber++;
 
-				wasEmpty = receivedBuffers.isEmpty();
-				receivedBuffers.add(buffer);
-				recycleBuffer = false;
+						if (available == 0) {
+							notifyChannelNonEmpty();
+						}
+
+						success = true;
+					} else {
+						onError(new BufferReorderingException(expectedSequenceNumber, sequenceNumber));
+					}
+				}
 			}
 
-			++expectedSequenceNumber;
-
-			if (wasEmpty) {
-				notifyChannelNonEmpty();
-			}
-
-			if (backlog >= 0) {
+			if (success && backlog >= 0) {
 				onSenderBacklog(backlog);
 			}
 		} finally {
-			if (recycleBuffer) {
+			if (!success) {
 				buffer.recycleBuffer();
 			}
 		}

@@ -86,6 +86,7 @@ public class JobVertexBackPressureHandlerTest {
 			}
 		).build();
 		jobVertexBackPressureHandler = new JobVertexBackPressureHandler(
+			CompletableFuture.completedFuture("localhost:12345"),
 			() -> CompletableFuture.completedFuture(restfulGateway),
 			Time.seconds(10),
 			Collections.emptyMap(),

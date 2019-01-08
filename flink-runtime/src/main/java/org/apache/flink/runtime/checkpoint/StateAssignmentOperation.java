@@ -71,12 +71,13 @@ public class StateAssignmentOperation {
 		this.allowNonRestoredState = allowNonRestoredState;
 	}
 
-	public void assignStates() {
+	public boolean assignStates() throws Exception {
 		Map<OperatorID, OperatorState> localOperators = new HashMap<>(operatorStates);
+		Map<JobVertexID, ExecutionJobVertex> localTasks = this.tasks;
 
 		checkStateMappingCompleteness(allowNonRestoredState, operatorStates, tasks);
 
-		for (Map.Entry<JobVertexID, ExecutionJobVertex> task : this.tasks.entrySet()) {
+		for (Map.Entry<JobVertexID, ExecutionJobVertex> task : localTasks.entrySet()) {
 			final ExecutionJobVertex executionJobVertex = task.getValue();
 
 			// find the states of all operators belonging to this task
@@ -107,6 +108,7 @@ public class StateAssignmentOperation {
 			assignAttemptState(task.getValue(), operatorStates);
 		}
 
+		return true;
 	}
 
 	private void assignAttemptState(ExecutionJobVertex executionJobVertex, List<OperatorState> operatorStates) {
@@ -252,6 +254,10 @@ public class StateAssignmentOperation {
 			new StateObjectCollection<>(subRawKeyedState.getOrDefault(instanceID, Collections.emptyList())));
 	}
 
+	private static boolean isHeadOperator(int opIdx, List<OperatorID> operatorIDs) {
+		return opIdx == operatorIDs.size() - 1;
+	}
+
 	public void checkParallelismPreconditions(List<OperatorState> operatorStates, ExecutionJobVertex executionJobVertex) {
 		for (OperatorState operatorState : operatorStates) {
 			checkParallelismPreconditions(operatorState, executionJobVertex);
@@ -272,16 +278,19 @@ public class StateAssignmentOperation {
 		for (int operatorIndex = 0; operatorIndex < newOperatorIDs.size(); operatorIndex++) {
 			OperatorState operatorState = oldOperatorStates.get(operatorIndex);
 			int oldParallelism = operatorState.getParallelism();
+
 			for (int subTaskIndex = 0; subTaskIndex < newParallelism; subTaskIndex++) {
 				OperatorInstanceID instanceID = OperatorInstanceID.of(subTaskIndex, newOperatorIDs.get(operatorIndex));
-				Tuple2<List<KeyedStateHandle>, List<KeyedStateHandle>> subKeyedStates = reAssignSubKeyedStates(
-					operatorState,
-					newKeyGroupPartitions,
-					subTaskIndex,
-					newParallelism,
-					oldParallelism);
-				newManagedKeyedState.put(instanceID, subKeyedStates.f0);
-				newRawKeyedState.put(instanceID, subKeyedStates.f1);
+				if (isHeadOperator(operatorIndex, newOperatorIDs)) {
+					Tuple2<List<KeyedStateHandle>, List<KeyedStateHandle>> subKeyedStates = reAssignSubKeyedStates(
+						operatorState,
+						newKeyGroupPartitions,
+						subTaskIndex,
+						newParallelism,
+						oldParallelism);
+					newManagedKeyedState.put(instanceID, subKeyedStates.f0);
+					newRawKeyedState.put(instanceID, subKeyedStates.f1);
+				}
 			}
 		}
 	}

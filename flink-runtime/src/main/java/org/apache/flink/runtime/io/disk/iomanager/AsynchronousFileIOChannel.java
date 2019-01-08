@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.disk.iomanager;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.util.event.NotificationListener;
-import org.apache.flink.util.FileUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -342,7 +341,7 @@ final class SegmentWriteRequest implements WriteRequest {
 	@Override
 	public void write() throws IOException {
 		try {
-			FileUtils.writeCompletely(this.channel.fileChannel, this.segment.wrap(0, this.segment.size()));
+			this.channel.fileChannel.write(this.segment.wrap(0, this.segment.size()));
 		}
 		catch (NullPointerException npex) {
 			throw new IOException("Memory segment has been released.");
@@ -376,8 +375,8 @@ final class BufferWriteRequest implements WriteRequest {
 		header.putInt(nioBufferReadable.remaining());
 		header.flip();
 
-		FileUtils.writeCompletely(channel.fileChannel, header);
-		FileUtils.writeCompletely(channel.fileChannel, nioBufferReadable);
+		channel.fileChannel.write(header);
+		channel.fileChannel.write(nioBufferReadable);
 	}
 
 	@Override
