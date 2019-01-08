@@ -77,7 +77,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 		return UNALLOWED_CHAR_PATTERN.matcher(input).replaceAll("_");
 	}
 
-	private CharacterFilter LABEL_VALUE_CHARACTER_FILTER = CHARACTER_FILTER;
+	private CharacterFilter labelValueCharactersFilter = CHARACTER_FILTER;
 
 	@Override
 	public void open(MetricConfig config) {
@@ -85,7 +85,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 			FILTER_LABEL_VALUE_CHARACTER.key(), FILTER_LABEL_VALUE_CHARACTER.defaultValue());
 
 		if (!filterLabelValueCharacters) {
-			LABEL_VALUE_CHARACTER_FILTER = input -> input;
+			labelValueCharactersFilter = input -> input;
 		}
 	}
 
@@ -102,7 +102,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 		for (final Map.Entry<String, String> dimension : group.getAllVariables().entrySet()) {
 			final String key = dimension.getKey();
 			dimensionKeys.add(CHARACTER_FILTER.filterCharacters(key.substring(1, key.length() - 1)));
-			dimensionValues.add(LABEL_VALUE_CHARACTER_FILTER.filterCharacters(dimension.getValue()));
+			dimensionValues.add(labelValueCharactersFilter.filterCharacters(dimension.getValue()));
 		}
 
 		final String scopedMetricName = getScopedName(metricName, group);
@@ -187,7 +187,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 
 		List<String> dimensionValues = new LinkedList<>();
 		for (final Map.Entry<String, String> dimension : group.getAllVariables().entrySet()) {
-			dimensionValues.add(LABEL_VALUE_CHARACTER_FILTER.filterCharacters(dimension.getValue()));
+			dimensionValues.add(labelValueCharactersFilter.filterCharacters(dimension.getValue()));
 		}
 
 		final String scopedMetricName = getScopedName(metricName, group);
