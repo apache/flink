@@ -41,15 +41,20 @@ import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.NMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
+
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -71,6 +76,8 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 	/** Environment variable name of the final container id used by the Flink ResourceManager.
 	 * Container ID generation may vary across Hadoop versions. */
 	static final String ENV_FLINK_CONTAINER_ID = "_FLINK_CONTAINER_ID";
+
+	private static final Priority RM_REQUEST_PRIORITY = Priority.newInstance(0);
 
 	/** The containers where a TaskManager is starting and we are waiting for it to register. */
 	private final Map<ResourceID, YarnContainerInLaunch> containersInLaunch;
@@ -314,6 +321,21 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 
 	@Override
 	protected void requestNewWorkers(int numWorkers) {
+		final Resource capability = getContainerResource();
+
+		for (int i = 0; i < numWorkers; i++) {
+			numPendingContainerRequests++;
+			LOG.info("Requesting new TaskManager container with {} megabytes memory. Pending requests: {}",
+				capability.getMemory(), numPendingContainerRequests);
+
+			resourceManagerClient.addContainerRequest(createContainerRequest(capability));
+		}
+
+		// make sure we transmit the request fast and receive fast news of granted allocations
+		resourceManagerClient.setHeartbeatInterval(FAST_YARN_HEARTBEAT_INTERVAL_MS);
+	}
+
+	private Resource getContainerResource() {
 		final long mem = taskManagerParameters.taskManagerTotalMemoryMB();
 		final int containerMemorySizeMB;
 
@@ -325,25 +347,15 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 				mem, containerMemorySizeMB);
 		}
 
-		for (int i = 0; i < numWorkers; i++) {
-			numPendingContainerRequests++;
-			LOG.info("Requesting new TaskManager container with {} megabytes memory. Pending requests: {}",
-				containerMemorySizeMB, numPendingContainerRequests);
+		// Resource requirements for worker containers
+		int taskManagerSlots = taskManagerParameters.numSlots();
+		int vcores = config.getInteger(YarnConfigOptions.VCORES, Math.max(taskManagerSlots, 1));
+		return Resource.newInstance(containerMemorySizeMB, vcores);
+	}
 
-			// Priority for worker containers - priorities are intra-application
-			Priority priority = Priority.newInstance(0);
-
-			// Resource requirements for worker containers
-			int taskManagerSlots = taskManagerParameters.numSlots();
-			int vcores = config.getInteger(YarnConfigOptions.VCORES, Math.max(taskManagerSlots, 1));
-			Resource capability = Resource.newInstance(containerMemorySizeMB, vcores);
-
-			resourceManagerClient.addContainerRequest(
-				new AMRMClient.ContainerRequest(capability, null, null, priority));
-		}
-
-		// make sure we transmit the request fast and receive fast news of granted allocations
-		resourceManagerClient.setHeartbeatInterval(FAST_YARN_HEARTBEAT_INTERVAL_MS);
+	@Nonnull
+	private AMRMClient.ContainerRequest createContainerRequest(Resource capability) {
+		return new AMRMClient.ContainerRequest(capability, null, null, RM_REQUEST_PRIORITY);
 	}
 
 	@Override
@@ -434,7 +446,14 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		final int numRequired = getDesignatedWorkerPoolSize();
 		final int numRegistered = getNumberOfStartedTaskManagers();
 
+		final Collection<AMRMClient.ContainerRequest> pendingRequests = getPendingRequests();
+		final Iterator<AMRMClient.ContainerRequest> pendingRequestsIterator = pendingRequests.iterator();
+
 		for (Container container : containers) {
+			if (numPendingContainerRequests > 0) {
+				numPendingContainerRequests -= 1;
+				resourceManagerClient.removeContainerRequest(pendingRequestsIterator.next());
+			}
 			numPendingContainerRequests = Math.max(0, numPendingContainerRequests - 1);
 			LOG.info("Received new container: {} - Remaining pending container requests: {}",
 				container.getId(), numPendingContainerRequests);
@@ -485,6 +504,24 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		// make sure we re-check the status of workers / containers one more time at least,
 		// in case some containers did not come up properly
 		triggerCheckWorkers();
+	}
+
+	private Collection<AMRMClient.ContainerRequest> getPendingRequests() {
+		final List<? extends Collection<AMRMClient.ContainerRequest>> matchingRequests = resourceManagerClient.getMatchingRequests(RM_REQUEST_PRIORITY, ResourceRequest.ANY, getContainerResource());
+
+		final Collection<AMRMClient.ContainerRequest> result;
+
+		if (matchingRequests.isEmpty()) {
+			result = Collections.emptyList();
+		} else {
+			result = new ArrayList<>(matchingRequests.get(0));
+		}
+
+		Preconditions.checkState(
+			result.size() == numPendingContainerRequests,
+			"The RMClient's and YarnResourceManagers internal state about the number of pending container requests has diverged. Number client's pending container requests %s != Number RM's pending container requests %s.", result.size(), numPendingContainerRequests);
+
+		return result;
 	}
 
 	/**
