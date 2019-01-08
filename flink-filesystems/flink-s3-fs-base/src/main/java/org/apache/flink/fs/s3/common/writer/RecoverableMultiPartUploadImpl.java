@@ -173,8 +173,8 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 		// first, upload the trailing data file. during that time, other in-progress uploads may complete.
 		final String incompletePartObjectName = createIncompletePartObjectName();
 		file.retain();
-		try (InputStream inputStream = file.getInputStream()) {
-			s3AccessHelper.putObject(incompletePartObjectName, inputStream, file.getPos());
+		try {
+			s3AccessHelper.putObject(incompletePartObjectName, file.getFile());
 		}
 		finally {
 			file.release();
@@ -315,8 +315,8 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 
 		@Override
 		public void run() {
-			try (final InputStream inputStream = file.getInputStream()) {
-				final UploadPartResult result = s3AccessHelper.uploadPart(objectName, uploadId, partNumber, inputStream, file.getPos());
+			try {
+				final UploadPartResult result = s3AccessHelper.uploadPart(objectName, uploadId, partNumber, file.getFile(), file.getPos());
 				future.complete(new PartETag(result.getPartNumber(), result.getETag()));
 				file.release();
 			}

@@ -69,6 +69,11 @@ public class RefCountedBufferingFileStream extends RefCountedFSOutputStream {
 	}
 
 	@Override
+	public File getFile() {
+		return currentTmpFile.getFile();
+	}
+
+	@Override
 	public long getPos() {
 		return currentTmpFile.getLength() + positionInBuffer;
 	}

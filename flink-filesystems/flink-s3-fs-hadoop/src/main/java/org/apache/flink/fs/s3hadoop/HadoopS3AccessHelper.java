@@ -68,15 +68,15 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
 	}
 
 	@Override
-	public UploadPartResult uploadPart(String key, String uploadId, int partNumber, InputStream inputStream, long length) throws IOException {
+	public UploadPartResult uploadPart(String key, String uploadId, int partNumber, File inputFile, long length) throws IOException {
 		final UploadPartRequest uploadRequest = s3accessHelper.newUploadPartRequest(
-				key, uploadId, partNumber, MathUtils.checkedDownCast(length), inputStream, null, 0L);
+			key, uploadId, partNumber, MathUtils.checkedDownCast(length), null, inputFile, 0L);
 		return s3accessHelper.uploadPart(uploadRequest);
 	}
 
 	@Override
-	public PutObjectResult putObject(String key, InputStream inputStream, long length) throws IOException {
-		final PutObjectRequest putRequest = s3accessHelper.createPutObjectRequest(key, inputStream, length);
+	public PutObjectResult putObject(String key, File inputFile) throws IOException {
+		final PutObjectRequest putRequest = s3accessHelper.createPutObjectRequest(key, inputFile);
 		return s3accessHelper.putObject(putRequest);
 	}
 
