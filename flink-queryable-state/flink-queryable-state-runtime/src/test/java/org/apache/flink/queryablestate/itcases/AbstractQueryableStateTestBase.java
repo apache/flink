@@ -106,7 +106,7 @@ import static org.junit.Assert.fail;
  */
 public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
-	private static final Duration TEST_TIMEOUT = Duration.ofSeconds(10000L);
+	private static final Duration TEST_TIMEOUT = Duration.ofSeconds(200L);
 	private static final long RETRY_TIMEOUT = 50L;
 
 	private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
