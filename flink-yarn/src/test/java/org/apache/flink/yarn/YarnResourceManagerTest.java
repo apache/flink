@@ -105,7 +105,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -233,7 +235,7 @@ public class YarnResourceManagerTest extends TestLogger {
 		final HardwareDescription hardwareDescription = new HardwareDescription(1, 2L, 3L, 4L);
 
 		// domain objects for test purposes
-		final ResourceProfile resourceProfile1 = new ResourceProfile(1.0, 200);
+		final ResourceProfile resourceProfile1 = ResourceProfile.UNKNOWN;
 
 		public ContainerId task = ContainerId.newInstance(
 				ApplicationAttemptId.newInstance(ApplicationId.newInstance(1L, 0), 0), 1);
@@ -357,6 +359,10 @@ public class YarnResourceManagerTest extends TestLogger {
 			when(testingContainer.getNodeId()).thenReturn(NodeId.newInstance("container", 1234));
 			when(testingContainer.getResource()).thenReturn(Resource.newInstance(200, 1));
 			when(testingContainer.getPriority()).thenReturn(Priority.UNDEFINED);
+
+			doReturn(Collections.singletonList(Collections.singletonList(resourceManager.getContainerRequest())))
+				.when(mockResourceManagerClient).getMatchingRequests(any(Priority.class), anyString(), any(Resource.class));
+
 			resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
 			verify(mockResourceManagerClient).addContainerRequest(any(AMRMClient.ContainerRequest.class));
 			verify(mockNMClient).startContainer(eq(testingContainer), any(ContainerLaunchContext.class));
@@ -457,6 +463,9 @@ public class YarnResourceManagerTest extends TestLogger {
 					1),
 				1);
 
+			doReturn(Collections.singletonList(Collections.singletonList(resourceManager.getContainerRequest())))
+				.when(mockResourceManagerClient).getMatchingRequests(any(Priority.class), anyString(), any(Resource.class));
+
 			// Callback from YARN when container is allocated.
 			Container testingContainer = mock(Container.class);
 			when(testingContainer.getId()).thenReturn(testContainerId);
@@ -464,6 +473,7 @@ public class YarnResourceManagerTest extends TestLogger {
 			when(testingContainer.getResource()).thenReturn(Resource.newInstance(200, 1));
 			when(testingContainer.getPriority()).thenReturn(Priority.UNDEFINED);
 			resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
+			verify(mockResourceManagerClient).removeContainerRequest(any(AMRMClient.ContainerRequest.class));
 			verify(mockResourceManagerClient).addContainerRequest(any(AMRMClient.ContainerRequest.class));
 			verify(mockNMClient).startContainer(eq(testingContainer), any(ContainerLaunchContext.class));
 
