@@ -303,7 +303,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
     case expr ~ _ ~ (MONTHS.key | MONTH.key) => toMonthInterval(expr, 1)
 
-    case expr ~ _ ~ (WEEKS.key | WEEKS.key) => toMilliInterval(expr, 7 * MILLIS_PER_DAY)
+    case expr ~ _ ~ (WEEKS.key | WEEK.key) => toMilliInterval(expr, 7 * MILLIS_PER_DAY)
 
     case expr ~ _ ~ (DAYS.key | DAY.key) => toMilliInterval(expr, MILLIS_PER_DAY)
 
