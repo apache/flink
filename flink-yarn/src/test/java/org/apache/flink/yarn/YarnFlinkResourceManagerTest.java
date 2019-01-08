@@ -43,6 +43,8 @@ import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.NodeId;
+import org.apache.hadoop.yarn.api.records.Priority;
+import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.NMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
@@ -52,7 +54,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -69,7 +70,10 @@ import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -128,20 +132,6 @@ public class YarnFlinkResourceManagerTest extends TestLogger {
 				containerList.add(mockContainer);
 			}
 
-			doAnswer(new Answer() {
-				int counter = 0;
-				@Override
-				public Object answer(InvocationOnMock invocation) throws Throwable {
-					if (counter < containerList.size()) {
-						callbackHandler.onContainersAllocated(
-							Collections.singletonList(
-								containerList.get(counter++)
-							));
-					}
-					return null;
-				}
-			}).when(resourceManagerClient).addContainerRequest(Matchers.any(AMRMClient.ContainerRequest.class));
-
 			final CompletableFuture<AkkaActorGateway> resourceManagerFuture = new CompletableFuture<>();
 			final CompletableFuture<AkkaActorGateway> leaderGatewayFuture = new CompletableFuture<>();
 
@@ -191,6 +181,9 @@ public class YarnFlinkResourceManagerTest extends TestLogger {
 						nodeManagerClient
 					));
 
+				doReturn(Collections.singletonList(Collections.nCopies(numInitialTaskManagers, new AMRMClient.ContainerRequest(Resource.newInstance(1024 * 1024, 1), null, null, Priority.newInstance(0)))))
+					.when(resourceManagerClient).getMatchingRequests(any(Priority.class), anyString(), any(Resource.class));
+
 				leaderRetrievalService.notifyListener(leader1.path().toString(), leaderSessionID);
 
 				final AkkaActorGateway leader1Gateway = new AkkaActorGateway(leader1, leaderSessionID);
@@ -202,6 +195,8 @@ public class YarnFlinkResourceManagerTest extends TestLogger {
 				expectMsgClass(deadline.timeLeft(), RegisterResourceManager.class);
 
 				resourceManagerGateway.tell(new RegisterResourceManagerSuccessful(leader1, Collections.emptyList()));
+
+				callbackHandler.onContainersAllocated(containerList);
 
 				for (int i = 0; i < containerList.size(); i++) {
 					expectMsgClass(deadline.timeLeft(), Acknowledge.class);
