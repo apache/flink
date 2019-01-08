@@ -54,7 +54,7 @@ public class ShutdownHookUtil {
 	 *
 	 * @param shutdownHook Shutdown hook to be registered.
 	 * @param serviceName The name of service.
-	 * @param logger The logger of service.
+	 * @param logger The logger to log.
 	 * @return Whether the hook has been successfully registered.
 	 */
 	public static boolean addShutdownHookThread(
