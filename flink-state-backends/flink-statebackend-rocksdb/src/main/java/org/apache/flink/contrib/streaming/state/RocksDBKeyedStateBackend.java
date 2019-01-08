@@ -242,8 +242,14 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** The native metrics monitor. */
 	private RocksDBNativeMetricMonitor nativeMetricMonitor;
 
-	/** Helper to build the byte arrays of composite keys to address data in RocksDB. Shared across all states.*/
-	private final RocksDBSerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder;
+	/**
+	 * Helper to build the byte arrays of composite keys to address data in RocksDB. Shared across all states.
+	 *
+	 * <p>We create the builder after the restore phase in the {@link #restore(Object)} method. The timing of
+	 * the creation is important, because only after the restore we are certain that the key serializer
+	 * is final after potential reconfigurations during the restore.
+	 */
+	private RocksDBSerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder;
 
 	public RocksDBKeyedStateBackend(
 		String operatorIdentifier,
@@ -297,7 +303,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.kvStateInformation = new LinkedHashMap<>();
 
 		this.writeOptions = new WriteOptions().setDisableWAL(true);
-		this.sharedRocksKeyBuilder = new RocksDBSerializedCompositeKeyBuilder<>(keySerializer, keyGroupPrefixBytes, 32);
 
 		this.metricOptions = metricOptions;
 		this.metricGroup = metricGroup;
@@ -534,6 +539,14 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					fullRestoreOperation.doRestore(restoreState);
 				}
 			}
+
+			// it is important that we only create the key builder after the restore, and not before;
+			// restore operations may reconfigure the key serializer, so accessing the key serializer
+			// only now we can be certain that the key serializer used in the builder is final.
+			this.sharedRocksKeyBuilder = new RocksDBSerializedCompositeKeyBuilder<>(
+				getKeySerializer(),
+				keyGroupPrefixBytes,
+				32);
 
 			initializeSnapshotStrategy(incrementalRestoreOperation);
 		} catch (Exception ex) {
