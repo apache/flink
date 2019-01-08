@@ -19,9 +19,13 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -85,6 +89,29 @@ public class RpcUtils {
 	 */
 	public static void terminateRpcService(RpcService rpcService, Time timeout) throws InterruptedException, ExecutionException, TimeoutException {
 		rpcService.stopService().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+	}
+
+	/**
+	 * Shuts the given rpc services down and waits for their termination.
+	 *
+	 * @param rpcServices to shut down
+	 * @param timeout for this operation
+	 * @throws InterruptedException if the operation has been interrupted
+	 * @throws ExecutionException if a problem occurred
+	 * @throws TimeoutException if a timeout occurred
+	 */
+	public static void terminateRpcServices(
+			Time timeout,
+			RpcService... rpcServices) throws InterruptedException, ExecutionException, TimeoutException {
+		final Collection<CompletableFuture<?>> terminationFutures = new ArrayList<>(rpcServices.length);
+
+		for (RpcService service : rpcServices) {
+			if (service != null) {
+				terminationFutures.add(service.stopService());
+			}
+		}
+
+		FutureUtils.waitForAll(terminationFutures).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 	}
 
 	// We don't want this class to be instantiable

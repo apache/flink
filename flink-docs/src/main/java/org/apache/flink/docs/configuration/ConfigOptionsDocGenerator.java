@@ -202,7 +202,7 @@ public class ConfigOptionsDocGenerator {
 			List<OptionWithMetaInfo> configOptions = new ArrayList<>(8);
 			Field[] fields = clazz.getFields();
 			for (Field field : fields) {
-				if (field.getType().equals(ConfigOption.class) && field.getAnnotation(Deprecated.class) == null) {
+				if (isConfigOption(field) && shouldBeDocumented(field)) {
 					configOptions.add(new OptionWithMetaInfo((ConfigOption<?>) field.get(null), field));
 				}
 			}
@@ -211,6 +211,15 @@ public class ConfigOptionsDocGenerator {
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to extract config options from class " + clazz + '.', e);
 		}
+	}
+
+	private static boolean isConfigOption(Field field) {
+		return field.getType().equals(ConfigOption.class);
+	}
+
+	private static boolean shouldBeDocumented(Field field) {
+		return field.getAnnotation(Deprecated.class) == null &&
+			field.getAnnotation(Documentation.ExcludeFromDocumentation.class) == null;
 	}
 
 	/**

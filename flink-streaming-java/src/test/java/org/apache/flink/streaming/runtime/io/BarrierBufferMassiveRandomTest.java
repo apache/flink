@@ -132,7 +132,7 @@ public class BarrierBufferMassiveRandomTest {
 
 	private static class RandomGeneratingInputGate implements InputGate {
 
-		private final int numChannels;
+		private final int numberOfChannels;
 		private final BufferPool[] bufferPools;
 		private final int[] currentBarriers;
 		private final BarrierGenerator[] barrierGens;
@@ -146,8 +146,8 @@ public class BarrierBufferMassiveRandomTest {
 		}
 
 		public RandomGeneratingInputGate(BufferPool[] bufferPools, BarrierGenerator[] barrierGens, String owningTaskName) {
-			this.numChannels = bufferPools.length;
-			this.currentBarriers = new int[numChannels];
+			this.numberOfChannels = bufferPools.length;
+			this.currentBarriers = new int[numberOfChannels];
 			this.bufferPools = bufferPools;
 			this.barrierGens = barrierGens;
 			this.owningTaskName = owningTaskName;
@@ -155,7 +155,7 @@ public class BarrierBufferMassiveRandomTest {
 
 		@Override
 		public int getNumberOfInputChannels() {
-			return numChannels;
+			return numberOfChannels;
 		}
 
 		@Override
@@ -173,7 +173,7 @@ public class BarrierBufferMassiveRandomTest {
 
 		@Override
 		public Optional<BufferOrEvent> getNextBufferOrEvent() throws IOException, InterruptedException {
-			currentChannel = (currentChannel + 1) % numChannels;
+			currentChannel = (currentChannel + 1) % numberOfChannels;
 
 			if (barrierGens[currentChannel].isNextBarrier()) {
 				return Optional.of(

@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.descriptors
 
+import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.api.Types
+import org.apache.flink.table.runtime.utils.CommonTestData.Person
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -45,6 +47,10 @@ class TableDescriptorTest extends TableTestBase {
     val schema = Schema()
       .field("myfield", Types.STRING)
       .field("myfield2", Types.INT)
+      .field("myfield3", Types.MAP(Types.STRING, Types.INT))
+      .field("myfield4", Types.MULTISET(Types.LONG))
+      .field("myfield5", Types.PRIMITIVE_ARRAY(Types.SHORT))
+      .field("myfield6", Types.OBJECT_ARRAY(TypeExtractor.createTypeInfo(classOf[Person])))
     // CSV table source and sink do not support proctime yet
     //if (isStreaming) {
     //  schema.field("proctime", Types.SQL_TIMESTAMP).proctime()
@@ -56,6 +62,10 @@ class TableDescriptorTest extends TableTestBase {
     val format = Csv()
       .field("myfield", Types.STRING)
       .field("myfield2", Types.INT)
+      .field("myfield3", Types.MAP(Types.STRING, Types.INT))
+      .field("myfield4", Types.MULTISET(Types.LONG))
+      .field("myfield5", Types.PRIMITIVE_ARRAY(Types.SHORT))
+      .field("myfield6", Types.OBJECT_ARRAY(TypeExtractor.createTypeInfo(classOf[Person])))
       .fieldDelimiter("#")
 
     val descriptor: RegistrableDescriptor = if (isStreaming) {
@@ -84,11 +94,29 @@ class TableDescriptorTest extends TableTestBase {
       "format.fields.0.type" -> "VARCHAR",
       "format.fields.1.name" -> "myfield2",
       "format.fields.1.type" -> "INT",
+      "format.fields.2.name" -> "myfield3",
+      "format.fields.2.type" -> "MAP<VARCHAR, INT>",
+      "format.fields.3.name" -> "myfield4",
+      "format.fields.3.type" -> "MULTISET<BIGINT>",
+      "format.fields.4.name" -> "myfield5",
+      "format.fields.4.type" -> "PRIMITIVE_ARRAY<SMALLINT>",
+      "format.fields.5.name" -> "myfield6",
+      "format.fields.5.type" ->
+        "OBJECT_ARRAY<POJO<org.apache.flink.table.runtime.utils.CommonTestData$Person>>",
       "format.field-delimiter" -> "#",
       "schema.0.name" -> "myfield",
       "schema.0.type" -> "VARCHAR",
       "schema.1.name" -> "myfield2",
-      "schema.1.type" -> "INT"
+      "schema.1.type" -> "INT",
+      "schema.2.name" -> "myfield3",
+      "schema.2.type" -> "MAP<VARCHAR, INT>",
+      "schema.3.name" -> "myfield4",
+      "schema.3.type" -> "MULTISET<BIGINT>",
+      "schema.4.name" -> "myfield5",
+      "schema.4.type" -> "PRIMITIVE_ARRAY<SMALLINT>",
+      "schema.5.name" -> "myfield6",
+      "schema.5.type" ->
+        "OBJECT_ARRAY<POJO<org.apache.flink.table.runtime.utils.CommonTestData$Person>>"
     )
 
     val expectedProperties = if (isStreaming) {
@@ -102,9 +130,6 @@ class TableDescriptorTest extends TableTestBase {
       expectedCommonProperties
     }
 
-    val actualProperties = new DescriptorProperties(true)
-    descriptor.addProperties(actualProperties)
-
-    assertEquals(expectedProperties.toMap.asJava, actualProperties.asMap)
+    assertEquals(expectedProperties.toMap.asJava, descriptor.toProperties)
   }
 }

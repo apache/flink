@@ -101,7 +101,6 @@ public abstract class AggregatingMetricsHandlerTestBase<
 		}
 
 		handler = getHandler(
-			TEST_REST_ADDRESS,
 			LEADER_RETRIEVER,
 			TIMEOUT,
 			TEST_HEADERS,
@@ -119,7 +118,6 @@ public abstract class AggregatingMetricsHandlerTestBase<
 	protected abstract Collection<MetricDump> getMetricDumps();
 
 	protected abstract H getHandler(
-		CompletableFuture<String> localRestAddress,
 		GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 		Time timeout,
 		Map<String, String> responseHeaders,

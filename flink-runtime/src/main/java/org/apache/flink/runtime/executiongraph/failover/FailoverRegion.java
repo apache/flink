@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph.failover;
 
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -212,6 +213,15 @@ public class FailoverRegion {
 							connectedExecutionVertexes, false, false);
 				}
 				*/
+
+				HashSet<AllocationID> previousAllocationsInRegion = new HashSet<>(connectedExecutionVertexes.size());
+				for (ExecutionVertex connectedExecutionVertex : connectedExecutionVertexes) {
+					AllocationID latestPriorAllocation = connectedExecutionVertex.getLatestPriorAllocation();
+					if (latestPriorAllocation != null) {
+						previousAllocationsInRegion.add(latestPriorAllocation);
+					}
+				}
+
 				//TODO, use restart strategy to schedule them.
 				//restart all connected ExecutionVertexes
 				for (ExecutionVertex ev : connectedExecutionVertexes) {
@@ -219,7 +229,8 @@ public class FailoverRegion {
 						ev.scheduleForExecution(
 							executionGraph.getSlotProvider(),
 							executionGraph.isQueuedSchedulingAllowed(),
-							LocationPreferenceConstraint.ANY); // some inputs not belonging to the failover region might have failed concurrently
+							LocationPreferenceConstraint.ANY,
+							previousAllocationsInRegion); // some inputs not belonging to the failover region might have failed concurrently
 					}
 					catch (Throwable e) {
 						failover(globalModVersionOfFailover);

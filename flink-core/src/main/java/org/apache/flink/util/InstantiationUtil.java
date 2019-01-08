@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.typeutils.runtime.KryoRegistrationSerializerConfigSnapshot;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
@@ -169,6 +170,7 @@ public final class InstantiationUtil {
 		scalaTypes.add("scala.Tuple2$mcDJ$sp");
 		scalaTypes.add("scala.Tuple2$mcDI$sp");
 		scalaTypes.add("scala.Tuple2$mcDD$sp");
+		scalaTypes.add("scala.Enumeration$ValueSet");
 	}
 
 	/**
@@ -284,6 +286,25 @@ public final class InstantiationUtil {
 		private static ObjectStreamClass getEquivalentSerializer(String classDescriptorName) {
 			return EQUIVALENCE_MAP.get(classDescriptorName);
 		}
+	}
+
+	/**
+	 * Creates a new instance of the given class name and type using the provided {@link ClassLoader}.
+	 *
+	 * @param className of the class to load
+	 * @param targetType type of the instantiated class
+	 * @param classLoader to use for loading the class
+	 * @param <T> type of the instantiated class
+	 * @return Instance of the given class name
+	 * @throws ClassNotFoundException if the class could not be found
+	 */
+	public static <T> T instantiate(final String className, final Class<T> targetType, final ClassLoader classLoader) throws ClassNotFoundException {
+		final Class<? extends T> clazz = Class.forName(
+			className,
+			false,
+			classLoader).asSubclass(targetType);
+
+		return instantiate(clazz);
 	}
 
 	/**
@@ -495,9 +516,10 @@ public final class InstantiationUtil {
 
 		final ClassLoader old = Thread.currentThread().getContextClassLoader();
 		// not using resource try to avoid AutoClosable's close() on the given stream
-		try (ObjectInputStream oois = isFailureTolerant
+		try {
+			ObjectInputStream oois = isFailureTolerant
 				? new InstantiationUtil.FailureTolerantObjectInputStream(in, cl)
-				: new InstantiationUtil.ClassLoaderObjectInputStream(in, cl)) {
+				: new InstantiationUtil.ClassLoaderObjectInputStream(in, cl);
 			Thread.currentThread().setContextClassLoader(cl);
 			return (T) oois.readObject();
 		}
@@ -600,6 +622,62 @@ public final class InstantiationUtil {
 		}
 	}
 
+	/**
+	 * Loads a class by name from the given input stream and reflectively instantiates it.
+	 *
+	 * <p>This method will use {@link DataInputView#readUTF()} to read the class name, and
+	 * then attempt to load the class from the given ClassLoader.
+	 *
+	 * @param in The stream to read the class name from.
+	 * @param cl The class loader to resolve the class.
+	 *
+	 * @throws IOException Thrown, if the class name could not be read, the class could not be found.
+	 */
+	public static <T> Class<T> resolveClassByName(
+			DataInputView in,
+			ClassLoader cl) throws IOException {
+		return resolveClassByName(in, cl, Object.class);
+	}
+
+	/**
+	 * Loads a class by name from the given input stream and reflectively instantiates it.
+	 *
+	 * <p>This method will use {@link DataInputView#readUTF()} to read the class name, and
+	 * then attempt to load the class from the given ClassLoader.
+	 *
+	 * <p>The resolved class is checked to be equal to or a subtype of the given supertype
+	 * class.
+	 *
+	 * @param in The stream to read the class name from.
+	 * @param cl The class loader to resolve the class.
+	 * @param supertype A class that the resolved class must extend.
+	 *
+	 * @throws IOException Thrown, if the class name could not be read, the class could not be found,
+	 *                     or the class is not a subtype of the given supertype class.
+	 */
+	public static <T> Class<T> resolveClassByName(
+			DataInputView in,
+			ClassLoader cl,
+			Class<? super T> supertype) throws IOException {
+
+		final String className = in.readUTF();
+		final Class<?> rawClazz;
+		try {
+			rawClazz = Class.forName(className, false, cl);
+		}
+		catch (ClassNotFoundException e) {
+			throw new IOException(
+					"Could not find class '" + className +  "' in classpath.", e);
+		}
+
+		if (!supertype.isAssignableFrom(rawClazz)) {
+			throw new IOException("The class " + className + " is not a subclass of " + supertype.getName());
+		}
+
+		@SuppressWarnings("unchecked")
+		Class<T> clazz = (Class<T>) rawClazz;
+		return clazz;
+	}
 
 	// --------------------------------------------------------------------------------------------
 

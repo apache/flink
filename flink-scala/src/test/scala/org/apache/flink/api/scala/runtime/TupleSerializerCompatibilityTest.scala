@@ -21,13 +21,13 @@ package org.apache.flink.api.scala.runtime
 import java.io.InputStream
 
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil
+import org.apache.flink.api.common.typeutils.{TypeSerializer, TypeSerializerSerializationUtil, TypeSerializerSnapshot}
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerConfigSnapshot
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.api.scala.runtime.TupleSerializerCompatibilityTestGenerator._
 import org.apache.flink.api.scala.typeutils.CaseClassSerializer
 import org.apache.flink.core.memory.DataInputViewStreamWrapper
-import org.junit.Assert.{assertEquals, assertFalse, assertNotNull, assertTrue}
+import org.junit.Assert.{assertEquals, assertNotNull, assertTrue}
 import org.junit.Test
 
 /**
@@ -48,8 +48,11 @@ class TupleSerializerCompatibilityTest {
 
       assertEquals(1, deserialized.size)
 
-      val oldSerializer = deserialized.get(0).f0
-      val oldConfigSnapshot = deserialized.get(0).f1
+      val oldSerializer: TypeSerializer[TestCaseClass] =
+        deserialized.get(0).f0.asInstanceOf[TypeSerializer[TestCaseClass]]
+
+      val oldConfigSnapshot: TypeSerializerSnapshot[TestCaseClass] =
+        deserialized.get(0).f1.asInstanceOf[TypeSerializerSnapshot[TestCaseClass]]
 
       // test serializer and config snapshot
       assertNotNull(oldSerializer)
@@ -57,9 +60,13 @@ class TupleSerializerCompatibilityTest {
       assertTrue(oldSerializer.isInstanceOf[CaseClassSerializer[_]])
       assertTrue(oldConfigSnapshot.isInstanceOf[TupleSerializerConfigSnapshot[_]])
 
+      assertTrue(oldConfigSnapshot.isInstanceOf[TupleSerializerConfigSnapshot[_]])
+
       val currentSerializer = createTypeInformation[TestCaseClass]
         .createSerializer(new ExecutionConfig())
-      assertFalse(currentSerializer.ensureCompatibility(oldConfigSnapshot).isRequiresMigration)
+      assertTrue(oldConfigSnapshot
+        .resolveSchemaCompatibility(currentSerializer)
+        .isCompatibleAsIs)
 
       // test old data serialization
       is.close()

@@ -30,14 +30,14 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.state.ManualWindowSpeedITCase;
-import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
@@ -54,6 +54,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.assertNotNull;
 
@@ -263,7 +264,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haDir.toURI().toString());
 		}
 
-		MiniClusterResource cluster = new MiniClusterResource(
+		MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()
 				.setConfiguration(config)
 				.setNumberTaskManagers(NUM_TASK_MANAGERS)
@@ -326,16 +327,18 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 	}
 
 	private static Optional<Path> findExternalizedCheckpoint(File checkpointDir, JobID jobId) throws IOException {
-		return Files.list(checkpointDir.toPath().resolve(jobId.toString()))
-			.filter(path -> path.getFileName().toString().startsWith("chk-"))
-			.filter(path -> {
-				try {
-					return Files.list(path).anyMatch(child -> child.getFileName().toString().contains("meta"));
-				} catch (IOException ignored) {
-					return false;
-				}
-			})
-			.findAny();
+		try (Stream<Path> checkpoints = Files.list(checkpointDir.toPath().resolve(jobId.toString()))) {
+			return checkpoints
+				.filter(path -> path.getFileName().toString().startsWith("chk-"))
+				.filter(path -> {
+					try (Stream<Path> checkpointFiles = Files.list(path)) {
+						return checkpointFiles.anyMatch(child -> child.getFileName().toString().contains("meta"));
+					} catch (IOException ignored) {
+						return false;
+					}
+				})
+				.findAny();
+		}
 	}
 
 	private static void waitUntilCanceled(JobID jobId, ClusterClient<?> client) throws ExecutionException, InterruptedException {

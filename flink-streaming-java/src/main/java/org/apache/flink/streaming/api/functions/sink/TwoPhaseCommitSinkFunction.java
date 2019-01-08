@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapsh
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
@@ -38,20 +39,24 @@ import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.time.Clock;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -147,6 +152,12 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 	@Nullable
 	protected TXN currentTransaction() {
 		return currentTransactionHolder == null ? null : currentTransactionHolder.handle;
+	}
+
+	@Nonnull
+	protected Stream<Map.Entry<Long, TXN>> pendingTransactions() {
+		return pendingCommitTransactions.entrySet().stream()
+			.map(e -> new AbstractMap.SimpleEntry<>(e.getKey(), e.getValue().handle));
 	}
 
 	// ------ methods that should be implemented in child class to support two phase commit algorithm ------
@@ -256,6 +267,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 
 		Iterator<Map.Entry<Long, TransactionHolder<TXN>>> pendingTransactionIterator = pendingCommitTransactions.entrySet().iterator();
 		checkState(pendingTransactionIterator.hasNext(), "checkpoint completed, but no transaction pending");
+		Throwable firstError = null;
 
 		while (pendingTransactionIterator.hasNext()) {
 			Map.Entry<Long, TransactionHolder<TXN>> entry = pendingTransactionIterator.next();
@@ -269,11 +281,22 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 				name(), checkpointId, pendingTransaction, pendingTransactionCheckpointId);
 
 			logWarningIfTimeoutAlmostReached(pendingTransaction);
-			commit(pendingTransaction.handle);
+			try {
+				commit(pendingTransaction.handle);
+			} catch (Throwable t) {
+				if (firstError == null) {
+					firstError = t;
+				}
+			}
 
 			LOG.debug("{} - committed checkpoint transaction {}", name(), pendingTransaction);
 
 			pendingTransactionIterator.remove();
+		}
+
+		if (firstError != null) {
+			throw new FlinkRuntimeException("Committing one of transactions failed, logging first encountered failure",
+				firstError);
 		}
 	}
 
@@ -319,9 +342,9 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 
 		state = context.getOperatorStateStore().getListState(stateDescriptor);
 
+		boolean recoveredUserContext = false;
 		if (context.isRestored()) {
 			LOG.info("{} - restoring state", name());
-
 			for (State<TXN, CONTEXT> operatorState : state.get()) {
 				userContext = operatorState.getContext();
 				List<TransactionHolder<TXN>> recoveredTransactions = operatorState.getPendingCommitTransactions();
@@ -336,11 +359,13 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 
 				if (userContext.isPresent()) {
 					finishRecoveringContext();
+					recoveredUserContext = true;
 				}
 			}
 		}
+
 		// if in restore we didn't get any userContext or we are initializing from scratch
-		if (userContext == null) {
+		if (!recoveredUserContext) {
 			LOG.info("{} - no state to restore", name());
 
 			userContext = initializeUserContext();
@@ -763,16 +788,16 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		public TypeSerializerConfigSnapshot<State<TXN, CONTEXT>> snapshotConfiguration() {
 			return new StateSerializerConfigSnapshot<>(transactionSerializer, contextSerializer);
 		}
 
 		@Override
 		public CompatibilityResult<State<TXN, CONTEXT>> ensureCompatibility(
-				TypeSerializerConfigSnapshot configSnapshot) {
+				TypeSerializerConfigSnapshot<?> configSnapshot) {
 			if (configSnapshot instanceof StateSerializerConfigSnapshot) {
-				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs =
-						((StateSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
+				List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> previousSerializersAndConfigs =
+						((StateSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
 
 				CompatibilityResult<TXN> txnCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 						previousSerializersAndConfigs.get(0).f0,
@@ -809,7 +834,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 	 */
 	@Internal
 	public static final class StateSerializerConfigSnapshot<TXN, CONTEXT>
-			extends CompositeTypeSerializerConfigSnapshot {
+			extends CompositeTypeSerializerConfigSnapshot<State<TXN, CONTEXT>> {
 
 		private static final int VERSION = 1;
 

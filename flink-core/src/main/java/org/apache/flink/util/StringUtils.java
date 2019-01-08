@@ -32,6 +32,7 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -246,6 +247,38 @@ public final class StringUtils {
 			data[i] = (char) (rnd.nextInt(diff) + minValue);
 		}
 		return new String(data);
+	}
+
+	/**
+	 * Creates a random alphanumeric string of given length.
+	 *
+	 * @param rnd The random number generator to use.
+	 * @param length The number of alphanumeric characters to append.
+	 */
+	public static String generateRandomAlphanumericString(Random rnd, int length) {
+		checkNotNull(rnd);
+		checkArgument(length >= 0);
+
+		StringBuilder buffer = new StringBuilder(length);
+		for (int i = 0; i < length; i++) {
+			buffer.append(nextAlphanumericChar(rnd));
+		}
+		return buffer.toString();
+	}
+
+	private static char nextAlphanumericChar(Random rnd) {
+		int which = rnd.nextInt(62);
+		char c;
+		if (which < 10) {
+			c = (char) ('0' + which);
+		}
+		else if (which < 36) {
+			c = (char) ('A' - 10 + which);
+		}
+		else {
+			c = (char) ('a' - 36 + which);
+		}
+		return c;
 	}
 
 	/**

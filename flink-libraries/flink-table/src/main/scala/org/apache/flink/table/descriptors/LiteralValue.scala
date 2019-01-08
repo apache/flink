@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.descriptors
 
+import java.util
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.typeutils.TypeStringUtils
+import org.apache.flink.table.utils.TypeStringUtils
 import org.apache.flink.util.Preconditions
 
 /**
@@ -156,10 +158,12 @@ class LiteralValue extends HierarchyDescriptor {
   }
 
   /**
-    * Internal method for properties conversion.
+    * Converts this descriptor into a set of properties.
     */
-  override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
+  override def toProperties: util.Map[String, String] = {
+    val properties = new DescriptorProperties()
     addPropertiesWithPrefix(HierarchyDescriptorValidator.EMPTY_PREFIX, properties)
+    properties.asMap()
   }
 
   /**
@@ -216,6 +220,9 @@ object LiteralValue {
     *   - "42", "-5" -> INT
     *   - "2.0", "1234.222" -> DOUBLE
     *   - VARCHAR otherwise
+    *
+    *   @deprecated Use `new Literal()`.
     */
+  @deprecated
   def apply() = new LiteralValue()
 }

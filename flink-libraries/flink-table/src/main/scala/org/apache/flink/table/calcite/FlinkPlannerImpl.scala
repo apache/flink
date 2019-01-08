@@ -29,6 +29,7 @@ import org.apache.calcite.rel.RelRoot
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexBuilder
 import org.apache.calcite.schema.SchemaPlus
+import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
 import org.apache.calcite.sql.parser.{SqlParser, SqlParseException => CSqlParseException}
 import org.apache.calcite.sql.validate.SqlValidator
 import org.apache.calcite.sql.{SqlNode, SqlOperatorTable}
@@ -55,6 +56,7 @@ class FlinkPlannerImpl(
   val parserConfig: SqlParser.Config = config.getParserConfig
   val convertletTable: SqlRexConvertletTable = config.getConvertletTable
   val defaultSchema: SchemaPlus = config.getDefaultSchema
+  val sqlToRelConverterConfig: SqlToRelConverter.Config = config.getSqlToRelConverterConfig
 
   var validator: FlinkCalciteSqlValidator = _
   var root: RelRoot = _
@@ -66,6 +68,19 @@ class FlinkPlannerImpl(
         planner.addRelTraitDef(traitDef)
       }
     }
+  }
+
+  def getCompletionHints(sql: String, cursor: Int): Array[String] = {
+    val advisorValidator = new SqlAdvisorValidator(
+      operatorTable,
+      createCatalogReader(true), // ignore cases for lenient completion
+      typeFactory,
+      config.getParserConfig.conformance())
+    val advisor = new SqlAdvisor(advisorValidator)
+    val replaced = Array[String](null)
+    val hints = advisor.getCompletionHints(sql, cursor, replaced)
+      .map(item => item.toIdentifier.toString)
+    hints.toArray
   }
 
   def parse(sql: String): SqlNode = {
@@ -81,7 +96,10 @@ class FlinkPlannerImpl(
   }
 
   def validate(sqlNode: SqlNode): SqlNode = {
-    validator = new FlinkCalciteSqlValidator(operatorTable, createCatalogReader, typeFactory)
+    validator = new FlinkCalciteSqlValidator(
+      operatorTable,
+      createCatalogReader(false),
+      typeFactory)
     validator.setIdentifierExpansion(true)
     try {
       validator.validate(sqlNode)
@@ -97,10 +115,13 @@ class FlinkPlannerImpl(
       assert(validatedSqlNode != null)
       val rexBuilder: RexBuilder = createRexBuilder
       val cluster: RelOptCluster = FlinkRelOptClusterFactory.create(planner, rexBuilder)
-      val config = SqlToRelConverter.configBuilder()
-        .withTrimUnusedFields(false).withConvertTableAccess(false).build()
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
-        new ViewExpanderImpl, validator, createCatalogReader, cluster, convertletTable, config)
+        new ViewExpanderImpl,
+        validator,
+        createCatalogReader(false),
+        cluster,
+        convertletTable,
+        sqlToRelConverterConfig)
       root = sqlToRelConverter.convertQuery(validatedSqlNode, false, true)
       // we disable automatic flattening in order to let composite types pass without modification
       // we might enable it again once Calcite has better support for structured types
@@ -112,7 +133,7 @@ class FlinkPlannerImpl(
       // root = root.withRel(RelTimeIndicatorConverter.convert(root.rel, rexBuilder))
       root
     } catch {
-      case e: RelConversionException => throw TableException(e.getMessage)
+      case e: RelConversionException => throw new TableException(e.getMessage)
     }
   }
 
@@ -135,17 +156,21 @@ class FlinkPlannerImpl(
         case e: CSqlParseException =>
           throw SqlParserException(s"SQL parse failed. ${e.getMessage}", e)
       }
-      val catalogReader: CalciteCatalogReader = createCatalogReader.withSchemaPath(schemaPath)
+      val catalogReader: CalciteCatalogReader = createCatalogReader(false)
+        .withSchemaPath(schemaPath)
       val validator: SqlValidator =
         new FlinkCalciteSqlValidator(operatorTable, catalogReader, typeFactory)
       validator.setIdentifierExpansion(true)
       val validatedSqlNode: SqlNode = validator.validate(sqlNode)
       val rexBuilder: RexBuilder = createRexBuilder
       val cluster: RelOptCluster = FlinkRelOptClusterFactory.create(planner, rexBuilder)
-      val config: SqlToRelConverter.Config = SqlToRelConverter.configBuilder
-        .withTrimUnusedFields(false).withConvertTableAccess(false).build
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
-        new ViewExpanderImpl, validator, catalogReader, cluster, convertletTable, config)
+        new ViewExpanderImpl,
+        validator,
+        catalogReader,
+        cluster,
+        convertletTable,
+        sqlToRelConverterConfig)
       root = sqlToRelConverter.convertQuery(validatedSqlNode, true, false)
       root = root.withRel(sqlToRelConverter.flattenTypes(root.rel, true))
       root = root.withRel(RelDecorrelator.decorrelateQuery(root.rel))
@@ -153,8 +178,19 @@ class FlinkPlannerImpl(
     }
   }
 
-  private def createCatalogReader: CalciteCatalogReader = {
+  private def createCatalogReader(lenientCaseSensitivity: Boolean): CalciteCatalogReader = {
     val rootSchema: SchemaPlus = FlinkPlannerImpl.rootSchema(defaultSchema)
+
+    val caseSensitive = if (lenientCaseSensitivity) {
+      false
+    } else {
+      this.parserConfig.caseSensitive()
+    }
+
+    val parserConfig = SqlParser.configBuilder(this.parserConfig)
+      .setCaseSensitive(caseSensitive)
+      .build()
+
     new CalciteCatalogReader(
       CalciteSchema.from(rootSchema),
       CalciteSchema.from(defaultSchema).path(null),

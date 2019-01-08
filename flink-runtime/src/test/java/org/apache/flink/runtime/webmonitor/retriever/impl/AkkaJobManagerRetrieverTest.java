@@ -39,10 +39,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import scala.concurrent.Await;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-
-import scala.concurrent.Await;
 
 /**
  * Test for the {@link AkkaJobManagerRetriever}.

@@ -40,6 +40,11 @@ cd ..
 
 echo "Deploying to repository.apache.org"
 
+COMMON_OPTIONS="-Prelease,docs-and-source -DskipTests -DretryFailedDeploymentCount=10"
+
 echo "Deploying Scala 2.11 version"
-$MVN clean deploy -Prelease,docs-and-source -DskipTests -DretryFailedDeploymentCount=10
+$MVN clean deploy $COMMON_OPTIONS -Dscala-2.11
+
+echo "Deploying Scala 2.12 version"
+$MVN clean deploy $COMMON_OPTIONS -Dscala-2.12
 

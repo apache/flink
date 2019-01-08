@@ -18,8 +18,11 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.core.fs.EntropyInjector;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystem.WriteMode;
+import org.apache.flink.core.fs.OutputStreamAndPath;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -63,13 +66,13 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FsCheckpointStreamFactory.class);
 
-	/** Maximum size of state that is stored with the metadata, rather than in files */
+	/** Maximum size of state that is stored with the metadata, rather than in files. */
 	public static final int MAX_FILE_STATE_THRESHOLD = 1024 * 1024;
 
-	/** Default size for the write buffer */
+	/** Default size for the write buffer. */
 	public static final int DEFAULT_WRITE_BUFFER_SIZE = 4096;
 
-	/** State below this size will be stored as part of the metadata, rather than in files */
+	/** State below this size will be stored as part of the metadata, rather than in files. */
 	private final int fileStateThreshold;
 
 	/** The directory for checkpoint exclusive state data. */
@@ -118,9 +121,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 	@Override
 	public FsCheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws IOException {
-
-
-		Path target = scope == CheckpointedStateScope.EXCLUSIVE ?checkpointDirectory: sharedStateDirectory;
+		Path target = scope == CheckpointedStateScope.EXCLUSIVE ? checkpointDirectory : sharedStateDirectory;
 		int bufferSize = Math.max(DEFAULT_WRITE_BUFFER_SIZE, fileStateThreshold);
 
 		return new FsCheckpointStateOutputStream(target, filesystem, bufferSize, fileStateThreshold);
@@ -151,7 +152,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		private int pos;
 
 		private FSDataOutputStream outStream;
-		
+
 		private final int localStateThreshold;
 
 		private final Path basePath;
@@ -164,8 +165,8 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		public FsCheckpointStateOutputStream(
 					Path basePath, FileSystem fs,
-					int bufferSize, int localStateThreshold)
-		{
+					int bufferSize, int localStateThreshold) {
+
 			if (bufferSize < localStateThreshold) {
 				throw new IllegalArgumentException();
 			}
@@ -199,7 +200,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 					// flush the write buffer to make it clear again
 					flush();
 				}
-				
+
 				// copy what is in the buffer
 				System.arraycopy(b, off, writeBuffer, pos, len);
 				pos += len;
@@ -300,7 +301,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 							flush();
 
 							pos = writeBuffer.length;
-						
+
 							long size = -1L;
 
 							// make a best effort attempt to figure out the size
@@ -344,12 +345,10 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 			Exception latestException = null;
 			for (int attempt = 0; attempt < 10; attempt++) {
 				try {
-					Path statePath = createStatePath();
-					FSDataOutputStream outStream = fs.create(statePath, FileSystem.WriteMode.NO_OVERWRITE);
-
-					// success, managed to open the stream
-					this.statePath = statePath;
-					this.outStream = outStream;
+					OutputStreamAndPath streamAndPath = EntropyInjector.createEntropyAware(
+							fs, createStatePath(), WriteMode.NO_OVERWRITE);
+					this.outStream = streamAndPath.stream();
+					this.statePath = streamAndPath.path();
 					return;
 				}
 				catch (Exception e) {

@@ -94,6 +94,14 @@ public class RestOptions {
 			.withDescription("The maximum time in ms for the client to establish a TCP connection.");
 
 	/**
+	 * The maximum time in ms for a connection to stay idle before failing.
+	 */
+	public static final ConfigOption<Long> IDLENESS_TIMEOUT =
+		key("rest.idleness-timeout")
+			.defaultValue(5L * 60L * 1_000L) // 5 minutes
+			.withDescription("The maximum time in ms for a connection to stay idle before failing.");
+
+	/**
 	 * The maximum content length that the server will handle.
 	 */
 	public static final ConfigOption<Integer> SERVER_MAX_CONTENT_LENGTH =
@@ -109,4 +117,14 @@ public class RestOptions {
 			.defaultValue(104_857_600)
 			.withDescription("The maximum content length in bytes that the client will handle.");
 
+	public static final ConfigOption<Integer> SERVER_NUM_THREADS =
+		key("rest.server.numThreads")
+			.defaultValue(4)
+			.withDescription("The number of threads for the asynchronous processing of requests.");
+
+	public static final ConfigOption<Integer> SERVER_THREAD_PRIORITY = key("rest.server.thread-priority")
+		.defaultValue(Thread.NORM_PRIORITY)
+		.withDescription("Thread priority of the REST server's executor for processing asynchronous requests. " +
+				"Lowering the thread priority will give Flink's main components more CPU time whereas " +
+				"increasing will allocate more time for the REST server's processing.");
 }

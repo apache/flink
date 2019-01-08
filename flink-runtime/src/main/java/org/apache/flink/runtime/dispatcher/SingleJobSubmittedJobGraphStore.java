@@ -66,12 +66,17 @@ public class SingleJobSubmittedJobGraphStore implements SubmittedJobGraphStore {
 	}
 
 	@Override
-	public void removeJobGraph(JobID jobId) throws Exception {
+	public void removeJobGraph(JobID jobId) {
 		// ignore
 	}
 
 	@Override
-	public Collection<JobID> getJobIds() throws Exception {
+	public void releaseJobGraph(JobID jobId) {
+		// ignore
+	}
+
+	@Override
+	public Collection<JobID> getJobIds() {
 		return Collections.singleton(jobGraph.getJobID());
 	}
 }

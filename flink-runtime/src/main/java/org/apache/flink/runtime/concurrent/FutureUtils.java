@@ -198,21 +198,22 @@ public class FutureUtils {
 						if (throwable instanceof CancellationException) {
 							resultFuture.completeExceptionally(new RetryException("Operation future was cancelled.", throwable));
 						} else {
-							if (retries > 0 && retryPredicate.test(throwable)) {
+							throwable = ExceptionUtils.stripExecutionException(throwable);
+							if (!retryPredicate.test(throwable)) {
+								resultFuture.completeExceptionally(throwable);
+							} else if (retries > 0) {
 								final ScheduledFuture<?> scheduledFuture = scheduledExecutor.schedule(
-									() -> retryOperationWithDelay(resultFuture, operation, retries - 1, retryDelay, retryPredicate, scheduledExecutor),
+									(Runnable) () -> retryOperationWithDelay(resultFuture, operation, retries - 1, retryDelay, retryPredicate, scheduledExecutor),
 									retryDelay.toMilliseconds(),
 									TimeUnit.MILLISECONDS);
 
 								resultFuture.whenComplete(
 									(innerT, innerThrowable) -> scheduledFuture.cancel(false));
 							} else {
-								final String errorMsg = retries == 0 ?
-									"Number of retries has been exhausted." :
-									"Exception is not retryable.";
-								resultFuture.completeExceptionally(new RetryException(
-									"Could not complete the operation. " + errorMsg,
-									throwable));
+								RetryException retryException = new RetryException(
+									"Could not complete the operation. Number of retries has been exhausted.",
+									throwable);
+								resultFuture.completeExceptionally(retryException);
 							}
 						}
 					} else {
@@ -238,7 +239,7 @@ public class FutureUtils {
 	 * @return Future which retries the given operation a given amount of times and delays the retry
 	 *   in case the predicate isn't matched
 	 */
-	public static <T> CompletableFuture<T> retrySuccesfulWithDelay(
+	public static <T> CompletableFuture<T> retrySuccessfulWithDelay(
 		final Supplier<CompletableFuture<T>> operation,
 		final Time retryDelay,
 		final Deadline deadline,
@@ -282,7 +283,7 @@ public class FutureUtils {
 							resultFuture.complete(t);
 						} else if (deadline.hasTimeLeft()) {
 							final ScheduledFuture<?> scheduledFuture = scheduledExecutor.schedule(
-								() -> retrySuccessfulOperationWithDelay(resultFuture, operation, retryDelay, deadline, acceptancePredicate, scheduledExecutor),
+								(Runnable) () -> retrySuccessfulOperationWithDelay(resultFuture, operation, retryDelay, deadline, acceptancePredicate, scheduledExecutor),
 								retryDelay.toMilliseconds(),
 								TimeUnit.MILLISECONDS);
 
@@ -758,14 +759,15 @@ public class FutureUtils {
 	 *
 	 * @param scalaFuture to convert to a Java 8 CompletableFuture
 	 * @param <T> type of the future value
+	 * @param <U> type of the original future
 	 * @return Java 8 CompletableFuture
 	 */
-	public static <T> CompletableFuture<T> toJava(Future<T> scalaFuture) {
+	public static <T, U extends T> CompletableFuture<T> toJava(Future<U> scalaFuture) {
 		final CompletableFuture<T> result = new CompletableFuture<>();
 
-		scalaFuture.onComplete(new OnComplete<T>() {
+		scalaFuture.onComplete(new OnComplete<U>() {
 			@Override
-			public void onComplete(Throwable failure, T success) {
+			public void onComplete(Throwable failure, U success) {
 				if (failure != null) {
 					result.completeExceptionally(failure);
 				} else {

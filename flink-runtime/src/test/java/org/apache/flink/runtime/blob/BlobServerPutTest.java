@@ -492,8 +492,7 @@ public class BlobServerPutTest extends TestLogger {
 			rnd.nextBytes(data);
 
 			// upload the file to the server directly
-			exception.expect(IOException.class);
-			exception.expectMessage("Cannot create directory ");
+			exception.expect(AccessDeniedException.class);
 
 			put(server, jobId, data, blobType);
 

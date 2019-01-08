@@ -57,9 +57,12 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 
 	// ----- Parser tests -----------------
 
-	@Test(expected = RuntimeException.class)
-	public void testIllegalArgs() {
-		ParameterTool.fromArgs(new String[]{"berlin"});
+	@Test
+	public void testThrowExceptionIfParameterIsNotPrefixed() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Error parsing arguments '[a]' on 'a'. Please prefix keys with -- or -.");
+
+		ParameterTool.fromArgs(new String[]{"a"});
 	}
 
 	@Test
@@ -100,13 +103,19 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 		Assert.assertTrue(parameter.has("f"));
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testEmptyVal() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("The input [--a, -b, --] contains an empty argument");
+
 		ParameterTool.fromArgs(new String[]{"--a", "-b", "--"});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testEmptyValShort() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("The input [--a, -b, -] contains an empty argument");
+
 		ParameterTool.fromArgs(new String[]{"--a", "-b", "-"});
 	}
 

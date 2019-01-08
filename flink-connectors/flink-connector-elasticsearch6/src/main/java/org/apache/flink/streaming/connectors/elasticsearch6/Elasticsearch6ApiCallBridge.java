@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.elasticsearch6;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchApiCallBridge;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
+import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.http.HttpHost;
@@ -38,6 +39,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 6 and later versions.
@@ -125,5 +127,16 @@ public class Elasticsearch6ApiCallBridge implements ElasticsearchApiCallBridge<R
 		}
 
 		builder.setBackoffPolicy(backoffPolicy);
+	}
+
+	@Override
+	public RequestIndexer createBulkProcessorIndexer(
+			BulkProcessor bulkProcessor,
+			boolean flushOnCheckpoint,
+			AtomicLong numPendingRequestsRef) {
+		return new Elasticsearch6BulkProcessorIndexer(
+			bulkProcessor,
+			flushOnCheckpoint,
+			numPendingRequestsRef);
 	}
 }

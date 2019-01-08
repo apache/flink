@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.ttl.mock;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.query.KvStateRegistry;
@@ -93,7 +94,8 @@ public class MockStateBackend extends AbstractStateBackend {
 		int numberOfKeyGroups,
 		KeyGroupRange keyGroupRange,
 		TaskKvStateRegistry kvStateRegistry,
-		TtlTimeProvider ttlTimeProvider) {
+		TtlTimeProvider ttlTimeProvider,
+		MetricGroup metricGroup) {
 		return new MockKeyedStateBackend<>(
 			new KvStateRegistry().createTaskRegistry(jobID, new JobVertexID()),
 			keySerializer,
@@ -101,7 +103,8 @@ public class MockStateBackend extends AbstractStateBackend {
 			numberOfKeyGroups,
 			keyGroupRange,
 			env.getExecutionConfig(),
-			ttlTimeProvider);
+			ttlTimeProvider,
+			metricGroup);
 	}
 
 	@Override

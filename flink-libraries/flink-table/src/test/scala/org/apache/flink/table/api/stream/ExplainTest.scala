@@ -44,7 +44,7 @@ class ExplainTest extends AbstractTestBase {
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testFilterStream0.out").mkString
     val expect = replaceString(source)
-    assertEquals(result, expect)
+    assertEquals(expect, result)
   }
 
   @Test
@@ -61,7 +61,7 @@ class ExplainTest extends AbstractTestBase {
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testUnionStream0.out").mkString
     val expect = replaceString(source)
-    assertEquals(result, expect)
+    assertEquals(expect, result)
   }
 
   def replaceString(s: String): String = {

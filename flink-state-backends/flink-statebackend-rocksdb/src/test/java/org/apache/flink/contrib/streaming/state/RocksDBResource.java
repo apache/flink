@@ -30,6 +30,8 @@ import org.rocksdb.DBOptions;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.WriteOptions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -42,6 +44,8 @@ import java.util.List;
  * External resource for tests that require an instance of RocksDB.
  */
 public class RocksDBResource extends ExternalResource {
+
+	private static final Logger LOG = LoggerFactory.getLogger(RocksDBResource.class);
 
 	/** Factory for {@link DBOptions} and {@link ColumnFamilyOptions}. */
 	private final OptionsFactory optionsFactory;
@@ -74,11 +78,25 @@ public class RocksDBResource extends ExternalResource {
 		this(new OptionsFactory() {
 			@Override
 			public DBOptions createDBOptions(DBOptions currentOptions) {
+				//close it before reuse the reference.
+				try {
+					currentOptions.close();
+				} catch (Exception e) {
+					LOG.error("Close previous DBOptions's instance failed.", e);
+				}
+
 				return PredefinedOptions.FLASH_SSD_OPTIMIZED.createDBOptions();
 			}
 
 			@Override
 			public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
+				//close it before reuse the reference.
+				try {
+					currentOptions.close();
+				} catch (Exception e) {
+					LOG.error("Close previous DBOptions's instance failed.", e);
+				}
+
 				return PredefinedOptions.FLASH_SSD_OPTIMIZED.createColumnOptions();
 			}
 		});

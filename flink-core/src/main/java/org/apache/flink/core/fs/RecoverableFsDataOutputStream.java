@@ -18,6 +18,7 @@
 
 package org.apache.flink.core.fs;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.fs.RecoverableWriter.CommitRecoverable;
 import org.apache.flink.core.fs.RecoverableWriter.ResumeRecoverable;
 
@@ -28,6 +29,7 @@ import java.io.IOException;
  * The stream initially writes to hidden files or temp files and only creates the
  * target file once it is closed and "committed".
  */
+@PublicEvolving
 public abstract class RecoverableFsDataOutputStream extends FSDataOutputStream {
 
 	/**
@@ -44,10 +46,15 @@ public abstract class RecoverableFsDataOutputStream extends FSDataOutputStream {
 	public abstract Committer closeForCommit() throws IOException;
 
 	/**
-	 * Closes the stream releasing all local resources, but not finalizing the
-	 * file that the stream writes to.
+	 * Closes this stream. Closing the steam releases the local resources that the stream
+	 * uses, but does NOT result in durability of previously written data. This method
+	 * should be interpreted as a "close in order to dispose" or "close on failure".
 	 *
-	 * <p>This method should be understood as "close to dispose on failure".
+	 * <p>In order to persist all previously written data, one needs to call the
+	 * {@link #closeForCommit()} method and call {@link Committer#commit()} on the retured
+	 * committer object.
+	 *
+	 * @throws IOException Thrown if an error occurred during closing.
 	 */
 	@Override
 	public abstract void close() throws IOException;

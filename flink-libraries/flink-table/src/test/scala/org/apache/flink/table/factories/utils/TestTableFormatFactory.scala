@@ -21,8 +21,8 @@ package org.apache.flink.table.factories.utils
 import java.util
 
 import org.apache.flink.api.common.serialization.{DeserializationSchema, SerializationSchema}
-import org.apache.flink.table.descriptors.{DescriptorProperties, FormatDescriptorValidator, SchemaValidator}
-import org.apache.flink.table.factories.{DeserializationSchemaFactory, SerializationSchemaFactory, TableFormatFactoryServiceTest}
+import org.apache.flink.table.factories.TableFormatFactoryBase.deriveSchema
+import org.apache.flink.table.factories.{DeserializationSchemaFactory, SerializationSchemaFactory, TableFormatFactoryBase, TableFormatFactoryServiceTest}
 import org.apache.flink.types.Row
 
 /**
@@ -32,26 +32,14 @@ import org.apache.flink.types.Row
   * This format does not support SPECIAL_PATH but supports schema derivation.
   */
 class TestTableFormatFactory
-  extends DeserializationSchemaFactory[Row]
+  extends TableFormatFactoryBase[Row](TableFormatFactoryServiceTest.TEST_FORMAT_TYPE, 1, true)
+  with DeserializationSchemaFactory[Row]
   with SerializationSchemaFactory[Row] {
 
-  override def requiredContext(): util.Map[String, String] = {
-    val context = new util.HashMap[String, String]()
-    context.put(
-      FormatDescriptorValidator.FORMAT_TYPE,
-      TableFormatFactoryServiceTest.TEST_FORMAT_TYPE)
-    context.put(FormatDescriptorValidator.FORMAT_PROPERTY_VERSION, "1")
-    context
-  }
-
-  override def supportsSchemaDerivation(): Boolean = true
-
-  override def supportedProperties(): util.List[String] = {
+  override def supportedFormatProperties(): util.List[String] = {
     val properties = new util.ArrayList[String]()
     properties.add(TableFormatFactoryServiceTest.UNIQUE_PROPERTY)
     properties.add(TableFormatFactoryServiceTest.COMMON_PATH)
-    properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA)
-    properties.addAll(SchemaValidator.getSchemaDerivationKeys)
     properties
   }
 
@@ -59,19 +47,13 @@ class TestTableFormatFactory
       properties: util.Map[String, String])
     : DeserializationSchema[Row] = {
 
-    val props = new DescriptorProperties(true)
-    props.putProperties(properties)
-    val schema = SchemaValidator.deriveFormatFields(props)
-    new TestDeserializationSchema(schema.toRowType)
+    new TestDeserializationSchema(deriveSchema(properties).toRowType)
   }
 
   override def createSerializationSchema(
       properties: util.Map[String, String])
     : SerializationSchema[Row] = {
 
-    val props = new DescriptorProperties(true)
-    props.putProperties(properties)
-    val schema = SchemaValidator.deriveFormatFields(props)
-    new TestSerializationSchema(schema.toRowType)
+    new TestSerializationSchema(deriveSchema(properties).toRowType)
   }
 }

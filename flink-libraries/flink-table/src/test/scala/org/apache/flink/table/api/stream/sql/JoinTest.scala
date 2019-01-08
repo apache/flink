@@ -21,6 +21,7 @@ import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.calcite.RelTimeIndicatorConverter
 import org.apache.flink.table.expressions.Null
 import org.apache.flink.table.plan.logical.TumblingGroupWindow
 import org.apache.flink.table.runtime.join.WindowJoinUtil
@@ -29,6 +30,9 @@ import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.junit.Assert._
 import org.junit.Test
 
+/**
+  * Tests for both windowed and non-windowed joins.
+  */
 class JoinTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()
   streamUtil.addTable[(Int, String, Long)]("MyTable", 'a, 'b, 'c.rowtime, 'proctime.proctime)
@@ -62,8 +66,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "proctime")
           ),
           term("where",
-            "AND(=(a, a0), >=(proctime, -(proctime0, 3600000)), " +
-              "<=(proctime, +(proctime0, 3600000)))"),
+            "AND(=(a, a0), >=(PROCTIME(proctime), -(PROCTIME(proctime0), 3600000)), " +
+              "<=(PROCTIME(proctime), +(PROCTIME(proctime0), 3600000)))"),
           term("join", "a, proctime, a0, b, proctime0"),
           term("joinType", "InnerJoin")
         ),
@@ -100,8 +104,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "c")
           ),
           term("where",
-            "AND(=(a, a0), >=(c, -(c0, 10000)), " +
-              "<=(c, +(c0, 3600000)))"),
+            "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 10000)), " +
+              "<=(CAST(c), +(CAST(c0), 3600000)))"),
           term("join", "a, c, a0, b, c0"),
           term("joinType", "InnerJoin")
         ),
@@ -138,8 +142,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "proctime")
           ),
           term("where",
-            "AND(=(a, a0), >=(proctime, -(proctime0, 3600000)), " +
-              "<=(proctime, +(proctime0, 3600000)))"),
+            "AND(=(a, a0), >=(PROCTIME(proctime), -(PROCTIME(proctime0), 3600000)), " +
+              "<=(PROCTIME(proctime), +(PROCTIME(proctime0), 3600000)))"),
           term("join", "a, proctime, a0, b, proctime0"),
           term("joinType", "InnerJoin")
         ),
@@ -176,8 +180,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "c")
           ),
           term("where",
-            "AND(=(a, a0), >=(c, -(c0, 600000)), " +
-              "<=(c, +(c0, 3600000)))"),
+            "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 600000)), " +
+              "<=(CAST(c), +(CAST(c0), 3600000)))"),
           term("join", "a, c, a0, b, c0"),
           term("joinType", "InnerJoin")
         ),
@@ -208,7 +212,7 @@ class JoinTest extends TableTestBase {
             streamTableNode(1),
             term("select", "a", "b", "proctime")
           ),
-          term("where", "AND(=(a, a0), =(proctime, proctime0))"),
+          term("where", "AND(=(a, a0), =(PROCTIME(proctime), PROCTIME(proctime0)))"),
           term("join", "a", "proctime", "a0", "b", "proctime0"),
           term("joinType", "InnerJoin")
         ),
@@ -238,7 +242,7 @@ class JoinTest extends TableTestBase {
             streamTableNode(1),
             term("select", "a", "b", "c")
           ),
-          term("where", "AND(=(a, a0), =(c, c0))"),
+          term("where", "AND(=(a, a0), =(CAST(c), CAST(c0)))"),
           term("join", "a", "c", "a0", "b", "c0"),
           term("joinType", "InnerJoin")
         ),
@@ -280,8 +284,8 @@ class JoinTest extends TableTestBase {
             streamTableNode(1),
             term("select", "a", "c", "proctime", "12 AS nullField")
           ),
-          term("where", "AND(=(a, a0), =(nullField, nullField0), >=(proctime, " +
-            "-(proctime0, 5000)), <=(proctime, +(proctime0, 5000)))"),
+          term("where", "AND(=(a, a0), =(nullField, nullField0), >=(PROCTIME(proctime), " +
+            "-(PROCTIME(proctime0), 5000)), <=(PROCTIME(proctime), +(PROCTIME(proctime0), 5000)))"),
           term("join", "a", "c", "proctime", "nullField", "a0", "c0", "proctime0", "nullField0"),
           term("joinType", "InnerJoin")
         ),
@@ -320,8 +324,8 @@ class JoinTest extends TableTestBase {
               term("select", "a", "b", "c")
             ),
             term("where",
-              "AND(=(a, a0), >=(c, -(c0, 600000)), " +
-                "<=(c, +(c0, 3600000)))"),
+              "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 600000)), " +
+                "<=(CAST(c), +(CAST(c0), 3600000)))"),
             term("join", "a, b, c, a0, b0, c0"),
             term("joinType", "InnerJoin")
           ),
@@ -365,8 +369,8 @@ class JoinTest extends TableTestBase {
               term("select", "a", "b", "c")
             ),
             term("where",
-              "AND(=(a, a0), >=(c, -(c0, 600000)), " +
-                "<=(c, +(c0, 3600000)))"),
+              "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 600000)), " +
+                "<=(CAST(c), +(CAST(c0), 3600000)))"),
             term("join", "a, b, c, a0, b0, c0"),
             term("joinType", "InnerJoin")
           ),
@@ -408,8 +412,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "proctime")
           ),
           term("where",
-            "AND(=(a, a0), >=(proctime, -(proctime0, 3600000)), " +
-              "<=(proctime, +(proctime0, 3600000)))"),
+            "AND(=(a, a0), >=(PROCTIME(proctime), -(PROCTIME(proctime0), 3600000)), " +
+              "<=(PROCTIME(proctime), +(PROCTIME(proctime0), 3600000)))"),
           term("join", "a, proctime, a0, b, proctime0"),
           term("joinType", "LeftOuterJoin")
         ),
@@ -446,8 +450,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "c")
           ),
           term("where",
-            "AND(=(a, a0), >=(c, -(c0, 10000)), " +
-              "<=(c, +(c0, 3600000)))"),
+            "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 10000)), " +
+              "<=(CAST(c), +(CAST(c0), 3600000)))"),
           term("join", "a, c, a0, b, c0"),
           term("joinType", "LeftOuterJoin")
         ),
@@ -485,8 +489,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "proctime")
           ),
           term("where",
-            "AND(=(a, a0), >=(proctime, -(proctime0, 3600000)), " +
-              "<=(proctime, +(proctime0, 3600000)))"),
+            "AND(=(a, a0), >=(PROCTIME(proctime), -(PROCTIME(proctime0), 3600000)), " +
+              "<=(PROCTIME(proctime), +(PROCTIME(proctime0), 3600000)))"),
           term("join", "a, proctime, a0, b, proctime0"),
           term("joinType", "RightOuterJoin")
         ),
@@ -523,8 +527,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "c")
           ),
           term("where",
-            "AND(=(a, a0), >=(c, -(c0, 10000)), " +
-              "<=(c, +(c0, 3600000)))"),
+            "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 10000)), " +
+              "<=(CAST(c), +(CAST(c0), 3600000)))"),
           term("join", "a, c, a0, b, c0"),
           term("joinType", "RightOuterJoin")
         ),
@@ -562,8 +566,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "proctime")
           ),
           term("where",
-            "AND(=(a, a0), >=(proctime, -(proctime0, 3600000)), " +
-              "<=(proctime, +(proctime0, 3600000)))"),
+            "AND(=(a, a0), >=(PROCTIME(proctime), -(PROCTIME(proctime0), 3600000)), " +
+              "<=(PROCTIME(proctime), +(PROCTIME(proctime0), 3600000)))"),
           term("join", "a, proctime, a0, b, proctime0"),
           term("joinType", "FullOuterJoin")
         ),
@@ -600,8 +604,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "c")
           ),
           term("where",
-            "AND(=(a, a0), >=(c, -(c0, 10000)), " +
-              "<=(c, +(c0, 3600000)))"),
+            "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 10000)), " +
+              "<=(CAST(c), +(CAST(c0), 3600000)))"),
           term("join", "a, c, a0, b, c0"),
           term("joinType", "FullOuterJoin")
         ),
@@ -640,8 +644,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "c")
           ),
           term("where",
-            "AND(=(a, a0), >=(c, -(c0, 10000)), " +
-              "<=(c, +(c0, 3600000)), LIKE(b, b0))"),
+            "AND(=(a, a0), >=(CAST(c), -(CAST(c0), 10000)), " +
+              "<=(CAST(c), +(CAST(c0), 3600000)), LIKE(b, b0))"),
           term("join", "a, b, c, a0, b0, c0"),
           // Since we filter on attributes b and b0 after the join, the full outer join
           // will be automatically optimized to inner join.
@@ -784,33 +788,6 @@ class JoinTest extends TableTestBase {
     verifyRemainConditionConvert(
       query2,
       "AND(=($0, $4), >($2, $6))")
-  }
-
-  private def verifyTimeBoundary(
-      timeSql: String,
-      expLeftSize: Long,
-      expRightSize: Long,
-      expTimeType: String): Unit = {
-    val query =
-      "SELECT t1.a, t2.b FROM MyTable as t1 join MyTable2 as t2 on t1.a = t2.a and " + timeSql
-
-    val resultTable = streamUtil.tableEnv.sqlQuery(query)
-    val relNode = resultTable.getRelNode
-    val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
-    val (windowBounds, _) =
-      WindowJoinUtil.extractWindowBoundsFromPredicate(
-        joinNode.getCondition,
-        4,
-        joinNode.getRowType,
-        joinNode.getCluster.getRexBuilder,
-        streamUtil.tableEnv.getConfig)
-
-    val timeTypeStr =
-      if (windowBounds.get.isEventTime) "rowtime"
-      else  "proctime"
-    assertEquals(expLeftSize, windowBounds.get.leftLowerBound)
-    assertEquals(expRightSize, windowBounds.get.leftUpperBound)
-    assertEquals(expTimeType, timeTypeStr)
   }
 
   @Test
@@ -1003,12 +980,43 @@ class JoinTest extends TableTestBase {
     util.verifyTable(result, expected)
   }
 
+  private def verifyTimeBoundary(
+      timeSql: String,
+      expLeftSize: Long,
+      expRightSize: Long,
+      expTimeType: String): Unit = {
+    val query =
+      "SELECT t1.a, t2.b FROM MyTable as t1 join MyTable2 as t2 on t1.a = t2.a and " + timeSql
+
+    val resultTable = streamUtil.tableEnv.sqlQuery(query)
+    val relNode = RelTimeIndicatorConverter.convert(
+      resultTable.getRelNode,
+      streamUtil.tableEnv.getRelBuilder.getRexBuilder)
+    val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
+    val (windowBounds, _) =
+      WindowJoinUtil.extractWindowBoundsFromPredicate(
+        joinNode.getCondition,
+        4,
+        joinNode.getRowType,
+        joinNode.getCluster.getRexBuilder,
+        streamUtil.tableEnv.getConfig)
+
+    val timeTypeStr =
+      if (windowBounds.get.isEventTime) "rowtime"
+      else  "proctime"
+    assertEquals(expLeftSize, windowBounds.get.leftLowerBound)
+    assertEquals(expRightSize, windowBounds.get.leftUpperBound)
+    assertEquals(expTimeType, timeTypeStr)
+  }
+
   private def verifyRemainConditionConvert(
       query: String,
       expectCondStr: String): Unit = {
 
     val resultTable = streamUtil.tableEnv.sqlQuery(query)
-    val relNode = resultTable.getRelNode
+    val relNode = RelTimeIndicatorConverter.convert(
+      resultTable.getRelNode,
+      streamUtil.tableEnv.getRelBuilder.getRexBuilder)
     val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
     val (_, remainCondition) =
       WindowJoinUtil.extractWindowBoundsFromPredicate(

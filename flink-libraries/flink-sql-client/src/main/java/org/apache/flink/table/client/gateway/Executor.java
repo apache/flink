@@ -62,6 +62,11 @@ public interface Executor {
 	String explainStatement(SessionContext session, String statement) throws SqlExecutionException;
 
 	/**
+	 * Returns a list of completion hints for the given statement at the given position.
+	 */
+	List<String> completeStatement(SessionContext session, String statement, int position);
+
+	/**
 	 * Submits a Flink SQL query job (detached) and returns the result descriptor.
 	 */
 	ResultDescriptor executeQuery(SessionContext session, String query) throws SqlExecutionException;
@@ -96,6 +101,11 @@ public interface Executor {
 	 * @return information about the target of the submitted Flink job
 	 */
 	ProgramTargetDescriptor executeUpdate(SessionContext session, String statement) throws SqlExecutionException;
+
+	/**
+	 * Validates the current session. For example, it checks whether all views are still valid.
+	 */
+	void validateSession(SessionContext session) throws SqlExecutionException;
 
 	/**
 	 * Stops the executor.

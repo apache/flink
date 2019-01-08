@@ -18,9 +18,12 @@
 
 package org.apache.flink.table.descriptors
 
+import java.util
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{TableSchema, ValidationException}
 import org.apache.flink.table.descriptors.CsvValidator._
+import org.apache.flink.table.utils.TypeStringUtils
 
 import scala.collection.mutable
 import scala.collection.JavaConverters._
@@ -28,12 +31,12 @@ import scala.collection.JavaConverters._
 /**
   * Format descriptor for comma-separated values (CSV).
   */
-class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, version = 1) {
+class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, 1) {
 
   private var fieldDelim: Option[String] = None
   private var lineDelim: Option[String] = None
   private val schema: mutable.LinkedHashMap[String, String] =
-      mutable.LinkedHashMap[String, String]()
+    mutable.LinkedHashMap[String, String]()
   private var quoteCharacter: Option[Character] = None
   private var commentPrefix: Option[String] = None
   private var isIgnoreFirstLine: Option[Boolean] = None
@@ -69,8 +72,8 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, version = 1) {
     */
   def schema(schema: TableSchema): Csv = {
     this.schema.clear()
-    DescriptorProperties.normalizeTableSchema(schema).foreach {
-      case (n, t) => field(n, t)
+    schema.getFieldNames.zip(schema.getFieldTypes).foreach { case (n, t) =>
+      field(n, t)
     }
     this
   }
@@ -84,7 +87,7 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, version = 1) {
     * @param fieldType the type information of the field
     */
   def field(fieldName: String, fieldType: TypeInformation[_]): Csv = {
-    field(fieldName, DescriptorProperties.normalizeTypeInfo(fieldType))
+    field(fieldName, TypeStringUtils.writeTypeInfo(fieldType))
     this
   }
 
@@ -140,19 +143,28 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, version = 1) {
     this
   }
 
-  /**
-    * Internal method for format properties conversion.
-    */
-  override protected def addFormatProperties(properties: DescriptorProperties): Unit = {
+  override protected def toFormatProperties: util.Map[String, String] = {
+    val properties = new DescriptorProperties()
+
     fieldDelim.foreach(properties.putString(FORMAT_FIELD_DELIMITER, _))
     lineDelim.foreach(properties.putString(FORMAT_LINE_DELIMITER, _))
-    properties.putTableSchema(
+
+    val subKeys = util.Arrays.asList(
+      DescriptorProperties.TABLE_SCHEMA_NAME,
+      DescriptorProperties.TABLE_SCHEMA_TYPE)
+
+    val subValues = schema.map(e => util.Arrays.asList(e._1, e._2)).toList.asJava
+
+    properties.putIndexedFixedProperties(
       FORMAT_FIELDS,
-      schema.toIndexedSeq.map(DescriptorProperties.toJava[String, String]).asJava)
+      subKeys,
+      subValues)
     quoteCharacter.foreach(properties.putCharacter(FORMAT_QUOTE_CHARACTER, _))
     commentPrefix.foreach(properties.putString(FORMAT_COMMENT_PREFIX, _))
     isIgnoreFirstLine.foreach(properties.putBoolean(FORMAT_IGNORE_FIRST_LINE, _))
     lenient.foreach(properties.putBoolean(FORMAT_IGNORE_PARSE_ERRORS, _))
+
+    properties.asMap()
   }
 }
 
@@ -163,7 +175,10 @@ object Csv {
 
   /**
     * Format descriptor for comma-separated values (CSV).
+    *
+    * @deprecated Use `new Csv()`.
     */
+  @deprecated
   def apply(): Csv = new Csv()
 
 }

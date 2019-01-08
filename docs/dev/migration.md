@@ -25,6 +25,17 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
+## Migrating from Flink 1.3+ to Flink 1.7
+
+### API changes for serializer snapshots
+
+This would be relevant mostly for users implementing custom `TypeSerializer`s for their state.
+
+The old `TypeSerializerConfigSnapshot` abstraction is now deprecated, and will be fully removed in the future
+in favor of the new `TypeSerializerSnapshot`. For details and guides on how to migrate, please see
+[Migrating from deprecated serializer snapshot APIs before Flink 1.7]
+({{ site.baseurl }}/dev/stream/state/custom_serialization.html#migration-from-deprecated-serializer-snapshot-apis-before-Flink-1.7).
+
 ## Migrating from Flink 1.2 to Flink 1.3
 
 There are a few APIs that have been changed since Flink 1.2. Most of the changes are documented in their

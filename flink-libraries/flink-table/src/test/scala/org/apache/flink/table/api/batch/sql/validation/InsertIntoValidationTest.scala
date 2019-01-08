@@ -65,7 +65,7 @@ class InsertIntoValidationTest extends TableTestBase {
     util.addTable[(Int, Long, String)]("sourceTable", 'a, 'b, 'c)
 
     val fieldNames = Array("d", "e", "f")
-    val fieldTypes = util.tableEnv.scan("sourceTable").getSchema.getTypes
+    val fieldTypes = util.tableEnv.scan("sourceTable").getSchema.getFieldTypes
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
     util.tableEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
 

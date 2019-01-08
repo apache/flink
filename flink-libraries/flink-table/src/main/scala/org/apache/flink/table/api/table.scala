@@ -21,7 +21,8 @@ import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
-import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionParser, Ordering, UnresolvedAlias, UnresolvedFieldReference, WindowProperty}
+import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionParser, Ordering, ResolvedFieldReference, UnresolvedAlias, UnresolvedFieldReference, WindowProperty}
+import org.apache.flink.table.functions.TemporalTableFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.plan.ProjectionTranslator._
 import org.apache.flink.table.plan.logical.{Minus, _}
@@ -117,7 +118,7 @@ class Table(
     val expandedFields = expandProjectList(fields, logicalPlan, tableEnv)
     val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, tableEnv)
     if (propNames.nonEmpty) {
-      throw ValidationException("Window properties can only be used on windowed tables.")
+      throw new ValidationException("Window properties can only be used on windowed tables.")
     }
 
     if (aggNames.nonEmpty) {
@@ -153,6 +154,75 @@ class Table(
     //get the correct expression for AggFunctionCall
     val withResolvedAggFunctionCall = fieldExprs.map(replaceAggFunctionCall(_, tableEnv))
     select(withResolvedAggFunctionCall: _*)
+  }
+
+  /**
+    * Creates [[TemporalTableFunction]] backed up by this table as a history table.
+    * Temporal Tables represent a concept of a table that changes over time and for which
+    * Flink keeps track of those changes. [[TemporalTableFunction]] provides a way how to access
+    * those data.
+    *
+    * For more information please check Flink's documentation on Temporal Tables.
+    *
+    * Currently [[TemporalTableFunction]]s are only supported in streaming.
+    *
+    * @param timeAttribute Must points to a time attribute. Provides a way to compare which records
+    *                      are a newer or older version.
+    * @param primaryKey    Defines the primary key. With primary key it is possible to update
+    *                      a row or to delete it.
+    * @return [[TemporalTableFunction]] which is an instance of
+    *        [[org.apache.flink.table.functions.TableFunction]]. It takes one single argument,
+    *        the `timeAttribute`, for which it returns matching version of the [[Table]], from which
+    *        [[TemporalTableFunction]] was created.
+    */
+  def createTemporalTableFunction(
+      timeAttribute: String,
+      primaryKey: String): TemporalTableFunction = {
+    createTemporalTableFunction(
+      ExpressionParser.parseExpression(timeAttribute),
+      ExpressionParser.parseExpression(primaryKey))
+  }
+
+  /**
+    * Creates [[TemporalTableFunction]] backed up by this table as a history table.
+    * Temporal Tables represent a concept of a table that changes over time and for which
+    * Flink keeps track of those changes. [[TemporalTableFunction]] provides a way how to access
+    * those data.
+    *
+    * For more information please check Flink's documentation on Temporal Tables.
+    *
+    * Currently [[TemporalTableFunction]]s are only supported in streaming.
+    *
+    * @param timeAttribute Must points to a time indicator. Provides a way to compare which records
+    *                      are a newer or older version.
+    * @param primaryKey    Defines the primary key. With primary key it is possible to update
+    *                      a row or to delete it.
+    * @return [[TemporalTableFunction]] which is an instance of
+    *        [[org.apache.flink.table.functions.TableFunction]]. It takes one single argument,
+    *        the `timeAttribute`, for which it returns matching version of the [[Table]], from which
+    *        [[TemporalTableFunction]] was created.
+    */
+  def createTemporalTableFunction(
+      timeAttribute: Expression,
+      primaryKey: Expression): TemporalTableFunction = {
+    val temporalTable = TemporalTable(timeAttribute, primaryKey, logicalPlan)
+      .validate(tableEnv)
+      .asInstanceOf[TemporalTable]
+
+    TemporalTableFunction.create(
+      this,
+      temporalTable.timeAttribute,
+      validatePrimaryKeyExpression(temporalTable.primaryKey))
+  }
+
+  private def validatePrimaryKeyExpression(expression: Expression): String = {
+    expression match {
+      case fieldReference: ResolvedFieldReference =>
+        fieldReference.name
+      case _ => throw new ValidationException(
+        s"Unsupported expression [$expression] as primary key. " +
+          s"Only top-level (not nested) field references are supported.")
+    }
   }
 
   /**
@@ -714,51 +784,6 @@ class Table(
 
   /**
     * Limits a sorted result from an offset position.
-    * Similar to a SQL LIMIT clause. Limit is technically part of the Order By operator and
-    * thus must be preceded by it.
-    *
-    * Example:
-    *
-    * {{{
-    *   // skips the first 3 rows and returns all following rows.
-    *   tab.orderBy('name.desc).limit(3)
-    * }}}
-    *
-    * @param offset number of records to skip
-    *
-    * @deprecated Please use [[Table.offset()]] and [[Table.fetch()]] instead.
-    */
-  @Deprecated
-  @deprecated(message = "Deprecated in favor of Table.offset() and Table.fetch()", since = "1.4.0")
-  def limit(offset: Int): Table = {
-    new Table(tableEnv, Limit(offset = offset, child = logicalPlan).validate(tableEnv))
-  }
-
-  /**
-    * Limits a sorted result to a specified number of records from an offset position.
-    * Similar to a SQL LIMIT clause. Limit is technically part of the Order By operator and
-    * thus must be preceded by it.
-    *
-    * Example:
-    *
-    * {{{
-    *   // skips the first 3 rows and returns the next 5 rows.
-    *   tab.orderBy('name.desc).limit(3, 5)
-    * }}}
-    *
-    * @param offset number of records to skip
-    * @param fetch number of records to be returned
-    *
-    * @deprecated Please use [[Table.offset()]] and [[Table.fetch()]] instead.
-    */
-  @Deprecated
-  @deprecated(message = "deprecated in favor of Table.offset() and Table.fetch()", since = "1.4.0")
-  def limit(offset: Int, fetch: Int): Table = {
-    new Table(tableEnv, Limit(offset, fetch, logicalPlan).validate(tableEnv))
-  }
-
-  /**
-    * Limits a sorted result from an offset position.
     * Similar to a SQL OFFSET clause. Offset is technically part of the Order By operator and
     * thus must be preceded by it.
     *
@@ -797,14 +822,14 @@ class Table(
     */
   def fetch(fetch: Int): Table = {
     if (fetch < 0) {
-      throw ValidationException("FETCH count must be equal or larger than 0.")
+      throw new ValidationException("FETCH count must be equal or larger than 0.")
     }
     this.logicalPlan match {
       case Limit(o, -1, c) =>
         // replace LIMIT without FETCH by LIMIT with FETCH
         new Table(tableEnv, Limit(o, fetch, c).validate(tableEnv))
       case Limit(_, _, _) =>
-        throw ValidationException("FETCH is already defined.")
+        throw new ValidationException("FETCH is already defined.")
       case _ =>
         new Table(tableEnv, Limit(0, fetch, logicalPlan).validate(tableEnv))
     }
@@ -821,7 +846,13 @@ class Table(
     *
     * @param sink The [[TableSink]] to which the [[Table]] is written.
     * @tparam T The data type that the [[TableSink]] expects.
+    *
+    * @deprecated Will be removed in a future release. Please register the TableSink and use
+    *             Table.insertInto().
     */
+  @deprecated("This method will be removed. Please register the TableSink and use " +
+    "Table.insertInto().", "1.7.0")
+  @Deprecated
   def writeToSink[T](sink: TableSink[T]): Unit = {
     val queryConfig = Option(this.tableEnv) match {
       case None => null
@@ -842,7 +873,13 @@ class Table(
     * @param sink The [[TableSink]] to which the [[Table]] is written.
     * @param conf The configuration for the query that writes to the sink.
     * @tparam T The data type that the [[TableSink]] expects.
+    *
+    * @deprecated Will be removed in a future release. Please register the TableSink and use
+    *             Table.insertInto().
     */
+  @deprecated("This method will be removed. Please register the TableSink and use " +
+    "Table.insertInto().", "1.7.0")
+  @Deprecated
   def writeToSink[T](sink: TableSink[T], conf: QueryConfig): Unit = {
     // get schema information of table
     val rowType = getRelNode.getRowType
@@ -874,7 +911,12 @@ class Table(
     * @param tableName Name of the registered [[TableSink]] to which the [[Table]] is written.
     */
   def insertInto(tableName: String): Unit = {
-    tableEnv.insertInto(this, tableName, this.tableEnv.queryConfig)
+    this.logicalPlan match {
+      case _: LogicalTableFunctionCall =>
+        throw new ValidationException("TableFunction can only be used in join and leftOuterJoin.")
+      case _ =>
+        tableEnv.insertInto(this, tableName, this.tableEnv.queryConfig)
+    }
   }
 
   /**
@@ -890,7 +932,12 @@ class Table(
     * @param conf The [[QueryConfig]] to use.
     */
   def insertInto(tableName: String, conf: QueryConfig): Unit = {
-    tableEnv.insertInto(this, tableName, conf)
+    this.logicalPlan match {
+      case _: LogicalTableFunctionCall =>
+        throw new ValidationException("TableFunction can only be used in join and leftOuterJoin.")
+      case _ =>
+        tableEnv.insertInto(this, tableName, conf)
+    }
   }
 
   /**
@@ -942,11 +989,11 @@ class Table(
   def window(overWindows: OverWindow*): OverWindowedTable = {
 
     if (tableEnv.isInstanceOf[BatchTableEnvironment]) {
-      throw TableException("Over-windows for batch tables are currently not supported.")
+      throw new TableException("Over-windows for batch tables are currently not supported.")
     }
 
     if (overWindows.size != 1) {
-      throw TableException("Over-Windows are currently only supported single window.")
+      throw new TableException("Over-Windows are currently only supported single window.")
     }
 
     new OverWindowedTable(this, overWindows.toArray)
@@ -1002,7 +1049,7 @@ class GroupedTable(
     val expandedFields = expandProjectList(fields, table.logicalPlan, table.tableEnv)
     val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, table.tableEnv)
     if (propNames.nonEmpty) {
-      throw ValidationException("Window properties can only be used on windowed tables.")
+      throw new ValidationException("Window properties can only be used on windowed tables.")
     }
 
     val projectsOnAgg = replaceAggregationsAndProperties(
@@ -1098,7 +1145,7 @@ class OverWindowedTable(
       table.tableEnv)
 
     if(fields.exists(_.isInstanceOf[WindowProperty])){
-      throw ValidationException(
+      throw new ValidationException(
         "Window start and end properties are not available for Over windows.")
     }
 
@@ -1178,5 +1225,4 @@ class WindowGroupedTable(
     val withResolvedAggFunctionCall = fieldExprs.map(replaceAggFunctionCall(_, table.tableEnv))
     select(withResolvedAggFunctionCall: _*)
   }
-
 }

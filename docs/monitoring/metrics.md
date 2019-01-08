@@ -622,34 +622,6 @@ An example for such a list would be `host=localhost,job_name=MyJob,task_name=MyT
 
 The domain thus identifies a metric class, while the key-property list identifies one (or multiple) instances of that metric.
 
-### Ganglia (org.apache.flink.metrics.ganglia.GangliaReporter)
-
-In order to use this reporter you must copy `/opt/flink-metrics-ganglia-{{site.version}}.jar` into the `/lib` folder
-of your Flink distribution.
-
-Parameters:
-
-- `host` - the gmond host address configured under `udp_recv_channel.bind` in `gmond.conf`
-- `port` - the gmond port configured under `udp_recv_channel.port` in `gmond.conf`
-- `tmax` - soft limit for how long an old metric should be retained
-- `dmax` - hard limit for how long an old metric should be retained
-- `ttl` - time-to-live for transmitted UDP packets
-- `addressingMode` - UDP addressing mode to use (UNICAST/MULTICAST)
-
-Example configuration:
-
-{% highlight yaml %}
-
-metrics.reporter.gang.class: org.apache.flink.metrics.ganglia.GangliaReporter
-metrics.reporter.gang.host: localhost
-metrics.reporter.gang.port: 8649
-metrics.reporter.gang.tmax: 60
-metrics.reporter.gang.dmax: 0
-metrics.reporter.gang.ttl: 1
-metrics.reporter.gang.addressingMode: MULTICAST
-
-{% endhighlight %}
-
 ### Graphite (org.apache.flink.metrics.graphite.GraphiteReporter)
 
 In order to use this reporter you must copy `/opt/flink-metrics-graphite-{{site.version}}.jar` into the `/lib` folder
@@ -674,7 +646,7 @@ metrics.reporter.grph.protocol: TCP
 
 ### Prometheus (org.apache.flink.metrics.prometheus.PrometheusReporter)
 
-In order to use this reporter you must copy `/opt/flink-metrics-prometheus-{{site.version}}.jar` into the `/lib` folder
+In order to use this reporter you must copy `/opt/flink-metrics-prometheus{{site.scala_version_suffix}}-{{site.version}}.jar` into the `/lib` folder
 of your Flink distribution.
 
 Parameters:
@@ -1205,6 +1177,9 @@ Thus, in order to infer the metric identifier:
   </tbody>
 </table>
 
+### RocksDB
+Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({{ site.baseurl }}/ops/config.html#rocksdb-native-metrics)
+
 ### IO
 <table class="table table-bordered">
   <thead>
@@ -1638,8 +1613,9 @@ logged by `SystemResourcesMetricsInitializer` during the startup.
 
 ## Latency tracking
 
-Flink allows to track the latency of records traveling through the system. To enable the latency tracking
-a `latencyTrackingInterval` (in milliseconds) has to be set to a positive value in the `ExecutionConfig`.
+Flink allows to track the latency of records traveling through the system. This feature is disabled by default.
+To enable the latency tracking you must set the `latencyTrackingInterval` to a positive number in either the
+[Flink configuration]({{ site.baseurl }}/ops/config.html#metrics-latency-interval) or `ExecutionConfig`.
 
 At the `latencyTrackingInterval`, the sources will periodically emit a special record, called a `LatencyMarker`.
 The marker contains a timestamp from the time when the record has been emitted at the sources.
@@ -1658,6 +1634,9 @@ latency issues caused by individual machines.
 
 Currently, Flink assumes that the clocks of all machines in the cluster are in sync. We recommend setting
 up an automated clock synchronisation service (like NTP) to avoid false latency results.
+
+<span class="label label-danger">Warning</span> Enabling latency metrics can significantly impact the performance
+of the cluster. It is highly recommended to only use them for debugging purposes.
 
 ## REST API integration
 

@@ -397,7 +397,7 @@ private[flink] trait TypeInformationGen[C <: Context] {
     val result = c.inferImplicitValue(
       c.weakTypeOf[TypeInformation[T]],
       silent = true,
-      withMacrosDisabled =  false,
+      withMacrosDisabled = true,
       pos = c.enclosingPosition)
 
     if (result.isEmpty) {

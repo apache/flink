@@ -203,12 +203,18 @@ public class RemoteRpcInvocation implements RpcInvocation, Serializable {
 				try {
 					parameterTypes[i] = (Class<?>) ois.readObject();
 				} catch (IOException e) {
+					StringBuilder incompleteMethod = getIncompleteMethodString(i, 0);
 					throw new IOException("Could not deserialize " + i + "th parameter type of method " +
-						methodName + '.', e);
+						incompleteMethod + '.', e);
 				} catch (ClassNotFoundException e) {
-					throw new ClassNotFoundException("Could not deserialize " + i + "th " +
-						"parameter type of method " + methodName + ". This indicates that the parameter " +
-						"type is not part of the system class loader.", e);
+					// note: wrapping this CNFE into another CNFE does not overwrite the Exception
+					//       stored in the ObjectInputStream (see ObjectInputStream#readSerialData)
+					// -> add a suppressed exception that adds a more specific message
+					StringBuilder incompleteMethod = getIncompleteMethodString(i, 0);
+					e.addSuppressed(new ClassNotFoundException("Could not deserialize " + i + "th " +
+						"parameter type of method " + incompleteMethod + ". This indicates that the parameter " +
+						"type is not part of the system class loader."));
+					throw e;
 				}
 			}
 
@@ -221,17 +227,37 @@ public class RemoteRpcInvocation implements RpcInvocation, Serializable {
 					try {
 						args[i] = ois.readObject();
 					} catch (IOException e) {
+						StringBuilder incompleteMethod = getIncompleteMethodString(length, i);
 						throw new IOException("Could not deserialize " + i + "th argument of method " +
-							methodName + '.', e);
+							incompleteMethod + '.', e);
 					} catch (ClassNotFoundException e) {
-						throw new ClassNotFoundException("Could not deserialize " + i + "th " +
-							"argument of method " + methodName + ". This indicates that the argument " +
-							"type is not part of the system class loader.", e);
+						// note: wrapping this CNFE into another CNFE does not overwrite the Exception
+						//       stored in the ObjectInputStream (see ObjectInputStream#readSerialData)
+						// -> add a suppressed exception that adds a more specific message
+						StringBuilder incompleteMethod = getIncompleteMethodString(length, i);
+						e.addSuppressed(new ClassNotFoundException("Could not deserialize " + i + "th " +
+							"argument of method " + incompleteMethod + ". This indicates that the argument " +
+							"type is not part of the system class loader."));
+						throw e;
 					}
 				}
 			} else {
 				args = null;
 			}
+		}
+
+		private StringBuilder getIncompleteMethodString(int lastMethodTypeIdx, int lastArgumentIdx) {
+			StringBuilder incompleteMethod = new StringBuilder();
+			incompleteMethod.append(methodName).append('(');
+			for (int i = 0; i < lastMethodTypeIdx; ++i) {
+				incompleteMethod.append(parameterTypes[i].getCanonicalName());
+				if (i < lastArgumentIdx) {
+					incompleteMethod.append(": ").append(args[i]);
+				}
+				incompleteMethod.append(", ");
+			}
+			incompleteMethod.append("...)"); // some parameters could not be deserialized
+			return incompleteMethod;
 		}
 	}
 }

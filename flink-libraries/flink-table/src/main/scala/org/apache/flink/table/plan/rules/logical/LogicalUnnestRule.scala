@@ -96,7 +96,7 @@ class LogicalUnnestRule(
                 ExplodeFunctionUtil.explodeTableFuncFromType(arrayType.typeInfo))
             case mt: MultisetRelDataType =>
               (mt.getComponentType, ExplodeFunctionUtil.explodeTableFuncFromType(mt.typeInfo))
-            case _ => throw TableException(s"Unsupported UNNEST on type: ${dataType.toString}")
+            case _ => throw new TableException(s"Unsupported UNNEST on type: ${dataType.toString}")
           }
 
           // create sql function
@@ -121,7 +121,7 @@ class LogicalUnnestRule(
                 StructKind.FULLY_QUALIFIED,
                 ImmutableList.of(new RelDataTypeFieldImpl("f0", 0, componentType)))
             case _: RelRecordType => componentType
-            case _ => throw TableException(
+            case _ => throw new TableException(
               s"Unsupported component type in UNNEST: ${componentType.toString}")
           }
 

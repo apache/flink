@@ -27,29 +27,15 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import javax.annotation.Nullable;
 
+import java.util.List;
+
 /**
  * {@link RequestBody} for running a jar.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class JarRunRequestBody implements RequestBody {
-
-	private static final String FIELD_NAME_ENTRY_CLASS = "entryClass";
-	private static final String FIELD_NAME_PROGRAM_ARGUMENTS = "programArgs";
-	private static final String FIELD_NAME_PARALLELISM = "parallelism";
+public class JarRunRequestBody extends JarRequestBody {
 	private static final String FIELD_NAME_ALLOW_NON_RESTORED_STATE = "allowNonRestoredState";
 	private static final String FIELD_NAME_SAVEPOINT_PATH = "savepointPath";
-
-	@JsonProperty(FIELD_NAME_ENTRY_CLASS)
-	@Nullable
-	private String entryClassName;
-
-	@JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS)
-	@Nullable
-	private String programArguments;
-
-	@JsonProperty(FIELD_NAME_PARALLELISM)
-	@Nullable
-	private Integer parallelism;
 
 	@JsonProperty(FIELD_NAME_ALLOW_NON_RESTORED_STATE)
 	@Nullable
@@ -60,39 +46,20 @@ public class JarRunRequestBody implements RequestBody {
 	private String savepointPath;
 
 	public JarRunRequestBody() {
-		this(null, null, null, null, null);
+		this(null, null, null, null, null, null);
 	}
 
 	@JsonCreator
 	public JarRunRequestBody(
 			@Nullable @JsonProperty(FIELD_NAME_ENTRY_CLASS) String entryClassName,
 			@Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS) String programArguments,
+			@Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS_LIST) List<String> programArgumentsList,
 			@Nullable @JsonProperty(FIELD_NAME_PARALLELISM) Integer parallelism,
 			@Nullable @JsonProperty(FIELD_NAME_ALLOW_NON_RESTORED_STATE) Boolean allowNonRestoredState,
 			@Nullable @JsonProperty(FIELD_NAME_SAVEPOINT_PATH) String savepointPath) {
-		this.entryClassName = entryClassName;
-		this.programArguments = programArguments;
-		this.parallelism = parallelism;
+		super(entryClassName, programArguments, programArgumentsList, parallelism);
 		this.allowNonRestoredState = allowNonRestoredState;
 		this.savepointPath = savepointPath;
-	}
-
-	@Nullable
-	@JsonIgnore
-	public String getEntryClassName() {
-		return entryClassName;
-	}
-
-	@Nullable
-	@JsonIgnore
-	public String getProgramArguments() {
-		return programArguments;
-	}
-
-	@Nullable
-	@JsonIgnore
-	public Integer getParallelism() {
-		return parallelism;
 	}
 
 	@Nullable

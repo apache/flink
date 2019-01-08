@@ -1,109 +1,28 @@
-This project includes software developed at
+flink-connector-elasticsearch
+Copyright 2014-2018 The Apache Software Foundation
+
+This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
--------------------------------------------------------------
+This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt) 
 
-This project bundles the following dependencies under
-the Apache Software License 2.0
+- com.spatial4j:spatial4j:0.4.1
+- org.apache.lucene:lucene-analyzers-common:4.10.4
+- org.apache.lucene:lucene-core:4.10.4
+- org.apache.lucene:lucene-grouping:4.10.4
+- org.apache.lucene:lucene-highlighter:4.10.4
+- org.apache.lucene:lucene-join:4.10.4
+- org.apache.lucene:lucene-memory:4.10.4
+- org.apache.lucene:lucene-misc:4.10.4
+- org.apache.lucene:lucene-queries:4.10.4
+- org.apache.lucene:lucene-queryparser:4.10.4
+- org.apache.lucene:lucene-sandbox:4.10.4
+- org.apache.lucene:lucene-spatial:4.10.4
+- org.apache.lucene:lucene-suggest:4.10.4
+- org.elasticsearch:elasticsearch:1.7.1
+- org.yaml:snakeyaml:1.12
 
-  - org.apache.lucene : lucene-core version 4.10.4
-  - org.apache.lucene : lucene-analyzers-common version 4.10.4
-  - org.apache.lucene : lucene-grouping version 4.10.4
-  - org.apache.lucene : lucene-highlighter version 4.10.4
-  - org.apache.lucene : lucene-join version 4.10.4
-  - org.apache.lucene : lucene-memory version 4.10.4
-  - org.apache.lucene : lucene-misc version 4.10.4
-  - org.apache.lucene : lucene-queries version 4.10.4
-  - org.apache.lucene : lucene-queryparser version 4.10.4
-  - org.apache.lucene : lucene-sandbox version 4.10.4
-  - org.apache.lucene : lucene-spatial version 4.10.4
-  - org.apache.lucene : lucene-suggest version 4.10.4
-  - com.spatial4j : spatial4j version 0.4.1
-  - com.fasterxml.jackson.core : jackson-core version 2.5.3
-  - com.fasterxml.jackson.dataformat : jackson-dataformat-smile version 2.5.3
-  - com.fasterxml.jackson.dataformat : jackson-dataformat-yaml version 2.5.3
-  - com.fasterxml.jackson.dataformat : jackson-dataformat-cbor version 2.5.3
-  - org.joda : joda-convert (copied classes)
+This project bundles the following dependencies under the BSD License.
+See bundled licenses for details.
 
-===================================
-       Notice for Yaml
-===================================
-
-This project bundles yaml (v. 1.12) under the Creative Commons License (CC-BY 2.0).
-
-Original project website: http://www.yaml.de
-
-Copyright (c) 2005-2013, Dirk Jesse
-
-YAML under Creative Commons License (CC-BY 2.0)
-===============================================
-
-The YAML framework is published under the Creative Commons Attribution 2.0 License (CC-BY 2.0), which permits
-both private and commercial use (http://creativecommons.org/licenses/by/2.0/).
-
-Condition: For the free use of the YAML framework, a backlink to the YAML homepage (http://www.yaml.de) in a
-suitable place (e.g.: footer of the website or in the imprint) is required.
-
-===================================
-       Notice for Tartarus
-===================================
-
-This project bundles tartarus under the MIT License.
-
-Original source repository: https://github.com/sergiooramas/tartarus
-
-Copyright (c) 2017 Sergio Oramas and Oriol Nieto
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-===================================
-       Notice for Antlr
-===================================
-
-This project bundles antlr-runtime (v. 3.5) under the BSD 2-Clause License
-
-Copyright (c) 2010 Terence Parr
-
------------------------------------------------------------------------------
-** Beginning of "BSD 2-Clause License" text. **
-
- Copyright (c) 2010 Terence Parr
- All rights reserved.
-
- Redistribution and use in source and binary forms, with or without
- modification, are permitted provided that the following conditions are met:
-
- 1. Redistributions of source code must retain the above copyright notice,
-    this list of conditions and the following disclaimer.
-
- 2. Redistributions in binary form must reproduce the above copyright notice,
-    this list of conditions and the following disclaimer in the documentation
-    and/or other materials provided with the distribution.
-
- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
- THE POSSIBILITY OF SUCH DAMAGE.
+- org.antlr:antlr-runtime:jar:3.5

@@ -20,8 +20,8 @@
 ##
 ## Variables with defaults (if not overwritten by environment)
 ##
-SCALA_VERSION=none
-HADOOP_VERSION=none
+SCALA_VERSION=${SCALA_VERSION:-none}
+HADOOP_VERSION=${HADOOP_VERSION:-none}
 SKIP_GPG=${SKIP_GPG:-false}
 MVN=${MVN:-mvn}
 
@@ -69,8 +69,16 @@ make_binary_release() {
     dir_name="flink-$RELEASE_VERSION-bin-$NAME-scala_${SCALA_VERSION}"
   fi
 
+  if [ $SCALA_VERSION = "2.12" ]; then
+      FLAGS="$FLAGS -Dscala-2.12"
+  elif [ $SCALA_VERSION = "2.11" ]; then
+      FLAGS="$FLAGS -Dscala-2.11"
+  else
+      echo "Invalid Scala version ${SCALA_VERSION}"
+  fi
+
   # enable release profile here (to check for the maven version)
-  $MVN clean package $FLAGS -Prelease -pl flink-shaded-hadoop/flink-shaded-hadoop2-uber,flink-dist -am -Dgpg.skip -Dcheckstyle.skip=true -DskipTests -Dmaven.test.skip=true
+  $MVN clean package $FLAGS -Prelease -pl flink-dist -am -Dgpg.skip -Dcheckstyle.skip=true -DskipTests
 
   cd flink-dist/target/flink-*-bin/
   tar czf "${dir_name}.tgz" flink-*
@@ -87,22 +95,27 @@ make_binary_release() {
   cd ${FLINK_DIR}
 }
 
+HADOOP_CLASSIFIERS=("24" "26" "27" "28")
+HADOOP_VERSIONS=("2.4.1" "2.6.5" "2.7.5" "2.8.3")
+
 if [ "$SCALA_VERSION" == "none" ] && [ "$HADOOP_VERSION" == "none" ]; then
+  make_binary_release "" "-DwithoutHadoop" "2.12"
+  for i in "${!HADOOP_CLASSIFIERS[@]}"; do
+    make_binary_release "hadoop${HADOOP_CLASSIFIERS[$i]}" "-Dhadoop.version=${HADOOP_VERSIONS[$i]}" "2.12"
+  done
   make_binary_release "" "-DwithoutHadoop" "2.11"
-  make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "2.11"
-  make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "2.11"
-  make_binary_release "hadoop27" "-Dhadoop.version=2.7.5" "2.11"
-  make_binary_release "hadoop28" "-Dhadoop.version=2.8.3" "2.11"
+  for i in "${!HADOOP_CLASSIFIERS[@]}"; do
+    make_binary_release "hadoop${HADOOP_CLASSIFIERS[$i]}" "-Dhadoop.version=${HADOOP_VERSIONS[$i]}" "2.11"
+  done
 elif [ "$SCALA_VERSION" == none ] && [ "$HADOOP_VERSION" != "none" ]
 then
   make_binary_release "hadoop2" "-Dhadoop.version=$HADOOP_VERSION" "2.11"
 elif [ "$SCALA_VERSION" != none ] && [ "$HADOOP_VERSION" == "none" ]
 then
   make_binary_release "" "-DwithoutHadoop" "$SCALA_VERSION"
-  make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "$SCALA_VERSION"
-  make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "$SCALA_VERSION"
-  make_binary_release "hadoop27" "-Dhadoop.version=2.7.3" "$SCALA_VERSION"
-  make_binary_release "hadoop28" "-Dhadoop.version=2.8.0" "$SCALA_VERSION"
+  for i in "${!HADOOP_CLASSIFIERS[@]}"; do
+    make_binary_release "hadoop${HADOOP_CLASSIFIERS[$i]}" "-Dhadoop.version=${HADOOP_VERSIONS[$i]}" "$SCALA_VERSION"
+  done
 else
   make_binary_release "hadoop2x" "-Dhadoop.version=$HADOOP_VERSION" "$SCALA_VERSION"
 fi

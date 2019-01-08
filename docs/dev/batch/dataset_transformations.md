@@ -712,7 +712,7 @@ class MyCombinableGroupReducer
     out: Collector[String]): Unit =
   {
     val r: (String, Int) =
-      in.asScala.reduce( (a,b) => (a._1, a._2 + b._2) )
+      in.iterator.asScala.reduce( (a,b) => (a._1, a._2 + b._2) )
     // concat key and sum and emit
     out.collect (r._1 + "-" + r._2)
   }
@@ -722,7 +722,7 @@ class MyCombinableGroupReducer
     out: Collector[(String, Int)]): Unit =
   {
     val r: (String, Int) =
-      in.asScala.reduce( (a,b) => (a._1, a._2 + b._2) )
+      in.iterator.asScala.reduce( (a,b) => (a._1, a._2 + b._2) )
     // emit tuple with key and sum
     out.collect(r)
   }

@@ -20,6 +20,9 @@ package org.apache.flink.runtime.io.network.partition;
 
 import java.io.IOException;
 
+/**
+ * Interface for creating result partitions.
+ */
 public interface ResultPartitionProvider {
 
 	/**

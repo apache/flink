@@ -90,6 +90,12 @@ object TypeCheckUtils {
   def isComparable(dataType: TypeInformation[_]): Boolean =
     classOf[Comparable[_]].isAssignableFrom(dataType.getTypeClass) && !isArray(dataType)
 
+  /**
+    * Types that can be easily converted into a string without ambiguity.
+    */
+  def isSimpleStringRepresentation(dataType: TypeInformation[_]): Boolean =
+    isNumeric(dataType) || isString(dataType) || isTemporal(dataType) || isBoolean(dataType)
+
   def assertNumericExpr(
       dataType: TypeInformation[_],
       caller: String)
@@ -176,5 +182,96 @@ object TypeCheckUtils {
         }
       }
     }
+  }
+
+  /**
+    * Checks if a class is a Java primitive wrapper.
+    */
+  def isPrimitiveWrapper(clazz: Class[_]): Boolean = {
+    clazz == classOf[java.lang.Boolean] ||
+    clazz == classOf[java.lang.Byte] ||
+    clazz == classOf[java.lang.Character] ||
+    clazz == classOf[java.lang.Short] ||
+    clazz == classOf[java.lang.Integer] ||
+    clazz == classOf[java.lang.Long] ||
+    clazz == classOf[java.lang.Double] ||
+    clazz == classOf[java.lang.Float]
+  }
+
+  /**
+    * Checks if one class can be assigned to a variable of another class.
+    *
+    * Adopted from o.a.commons.lang.ClassUtils#isAssignable(java.lang.Class[], java.lang.Class[])
+    * but without null checks.
+    */
+  def isAssignable(classArray: Array[Class[_]], toClassArray: Array[Class[_]]): Boolean = {
+    if (classArray.length != toClassArray.length) {
+      return false
+    }
+    var i = 0
+    while (i < classArray.length) {
+      if (!isAssignable(classArray(i), toClassArray(i))) {
+        return false
+      }
+      i += 1
+    }
+    true
+  }
+
+  /**
+    * Checks if one class can be assigned to a variable of another class.
+    *
+    * Adopted from o.a.commons.lang.ClassUtils#isAssignable(java.lang.Class, java.lang.Class) but
+    * without null checks.
+    */
+  def isAssignable(cls: Class[_], toClass: Class[_]): Boolean = {
+    if (cls.equals(toClass)) {
+      return true
+    }
+    if (cls.isPrimitive) {
+      if (!toClass.isPrimitive) {
+        return false
+      }
+      if (java.lang.Integer.TYPE.equals(cls)) {
+        return java.lang.Long.TYPE.equals(toClass) ||
+          java.lang.Float.TYPE.equals(toClass) ||
+          java.lang.Double.TYPE.equals(toClass)
+      }
+      if (java.lang.Long.TYPE.equals(cls)) {
+        return java.lang.Float.TYPE.equals(toClass) ||
+          java.lang.Double.TYPE.equals(toClass)
+      }
+      if (java.lang.Boolean.TYPE.equals(cls)) {
+        return false
+      }
+      if (java.lang.Double.TYPE.equals(cls)) {
+        return false
+      }
+      if (java.lang.Float.TYPE.equals(cls)) {
+          return java.lang.Double.TYPE.equals(toClass)
+      }
+      if (java.lang.Character.TYPE.equals(cls)) {
+          return java.lang.Integer.TYPE.equals(toClass) ||
+            java.lang.Long.TYPE.equals(toClass) ||
+            java.lang.Float.TYPE.equals(toClass) ||
+            java.lang.Double.TYPE.equals(toClass)
+      }
+      if (java.lang.Short.TYPE.equals(cls)) {
+          return java.lang.Integer.TYPE.equals(toClass) ||
+            java.lang.Long.TYPE.equals(toClass) ||
+            java.lang.Float.TYPE.equals(toClass) ||
+            java.lang.Double.TYPE.equals(toClass)
+      }
+      if (java.lang.Byte.TYPE.equals(cls)) {
+          return java.lang.Short.TYPE.equals(toClass) ||
+            java.lang.Integer.TYPE.equals(toClass) ||
+            java.lang.Long.TYPE.equals(toClass) ||
+            java.lang.Float.TYPE.equals(toClass) ||
+            java.lang.Double.TYPE.equals(toClass)
+      }
+      // should never get here
+      return false
+    }
+    toClass.isAssignableFrom(cls)
   }
 }

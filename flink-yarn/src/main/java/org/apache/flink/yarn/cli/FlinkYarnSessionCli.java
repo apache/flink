@@ -36,11 +36,11 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.AbstractYarnClusterDescriptor;
-import org.apache.flink.yarn.LegacyYarnClusterDescriptor;
 import org.apache.flink.yarn.YarnClusterDescriptor;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
@@ -71,6 +71,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -85,6 +86,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import static org.apache.flink.client.cli.CliFrontendParser.DETACHED_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.SHUTDOWN_IF_ATTACHED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.YARN_DETACHED_OPTION;
 import static org.apache.flink.configuration.HighAvailabilityOptions.HA_CLUSTER_ID;
 
@@ -160,8 +162,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 	private final String yarnPropertiesFileLocation;
 
-	private final boolean isNewMode;
-
 	private final YarnConfiguration yarnConfiguration;
 
 	public FlinkYarnSessionCli(
@@ -181,8 +181,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		super(configuration);
 		this.configurationDirectory = Preconditions.checkNotNull(configurationDirectory);
 		this.acceptInteractiveInput = acceptInteractiveInput;
-
-		this.isNewMode = configuration.getString(CoreOptions.MODE).equalsIgnoreCase(CoreOptions.NEW_MODE);
 
 		// Create the command line options
 
@@ -218,6 +216,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		allOptions.addOption(slots);
 		allOptions.addOption(dynamicproperties);
 		allOptions.addOption(DETACHED_OPTION);
+		allOptions.addOption(SHUTDOWN_IF_ATTACHED_OPTION);
 		allOptions.addOption(YARN_DETACHED_OPTION);
 		allOptions.addOption(streaming);
 		allOptions.addOption(name);
@@ -254,7 +253,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 				yarnApplicationIdFromYarnProperties = ConverterUtils.toApplicationId(yarnApplicationIdString);
 			}
 			catch (Exception e) {
-				throw new FlinkException("YARN properties contains an invalid entry for " +
+				throw new FlinkException("YARN properties contain an invalid entry for " +
 					"application id: " + yarnApplicationIdString + ". Please delete the file at " +
 					yarnPropertiesLocation.getAbsolutePath(), e);
 			}
@@ -371,10 +370,8 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	}
 
 	private ClusterSpecification createClusterSpecification(Configuration configuration, CommandLine cmd) {
-		if (!isNewMode && !cmd.hasOption(container.getOpt())) { // number of containers is required option!
-			LOG.error("Missing required argument {}", container.getOpt());
-			printUsage();
-			throw new IllegalArgumentException("Missing required argument " + container.getOpt());
+		if (cmd.hasOption(container.getOpt())) { // number of containers is required option!
+			LOG.info("The argument {} is deprecated in will be ignored.", container.getOpt());
 		}
 
 		// TODO: The number of task manager should be deprecated soon
@@ -530,12 +527,14 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	private boolean isYarnPropertiesFileMode(CommandLine commandLine) {
 		boolean canApplyYarnProperties = !commandLine.hasOption(addressOption.getOpt());
 
-		for (Option option : commandLine.getOptions()) {
-			if (allOptions.hasOption(option.getOpt())) {
-				if (!isDetachedOption(option)) {
-					// don't resume from properties file if yarn options have been specified
-					canApplyYarnProperties = false;
-					break;
+		if (canApplyYarnProperties) {
+			for (Option option : commandLine.getOptions()) {
+				if (allOptions.hasOption(option.getOpt())) {
+					if (!isDetachedOption(option)) {
+						// don't resume from properties file if yarn options have been specified
+						canApplyYarnProperties = false;
+						break;
+					}
 				}
 			}
 		}
@@ -811,8 +810,9 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 			retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.run(args));
 		} catch (CliArgsException e) {
 			retCode = handleCliArgsException(e);
-		} catch (Exception e) {
-			retCode = handleError(e);
+		} catch (Throwable t) {
+			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
+			retCode = handleError(strippedThrowable);
 		}
 
 		System.exit(retCode);
@@ -949,15 +949,15 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		return 1;
 	}
 
-	private static int handleError(Exception e) {
-		LOG.error("Error while running the Flink Yarn session.", e);
+	private static int handleError(Throwable t) {
+		LOG.error("Error while running the Flink Yarn session.", t);
 
 		System.err.println();
 		System.err.println("------------------------------------------------------------");
 		System.err.println(" The program finished with the following exception:");
 		System.err.println();
 
-		e.printStackTrace();
+		t.printStackTrace();
 		return 1;
 	}
 
@@ -984,20 +984,11 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		yarnClient.init(yarnConfiguration);
 		yarnClient.start();
 
-		if (isNewMode) {
-			return new YarnClusterDescriptor(
-				configuration,
-				yarnConfiguration,
-				configurationDirectory,
-				yarnClient,
-				false);
-		} else {
-			return new LegacyYarnClusterDescriptor(
-				configuration,
-				yarnConfiguration,
-				configurationDirectory,
-				yarnClient,
-				false);
-		}
+		return new YarnClusterDescriptor(
+			configuration,
+			yarnConfiguration,
+			configurationDirectory,
+			yarnClient,
+			false);
 	}
 }

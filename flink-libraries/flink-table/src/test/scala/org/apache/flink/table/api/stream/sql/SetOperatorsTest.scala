@@ -26,6 +26,42 @@ import org.junit.Test
 class SetOperatorsTest extends TableTestBase {
 
   @Test
+  def testInOnLiterals(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    val resultStr = (1 to 30).mkString(", ")
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(0),
+      term("select", "a", "b", "c"),
+      term("where", s"IN(b, $resultStr)")
+    )
+
+    util.verifySql(
+      s"SELECT * FROM MyTable WHERE b in ($resultStr)",
+      expected)
+  }
+
+  @Test
+  def testNotInOnLiterals(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    val resultStr = (1 to 30).mkString(", ")
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(0),
+      term("select", "a", "b", "c"),
+      term("where", s"NOT IN(b, $resultStr)")
+    )
+
+    util.verifySql(
+      s"SELECT * FROM MyTable WHERE b NOT IN ($resultStr)",
+      expected)
+  }
+
+  @Test
   def testInUncorrelated(): Unit = {
     val streamUtil = streamTestUtil()
     streamUtil.addTable[(Int, Long, String)]("tableA", 'a, 'b, 'c)

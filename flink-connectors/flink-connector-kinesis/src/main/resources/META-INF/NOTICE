@@ -1,0 +1,26 @@
+flink-connector-kinesis
+Copyright 2014-2018 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt) 
+
+- com.amazonaws:aws-java-sdk-core:1.11.319
+- com.amazonaws:aws-java-sdk-kinesis:1.11.319
+- com.amazonaws:aws-java-sdk-sts:1.11.319
+- com.amazonaws:jmespath-java:1.11.319
+- org.apache.httpcomponents:httpclient:4.5.3
+- org.apache.httpcomponents:httpcore:4.4.6
+
+This project bundles the following dependencies under the BSD license.
+See bundled license files for details.
+
+- com.google.protobuf:protobuf-java:2.6.1
+
+This project bundles the following dependencies under the Amazon Softward License.
+See bundled license files for details.
+
+- com.amazonaws:amazon-kinesis-client:1.9.0
+- com.amazonaws:amazon-kinesis-producer:0.12.9
+

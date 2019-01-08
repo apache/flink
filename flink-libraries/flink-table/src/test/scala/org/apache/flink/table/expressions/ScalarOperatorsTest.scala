@@ -406,6 +406,10 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "((((true) === true) || false).cast(STRING) + 'X ').trim",
       "trueX")
     testTableApi(12.isNull, "12.isNull", "false")
+
+    testSqlApi("f12 IS NOT DISTINCT FROM NULL", "true")
+    testSqlApi("f9 IS NOT DISTINCT FROM NULL", "false")
+    testSqlApi("f9 IS NOT DISTINCT FROM 10", "true")
   }
 
   @Test

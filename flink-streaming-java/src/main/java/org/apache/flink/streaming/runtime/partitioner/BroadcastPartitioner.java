@@ -30,22 +30,17 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 public class BroadcastPartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	int[] returnArray;
-	boolean set;
-	int setNumber;
+	private int[] returnArray;
 
 	@Override
-	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
-			int numberOfOutputChannels) {
-		if (set && setNumber == numberOfOutputChannels) {
+	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record) {
+		if (returnArray != null && returnArray.length == numberOfChannels) {
 			return returnArray;
 		} else {
-			this.returnArray = new int[numberOfOutputChannels];
-			for (int i = 0; i < numberOfOutputChannels; i++) {
+			this.returnArray = new int[numberOfChannels];
+			for (int i = 0; i < numberOfChannels; i++) {
 				returnArray[i] = i;
 			}
-			set = true;
-			setNumber = numberOfOutputChannels;
 			return returnArray;
 		}
 	}

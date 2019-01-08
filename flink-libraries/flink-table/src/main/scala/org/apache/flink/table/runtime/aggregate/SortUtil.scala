@@ -21,7 +21,6 @@ import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rel.RelFieldCollation
 import org.apache.calcite.rel.RelFieldCollation.Direction
-
 import org.apache.flink.types.Row
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -36,8 +35,9 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.util.Preconditions
-
 import java.util.Comparator
+
+import org.apache.flink.api.common.operators.Order
 
 import scala.collection.JavaConverters._
 
@@ -123,7 +123,7 @@ object SortUtil {
     *
    * @return A RowComparator for the provided sort collations and input type.
    */
-  private def createRowComparator(
+  def createRowComparator(
       inputType: RelDataType,
       fieldCollations: Seq[RelFieldCollation],
       execConfig: ExecutionConfig): RowComparator = {
@@ -176,7 +176,20 @@ object SortUtil {
     val idx = collationSort.getFieldCollations.get(0).getFieldIndex
     rowType.getFieldList.get(idx)
   }
-  
+
+  /**
+    * Translates direction into Order
+    *
+    * @param direction order direction
+    * @return corresponding order
+    */
+  def directionToOrder(direction: Direction): Order = {
+    direction match {
+      case Direction.ASCENDING | Direction.STRICTLY_ASCENDING => Order.ASCENDING
+      case Direction.DESCENDING | Direction.STRICTLY_DESCENDING => Order.DESCENDING
+      case _ => throw new IllegalArgumentException("Unsupported direction.")
+    }
+  }
 }
 
 /**

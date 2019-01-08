@@ -33,7 +33,6 @@ import org.apache.flink.util.Collector
   *
   * @param leftType        the input type of left stream
   * @param rightType       the input type of right stream
-  * @param resultType      the output type of join
   * @param genJoinFuncName the function code without any non-equi condition
   * @param genJoinFuncCode the function name without any non-equi condition
   * @param queryConfig     the configuration for the query to generate
@@ -41,14 +40,12 @@ import org.apache.flink.util.Collector
 class NonWindowFullJoin(
     leftType: TypeInformation[Row],
     rightType: TypeInformation[Row],
-    resultType: TypeInformation[CRow],
     genJoinFuncName: String,
     genJoinFuncCode: String,
     queryConfig: StreamQueryConfig)
   extends NonWindowOuterJoin(
     leftType,
     rightType,
-    resultType,
     genJoinFuncName,
     genJoinFuncCode,
     false,
@@ -69,13 +66,12 @@ class NonWindowFullJoin(
       value: CRow,
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       out: Collector[CRow],
-      timerState: ValueState[Long],
       currentSideState: MapState[Row, JTuple2[Long, Long]],
       otherSideState: MapState[Row, JTuple2[Long, Long]],
       recordFromLeft: Boolean): Unit = {
 
     val inputRow = value.row
-    updateCurrentSide(value, ctx, timerState, currentSideState)
+    updateCurrentSide(value, ctx, currentSideState)
 
     cRowWrapper.reset()
     cRowWrapper.setCollector(out)

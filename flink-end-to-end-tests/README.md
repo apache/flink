@@ -47,6 +47,8 @@ In order to add a new test case you need add it to either `test-scripts/run-nigh
 
 _Note: If you want to parameterize your tests please do so by adding multiple test cases with parameters as arguments to the nightly / pre-commit test suites. This allows the test runner to do a cleanup in between each individual test and also to fail those tests individually._
 
+_Note: While developing a new test case make sure to enable bash's error handling in `test-scripts/common.sh` by uncommenting `set -Eexuo pipefail` and commenting the current default `set` call. Once your test is implemented properly, add `set -Eeuo pipefail` on the very top of your test script (before any `common` script)._
+
 ### Passing your test
 A test is considered to have passed if it:
 - has exit code 0
