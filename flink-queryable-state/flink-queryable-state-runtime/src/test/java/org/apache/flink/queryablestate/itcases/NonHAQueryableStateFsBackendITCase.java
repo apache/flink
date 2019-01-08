@@ -24,7 +24,7 @@ import org.apache.flink.configuration.QueryableStateOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -61,7 +61,7 @@ public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTe
 			.build());
 
 	@Override
-	protected AbstractStateBackend createStateBackend() throws Exception {
+	protected StateBackend createStateBackend() throws Exception {
 		return new FsStateBackend(temporaryFolder.newFolder().toURI().toString());
 	}
 
