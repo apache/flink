@@ -26,6 +26,11 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
 
+import java.io.Serializable;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
+import java.util.function.Supplier;
+
 /**
  * Implements a streaming windowed version of the "WordCount" program.
  *
@@ -65,31 +70,45 @@ public class SocketWindowWordCount {
 		DataStream<String> text = env.socketTextStream(hostname, port, "\n");
 
 		// parse the data, group it, window it, and aggregate the counts
-		DataStream<WordWithCount> windowCounts = text
-
-				.flatMap(new FlatMapFunction<String, WordWithCount>() {
+		DataStream<WordWithCount> windowCounts = text.flatMap(serializableProxy(
+			(Supplier<UserDefinedFlatMapFunction<String, WordWithCount>> & Serializable) () ->
+				new UserDefinedFlatMapFunction<String, WordWithCount>() {
 					@Override
 					public void flatMap(String value, Collector<WordWithCount> out) {
 						for (String word : value.split("\\s")) {
 							out.collect(new WordWithCount(word, 1L));
 						}
 					}
-				})
+				}, UserDefinedFlatMapFunction.class))
+			.returns(WordWithCount.class)
+			.keyBy("word")
+			.timeWindow(Time.seconds(5))
 
-				.keyBy("word")
-				.timeWindow(Time.seconds(5))
-
-				.reduce(new ReduceFunction<WordWithCount>() {
-					@Override
-					public WordWithCount reduce(WordWithCount a, WordWithCount b) {
-						return new WordWithCount(a.word, a.count + b.count);
-					}
-				});
+			.reduce(new ReduceFunction<WordWithCount>() {
+				@Override
+				public WordWithCount reduce(WordWithCount a, WordWithCount b) {
+					return new WordWithCount(a.word, a.count + b.count);
+				}
+			});
 
 		// print the results with a single thread, rather than in parallel
 		windowCounts.print().setParallelism(1);
 
 		env.execute("Socket Window WordCount");
+	}
+
+	interface UserDefinedFlatMapFunction<T, O> extends FlatMapFunction<T, O> { }
+
+	@SuppressWarnings("unchecked")
+	private static <T> T serializableProxy(final Supplier<? extends T> realObjectSupplier, final Class<?> clazz) {
+		return (T) Proxy.newProxyInstance(
+			clazz.getClassLoader(), new Class<?>[] {clazz, Serializable.class}, delegateTo(realObjectSupplier));
+	}
+
+	private static <T> InvocationHandler delegateTo(final Supplier<T> realObjectSupplier) {
+		return (InvocationHandler & Serializable) (proxy, method, args) -> {
+			return method.invoke(realObjectSupplier.get(), args);
+		};
 	}
 
 	// ------------------------------------------------------------------------
