@@ -109,7 +109,7 @@ public class QueryableStateOptions {
 	/** Option whether the queryable state proxy and server should be enabled where possible and configurable.
 	 *
 	 * <p>Queryable state proxy and server are still more experimental features, hence disabled unless they are enable
-	 * in user configuration. */
+	 * in user configuration.  */
 	public static final ConfigOption<Boolean> ENABLE_QUERYABLE_STATE_PROXY_SERVER =
 		key("query.enable")
 			.defaultValue(false)
