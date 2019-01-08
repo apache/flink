@@ -151,8 +151,8 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 		return stateSnapshotTransformFactory;
 	}
 
-	public void updateSnapshotTransformerFactory(StateSnapshotTransformFactory<S> sStateSnapshotTransformFactory) {
-		this.stateSnapshotTransformFactory = sStateSnapshotTransformFactory;
+	public void updateSnapshotTransformerFactory(StateSnapshotTransformFactory<S> stateSnapshotTransformFactory) {
+		this.stateSnapshotTransformFactory = stateSnapshotTransformFactory;
 	}
 
 	@Override

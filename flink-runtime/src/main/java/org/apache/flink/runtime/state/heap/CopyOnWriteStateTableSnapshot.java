@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.Optional;
 
 /**
  * This class represents the snapshot of a {@link CopyOnWriteStateTable} and has a role in operator state checkpointing. Besides
@@ -147,16 +148,16 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 					localKeySerializer.serialize(element.key, dov);
 					localStateSerializer.serialize(element.state, dov);
 				};
-			StateSnapshotTransformer<S> stateSnapshotTransformer = owningStateTable.metaInfo.
-				getStateSnapshotTransformFactory().createForDeserializedState().orElse(null);
-			StateTableKeyGroupPartitioner<K, N, S> stateTableKeyGroupPartitioner = stateSnapshotTransformer != null ?
+			Optional<StateSnapshotTransformer<S>> stateSnapshotTransformer = owningStateTable.metaInfo.
+				getStateSnapshotTransformFactory().createForDeserializedState();
+			StateTableKeyGroupPartitioner<K, N, S> stateTableKeyGroupPartitioner = stateSnapshotTransformer.isPresent() ?
 				new TransformingStateTableKeyGroupPartitioner<>(
 					snapshotData,
 					numberOfEntriesInSnapshotData,
 					keyGroupRange,
 					numberOfKeyGroups,
 					elementWriterFunction,
-					stateSnapshotTransformer) :
+					stateSnapshotTransformer.get()) :
 				new StateTableKeyGroupPartitioner<>(
 					snapshotData,
 					numberOfEntriesInSnapshotData,

@@ -61,8 +61,8 @@ import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
-import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
+import org.apache.flink.runtime.state.StateSnapshotTransformers;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
@@ -227,7 +227,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
 			TypeSerializer<N> namespaceSerializer,
 			StateDescriptor<?, V> stateDesc,
-			@Nonnull StateSnapshotTransformFactory<V> snapshotTransformer) throws StateMigrationException {
+			@Nonnull StateSnapshotTransformFactory<V> snapshotTransformFactory) throws StateMigrationException {
 
 		@SuppressWarnings("unchecked")
 		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) registeredKVStates.get(stateDesc.getName());
@@ -237,7 +237,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		if (stateTable != null) {
 			RegisteredKeyValueStateBackendMetaInfo<N, V> restoredKvMetaInfo = stateTable.getMetaInfo();
 
-			restoredKvMetaInfo.updateSnapshotTransformerFactory(snapshotTransformer);
+			restoredKvMetaInfo.updateSnapshotTransformerFactory(snapshotTransformFactory);
 
 			TypeSerializerSchemaCompatibility<N> namespaceCompatibility =
 				restoredKvMetaInfo.updateNamespaceSerializer(namespaceSerializer);
@@ -261,7 +261,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateDesc.getName(),
 				namespaceSerializer,
 				newStateSerializer,
-				snapshotTransformer);
+				snapshotTransformFactory);
 
 			stateTable = snapshotStrategy.newStateTable(newMetaInfo);
 			registeredKVStates.put(stateDesc.getName(), stateTable);
@@ -308,11 +308,9 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		StateDescriptor<?, SV> stateDesc,
 		StateSnapshotTransformFactory<SEV> snapshotTransformFactory) {
 		if (stateDesc instanceof ListStateDescriptor) {
-			return (StateSnapshotTransformFactory<SV>) new StateSnapshotTransformer
-				.ListStateSnapshotTransformFactory<>(snapshotTransformFactory);
+			return (StateSnapshotTransformFactory<SV>) new StateSnapshotTransformers.ListStateSnapshotTransformFactory<>(snapshotTransformFactory);
 		} else if (stateDesc instanceof MapStateDescriptor) {
-			return (StateSnapshotTransformFactory<SV>) new StateSnapshotTransformer
-				.MapStateSnapshotTransformFactory<>(snapshotTransformFactory);
+			return (StateSnapshotTransformFactory<SV>) new StateSnapshotTransformers.MapStateSnapshotTransformFactory<>(snapshotTransformFactory);
 		} else {
 			return (StateSnapshotTransformFactory<SV>) snapshotTransformFactory;
 		}
