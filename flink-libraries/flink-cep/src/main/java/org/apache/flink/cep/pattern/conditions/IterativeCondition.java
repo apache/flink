@@ -20,7 +20,7 @@ package org.apache.flink.cep.pattern.conditions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.cep.time.TimerContext;
+import org.apache.flink.cep.time.TimeContext;
 
 import java.io.Serializable;
 
@@ -87,7 +87,7 @@ public abstract class IterativeCondition<T> implements Function, Serializable {
 	/**
 	 * The context used when evaluating the {@link IterativeCondition condition}.
 	 */
-	public interface Context<T> extends TimerContext {
+	public interface Context<T> extends TimeContext {
 
 		/**
 		 * @return An {@link Iterable} over the already accepted elements

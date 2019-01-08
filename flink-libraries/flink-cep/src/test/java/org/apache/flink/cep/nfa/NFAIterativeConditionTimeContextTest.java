@@ -38,7 +38,7 @@ import static org.apache.flink.cep.utils.NFATestUtilities.compareMaps;
 /**
  * Tests for accesing time properties from {@link IterativeCondition}.
  */
-public class NFAIterativeConditionTimerContextTest extends TestLogger {
+public class NFAIterativeConditionTimeContextTest extends TestLogger {
 
 	@Test
 	public void testEventTimestamp() throws Exception {
