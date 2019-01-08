@@ -39,10 +39,6 @@ import java.io.IOException;
 @Internal
 class RocksDBSerializedCompositeKeyBuilder<K> {
 
-	/** The serializer for the key. */
-	@Nonnull
-	private final TypeSerializer<K> keySerializer;
-
 	/** The output to write the key into. */
 	@Nonnull
 	private final DataOutputSerializer keyOutView;
@@ -59,25 +55,22 @@ class RocksDBSerializedCompositeKeyBuilder<K> {
 	private int afterKeyMark;
 
 	public RocksDBSerializedCompositeKeyBuilder(
-		@Nonnull TypeSerializer<K> keySerializer,
 		@Nonnegative int keyGroupPrefixBytes,
-		@Nonnegative int initialSize) {
+		@Nonnegative int initialSize,
+		boolean keySerializerTypeVariableSized) {
 		this(
-			keySerializer,
 			new DataOutputSerializer(initialSize),
 			keyGroupPrefixBytes,
-			RocksDBKeySerializationUtils.isSerializerTypeVariableSized(keySerializer),
+			keySerializerTypeVariableSized,
 			0);
 	}
 
 	@VisibleForTesting
 	RocksDBSerializedCompositeKeyBuilder(
-		@Nonnull TypeSerializer<K> keySerializer,
 		@Nonnull DataOutputSerializer keyOutView,
 		@Nonnegative int keyGroupPrefixBytes,
 		boolean keySerializerTypeVariableSized,
 		@Nonnegative int afterKeyMark) {
-		this.keySerializer = keySerializer;
 		this.keyOutView = keyOutView;
 		this.keyGroupPrefixBytes = keyGroupPrefixBytes;
 		this.keySerializerTypeVariableSized = keySerializerTypeVariableSized;
@@ -91,9 +84,9 @@ class RocksDBSerializedCompositeKeyBuilder<K> {
 	 * @param key        the key.
 	 * @param keyGroupId the key-group id for the key.
 	 */
-	public void setKeyAndKeyGroup(@Nonnull K key, @Nonnegative int keyGroupId) {
+	public void setKeyAndKeyGroup(@Nonnull K key, @Nonnegative int keyGroupId, @Nonnull TypeSerializer<K> keySerializer) {
 		try {
-			serializeKeyGroupAndKey(key, keyGroupId);
+			serializeKeyGroupAndKey(key, keyGroupId, keySerializer);
 		} catch (IOException shouldNeverHappen) {
 			throw new FlinkRuntimeException(shouldNeverHappen);
 		}
@@ -101,7 +94,7 @@ class RocksDBSerializedCompositeKeyBuilder<K> {
 
 	/**
 	 * Returns a serialized composite key, from the key and key-group provided in a previous call to
-	 * {@link #setKeyAndKeyGroup(Object, int)} and the given namespace.
+	 * {@link #setKeyAndKeyGroup(Object, int, TypeSerializer)} and the given namespace.
 	 *
 	 * @param namespace           the namespace to concatenate for the serialized composite key bytes.
 	 * @param namespaceSerializer the serializer to obtain the serialized form of the namespace.
@@ -122,7 +115,7 @@ class RocksDBSerializedCompositeKeyBuilder<K> {
 
 	/**
 	 * Returns a serialized composite key, from the key and key-group provided in a previous call to
-	 * {@link #setKeyAndKeyGroup(Object, int)} and the given namespace, folloed by the given user-key.
+	 * {@link #setKeyAndKeyGroup(Object, int, TypeSerializer)} and the given namespace, folloed by the given user-key.
 	 *
 	 * @param namespace           the namespace to concatenate for the serialized composite key bytes.
 	 * @param namespaceSerializer the serializer to obtain the serialized form of the namespace.
@@ -145,7 +138,7 @@ class RocksDBSerializedCompositeKeyBuilder<K> {
 		return result;
 	}
 
-	private void serializeKeyGroupAndKey(K key, int keyGroupId) throws IOException {
+	private void serializeKeyGroupAndKey(K key, int keyGroupId, TypeSerializer<K> keySerializer) throws IOException {
 
 		// clear buffer and mark
 		resetFully();

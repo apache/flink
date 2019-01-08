@@ -297,7 +297,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.kvStateInformation = new LinkedHashMap<>();
 
 		this.writeOptions = new WriteOptions().setDisableWAL(true);
-		this.sharedRocksKeyBuilder = new RocksDBSerializedCompositeKeyBuilder<>(keySerializer, keyGroupPrefixBytes, 32);
+		this.sharedRocksKeyBuilder = new RocksDBSerializedCompositeKeyBuilder<>(
+			keyGroupPrefixBytes,
+			32,
+			RocksDBKeySerializationUtils.isSerializerTypeVariableSized(keySerializer));
 
 		this.metricOptions = metricOptions;
 		this.metricGroup = metricGroup;
@@ -339,8 +342,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			(RegisteredKeyValueStateBackendMetaInfo<N, ?>) columnInfo.f1;
 
 		final TypeSerializer<N> namespaceSerializer = registeredKeyValueStateBackendMetaInfo.getNamespaceSerializer();
+		final TypeSerializer<K> keySerializer = getKeySerializer();
 		final DataOutputSerializer namespaceOutputView = new DataOutputSerializer(8);
-		boolean ambiguousKeyPossible = RocksDBKeySerializationUtils.isAmbiguousKeyPossible(getKeySerializer(), namespaceSerializer);
+		boolean ambiguousKeyPossible = RocksDBKeySerializationUtils.isAmbiguousKeyPossible(keySerializer, namespaceSerializer);
 		final byte[] nameSpaceBytes;
 		try {
 			RocksDBKeySerializationUtils.writeNameSpace(
@@ -356,7 +360,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		RocksIteratorWrapper iterator = getRocksIterator(db, columnInfo.f0);
 		iterator.seekToFirst();
 
-		final RocksStateKeysIterator<K> iteratorWrapper = new RocksStateKeysIterator<>(iterator, state, getKeySerializer(), keyGroupPrefixBytes,
+		final RocksStateKeysIterator<K> iteratorWrapper = new RocksStateKeysIterator<>(iterator, state, keySerializer, keyGroupPrefixBytes,
 			ambiguousKeyPossible, nameSpaceBytes);
 
 		Stream<K> targetStream = StreamSupport.stream(Spliterators.spliteratorUnknownSize(iteratorWrapper, Spliterator.ORDERED), false);
@@ -380,7 +384,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@Override
 	public void setCurrentKey(K newKey) {
 		super.setCurrentKey(newKey);
-		sharedRocksKeyBuilder.setKeyAndKeyGroup(getCurrentKey(), getCurrentKeyGroupIndex());
+		sharedRocksKeyBuilder.setKeyAndKeyGroup(getCurrentKey(), getCurrentKeyGroupIndex(), getKeySerializer());
 	}
 
 	/**

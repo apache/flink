@@ -261,11 +261,11 @@ class RocksDBMapState<K, N, UK, UV>
 
 		RocksDBSerializedCompositeKeyBuilder<K> keyBuilder =
 			new RocksDBSerializedCompositeKeyBuilder<>(
-				safeKeySerializer,
 				backend.getKeyGroupPrefixBytes(),
-				32);
+				32,
+				RocksDBKeySerializationUtils.isSerializerTypeVariableSized(safeKeySerializer));
 
-		keyBuilder.setKeyAndKeyGroup(keyAndNamespace.f0, keyGroup);
+		keyBuilder.setKeyAndKeyGroup(keyAndNamespace.f0, keyGroup, safeKeySerializer);
 
 		final byte[] keyPrefixBytes = keyBuilder.buildCompositeKeyNamespace(keyAndNamespace.f1, namespaceSerializer);
 

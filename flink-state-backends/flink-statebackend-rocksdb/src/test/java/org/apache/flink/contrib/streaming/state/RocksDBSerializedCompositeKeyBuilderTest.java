@@ -88,7 +88,7 @@ public class RocksDBSerializedCompositeKeyBuilderTest {
 
 		final DataInputDeserializer deserializer = new DataInputDeserializer();
 		for (K testKey : testKeys) {
-			int keyGroup = setKeyAndReturnKeyGroup(keyBuilder, testKey, maxParallelism);
+			int keyGroup = setKeyAndReturnKeyGroup(keyBuilder, testKey, serializer, maxParallelism);
 			byte[] result = dataOutputSerializer.getCopyOfBuffer();
 			deserializer.setBuffer(result);
 			assertKeyKeyGroupBytes(testKey, keyGroup, prefixBytes, serializer, deserializer, false);
@@ -112,7 +112,7 @@ public class RocksDBSerializedCompositeKeyBuilderTest {
 		final boolean ambiguousPossible = keyBuilder.isAmbiguousCompositeKeyPossible(namespaceSerializer);
 
 		for (K testKey : testKeys) {
-			int keyGroup = setKeyAndReturnKeyGroup(keyBuilder, testKey, maxParallelism);
+			int keyGroup = setKeyAndReturnKeyGroup(keyBuilder, testKey, keySerializer, maxParallelism);
 			for (N testNamespace : testNamespaces) {
 				byte[] compositeBytes = keyBuilder.buildCompositeKeyNamespace(testNamespace, namespaceSerializer);
 				deserializer.setBuffer(compositeBytes);
@@ -148,7 +148,7 @@ public class RocksDBSerializedCompositeKeyBuilderTest {
 		final boolean ambiguousPossible = keyBuilder.isAmbiguousCompositeKeyPossible(namespaceSerializer);
 
 		for (K testKey : testKeys) {
-			int keyGroup = setKeyAndReturnKeyGroup(keyBuilder, testKey, maxParallelism);
+			int keyGroup = setKeyAndReturnKeyGroup(keyBuilder, testKey, keySerializer, maxParallelism);
 			for (N testNamespace : testNamespaces) {
 				for (U testUserKey : testUserKeys) {
 					byte[] compositeBytes = keyBuilder.buildCompositeKeyNamesSpaceUserKey(
@@ -181,7 +181,6 @@ public class RocksDBSerializedCompositeKeyBuilderTest {
 		int prefixBytes) {
 		final boolean variableSize = RocksDBKeySerializationUtils.isSerializerTypeVariableSized(serializer);
 		return new RocksDBSerializedCompositeKeyBuilder<>(
-			serializer,
 			dataOutputSerializer,
 			prefixBytes,
 			variableSize,
@@ -191,10 +190,11 @@ public class RocksDBSerializedCompositeKeyBuilderTest {
 	private <K> int setKeyAndReturnKeyGroup(
 		RocksDBSerializedCompositeKeyBuilder<K> compositeKeyBuilder,
 		K key,
+		TypeSerializer<K> keySerializer,
 		int maxParallelism) {
 
 		int keyGroup = KeyGroupRangeAssignment.assignKeyToParallelOperator(key, maxParallelism, maxParallelism);
-		compositeKeyBuilder.setKeyAndKeyGroup(key, keyGroup);
+		compositeKeyBuilder.setKeyAndKeyGroup(key, keyGroup, keySerializer);
 		return keyGroup;
 	}
 
