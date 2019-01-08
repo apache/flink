@@ -56,8 +56,8 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointListener;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.QueryableStateStream;
@@ -107,7 +107,7 @@ import static org.junit.Assert.fail;
 public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 	private static final Duration TEST_TIMEOUT = Duration.ofSeconds(10000L);
-	public static final long RETRY_TIMEOUT = 50L;
+	private static final long RETRY_TIMEOUT = 50L;
 
 	private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
 	private final ScheduledExecutor executor = new ScheduledExecutorServiceAdapter(executorService);
@@ -115,7 +115,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	/**
 	 * State backend to use.
 	 */
-	protected AbstractStateBackend stateBackend;
+	private StateBackend stateBackend;
 
 	/**
 	 * Client shared between all the test.
@@ -142,7 +142,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	 *
 	 * @return a state backend instance for each unit test
 	 */
-	protected abstract AbstractStateBackend createStateBackend() throws Exception;
+	protected abstract StateBackend createStateBackend() throws Exception;
 
 	/**
 	 * Runs a simple topology producing random (key, 1) pairs at the sources (where
