@@ -359,8 +359,6 @@ public class YarnResourceManagerTest extends TestLogger {
 			when(testingContainer.getPriority()).thenReturn(Priority.UNDEFINED);
 			resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
 			verify(mockResourceManagerClient).addContainerRequest(any(AMRMClient.ContainerRequest.class));
-			verify(mockResourceManagerClient).removeContainerRequest(
-					any(AMRMClient.ContainerRequest.class));
 			verify(mockNMClient).startContainer(eq(testingContainer), any(ContainerLaunchContext.class));
 
 			// Remote task executor registers with YarnResourceManager.
@@ -467,8 +465,6 @@ public class YarnResourceManagerTest extends TestLogger {
 			when(testingContainer.getPriority()).thenReturn(Priority.UNDEFINED);
 			resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
 			verify(mockResourceManagerClient).addContainerRequest(any(AMRMClient.ContainerRequest.class));
-			verify(mockResourceManagerClient).removeContainerRequest(
-					any(AMRMClient.ContainerRequest.class));
 			verify(mockNMClient).startContainer(eq(testingContainer), any(ContainerLaunchContext.class));
 
 			// Callback from YARN when container is Completed, pending request can not be fulfilled by pending
