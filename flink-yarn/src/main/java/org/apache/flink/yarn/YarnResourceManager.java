@@ -361,8 +361,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 					"Received new container: {} - Remaining pending container requests: {}",
 					container.getId(),
 					numPendingContainerRequests);
-				resourceManagerClient.removeContainerRequest(new AMRMClient.ContainerRequest(
-						container.getResource(), null, null, container.getPriority()));
+
 				if (numPendingContainerRequests > 0) {
 					numPendingContainerRequests--;
 
