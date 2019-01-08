@@ -18,12 +18,8 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -43,11 +39,6 @@ public class BlobServerSSLTest extends TestLogger {
 	public void testFailedToInitWithTwoProtocolsSet() {
 		final Configuration config = new Configuration();
 
-		config.setString(JobManagerOptions.ADDRESS, "127.0.0.1");
-		config.setString(TaskManagerOptions.HOST, "127.0.0.1");
-		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
-
 		config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
 		config.setString(SecurityOptions.SSL_KEYSTORE,
 			getClass().getResource("/local127.keystore").getPath());
@@ -59,7 +50,7 @@ public class BlobServerSSLTest extends TestLogger {
 		config.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
 		config.setString(SecurityOptions.SSL_ALGORITHMS, "TLSv1,TLSv1.1");
 
-		try (final BlobServer blobServer = new BlobServer(config, new VoidBlobStore())) {
+		try (final BlobServer ignored = new BlobServer(config, new VoidBlobStore())) {
 			fail();
 		} catch (Exception e) {
 			findThrowable(e, IOException.class);
@@ -71,10 +62,6 @@ public class BlobServerSSLTest extends TestLogger {
 	public void testFailedToInitWithInvalidSslKeystoreConfigured() {
 		final Configuration config = new Configuration();
 
-		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
-		config.setString(AkkaOptions.ASK_TIMEOUT, "2 s");
-
 		config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
 		config.setString(SecurityOptions.SSL_KEYSTORE, "invalid.keystore");
 		config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
@@ -82,7 +69,7 @@ public class BlobServerSSLTest extends TestLogger {
 		config.setString(SecurityOptions.SSL_TRUSTSTORE, "invalid.keystore");
 		config.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
 
-		try (final BlobServer blobServer = new BlobServer(config, new VoidBlobStore())) {
+		try (final BlobServer ignored = new BlobServer(config, new VoidBlobStore())) {
 			fail();
 		} catch (Exception e) {
 			findThrowable(e, IOException.class);
@@ -94,13 +81,9 @@ public class BlobServerSSLTest extends TestLogger {
 	public void testFailedToInitWithMissingMandatorySslConfiguration() {
 		final Configuration config = new Configuration();
 
-		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
-		config.setString(AkkaOptions.ASK_TIMEOUT, "2 s");
-
 		config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
 
-		try (final BlobServer blobServer = new BlobServer(config, new VoidBlobStore())) {
+		try (final BlobServer ignored = new BlobServer(config, new VoidBlobStore())) {
 			fail();
 		} catch (Exception e) {
 			findThrowable(e, IOException.class);
