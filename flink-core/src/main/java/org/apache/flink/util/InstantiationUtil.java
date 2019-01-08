@@ -42,6 +42,7 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Proxy;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -88,6 +89,40 @@ public final class InstantiationUtil {
 			}
 
 			return super.resolveClass(desc);
+		}
+
+		@Override
+		protected Class<?> resolveProxyClass(String[] interfaces) throws IOException, ClassNotFoundException {
+			if (classLoader != null) {
+				ClassLoader nonPublicLoader = null;
+				boolean hasNonPublicInterface = false;
+
+				// define proxy in class loader of non-public interface(s), if any
+				Class<?>[] classObjs = new Class<?>[interfaces.length];
+				for (int i = 0; i < interfaces.length; i++) {
+					Class<?> cl = Class.forName(interfaces[i], false, classLoader);
+					if ((cl.getModifiers() & Modifier.PUBLIC) == 0) {
+						if (hasNonPublicInterface) {
+							if (nonPublicLoader != cl.getClassLoader()) {
+								throw new IllegalAccessError(
+									"conflicting non-public interface class loaders");
+							}
+						} else {
+							nonPublicLoader = cl.getClassLoader();
+							hasNonPublicInterface = true;
+						}
+					}
+					classObjs[i] = cl;
+				}
+				try {
+					return Proxy.getProxyClass(
+						hasNonPublicInterface ? nonPublicLoader : classLoader, classObjs);
+				} catch (IllegalArgumentException e) {
+					throw new ClassNotFoundException(null, e);
+				}
+			}
+
+			return super.resolveProxyClass(interfaces);
 		}
 
 		// ------------------------------------------------
