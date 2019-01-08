@@ -157,14 +157,10 @@ public class ZooKeeperCompletedCheckpointStoreMockitoTest extends TestLogger {
 			}
 		});
 
-		final String checkpointsPath = "foobar";
-
 		ZooKeeperCompletedCheckpointStore zooKeeperCompletedCheckpointStore = new ZooKeeperCompletedCheckpointStore(
 			numCheckpointsToRetain,
-			client,
-			checkpointsPath,
-			Executors.directExecutor(),
-			zooKeeperStateHandleStoreMock);
+			zooKeeperStateHandleStoreMock,
+			Executors.directExecutor());
 
 		zooKeeperCompletedCheckpointStore.recover();
 
@@ -221,14 +217,11 @@ public class ZooKeeperCompletedCheckpointStoreMockitoTest extends TestLogger {
 		doThrow(new Exception()).when(zookeeperStateHandleStoreMock).releaseAndTryRemove(anyString());
 
 		final int numCheckpointsToRetain = 1;
-		final String checkpointsPath = "foobar";
 
 		ZooKeeperCompletedCheckpointStore zooKeeperCompletedCheckpointStore = new ZooKeeperCompletedCheckpointStore(
 			numCheckpointsToRetain,
-			client,
-			checkpointsPath,
-			Executors.directExecutor(),
-			zookeeperStateHandleStoreMock);
+			zookeeperStateHandleStoreMock,
+			Executors.directExecutor());
 
 		for (long i = 0; i <= numCheckpointsToRetain; ++i) {
 			CompletedCheckpoint checkpointToAdd = mock(CompletedCheckpoint.class);
