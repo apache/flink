@@ -59,7 +59,7 @@ abstract class CsvTableSinkFactoryBase extends TableFactory {
     properties
   }
 
-  protected def createTableSink(
+  private[flink] def createTableSink(
       isStreaming: Boolean,
       properties: util.Map[String, String])
     : CsvTableSink = {

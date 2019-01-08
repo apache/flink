@@ -64,7 +64,7 @@ abstract class CsvTableSourceFactoryBase extends TableFactory {
     properties
   }
 
-  protected def createTableSource(
+  private[flink] def createTableSource(
       isStreaming: Boolean,
       properties: util.Map[String, String])
     : CsvTableSource = {
