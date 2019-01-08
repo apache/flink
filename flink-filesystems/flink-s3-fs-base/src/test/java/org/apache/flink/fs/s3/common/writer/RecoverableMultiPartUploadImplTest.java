@@ -35,8 +35,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -361,14 +361,14 @@ public class RecoverableMultiPartUploadImplTest {
 		}
 
 		@Override
-		public UploadPartResult uploadPart(String key, String uploadId, int partNumber, InputStream file, long length) throws IOException {
-			final byte[] content = getFileContentBytes(file, MathUtils.checkedDownCast(length));
+		public UploadPartResult uploadPart(String key, String uploadId, int partNumber, File inputFile, long length) throws IOException {
+			final byte[] content = getFileContentBytes(inputFile, MathUtils.checkedDownCast(length));
 			return storeAndGetUploadPartResult(key, partNumber, content);
 		}
 
 		@Override
-		public PutObjectResult putObject(String key, InputStream file, long length) throws IOException {
-			final byte[] content = getFileContentBytes(file, MathUtils.checkedDownCast(length));
+		public PutObjectResult putObject(String key, File inputFile) throws IOException {
+			final byte[] content = getFileContentBytes(inputFile, MathUtils.checkedDownCast(inputFile.length()));
 			return storeAndGetPutObjectResult(key, content);
 		}
 
@@ -397,9 +397,9 @@ public class RecoverableMultiPartUploadImplTest {
 			return null;
 		}
 
-		private byte[] getFileContentBytes(InputStream file, int length) throws IOException {
+		private byte[] getFileContentBytes(File file, int length) throws IOException {
 			final byte[] content = new byte[length];
-			file.read(content, 0, length);
+			new FileInputStream(file).read(content, 0, length);
 			return content;
 		}
 
