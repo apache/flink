@@ -153,7 +153,6 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	 * to query the counts of each key in rounds until all keys have non-zero counts.
 	 */
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testQueryableState() throws Exception {
 		final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
 		final int numKeys = 256;
@@ -597,6 +596,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 					}
 				}).asQueryableState("matata");
 
+		@SuppressWarnings("unchecked")
 		final ValueStateDescriptor<Tuple2<Integer, Long>> stateDesc =
 				(ValueStateDescriptor<Tuple2<Integer, Long>>) queryableState.getStateDescriptor();
 
