@@ -73,7 +73,7 @@ public class FlinkUserCodeClassLoaders {
 	}
 
 	/**
-	 * Regular URLClassLoader that first loads from the parent and only after that form the URLs.
+	 * Regular URLClassLoader that first loads from the parent and only after that from the URLs.
 	 */
 	static class ParentFirstClassLoader extends URLClassLoader {
 

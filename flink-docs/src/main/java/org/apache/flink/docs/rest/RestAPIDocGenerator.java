@@ -22,7 +22,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
@@ -37,6 +36,7 @@ import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
@@ -68,7 +68,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.docs.util.Utils.escapeCharacters;
@@ -123,13 +123,24 @@ public class RestAPIDocGenerator {
 	public static void main(String[] args) throws IOException {
 		String outputDirectory = args[0];
 
-		createHtmlFile(new DocumentingDispatcherRestEndpoint(), Paths.get(outputDirectory, "rest_dispatcher.html"));
+		for (final RestAPIVersion apiVersion : RestAPIVersion.values()) {
+			if (apiVersion == RestAPIVersion.V0) {
+				// this version exists only for testing purposes
+				continue;
+			}
+			createHtmlFile(
+				new DocumentingDispatcherRestEndpoint(),
+				apiVersion,
+				Paths.get(outputDirectory, "rest_" + apiVersion.getURLVersionPrefix() + "_dispatcher.html"));
+		}
 	}
 
-	private static void createHtmlFile(DocumentingRestEndpoint restEndpoint, Path outputFile) throws IOException {
+	private static void createHtmlFile(DocumentingRestEndpoint restEndpoint, RestAPIVersion apiVersion, Path outputFile) throws IOException {
 		StringBuilder html = new StringBuilder();
 
-		List<MessageHeaders> specs = restEndpoint.getSpecs();
+		List<MessageHeaders> specs = restEndpoint.getSpecs().stream()
+			.filter(spec -> spec.getSupportedAPIVersions().contains(apiVersion))
+			.collect(Collectors.toList());
 		specs.forEach(spec -> html.append(createHtmlEntry(spec)));
 
 		Files.deleteIfExists(outputFile);
@@ -311,7 +322,6 @@ public class RestAPIDocGenerator {
 		private static final Configuration config;
 		private static final RestServerEndpointConfiguration restConfig;
 		private static final RestHandlerConfiguration handlerConfig;
-		private static final Executor executor;
 		private static final GatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever;
 		private static final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
 		private static final MetricQueryServiceRetriever metricQueryServiceRetriever;
@@ -327,7 +337,6 @@ public class RestAPIDocGenerator {
 				throw new RuntimeException("Implementation error. RestServerEndpointConfiguration#fromConfiguration failed for default configuration.");
 			}
 			handlerConfig = RestHandlerConfiguration.fromConfiguration(config);
-			executor = Executors.directExecutor();
 
 			dispatcherGatewayRetriever = () -> null;
 			resourceManagerGatewayRetriever = () -> null;
@@ -342,15 +351,15 @@ public class RestAPIDocGenerator {
 				handlerConfig,
 				resourceManagerGatewayRetriever,
 				NoOpTransientBlobService.INSTANCE,
-				executor,
+				Executors.newFixedThreadPool(1),
 				metricQueryServiceRetriever,
 				NoOpElectionService.INSTANCE,
 				NoOpFatalErrorHandler.INSTANCE);
 		}
 
 		@Override
-		public List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
-			return super.initializeHandlers(restAddressFuture);
+		public List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture) {
+			return super.initializeHandlers(localAddressFuture);
 		}
 
 		private enum NoOpElectionService implements LeaderElectionService {
@@ -390,7 +399,7 @@ public class RestAPIDocGenerator {
 	 * Interface to expose the supported {@link MessageHeaders} of a {@link RestServerEndpoint}.
 	 */
 	private interface DocumentingRestEndpoint {
-		List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture);
+		List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture);
 
 		default List<MessageHeaders> getSpecs() {
 			Comparator<String> comparator = new RestServerEndpoint.RestHandlerUrlComparator.CaseInsensitiveOrderComparator();

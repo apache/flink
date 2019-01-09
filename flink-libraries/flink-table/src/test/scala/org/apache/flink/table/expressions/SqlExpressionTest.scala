@@ -109,13 +109,16 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("CEILING(2.5)", "3")
     testSqlApi("FLOOR(2.5)", "2")
     testSqlApi("SIN(2.5)", "0.5984721441039564")
+    testSqlApi("SINH(2.5)", "6.0502044810397875")
     testSqlApi("COS(2.5)", "-0.8011436155469337")
     testSqlApi("TAN(2.5)", "-0.7470222972386603")
+    testSqlApi("TANH(2.5)", "0.9866142981514303")
     testSqlApi("COT(2.5)", "-1.3386481283041514")
     testSqlApi("ASIN(0.5)", "0.5235987755982989")
     testSqlApi("ACOS(0.5)", "1.0471975511965979")
     testSqlApi("ATAN(0.5)", "0.4636476090008061")
     testSqlApi("ATAN2(0.5, 0.5)", "0.7853981633974483")
+    testSqlApi("COSH(2.5)", "6.132289479663686")
     testSqlApi("DEGREES(0.5)", "28.64788975654116")
     testSqlApi("RADIANS(0.5)", "0.008726646259971648")
     testSqlApi("SIGN(-1.1)", "-1")
@@ -154,6 +157,9 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi(
       "REPEAT('This is a test String.', 2)",
       "This is a test String.This is a test String.")
+    testSqlApi("REGEXP_REPLACE('foobar', 'oo|ar', '')", "fb")
+    testSqlApi("REPLACE('hello world', 'world', 'flink')", "hello flink")
+    testSqlApi("REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)", "bar")
   }
 
   @Test

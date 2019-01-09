@@ -202,8 +202,8 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		return "Kafka 0.9 Fetcher";
 	}
 
-	protected KafkaConsumerCallBridge createCallBridge() {
-		return new KafkaConsumerCallBridge();
+	protected KafkaConsumerCallBridge09 createCallBridge() {
+		return new KafkaConsumerCallBridge09();
 	}
 
 	// ------------------------------------------------------------------------

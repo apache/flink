@@ -227,7 +227,8 @@ object KNN {
 
             // join input and training set
             val crossed = crossTuned.mapPartition {
-              (iter, out: Collector[(FlinkVector, FlinkVector, Long, Double)]) => {
+              (iter: Iterator[(Block[FlinkVector], Block[(Long, T)])],
+               out: Collector[(FlinkVector, FlinkVector, Long, Double)]) => {
                 for ((training, testing) <- iter) {
                   // use a quadtree if (4 ^ dim) * Ntest * log(Ntrain)
                   // < Ntest * Ntrain, and distance is Euclidean
@@ -247,12 +248,13 @@ object KNN {
                     knnQueryBasic(training.values, testing.values, k, metric, out)
                   }
                 }
-              }
+                }
             }
 
             // group by input vector id and pick k nearest neighbor for each group
             val result = crossed.groupBy(2).sortGroup(3, Order.ASCENDING).reduceGroup {
-              (iter, out: Collector[(FlinkVector, Array[FlinkVector])]) => {
+              (iter: Iterator[(FlinkVector, FlinkVector, Long, Double)],
+               out: Collector[(FlinkVector, Array[FlinkVector])]) => {
                 if (iter.hasNext) {
                   val head = iter.next()
                   val key = head._2

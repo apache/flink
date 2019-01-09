@@ -51,6 +51,7 @@ import java.util.concurrent.ScheduledFuture;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doNothing;
@@ -227,7 +228,7 @@ public class PendingCheckpointTest {
 			pending.setStatsCallback(callback);
 
 			pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
-			verify(callback, times(1)).reportSubtaskStats(any(JobVertexID.class), any(SubtaskStateStats.class));
+			verify(callback, times(1)).reportSubtaskStats(nullable(JobVertexID.class), any(SubtaskStateStats.class));
 
 			pending.finalizeCheckpoint();
 			verify(callback, times(1)).reportCompletedCheckpoint(any(String.class));

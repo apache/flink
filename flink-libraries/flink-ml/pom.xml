@@ -24,7 +24,7 @@
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-libraries</artifactId>
-		<version>1.7-SNAPSHOT</version>
+		<version>1.8-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -47,7 +47,7 @@
 		<dependency>
 			<groupId>org.scalanlp</groupId>
 			<artifactId>breeze_${scala.binary.version}</artifactId>
-			<version>0.12</version>
+			<version>0.13</version>
 		</dependency>
 
 		<!-- the dependencies below are already provided in Flink -->

@@ -783,7 +783,7 @@ When the window is closed, the `ProcessWindowFunction` will be provided with the
 This allows it to incrementally compute windows while having access to the
 additional window meta information of the `ProcessWindowFunction`.
 
-<span class="label label-info">Note</span> You can also the legacy `WindowFunction` instead of
+<span class="label label-info">Note</span> You can also use the legacy `WindowFunction` instead of
 `ProcessWindowFunction` for incremental window aggregation.
 
 #### Incremental Window Aggregation with ReduceFunction
@@ -819,7 +819,7 @@ private static class MyProcessWindowFunction
                     Iterable<SensorReading> minReadings,
                     Collector<Tuple2<Long, SensorReading>> out) {
       SensorReading min = minReadings.iterator().next();
-      out.collect(new Tuple2<Long, SensorReading>(window.getStart(), min));
+      out.collect(new Tuple2<Long, SensorReading>(context.window().getStart(), min));
   }
 }
 
@@ -836,12 +836,12 @@ input
   .reduce(
     (r1: SensorReading, r2: SensorReading) => { if (r1.value > r2.value) r2 else r1 },
     ( key: String,
-      window: TimeWindow,
+      context: ProcessWindowFunction[_, _, _, TimeWindow]#Context,
       minReadings: Iterable[SensorReading],
       out: Collector[(Long, SensorReading)] ) =>
       {
         val min = minReadings.iterator.next()
-        out.collect((window.getStart, min))
+        out.collect((context.window.getStart, min))
       }
   )
 
@@ -1034,7 +1034,7 @@ different keys and events for all of them currently fall into the *[12:00, 13:00
 then there will be 1000 window instances that each have their own keyed per-window state.
 
 There are two methods on the `Context` object that a `process()` invocation receives that allow
-access two the two types of state:
+access to the two types of state:
 
  - `globalState()`, which allows access to keyed state that is not scoped to a window
  - `windowState()`, which allows access to keyed state that is also scoped to the window

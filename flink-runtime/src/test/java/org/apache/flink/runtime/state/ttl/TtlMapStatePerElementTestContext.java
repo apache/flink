@@ -43,7 +43,10 @@ class TtlMapStatePerElementTestContext extends TtlMapStateTestContext<String, St
 
 	@Override
 	String get() throws Exception {
-		return ttlState.get(TEST_KEY);
+		String value = ttlState.get(TEST_KEY);
+		assert (getOriginal() == null && !ttlState.contains(TEST_KEY)) ||
+			(getOriginal() != null && ttlState.contains(TEST_KEY));
+		return value;
 	}
 
 	@Override

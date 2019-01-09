@@ -19,9 +19,9 @@ package org.apache.flink.table.runtime.functions
 
 import java.lang.{StringBuilder, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
+import java.util.regex.{Matcher, Pattern}
 
-import org.apache.commons.codec.binary.{Base64, Hex}
-import org.apache.commons.lang3.StringUtils
+import org.apache.flink.table.utils.EncodingUtils
 
 import scala.annotation.varargs
 
@@ -40,6 +40,13 @@ object ScalarFunctions {
 
   def power(a: Double, b: JBigDecimal): Double = {
     Math.pow(a, b.doubleValue())
+  }
+
+  /**
+    * Returns the hyperbolic cosine of a big decimal value.
+    */
+  def cosh(x: JBigDecimal): Double = {
+    Math.cosh(x.doubleValue())
   }
 
   /**
@@ -102,6 +109,20 @@ object ScalarFunctions {
     } else {
       Math.log(x)
     }
+  }
+
+  /**
+    * Calculates the hyperbolic tangent of a big decimal number.
+    */
+  def tanh(x: JBigDecimal): Double = {
+    Math.tanh(x.doubleValue())
+  }
+
+  /**
+    * Returns the hyperbolic sine of a big decimal value.
+    */
+  def sinh(x: JBigDecimal): Double = {
+    Math.sinh(x.doubleValue())
   }
 
   /**
@@ -204,25 +225,66 @@ object ScalarFunctions {
     new String(data)
   }
 
+
+  /**
+    * Returns a string resulting from replacing all substrings
+    * that match the regular expression with replacement.
+    */
+  def regexp_replace(str: String, regex: String, replacement: String): String = {
+    if (str == null || regex == null || replacement == null) {
+      return null
+    }
+
+    str.replaceAll(regex, Matcher.quoteReplacement(replacement))
+  }
+
+  /**
+    * Returns a string extracted with a specified regular expression and a regex match group index.
+    */
+  def regexp_extract(str: String, regex: String, extractIndex: Integer): String = {
+    if (str == null || regex == null) {
+      return null
+    }
+
+    val m = Pattern.compile(regex).matcher(str)
+    if (m.find) {
+      val mr = m.toMatchResult
+      return mr.group(extractIndex)
+    }
+
+    null
+  }
+
+  /**
+    * Returns a string extracted with a specified regular expression and
+    * a optional regex match group index.
+    */
+  def regexp_extract(str: String, regex: String): String = {
+    regexp_extract(str, regex, 0)
+  }
+
   /**
     * Returns the base string decoded with base64.
     */
-  def fromBase64(str: String): String = new String(Base64.decodeBase64(str))
+  def fromBase64(base64: String): String =
+    EncodingUtils.decodeBase64ToString(base64)
 
   /**
     * Returns the base64-encoded result of the input string.
     */
-  def toBase64(base: String): String = Base64.encodeBase64String(base.getBytes())
+  def toBase64(string: String): String =
+    EncodingUtils.encodeStringToBase64(string)
 
   /**
     * Returns the hex string of a long argument.
     */
-  def hex(x: Long): String = JLong.toHexString(x).toUpperCase()
+  def hex(string: Long): String = JLong.toHexString(string).toUpperCase()
 
   /**
     * Returns the hex string of a string argument.
     */
-  def hex(x: String): String = Hex.encodeHexString(x.getBytes).toUpperCase()
+  def hex(string: String): String =
+    EncodingUtils.hex(string).toUpperCase()
 
   /**
     * Returns an UUID string using Java utilities.
@@ -232,6 +294,6 @@ object ScalarFunctions {
   /**
     * Returns a string that repeats the base string n times.
     */
-  def repeat(base: String, n: Int): String = StringUtils.repeat(base, n)
+  def repeat(base: String, n: Int): String = EncodingUtils.repeat(base, n)
 
 }

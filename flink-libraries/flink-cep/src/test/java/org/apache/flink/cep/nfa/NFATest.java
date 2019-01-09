@@ -20,6 +20,7 @@ package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
+import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
@@ -184,15 +185,17 @@ public class NFATest extends TestLogger {
 		Set<Map<String, List<Event>>> actualPatterns = new HashSet<>();
 
 		SharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
-		for (StreamRecord<Event> streamEvent : inputs) {
-			nfa.advanceTime(sharedBuffer, nfaState, streamEvent.getTimestamp());
-			Collection<Map<String, List<Event>>> matchedPatterns = nfa.process(
-				sharedBuffer,
-				nfaState,
-				streamEvent.getValue(),
-				streamEvent.getTimestamp());
+		try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
+			for (StreamRecord<Event> streamEvent : inputs) {
+				nfa.advanceTime(sharedBufferAccessor, nfaState, streamEvent.getTimestamp());
+				Collection<Map<String, List<Event>>> matchedPatterns = nfa.process(
+					sharedBufferAccessor,
+					nfaState,
+					streamEvent.getValue(),
+					streamEvent.getTimestamp());
 
-			actualPatterns.addAll(matchedPatterns);
+				actualPatterns.addAll(matchedPatterns);
+			}
 		}
 
 		return actualPatterns;
@@ -287,48 +290,50 @@ public class NFATest extends TestLogger {
 		patterns.add(pattern3);
 
 		SharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
-		for (Pattern<Event, ?> p : patterns) {
-			NFA<Event> nfa = compile(p, false);
+		try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
 
-			Event a = new Event(40, "a", 1.0);
-			Event b = new Event(41, "b", 2.0);
-			Event c = new Event(42, "c", 3.0);
-			Event b1 = new Event(41, "b", 3.0);
-			Event b2 = new Event(41, "b", 4.0);
-			Event b3 = new Event(41, "b", 5.0);
-			Event d = new Event(43, "d", 4.0);
+			for (Pattern<Event, ?> p : patterns) {
+				NFA<Event> nfa = compile(p, false);
 
-			NFAState nfaState = nfa.createInitialNFAState();
+				Event a = new Event(40, "a", 1.0);
+				Event b = new Event(41, "b", 2.0);
+				Event c = new Event(42, "c", 3.0);
+				Event b1 = new Event(41, "b", 3.0);
+				Event b2 = new Event(41, "b", 4.0);
+				Event b3 = new Event(41, "b", 5.0);
+				Event d = new Event(43, "d", 4.0);
 
-			nfa.process(sharedBuffer, nfaState, a, 1);
-			nfa.process(sharedBuffer, nfaState, b, 2);
-			nfa.process(sharedBuffer, nfaState, c, 3);
-			nfa.process(sharedBuffer, nfaState, b1, 4);
-			nfa.process(sharedBuffer, nfaState, b2, 5);
-			nfa.process(sharedBuffer, nfaState, b3, 6);
-			nfa.process(sharedBuffer, nfaState, d, 7);
-			nfa.process(sharedBuffer, nfaState, a, 8);
+				NFAState nfaState = nfa.createInitialNFAState();
 
-			NFAStateSerializer serializer = NFAStateSerializer.INSTANCE;
+				nfa.process(sharedBufferAccessor, nfaState, a, 1);
+				nfa.process(sharedBufferAccessor, nfaState, b, 2);
+				nfa.process(sharedBufferAccessor, nfaState, c, 3);
+				nfa.process(sharedBufferAccessor, nfaState, b1, 4);
+				nfa.process(sharedBufferAccessor, nfaState, b2, 5);
+				nfa.process(sharedBufferAccessor, nfaState, b3, 6);
+				nfa.process(sharedBufferAccessor, nfaState, d, 7);
+				nfa.process(sharedBufferAccessor, nfaState, a, 8);
 
-			//serialize
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			serializer.serialize(nfaState, new DataOutputViewStreamWrapper(baos));
-			baos.close();
+				NFAStateSerializer serializer = NFAStateSerializer.INSTANCE;
 
-			// copy
-			ByteArrayInputStream in = new ByteArrayInputStream(baos.toByteArray());
-			ByteArrayOutputStream out = new ByteArrayOutputStream();
-			serializer.duplicate().copy(new DataInputViewStreamWrapper(in), new DataOutputViewStreamWrapper(out));
-			in.close();
-			out.close();
+				//serialize
+				ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				serializer.serialize(nfaState, new DataOutputViewStreamWrapper(baos));
+				baos.close();
 
-			// deserialize
-			ByteArrayInputStream bais = new ByteArrayInputStream(out.toByteArray());
-			NFAState copy = serializer.duplicate().deserialize(new DataInputViewStreamWrapper(bais));
-			bais.close();
+				// copy
+				ByteArrayInputStream in = new ByteArrayInputStream(baos.toByteArray());
+				ByteArrayOutputStream out = new ByteArrayOutputStream();
+				serializer.duplicate().copy(new DataInputViewStreamWrapper(in), new DataOutputViewStreamWrapper(out));
+				in.close();
+				out.close();
 
-			assertEquals(nfaState, copy);
+				// deserialize
+				ByteArrayInputStream bais = new ByteArrayInputStream(out.toByteArray());
+				NFAState copy = serializer.duplicate().deserialize(new DataInputViewStreamWrapper(bais));
+				bais.close();
+				assertEquals(nfaState, copy);
+			}
 		}
 	}
 

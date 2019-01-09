@@ -44,6 +44,7 @@ public class HadoopUtils {
 
 	private static final Text HDFS_DELEGATION_TOKEN_KIND = new Text("HDFS_DELEGATION_TOKEN");
 
+	@SuppressWarnings("deprecation")
 	public static Configuration getHadoopConfiguration(org.apache.flink.configuration.Configuration flinkConfiguration) {
 
 		// Instantiate a HdfsConfiguration to load the hdfs-site.xml and hdfs-default.xml

@@ -76,7 +76,7 @@ object Splitter {
       }
     }
 
-    val leftSplitLight = leftSplit.map(o => (o._1, false))
+    val leftSplitLight = leftSplit.map((o: (Long, T)) => (o._1, false))
 
     val rightSplit: DataSet[T] = indexedInput.leftOuterJoin[(Long, Boolean)](leftSplitLight)
       .where(0)
@@ -87,7 +87,7 @@ object Splitter {
         }
     }
 
-    Array(leftSplit.map(o => o._2), rightSplit)
+    Array(leftSplit.map((o: (Long, T)) => o._2), rightSplit)
   }
 
   // --------------------------------------------------------------------------------------------
@@ -117,14 +117,14 @@ object Splitter {
 
     eid.reseedRandomGenerator(seed)
 
-    val tempDS: DataSet[(Int,T)] = input.map(o => (eid.sample, o))
+    val tempDS: DataSet[(Int,T)] = input.map((o: T) => (eid.sample, o))
 
     val splits = fracArray.length
     val outputArray = new Array[DataSet[T]]( splits )
 
     for (k <- 0 to splits-1){
-      outputArray(k) = tempDS.filter(o => o._1 == k)
-                             .map(o => o._2)
+      outputArray(k) = tempDS.filter((o: (Int, T)) => o._1 == k)
+                             .map((o: (Int, T)) => o._2)
     }
 
     outputArray

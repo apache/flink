@@ -19,13 +19,11 @@
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.util.Preconditions;
 
-import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -33,11 +31,6 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Objects;
-
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.either;
-import static org.hamcrest.CoreMatchers.equalTo;
 
 /**
  * Tests for different {@link RollingPolicy rolling policies}.
@@ -50,233 +43,233 @@ public class RollingPolicyTest {
 	@Test
 	public void testDefaultRollingPolicy() throws Exception {
 		final File outDir = TEMP_FOLDER.newFolder();
+		final Path path = new Path(outDir.toURI());
 
-		final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy = DefaultRollingPolicy
-				.create()
-				.withMaxPartSize(10L)
-				.withInactivityInterval(4L)
-				.withRolloverInterval(11L)
-				.build();
+		final RollingPolicy<String, String> originalRollingPolicy =
+				DefaultRollingPolicy
+						.create()
+						.withMaxPartSize(10L)
+						.withInactivityInterval(4L)
+						.withRolloverInterval(11L)
+						.build();
 
-		try (
-				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness = TestUtils.createCustomRescalingTestSink(
-						outDir,
-						1,
-						0,
-						1L,
-						new TestUtils.TupleToStringBucketer(),
-						new SimpleStringEncoder<>(),
-						rollingPolicy,
-						new DefaultBucketFactoryImpl<>())
-		) {
-			testHarness.setup();
-			testHarness.open();
+		final MethodCallCountingPolicyWrapper<String, String> rollingPolicy =
+				new MethodCallCountingPolicyWrapper<>(originalRollingPolicy);
 
-			testHarness.setProcessingTime(0L);
+		final Buckets<String, String> buckets = createBuckets(path, rollingPolicy);
 
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 1), 1L));
-			TestUtils.checkLocalFs(outDir, 1, 0);
+		rollingPolicy.verifyCallCounters(0L, 0L, 0L, 0L, 0L, 0L);
 
-			// roll due to size
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 2), 2L));
-			TestUtils.checkLocalFs(outDir, 1, 0);
+		// these two will fill up the first in-progress file and at the third it will roll ...
+		buckets.onElement("test1", new TestUtils.MockSinkContext(1L, 1L, 1L));
+		buckets.onElement("test1", new TestUtils.MockSinkContext(2L, 1L, 2L));
+		rollingPolicy.verifyCallCounters(0L, 0L, 1L, 0L, 0L, 0L);
 
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 3), 3L));
-			TestUtils.checkLocalFs(outDir, 2, 0);
+		buckets.onElement("test1", new TestUtils.MockSinkContext(3L, 1L, 3L));
+		rollingPolicy.verifyCallCounters(0L, 0L, 2L, 1L, 0L, 0L);
 
-			// roll due to inactivity
-			testHarness.setProcessingTime(7L);
+		// still no time to roll
+		buckets.onProcessingTime(5L);
+		rollingPolicy.verifyCallCounters(0L, 0L, 2L, 1L, 1L, 0L);
 
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 4), 4L));
-			TestUtils.checkLocalFs(outDir, 3, 0);
+		// roll due to inactivity
+		buckets.onProcessingTime(7L);
+		rollingPolicy.verifyCallCounters(0L, 0L, 2L, 1L, 2L, 1L);
 
-			// roll due to rollover interval
-			testHarness.setProcessingTime(20L);
+		buckets.onElement("test1", new TestUtils.MockSinkContext(3L, 1L, 3L));
 
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 5), 5L));
-			TestUtils.checkLocalFs(outDir, 4, 0);
+		// roll due to rollover interval
+		buckets.onProcessingTime(20L);
+		rollingPolicy.verifyCallCounters(0L, 0L, 2L, 1L, 3L, 2L);
 
-			// we take a checkpoint but we should not roll.
-			testHarness.snapshot(1L, 1L);
-
-			TestUtils.checkLocalFs(outDir, 4, 0);
-
-			// acknowledge the checkpoint, so publish the 3 closed files, but not the open one.
-			testHarness.notifyOfCompletedCheckpoint(1L);
-			TestUtils.checkLocalFs(outDir, 1, 3);
-		}
+		// we take a checkpoint but we should not roll.
+		buckets.snapshotState(1L, new TestUtils.MockListState<>(), new TestUtils.MockListState<>());
+		rollingPolicy.verifyCallCounters(0L, 0L, 2L, 1L, 3L, 2L);
 	}
 
 	@Test
 	public void testRollOnCheckpointPolicy() throws Exception {
 		final File outDir = TEMP_FOLDER.newFolder();
+		final Path path = new Path(outDir.toURI());
 
-		final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy = OnCheckpointRollingPolicy.build();
+		final MethodCallCountingPolicyWrapper<String, String> rollingPolicy =
+				new MethodCallCountingPolicyWrapper<>(OnCheckpointRollingPolicy.build());
 
-		try (
-				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness = TestUtils.createCustomRescalingTestSink(
-						outDir,
-						1,
-						0,
-						10L,
-						new TestUtils.TupleToStringBucketer(),
-						new SimpleStringEncoder<>(),
-						rollingPolicy,
-						new DefaultBucketFactoryImpl<>())
-		) {
-			testHarness.setup();
-			testHarness.open();
+		final Buckets<String, String> buckets = createBuckets(path, rollingPolicy);
 
-			testHarness.setProcessingTime(0L);
+		rollingPolicy.verifyCallCounters(0L, 0L, 0L, 0L, 0L, 0L);
 
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test2", 1), 1L));
+		buckets.onElement("test1", new TestUtils.MockSinkContext(1L, 1L, 2L));
+		buckets.onElement("test1", new TestUtils.MockSinkContext(2L, 1L, 2L));
+		buckets.onElement("test1", new TestUtils.MockSinkContext(3L, 1L, 3L));
 
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 1), 1L));
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 2), 2L));
-			TestUtils.checkLocalFs(outDir, 2, 0);
+		// ... we have a checkpoint so we roll ...
+		buckets.snapshotState(1L, new TestUtils.MockListState<>(), new TestUtils.MockListState<>());
+		rollingPolicy.verifyCallCounters(1L, 1L, 2L, 0L, 0L, 0L);
 
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 3), 3L));
-			TestUtils.checkLocalFs(outDir, 2, 0);
+		// ... create a new in-progress file (before we had closed the last one so it was null)...
+		buckets.onElement("test1", new TestUtils.MockSinkContext(5L, 1L, 5L));
 
-			// we take a checkpoint so we roll.
-			testHarness.snapshot(1L, 1L);
+		// ... we have a checkpoint so we roll ...
+		buckets.snapshotState(2L, new TestUtils.MockListState<>(), new TestUtils.MockListState<>());
+		rollingPolicy.verifyCallCounters(2L, 2L, 2L, 0L, 0L, 0L);
 
-			for (File file: FileUtils.listFiles(outDir, null, true)) {
-				if (Objects.equals(file.getParentFile().getName(), "test1")) {
-					Assert.assertTrue(file.getName().contains(".part-0-1.inprogress."));
-				} else if (Objects.equals(file.getParentFile().getName(), "test2")) {
-					Assert.assertTrue(file.getName().contains(".part-0-0.inprogress."));
-				}
-			}
-
-			// this will create a new part file
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 4), 4L));
-			TestUtils.checkLocalFs(outDir, 3, 0);
-
-			testHarness.notifyOfCompletedCheckpoint(1L);
-			for (File file: FileUtils.listFiles(outDir, null, true)) {
-				if (Objects.equals(file.getParentFile().getName(), "test1")) {
-					Assert.assertTrue(
-							file.getName().contains(".part-0-2.inprogress.") || file.getName().equals("part-0-1")
-					);
-				} else if (Objects.equals(file.getParentFile().getName(), "test2")) {
-					Assert.assertEquals("part-0-0", file.getName());
-				}
-			}
-
-			// and open and fill .part-0-2.inprogress
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 5), 5L));
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 6), 6L));
-			TestUtils.checkLocalFs(outDir, 1, 2);
-
-			// we take a checkpoint so we roll.
-			testHarness.snapshot(2L, 2L);
-
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test2", 7), 7L));
-			TestUtils.checkLocalFs(outDir, 2, 2);
-
-			for (File file: FileUtils.listFiles(outDir, null, true)) {
-				if (Objects.equals(file.getParentFile().getName(), "test1")) {
-					Assert.assertThat(
-							file.getName(),
-							either(containsString(".part-0-2.inprogress."))
-									.or(equalTo("part-0-1"))
-					);
-				} else if (Objects.equals(file.getParentFile().getName(), "test2")) {
-					Assert.assertThat(
-							file.getName(),
-							either(containsString(".part-0-3.inprogress."))
-									.or(equalTo("part-0-0"))
-					);
-				}
-			}
-
-			// we acknowledge the last checkpoint so we should publish all but the latest in-progress file
-			testHarness.notifyOfCompletedCheckpoint(2L);
-
-			TestUtils.checkLocalFs(outDir, 1, 3);
-			for (File file: FileUtils.listFiles(outDir, null, true)) {
-				if (Objects.equals(file.getParentFile().getName(), "test1")) {
-					Assert.assertThat(
-							file.getName(),
-							either(equalTo("part-0-2")).or(equalTo("part-0-1"))
-					);
-				} else if (Objects.equals(file.getParentFile().getName(), "test2")) {
-					Assert.assertThat(
-							file.getName(),
-							either(containsString(".part-0-3.inprogress."))
-									.or(equalTo("part-0-0"))
-					);
-				}
-			}
-		}
+		buckets.close();
 	}
 
 	@Test
 	public void testCustomRollingPolicy() throws Exception {
 		final File outDir = TEMP_FOLDER.newFolder();
+		final Path path = new Path(outDir.toURI());
 
-		final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy = new RollingPolicy<Tuple2<String, Integer>, String>() {
+		final MethodCallCountingPolicyWrapper<String, String> rollingPolicy = new MethodCallCountingPolicyWrapper<>(
+				new RollingPolicy<String, String>() {
 
-			private static final long serialVersionUID = 1L;
+					private static final long serialVersionUID = 1L;
 
-			@Override
-			public boolean shouldRollOnCheckpoint(PartFileInfo<String> partFileState) {
-				return true;
+					@Override
+					public boolean shouldRollOnCheckpoint(PartFileInfo<String> partFileState) {
+						return true;
+					}
+
+					@Override
+					public boolean shouldRollOnEvent(PartFileInfo<String> partFileState, String element) throws IOException {
+						// this means that 2 elements will close the part file.
+						return partFileState.getSize() > 9L;
+					}
+
+					@Override
+					public boolean shouldRollOnProcessingTime(PartFileInfo<String> partFileState, long currentTime) {
+						return currentTime - partFileState.getLastUpdateTime() >= 10L;
+					}
+				});
+
+		final Buckets<String, String> buckets = createBuckets(path, rollingPolicy);
+
+		rollingPolicy.verifyCallCounters(0L, 0L, 0L, 0L, 0L, 0L);
+
+		// the following 2 elements will close a part file because of size...
+		buckets.onElement("test1", new TestUtils.MockSinkContext(1L, 1L, 2L));
+		buckets.onElement("test1", new TestUtils.MockSinkContext(2L, 1L, 2L));
+
+		// only one call because we have no open part file in the other incoming elements, so currentPartFile == null so we roll without checking the policy.
+		rollingPolicy.verifyCallCounters(0L, 0L, 1L, 0L, 0L, 0L);
+
+		// ... and this one will trigger the roll and open a new part file...
+		buckets.onElement("test1", new TestUtils.MockSinkContext(2L, 1L, 2L));
+		rollingPolicy.verifyCallCounters(0L, 0L, 2L, 1L, 0L, 0L);
+
+		// ... we have a checkpoint so we roll ...
+		buckets.snapshotState(1L, new TestUtils.MockListState<>(), new TestUtils.MockListState<>());
+		rollingPolicy.verifyCallCounters(1L, 1L, 2L, 1L, 0L, 0L);
+
+		// ... create a new in-progress file (before we had closed the last one so it was null)...
+		buckets.onElement("test1", new TestUtils.MockSinkContext(2L, 1L, 5L));
+
+		// ... last modification time is 5L, so now we DON'T roll but we check ...
+		buckets.onProcessingTime(12L);
+		rollingPolicy.verifyCallCounters(1L, 1L, 2L, 1L, 1L, 0L);
+
+		// ... last modification time is 5L, so now we roll
+		buckets.onProcessingTime(16L);
+		rollingPolicy.verifyCallCounters(1L, 1L, 2L, 1L, 2L, 1L);
+
+		buckets.close();
+	}
+
+	// ------------------------------- Utility Methods --------------------------------
+
+	private static Buckets<String, String> createBuckets(
+			final Path basePath,
+			final MethodCallCountingPolicyWrapper<String, String> rollingPolicyToTest
+	) throws IOException {
+
+		return new Buckets<>(
+				basePath,
+				new TestUtils.StringIdentityBucketAssigner(),
+				new DefaultBucketFactoryImpl<>(),
+				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
+				rollingPolicyToTest,
+				0
+		);
+	}
+
+	/**
+	 * A wrapper of a {@link RollingPolicy} which counts how many times each method of the policy was called
+	 * and in how many of them it decided to roll.
+	 */
+	private static class MethodCallCountingPolicyWrapper<IN, BucketID> implements RollingPolicy<IN, BucketID> {
+
+		private static final long serialVersionUID = 1L;
+
+		private final RollingPolicy<IN, BucketID> originalPolicy;
+
+		private long onCheckpointCallCounter;
+		private long onCheckpointRollCounter;
+
+		private long onEventCallCounter;
+		private long onEventRollCounter;
+
+		private long onProcessingTimeCallCounter;
+		private long onProcessingTimeRollCounter;
+
+		MethodCallCountingPolicyWrapper(final RollingPolicy<IN, BucketID> policy) {
+			this.originalPolicy = Preconditions.checkNotNull(policy);
+
+			this.onCheckpointCallCounter = 0L;
+			this.onCheckpointRollCounter = 0L;
+
+			this.onEventCallCounter = 0L;
+			this.onEventRollCounter = 0L;
+
+			this.onProcessingTimeCallCounter = 0L;
+			this.onProcessingTimeRollCounter = 0L;
+		}
+
+		@Override
+		public boolean shouldRollOnCheckpoint(PartFileInfo<BucketID> partFileState) throws IOException {
+			final boolean shouldRoll = originalPolicy.shouldRollOnCheckpoint(partFileState);
+			this.onCheckpointCallCounter++;
+			if (shouldRoll) {
+				this.onCheckpointRollCounter++;
 			}
+			return shouldRoll;
+		}
 
-			@Override
-			public boolean shouldRollOnEvent(PartFileInfo<String> partFileState, Tuple2<String, Integer> element) throws IOException {
-				// this means that 2 elements will close the part file.
-				return partFileState.getSize() > 12L;
+		@Override
+		public boolean shouldRollOnEvent(PartFileInfo<BucketID> partFileState, IN element) throws IOException {
+			final boolean shouldRoll = originalPolicy.shouldRollOnEvent(partFileState, element);
+			this.onEventCallCounter++;
+			if (shouldRoll) {
+				this.onEventRollCounter++;
 			}
+			return shouldRoll;
+		}
 
-			@Override
-			public boolean shouldRollOnProcessingTime(PartFileInfo<String> partFileState, long currentTime) {
-				return false;
+		@Override
+		public boolean shouldRollOnProcessingTime(PartFileInfo<BucketID> partFileState, long currentTime) throws IOException {
+			final boolean shouldRoll = originalPolicy.shouldRollOnProcessingTime(partFileState, currentTime);
+			this.onProcessingTimeCallCounter++;
+			if (shouldRoll) {
+				this.onProcessingTimeRollCounter++;
 			}
-		};
+			return shouldRoll;
+		}
 
-		try (
-				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness = TestUtils.createCustomRescalingTestSink(
-						outDir,
-						1,
-						0,
-						10L,
-						new TestUtils.TupleToStringBucketer(),
-						new SimpleStringEncoder<>(),
-						rollingPolicy,
-						new DefaultBucketFactoryImpl<>())
+		void verifyCallCounters(
+				final long onCheckpointCalls,
+				final long onCheckpointRolls,
+				final long onEventCalls,
+				final long onEventRolls,
+				final long onProcessingTimeCalls,
+				final long onProcessingTimeRolls
 		) {
-			testHarness.setup();
-			testHarness.open();
-
-			testHarness.setProcessingTime(0L);
-
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test2", 1), 1L));
-
-			// the following 2 elements will close a part file ...
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 1), 1L));
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 2), 2L));
-
-			// ... and this one will open a new ...
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 3), 2L));
-			TestUtils.checkLocalFs(outDir, 3, 0);
-
-			// ... and all open part files should close here.
-			testHarness.snapshot(1L, 1L);
-
-			// this will create and fill out a new part file
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 4), 4L));
-			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 5), 5L));
-			TestUtils.checkLocalFs(outDir, 4, 0);
-
-			// we take a checkpoint so we roll.
-			testHarness.snapshot(2L, 2L);
-
-			// we acknowledge the first checkpoint so we should publish all but the latest in-progress file
-			testHarness.notifyOfCompletedCheckpoint(1L);
-			TestUtils.checkLocalFs(outDir, 1, 3);
+			Assert.assertEquals(onCheckpointCalls, onCheckpointCallCounter);
+			Assert.assertEquals(onCheckpointRolls, onCheckpointRollCounter);
+			Assert.assertEquals(onEventCalls, onEventCallCounter);
+			Assert.assertEquals(onEventRolls, onEventRollCounter);
+			Assert.assertEquals(onProcessingTimeCalls, onProcessingTimeCallCounter);
+			Assert.assertEquals(onProcessingTimeRolls, onProcessingTimeRollCounter);
 		}
 	}
 }

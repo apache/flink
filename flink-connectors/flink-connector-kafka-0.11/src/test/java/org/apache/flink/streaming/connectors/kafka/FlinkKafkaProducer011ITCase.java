@@ -48,11 +48,13 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011.Semantic;
+import static org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011.Semantic.AT_LEAST_ONCE;
+import static org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011.Semantic.EXACTLY_ONCE;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.lessThan;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /**
  * IT cases for the {@link FlinkKafkaProducer011}.
@@ -87,7 +89,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 
 	@Test
 	public void resourceCleanUpAtLeastOnce() throws Exception {
-		resourceCleanUp(Semantic.AT_LEAST_ONCE);
+		resourceCleanUp(AT_LEAST_ONCE);
 	}
 
 	/**
@@ -153,7 +155,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 				testHarness2.open();
 			}
 
-			assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42), 30_000L);
+			assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42));
 			deleteTestTopic(topic);
 		}
 		catch (Exception ex) {
@@ -183,7 +185,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		try {
 			testHarness.processElement(44, 4);
 			testHarness.snapshot(2, 5);
-			assertFalse(true);
+			fail();
 		}
 		catch (Exception ex) {
 			// expected
@@ -201,7 +203,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		testHarness.initializeState(snapshot);
 		testHarness.close();
 
-		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43), 30_000L);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43));
 
 		deleteTestTopic(topic);
 	}
@@ -216,7 +218,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 			topic,
 			integerKeyedSerializationSchema,
 			properties,
-			Semantic.EXACTLY_ONCE);
+			EXACTLY_ONCE);
 
 		OneInputStreamOperatorTestHarness<Integer, Object> testHarness1 = new OneInputStreamOperatorTestHarness<>(
 			new StreamSink<>(kafkaProducer),
@@ -250,7 +252,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 			testHarness2.open();
 		}
 
-		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43), 30_000L);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43));
 
 		deleteTestTopic(topic);
 	}
@@ -296,7 +298,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		// - aborted transactions with records 44 and 45
 		// - committed transaction with record 46
 		// - pending transaction with record 47
-		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 46), 30_000L);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 46));
 
 		testHarness.close();
 		deleteTestTopic(topic);
@@ -345,7 +347,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		//now we should have:
 		// - records 42 and 43 in committed transactions
 		// - aborted transactions with records 44 and 45
-		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43), 30_000L);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43));
 		deleteTestTopic(topic);
 	}
 
@@ -367,7 +369,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 				preScaleDownParallelism,
 				preScaleDownParallelism,
 				subtaskIndex,
-				Semantic.EXACTLY_ONCE);
+				EXACTLY_ONCE);
 
 			preScaleDownOperator.setup();
 			preScaleDownOperator.open();
@@ -382,7 +384,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		// there might not be any close)
 
 		// After previous failure simulate restarting application with smaller parallelism
-		OneInputStreamOperatorTestHarness<Integer, Object> postScaleDownOperator1 = createTestHarness(topic, 1, 1, 0, Semantic.EXACTLY_ONCE);
+		OneInputStreamOperatorTestHarness<Integer, Object> postScaleDownOperator1 = createTestHarness(topic, 1, 1, 0, EXACTLY_ONCE);
 
 		postScaleDownOperator1.setup();
 		postScaleDownOperator1.open();
@@ -397,7 +399,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		// - records 42, 43, 44 and 45 in aborted transactions
 		// - committed transaction with record 46
 		// - pending transaction with record 47
-		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(46), 30_000L);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(46));
 
 		postScaleDownOperator1.close();
 		// ignore ProducerFencedExceptions, because postScaleDownOperator1 could reuse transactional ids.
@@ -466,8 +468,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 			createProperties(),
 			topic,
 			0,
-			IntStream.range(0, parallelism1 + parallelism2 + parallelism3).boxed().collect(Collectors.toList()),
-			30_000L);
+			IntStream.range(0, parallelism1 + parallelism2 + parallelism3).boxed().collect(Collectors.toList()));
 		deleteTestTopic(topic);
 	}
 
@@ -483,7 +484,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 
 		for (int subtaskIndex = 0; subtaskIndex < parallelism; subtaskIndex++) {
 			OneInputStreamOperatorTestHarness<Integer, Object> testHarness =
-				createTestHarness(topic, maxParallelism, parallelism, subtaskIndex, Semantic.EXACTLY_ONCE);
+				createTestHarness(topic, maxParallelism, parallelism, subtaskIndex, EXACTLY_ONCE);
 			testHarnesses.add(testHarness);
 
 			testHarness.setup();
@@ -539,7 +540,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		testHarness.initializeState(checkpoint0); // recover state 0 - producerA recover and commit txn 0
 		testHarness.close();
 
-		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42), 30_000L);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42));
 
 		deleteTestTopic(topic);
 	}
@@ -564,6 +565,50 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 			}
 		}
 		deleteTestTopic(topic);
+	}
+
+	@Test
+	public void testMigrateFromAtLeastOnceToExactlyOnce() throws Exception {
+		String topic = "testMigrateFromAtLeastOnceToExactlyOnce";
+		testRecoverWithChangeSemantics(topic, AT_LEAST_ONCE, EXACTLY_ONCE);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 44, 45));
+		deleteTestTopic(topic);
+	}
+
+	@Test
+	public void testMigrateFromAtExactlyOnceToAtLeastOnce() throws Exception {
+		String topic = "testMigrateFromExactlyOnceToAtLeastOnce";
+		testRecoverWithChangeSemantics(topic, EXACTLY_ONCE, AT_LEAST_ONCE);
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43, 45, 46, 47));
+		deleteTestTopic(topic);
+	}
+
+	private void testRecoverWithChangeSemantics(
+		String topic,
+		Semantic fromSemantic,
+		Semantic toSemantic) throws Exception {
+		OperatorSubtaskState producerSnapshot;
+		try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness = createTestHarness(topic, fromSemantic)) {
+			testHarness.setup();
+			testHarness.open();
+			testHarness.processElement(42, 0);
+			testHarness.snapshot(0, 1);
+			testHarness.processElement(43, 2);
+			testHarness.notifyOfCompletedCheckpoint(0);
+			producerSnapshot = testHarness.snapshot(1, 3);
+			testHarness.processElement(44, 4);
+		}
+
+		try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness = createTestHarness(topic, toSemantic)) {
+			testHarness.setup();
+			testHarness.initializeState(producerSnapshot);
+			testHarness.open();
+			testHarness.processElement(45, 7);
+			testHarness.snapshot(2, 8);
+			testHarness.processElement(46, 9);
+			testHarness.notifyOfCompletedCheckpoint(2);
+			testHarness.processElement(47, 9);
+		}
 	}
 
 	// shut down a Kafka broker
@@ -604,7 +649,13 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 	}
 
 	private OneInputStreamOperatorTestHarness<Integer, Object> createTestHarness(String topic) throws Exception {
-		return createTestHarness(topic, 1, 1, 0, Semantic.EXACTLY_ONCE);
+		return createTestHarness(topic, Semantic.EXACTLY_ONCE);
+	}
+
+	private OneInputStreamOperatorTestHarness<Integer, Object> createTestHarness(
+		String topic,
+		Semantic semantic) throws Exception {
+		return createTestHarness(topic, 1, 1, 0, semantic);
 	}
 
 	private OneInputStreamOperatorTestHarness<Integer, Object> createTestHarness(

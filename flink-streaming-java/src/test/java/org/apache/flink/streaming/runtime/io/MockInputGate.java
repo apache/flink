@@ -36,7 +36,7 @@ public class MockInputGate implements InputGate {
 
 	private final int pageSize;
 
-	private final int numChannels;
+	private final int numberOfChannels;
 
 	private final Queue<BufferOrEvent> bufferOrEvents;
 
@@ -46,15 +46,15 @@ public class MockInputGate implements InputGate {
 
 	private final String owningTaskName;
 
-	public MockInputGate(int pageSize, int numChannels, List<BufferOrEvent> bufferOrEvents) {
-		this(pageSize, numChannels, bufferOrEvents, "MockTask");
+	public MockInputGate(int pageSize, int numberOfChannels, List<BufferOrEvent> bufferOrEvents) {
+		this(pageSize, numberOfChannels, bufferOrEvents, "MockTask");
 	}
 
-	public MockInputGate(int pageSize, int numChannels, List<BufferOrEvent> bufferOrEvents, String owningTaskName) {
+	public MockInputGate(int pageSize, int numberOfChannels, List<BufferOrEvent> bufferOrEvents, String owningTaskName) {
 		this.pageSize = pageSize;
-		this.numChannels = numChannels;
+		this.numberOfChannels = numberOfChannels;
 		this.bufferOrEvents = new ArrayDeque<BufferOrEvent>(bufferOrEvents);
-		this.closed = new boolean[numChannels];
+		this.closed = new boolean[numberOfChannels];
 		this.owningTaskName = owningTaskName;
 	}
 
@@ -65,7 +65,7 @@ public class MockInputGate implements InputGate {
 
 	@Override
 	public int getNumberOfInputChannels() {
-		return numChannels;
+		return numberOfChannels;
 	}
 
 	@Override

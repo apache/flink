@@ -30,10 +30,10 @@ public class SavepointRestoreSettings implements Serializable {
 	private static final long serialVersionUID = 87377506900849777L;
 
 	/** No restore should happen. */
-	private final static SavepointRestoreSettings NONE = new SavepointRestoreSettings(null, false);
+	private static final SavepointRestoreSettings NONE = new SavepointRestoreSettings(null, false);
 
 	/** By default, be strict when restoring from a savepoint.  */
-	private final static boolean DEFAULT_ALLOW_NON_RESTORED_STATE = false;
+	private static final boolean DEFAULT_ALLOW_NON_RESTORED_STATE = false;
 
 	/** Savepoint restore path. */
 	private final String restorePath;
@@ -85,8 +85,12 @@ public class SavepointRestoreSettings implements Serializable {
 
 	@Override
 	public boolean equals(Object o) {
-		if (this == o) { return true; }
-		if (o == null || getClass() != o.getClass()) { return false; }
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
 
 		SavepointRestoreSettings that = (SavepointRestoreSettings) o;
 		return allowNonRestoredState == that.allowNonRestoredState &&

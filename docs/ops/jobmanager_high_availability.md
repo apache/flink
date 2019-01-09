@@ -65,6 +65,7 @@ By default, the job manager will pick a *random port* for inter process communic
 In order to start an HA-cluster add the following configuration keys to `conf/flink-conf.yaml`:
 
 - **high-availability mode** (required): The *high-availability mode* has to be set in `conf/flink-conf.yaml` to *zookeeper* in order to enable high availability mode.
+Alternatively this option can be set to FQN of factory class Flink should use to create HighAvailabilityServices instance. 
 
   <pre>high-availability: zookeeper</pre>
 

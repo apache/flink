@@ -27,6 +27,7 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.util.ManualTicker;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -279,20 +280,6 @@ public class FileArchivedExecutionGraphStoreTest extends TestLogger {
 			10000L,
 			TestingUtils.defaultScheduledExecutor(),
 			Ticker.systemTicker());
-	}
-
-	private static final class ManualTicker extends Ticker {
-
-		private long currentTime = 0;
-
-		@Override
-		public long read() {
-			return currentTime;
-		}
-
-		void advanceTime(long duration, TimeUnit timeUnit) {
-			currentTime += timeUnit.toNanos(duration);
-		}
 	}
 
 	private static final class PartialArchivedExecutionGraphMatcher extends BaseMatcher<ArchivedExecutionGraph> {

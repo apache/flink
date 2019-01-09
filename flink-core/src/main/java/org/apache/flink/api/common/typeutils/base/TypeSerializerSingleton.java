@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 
 @Internal
 public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
@@ -53,16 +54,16 @@ public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
 	}
 
 	@Override
-	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+	public TypeSerializerSnapshot<T> snapshotConfiguration() {
 		// type serializer singletons should always be parameter-less
-		return new ParameterlessTypeSerializerConfig(getSerializationFormatIdentifier());
+		return new ParameterlessTypeSerializerConfig<>(getSerializationFormatIdentifier());
 	}
 
 	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof ParameterlessTypeSerializerConfig
 				&& isCompatibleSerializationFormatIdentifier(
-						((ParameterlessTypeSerializerConfig) configSnapshot).getSerializationFormatIdentifier())) {
+						((ParameterlessTypeSerializerConfig<?>) configSnapshot).getSerializationFormatIdentifier())) {
 
 			return CompatibilityResult.compatible();
 		} else {
@@ -74,10 +75,11 @@ public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
 	 * Subclasses can override this if they know that they are also compatible with identifiers of other formats.
 	 */
 	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
-		return identifier.equals(getSerializationFormatIdentifier());
+		return identifier.equals(getClass().getName()) ||
+				identifier.equals(getClass().getCanonicalName());
 	}
 
 	private String getSerializationFormatIdentifier() {
-		return getClass().getCanonicalName();
+		return getClass().getName();
 	}
 }

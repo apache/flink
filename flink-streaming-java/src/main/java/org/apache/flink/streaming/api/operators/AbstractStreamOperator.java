@@ -72,6 +72,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.Serializable;
+import java.util.Locale;
 
 /**
  * Base class for all stream operators. Operators that contain a user function should extend the class
@@ -171,7 +172,7 @@ public abstract class AbstractStreamOperator<OUT>
 		this.container = containingTask;
 		this.config = config;
 		try {
-			OperatorMetricGroup operatorMetricGroup = environment.getMetricGroup().addOperator(config.getOperatorID(), config.getOperatorName());
+			OperatorMetricGroup operatorMetricGroup = environment.getMetricGroup().getOrAddOperator(config.getOperatorID(), config.getOperatorName());
 			this.output = new CountingOutput(output, operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
 			if (config.isChainStart()) {
 				operatorMetricGroup.getIOMetricGroup().reuseInputMetricsForTask();
@@ -193,11 +194,33 @@ public abstract class AbstractStreamOperator<OUT>
 				LOG.warn("{} has been set to a value equal or below 0: {}. Using default.", MetricOptions.LATENCY_HISTORY_SIZE, historySize);
 				historySize = MetricOptions.LATENCY_HISTORY_SIZE.defaultValue();
 			}
+
+			final String configuredGranularity = taskManagerConfig.getString(MetricOptions.LATENCY_SOURCE_GRANULARITY);
+			LatencyStats.Granularity granularity;
+			try {
+				granularity = LatencyStats.Granularity.valueOf(configuredGranularity.toUpperCase(Locale.ROOT));
+			} catch (IllegalArgumentException iae) {
+				granularity = LatencyStats.Granularity.OPERATOR;
+				LOG.warn(
+					"Configured value {} option for {} is invalid. Defaulting to {}.",
+					configuredGranularity,
+					MetricOptions.LATENCY_SOURCE_GRANULARITY.key(),
+					granularity);
+			}
 			TaskManagerJobMetricGroup jobMetricGroup = this.metrics.parent().parent();
-			this.latencyStats = new LatencyStats(jobMetricGroup.addGroup("latency"), historySize, container.getIndexInSubtaskGroup(), getOperatorID());
+			this.latencyStats = new LatencyStats(jobMetricGroup.addGroup("latency"),
+				historySize,
+				container.getIndexInSubtaskGroup(),
+				getOperatorID(),
+				granularity);
 		} catch (Exception e) {
 			LOG.warn("An error occurred while instantiating latency metrics.", e);
-			this.latencyStats = new LatencyStats(UnregisteredMetricGroups.createUnregisteredTaskManagerJobMetricGroup().addGroup("latency"), 1, 0, new OperatorID());
+			this.latencyStats = new LatencyStats(
+				UnregisteredMetricGroups.createUnregisteredTaskManagerJobMetricGroup().addGroup("latency"),
+				1,
+				0,
+				new OperatorID(),
+				LatencyStats.Granularity.SINGLE);
 		}
 
 		this.runtimeContext = new StreamingRuntimeContext(this, environment, container.getAccumulatorMap());
@@ -229,7 +252,8 @@ public abstract class AbstractStreamOperator<OUT>
 				getClass().getSimpleName(),
 				this,
 				keySerializer,
-				streamTaskCloseableRegistry);
+				streamTaskCloseableRegistry,
+				metrics);
 
 		this.operatorStateBackend = context.operatorStateBackend();
 		this.keyedStateBackend = context.keyedStateBackend();
@@ -389,8 +413,13 @@ public abstract class AbstractStreamOperator<OUT>
 				snapshotException.addSuppressed(e);
 			}
 
-			throw new Exception("Could not complete snapshot " + checkpointId + " for operator " +
-				getOperatorName() + '.', snapshotException);
+			String snapshotFailMessage = "Could not complete snapshot " + checkpointId + " for operator " +
+				getOperatorName() + ".";
+
+			if (!getContainingTask().isCanceled()) {
+				LOG.info(snapshotFailMessage, snapshotException);
+			}
+			throw new Exception(snapshotFailMessage, snapshotException);
 		}
 
 		return snapshotInProgress;
@@ -610,7 +639,7 @@ public abstract class AbstractStreamOperator<OUT>
 		if (keyedStateBackend != null) {
 			return keyedStateBackend.getCurrentKey();
 		} else {
-			throw new UnsupportedOperationException("Key can only be retrieven on KeyedStream.");
+			throw new UnsupportedOperationException("Key can only be retrieved on KeyedStream.");
 		}
 	}
 

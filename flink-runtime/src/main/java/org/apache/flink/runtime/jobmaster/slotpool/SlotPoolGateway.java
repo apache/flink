@@ -34,6 +34,7 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.types.SerializableOptional;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -126,8 +127,9 @@ public interface SlotPoolGateway extends AllocatedSlotActions, RpcGateway {
 	 *
 	 * @param allocationID identifying the slot which is being failed
 	 * @param cause of the failure
+	 * @return An optional task executor id if this task executor has no more slots registered
 	 */
-	void failAllocation(AllocationID allocationID, Exception cause);
+	CompletableFuture<SerializableOptional<ResourceID>> failAllocation(AllocationID allocationID, Exception cause);
 
 	// ------------------------------------------------------------------------
 	//  allocating and disposing slots

@@ -29,7 +29,7 @@ import java.io.IOException;
  * A base class for {@link TypeSerializerConfigSnapshot}s that do not have any parameters.
  */
 @Internal
-public final class ParameterlessTypeSerializerConfig extends TypeSerializerConfigSnapshot {
+public final class ParameterlessTypeSerializerConfig<T> extends TypeSerializerConfigSnapshot<T> {
 
 	private static final int VERSION = 1;
 

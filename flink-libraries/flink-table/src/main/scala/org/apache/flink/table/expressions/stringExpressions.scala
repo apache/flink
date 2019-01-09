@@ -359,6 +359,69 @@ case class Rpad(text: Expression, len: Expression, pad: Expression)
 }
 
 /**
+  * Returns a string with all substrings that match the regular expression consecutively
+  * being replaced.
+  */
+case class RegexpReplace(str: Expression, regex: Expression, replacement: Expression)
+  extends Expression with InputTypeSpec {
+
+  override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    Seq(
+      BasicTypeInfo.STRING_TYPE_INFO,
+      BasicTypeInfo.STRING_TYPE_INFO,
+      BasicTypeInfo.STRING_TYPE_INFO)
+
+  override private[flink] def children: Seq[Expression] = Seq(str, regex, replacement)
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.REGEXP_REPLACE, children.map(_.toRexNode))
+  }
+
+  override def toString: String = s"($str).regexp_replace($regex, $replacement)"
+}
+
+/**
+  * Returns a string extracted with a specified regular expression and a regex match group index.
+  */
+case class RegexpExtract(str: Expression, regex: Expression, extractIndex: Expression)
+  extends Expression with InputTypeSpec {
+  def this(str: Expression, regex: Expression) = this(str, regex, null)
+
+  override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = {
+    if (extractIndex == null) {
+      Seq(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO)
+    } else {
+      Seq(
+        BasicTypeInfo.STRING_TYPE_INFO,
+        BasicTypeInfo.STRING_TYPE_INFO,
+        BasicTypeInfo.INT_TYPE_INFO)
+    }
+  }
+
+  override private[flink] def children: Seq[Expression] = {
+    if (extractIndex == null) {
+      Seq(str, regex)
+    } else {
+      Seq(str, regex, extractIndex)
+    }
+  }
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.REGEXP_EXTRACT, children.map(_.toRexNode))
+  }
+
+  override def toString: String = s"($str).regexp_extract($regex, $extractIndex)"
+}
+
+object RegexpExtract {
+  def apply(str: Expression, regex: Expression): RegexpExtract = RegexpExtract(str, regex, null)
+}
+
+/**
   * Returns the base string decoded with base64.
   * Returns NULL If the input string is NULL.
   */
@@ -486,4 +549,28 @@ case class Repeat(str: Expression, n: Expression) extends Expression with InputT
   }
 
   override def toString: String = s"($str).repeat($n)"
+}
+
+/**
+  * Returns a new string which replaces all the occurrences of the search target
+  * with the replacement string (non-overlapping).
+  */
+case class Replace(str: Expression,
+  search: Expression,
+  replacement: Expression) extends Expression with InputTypeSpec {
+
+  def this(str: Expression, begin: Expression) = this(str, begin, CharLength(str))
+
+  override private[flink] def children: Seq[Expression] = str :: search :: replacement :: Nil
+
+  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    Seq(STRING_TYPE_INFO, STRING_TYPE_INFO, STRING_TYPE_INFO)
+
+  override def toString: String = s"($str).replace($search, $replacement)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.REPLACE, children.map(_.toRexNode))
+  }
 }

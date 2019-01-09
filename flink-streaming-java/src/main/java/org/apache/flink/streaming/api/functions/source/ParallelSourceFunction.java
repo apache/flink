@@ -21,7 +21,7 @@ import org.apache.flink.annotation.Public;
 
 /**
  * A stream data source that is executed in parallel. Upon execution, the runtime will
- * execute as many parallel instances of this function function as configured parallelism
+ * execute as many parallel instances of this function as configured parallelism
  * of the source.
  *
  * <p>This interface acts only as a marker to tell the system that this source may

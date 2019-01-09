@@ -22,6 +22,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+* ToC
+{:toc}
+
 This page provides instructions on how to enable TLS/SSL authentication and encryption for network communication with and between Flink processes.
 
 ## Internal and External Connectivity
@@ -37,42 +40,41 @@ For more flexibility, security for internal and external connectivity can be ena
   <img src="{{ site.baseurl }}/fig/ssl_internal_external.svg" alt="Internal and External Connectivity" style="width:75%; padding-top:10px; padding-bottom:10px;" />
 </div>
 
-#### Internal Connectivity
+### Internal Connectivity
 
 Internal connectivity includes:
 
   - Control messages: RPC between JobManager / TaskManager / Dispatcher / ResourceManager
   - The data plane: The connections between TaskManagers to exchange data during shuffles, broadcasts, redistribution, etc.
-  - The Blob Service (distribution of libraries and other artifacts). 
+  - The Blob Service (distribution of libraries and other artifacts).
 
 All internal connections are SSL authenticated and encrypted. The connections use **mutual authentication**, meaning both server
 and client side of each connection need to present the certificate to each other. The certificate acts effectively as a shared
-secret. 
+secret.
 
 A common setup is to generate a dedicated certificate (may be self-signed) for a Flink deployment. The certificate for internal communication
 is not needed by any other party to interact with Flink, and can be simply added to the container images, or attached to the YARN deployment.
 
 *Note: Because internal connections are mutually authenticated with shared certificates, Flink can skip hostname verification. This makes container-based setups easier.*
 
-#### External / REST Connectivity
+### External / REST Connectivity
 
 All external connectivity is exposed via an HTTP/REST endpoint, used for example by the web UI and the CLI:
 
   - Communication with the *Dispatcher* to submit jobs (session clusters)
   - Communication with the *JobManager* to inspect and modify a running job/application
 
-The REST endpoints can be configured to require SSL connections. The server will, however, accept connections from any client, meaning the REST endpoint does not authenticate the client.
+The REST endpoints can be configured to require SSL connections. The server will, however, accept connections from any client by default, meaning the REST endpoint does not authenticate the client.
 
-If authentication of connections to the REST endpoint is required, we recommend to deploy a "side car proxy":
+Simple mutual authentication may be enabled by configuration if authentication of connections to the REST endpoint is required, but we recommend to deploy a "side car proxy":
 Bind the REST endpoint to the loopback interface (or the pod-local interface in Kubernetes) and start a REST proxy that authenticates and forwards the requests to Flink.
 Examples for proxies that Flink users have deployed are [Envoy Proxy](https://www.envoyproxy.io/) or
 [NGINX with MOD_AUTH](http://nginx.org/en/docs/http/ngx_http_auth_request_module.html).
 
-The rationale behind delegating authentication to a proxy is that such proxies offer many more authentication options than the Flink project could reasonably implement itself,
-and thus offer better integration into existing infrastructures.
+The rationale behind delegating authentication to a proxy is that such proxies offer a wide variety of authentication options and thus better integration into existing infrastructures.
 
 
-#### Queryable State
+### Queryable State
 
 Connections to the queryable state endpoints is currently not authenticated or encrypted.
 
@@ -93,13 +95,13 @@ When `security.ssl.internal.enabled` is set to `true`, you can set the following
   - `blob.service.ssl.enabled`: Transport of BLOBs from JobManager to TaskManager
   - `akka.ssl.enabled`: Akka-based RPC connections between JobManager / TaskManager / ResourceManager
 
-#### Keystores and Truststores
+### Keystores and Truststores
 
 The SSL configuration requires to configure a **keystore** and a **truststore**. The *keystore* contains the public certificate
 (public key) and the private key, while the truststore contains the trusted certificates or the trusted authorities. Both stores
 need to be set up such that the truststore trusts the keystore's certificate.
 
-**Internal Connectivity**
+#### Internal Connectivity
 
 Because internal communication is mutually authenticated, keystore and truststore typically contain the same dedicated certificate.
 The certificate can use wild card hostnames or addresses, because the certificate is expected to be a shared secret and host
@@ -113,12 +115,14 @@ security.ssl.internal.truststore: /path/to/file.truststore
 security.ssl.internal.truststore-password: truststore_password
 {% endhighlight %}
 
-**REST Endpoints (external connectivity)**
+#### REST Endpoints (external connectivity)
 
-For REST endpoints, the keystore is used by the server endpoint, and the truststore is used by the REST clients (including the CLI client)
+For REST endpoints, by default the keystore is used by the server endpoint, and the truststore is used by the REST clients (including the CLI client)
 to accept the server's certificate. In the case where the REST keystore has a self-signed certificate, the truststore must trust that certificate directly.
 If the REST endpoint uses a certificate that is signed through a proper certification hierarchy, the roots of that hierarchy should
-be in the trust store. 
+be in the trust store.
+
+If mutual authentication is enabled, the keystore and the truststore are used by both, the server endpoint and the REST clients as with internal connectivity.
 
 {% highlight yaml %}
 security.ssl.rest.keystore: /path/to/file.keystore
@@ -126,10 +130,12 @@ security.ssl.rest.keystore-password: keystore_password
 security.ssl.rest.key-password: key_password
 security.ssl.rest.truststore: /path/to/file.truststore
 security.ssl.rest.truststore-password: truststore_password
+security.ssl.rest.authentication-enabled: false
 {% endhighlight %}
 
-**IMPORTANT**
+### Cipher suites
 
+<span class="label label-danger">IMPORTANT</span>
 The [IETF RFC 7525](https://tools.ietf.org/html/rfc7525) recommends to use a specific set of cipher suites for strong security.
 Because these cipher suites were not available on many setups out of the box, Flink's default value is set to a slightly
 weaker but more compatible cipher suite.
@@ -141,6 +147,9 @@ security.ssl.algorithms: TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_
 
 If these cipher suites are not supported on your setup, you will see that Flink processes will not be able to connect to each other.
 
+### Complete List of SSL Options
+
+{% include generated/security_configuration.html %}
 
 ## Creating and Deploying Keystores and Truststores
 
@@ -189,7 +198,7 @@ This example shows how to create a simple keystore / truststore pair. The trusts
 be shared with other applications. In this example, *myhost.company.org / ip:10.0.2.15* is the node (or service) for the Flink master.
 
 {% highlight bash %}
-keytool -genkeypair -alias flink.rest -keystore rest.keystore -dname "CN=myhost.company.org" -ext "SAN=dns:myhost.company.org,ip:10.0.2.15" -storepass rest_keystore_password -keypass rest_key_password -keyalg RSA -keysize 4096
+keytool -genkeypair -alias flink.rest -keystore rest.keystore -dname "CN=myhost.company.org" -ext "SAN=dns:myhost.company.org,ip:10.0.2.15" -storepass rest_keystore_password -keypass rest_key_password -keyalg RSA -keysize 4096 -storetype PKCS12
 
 keytool -exportcert -keystore rest.keystore -alias flink.rest -storepass rest_keystore_password -file flink.cer
 
@@ -210,7 +219,7 @@ security.ssl.rest.key-password: rest_key_password
 Execute the following keytool commands to create a truststore with a self signed CA.
 
 {% highlight bash %}
-keytool -genkeypair -alias ca -keystore ca.keystore -dname "CN=Sample CA" -storepass ca_keystore_password -keypass ca_key_password -keyalg RSA -keysize 4096 -ext "bc=ca:true"
+keytool -genkeypair -alias ca -keystore ca.keystore -dname "CN=Sample CA" -storepass ca_keystore_password -keypass ca_key_password -keyalg RSA -keysize 4096 -ext "bc=ca:true" -storetype PKCS12
 
 keytool -exportcert -keystore ca.keystore -alias ca -storepass ca_keystore_password -file ca.cer
 
@@ -221,7 +230,7 @@ Now create a keystore for the REST endpoint with a certificate signed by the abo
 Let *flink.company.org / ip:10.0.2.15* be the hostname of the Flink master (JobManager).
 
 {% highlight bash %}
-keytool -genkeypair -alias flink.rest -keystore rest.signed.keystore -dname "CN=flink.company.org" -ext "SAN=dns:flink.company.org" -storepass rest_keystore_password -keypass rest_key_password -keyalg RSA -keysize 4096
+keytool -genkeypair -alias flink.rest -keystore rest.signed.keystore -dname "CN=flink.company.org" -ext "SAN=dns:flink.company.org" -storepass rest_keystore_password -keypass rest_key_password -keyalg RSA -keysize 4096 -storetype PKCS12
 
 keytool -certreq -alias flink.rest -keystore rest.signed.keystore -storepass rest_keystore_password -keypass rest_key_password -file rest.csr
 
@@ -243,6 +252,25 @@ security.ssl.rest.key-password: rest_key_password
 security.ssl.rest.truststore-password: ca_truststore_password
 {% endhighlight %}
 
+**Tips to query REST Endpoint with curl utility**
+
+You can convert the keystore into the `PEM` format using `openssl`:
+
+{% highlight bash %}
+openssl pkcs12 -passin pass:rest_keystore_password -in rest.keystore -out rest.pem -nodes
+{% endhighlight %}
+
+Then you can query REST Endpoint with `curl`:
+
+{% highlight bash %}
+curl --cacert rest.pem flink_url
+{% endhighlight %}
+
+If mutual SSL is enabled:
+
+{% highlight bash %}
+curl --cacert rest.pem --cert rest.pem flink_url
+{% endhighlight %}
 
 ## Tips for YARN / Mesos Deployment
 

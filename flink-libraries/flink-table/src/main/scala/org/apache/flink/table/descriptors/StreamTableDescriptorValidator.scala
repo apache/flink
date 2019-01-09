@@ -25,16 +25,27 @@ import org.apache.flink.table.descriptors.StreamTableDescriptorValidator._
 /**
   * Validator for [[StreamTableDescriptor]].
   */
-class StreamTableDescriptorValidator extends DescriptorValidator {
+class StreamTableDescriptorValidator(
+    supportsAppend: Boolean,
+    supportsRetract: Boolean,
+    supportsUpsert: Boolean)
+  extends DescriptorValidator {
 
   override def validate(properties: DescriptorProperties): Unit = {
+    val modeList = new util.ArrayList[String]()
+    if (supportsAppend) {
+      modeList.add(UPDATE_MODE_VALUE_APPEND)
+    }
+    if (supportsRetract) {
+      modeList.add(UPDATE_MODE_VALUE_RETRACT)
+    }
+    if (supportsUpsert) {
+      modeList.add(UPDATE_MODE_VALUE_UPSERT)
+    }
     properties.validateEnumValues(
       UPDATE_MODE,
-      isOptional = false,
-      util.Arrays.asList(
-        UPDATE_MODE_VALUE_APPEND,
-        UPDATE_MODE_VALUE_RETRACT,
-        UPDATE_MODE_VALUE_UPSERT)
+      false,
+      modeList
     )
   }
 }

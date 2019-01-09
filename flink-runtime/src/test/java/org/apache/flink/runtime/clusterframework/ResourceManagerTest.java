@@ -46,6 +46,7 @@ import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -524,7 +525,8 @@ public class ResourceManagerTest extends TestLogger {
 				metricRegistry,
 				jobLeaderIdService,
 				new ClusterInformation("localhost", 1234),
-				testingFatalErrorHandler);
+				testingFatalErrorHandler,
+				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup());
 
 			resourceManager.start();
 
@@ -622,7 +624,8 @@ public class ResourceManagerTest extends TestLogger {
 				metricRegistry,
 				jobLeaderIdService,
 				new ClusterInformation("localhost", 1234),
-				testingFatalErrorHandler);
+				testingFatalErrorHandler,
+				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup());
 
 			resourceManager.start();
 

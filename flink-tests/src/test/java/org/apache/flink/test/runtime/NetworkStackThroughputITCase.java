@@ -32,8 +32,8 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -234,7 +234,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 
 			final int numTaskManagers = parallelism / numSlotsPerTaskManager;
 
-			final MiniClusterResource cluster = new MiniClusterResource(
+			final MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
 				new MiniClusterResourceConfiguration.Builder()
 					.setNumberTaskManagers(numTaskManagers)
 					.setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
@@ -258,7 +258,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 	}
 
 	private void testProgram(
-			final MiniClusterResource cluster,
+			final MiniClusterWithClientResource cluster,
 			final int dataVolumeGb,
 			final boolean useForwarder,
 			final boolean isSlowSender,

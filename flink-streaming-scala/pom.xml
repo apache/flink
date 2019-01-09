@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.7-SNAPSHOT</version>
+		<version>1.8-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -248,7 +248,7 @@ under the License.
 					<parameter>
 						<excludes combine.children="append">
 							<!-- Exclude generated classes from api compatibility checks -->
-							<exclude>*\$\$anon\$*</exclude>
+							<exclude>*$$$$anon$$*</exclude>
 
 							<!-- Ignore method which was created automatically by Scala for default value calculation.
 							Can be removed once https://github.com/siom79/japicmp/issues/176 will be fixed -->

@@ -342,7 +342,7 @@ case class TableFunctionCall(
     val fieldNames = if (aliases.isDefined) {
       val aliasList = aliases.get
       if (aliasList.length != originNames.length) {
-        throw ValidationException(
+        throw new ValidationException(
           s"List of column aliases must have same degree as table; " +
             s"the returned table of function '$functionName' has ${originNames.length} " +
             s"columns (${originNames.mkString(",")}), " +

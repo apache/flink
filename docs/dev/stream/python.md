@@ -24,6 +24,10 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<span class="label label-danger">Attention</span> *This API is based on Jython,
+which is not a full Python replacement and may restrict the libraries you are able
+to use with your application (see below for more information).*
+
 Analysis streaming programs in Flink are regular programs that implement transformations on
 streaming data sets (e.g., filtering, mapping, joining, grouping). The streaming data sets are initially
 created from certain sources (e.g., by reading files, or from collections).
@@ -50,7 +54,12 @@ existing Java streaming APIs.
 There are two main constraints for using Jython:
 
 * The latest Python supported version is 2.7
-* It is not straightforward to use Python C extensions
+* It is not straightforward to use Python C extensions, which may prevent use of some libraries
+
+(For more information please see <https://wiki.python.org/jython/JythonFaq/GeneralInfo>.)
+
+One possible alternative for streaming that allows for native Python execution would be the [Apache Beam
+portability framework](https://beam.apache.org/contribute/portability/) with the Flink runner.
 
 Streaming Program Example
 -------------------------
@@ -227,7 +236,7 @@ Data transformations transform one or more DataStreams into a new DataStream. Pr
 multiple transformations into sophisticated assemblies.
 
 This section gives a brief overview of the available transformations. The [transformations
-documentation](dataset_transformations.html) has a full description of all transformations with
+documentation](./operators/index.html) has a full description of all transformations with
 examples.
 
 <br />
@@ -322,7 +331,7 @@ data.reduce(Sum())
       <td>
         <p>Windows can be defined on already partitioned KeyedStreams. Windows group the data in each
         key according to some characteristic (e.g., the data that arrived within the last 5 seconds).
-        See <a href="windows.html">windows</a> for a complete description of windows.
+        See <a href="operators/windows.html">windows</a> for a complete description of windows.
     {% highlight python %}
 keyed_stream.count_window(10, 5)  # Last 10 elements, sliding (jumping) by 5 elements
 

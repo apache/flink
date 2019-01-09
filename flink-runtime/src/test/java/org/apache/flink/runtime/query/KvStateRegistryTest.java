@@ -401,12 +401,12 @@ public class KvStateRegistryTest extends TestLogger {
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		public TypeSerializerConfigSnapshot<String> snapshotConfiguration() {
 			return null;
 		}
 
 		@Override
-		public CompatibilityResult<String> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		public CompatibilityResult<String> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 			return null;
 		}
 	}

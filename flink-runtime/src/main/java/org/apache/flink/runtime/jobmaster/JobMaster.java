@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.queryablestate.KvStateID;
@@ -95,7 +96,6 @@ import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPre
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
@@ -104,6 +104,7 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
+import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
@@ -678,24 +679,22 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				try {
 					checkpointCoordinator.receiveAcknowledgeMessage(ackMessage);
 				} catch (Throwable t) {
-					log.warn("Error while processing checkpoint acknowledgement message");
+					log.warn("Error while processing checkpoint acknowledgement message", t);
 				}
 			});
 		} else {
-			log.error("Received AcknowledgeCheckpoint message for job {} with no CheckpointCoordinator",
-					jobGraph.getJobID());
+			String errorMessage = "Received AcknowledgeCheckpoint message for job {} with no CheckpointCoordinator";
+			if (executionGraph.getState() == JobStatus.RUNNING) {
+				log.error(errorMessage, jobGraph.getJobID());
+			} else {
+				log.debug(errorMessage, jobGraph.getJobID());
+			}
 		}
 	}
 
 	// TODO: This method needs a leader session ID
 	@Override
-	public void declineCheckpoint(
-			final JobID jobID,
-			final ExecutionAttemptID executionAttemptID,
-			final long checkpointID,
-			final Throwable reason) {
-		final DeclineCheckpoint decline = new DeclineCheckpoint(
-				jobID, executionAttemptID, checkpointID, reason);
+	public void declineCheckpoint(DeclineCheckpoint decline) {
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
 
 		if (checkpointCoordinator != null) {
@@ -707,8 +706,12 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				}
 			});
 		} else {
-			log.error("Received DeclineCheckpoint message for job {} with no CheckpointCoordinator",
-					jobGraph.getJobID());
+			String errorMessage = "Received DeclineCheckpoint message for job {} with no CheckpointCoordinator";
+			if (executionGraph.getState() == JobStatus.RUNNING) {
+				log.error(errorMessage, jobGraph.getJobID());
+			} else {
+				log.debug(errorMessage, jobGraph.getJobID());
+			}
 		}
 	}
 
@@ -834,11 +837,23 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			final Exception cause) {
 
 		if (registeredTaskManagers.containsKey(taskManagerId)) {
-			slotPoolGateway.failAllocation(allocationId, cause);
+			internalFailAllocation(allocationId, cause);
 		} else {
 			log.warn("Cannot fail slot " + allocationId + " because the TaskManager " +
 			taskManagerId + " is unknown.");
 		}
+	}
+
+	private void internalFailAllocation(AllocationID allocationId, Exception cause) {
+		final CompletableFuture<SerializableOptional<ResourceID>> emptyTaskExecutorFuture = slotPoolGateway.failAllocation(allocationId, cause);
+
+		emptyTaskExecutorFuture.thenAcceptAsync(
+			resourceIdOptional -> resourceIdOptional.ifPresent(this::releaseEmptyTaskManager),
+			getMainThreadExecutor());
+	}
+
+	private CompletableFuture<Acknowledge> releaseEmptyTaskManager(ResourceID resourceId) {
+		return disconnectTaskManager(resourceId, new FlinkException(String.format("No more slots registered at JobMaster %s.", resourceId)));
 	}
 
 	@Override
@@ -909,7 +924,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	@Override
-	public CompletableFuture<JobDetails> requestJobDetails(@RpcTimeout Time timeout) {
+	public CompletableFuture<JobDetails> requestJobDetails(Time timeout) {
 		final ExecutionGraph currentExecutionGraph = executionGraph;
 		return CompletableFuture.supplyAsync(() -> WebMonitorUtils.createDetailsForJob(currentExecutionGraph), scheduledExecutorService);
 	}
@@ -934,6 +949,13 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		if (checkpointCoordinator == null) {
 			return FutureUtils.completedExceptionally(new IllegalStateException(
 				String.format("Job %s is not a streaming job.", jobGraph.getJobID())));
+		} else if (targetDirectory == null && !checkpointCoordinator.getCheckpointStorage().hasDefaultSavepointLocation()) {
+			log.info("Trying to cancel job {} with savepoint, but no savepoint directory configured.", jobGraph.getJobID());
+
+			return FutureUtils.completedExceptionally(new IllegalStateException(
+				"No savepoint directory configured. You can either specify a directory " +
+					"while cancelling via -s :targetDirectory or configure a cluster-wide " +
+					"default via key '" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + "'."));
 		}
 
 		if (cancelJob) {
@@ -942,19 +964,18 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		return checkpointCoordinator
 			.triggerSavepoint(System.currentTimeMillis(), targetDirectory)
 			.thenApply(CompletedCheckpoint::getExternalPointer)
-			.thenApplyAsync(path -> {
-				if (cancelJob) {
+			.handleAsync((path, throwable) -> {
+				if (throwable != null) {
+					if (cancelJob) {
+						startCheckpointScheduler(checkpointCoordinator);
+					}
+					throw new CompletionException(throwable);
+				} else if (cancelJob) {
 					log.info("Savepoint stored in {}. Now cancelling {}.", path, jobGraph.getJobID());
 					cancel(timeout);
 				}
 				return path;
-			}, getMainThreadExecutor())
-			.exceptionally(throwable -> {
-				if (cancelJob) {
-					startCheckpointScheduler(checkpointCoordinator);
-				}
-				throw new CompletionException(throwable);
-			});
+			}, getMainThreadExecutor());
 	}
 
 	private void startCheckpointScheduler(final CheckpointCoordinator checkpointCoordinator) {
@@ -983,7 +1004,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	@Override
 	public void notifyAllocationFailure(AllocationID allocationID, Exception cause) {
-		slotPoolGateway.failAllocation(allocationID, cause);
+		internalFailAllocation(allocationID, cause);
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -1484,7 +1505,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				jobVertex.setMaxParallelism(executionJobVertex.getMaxParallelism());
 			}
 
-			rescalingBehaviour.acceptWithException(jobVertex, newParallelism);
+			rescalingBehaviour.accept(jobVertex, newParallelism);
 		}
 	}
 

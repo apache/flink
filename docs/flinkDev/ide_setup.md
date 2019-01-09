@@ -87,7 +87,7 @@ IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
 1. Install the "Checkstyle-IDEA" plugin from the IntelliJ plugin repository.
 2. Configure the plugin by going to Settings -> Other Settings -> Checkstyle.
 3. Set the "Scan Scope" to "Only Java sources (including tests)".
-4. Select _8.4_ in the "Checkstyle Version" dropdown and click apply. **This step is important,
+4. Select _8.9_ in the "Checkstyle Version" dropdown and click apply. **This step is important,
    don't skip it!**
 5. In the "Configuration File" pane, add a new configuration using the plus icon:
     1. Set the "Description" to "Flink".

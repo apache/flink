@@ -31,7 +31,6 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import javax.annotation.Nullable;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Handler that returns JobManager metrics.
@@ -39,13 +38,11 @@ import java.util.concurrent.CompletableFuture;
 public class JobManagerMetricsHandler extends AbstractMetricsHandler<JobManagerMetricsMessageParameters> {
 
 	public JobManagerMetricsHandler(
-			final CompletableFuture<String> localRestAddress,
 			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout,
 			final Map<String, String> headers,
 			final MetricFetcher metricFetcher) {
-		super(localRestAddress, leaderRetriever, timeout, headers, JobManagerMetricsHeaders.getInstance(),
-			metricFetcher);
+		super(leaderRetriever, timeout, headers, JobManagerMetricsHeaders.getInstance(), metricFetcher);
 	}
 
 	@Nullable

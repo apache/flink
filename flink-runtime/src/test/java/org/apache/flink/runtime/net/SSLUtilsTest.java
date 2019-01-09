@@ -21,11 +21,13 @@ package org.apache.flink.runtime.net;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 
 import org.junit.Test;
 
-import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLServerSocket;
 
 import java.net.ServerSocket;
@@ -78,6 +80,28 @@ public class SSLUtilsTest extends TestLogger {
 		assertFalse(SSLUtils.isRestSSLEnabled(precedence));
 	}
 
+	/**
+	 * Tests whether activation of REST mutual SSL authentication evaluates the config flags correctly.
+	 */
+	@Test
+	public void checkEnableRestSSLAuthentication() {
+		// SSL has to be enabled
+		Configuration noSSLOptions = new Configuration();
+		noSSLOptions.setBoolean(SecurityOptions.SSL_REST_ENABLED, false);
+		noSSLOptions.setBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
+		assertFalse(SSLUtils.isRestSSLAuthenticationEnabled(noSSLOptions));
+
+		// authentication is disabled by default
+		Configuration defaultOptions = new Configuration();
+		defaultOptions.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+		assertFalse(SSLUtils.isRestSSLAuthenticationEnabled(defaultOptions));
+
+		Configuration options = new Configuration();
+		noSSLOptions.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+		noSSLOptions.setBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
+		assertTrue(SSLUtils.isRestSSLAuthenticationEnabled(noSSLOptions));
+	}
+
 	@Test
 	public void testSocketFactoriesWhenSslDisabled() throws Exception {
 		Configuration config = new Configuration();
@@ -102,7 +126,7 @@ public class SSLUtilsTest extends TestLogger {
 	public void testRESTClientSSL() throws Exception {
 		Configuration clientConfig = createRestSslConfigWithTrustStore();
 
-		SSLEngineFactory ssl = SSLUtils.createRestClientSSLEngineFactory(clientConfig);
+		SSLHandlerFactory ssl = SSLUtils.createRestClientSSLEngineFactory(clientConfig);
 		assertNotNull(ssl);
 	}
 
@@ -173,7 +197,7 @@ public class SSLUtilsTest extends TestLogger {
 	public void testRESTServerSSL() throws Exception {
 		Configuration serverConfig = createRestSslConfigWithKeyStore();
 
-		SSLEngineFactory ssl = SSLUtils.createRestServerSSLEngineFactory(serverConfig);
+		SSLHandlerFactory ssl = SSLUtils.createRestServerSSLEngineFactory(serverConfig);
 		assertNotNull(ssl);
 	}
 
@@ -351,7 +375,7 @@ public class SSLUtilsTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that {@link SSLEngineFactory} is created correctly.
+	 * Tests that {@link SSLHandlerFactory} is created correctly.
 	 */
 	@Test
 	public void testCreateSSLEngineFactory() throws Exception {
@@ -361,14 +385,14 @@ public class SSLUtilsTest extends TestLogger {
 		serverConfig.setString(SecurityOptions.SSL_PROTOCOL, "TLSv1");
 		serverConfig.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA256");
 
-		final SSLEngineFactory serverSSLEngineFactory = SSLUtils.createInternalServerSSLEngineFactory(serverConfig);
-		final SSLEngine sslEngine = serverSSLEngineFactory.createSSLEngine();
+		final SSLHandlerFactory serverSSLHandlerFactory = SSLUtils.createInternalServerSSLEngineFactory(serverConfig);
+		final SslHandler sslHandler = serverSSLHandlerFactory.createNettySSLHandler();
 
-		assertEquals(1, sslEngine.getEnabledProtocols().length);
-		assertEquals("TLSv1", sslEngine.getEnabledProtocols()[0]);
+		assertEquals(1, sslHandler.engine().getEnabledProtocols().length);
+		assertEquals("TLSv1", sslHandler.engine().getEnabledProtocols()[0]);
 
-		assertEquals(2, sslEngine.getEnabledCipherSuites().length);
-		assertThat(sslEngine.getEnabledCipherSuites(), arrayContainingInAnyOrder(
+		assertEquals(2, sslHandler.engine().getEnabledCipherSuites().length);
+		assertThat(sslHandler.engine().getEnabledCipherSuites(), arrayContainingInAnyOrder(
 				"TLS_DHE_RSA_WITH_AES_128_CBC_SHA", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256"));
 	}
 

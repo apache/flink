@@ -32,44 +32,30 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.TransientBlobCache;
-import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
-import org.apache.flink.runtime.dispatcher.Dispatcher;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.dispatcher.DispatcherId;
-import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.MiniDispatcher;
+import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
+import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
-import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
-import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
@@ -79,28 +65,31 @@ import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Base class for the Flink cluster entry points.
  *
  * <p>Specialization of this class can be used for the session mode and the per-job mode
  */
-public abstract class ClusterEntrypoint implements FatalErrorHandler {
+public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErrorHandler {
 
 	public static final ConfigOption<String> EXECUTION_MODE = ConfigOptions
 		.key("internal.cluster.execution-mode")
@@ -108,20 +97,22 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(ClusterEntrypoint.class);
 
-	protected static final int SUCCESS_RETURN_CODE = 0;
 	protected static final int STARTUP_FAILURE_RETURN_CODE = 1;
 	protected static final int RUNTIME_FAILURE_RETURN_CODE = 2;
+
+	private static final Time INITIALIZATION_SHUTDOWN_TIMEOUT = Time.seconds(30L);
 
 	/** The lock to guard startup / shutdown / manipulation methods. */
 	private final Object lock = new Object();
 
 	private final Configuration configuration;
 
-	private final CompletableFuture<Void> terminationFuture;
-
-	private final AtomicBoolean isTerminating = new AtomicBoolean(false);
+	private final CompletableFuture<ApplicationStatus> terminationFuture;
 
 	private final AtomicBoolean isShutDown = new AtomicBoolean(false);
+
+	@GuardedBy("lock")
+	private DispatcherResourceManagerComponent<?> clusterComponent;
 
 	@GuardedBy("lock")
 	private MetricRegistryImpl metricRegistry;
@@ -139,31 +130,13 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 	private RpcService commonRpcService;
 
 	@GuardedBy("lock")
-	private ResourceManager<?> resourceManager;
-
-	@GuardedBy("lock")
-	private Dispatcher dispatcher;
-
-	@GuardedBy("lock")
-	private LeaderRetrievalService dispatcherLeaderRetrievalService;
-
-	@GuardedBy("lock")
-	private LeaderRetrievalService resourceManagerRetrievalService;
-
-	@GuardedBy("lock")
-	private WebMonitorEndpoint<?> webMonitorEndpoint;
+	private ActorSystem metricQueryServiceActorSystem;
 
 	@GuardedBy("lock")
 	private ArchivedExecutionGraphStore archivedExecutionGraphStore;
 
 	@GuardedBy("lock")
 	private TransientBlobCache transientBlobCache;
-
-	@GuardedBy("lock")
-	private ClusterInformation clusterInformation;
-
-	@GuardedBy("lock")
-	private JobManagerMetricGroup jobManagerMetricGroup;
 
 	private final Thread shutDownHook;
 
@@ -174,11 +147,11 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		shutDownHook = ShutdownHookUtil.addShutdownHook(this::cleanupDirectories, getClass().getSimpleName(), LOG);
 	}
 
-	public CompletableFuture<Void> getTerminationFuture() {
+	public CompletableFuture<ApplicationStatus> getTerminationFuture() {
 		return terminationFuture;
 	}
 
-	protected void startCluster() {
+	public void startCluster() throws ClusterEntrypointException {
 		LOG.info("Starting {}.", getClass().getSimpleName());
 
 		try {
@@ -192,17 +165,25 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				return null;
 			});
 		} catch (Throwable t) {
-			LOG.error("Cluster initialization failed.", t);
+			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
 
-			shutDownAndTerminate(
-				STARTUP_FAILURE_RETURN_CODE,
-				ApplicationStatus.FAILED,
-				t.getMessage(),
-				false);
+			try {
+				// clean up any partial state
+				shutDownAsync(
+					ApplicationStatus.FAILED,
+					ExceptionUtils.stringifyException(strippedThrowable),
+					false).get(INITIALIZATION_SHUTDOWN_TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+			} catch (InterruptedException | ExecutionException | TimeoutException e) {
+				strippedThrowable.addSuppressed(e);
+			}
+
+			throw new ClusterEntrypointException(
+				String.format("Failed to initialize the cluster entrypoint %s.", getClass().getSimpleName()),
+				strippedThrowable);
 		}
 	}
 
-	protected void configureFileSystems(Configuration configuration) throws Exception {
+	private void configureFileSystems(Configuration configuration) throws Exception {
 		LOG.info("Install default filesystem.");
 
 		try {
@@ -221,7 +202,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		return SecurityUtils.getInstalledContext();
 	}
 
-	protected void runCluster(Configuration configuration) throws Exception {
+	private void runCluster(Configuration configuration) throws Exception {
 		synchronized (lock) {
 			initializeServices(configuration);
 
@@ -229,27 +210,36 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			configuration.setString(JobManagerOptions.ADDRESS, commonRpcService.getAddress());
 			configuration.setInteger(JobManagerOptions.PORT, commonRpcService.getPort());
 
-			startClusterComponents(
+			final DispatcherResourceManagerComponentFactory<?> dispatcherResourceManagerComponentFactory = createDispatcherResourceManagerComponentFactory(configuration);
+
+			clusterComponent = dispatcherResourceManagerComponentFactory.create(
 				configuration,
 				commonRpcService,
 				haServices,
 				blobServer,
 				heartbeatServices,
-				metricRegistry);
+				metricRegistry,
+				archivedExecutionGraphStore,
+				new AkkaQueryServiceRetriever(
+					metricQueryServiceActorSystem,
+					Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT))),
+				this);
 
-			dispatcher.getTerminationFuture().whenComplete(
-				(Void value, Throwable throwable) -> {
+			clusterComponent.getShutDownFuture().whenComplete(
+				(ApplicationStatus applicationStatus, Throwable throwable) -> {
 					if (throwable != null) {
-						LOG.info("Could not properly terminate the Dispatcher.", throwable);
+						shutDownAsync(
+							ApplicationStatus.UNKNOWN,
+							ExceptionUtils.stringifyException(throwable),
+							false);
+					} else {
+						// This is the general shutdown path. If a separate more specific shutdown was
+						// already triggered, this will do nothing
+						shutDownAsync(
+							applicationStatus,
+							null,
+							true);
 					}
-
-					// This is the general shutdown path. If a separate more specific shutdown was
-					// already triggered, this will do nothing
-					shutDownAndTerminate(
-						SUCCESS_RETURN_CODE,
-						ApplicationStatus.SUCCEEDED,
-						throwable != null ? throwable.getMessage() : null,
-						true);
 				});
 		}
 	}
@@ -275,106 +265,23 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			metricRegistry = createMetricRegistry(configuration);
 
 			// TODO: This is a temporary hack until we have ported the MetricQueryService to the new RpcEndpoint
-			// start the MetricQueryService
-			final ActorSystem actorSystem = ((AkkaRpcService) commonRpcService).getActorSystem();
-			metricRegistry.startQueryService(actorSystem, null);
+			// Start actor system for metric query service on any available port
+			metricQueryServiceActorSystem = MetricUtils.startMetricsActorSystem(configuration, bindAddress, LOG);
+			metricRegistry.startQueryService(metricQueryServiceActorSystem, null);
 
 			archivedExecutionGraphStore = createSerializableExecutionGraphStore(configuration, commonRpcService.getScheduledExecutor());
-
-			clusterInformation = new ClusterInformation(
-				commonRpcService.getAddress(),
-				blobServer.getPort());
 
 			transientBlobCache = new TransientBlobCache(
 				configuration,
 				new InetSocketAddress(
-					clusterInformation.getBlobServerHostname(),
-					clusterInformation.getBlobServerPort()));
+					commonRpcService.getAddress(),
+					blobServer.getPort()));
 		}
 	}
 
-	protected void startClusterComponents(
-			Configuration configuration,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			BlobServer blobServer,
-			HeartbeatServices heartbeatServices,
-			MetricRegistry metricRegistry) throws Exception {
-		synchronized (lock) {
-			dispatcherLeaderRetrievalService = highAvailabilityServices.getDispatcherLeaderRetriever();
-
-			resourceManagerRetrievalService = highAvailabilityServices.getResourceManagerLeaderRetriever();
-
-			LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever = new RpcGatewayRetriever<>(
-				rpcService,
-				DispatcherGateway.class,
-				DispatcherId::fromUuid,
-				10,
-				Time.milliseconds(50L));
-
-			LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever = new RpcGatewayRetriever<>(
-				rpcService,
-				ResourceManagerGateway.class,
-				ResourceManagerId::fromUuid,
-				10,
-				Time.milliseconds(50L));
-
-			// TODO: Remove once we have ported the MetricFetcher to the RpcEndpoint
-			final ActorSystem actorSystem = ((AkkaRpcService) rpcService).getActorSystem();
-			final Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
-
-			webMonitorEndpoint = createRestEndpoint(
-				configuration,
-				dispatcherGatewayRetriever,
-				resourceManagerGatewayRetriever,
-				transientBlobCache,
-				rpcService.getExecutor(),
-				new AkkaQueryServiceRetriever(actorSystem, timeout),
-				highAvailabilityServices.getWebMonitorLeaderElectionService());
-
-			LOG.debug("Starting Dispatcher REST endpoint.");
-			webMonitorEndpoint.start();
-
-			resourceManager = createResourceManager(
-				configuration,
-				ResourceID.generate(),
-				rpcService,
-				highAvailabilityServices,
-				heartbeatServices,
-				metricRegistry,
-				this,
-				clusterInformation,
-				webMonitorEndpoint.getRestBaseUrl());
-
-			jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(
-				metricRegistry,
-				rpcService.getAddress(),
-				ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
-
-			final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, webMonitorEndpoint);
-
-			dispatcher = createDispatcher(
-				configuration,
-				rpcService,
-				highAvailabilityServices,
-				resourceManager.getSelfGateway(ResourceManagerGateway.class),
-				blobServer,
-				heartbeatServices,
-				jobManagerMetricGroup,
-				metricRegistry.getMetricQueryServicePath(),
-				archivedExecutionGraphStore,
-				this,
-				webMonitorEndpoint.getRestBaseUrl(),
-				historyServerArchivist);
-
-			LOG.debug("Starting ResourceManager.");
-			resourceManager.start();
-			resourceManagerRetrievalService.start(resourceManagerGatewayRetriever);
-
-			LOG.debug("Starting Dispatcher.");
-			dispatcher.start();
-			dispatcherLeaderRetrievalService.start(dispatcherGatewayRetriever);
-		}
+	@Nonnull
+	private RpcService createRpcService(Configuration configuration, String bindAddress, String portRange) throws Exception {
+		return AkkaRpcServiceUtils.createRpcService(bindAddress, portRange, configuration);
 	}
 
 	/**
@@ -389,15 +296,6 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		} else {
 			return String.valueOf(configuration.getInteger(JobManagerOptions.PORT));
 		}
-	}
-
-	protected RpcService createRpcService(
-			Configuration configuration,
-			String bindAddress,
-			String portRange) throws Exception {
-		ActorSystem actorSystem = BootstrapTools.startActorSystem(configuration, bindAddress, portRange, LOG);
-		FiniteDuration duration = AkkaUtils.getTimeout(configuration);
-		return new AkkaRpcService(actorSystem, Time.of(duration.length(), duration.unit()));
 	}
 
 	protected HighAvailabilityServices createHaServices(
@@ -415,6 +313,14 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 
 	protected MetricRegistryImpl createMetricRegistry(Configuration configuration) {
 		return new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(configuration));
+	}
+
+	@Override
+	public CompletableFuture<Void> closeAsync() {
+		return shutDownAsync(
+			ApplicationStatus.UNKNOWN,
+			"Cluster entrypoint has been closed externally.",
+			true).thenAccept(ignored -> {});
 	}
 
 	protected CompletableFuture<Void> stopClusterServices(boolean cleanupHaData) {
@@ -463,6 +369,10 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				terminationFutures.add(metricRegistry.shutdown());
 			}
 
+			if (metricQueryServiceActorSystem != null) {
+				terminationFutures.add(AkkaUtils.terminateActorSystem(metricQueryServiceActorSystem));
+			}
+
 			if (commonRpcService != null) {
 				terminationFutures.add(commonRpcService.stopService());
 			}
@@ -472,63 +382,6 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			}
 
 			return FutureUtils.completeAll(terminationFutures);
-		}
-	}
-
-	protected CompletableFuture<Void> stopClusterComponents() {
-		synchronized (lock) {
-
-			Exception exception = null;
-
-			final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(4);
-
-			if (dispatcherLeaderRetrievalService != null) {
-				try {
-					dispatcherLeaderRetrievalService.stop();
-				} catch (Exception e) {
-					exception = ExceptionUtils.firstOrSuppressed(e, exception);
-				}
-			}
-
-			if (resourceManagerRetrievalService != null) {
-				try {
-					resourceManagerRetrievalService.stop();
-				} catch (Exception e) {
-					exception = ExceptionUtils.firstOrSuppressed(e, exception);
-				}
-			}
-
-			if (webMonitorEndpoint != null) {
-				terminationFutures.add(webMonitorEndpoint.closeAsync());
-			}
-
-			if (dispatcher != null) {
-				dispatcher.shutDown();
-				terminationFutures.add(dispatcher.getTerminationFuture());
-			}
-
-			if (resourceManager != null) {
-				resourceManager.shutDown();
-				terminationFutures.add(resourceManager.getTerminationFuture());
-			}
-
-			if (exception != null) {
-				terminationFutures.add(FutureUtils.completedExceptionally(exception));
-			}
-
-			final CompletableFuture<Void> componentTerminationFuture = FutureUtils.completeAll(terminationFutures);
-
-			if (jobManagerMetricGroup != null) {
-				return FutureUtils.runAfterwards(
-					componentTerminationFuture,
-					() -> {
-						synchronized (lock) {
-							jobManagerMetricGroup.close();
-						}
-					});
-			} else {
-				return componentTerminationFuture;
-			}
 		}
 	}
 
@@ -554,21 +407,20 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		return resultConfiguration;
 	}
 
-	private CompletableFuture<Void> shutDownAsync(
-			boolean cleanupHaData,
+	private CompletableFuture<ApplicationStatus> shutDownAsync(
 			ApplicationStatus applicationStatus,
-			@Nullable String diagnostics) {
+			@Nullable String diagnostics,
+			boolean cleanupHaData) {
 		if (isShutDown.compareAndSet(false, true)) {
-			LOG.info("Stopping {}.", getClass().getSimpleName());
+			LOG.info("Shutting {} down with application status {}. Diagnostics {}.",
+				getClass().getSimpleName(),
+				applicationStatus,
+				diagnostics);
 
-			final CompletableFuture<Void> shutDownApplicationFuture = deregisterApplication(applicationStatus, diagnostics);
-
-			final CompletableFuture<Void> componentShutdownFuture = FutureUtils.composeAfterwards(
-				shutDownApplicationFuture,
-				this::stopClusterComponents);
+			final CompletableFuture<Void> shutDownApplicationFuture = closeClusterComponent(applicationStatus, diagnostics);
 
 			final CompletableFuture<Void> serviceShutdownFuture = FutureUtils.composeAfterwards(
-				componentShutdownFuture,
+				shutDownApplicationFuture,
 				() -> stopClusterServices(cleanupHaData));
 
 			final CompletableFuture<Void> cleanupDirectoriesFuture = FutureUtils.runAfterwards(
@@ -580,42 +432,12 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 					if (serviceThrowable != null) {
 						terminationFuture.completeExceptionally(serviceThrowable);
 					} else {
-						terminationFuture.complete(null);
+						terminationFuture.complete(applicationStatus);
 					}
 				});
 		}
 
 		return terminationFuture;
-	}
-
-	protected void shutDownAndTerminate(
-		int returnCode,
-		ApplicationStatus applicationStatus,
-		@Nullable String diagnostics,
-		boolean cleanupHaData) {
-
-		if (isTerminating.compareAndSet(false, true)) {
-			LOG.info("Shut down and terminate {} with return code {} and application status {}.",
-				getClass().getSimpleName(),
-				returnCode,
-				applicationStatus);
-
-			shutDownAsync(
-				cleanupHaData,
-				applicationStatus,
-				diagnostics).whenComplete(
-				(Void ignored, Throwable t) -> {
-					if (t != null) {
-						LOG.info("Could not properly shut down cluster entrypoint.", t);
-					}
-
-					System.exit(returnCode);
-				});
-		} else {
-			LOG.debug("Concurrent termination call detected. Ignoring termination call with return code {} and application status {}.",
-				returnCode,
-				applicationStatus);
-		}
 	}
 
 	/**
@@ -626,11 +448,10 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 	 * @param diagnostics additional information about the shut down, can be {@code null}
 	 * @return Future which is completed once the shut down
 	 */
-	private CompletableFuture<Void> deregisterApplication(ApplicationStatus applicationStatus, @Nullable String diagnostics) {
+	private CompletableFuture<Void> closeClusterComponent(ApplicationStatus applicationStatus, @Nullable String diagnostics) {
 		synchronized (lock) {
-			if (resourceManager != null) {
-				final ResourceManagerGateway selfGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
-				return selfGateway.deregisterApplication(applicationStatus, diagnostics).thenApply(ack -> null);
+			if (clusterComponent != null) {
+				return clusterComponent.deregisterApplicationAndClose(applicationStatus, diagnostics);
 			} else {
 				return CompletableFuture.completedFuture(null);
 			}
@@ -654,39 +475,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 	// Abstract methods
 	// --------------------------------------------------
 
-	protected abstract Dispatcher createDispatcher(
-		Configuration configuration,
-		RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices,
-		ResourceManagerGateway resourceManagerGateway,
-		BlobServer blobServer,
-		HeartbeatServices heartbeatServices,
-		JobManagerMetricGroup jobManagerMetricGroup,
-		@Nullable String metricQueryServicePath,
-		ArchivedExecutionGraphStore archivedExecutionGraphStore,
-		FatalErrorHandler fatalErrorHandler,
-		@Nullable String restAddress,
-		HistoryServerArchivist historyServerArchivist) throws Exception;
-
-	protected abstract ResourceManager<?> createResourceManager(
-		Configuration configuration,
-		ResourceID resourceId,
-		RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices,
-		HeartbeatServices heartbeatServices,
-		MetricRegistry metricRegistry,
-		FatalErrorHandler fatalErrorHandler,
-		ClusterInformation clusterInformation,
-		@Nullable String webInterfaceUrl) throws Exception;
-
-	protected abstract WebMonitorEndpoint<?> createRestEndpoint(
-		Configuration configuration,
-		LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever,
-		LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-		TransientBlobService transientBlobService,
-		Executor executor,
-		MetricQueryServiceRetriever metricQueryServiceRetriever,
-		LeaderElectionService leaderElectionService) throws Exception;
+	protected abstract DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(Configuration configuration);
 
 	protected abstract ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
 		Configuration configuration,
@@ -708,7 +497,41 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			configuration.setInteger(RestOptions.PORT, restPort);
 		}
 
+		final String hostname = entrypointClusterConfiguration.getHostname();
+
+		if (hostname != null) {
+			configuration.setString(JobManagerOptions.ADDRESS, hostname);
+		}
+
 		return configuration;
+	}
+
+	// --------------------------------------------------
+	// Helper methods
+	// --------------------------------------------------
+
+	public static void runClusterEntrypoint(ClusterEntrypoint clusterEntrypoint) {
+
+		final String clusterEntrypointName = clusterEntrypoint.getClass().getSimpleName();
+		try {
+			clusterEntrypoint.startCluster();
+		} catch (ClusterEntrypointException e) {
+			LOG.error(String.format("Could not start cluster entrypoint %s.", clusterEntrypointName), e);
+			System.exit(STARTUP_FAILURE_RETURN_CODE);
+		}
+
+		clusterEntrypoint.getTerminationFuture().whenComplete((applicationStatus, throwable) -> {
+			final int returnCode;
+
+			if (throwable != null) {
+				returnCode = RUNTIME_FAILURE_RETURN_CODE;
+			} else {
+				returnCode = applicationStatus.processExitCode();
+			}
+
+			LOG.info("Terminating cluster entrypoint process {} with exit code {}.", clusterEntrypointName, returnCode, throwable);
+			System.exit(returnCode);
+		});
 	}
 
 	/**

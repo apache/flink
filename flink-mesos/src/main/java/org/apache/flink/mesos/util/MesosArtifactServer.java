@@ -24,7 +24,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.mesos.configuration.MesosOptions;
-import org.apache.flink.runtime.net.SSLEngineFactory;
+import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
 import org.apache.flink.runtime.rest.handler.router.Router;
@@ -51,15 +51,12 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCodec;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
-import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedStream;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 import org.apache.flink.shaded.netty4.io.netty.util.CharsetUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.net.ssl.SSLEngine;
 
 import java.io.File;
 import java.io.IOException;
@@ -115,7 +112,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 				MesosOptions.ARTIFACT_SERVER_SSL_ENABLED) &&
 				SSLUtils.isRestSSLEnabled(config);
 
-		final SSLEngineFactory sslFactory;
+		final SSLHandlerFactory sslFactory;
 		if (enableSSL) {
 			LOG.info("Enabling ssl for the artifact server");
 			try {
@@ -138,8 +135,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 
 				// SSL should be the first handler in the pipeline
 				if (sslFactory != null) {
-					SSLEngine sslEngine = sslFactory.createSSLEngine();
-					ch.pipeline().addLast("ssl", new SslHandler(sslEngine));
+					ch.pipeline().addLast("ssl", sslFactory.createNettySSLHandler());
 				}
 
 				ch.pipeline()

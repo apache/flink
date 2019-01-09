@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.descriptors;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 
 /**
  * Validator for {@link Avro}.
  */
+@Internal
 public class AvroValidator extends FormatDescriptorValidator {
 
 	public static final String FORMAT_TYPE_VALUE = "avro";

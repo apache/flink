@@ -72,10 +72,16 @@ The following configuration methods can be used:
 4. _setMapperOptions(MapperOptions options)_
     * Sets the mapper options that are used to configure the DataStax ObjectMapper.
     * Only applies when processing __POJO__ data types.
-5. _enableWriteAheadLog([CheckpointCommitter committer])_
+5. _setMaxConcurrentRequests(int maxConcurrentRequests, Duration timeout)_
+    * Sets the maximum allowed number of concurrent requests with a timeout for acquiring permits to execute.
+    * Only applies when __enableWriteAheadLog()__ is not configured.
+6. _enableWriteAheadLog([CheckpointCommitter committer])_
     * An __optional__ setting
     * Allows exactly-once processing for non-deterministic algorithms.
-6. _build()_
+7. _setFailureHandler([CassandraFailureHandler failureHandler])_
+    * An __optional__ setting
+    * Sets the custom failure handler.
+8. _build()_
     * Finalizes the configuration and constructs the CassandraSink instance.
 
 ### Write-ahead Log

@@ -33,6 +33,7 @@ import org.apache.flink.metrics.reporter.Scheduled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ConcurrentModificationException;
 import java.util.Map;
 
 /**
@@ -75,6 +76,16 @@ public class Slf4jReporter extends AbstractReporter implements Scheduled {
 
 	@Override
 	public void report() {
+		try {
+			tryReport();
+		}
+		catch (ConcurrentModificationException ignored) {
+			// at tryReport() we don't synchronize while iterating over the various maps which might cause a
+			// ConcurrentModificationException to be thrown, if concurrently a metric is being added or removed.
+		}
+	}
+
+	private void tryReport() {
 		// initialize with previous size to avoid repeated resizing of backing array
 		// pad the size to allow deviations in the final string, for example due to different double value representations
 		StringBuilder builder = new StringBuilder((int) (previousSize * 1.1));

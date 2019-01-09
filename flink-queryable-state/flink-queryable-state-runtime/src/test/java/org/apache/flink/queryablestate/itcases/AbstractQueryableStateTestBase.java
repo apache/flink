@@ -836,9 +836,11 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 							false,
 							executor);
 
-					Tuple2<Integer, Long> value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get(key);
-					assertEquals("Key mismatch", key, value.f0.intValue());
-					if (expected == value.f1) {
+					Tuple2<Integer, Long> value =
+						future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get(key);
+
+					if (value != null && value.f0 != null && expected == value.f1) {
+						assertEquals("Key mismatch", key, value.f0.intValue());
 						success = true;
 					} else {
 						// Retry
@@ -1271,7 +1273,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			// Free cluster resources
 			clusterClient.cancel(jobId);
 			// cancel() is non-blocking so do this to make sure the job finished
-			CompletableFuture<JobStatus> jobStatusFuture = FutureUtils.retrySuccesfulWithDelay(
+			CompletableFuture<JobStatus> jobStatusFuture = FutureUtils.retrySuccessfulWithDelay(
 				() -> clusterClient.getJobStatus(jobId),
 				Time.milliseconds(50),
 				deadline,

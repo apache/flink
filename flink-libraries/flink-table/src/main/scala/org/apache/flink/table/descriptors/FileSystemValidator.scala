@@ -28,8 +28,8 @@ class FileSystemValidator extends ConnectorDescriptorValidator {
 
   override def validate(properties: DescriptorProperties): Unit = {
     super.validate(properties)
-    properties.validateValue(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE, isOptional = false)
-    properties.validateString(CONNECTOR_PATH, isOptional = false, minLen = 1)
+    properties.validateValue(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE, false)
+    properties.validateString(CONNECTOR_PATH, false, 1)
   }
 }
 

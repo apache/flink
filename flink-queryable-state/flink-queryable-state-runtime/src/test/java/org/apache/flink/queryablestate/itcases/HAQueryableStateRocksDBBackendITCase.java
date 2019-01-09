@@ -27,8 +27,8 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 
 import org.apache.curator.test.TestingServer;
 import org.junit.AfterClass;
@@ -55,7 +55,7 @@ public class HAQueryableStateRocksDBBackendITCase extends AbstractQueryableState
 
 	private static TestingServer zkServer;
 
-	private static MiniClusterResource miniClusterResource;
+	private static MiniClusterWithClientResource miniClusterResource;
 
 	@Override
 	protected AbstractStateBackend createStateBackend() throws Exception {
@@ -68,7 +68,7 @@ public class HAQueryableStateRocksDBBackendITCase extends AbstractQueryableState
 
 		// we have to manage this manually because we have to create the ZooKeeper server
 		// ahead of this
-		miniClusterResource = new MiniClusterResource(
+		miniClusterResource = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()
 				.setConfiguration(getConfig())
 				.setNumberTaskManagers(NUM_TMS)

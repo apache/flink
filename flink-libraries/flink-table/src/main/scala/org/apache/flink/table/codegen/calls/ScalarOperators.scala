@@ -191,7 +191,45 @@ object ScalarOperators {
           )
         )
     }
-  }  
+  }
+
+  def generateIsNotDistinctFrom(
+      nullCheck: Boolean,
+      left: GeneratedExpression,
+      right: GeneratedExpression)
+    : GeneratedExpression = {
+
+    if (nullCheck) {
+      val resultTerm = newName("result")
+      val resultTypeTerm = primitiveTypeTermForTypeInfo(BOOLEAN_TYPE_INFO)
+      val equalExpression = generateEquals(
+        nullCheck = false,
+        left.copy(code = GeneratedExpression.NO_CODE),
+        right.copy(code = GeneratedExpression.NO_CODE))
+
+      val resultCode =
+        s"""
+          |${left.code}
+          |${right.code}
+          |$resultTypeTerm $resultTerm;
+          |if (${left.nullTerm}) {
+          |  $resultTerm = ${right.nullTerm};
+          |} else if (${right.nullTerm}) {
+          |  $resultTerm = ${left.nullTerm};
+          |} else {
+          |  ${equalExpression.code}
+          |  $resultTerm = ${equalExpression.resultTerm};
+          |}
+          |""".stripMargin
+
+      GeneratedExpression(
+        resultTerm,
+        GeneratedExpression.NEVER_NULL,
+        resultCode, BOOLEAN_TYPE_INFO)
+    } else {
+      generateEquals(nullCheck = false, left, right)
+    }
+  }
   
   def generateEquals(
       nullCheck: Boolean,
@@ -825,6 +863,7 @@ object ScalarOperators {
   def generateTemporalPlusMinus(
       plus: Boolean,
       nullCheck: Boolean,
+      resultType: TypeInformation[_],
       left: GeneratedExpression,
       right: GeneratedExpression,
       config: TableConfig)
@@ -833,12 +872,20 @@ object ScalarOperators {
     val op = if (plus) "+" else "-"
 
     (left.resultType, right.resultType) match {
+      // arithmetic of time point and time interval
       case (l: TimeIntervalTypeInfo[_], r: TimeIntervalTypeInfo[_]) if l == r =>
         generateArithmeticOperator(op, nullCheck, l, left, right, config)
 
       case (SqlTimeTypeInfo.DATE, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
-        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, left, right) {
-            (l, r) => s"$l $op ((int) ($r / ${MILLIS_PER_DAY}L))"
+        resultType match {
+          case SqlTimeTypeInfo.DATE =>
+            generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, left, right) {
+              (l, r) => s"$l $op ((int) ($r / ${MILLIS_PER_DAY}L))"
+            }
+          case SqlTimeTypeInfo.TIMESTAMP =>
+            generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
+              (l, r) => s"$l * ${MILLIS_PER_DAY}L $op $r"
+            }
         }
 
       case (SqlTimeTypeInfo.DATE, TimeIntervalTypeInfo.INTERVAL_MONTHS) =>
@@ -859,6 +906,38 @@ object ScalarOperators {
       case (SqlTimeTypeInfo.TIMESTAMP, TimeIntervalTypeInfo.INTERVAL_MONTHS) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
           (l, r) => s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($l, $op($r))"
+        }
+
+      // minus arithmetic of time points (i.e. for TIMESTAMPDIFF)
+      case (l: SqlTimeTypeInfo[_], r: SqlTimeTypeInfo[_]) if !plus =>
+        resultType match {
+          case TimeIntervalTypeInfo.INTERVAL_MONTHS =>
+            generateOperatorIfNotNull(nullCheck, resultType, left, right) {
+              (ll, rr) => (l, r) match {
+                case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.DATE) =>
+                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}" +
+                    s"($ll, $rr * ${MILLIS_PER_DAY}L)"
+                case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.TIMESTAMP) =>
+                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}" +
+                    s"($ll * ${MILLIS_PER_DAY}L, $rr)"
+                case _ =>
+                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}($ll, $rr)"
+               }
+            }
+
+          case TimeIntervalTypeInfo.INTERVAL_MILLIS =>
+            generateOperatorIfNotNull(nullCheck, resultType, left, right) {
+              (ll, rr) => (l, r) match {
+                case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.TIMESTAMP) =>
+                  s"$ll $op $rr"
+                case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.DATE) =>
+                  s"($ll * ${MILLIS_PER_DAY}L) $op ($rr * ${MILLIS_PER_DAY}L)"
+                case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.DATE) =>
+                  s"$ll $op ($rr * ${MILLIS_PER_DAY}L)"
+                case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.TIMESTAMP) =>
+                  s"($ll * ${MILLIS_PER_DAY}L) $op $rr"
+              }
+            }
         }
 
       case _ =>

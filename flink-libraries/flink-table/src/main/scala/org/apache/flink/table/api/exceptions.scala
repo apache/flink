@@ -21,6 +21,8 @@ package org.apache.flink.table.api
 import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.factories.TableFactory
 
+import _root_.scala.collection.JavaConverters._
+
 /**
   * Exception for all errors occurring during expression parsing.
   */
@@ -36,43 +38,6 @@ case class SqlParserException(
 
   def this(msg: String) = this(msg, null)
 
-}
-
-/**
-  * General Exception for all errors during table handling.
-  *
-  * This exception indicates that an internal error occurred or that a feature is not supported
-  * yet. Usually, this exception does not indicate a fault of the user.
-  */
-case class TableException(
-    msg: String,
-    cause: Throwable)
-  extends RuntimeException(msg, cause) {
-
-  def this(msg: String) = this(msg, null)
-
-}
-
-object TableException {
-  def apply(msg: String): TableException = new TableException(msg)
-}
-
-/**
-  * Exception for all errors occurring during validation phase.
-  *
-  * This exception indicates that the user did something wrong.
-  */
-case class ValidationException(
-    msg: String,
-    cause: Throwable)
-  extends RuntimeException(msg, cause) {
-
-  def this(msg: String) = this(msg, null)
-
-}
-
-object ValidationException {
-  def apply(msg: String): ValidationException = new ValidationException(msg)
 }
 
 /**
@@ -164,7 +129,7 @@ case class NoMatchingTableFactoryException(
         |Reason: $message
         |
         |The following properties are requested:
-        |${DescriptorProperties.toString(properties)}
+        |${DescriptorProperties.toString(properties.asJava)}
         |
         |The following factories have been considered:
         |${factories.map(_.getClass.getName).mkString("\n")}
@@ -203,7 +168,7 @@ case class AmbiguousTableFactoryException(
         |${matchingFactories.map(_.getClass.getName).mkString("\n")}
         |
         |The following properties are requested:
-        |${DescriptorProperties.toString(properties)}
+        |${DescriptorProperties.toString(properties.asJava)}
         |
         |The following factories have been considered:
         |${factories.map(_.getClass.getName).mkString("\n")}

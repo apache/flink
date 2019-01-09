@@ -38,6 +38,7 @@ import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -227,12 +228,18 @@ public class FileUtilsTest extends TestLogger {
 		assertEquals(expected.getFileName(), actual.getFileName());
 
 		if (Files.isDirectory(expected)) {
-			List<java.nio.file.Path> expectedContents = Files.list(expected)
-				.sorted(Comparator.comparing(java.nio.file.Path::toString))
-				.collect(Collectors.toList());
-			List<java.nio.file.Path> actualContents = Files.list(actual)
-				.sorted(Comparator.comparing(java.nio.file.Path::toString))
-				.collect(Collectors.toList());
+			List<java.nio.file.Path> expectedContents;
+			try (Stream<java.nio.file.Path> files = Files.list(expected)) {
+				expectedContents = files
+					.sorted(Comparator.comparing(java.nio.file.Path::toString))
+					.collect(Collectors.toList());
+			}
+			List<java.nio.file.Path> actualContents;
+			try (Stream<java.nio.file.Path> files = Files.list(actual)) {
+				actualContents = files
+					.sorted(Comparator.comparing(java.nio.file.Path::toString))
+					.collect(Collectors.toList());
+			}
 
 			assertEquals(expectedContents.size(), actualContents.size());
 

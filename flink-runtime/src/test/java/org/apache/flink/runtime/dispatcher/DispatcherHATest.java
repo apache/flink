@@ -30,9 +30,11 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmanager.StandaloneSubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -41,6 +43,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -110,8 +113,6 @@ public class DispatcherHATest extends TestLogger {
 	 */
 	@Test
 	public void testGrantingRevokingLeadership() throws Exception {
-
-		final Configuration configuration = new Configuration();
 		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
 		final JobGraph nonEmptyJobGraph = createNonEmptyJobGraph();
 		final SubmittedJobGraph submittedJobGraph = new SubmittedJobGraph(nonEmptyJobGraph, null);
@@ -124,20 +125,7 @@ public class DispatcherHATest extends TestLogger {
 
 		final BlockingQueue<DispatcherId> fencingTokens = new ArrayBlockingQueue<>(2);
 
-		final HATestingDispatcher dispatcher = new HATestingDispatcher(
-			rpcService,
-			UUID.randomUUID().toString(),
-			configuration,
-			highAvailabilityServices,
-			new TestingResourceManagerGateway(),
-			new BlobServer(configuration, new VoidBlobStore()),
-			new HeartbeatServices(1000L, 1000L),
-			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
-			null,
-			new MemoryArchivedExecutionGraphStore(),
-			new TestingJobManagerRunnerFactory(new CompletableFuture<>(), new CompletableFuture<>()),
-			testingFatalErrorHandler,
-			fencingTokens);
+		final HATestingDispatcher dispatcher = createHADispatcher(highAvailabilityServices, fencingTokens);
 
 		dispatcher.start();
 
@@ -162,9 +150,79 @@ public class DispatcherHATest extends TestLogger {
 	}
 
 	@Nonnull
-	private JobGraph createNonEmptyJobGraph() {
+	private HATestingDispatcher createHADispatcher(TestingHighAvailabilityServices highAvailabilityServices, BlockingQueue<DispatcherId> fencingTokens) throws Exception {
+		final Configuration configuration = new Configuration();
+		return new HATestingDispatcher(
+			rpcService,
+			UUID.randomUUID().toString(),
+			configuration,
+			highAvailabilityServices,
+			new TestingResourceManagerGateway(),
+			new BlobServer(configuration, new VoidBlobStore()),
+			new HeartbeatServices(1000L, 1000L),
+			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
+			null,
+			new MemoryArchivedExecutionGraphStore(),
+			new TestingJobManagerRunnerFactory(new CompletableFuture<>(), new CompletableFuture<>(), CompletableFuture.completedFuture(null)),
+			testingFatalErrorHandler,
+			fencingTokens);
+	}
+
+	/**
+	 * Tests that all JobManagerRunner are terminated if the leadership of the
+	 * Dispatcher is revoked.
+	 */
+	@Test
+	public void testRevokeLeadershipTerminatesJobManagerRunners() throws Exception {
+
+		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
+		highAvailabilityServices.setSubmittedJobGraphStore(new StandaloneSubmittedJobGraphStore());
+
+		final TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
+		highAvailabilityServices.setDispatcherLeaderElectionService(leaderElectionService);
+
+		final ArrayBlockingQueue<DispatcherId> fencingTokens = new ArrayBlockingQueue<>(2);
+		final HATestingDispatcher dispatcher = createHADispatcher(
+			highAvailabilityServices,
+			fencingTokens);
+
+		dispatcher.start();
+
+		try {
+			// grant leadership and submit a single job
+			final DispatcherId expectedDispatcherId = DispatcherId.generate();
+
+			leaderElectionService.isLeader(expectedDispatcherId.toUUID()).get();
+
+			assertThat(fencingTokens.take(), is(equalTo(expectedDispatcherId)));
+
+			final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+			final CompletableFuture<Acknowledge> submissionFuture = dispatcherGateway.submitJob(createNonEmptyJobGraph(), timeout);
+
+			submissionFuture.get();
+
+			assertThat(dispatcher.getNumberJobs(timeout).get(), is(1));
+
+			// revoke the leadership --> this should stop all running JobManagerRunners
+			leaderElectionService.notLeader();
+
+			assertThat(fencingTokens.take(), is(equalTo(NULL_FENCING_TOKEN)));
+
+			assertThat(dispatcher.getNumberJobs(timeout).get(), is(0));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(dispatcher, timeout);
+		}
+	}
+
+	@Nonnull
+	public static JobGraph createNonEmptyJobGraph() {
 		final JobVertex noOpVertex = new JobVertex("NoOp vertex");
-		return new JobGraph(noOpVertex);
+		noOpVertex.setInvokableClass(NoOpInvokable.class);
+		final JobGraph jobGraph = new JobGraph(noOpVertex);
+		jobGraph.setAllowQueuedScheduling(true);
+
+		return jobGraph;
 	}
 
 	private static class HATestingDispatcher extends TestingDispatcher {
@@ -242,6 +300,9 @@ public class DispatcherHATest extends TestLogger {
 		public void removeJobGraph(JobID jobId) throws Exception {
 			throw new UnsupportedOperationException("Should not be called.");
 		}
+
+		@Override
+		public void releaseJobGraph(JobID jobId) throws Exception {}
 
 		@Override
 		public Collection<JobID> getJobIds() throws Exception {

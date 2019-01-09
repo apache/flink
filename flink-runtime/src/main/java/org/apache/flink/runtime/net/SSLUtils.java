@@ -22,14 +22,17 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 
 import javax.annotation.Nullable;
 import javax.net.ServerSocketFactory;
 import javax.net.SocketFactory;
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
 import java.io.File;
@@ -66,6 +69,15 @@ public class SSLUtils {
 	}
 
 	/**
+	 * Checks whether mutual SSL authentication for the external REST endpoint is enabled.
+	 */
+	public static boolean isRestSSLAuthenticationEnabled(Configuration sslConfig) {
+		checkNotNull(sslConfig, "sslConfig");
+		return isRestSSLEnabled(sslConfig) &&
+			sslConfig.getBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED);
+	}
+
+	/**
 	 * Creates a factory for SSL Server Sockets from the given configuration.
 	 * SSL Server Sockets are always part of internal communication.
 	 */
@@ -98,73 +110,81 @@ public class SSLUtils {
 	/**
 	 * Creates a SSLEngineFactory to be used by internal communication server endpoints.
 	 */
-	public static SSLEngineFactory createInternalServerSSLEngineFactory(final Configuration config) throws Exception {
+	public static SSLHandlerFactory createInternalServerSSLEngineFactory(final Configuration config) throws Exception {
 		SSLContext sslContext = createInternalSSLContext(config);
 		if (sslContext == null) {
 			throw new IllegalConfigurationException("SSL is not enabled for internal communication.");
 		}
 
-		return new SSLEngineFactory(
+		return new SSLHandlerFactory(
 				sslContext,
 				getEnabledProtocols(config),
 				getEnabledCipherSuites(config),
 				false,
-				true);
+				true,
+				config.getInteger(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT),
+				config.getInteger(SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT));
 	}
 
 	/**
 	 * Creates a SSLEngineFactory to be used by internal communication client endpoints.
 	 */
-	public static SSLEngineFactory createInternalClientSSLEngineFactory(final Configuration config) throws Exception {
+	public static SSLHandlerFactory createInternalClientSSLEngineFactory(final Configuration config) throws Exception {
 		SSLContext sslContext = createInternalSSLContext(config);
 		if (sslContext == null) {
 			throw new IllegalConfigurationException("SSL is not enabled for internal communication.");
 		}
 
-		return new SSLEngineFactory(
+		return new SSLHandlerFactory(
 				sslContext,
 				getEnabledProtocols(config),
 				getEnabledCipherSuites(config),
 				true,
-				true);
+				true,
+				config.getInteger(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT),
+				config.getInteger(SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT));
 	}
 
 	/**
-	 * Creates a {@link SSLEngineFactory} to be used by the REST Servers.
+	 * Creates a {@link SSLHandlerFactory} to be used by the REST Servers.
 	 *
 	 * @param config The application configuration.
 	 */
-	public static SSLEngineFactory createRestServerSSLEngineFactory(final Configuration config) throws Exception {
+	public static SSLHandlerFactory createRestServerSSLEngineFactory(final Configuration config) throws Exception {
 		SSLContext sslContext = createRestServerSSLContext(config);
 		if (sslContext == null) {
 			throw new IllegalConfigurationException("SSL is not enabled for REST endpoints.");
 		}
 
-		return new SSLEngineFactory(
+		return new SSLHandlerFactory(
 				sslContext,
 				getEnabledProtocols(config),
 				getEnabledCipherSuites(config),
 				false,
-				false);
+				isRestSSLAuthenticationEnabled(config),
+				-1,
+				-1);
 	}
 
 	/**
-	 * Creates a {@link SSLEngineFactory} to be used by the REST Clients.
+	 * Creates a {@link SSLHandlerFactory} to be used by the REST Clients.
 	 *
 	 * @param config The application configuration.
 	 */
-	public static SSLEngineFactory createRestClientSSLEngineFactory(final Configuration config) throws Exception {
+	public static SSLHandlerFactory createRestClientSSLEngineFactory(final Configuration config) throws Exception {
 		SSLContext sslContext = createRestClientSSLContext(config);
 		if (sslContext == null) {
 			throw new IllegalConfigurationException("SSL is not enabled for REST endpoints.");
 		}
 
-		return new SSLEngineFactory(
+		return new SSLHandlerFactory(
 				sslContext,
 				getEnabledProtocols(config),
 				getEnabledCipherSuites(config),
 				true,
-				false);
+				isRestSSLAuthenticationEnabled(config),
+				-1,
+				-1);
 	}
 
 	private static String[] getEnabledProtocols(final Configuration config) {
@@ -183,7 +203,7 @@ public class SSLUtils {
 	 * of mutual authentication.
 	 */
 	@Nullable
-	public static SSLContext createInternalSSLContext(Configuration config) throws Exception {
+	private static SSLContext createInternalSSLContext(Configuration config) throws Exception {
 		checkNotNull(config, "config");
 
 		if (!isInternalSSLEnabled(config)) {
@@ -205,6 +225,8 @@ public class SSLUtils {
 				config, SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, SecurityOptions.SSL_TRUSTSTORE_PASSWORD);
 
 		String sslProtocolVersion = config.getString(SecurityOptions.SSL_PROTOCOL);
+		int sessionCacheSize = config.getInteger(SecurityOptions.SSL_INTERNAL_SESSION_CACHE_SIZE);
+		int sessionTimeoutMs = config.getInteger(SecurityOptions.SSL_INTERNAL_SESSION_TIMEOUT);
 
 		KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
 		try (InputStream keyStoreFile = Files.newInputStream(new File(keystoreFilePath).toPath())) {
@@ -224,6 +246,78 @@ public class SSLUtils {
 
 		SSLContext sslContext = SSLContext.getInstance(sslProtocolVersion);
 		sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+		if (sessionCacheSize >= 0) {
+			sslContext.getClientSessionContext().setSessionCacheSize(sessionCacheSize);
+		}
+		if (sessionTimeoutMs >= 0) {
+			sslContext.getClientSessionContext().setSessionTimeout(sessionTimeoutMs / 1000);
+		}
+
+		return sslContext;
+	}
+
+	private enum RestSSLContextConfigMode {
+		CLIENT,
+		SERVER,
+		MUTUAL
+	}
+
+	/**
+	 * Creates an SSL context for the external REST SSL.
+	 * If mutual authentication is configured the client and the server side configuration are identical.
+	 */
+	@Nullable
+	private static SSLContext createRestSSLContext(Configuration config, RestSSLContextConfigMode configMode) throws Exception {
+		checkNotNull(config, "config");
+
+		if (!isRestSSLEnabled(config)) {
+			return null;
+		}
+
+		KeyManager[] keyManagers = null;
+		if (configMode == RestSSLContextConfigMode.SERVER || configMode == RestSSLContextConfigMode.MUTUAL) {
+			String keystoreFilePath = getAndCheckOption(
+				config, SecurityOptions.SSL_REST_KEYSTORE, SecurityOptions.SSL_KEYSTORE);
+
+			String keystorePassword = getAndCheckOption(
+				config, SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, SecurityOptions.SSL_KEYSTORE_PASSWORD);
+
+			String certPassword = getAndCheckOption(
+				config, SecurityOptions.SSL_REST_KEY_PASSWORD, SecurityOptions.SSL_KEY_PASSWORD);
+
+			KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+			try (InputStream keyStoreFile = Files.newInputStream(new File(keystoreFilePath).toPath())) {
+				keyStore.load(keyStoreFile, keystorePassword.toCharArray());
+			}
+
+			KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+			kmf.init(keyStore, certPassword.toCharArray());
+
+			keyManagers = kmf.getKeyManagers();
+		}
+
+		TrustManager[] trustManagers = null;
+		if (configMode == RestSSLContextConfigMode.CLIENT || configMode == RestSSLContextConfigMode.MUTUAL) {
+			String trustStoreFilePath = getAndCheckOption(
+				config, SecurityOptions.SSL_REST_TRUSTSTORE, SecurityOptions.SSL_TRUSTSTORE);
+
+			String trustStorePassword = getAndCheckOption(
+				config, SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, SecurityOptions.SSL_TRUSTSTORE_PASSWORD);
+
+			KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+			try (InputStream trustStoreFile = Files.newInputStream(new File(trustStoreFilePath).toPath())) {
+				trustStore.load(trustStoreFile, trustStorePassword.toCharArray());
+			}
+
+			TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+			tmf.init(trustStore);
+
+			trustManagers = tmf.getTrustManagers();
+		}
+
+		String sslProtocolVersion = config.getString(SecurityOptions.SSL_PROTOCOL);
+		SSLContext sslContext = SSLContext.getInstance(sslProtocolVersion);
+		sslContext.init(keyManagers, trustManagers, null);
 
 		return sslContext;
 	}
@@ -233,35 +327,14 @@ public class SSLUtils {
 	 */
 	@Nullable
 	public static SSLContext createRestServerSSLContext(Configuration config) throws Exception {
-		checkNotNull(config, "config");
-
-		if (!isRestSSLEnabled(config)) {
-			return null;
+		final RestSSLContextConfigMode configMode;
+		if (isRestSSLAuthenticationEnabled(config)) {
+			configMode = RestSSLContextConfigMode.MUTUAL;
+		} else {
+			configMode = RestSSLContextConfigMode.SERVER;
 		}
 
-		String keystoreFilePath = getAndCheckOption(
-				config, SecurityOptions.SSL_REST_KEYSTORE, SecurityOptions.SSL_KEYSTORE);
-
-		String keystorePassword = getAndCheckOption(
-				config, SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, SecurityOptions.SSL_KEYSTORE_PASSWORD);
-
-		String certPassword = getAndCheckOption(
-				config, SecurityOptions.SSL_REST_KEY_PASSWORD, SecurityOptions.SSL_KEY_PASSWORD);
-
-		String sslProtocolVersion = config.getString(SecurityOptions.SSL_PROTOCOL);
-
-		KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-		try (InputStream keyStoreFile = Files.newInputStream(new File(keystoreFilePath).toPath())) {
-			keyStore.load(keyStoreFile, keystorePassword.toCharArray());
-		}
-
-		KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-		kmf.init(keyStore, certPassword.toCharArray());
-
-		SSLContext sslContext = SSLContext.getInstance(sslProtocolVersion);
-		sslContext.init(kmf.getKeyManagers(), null, null);
-
-		return sslContext;
+		return createRestSSLContext(config, configMode);
 	}
 
 	/**
@@ -269,32 +342,14 @@ public class SSLUtils {
 	 */
 	@Nullable
 	public static SSLContext createRestClientSSLContext(Configuration config) throws Exception {
-		checkNotNull(config, "config");
-
-		if (!isRestSSLEnabled(config)) {
-			return null;
+		final RestSSLContextConfigMode configMode;
+		if (isRestSSLAuthenticationEnabled(config)) {
+			configMode = RestSSLContextConfigMode.MUTUAL;
+		} else {
+			configMode = RestSSLContextConfigMode.CLIENT;
 		}
 
-		String trustStoreFilePath = getAndCheckOption(
-				config, SecurityOptions.SSL_REST_TRUSTSTORE, SecurityOptions.SSL_TRUSTSTORE);
-
-		String trustStorePassword = getAndCheckOption(
-				config, SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, SecurityOptions.SSL_TRUSTSTORE_PASSWORD);
-
-		String sslProtocolVersion = config.getString(SecurityOptions.SSL_PROTOCOL);
-
-		KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
-		try (InputStream trustStoreFile = Files.newInputStream(new File(trustStoreFilePath).toPath())) {
-			trustStore.load(trustStoreFile, trustStorePassword.toCharArray());
-		}
-
-		TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-		tmf.init(trustStore);
-
-		SSLContext sslContext = SSLContext.getInstance(sslProtocolVersion);
-		sslContext.init(null, tmf.getTrustManagers(), null);
-
-		return sslContext;
+		return createRestSSLContext(config, configMode);
 	}
 
 	// ------------------------------------------------------------------------

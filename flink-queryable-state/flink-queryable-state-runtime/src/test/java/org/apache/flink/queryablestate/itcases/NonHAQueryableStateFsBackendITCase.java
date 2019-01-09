@@ -26,8 +26,8 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -44,6 +44,7 @@ public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTe
 	// we always use all TaskManagers so that the JM oracle is always properly re-registered
 	private static final int NUM_TMS = 2;
 	private static final int NUM_SLOTS_PER_TM = 2;
+	private static final int NUM_PORT_COUNT = 100;
 
 	private static final int QS_PROXY_PORT_RANGE_START = 9084;
 	private static final int QS_SERVER_PORT_RANGE_START = 9089;
@@ -52,7 +53,7 @@ public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTe
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@ClassRule
-	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
 		new MiniClusterResourceConfiguration.Builder()
 			.setConfiguration(getConfig())
 			.setNumberTaskManagers(NUM_TMS)
@@ -86,10 +87,10 @@ public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTe
 		config.setInteger(QueryableStateOptions.SERVER_NETWORK_THREADS, 1);
 		config.setString(
 			QueryableStateOptions.PROXY_PORT_RANGE,
-			QS_PROXY_PORT_RANGE_START + "-" + (QS_PROXY_PORT_RANGE_START + NUM_TMS));
+			QS_PROXY_PORT_RANGE_START + "-" + (QS_PROXY_PORT_RANGE_START + NUM_PORT_COUNT));
 		config.setString(
 			QueryableStateOptions.SERVER_PORT_RANGE,
-			QS_SERVER_PORT_RANGE_START + "-" + (QS_SERVER_PORT_RANGE_START + NUM_TMS));
+			QS_SERVER_PORT_RANGE_START + "-" + (QS_SERVER_PORT_RANGE_START + NUM_PORT_COUNT));
 		config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
 		return config;
 	}

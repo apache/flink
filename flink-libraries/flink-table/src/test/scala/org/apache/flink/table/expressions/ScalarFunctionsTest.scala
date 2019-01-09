@@ -95,6 +95,39 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testReplace(): Unit = {
+    testAllApis(
+      'f0.replace(" ", "_"),
+      "f0.replace(' ', '_')",
+      "REPLACE(f0, ' ', '_')",
+      "This_is_a_test_String.")
+
+    testAllApis(
+      'f0.replace("i", ""),
+      "f0.replace('i', '')",
+      "REPLACE(f0, 'i', '')",
+      "Ths s a test Strng.")
+
+    testAllApis(
+      'f33.replace("i", ""),
+      "f33.replace('i', '')",
+      "REPLACE(f33, 'i', '')",
+      "null")
+
+    testAllApis(
+      'f0.replace(Null(Types.STRING), ""),
+      "f0.replace(Null(STRING), '')",
+      "REPLACE(f0, NULLIF('', ''), '')",
+      "null")
+
+    testAllApis(
+      'f0.replace(" ", Null(Types.STRING)),
+      "f0.replace(' ', Null(STRING))",
+      "REPLACE(f0, ' ', NULLIF('', ''))",
+      "null")
+  }
+
+  @Test
   def testTrim(): Unit = {
     testAllApis(
       'f8.trim(),
@@ -483,6 +516,13 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f24.hex()",
       "HEX(f24)",
       "2A5F546869732069732061207465737420537472696E672E")
+
+    testAllApis(
+      "你好".hex(),
+      "'你好'.hex()",
+      "HEX('你好')",
+      "E4BDA0E5A5BD"
+    )
   }
 
   @Test
@@ -544,6 +584,129 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testRegexpReplace(): Unit = {
+
+    testAllApis(
+      "foobar".regexpReplace("oo|ar", "abc"),
+      "'foobar'.regexpReplace('oo|ar', 'abc')",
+      "regexp_replace('foobar', 'oo|ar', 'abc')",
+      "fabcbabc")
+
+    testAllApis(
+      "foofar".regexpReplace("^f", ""),
+      "'foofar'.regexpReplace('^f', '')",
+      "regexp_replace('foofar', '^f', '')",
+      "oofar")
+
+    testAllApis(
+      "foobar".regexpReplace("^f*.*r$", ""),
+      "'foobar'.regexpReplace('^f*.*r$', '')",
+      "regexp_replace('foobar', '^f*.*r$', '')",
+      "")
+
+    testAllApis(
+      "foo1bar2".regexpReplace("\\d", ""),
+      "'foo1bar2'.regexpReplace('\\d', '')",
+      "regexp_replace('foobar', '\\d', '')",
+      "foobar")
+
+    testAllApis(
+      "foobar".regexpReplace("\\w", ""),
+      "'foobar'.regexpReplace('\\w', '')",
+      "regexp_replace('foobar', '\\w', '')",
+      "")
+
+    testAllApis(
+      "fooobar".regexpReplace("oo", "$"),
+      "'fooobar'.regexpReplace('oo', '$')",
+      "regexp_replace('fooobar', 'oo', '$')",
+      "f$obar")
+
+    testAllApis(
+      "foobar".regexpReplace("oo", "\\"),
+      "'foobar'.regexpReplace('oo', '\\')",
+      "regexp_replace('foobar', 'oo', '\\')",
+      "f\\bar")
+
+    testAllApis(
+      'f33.regexpReplace("oo|ar", ""),
+      "f33.regexpReplace('oo|ar', '')",
+      "REGEXP_REPLACE(f33, 'oo|ar', '')",
+      "null")
+
+    testAllApis(
+      "foobar".regexpReplace('f33, ""),
+      "'foobar'.regexpReplace(f33, '')",
+      "REGEXP_REPLACE('foobar', f33, '')",
+      "null")
+
+    testAllApis(
+      "foobar".regexpReplace("oo|ar", 'f33),
+      "'foobar'.regexpReplace('oo|ar', f33)",
+      "REGEXP_REPLACE('foobar', 'oo|ar', f33)",
+      "null")
+
+    // This test was added for the null literal problem in string expression parsing (FLINK-10463).
+    testAllApis(
+      Null(Types.STRING).regexpReplace("oo|ar", 'f33),
+      "Null(STRING).regexpReplace('oo|ar', f33)",
+      "REGEXP_REPLACE(CAST(NULL AS VARCHAR), 'oo|ar', f33)",
+      "null")
+  }
+
+  @Test
+  def testRegexpExtract(): Unit = {
+    testAllApis(
+      "foothebar".regexpExtract("foo(.*?)(bar)", 2),
+      "'foothebar'.regexpExtract('foo(.*?)(bar)', 2)",
+      "REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)",
+      "bar")
+
+    testAllApis(
+      "foothebar".regexpExtract("foo(.*?)(bar)", 0),
+      "'foothebar'.regexpExtract('foo(.*?)(bar)', 0)",
+      "REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 0)",
+      "foothebar")
+
+    testAllApis(
+      "foothebar".regexpExtract("foo(.*?)(bar)", 1),
+      "'foothebar'.regexpExtract('foo(.*?)(bar)', 1)",
+      "REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 1)",
+      "the")
+
+    testAllApis(
+      "foothebar".regexpExtract("foo([\\w]+)", 1),
+      "'foothebar'.regexpExtract('foo([\\w]+)', 1)",
+      "REGEXP_EXTRACT('foothebar', 'foo([\\w]+)', 1)",
+      "thebar")
+
+    testAllApis(
+      "foothebar".regexpExtract("foo([\\d]+)", 1),
+      "'foothebar'.regexpExtract('foo([\\d]+)', 1)",
+      "REGEXP_EXTRACT('foothebar', 'foo([\\d]+)', 1)",
+      "null")
+
+    testAllApis(
+      'f33.regexpExtract("foo(.*?)(bar)", 2),
+      "f33.regexpExtract('foo(.*?)(bar)', 2)",
+      "REGEXP_EXTRACT(f33, 'foo(.*?)(bar)', 2)",
+      "null")
+
+    testAllApis(
+      "foothebar".regexpExtract('f33, 2),
+      "'foothebar'.regexpExtract(f33, 2)",
+      "REGEXP_EXTRACT('foothebar', f33, 2)",
+      "null")
+
+    //test for optional group index
+    testAllApis(
+      "foothebar".regexpExtract("foo(.*?)(bar)"),
+      "'foothebar'.regexpExtract('foo(.*?)(bar)')",
+      "REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)')",
+      "foothebar")
+  }
+
+  @Test
   def testFromBase64(): Unit = {
     testAllApis(
       'f35.fromBase64(),
@@ -563,6 +726,13 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f33.fromBase64()",
       "FROM_BASE64(f33)",
       "null")
+
+    testAllApis(
+      "5L2g5aW9".fromBase64(),
+      "'5L2g5aW9'.fromBase64()",
+      "FROM_BASE64('5L2g5aW9')",
+      "你好"
+    )
   }
 
   @Test
@@ -591,6 +761,13 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f33.toBase64()",
       "TO_BASE64(f33)",
       "null")
+
+    testAllApis(
+      "你好".toBase64(),
+      "'你好'.toBase64()",
+      "TO_BASE64('你好')",
+      "5L2g5aW9"
+    )
   }
 
   @Test
@@ -976,6 +1153,47 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testCosh(): Unit = {
+    testAllApis(
+      0.cosh(),
+      "0.cosh()",
+      "COSH(0)",
+      math.cosh(0).toString
+    )
+
+    testAllApis(
+      -1.cosh(),
+      "-1.cosh()",
+      "COSH(-1)",
+      math.cosh(-1).toString
+    )
+
+    testAllApis(
+      'f4.cosh(),
+      "f4.cosh",
+      "COSH(f4)",
+      math.cosh(44L).toString)
+
+    testAllApis(
+      'f6.cosh(),
+      "f6.cosh",
+      "COSH(f6)",
+      math.cosh(4.6D).toString)
+
+    testAllApis(
+      'f7.cosh(),
+      "f7.cosh",
+      "COSH(f7)",
+      math.cosh(3).toString)
+
+    testAllApis(
+      'f22.cosh(),
+      "f22.cosh",
+      "COSH(f22)",
+      math.cosh(2.0).toString)
+  }
+
+  @Test
   def testLn(): Unit = {
     testAllApis(
       'f2.ln(),
@@ -1195,6 +1413,45 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testSinh(): Unit = {
+    testAllApis(
+      0.sinh(),
+      "0.sinh()",
+      "SINH(0)",
+      math.sinh(0).toString)
+
+    testAllApis(
+      -1.sinh(),
+      "-1.sinh()",
+      "SINH(-1)",
+      math.sinh(-1).toString)
+
+    testAllApis(
+      'f4.sinh(),
+      "f4.sinh",
+      "SINH(f4)",
+      math.sinh(44L).toString)
+
+    testAllApis(
+      'f6.sinh(),
+      "f6.sinh",
+      "SINH(f6)",
+      math.sinh(4.6D).toString)
+
+    testAllApis(
+      'f7.sinh(),
+      "f7.sinh",
+      "SINH(f7)",
+      math.sinh(3).toString)
+
+    testAllApis(
+      'f22.sinh(),
+      "f22.sinh",
+      "SINH(f22)",
+      math.sinh(2.0).toString)
+  }
+
+  @Test
   def testTan(): Unit = {
     testAllApis(
       'f2.tan(),
@@ -1231,6 +1488,45 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "tan(f15)",
       "TAN(f15)",
       math.tan(-1231.1231231321321321111).toString)
+  }
+
+  @Test
+  def testTanh(): Unit = {
+    testAllApis(
+      0.tanh(),
+      "0.tanh()",
+      "TANH(0)",
+      math.tanh(0).toString)
+
+    testAllApis(
+      -1.tanh(),
+      "-1.tanh()",
+      "TANH(-1)",
+      math.tanh(-1).toString)
+
+    testAllApis(
+      'f4.tanh(),
+      "f4.tanh",
+      "TANH(f4)",
+      math.tanh(44L).toString)
+
+    testAllApis(
+      'f6.tanh(),
+      "f6.tanh",
+      "TANH(f6)",
+      math.tanh(4.6D).toString)
+
+    testAllApis(
+      'f7.tanh(),
+      "f7.tanh",
+      "TANH(f7)",
+      math.tanh(3).toString)
+
+    testAllApis(
+      'f22.tanh(),
+      "f22.tanh",
+      "TANH(f22)",
+      math.tanh(2.0).toString)
   }
 
   @Test
@@ -2163,6 +2459,121 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testTimestampDiff(): Unit = {
+    val dataMap = Map(
+      ("DAY", TimePointUnit.DAY, "SQL_TSI_DAY") -> Seq(
+        ("2018-07-03 11:11:11", "2018-07-05 11:11:11", "2"), // timestamp, timestamp
+        ("2016-06-15", "2016-06-16 11:11:11", "1"), // date, timestamp
+        ("2016-06-15 11:00:00", "2016-06-19", "3"), // timestamp, date
+        ("2016-06-15", "2016-06-18", "3") // date, date
+      ),
+      ("HOUR", TimePointUnit.HOUR, "SQL_TSI_HOUR") -> Seq(
+        ("2018-07-03 11:11:11", "2018-07-04 12:12:11", "25"),
+        ("2016-06-15", "2016-06-16 11:11:11", "35"),
+        ("2016-06-15 11:00:00", "2016-06-19", "85"),
+        ("2016-06-15", "2016-06-12", "-72")
+      ),
+      ("MINUTE", TimePointUnit.MINUTE, "SQL_TSI_MINUTE") -> Seq(
+        ("2018-07-03 11:11:11", "2018-07-03 12:10:11", "59"),
+        ("2016-06-15", "2016-06-16 11:11:11", "2111"),
+        ("2016-06-15 11:00:00", "2016-06-19", "5100"),
+        ("2016-06-15", "2016-06-18", "4320")
+      ),
+      ("SECOND", TimePointUnit.SECOND, "SQL_TSI_SECOND") -> Seq(
+        ("2018-07-03 11:11:11", "2018-07-03 11:12:12", "61"),
+        ("2016-06-15", "2016-06-16 11:11:11", "126671"),
+        ("2016-06-15 11:00:00", "2016-06-19", "306000"),
+        ("2016-06-15", "2016-06-18", "259200")
+      ),
+      ("WEEK", TimePointUnit.WEEK, "SQL_TSI_WEEK") -> Seq(
+        ("2018-05-03 11:11:11", "2018-07-03 11:12:12", "8"),
+        ("2016-04-15", "2016-07-16 11:11:11", "13"),
+        ("2016-04-15 11:00:00", "2016-09-19", "22"),
+        ("2016-08-15", "2016-06-18", "-8")
+      ),
+      ("MONTH", TimePointUnit.MONTH, "SQL_TSI_MONTH") -> Seq(
+        ("2018-07-03 11:11:11", "2018-09-05 11:11:11", "2"),
+        ("2016-06-15", "2018-06-16 11:11:11", "24"),
+        ("2016-06-15 11:00:00", "2018-05-19", "23"),
+        ("2016-06-15", "2018-03-18", "21")
+      ),
+      ("QUARTER", TimePointUnit.QUARTER, "SQL_TSI_QUARTER") -> Seq(
+        ("2018-01-03 11:11:11", "2018-09-05 11:11:11", "2"),
+        ("2016-06-15", "2018-06-16 11:11:11", "8"),
+        ("2016-06-15 11:00:00", "2018-05-19", "7"),
+        ("2016-06-15", "2018-03-18", "7")
+      )
+    )
+
+    for ((unitParts, dataParts) <- dataMap) {
+      for ((data,index) <- dataParts.zipWithIndex) {
+        index match {
+          case 0 => // timestamp, timestamp
+            testAllApis(
+              timestampDiff(unitParts._2, data._1.toTimestamp, data._2.toTimestamp),
+              s"timestampDiff(${unitParts._1}, '${data._1}'.toTimestamp, '${data._2}'.toTimestamp)",
+              s"TIMESTAMPDIFF(${unitParts._1}, TIMESTAMP '${data._1}', TIMESTAMP '${data._2}')",
+              data._3
+            )
+            testSqlApi(  // sql tsi
+              s"TIMESTAMPDIFF(${unitParts._3}, TIMESTAMP '${data._1}', TIMESTAMP '${data._2}')",
+              data._3
+            )
+          case 1 => // date, timestamp
+            testAllApis(
+              timestampDiff(unitParts._2, data._1.toDate, data._2.toTimestamp),
+              s"timestampDiff(${unitParts._1}, '${data._1}'.toDate, '${data._2}'.toTimestamp)",
+              s"TIMESTAMPDIFF(${unitParts._1}, DATE '${data._1}', TIMESTAMP '${data._2}')",
+              data._3
+            )
+            testSqlApi( // sql tsi
+              s"TIMESTAMPDIFF(${unitParts._3}, DATE '${data._1}', TIMESTAMP '${data._2}')",
+              data._3
+            )
+          case 2 => // timestamp, date
+            testAllApis(
+              timestampDiff(unitParts._2, data._1.toTimestamp, data._2.toDate),
+              s"timestampDiff(${unitParts._1}, '${data._1}'.toTimestamp, '${data._2}'.toDate)",
+              s"TIMESTAMPDIFF(${unitParts._1}, TIMESTAMP '${data._1}', DATE '${data._2}')",
+              data._3
+            )
+            testSqlApi( // sql tsi
+              s"TIMESTAMPDIFF(${unitParts._3}, TIMESTAMP '${data._1}', DATE '${data._2}')",
+              data._3
+            )
+          case 3 => // date, date
+            testAllApis(
+              timestampDiff(unitParts._2, data._1.toDate, data._2.toDate),
+              s"timestampDiff(${unitParts._1}, '${data._1}'.toDate, '${data._2}'.toDate)",
+              s"TIMESTAMPDIFF(${unitParts._1}, DATE '${data._1}', DATE '${data._2}')",
+              data._3
+            )
+            testSqlApi( // sql tsi
+              s"TIMESTAMPDIFF(${unitParts._3}, DATE '${data._1}', DATE '${data._2}')",
+              data._3
+            )
+        }
+      }
+    }
+
+    testAllApis(
+      timestampDiff(TimePointUnit.DAY, Null(Types.SQL_TIMESTAMP),
+        "2016-02-24 12:42:25".toTimestamp),
+      "timestampDiff(DAY, Null(SQL_TIMESTAMP), '2016-02-24 12:42:25'.toTimestamp)",
+      "TIMESTAMPDIFF(DAY, CAST(NULL AS TIMESTAMP), TIMESTAMP '2016-02-24 12:42:25')",
+      "null"
+    )
+
+    testAllApis(
+      timestampDiff(TimePointUnit.DAY, "2016-02-24 12:42:25".toTimestamp,
+        Null(Types.SQL_TIMESTAMP)),
+      "timestampDiff(DAY, '2016-02-24 12:42:25'.toTimestamp,  Null(SQL_TIMESTAMP))",
+      "TIMESTAMPDIFF(DAY, TIMESTAMP '2016-02-24 12:42:25',  CAST(NULL AS TIMESTAMP))",
+      "null"
+    )
+  }
+
+  @Test
   def testTimestampAdd(): Unit = {
     val data = Seq(
       (1, "2017-11-29 22:58:58.998"),
@@ -2292,16 +2703,72 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "null")
 
     testAllApis(
-      "2016-06-15".toDate + 1.day,
-      "'2016-06-15'.toDate + 1.day",
-      "TIMESTAMPADD(DAY, 1, DATE '2016-06-15')",
-      "2016-06-16")
-
-    testAllApis(
       Null(Types.SQL_TIMESTAMP) + 3.months,
       "Null(SQL_TIMESTAMP) + 3.months",
       "TIMESTAMPADD(MONTH, 3, CAST(NULL AS TIMESTAMP))",
       "null")
+
+    // TIMESTAMPADD with DATE returns a TIMESTAMP value for sub-day intervals.
+    testAllApis("2016-06-15".toDate + 1.month,
+      "'2016-06-15'.toDate + 1.month",
+      "timestampadd(MONTH, 1, date '2016-06-15')",
+      "2016-07-15")
+
+    testAllApis("2016-06-15".toDate + 1.day,
+      "'2016-06-15'.toDate + 1.day",
+      "timestampadd(DAY, 1, date '2016-06-15')",
+      "2016-06-16")
+
+    testAllApis("2016-06-15".toTimestamp - 1.hour,
+      "'2016-06-15'.toTimestamp - 1.hour",
+      "timestampadd(HOUR, -1, date '2016-06-15')",
+      "2016-06-14 23:00:00.0")
+
+    testAllApis("2016-06-15".toTimestamp + 1.minute,
+      "'2016-06-15'.toTimestamp + 1.minute",
+      "timestampadd(MINUTE, 1, date '2016-06-15')",
+      "2016-06-15 00:01:00.0")
+
+    testAllApis("2016-06-15".toTimestamp - 1.second,
+      "'2016-06-15'.toTimestamp - 1.second",
+      "timestampadd(SQL_TSI_SECOND, -1, date '2016-06-15')",
+      "2016-06-14 23:59:59.0")
+
+    testAllApis("2016-06-15".toTimestamp + 1.second,
+      "'2016-06-15'.toTimestamp + 1.second",
+      "timestampadd(SECOND, 1, date '2016-06-15')",
+      "2016-06-15 00:00:01.0")
+
+    testAllApis(Null(Types.SQL_TIMESTAMP) + 1.second,
+      "Null(SQL_TIMESTAMP) + 1.second",
+      "timestampadd(SECOND, 1, cast(null as date))",
+      "null")
+
+    testAllApis(Null(Types.SQL_TIMESTAMP) + 1.day,
+      "Null(SQL_TIMESTAMP) + 1.day",
+      "timestampadd(DAY, 1, cast(null as date))",
+      "null")
+
+    // Round to the last day of previous month
+    testAllApis("2016-05-31".toDate + 1.month,
+      "'2016-05-31'.toDate + 1.month",
+      "timestampadd(MONTH, 1, date '2016-05-31')",
+      "2016-06-30")
+
+    testAllApis("2016-01-31".toDate + 5.month,
+      "'2016-01-31'.toDate + 5.month",
+      "timestampadd(MONTH, 5, date '2016-01-31')",
+      "2016-06-30")
+
+    testAllApis("2016-03-31".toDate - 1.month,
+      "'2016-03-31'.toDate - 1.month",
+      "timestampadd(MONTH, -1, date '2016-03-31')",
+      "2016-02-29")
+
+    testAllApis("2016-03-31".toDate - 1.week,
+      "'2016-03-31'.toDate - 1.week",
+      "timestampadd(WEEK, -1, date '2016-03-31')",
+      "2016-03-24")
   }
 
   // ----------------------------------------------------------------------------------------------

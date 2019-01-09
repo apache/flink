@@ -32,6 +32,7 @@ import org.apache.flink.client.program.rest.retry.ExponentialWaitStrategy;
 import org.apache.flink.client.program.rest.retry.WaitStrategy;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
@@ -263,8 +264,8 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			try {
 				this.lastJobExecutionResult = jobResult.toJobExecutionResult(classLoader);
 				return lastJobExecutionResult;
-			} catch (JobResult.WrappedJobException we) {
-				throw new ProgramInvocationException("Job failed.", jobGraph.getJobID(), we.getCause());
+			} catch (JobExecutionException e) {
+				throw new ProgramInvocationException("Job failed.", jobGraph.getJobID(), e);
 			} catch (IOException | ClassNotFoundException e) {
 				throw new ProgramInvocationException("Job failed.", jobGraph.getJobID(), e);
 			}
@@ -376,7 +377,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 				(JobSubmitResponseBody jobSubmitResponseBody) -> new JobSubmissionResult(jobGraph.getJobID()))
 			.exceptionally(
 				(Throwable throwable) -> {
-					throw new CompletionException(new JobSubmissionException(jobGraph.getJobID(), "Failed to submit JobGraph.", throwable));
+					throw new CompletionException(new JobSubmissionException(jobGraph.getJobID(), "Failed to submit JobGraph.", ExceptionUtils.stripCompletionException(throwable)));
 				});
 	}
 

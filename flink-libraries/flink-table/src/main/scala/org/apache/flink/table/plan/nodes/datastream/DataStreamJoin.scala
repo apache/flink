@@ -23,19 +23,13 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
-import org.apache.flink.table.codegen.FunctionCodeGenerator
 import org.apache.flink.table.plan.nodes.CommonJoin
 import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.runtime.CRowKeySelector
-import org.apache.flink.table.runtime.join._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
-import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
-import scala.collection.mutable.ArrayBuffer
 
 /**
   * RelNode for a non-windowed stream join.
@@ -103,28 +97,44 @@ class DataStreamJoin(
       tableEnv: StreamTableEnvironment,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
-    val config = tableEnv.getConfig
-    val returnType = schema.typeInfo
-    val keyPairs = joinInfo.pairs().toList
+    validateKeyTypes()
 
-    // get the equality keys
-    val leftKeys = ArrayBuffer.empty[Int]
-    val rightKeys = ArrayBuffer.empty[Int]
+    val leftDataStream =
+      left.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
+    val rightDataStream =
+      right.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
 
+    val connectOperator = leftDataStream.connect(rightDataStream)
+
+    val joinTranslator = createTranslator(tableEnv)
+
+    val joinOpName = joinToString(getRowType, joinCondition, joinType, getExpressionString)
+    val joinOperator = joinTranslator.getJoinOperator(
+      joinType,
+      schema.fieldNames,
+      ruleDescription,
+      queryConfig)
+    connectOperator
+      .keyBy(
+        joinTranslator.getLeftKeySelector(),
+        joinTranslator.getRightKeySelector())
+      .transform(
+        joinOpName,
+        CRowTypeInfo(schema.typeInfo),
+        joinOperator)
+  }
+
+  private def validateKeyTypes(): Unit = {
     // at least one equality expression
     val leftFields = left.getRowType.getFieldList
     val rightFields = right.getRowType.getFieldList
 
-    keyPairs.foreach(pair => {
+    joinInfo.pairs().toList.foreach(pair => {
       val leftKeyType = leftFields.get(pair.source).getType.getSqlTypeName
       val rightKeyType = rightFields.get(pair.target).getType.getSqlTypeName
       // check if keys are compatible
-      if (leftKeyType == rightKeyType) {
-        // add key pair
-        leftKeys.add(pair.source)
-        rightKeys.add(pair.target)
-      } else {
-        throw TableException(
+      if (leftKeyType != rightKeyType) {
+        throw new TableException(
           "Equality join predicate on incompatible types.\n" +
             s"\tLeft: $left,\n" +
             s"\tRight: $right,\n" +
@@ -133,100 +143,16 @@ class DataStreamJoin(
         )
       }
     })
+  }
 
-    val leftDataStream =
-      left.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
-    val rightDataStream =
-      right.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
-
-    val connectOperator = leftDataStream.connect(rightDataStream)
-    // input must not be nullable, because the runtime join function will make sure
-    // the code-generated function won't process null inputs
-    val generator = new FunctionCodeGenerator(
-      config,
-      nullableInput = false,
-      leftSchema.typeInfo,
-      Some(rightSchema.typeInfo))
-    val conversion = generator.generateConverterResultExpression(
+  protected def createTranslator(
+      tableEnv: StreamTableEnvironment): DataStreamJoinToCoProcessTranslator = {
+    new DataStreamJoinToCoProcessTranslator(
+      tableEnv.getConfig,
       schema.typeInfo,
-      schema.fieldNames)
-
-    val body = if (joinInfo.isEqui) {
-      // only equality condition
-      s"""
-         |${conversion.code}
-         |${generator.collectorTerm}.collect(${conversion.resultTerm});
-         |""".stripMargin
-    } else {
-      val nonEquiPredicates = joinInfo.getRemaining(this.cluster.getRexBuilder)
-      val condition = generator.generateExpression(nonEquiPredicates)
-      s"""
-         |${condition.code}
-         |if (${condition.resultTerm}) {
-         |  ${conversion.code}
-         |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
-         |}
-         |""".stripMargin
-    }
-
-    val genFunction = generator.generateFunction(
-      ruleDescription,
-      classOf[FlatJoinFunction[Row, Row, Row]],
-      body,
-      returnType)
-
-    val coMapFun = joinType match {
-      case JoinRelType.INNER =>
-        new NonWindowInnerJoin(
-          leftSchema.typeInfo,
-          rightSchema.typeInfo,
-          CRowTypeInfo(returnType),
-          genFunction.name,
-          genFunction.code,
-          queryConfig)
-      case JoinRelType.LEFT | JoinRelType.RIGHT if joinInfo.isEqui =>
-        new NonWindowLeftRightJoin(
-          leftSchema.typeInfo,
-          rightSchema.typeInfo,
-          CRowTypeInfo(returnType),
-          genFunction.name,
-          genFunction.code,
-          joinType == JoinRelType.LEFT,
-          queryConfig)
-      case JoinRelType.LEFT | JoinRelType.RIGHT =>
-        new NonWindowLeftRightJoinWithNonEquiPredicates(
-          leftSchema.typeInfo,
-          rightSchema.typeInfo,
-          CRowTypeInfo(returnType),
-          genFunction.name,
-          genFunction.code,
-          joinType == JoinRelType.LEFT,
-          queryConfig)
-      case JoinRelType.FULL if joinInfo.isEqui =>
-        new NonWindowFullJoin(
-          leftSchema.typeInfo,
-          rightSchema.typeInfo,
-          CRowTypeInfo(returnType),
-          genFunction.name,
-          genFunction.code,
-          queryConfig)
-      case JoinRelType.FULL =>
-        new NonWindowFullJoinWithNonEquiPredicates(
-          leftSchema.typeInfo,
-          rightSchema.typeInfo,
-          CRowTypeInfo(returnType),
-          genFunction.name,
-          genFunction.code,
-          queryConfig)
-    }
-
-    val joinOpName = joinToString(getRowType, joinCondition, joinType, getExpressionString)
-    connectOperator
-      .keyBy(
-        new CRowKeySelector(leftKeys.toArray, leftSchema.projectedTypeInfo(leftKeys.toArray)),
-        new CRowKeySelector(rightKeys.toArray, rightSchema.projectedTypeInfo(rightKeys.toArray)))
-      .process(coMapFun)
-      .name(joinOpName)
-      .returns(CRowTypeInfo(returnType))
+      leftSchema,
+      rightSchema,
+      joinInfo,
+      cluster.getRexBuilder)
   }
 }

@@ -59,7 +59,7 @@ Usage:
 		properties.put(AvroKeyValueSinkWriter.CONF_COMPRESS, Boolean.toString(true));
 		properties.put(AvroKeyValueSinkWriter.CONF_COMPRESS_CODEC, DataFileConstants.SNAPPY_CODEC);
 
-		sink.setWriter(new AvroSinkWriter<Long, Long>(properties));
+		sink.setWriter(new AvroKeyValueSinkWriter<Long, Long>(properties));
 		sink.setBatchSize(1024 * 1024 * 64); // this is 64 MB,
 }
 </pre>

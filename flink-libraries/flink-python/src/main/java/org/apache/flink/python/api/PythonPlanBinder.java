@@ -68,7 +68,7 @@ import static org.apache.flink.python.api.PythonOperationInfo.DatasizeHint.TINY;
  * This class allows the execution of a Flink plan written in python.
  */
 public class PythonPlanBinder {
-	static final Logger LOG = LoggerFactory.getLogger(PythonPlanBinder.class);
+	private static final Logger LOG = LoggerFactory.getLogger(PythonPlanBinder.class);
 
 	public static final String FLINK_PYTHON_DC_ID = "flink";
 	public static final String FLINK_PYTHON_PLAN_NAME = File.separator + "plan.py";

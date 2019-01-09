@@ -25,16 +25,15 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.{TableEnvironment, Types}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.descriptors.{DescriptorProperties, Rowtime, Schema}
-import org.apache.flink.table.expressions.utils.SplitUDF
+import org.apache.flink.table.api.{TableEnvironment, Types}
+import org.apache.flink.table.descriptors.{Rowtime, Schema}
 import org.apache.flink.table.expressions.utils.Func15
 import org.apache.flink.table.runtime.stream.sql.SqlITCase.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.runtime.utils.{JavaUserDefinedTableFunctions, StreamITCase, StreamTestData, StreamingWithStateTestBase}
-import org.apache.flink.types.Row
 import org.apache.flink.table.utils.{InMemoryTableFactory, MemoryTableSourceSinkUtil}
+import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit._
 
@@ -79,6 +78,7 @@ class SqlITCase extends StreamingWithStateTestBase {
 
     val sqlQuery = "SELECT c, " +
       "  COUNT(DISTINCT b)," +
+      "  SUM(DISTINCT b)," +
       "  SESSION_END(rowtime, INTERVAL '0.005' SECOND) " +
       "FROM MyTable " +
       "GROUP BY SESSION(rowtime, INTERVAL '0.005' SECOND), c "
@@ -88,9 +88,9 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = Seq(
-      "Hello World,1,1970-01-01 00:00:00.014", // window starts at [9L] till {14L}
-      "Hello,1,1970-01-01 00:00:00.021",       // window starts at [16L] till {21L}, not merged
-      "Hello,3,1970-01-01 00:00:00.015"        // window starts at [1L,2L],
+      "Hello World,1,9,1970-01-01 00:00:00.014", // window starts at [9L] till {14L}
+      "Hello,1,16,1970-01-01 00:00:00.021",       // window starts at [16L] till {21L}, not merged
+      "Hello,3,6,1970-01-01 00:00:00.015"        // window starts at [1L,2L],
                                                //   merged with [8L,10L], by [4L], till {15L}
     )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
@@ -261,6 +261,43 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List("1,0,1,1", "2,1,1,2", "3,3,3,3", "4,5,1,4", "5,12,1,5", "6,18,1,6")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testDistinctWithRetraction(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 1L, "Hi"))
+    data.+=((1, 1L, "Hi World"))
+    data.+=((1, 1L, "Test"))
+    data.+=((2, 1L, "Hi World"))
+    data.+=((2, 1L, "Test"))
+    data.+=((3, 1L, "Hi World"))
+    data.+=((3, 1L, "Hi World"))
+    data.+=((3, 1L, "Hi World"))
+    data.+=((4, 1L, "Hi World"))
+    data.+=((4, 1L, "Test"))
+
+    val t = env.fromCollection(data).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+
+    // "1,1,3", "2,1,2", "3,1,1", "4,1,2"
+    val distinct = "SELECT a, COUNT(DISTINCT b) AS distinct_b, COUNT(DISTINCT c) AS distinct_c " +
+      "FROM MyTable GROUP BY a"
+    val nestedDistinct = s"SELECT distinct_b, COUNT(DISTINCT distinct_c) " +
+      s"FROM ($distinct) GROUP BY distinct_b"
+
+    val result = tEnv.sqlQuery(nestedDistinct).toRetractStream[Row]
+    result.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+
+    env.execute()
+
+    val expected = List("1,3")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
@@ -714,35 +751,6 @@ class SqlITCase extends StreamingWithStateTestBase {
   }
 
   @Test
-  def testInsertIntoMemoryTable(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    MemoryTableSourceSinkUtil.clear()
-
-    val t = StreamTestData.getSmall3TupleDataStream(env)
-        .assignAscendingTimestamps(x => x._2)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
-    tEnv.registerTable("sourceTable", t)
-
-    val fieldNames = Array("d", "e", "f", "t")
-    val fieldTypes = Array(Types.INT, Types.LONG, Types.STRING, Types.SQL_TIMESTAMP)
-      .asInstanceOf[Array[TypeInformation[_]]]
-    val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
-
-    val sql = "INSERT INTO targetTable SELECT a, b, c, rowtime FROM sourceTable"
-    tEnv.sqlUpdate(sql)
-    env.execute()
-
-    val expected = List(
-      "1,1,Hi,1970-01-01 00:00:00.001",
-      "2,2,Hello,1970-01-01 00:00:00.002",
-      "3,2,Hello world,1970-01-01 00:00:00.002")
-    assertEquals(expected.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
-  }
-
-  @Test
   def testWriteReadTableSourceSink(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
@@ -756,8 +764,7 @@ class SqlITCase extends StreamingWithStateTestBase {
       .field("t", Types.SQL_TIMESTAMP)
         .rowtime(Rowtime().timestampsFromField("t").watermarksPeriodicAscending())
       .field("proctime", Types.SQL_TIMESTAMP).proctime()
-    val props = new DescriptorProperties()
-    desc.addProperties(props)
+    val properties = desc.toProperties
 
     val t = StreamTestData.getSmall3TupleDataStream(env)
       .assignAscendingTimestamps(x => x._2)
@@ -765,9 +772,9 @@ class SqlITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("sourceTable", t)
 
     tEnv.registerTableSource("targetTable",
-      new InMemoryTableFactory(3).createStreamTableSource(props.asMap))
+      new InMemoryTableFactory(3).createStreamTableSource(properties))
     tEnv.registerTableSink("targetTable",
-      new InMemoryTableFactory(3).createStreamTableSink(props.asMap))
+      new InMemoryTableFactory(3).createStreamTableSink(properties))
 
     tEnv.sqlUpdate("INSERT INTO targetTable SELECT a, b, c, rowtime FROM sourceTable")
     tEnv.sqlQuery("SELECT a, e, f, t from targetTable")
@@ -778,45 +785,6 @@ class SqlITCase extends StreamingWithStateTestBase {
       "1,1,Hi,1970-01-01 00:00:00.001",
       "2,2,Hello,1970-01-01 00:00:00.002",
       "3,2,Hello world,1970-01-01 00:00:00.002")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
-  }
-
-  @Test
-  def testUdfWithUnicodeParameter(): Unit = {
-    val data = List(
-      ("a\u0001b", "c\"d", "e\\\"\u0004f"),
-      ("x\u0001y", "y\"z", "z\\\"\u0004z")
-    )
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
-
-    val splitUDF0 = new SplitUDF(deterministic = true)
-    val splitUDF1 = new SplitUDF(deterministic = false)
-
-    tEnv.registerFunction("splitUDF0", splitUDF0)
-    tEnv.registerFunction("splitUDF1", splitUDF1)
-
-    // user have to specify '\' with '\\' in SQL
-    val sqlQuery = "SELECT " +
-      "splitUDF0(a, '\u0001', 0) as a0, " +
-      "splitUDF1(a, '\u0001', 0) as a1, " +
-      "splitUDF0(b, '\"', 1) as b0, " +
-      "splitUDF1(b, '\"', 1) as b1, " +
-      "splitUDF0(c, '\\\\\"\u0004', 0) as c0, " +
-      "splitUDF1(c, '\\\\\"\u0004', 0) as c1 from T1"
-
-    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
-
-    tEnv.registerTable("T1", t1)
-
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink[Row])
-    env.execute()
-
-    val expected = List("a,a,d,d,e,e", "x,x,z,z,z,z")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 

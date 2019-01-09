@@ -107,6 +107,7 @@ public class ExecutionTest extends TestLogger {
 			slotProvider,
 			false,
 			LocationPreferenceConstraint.ALL,
+			Collections.emptySet(),
 			TestingUtils.infiniteTime());
 
 		assertFalse(allocationFuture.isDone());
@@ -156,6 +157,7 @@ public class ExecutionTest extends TestLogger {
 			slotProvider,
 			false,
 			LocationPreferenceConstraint.ALL,
+			Collections.emptySet(),
 			TestingUtils.infiniteTime());
 
 		assertTrue(allocationFuture.isDone());
@@ -205,6 +207,7 @@ public class ExecutionTest extends TestLogger {
 			slotProvider,
 			false,
 			LocationPreferenceConstraint.ALL,
+			Collections.emptySet(),
 			TestingUtils.infiniteTime());
 
 		assertTrue(allocationFuture.isDone());
@@ -254,6 +257,7 @@ public class ExecutionTest extends TestLogger {
 			slotProvider,
 			false,
 			LocationPreferenceConstraint.ALL,
+			Collections.emptySet(),
 			TestingUtils.infiniteTime());
 
 		assertThat(allocationFuture.isDone(), is(false));
@@ -357,7 +361,7 @@ public class ExecutionTest extends TestLogger {
 
 		ExecutionVertex executionVertex = executionJobVertex.getTaskVertices()[0];
 
-		executionVertex.scheduleForExecution(slotProvider, false, LocationPreferenceConstraint.ANY).get();
+		executionVertex.scheduleForExecution(slotProvider, false, LocationPreferenceConstraint.ANY, Collections.emptySet()).get();
 
 		Execution currentExecutionAttempt = executionVertex.getCurrentExecutionAttempt();
 
@@ -417,7 +421,7 @@ public class ExecutionTest extends TestLogger {
 		assertThat(execution.getTaskRestore(), is(notNullValue()));
 
 		// schedule the execution vertex and wait for its deployment
-		executionVertex.scheduleForExecution(slotProvider, false, LocationPreferenceConstraint.ANY).get();
+		executionVertex.scheduleForExecution(slotProvider, false, LocationPreferenceConstraint.ANY, Collections.emptySet()).get();
 
 		assertThat(execution.getTaskRestore(), is(nullValue()));
 	}
@@ -479,7 +483,8 @@ public class ExecutionTest extends TestLogger {
 			final CompletableFuture<Void> schedulingFuture = execution.scheduleForExecution(
 				slotProvider,
 				false,
-				LocationPreferenceConstraint.ANY);
+				LocationPreferenceConstraint.ANY,
+				Collections.emptySet());
 
 			try {
 				schedulingFuture.get();

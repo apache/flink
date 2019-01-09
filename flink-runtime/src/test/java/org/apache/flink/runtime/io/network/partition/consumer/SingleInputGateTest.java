@@ -25,7 +25,6 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.LocalConnectionManager;
@@ -45,7 +44,6 @@ import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 
 import org.junit.Test;
@@ -71,7 +69,6 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -164,7 +161,7 @@ public class SingleInputGateTest {
 
 		final ResultSubpartitionView iterator = mock(ResultSubpartitionView.class);
 		when(iterator.getNextBuffer()).thenReturn(
-			new BufferAndBacklog(new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(1024), FreeingBufferRecycler.INSTANCE), false,0, false));
+			new BufferAndBacklog(new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(1024), FreeingBufferRecycler.INSTANCE), false, 0, false));
 
 		final ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		when(partitionManager.createSubpartitionView(
@@ -344,7 +341,8 @@ public class SingleInputGateTest {
 		int initialBackoff = 137;
 		int maxBackoff = 1001;
 
-		final NetworkEnvironment netEnv = createNetworkEnvironment(2, 8, initialBackoff, maxBackoff);
+		final NetworkEnvironment netEnv = new NetworkEnvironment(
+			100, 32, initialBackoff, maxBackoff, 2, 8, enableCreditBasedFlowControl);
 
 		SingleInputGate gate = SingleInputGate.create(
 			"TestTask",
@@ -403,8 +401,8 @@ public class SingleInputGateTest {
 		final SingleInputGate inputGate = createInputGate(1, ResultPartitionType.PIPELINED_BOUNDED);
 		int buffersPerChannel = 2;
 		int extraNetworkBuffersPerGate = 8;
-		final NetworkEnvironment network = createNetworkEnvironment(buffersPerChannel,
-			extraNetworkBuffersPerGate, 0, 0);
+		final NetworkEnvironment network = new NetworkEnvironment(
+			100, 32, 0, 0, buffersPerChannel, extraNetworkBuffersPerGate, enableCreditBasedFlowControl);
 
 		try {
 			final ResultPartitionID resultPartitionId = new ResultPartitionID();
@@ -415,8 +413,6 @@ public class SingleInputGateTest {
 
 			NetworkBufferPool bufferPool = network.getNetworkBufferPool();
 			if (enableCreditBasedFlowControl) {
-				verify(bufferPool,
-					times(1)).requestMemorySegments(buffersPerChannel);
 				RemoteInputChannel remote = (RemoteInputChannel) inputGate.getInputChannels()
 					.get(resultPartitionId.getPartitionId());
 				// only the exclusive buffers should be assigned/available now
@@ -444,7 +440,8 @@ public class SingleInputGateTest {
 		final SingleInputGate inputGate = createInputGate(1, ResultPartitionType.PIPELINED_BOUNDED);
 		int buffersPerChannel = 2;
 		int extraNetworkBuffersPerGate = 8;
-		final NetworkEnvironment network = createNetworkEnvironment(buffersPerChannel, extraNetworkBuffersPerGate, 0, 0);
+		final NetworkEnvironment network = new NetworkEnvironment(
+			100, 32, 0, 0, buffersPerChannel, extraNetworkBuffersPerGate, enableCreditBasedFlowControl);
 
 		try {
 			final ResultPartitionID resultPartitionId = new ResultPartitionID();
@@ -454,8 +451,6 @@ public class SingleInputGateTest {
 			NetworkBufferPool bufferPool = network.getNetworkBufferPool();
 
 			if (enableCreditBasedFlowControl) {
-				verify(bufferPool, times(0)).requestMemorySegments(buffersPerChannel);
-
 				assertEquals(bufferPool.getTotalNumberOfMemorySegments(),
 					bufferPool.getNumberOfAvailableMemorySegments());
 				// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
@@ -471,8 +466,6 @@ public class SingleInputGateTest {
 				ResultPartitionLocation.createRemote(connectionId)));
 
 			if (enableCreditBasedFlowControl) {
-				verify(bufferPool,
-					times(1)).requestMemorySegments(buffersPerChannel);
 				RemoteInputChannel remote = (RemoteInputChannel) inputGate.getInputChannels()
 					.get(resultPartitionId.getPartitionId());
 				// only the exclusive buffers should be assigned/available now
@@ -499,7 +492,8 @@ public class SingleInputGateTest {
 	public void testUpdateUnknownInputChannel() throws Exception {
 		final SingleInputGate inputGate = createInputGate(2);
 		int buffersPerChannel = 2;
-		final NetworkEnvironment network = createNetworkEnvironment(buffersPerChannel, 8, 0, 0);
+		final NetworkEnvironment network = new NetworkEnvironment(
+			100, 32, 0, 0, buffersPerChannel, 8, enableCreditBasedFlowControl);
 
 		try {
 			final ResultPartitionID localResultPartitionId = new ResultPartitionID();
@@ -542,27 +536,6 @@ public class SingleInputGateTest {
 	}
 
 	// ---------------------------------------------------------------------------------------------
-
-	private NetworkEnvironment createNetworkEnvironment(
-			int buffersPerChannel,
-			int extraNetworkBuffersPerGate,
-			int initialBackoff,
-			int maxBackoff) {
-		return new NetworkEnvironment(
-			spy(new NetworkBufferPool(100, 32)),
-			new LocalConnectionManager(),
-			new ResultPartitionManager(),
-			new TaskEventDispatcher(),
-			new KvStateRegistry(),
-			null,
-			null,
-			IOManager.IOMode.SYNC,
-			initialBackoff,
-			maxBackoff,
-			buffersPerChannel,
-			extraNetworkBuffersPerGate,
-			enableCreditBasedFlowControl);
-	}
 
 	private SingleInputGate createInputGate() {
 		return createInputGate(2);
