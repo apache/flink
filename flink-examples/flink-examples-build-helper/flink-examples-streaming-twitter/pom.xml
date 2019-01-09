@@ -17,87 +17,78 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
+		<artifactId>flink-examples-build-helper</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-connectors</artifactId>
-		<version>1.7-SNAPSHOT</version>
+		<version>1.8-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-twitter_${scala.binary.version}</artifactId>
-	<name>flink-connector-twitter</name>
-
+	<artifactId>flink-examples-streaming-twitter_${scala.binary.version}</artifactId>
+	<name>flink-examples-streaming-twitter</name>
 	<packaging>jar</packaging>
-
-	<properties>
-		<hbc-core.version>2.2.0</hbc-core.version>
-	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>com.twitter</groupId>
-			<artifactId>hbc-core</artifactId>
-			<version>${hbc-core.version}</version>
 		</dependency>
 	</dependencies>
 
 	<build>
+		<finalName>Twitter</finalName>
+
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-					</execution>
-				</executions>
+				<artifactId>maven-deploy-plugin</artifactId>
+				<configuration>
+					<skip>true</skip>
+				</configuration>
 			</plugin>
 			<plugin>
-				<!-- Override artifactSet configuration to build fat-jar with all dependencies packed. -->
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
 						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
 						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.examples.twitter.TwitterExample</mainClass>
+								</transformer>
+							</transformers>
 							<artifactSet>
-								<includes combine.children="append">
-									<!-- We include all dependencies that transitively depend on guava -->
-									<include>com.google.guava:guava</include>
-									<include>com.twitter:hbc-core</include>
-									<include>com.twitter:joauth</include>
-									<include>org.apache.httpcomponents:httpclient</include>
-									<include>org.apache.httpcomponents:httpcore</include>
+								<includes>
+									<include>org.apache.flink:flink-connector-twitter*</include>
+									<include>org.apache.flink:flink-examples-streaming*</include>
 								</includes>
 							</artifactSet>
-							<relocations>
-								<relocation>
-									<pattern>com.google</pattern>
-									<shadedPattern>org.apache.flink.twitter.shaded.com.google</shadedPattern>
-									<excludes>
-										<exclude>com.google.protobuf.**</exclude>
-										<exclude>com.google.inject.**</exclude>
-									</excludes>
-								</relocation>
-							</relocations>
+							<filters>
+								<filter>
+									<artifact>org.apache.flink:*flink-examples-streaming_*</artifact>
+									<includes>
+										<include>org/apache/flink/streaming/examples/twitter/**</include>
+									</includes>
+								</filter>
+							</filters>
 						</configuration>
 					</execution>
 				</executions>
 			</plugin>
 		</plugins>
 	</build>
+
 </project>
