@@ -194,6 +194,30 @@ under the License.
 			</excludes>
 		</fileSet>
 
+		<!-- copy jar files of the streaming examples -->
+		<fileSet>
+			<directory>../flink-examples/flink-examples-build-helper/flink-examples-streaming-twitter/target</directory>
+			<outputDirectory>examples/streaming</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>original-*.jar</exclude>
+			</excludes>
+		</fileSet>
+		<fileSet>
+			<directory>../flink-examples/flink-examples-build-helper/flink-examples-streaming-state-machine/target</directory>
+			<outputDirectory>examples/streaming</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>original-*.jar</exclude>
+			</excludes>
+		</fileSet>
+
 		<!-- copy jar files of the gelly examples -->
 		<fileSet>
 			<directory>../flink-libraries/flink-gelly-examples/target</directory>

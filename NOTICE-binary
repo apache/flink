@@ -9,12 +9,8 @@ Copyright 2014-2018 The Apache Software Foundation
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
 - com.chuusai:shapeless_2.11:2.3.2
-- com.google.guava:guava:14.0.1
-- com.twitter:hbc-core:2.2.0
-- com.twitter:joauth:6.0.2
 - log4j:log4j:1.2.17
 - net.sf.opencsv:opencsv:2.3
-- org.apache.kafka:kafka-clients:jar:0.10.2.1
 - org.scalanlp:breeze_2.11:0.13
 - org.scalanlp:breeze-macros_2.11:0.13
 - org.typelevel:macro-compat_2.11:1.1.1
@@ -5806,3 +5802,62 @@ This project bundles the following dependencies under the Apache Software Licens
 
 - io.dropwizard.metrics:metrics-core:3.1.5
 - io.dropwizard.metrics:metrics-graphite:3.1.5
+
+// NOTICE file corresponding to the section 4d of The Apache License,
+// Version 2.0, in this case for Apache Flink
+// ------------------------------------------------------------------
+
+Apache Flink
+Copyright 2006-2019 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+flink-examples-streaming-state-machine
+Copyright 2014-2018 The Apache Software Foundation
+
+This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- org.apache.kafka:kafka-clients:0.10.2.1
+
+
+flink-connector-kafka-0.10
+Copyright 2014-2019 The Apache Software Foundation
+
+flink-connector-kafka-0.9
+Copyright 2014-2019 The Apache Software Foundation
+
+flink-connector-kafka-base
+Copyright 2014-2019 The Apache Software Foundation
+
+// ------------------------------------------------------------------
+// NOTICE file corresponding to the section 4d of The Apache License,
+// Version 2.0, in this case for Apache Flink
+// ------------------------------------------------------------------
+
+Apache Flink
+Copyright 2006-2019 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+
+flink-examples-streaming-twitter
+Copyright 2014-2019 The Apache Software Foundation
+
+Apache HttpCore
+Copyright 2005-2017 The Apache Software Foundation
+
+flink-connector-twitter
+Copyright 2014-2018 The Apache Software Foundation
+
+This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.google.guava:guava:14.0.1
+- com.twitter:hbc-core:2.2.0
+- com.twitter:joauth:6.0.2
+- org.apache.httpcomponents:httpclient:4.5.3
+- org.apache.httpcomponents:httpcore:4.4.6
+
+Apache HttpClient
+Copyright 1999-2017 The Apache Software Foundation
