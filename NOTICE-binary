@@ -2077,7 +2077,7 @@ The Apache Software Foundation (http://www.apache.org/).
 This project bundles the following dependencies under the Python Software Foundation License. (https://opensource.org/licenses/PythonSoftFoundation.php)
 See bundled license files for details.
 
-- org.python:jython-standalone:2.7.0
+- org.python:jython-standalone:2.7.1
 // ------------------------------------------------------------------
 // NOTICE file corresponding to the section 4d of The Apache License,
 // Version 2.0, in this case for Apache Flink
