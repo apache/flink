@@ -13,11 +13,6 @@
             <td>Number of network (Netty's event loop) Threads for queryable state client.</td>
         </tr>
         <tr>
-            <td><h5>query.enable</h5></td>
-            <td style="word-wrap: break-word;">false</td>
-            <td>Option whether the queryable state proxy and server should be enabled where possible and configurable.</td>
-        </tr>
-        <tr>
             <td><h5>query.proxy.network-threads</h5></td>
             <td style="word-wrap: break-word;">0</td>
             <td>Number of network (Netty's event loop) Threads for queryable state proxy.</td>
@@ -46,6 +41,11 @@
             <td><h5>query.server.query-threads</h5></td>
             <td style="word-wrap: break-word;">0</td>
             <td>Number of query Threads for queryable state server. Uses the number of slots if set to 0.</td>
+        </tr>
+        <tr>
+            <td><h5>queryable-state.enable</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Option whether the queryable state proxy and server should be enabled where possible and configurable.</td>
         </tr>
     </tbody>
 </table>
