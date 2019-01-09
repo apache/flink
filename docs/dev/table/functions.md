@@ -1098,7 +1098,7 @@ MOD(numeric1, numeric2)
     <tr>
       <td>
         {% highlight text %}
-SHIFTLEFT(numeric1, numeric2)
+SHIFT_LEFT(numeric1, numeric2)
 {% endhighlight %}
       </td>
       <td>
@@ -1110,7 +1110,7 @@ SHIFTLEFT(numeric1, numeric2)
     <tr>
       <td>
         {% highlight text %}
-SHIFTRIGHT(numeric1, numeric2)
+SHIFT_RIGHT(numeric1, numeric2)
 {% endhighlight %}
       </td>
       <td>
@@ -1122,7 +1122,7 @@ SHIFTRIGHT(numeric1, numeric2)
     <tr>
       <td>
         {% highlight text %}
-SHIFTRIGHTUNSIGNED(numeric1, numeric2)
+SHIFT_RIGHT_UNSIGNED(numeric1, numeric2)
 {% endhighlight %}
       </td>
       <td>
