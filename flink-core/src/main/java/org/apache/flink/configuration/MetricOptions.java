@@ -72,7 +72,7 @@ public class MetricOptions {
 	public static final ConfigOption<String> SCOPE_DELIMITER =
 		key("metrics.scope.delimiter")
 			.defaultValue(".")
-			.withDescription("Defined the delimiter used to assemble the metric identifier.");
+			.withDescription("Delimiter used to assemble the metric identifier.");
 
 	/** The scope format string that is applied to all metrics scoped to a JobManager. */
 	public static final ConfigOption<String> SCOPE_NAMING_JM =

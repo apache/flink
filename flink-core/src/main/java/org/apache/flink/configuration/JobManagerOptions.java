@@ -137,7 +137,7 @@ public class JobManagerOptions {
 	public static final ConfigOption<String> ARCHIVE_DIR =
 		key("jobmanager.archive.fs.dir")
 			.noDefaultValue()
-			.withDescription("The config parameter defining the location where the JobManager stores the archives of completed jobs.");
+			.withDescription("Dictionary for JobManager to store the archives of completed jobs.");
 
 	/**
 	 * The job store cache size in bytes which is used to keep completed

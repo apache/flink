@@ -36,12 +36,12 @@ public class ResourceManagerOptions {
 		.withDescription("Timeout for jobs which don't have a job manager as leader assigned.");
 
 	/**
-	 * The config parameter defining the number of resource managers start.
+	 * The number of resource managers start.
 	 */
 	public static final ConfigOption<Integer> LOCAL_NUMBER_RESOURCE_MANAGER = ConfigOptions
 		.key("local.number-resourcemanager")
 		.defaultValue(1)
-		.withDescription("The config parameter defining the number of resource managers start.");
+		.withDescription("The number of resource managers start.");
 
 	/**
 	 * Defines the network port to connect to for communication with the resource manager.
