@@ -40,8 +40,10 @@ import org.apache.flink.table.functions.{AggregateFunction => TableAggregateFunc
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.`match`.{IterativeConditionRunner, PatternProcessFunctionRunner}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.util.MatchUtil.{ALL_PATTERN_VARIABLE, AggregationPatternVariableFinder}
 import org.apache.flink.table.utils.EncodingUtils
+import org.apache.flink.table.validate.BasicOperatorTable.{MATCH_PROCTIME, MATCH_ROWTIME}
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 import org.apache.flink.util.MathUtils.checkedDownCast
@@ -485,6 +487,13 @@ class MatchCodeGenerator(
         }
 
         matchAgg.generateDeduplicatedAggAccess(call)
+
+      case MATCH_PROCTIME =>
+        generateNullLiteral(TimeIndicatorTypeInfo.PROCTIME_INDICATOR)
+
+      case MATCH_ROWTIME =>
+        generateStreamRecordRowtimeAccess()
+          .copy(resultType = TimeIndicatorTypeInfo.ROWTIME_INDICATOR)
 
       case _ => super.visitCall(call)
     }

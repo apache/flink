@@ -18,15 +18,18 @@
 
 package org.apache.flink.table.validate
 
-import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes, SqlTypeTransforms}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable, ReflectiveSqlOperatorTable}
 import org.apache.calcite.sql._
 import org.apache.flink.table.api._
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.mutable
@@ -482,6 +485,8 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.PREV,
     SqlStdOperatorTable.FINAL,
     SqlStdOperatorTable.RUNNING,
+    BasicOperatorTable.MATCH_PROCTIME,
+    BasicOperatorTable.MATCH_ROWTIME,
 
     // EXTENSIONS
     BasicOperatorTable.TUMBLE,
@@ -588,5 +593,44 @@ object BasicOperatorTable {
       SqlFunctionCategory.SYSTEM)
   val SESSION_PROCTIME: SqlGroupedWindowFunction =
     SESSION.auxiliary("SESSION_PROCTIME", SqlKind.OTHER_FUNCTION)
+
+  private val RowTimeTypeInference = new TimeIndicatorReturnType(true)
+
+  private val ProcTimeTypeInference = new TimeIndicatorReturnType(false)
+
+  private class TimeIndicatorReturnType(isRowTime: Boolean) extends SqlReturnTypeInference {
+    override def inferReturnType(opBinding: SqlOperatorBinding): RelDataType = {
+      val flinkTypeFactory = opBinding.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+      if (isRowTime) {
+        flinkTypeFactory.createRowtimeIndicatorType()
+      } else {
+        flinkTypeFactory.createProctimeIndicatorType()
+      }
+    }
+  }
+
+  val MATCH_ROWTIME: SqlFunction =
+    new SqlFunction(
+      "MATCH_ROWTIME",
+      SqlKind.OTHER_FUNCTION,
+      RowTimeTypeInference,
+      null,
+      OperandTypes.NILADIC,
+      SqlFunctionCategory.MATCH_RECOGNIZE
+    ) {
+      override def isDeterministic: Boolean = true
+    }
+
+  val MATCH_PROCTIME: SqlFunction =
+    new SqlFunction(
+      "MATCH_PROCTIME",
+      SqlKind.OTHER_FUNCTION,
+      ProcTimeTypeInference,
+      null,
+      OperandTypes.NILADIC,
+      SqlFunctionCategory.MATCH_RECOGNIZE
+    ) {
+      override def isDeterministic: Boolean = false
+    }
 
 }

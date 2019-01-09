@@ -1266,7 +1266,7 @@ abstract class CodeGenerator(
     }
   }
 
-  private def generateNullLiteral(resultType: TypeInformation[_]): GeneratedExpression = {
+  protected def generateNullLiteral(resultType: TypeInformation[_]): GeneratedExpression = {
     val resultTerm = newName("result")
     val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
     val defaultValue = primitiveDefaultValue(resultType)
