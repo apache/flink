@@ -652,7 +652,6 @@ of your Flink distribution.
 Parameters:
 
 - `port` - (optional) the port the Prometheus exporter listens on, defaults to [9249](https://github.com/prometheus/prometheus/wiki/Default-port-allocations). In order to be able to run several instances of the reporter on one host (e.g. when one TaskManager is colocated with the JobManager) it is advisable to use a port range like `9250-9260`.
-- `filterLabelValueCharacters` - (optional) Specifies whether to filter label value characters. It's default to true, so only \[a-zA-Z0-9:_\] are valid. If set to false, label values can contain any Unicode characters.
 
 Example configuration:
 
@@ -679,8 +678,6 @@ In order to use this reporter you must copy `/opt/flink-metrics-prometheus-{{sit
 of your Flink distribution.
 
 Parameters:
-
-{% include generated/prometheus_reporter_configuration.html %}
 
 {% include generated/prometheus_push_gateway_reporter_configuration.html %}
 
